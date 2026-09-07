@@ -1,38 +1,76 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Batter } from '../entities/Batter';
 import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 const colors = { grass: 0x668b49, grassLight: 0x70974e, pitch: 0xcbb283, navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
-function material(color: number) { return new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true }); }
 const materials = new Map<number, THREE.MeshStandardMaterial>();
-function mat(color: number) { if (!materials.has(color)) materials.set(color, material(color)); return materials.get(color)!; }
+// Scenery keeps its faceted, low-poly look; anything sculpted asks for `soft`.
+function mat(color: number) {
+  if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true }));
+  return materials.get(color)!;
+}
+function soft(color: number, roughness = 0.72) {
+  const key = color + 0x1000000;
+  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness }));
+  return materials.get(key)!;
+}
 function box(parent: THREE.Object3D, w: number, h: number, d: number, color: number, x = 0, y = 0, z = 0) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
   mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
 }
-function sphere(parent: THREE.Object3D, radius: number, color: number, x = 0, y = 0, z = 0) {
-  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 1), mat(color));
+function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x: number, y: number, z: number, sides = 8) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sides), sides > 8 ? soft(color, 0.8) : mat(color));
   mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
-function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x: number, y: number, z: number) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 8), mat(color));
-  mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
+interface Player { root: THREE.Group; arm: THREE.Group; legs: THREE.Group[] }
+// One set of smooth primitives, scaled into limbs and torsos: spheres carry the
+// joints so every fielder reads as a soft sculpted figure rather than a stack.
+const SHAPES = {
+  ball: new THREE.SphereGeometry(1, 22, 15),
+  tube: new THREE.CylinderGeometry(0.5, 0.5, 1, 18),
+  soft: new RoundedBoxGeometry(1, 1, 1, 4, 0.3),
+};
+function part(parent: THREE.Object3D, shape: keyof typeof SHAPES, color: number, scale: [number, number, number], position: [number, number, number] = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(SHAPES[shape], soft(color));
+  mesh.scale.set(...scale); mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true;
+  parent.add(mesh); return mesh;
 }
-interface Player { root: THREE.Group; arm: THREE.Group; legs: THREE.Mesh[] }
+function limb(parent: THREE.Object3D, color: number, radius: number, length: number, y: number) {
+  part(parent, 'tube', color, [radius * 2, length, radius * 2], [0, y - length / 2, 0]);
+  return part(parent, 'ball', color, [radius, radius, radius], [0, y - length, 0]);
+}
 function player(color: number): Player {
   const root = new THREE.Group();
-  box(root, 0.46, 0.58, 0.29, color, 0, 1.08, 0);
-  const legs = [-0.13, 0.13].map(x => box(root, 0.19, 0.65, 0.23, colors.white, x, 0.47, 0));
-  [-0.13, 0.13].forEach(x => { box(root, 0.21, 0.11, 0.35, colors.white, x, 0.09, 0.065); });
-  sphere(root, 0.2, colors.skin, 0, 1.56, 0);
-  sphere(root, 0.215, color, 0, 1.64, -0.02);
-  box(root, 0.43, 0.055, 0.3, color, 0, 1.59, 0.15);
-  const arm = new THREE.Group(); arm.position.set(0.25, 1.3, 0); root.add(arm);
-  box(arm, 0.16, 0.42, 0.17, color, 0, -0.15, 0);
-  sphere(arm, 0.105, colors.white, 0, -0.38, 0);
-  const otherArm = box(root, 0.17, 0.44, 0.18, color, -0.29, 1.08, 0.03); otherArm.rotation.z = -0.2;
+  part(root, 'ball', color, [0.225, 0.215, 0.155], [0, 1.20, 0]);
+  part(root, 'ball', color, [0.195, 0.19, 0.14], [0, 0.97, 0]);
+  part(root, 'ball', colors.white, [0.205, 0.15, 0.145], [0, 0.83, 0]);
+  // A visible neck and shoulder caps keep the figure from reading as a skittle.
+  part(root, 'tube', colors.skin, [0.115, 0.17, 0.115], [0, 1.44, 0]);
+  for (const x of [-0.205, 0.205]) part(root, 'ball', color, [0.108, 0.10, 0.108], [x, 1.325, 0]);
+  const legs = [-0.115, 0.115].map(x => {
+    const leg = new THREE.Group(); leg.position.set(x, 0.8, 0); root.add(leg);
+    limb(leg, colors.white, 0.095, 0.36, 0);
+    limb(leg, colors.white, 0.08, 0.33, -0.36);
+    const shoe = new THREE.Group(); shoe.position.y = -0.69; leg.add(shoe);
+    part(shoe, 'soft', colors.white, [0.185, 0.11, 0.30], [0, 0.01, 0.05]);
+    part(shoe, 'ball', colors.white, [0.085, 0.05, 0.055], [0, -0.015, 0.19]);
+    return leg;
+  });
+  part(root, 'ball', colors.skin, [0.175, 0.19, 0.175], [0, 1.63, 0]);
+  part(root, 'ball', color, [0.185, 0.14, 0.19], [0, 1.70, -0.015]);
+  part(root, 'soft', color, [0.34, 0.048, 0.22], [0, 1.68, 0.15]);
+  const arm = new THREE.Group(); arm.position.set(0.235, 1.33, 0); root.add(arm);
+  limb(arm, color, 0.075, 0.24, 0);
+  const forearm = new THREE.Group(); forearm.position.y = -0.24; arm.add(forearm);
+  limb(forearm, colors.skin, 0.065, 0.22, 0);
+  part(forearm, 'ball', colors.skin, [0.085, 0.09, 0.085], [0, -0.24, 0]);
+  const other = new THREE.Group(); other.position.set(-0.255, 1.33, 0.02); other.rotation.z = -0.18; root.add(other);
+  limb(other, color, 0.075, 0.24, 0);
+  limb(other, colors.skin, 0.065, 0.22, -0.24);
+  part(other, 'ball', colors.skin, [0.085, 0.09, 0.085], [0, -0.5, 0]);
   return { root, arm, legs };
 }
 
@@ -83,10 +121,11 @@ export class GameScene {
     this.bowler.root.position.set(0, 0, 21);
     this.catcher.root.position.set(12, 0, 20);
     this.world.add(this.batter.root, this.bowler.root, this.catcher.root);
-    this.ball = sphere(this.world, 0.115, 0xe84829);
+    this.ball = new THREE.Mesh(SHAPES.ball, soft(0xe84829, 0.55));
+    this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(0x972708);
     (this.ball.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2;
-    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.113, 0.008, 4, 24), mat(0xffefd6));
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.07, 10, 32), soft(0xffefd6));
     this.ball.add(seam);
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(0.17, 16), new THREE.MeshBasicMaterial({ color: 0x243828, transparent: true, opacity: 0.35, depthWrite: false }));
     this.shadow.rotation.x = -Math.PI / 2; this.world.add(this.shadow);
@@ -97,7 +136,7 @@ export class GameScene {
     this.catchRing.rotation.x = -Math.PI / 2; this.catchRing.visible = false; this.world.add(this.catchRing);
     for (let i = 0; i < 9; i++) {
       const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: 0xfff5cd, transparent: true, opacity: (1 - i / 9) * 0.32, depthWrite: false }));
-      dot.scale.setScalar(1 - i / 12); this.world.add(dot); this.trail.push(dot);
+      dot.scale.setScalar(0.115 * (1 - i / 12)); this.world.add(dot); this.trail.push(dot);
     }
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
@@ -109,8 +148,8 @@ export class GameScene {
       const ring = new THREE.Mesh(new THREE.RingGeometry(i * 6 + 2, i * 6 + 5, 96), mat(colors.grassLight));
       ring.rotation.x = -Math.PI / 2; ring.position.set(0, -0.025, 10); ring.receiveShadow = true; this.world.add(ring);
     }
-    box(this.world, 2.8, 0.025, 22, colors.pitch, 0, 0, 9.3);
-    box(this.world, 2.0, 0.029, 20.5, 0xc4ac80, 0, 0, 9.3);
+    box(this.world, 2.8, 0.025, 32, colors.pitch, 0, 0, 4.3);
+    box(this.world, 2.0, 0.029, 30, 0xc4ac80, 0, 0, 4.6);
     // Fine deterministic wear marks on the wicket; all created once.
     for (let i = 0; i < 95; i++) box(this.world, 0.015 + (i % 5) * 0.018, 0.003, 0.08 + (i % 4) * 0.1, i % 2 ? 0xb49d73 : 0xd4be94, Math.sin(i * 72.4) * 0.92, 0.018, 0.5 + (i * 1.73) % 18);
     [0.7, 17.5].forEach(z => {
@@ -165,7 +204,7 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    for (const x of [-0.145, 0, 0.145]) cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z);
+    for (const x of [-0.145, 0, 0.145]) cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
     for (const x of [-0.073, 0.073]) {
       const bail = box(this.world, 0.16, 0.035, 0.045, colors.orange, x, GAME.stumpHeight + 0.02, z);
       if (z === 0) this.bails.push(bail);
@@ -173,7 +212,17 @@ export class GameScene {
   }
   private resize = () => {
     const { width, height } = this.container.getBoundingClientRect();
-    this.renderer.setSize(width, height); this.camera.aspect = width / height; this.camera.updateProjectionMatrix();
+    this.renderer.setSize(width, height);
+    this.camera.aspect = width / height;
+    // Below 16:9 the view widens towards a constant horizontal field of view, so
+    // a tall phone sees the whole pitch rather than the batter's shoulders. The
+    // aim drops with it: the extra frame goes to the wicket, not to empty sky.
+    const design = 16 / 9, base = 50;
+    const widened = 2 * Math.atan(Math.tan(base * Math.PI / 360) * design / this.camera.aspect) * 180 / Math.PI;
+    this.camera.fov = THREE.MathUtils.clamp(this.camera.aspect < design ? widened : base, base, 67);
+    const tall = THREE.MathUtils.clamp((design - this.camera.aspect) / (design - 0.5), 0, 1);
+    this.camera.lookAt(0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall));
+    this.camera.updateProjectionMatrix();
   };
   reset() {
     this.hitOutcome = null; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false;
@@ -182,6 +231,7 @@ export class GameScene {
     this.batter.root.visible = true;
     this.catcher.root.position.set(12, 0, 20); this.catcher.arm.rotation.x = 0;
     this.bowler.root.position.set(0, 0, 21); this.bowler.arm.rotation.x = 0;
+    this.bowler.legs.forEach(leg => leg.rotation.x = 0);
   }
   runup(t: number) {
     this.bowler.root.position.z = 21 - t * 3;
@@ -263,6 +313,8 @@ export class GameScene {
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });
+    // The shared character primitives outlive any one scene; the rest is ours.
+    Object.values(SHAPES).forEach(shape => geometries.delete(shape));
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); materials.clear(); this.renderer.dispose();
   }
 }

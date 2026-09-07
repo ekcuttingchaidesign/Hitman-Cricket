@@ -118,7 +118,7 @@ export class Game {
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    this.hud.score(this.score); this.hud.result(outcome, this.delivery!);
+    this.hud.score(this.score); this.hud.result(outcome);
     const sound = outcomeSound(outcome); if (sound) this.audio.play(sound);
   }
   private end() {

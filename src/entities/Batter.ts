@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { GAME } from '../config/gameplay';
 import type { ShotType } from '../game/types';
 
@@ -24,15 +25,17 @@ export const STROKE_DURATION_MS = 940;
 // A right-handed guard: left shoulder and left foot lead toward the bowler.
 // The bat has one transform. Both gloves are attached to its handle; the arms
 // solve back from those grip anchors, so neither hand can leave the bat.
+// Knees flexed, weight centred, front shoulder pointing down the pitch and the
+// blade grounded between the feet: a batter waiting, not a mannequin standing.
 const GUARD: Pose = {
-  hip: [-0.10, 0.94, 0], chest: [0.06, 1.25, 0.035],
-  frontFoot: [-0.11, 0.08, 0.29], backFoot: [-0.13, 0.08, -0.27],
-  grip: [0.31, 0.84, 0.22], batUp: [-0.04, 1, -0.035],
-  yaw: 1.35, face: 0, heel: 0, leadElbow: -.30,
+  hip: [-0.06, 0.885, -0.02], chest: [0.02, 1.235, 0.05],
+  frontFoot: [-0.10, 0.08, 0.32], backFoot: [-0.14, 0.08, -0.30],
+  grip: [0.29, 0.845, 0.15], batUp: [-0.085, 0.98, 0.18],
+  yaw: 1.31, face: 0, heel: 0, leadElbow: -.06,
 };
 const BACKLIFT: Pose = {
-  ...GUARD, grip: [0.32, 1.04, 0.03], batUp: [-0.32, 0.30, 0.90],
-  chest: [0.05, 1.28, 0.015], leadElbow: -.08,
+  ...GUARD, grip: [0.32, 1.06, 0.01], batUp: [-0.22, -0.10, 0.97],
+  chest: [0.01, 1.265, 0.025], leadElbow: .06,
 };
 
 interface Stroke { contact: Pose; finish: Pose }
@@ -105,8 +108,8 @@ export class Batter {
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
-  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; glove: THREE.Group; shoulder: THREE.Vector3 }[] = [];
-  private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
+  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; shoulder: THREE.Vector3 }[] = [];
+  private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
   private shot: ShotType = 'STRAIGHT';
@@ -116,12 +119,18 @@ export class Batter {
   private ballX = 0;
   private ballY = .54;
   private ballZ: number = GAME.contactZ;
-  private unitBox = new THREE.BoxGeometry(1, 1, 1);
-  private unitSphere = new THREE.SphereGeometry(1, 10, 7);
+  // Every part is modelled from one of four smooth unit primitives, scaled into
+  // place. Nothing is a bare cube, so the figure reads as sculpted clay.
+  private shapes = {
+    soft: new RoundedBoxGeometry(1, 1, 1, 4, .3),
+    ball: new THREE.SphereGeometry(1, 26, 18),
+    tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
+    flat: new THREE.BoxGeometry(1, 1, 1),
+  };
   private palette = {
     shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
-    trousers: new THREE.MeshStandardMaterial({ color: 0xeeeadd, roughness: .9 }),
-    pad: new THREE.MeshStandardMaterial({ color: 0xfaf8e9, roughness: .84 }),
+    trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
+    pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
     bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .83 }),
     accent: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
@@ -131,45 +140,56 @@ export class Batter {
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
-    const body = this.mesh(this.torso, this.palette.shirt, [.40, .43, .27]);
-    body.position.y = -.08;
-    this.mesh(this.hips, this.palette.trousers, [.34, .20, .25]);
-    const neck = this.mesh(this.torso, this.palette.skin, [.11, .15, .11]); neck.position.y = .22;
+    // Torso: stacked ellipsoids for a chest that tapers into the waist.
+    this.mesh(this.torso, this.palette.shirt, [.215, .21, .15], 'ball').position.y = .015;
+    this.mesh(this.torso, this.palette.shirt, [.185, .175, .13], 'ball').position.y = -.19;
+    this.mesh(this.hips, this.palette.trousers, [.185, .145, .135], 'ball');
+    const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .20;
     // Jersey seam, collar, and back number make rotation legible from the camera.
-    this.mesh(this.torso, this.palette.accent, [.38, .022, .28]).position.y = -.22;
-    for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .008]).position.set(x, -.04, -.14);
-    const face = this.mesh(this.head, this.palette.skin, [.16, .19, .16], true); face.position.y = -.035;
-    const helmet = this.mesh(this.head, this.palette.shirt, [.215, .175, .22], true); helmet.position.set(0, .055, -.02);
-    this.mesh(this.head, this.palette.shirt, [.37, .035, .22]).position.set(0, .055, .14);
-    for (const y of [-.055, -.115]) this.mesh(this.head, this.palette.grille, [.32, .013, .018]).position.set(0, y, .18);
-    for (const x of [-.15, .15]) this.mesh(this.head, this.palette.grille, [.012, .19, .016]).position.set(x, -.045, .18);
-    this.mesh(this.bat, this.palette.handle, [.048, .34, .048]).position.y = .04;
-    this.mesh(this.bat, this.palette.bat, [.17, .70, .065]).position.y = -.48;
-    this.mesh(this.bat, this.palette.accent, [.135, .16, .008]).position.set(0, -.33, -.036);
-    this.mesh(this.bat, this.palette.trousers, [.11, .08, .009]).position.set(0, -.48, -.036);
+    this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.30;
+    for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
+    const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
+    this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
+    const helmet = this.mesh(this.head, this.palette.shirt, [.188, .175, .195], 'ball'); helmet.position.set(0, .045, -.018);
+    this.mesh(this.head, this.palette.shirt, [.34, .045, .20], 'soft').position.set(0, .045, .135);
+    for (const y of [-.055, -.115]) {
+      const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');
+      bar.rotation.z = Math.PI / 2; bar.position.set(0, y, .175);
+    }
+    for (const x of [-.14, .14]) this.mesh(this.head, this.palette.grille, [.016, .19, .016], 'tube').position.set(x, -.045, .175);
+    // Bat: turned handle, rubber grip, and a blade with softened shoulders.
+    this.mesh(this.bat, this.palette.handle, [.046, .34, .046], 'tube').position.y = .04;
+    this.mesh(this.bat, this.palette.accent, [.052, .13, .052], 'tube').position.y = .15;
+    this.mesh(this.bat, this.palette.bat, [.17, .70, .07], 'soft').position.y = -.48;
+    this.mesh(this.bat, this.palette.accent, [.135, .16, .012], 'soft').position.set(0, -.33, -.038);
+    this.mesh(this.bat, this.palette.trousers, [.115, .085, .014], 'soft').position.set(0, -.48, -.038);
     for (let i = 0; i < 2; i++) {
       const glove = new THREE.Group(); this.bat.add(glove);
       glove.position.set(0, i === 0 ? .105 : -.045, 0);
-      this.mesh(glove, this.palette.pad, [.12, .105, .11]);
-      this.mesh(glove, this.palette.accent, [.125, .022, .115]).position.y = .048;
-      for (let finger = 0; finger < 3; finger++) this.mesh(glove, this.palette.trousers, [.021, .082, .025]).position.set(-.032 + finger * .032, 0, -.06);
-      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1]), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1]),
-        elbow: this.mesh(this.root, this.palette.skin, [.073, .073, .073], true), glove, shoulder: new THREE.Vector3() });
+      this.mesh(glove, this.palette.pad, [.125, .11, .115], 'soft');
+      this.mesh(glove, this.palette.accent, [.128, .028, .118], 'soft').position.y = .05;
+      for (let finger = 0; finger < 3; finger++) this.mesh(glove, this.palette.trousers, [.026, .085, .026], 'tube').position.set(-.032 + finger * .032, 0, -.058);
+      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
+        elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.108, .105, .108], 'ball'),
+        glove, shoulder: new THREE.Vector3() });
       const pad = new THREE.Group(); this.root.add(pad);
-      this.mesh(pad, this.palette.pad, [.19, .38, .10]);
-      for (let rib = 0; rib < 4; rib++) this.mesh(pad, this.palette.trousers, [.016, .33, .018]).position.set(-.064 + rib * .043, 0, .06);
-      this.mesh(pad, this.palette.pad, [.205, .10, .12]).position.set(0, .23, .01);
+      this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
+      for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.pad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
+      for (const y of [-.10, .06]) this.mesh(pad, this.palette.accent, [.185, .026, .17], 'soft').position.set(0, y, -.008);
+      this.mesh(pad, this.palette.pad, [.115, .07, .10], 'ball').position.set(0, .21, .03);
       const shoe = new THREE.Group(); this.root.add(shoe);
-      this.mesh(shoe, this.palette.pad, [.19, .13, .34]).position.z = .055;
-      this.mesh(shoe, this.palette.handle, [.19, .025, .34]).position.set(0, -.057, .055);
-      this.mesh(shoe, this.palette.accent, [.195, .018, .09]).position.set(0, .013, .12);
-      this.legs.push({ thigh: this.mesh(this.root, this.palette.trousers, [1, 1, 1]), shin: this.mesh(this.root, this.palette.trousers, [1, 1, 1]),
-        knee: this.mesh(this.root, this.palette.trousers, [.10, .10, .10], true), pad, shoe });
+      this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
+      this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);
+      this.mesh(shoe, this.palette.handle, [.185, .035, .33], 'soft').position.set(0, -.055, .055);
+      this.mesh(shoe, this.palette.accent, [.19, .022, .09], 'soft').position.set(0, .015, .12);
+      this.legs.push({ thigh: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'tube'), shin: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'tube'),
+        knee: this.mesh(this.root, this.palette.trousers, [.078, .078, .078], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.115, .115, .115], 'ball'),
+        pad, shoe });
     }
     this.reset();
   }
-  private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, round = false) {
-    const mesh = new THREE.Mesh(round ? this.unitSphere : this.unitBox, material);
+  private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
+    const mesh = new THREE.Mesh(this.shapes[shape], material);
     mesh.scale.set(...scale); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
   }
   private segment(mesh: THREE.Mesh, start: THREE.Vector3, end: THREE.Vector3, width: number, depth = width) {
@@ -223,7 +243,7 @@ export class Batter {
     this.hips.position.copy(hip); this.hips.quaternion.copy(yaw);
     this.torso.position.copy(chest);
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
-    this.head.position.copy(chest).add(new THREE.Vector3(.045, .30, .035));
+    this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
     this.head.rotation.set(.09, pose.face, -.04);
     this.bat.position.set(...pose.grip);
     // Preserve bat face orientation while the blade travels through its plane.
@@ -232,13 +252,13 @@ export class Batter {
     this.root.updateMatrixWorld(true);
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i];
-      arm.shoulder.set(i === 0 ? -.20 : .20, .04, 0).applyQuaternion(this.torso.quaternion).add(chest);
+      arm.shoulder.set(i === 0 ? -.175 : .175, .045, 0).applyQuaternion(this.torso.quaternion).add(chest);
       const hand = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
       const pole = chest.clone().add(new THREE.Vector3(i === 0 ? .38 : -.30, i === 0 ? pose.leadElbow : -.24, i === 0 ? .42 : -.35));
       const elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
-      arm.elbow.position.copy(elbow);
+      arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
       const leg = this.legs[i];
       const hipJoint = new THREE.Vector3(i === 0 ? -.135 : .135, -.045, 0).applyQuaternion(yaw).add(hip);
       const foot = V(i === 0 ? pose.frontFoot : pose.backFoot);
@@ -248,10 +268,10 @@ export class Batter {
       const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(new THREE.Vector3(.65, -.15, .02)));
       this.segment(leg.thigh, hipJoint, knee, .175, .19);
       this.segment(leg.shin, knee, foot, .145, .16);
-      leg.knee.position.copy(knee);
+      leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);
       const lowerAxis = knee.clone().sub(foot).normalize();
       leg.pad.quaternion.setFromUnitVectors(UP, lowerAxis).multiply(new THREE.Quaternion().setFromAxisAngle(UP, 1.38));
-      leg.pad.position.copy(foot).lerp(knee, .54).add(new THREE.Vector3(.075, 0, .012));
+      leg.pad.position.copy(foot).lerp(knee, .54).add(new THREE.Vector3(.012, 0, .01));
       leg.shoe.position.copy(foot);
       leg.shoe.quaternion.setFromAxisAngle(UP, i === 0 ? pose.yaw * .77 : 1.38)
         .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), footPitch));

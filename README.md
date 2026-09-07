@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite (normally http://127.0.0.1:5173). Use a recent browser with WebGL. On a phone, swipe directly on the field to bat; on desktop, use the keyboard. Portrait and landscape layouts keep the pitch and touch controls in view. The Share button opens your phone’s share sheet, or copies the game link on desktop.
+Open the local URL printed by Vite (normally http://127.0.0.1:5173). Use a recent browser with WebGL. The ground fills the whole window: there is no page around it, and every control — sound, help, share, pause, fullscreen — sits on the field itself. On a phone, swipe directly on the field to bat; on desktop, use the keyboard. The camera widens and drops its aim on taller screens so portrait play still sees the full pitch. The Share button opens your phone’s share sheet, or copies the game link on desktop.
 
 ```sh
 npm test          # Vitest gameplay tests
@@ -52,9 +52,9 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds, compatibility matrix, wicket probabilities, scoring weights, and innings pacing.
 - `src/game/`: pure seeded delivery generation, continuous bounce/swing/spin trajectories, shot resolution, scorekeeping, keyboard input, and small Web Audio effects.
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
-- `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and fixed camera. The resolver determines outcomes; rendering visualizes them.
-- `src/entities/Batter.ts`: articulated right-handed batter with a side-on guard, flexed knees, a shared two-hand bat grip, and two-bone arm/leg posing. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
-- `src/ui/HUD.ts` and `src/styles.css`: start, scoreboard, over history, shot feedback, help, pause, and innings-end screens.
+- `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. Bowler and fielders are modelled from smooth spheres, capsules, and rounded boxes with sphere joints, so they read as sculpted clay rather than stacked cuboids; the distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
+- `src/entities/Batter.ts`: articulated right-handed batter built from the same smooth primitives, with a side-on guard, flexed knees, the head carried on the spine, the blade grounded between the feet, a shared two-hand bat grip, and two-bone arm/leg posing. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
+- `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests.
 - `tests/mobile.test.ts`: swipe directions, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 
