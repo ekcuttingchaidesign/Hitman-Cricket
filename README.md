@@ -47,12 +47,15 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/game/`: pure seeded delivery generation, continuous bounce/swing/spin trajectories, shot resolution, scorekeeping, keyboard input, and small Web Audio effects.
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
 - `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and fixed camera. The resolver determines outcomes; rendering visualizes them.
+- `src/entities/Batter.ts`: articulated right-handed batter with a side-on guard, flexed knees, a shared two-hand bat grip, and two-bone arm/leg posing. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
 - `src/ui/HUD.ts` and `src/styles.css`: start, scoreboard, over history, shot feedback, help, pause, and innings-end screens.
 - `tests/game.test.ts`: deterministic game-rule and progression tests.
 
 Lines are shuffled in bags of five, giving six of each base line over a 30-ball innings. Pace/style is sampled independently. Swing develops before the bounce; spin turns after it and finishes before the final third of the pitch. Compatibility uses the nearest line to the final ball position. Travel duration is scaled for arcade readability. The stage mirrors X so negative world X appears on the left from the batting camera, matching the A key.
 
-The scoreboard increments when a ball is resolved. The result animation completes before the end screen; no additional ball is generated after the innings ends. Fielders are scenery except for the scripted catcher. There are no extras, running controls, teams, or full fielding AI.
+The score is recorded when a ball is resolved and displayed at visual contact. The result animation completes before the end screen; no additional ball is generated after the innings ends. Fielders are scenery except for the scripted catcher. There are no extras, running controls, teams, or full fielding AI.
+
+During local development, open `/tools/pose-lab.html` to review the guard, backlift, contact, follow-through, and recovery for all five strokes side by side. This review page is excluded from the production build. The animation tests verify connected grips, reachable arms, planted back toes, distinct footwork, and blade-to-ball alignment across the delivery range.
 
 ## Reproduce and inspect
 

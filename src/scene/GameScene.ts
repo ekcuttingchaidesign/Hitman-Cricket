@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Batter } from '../entities/Batter';
 import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
@@ -19,33 +20,20 @@ function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 8), mat(color));
   mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
-interface Player { root: THREE.Group; arm: THREE.Group; bat?: THREE.Group; legs: THREE.Mesh[] }
-function player(color: number, batter = false): Player {
+interface Player { root: THREE.Group; arm: THREE.Group; legs: THREE.Mesh[] }
+function player(color: number): Player {
   const root = new THREE.Group();
   box(root, 0.46, 0.58, 0.29, color, 0, 1.08, 0);
   const legs = [-0.13, 0.13].map(x => box(root, 0.19, 0.65, 0.23, colors.white, x, 0.47, 0));
-  [-0.13, 0.13].forEach(x => { box(root, 0.21, 0.11, 0.35, colors.white, x, 0.09, 0.065); if (batter) box(root, 0.2, 0.4, 0.12, 0xe2e2d2, x, 0.4, 0.15); });
+  [-0.13, 0.13].forEach(x => { box(root, 0.21, 0.11, 0.35, colors.white, x, 0.09, 0.065); });
   sphere(root, 0.2, colors.skin, 0, 1.56, 0);
-  sphere(root, 0.215, batter ? colors.navy : color, 0, 1.64, -0.02);
-  box(root, 0.43, 0.055, 0.3, batter ? colors.navy : color, 0, 1.59, 0.15);
-  if (batter) {
-    for (let y = 1.43; y <= 1.54; y += 0.055) box(root, 0.35, 0.016, 0.03, 0x687b85, 0, y, 0.195);
-    box(root, 0.08, 0.15, 0.01, colors.orange, 0.05, 1.12, -0.151);
-    box(root, 0.06, 0.15, 0.01, colors.orange, -0.07, 1.12, -0.151);
-  }
+  sphere(root, 0.215, color, 0, 1.64, -0.02);
+  box(root, 0.43, 0.055, 0.3, color, 0, 1.59, 0.15);
   const arm = new THREE.Group(); arm.position.set(0.25, 1.3, 0); root.add(arm);
   box(arm, 0.16, 0.42, 0.17, color, 0, -0.15, 0);
   sphere(arm, 0.105, colors.white, 0, -0.38, 0);
   const otherArm = box(root, 0.17, 0.44, 0.18, color, -0.29, 1.08, 0.03); otherArm.rotation.z = -0.2;
-  let bat: THREE.Group | undefined;
-  if (batter) {
-    bat = new THREE.Group(); bat.position.set(0, -0.38, 0); arm.add(bat);
-    cylinder(bat, 0.035, 0.24, 0x344a52, 0, -0.1, 0);
-    box(bat, 0.16, 0.62, 0.08, 0xe4bf7e, 0, -0.51, 0);
-    box(bat, 0.13, 0.14, 0.012, colors.orange, 0, -0.37, -0.047);
-    arm.rotation.z = 0.25; arm.rotation.x = -0.25;
-  }
-  return { root, arm, bat, legs };
+  return { root, arm, legs };
 }
 
 export class GameScene {
@@ -53,7 +41,7 @@ export class GameScene {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   private world = new THREE.Group();
-  private batter = player(colors.navy, true);
+  private batter = new Batter();
   private bowler = player(colors.orange);
   private catcher = player(colors.orange);
   private ball: THREE.Mesh;
@@ -63,10 +51,10 @@ export class GameScene {
   private bails: THREE.Mesh[] = [];
   private trail: THREE.Mesh[] = [];
   private resizeObserver: ResizeObserver;
-  private swingStart = -10000;
-  private swingShot: ShotType = 'STRAIGHT';
   private hitStart = 0;
   private hitOrigin = new THREE.Vector3();
+  private incomingPosition = new THREE.Vector3();
+  private contactDelay = 0;
   private hitEnd = new THREE.Vector3();
   private hitOutcome: ShotOutcome | null = null;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -82,7 +70,8 @@ export class GameScene {
     this.scene.fog = new THREE.Fog(0xb4ced0, 48, 125);
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
-    this.camera.position.set(0, 3.8, -7.5); this.camera.lookAt(0, 1.1, 10);
+    this.camera.fov = 50;
+    this.camera.position.set(0, 2.9, -5.8); this.camera.lookAt(0, 1.05, 9);
     this.scene.add(new THREE.HemisphereLight(0xe9f6ff, 0x66744a, 2.5));
     const sun = new THREE.DirectionalLight(0xffedce, 3.2); sun.position.set(-15, 30, -8); sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
@@ -90,7 +79,6 @@ export class GameScene {
     this.scene.add(sun);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
-    this.batter.root.position.set(-0.55, 0, 0.5); this.batter.root.rotation.y = -0.15;
     this.bowler.root.position.set(0, 0, 21);
     this.catcher.root.position.set(12, 0, 20);
     this.world.add(this.batter.root, this.bowler.root, this.catcher.root);
@@ -188,9 +176,9 @@ export class GameScene {
   };
   reset() {
     this.hitOutcome = null; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false;
-    this.trail.forEach(t => t.visible = false); this.swingStart = -10000;
+    this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
-    this.batter.root.visible = true; this.batter.root.rotation.z = 0; this.batter.root.position.x = -0.55;
+    this.batter.root.visible = true;
     this.catcher.root.position.set(12, 0, 20); this.catcher.arm.rotation.x = 0;
     this.bowler.root.position.set(0, 0, 21); this.bowler.arm.rotation.x = 0;
   }
@@ -201,6 +189,7 @@ export class GameScene {
     this.bowler.arm.rotation.x = t > 0.55 ? -(t - 0.55) / 0.45 * Math.PI * 2 : Math.sin(t * 18) * 0.6;
   }
   delivery(delivery: Delivery, progress: number) {
+    this.batter.prepare(progress);
     this.ball.visible = this.shadow.visible = true;
     const pos = ballPosition(delivery, progress); this.ball.position.set(pos.x, pos.y, pos.z);
     this.shadow.position.set(pos.x, 0.035, pos.z); this.shadow.scale.setScalar(1 + pos.y * 0.2);
@@ -213,9 +202,15 @@ export class GameScene {
     if (this.bounceRing.visible) { this.bounceRing.position.set(pos.x, 0.037, delivery.bounceZ); this.bounceRing.scale.setScalar(1 + age / 65); (this.bounceRing.material as THREE.MeshBasicMaterial).opacity = 1 - age / 260; }
     this.bowler.arm.rotation.x = Math.PI * 0.5;
   }
-  swing(shot: ShotType, now: number) { this.swingStart = now; this.swingShot = shot; }
+  swing(shot: ShotType, now: number, delivery: Delivery) {
+    const contact = ballPosition(delivery, 1);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z);
+  }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
-    this.hitStart = now; this.hitOutcome = outcome;
+    this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
+    this.contactDelay = this.hitStart - now;
+    this.incomingPosition.copy(this.ball.position);
+    this.hitOutcome = outcome;
     const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
     let angle = (SHOT_ANGLES[shot ?? 'STRAIGHT'] + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const distance = outcome.wicketType === 'CAUGHT' ? 18 : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 49 }[outcome.runs]);
@@ -225,9 +220,17 @@ export class GameScene {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     }
     this.bounceRing.visible = false;
+    return this.hitStart;
   }
   result(now: number) {
     const result = this.hitOutcome; if (!result) return;
+    if (now < this.hitStart) {
+      const approach = 1 - (this.hitStart - now) / this.contactDelay;
+      this.ball.position.lerpVectors(this.incomingPosition, this.hitOrigin, approach);
+      this.shadow.position.set(this.ball.position.x, .03, this.ball.position.z);
+      this.trail.forEach(dot => dot.visible = false);
+      return;
+    }
     const t = Math.min(1, (now - this.hitStart) / GAME.hitAnimationMs);
     this.trail.forEach(dot => dot.visible = false);
     if (result.madeBatContact) {
@@ -241,7 +244,7 @@ export class GameScene {
       this.ball.position.set(this.hitOrigin.x, Math.max(0.1, this.hitOrigin.y - t * 0.3), THREE.MathUtils.lerp(this.hitOrigin.z, stopZ, Math.min(1, t * 5)));
       if (result.wicketType === 'BOWLED' && t > 0.06) this.bails.forEach((b, i) => { b.position.z = -t * 2; b.position.y = Math.max(0.06, 0.8 + t * 2 - t * t * 4); b.rotation.x = t * 12; b.rotation.z = t * (i ? 5 : -5); });
       if (result.wicketType === 'LBW') {
-        this.batter.root.position.x = THREE.MathUtils.lerp(-0.55, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
+        this.batter.root.position.x = THREE.MathUtils.lerp(-0.36, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
         this.batter.root.rotation.z = Math.sin(Math.min(1, t * 4) * Math.PI) * 0.13;
       }
       this.ball.visible = t < 0.8;
@@ -249,16 +252,12 @@ export class GameScene {
     this.shadow.position.set(this.ball.position.x, 0.03, this.ball.position.z); this.shadow.visible = this.ball.visible;
   }
   render(now: number) {
-    const swing = (now - this.swingStart) / 450;
-    const arc = Math.sin(Math.min(1, Math.max(0, swing)) * Math.PI);
-    const direction = SHOT_ANGLES[this.swingShot] / 52;
-    this.batter.arm.rotation.x = -0.25 - arc * (this.swingShot === 'STRAIGHT' ? 2.6 : 1.5);
-    this.batter.arm.rotation.z = 0.25 + arc * direction * 1.65;
-    this.batter.root.rotation.y = -0.15 + arc * direction * 0.5;
-    const shake = !this.reducedMotion && this.hitOutcome && (this.hitOutcome.runs === 6 || this.hitOutcome.isWicket) ? Math.max(0, 1 - (now - this.hitStart) / 250) * 0.02 : 0;
+    this.batter.update(now);
+    const shake = !this.reducedMotion && now >= this.hitStart && this.hitOutcome && (this.hitOutcome.runs === 6 || this.hitOutcome.isWicket) ? Math.max(0, 1 - (now - this.hitStart) / 250) * 0.02 : 0;
     this.camera.position.x = Math.sin(now * 0.08) * shake;
     this.renderer.render(this.scene, this.camera);
   }
+  inspectBatter() { return this.batter.inspect(); }
   dispose() {
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();

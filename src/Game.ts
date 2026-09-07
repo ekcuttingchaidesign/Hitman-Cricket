@@ -17,6 +17,7 @@ export class Game {
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
+  private presentationAt = 0; private resultPresented = false;
   private scene!: GameScene;
   private hud: HUD;
   private input!: InputManager;
@@ -37,7 +38,7 @@ export class Game {
     window.addEventListener('keydown', this.shortcuts); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
     this.frameId = requestAnimationFrame(this.frame);
-    if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: { snapshot: () => this.snapshot() } });
+    if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: { snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter() } });
   }
   start = () => {
     this.audio.unlock(); this.score = new ScoreManager();
@@ -51,7 +52,7 @@ export class Game {
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase); }
   private shoot = (shotType: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
-    this.attempt = { shotType, inputTimeMs }; this.scene.swing(shotType, this.elapsed); this.hud.select(shotType);
+    this.attempt = { shotType, inputTimeMs }; this.scene.swing(shotType, this.elapsed, this.delivery!); this.hud.select(shotType);
   };
   private toggleSound = () => { this.audio.muted = !this.audio.muted; this.audio.unlock(); this.hud.sound(this.audio.muted); };
   private togglePause = () => {
@@ -99,16 +100,23 @@ export class Game {
       if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + GAME.timing.poor + GAME.comboMs) this.resolve();
     } else if (this.phase === 'SHOT_RESOLVE') {
       this.scene.result(this.elapsed);
-      if (age >= GAME.hitAnimationMs) this.setPhase('RESULT');
+      if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
+      if (this.elapsed >= this.presentationAt + GAME.hitAnimationMs) this.setPhase('RESULT');
     } else if (this.phase === 'RESULT' && age >= GAME.resultMs) {
       if (this.score.ended) this.end(); else this.setPhase('READY');
     }
   }
   private resolve() {
     this.outcome = resolveShot(this.delivery!, this.attempt, this.rng); this.score.record(this.outcome); this.input.reset();
-    this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed); this.hud.score(this.score); this.hud.result(this.outcome, this.delivery!);
-    if (this.outcome.isWicket) this.audio.play('wicket'); else if (this.outcome.runs === 6) this.audio.play('six'); else if (this.outcome.madeBatContact) this.audio.play('hit');
+    this.presentationAt = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
+    this.resultPresented = false;
     this.setPhase('SHOT_RESOLVE');
+  }
+  private presentResult() {
+    this.resultPresented = true;
+    const outcome = this.outcome!;
+    this.hud.score(this.score); this.hud.result(outcome, this.delivery!);
+    if (outcome.isWicket) this.audio.play('wicket'); else if (outcome.runs === 6) this.audio.play('six'); else if (outcome.madeBatContact) this.audio.play('hit');
   }
   private end() {
     this.setPhase('INNINGS_END'); const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
