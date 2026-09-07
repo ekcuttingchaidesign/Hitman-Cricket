@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite (normally http://127.0.0.1:5173). Use a desktop browser with WebGL and a physical keyboard. The page adapts to narrow screens, but touch batting is outside this MVP.
+Open the local URL printed by Vite (normally http://127.0.0.1:5173). Use a recent browser with WebGL. On a phone, swipe directly on the field to bat; on desktop, use the keyboard. Portrait and landscape layouts keep the pitch and touch controls in view. The Share button opens your phone’s share sheet, or copies the game link on desktop.
 
 ```sh
 npm test          # Vitest gameplay tests
@@ -21,7 +21,13 @@ npm run preview  # Serve the production build locally
 
 The production build can be served by any static web host. `base: './'` supports deployment in a subdirectory.
 
-## Controls
+## Mobile controls
+
+Swipe **left**, **up-left**, **up**, **up-right**, or **right** for leg side, long on, straight, cover, or off side. A short 24-pixel swipe commits the shot immediately when its direction becomes clear. Timing is measured at that moment, not at finger-down or release, and uses the same timing bands, compatibility, scoring, and wickets as keyboard play. One shot per ball is shared across input methods. Taps, downward swipes, second fingers, and cancelled gestures do not trigger a shot. A gesture cannot carry into the next ball.
+
+Use the on-screen Pause button to resume or restart. Page scrolling is suppressed on the field during play; dialogs can still scroll on small screens.
+
+## Keyboard controls
 
 | Key | Action |
 | --- | --- |
@@ -39,7 +45,7 @@ Press combo keys within 100 ms. Timing uses the first press, without adding the 
 
 Swing as the ball reaches your bat. Perfect timing is within 90 ms, good within 170 ms, and OK within 260 ms; fast balls tighten these bands by 10%. Sixes require perfect timing and a compatible shot. Mistimed contact can be caught. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
 
-The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. Audio is synthesized after the first user action.
+The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), and `boundary-hit.mp3` plays for both fours and sixes. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
 ## Architecture and tuning
 
@@ -50,6 +56,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/entities/Batter.ts`: articulated right-handed batter with a side-on guard, flexed knees, a shared two-hand bat grip, and two-bone arm/leg posing. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
 - `src/ui/HUD.ts` and `src/styles.css`: start, scoreboard, over history, shot feedback, help, pause, and innings-end screens.
 - `tests/game.test.ts`: deterministic game-rule and progression tests.
+- `tests/mobile.test.ts`: swipe directions, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 
 Lines are shuffled in bags of five, giving six of each base line over a 30-ball innings. Pace/style is sampled independently. Swing develops before the bounce; spin turns after it and finishes before the final third of the pitch. Compatibility uses the nearest line to the final ball position. Travel duration is scaled for arcade readability. The stage mirrors X so negative world X appears on the left from the batting camera, matching the A key.
 
@@ -72,3 +79,7 @@ npm run test:browser
 The supplied scripts use headless Microsoft Edge through Playwright (`channel: 'msedge'`), which must be installed. They take desktop/narrow screenshots, check runtime errors and page overflow, and play a full innings using keyboard events and Playwright's virtual clock. They also verify three-wicket termination, pause, restart, combo input, one-shot gating, and the absence of debugging data in normal play. Screenshots are written to the ignored `test-results/` directory.
 
 Verified in Edge: a 30-ball seeded innings finished at **138/0 in 5.0 overs**, all seven delivery styles appeared, and a no-shot innings ended at three wickets. Unit tests cover all supported scores, timing boundaries, compatibility entries, wicket rules, trajectory continuity, line balance, and deterministic outcomes. Chrome and Safari are target browsers but have not been manually certified here.
+
+## Hosting
+
+The public deployment is managed by Sites using `.openai/hosting.json`; only `dist/` is published. Source remains in the Hitman-Cricket GitHub repository. No account, download, or local server is required to play the published link. Scores stay on each player’s device. Both provided sound clips are included in the public game.

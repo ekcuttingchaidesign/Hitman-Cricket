@@ -1,5 +1,5 @@
 import { GAME } from './config/gameplay';
-import { GameAudio } from './game/Audio';
+import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
 import { effectiveLine } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
@@ -28,12 +28,15 @@ export class Game {
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best);
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); this.hud.error(); return; }
-    this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot);
+    this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot, this.hud.viewport);
     this.hud.on('start', this.start); this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('sound', this.toggleSound);
+    this.hud.on('restart', this.start);
+    this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('help', () => { if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
-      if (document.fullscreenElement) void document.exitFullscreen(); else void this.hud.viewport.requestFullscreen().catch(() => {});
+      if (document.fullscreenElement) void document.exitFullscreen();
+      else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
     window.addEventListener('keydown', this.shortcuts); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
@@ -41,7 +44,7 @@ export class Game {
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: { snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter() } });
   }
   start = () => {
-    this.audio.unlock(); this.score = new ScoreManager();
+    this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed); this.generator = new DeliveryGenerator(this.rng);
@@ -54,11 +57,11 @@ export class Game {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     this.attempt = { shotType, inputTimeMs }; this.scene.swing(shotType, this.elapsed, this.delivery!); this.hud.select(shotType);
   };
-  private toggleSound = () => { this.audio.muted = !this.audio.muted; this.audio.unlock(); this.hud.sound(this.audio.muted); };
+  private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
-    if (this.phase === 'PAUSED') { this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
-    else { this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true); }
+    if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
+    else { this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true); }
   };
   private visibility = () => { if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
@@ -116,7 +119,7 @@ export class Game {
     this.resultPresented = true;
     const outcome = this.outcome!;
     this.hud.score(this.score); this.hud.result(outcome, this.delivery!);
-    if (outcome.isWicket) this.audio.play('wicket'); else if (outcome.runs === 6) this.audio.play('six'); else if (outcome.madeBatContact) this.audio.play('hit');
+    const sound = outcomeSound(outcome); if (sound) this.audio.play(sound);
   }
   private end() {
     this.setPhase('INNINGS_END'); const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);

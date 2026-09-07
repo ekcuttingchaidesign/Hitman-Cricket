@@ -1,16 +1,65 @@
+import type { ShotOutcome } from './types';
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket';
+export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'>): Sound | null {
+  if (outcome.isWicket) return 'wicket';
+  if (!outcome.madeBatContact) return null;
+  return outcome.runs === 4 || outcome.runs === 6 ? 'boundary' : 'hit';
+}
 export class GameAudio {
   private context: AudioContext | null = null;
+  private buffers = new Map<Sound, AudioBuffer>();
+  private sources = new Set<AudioBufferSourceNode>();
+  private loading: Promise<void> | null = null;
+  private disposed = false;
   muted = false;
-  unlock() { this.context ??= new AudioContext(); void this.context.resume(); }
-  play(kind: 'hit' | 'bounce' | 'wicket' | 'six') {
-    if (!this.context || this.muted) return;
-    const ctx = this.context; const now = ctx.currentTime;
-    const osc = ctx.createOscillator(); const gain = ctx.createGain();
-    osc.type = kind === 'hit' ? 'triangle' : 'sine';
-    osc.frequency.setValueAtTime(kind === 'hit' ? 720 : kind === 'wicket' ? 170 : kind === 'six' ? 540 : 240, now);
-    osc.frequency.exponentialRampToValueAtTime(kind === 'six' ? 980 : 55, now + 0.18);
-    gain.gain.setValueAtTime(kind === 'bounce' ? 0.025 : 0.09, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-    osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(now + 0.26); osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  private files = [
+    ['hit', new URL('../assets/normal-hit.mp3', import.meta.url)],
+    ['boundary', new URL('../assets/boundary-hit.mp3', import.meta.url)],
+  ] as const;
+  // Fetch before the innings; decoding and playback are unlocked by Start's tap.
+  private downloads = this.files.map(async ([kind, url]) => {
+    try { const response = await fetch(url); if (!response.ok) return null; return { kind, data: await response.arrayBuffer() }; }
+    catch { return null; }
+  });
+  unlock() {
+    if (this.disposed) return;
+    try {
+      this.context ??= new AudioContext();
+      if (this.context.state !== 'running') void this.context.resume().catch(() => {});
+      const silent = this.context.createBufferSource();
+      silent.buffer = this.context.createBuffer(1, 1, this.context.sampleRate);
+      silent.connect(this.context.destination); silent.start(); silent.onended = () => silent.disconnect();
+      this.loading ??= this.load();
+    } catch { /* Unsupported audio must not stop the innings. */ }
   }
-  dispose() { void this.context?.close(); }
+  private async load() {
+    for (const download of this.downloads) {
+      const file = await download;
+      if (!file || !this.context || this.disposed) continue;
+      try { this.buffers.set(file.kind, await this.context.decodeAudioData(file.data)); }
+      catch { /* Keep the synthesized impact as an offline fallback. */ }
+    }
+  }
+  stop() { this.sources.forEach(source => { try { source.stop(); } catch { /* Already ended. */ } }); this.sources.clear(); }
+  setMuted(muted: boolean) { this.muted = muted; if (muted) this.stop(); }
+  play(kind: Sound) {
+    if (!this.context || this.muted || this.disposed) return;
+    const ctx = this.context, buffer = this.buffers.get(kind);
+    if (buffer) {
+      this.stop();
+      const source = ctx.createBufferSource(); source.buffer = buffer;
+      const gain = ctx.createGain(); gain.gain.value = .85;
+      source.connect(gain); gain.connect(ctx.destination); this.sources.add(source); source.start();
+      source.onended = () => { this.sources.delete(source); source.disconnect(); gain.disconnect(); };
+      return;
+    }
+    const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = kind === 'hit' ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(kind === 'hit' ? 720 : kind === 'wicket' ? 170 : kind === 'boundary' ? 540 : 240, now);
+    osc.frequency.exponentialRampToValueAtTime(kind === 'boundary' ? 980 : 55, now + .18);
+    gain.gain.setValueAtTime(kind === 'bounce' ? .025 : .09, now); gain.gain.exponentialRampToValueAtTime(.001, now + .25);
+    osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(now + .26);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  }
+  dispose() { this.disposed = true; this.stop(); void this.context?.close(); }
 }

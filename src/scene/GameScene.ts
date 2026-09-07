@@ -60,7 +60,8 @@ export class GameScene {
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    const mobile = window.matchMedia('(pointer: coarse)').matches;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -74,7 +75,7 @@ export class GameScene {
     this.camera.position.set(0, 2.9, -5.8); this.camera.lookAt(0, 1.05, 9);
     this.scene.add(new THREE.HemisphereLight(0xe9f6ff, 0x66744a, 2.5));
     const sun = new THREE.DirectionalLight(0xffedce, 3.2); sun.position.set(-15, 30, -8); sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
+    sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025;
     this.scene.add(sun);
     this.createGround();

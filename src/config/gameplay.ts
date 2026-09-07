@@ -1,6 +1,7 @@
 import type { BallLine, DeliveryStyle, ShotType, TimingGrade } from '../game/types';
 export const GAME = {
   totalBalls: 30, maxWickets: 3, ballsPerOver: 6, comboMs: 100,
+  swipeDistance: 24,
   contactZ: 0.65, releaseZ: 18, bounceZ: 8.3, stumpZone: 0.18, stumpHeight: 0.76,
   // Arcade time scaling gives the player time to read a 3D ball on a small screen.
   travelScale: 2.05, readyMs: 550, runupMs: 900, resultMs: 1050, hitAnimationMs: 1250,
