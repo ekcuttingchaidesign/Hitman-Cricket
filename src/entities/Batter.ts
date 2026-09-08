@@ -32,14 +32,14 @@ export const STROKE_DURATION_MS = 940;
 // past the front foot, hands together at the waist, and the blade lifted behind
 // the back shoulder rather than propped on the ground.
 const GUARD: Pose = {
-  hip: [-0.05, 0.90, -0.04], chest: [0.02, 1.235, 0.10],
-  frontFoot: [-0.10, 0.08, 0.32], backFoot: [-0.14, 0.08, -0.30],
-  grip: [0.24, 0.82, 0.14], batUp: [-0.19, -0.92, 0.34], batFace: [0.34, 0.10, -0.94],
+  hip: [-0.05, 0.94, -0.03], chest: [0.02, 1.28, 0.03],
+  frontFoot: [-0.10, 0.08, 0.27], backFoot: [-0.13, 0.08, -0.25],
+  grip: [0.28, 0.86, 0.16], batUp: [-0.27, -0.96, 0.01], batFace: [0.24, 0.03, -0.97],
   yaw: 1.28, face: 0, heel: 0, leadElbow: -.34,
 };
 const BACKLIFT: Pose = {
-  ...GUARD, grip: [0.27, 0.90, 0.11], batUp: [-0.28, -0.82, 0.50], batFace: [0.45, 0.05, -0.89],
-  chest: [0.01, 1.25, 0.08], leadElbow: -.24,
+  ...GUARD, grip: [0.29, 0.93, 0.13], batUp: [-0.34, -0.89, 0.30], batFace: [0.36, 0.05, -0.93],
+  chest: [0.01, 1.29, 0.01], leadElbow: -.24,
 };
 
 interface Stroke { contact: Pose; finish: Pose }
@@ -123,6 +123,28 @@ const PULL: Stroke = {
 };
 const PULL_REACH: readonly [number, number] = [-.55, .32];
 
+/**
+ * A bat outline rather than a rounded slab: near-parallel edges down the middle,
+ * a domed toe, and a taper into the shoulder where the blade meets the handle.
+ * Extruded with a bevel so the edges round over the way a bat's do.
+ */
+function bladeGeometry() {
+  const edge: readonly (readonly [number, number])[] = [
+    [.028, -.134], [.046, -.160], [.061, -.222], [.067, -.340],
+    [.068, -.560], [.066, -.720], [.058, -.788], [.038, -.820],
+  ];
+  const outline = new THREE.Shape();
+  outline.moveTo(0, -.832);
+  for (let i = edge.length - 1; i >= 0; i--) outline.lineTo(edge[i][0], edge[i][1]);
+  for (const [x, y] of edge) outline.lineTo(-x, y);
+  outline.lineTo(0, -.832);
+  const blade = new THREE.ExtrudeGeometry(outline, {
+    depth: .044, bevelEnabled: true, bevelSize: .011, bevelThickness: .009, bevelSegments: 3, curveSegments: 8,
+  });
+  blade.translate(0, 0, -.022);
+  return blade;
+}
+
 function mix(a: Pose, b: Pose, amount: number): Pose {
   const t = ease(THREE.MathUtils.clamp(amount, 0, 1));
   const point = (x: Point, y: Point): Point => [
@@ -181,6 +203,7 @@ export class Batter {
     ball: new THREE.SphereGeometry(1, 26, 18),
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
     flat: new THREE.BoxGeometry(1, 1, 1),
+    blade: bladeGeometry(),
   };
   private palette = {
     shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
@@ -190,7 +213,7 @@ export class Batter {
     bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .83 }),
     accent: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
     grille: new THREE.MeshStandardMaterial({ color: 0x8c9da0, metalness: .6, roughness: .4 }),
-    handle: new THREE.MeshStandardMaterial({ color: 0x394f58, roughness: .95 }),
+    handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
   };
   constructor() {
     this.root.name = 'Articulated right-handed batter';
@@ -214,18 +237,18 @@ export class Batter {
       bar.rotation.z = Math.PI / 2; bar.position.set(0, y, .175);
     }
     for (const x of [-.14, .14]) this.mesh(this.head, this.palette.grille, [.016, .19, .016], 'tube').position.set(x, -.045, .175);
-    // Bat: turned handle, rubber grip, and a blade with softened shoulders.
-    this.mesh(this.bat, this.palette.handle, [.052, .34, .052], 'tube').position.y = .04;
-    this.mesh(this.bat, this.palette.handle, [.064, .045, .064], 'tube').position.y = .175;
-    this.mesh(this.bat, this.palette.bat, [.17, .70, .07], 'soft').position.y = -.48;
-    this.mesh(this.bat, this.palette.accent, [.135, .16, .012], 'soft').position.set(0, -.33, -.038);
-    this.mesh(this.bat, this.palette.trousers, [.115, .085, .014], 'soft').position.set(0, -.48, -.038);
+    // Bat: a dark bound handle standing clear of a plain blade.
+    this.mesh(this.bat, this.palette.handle, [.040, .36, .040], 'tube').position.y = .05;
+    this.mesh(this.bat, this.palette.handle, [.048, .20, .048], 'tube').position.y = .10;
+    this.mesh(this.bat, this.palette.handle, [.058, .038, .058], 'tube').position.y = .225;
+    this.mesh(this.bat, this.palette.bat, [1, 1, 1], 'blade');
     for (let i = 0; i < 2; i++) {
       const glove = new THREE.Group(); this.bat.add(glove);
       glove.position.set(0, i === 0 ? .085 : -.025, 0);
       this.mesh(glove, this.palette.pad, [.125, .125, .12], 'soft');
       this.mesh(glove, this.palette.accent, [.128, .034, .124], 'soft').position.y = .068;
-      this.mesh(glove, this.palette.pad, [.118, .088, .042], 'soft').position.set(0, -.012, -.063);
+      for (let roll = 0; roll < 3; roll++)
+        this.mesh(glove, this.palette.pad, [.118, .030, .036], 'soft').position.set(0, .028 - roll * .032, -.062);
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, shoulder: new THREE.Vector3() });
