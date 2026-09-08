@@ -65,27 +65,10 @@ kbd{
   left:var(--pad);
   right:var(--pad-right);
   display:flex;
-  justify-content:space-between;
+  justify-content:flex-end;
   align-items:center;
   gap:12px;
   z-index:9
-}
-.ground-label{
-  font-size:10px;
-  letter-spacing:2px;
-  font-weight:800;
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color:#1e4152;
-  text-shadow:0 1px 2px #ffffff4d
-}
-.small-dot{
-  width:5px;
-  height:5px;
-  border-radius:50%;
-  background:#51735b;
-  display:inline-block
 }
 .hud-actions{display:flex;gap:8px}
 .hud-button{
@@ -105,6 +88,8 @@ kbd{
 .hud-button:hover:not(:disabled){background:#fbfdf6}
 
 /* ── Scoreboard and confidence ─────────────────────────────────────────── */
+/* A board bolted to the ground, not a card floating over it: a metal housing,
+   a recessed window, and a grid of lamps with most of them dark. */
 .score-stack{
   position:absolute;
   top:calc(var(--pad-top) + 50px);
@@ -113,55 +98,131 @@ kbd{
   display:flex;
   flex-direction:column;
   align-items:flex-start;
-  gap:7px
+  gap:8px;
+  --housing:#161d21;
+  --bezel:#2c363b;
+  --window:#0a1013;
+  --lamp-on:#ffb03f;
+  --lamp-off:#ffffff10
 }
-.scoreboard{
+.scoreboard,.confidence{
+  position:relative;
+  border-radius:7px;
+  background:linear-gradient(#333f45,var(--bezel) 42%,#1d262a);
+  padding:3px;
+  box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset
+}
+/* Four bolts, one element. */
+.scoreboard::before,.confidence::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 7px 7px,#9fb2ba 0 1.6px,#0000 2.1px),
+    radial-gradient(circle at calc(100% - 7px) 7px,#9fb2ba 0 1.6px,#0000 2.1px),
+    radial-gradient(circle at 7px calc(100% - 7px),#9fb2ba 0 1.6px,#0000 2.1px),
+    radial-gradient(circle at calc(100% - 7px) calc(100% - 7px),#9fb2ba 0 1.6px,#0000 2.1px)
+}
+.board-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:3px 12px 4px;
+  border-radius:5px 5px 0 0;
+  background:var(--housing)
+}
+.board-name{
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:2.2px;
+  color:#7d929b
+}
+.board-lamp{
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#7fd08a;
+  box-shadow:0 0 6px #7fd08acc
+}
+.board-cells{
   display:flex;
   align-items:stretch;
-  background:#152b3cf0;
-  border-radius:9px;
-  color:#fff;
-  box-shadow:0 6px 18px #0b1e3033;
-  border-top:3px solid var(--orange);
+  gap:1px;
+  background:#0000;
+  border-radius:0 0 5px 5px;
   overflow:hidden
 }
-.score-main{padding:11px 18px 10px;min-width:112px}
-.score-caption{
-  display:block;
-  font-size:8px;
-  font-weight:650;
+.cell{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  padding:7px 11px 8px;
+  background:var(--window);
+  box-shadow:0 2px 7px #000000a6 inset
+}
+.cell-wide{padding-left:14px;padding-right:14px}
+.cell-label{
+  font-size:7px;
+  font-weight:700;
   letter-spacing:1.6px;
-  color:#a9c0c4
+  color:#5d7079
 }
-.score-main>strong{
-  font-family:var(--display);
-  font-size:40px;
-  line-height:1;
+.cell-value{display:block;height:19px}
+.cell-wide .cell-value{height:27px}
+/* The lamps themselves. Lit ones glow the way an LED board does at dusk. */
+.matrix{display:block;height:100%;width:auto;aspect-ratio:var(--lamps) / 7}
+.matrix-dark circle{fill:var(--lamp-off)}
+.matrix-lit circle{fill:var(--lamp-on);filter:drop-shadow(0 0 .22px var(--lamp-on))}
+.wicket-color{--lamp-on:#ff7a63}
+.boundary-color{--lamp-on:#b9e37a}
+
+/* The confidence meter shares the housing, so the stack reads as one board. */
+.confidence{
+  min-width:186px;
+  display:block
+}
+.confidence-inner{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:7px 12px 8px;
+  border-radius:5px;
+  background:var(--window);
+  box-shadow:0 2px 7px #000000a6 inset
+}
+.confidence-label{
+  font-size:7px;
+  font-weight:700;
+  letter-spacing:1.7px;
+  color:#5d7079;
+  transition:color .3s
+}
+.confidence-track{
   display:block;
-  margin-top:4px
+  height:7px;
+  border-radius:2px;
+  background:#ffffff0e;
+  overflow:hidden
 }
-.score-slash{color:#6f8c93;margin:0 1px}
-.score-overs{
-  padding:15px 16px;
-  border-left:1px solid #ffffff1f;
-  text-align:center
+.confidence-track>i{
+  display:block;
+  height:100%;
+  width:0;
+  border-radius:2px;
+  background:linear-gradient(90deg,#6ea99a,#d1e39d);
+  transition:width .5s cubic-bezier(.3,.9,.3,1)
 }
-.score-overs strong{font-family:var(--display);font-size:23px;display:block;line-height:1}
-.score-overs span,.last-ball>span{
-  font-size:8px;
-  letter-spacing:1.2px;
-  color:#a9c0c4;
-  font-weight:650
-}
-.last-ball{
-  padding:15px 16px;
-  border-left:1px solid #ffffff1f;
-  text-align:center;
-  min-width:64px
-}
-.last-ball strong{font-family:var(--display);font-size:23px;display:block;line-height:1}
-.wicket-color{color:#ff9c86}
-.boundary-color{color:#d1e39d}
+.confidence.is-full{animation:charged 1.15s ease-in-out infinite}
+.confidence.is-full .confidence-label{color:#ffcbaa}
+.confidence.is-full .confidence-track>i{background:linear-gradient(90deg,#ef8f52,#ffe09b)}
+.confidence.is-primed{animation-duration:.52s}
+.confidence.is-primed .confidence-label{color:#ffe6b3}
+
+
 
 /* The confidence meter: earned by scoring, spent on one charge down the pitch.
    Full, it pulses; on a ball he can charge, it says so. */
@@ -244,8 +305,8 @@ kbd{
   margin:0 auto
 }
 @keyframes charged{
-  0%,100%{box-shadow:0 6px 18px #0b1e3033,0 0 0 0 #ed704400}
-  50%{box-shadow:0 6px 18px #0b1e3033,0 0 0 7px #ed70442e}
+  0%,100%{box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset,0 0 0 0 #ed704400}
+  50%{box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset,0 0 0 7px #ed704438}
 }
 @keyframes call{
   0%{opacity:0;transform:translateY(14px) scale(.94)}
@@ -668,19 +729,13 @@ dialog .primary-button{margin-top:18px}
 .touch-device .keyboard-only{display:none}
 .touch-device .hud-button{width:44px;height:44px}
 .touch-device .hud-button svg{width:19px;height:19px}
-.touch-device .ground-label{font-size:11px}
 .touch-device .start-hint{font-size:12px}
 .touch-device .primary-button{min-height:50px;font-size:12px}
 .touch-device .phase-label{font-size:11px;letter-spacing:1.4px}
 
 @media(max-width:520px){
-  .ground-label{display:none}
 }
 @media(max-width:640px){
-  .score-main{min-width:92px;padding:9px 13px}
-  .score-main>strong{font-size:33px}
-  .score-overs,.last-ball{padding:12px}
-  .last-ball{min-width:56px}
   .panel{padding:22px 20px 24px}
   .panel h2{font-size:33px}
   .panel p{font-size:12px}
@@ -704,12 +759,13 @@ dialog .primary-button{margin-top:18px}
   .start-hint,.touch-device .start-hint{margin-top:8px;font-size:11px}
   .personal-best>svg{width:19px;height:19px}
   .personal-best strong{font-size:20px}
-  .score-stack{top:calc(var(--pad-top) + 44px);gap:5px}
-  .confidence{min-width:158px;padding:6px 11px 7px}
-  .score-main{padding:6px 12px}
-  .score-main>strong{font-size:27px}
-  .score-overs,.last-ball{padding:9px 12px}
-  .score-overs strong,.last-ball strong{font-size:18px}
+  .score-stack{top:calc(var(--pad-top) + 44px);gap:6px}
+  .confidence{min-width:170px}
+  .confidence-inner{padding:6px 10px 7px}
+  .cell{padding:5px 8px 6px}
+  .cell-wide{padding-left:11px;padding-right:11px}
+  .cell-value{height:16px}
+  .cell-wide .cell-value{height:23px}
   .panel{padding:16px 22px 18px}
   .brand{margin-bottom:10px}
   .panel h2{font-size:26px;margin-bottom:8px}

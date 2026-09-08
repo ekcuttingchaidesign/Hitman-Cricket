@@ -1,5 +1,6 @@
 import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, whatsappLink } from '../game/Share';
+import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
 const icon = (name: string) => {
@@ -26,7 +27,6 @@ export class HUD {
     root.innerHTML = `
       <div id="viewport" class="stage">
         <div class="hud-top">
-          <span class="ground-label"><span class="small-dot"></span> HITMAN OVAL</span>
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Mute sound" title="Sound (M)">${icon('sound')}</button>
             <button id="help" class="hud-button" aria-label="How to play" title="How to play">${icon('help')}</button>
@@ -36,10 +36,20 @@ export class HUD {
           </div>
         </div>
         <div class="score-stack">
-        <div id="scoreboard" class="scoreboard"><div class="score-main"><span class="score-caption">YOUR INNINGS</span><strong><span id="runs">0</span><span class="score-slash">/</span><span id="wickets">0</span></strong></div><div class="score-overs"><strong id="overs">0.0</strong><span>OF 5 OVERS</span></div><div class="last-ball"><span>LAST BALL</span><strong id="last">—</strong></div></div>
+        <div id="scoreboard" class="scoreboard" role="group" aria-label="Scoreboard">
+          <div class="board-head"><span class="board-name">HITMAN OVAL</span><span class="board-lamp"></span></div>
+          <div class="board-cells">
+            <div class="cell cell-wide"><span class="cell-label">TOTAL</span><span class="cell-value" id="runs"></span></div>
+            <div class="cell"><span class="cell-label">WKTS</span><span class="cell-value" id="wickets"></span></div>
+            <div class="cell"><span class="cell-label">OVERS</span><span class="cell-value" id="overs"></span></div>
+            <div class="cell"><span class="cell-label">LAST</span><span class="cell-value" id="last"></span></div>
+          </div>
+        </div>
         <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
-          <span class="confidence-track"><i id="confidence-fill"></i></span>
+          <span class="confidence-inner">
+            <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
+            <span class="confidence-track"><i id="confidence-fill"></i></span>
+          </span>
         </div>
         </div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
@@ -85,9 +95,13 @@ export class HUD {
   help() { (this.$('help-dialog') as HTMLDialogElement).showModal(); }
   get helpOpen() { return (this.$('help-dialog') as HTMLDialogElement).open; }
   score(score: ScoreManager) {
-    this.$('runs').textContent = String(score.runs); this.$('wickets').textContent = String(score.wickets); this.$('overs').textContent = score.overs;
-    const last = score.history.at(-1); this.$('last').textContent = last ? last.isWicket ? 'W' : String(last.runs) : '—';
-    this.$('last').className = last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : '';
+    this.$('runs').innerHTML = dotMatrix(String(score.runs), `${score.runs} runs`);
+    this.$('wickets').innerHTML = dotMatrix(String(score.wickets), `${score.wickets} wickets`);
+    this.$('overs').innerHTML = dotMatrix(score.overs, `${score.overs} overs`);
+    const last = score.history.at(-1);
+    const call = last ? last.isWicket ? 'W' : String(last.runs) : '-';
+    this.$('last').innerHTML = dotMatrix(call, last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
+    this.$('last').className = `cell-value ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
   }
   start() {
     document.body.classList.remove('tutorial-active');
