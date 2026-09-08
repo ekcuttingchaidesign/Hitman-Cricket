@@ -14,7 +14,7 @@ describe('two-handed cricket animation', () => {
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();
-          expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.11, 6);
+          expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.135, 6);
           expect(pose.backToe[1]).toBeCloseTo(.01, 5);
           for (const lengths of pose.armLengths) {
             expect(lengths[0]).toBeCloseTo(.32, 3);
@@ -146,5 +146,52 @@ describe('the pull', () => {
       const blade = batter.inspect().bladeContact;
       expect(blade[0]).toBeCloseTo(ballX, 6); expect(blade[1]).toBeCloseTo(1.12, 6);
     }
+  });
+});
+
+describe('the grip', () => {
+  it('holds the handle with two hands that agree about it', () => {
+    const batter = new Batter();
+    let worstTwist = 0, flattest = Infinity, wristWhere = '';
+    for (const [shot, ballY] of SHOTS.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
+      for (const ballX of [-.5, 0, .5]) {
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        for (let time = -1; time <= STROKE_DURATION_MS; time += 20) {
+          batter.update(time);
+          const pose = batter.inspect();
+          // Both fists ride the bat. A hand free to turn on its own ends up
+          // gripping the handle a quarter-turn away from the other one.
+          for (const twist of pose.gripTwist) worstTwist = Math.max(worstTwist, twist);
+          // The right hand is the bottom hand: nearer the blade than the left.
+          expect(pose.handGrip[1], `${shot} at ${time}ms`).toBeLessThan(pose.handGrip[0]);
+          for (const [i, aim] of pose.cuffAim.entries()) {
+            // The gauntlet meets the arm wherever the stroke has rolled the bat,
+            // and the elbow stays off the handle rather than lying along it.
+            expect(aim.alongForearm, `${shot} arm ${i} at ${time}ms`).toBeCloseTo(1, 6);
+            if (aim.elbowOffHandle < flattest) { flattest = aim.elbowOffHandle; wristWhere = `${shot} arm ${i} at ${time}ms`; }
+          }
+        }
+      }
+    }
+    expect(worstTwist).toBeCloseTo(0, 9);
+    // The handle is .048 across and a forearm .095: closer than this and one is
+    // inside the other.
+    expect(flattest, `closest elbow to the handle: ${wristWhere}`).toBeGreaterThan(.09);
+  });
+
+  it('waits with the bat cocked back towards first slip, face opened up', () => {
+    const batter = new Batter();
+    batter.reset();
+    const guard = batter.inspect();
+    const grip = new Vector3(...guard.grip), tip = new Vector3(...guard.bladeTip).sub(new Vector3(-.36, 0, .35));
+    const lift = tip.clone().sub(grip);
+    // Back past the hands towards the keeper, out towards the slips, and up.
+    expect(lift.z).toBeLessThan(-.4);
+    expect(lift.x).toBeGreaterThan(.1);
+    expect(lift.y).toBeGreaterThan(.3);
+    // Laid back rather than stood up: nearer the horizontal than the vertical.
+    expect(Math.atan2(lift.y, Math.hypot(lift.x, lift.z))).toBeLessThan(.85);
+    // And the face turned up to the sky, not held square while the blade lifts.
+    expect(guard.batFace[1]).toBeGreaterThan(.5);
   });
 });
