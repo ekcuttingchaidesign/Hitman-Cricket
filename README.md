@@ -82,7 +82,9 @@ A four runs to the rope along the ground; only a six leaves it, and only a mishi
 
 Confidence is earned by scoring and lost by not scoring. A six adds 28, a four 22, a three 16 and a two 12; a dot ball takes 18, a single leaves it where it stands, and a wicket empties it. Roughly four scoring shots fill it from nothing. It is a run of form rather than a bank balance, so it cannot be saved across a collapse.
 
-Full, the meter pulses. When a ball you can walk at is on its way — on the stumps, on a length, at a bowler's pace — the field calls it in gold from the moment it leaves the bowler's hand. Drive that one straight and time it perfectly or well, and the batter charges down the wicket and hits it out of the ground for six, and the meter is spent. Mistime it and it is simply the shot you played, with the meter still charged.
+Full, the meter pulses. When a ball you can walk at is coming — on the stumps, on a length, at a bowler's pace — the edge of the field lights up gold and the call goes out from the bowler's run-up, a full delivery before it arrives. Drive it and time it perfectly or well, and the batter charges down the wicket and hits it out of the ground for six, and the meter is spent.
+
+Any upward drive charges it: straight, long-on or cover. The gesture asked for is "swipe up", and a thumb flick that drifts twenty degrees is still a swipe up — but the swipe sectors are 45 degrees wide, so pinning the charge to the straight drive alone threw it away on a gesture the player had no way of seeing was off. Miss it anyway and the call says which half went wrong — `CHARGE MISTIMED` or `THE CHARGE WANTED A DRIVE` — with the meter still charged for the next one.
 
 The length and pace windows exclude every special without naming one: a yorker pitches at your toes, a bouncer over your head, and neither a slower ball nor an express one leaves you time to walk at it.
 

@@ -24,7 +24,7 @@ export function chargeable(delivery: Delivery) {
  * result read it from the same place.
  */
 export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
-  return charged && !!attempt && attempt.shotType === ADVANCE.shot && chargeable(delivery)
+  return charged && !!attempt && ADVANCE.shots.includes(attempt.shotType) && chargeable(delivery)
     && ADVANCE.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /** `charged` is the batter's confidence being full — the shot still has to be played. */

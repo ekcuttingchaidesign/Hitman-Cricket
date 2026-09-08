@@ -74,7 +74,7 @@ export class HUD {
         <div id="share-status" class="share-status hidden" role="status"></div>
         <pre id="debug" class="debug hidden"></pre>
       </div>
-      <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: off-side shot</li></ul><p>One swipe per ball. Taps and downward swipes do not play a shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> plays right to off.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a dot ball drains it, a single leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball on the stumps arrives on a length at a bowler's pace, the field calls it. Drive that one straight and time it well and you walk down the pitch and hit it out of the ground. Mistime it and it is just the shot you played.</p><p class="help-note">Play with swipes on a phone, or A, W, D — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
+      <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: off-side shot</li></ul><p>One swipe per ball. Taps and downward swipes do not play a shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> plays right to off.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a dot ball drains it, a single leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note">Play with swipes on a phone, or A, W, D — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
     const dialog = this.$('help-dialog') as HTMLDialogElement;
@@ -101,13 +101,17 @@ export class HUD {
     const label = this.$('phase-label');
     // The charge call goes where the player is already looking — down the pitch —
     // not in the corner with the meter.
-    label.textContent = primed && phase === 'BALL_IN_FLIGHT' ? 'CHARGE IT · SWIPE UP'
+    const on = primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    label.textContent = on ? 'CHARGE IT · SWIPE UP'
       : phase === 'READY' ? 'TAKE YOUR GUARD' : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
-    label.classList.toggle('is-primed', primed && phase === 'BALL_IN_FLIGHT');
+    label.classList.toggle('is-primed', on);
+    // The edge of the field lights up too: a line of text at the bottom is easy
+    // to miss in the second the ball takes to arrive.
+    this.viewport.classList.toggle('charge-on', on);
     if (phase === 'READY') this.$('result').classList.add('hidden');
   }
   select(_shot: ShotType, charging = false) {
-    this.$('phase-label').classList.remove('is-primed');
+    this.$('phase-label').classList.remove('is-primed'); this.viewport.classList.remove('charge-on');
     this.$('phase-label').textContent = charging ? 'DOWN THE PITCH!' : 'SHOT COMMITTED';
   }
   /** A skied shot: say nothing about the outcome until the ball comes down. */
@@ -137,14 +141,14 @@ export class HUD {
     this.$('tutorial-play').focus();
   }
   /** A call, not a popup: the outcome rises off the field and fades on its own. */
-  result(outcome: ShotOutcome) {
+  result(outcome: ShotOutcome, chargeMiss: string | null = null) {
     this.$('phase-label').textContent = '';
     const panel = this.$('result');
-    panel.className = `result ${outcome.advance ? 'is-advance' : outcome.isWicket ? 'is-wicket' : outcome.runs >= 4 ? 'is-boundary' : ''}`;
+    panel.className = `result ${outcome.advance ? 'is-advance' : outcome.isWicket ? 'is-wicket' : outcome.runs >= 4 ? 'is-boundary' : ''}${chargeMiss ? ' is-missed-charge' : ''}`;
     this.$('result-text').textContent = outcome.feedback;
     this.$('timing').textContent = outcome.advance ? 'DOWN THE PITCH'
-      : outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
-      : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE';
+      : chargeMiss ?? (outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
+      : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE');
     // Restart the rise-and-fade from the top for back-to-back deliveries.
     panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
   }

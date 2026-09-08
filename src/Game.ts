@@ -1,4 +1,4 @@
-import { CONFIDENCE_FULL, GAME } from './config/gameplay';
+import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { Confidence } from './game/Confidence';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -86,12 +86,24 @@ export class Game {
   private get charged() { return this.lesson < 0 && this.confidence.full; }
   /** This ball can be charged, and the meter is full to do it. */
   private set primed(value: boolean) {
+    if (value) this.chargeBall = true;
     if (value === this.isPrimed) return;
     this.isPrimed = value; this.showConfidence();
     this.hud.phase(this.phase, value);
   }
   private get primed() { return this.isPrimed; }
   private isPrimed = false;
+  /** This ball was a charge and the meter was full, whatever came of it. */
+  private chargeBall = false;
+  /**
+   * A charge that was on and did not happen is worth saying out loud. Missing it
+   * silently — the same four as any other ball — leaves the player with no way
+   * to tell whether the shot exists.
+   */
+  private get chargeMiss() {
+    if (!this.chargeBall || !this.attempt || this.outcome?.advance) return null;
+    return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
+  }
   private showConfidence() { this.hud.confidence(this.confidence.fraction, this.isPrimed); }
   private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };
   private togglePause = () => {
@@ -136,7 +148,12 @@ export class Game {
     if (this.phase === 'READY' && age >= GAME.readyMs) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.generator.next(this.elapsed + GAME.runupMs);
-      this.attempt = null; this.outcome = null; this.bounced = false; this.primed = false;
+      this.attempt = null; this.outcome = null; this.bounced = false; this.primed = false; this.chargeBall = false;
+      // The ball is settled before the bowler moves, so the call goes out with
+      // him. Held to the flight it gave the player under a second to see the
+      // cue, change the shot he had in mind and time it — and that was most of
+      // why a full meter kept going unspent.
+      this.primed = this.charged && chargeable(this.delivery);
       this.scene.reset(); this.input.reset(); this.showConfidence(); this.setPhase('BOWLER_RUNUP');
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
@@ -148,12 +165,6 @@ export class Game {
       this.scene.delivery(this.delivery, progress);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }
-      // Call a chargeable ball from the moment it leaves the hand. Held back
-      // until it pitched, the cue arrived barely a third of a second before
-      // contact, in the corner of the screen, while the player was watching the
-      // pitch — a meter that fills and never gets spent. The call is loud and
-      // early; the timing is still all the player's own.
-      if (!this.attempt) this.primed = this.charged && chargeable(this.delivery);
       if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + GAME.timing.poor + GAME.comboMs) this.resolve();
     } else if (this.phase === 'SHOT_RESOLVE') {
       this.scene.result(this.elapsed);
@@ -189,7 +200,7 @@ export class Game {
     this.resultPresented = true;
     const outcome = this.outcome!;
     if (this.lesson < 0) this.hud.score(this.score);
-    this.hud.result(outcome);
+    this.hud.result(outcome, this.chargeMiss);
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
   }
@@ -204,7 +215,7 @@ export class Game {
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
-      confidence: this.confidence.value, primed: this.isPrimed, chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false };
+      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();

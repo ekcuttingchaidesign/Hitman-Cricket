@@ -272,8 +272,13 @@ describe('charging down the pitch', () => {
     expect(wellTimed.advance).toBe(true); expect(wellTimed.runs).toBe(6);
     expect(charge(ball, GAME.timing.good + 5).advance).toBeFalsy();
     expect(charge(ball, GAME.timing.ok + 5).advance).toBeFalsy();
-    // Any other stroke is that stroke.
-    expect(resolveShot(ball, { shotType: 'LEG', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance).toBeFalsy();
+    // Any upward drive charges it: a swipe up that drifts a sector is still a
+    // swipe up, and the player has no way of seeing that it drifted.
+    for (const shot of ADVANCE.shots)
+      expect(resolveShot(ball, { shotType: shot, inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance, shot).toBe(true);
+    // A leg-side or square swipe is that shot, not a charge.
+    for (const shot of ['LEG', 'OFF'] as const)
+      expect(resolveShot(ball, { shotType: shot, inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance, shot).toBeFalsy();
     // And no charge at a ball that cannot be charged.
     const quick = delivery({ ...onTheStumps, style: 'EXPRESS', speedKph: 155 });
     expect(resolveShot(quick, { shotType: 'STRAIGHT', inputTimeMs: quick.idealContactTimeMs }, new SeededRandom(4), true).advance).toBeFalsy();

@@ -73,7 +73,12 @@ export const CONFIDENCE_FULL = 100;
  */
 export const ADVANCE = {
   minKph: 108, maxKph: 134, minBounceZ: 7.4, maxBounceZ: 9.4,
-  shot: 'STRAIGHT' as ShotType, timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
+  // Any upward drive charges it. The gesture asked for is "swipe up", and a
+  // thumb flick that drifts twenty degrees is still a swipe up — but the sectors
+  // are 45 degrees wide, so pinning it to the straight drive alone threw the
+  // shot away on a gesture the player had no way of knowing was off.
+  shots: ['STRAIGHT', 'LONG_ON', 'COVER_LONG_OFF'] as readonly ShotType[],
+  timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
   feedback: 'OUT OF THE STADIUM!',
   /** How far down the pitch the charge carries him, and how long the walk back is. */
   stride: 1.75, walkBackMs: 1300,
