@@ -196,6 +196,28 @@ describe('the grip', () => {
   });
 });
 
+describe('shoulders', () => {
+  it('never carries the hands round behind the back', () => {
+    const batter = new Batter();
+    const strokes: [string, () => void][] = [
+      ...SHOTS.map(shot => [shot, () => batter.swing(shot, 0, 0, .54)] as [string, () => void]),
+      ['the pull', () => batter.swing('LEG', 0, -.02, 1.12)],
+      ['the charge', () => batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true)],
+    ];
+    for (const [name, play] of strokes) {
+      batter.reset(); batter.prepare(1); batter.update(0); play();
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 10) {
+        batter.update(time);
+        // A two-handed grip cannot be taken round behind the shoulders. Every
+        // stroke here carries both hands in front of them; a follow-through that
+        // wraps them behind is the pose no body makes.
+        for (const [i, forward] of batter.inspect().handsForward.entries())
+          expect(forward, `${name}: hand ${i} at ${time}ms`).toBeGreaterThan(-.06);
+      }
+    }
+  });
+});
+
 describe('the charge', () => {
   it('walks down the pitch, launches it, and walks back', () => {
     const batter = new Batter();

@@ -61,29 +61,38 @@ export class Game {
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed); this.generator = new DeliveryGenerator(this.rng);
-    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0;
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = false;
     this.input.reset(); this.scene.reset(); this.hud.start(); this.hud.score(this.score); this.showConfidence(); this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
   };
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
     this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
-    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.confidence = new Confidence();
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence();
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
     (document.activeElement as HTMLElement | null)?.blur();
   };
-  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase); }
+  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
   private shoot = (shotType: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     this.attempt = { shotType, inputTimeMs };
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
+    this.primed = false;
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging);
     this.hud.select(shotType, charging);
   };
   /** Confidence is only a shot outside the tutorial, where nothing is scored. */
   private get charged() { return this.lesson < 0 && this.confidence.full; }
-  private showConfidence(primed = false) { this.hud.confidence(this.confidence.fraction, primed); }
+  /** This ball can be charged, and the meter is full to do it. */
+  private set primed(value: boolean) {
+    if (value === this.isPrimed) return;
+    this.isPrimed = value; this.showConfidence();
+    this.hud.phase(this.phase, value);
+  }
+  private get primed() { return this.isPrimed; }
+  private isPrimed = false;
+  private showConfidence() { this.hud.confidence(this.confidence.fraction, this.isPrimed); }
   private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
@@ -127,7 +136,8 @@ export class Game {
     if (this.phase === 'READY' && age >= GAME.readyMs) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.generator.next(this.elapsed + GAME.runupMs);
-      this.attempt = null; this.outcome = null; this.bounced = false; this.scene.reset(); this.input.reset(); this.showConfidence(); this.setPhase('BOWLER_RUNUP');
+      this.attempt = null; this.outcome = null; this.bounced = false; this.primed = false;
+      this.scene.reset(); this.input.reset(); this.showConfidence(); this.setPhase('BOWLER_RUNUP');
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
@@ -138,9 +148,12 @@ export class Game {
       this.scene.delivery(this.delivery, progress);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }
-      // Once it has pitched, a chargeable ball is worth calling: the meter says
-      // the shot is on, and the timing is still all the player's own.
-      if (this.bounced && !this.attempt) this.showConfidence(this.charged && chargeable(this.delivery));
+      // Call a chargeable ball from the moment it leaves the hand. Held back
+      // until it pitched, the cue arrived barely a third of a second before
+      // contact, in the corner of the screen, while the player was watching the
+      // pitch — a meter that fills and never gets spent. The call is loud and
+      // early; the timing is still all the player's own.
+      if (!this.attempt) this.primed = this.charged && chargeable(this.delivery);
       if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + GAME.timing.poor + GAME.comboMs) this.resolve();
     } else if (this.phase === 'SHOT_RESOLVE') {
       this.scene.result(this.elapsed);
@@ -191,7 +204,7 @@ export class Game {
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
-      confidence: this.confidence.value, chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false };
+      confidence: this.confidence.value, primed: this.isPrimed, chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();

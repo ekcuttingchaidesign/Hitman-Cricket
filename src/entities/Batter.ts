@@ -132,8 +132,11 @@ const CHARGE: Stroke = {
     grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18 },
   // Charging is running: by the finish he has pushed off the front foot and
   // stepped through onto the back one, with the front leg trailing in the air.
-  finish: { ...GUARD, hip: [-.04, .86, .40], chest: [.04, 1.26, .42], frontFoot: [.02, .50, -.18], backFoot: [-.22, .08, .30],
-    grip: [-.26, 1.58, .30], batUp: [-.28, -.52, -.81], batFace: [0, .16, .99], yaw: .50, face: -.18, heel: 0, leadElbow: -.06 },
+  // The hands finish high and in front of the chest with the bat wrapped down
+  // over the shoulder. Carried round behind the back — where the swing wants to
+  // take them — no shoulder reaches, and both arms end up somewhere no body goes.
+  finish: { ...GUARD, hip: [-.04, .86, .40], chest: [.04, 1.26, .42], frontFoot: [-.02, .30, -.06], backFoot: [-.22, .08, .30],
+    grip: [-.22, 1.42, .78], batUp: [.42, .32, .85], batFace: [.55, .55, -.45], yaw: .50, face: -.18, heel: 0, leadElbow: -.06 },
 };
 
 /**
@@ -487,6 +490,13 @@ export class Batter {
       gripTwist: this.arms.map(arm => arm.glove.quaternion.angleTo(new THREE.Quaternion())),
       // Where each hand sits on the handle, measured up it from the blade.
       handGrip: this.arms.map(arm => arm.glove.position.y),
+      // How far in front of each shoulder the hand is carried. A shoulder cannot
+      // take a two-handed grip round behind the back, so this going deeply
+      // negative on both arms at once is a pose no body makes.
+      handsForward: this.arms.map(arm => {
+        const hand = arm.glove.getWorldPosition(new THREE.Vector3()).sub(this.root.position);
+        return hand.sub(arm.shoulder).dot(new THREE.Vector3(0, 0, 1).applyQuaternion(this.torso.quaternion));
+      }),
       // Whether the gauntlet meets the arm, and how far the elbow keeps off the
       // handle: a forearm lying along the handle runs through the bat.
       cuffAim: this.arms.map(arm => {

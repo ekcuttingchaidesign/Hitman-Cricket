@@ -96,11 +96,19 @@ export class HUD {
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
   }
-  phase(phase: GamePhase) {
-    this.$('phase-label').textContent = phase === 'READY' ? 'TAKE YOUR GUARD' : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
+  phase(phase: GamePhase, primed = false) {
+    const label = this.$('phase-label');
+    // The charge call goes where the player is already looking — down the pitch —
+    // not in the corner with the meter.
+    label.textContent = primed && phase === 'BALL_IN_FLIGHT' ? 'CHARGE IT · SWIPE UP'
+      : phase === 'READY' ? 'TAKE YOUR GUARD' : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
+    label.classList.toggle('is-primed', primed && phase === 'BALL_IN_FLIGHT');
     if (phase === 'READY') this.$('result').classList.add('hidden');
   }
-  select(_shot: ShotType, charging = false) { this.$('phase-label').textContent = charging ? 'DOWN THE PITCH!' : 'SHOT COMMITTED'; }
+  select(_shot: ShotType, charging = false) {
+    this.$('phase-label').classList.remove('is-primed');
+    this.$('phase-label').textContent = charging ? 'DOWN THE PITCH!' : 'SHOT COMMITTED';
+  }
   /** A skied shot: say nothing about the outcome until the ball comes down. */
   airborne() { this.$('phase-label').textContent = 'UP IN THE AIR…'; }
   startTutorial() {

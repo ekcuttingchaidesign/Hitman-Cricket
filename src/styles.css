@@ -268,6 +268,18 @@ kbd{
   pointer-events:none;
   z-index:3
 }
+/* The one ball he can charge, called where the player is already looking. */
+.phase-label.is-primed{
+  font-size:15px;
+  letter-spacing:3.2px;
+  color:#ffd98a;
+  text-shadow:0 2px 10px #3a1c05,0 1px 3px #17342b;
+  animation:primed .62s ease-in-out infinite
+}
+@keyframes primed{
+  0%,100%{opacity:.72;transform:scale(.99)}
+  50%{opacity:1;transform:scale(1.03)}
+}
 /* ── Tutorial coaching ─────────────────────────────────────────────────── */
 .coach{
   position:absolute;
