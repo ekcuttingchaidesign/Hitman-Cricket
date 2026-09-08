@@ -1,5 +1,5 @@
 export type BallLine = 'OUTSIDE_LEG' | 'LEG' | 'MIDDLE' | 'OFF' | 'OUTSIDE_OFF';
-export type DeliveryStyle = 'NORMAL' | 'FAST' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'OFF_SPIN' | 'LEG_SPIN';
+export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'OFF_SPIN' | 'LEG_SPIN';
 export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'OFF';
 export type TimingGrade = 'PERFECT' | 'GOOD' | 'OK' | 'POOR' | 'MISS';
 export type WicketType = 'BOWLED' | 'LBW' | 'CAUGHT';

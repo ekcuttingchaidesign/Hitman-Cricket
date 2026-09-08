@@ -21,6 +21,10 @@ npm run preview  # Serve the production build locally
 
 The production build can be served by any static web host. `base: './'` supports deployment in a subdirectory.
 
+## Tutorial
+
+The start screen offers a three-ball tutorial. Each ball is slow, dead straight, and scripted to teach one gesture: a middle-stump ball to drive straight (swipe up), one on the legs to whip away square (swipe right to left), and one wide outside off to cut behind point (swipe left to right). An arrow on the field sweeps the way you must swipe. Nobody gets out, nothing counts towards a score, and **Skip to innings** leaves at any point.
+
 ## Mobile controls
 
 Swipe **left**, **up-left**, **up**, **up-right**, or **right** for leg side, long on, straight, cover, or off side. A short 24-pixel swipe commits the shot immediately when its direction becomes clear. Timing is measured at that moment, not at finger-down or release, and uses the same timing bands, compatibility, scoring, and wickets as keyboard play. One shot per ball is shared across input methods. Taps, downward swipes, second fingers, and cancelled gestures do not trigger a shot. A gesture cannot carry into the next ball.
@@ -45,7 +49,18 @@ Press combo keys within 100 ms. Timing uses the first press, without adding the 
 
 Swing as the ball reaches your bat. Perfect timing is within 90 ms, good within 170 ms, and OK within 260 ms; fast balls tighten these bands by 10%.
 
-Timing names the shot and the shot you pick decides how cleanly it comes off. Middle a ball with a shot that suits the line and **perfect timing is six, good timing is four**; a shot that suits the line less well drops a tier to four and two. Anything less clean goes **up in the air**, and the call is held back until the ball comes down — it can be caught, it can drop safe for one or two, and off OK timing it can still carry the rope for four or six. A thin edge off poor timing never clears the boundary. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
+Only a middled ball reaches the rope, and timing alone decides which one:
+
+| Timing | Middled (a shot the line suits) |
+| --- | --- |
+| Perfect | Six |
+| Good | Four |
+| OK | One, two or three along the ground |
+| Poor | Caught |
+
+Reaching for a shot the line does not suit skies it whatever the timing, and so does poor timing. **A ball in the air is only ever six or a catch** — never a nudged single — and the call is held back until it comes down, so a skied shot has to be watched all the way. A shot the line suits outright is never caught. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
+
+Deliveries are not all the same pace. A seam ball takes about a second to arrive and spin nearly a second and a half, but **express** deliveries cut that to roughly two thirds of a second and tighten the timing windows with it — they are rare, and they are meant to catch you cold.
 
 The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), and `boundary-hit.mp3` plays for both fours and sixes. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
@@ -53,6 +68,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 
 - `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds, compatibility matrix, the compatibility thresholds that separate a middled shot from a skied one, the aerial catch/landing tables, wicket probabilities, and innings pacing.
 - `src/game/`: pure seeded delivery generation, continuous bounce/swing/spin trajectories, shot resolution, scorekeeping, keyboard input, and small Web Audio effects.
+- `src/game/Tutorial.ts`: the three scripted coaching balls, their deliveries, and an outcome that never dismisses the player.
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
 - `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. Bowler and fielders are modelled from smooth spheres, capsules, and rounded boxes with sphere joints, so they read as sculpted clay rather than stacked cuboids; the distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
 - `src/entities/Batter.ts`: articulated right-handed batter built from the same smooth primitives, with a side-on guard, flexed knees, the back bent forward over the ball, the head carried on the spine, the blade lifted behind the back shoulder, a shared two-hand bat grip, and two-bone arm/leg posing. The bat carries a full orientation — a handle axis plus a blade face — and poses slerp that rotation, so the blade travels a clean arc instead of rolling at random when a stroke reverses it. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.

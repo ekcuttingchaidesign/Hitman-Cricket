@@ -52,32 +52,52 @@ describe('wickets and scoring', () => {
     expect(resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 400 }, rng(.1)).wicketType).toBe('LBW');
     expect(resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 400 }, rng(.9)).wicketType).toBe('BOWLED');
   });
-  it('can catch mistimed contact, but never catches perfect or good timing', () => {
-    for (const ms of [800, 700]) expect(resolveShot(delivery(), { shotType: 'LEG', inputTimeMs: ms }, rng(0)).wicketType).toBe('CAUGHT');
-    for (const ms of [1000, 900]) for (const shotType of SHOTS) expect(resolveShot(delivery(), { shotType, inputTimeMs: ms }, rng(0)).wicketType).not.toBe('CAUGHT');
+  it('always catches poor timing, and never catches a middled shot', () => {
+    for (const shotType of SHOTS) for (const roll of [0, .5, .99]) {
+      // 700ms against a 1000ms contact is a 300ms miss: poor, and skied.
+      const poor = resolveShot(delivery(), { shotType, inputTimeMs: 700 }, rng(roll));
+      if (poor.madeBatContact) { expect(poor.wicketType).toBe('CAUGHT'); expect(poor.aerial).toBe(true); }
+      // Perfect, good and ok all keep a suited shot out of a fielder's hands.
+      for (const ms of [1000, 900, 800]) {
+        const played = resolveShot(delivery(), { shotType, inputTimeMs: ms }, rng(roll));
+        if (played.compatibility >= .55) expect(played.wicketType).not.toBe('CAUGHT');
+      }
+    }
   });
-  it('does not bowl a ball after actual contact', () => expect(resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 700 }, rng(.99)).isWicket).toBe(false));
+  it('never bowls a ball the bat has touched', () => {
+    for (const ms of [1000, 900, 800, 700]) for (const roll of [0, .5, .99]) {
+      const played = resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: ms }, rng(roll));
+      expect(played.madeBatContact).toBe(true);
+      expect(played.wicketType).not.toBe('BOWLED'); expect(played.wicketType).not.toBe('LBW');
+    }
+  });
   it('lets timing name the shot: perfect is six, good is four', () => {
     const played = (shotType: typeof SHOTS[number], delta: number, roll: number) =>
       resolveShot(delivery(), { shotType, inputTimeMs: 1000 + delta }, rng(roll));
-    for (const roll of [0, .3, .7, .99]) {
-      expect(played('STRAIGHT', 0, roll).runs).toBe(6);
-      expect(played('STRAIGHT', 120, roll).runs).toBe(4);
-      expect(played('STRAIGHT', 0, roll).aerial).toBe(false);
+    for (const roll of [0, .3, .7, .99]) for (const shotType of ['STRAIGHT', 'LONG_ON', 'LEG'] as const) {
+      // Every one of these suits a middle-stump ball, so timing alone decides.
+      expect(played(shotType, 0, roll).runs).toBe(6);
+      expect(played(shotType, 120, roll).runs).toBe(4);
+      expect(played(shotType, 0, roll).aerial).toBe(false);
     }
-    // A shot that suits the line less well drops a tier rather than clearing the rope.
-    expect(played('LEG', 0, .5).runs).toBe(4);
-    expect(played('LEG', 120, .5).runs).toBe(2);
+    // Ok timing keeps the ball along the ground: never a boundary, never a wicket.
+    for (let roll = 0; roll < 1; roll += .05) {
+      const nudged = played('STRAIGHT', 200, roll);
+      expect(nudged.timingGrade).toBe('OK');
+      expect([1, 2, 3]).toContain(nudged.runs);
+      expect(nudged.isWicket).toBe(false); expect(nudged.aerial).toBe(false);
+    }
   });
-  it('sends mistimed contact up in the air, to be caught or to carry', () => {
+  it('a ball in the air comes down as six or a catch, never as a nudged single', () => {
     const skied = new Set<string>();
     for (let roll = 0; roll < 1; roll += .02) {
-      const result = resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 1200 }, rng(roll));
-      expect(result.timingGrade).toBe('OK');
-      expect(result.aerial).toBe(true);
+      // Reaching for a leg-side shot at a ball outside off is a mishit, not a miss.
+      const result = resolveShot(delivery({ line: 'OUTSIDE_OFF', baseTargetX: .42, finalTargetX: .42 }),
+        { shotType: 'STRAIGHT', inputTimeMs: 1000 }, rng(roll));
+      expect(result.madeBatContact).toBe(true); expect(result.aerial).toBe(true);
       skied.add(result.wicketType === 'CAUGHT' ? 'CAUGHT' : String(result.runs));
     }
-    for (const outcome of ['CAUGHT', '6', '4']) expect([...skied]).toContain(outcome);
+    expect([...skied].sort()).toEqual(['6', 'CAUGHT']);
   });
   it('resolves every supported run award, and only perfect or airborne shots reach six', () => {
     const runs = new Set<number>();
@@ -97,8 +117,8 @@ describe('delivery fairness and determinism', () => {
     for (let i = 0; i < 30; i++) { const d = gen.next(0); counts[d.line]++; expect(d.speedKph).toBeGreaterThanOrEqual(STYLES[d.style].min); expect(d.speedKph).toBeLessThanOrEqual(STYLES[d.style].max); expect(Math.abs(d.finalTargetX - d.baseTargetX)).toBeLessThanOrEqual(GAME.movement); }
     expect(Object.values(counts)).toEqual([6,6,6,6,6]);
   });
-  it('produces all seven styles across seeds', () => {
-    const gen = new DeliveryGenerator(new SeededRandom(875)); expect(new Set(Array.from({ length: 300 }, () => gen.next(0).style)).size).toBe(7);
+  it('produces all eight styles across seeds', () => {
+    const gen = new DeliveryGenerator(new SeededRandom(875)); expect(new Set(Array.from({ length: 400 }, () => gen.next(0).style)).size).toBe(8);
   });
   it('is continuous through the bounce and lands on the stated contact plane', () => {
     const gen = new DeliveryGenerator(new SeededRandom(91));

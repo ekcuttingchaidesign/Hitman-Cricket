@@ -1,4 +1,4 @@
-import { AERIAL, CLEAN_SHOT, COMPATIBILITY, GAME, SOLID_SHOT, TIMING_SCORE } from '../config/gameplay';
+import { COMPATIBILITY, GAME, GROUND_RUNS, SOLID_SHOT, STYLES, TIMING_SCORE } from '../config/gameplay';
 import { effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import type { Delivery, ShotAttempt, ShotOutcome, TimingGrade } from './types';
 export function gradeTiming(delta: number, fast = false): TimingGrade {
@@ -10,7 +10,7 @@ const award = (runs: ShotOutcome['runs']) =>
   runs === 6 ? 'SIX!' : runs === 4 ? 'FOUR!' : runs ? `${runs} RUN${runs > 1 ? 'S' : ''}` : 'DOT BALL';
 export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }): ShotOutcome {
   const delta = attempt ? attempt.inputTimeMs - delivery.idealContactTimeMs : null;
-  const timingGrade = delta === null ? 'MISS' : gradeTiming(delta, delivery.style === 'FAST');
+  const timingGrade = delta === null ? 'MISS' : gradeTiming(delta, STYLES[delivery.style].tight);
   const compatibility = attempt ? COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] : 0;
   const quality = TIMING_SCORE[timingGrade] * compatibility;
   const madeBatContact = !!attempt && timingGrade !== 'MISS' && compatibility >= 0.25;
@@ -22,21 +22,22 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
     const lbw = attempt && Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;
     return { ...outcome, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
   }
-  // Middled it: the timing grade names the shot outright.
-  if (timingGrade === 'PERFECT' && compatibility >= CLEAN_SHOT) return { ...outcome, runs: 6, feedback: award(6) };
-  if (timingGrade === 'PERFECT' && compatibility >= SOLID_SHOT) return { ...outcome, runs: 4, feedback: award(4) };
-  if (timingGrade === 'GOOD' && compatibility >= CLEAN_SHOT) return { ...outcome, runs: 4, feedback: award(4) };
-  if (timingGrade === 'GOOD' && compatibility >= SOLID_SHOT) return { ...outcome, runs: 2, feedback: award(2) };
-
-  // Everything else goes up. A thin edge off poor timing never carries the rope.
-  const band = AERIAL[timingGrade === 'POOR' ? 'THIN'
-    : compatibility >= CLEAN_SHOT ? 'CLEAN' : compatibility >= SOLID_SHOT ? 'SOLID' : 'THIN'];
-  if (rng.next() < band.caught) return { ...outcome, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' };
+  // Poor timing skies it, and so does reaching for a shot the line does not
+  // suit. A ball in the air is only ever six or a catch — never a nudged single.
+  if (timingGrade === 'POOR' || compatibility < SOLID_SHOT) {
+    const taken = timingGrade === 'POOR' || rng.next() < GAME.mishitCaught;
+    return taken
+      ? { ...outcome, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' }
+      : { ...outcome, aerial: true, runs: 6, feedback: award(6) };
+  }
+  // Middled it: the timing grade names the shot.
+  if (timingGrade === 'PERFECT') return { ...outcome, runs: 6, feedback: award(6) };
+  if (timingGrade === 'GOOD') return { ...outcome, runs: 4, feedback: award(4) };
   let roll = rng.next();
-  let runs: ShotOutcome['runs'] = band.outcomes[band.outcomes.length - 1][0];
-  for (const [value, weight] of band.outcomes) {
+  let runs: ShotOutcome['runs'] = GROUND_RUNS[GROUND_RUNS.length - 1][0];
+  for (const [value, weight] of GROUND_RUNS) {
     roll -= weight;
     if (roll <= 0) { runs = value; break; }
   }
-  return { ...outcome, aerial: true, runs, feedback: award(runs) };
+  return { ...outcome, runs, feedback: award(runs) };
 }

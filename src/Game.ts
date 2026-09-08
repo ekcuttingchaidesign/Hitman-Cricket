@@ -6,6 +6,7 @@ import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { resolveShot } from './game/ShotResolver';
+import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
@@ -19,6 +20,8 @@ export class Game {
   private best = 0; private bounced = false; private seed = 0;
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
+  /** -1 outside the tutorial, otherwise the ball being coached. */
+  private lesson = -1;
   private scene!: GameScene;
   private hud: HUD;
   private input!: InputManager;
@@ -31,6 +34,7 @@ export class Game {
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); this.hud.error(); return; }
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot, this.hud.viewport);
     this.hud.on('start', this.start); this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
+    this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
     this.hud.on('restart', this.start);
     this.hud.on('share', () => { void this.hud.share(); });
@@ -45,12 +49,21 @@ export class Game {
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: { snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter() } });
   }
   start = () => {
+    this.lesson = -1;
     this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed); this.generator = new DeliveryGenerator(this.rng);
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0;
     this.input.reset(); this.scene.reset(); this.hud.start(); this.hud.score(this.score); this.setPhase('READY');
+    (document.activeElement as HTMLElement | null)?.blur();
+  };
+  /** Three scripted balls, no wickets, and a way out at any point. */
+  startTutorial = () => {
+    this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0;
+    this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.setPhase('READY');
+    this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
     (document.activeElement as HTMLElement | null)?.blur();
   };
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase); }
@@ -89,7 +102,8 @@ export class Game {
   private update() {
     const age = this.elapsed - this.phaseStart;
     if (this.phase === 'READY' && age >= GAME.readyMs) {
-      this.delivery = this.generator.next(this.elapsed + GAME.runupMs);
+      this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
+        : this.generator.next(this.elapsed + GAME.runupMs);
       this.attempt = null; this.outcome = null; this.bounced = false; this.scene.reset(); this.input.reset(); this.setPhase('BOWLER_RUNUP');
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
@@ -112,11 +126,19 @@ export class Game {
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
       if (this.elapsed >= this.resolveEndsAt) this.setPhase('RESULT');
     } else if (this.phase === 'RESULT' && age >= GAME.resultMs) {
-      if (this.score.ended) this.end(); else this.setPhase('READY');
+      if (this.lesson >= 0) {
+        this.lesson++;
+        if (this.lesson >= TUTORIAL.length) { this.lesson = -1; this.setPhase('START'); this.hud.tutorialComplete(); }
+        else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
+      } else if (this.score.ended) this.end(); else this.setPhase('READY');
     }
   }
   private resolve() {
-    this.outcome = resolveShot(this.delivery!, this.attempt, this.rng); this.score.record(this.outcome); this.input.reset();
+    const step = this.lesson >= 0 ? TUTORIAL[this.lesson] : null;
+    this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
+      : resolveShot(this.delivery!, this.attempt, this.rng);
+    if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact); else this.score.record(this.outcome);
+    this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;
     this.resultPresented = false; this.contactPlayed = false;
@@ -126,7 +148,8 @@ export class Game {
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    this.hud.score(this.score); this.hud.result(outcome);
+    if (this.lesson < 0) this.hud.score(this.score);
+    this.hud.result(outcome);
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
   }
@@ -136,7 +159,7 @@ export class Game {
     this.hud.end(this.score, this.best, record);
   }
   private snapshot() {
-    return { phase: this.phase, seed: this.seed, elapsed: Math.round(this.elapsed), balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
+    return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed), balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',

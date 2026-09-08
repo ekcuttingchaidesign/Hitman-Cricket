@@ -1,4 +1,5 @@
 import { ScoreManager } from '../game/ScoreManager';
+import type { TutorialStep } from '../game/Tutorial';
 import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
 const icon = (name: string) => {
   const paths: Record<string, string> = {
@@ -35,6 +36,17 @@ export class HUD {
         <div id="scoreboard" class="scoreboard"><div class="score-main"><span class="score-caption">YOUR INNINGS</span><strong><span id="runs">0</span><span class="score-slash">/</span><span id="wickets">0</span></strong></div><div class="score-overs"><strong id="overs">0.0</strong><span>OF 5 OVERS</span></div><div class="last-ball"><span>LAST BALL</span><strong id="last">—</strong></div></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
+        <div id="coach" class="coach hidden">
+          <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
+          <p id="coach-brief">Drive it straight back past the bowler.</p>
+          <div class="coach-cue" id="coach-cue">
+            <svg viewBox="0 0 120 120" class="cue-track" aria-hidden="true"><path d="M60 102V30"/><path d="M40 50 60 30l20 20"/></svg>
+            <span class="cue-dot"></span>
+          </div>
+          <span class="coach-how" id="coach-how">Swipe up</span>
+          <button id="skip-tutorial" class="ghost-button">SKIP TO INNINGS</button>
+        </div>
+        <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
         <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
         <div id="intro" class="panel intro-panel">
           <div class="brand"><span class="brand-mark">H</span><span>HITMAN<span class="brand-sub">CRICKET</span></span></div>
@@ -42,6 +54,7 @@ export class HUD {
           <h2>Small game. <br>Big innings.</h2>
           <p>Score as many runs as you can in 30 balls. <br>Three wickets. Make every shot count.</p>
           <button id="start" class="primary-button">START INNINGS ${icon('arrow')}</button>
+          <button id="tutorial" class="secondary-button">FIRST TIME? PLAY 3 BALLS</button>
           <span class="start-hint keyboard-only">or press <kbd>Enter</kbd> to step up</span>
           <span class="shot-keys keyboard-only"><b>←</b><kbd>A</kbd><b>↖</b><kbd>A+W</kbd><b>↑</b><kbd>W</kbd><b>↗</b><kbd>W+D</kbd><b>→</b><kbd>D</kbd></span>
           <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat.<b class="swipe-symbols">← ↖ ↑ ↗ →</b></span>
@@ -68,9 +81,10 @@ export class HUD {
     this.$('last').className = last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : '';
   }
   start() {
+    document.body.classList.remove('tutorial-active');
     document.body.classList.add('innings-active');
     this.viewport.classList.remove('modal-open');
-    ['intro', 'end', 'pause-overlay', 'result'].forEach(id => this.$(id).classList.add('hidden'));
+    ['intro', 'end', 'pause-overlay', 'result', 'coach', 'tutorial-done'].forEach(id => this.$(id).classList.add('hidden'));
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
   }
@@ -81,6 +95,30 @@ export class HUD {
   select(_shot: ShotType) { this.$('phase-label').textContent = 'SHOT COMMITTED'; }
   /** A skied shot: say nothing about the outcome until the ball comes down. */
   airborne() { this.$('phase-label').textContent = 'UP IN THE AIR…'; }
+  startTutorial() {
+    this.start();
+    document.body.classList.add('tutorial-active');
+    (this.$('pause') as HTMLButtonElement).disabled = true;
+  }
+  coach(step: TutorialStep, ball: number, total: number) {
+    this.$('coach-step').textContent = `BALL ${ball} OF ${total}`;
+    this.$('coach-brief').textContent = step.brief;
+    this.$('coach-how').innerHTML = `<span class="touch-only">${step.swipe}</span><span class="keyboard-only">Press <kbd>${step.key}</kbd></span>`;
+    this.$('coach-cue').className = `coach-cue ${step.cue}`;
+    this.$('coach').classList.remove('hidden');
+  }
+  /** Once the shot is away the cue has done its job. */
+  coachPlayed(praise: string, played: boolean) {
+    this.$('coach-cue').classList.add('hidden');
+    this.$('coach-brief').textContent = played ? praise : 'Not that one — watch the next.';
+  }
+  tutorialComplete() {
+    this.$('coach').classList.add('hidden'); this.$('result').classList.add('hidden');
+    this.$('phase-label').textContent = '';
+    this.viewport.classList.add('modal-open');
+    this.$('tutorial-done').classList.remove('hidden');
+    this.$('tutorial-play').focus();
+  }
   /** A call, not a popup: the outcome rises off the field and fades on its own. */
   result(outcome: ShotOutcome) {
     this.$('phase-label').textContent = '';

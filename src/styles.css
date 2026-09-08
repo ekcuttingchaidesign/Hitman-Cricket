@@ -209,6 +209,97 @@ kbd{
   pointer-events:none;
   z-index:3
 }
+/* ── Tutorial coaching ─────────────────────────────────────────────────── */
+.coach{
+  position:absolute;
+  bottom:calc(var(--pad-bottom) + 30px);
+  left:50%;
+  transform:translateX(-50%);
+  width:min(340px,calc(100% - 2 * var(--pad)));
+  z-index:6;
+  text-align:center;
+  /* Swipes must reach the field through the coaching, so only the button takes
+     pointer events back. */
+  pointer-events:none
+}
+.coach-step{
+  display:inline-block;
+  font-size:9px;
+  letter-spacing:2px;
+  font-weight:750;
+  color:#ffb277;
+  background:#0f2433cc;
+  border-radius:20px;
+  padding:5px 12px
+}
+#coach-brief{
+  margin:9px 0 0;
+  font-size:14px;
+  line-height:1.5;
+  font-weight:600;
+  color:#fff;
+  text-shadow:0 1px 3px #0d2634,0 2px 12px #0d2634
+}
+.coach-cue{
+  width:104px;
+  height:104px;
+  position:relative;
+  margin:2px auto 0
+}
+.coach-cue.left{transform:rotate(-90deg)}
+.coach-cue.right{transform:rotate(90deg)}
+.cue-track{
+  width:100%;
+  height:100%;
+  fill:none;
+  stroke:#ffb277;
+  stroke-width:6;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  filter:drop-shadow(0 1px 4px #0d263488)
+}
+.cue-dot{
+  position:absolute;
+  left:50%;
+  width:19px;
+  height:19px;
+  margin-left:-9.5px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 0 0 7px #ffb27740;
+  animation:cue 1.6s ease-in-out infinite
+}
+@keyframes cue{
+  0%{top:76px;opacity:0}
+  14%{opacity:1}
+  66%{top:14px;opacity:1}
+  100%{top:14px;opacity:0}
+}
+.coach-how{
+  display:block;
+  margin-top:2px;
+  font-size:11px;
+  letter-spacing:1.6px;
+  font-weight:750;
+  color:#eaf3f4;
+  text-shadow:0 1px 4px #0d2634
+}
+.ghost-button{
+  pointer-events:auto;
+  margin-top:12px;
+  border:1px solid #ffffff40;
+  background:#0f2433b3;
+  color:#dfeaec;
+  border-radius:20px;
+  padding:8px 16px;
+  font-size:10px;
+  font-weight:750;
+  letter-spacing:1.4px
+}
+.ghost-button:hover{background:#0f2433e6}
+/* An innings scoreboard means nothing during a lesson. */
+.tutorial-active .scoreboard,.tutorial-active .phase-label{display:none}
+
 .arena-bottom{
   position:absolute;
   bottom:var(--pad-bottom);
@@ -498,6 +589,11 @@ dialog .primary-button{margin-top:18px}
   .brand-mark{font-size:32px}
 }
 @media(max-height:560px){
+  .coach{bottom:calc(var(--pad-bottom) + 12px);width:min(420px,calc(100% - 2 * var(--pad)))}
+  .coach-cue{width:66px;height:66px}
+  .cue-dot{animation-name:cue-short}
+  #coach-brief{font-size:12px;margin-top:5px}
+  .ghost-button{margin-top:6px;padding:6px 14px}
   /* Landscape phones: the start card shrinks and drops clear of the controls. */
   .intro-panel{width:min(340px,calc(100% - 2 * var(--pad)));top:calc(50% + 14px)}
   .touch-device .primary-button{min-height:40px}
@@ -525,6 +621,12 @@ dialog .primary-button{margin-top:18px}
   .final-stats strong{font-size:19px}
   .swipe-symbols,.shot-keys{display:none}
   .result{top:14%}
+}
+@keyframes cue-short{
+  0%{top:44px;opacity:0}
+  14%{opacity:1}
+  66%{top:6px;opacity:1}
+  100%{top:6px;opacity:0}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation-duration:.01ms!important;scroll-behavior:auto!important}
