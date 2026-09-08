@@ -27,7 +27,7 @@ The start screen offers a three-ball tutorial. Each ball is slow, dead straight,
 
 ## Mobile controls
 
-Swipe **left**, **up-left**, **up**, **up-right**, or **right** for leg side, long on, straight, cover, or off side. A short 24-pixel swipe commits the shot immediately when its direction becomes clear. Timing is measured at that moment, not at finger-down or release, and uses the same timing bands, compatibility, scoring, and wickets as keyboard play. One shot per ball is shared across input methods. Taps, downward swipes, second fingers, and cancelled gestures do not trigger a shot. A gesture cannot carry into the next ball.
+Swipe **left**, **up-left**, **up**, **up-right**, or **right** for leg side, long on, straight, cover, or off side, and **down** to block. A short 24-pixel swipe commits the shot immediately when its direction becomes clear. Timing is measured at that moment, not at finger-down or release, and uses the same timing bands, compatibility, scoring, and wickets as keyboard play. One shot per ball is shared across input methods. Taps, second fingers, and cancelled gestures do not trigger a shot, and nor do the narrow slivers either side of the downward fan. A gesture cannot carry into the next ball.
 
 Use the on-screen Pause button to resume or restart. Page scrolling is suppressed on the field during play; dialogs can still scroll on small screens.
 
@@ -38,6 +38,7 @@ Use the on-screen Pause button to resume or restart. Page scrolling is suppresse
 | A or ← | Leg-side shot (left) |
 | W or ↑ | Straight drive |
 | D or → | Off-side shot (right) |
+| S or ↓ | Forward defensive |
 | A + W (or ← + ↑) | Long-on drive |
 | W + D (or ↑ + →) | Cover / long-off drive |
 | Enter | Start innings / play again |
@@ -78,6 +79,12 @@ The pull is not a separate control: swipe leg side (or press `A`) at a ball up a
 
 A four runs to the rope along the ground; only a six leaves it, and only a mishit hangs in the air.
 
+## Defending
+
+Swipe down, or press `S`, and the batter blocks it. Get the bat down in time — OK timing or better — and the ball dies at his feet: a dot ball, and nothing off the middle of a dead bat carries to a fielder, so a defended ball can never be caught. Leave it later than that and the ball simply goes past the bat; if it was going on to hit the stumps, that is Bowled or LBW, and if it was missing them it is a play and miss.
+
+Defence beats any stroke pressed with it — a player reaching for the block has decided not to play one — and the downward swipe fan is a full 90 degrees, so a hurried drag down still finds it. It scores nothing, so the confidence meter treats it as the dot ball it is.
+
 ## Confidence, and the charge down the pitch
 
 Confidence is earned by scoring and lost by not scoring. A six adds 28, a four 22, a three 16 and a two 12; a dot ball takes 18, a single leaves it where it stands, and a wicket empties it. Roughly four scoring shots fill it from nothing. It is a run of form rather than a bank balance, so it cannot be saved across a collapse.
@@ -105,7 +112,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, and the WhatsApp share message.
 - `tests/batter.test.ts`: grip attachment, hand order and fist alignment on the handle, guard geometry, per-stroke footwork, blade placement at contact, elbow clearance from trunk and handle, hands kept in front of the shoulders through every stroke, and continuous blade travel with a squared face.
-- `tests/mobile.test.ts`: swipe directions, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
+- `tests/mobile.test.ts`: swipe directions including the defensive fan and its dead slivers, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 
 Lines are shuffled in bags of five, giving six of each base line over a 30-ball innings. Pace/style is sampled independently. Swing develops before the bounce; spin turns after it and finishes before the final third of the pitch. Compatibility uses the nearest line to the final ball position. Travel duration is scaled for arcade readability. The stage mirrors X so negative world X appears on the left from the batting camera, matching the A key.
 

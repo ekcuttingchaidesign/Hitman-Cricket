@@ -1,6 +1,7 @@
 export type BallLine = 'OUTSIDE_LEG' | 'LEG' | 'MIDDLE' | 'OFF' | 'OUTSIDE_OFF';
 export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'OFF_SPIN' | 'LEG_SPIN';
-export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'OFF';
+/** The five scoring strokes, plus the forward defensive. */
+export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'OFF' | 'DEFEND';
 export type TimingGrade = 'PERFECT' | 'GOOD' | 'OK' | 'POOR' | 'MISS';
 export type WicketType = 'BOWLED' | 'LBW' | 'CAUGHT';
 export type GamePhase = 'START' | 'READY' | 'BOWLER_RUNUP' | 'BALL_IN_FLIGHT' | 'SHOT_RESOLVE' | 'RESULT' | 'INNINGS_END' | 'PAUSED';
@@ -20,4 +21,6 @@ export interface ShotOutcome {
   aerial: boolean;
   /** Charged down the pitch and hit out of the ground. */
   advance?: boolean;
+  /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
+  defended?: boolean;
 }

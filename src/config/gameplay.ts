@@ -19,6 +19,7 @@ export const GAME = {
   movement: 0.13, boundaryRadius: 30,
 } as const;
 export const LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSIDE_OFF'];
+/** The scoring strokes. Defence is not one of them and is never chosen for you. */
 export const SHOTS: ShotType[] = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'OFF'];
 export const LINE_X: Record<BallLine, number> = { OUTSIDE_LEG: -0.42, LEG: -0.14, MIDDLE: 0, OFF: 0.14, OUTSIDE_OFF: 0.42 };
 // `rush` shortens the flight beyond what the speed alone buys and `tight`
@@ -42,11 +43,14 @@ export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: n
 export const SPECIALS = { sixesForYorker: 3, quickForSlower: 4, shortChance: 0.13 };
 export const QUICK_STYLES: readonly DeliveryStyle[] = ['FAST', 'EXPRESS', 'YORKER'];
 export const COMPATIBILITY: Record<BallLine, Record<ShotType, number>> = {
-  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, OFF: 0 },
-  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, OFF: 0.1 },
-  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, OFF: 0.55 },
-  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, OFF: 1 },
-  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, OFF: 1 },
+  // Defence suits every line — the bat comes down in front of the stumps
+  // wherever the ball is — and it is resolved on its own terms before any of
+  // this is read.
+  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, OFF: 0, DEFEND: 1 },
+  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, OFF: 0.1, DEFEND: 1 },
+  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, OFF: 0.55, DEFEND: 1 },
+  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, OFF: 1, DEFEND: 1 },
+  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, OFF: 1, DEFEND: 1 },
 };
 export const TIMING_SCORE: Record<TimingGrade, number> = { PERFECT: 1, GOOD: 0.82, OK: 0.58, POOR: 0.25, MISS: 0 };
 // A shot at least this compatible with the line counts as middled; below it the
@@ -55,7 +59,11 @@ export const SOLID_SHOT = 0.55;
 // Middled, the timing grade alone names the shot: perfect is six, good is four,
 // and ok keeps it along the ground for these.
 export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
-export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, OFF: 52 };
+export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, OFF: 52, DEFEND: 0 };
+// A defensive shot: timed this well or better it is dead at his feet, and
+// nothing can be caught off it. Worse, and the ball goes on past the bat — at
+// the stumps, that is the end of it.
+export const DEFENCE = { timing: ['PERFECT', 'GOOD', 'OK'] as readonly TimingGrade[], feedback: 'DEFENDED' } as const;
 // Confidence is earned by scoring and lost by not scoring: boundaries and hard
 // running fill the meter and a dot ball drains it, while a single leaves it
 // where it stands — nudging one is not a failure. A wicket empties it, and

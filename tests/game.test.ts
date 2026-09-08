@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { DeliveryGenerator } from '../src/game/DeliveryGenerator';
@@ -289,6 +289,57 @@ describe('charging down the pitch', () => {
     expect(advanceShot(ball, attempt, true)).toBe(resolveShot(ball, attempt, new SeededRandom(4), true).advance);
     expect(advanceShot(ball, attempt, false)).toBe(false);
     expect(advanceShot(ball, null, true)).toBe(false);
+  });
+});
+
+describe('the forward defensive', () => {
+  const block = (d: Delivery, delta: number, roll = 0.9) =>
+    resolveShot(d, { shotType: 'DEFEND', inputTimeMs: d.idealContactTimeMs + delta }, rng(roll));
+  const onTheStumps = delivery({ line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0 });
+  it('kills the ball for a dot when the bat is down in time', () => {
+    for (const delta of [0, GAME.timing.perfect, GAME.timing.good, -GAME.timing.ok]) {
+      const played = block(onTheStumps, delta);
+      expect(played.defended, `${delta}ms`).toBe(true);
+      expect(played.runs).toBe(0); expect(played.isWicket).toBe(false);
+      expect(played.madeBatContact).toBe(true); expect(played.feedback).toBe(DEFENCE.feedback);
+    }
+  });
+  it('can never be caught, whatever the line or the timing', () => {
+    for (const line of LINES)
+      for (const delta of [0, 60, 120, 180, 260])
+        for (const roll of [0, 0.5, 0.99]) {
+          const played = block(delivery({ line, baseTargetX: LINE_X[line], finalTargetX: LINE_X[line] }), delta, roll);
+          expect(played.wicketType, `${line} ${delta}ms`).not.toBe('CAUGHT');
+          expect(played.aerial).toBe(false);
+          expect(played.runs).toBe(0);
+        }
+  });
+  it('is bowled when the bat comes down late on the stumps', () => {
+    // Poor timing and worse: the ball goes past the bat, and the stumps are behind it.
+    for (const delta of [GAME.timing.ok + 1, GAME.timing.poor, GAME.timing.poor + 400]) {
+      const played = block(onTheStumps, delta);
+      expect(played.defended, `${delta}ms`).toBeFalsy();
+      expect(played.isWicket, `${delta}ms`).toBe(true);
+      expect(played.wicketType === 'BOWLED' || played.wicketType === 'LBW').toBe(true);
+    }
+    // LBW only comes up on a ball straight enough to be hitting; a high roll keeps it bowled.
+    expect(block(onTheStumps, 300, 0.99).wicketType).toBe('BOWLED');
+    expect(block(onTheStumps, 300, 0).wicketType).toBe('LBW');
+  });
+  it('survives a late block at a ball that was missing the stumps', () => {
+    const wide = delivery({ line: 'OUTSIDE_OFF', baseTargetX: LINE_X.OUTSIDE_OFF, finalTargetX: LINE_X.OUTSIDE_OFF });
+    const played = block(wide, GAME.timing.poor);
+    expect(played.isWicket).toBe(false); expect(played.runs).toBe(0);
+    expect(played.feedback).toBe('PLAYED AND MISSED');
+  });
+  it('cannot be bowled off a bouncer, however late the block', () => {
+    const short = delivery({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce!, line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0 });
+    expect(block(short, 300).isWicket).toBe(false);
+  });
+  it('scores nothing, so the meter treats it as the dot it is', () => {
+    const meter = new Confidence();
+    meter.record(block(onTheStumps, 0));
+    expect(meter.value).toBe(0);
   });
 });
 

@@ -5,11 +5,16 @@ import { outcomeSound } from '../src/game/Audio';
 describe('swipe directions', () => {
   it.each([
     [-80, 0, 'LEG'], [-60, -60, 'LONG_ON'], [0, -80, 'STRAIGHT'], [60, -60, 'COVER_LONG_OFF'], [80, 0, 'OFF'],
-    [0, 80, null], [-60, 60, null], [60, 60, null], [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'OFF'],
+    // Down is the block, on a 90-degree fan so a hurried drag still finds it.
+    [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [60, 60, 'DEFEND'], [-20, 75, 'DEFEND'],
+    // The slivers either side of that fan stay dead: a sideways drag is no shot.
+    [69, 40, null], [-69, 40, null],
+    [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'OFF'],
     [NaN, 0, null], [Infinity, 0, null],
   ])('maps (%s, %s) to %s', (x, y, result) => expect(mapSwipe(Number(x), Number(y))).toBe(result));
   it('keeps a useful tolerance around the cardinal directions', () => {
     expect(mapSwipe(70, 15)).toBe('OFF'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');
+    expect(mapSwipe(15, 70)).toBe('DEFEND');
   });
 });
 
@@ -78,7 +83,8 @@ describe('arrow keys', () => {
   it.each([
     ['ArrowLeft', 'A'], ['ArrowUp', 'W'], ['ArrowRight', 'D'],
     ['a', 'A'], ['W', 'W'], ['d', 'D'],
-    ['ArrowDown', null], ['s', null], ['Shift', null], ['Enter', null],
+    ['ArrowDown', 'S'], ['s', 'S'], ['S', 'S'],
+    ['Shift', null], ['Enter', null], ['q', null],
   ])('reads %s as %s', (key, mapped) => expect(shotKey(key as string)).toBe(mapped));
 
   const press = (s: ReturnType<typeof setup>, key: string) => {
@@ -92,6 +98,9 @@ describe('arrow keys', () => {
       [['ArrowLeft', 'ArrowUp'], 'LONG_ON'], [['ArrowUp', 'ArrowRight'], 'COVER_LONG_OFF'],
       // A letter and an arrow are the same key, so a mixed pair is still a combo.
       [['A', 'ArrowUp'], 'LONG_ON'],
+      // Down is the block, whichever key reaches for it, and it beats a stroke
+      // pressed with it: a player blocking has decided not to play one.
+      [['ArrowDown'], 'DEFEND'], [['s'], 'DEFEND'], [['ArrowDown', 'ArrowRight'], 'DEFEND'],
     ] as const) {
       const s = setup();
       for (const key of keys) press(s, key);
@@ -99,6 +108,14 @@ describe('arrow keys', () => {
       expect(s.shoot, keys.join(' + ')).toHaveBeenCalledWith(shot, 100);
       s.input.dispose();
     }
+  });
+  it('commits the block without waiting out the combo window', () => {
+    const s = setup();
+    press(s, 's');
+    // No flush: a block is a late decision, and the hundred milliseconds a
+    // combo waits are enough for the ball to be judged without it.
+    expect(s.shoot).toHaveBeenCalledWith('DEFEND', 100);
+    s.input.dispose();
   });
   it('takes the arrow keys off the browser, and leaves the rest alone', () => {
     const s = setup();
@@ -108,7 +125,7 @@ describe('arrow keys', () => {
     // Otherwise an arrow key scrolls the page out from under the innings.
     expect(arrow.defaultPrevented).toBe(true);
     const other = new Event('keydown', { cancelable: true });
-    Object.assign(other, { key: 'ArrowDown', repeat: false });
+    Object.assign(other, { key: 'Tab', repeat: false });
     s.keyboard.dispatchEvent(other);
     expect(other.defaultPrevented).toBe(false);
     s.input.dispose();

@@ -294,15 +294,16 @@ export class GameScene {
     let angle = (SHOT_ANGLES[shot ?? 'STRAIGHT'] + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     // A charged straight hit does not land in the ground: it clears the stand.
-    const distance = outcome.advance ? 78 : caught ? (outcome.aerial ? 27 : 18) : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
+    // A defended ball drops dead in front of him; it does not trickle away.
+    const distance = outcome.advance ? 78 : outcome.defended ? 1.9 : caught ? (outcome.aerial ? 27 : 18) : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
     if (caught && Math.abs(angle) < 0.2) angle = 0.35;
     this.hitEnd.set(Math.sin(angle) * distance, caught ? 1.5 : 0.1, Math.cos(angle) * distance);
     // A skied shot hangs long enough to be watched down; a middled one leaves
     // fast. The charge is worth watching all the way over the roof.
-    this.flightMs = outcome.advance ? 2200 : outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
+    this.flightMs = outcome.advance ? 2200 : outcome.defended ? 700 : outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
     // A four is a boundary along the turf — a drive races to the rope on the
     // ground. Only a six leaves it, and only a mishit hangs.
-    this.hitHeight = outcome.advance ? 32 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
+    this.hitHeight = outcome.advance ? 32 : outcome.defended ? 0.05 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
       : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 0.22 : 0.6;
     if (caught) {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;

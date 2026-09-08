@@ -5,24 +5,33 @@ import type { ShotType } from './types';
  * rather than in `mapKeys` means combos, held keys and every downstream rule
  * work the same whichever pair of keys a player reaches for.
  */
-export function shotKey(key: string): 'A' | 'W' | 'D' | null {
+export function shotKey(key: string): 'A' | 'W' | 'D' | 'S' | null {
   const upper = key.toUpperCase();
   if (upper === 'A' || upper === 'ARROWLEFT') return 'A';
   if (upper === 'W' || upper === 'ARROWUP') return 'W';
   if (upper === 'D' || upper === 'ARROWRIGHT') return 'D';
+  if (upper === 'S' || upper === 'ARROWDOWN') return 'S';
   return null;
 }
 export function mapKeys(keys: string[]): ShotType | null {
   const normalized = [...new Set(keys.map(k => k.toUpperCase()))];
+  // Defence beats anything it is pressed with: a player reaching for the block
+  // has decided not to play a stroke.
+  if (normalized.includes('S')) return 'DEFEND';
   if (normalized.includes('A') && normalized.includes('W')) return 'LONG_ON';
   if (normalized.includes('W') && normalized.includes('D')) return 'COVER_LONG_OFF';
   if (normalized.includes('A') && normalized.includes('D')) return null;
   return normalized[0] === 'A' ? 'LEG' : normalized[0] === 'W' ? 'STRAIGHT' : normalized[0] === 'D' ? 'OFF' : null;
 }
-/** Five 45-degree sectors, measured from up; downward gestures are ignored. */
+/**
+ * Five 45-degree scoring sectors measured from up, and a 90-degree fan straight
+ * down for the block. The slivers either side of that fan stay dead, so a
+ * sideways drag is still no shot at all.
+ */
 export function mapSwipe(dx: number, dy: number): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
+  if (Math.abs(angle) >= 135) return 'DEFEND';
   if (Math.abs(angle) > 112.5) return null;
   return (['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'OFF'] as const)[Math.round(angle / 45) + 2] ?? null;
 }
@@ -77,7 +86,13 @@ export class InputManager {
     const time = this.now();
     if (this.pending && time - this.pending.time > GAME.comboMs) this.flush(time);
     if (this.used) return;
-    if (!this.pending) this.pending = { keys: [key], time };
+    if (!this.pending) {
+      this.pending = { keys: [key], time };
+      // Defence pairs with nothing, so it commits at once rather than waiting
+      // out the combo window. A block is a late decision by nature, and those
+      // hundred milliseconds were enough to miss the ball being judged.
+      if (key === 'S') this.resolve('DEFEND');
+    }
     else {
       const pair = [...this.pending.keys, key];
       const mapped = mapKeys(pair);

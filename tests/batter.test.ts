@@ -1,14 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { Batter, STROKE_CONTACT_MS, STROKE_DURATION_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, SHOTS } from '../src/config/gameplay';
+import type { ShotType } from '../src/game/types';
 import { Vector3 } from 'three';
+// Every stroke the batter can be asked to play, defence included.
+const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
 
 describe('two-handed cricket animation', () => {
   it('keeps both gloves on the same handle throughout every stroke', () => {
     const batter = new Batter();
     const worst: Record<string, { length: number; time: number }> = {};
     // Both heights, so the pull is held to the same grip and reach as the rest.
-    for (const [shot, ballY] of SHOTS.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
+    for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.55, -.14, 0, .14, .55]) {
         batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
@@ -29,7 +32,7 @@ describe('two-handed cricket animation', () => {
     const batter = new Batter(); const guard = batter.inspect();
     expect(guard.yaw).toBeGreaterThan(1);
     expect(guard.frontFoot[2] - guard.backFoot[2]).toBeGreaterThan(.5);
-    for (const shot of SHOTS) {
+    for (const shot of STROKES) {
       batter.swing(shot, 0, 0); batter.update(STROKE_DURATION_MS);
       expect(batter.inspect().grip).toEqual(guard.grip);
       expect(batter.inspect().frontFoot).toEqual(guard.frontFoot);
@@ -37,16 +40,16 @@ describe('two-handed cricket animation', () => {
   });
   it('uses distinct follow-throughs and steps into drives', () => {
     const batter = new Batter(); const signatures = new Set<string>();
-    for (const shot of SHOTS) {
+    for (const shot of STROKES) {
       batter.reset(); batter.swing(shot, 0, 0); batter.update(470);
       const pose = batter.inspect(); signatures.add(JSON.stringify([pose.grip, pose.frontFoot, pose.yaw]));
       if (['STRAIGHT', 'LONG_ON', 'COVER_LONG_OFF'].includes(shot)) expect(pose.frontFoot[2]).toBeGreaterThan(.5);
     }
-    expect(signatures.size).toBe(5);
+    expect(signatures.size).toBe(STROKES.length);
   });
   it('puts the blade at the ball when contact is presented', () => {
     const batter = new Batter();
-    for (const [shot, ballX] of [['LEG', -.3], ['LONG_ON', -.14], ['STRAIGHT', 0], ['COVER_LONG_OFF', .14], ['OFF', .42]] as const) {
+    for (const [shot, ballX] of [['LEG', -.3], ['LONG_ON', -.14], ['STRAIGHT', 0], ['COVER_LONG_OFF', .14], ['OFF', .42], ['DEFEND', 0], ['DEFEND', -.18]] as const) {
       batter.reset(); batter.swing(shot, 0, ballX); batter.update(110);
       const point = batter.inspect().bladeContact;
       expect(point[0]).toBeCloseTo(ballX, 6); expect(point[1]).toBeCloseTo(.54, 6); expect(point[2]).toBeCloseTo(GAME.contactZ, 6);
@@ -55,7 +58,7 @@ describe('two-handed cricket animation', () => {
 });
 
 describe('bat travel', () => {
-  const sample = (shot: (typeof SHOTS)[number], ballX: number) => {
+  const sample = (shot: ShotType, ballX: number) => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);
     const frames = [];
@@ -70,7 +73,7 @@ describe('bat travel', () => {
   // the bat's axis linearly would collapse it through zero at the halfway point
   // and spin the blade; it has to travel around an arc instead.
   it('carries the blade along a continuous arc with no spin', () => {
-    for (const shot of SHOTS) {
+    for (const shot of STROKES) {
       for (const ballX of [-.55, -.14, 0, .14, .55]) {
         const frames = sample(shot, ballX);
         for (let i = 1; i < frames.length; i++) {
@@ -102,7 +105,7 @@ describe('arm placement', () => {
   it('keeps both elbows clear of the torso in every pose', () => {
     let worst = { clearance: Infinity, where: '' };
     // 1.12 is bouncer height, which turns the leg-side input into a pull.
-    for (const [shot, ballY] of SHOTS.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
+    for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.55, -.14, 0, .14, .55]) {
         const batter = new Batter();
         batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
@@ -131,7 +134,7 @@ describe('the pull', () => {
     batter.reset(); batter.swing('LEG', 0, -.02, 1.12); batter.update(110);
     expect(batter.inspect().pulling).toBe(true);
     // Everything else keeps its own stroke, however high the ball is.
-    for (const shot of SHOTS.filter(s => s !== 'LEG')) {
+    for (const shot of STROKES.filter(s => s !== 'LEG')) {
       batter.reset(); batter.swing(shot, 0, 0, 1.12); batter.update(110);
       expect(batter.inspect().pulling, shot).toBe(false);
     }
@@ -153,7 +156,7 @@ describe('the grip', () => {
   it('holds the handle with two hands that agree about it', () => {
     const batter = new Batter();
     let worstTwist = 0, flattest = Infinity, wristWhere = '';
-    for (const [shot, ballY] of SHOTS.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
+    for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.5, 0, .5]) {
         batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
         for (let time = -1; time <= STROKE_DURATION_MS; time += 20) {
@@ -200,7 +203,7 @@ describe('shoulders', () => {
   it('never carries the hands round behind the back', () => {
     const batter = new Batter();
     const strokes: [string, () => void][] = [
-      ...SHOTS.map(shot => [shot, () => batter.swing(shot, 0, 0, .54)] as [string, () => void]),
+      ...STROKES.map(shot => [shot, () => batter.swing(shot, 0, 0, .54)] as [string, () => void]),
       ['the pull', () => batter.swing('LEG', 0, -.02, 1.12)],
       ['the charge', () => batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true)],
     ];

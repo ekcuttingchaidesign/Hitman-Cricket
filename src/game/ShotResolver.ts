@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, GAME, GROUND_RUNS, SOLID_SHOT, STYLES, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, DEFENCE, GAME, GROUND_RUNS, SOLID_SHOT, STYLES, TIMING_SCORE } from '../config/gameplay';
 import { effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import type { Delivery, ShotAttempt, ShotOutcome, TimingGrade } from './types';
 export function gradeTiming(delta: number, fast = false): TimingGrade {
@@ -50,6 +50,17 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
     return pulled
       ? { ...outcome, runs: 6, feedback: award(6), compatibility: 1, quality: 1, madeBatContact: true }
       : { ...outcome, madeBatContact: false, feedback: attempt ? 'THROUGH TO THE KEEPER' : 'LEFT ALONE' };
+  }
+  // The block. Get the bat down in time and the ball dies at his feet: a dot,
+  // and nothing off the middle of a dead bat carries to a fielder, so it can
+  // never be caught. Get it down late and the ball simply goes past — and a
+  // ball going past a bat that is on the stumps' line bowls him.
+  if (attempt?.shotType === 'DEFEND') {
+    if (DEFENCE.timing.includes(timingGrade))
+      return { ...outcome, defended: true, madeBatContact: true, feedback: DEFENCE.feedback };
+    if (!stumpIntersection(delivery)) return { ...outcome, madeBatContact: false, feedback: 'PLAYED AND MISSED' };
+    const lbw = Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;
+    return { ...outcome, madeBatContact: false, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
   }
   if (!madeBatContact) {
     if (!stumpIntersection(delivery)) return outcome;

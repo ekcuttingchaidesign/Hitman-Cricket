@@ -70,6 +70,17 @@ const STROKES: Record<ShotType, Stroke> = {
     finish: { ...GUARD, hip: [-.20, .87, .13], chest: [-.17, 1.25, .20], frontFoot: [-.38, .08, .48],
       grip: [-.46, 1.13, .35], batUp: [.60, -.30, -.74], batFace: [-.80, .12, .59], yaw: -.15, face: -.75, heel: .10 },
   },
+  DEFEND: {
+    // The forward defensive: a short stride down the line, the head over the
+    // ball, and the bat vertical and angled forward so the face closes down over
+    // it. The hands stay in under the eyes and the blade drops in beside the
+    // front pad — the whole point is that nothing goes anywhere.
+    contact: { ...GUARD, hip: [-.06, .86, .10], chest: [.10, 1.20, .18], frontFoot: [.00, .08, .52],
+      grip: [.37, .97, .41], batUp: [.03, .97, .24], batFace: [0, -.22, .97], yaw: 1.14, face: 0, heel: .04, leadElbow: .16 },
+    // Soft hands: the bat gives with the ball rather than following through.
+    finish: { ...GUARD, hip: [-.06, .87, .09], chest: [.09, 1.21, .16], frontFoot: [.00, .08, .52],
+      grip: [.34, .97, .34], batUp: [.02, .98, .19], batFace: [0, -.20, .98], yaw: 1.16, face: 0, heel: .03, leadElbow: .14 },
+  },
   OFF: {
     // Back-foot square cut: make room, bend the knees, extend into the off side.
     contact: { ...GUARD, hip: [-.16, .78, -.12], chest: [.01, 1.11, .07], frontFoot: [-.23, .08, .18],
@@ -377,6 +388,8 @@ export class Batter {
     const zones: Record<ShotType, [number, number]> = {
       LEG: [-.55, -.05], LONG_ON: [-.55, .08], STRAIGHT: [-.17, .17],
       COVER_LONG_OFF: [-.08, .55], OFF: [.05, .55],
+      // Defence covers the stumps and a little either side, not the whole crease.
+      DEFEND: [-.30, .30],
     };
     const targetX = THREE.MathUtils.clamp(this.ballX, ...(this.pulling ? PULL_REACH : zones[this.shot]));
     // The bat meets the ball where he stands at contact. Reading the live root
