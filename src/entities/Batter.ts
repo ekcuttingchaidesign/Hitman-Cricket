@@ -11,6 +11,9 @@ interface Pose {
   backFoot: Point;
   grip: Point;
   batUp: Point;
+  batFace: Point;
+  /** Set by `mix`; authored poses derive theirs from `batUp` and `batFace`. */
+  bat?: THREE.Quaternion;
   yaw: number;
   face: number;
   heel: number;
@@ -25,64 +28,95 @@ export const STROKE_DURATION_MS = 940;
 // A right-handed guard: left shoulder and left foot lead toward the bowler.
 // The bat has one transform. Both gloves are attached to its handle; the arms
 // solve back from those grip anchors, so neither hand can leave the bat.
-// Knees flexed, weight centred, front shoulder pointing down the pitch and the
-// blade grounded between the feet: a batter waiting, not a mannequin standing.
+// The waiting stance: knees flexed, back bent forward over the ball, head out
+// past the front foot, hands together at the waist, and the blade lifted behind
+// the back shoulder rather than propped on the ground.
 const GUARD: Pose = {
-  hip: [-0.06, 0.885, -0.02], chest: [0.02, 1.235, 0.05],
+  hip: [-0.05, 0.90, -0.04], chest: [0.02, 1.235, 0.10],
   frontFoot: [-0.10, 0.08, 0.32], backFoot: [-0.14, 0.08, -0.30],
-  grip: [0.29, 0.845, 0.15], batUp: [-0.085, 0.98, 0.18],
-  yaw: 1.31, face: 0, heel: 0, leadElbow: -.06,
+  grip: [0.24, 0.82, 0.14], batUp: [-0.19, -0.92, 0.34], batFace: [0.34, 0.10, -0.94],
+  yaw: 1.28, face: 0, heel: 0, leadElbow: -.34,
 };
 const BACKLIFT: Pose = {
-  ...GUARD, grip: [0.32, 1.06, 0.01], batUp: [-0.22, -0.10, 0.97],
-  chest: [0.01, 1.265, 0.025], leadElbow: .06,
+  ...GUARD, grip: [0.27, 0.90, 0.11], batUp: [-0.28, -0.82, 0.50], batFace: [0.45, 0.05, -0.89],
+  chest: [0.01, 1.25, 0.08], leadElbow: -.24,
 };
 
 interface Stroke { contact: Pose; finish: Pose }
 const STROKES: Record<ShotType, Stroke> = {
   STRAIGHT: {
     contact: { ...GUARD, hip: [-0.05, .83, .14], chest: [.12, 1.17, .23], frontFoot: [.02, .08, .63],
-      grip: [.34, .98, .36], batUp: [.035, .985, -.17], yaw: 1.08, face: 0, heel: .07, leadElbow: .13 },
+      grip: [.34, .98, .36], batUp: [.035, .985, -.17], batFace: [0, .12, 1], yaw: 1.08, face: 0, heel: .07, leadElbow: .13 },
     finish: { ...GUARD, hip: [.0, .9, .21], chest: [.09, 1.28, .29], frontFoot: [.02, .08, .63],
-      grip: [.21, 1.58, .61], batUp: [-.1, -.62, -.78], yaw: .74, face: 0, heel: .15 },
+      grip: [.21, 1.58, .61], batUp: [-.1, -.62, -.78], batFace: [0, .12, 1], yaw: .74, face: 0, heel: .15 },
   },
   LONG_ON: {
     contact: { ...GUARD, hip: [-.16, .82, .13], chest: [-.035, 1.16, .21], frontFoot: [-.34, .08, .58],
-      grip: [.15, .98, .35], batUp: [-.26, .955, -.14], yaw: 1.04, face: -.25, heel: .08, leadElbow: .10 },
+      grip: [.15, .98, .35], batUp: [-.26, .955, -.14], batFace: [-.42, .10, .90], yaw: 1.04, face: -.25, heel: .08, leadElbow: .10 },
     finish: { ...GUARD, hip: [-.19, .9, .20], chest: [-.17, 1.28, .29], frontFoot: [-.34, .08, .58],
-      grip: [-.40, 1.55, .58], batUp: [.49, -.61, -.62], yaw: .33, face: -.38, heel: .15 },
+      grip: [-.40, 1.55, .58], batUp: [.49, -.61, -.62], batFace: [-.42, .10, .90], yaw: .33, face: -.38, heel: .15 },
   },
   COVER_LONG_OFF: {
     contact: { ...GUARD, hip: [.05, .81, .13], chest: [.19, 1.15, .22], frontFoot: [.30, .08, .60],
-      grip: [.50, .98, .35], batUp: [.34, .93, -.14], yaw: 1.42, face: .28, heel: .07, leadElbow: .12 },
+      grip: [.50, .98, .35], batUp: [.34, .93, -.14], batFace: [.42, .10, .90], yaw: 1.42, face: .28, heel: .07, leadElbow: .12 },
     finish: { ...GUARD, hip: [.08, .9, .19], chest: [.22, 1.28, .26], frontFoot: [.30, .08, .60],
-      grip: [.60, 1.55, .57], batUp: [-.57, -.57, -.59], yaw: .88, face: .4, heel: .14 },
+      grip: [.60, 1.55, .57], batUp: [-.57, -.57, -.59], batFace: [.42, .10, .90], yaw: .88, face: .4, heel: .14 },
   },
   LEG: {
     // Front-foot flick: open the front foot and roll the wrists to the leg side.
     contact: { ...GUARD, hip: [-.16, .82, .09], chest: [.05, 1.17, .16], frontFoot: [-.38, .08, .48],
-      grip: [.30, .94, .35], batUp: [.35, .90, -.25], yaw: .82, face: -.5, heel: .05 },
+      grip: [.30, .94, .35], batUp: [.35, .90, -.25], batFace: [-.80, .12, .59], yaw: .82, face: -.5, heel: .05 },
     finish: { ...GUARD, hip: [-.20, .87, .13], chest: [-.17, 1.25, .20], frontFoot: [-.38, .08, .48],
-      grip: [-.46, 1.13, .35], batUp: [.60, -.30, -.74], yaw: -.15, face: -.75, heel: .10 },
+      grip: [-.46, 1.13, .35], batUp: [.60, -.30, -.74], batFace: [-.80, .12, .59], yaw: -.15, face: -.75, heel: .10 },
   },
   OFF: {
     // Back-foot square cut: make room, bend the knees, extend into the off side.
     contact: { ...GUARD, hip: [-.16, .78, -.12], chest: [.01, 1.11, .07], frontFoot: [-.23, .08, .18],
-      backFoot: [-.19, .08, -.43], grip: [.31, .85, .27], batUp: [-.88, .43, -.19], yaw: 1.65, face: .52, heel: .02 },
+      backFoot: [-.19, .08, -.43], grip: [.31, .85, .27], batUp: [-.88, .43, -.19], batFace: [.10, .18, .98], yaw: 1.65, face: .52, heel: .02 },
     finish: { ...GUARD, hip: [-.11, .85, -.10], chest: [.06, 1.21, .01], frontFoot: [-.23, .08, .18],
-      backFoot: [-.19, .08, -.43], grip: [.63, 1.26, .26], batUp: [-.66, -.22, -.72], yaw: .83, face: .7, heel: .06 },
+      backFoot: [-.19, .08, -.43], grip: [.63, 1.26, .26], batUp: [-.66, -.22, -.72], batFace: [.10, .18, .98], yaw: .83, face: .7, heel: .06 },
   },
 };
 
+/**
+ * The bat's orientation as one rotation: `batUp` is the handle axis and
+ * `batFace` squares the blade around it. Blending the two directions separately
+ * cannot work — a stroke that reverses the blade drives the axis through zero,
+ * and a face that drifts parallel to the axis has no squaring left to give — so
+ * poses are turned into rotations here and slerped as rotations.
+ */
+const orientations = new WeakMap<Pose, THREE.Quaternion>();
+function batOrientation(pose: Pose) {
+  if (pose.bat) return pose.bat;
+  const cached = orientations.get(pose);
+  if (cached) return cached;
+  const up = V(pose.batUp).normalize();
+  const face = V(pose.batFace);
+  face.addScaledVector(up, -face.dot(up));
+  if (face.lengthSq() < .0001) {
+    // Degenerate authoring: square the blade to whichever axis the handle leans on least.
+    const axis = Math.abs(up.z) < .9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+    face.copy(axis).addScaledVector(up, -axis.dot(up));
+  }
+  face.normalize();
+  const side = new THREE.Vector3().crossVectors(up, face).normalize();
+  const rotation = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, face));
+  orientations.set(pose, rotation);
+  return rotation;
+}
 function mix(a: Pose, b: Pose, amount: number): Pose {
   const t = ease(THREE.MathUtils.clamp(amount, 0, 1));
   const point = (x: Point, y: Point): Point => [
     THREE.MathUtils.lerp(x[0], y[0], t), THREE.MathUtils.lerp(x[1], y[1], t), THREE.MathUtils.lerp(x[2], y[2], t),
   ];
+  const bat = batOrientation(a).clone().slerp(batOrientation(b), t);
   return {
+    bat,
     hip: point(a.hip, b.hip), chest: point(a.chest, b.chest),
     frontFoot: point(a.frontFoot, b.frontFoot), backFoot: point(a.backFoot, b.backFoot),
-    grip: point(a.grip, b.grip), batUp: point(a.batUp, b.batUp),
+    grip: point(a.grip, b.grip),
+    batUp: new THREE.Vector3(0, 1, 0).applyQuaternion(bat).toArray() as unknown as Point,
+    batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(bat).toArray() as unknown as Point,
     yaw: THREE.MathUtils.lerp(a.yaw, b.yaw, t), face: THREE.MathUtils.lerp(a.face, b.face, t), heel: THREE.MathUtils.lerp(a.heel, b.heel, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
   };
@@ -140,13 +174,14 @@ export class Batter {
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
-    // Torso: stacked ellipsoids for a chest that tapers into the waist.
-    this.mesh(this.torso, this.palette.shirt, [.215, .21, .15], 'ball').position.y = .015;
-    this.mesh(this.torso, this.palette.shirt, [.185, .175, .13], 'ball').position.y = -.19;
+    // Torso: one long trunk with a wider shoulder yoke set deep inside it, so a
+    // bent-over stance reads as one back rather than a row of separate lumps.
+    this.mesh(this.torso, this.palette.shirt, [.20, .285, .145], 'ball').position.y = -.06;
+    this.mesh(this.torso, this.palette.shirt, [.235, .115, .15], 'ball').position.y = .125;
     this.mesh(this.hips, this.palette.trousers, [.185, .145, .135], 'ball');
-    const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .20;
+    const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .215;
     // Jersey seam, collar, and back number make rotation legible from the camera.
-    this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.30;
+    this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.325;
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
@@ -170,7 +205,7 @@ export class Batter {
       this.mesh(glove, this.palette.accent, [.128, .028, .118], 'soft').position.y = .05;
       for (let finger = 0; finger < 3; finger++) this.mesh(glove, this.palette.trousers, [.026, .085, .026], 'tube').position.set(-.032 + finger * .032, 0, -.058);
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
-        elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.108, .105, .108], 'ball'),
+        elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.098, .095, .098], 'ball'),
         glove, shoulder: new THREE.Vector3() });
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
@@ -246,13 +281,11 @@ export class Batter {
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
     this.head.rotation.set(.09, pose.face, -.04);
     this.bat.position.set(...pose.grip);
-    // Preserve bat face orientation while the blade travels through its plane.
-    const batUp = V(pose.batUp).normalize();
-    this.bat.quaternion.setFromUnitVectors(UP, batUp);
+    this.bat.quaternion.copy(batOrientation(pose));
     this.root.updateMatrixWorld(true);
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i];
-      arm.shoulder.set(i === 0 ? -.175 : .175, .045, 0).applyQuaternion(this.torso.quaternion).add(chest);
+      arm.shoulder.set(i === 0 ? -.168 : .168, .10, 0).applyQuaternion(this.torso.quaternion).add(chest);
       const hand = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
       const pole = chest.clone().add(new THREE.Vector3(i === 0 ? .38 : -.30, i === 0 ? pose.leadElbow : -.24, i === 0 ? .42 : -.35));
       const elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
@@ -286,7 +319,9 @@ export class Batter {
       armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),
       backToe: this.legs[1].shoe.localToWorld(new THREE.Vector3(0, -.07, .225)).toArray(),
       bladeContact: this.bat.localToWorld(new THREE.Vector3(0, -.44, 0)).toArray(),
+      bladeTip: this.bat.localToWorld(new THREE.Vector3(0, -.83, 0)).toArray(),
       batUp: V(this.pose.batUp).normalize().toArray(),
+      batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(this.bat.quaternion).toArray(),
     };
   }
 }

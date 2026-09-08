@@ -52,3 +52,45 @@ describe('two-handed cricket animation', () => {
     }
   });
 });
+
+describe('bat travel', () => {
+  const sample = (shot: (typeof SHOTS)[number], ballX: number) => {
+    const batter = new Batter();
+    batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);
+    const frames = [];
+    for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
+      batter.update(time);
+      const pose = batter.inspect();
+      frames.push({ time, tip: new Vector3(...pose.bladeTip), face: new Vector3(...pose.batFace) });
+    }
+    return frames;
+  };
+  // A raised backlift reverses the blade on its way to the ball. Interpolating
+  // the bat's axis linearly would collapse it through zero at the halfway point
+  // and spin the blade; it has to travel around an arc instead.
+  it('carries the blade along a continuous arc with no spin', () => {
+    for (const shot of SHOTS) {
+      for (const ballX of [-.55, -.14, 0, .14, .55]) {
+        const frames = sample(shot, ballX);
+        for (let i = 1; i < frames.length; i++) {
+          // A spin would throw the tip across the bat's whole length in a frame;
+          // the fastest honest frame of a stroke measures about .55.
+          const step = frames[i].tip.distanceTo(frames[i - 1].tip);
+          expect(step, `${shot} tip jumped at ${frames[i].time}ms`).toBeLessThan(.7);
+          const turn = frames[i].face.dot(frames[i - 1].face);
+          expect(turn, `${shot} face flipped at ${frames[i].time}ms`).toBeGreaterThan(.7);
+        }
+      }
+    }
+  });
+  it('keeps the blade face square to the stroke rather than rolled at random', () => {
+    const batter = new Batter();
+    for (const [shot, expected] of [['STRAIGHT', new Vector3(0, .12, 1)], ['LEG', new Vector3(-.8, .12, .59)],
+      ['COVER_LONG_OFF', new Vector3(.42, .1, .9)]] as const) {
+      batter.reset(); batter.swing(shot, 0, 0); batter.update(110);
+      const face = new Vector3(...batter.inspect().batFace);
+      expect(face.length()).toBeCloseTo(1, 6);
+      expect(face.dot(expected.clone().normalize()), `${shot} face`).toBeGreaterThan(.6);
+    }
+  });
+});
