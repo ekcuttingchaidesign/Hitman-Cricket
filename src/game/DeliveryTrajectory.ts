@@ -10,8 +10,11 @@ export function ballPosition(delivery: Delivery, progress: number) {
   const pre = Math.min(1, t / bounceT);
   const post = Math.max(0, (t - bounceT) / (1 - bounceT));
   const spin = delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN';
-  // Spin finishes its turn before the final third; no last-moment required-key changes.
-  const movementT = spin ? smooth((t - bounceT) / 0.09) : smooth(pre);
+  // Spin finishes its turn by this point in the flight — before the final third,
+  // so the required key never changes at the last moment. Tying it to the bounce
+  // keeps that true whatever length the ball is pitched at.
+  const settled = 0.66;
+  const movementT = spin ? smooth((t - bounceT) / (settled - bounceT)) : smooth(pre);
   const x = delivery.baseTargetX + (delivery.finalTargetX - delivery.baseTargetX) * movementT;
   // The climb off the pitch is the delivery's length: a yorker barely leaves the
   // ground, a bouncer is at the chest by the time it arrives.

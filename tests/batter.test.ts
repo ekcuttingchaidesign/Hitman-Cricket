@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Batter, STROKE_DURATION_MS } from '../src/entities/Batter';
-import { SHOTS } from '../src/config/gameplay';
+import { GAME, SHOTS } from '../src/config/gameplay';
 import { Vector3 } from 'three';
 
 describe('two-handed cricket animation', () => {
@@ -49,7 +49,7 @@ describe('two-handed cricket animation', () => {
     for (const [shot, ballX] of [['LEG', -.3], ['LONG_ON', -.14], ['STRAIGHT', 0], ['COVER_LONG_OFF', .14], ['OFF', .42]] as const) {
       batter.reset(); batter.swing(shot, 0, ballX); batter.update(110);
       const point = batter.inspect().bladeContact;
-      expect(point[0]).toBeCloseTo(ballX, 6); expect(point[1]).toBeCloseTo(.54, 6); expect(point[2]).toBeCloseTo(.65, 6);
+      expect(point[0]).toBeCloseTo(ballX, 6); expect(point[1]).toBeCloseTo(.54, 6); expect(point[2]).toBeCloseTo(GAME.contactZ, 6);
     }
   });
 });
@@ -183,7 +183,7 @@ describe('the grip', () => {
     const batter = new Batter();
     batter.reset();
     const guard = batter.inspect();
-    const grip = new Vector3(...guard.grip), tip = new Vector3(...guard.bladeTip).sub(new Vector3(-.36, 0, .35));
+    const grip = new Vector3(...guard.grip), tip = new Vector3(...guard.bladeTip).sub(new Vector3(GAME.stanceX, 0, GAME.stanceZ));
     const lift = tip.clone().sub(grip);
     // Back past the hands towards the keeper, out towards the slips, and up.
     expect(lift.z).toBeLessThan(-.4);

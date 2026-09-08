@@ -2,9 +2,16 @@ import type { BallLine, DeliveryStyle, ShotType, TimingGrade } from '../game/typ
 export const GAME = {
   totalBalls: 30, maxWickets: 3, ballsPerOver: 6, comboMs: 100,
   swipeDistance: 24,
-  contactZ: 0.65, releaseZ: 18, bounceZ: 8.3, stumpZone: 0.18, stumpHeight: 0.76,
-  // Arcade time scaling gives the player time to read a 3D ball on a small screen.
-  travelScale: 1.72, readyMs: 550, runupMs: 900, resultMs: 1050, hitAnimationMs: 1250,
+  contactZ: 1.30, releaseZ: 18, bounceZ: 8.3, stumpZone: 0.18, stumpHeight: 0.76,
+  // Where the batter stands: side of the stumps, and back down the crease. The
+  // popping crease is 1.2m in front of the wicket, and a batter stands inside it
+  // rather than over the stumps, so the ball is met about a metre in front of
+  // them and there is daylight between his back foot and the bails.
+  stanceX: -0.36, stanceZ: 1.00, creaseZ: 1.20,
+  // Arcade time scaling gives the player time to read a 3D ball on a small
+  // screen. It carries the shorter flight the deeper crease leaves, so every
+  // delivery keeps the duration it was tuned to.
+  travelScale: 1.79, readyMs: 550, runupMs: 900, resultMs: 1050, hitAnimationMs: 1250,
   timing: { perfect: 40, good: 78, ok: 135, poor: 205 }, fastTimingScale: 0.82,
   // How steeply a normal ball climbs off the pitch; specials override it.
   rise: 1.25,

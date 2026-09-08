@@ -289,7 +289,7 @@ export class Batter {
   }
   reset() {
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false;
-    this.root.position.set(-.36, 0, .35); this.root.rotation.set(0, 0, 0);
+    this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }

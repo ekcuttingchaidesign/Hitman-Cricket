@@ -5,7 +5,8 @@ import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
-const PAD_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
+/** Where a beaten ball runs out of steam: just short of the stumps. */
+const BEATEN_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
 const colors = { grass: 0x668b49, grassLight: 0x70974e, pitch: 0xcbb283, navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
 const materials = new Map<number, THREE.MeshStandardMaterial>();
 // Scenery keeps its faceted, low-poly look; anything sculpted asks for `soft`.
@@ -114,7 +115,7 @@ export class GameScene {
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
     this.camera.fov = 50;
-    this.camera.position.set(0, 2.9, -5.8); this.camera.lookAt(0, 1.05, 9);
+    this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
     this.scene.add(new THREE.HemisphereLight(0xe9f6ff, 0x66744a, 2.5));
     const sun = new THREE.DirectionalLight(0xffedce, 3.2); sun.position.set(-15, 30, -8); sun.castShadow = true;
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
@@ -156,9 +157,12 @@ export class GameScene {
     box(this.world, 2.0, 0.029, 30, 0xc4ac80, 0, 0, 4.6);
     // Fine deterministic wear marks on the wicket; all created once.
     for (let i = 0; i < 95; i++) box(this.world, 0.015 + (i % 5) * 0.018, 0.003, 0.08 + (i % 4) * 0.1, i % 2 ? 0xb49d73 : 0xd4be94, Math.sin(i * 72.4) * 0.92, 0.018, 0.5 + (i * 1.73) % 18);
-    [0.7, 17.5].forEach(z => {
+    // Popping creases, 1.2m in front of each wicket, with return creases running
+    // back past the stumps.
+    [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {
+      const behind = z < 2 ? -0.75 : 0.75;
       box(this.world, 3.1, 0.015, 0.045, colors.white, 0, 0.024, z);
-      [-1.1, 1.1].forEach(x => box(this.world, 0.045, 0.015, 1.25, colors.white, x, 0.024, z + (z < 2 ? -0.55 : 0.55)));
+      [-1.1, 1.1].forEach(x => box(this.world, 0.045, 0.015, 1.5, colors.white, x, 0.024, z + behind));
     });
     const boundary = new THREE.Mesh(new THREE.TorusGeometry(GAME.boundaryRadius, 0.055, 5, 128), mat(colors.white));
     boundary.rotation.x = Math.PI / 2; boundary.position.set(0, 0.06, 10); this.world.add(boundary);
@@ -244,16 +248,16 @@ export class GameScene {
     this.bowler.arm.rotation.x = t > 0.55 ? -(t - 0.55) / 0.45 * Math.PI * 2 : Math.sin(t * 18) * 0.6;
   }
   /**
-   * Past the bat, the ball eases into the pads over the rest of the late-swing
-   * window instead of running on at full speed. That window is worth most of a
-   * second, so extrapolating it flew the ball through the stumps, past the
-   * batter and out behind the camera, only to snap back when the delivery was
-   * finally judged — which is what made the stumps break long after the ball.
+   * Past the bat, the ball eases through to the stumps over the rest of the
+   * late-swing window instead of running on at full speed. That window is worth
+   * most of a second, so extrapolating it flew the ball through the stumps and
+   * out behind the camera, only to snap back when the delivery was finally
+   * judged — which is what made the stumps break long after the ball.
    */
   private flightAt(delivery: Delivery, progress: number) {
     if (progress <= 1) return progress;
     const window = (GAME.timing.poor + GAME.comboMs) / delivery.durationMs;
-    return 1 + Math.min(1, (progress - 1) / window) * (PAD_STOP - 1);
+    return 1 + Math.min(1, (progress - 1) / window) * (BEATEN_STOP - 1);
   }
   delivery(delivery: Delivery, progress: number) {
     this.batter.prepare(progress);
@@ -344,7 +348,7 @@ export class GameScene {
         }
       }
       if (result.wicketType === 'LBW') {
-        this.batter.root.position.x = THREE.MathUtils.lerp(-0.36, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
+        this.batter.root.position.x = THREE.MathUtils.lerp(GAME.stanceX, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
         this.batter.root.rotation.z = Math.sin(Math.min(1, t * 4) * Math.PI) * 0.13;
       }
       this.ball.visible = t < 0.8;
