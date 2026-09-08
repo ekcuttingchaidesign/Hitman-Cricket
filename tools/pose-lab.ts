@@ -3,14 +3,14 @@ import { Batter } from '../src/entities/Batter';
 import type { ShotType } from '../src/game/types';
 // A fourth number lifts the ball to bouncer height, which turns the leg-side
 // input into a pull.
-const examples: [string, ShotType, number, number?][] = [
+const examples: [string, ShotType, number, number?, boolean?][] = [
   ['Guard · side view', 'STRAIGHT', 0], ['A · leg-side flick', 'LEG', -.3], ['A + W · long-on drive', 'LONG_ON', -.14],
-  ['W · straight drive', 'STRAIGHT', 0], ['D · square cut', 'OFF', .42], ['A vs bouncer · pull', 'LEG', -.02, 1.12],
+  ['W · straight drive', 'STRAIGHT', 0], ['A vs bouncer · pull', 'LEG', -.02, 1.12], ['W charged · down the pitch', 'STRAIGHT', 0, .54, true],
 ];
 let time = -1;
 let playing = false;
 let start = 0;
-const views = examples.map(([label, shot, ballX, ballY], index) => {
+const views = examples.map(([label, shot, ballX, ballY, charging], index) => {
   const article = document.createElement('article'); article.innerHTML = `<h2>${label}</h2><div class="view"></div>`;
   document.querySelector('.grid')!.append(article);
   const view = article.querySelector('.view')!;
@@ -26,12 +26,12 @@ const views = examples.map(([label, shot, ballX, ballY], index) => {
   floor.rotation.x = -Math.PI / 2; stage.add(floor);
   const camera = new THREE.PerspectiveCamera(38, view.clientWidth / 300, .1, 30);
   camera.position.set(index === 0 ? -2.5 : .1, 1.6, index === 0 ? -1.8 : -3.7); camera.lookAt(.15, 1.1, .4);
-  return { batter, shot, ballX, ballY, camera, scene, renderer };
+  return { batter, shot, ballX, ballY, charging, camera, scene, renderer };
 });
 function draw(age: number) {
-  views.forEach(({ batter, shot, ballX, ballY, renderer, scene, camera }, i) => {
+  views.forEach(({ batter, shot, ballX, ballY, charging, renderer, scene, camera }, i) => {
     batter.reset();
-    if (age >= 0 && i !== 0) { batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY ?? .54); batter.update(age); }
+    if (age >= 0 && i !== 0) { batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY ?? .54, undefined, charging); batter.update(age); }
     renderer.render(scene, camera);
   });
 }

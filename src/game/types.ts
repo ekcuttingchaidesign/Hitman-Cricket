@@ -18,4 +18,6 @@ export interface ShotOutcome {
   timingDeltaMs: number | null; compatibility: number; madeBatContact: boolean;
   /** Mistimed contact that goes up: the result is only known when it lands. */
   aerial: boolean;
+  /** Charged down the pitch and hit out of the ground. */
+  advance?: boolean;
 }

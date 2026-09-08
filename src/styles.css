@@ -104,12 +104,18 @@ kbd{
 .hud-button svg{width:17px;height:17px}
 .hud-button:hover:not(:disabled){background:#fbfdf6}
 
-/* ── Scoreboard ────────────────────────────────────────────────────────── */
-.scoreboard{
+/* ── Scoreboard and confidence ─────────────────────────────────────────── */
+.score-stack{
   position:absolute;
   top:calc(var(--pad-top) + 50px);
   left:var(--pad);
   z-index:4;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:7px
+}
+.scoreboard{
   display:flex;
   align-items:stretch;
   background:#152b3cf0;
@@ -157,6 +163,48 @@ kbd{
 .wicket-color{color:#ff9c86}
 .boundary-color{color:#d1e39d}
 
+/* The confidence meter: earned by scoring, spent on one charge down the pitch.
+   Full, it pulses; on a ball he can charge, it says so. */
+.confidence{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  min-width:178px;
+  padding:8px 13px 9px;
+  background:#152b3cf0;
+  border-radius:9px;
+  border-left:3px solid #47646f;
+  box-shadow:0 6px 18px #0b1e3033;
+  transition:border-color .3s
+}
+.confidence-label{
+  font-size:8px;
+  font-weight:650;
+  letter-spacing:1.6px;
+  color:#a9c0c4;
+  transition:color .3s
+}
+.confidence-track{
+  display:block;
+  height:7px;
+  border-radius:4px;
+  background:#ffffff1f;
+  overflow:hidden
+}
+.confidence-track>i{
+  display:block;
+  height:100%;
+  width:0;
+  border-radius:4px;
+  background:linear-gradient(90deg,#6ea99a,#d1e39d);
+  transition:width .5s cubic-bezier(.3,.9,.3,1)
+}
+.confidence.is-full{border-left-color:var(--orange);animation:charged 1.15s ease-in-out infinite}
+.confidence.is-full .confidence-label{color:#ffcbaa}
+.confidence.is-full .confidence-track>i{background:linear-gradient(90deg,#ef8f52,#ffe09b)}
+.confidence.is-primed{animation-duration:.52s}
+.confidence.is-primed .confidence-label{color:#ffe6b3}
+
 /* ── Ball feedback: a call over the field, never a panel in front of it ── */
 .result{
   position:absolute;
@@ -188,6 +236,17 @@ kbd{
 }
 .result.is-boundary>strong{color:#ffb277}
 .result.is-wicket>strong{color:#ff9c86}
+.result.is-advance{top:32%}
+.result.is-advance>strong{
+  color:#ffd98a;
+  font-size:clamp(23px,4.3vw,46px);
+  max-width:min(560px,calc(100% - 2 * var(--pad)));
+  margin:0 auto
+}
+@keyframes charged{
+  0%,100%{box-shadow:0 6px 18px #0b1e3033,0 0 0 0 #ed704400}
+  50%{box-shadow:0 6px 18px #0b1e3033,0 0 0 7px #ed70442e}
+}
 @keyframes call{
   0%{opacity:0;transform:translateY(14px) scale(.94)}
   12%{opacity:1;transform:translateY(0) scale(1)}
@@ -298,7 +357,7 @@ kbd{
 }
 .ghost-button:hover{background:#0f2433e6}
 /* An innings scoreboard means nothing during a lesson. */
-.tutorial-active .scoreboard,.tutorial-active .phase-label{display:none}
+.tutorial-active .scoreboard,.tutorial-active .confidence,.tutorial-active .phase-label{display:none}
 
 .arena-bottom{
   position:absolute;
@@ -425,6 +484,17 @@ kbd{
   margin-top:10px
 }
 .secondary-button:hover{background:#ffffff14}
+.whatsapp-button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  text-decoration:none;
+  border-color:#63c47380;
+  color:#e2f6e5
+}
+.whatsapp-button:hover{background:#63c4731f}
+.whatsapp-button svg{width:17px;height:17px}
 .start-hint{
   display:block;
   margin-top:12px;
@@ -603,7 +673,8 @@ dialog .primary-button{margin-top:18px}
   .start-hint,.touch-device .start-hint{margin-top:8px;font-size:11px}
   .personal-best>svg{width:19px;height:19px}
   .personal-best strong{font-size:20px}
-  .scoreboard{top:calc(var(--pad-top) + 44px)}
+  .score-stack{top:calc(var(--pad-top) + 44px);gap:5px}
+  .confidence{min-width:158px;padding:6px 11px 7px}
   .score-main{padding:6px 12px}
   .score-main>strong{font-size:27px}
   .score-overs,.last-ball{padding:9px 12px}

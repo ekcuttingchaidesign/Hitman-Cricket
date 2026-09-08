@@ -2,7 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [codex/cricket-batting-game]
+    # The live site, plus this preview branch: GitHub Pages serves one site, so
+    # whichever branch pushed last is what is up.
+    branches: [codex/cricket-batting-game, claude/advance-shot-and-share]
   workflow_dispatch:
 
 permissions:

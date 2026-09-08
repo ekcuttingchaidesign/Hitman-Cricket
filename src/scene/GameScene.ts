@@ -88,6 +88,7 @@ export class GameScene {
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
   private catchRing: THREE.Mesh;
+  private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
   private trail: THREE.Mesh[] = [];
   private resizeObserver: ResizeObserver;
@@ -139,6 +140,12 @@ export class GameScene {
     this.bounceRing.rotation.x = -Math.PI / 2; this.world.add(this.bounceRing);
     this.catchRing = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.66, 32), ringMat.clone());
     this.catchRing.rotation.x = -Math.PI / 2; this.catchRing.visible = false; this.world.add(this.catchRing);
+    // The shockwave that goes out from under a charged hit.
+    this.chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.60, 48), new THREE.MeshBasicMaterial({ color: 0xffdb96, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+    this.chargeRing.rotation.x = -Math.PI / 2; this.chargeRing.visible = false; this.world.add(this.chargeRing);
+    // The shockwave under a charged hit.
+    this.chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.62, 48), new THREE.MeshBasicMaterial({ color: 0xffdb96, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+    this.chargeRing.rotation.x = -Math.PI / 2; this.chargeRing.visible = false; this.world.add(this.chargeRing);
     for (let i = 0; i < 9; i++) {
       const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: 0xfff5cd, transparent: true, opacity: (1 - i / 9) * 0.32, depthWrite: false }));
       dot.scale.setScalar(0.115 * (1 - i / 12)); this.world.add(dot); this.trail.push(dot);
@@ -233,7 +240,7 @@ export class GameScene {
     this.camera.updateProjectionMatrix();
   };
   reset() {
-    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false;
+    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
@@ -274,9 +281,9 @@ export class GameScene {
     if (this.bounceRing.visible) { this.bounceRing.position.set(pos.x, 0.037, delivery.bounceZ); this.bounceRing.scale.setScalar(1 + age / 65); (this.bounceRing.material as THREE.MeshBasicMaterial).opacity = 1 - age / 260; }
     this.bowler.arm.rotation.x = Math.PI * 0.5;
   }
-  swing(shot: ShotType, now: number, delivery: Delivery) {
+  swing(shot: ShotType, now: number, delivery: Delivery, charging = false) {
     const contact = ballPosition(delivery, 1);
-    this.batter.swing(shot, now, contact.x, contact.y, contact.z);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
@@ -286,19 +293,22 @@ export class GameScene {
     const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
     let angle = (SHOT_ANGLES[shot ?? 'STRAIGHT'] + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
-    const distance = caught ? (outcome.aerial ? 27 : 18) : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
+    // A charged straight hit does not land in the ground: it clears the stand.
+    const distance = outcome.advance ? 78 : caught ? (outcome.aerial ? 27 : 18) : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
     if (caught && Math.abs(angle) < 0.2) angle = 0.35;
     this.hitEnd.set(Math.sin(angle) * distance, caught ? 1.5 : 0.1, Math.cos(angle) * distance);
-    // A skied shot hangs long enough to be watched down; a middled one leaves fast.
-    this.flightMs = outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
+    // A skied shot hangs long enough to be watched down; a middled one leaves
+    // fast. The charge is worth watching all the way over the roof.
+    this.flightMs = outcome.advance ? 2200 : outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
     // A four is a boundary along the turf — a drive races to the rope on the
     // ground. Only a six leaves it, and only a mishit hangs.
-    this.hitHeight = outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
+    this.hitHeight = outcome.advance ? 32 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
       : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 0.22 : 0.6;
     if (caught) {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     }
     this.bounceRing.visible = false;
+    if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
     // Hold the call back until a skied ball is taken or clears the rope.
     return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.82 : 0), endAt: this.hitStart + this.flightMs };
   }
@@ -318,6 +328,12 @@ export class GameScene {
       return;
     }
     const t = Math.min(1, (now - this.hitStart) / this.flightMs);
+    if (result.advance) {
+      const age = now - this.hitStart;
+      this.chargeRing.visible = age >= 0 && age < 760;
+      this.chargeRing.scale.setScalar(1 + age / 105);
+      (this.chargeRing.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.85 - age / 760);
+    }
     if (result.madeBatContact) {
       this.struckAt(t, this.ball.position);
       if (result.wicketType === 'CAUGHT' && t > 0.86) this.catcher.arm.rotation.x = -2.5;
@@ -368,9 +384,9 @@ export class GameScene {
     // A skied ball shakes the same whatever it becomes, so the camera cannot
     // give the result away before the fielder has settled under it.
     const power = !this.reducedMotion && outcome && since >= 0
-      ? outcome.aerial ? 0.020 : outcome.runs === 6 ? 0.030 : outcome.runs === 4 ? 0.017 : outcome.isWicket ? 0.022 : 0
+      ? outcome.advance ? 0.062 : outcome.aerial ? 0.020 : outcome.runs === 6 ? 0.030 : outcome.runs === 4 ? 0.017 : outcome.isWicket ? 0.022 : 0
       : 0;
-    const shake = power * Math.max(0, 1 - since / 300);
+    const shake = power * Math.max(0, 1 - since / (outcome?.advance ? 620 : 300));
     this.camera.position.x = Math.sin(now * 0.085) * shake;
     this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
     this.renderer.render(this.scene, this.camera);

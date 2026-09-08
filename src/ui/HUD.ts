@@ -1,4 +1,5 @@
 import { ScoreManager } from '../game/ScoreManager';
+import { gameLink, whatsappLink } from '../game/Share';
 import type { TutorialStep } from '../game/Tutorial';
 import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
 const icon = (name: string) => {
@@ -11,6 +12,7 @@ const icon = (name: string) => {
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
     share: '<path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8"/>',
     trophy: '<path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4"/>',
+    whatsapp: '<path d="M3.5 20.5 5 16a8 8 0 1 1 3 3l-4.5 1.5Z"/><path d="M9 9c0 3 3 6 6 6 1 0 1.5-1 1.5-1L15 13l-1.5 1S12 13.5 11 12t.5-2L10 8.5S9 9 9 9Z"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
@@ -33,7 +35,13 @@ export class HUD {
             <button id="fullscreen" class="hud-button" aria-label="Enter fullscreen" title="Fullscreen">${icon('expand')}</button>
           </div>
         </div>
+        <div class="score-stack">
         <div id="scoreboard" class="scoreboard"><div class="score-main"><span class="score-caption">YOUR INNINGS</span><strong><span id="runs">0</span><span class="score-slash">/</span><span id="wickets">0</span></strong></div><div class="score-overs"><strong id="overs">0.0</strong><span>OF 5 OVERS</span></div><div class="last-ball"><span>LAST BALL</span><strong id="last">—</strong></div></div>
+        <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
+          <span class="confidence-track"><i id="confidence-fill"></i></span>
+        </div>
+        </div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
         <div id="coach" class="coach hidden">
@@ -61,11 +69,11 @@ export class HUD {
           <div class="personal-best">${icon('trophy')}<div><span>PERSONAL BEST</span><strong id="best">${best} <small>RUNS</small></strong></div></div>
         </div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-content"><p class="eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p>The next shot can wait.</p><button id="resume" class="primary-button">RESUME INNINGS ${icon('arrow')}</button><button id="restart" class="secondary-button">RESTART INNINGS</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
-        <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title"><div class="panel end-content"><span class="challenge-tag" id="end-tag">INNINGS COMPLETE</span><h2 id="end-title">That's a wrap.</h2><div class="final-score" id="final-score">0<small>/0</small></div><p id="end-message"></p><div class="final-stats"><div><strong id="final-overs">0.0</strong><span>OVERS</span></div><div><strong id="final-fours">0</strong><span>FOURS</span></div><div><strong id="final-sixes">0</strong><span>SIXES</span></div><div><strong id="final-rate">0</strong><span>STRIKE RATE</span></div></div><button id="again" class="primary-button">PLAY AGAIN ${icon('arrow')}</button><span class="start-hint">A fresh innings. A bigger score. <kbd class="keyboard-only">R</kbd></span></div></div>
+        <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title"><div class="panel end-content"><span class="challenge-tag" id="end-tag">INNINGS COMPLETE</span><h2 id="end-title">That's a wrap.</h2><div class="final-score" id="final-score">0<small>/0</small></div><p id="end-message"></p><div class="final-stats"><div><strong id="final-overs">0.0</strong><span>OVERS</span></div><div><strong id="final-fours">0</strong><span>FOURS</span></div><div><strong id="final-sixes">0</strong><span>SIXES</span></div><div><strong id="final-rate">0</strong><span>STRIKE RATE</span></div></div><button id="again" class="primary-button">PLAY AGAIN ${icon('arrow')}</button><a id="whatsapp" class="secondary-button whatsapp-button" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} SHARE ON WHATSAPP</a><span class="start-hint">A fresh innings. A bigger score. <kbd class="keyboard-only">R</kbd></span></div></div>
         <div id="share-status" class="share-status hidden" role="status"></div>
         <pre id="debug" class="debug hidden"></pre>
       </div>
-      <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: off-side shot</li></ul><p>One swipe per ball. Taps and downward swipes do not play a shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> plays right to off.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note">Play with swipes on a phone or A, W, D on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
+      <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: off-side shot</li></ul><p>One swipe per ball. Taps and downward swipes do not play a shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> plays right to off.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; dots and singles drain it, and a wicket empties it. Full, it pulses — and when a ball on the stumps arrives on a length at a bowler's pace, it says so. Drive that one straight with perfect timing and you walk down the pitch and hit it out of the ground. Anything less and it is just the shot you played.</p><p class="help-note">Play with swipes on a phone or A, W, D on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
     const dialog = this.$('help-dialog') as HTMLDialogElement;
@@ -92,7 +100,7 @@ export class HUD {
     this.$('phase-label').textContent = phase === 'READY' ? 'TAKE YOUR GUARD' : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     if (phase === 'READY') this.$('result').classList.add('hidden');
   }
-  select(_shot: ShotType) { this.$('phase-label').textContent = 'SHOT COMMITTED'; }
+  select(_shot: ShotType, charging = false) { this.$('phase-label').textContent = charging ? 'DOWN THE PITCH!' : 'SHOT COMMITTED'; }
   /** A skied shot: say nothing about the outcome until the ball comes down. */
   airborne() { this.$('phase-label').textContent = 'UP IN THE AIR…'; }
   startTutorial() {
@@ -123,9 +131,10 @@ export class HUD {
   result(outcome: ShotOutcome) {
     this.$('phase-label').textContent = '';
     const panel = this.$('result');
-    panel.className = `result ${outcome.isWicket ? 'is-wicket' : outcome.runs >= 4 ? 'is-boundary' : ''}`;
+    panel.className = `result ${outcome.advance ? 'is-advance' : outcome.isWicket ? 'is-wicket' : outcome.runs >= 4 ? 'is-boundary' : ''}`;
     this.$('result-text').textContent = outcome.feedback;
-    this.$('timing').textContent = outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
+    this.$('timing').textContent = outcome.advance ? 'DOWN THE PITCH'
+      : outcome.timingGrade === 'PERFECT' || outcome.timingGrade === 'GOOD' ? `${outcome.timingGrade} TIMING`
       : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE';
     // Restart the rise-and-fade from the top for back-to-back deliveries.
     panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
@@ -140,6 +149,23 @@ export class HUD {
     this.$('end-tag').textContent = isRecord ? 'A NEW PERSONAL BEST' : 'INNINGS COMPLETE';
     this.$('end-message').textContent = score.wickets >= 3 ? 'All out. The crease is calling for a comeback.' : 'Five overs in the books. Can you go one better?';
     this.$('best').innerHTML = `${best} <small>RUNS</small>`; this.$('again').focus();
+    // A real link rather than a scripted popup: it survives popup blockers and
+    // opens the WhatsApp app on a phone.
+    (this.$('whatsapp') as HTMLAnchorElement).href = whatsappLink(score.runs, gameLink());
+  }
+  /**
+   * The meter reads full at 100 and pulses there. When the ball on its way is one
+   * he can charge, it says so — the shot is worth knowing about, and the timing
+   * is still the hard part.
+   */
+  confidence(fraction: number, primed: boolean) {
+    const full = fraction >= 1;
+    const meter = this.$('confidence');
+    meter.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
+    meter.classList.toggle('is-full', full);
+    meter.classList.toggle('is-primed', primed);
+    this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
+    this.$('confidence-label').textContent = primed ? 'CHARGE IT — SWIPE UP' : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
   sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }
   debug(data: object) { this.$('debug').classList.remove('hidden'); this.$('debug').textContent = Object.entries(data).map(([k, v]) => `${k}: ${v}`).join('\n'); }

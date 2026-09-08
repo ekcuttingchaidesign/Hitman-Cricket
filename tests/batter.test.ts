@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, STROKE_DURATION_MS } from '../src/entities/Batter';
-import { GAME, SHOTS } from '../src/config/gameplay';
+import { Batter, STROKE_CONTACT_MS, STROKE_DURATION_MS } from '../src/entities/Batter';
+import { ADVANCE, GAME, SHOTS } from '../src/config/gameplay';
 import { Vector3 } from 'three';
 
 describe('two-handed cricket animation', () => {
@@ -193,5 +193,51 @@ describe('the grip', () => {
     expect(Math.atan2(lift.y, Math.hypot(lift.x, lift.z))).toBeLessThan(.85);
     // And the face turned up to the sky, not held square while the blade lifts.
     expect(guard.batFace[1]).toBeGreaterThan(.5);
+  });
+});
+
+describe('the charge', () => {
+  it('walks down the pitch, launches it, and walks back', () => {
+    const batter = new Batter();
+    batter.reset(); batter.prepare(1); batter.update(0);
+    expect(batter.inspect().downPitch).toBeCloseTo(0, 6);
+    batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
+    // The ball arrives where it arrives: he is barely out of his ground at
+    // contact, and the drive is what carries him down the wicket.
+    batter.update(STROKE_CONTACT_MS);
+    const contact = batter.inspect();
+    expect(contact.charging).toBe(true);
+    expect(contact.downPitch).toBeLessThan(.12);
+    expect(contact.bladeContact[2]).toBeCloseTo(GAME.contactZ, 6);
+    expect(contact.bladeContact[1]).toBeCloseTo(.54, 6);
+    let furthest = 0;
+    for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
+      batter.update(time);
+      furthest = Math.max(furthest, batter.inspect().downPitch);
+    }
+    expect(furthest).toBeGreaterThan(1.5);
+    // And he is back in his crease before the next ball.
+    batter.update(STROKE_DURATION_MS + ADVANCE.walkBackMs);
+    expect(batter.inspect().downPitch).toBeCloseTo(0, 6);
+    batter.reset();
+    expect(batter.inspect().downPitch).toBeCloseTo(0, 6);
+  });
+  it('never outreaches an arm or a leg on the way', () => {
+    const batter = new Batter();
+    batter.reset(); batter.prepare(1); batter.update(0);
+    batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
+    for (let time = 0; time <= STROKE_DURATION_MS + ADVANCE.walkBackMs; time += 12) {
+      batter.update(time);
+      const pose = batter.inspect();
+      for (const [upper, lower] of pose.armLengths) {
+        expect(upper, `upper arm at ${time}ms`).toBeCloseTo(.32, 3);
+        expect(lower, `forearm at ${time}ms`).toBeLessThan(.345);
+      }
+      for (const [thigh, shin] of pose.legLengths) {
+        expect(thigh, `thigh at ${time}ms`).toBeCloseTo(.43, 3);
+        expect(shin, `shin at ${time}ms`).toBeLessThan(.445);
+      }
+      expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.135, 6);
+    }
   });
 });

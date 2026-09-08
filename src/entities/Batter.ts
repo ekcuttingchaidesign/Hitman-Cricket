@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { GAME } from '../config/gameplay';
+import { ADVANCE, GAME } from '../config/gameplay';
 import type { ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -123,6 +123,18 @@ const PULL: Stroke = {
     yaw: -.15, face: -.80, heel: .30, leadElbow: -.10 },
 };
 const PULL_REACH: readonly [number, number] = [-.55, .32];
+// Charging the bowler: a long stride out of the crease with the head over the
+// ball, the bat swung straight through the line and up, and the whole body
+// carried on down the pitch afterwards. The stride is as long as the leg will
+// reach — any further and the shin stretches to meet the foot.
+const CHARGE: Stroke = {
+  contact: { ...GUARD, hip: [-.06, .80, .36], chest: [.10, 1.16, .40], frontFoot: [.04, .08, .92], backFoot: [-.20, .10, -.26],
+    grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18 },
+  // Charging is running: by the finish he has pushed off the front foot and
+  // stepped through onto the back one, with the front leg trailing in the air.
+  finish: { ...GUARD, hip: [-.04, .86, .40], chest: [.04, 1.26, .42], frontFoot: [.02, .50, -.18], backFoot: [-.22, .08, .30],
+    grip: [-.26, 1.58, .30], batUp: [-.28, -.52, -.81], batFace: [0, .16, .99], yaw: .50, face: -.18, heel: 0, leadElbow: -.06 },
+};
 
 /**
  * A bat outline rather than a rounded slab: near-parallel edges down the middle,
@@ -191,6 +203,8 @@ export class Batter {
   private shot: ShotType = 'STRAIGHT';
   /** A leg-side swing at a ball up around the chest is a pull, not a flick. */
   private pulling = false;
+  /** A charge down the pitch: the confidence shot. */
+  private charging = false;
   private swingStart = -Infinity;
   private anticipation = 0;
   private contactTime = -Infinity;
@@ -288,13 +302,13 @@ export class Batter {
     mesh.scale.set(width, axis.length(), depth);
   }
   reset() {
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
-  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ) {
-    this.shot = shot; this.pulling = shot === 'LEG' && ballY > .85;
+  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false) {
+    this.shot = shot; this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.swingStart = now; this.contactTime = now + STROKE_CONTACT_MS;
     this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ;
     // Only the pull goes up after a bouncer. Every other stroke plays at its own
@@ -303,12 +317,34 @@ export class Batter {
     this.ballY = this.pulling ? ballY : Math.min(ballY, .62);
   }
   get strikeAt() { return this.contactTime; }
+  /**
+   * Where down the pitch the charge has carried him. Barely anything before
+   * contact — the ball arrives where it arrives, and walking the body into it
+   * would leave the hands behind the chest — then the drive carries him out, and
+   * he walks back to his crease with the ball still in the air.
+   */
+  private downPitch(age: number) {
+    if (!this.charging || !Number.isFinite(age) || age <= 0) return 0;
+    const at = (from: number, to: number, start: number, end: number) => from + (to - from) * ease((age - start) / (end - start));
+    const out = age <= STROKE_CONTACT_MS ? at(0, .04, 0, STROKE_CONTACT_MS)
+      : age <= 410 ? at(.04, .92, STROKE_CONTACT_MS, 410)
+      : age <= STROKE_DURATION_MS ? at(.92, 1, 410, STROKE_DURATION_MS)
+      : Math.max(0, 1 - ease((age - STROKE_DURATION_MS) / ADVANCE.walkBackMs));
+    return out * ADVANCE.stride;
+  }
+  private travel(age: number) {
+    const out = this.downPitch(age);
+    this.root.position.z = GAME.stanceZ + out;
+    // A walk back rather than a glide back.
+    this.root.position.y = out > 0 && age > STROKE_DURATION_MS ? Math.abs(Math.sin(age / 118)) * .022 : 0;
+  }
   update(now: number) {
     const age = now - this.swingStart;
+    this.travel(age);
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
       this.apply(mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation)); return;
     }
-    const stroke = this.pulling ? PULL : STROKES[this.shot];
+    const stroke = this.charging ? CHARGE : this.pulling ? PULL : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
     const zones: Record<ShotType, [number, number]> = {
@@ -316,7 +352,10 @@ export class Batter {
       COVER_LONG_OFF: [-.08, .55], OFF: [.05, .55],
     };
     const targetX = THREE.MathUtils.clamp(this.ballX, ...(this.pulling ? PULL_REACH : zones[this.shot]));
-    const contactGrip = new THREE.Vector3(targetX - this.root.position.x, this.ballY, this.ballZ - this.root.position.z)
+    // The bat meets the ball where he stands at contact. Reading the live root
+    // instead drags the hands backwards out of a charge as it carries him on.
+    const planted = GAME.stanceZ + this.downPitch(STROKE_CONTACT_MS);
+    const contactGrip = new THREE.Vector3(targetX - this.root.position.x, this.ballY, this.ballZ - planted)
       .addScaledVector(V(stroke.contact.batUp).normalize(), .44);
     const step = targetX * .65;
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
@@ -437,6 +476,8 @@ export class Batter {
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),
       chest: [...this.pose.chest], hip: [...this.pose.hip],
       armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),
+      legLengths: this.legs.map(leg => [leg.thigh.scale.y, leg.shin.scale.y]),
+      charging: this.charging, downPitch: this.root.position.z - GAME.stanceZ,
       backToe: this.legs[1].shoe.localToWorld(new THREE.Vector3(0, -.07, .225)).toArray(),
       bladeContact: this.bat.localToWorld(new THREE.Vector3(0, -.44, 0)).toArray(),
       bladeTip: this.bat.localToWorld(new THREE.Vector3(0, -.83, 0)).toArray(),

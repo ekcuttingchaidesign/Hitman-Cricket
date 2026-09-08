@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { COMPATIBILITY, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
+import { Confidence } from '../src/game/Confidence';
+import { shareText, whatsappLink } from '../src/game/Share';
 import { DeliveryGenerator } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { gradeTiming, resolveShot } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, gradeTiming, resolveShot } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
@@ -199,5 +201,95 @@ describe('delivery fairness and determinism', () => {
       score.record(resolveShot(d, { shotType: x < 0 ? 'LEG' : x > 0 ? 'OFF' : 'STRAIGHT', inputTimeMs: d.idealContactTimeMs }, r));
     }
     expect(score.overs).toBe('5.0'); expect(score.wickets).toBe(0); expect(score.runs).toBeGreaterThanOrEqual(120); expect(score.runs).toBeLessThanOrEqual(180);
+  });
+});
+
+describe('the confidence meter', () => {
+  const outcome = (runs: ShotOutcome['runs'], extra: Partial<ShotOutcome> = {}): ShotOutcome =>
+    ({ runs, isWicket: false, quality: 1, feedback: '', timingGrade: 'PERFECT', timingDeltaMs: 0, compatibility: 1, madeBatContact: true, aerial: false, ...extra });
+  it('fills on boundaries and hard running, drains on dots and singles', () => {
+    const meter = new Confidence();
+    meter.record(outcome(4)); expect(meter.value).toBe(CONFIDENCE_STEP[4]);
+    meter.record(outcome(1)); expect(meter.value).toBe(CONFIDENCE_STEP[4] + CONFIDENCE_STEP[1]);
+    meter.record(outcome(2)); meter.record(outcome(3));
+    expect(meter.value).toBeGreaterThan(CONFIDENCE_STEP[4]);
+    // It cannot go below empty, however long the drought.
+    for (let i = 0; i < 20; i++) meter.record(outcome(0));
+    expect(meter.value).toBe(0);
+  });
+  it('fills from empty in four scoring shots and stops there', () => {
+    const meter = new Confidence();
+    for (let i = 0; i < 3; i++) meter.record(outcome(6));
+    expect(meter.full).toBe(false);
+    meter.record(outcome(6));
+    expect(meter.full).toBe(true); expect(meter.value).toBe(CONFIDENCE_FULL); expect(meter.fraction).toBe(1);
+  });
+  it('is emptied by a wicket and by spending it', () => {
+    const meter = new Confidence();
+    for (let i = 0; i < 4; i++) meter.record(outcome(6));
+    meter.record(outcome(0, { isWicket: true, wicketType: 'BOWLED' }));
+    expect(meter.value).toBe(0);
+    for (let i = 0; i < 4; i++) meter.record(outcome(6));
+    meter.record(outcome(6, { advance: true }));
+    expect(meter.value).toBe(0);
+  });
+});
+
+describe('charging down the pitch', () => {
+  const onTheStumps = { line: 'MIDDLE' as const, baseTargetX: 0, finalTargetX: 0 };
+  const charge = (d: Delivery, delta = 0) => resolveShot(d, { shotType: 'STRAIGHT', inputTimeMs: d.idealContactTimeMs + delta }, new SeededRandom(4), true);
+  it('takes a length ball on the stumps at a bowler’s pace', () => {
+    expect(chargeable(delivery({ ...onTheStumps, style: 'NORMAL', speedKph: 125 }))).toBe(true);
+    expect(chargeable(delivery({ ...onTheStumps, style: 'SWING_IN', speedKph: 118 }))).toBe(true);
+    // Leg and off stump are on the stumps too; only the line matters, not the name.
+    expect(chargeable(delivery({ line: 'LEG', baseTargetX: LINE_X.LEG, finalTargetX: LINE_X.LEG, speedKph: 125 }))).toBe(true);
+    expect(chargeable(delivery({ line: 'OFF', baseTargetX: LINE_X.OFF, finalTargetX: LINE_X.OFF, speedKph: 125 }))).toBe(true);
+    // Swung far enough away and it is no longer a ball to walk at.
+    expect(chargeable(delivery({ line: 'LEG', baseTargetX: LINE_X.LEG, finalTargetX: LINE_X.LEG - GAME.movement, speedKph: 125 }))).toBe(false);
+  });
+  it('refuses every ball the batter could not walk at', () => {
+    // Off the stumps, however good the length.
+    expect(chargeable(delivery({ line: 'OUTSIDE_OFF', baseTargetX: .42, finalTargetX: .42, speedKph: 125 }))).toBe(false);
+    expect(chargeable(delivery({ line: 'OUTSIDE_LEG', baseTargetX: -.42, finalTargetX: -.42, speedKph: 125 }))).toBe(false);
+    // Too full and too short: a yorker and a bouncer pitch outside the window.
+    expect(chargeable(delivery({ ...onTheStumps, style: 'YORKER', speedKph: 130, bounceZ: STYLES.YORKER.bounce! }))).toBe(false);
+    expect(chargeable(delivery({ ...onTheStumps, style: 'SHORT', speedKph: 125, bounceZ: STYLES.SHORT.bounce! }))).toBe(false);
+    // Too slow and too quick.
+    expect(chargeable(delivery({ ...onTheStumps, style: 'SLOWER', speedKph: 88 }))).toBe(false);
+    expect(chargeable(delivery({ ...onTheStumps, style: 'OFF_SPIN', speedKph: 82 }))).toBe(false);
+    expect(chargeable(delivery({ ...onTheStumps, style: 'EXPRESS', speedKph: 155 }))).toBe(false);
+    expect(chargeable(delivery({ ...onTheStumps, style: 'FAST', speedKph: 145 }))).toBe(false);
+  });
+  it('needs a full meter, the straight drive, and perfect timing', () => {
+    const ball = delivery({ ...onTheStumps, style: 'NORMAL', speedKph: 125 });
+    const played = charge(ball);
+    expect(played.advance).toBe(true); expect(played.runs).toBe(6); expect(played.feedback).toBe(ADVANCE.feedback);
+    // Without the meter it is the same shot, scored the ordinary way.
+    expect(resolveShot(ball, { shotType: 'STRAIGHT', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4)).advance).toBeFalsy();
+    // Middled but not perfectly: a four, and the meter is not spent.
+    expect(charge(ball, GAME.timing.perfect + 5).advance).toBeFalsy();
+    // Any other stroke is that stroke.
+    expect(resolveShot(ball, { shotType: 'LEG', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance).toBeFalsy();
+    // And no charge at a ball that cannot be charged.
+    const quick = delivery({ ...onTheStumps, style: 'EXPRESS', speedKph: 155 });
+    expect(resolveShot(quick, { shotType: 'STRAIGHT', inputTimeMs: quick.idealContactTimeMs }, new SeededRandom(4), true).advance).toBeFalsy();
+  });
+  it('agrees with the swing that plays it', () => {
+    const ball = delivery({ ...onTheStumps, style: 'NORMAL', speedKph: 125 });
+    const attempt = { shotType: 'STRAIGHT' as const, inputTimeMs: ball.idealContactTimeMs + 10 };
+    expect(advanceShot(ball, attempt, true)).toBe(resolveShot(ball, attempt, new SeededRandom(4), true).advance);
+    expect(advanceShot(ball, attempt, false)).toBe(false);
+    expect(advanceShot(ball, null, true)).toBe(false);
+  });
+});
+
+describe('sharing a score', () => {
+  it('asks the friend to beat exactly what was scored, with the game link', () => {
+    expect(shareText(132, 'https://example.test/game/')).toBe('I scored 132 runs on Hitman Cricket, Can you beat my score https://example.test/game/');
+    const link = whatsappLink(7, 'https://example.test/game/');
+    expect(link.startsWith('https://wa.me/?text=')).toBe(true);
+    expect(decodeURIComponent(link.slice('https://wa.me/?text='.length))).toBe(shareText(7, 'https://example.test/game/'));
+    // The whole message travels in the query, so nothing may be left unescaped.
+    expect(link).not.toContain(' ');
   });
 });
