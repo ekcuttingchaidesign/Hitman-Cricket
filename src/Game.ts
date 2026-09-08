@@ -1,5 +1,6 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { Confidence } from './game/Confidence';
+import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
 import { effectiveLine } from './game/DeliveryTrajectory';
@@ -18,6 +19,9 @@ export class Game {
   private score = new ScoreManager();
   /** Full, it buys one charge down the pitch. */
   private confidence = new Confidence();
+  /** Three balls that went nowhere and the fielders have something to say. */
+  private sledger = new Sledger();
+  private sledgeDue = false;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
@@ -57,7 +61,7 @@ export class Game {
   }
   start = () => {
     this.lesson = -1;
-    this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager(); this.confidence = new Confidence();
+    this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager(); this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed); this.generator = new DeliveryGenerator(this.rng);
@@ -68,7 +72,7 @@ export class Game {
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
     this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
-    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence();
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
     (document.activeElement as HTMLElement | null)?.blur();
@@ -174,7 +178,12 @@ export class Game {
         if (this.outcome!.aerial && this.outcome!.madeBatContact) this.audio.play('hit');
       }
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
-      if (this.elapsed >= this.resolveEndsAt) this.setPhase('RESULT');
+      if (this.elapsed >= this.resolveEndsAt) {
+        this.setPhase('RESULT');
+        // After the call, not over it: the sledge is what comes back from the
+        // field once the ball is dead.
+        if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
+      }
     } else if (this.phase === 'RESULT' && age >= GAME.resultMs) {
       if (this.lesson >= 0) {
         this.lesson++;
@@ -188,7 +197,11 @@ export class Game {
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
       : resolveShot(this.delivery!, this.attempt, this.rng, this.charged);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
-    else { this.score.record(this.outcome); this.generator.record(this.outcome); this.confidence.record(this.outcome); this.showConfidence(); }
+    else {
+      this.score.record(this.outcome); this.generator.record(this.outcome);
+      this.confidence.record(this.outcome); this.showConfidence();
+      this.sledgeDue = this.sledger.record(this.outcome);
+    }
     this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;

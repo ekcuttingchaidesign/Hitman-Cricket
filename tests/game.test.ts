@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
+import { quietBall, Sledger } from '../src/game/Sledge';
 import { DeliveryGenerator } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { mapKeys } from '../src/game/InputManager';
@@ -336,10 +337,53 @@ describe('the forward defensive', () => {
     const short = delivery({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce!, line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0 });
     expect(block(short, 300).isWicket).toBe(false);
   });
-  it('scores nothing, so the meter treats it as the dot it is', () => {
+  it('costs the meter nothing: a block is a decision, not a failure', () => {
     const meter = new Confidence();
-    meter.record(block(onTheStumps, 0));
-    expect(meter.value).toBe(0);
+    for (let i = 0; i < 2; i++) meter.record({ runs: 4, isWicket: false, advance: false });
+    const before = meter.value;
+    for (let i = 0; i < 5; i++) meter.record(block(onTheStumps, 0));
+    expect(meter.value).toBe(before);
+    // A ball that beats the bat still costs what a dot costs.
+    const wide = delivery({ line: 'OUTSIDE_OFF', baseTargetX: LINE_X.OUTSIDE_OFF, finalTargetX: LINE_X.OUTSIDE_OFF });
+    const missed = block(wide, GAME.timing.poor);
+    expect(missed.isWicket).toBe(false); expect(missed.defended).toBeFalsy();
+    meter.record(missed);
+    expect(meter.value).toBe(before + CONFIDENCE_STEP[0]);
+  });
+});
+
+describe('the fielders sledging', () => {
+  const ball = (over: Partial<ShotOutcome>): ShotOutcome =>
+    ({ runs: 0, isWicket: false, quality: 0, feedback: '', timingGrade: 'MISS', timingDeltaMs: null,
+      compatibility: 0, madeBatContact: false, aerial: false, ...over });
+  const beaten = ball({});
+  const blocked = ball({ defended: true, madeBatContact: true, timingGrade: 'PERFECT' });
+  const scored = ball({ runs: 4, madeBatContact: true, timingGrade: 'GOOD' });
+  const bowled = ball({ isWicket: true, wicketType: 'BOWLED' });
+  const runs = (over: ShotOutcome[]) => { const s = new Sledger(); return over.map(o => s.record(o)); };
+
+  it('speaks up after three balls the batter went nowhere with', () => {
+    for (const three of [
+      [beaten, beaten, beaten],           // three beaten
+      [blocked, blocked, blocked],        // three blocked
+      [beaten, blocked, beaten],          // beaten and blocked, any order
+      [blocked, blocked, beaten],
+      [beaten, blocked, blocked],
+    ]) expect(runs(three), JSON.stringify(three.map(b => b.defended ? 'block' : 'miss'))).toEqual([false, false, true]);
+  });
+  it('says nothing while the batter is scoring', () => {
+    expect(runs([beaten, beaten, scored, beaten, beaten])).toEqual([false, false, false, false, false]);
+    expect(runs([blocked, scored, blocked, blocked])).toEqual([false, false, false, false]);
+    // Two quiet balls are not a run of them.
+    expect(runs([blocked, beaten])).toEqual([false, false]);
+  });
+  it('leaves a dismissed batter alone', () => {
+    expect(quietBall(bowled)).toBe(false);
+    expect(runs([beaten, beaten, bowled, beaten, beaten])).toEqual([false, false, false, false, false]);
+  });
+  it('needs another three before it speaks again', () => {
+    expect(runs([beaten, beaten, beaten, beaten, beaten, beaten]))
+      .toEqual([false, false, true, false, false, true]);
   });
 });
 

@@ -1,5 +1,5 @@
 import type { ShotOutcome } from './types';
-type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket';
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge';
 export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'>): Sound | null {
   if (outcome.isWicket) return 'wicket';
   if (!outcome.madeBatContact) return null;
@@ -15,6 +15,7 @@ export class GameAudio {
   private files = [
     ['hit', new URL('../assets/normal-hit.mp3', import.meta.url)],
     ['boundary', new URL('../assets/boundary-hit.mp3', import.meta.url)],
+    ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
   ] as const;
   // Fetch before the innings; decoding and playback are unlocked by Start's tap.
   private downloads = this.files.map(async ([kind, url]) => {
@@ -53,6 +54,9 @@ export class GameAudio {
       source.onended = () => { this.sources.delete(source); source.disconnect(); gain.disconnect(); };
       return;
     }
+    // The synthesized fallback is an impact, not a voice: there is nothing
+    // sensible to make of a sledge without its clip, so it stays silent.
+    if (kind === 'sledge') return;
     const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = kind === 'hit' ? 'triangle' : 'sine';
     osc.frequency.setValueAtTime(kind === 'hit' ? 720 : kind === 'wicket' ? 170 : kind === 'boundary' ? 540 : 240, now);
