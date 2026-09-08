@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { InputManager, mapSwipe } from '../src/game/InputManager';
+import { InputManager, mapKeys, mapSwipe, shotKey } from '../src/game/InputManager';
 import { outcomeSound } from '../src/game/Audio';
 
 describe('swipe directions', () => {
@@ -71,6 +71,50 @@ describe('touch input integration', () => {
     const key = new Event('keydown', { cancelable: true }); Object.assign(key, { key: 'w', repeat: false }); s.keyboard.dispatchEvent(key); s.input.flush(500);
     expect(s.shoot).toHaveBeenCalledTimes(1); s.input.reset(); s.input.dispose();
     s.pointer('pointerdown', 100, 100); s.pointer('pointermove', 0, 100); expect(s.shoot).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('arrow keys', () => {
+  it.each([
+    ['ArrowLeft', 'A'], ['ArrowUp', 'W'], ['ArrowRight', 'D'],
+    ['a', 'A'], ['W', 'W'], ['d', 'D'],
+    ['ArrowDown', null], ['s', null], ['Shift', null], ['Enter', null],
+  ])('reads %s as %s', (key, mapped) => expect(shotKey(key as string)).toBe(mapped));
+
+  const press = (s: ReturnType<typeof setup>, key: string) => {
+    const event = new Event('keydown', { cancelable: true });
+    Object.assign(event, { key, repeat: false });
+    s.keyboard.dispatchEvent(event);
+  };
+  it('plays the same five shots as the letters, combos included', () => {
+    for (const [keys, shot] of [
+      [['ArrowLeft'], 'LEG'], [['ArrowUp'], 'STRAIGHT'], [['ArrowRight'], 'OFF'],
+      [['ArrowLeft', 'ArrowUp'], 'LONG_ON'], [['ArrowUp', 'ArrowRight'], 'COVER_LONG_OFF'],
+      // A letter and an arrow are the same key, so a mixed pair is still a combo.
+      [['A', 'ArrowUp'], 'LONG_ON'],
+    ] as const) {
+      const s = setup();
+      for (const key of keys) press(s, key);
+      s.input.flush(500);
+      expect(s.shoot, keys.join(' + ')).toHaveBeenCalledWith(shot, 100);
+      s.input.dispose();
+    }
+  });
+  it('takes the arrow keys off the browser, and leaves the rest alone', () => {
+    const s = setup();
+    const arrow = new Event('keydown', { cancelable: true });
+    Object.assign(arrow, { key: 'ArrowUp', repeat: false });
+    s.keyboard.dispatchEvent(arrow);
+    // Otherwise an arrow key scrolls the page out from under the innings.
+    expect(arrow.defaultPrevented).toBe(true);
+    const other = new Event('keydown', { cancelable: true });
+    Object.assign(other, { key: 'ArrowDown', repeat: false });
+    s.keyboard.dispatchEvent(other);
+    expect(other.defaultPrevented).toBe(false);
+    s.input.dispose();
+  });
+  it('maps arrows and letters through one path', () => {
+    expect(mapKeys(['ArrowLeft'].map(k => shotKey(k)!))).toBe('LEG');
   });
 });
 

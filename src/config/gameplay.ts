@@ -56,10 +56,11 @@ export const SOLID_SHOT = 0.55;
 // and ok keeps it along the ground for these.
 export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, OFF: 52 };
-// Confidence is earned by scoring and spent by not scoring: boundaries and hard
-// running fill the meter, a dot or a single drains it, and a wicket empties it.
-// Roughly four scoring shots fill it from empty.
-export const CONFIDENCE_STEP: Record<number, number> = { 6: 28, 4: 22, 3: 16, 2: 12, 1: -10, 0: -18 };
+// Confidence is earned by scoring and lost by not scoring: boundaries and hard
+// running fill the meter and a dot ball drains it, while a single leaves it
+// where it stands — nudging one is not a failure. A wicket empties it, and
+// roughly four scoring shots fill it from nothing.
+export const CONFIDENCE_STEP: Record<number, number> = { 6: 28, 4: 22, 3: 16, 2: 12, 1: 0, 0: -18 };
 export const CONFIDENCE_FULL = 100;
 /**
  * The one ball you can charge: straight at the stumps, on a length, and at a
@@ -72,7 +73,7 @@ export const CONFIDENCE_FULL = 100;
  */
 export const ADVANCE = {
   minKph: 108, maxKph: 134, minBounceZ: 7.4, maxBounceZ: 9.4,
-  shot: 'STRAIGHT' as ShotType, timing: 'PERFECT' as TimingGrade,
+  shot: 'STRAIGHT' as ShotType, timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
   feedback: 'OUT OF THE STADIUM!',
   /** How far down the pitch the charge carries him, and how long the walk back is. */
   stride: 1.75, walkBackMs: 1300,

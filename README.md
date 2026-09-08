@@ -35,15 +35,17 @@ Use the on-screen Pause button to resume or restart. Page scrolling is suppresse
 
 | Key | Action |
 | --- | --- |
-| A | Leg-side shot (left) |
-| W | Straight drive |
-| D | Off-side shot (right) |
-| A + W | Long-on drive |
-| W + D | Cover / long-off drive |
+| A or ← | Leg-side shot (left) |
+| W or ↑ | Straight drive |
+| D or → | Off-side shot (right) |
+| A + W (or ← + ↑) | Long-on drive |
+| W + D (or ↑ + →) | Cover / long-off drive |
 | Enter | Start innings / play again |
 | Esc | Pause / resume |
 | R | Restart innings |
 | M | Mute / unmute sound |
+
+The arrow keys are read as the same three shots before anything else looks at them, so combos, the one-shot gate and the timing bands work identically whichever pair a player reaches for — and a mixed pair such as `A` + `↑` is still a combo. Arrow keys are also swallowed during a delivery so the page cannot scroll out from under the innings.
 
 Press combo keys within 100 ms. Timing uses the first press, without adding the combo recognition delay. Only one attempt is allowed per delivery; repeated keydown events are ignored. A+D is not a shot combination. During a three-key sequence the first valid pair wins.
 
@@ -76,6 +78,14 @@ The pull is not a separate control: swipe leg side (or press `A`) at a ball up a
 
 A four runs to the rope along the ground; only a six leaves it, and only a mishit hangs in the air.
 
+## Confidence, and the charge down the pitch
+
+Confidence is earned by scoring and lost by not scoring. A six adds 28, a four 22, a three 16 and a two 12; a dot ball takes 18, a single leaves it where it stands, and a wicket empties it. Roughly four scoring shots fill it from nothing. It is a run of form rather than a bank balance, so it cannot be saved across a collapse.
+
+Full, the meter pulses. When a ball you can walk at is on its way — on the stumps, on a length, at a bowler's pace — the field calls it in gold from the moment it leaves the bowler's hand. Drive that one straight and time it perfectly or well, and the batter charges down the wicket and hits it out of the ground for six, and the meter is spent. Mistime it and it is simply the shot you played, with the meter still charged.
+
+The length and pace windows exclude every special without naming one: a yorker pitches at your toes, a bouncer over your head, and neither a slower ball nor an express one leaves you time to walk at it.
+
 The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), and `boundary-hit.mp3` plays for both fours and sixes. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
 ## Architecture and tuning
@@ -86,7 +96,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
 - `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. The popping crease is 1.2m in front of each wicket and the batter stands inside it rather than over the stumps, so the ball is met about a metre in front of them; `GAME.travelScale` carries the shorter flight that leaves, and every delivery keeps the duration it was tuned to. Bowler and fielders are modelled from smooth spheres, capsules, and rounded boxes with sphere joints, so they read as sculpted clay rather than stacked cuboids; the distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
 - `src/entities/Batter.ts`: articulated right-handed batter with seven strokes — the five shot directions, a back-foot pull the leg-side input selects at bouncer height, and a charge down the pitch the confidence meter unlocks — built from smooth primitives, with the bat blade extruded from a real cricket-bat outline, with a side-on guard, flexed knees, the back bent forward over the ball, the head carried on the spine, the bat cocked back over the shoulder so the toe points at first slip with the face opened up, a shared two-hand bat grip, and two-bone arm/leg posing. Both fists ride the bat's own rotation — the right hand below the left on the handle, knuckles lined up along it — and only the gauntlets turn, back up the forearm; a hand free to face its own arm ends up gripping the handle a quarter-turn away from the other one. Elbow hints are scored for room and turned around the arm when one would bury the elbow in the chest or lay the forearm along the handle. The bat carries a full orientation — a handle axis plus a blade face — and poses slerp that rotation, so the blade travels a clean arc instead of rolling at random when a stroke reverses it. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
-- `src/game/Confidence.ts`: the confidence meter. Boundaries, twos and threes fill it, dots and singles drain it, and a wicket or spending it empties it — a run of form rather than a bank balance, so it cannot be saved across a collapse. Full, it buys one charge down the pitch.
+- `src/game/Confidence.ts`: the confidence meter. Boundaries, twos and threes fill it, a dot ball drains it, a single leaves it alone, and a wicket or spending it empties it — a run of form rather than a bank balance, so it cannot be saved across a collapse. Full, it buys one charge down the pitch.
 - `src/game/Share.ts`: the innings link and the WhatsApp message built from the final score.
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, and the WhatsApp share message.

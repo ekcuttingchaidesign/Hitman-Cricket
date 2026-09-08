@@ -207,13 +207,14 @@ describe('delivery fairness and determinism', () => {
 describe('the confidence meter', () => {
   const outcome = (runs: ShotOutcome['runs'], extra: Partial<ShotOutcome> = {}): ShotOutcome =>
     ({ runs, isWicket: false, quality: 1, feedback: '', timingGrade: 'PERFECT', timingDeltaMs: 0, compatibility: 1, madeBatContact: true, aerial: false, ...extra });
-  it('fills on boundaries and hard running, drains on dots and singles', () => {
+  it('fills on boundaries and hard running, and only dots drain it', () => {
     const meter = new Confidence();
     meter.record(outcome(4)); expect(meter.value).toBe(CONFIDENCE_STEP[4]);
-    meter.record(outcome(1)); expect(meter.value).toBe(CONFIDENCE_STEP[4] + CONFIDENCE_STEP[1]);
+    // A single is neither: nudging one costs nothing.
+    meter.record(outcome(1)); expect(meter.value).toBe(CONFIDENCE_STEP[4]);
     meter.record(outcome(2)); meter.record(outcome(3));
     expect(meter.value).toBeGreaterThan(CONFIDENCE_STEP[4]);
-    // It cannot go below empty, however long the drought.
+    // Only dots drain it, and it cannot go below empty however long the drought.
     for (let i = 0; i < 20; i++) meter.record(outcome(0));
     expect(meter.value).toBe(0);
   });
@@ -260,14 +261,17 @@ describe('charging down the pitch', () => {
     expect(chargeable(delivery({ ...onTheStumps, style: 'EXPRESS', speedKph: 155 }))).toBe(false);
     expect(chargeable(delivery({ ...onTheStumps, style: 'FAST', speedKph: 145 }))).toBe(false);
   });
-  it('needs a full meter, the straight drive, and perfect timing', () => {
+  it('needs a full meter, the straight drive, and timing worth the shot', () => {
     const ball = delivery({ ...onTheStumps, style: 'NORMAL', speedKph: 125 });
     const played = charge(ball);
     expect(played.advance).toBe(true); expect(played.runs).toBe(6); expect(played.feedback).toBe(ADVANCE.feedback);
     // Without the meter it is the same shot, scored the ordinary way.
     expect(resolveShot(ball, { shotType: 'STRAIGHT', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4)).advance).toBeFalsy();
-    // Middled but not perfectly: a four, and the meter is not spent.
-    expect(charge(ball, GAME.timing.perfect + 5).advance).toBeFalsy();
+    // Good timing charges it too; only a mistimed one is left as the shot played.
+    const wellTimed = charge(ball, GAME.timing.perfect + 5);
+    expect(wellTimed.advance).toBe(true); expect(wellTimed.runs).toBe(6);
+    expect(charge(ball, GAME.timing.good + 5).advance).toBeFalsy();
+    expect(charge(ball, GAME.timing.ok + 5).advance).toBeFalsy();
     // Any other stroke is that stroke.
     expect(resolveShot(ball, { shotType: 'LEG', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance).toBeFalsy();
     // And no charge at a ball that cannot be charged.

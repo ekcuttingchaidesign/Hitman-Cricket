@@ -1,5 +1,17 @@
 import { GAME } from '../config/gameplay';
 import type { ShotType } from './types';
+/**
+ * The three shot keys, with the arrow keys as the same three. Normalising here
+ * rather than in `mapKeys` means combos, held keys and every downstream rule
+ * work the same whichever pair of keys a player reaches for.
+ */
+export function shotKey(key: string): 'A' | 'W' | 'D' | null {
+  const upper = key.toUpperCase();
+  if (upper === 'A' || upper === 'ARROWLEFT') return 'A';
+  if (upper === 'W' || upper === 'ARROWUP') return 'W';
+  if (upper === 'D' || upper === 'ARROWRIGHT') return 'D';
+  return null;
+}
 export function mapKeys(keys: string[]): ShotType | null {
   const normalized = [...new Set(keys.map(k => k.toUpperCase()))];
   if (normalized.includes('A') && normalized.includes('W')) return 'LONG_ON';
@@ -57,8 +69,8 @@ export class InputManager {
     if (id !== undefined && this.surface?.hasPointerCapture(id)) this.surface.releasePointerCapture(id);
   }
   private down = (event: KeyboardEvent) => {
-    const key = event.key.toUpperCase();
-    if (!['A', 'W', 'D'].includes(key) || !this.active()) return;
+    const key = shotKey(event.key);
+    if (!key || !this.active()) return;
     event.preventDefault();
     if (event.repeat || this.held.has(key) || this.used) return;
     this.held.add(key);
@@ -72,7 +84,7 @@ export class InputManager {
       if (mapped) this.resolve(mapped);
     }
   };
-  private up = (event: KeyboardEvent) => { this.held.delete(event.key.toUpperCase()); };
+  private up = (event: KeyboardEvent) => { const key = shotKey(event.key); if (key) this.held.delete(key); };
   private resolve(shot: ShotType) {
     if (!this.pending) return;
     const time = this.pending.time; // Preserve initial press; combo recognition adds no timing penalty.

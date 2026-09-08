@@ -25,7 +25,7 @@ export function chargeable(delivery: Delivery) {
  */
 export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
   return charged && !!attempt && attempt.shotType === ADVANCE.shot && chargeable(delivery)
-    && gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight) === ADVANCE.timing;
+    && ADVANCE.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /** `charged` is the batter's confidence being full — the shot still has to be played. */
 export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, charged = false): ShotOutcome {
@@ -38,8 +38,8 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
     timingDeltaMs: delta, compatibility, madeBatContact, aerial: false };
 
   // Full of confidence, on the right ball, driven straight and middled: he walks
-  // at it and hits it out of the ground. Anything less than perfect timing is
-  // just the shot he played, so the meter is spent only on the real thing.
+  // at it and hits it out of the ground. Mistime it and it is just the shot he
+  // played, so the meter is spent only on the real thing.
   if (advanceShot(delivery, attempt, charged)) {
     return { ...outcome, runs: 6, advance: true, compatibility: 1, quality: 1, madeBatContact: true, feedback: ADVANCE.feedback };
   }
