@@ -287,8 +287,10 @@ export class GameScene {
     this.hitEnd.set(Math.sin(angle) * distance, caught ? 1.5 : 0.1, Math.cos(angle) * distance);
     // A skied shot hangs long enough to be watched down; a middled one leaves fast.
     this.flightMs = outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
+    // A four is a boundary along the turf — a drive races to the rope on the
+    // ground. Only a six leaves it, and only a mishit hangs.
     this.hitHeight = outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
-      : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 2.4 : 0.6;
+      : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 0.22 : 0.6;
     if (caught) {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     }

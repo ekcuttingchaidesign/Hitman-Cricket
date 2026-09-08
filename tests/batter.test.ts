@@ -7,9 +7,10 @@ describe('two-handed cricket animation', () => {
   it('keeps both gloves on the same handle throughout every stroke', () => {
     const batter = new Batter();
     const worst: Record<string, { length: number; time: number }> = {};
-    for (const shot of SHOTS) {
+    // Both heights, so the pull is held to the same grip and reach as the rest.
+    for (const [shot, ballY] of SHOTS.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.55, -.14, 0, .14, .55]) {
-        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();

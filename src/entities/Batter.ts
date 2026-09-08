@@ -112,10 +112,14 @@ const PULL: Stroke = {
     frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
     grip: [-.30, 1.12, .02], batUp: [-.93, .30, -.20], batFace: [-.86, .18, .48],
     yaw: .42, face: -.55, heel: .22, leadElbow: -.52 },
-  finish: { ...GUARD, hip: [-.17, .90, -.10], chest: [-.16, 1.24, -.06],
+  // The bat finishes high with the hands together in front of the chest and the
+  // blade pointing up over the off shoulder. Wrapping them round behind the back
+  // is where the arms end up if the grip is left on the leg side, and no shoulder
+  // bends that way.
+  finish: { ...GUARD, hip: [-.17, .90, -.10], chest: [-.16, 1.26, .00],
     frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
-    grip: [-.46, 1.30, -.16], batUp: [-.76, .44, .24], batFace: [-.80, .10, .58],
-    yaw: -.20, face: -.85, heel: .30, leadElbow: -.34 },
+    grip: [.02, 1.36, .20], batUp: [-.71, -.71, .10], batFace: [-.62, .42, .66],
+    yaw: -.15, face: -.80, heel: .30, leadElbow: -.10 },
 };
 const PULL_REACH: readonly [number, number] = [-.55, .32];
 
@@ -260,7 +264,11 @@ export class Batter {
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ) {
     this.shot = shot; this.pulling = shot === 'LEG' && ballY > .85;
     this.swingStart = now; this.contactTime = now + STROKE_CONTACT_MS;
-    this.swingFrom = this.pose; this.ballX = finalBallX; this.ballY = ballY; this.ballZ = ballZ;
+    this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ;
+    // Only the pull goes up after a bouncer. Every other stroke plays at its own
+    // height and the ball passes over the bat, rather than the arms stretching
+    // to chase a ball that stroke was never going to reach.
+    this.ballY = this.pulling ? ballY : Math.min(ballY, .62);
   }
   get strikeAt() { return this.contactTime; }
   update(now: number) {

@@ -72,7 +72,9 @@ The bowler is not a random number generator — he watches the innings and answe
 | **Bouncer** | Occasionally, any line | Lands short and rears to chest height. It is over the stumps, so you can never be bowled or caught off it — but it can only be **pulled**, and only if you middle it. Perfect timing on a leg-side swipe is six; anything else goes through to the keeper. |
 | **Slower ball** | Once four quick balls have gone by | 78–98 kph and floated in at nearly a second and a half, straight after a burst of pace. |
 
-The pull is not a separate control: swipe leg side (or press `A`) at a ball up around your chest and the batter plays it off the back foot with a horizontal bat, instead of the front-foot flick he uses at a normal-height ball.
+The pull is not a separate control: swipe leg side (or press `A`) at a ball up around your chest and the batter plays it off the back foot with a horizontal bat, finishing high with the hands in front of the chest, instead of the front-foot flick he uses at a normal-height ball. Only the pull follows a ball up there — every other stroke swings at its own height and a bouncer passes over the bat.
+
+A four runs to the rope along the ground; only a six leaves it, and only a mishit hangs in the air.
 
 The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), and `boundary-hit.mp3` plays for both fours and sixes. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
