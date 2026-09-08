@@ -323,12 +323,25 @@ export class Batter {
       // round to the other side, so push it straight out from the body, square
       // to the arm itself. `leadElbow` then rides the front elbow up or down.
       const along = hand.clone().sub(arm.shoulder).normalize();
-      const away = arm.shoulder.clone().sub(chest);
-      away.addScaledVector(along, -away.dot(along));
-      if (away.lengthSq() < .0001) away.copy(spine).negate();
-      const pole = arm.shoulder.clone().addScaledVector(away.normalize(), .60);
+      const square = (direction: THREE.Vector3) => {
+        direction.addScaledVector(along, -direction.dot(along));
+        if (direction.lengthSq() < .0001) direction.copy(spine).negate();
+        return direction.normalize();
+      };
+      const away = square(arm.shoulder.clone().sub(chest));
+      const pole = arm.shoulder.clone().addScaledVector(away, .60);
       if (i === 0) pole.addScaledVector(spine, pose.leadElbow);
-      const elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
+      let elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
+      // Out from the body alone puts the back elbow on the off side, which is
+      // exactly where a raised blade already is, and the forearm ends up lying
+      // across the bat. Lean the hint off the blade — the bat's own up axis —
+      // but only take that lean when the elbow stays out of the chest: on a
+      // square cut the bat lies across the body and points the lean straight in.
+      if (i === 1) {
+        const leaning = square(new THREE.Vector3(0, 1, 0).applyQuaternion(this.bat.quaternion).multiplyScalar(.85).add(away));
+        const clear = solveJoint(arm.shoulder, hand, .32, .34, arm.shoulder.clone().addScaledVector(leaning, .60));
+        if (this.offSpine(clear, hip, chest, spine) > .19) elbow = clear;
+      }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
@@ -363,6 +376,11 @@ export class Batter {
       leg.shoe.quaternion.setFromAxisAngle(UP, i === 0 ? pose.yaw * .77 : 1.38)
         .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), footPitch));
     }
+  }
+  /** How far a point sits from the spine, and so from inside the trunk. */
+  private offSpine(point: THREE.Vector3, hip: THREE.Vector3, chest: THREE.Vector3, spine: THREE.Vector3) {
+    const along = THREE.MathUtils.clamp(point.clone().sub(hip).dot(spine), 0, chest.distanceTo(hip));
+    return point.distanceTo(hip.clone().addScaledVector(spine, along));
   }
   /** Read-only measurements used to catch detached grips and pose regressions. */
   inspect() {
