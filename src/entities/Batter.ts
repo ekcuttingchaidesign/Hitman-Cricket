@@ -329,23 +329,47 @@ export class Batter {
   private downPitch(age: number) {
     if (!this.charging || !Number.isFinite(age) || age <= 0) return 0;
     const at = (from: number, to: number, start: number, end: number) => from + (to - from) * ease((age - start) / (end - start));
+    // Every one of these ranges has to be clamped. `ease` is a cubic, not a
+    // curve that flattens: fed a number past 1 it turns and runs away, and the
+    // walk back read as reaching the crease and then sprinting at the bowler.
     const out = age <= STROKE_CONTACT_MS ? at(0, .04, 0, STROKE_CONTACT_MS)
       : age <= 410 ? at(.04, .92, STROKE_CONTACT_MS, 410)
       : age <= STROKE_DURATION_MS ? at(.92, 1, 410, STROKE_DURATION_MS)
-      : Math.max(0, 1 - ease((age - STROKE_DURATION_MS) / ADVANCE.walkBackMs));
+      : 1 - ease(THREE.MathUtils.clamp((age - STROKE_DURATION_MS) / ADVANCE.walkBackMs, 0, 1));
     return out * ADVANCE.stride;
   }
   private travel(age: number) {
-    const out = this.downPitch(age);
-    this.root.position.z = GAME.stanceZ + out;
-    // A walk back rather than a glide back.
-    this.root.position.y = out > 0 && age > STROKE_DURATION_MS ? Math.abs(Math.sin(age / 118)) * .022 : 0;
+    this.root.position.set(GAME.stanceX, 0, GAME.stanceZ + this.downPitch(age));
+  }
+  /**
+   * The walk back to the crease, as steps rather than a slide. Each foot plants
+   * and stays where it was put while the body moves over it, then swings back a
+   * stride and plants again; the hips rise and fall with the cycle. Translating
+   * the whole batter instead leaves his feet frozen to the turf, skating.
+   */
+  private walking(pose: Pose, left: number): Pose {
+    const settle = Math.min(1, left / .4);
+    if (settle <= 0) return pose;
+    const step = .54, walked = ADVANCE.stride - left;
+    const foot = (base: Point, offset: number): Point => {
+      const phase = (walked / step + offset) % 1;
+      const along = (phase < .5 ? phase : 1 - phase) * step - .25 * step;
+      const lift = phase < .5 ? 0 : Math.sin((phase - .5) * Math.PI) * .072;
+      return [base[0], base[1] + lift * settle, base[2] + along * settle];
+    };
+    const bob = Math.sin(walked / step * Math.PI * 2) * .022 * settle;
+    return { ...pose,
+      frontFoot: foot(pose.frontFoot, 0), backFoot: foot(pose.backFoot, .5),
+      hip: [pose.hip[0], pose.hip[1] + bob, pose.hip[2]],
+      chest: [pose.chest[0], pose.chest[1] + bob, pose.chest[2]] };
   }
   update(now: number) {
     const age = now - this.swingStart;
     this.travel(age);
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
-      this.apply(mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation)); return;
+      const guard = mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation);
+      this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
+      return;
     }
     const stroke = this.charging ? CHARGE : this.pulling ? PULL : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely

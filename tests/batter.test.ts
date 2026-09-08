@@ -244,11 +244,56 @@ describe('the charge', () => {
     batter.reset();
     expect(batter.inspect().downPitch).toBeCloseTo(0, 6);
   });
+  it('walks back to the crease and stops there', () => {
+    const batter = new Batter();
+    batter.reset(); batter.prepare(1); batter.update(0);
+    batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
+    // Well past the end of the walk: `ease` is a cubic, and fed a number past 1
+    // it turns and runs away — which sent him back down the pitch at the bowler,
+    // faster and faster, long after he had reached his crease.
+    for (let time = 0; time <= 20000; time += 40) {
+      batter.update(time);
+      const down = batter.inspect().downPitch;
+      expect(down, `${time}ms`).toBeGreaterThanOrEqual(0);
+      expect(down, `${time}ms`).toBeLessThanOrEqual(ADVANCE.stride + 1e-9);
+    }
+    batter.update(STROKE_DURATION_MS + ADVANCE.walkBackMs + 4000);
+    expect(batter.inspect().downPitch).toBe(0);
+  });
+
+  it('walks on its feet rather than sliding on them', () => {
+    const batter = new Batter();
+    batter.reset(); batter.prepare(1); batter.update(0);
+    batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
+    const world = () => {
+      const pose = batter.inspect();
+      return [pose.frontFoot, pose.backFoot].map(foot => foot[2] + GAME.stanceZ + pose.downPitch);
+    };
+    batter.update(STROKE_DURATION_MS);
+    let previous = world(), planted = 0, frames = 0;
+    for (let time = STROKE_DURATION_MS + 8; time <= STROKE_DURATION_MS + ADVANCE.walkBackMs; time += 8) {
+      batter.update(time);
+      const now = world();
+      const moved = now.map((z, i) => Math.abs(z - previous[i]));
+      // One foot is always down and still while the other swings. Translating
+      // the whole batter instead leaves both feet frozen to him, skating.
+      // A swinging foot covers three times this; the bar only has to be under
+      // the distance the body itself travels in a frame at full walking pace.
+      expect(Math.min(...moved), `both feet moving at ${time}ms`).toBeLessThan(.02);
+      if (Math.min(...moved) < .0005) planted++;
+      frames++; previous = now;
+    }
+    // And a foot is dead still for most of the walk, not just at each end. The
+    // rest is the frames where the feet swap and the last stride, where the
+    // step eases out into the waiting stance.
+    expect(planted / frames).toBeGreaterThan(.6);
+  });
+
   it('never outreaches an arm or a leg on the way', () => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0);
     batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
-    for (let time = 0; time <= STROKE_DURATION_MS + ADVANCE.walkBackMs; time += 12) {
+    for (let time = 0; time <= STROKE_DURATION_MS + ADVANCE.walkBackMs + 600; time += 12) {
       batter.update(time);
       const pose = batter.inspect();
       for (const [upper, lower] of pose.armLengths) {
