@@ -100,10 +100,11 @@ describe('arm placement', () => {
   // buried it inside the torso in the guard and through the leg-side wrap.
   it('keeps both elbows clear of the torso in every pose', () => {
     let worst = { clearance: Infinity, where: '' };
-    for (const shot of SHOTS) {
+    // 1.12 is bouncer height, which turns the leg-side input into a pull.
+    for (const [shot, ballY] of SHOTS.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.55, -.14, 0, .14, .55]) {
         const batter = new Batter();
-        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();
@@ -113,12 +114,36 @@ describe('arm placement', () => {
             const elbow = new Vector3(...point);
             const along = Math.min(length, Math.max(0, elbow.clone().sub(hip).dot(spine)));
             const clearance = elbow.distanceTo(hip.clone().addScaledVector(spine, along));
-            if (clearance < worst.clearance) worst = { clearance, where: `${shot} x=${ballX} @${time}ms` };
+            if (clearance < worst.clearance) worst = { clearance, where: `${shot} y=${ballY} x=${ballX} @${time}ms` };
           }
         }
       }
     }
     // The trunk ellipsoid runs to .205 across and .145 deep from the spine.
     expect(worst.clearance, `closest elbow: ${worst.where}`).toBeGreaterThan(.15);
+  });
+});
+
+describe('the pull', () => {
+  it('answers a ball at the chest with its own stroke, and only on the leg side', () => {
+    const batter = new Batter();
+    batter.reset(); batter.swing('LEG', 0, -.02, 1.12); batter.update(110);
+    expect(batter.inspect().pulling).toBe(true);
+    // Everything else keeps its own stroke, however high the ball is.
+    for (const shot of SHOTS.filter(s => s !== 'LEG')) {
+      batter.reset(); batter.swing(shot, 0, 0, 1.12); batter.update(110);
+      expect(batter.inspect().pulling, shot).toBe(false);
+    }
+    // A leg-side ball at normal height is still the flick.
+    batter.reset(); batter.swing('LEG', 0, -.3, .54); batter.update(110);
+    expect(batter.inspect().pulling).toBe(false);
+  });
+  it('reaches the ball up at bouncer height', () => {
+    const batter = new Batter();
+    for (const ballX of [-.4, -.02, .3]) {
+      batter.reset(); batter.swing('LEG', 0, ballX, 1.12); batter.update(110);
+      const blade = batter.inspect().bladeContact;
+      expect(blade[0]).toBeCloseTo(ballX, 6); expect(blade[1]).toBeCloseTo(1.12, 6);
+    }
   });
 });

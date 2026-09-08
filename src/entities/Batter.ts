@@ -104,6 +104,21 @@ function batOrientation(pose: Pose) {
   orientations.set(pose, rotation);
   return rotation;
 }
+// A bouncer is played off the back foot with a horizontal bat: hands inside the
+// line, blade swung across the body, and the whole frame opening up to follow it
+// round. It is played on the leg-side input, so it needs its own reach as well.
+const PULL: Stroke = {
+  contact: { ...GUARD, hip: [-.13, .86, -.12], chest: [-.04, 1.20, -.02],
+    frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
+    grip: [-.30, 1.12, .02], batUp: [-.93, .30, -.20], batFace: [-.86, .18, .48],
+    yaw: .42, face: -.55, heel: .22, leadElbow: -.52 },
+  finish: { ...GUARD, hip: [-.17, .90, -.10], chest: [-.16, 1.24, -.06],
+    frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
+    grip: [-.46, 1.30, -.16], batUp: [-.76, .44, .24], batFace: [-.80, .10, .58],
+    yaw: -.20, face: -.85, heel: .30, leadElbow: -.34 },
+};
+const PULL_REACH: readonly [number, number] = [-.55, .32];
+
 function mix(a: Pose, b: Pose, amount: number): Pose {
   const t = ease(THREE.MathUtils.clamp(amount, 0, 1));
   const point = (x: Point, y: Point): Point => [
@@ -147,6 +162,8 @@ export class Batter {
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
   private shot: ShotType = 'STRAIGHT';
+  /** A leg-side swing at a ball up around the chest is a pull, not a flick. */
+  private pulling = false;
   private swingStart = -Infinity;
   private anticipation = 0;
   private contactTime = -Infinity;
@@ -235,13 +252,14 @@ export class Batter {
     mesh.scale.set(width, axis.length(), depth);
   }
   reset() {
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false;
     this.root.position.set(-.36, 0, .35); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ) {
-    this.shot = shot; this.swingStart = now; this.contactTime = now + STROKE_CONTACT_MS;
+    this.shot = shot; this.pulling = shot === 'LEG' && ballY > .85;
+    this.swingStart = now; this.contactTime = now + STROKE_CONTACT_MS;
     this.swingFrom = this.pose; this.ballX = finalBallX; this.ballY = ballY; this.ballZ = ballZ;
   }
   get strikeAt() { return this.contactTime; }
@@ -250,14 +268,14 @@ export class Batter {
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
       this.apply(mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation)); return;
     }
-    const stroke = STROKES[this.shot];
+    const stroke = this.pulling ? PULL : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
     const zones: Record<ShotType, [number, number]> = {
       LEG: [-.55, -.05], LONG_ON: [-.55, .08], STRAIGHT: [-.17, .17],
       COVER_LONG_OFF: [-.08, .55], OFF: [.05, .55],
     };
-    const targetX = THREE.MathUtils.clamp(this.ballX, ...zones[this.shot]);
+    const targetX = THREE.MathUtils.clamp(this.ballX, ...(this.pulling ? PULL_REACH : zones[this.shot]));
     const contactGrip = new THREE.Vector3(targetX - this.root.position.x, this.ballY, this.ballZ - this.root.position.z)
       .addScaledVector(V(stroke.contact.batUp).normalize(), .44);
     const step = targetX * .65;
@@ -342,7 +360,7 @@ export class Batter {
   inspect() {
     this.root.updateMatrixWorld(true);
     return {
-      shot: this.shot, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
+      shot: this.shot, pulling: this.pulling, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
       hands: this.arms.map(arm => arm.glove.getWorldPosition(new THREE.Vector3()).toArray()),
       elbows: this.arms.map(arm => arm.elbow.position.toArray()),
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),

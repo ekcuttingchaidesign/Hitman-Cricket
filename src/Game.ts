@@ -137,7 +137,8 @@ export class Game {
     const step = this.lesson >= 0 ? TUTORIAL[this.lesson] : null;
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
       : resolveShot(this.delivery!, this.attempt, this.rng);
-    if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact); else this.score.record(this.outcome);
+    if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
+    else { this.score.record(this.outcome); this.generator.record(this.outcome); }
     this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
     this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;

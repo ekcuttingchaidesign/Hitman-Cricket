@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COMPATIBILITY, GAME, LINES, LINE_X, SHOTS, STYLES } from '../src/config/gameplay';
+import { COMPATIBILITY, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
 import { DeliveryGenerator } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { mapKeys } from '../src/game/InputManager';
@@ -7,7 +7,7 @@ import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { gradeTiming, resolveShot } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome } from '../src/game/types';
-const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
+const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
 const dot = (): ShotOutcome => resolveShot(delivery({ finalTargetX: 0.5 }), null, rng(0.5));
 
@@ -20,10 +20,10 @@ describe('compatibility and timing', () => {
       [1, .9, .3, .1, 0], [1, 1, .65, .25, .1], [.55, .85, 1, .85, .55], [.1, .25, .65, 1, 1], [0, .1, .3, .9, 1],
     ]);
   });
-  it.each([[0, 'PERFECT'], [90, 'PERFECT'], [91, 'GOOD'], [170, 'GOOD'], [171, 'OK'], [260, 'OK'], [261, 'POOR'], [360, 'POOR'], [361, 'MISS']])('grades boundary %s as %s', (ms, grade) => {
+  it.each([[0, 'PERFECT'], [40, 'PERFECT'], [41, 'GOOD'], [78, 'GOOD'], [79, 'OK'], [135, 'OK'], [136, 'POOR'], [205, 'POOR'], [206, 'MISS']])('grades boundary %s as %s', (ms, grade) => {
     expect(gradeTiming(Number(ms))).toBe(grade); expect(gradeTiming(-Number(ms))).toBe(grade);
   });
-  it('tightens fast-ball windows by 10%', () => { expect(gradeTiming(81, true)).toBe('PERFECT'); expect(gradeTiming(82, true)).toBe('GOOD'); });
+  it('tightens the quick-ball windows by 18%', () => { expect(gradeTiming(32, true)).toBe('PERFECT'); expect(gradeTiming(33, true)).toBe('GOOD'); });
 });
 describe('innings progression', () => {
   it('counts legal balls and ends at precisely 30; ignores extra results', () => {
@@ -54,18 +54,18 @@ describe('wickets and scoring', () => {
   });
   it('always catches poor timing, and never catches a middled shot', () => {
     for (const shotType of SHOTS) for (const roll of [0, .5, .99]) {
-      // 700ms against a 1000ms contact is a 300ms miss: poor, and skied.
-      const poor = resolveShot(delivery(), { shotType, inputTimeMs: 700 }, rng(roll));
+      // 840ms against a 1000ms contact is a 160ms miss: poor, and skied.
+      const poor = resolveShot(delivery(), { shotType, inputTimeMs: 840 }, rng(roll));
       if (poor.madeBatContact) { expect(poor.wicketType).toBe('CAUGHT'); expect(poor.aerial).toBe(true); }
       // Perfect, good and ok all keep a suited shot out of a fielder's hands.
-      for (const ms of [1000, 900, 800]) {
+      for (const ms of [1000, 970, 920]) {
         const played = resolveShot(delivery(), { shotType, inputTimeMs: ms }, rng(roll));
         if (played.compatibility >= .55) expect(played.wicketType).not.toBe('CAUGHT');
       }
     }
   });
   it('never bowls a ball the bat has touched', () => {
-    for (const ms of [1000, 900, 800, 700]) for (const roll of [0, .5, .99]) {
+    for (const ms of [1000, 970, 930, 870]) for (const roll of [0, .5, .99]) {
       const played = resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: ms }, rng(roll));
       expect(played.madeBatContact).toBe(true);
       expect(played.wicketType).not.toBe('BOWLED'); expect(played.wicketType).not.toBe('LBW');
@@ -77,12 +77,12 @@ describe('wickets and scoring', () => {
     for (const roll of [0, .3, .7, .99]) for (const shotType of ['STRAIGHT', 'LONG_ON', 'LEG'] as const) {
       // Every one of these suits a middle-stump ball, so timing alone decides.
       expect(played(shotType, 0, roll).runs).toBe(6);
-      expect(played(shotType, 120, roll).runs).toBe(4);
+      expect(played(shotType, 60, roll).runs).toBe(4);
       expect(played(shotType, 0, roll).aerial).toBe(false);
     }
     // Ok timing keeps the ball along the ground: never a boundary, never a wicket.
     for (let roll = 0; roll < 1; roll += .05) {
-      const nudged = played('STRAIGHT', 200, roll);
+      const nudged = played('STRAIGHT', 100, roll);
       expect(nudged.timingGrade).toBe('OK');
       expect([1, 2, 3]).toContain(nudged.runs);
       expect(nudged.isWicket).toBe(false); expect(nudged.aerial).toBe(false);
@@ -101,7 +101,7 @@ describe('wickets and scoring', () => {
   });
   it('resolves every supported run award, and only perfect or airborne shots reach six', () => {
     const runs = new Set<number>();
-    for (const delta of [0, 100, 200, 300, 500]) for (const shotType of SHOTS) for (let roll = 0; roll < 1; roll += .02) {
+    for (const delta of [0, 60, 100, 170, 500]) for (const shotType of SHOTS) for (let roll = 0; roll < 1; roll += .02) {
       const result = resolveShot(delivery(), { shotType, inputTimeMs: 1000 + delta }, rng(roll));
       runs.add(result.runs);
       if (result.runs === 6) expect(result.timingGrade === 'PERFECT' || result.aerial).toBe(true);
@@ -111,14 +111,62 @@ describe('wickets and scoring', () => {
     expect([...runs].sort((a,b) => a-b)).toEqual([0,1,2,3,4,6]);
   });
 });
+describe('special deliveries', () => {
+  const six = (): ShotOutcome => ({ ...dot(), runs: 6 });
+  it('answers three sixes with a yorker, at the toes and fast', () => {
+    const gen = new DeliveryGenerator(new SeededRandom(7));
+    const before = Array.from({ length: 3 }, () => gen.next(0));
+    expect(before.every(d => d.style !== 'YORKER')).toBe(true);
+    for (let i = 0; i < 3; i++) gen.record(six());
+    const answer = gen.next(0);
+    expect(answer.style).toBe('YORKER');
+    expect(answer.speedKph).toBeGreaterThanOrEqual(148);
+    // It pitches at the toes and skids on, so it arrives at boot height.
+    expect(ballPosition(answer, 1).y).toBeLessThan(0.3);
+    expect(stumpIntersection({ ...answer, finalTargetX: 0 })).toBe(true);
+    // The count resets: three more sixes are needed for the next one.
+    gen.record(six()); gen.record(six());
+    expect(gen.next(0).style).not.toBe('YORKER');
+  });
+  it('mixes his pace up once four quick balls have gone by', () => {
+    for (const seed of [3, 41, 900]) {
+      const gen = new DeliveryGenerator(new SeededRandom(seed));
+      let quick = 0, answered = false;
+      for (let i = 0; i < 120 && !answered; i++) {
+        const style = gen.next(0).style;
+        if (quick >= 4) { expect(style).toBe('SLOWER'); answered = true; }
+        else if (QUICK_STYLES.includes(style)) quick++;
+      }
+      expect(answered, `seed ${seed} never got a change of pace`).toBe(true);
+    }
+  });
+  it('bowls a bouncer over the stumps that only the pull can reach', () => {
+    const bouncer = delivery({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce, rise: STYLES.SHORT.rise });
+    // Too high to hit the stumps, so leaving it is always safe.
+    expect(ballPosition(bouncer, 1).y).toBeGreaterThan(1);
+    expect(stumpIntersection(bouncer)).toBe(false);
+    expect(resolveShot(bouncer, null, rng(0)).isWicket).toBe(false);
+    // Pulled and middled it is six; anything else goes through to the keeper.
+    const pulled = resolveShot(bouncer, { shotType: 'LEG', inputTimeMs: 1000 }, rng(0));
+    expect(pulled.runs).toBe(6); expect(pulled.madeBatContact).toBe(true);
+    for (const shotType of SHOTS) for (const delta of [0, 60, 100, 170]) {
+      const played = resolveShot(bouncer, { shotType, inputTimeMs: 1000 + delta }, rng(0));
+      const middledPull = shotType === 'LEG' && delta <= 40;
+      expect(played.runs).toBe(middledPull ? 6 : 0);
+      expect(played.isWicket).toBe(false);
+    }
+  });
+});
 describe('delivery fairness and determinism', () => {
   it('balances all five lines across an innings and respects speed and movement ranges', () => {
     const gen = new DeliveryGenerator(new SeededRandom(42)); const counts = Object.fromEntries(LINES.map(l => [l, 0]));
     for (let i = 0; i < 30; i++) { const d = gen.next(0); counts[d.line]++; expect(d.speedKph).toBeGreaterThanOrEqual(STYLES[d.style].min); expect(d.speedKph).toBeLessThanOrEqual(STYLES[d.style].max); expect(Math.abs(d.finalTargetX - d.baseTargetX)).toBeLessThanOrEqual(GAME.movement); }
     expect(Object.values(counts)).toEqual([6,6,6,6,6]);
   });
-  it('produces all eight styles across seeds', () => {
-    const gen = new DeliveryGenerator(new SeededRandom(875)); expect(new Set(Array.from({ length: 400 }, () => gen.next(0).style)).size).toBe(8);
+  it('produces every style a fresh bowler can pick', () => {
+    // Nine: the eight weighted styles plus the bouncer. The yorker is an answer
+    // to being hit, so it never appears without sixes going against him.
+    const gen = new DeliveryGenerator(new SeededRandom(875)); expect(new Set(Array.from({ length: 400 }, () => gen.next(0).style)).size).toBe(9);
   });
   it('is continuous through the bounce and lands on the stated contact plane', () => {
     const gen = new DeliveryGenerator(new SeededRandom(91));

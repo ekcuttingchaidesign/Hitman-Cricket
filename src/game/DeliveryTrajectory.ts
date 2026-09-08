@@ -13,8 +13,11 @@ export function ballPosition(delivery: Delivery, progress: number) {
   // Spin finishes its turn before the final third; no last-moment required-key changes.
   const movementT = spin ? smooth((t - bounceT) / 0.09) : smooth(pre);
   const x = delivery.baseTargetX + (delivery.finalTargetX - delivery.baseTargetX) * movementT;
+  // The climb off the pitch is the delivery's length: a yorker barely leaves the
+  // ground, a bouncer is at the chest by the time it arrives.
+  const rise = delivery.rise;
   const y = t <= bounceT ? 0.09 + 2.05 * (1 - pre) + 0.55 * Math.sin(Math.PI * pre)
-    : Math.max(0.09, 0.09 + 1.25 * post - 0.8 * post * post);
+    : Math.max(0.09, 0.09 + rise * post - rise * 0.64 * post * post);
   return { x, y, z: GAME.releaseZ - t * (GAME.releaseZ - GAME.contactZ) };
 }
 export function stumpIntersection(delivery: Delivery) {

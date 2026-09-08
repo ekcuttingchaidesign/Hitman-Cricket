@@ -24,7 +24,7 @@ const TUTORIAL_KPH = 88;
 export function tutorialDelivery(step: TutorialStep, releaseTimeMs: number): Delivery {
   const durationMs = (GAME.releaseZ - GAME.contactZ) / (TUTORIAL_KPH / 3.6) * 1000 * GAME.travelScale;
   return { line: step.line, style: 'SLOWER', speedKph: TUTORIAL_KPH,
-    baseTargetX: LINE_X[step.line], finalTargetX: LINE_X[step.line], bounceZ: GAME.bounceZ,
+    baseTargetX: LINE_X[step.line], finalTargetX: LINE_X[step.line], bounceZ: GAME.bounceZ, rise: GAME.rise,
     durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs };
 }
 /** Nobody gets out in the tutorial; the taught shot always finds the rope. */

@@ -47,7 +47,7 @@ Use the on-screen Pause button to resume or restart. Page scrolling is suppresse
 
 Press combo keys within 100 ms. Timing uses the first press, without adding the combo recognition delay. Only one attempt is allowed per delivery; repeated keydown events are ignored. A+D is not a shot combination. During a three-key sequence the first valid pair wins.
 
-Swing as the ball reaches your bat. Perfect timing is within 90 ms, good within 170 ms, and OK within 260 ms; fast balls tighten these bands by 10%.
+Swing as the ball reaches your bat. Perfect timing is within 40 ms, good within 78 ms, and OK within 135 ms; quick deliveries tighten these bands by 18%. These are narrow on purpose — a rhythm that roughly works will not keep finding the boundary.
 
 Only a middled ball reaches the rope, and timing alone decides which one:
 
@@ -60,18 +60,30 @@ Only a middled ball reaches the rope, and timing alone decides which one:
 
 Reaching for a shot the line does not suit skies it whatever the timing, and so does poor timing. **A ball in the air is only ever six or a catch** — never a nudged single — and the call is held back until it comes down, so a skied shot has to be watched all the way. A shot the line suits outright is never caught. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
 
-Deliveries are not all the same pace. A seam ball takes about a second to arrive and spin nearly a second and a half, but **express** deliveries cut that to roughly two thirds of a second and tighten the timing windows with it — they are rare, and they are meant to catch you cold.
+Deliveries are not all the same pace, and the gap is the point. A spinner floats down in about 1.3 seconds and a seam ball takes under 0.9; an **express** ball arrives in 0.43 and tightens the timing windows with it. You have to read the pace before you can time it.
+
+## Special deliveries
+
+The bowler is not a random number generator — he watches the innings and answers it.
+
+| Delivery | When it comes | What it does |
+| --- | --- | --- |
+| **Yorker** | After he has been hit for three sixes | 148–158 kph, pitched at the toes and skidding on. It arrives at boot height in under half a second, and it is aimed at the stumps. |
+| **Bouncer** | Occasionally, any line | Lands short and rears to chest height. It is over the stumps, so you can never be bowled or caught off it — but it can only be **pulled**, and only if you middle it. Perfect timing on a leg-side swipe is six; anything else goes through to the keeper. |
+| **Slower ball** | Once four quick balls have gone by | 78–98 kph and floated in at nearly a second and a half, straight after a burst of pace. |
+
+The pull is not a separate control: swipe leg side (or press `A`) at a ball up around your chest and the batter plays it off the back foot with a horizontal bat, instead of the front-foot flick he uses at a normal-height ball.
 
 The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), and `boundary-hit.mp3` plays for both fours and sixes. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
 ## Architecture and tuning
 
-- `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds, compatibility matrix, the compatibility thresholds that separate a middled shot from a skied one, the aerial catch/landing tables, wicket probabilities, and innings pacing.
-- `src/game/`: pure seeded delivery generation, continuous bounce/swing/spin trajectories, shot resolution, scorekeeping, keyboard input, and small Web Audio effects.
+- `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds/lengths, the compatibility matrix and the threshold that separates a middled shot from a skied one, the triggers for each special delivery, wicket probabilities, and innings pacing.
+- `src/game/`: seeded delivery generation that tracks what the innings has done to the bowler, continuous bounce/swing/spin trajectories with per-delivery length, shot resolution, scorekeeping, keyboard input, and small Web Audio effects.
 - `src/game/Tutorial.ts`: the three scripted coaching balls, their deliveries, and an outcome that never dismisses the player.
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
 - `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. Bowler and fielders are modelled from smooth spheres, capsules, and rounded boxes with sphere joints, so they read as sculpted clay rather than stacked cuboids; the distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
-- `src/entities/Batter.ts`: articulated right-handed batter built from the same smooth primitives, with a side-on guard, flexed knees, the back bent forward over the ball, the head carried on the spine, the blade lifted behind the back shoulder, a shared two-hand bat grip, and two-bone arm/leg posing. The bat carries a full orientation — a handle axis plus a blade face — and poses slerp that rotation, so the blade travels a clean arc instead of rolling at random when a stroke reverses it. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
+- `src/entities/Batter.ts`: articulated right-handed batter with six strokes — the five shot directions plus a back-foot pull the leg-side input selects at bouncer height — built from smooth primitives, with a side-on guard, flexed knees, the back bent forward over the ball, the head carried on the spine, the blade lifted behind the back shoulder, a shared two-hand bat grip, and two-bone arm/leg posing. The bat carries a full orientation — a handle axis plus a blade face — and poses slerp that rotation, so the blade travels a clean arc instead of rolling at random when a stroke reverses it. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut makes room off the back foot. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests.
 - `tests/batter.test.ts`: grip attachment, guard geometry, per-stroke footwork, blade placement at contact, and continuous blade travel with a squared face.
