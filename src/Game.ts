@@ -18,6 +18,7 @@ export class Game {
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
   private presentationAt = 0; private resultPresented = false;
+  private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
   private scene!: GameScene;
   private hud: HUD;
   private input!: InputManager;
@@ -103,23 +104,31 @@ export class Game {
       if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + GAME.timing.poor + GAME.comboMs) this.resolve();
     } else if (this.phase === 'SHOT_RESOLVE') {
       this.scene.result(this.elapsed);
+      // A skied ball cracks off the bat now and is judged when it comes down.
+      if (!this.contactPlayed && this.elapsed >= this.contactAt) {
+        this.contactPlayed = true;
+        if (this.outcome!.aerial && this.outcome!.madeBatContact) this.audio.play('hit');
+      }
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
-      if (this.elapsed >= this.presentationAt + GAME.hitAnimationMs) this.setPhase('RESULT');
+      if (this.elapsed >= this.resolveEndsAt) this.setPhase('RESULT');
     } else if (this.phase === 'RESULT' && age >= GAME.resultMs) {
       if (this.score.ended) this.end(); else this.setPhase('READY');
     }
   }
   private resolve() {
     this.outcome = resolveShot(this.delivery!, this.attempt, this.rng); this.score.record(this.outcome); this.input.reset();
-    this.presentationAt = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
-    this.resultPresented = false;
+    const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
+    this.contactAt = flight.contactAt; this.presentationAt = flight.presentAt; this.resolveEndsAt = flight.endAt;
+    this.resultPresented = false; this.contactPlayed = false;
     this.setPhase('SHOT_RESOLVE');
+    if (this.outcome.aerial) this.hud.airborne();
   }
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
     this.hud.score(this.score); this.hud.result(outcome);
-    const sound = outcomeSound(outcome); if (sound) this.audio.play(sound);
+    const sound = outcomeSound(outcome);
+    if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
   }
   private end() {
     this.setPhase('INNINGS_END'); const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);

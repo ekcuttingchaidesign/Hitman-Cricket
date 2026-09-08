@@ -94,3 +94,31 @@ describe('bat travel', () => {
     }
   });
 });
+
+describe('arm placement', () => {
+  // The back elbow used to be aimed at a fixed point across the chest, which
+  // buried it inside the torso in the guard and through the leg-side wrap.
+  it('keeps both elbows clear of the torso in every pose', () => {
+    let worst = { clearance: Infinity, where: '' };
+    for (const shot of SHOTS) {
+      for (const ballX of [-.55, -.14, 0, .14, .55]) {
+        const batter = new Batter();
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);
+        for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
+          batter.update(time);
+          const pose = batter.inspect();
+          const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+          const spine = chest.clone().sub(hip).normalize(), length = chest.distanceTo(hip);
+          for (const point of pose.elbows) {
+            const elbow = new Vector3(...point);
+            const along = Math.min(length, Math.max(0, elbow.clone().sub(hip).dot(spine)));
+            const clearance = elbow.distanceTo(hip.clone().addScaledVector(spine, along));
+            if (clearance < worst.clearance) worst = { clearance, where: `${shot} x=${ballX} @${time}ms` };
+          }
+        }
+      }
+    }
+    // The trunk ellipsoid runs to .205 across and .145 deep from the spine.
+    expect(worst.clearance, `closest elbow: ${worst.where}`).toBeGreaterThan(.15);
+  });
+});

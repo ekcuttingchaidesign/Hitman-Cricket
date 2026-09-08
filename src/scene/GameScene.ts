@@ -97,6 +97,8 @@ export class GameScene {
   private hitEnd = new THREE.Vector3();
   private hitOutcome: ShotOutcome | null = null;
   private bailsBrokeAt = 0;
+  private flightMs: number = GAME.hitAnimationMs;
+  private hitHeight = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -227,7 +229,7 @@ export class GameScene {
     this.camera.updateProjectionMatrix();
   };
   reset() {
-    this.hitOutcome = null; this.bailsBrokeAt = 0; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false;
+    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
@@ -257,7 +259,7 @@ export class GameScene {
     this.batter.prepare(progress);
     this.ball.visible = this.shadow.visible = true;
     const pos = ballPosition(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
-    this.shadow.position.set(pos.x, 0.035, pos.z); this.shadow.scale.setScalar(1 + pos.y * 0.2);
+    this.groundShadow(this.ball.position, true);
     this.trail.forEach((dot, i) => {
       dot.visible = progress > 0.03;
       const p = ballPosition(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
@@ -279,33 +281,49 @@ export class GameScene {
     this.hitOutcome = outcome;
     const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
     let angle = (SHOT_ANGLES[shot ?? 'STRAIGHT'] + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
-    const distance = outcome.wicketType === 'CAUGHT' ? 18 : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 49 }[outcome.runs]);
-    if (outcome.wicketType === 'CAUGHT' && Math.abs(angle) < 0.2) angle = 0.35;
-    this.hitEnd.set(Math.sin(angle) * distance, outcome.wicketType === 'CAUGHT' ? 1.4 : 0.1, Math.cos(angle) * distance);
-    if (outcome.wicketType === 'CAUGHT') {
+    const caught = outcome.wicketType === 'CAUGHT';
+    const distance = caught ? (outcome.aerial ? 27 : 18) : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
+    if (caught && Math.abs(angle) < 0.2) angle = 0.35;
+    this.hitEnd.set(Math.sin(angle) * distance, caught ? 1.5 : 0.1, Math.cos(angle) * distance);
+    // A skied shot hangs long enough to be watched down; a middled one leaves fast.
+    this.flightMs = outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
+    this.hitHeight = outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
+      : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 2.4 : 0.6;
+    if (caught) {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     }
     this.bounceRing.visible = false;
-    return this.hitStart;
+    // Hold the call back until a skied ball is taken or clears the rope.
+    return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.82 : 0), endAt: this.hitStart + this.flightMs };
+  }
+  /** Where a struck ball sits at `t` through its flight; also drives the trail. */
+  private struckAt(t: number, into: THREE.Vector3) {
+    into.lerpVectors(this.hitOrigin, this.hitEnd, t);
+    into.y += Math.sin(Math.min(1, t) * Math.PI) * this.hitHeight;
+    return into;
   }
   result(now: number) {
     const result = this.hitOutcome; if (!result) return;
     if (now < this.hitStart) {
       const approach = 1 - (this.hitStart - now) / this.contactDelay;
       this.ball.position.lerpVectors(this.incomingPosition, this.hitOrigin, approach);
-      this.shadow.position.set(this.ball.position.x, .03, this.ball.position.z);
+      this.groundShadow(this.ball.position, true);
       this.trail.forEach(dot => dot.visible = false);
       return;
     }
-    const t = Math.min(1, (now - this.hitStart) / GAME.hitAnimationMs);
-    this.trail.forEach(dot => dot.visible = false);
+    const t = Math.min(1, (now - this.hitStart) / this.flightMs);
     if (result.madeBatContact) {
-      this.ball.position.lerpVectors(this.hitOrigin, this.hitEnd, t);
-      const height = result.runs === 6 ? 12 : result.wicketType === 'CAUGHT' ? 5 : result.runs === 4 ? 0.8 : 0.5;
-      this.ball.position.y += Math.sin(t * Math.PI) * height;
-      if (result.wicketType === 'CAUGHT' && t > 0.85) this.catcher.arm.rotation.x = -2.5;
+      this.struckAt(t, this.ball.position);
+      if (result.wicketType === 'CAUGHT' && t > 0.86) this.catcher.arm.rotation.x = -2.5;
       this.ball.visible = t < 1;
+      // The streak behind the ball is most of what sells a struck shot.
+      this.trail.forEach((dot, i) => {
+        const behind = t - (i + 1) * 0.019;
+        dot.visible = this.ball.visible && behind > 0;
+        if (dot.visible) this.struckAt(behind, dot.position);
+      });
     } else {
+      this.trail.forEach(dot => dot.visible = false);
       // Carry on from where the ball actually is rather than resetting it to the
       // crease, so a beaten stroke never rewinds the delivery.
       const from = this.incomingPosition;
@@ -329,12 +347,26 @@ export class GameScene {
       }
       this.ball.visible = t < 0.8;
     }
-    this.shadow.position.set(this.ball.position.x, 0.03, this.ball.position.z); this.shadow.visible = this.ball.visible;
+    this.groundShadow(this.ball.position, this.ball.visible);
+  }
+  /** A high ball keeps a wide, faint shadow under it so its flight stays legible. */
+  private groundShadow(ball: THREE.Vector3, visible: boolean) {
+    this.shadow.position.set(ball.x, 0.03, ball.z);
+    this.shadow.scale.setScalar(1 + Math.max(0, ball.y) * 0.22);
+    (this.shadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0.07, 0.35 - Math.max(0, ball.y) * 0.021);
+    this.shadow.visible = visible;
   }
   render(now: number) {
     this.batter.update(now);
-    const shake = !this.reducedMotion && now >= this.hitStart && this.hitOutcome && (this.hitOutcome.runs === 6 || this.hitOutcome.isWicket) ? Math.max(0, 1 - (now - this.hitStart) / 250) * 0.02 : 0;
-    this.camera.position.x = Math.sin(now * 0.08) * shake;
+    const outcome = this.hitOutcome, since = now - this.hitStart;
+    // A skied ball shakes the same whatever it becomes, so the camera cannot
+    // give the result away before the fielder has settled under it.
+    const power = !this.reducedMotion && outcome && since >= 0
+      ? outcome.aerial ? 0.020 : outcome.runs === 6 ? 0.030 : outcome.runs === 4 ? 0.017 : outcome.isWicket ? 0.022 : 0
+      : 0;
+    const shake = power * Math.max(0, 1 - since / 300);
+    this.camera.position.x = Math.sin(now * 0.085) * shake;
+    this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }

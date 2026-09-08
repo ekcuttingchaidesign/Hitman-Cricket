@@ -43,13 +43,15 @@ Use the on-screen Pause button to resume or restart. Page scrolling is suppresse
 
 Press combo keys within 100 ms. Timing uses the first press, without adding the combo recognition delay. Only one attempt is allowed per delivery; repeated keydown events are ignored. A+D is not a shot combination. During a three-key sequence the first valid pair wins.
 
-Swing as the ball reaches your bat. Perfect timing is within 90 ms, good within 170 ms, and OK within 260 ms; fast balls tighten these bands by 10%. Sixes require perfect timing and a compatible shot. Mistimed contact can be caught. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
+Swing as the ball reaches your bat. Perfect timing is within 90 ms, good within 170 ms, and OK within 260 ms; fast balls tighten these bands by 10%.
+
+Timing names the shot and the shot you pick decides how cleanly it comes off. Middle a ball with a shot that suits the line and **perfect timing is six, good timing is four**; a shot that suits the line less well drops a tier to four and two. Anything less clean goes **up in the air**, and the call is held back until the ball comes down — it can be caught, it can drop safe for one or two, and off OK timing it can still carry the rope for four or six. A thin edge off poor timing never clears the boundary. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
 
 The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), and `boundary-hit.mp3` plays for both fours and sixes. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
 ## Architecture and tuning
 
-- `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds, compatibility matrix, wicket probabilities, scoring weights, and innings pacing.
+- `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds, compatibility matrix, the compatibility thresholds that separate a middled shot from a skied one, the aerial catch/landing tables, wicket probabilities, and innings pacing.
 - `src/game/`: pure seeded delivery generation, continuous bounce/swing/spin trajectories, shot resolution, scorekeeping, keyboard input, and small Web Audio effects.
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
 - `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. Bowler and fielders are modelled from smooth spheres, capsules, and rounded boxes with sphere joints, so they read as sculpted clay rather than stacked cuboids; the distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.

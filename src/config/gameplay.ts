@@ -6,7 +6,7 @@ export const GAME = {
   // Arcade time scaling gives the player time to read a 3D ball on a small screen.
   travelScale: 2.05, readyMs: 550, runupMs: 900, resultMs: 1050, hitAnimationMs: 1250,
   timing: { perfect: 90, good: 170, ok: 260, poor: 360 }, fastTimingScale: 0.9,
-  catchChance: { OK: 0.2, POOR: 0.55 }, lbwChance: 0.6,
+  lbwChance: 0.6, aerialFlightMs: 1900,
   movement: 0.13, boundaryRadius: 30,
 } as const;
 export const LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSIDE_OFF'];
@@ -29,10 +29,15 @@ export const COMPATIBILITY: Record<BallLine, Record<ShotType, number>> = {
   OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, OFF: 1 },
 };
 export const TIMING_SCORE: Record<TimingGrade, number> = { PERFECT: 1, GOOD: 0.82, OK: 0.58, POOR: 0.25, MISS: 0 };
-export const RUN_BANDS = [
-  { min: 0.88, outcomes: [[6, 0.35], [4, 0.65]] },
-  { min: 0.72, outcomes: [[4, 0.45], [3, 0.15], [2, 0.4]] },
-  { min: 0.55, outcomes: [[2, 0.4], [1, 0.45], [0, 0.15]] },
-  { min: 0.35, outcomes: [[1, 0.35], [0, 0.65]] },
-] as const;
+// Timing names the stroke; compatibility decides how cleanly it comes off the
+// bat. Perfect and a well-chosen shot is six, good is four.
+export const CLEAN_SHOT = 0.85;
+export const SOLID_SHOT = 0.55;
+// Anything less clean goes up in the air, and has to be watched down: the catch
+// is rolled first, then where it lands.
+export const AERIAL = {
+  CLEAN: { caught: 0.26, outcomes: [[6, 0.38], [4, 0.40], [2, 0.22]] },
+  SOLID: { caught: 0.42, outcomes: [[6, 0.18], [4, 0.34], [3, 0.16], [1, 0.32]] },
+  THIN: { caught: 0.62, outcomes: [[4, 0.15], [1, 0.85]] },
+} as const;
 export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, OFF: 52 };

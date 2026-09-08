@@ -288,7 +288,20 @@ export class Batter {
       const arm = this.arms[i];
       arm.shoulder.set(i === 0 ? -.163 : .163, .075, 0).applyQuaternion(this.torso.quaternion).add(chest);
       const hand = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
-      const pole = chest.clone().add(new THREE.Vector3(i === 0 ? .38 : -.30, i === 0 ? pose.leadElbow : -.24, i === 0 ? .42 : -.35));
+      // Elbows bend towards these hints. The back arm's has to follow the hands
+      // round the body — pinned to one side it folds the arm through the chest
+      // on any stroke that wraps to the other, so take the hand's own bearing
+      // from the spine and push the hint out along it.
+      // Elbows bend towards this hint. Pinning it to a fixed offset folds the arm
+      // through the chest on any stroke whose follow-through wraps the hands
+      // round to the other side, so push it straight out from the body, square
+      // to the arm itself. `leadElbow` then rides the front elbow up or down.
+      const along = hand.clone().sub(arm.shoulder).normalize();
+      const away = arm.shoulder.clone().sub(chest);
+      away.addScaledVector(along, -away.dot(along));
+      if (away.lengthSq() < .0001) away.copy(spine).negate();
+      const pole = arm.shoulder.clone().addScaledVector(away.normalize(), .60);
+      if (i === 0) pole.addScaledVector(spine, pose.leadElbow);
       const elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
@@ -331,6 +344,9 @@ export class Batter {
     return {
       shot: this.shot, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
       hands: this.arms.map(arm => arm.glove.getWorldPosition(new THREE.Vector3()).toArray()),
+      elbows: this.arms.map(arm => arm.elbow.position.toArray()),
+      shoulders: this.arms.map(arm => arm.shoulder.toArray()),
+      chest: [...this.pose.chest], hip: [...this.pose.hip],
       armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),
       backToe: this.legs[1].shoe.localToWorld(new THREE.Vector3(0, -.07, .225)).toArray(),
       bladeContact: this.bat.localToWorld(new THREE.Vector3(0, -.44, 0)).toArray(),

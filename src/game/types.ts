@@ -14,4 +14,6 @@ export interface ShotOutcome {
   runs: 0 | 1 | 2 | 3 | 4 | 6; isWicket: boolean; wicketType?: WicketType;
   quality: number; feedback: string; timingGrade: TimingGrade;
   timingDeltaMs: number | null; compatibility: number; madeBatContact: boolean;
+  /** Mistimed contact that goes up: the result is only known when it lands. */
+  aerial: boolean;
 }

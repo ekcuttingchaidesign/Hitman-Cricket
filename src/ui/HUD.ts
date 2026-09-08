@@ -79,6 +79,8 @@ export class HUD {
     if (phase === 'READY') this.$('result').classList.add('hidden');
   }
   select(_shot: ShotType) { this.$('phase-label').textContent = 'SHOT COMMITTED'; }
+  /** A skied shot: say nothing about the outcome until the ball comes down. */
+  airborne() { this.$('phase-label').textContent = 'UP IN THE AIR…'; }
   /** A call, not a popup: the outcome rises off the field and fades on its own. */
   result(outcome: ShotOutcome) {
     this.$('phase-label').textContent = '';

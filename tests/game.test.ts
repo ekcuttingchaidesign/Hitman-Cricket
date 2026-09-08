@@ -57,11 +57,36 @@ describe('wickets and scoring', () => {
     for (const ms of [1000, 900]) for (const shotType of SHOTS) expect(resolveShot(delivery(), { shotType, inputTimeMs: ms }, rng(0)).wicketType).not.toBe('CAUGHT');
   });
   it('does not bowl a ball after actual contact', () => expect(resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 700 }, rng(.99)).isWicket).toBe(false));
-  it('resolves every supported run award and never awards a six on non-perfect timing', () => {
+  it('lets timing name the shot: perfect is six, good is four', () => {
+    const played = (shotType: typeof SHOTS[number], delta: number, roll: number) =>
+      resolveShot(delivery(), { shotType, inputTimeMs: 1000 + delta }, rng(roll));
+    for (const roll of [0, .3, .7, .99]) {
+      expect(played('STRAIGHT', 0, roll).runs).toBe(6);
+      expect(played('STRAIGHT', 120, roll).runs).toBe(4);
+      expect(played('STRAIGHT', 0, roll).aerial).toBe(false);
+    }
+    // A shot that suits the line less well drops a tier rather than clearing the rope.
+    expect(played('LEG', 0, .5).runs).toBe(4);
+    expect(played('LEG', 120, .5).runs).toBe(2);
+  });
+  it('sends mistimed contact up in the air, to be caught or to carry', () => {
+    const skied = new Set<string>();
+    for (let roll = 0; roll < 1; roll += .02) {
+      const result = resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 1200 }, rng(roll));
+      expect(result.timingGrade).toBe('OK');
+      expect(result.aerial).toBe(true);
+      skied.add(result.wicketType === 'CAUGHT' ? 'CAUGHT' : String(result.runs));
+    }
+    for (const outcome of ['CAUGHT', '6', '4']) expect([...skied]).toContain(outcome);
+  });
+  it('resolves every supported run award, and only perfect or airborne shots reach six', () => {
     const runs = new Set<number>();
     for (const delta of [0, 100, 200, 300, 500]) for (const shotType of SHOTS) for (let roll = 0; roll < 1; roll += .02) {
       const result = resolveShot(delivery(), { shotType, inputTimeMs: 1000 + delta }, rng(roll));
-      runs.add(result.runs); if (delta >= 100) expect(result.runs).not.toBe(6);
+      runs.add(result.runs);
+      if (result.runs === 6) expect(result.timingGrade === 'PERFECT' || result.aerial).toBe(true);
+      // A controlled four and a thin edge alike stay inside the rope.
+      if (result.timingGrade === 'GOOD' || result.timingGrade === 'POOR') expect(result.runs).not.toBe(6);
     }
     expect([...runs].sort((a,b) => a-b)).toEqual([0,1,2,3,4,6]);
   });
