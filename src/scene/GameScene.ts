@@ -5,6 +5,7 @@ import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
+const PAD_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
 const colors = { grass: 0x668b49, grassLight: 0x70974e, pitch: 0xcbb283, navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
 const materials = new Map<number, THREE.MeshStandardMaterial>();
 // Scenery keeps its faceted, low-poly look; anything sculpted asks for `soft`.
@@ -95,6 +96,7 @@ export class GameScene {
   private contactDelay = 0;
   private hitEnd = new THREE.Vector3();
   private hitOutcome: ShotOutcome | null = null;
+  private bailsBrokeAt = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -225,7 +227,7 @@ export class GameScene {
     this.camera.updateProjectionMatrix();
   };
   reset() {
-    this.hitOutcome = null; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false;
+    this.hitOutcome = null; this.bailsBrokeAt = 0; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
@@ -239,13 +241,26 @@ export class GameScene {
     this.bowler.legs.forEach((leg, i) => leg.rotation.x = Math.sin(t * 20 + i * Math.PI) * 0.35);
     this.bowler.arm.rotation.x = t > 0.55 ? -(t - 0.55) / 0.45 * Math.PI * 2 : Math.sin(t * 18) * 0.6;
   }
+  /**
+   * Past the bat, the ball eases into the pads over the rest of the late-swing
+   * window instead of running on at full speed. That window is worth most of a
+   * second, so extrapolating it flew the ball through the stumps, past the
+   * batter and out behind the camera, only to snap back when the delivery was
+   * finally judged — which is what made the stumps break long after the ball.
+   */
+  private flightAt(delivery: Delivery, progress: number) {
+    if (progress <= 1) return progress;
+    const window = (GAME.timing.poor + GAME.comboMs) / delivery.durationMs;
+    return 1 + Math.min(1, (progress - 1) / window) * (PAD_STOP - 1);
+  }
   delivery(delivery: Delivery, progress: number) {
     this.batter.prepare(progress);
     this.ball.visible = this.shadow.visible = true;
-    const pos = ballPosition(delivery, progress); this.ball.position.set(pos.x, pos.y, pos.z);
+    const pos = ballPosition(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
     this.shadow.position.set(pos.x, 0.035, pos.z); this.shadow.scale.setScalar(1 + pos.y * 0.2);
     this.trail.forEach((dot, i) => {
-      dot.visible = progress > 0.03; const p = ballPosition(delivery, Math.max(0, progress - (i + 1) * 0.009)); dot.position.set(p.x, p.y, p.z);
+      dot.visible = progress > 0.03;
+      const p = ballPosition(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
     });
     const bounce = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
     const age = (progress - bounce) * delivery.durationMs;
@@ -291,9 +306,23 @@ export class GameScene {
       if (result.wicketType === 'CAUGHT' && t > 0.85) this.catcher.arm.rotation.x = -2.5;
       this.ball.visible = t < 1;
     } else {
-      const stopZ = result.wicketType === 'LBW' ? 0.38 : -1.3;
-      this.ball.position.set(this.hitOrigin.x, Math.max(0.1, this.hitOrigin.y - t * 0.3), THREE.MathUtils.lerp(this.hitOrigin.z, stopZ, Math.min(1, t * 5)));
-      if (result.wicketType === 'BOWLED' && t > 0.06) this.bails.forEach((b, i) => { b.position.z = -t * 2; b.position.y = Math.max(0.06, 0.8 + t * 2 - t * t * 4); b.rotation.x = t * 12; b.rotation.z = t * (i ? 5 : -5); });
+      // Carry on from where the ball actually is rather than resetting it to the
+      // crease, so a beaten stroke never rewinds the delivery.
+      const from = this.incomingPosition;
+      const stopZ = result.wicketType === 'LBW' ? from.z : -1.3;
+      this.ball.position.set(from.x, Math.max(0.1, from.y - t * 0.3), THREE.MathUtils.lerp(from.z, stopZ, Math.min(1, t * 5)));
+      // The bails leave when the ball reaches them, not on a fixed delay.
+      if (result.wicketType === 'BOWLED') {
+        if (!this.bailsBrokeAt && this.ball.position.z <= 0) this.bailsBrokeAt = now;
+        if (this.bailsBrokeAt) {
+          const flung = Math.min(1, (now - this.bailsBrokeAt) / 620);
+          this.bails.forEach((bail, i) => {
+            bail.position.z = -flung * 1.9;
+            bail.position.y = Math.max(0.05, GAME.stumpHeight + 0.02 + flung * 0.9 - flung * flung * 1.6);
+            bail.rotation.x = flung * 11; bail.rotation.z = flung * (i ? 5 : -5);
+          });
+        }
+      }
       if (result.wicketType === 'LBW') {
         this.batter.root.position.x = THREE.MathUtils.lerp(-0.36, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
         this.batter.root.rotation.z = Math.sin(Math.min(1, t * 4) * Math.PI) * 0.13;

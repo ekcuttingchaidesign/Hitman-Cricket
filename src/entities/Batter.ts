@@ -174,14 +174,15 @@ export class Batter {
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
-    // Torso: one long trunk with a wider shoulder yoke set deep inside it, so a
-    // bent-over stance reads as one back rather than a row of separate lumps.
-    this.mesh(this.torso, this.palette.shirt, [.20, .285, .145], 'ball').position.y = -.06;
-    this.mesh(this.torso, this.palette.shirt, [.235, .115, .15], 'ball').position.y = .125;
+    // Torso: a single trunk on the spine. A second, wider ellipsoid up at the
+    // shoulders sounds right but breaks the surface all the way round and, once
+    // the batter bends forward, humps out behind the neck. The deltoid caps on
+    // the arms carry the shoulder line instead.
     this.mesh(this.hips, this.palette.trousers, [.185, .145, .135], 'ball');
-    const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .215;
+    this.mesh(this.torso, this.palette.shirt, [.205, .275, .145], 'ball').position.y = -.075;
+    const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
     // Jersey seam, collar, and back number make rotation legible from the camera.
-    this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.325;
+    this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.33;
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
@@ -205,7 +206,7 @@ export class Batter {
       this.mesh(glove, this.palette.accent, [.128, .028, .118], 'soft').position.y = .05;
       for (let finger = 0; finger < 3; finger++) this.mesh(glove, this.palette.trousers, [.026, .085, .026], 'tube').position.set(-.032 + finger * .032, 0, -.058);
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
-        elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.098, .095, .098], 'ball'),
+        elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, shoulder: new THREE.Vector3() });
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
@@ -285,7 +286,7 @@ export class Batter {
     this.root.updateMatrixWorld(true);
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i];
-      arm.shoulder.set(i === 0 ? -.168 : .168, .10, 0).applyQuaternion(this.torso.quaternion).add(chest);
+      arm.shoulder.set(i === 0 ? -.163 : .163, .075, 0).applyQuaternion(this.torso.quaternion).add(chest);
       const hand = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
       const pole = chest.clone().add(new THREE.Vector3(i === 0 ? .38 : -.30, i === 0 ? pose.leadElbow : -.24, i === 0 ? .42 : -.35));
       const elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
