@@ -13,7 +13,7 @@ describe('two-handed cricket animation', () => {
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();
-          expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.15, 6);
+          expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.11, 6);
           expect(pose.backToe[1]).toBeCloseTo(.01, 5);
           for (const lengths of pose.armLengths) {
             expect(lengths[0]).toBeCloseTo(.32, 3);

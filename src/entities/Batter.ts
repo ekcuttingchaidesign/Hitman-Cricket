@@ -194,17 +194,17 @@ export class Batter {
     }
     for (const x of [-.14, .14]) this.mesh(this.head, this.palette.grille, [.016, .19, .016], 'tube').position.set(x, -.045, .175);
     // Bat: turned handle, rubber grip, and a blade with softened shoulders.
-    this.mesh(this.bat, this.palette.handle, [.046, .34, .046], 'tube').position.y = .04;
-    this.mesh(this.bat, this.palette.accent, [.052, .13, .052], 'tube').position.y = .15;
+    this.mesh(this.bat, this.palette.handle, [.052, .34, .052], 'tube').position.y = .04;
+    this.mesh(this.bat, this.palette.handle, [.064, .045, .064], 'tube').position.y = .175;
     this.mesh(this.bat, this.palette.bat, [.17, .70, .07], 'soft').position.y = -.48;
     this.mesh(this.bat, this.palette.accent, [.135, .16, .012], 'soft').position.set(0, -.33, -.038);
     this.mesh(this.bat, this.palette.trousers, [.115, .085, .014], 'soft').position.set(0, -.48, -.038);
     for (let i = 0; i < 2; i++) {
       const glove = new THREE.Group(); this.bat.add(glove);
-      glove.position.set(0, i === 0 ? .105 : -.045, 0);
-      this.mesh(glove, this.palette.pad, [.125, .11, .115], 'soft');
-      this.mesh(glove, this.palette.accent, [.128, .028, .118], 'soft').position.y = .05;
-      for (let finger = 0; finger < 3; finger++) this.mesh(glove, this.palette.trousers, [.026, .085, .026], 'tube').position.set(-.032 + finger * .032, 0, -.058);
+      glove.position.set(0, i === 0 ? .085 : -.025, 0);
+      this.mesh(glove, this.palette.pad, [.125, .125, .12], 'soft');
+      this.mesh(glove, this.palette.accent, [.128, .034, .124], 'soft').position.y = .068;
+      this.mesh(glove, this.palette.pad, [.118, .088, .042], 'soft').position.set(0, -.012, -.063);
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, shoulder: new THREE.Vector3() });
@@ -293,6 +293,20 @@ export class Batter {
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
+      // A glove parented to the bat inherits the bat's roll, so a raised blade
+      // turns it upside down and points the wrist cuff away from the arm. Hold
+      // the position on the handle, but aim the cuff back up the forearm.
+      const wrist = elbow.clone().sub(hand);
+      if (wrist.lengthSq() > .000001) {
+        wrist.normalize();
+        const knuckles = new THREE.Vector3(0, 0, 1).applyQuaternion(this.bat.quaternion);
+        knuckles.addScaledVector(wrist, -knuckles.dot(wrist));
+        if (knuckles.lengthSq() < .0001) knuckles.set(1, 0, 0).addScaledVector(wrist, -wrist.x);
+        knuckles.normalize();
+        const across = new THREE.Vector3().crossVectors(wrist, knuckles);
+        const facing = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(across, wrist, knuckles));
+        arm.glove.quaternion.copy(this.bat.quaternion).invert().multiply(facing);
+      }
       const leg = this.legs[i];
       const hipJoint = new THREE.Vector3(i === 0 ? -.135 : .135, -.045, 0).applyQuaternion(yaw).add(hip);
       const foot = V(i === 0 ? pose.frontFoot : pose.backFoot);
