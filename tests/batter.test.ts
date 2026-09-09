@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Batter, STROKE_CONTACT_MS, STROKE_DURATION_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
-import { Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three';
 // Every stroke the batter can be asked to play, defence included.
 const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
 
@@ -95,6 +95,60 @@ describe('bat travel', () => {
       const face = new Vector3(...batter.inspect().batFace);
       expect(face.length()).toBeCloseTo(1, 6);
       expect(face.dot(expected.clone().normalize()), `${shot} face`).toBeGreaterThan(.6);
+    }
+  });
+});
+
+describe('the bat and the body', () => {
+  /**
+   * How far into a body part the bat reaches, as a fraction of that part's own
+   * radius: 1 is the surface, below 1 is inside it. The parts are the ellipsoids
+   * the figure is actually built from in the constructor, so this measures the
+   * thing a player sees rather than a distance from an imaginary centre line.
+   */
+  const deepest = (a: Vector3, b: Vector3, centre: Vector3, radii: Vector3, turn: Quaternion) => {
+    const inverse = turn.clone().invert();
+    let worst = Infinity;
+    for (let i = 0; i <= 40; i++) {
+      const point = a.clone().lerp(b, i / 40).sub(centre).applyQuaternion(inverse);
+      worst = Math.min(worst, Math.hypot(point.x / radii.x, point.y / radii.y, point.z / radii.z));
+    }
+    return worst;
+  };
+  it('never passes the bat through the batter, on any stroke', () => {
+    // The pick-up holds the blade up behind one shoulder and the contact holds
+    // it down at the ball, half a turn away; a wrapped follow-through ends
+    // behind the other shoulder. The short path between such a pair goes
+    // through him — round the hip on the way down, through the head on the way
+    // home — so the poses either side of it, and the recovery pose a stroke can
+    // name, have to be chosen to take the bat round instead.
+    const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
+    for (const shot of STROKES) {
+      let worst = { value: Infinity, part: '', where: '' };
+      for (const ballY of [.54, 1.12]) for (const ballX of [-.55, -.42, -.3, -.14, 0, .14, .42, .55]) {
+        const batter = new Batter();
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
+          batter.update(time);
+          const pose = batter.inspect();
+          const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+          const spine = chest.clone().sub(hip).normalize();
+          const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
+          const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
+          const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+          const bat: [Vector3, Vector3] = [new Vector3(...pose.grip), new Vector3(...pose.bladeTip).sub(root)];
+          const parts: [string, Vector3, Vector3, Quaternion][] = [
+            ['trunk', chest.clone().addScaledVector(spine, -.075), new Vector3(.205, .275, .145), torso],
+            ['hips', hip, new Vector3(.185, .145, .135), yaw],
+            ['helmet', head, new Vector3(.188, .19, .195), torso],
+          ];
+          for (const [part, centre, radii, turn] of parts) {
+            const value = deepest(...bat, centre, radii, turn);
+            if (value < worst.value) worst = { value, part, where: `y=${ballY} x=${ballX} @${time}ms` };
+          }
+        }
+      }
+      expect(worst.value, `${shot} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
     }
   });
 });
@@ -223,41 +277,6 @@ describe('the square cut', () => {
       expect(finish.grip[1], `y ${ballY}`).toBeGreaterThan(contact.grip[1] + .1);
       expect(finish.grip[1], `y ${ballY}`).toBeGreaterThan(finish.chest[1]);
     }
-  });
-
-  it('never brings the bat back through his own head or chest', () => {
-    // The finish holds the bat behind the front shoulder and the guard holds it
-    // behind the back one, so the short path home goes straight through him.
-    // The stroke comes down through a recovery pose that goes round instead.
-    const segment = (a: Vector3, b: Vector3, point: Vector3) => {
-      const ab = b.clone().sub(a);
-      const t = Math.max(0, Math.min(1, point.clone().sub(a).dot(ab) / ab.lengthSq()));
-      return point.distanceTo(a.clone().addScaledVector(ab, t));
-    };
-    let worstHead = { d: Infinity, at: '' }, worstTrunk = { d: Infinity, at: '' };
-    for (const ballY of [.54, 1.12]) for (const ballX of [-.55, 0, .42, .55]) {
-      const batter = new Batter();
-      batter.reset(); batter.prepare(1); batter.update(0); batter.swing('SQUARE_CUT', 0, ballX, ballY);
-      for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
-        batter.update(time);
-        const pose = batter.inspect();
-        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
-        const spine = chest.clone().sub(hip).normalize();
-        const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
-        const bat: [Vector3, Vector3] = [new Vector3(...pose.grip), new Vector3(...pose.bladeTip).sub(root)];
-        const where = `y=${ballY} x=${ballX} @${time}ms`;
-        const toHead = segment(...bat, head);
-        if (toHead < worstHead.d) worstHead = { d: toHead, at: where };
-        for (let k = 0; k <= 8; k++) {
-          const toTrunk = segment(...bat, hip.clone().lerp(chest, k / 8));
-          if (toTrunk < worstTrunk.d) worstTrunk = { d: toTrunk, at: where };
-        }
-      }
-    }
-    // The helmet runs to .195 from the head's centre and the trunk to .205
-    // across from the spine, .145 deep.
-    expect(worstHead.d, `blade nearest the head: ${worstHead.at}`).toBeGreaterThan(.20);
-    expect(worstTrunk.d, `blade nearest the trunk: ${worstTrunk.at}`).toBeGreaterThan(.18);
   });
 
   it('unwinds the body onto the back foot instead of standing still', () => {

@@ -45,11 +45,11 @@ const BACKLIFT: Pose = {
 
 /**
  * `recover` is the way back to the guard, for a stroke whose follow-through
- * ends somewhere the bat cannot travel home from in a straight line. Blending
- * a wrapped finish directly into the pick-up sweeps the blade through the head
+ * ends somewhere the bat cannot travel home from in a straight line. Blending a
+ * wrapped finish directly into the pick-up sweeps the blade through the head
  * and then the chest, because the two poses hold the bat on opposite sides of
  * the body and the shortest path between them goes through him. A stroke that
- * needs one names the pose the bat comes down through on its way back.
+ * needs one names the shape the bat comes down through on its way back.
  */
 interface Stroke { contact: Pose; finish: Pose; recover?: Pose }
 /**
@@ -113,14 +113,27 @@ const STROKES: Record<ShotType, Stroke> = {
   STRAIGHT: {
     contact: { ...GUARD, hip: [-0.05, .83, .14], chest: [.12, 1.17, .23], frontFoot: [.02, .08, .63],
       grip: [.34, .98, .36], batUp: [.035, .985, -.17], batFace: [0, .12, 1], yaw: 1.08, face: 0, heel: .07, leadElbow: .13 },
+    // The hands finish a little wider of his head than they did. Carried up its
+    // own side of the helmet the top glove clipped the grille on the way past.
     finish: { ...GUARD, hip: [.0, .9, .21], chest: [.09, 1.28, .29], frontFoot: [.02, .08, .63],
-      grip: [.21, 1.58, .61], batUp: [-.1, -.62, -.78], batFace: [0, .12, 1], yaw: .74, face: 0, heel: .15 },
+      grip: [.30, 1.56, .68], batUp: [-.1, -.62, -.78], batFace: [0, .12, 1], yaw: .74, face: 0, heel: .15 },
   },
   LONG_ON: {
+    // The handle leans off the body rather than across it. Leant the other way,
+    // the hands come down beside his own chest and the blade swings up through
+    // it: the bat turns end over end about the grip on its way to the finish,
+    // and a grip against the trunk gives that half-circle nowhere to go but
+    // through him.
     contact: { ...GUARD, hip: [-.16, .82, .13], chest: [-.035, 1.16, .21], frontFoot: [-.34, .08, .58],
-      grip: [.15, .98, .35], batUp: [-.26, .955, -.14], batFace: [-.42, .10, .90], yaw: 1.04, face: -.25, heel: .08, leadElbow: .10 },
+      grip: [.15, .98, .35], batUp: [.10, .975, -.14], batFace: [-.42, .10, .90], yaw: 1.04, face: -.25, heel: .08, leadElbow: .10 },
     finish: { ...GUARD, hip: [-.19, .9, .20], chest: [-.17, 1.28, .29], frontFoot: [-.34, .08, .58],
-      grip: [-.40, 1.55, .58], batUp: [.49, -.61, -.62], batFace: [-.42, .10, .90], yaw: .33, face: -.38, heel: .15 },
+      grip: [-.28, 1.54, .70], batUp: [.49, -.61, -.62], batFace: [-.42, .10, .90], yaw: .33, face: -.38, heel: .15 },
+    // High over the leg-side shoulder is the far side of him from the guard, so
+    // the bat comes home across the front where he can see it, and the front
+    // foot comes back under him on the way.
+    recover: { ...GUARD, hip: [-.14, .90, .10], chest: [-.03, 1.25, .16], frontFoot: [-.26, .08, .44],
+      grip: [.22, 1.10, .42], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
+      yaw: .80, face: -.20, heel: .10, leadElbow: -.18 },
   },
   COVER_LONG_OFF: {
     contact: { ...GUARD, hip: [.05, .81, .13], chest: [.19, 1.15, .22], frontFoot: [.30, .08, .60],
@@ -130,10 +143,16 @@ const STROKES: Record<ShotType, Stroke> = {
   },
   LEG: {
     // Front-foot flick: open the front foot and roll the wrists to the leg side.
+    // The bat comes down in front of him first. Swung straight from the pick-up
+    // to the ball it takes the short way round, and the short way round at hip
+    // height is through his hip.
+    // The handle is laid further back so the blade meets the ball out in front
+    // of him. Stood more upright the bat comes down round the side instead, and
+    // at hip height the side of him is where his hip is.
     contact: { ...GUARD, hip: [-.16, .82, .09], chest: [.05, 1.17, .16], frontFoot: [-.38, .08, .48],
-      grip: [.30, .94, .35], batUp: [.35, .90, -.25], batFace: [-.80, .12, .59], yaw: .82, face: -.5, heel: .05 },
+      grip: [.30, .94, .35], batUp: [.25, .88, -.40], batFace: [-.80, .12, .59], yaw: .82, face: -.5, heel: .05 },
     finish: { ...GUARD, hip: [-.20, .87, .13], chest: [-.17, 1.25, .20], frontFoot: [-.38, .08, .48],
-      grip: [-.46, 1.13, .35], batUp: [.60, -.30, -.74], batFace: [-.80, .12, .59], yaw: -.15, face: -.75, heel: .10 },
+      grip: [-.46, 1.18, .52], batUp: [.60, -.30, -.74], batFace: [-.80, .12, .59], yaw: -.15, face: -.75, heel: .10 },
   },
   DEFEND: {
     // The forward defensive: a short stride down the line, the head over the
