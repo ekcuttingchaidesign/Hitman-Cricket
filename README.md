@@ -21,6 +21,14 @@ npm run preview  # Serve the production build locally
 
 The production build can be served by any static web host. `base: './'` supports deployment in a subdirectory.
 
+## Start screen
+
+A phone gets the cover art. `src/assets/cover.webp` fills the screen, `title.webp` sits in the sky, and **Play** and **How to play** sit low on the pitch at the artwork's own proportions: a button is 54% of the width, and the pair end a twentieth off the foot of the screen. Nothing else is on it — the scoreboard, the confidence meter, the field labels and the button row all wait until there is an innings to describe. A personal best appears above the buttons once there is one. Across a landscape phone a portrait cover crops to nothing useful, so the live ground stands in for it and the lockup sits over the real thing.
+
+Both calls to action are set in **Jaro** (Agyei Archer, Céline Hurka, Mirko Velimirović), bundled as a 19 kB latin subset at `src/assets/jaro-latin.woff2` under the SIL Open Font License 1.1; the notice ships beside it in `jaro-OFL.txt`. The orange is `#e9582b`, taken off the cover art rather than the interface's own `--orange`.
+
+A pointer that is not coarse gets the card over the live ground instead, where there is room for the keys and the pitch behind them. The choice is made once, from the same `touch-device` test the rest of the game uses.
+
 ## Tutorial
 
 The start screen offers a three-ball tutorial. Each ball is slow, dead straight, and scripted to teach one gesture: a middle-stump ball to drive straight (swipe up), one on the legs to whip away square (swipe right to left), and one wide outside off to cut behind point (swipe left to right). An arrow on the field sweeps the way you must swipe. Nobody gets out, nothing counts towards a score, and **Skip to innings** leaves at any point.

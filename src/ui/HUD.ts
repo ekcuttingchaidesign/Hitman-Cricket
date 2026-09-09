@@ -17,11 +17,46 @@ const icon = (name: string) => {
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
+const coverArt = new URL('../assets/cover.webp', import.meta.url).href;
+const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
+/**
+ * A phone gets the cover art: the illustration, the title lockup and two calls
+ * to action, with nothing else on the screen. A desktop keeps the card over the
+ * live ground, where there is room for the keys and the pitch behind them.
+ */
+const coverIntro = (best: number) => `
+        <div id="intro" class="intro cover-intro">
+          <img class="cover-art" src="${coverArt}" alt="" aria-hidden="true" fetchpriority="high" decoding="async">
+          <img class="cover-title" src="${coverTitle}" alt="Hitman Cricket" decoding="async">
+          <div class="cover-actions">
+            <p class="cover-best${best ? '' : ' hidden'}">${icon('trophy')}<span>BEST</span><strong id="best">${best} <small>RUNS</small></strong></p>
+            <button id="start" class="play-button">PLAY</button>
+            <button id="tutorial" class="learn-button">HOW TO PLAY</button>
+          </div>
+        </div>`;
+const panelIntro = (best: number) => `
+        <div id="intro" class="panel intro-panel">
+          <div class="brand"><span class="brand-mark">H</span><span>HITMAN<span class="brand-sub">CRICKET</span></span></div>
+          <span class="challenge-tag">5 OVER BATTING CHALLENGE</span>
+          <h2>Small game. <br>Big innings.</h2>
+          <p>Score as many runs as you can in 30 balls. <br>Three wickets. Make every shot count.</p>
+          <button id="start" class="primary-button">START INNINGS ${icon('arrow')}</button>
+          <button id="tutorial" class="secondary-button">FIRST TIME? PLAY 3 BALLS</button>
+          <span class="start-hint keyboard-only">or press <kbd>Enter</kbd> to step up</span>
+          <span class="shot-keys keyboard-only"><b>←</b><kbd>A</kbd><b>↖</b><kbd>A+W</kbd><b>↑</b><kbd>W</kbd><b>↗</b><kbd>W+D</kbd><b>→</b><kbd>D</kbd><b>↓</b><kbd>S</kbd></span>
+          <span class="start-hint keyboard-only">or play the same shots on the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> arrow keys</span>
+          <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat. Swipe down to block.<b class="swipe-symbols">← ↖ ↑ ↗ → ↓</b></span>
+          <div class="personal-best">${icon('trophy')}<div><span>PERSONAL BEST</span><strong id="best">${best} <small>RUNS</small></strong></div></div>
+        </div>`;
 export class HUD {
   readonly viewport: HTMLElement;
   private $ = (id: string) => document.getElementById(id)!;
   constructor(root: HTMLElement, best: number) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+    const touch = document.documentElement.classList.contains('touch-device');
+    // The cover fills the screen, so the scoreboard, the meter, the field labels
+    // and the button row all wait until there is an innings to describe.
+    if (touch) document.body.classList.add('start-screen');
     // Everything lives inside the field itself: the ground is the whole screen,
     // and every control the game needs sits on top of it.
     root.innerHTML = `
@@ -66,19 +101,7 @@ export class HUD {
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
         <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
-        <div id="intro" class="panel intro-panel">
-          <div class="brand"><span class="brand-mark">H</span><span>HITMAN<span class="brand-sub">CRICKET</span></span></div>
-          <span class="challenge-tag">5 OVER BATTING CHALLENGE</span>
-          <h2>Small game. <br>Big innings.</h2>
-          <p>Score as many runs as you can in 30 balls. <br>Three wickets. Make every shot count.</p>
-          <button id="start" class="primary-button">START INNINGS ${icon('arrow')}</button>
-          <button id="tutorial" class="secondary-button">FIRST TIME? PLAY 3 BALLS</button>
-          <span class="start-hint keyboard-only">or press <kbd>Enter</kbd> to step up</span>
-          <span class="shot-keys keyboard-only"><b>←</b><kbd>A</kbd><b>↖</b><kbd>A+W</kbd><b>↑</b><kbd>W</kbd><b>↗</b><kbd>W+D</kbd><b>→</b><kbd>D</kbd><b>↓</b><kbd>S</kbd></span>
-          <span class="start-hint keyboard-only">or play the same shots on the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> arrow keys</span>
-          <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat. Swipe down to block.<b class="swipe-symbols">← ↖ ↑ ↗ → ↓</b></span>
-          <div class="personal-best">${icon('trophy')}<div><span>PERSONAL BEST</span><strong id="best">${best} <small>RUNS</small></strong></div></div>
-        </div>
+${touch ? coverIntro(best) : panelIntro(best)}
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-content"><p class="eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p>The next shot can wait.</p><button id="resume" class="primary-button">RESUME INNINGS ${icon('arrow')}</button><button id="restart" class="secondary-button">RESTART INNINGS</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title"><div class="panel end-content"><span class="challenge-tag" id="end-tag">INNINGS COMPLETE</span><h2 id="end-title">That's a wrap.</h2><div class="final-score" id="final-score">0<small>/0</small></div><p id="end-message"></p><div class="final-stats"><div><strong id="final-overs">0.0</strong><span>OVERS</span></div><div><strong id="final-fours">0</strong><span>FOURS</span></div><div><strong id="final-sixes">0</strong><span>SIXES</span></div><div><strong id="final-rate">0</strong><span>STRIKE RATE</span></div></div><button id="again" class="primary-button">PLAY AGAIN ${icon('arrow')}</button><a id="whatsapp" class="secondary-button whatsapp-button" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} BRAG YOUR SCORE TO A FRIEND</a><span class="start-hint">A fresh innings. A bigger score. <kbd class="keyboard-only">R</kbd></span></div></div>
         <div id="share-status" class="share-status hidden" role="status"></div>
@@ -104,7 +127,7 @@ export class HUD {
     this.$('last').className = `cell-value ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
   }
   start() {
-    document.body.classList.remove('tutorial-active');
+    document.body.classList.remove('tutorial-active', 'start-screen');
     document.body.classList.add('innings-active');
     this.viewport.classList.remove('modal-open');
     ['intro', 'end', 'pause-overlay', 'result', 'coach', 'tutorial-done'].forEach(id => this.$(id).classList.add('hidden'));
@@ -208,5 +231,5 @@ export class HUD {
     }
     this.$('share-status').classList.remove('hidden');
   }
-  error() { this.$('intro').innerHTML = '<span class="challenge-tag">WEBGL UNAVAILABLE</span><h2>The ground couldn’t load.</h2><p>Enable hardware acceleration in your browser, then reload to play.</p><button class="primary-button" onclick="location.reload()">RELOAD GAME</button>'; }
+  error() { document.body.classList.remove('start-screen'); this.$('intro').className = 'panel intro-panel'; this.$('intro').innerHTML = '<span class="challenge-tag">WEBGL UNAVAILABLE</span><h2>The ground couldn’t load.</h2><p>Enable hardware acceleration in your browser, then reload to play.</p><button class="primary-button" onclick="location.reload()">RELOAD GAME</button>'; }
 }

@@ -1,3 +1,11 @@
+/* Jaro, by Agyei Archer, Céline Hurka and Mirko Velimirović. SIL Open Font
+   License 1.1 — the notice ships beside the file in src/assets/jaro-OFL.txt. */
+@font-face{
+  font-family:Jaro;
+  src:url('./assets/jaro-latin.woff2') format('woff2');
+  font-weight:400;
+  font-display:swap
+}
 @font-face{
   font-family:Display;
   src:local('Bahnschrift Condensed'),local('Bahnschrift');
@@ -13,6 +21,10 @@
   --muted:#65747b;
   --orange:#ed7044;
   --display:Display,'Arial Narrow',Impact,sans-serif;
+  --cta:Jaro,Display,'Arial Narrow',Impact,sans-serif;
+  /* The orange off the cover art, which is a shade deeper than the interface's. */
+  --cta-orange:#e9582b;
+  --cta-ink:#152b3c;
   --pad:max(16px,env(safe-area-inset-left));
   --pad-right:max(16px,env(safe-area-inset-right));
   --pad-top:max(14px,env(safe-area-inset-top));
@@ -481,6 +493,92 @@ kbd{
   padding:26px 30px 28px;
   text-align:center
 }
+/* ── The start screen on a phone ───────────────────────────────── */
+/* The cover art fills the screen, the title sits in the sky, and the two calls
+   to action sit on the pitch in thumb's reach. Proportions are the artwork's
+   own: a button is 54% of the width, and the pair end a twentieth off the foot
+   of the screen. */
+.cover-intro{
+  position:absolute;
+  inset:0;
+  z-index:6;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:space-between;
+  padding:7.3svh var(--pad-right) calc(var(--pad-bottom) + 3.6svh) var(--pad);
+  text-align:center
+}
+.cover-art{
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  width:100%;
+  height:100%;
+  /* Cropped towards the pitch: a landscape phone keeps the sand under the keys. */
+  object-fit:cover;
+  object-position:50% 58%
+}
+.cover-title{width:min(74%,440px);height:auto}
+.cover-actions{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:13px
+}
+.play-button,.learn-button{
+  width:clamp(196px,54vw,300px);
+  border-radius:13px;
+  font-family:var(--cta);
+  font-size:19px;
+  font-weight:400;
+  letter-spacing:2.2px;
+  text-indent:2.2px;
+  color:var(--cta-ink)
+}
+/* A white key stood on an orange base: the one thing here to press. */
+.play-button{
+  min-height:60px;
+  border:3px solid var(--cta-orange);
+  background:#fff;
+  box-shadow:0 8px 0 var(--cta-orange),0 12px 14px #7a4a1e33
+}
+.play-button:hover:not(:disabled){box-shadow:0 9px 0 var(--cta-orange),0 14px 16px #7a4a1e3d}
+.play-button:active:not(:disabled){transform:translateY(6px);box-shadow:0 2px 0 var(--cta-orange),0 4px 8px #7a4a1e2e}
+/* The same key, one step back. A bare outline on sand reads as a hole rather
+   than a control, and it borrows the primary's weight to say so; a solid plate
+   in the batter's own navy has presence of its own and stays legible over any
+   art behind it. Rank is carried by the base — half the lift, and no white and
+   no orange — rather than by taking the surface away. */
+.learn-button{
+  min-height:56px;
+  border:0;
+  background:#16324a;
+  color:#ffeede;
+  box-shadow:0 4px 0 #0c1f31,0 8px 14px #7a4a1e2e
+}
+.learn-button:hover:not(:disabled){background:#1d4160;box-shadow:0 5px 0 #0c1f31,0 10px 16px #7a4a1e38}
+.learn-button:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #0c1f31,0 3px 7px #7a4a1e26}
+.cover-best{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin:0 0 2px;
+  font-size:10px;
+  font-weight:750;
+  letter-spacing:2px;
+  color:#1a3a51;
+  text-shadow:0 1px 0 #ffffff80
+}
+.cover-best>svg{width:17px;height:17px;color:#c2762c}
+.cover-best strong{font-family:var(--display);font-size:20px;letter-spacing:.5px}
+.cover-best small{font-size:9px;letter-spacing:1.4px;font-weight:650}
+/* Nothing else on the cover: the board and the buttons return with the innings. */
+body.start-screen .score-stack,
+body.start-screen .arena-bottom,
+body.start-screen .hud-top{display:none}
+
 .intro-panel{
   position:absolute;
   z-index:6;
@@ -752,6 +850,17 @@ dialog .primary-button{margin-top:18px}
   .ghost-button{margin-top:6px;padding:6px 14px}
   /* Landscape phones: the start card shrinks and drops clear of the controls. */
   .intro-panel{width:min(340px,calc(100% - 2 * var(--pad)));top:calc(50% + 14px)}
+  /* A portrait cover crops to nothing useful across a landscape phone, so the
+     live ground stands in for it and the lockup sits over the real thing. */
+  .cover-art{display:none}
+  .cover-intro{padding-top:4svh;padding-bottom:calc(var(--pad-bottom) + 10px)}
+  .cover-title{width:min(46%,300px)}
+  .cover-actions{gap:9px}
+  .play-button,.learn-button{width:clamp(190px,34vw,280px)}
+  .play-button{min-height:46px}
+  .learn-button{min-height:44px}
+  .cover-best{font-size:9px;margin-bottom:0}
+  .cover-best strong{font-size:16px}
   .touch-device .primary-button{min-height:40px}
   .brand{font-size:17px;margin-bottom:6px}
   .brand-mark{font-size:26px;padding-left:6px}
