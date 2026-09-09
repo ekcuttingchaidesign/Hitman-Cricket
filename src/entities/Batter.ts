@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { ADVANCE, GAME } from '../config/gameplay';
+import { ADVANCE, CUT, GAME } from '../config/gameplay';
 import type { ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -44,6 +44,51 @@ const BACKLIFT: Pose = {
 };
 
 interface Stroke { contact: Pose; finish: Pose }
+/**
+ * The square cut, off the back foot. He rocks back and across so his weight is
+ * over the back leg and his head is outside the line of the ball, frees his arms
+ * at it, and strikes it square with a horizontal bat and the face turned behind
+ * point. Then the arc keeps going: the wrists roll, the body unwinds on the back
+ * foot, and the bat wraps up and over the front shoulder — which is where a cut
+ * finishes, and what the off-side punch beside it deliberately does not do.
+ *
+ * The front shoulder is the left one, so the wrap crosses the chest. Both hands
+ * stay in front of it: a two-handed grip cannot be taken round the back, and the
+ * finish is high beside the head rather than behind it.
+ */
+const CUT_STROKE: Stroke = {
+  contact: { ...GUARD, hip: [-.13, .74, -.20], chest: [.01, 1.04, -.02],
+    frontFoot: [-.17, .08, .15], backFoot: [-.01, .08, -.42],
+    grip: [.34, .86, .22], batUp: [-.93, .22, -.29], batFace: [.55, .10, -.83],
+    yaw: 1.46, face: .54, heel: .04, leadElbow: .05 },
+  // The hands finish high and in front of the chest with the blade wrapped up
+  // over the front shoulder. Carrying the hands themselves round to that
+  // shoulder is where the swing wants to take them, and it is a place a
+  // two-handed grip cannot go: the arms end up across the back of the neck.
+  finish: { ...GUARD, hip: [-.06, .87, -.24], chest: [.05, 1.26, -.14],
+    frontFoot: [-.17, .08, .15], backFoot: [-.01, .08, -.42],
+    grip: [.07, 1.35, .29], batUp: [.56, -.62, .55], batFace: [.74, .40, -.54],
+    yaw: .35, face: .30, heel: .20, leadElbow: -.15 },
+};
+/**
+ * The same stroke to a ball at the chest. Short and wide is the cut's own ball:
+ * he stands up out of the crouch rather than reaching down, and cuts it square
+ * from higher up — the difference between a cut off a length and one off a
+ * bouncer is where he stands, not what he does.
+ */
+const CUT_HIGH: Stroke = {
+  contact: { ...CUT_STROKE.contact, hip: [-.15, .90, -.20], chest: [-.06, 1.25, -.05],
+    batUp: [-.86, .42, -.28], yaw: 1.42, heel: .06, leadElbow: -.06 },
+  finish: { ...CUT_STROKE.finish, hip: [-.05, .92, -.23], chest: [.05, 1.31, -.13],
+    grip: [.08, 1.43, .31], yaw: .32, heel: .22 },
+};
+/**
+ * How wide the cut reaches. The inner limit is the width the stroke needs to be
+ * playable at all, so the bat never comes back inside the body: swung at a ball
+ * on the stumps it plays square of them anyway and the ball goes past it, which
+ * is what cutting at a straight one deserves.
+ */
+const CUT_REACH: readonly [number, number] = [CUT.minWidth, .62];
 const STROKES: Record<ShotType, Stroke> = {
   STRAIGHT: {
     contact: { ...GUARD, hip: [-0.05, .83, .14], chest: [.12, 1.17, .23], frontFoot: [.02, .08, .63],
@@ -82,12 +127,14 @@ const STROKES: Record<ShotType, Stroke> = {
       grip: [.34, .97, .34], batUp: [.02, .98, .19], batFace: [0, -.20, .98], yaw: 1.16, face: 0, heel: .03, leadElbow: .14 },
   },
   OFF: {
-    // Back-foot square cut: make room, bend the knees, extend into the off side.
+    // Back-foot punch through the off side: make room, bend the knees, and push
+    // out at it with the face square to the bowler. Short of the cut's arc.
     contact: { ...GUARD, hip: [-.16, .78, -.12], chest: [.01, 1.11, .07], frontFoot: [-.23, .08, .18],
       backFoot: [-.19, .08, -.43], grip: [.31, .85, .27], batUp: [-.88, .43, -.19], batFace: [.10, .18, .98], yaw: 1.65, face: .52, heel: .02 },
     finish: { ...GUARD, hip: [-.11, .85, -.10], chest: [.06, 1.21, .01], frontFoot: [-.23, .08, .18],
       backFoot: [-.19, .08, -.43], grip: [.63, 1.26, .26], batUp: [-.66, -.22, -.72], batFace: [.10, .18, .98], yaw: .83, face: .7, heel: .06 },
   },
+  SQUARE_CUT: CUT_STROKE,
 };
 
 /**
@@ -217,6 +264,8 @@ export class Batter {
   private shot: ShotType = 'STRAIGHT';
   /** A leg-side swing at a ball up around the chest is a pull, not a flick. */
   private pulling = false;
+  /** A cut at a ball up around the chest is played standing tall, not crouched. */
+  private cutting = false;
   /** A charge down the pitch: the confidence shot. */
   private charging = false;
   private swingStart = -Infinity;
@@ -316,19 +365,21 @@ export class Batter {
     mesh.scale.set(width, axis.length(), depth);
   }
   reset() {
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.charging = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false) {
     this.shot = shot; this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
+    this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
     this.swingStart = now; this.contactTime = now + STROKE_CONTACT_MS;
     this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ;
-    // Only the pull goes up after a bouncer. Every other stroke plays at its own
-    // height and the ball passes over the bat, rather than the arms stretching
-    // to chase a ball that stroke was never going to reach.
-    this.ballY = this.pulling ? ballY : Math.min(ballY, .62);
+    // Only the two cross-bat strokes go up after a bouncer — the pull to the leg
+    // side and the cut to the off. Every other stroke plays at its own height and
+    // the ball passes over the bat, rather than the arms stretching to chase a
+    // ball that stroke was never going to reach.
+    this.ballY = this.pulling || this.cutting ? ballY : Math.min(ballY, .62);
   }
   get strikeAt() { return this.contactTime; }
   /**
@@ -382,12 +433,15 @@ export class Batter {
       this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
       return;
     }
-    const stroke = this.charging ? CHARGE : this.pulling ? PULL : STROKES[this.shot];
+    const stroke = this.charging ? CHARGE : this.pulling ? PULL : this.cutting ? CUT_HIGH : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
-    const zones: Record<ShotType, [number, number]> = {
+    const zones: Record<ShotType, readonly [number, number]> = {
       LEG: [-.55, -.05], LONG_ON: [-.55, .08], STRAIGHT: [-.17, .17],
       COVER_LONG_OFF: [-.08, .55], OFF: [.05, .55],
+      // The cut is played square and wide of the body: it reaches further out
+      // than the off-side punch and never comes back across the stumps.
+      SQUARE_CUT: CUT_REACH,
       // Defence covers the stumps and a little either side, not the whole crease.
       DEFEND: [-.30, .30],
     };
@@ -510,7 +564,7 @@ export class Batter {
   inspect() {
     this.root.updateMatrixWorld(true);
     return {
-      shot: this.shot, pulling: this.pulling, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
+      shot: this.shot, pulling: this.pulling, cutting: this.cutting, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
       hands: this.arms.map(arm => arm.glove.getWorldPosition(new THREE.Vector3()).toArray()),
       elbows: this.arms.map(arm => arm.elbow.position.toArray()),
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),

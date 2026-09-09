@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -8,19 +8,20 @@ import { ballPosition, effectiveLine, stumpIntersection } from '../src/game/Deli
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, gradeTiming, resolveShot } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, cuttable, gradeTiming, resolveShot } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
 const dot = (): ShotOutcome => resolveShot(delivery({ finalTargetX: 0.5 }), null, rng(0.5));
 
 describe('shot controls', () => {
-  it.each([ [['A'], 'LEG'], [['W'], 'STRAIGHT'], [['D'], 'OFF'], [['A', 'W'], 'LONG_ON'], [['W', 'D'], 'COVER_LONG_OFF'], [['w', 'a'], 'LONG_ON'], [['D', 'W'], 'COVER_LONG_OFF'], [['A', 'D'], null], [[], null] ])('maps %j to %s', (keys, shot) => expect(mapKeys(keys as string[])).toBe(shot));
+  it.each([ [['A'], 'LEG'], [['W'], 'STRAIGHT'], [['D'], 'OFF'], [['A', 'W'], 'LONG_ON'], [['W', 'D'], 'COVER_LONG_OFF'], [['w', 'a'], 'LONG_ON'], [['D', 'W'], 'COVER_LONG_OFF'], [['A', 'D'], null], [['D', 'S'], 'SQUARE_CUT'], [['S', 'D'], 'SQUARE_CUT'], [['S'], 'DEFEND'], [['A', 'S'], 'DEFEND'], [[], null] ])('maps %j to %s', (keys, shot) => expect(mapKeys(keys as string[])).toBe(shot));
 });
 describe('compatibility and timing', () => {
-  it('matches every entry of the specified 5 by 5 matrix', () => {
+  it('matches every entry of the specified 5 by 6 matrix', () => {
+    // The last column is the cut: it wants width and has nothing on the stumps.
     expect(LINES.map(line => SHOTS.map(shot => COMPATIBILITY[line][shot]))).toEqual([
-      [1, .9, .3, .1, 0], [1, 1, .65, .25, .1], [.55, .85, 1, .85, .55], [.1, .25, .65, 1, 1], [0, .1, .3, .9, 1],
+      [1, .9, .3, .1, 0, 0], [1, 1, .65, .25, .1, 0], [.55, .85, 1, .85, .55, .2], [.1, .25, .65, 1, 1, .7], [0, .1, .3, .9, 1, 1],
     ]);
   });
   it.each([[0, 'PERFECT'], [40, 'PERFECT'], [41, 'GOOD'], [78, 'GOOD'], [79, 'OK'], [135, 'OK'], [136, 'POOR'], [205, 'POOR'], [206, 'MISS']])('grades boundary %s as %s', (ms, grade) => {
@@ -143,7 +144,7 @@ describe('special deliveries', () => {
       expect(answered, `seed ${seed} never got a change of pace`).toBe(true);
     }
   });
-  it('bowls a bouncer over the stumps that only the pull can reach', () => {
+  it('bowls a bouncer over the stumps that, at the body, only the pull can reach', () => {
     const bouncer = delivery({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce, rise: STYLES.SHORT.rise });
     // Too high to hit the stumps, so leaving it is always safe.
     expect(ballPosition(bouncer, 1).y).toBeGreaterThan(1);
@@ -158,6 +159,88 @@ describe('special deliveries', () => {
       expect(played.runs).toBe(middledPull ? 6 : 0);
       expect(played.isWicket).toBe(false);
     }
+    // This one is at the body, so there is no room to cut it either.
+    expect(cuttable(bouncer)).toBe(false);
+  });
+});
+
+describe('the square cut', () => {
+  const short = (finalTargetX: number) =>
+    delivery({ line: 'OUTSIDE_OFF', style: 'SHORT', baseTargetX: finalTargetX, finalTargetX, bounceZ: STYLES.SHORT.bounce, rise: STYLES.SHORT.rise });
+  const wide = (changes = {}) => delivery({ line: 'OUTSIDE_OFF', baseTargetX: LINE_X.OUTSIDE_OFF, finalTargetX: LINE_X.OUTSIDE_OFF, ...changes });
+  const cut = (ball: Delivery, delta: number, roll = .5) =>
+    resolveShot(ball, { shotType: 'SQUARE_CUT', inputTimeMs: ball.idealContactTimeMs + delta }, rng(roll));
+
+  it('needs width, and reads it off where the ball finishes rather than where it started', () => {
+    expect(cuttable(wide())).toBe(true);
+    expect(cuttable(delivery())).toBe(false);
+    // Bowled wide but swinging back in: no room by the time it arrives.
+    expect(cuttable(delivery({ baseTargetX: .42, finalTargetX: .10 }))).toBe(false);
+    // Bowled at the stumps but leaving him: room by the time it arrives.
+    expect(cuttable(delivery({ baseTargetX: .10, finalTargetX: .42 }))).toBe(true);
+    expect(cuttable(delivery({ finalTargetX: CUT.minWidth }))).toBe(true);
+    expect(cuttable(delivery({ finalTargetX: CUT.minWidth - .001 }))).toBe(false);
+  });
+
+  it('puts a short ball outside off away square, and edges anything mistimed', () => {
+    const ball = short(LINE_X.OUTSIDE_OFF);
+    // Middled: six, then four, exactly as any other stroke rewards timing.
+    expect(cut(ball, 0).runs).toBe(6);
+    expect(cut(ball, GAME.timing.perfect).runs).toBe(6);
+    expect(cut(ball, GAME.timing.perfect + 1).runs).toBe(4);
+    expect(cut(ball, GAME.timing.good).runs).toBe(4);
+    // Held back: worked away along the ground rather than given away.
+    const ok = cut(ball, GAME.timing.ok);
+    expect(ok.runs).toBeGreaterThan(0); expect(ok.runs).toBeLessThan(4); expect(ok.isWicket).toBe(false);
+    // Later than that and the keeper has it, whatever the dice say.
+    for (const roll of [0, .5, .99]) {
+      const edged = cut(ball, GAME.timing.poor, roll);
+      expect(edged.isWicket).toBe(true); expect(edged.wicketType).toBe('CAUGHT');
+      expect(edged.edged).toBe(true); expect(edged.madeBatContact).toBe(true);
+      expect(edged.feedback).toBe(CUT.edged);
+      // An edge is taken behind, not skied to a fielder waiting under it.
+      expect(edged.aerial).toBe(false);
+    }
+    // Missed altogether, and it carries on through.
+    expect(cut(ball, GAME.timing.poor + 200).madeBatContact).toBe(false);
+    expect(cut(ball, GAME.timing.poor + 200).isWicket).toBe(false);
+  });
+
+  it('has nothing to offer against a short ball at the body', () => {
+    for (const delta of [0, 40, 100]) {
+      const played = cut(short(0), delta);
+      expect(played.runs).toBe(0); expect(played.madeBatContact).toBe(false); expect(played.isWicket).toBe(false);
+    }
+  });
+
+  it('scores off a length ball with width the same way', () => {
+    expect(cut(wide(), 0).runs).toBe(6);
+    expect(cut(wide(), GAME.timing.perfect + 1).runs).toBe(4);
+    const edged = cut(wide(), GAME.timing.poor);
+    expect(edged.edged).toBe(true); expect(edged.wicketType).toBe('CAUGHT');
+  });
+
+  it('cuts through a straight ball entirely, however well it is timed', () => {
+    // There is no width to work with, so the bat goes square of a ball that is
+    // not: he misses it, and a ball on the stumps behind a missed bat is out.
+    for (const roll of [0, .5, .99]) {
+      const played = resolveShot(delivery(), { shotType: 'SQUARE_CUT', inputTimeMs: 1000 }, rng(roll));
+      expect(played.madeBatContact).toBe(false);
+      expect(played.isWicket).toBe(true);
+      expect(['BOWLED', 'LBW']).toContain(played.wicketType);
+    }
+    // Down the leg side it misses the stumps too, and nothing happens at all.
+    const legSide = delivery({ line: 'OUTSIDE_LEG', baseTargetX: LINE_X.OUTSIDE_LEG, finalTargetX: LINE_X.OUTSIDE_LEG });
+    const missed = resolveShot(legSide, { shotType: 'SQUARE_CUT', inputTimeMs: 1000 }, rng(.5));
+    expect(missed.madeBatContact).toBe(false); expect(missed.isWicket).toBe(false); expect(missed.runs).toBe(0);
+  });
+
+  it('leaves the pull, the drives and the block exactly as they were', () => {
+    const bouncer = delivery({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce, rise: STYLES.SHORT.rise });
+    expect(resolveShot(bouncer, { shotType: 'LEG', inputTimeMs: 1000 }, rng(0)).runs).toBe(6);
+    expect(resolveShot(wide(), { shotType: 'OFF', inputTimeMs: 1000 }, rng(0)).runs).toBe(6);
+    expect(resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 1000 }, rng(0)).runs).toBe(6);
+    expect(resolveShot(delivery(), { shotType: 'DEFEND', inputTimeMs: 1000 }, rng(0)).defended).toBe(true);
   });
 });
 describe('delivery fairness and determinism', () => {

@@ -298,12 +298,16 @@ export class GameScene {
     const distance = outcome.advance ? 78 : outcome.defended ? 1.9 : caught ? (outcome.aerial ? 27 : 18) : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
     if (caught && Math.abs(angle) < 0.2) angle = 0.35;
     this.hitEnd.set(Math.sin(angle) * distance, caught ? 1.5 : 0.1, Math.cos(angle) * distance);
+    // An edge is not a catch in the deep. It flies off the face at gloves height
+    // and the keeper has it before the batter has finished the stroke, so it is
+    // placed where he stands rather than swept out along the stroke's angle.
+    if (outcome.edged) this.hitEnd.set(0.70, 1.14, -1.35);
     // A skied shot hangs long enough to be watched down; a middled one leaves
     // fast. The charge is worth watching all the way over the roof.
-    this.flightMs = outcome.advance ? 2200 : outcome.defended ? 700 : outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
+    this.flightMs = outcome.advance ? 2200 : outcome.defended ? 700 : outcome.edged ? 460 : outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
     // A four is a boundary along the turf — a drive races to the rope on the
     // ground. Only a six leaves it, and only a mishit hangs.
-    this.hitHeight = outcome.advance ? 32 : outcome.defended ? 0.05 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
+    this.hitHeight = outcome.advance ? 32 : outcome.defended ? 0.05 : outcome.edged ? 0.18 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
       : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 0.22 : 0.6;
     if (caught) {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;

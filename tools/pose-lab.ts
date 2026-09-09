@@ -6,6 +6,7 @@ import type { ShotType } from '../src/game/types';
 const examples: [string, ShotType, number, number?, boolean?][] = [
   ['Guard · side view', 'STRAIGHT', 0], ['A · leg-side flick', 'LEG', -.3], ['A + W · long-on drive', 'LONG_ON', -.14],
   ['W · straight drive', 'STRAIGHT', 0], ['A vs bouncer · pull', 'LEG', -.02, 1.12], ['W charged · down the pitch', 'STRAIGHT', 0, .54, true],
+  ['D · off-side punch', 'OFF', .42], ['D + S · square cut', 'SQUARE_CUT', .46], ['D + S vs bouncer · cut', 'SQUARE_CUT', .46, 1.12],
 ];
 let time = -1;
 let playing = false;
@@ -25,9 +26,25 @@ const views = examples.map(([label, shot, ballX, ballY, charging], index) => {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshStandardMaterial({ color: 0xbac8a8 }));
   floor.rotation.x = -Math.PI / 2; stage.add(floor);
   const camera = new THREE.PerspectiveCamera(38, view.clientWidth / 300, .1, 30);
-  camera.position.set(index === 0 ? -2.5 : .1, 1.6, index === 0 ? -1.8 : -3.7); camera.lookAt(.15, 1.1, .4);
-  return { batter, shot, ballX, ballY, charging, camera, scene, renderer };
+  return { batter, shot, ballX, ballY, charging, camera, scene, renderer, index };
 });
+/**
+ * Where the cameras stand. A stroke played square cannot be judged from the one
+ * angle the game happens to use, so the whole grid orbits: `azimuth` is degrees
+ * round from the bowler's end, and the stage is mirrored, so a positive turn
+ * walks the camera towards the off side.
+ */
+const TARGET = new THREE.Vector3(.15, 1.08, .25);
+let azimuth = 0;
+function place() {
+  const a = azimuth * Math.PI / 180;
+  for (const view of views) {
+    if (view.index === 0) { view.camera.position.set(-2.5, 1.6, -1.8); view.camera.lookAt(.15, 1.1, .4); continue; }
+    view.camera.position.set(TARGET.x - Math.sin(a) * 3.6, 1.62, TARGET.z - Math.cos(a) * 3.6);
+    view.camera.lookAt(TARGET);
+  }
+}
+place();
 function draw(age: number) {
   views.forEach(({ batter, shot, ballX, ballY, charging, renderer, scene, camera }, i) => {
     batter.reset();
@@ -39,6 +56,13 @@ document.querySelectorAll<HTMLButtonElement>('[data-time]').forEach(button => {
   button.onclick = () => {
     playing = false; time = Number(button.dataset.time);
     document.querySelectorAll('[data-time]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+    draw(time);
+  };
+});
+document.querySelectorAll<HTMLButtonElement>('[data-az]').forEach(button => {
+  button.onclick = () => {
+    azimuth = Number(button.dataset.az); place();
+    document.querySelectorAll('[data-az]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
     draw(time);
   };
 });

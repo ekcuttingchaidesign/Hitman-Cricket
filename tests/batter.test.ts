@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Batter, STROKE_CONTACT_MS, STROKE_DURATION_MS } from '../src/entities/Batter';
-import { ADVANCE, GAME, SHOTS } from '../src/config/gameplay';
+import { ADVANCE, CUT, GAME, SHOTS } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { Vector3 } from 'three';
 // Every stroke the batter can be asked to play, defence included.
@@ -149,6 +149,83 @@ describe('the pull', () => {
       const blade = batter.inspect().bladeContact;
       expect(blade[0]).toBeCloseTo(ballX, 6); expect(blade[1]).toBeCloseTo(1.12, 6);
     }
+  });
+});
+
+describe('the square cut', () => {
+  const at = (time: number, ballX = .46, ballY = .54) => {
+    const batter = new Batter();
+    batter.reset(); batter.prepare(1); batter.update(0); batter.swing('SQUARE_CUT', 0, ballX, ballY);
+    batter.update(time);
+    return batter.inspect();
+  };
+  const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
+
+  it('answers a ball at the chest with its own stroke, and only on the off side', () => {
+    expect(at(110, .46, 1.12).cutting).toBe(true);
+    expect(at(110, .46, .54).cutting).toBe(false);
+    // Everything else keeps its own stroke however high the ball is.
+    for (const shot of STROKES.filter(s => s !== 'SQUARE_CUT')) {
+      const batter = new Batter();
+      batter.reset(); batter.swing(shot, 0, .46, 1.12); batter.update(110);
+      expect(batter.inspect().cutting, shot).toBe(false);
+    }
+  });
+
+  it('reaches the ball off a length and up at bouncer height', () => {
+    for (const ballY of [.54, 1.12]) for (const ballX of [.28, .46, .55]) {
+      const blade = at(110, ballX, ballY).bladeContact;
+      expect(blade[0], `x ${ballX} y ${ballY}`).toBeCloseTo(ballX, 6);
+      expect(blade[1], `y ${ballY}`).toBeCloseTo(ballY, 6);
+    }
+  });
+
+  it('never plays back across the stumps, whatever it is swung at', () => {
+    // Swung at a ball on the leg side the bat still goes square of the off
+    // stump, so the ball goes past it rather than the arms following it round.
+    for (const ballX of [-.55, -.14, 0, .1]) {
+      const blade = at(110, ballX).bladeContact;
+      expect(blade[0], `ball at ${ballX}`).toBeGreaterThanOrEqual(CUT.minWidth - 1e-9);
+    }
+  });
+
+  it('is played off the back foot, without striding down the pitch', () => {
+    const guard = new Batter().inspect();
+    for (const time of [110, 300, 470]) {
+      const pose = at(time);
+      // The drives push the front foot out past .5; the cut leaves it behind.
+      expect(pose.frontFoot[2], `${time}ms`).toBeLessThan(guard.frontFoot[2]);
+      // And the back foot has gone back and across, under the weight.
+      expect(pose.backFoot[2], `${time}ms`).toBeLessThan(guard.backFoot[2]);
+      expect(pose.backFoot[0], `${time}ms`).toBeGreaterThan(guard.backFoot[0]);
+    }
+  });
+
+  it('follows through over the front shoulder rather than stopping at the ball', () => {
+    for (const ballY of [.54, 1.12]) {
+      const contact = at(110, .46, ballY), finish = at(470, .46, ballY);
+      const contactTip = new Vector3(...contact.bladeTip).sub(root);
+      const tip = new Vector3(...finish.bladeTip).sub(root);
+      // The blade has travelled: it does not stop where it met the ball.
+      expect(tip.distanceTo(contactTip), `y ${ballY}`).toBeGreaterThan(.9);
+      // Up over the shoulders, and over the front one — the left — not the back.
+      expect(tip.y, `y ${ballY}`).toBeGreaterThan(new Vector3(...finish.shoulders[0]).y + .35);
+      expect(tip.distanceTo(new Vector3(...finish.shoulders[0])))
+        .toBeLessThan(tip.distanceTo(new Vector3(...finish.shoulders[1])));
+      // And the hands finish high: risen off the ball and above the chest. A
+      // chest-high ball is met with the hands already up, so the rise is
+      // smaller there than off a length — but it is always a rise.
+      expect(finish.grip[1], `y ${ballY}`).toBeGreaterThan(contact.grip[1] + .1);
+      expect(finish.grip[1], `y ${ballY}`).toBeGreaterThan(finish.chest[1]);
+    }
+  });
+
+  it('unwinds the body onto the back foot instead of standing still', () => {
+    const contact = at(110), finish = at(470);
+    // The chest opens up through the stroke, the way a cross-bat stroke does.
+    expect(finish.yaw).toBeLessThan(contact.yaw - .8);
+    // On a back foot that stays planted: the toe never leaves the ground.
+    for (const time of [110, 250, 400, 470]) expect(at(time).backToe[1], `${time}ms`).toBeCloseTo(.01, 5);
   });
 });
 
