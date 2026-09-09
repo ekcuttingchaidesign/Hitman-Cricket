@@ -225,6 +225,41 @@ describe('the square cut', () => {
     }
   });
 
+  it('never brings the bat back through his own head or chest', () => {
+    // The finish holds the bat behind the front shoulder and the guard holds it
+    // behind the back one, so the short path home goes straight through him.
+    // The stroke comes down through a recovery pose that goes round instead.
+    const segment = (a: Vector3, b: Vector3, point: Vector3) => {
+      const ab = b.clone().sub(a);
+      const t = Math.max(0, Math.min(1, point.clone().sub(a).dot(ab) / ab.lengthSq()));
+      return point.distanceTo(a.clone().addScaledVector(ab, t));
+    };
+    let worstHead = { d: Infinity, at: '' }, worstTrunk = { d: Infinity, at: '' };
+    for (const ballY of [.54, 1.12]) for (const ballX of [-.55, 0, .42, .55]) {
+      const batter = new Batter();
+      batter.reset(); batter.prepare(1); batter.update(0); batter.swing('SQUARE_CUT', 0, ballX, ballY);
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
+        batter.update(time);
+        const pose = batter.inspect();
+        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+        const spine = chest.clone().sub(hip).normalize();
+        const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+        const bat: [Vector3, Vector3] = [new Vector3(...pose.grip), new Vector3(...pose.bladeTip).sub(root)];
+        const where = `y=${ballY} x=${ballX} @${time}ms`;
+        const toHead = segment(...bat, head);
+        if (toHead < worstHead.d) worstHead = { d: toHead, at: where };
+        for (let k = 0; k <= 8; k++) {
+          const toTrunk = segment(...bat, hip.clone().lerp(chest, k / 8));
+          if (toTrunk < worstTrunk.d) worstTrunk = { d: toTrunk, at: where };
+        }
+      }
+    }
+    // The helmet runs to .195 from the head's centre and the trunk to .205
+    // across from the spine, .145 deep.
+    expect(worstHead.d, `blade nearest the head: ${worstHead.at}`).toBeGreaterThan(.20);
+    expect(worstTrunk.d, `blade nearest the trunk: ${worstTrunk.at}`).toBeGreaterThan(.18);
+  });
+
   it('unwinds the body onto the back foot instead of standing still', () => {
     const contact = at(110), finish = at(470);
     // The chest opens up through the stroke, the way a cross-bat stroke does.

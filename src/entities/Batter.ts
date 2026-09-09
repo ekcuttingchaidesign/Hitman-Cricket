@@ -43,7 +43,15 @@ const BACKLIFT: Pose = {
   chest: [0.01, 1.29, 0.01], leadElbow: -.24,
 };
 
-interface Stroke { contact: Pose; finish: Pose }
+/**
+ * `recover` is the way back to the guard, for a stroke whose follow-through
+ * ends somewhere the bat cannot travel home from in a straight line. Blending
+ * a wrapped finish directly into the pick-up sweeps the blade through the head
+ * and then the chest, because the two poses hold the bat on opposite sides of
+ * the body and the shortest path between them goes through him. A stroke that
+ * needs one names the pose the bat comes down through on its way back.
+ */
+interface Stroke { contact: Pose; finish: Pose; recover?: Pose }
 /**
  * The square cut, off the back foot. He rocks back and across so his weight is
  * over the back leg and his head is outside the line of the ball, frees his arms
@@ -69,6 +77,16 @@ const CUT_STROKE: Stroke = {
     frontFoot: [-.17, .08, .15], backFoot: [-.01, .08, -.42],
     grip: [.07, 1.35, .29], batUp: [.56, -.62, .55], batFace: [.74, .40, -.54],
     yaw: .35, face: .30, heel: .20, leadElbow: -.15 },
+  // Forward off the shoulder, out in front of him, and only then down into the
+  // pick-up. The finish holds the bat behind his front shoulder and the guard
+  // holds it behind his back one, so every short path between the two goes
+  // through his head or his chest. Swinging the blade out to where he can see
+  // it first is both what a batter does with a bat he has just wrapped round
+  // his neck, and the one route home that touches neither.
+  recover: { ...GUARD, hip: [-.09, .90, -.16], chest: [.03, 1.24, -.07],
+    frontFoot: [-.15, .08, .18], backFoot: [-.05, .08, -.38],
+    grip: [.30, 1.14, .34], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
+    yaw: .86, face: .34, heel: .10, leadElbow: -.20 },
 };
 /**
  * The same stroke to a ball at the chest. Short and wide is the cut's own ball:
@@ -81,6 +99,7 @@ const CUT_HIGH: Stroke = {
     batUp: [-.86, .42, -.28], yaw: 1.42, heel: .06, leadElbow: -.06 },
   finish: { ...CUT_STROKE.finish, hip: [-.05, .92, -.23], chest: [.05, 1.31, -.13],
     grip: [.08, 1.43, .31], yaw: .32, heel: .22 },
+  recover: CUT_STROKE.recover,
 };
 /**
  * How wide the cut reaches. It has to cover the off stump, because it is the
@@ -452,6 +471,14 @@ export class Batter {
     if (age <= STROKE_CONTACT_MS) this.apply(mix(this.swingFrom, contact, age / STROKE_CONTACT_MS));
     else if (age < 410) this.apply(mix(contact, finish, (age - STROKE_CONTACT_MS) / (410 - STROKE_CONTACT_MS)));
     else if (age < 570) this.apply(finish);
+    else if (stroke.recover) {
+      // Down through the recovery pose first, then home. The bat spends longer
+      // coming down off the shoulder than it does settling into the pick-up.
+      const through = 570 + (STROKE_DURATION_MS - 570) * .52;
+      const recover = reachPose(stroke.recover);
+      if (age < through) this.apply(mix(finish, recover, (age - 570) / (through - 570)));
+      else this.apply(mix(recover, GUARD, (age - through) / (STROKE_DURATION_MS - through)));
+    }
     else this.apply(mix(finish, GUARD, (age - 570) / (STROKE_DURATION_MS - 570)));
   }
   private apply(pose: Pose) {
