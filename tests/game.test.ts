@@ -15,13 +15,13 @@ const rng = (value: number) => ({ next: () => value });
 const dot = (): ShotOutcome => resolveShot(delivery({ finalTargetX: 0.5 }), null, rng(0.5));
 
 describe('shot controls', () => {
-  it.each([ [['A'], 'LEG'], [['W'], 'STRAIGHT'], [['D'], 'OFF'], [['A', 'W'], 'LONG_ON'], [['W', 'D'], 'COVER_LONG_OFF'], [['w', 'a'], 'LONG_ON'], [['D', 'W'], 'COVER_LONG_OFF'], [['A', 'D'], null], [['D', 'S'], 'SQUARE_CUT'], [['S', 'D'], 'SQUARE_CUT'], [['S'], 'DEFEND'], [['A', 'S'], 'DEFEND'], [[], null] ])('maps %j to %s', (keys, shot) => expect(mapKeys(keys as string[])).toBe(shot));
+  it.each([ [['A'], 'LEG'], [['W'], 'STRAIGHT'], [['D'], 'SQUARE_CUT'], [['A', 'W'], 'LONG_ON'], [['W', 'D'], 'COVER_LONG_OFF'], [['w', 'a'], 'LONG_ON'], [['D', 'W'], 'COVER_LONG_OFF'], [['A', 'D'], null], [['D', 'S'], 'DEFEND'], [['S', 'D'], 'DEFEND'], [['S'], 'DEFEND'], [['A', 'S'], 'DEFEND'], [[], null] ])('maps %j to %s', (keys, shot) => expect(mapKeys(keys as string[])).toBe(shot));
 });
 describe('compatibility and timing', () => {
-  it('matches every entry of the specified 5 by 6 matrix', () => {
-    // The last column is the cut: it wants width and has nothing on the stumps.
+  it('matches every entry of the specified 5 by 5 matrix', () => {
+    // The last column is the cut: it wants width and has little on the stumps.
     expect(LINES.map(line => SHOTS.map(shot => COMPATIBILITY[line][shot]))).toEqual([
-      [1, .9, .3, .1, 0, 0], [1, 1, .65, .25, .1, 0], [.55, .85, 1, .85, .55, .2], [.1, .25, .65, 1, 1, .7], [0, .1, .3, .9, 1, 1],
+      [1, .9, .3, .1, 0], [1, 1, .65, .25, .1], [.55, .85, 1, .85, .4], [.1, .25, .65, 1, .85], [0, .1, .3, .9, 1],
     ]);
   });
   it.each([[0, 'PERFECT'], [40, 'PERFECT'], [41, 'GOOD'], [78, 'GOOD'], [79, 'OK'], [135, 'OK'], [136, 'POOR'], [205, 'POOR'], [206, 'MISS']])('grades boundary %s as %s', (ms, grade) => {
@@ -58,9 +58,14 @@ describe('wickets and scoring', () => {
   });
   it('always catches poor timing, and never catches a middled shot', () => {
     for (const shotType of SHOTS) for (const roll of [0, .5, .99]) {
-      // 840ms against a 1000ms contact is a 160ms miss: poor, and skied.
+      // 840ms against a 1000ms contact is a 160ms miss: poor, and caught. Every
+      // stroke skies it except the cut, whose square face feathers it behind.
       const poor = resolveShot(delivery(), { shotType, inputTimeMs: 840 }, rng(roll));
-      if (poor.madeBatContact) { expect(poor.wicketType).toBe('CAUGHT'); expect(poor.aerial).toBe(true); }
+      if (poor.madeBatContact) {
+        expect(poor.wicketType, shotType).toBe('CAUGHT');
+        expect(poor.aerial, shotType).toBe(shotType !== 'SQUARE_CUT');
+        expect(poor.edged, shotType).toBe(shotType === 'SQUARE_CUT' ? true : undefined);
+      }
       // Perfect, good and ok all keep a suited shot out of a fielder's hands.
       for (const ms of [1000, 970, 920]) {
         const played = resolveShot(delivery(), { shotType, inputTimeMs: ms }, rng(roll));
@@ -220,16 +225,20 @@ describe('the square cut', () => {
     expect(edged.edged).toBe(true); expect(edged.wicketType).toBe('CAUGHT');
   });
 
-  it('cuts through a straight ball entirely, however well it is timed', () => {
-    // There is no width to work with, so the bat goes square of a ball that is
-    // not: he misses it, and a ball on the stumps behind a missed bat is out.
+  it('nicks a straight ball behind rather than scoring off it, however well it is timed', () => {
+    // There is no room to swing square at a ball on the stumps. The bat is
+    // close enough to catch it and never square enough to hit it, so the best
+    // that can happen is the edge — a cut at a straight one is a poor idea
+    // however well it is middled, and the keeper is the one who benefits.
     for (const roll of [0, .5, .99]) {
       const played = resolveShot(delivery(), { shotType: 'SQUARE_CUT', inputTimeMs: 1000 }, rng(roll));
-      expect(played.madeBatContact).toBe(false);
+      expect(played.runs).toBe(0);
       expect(played.isWicket).toBe(true);
-      expect(['BOWLED', 'LBW']).toContain(played.wicketType);
+      expect(played.edged).toBe(true);
+      expect(played.wicketType).toBe('CAUGHT');
     }
-    // Down the leg side it misses the stumps too, and nothing happens at all.
+    // Down the leg side there is nothing to nick, and the ball misses the
+    // stumps too, so nothing happens at all.
     const legSide = delivery({ line: 'OUTSIDE_LEG', baseTargetX: LINE_X.OUTSIDE_LEG, finalTargetX: LINE_X.OUTSIDE_LEG });
     const missed = resolveShot(legSide, { shotType: 'SQUARE_CUT', inputTimeMs: 1000 }, rng(.5));
     expect(missed.madeBatContact).toBe(false); expect(missed.isWicket).toBe(false); expect(missed.runs).toBe(0);
@@ -238,7 +247,7 @@ describe('the square cut', () => {
   it('leaves the pull, the drives and the block exactly as they were', () => {
     const bouncer = delivery({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce, rise: STYLES.SHORT.rise });
     expect(resolveShot(bouncer, { shotType: 'LEG', inputTimeMs: 1000 }, rng(0)).runs).toBe(6);
-    expect(resolveShot(wide(), { shotType: 'OFF', inputTimeMs: 1000 }, rng(0)).runs).toBe(6);
+    expect(resolveShot(wide(), { shotType: 'COVER_LONG_OFF', inputTimeMs: 1000 }, rng(0)).runs).toBe(6);
     expect(resolveShot(delivery(), { shotType: 'STRAIGHT', inputTimeMs: 1000 }, rng(0)).runs).toBe(6);
     expect(resolveShot(delivery(), { shotType: 'DEFEND', inputTimeMs: 1000 }, rng(0)).defended).toBe(true);
   });
@@ -282,7 +291,7 @@ describe('delivery fairness and determinism', () => {
     const r = new SeededRandom(222); const gen = new DeliveryGenerator(r); const score = new ScoreManager();
     for (let i = 0; i < 30; i++) {
       const d = gen.next(i * 5000); const x = LINE_X[effectiveLine(d)];
-      score.record(resolveShot(d, { shotType: x < 0 ? 'LEG' : x > 0 ? 'OFF' : 'STRAIGHT', inputTimeMs: d.idealContactTimeMs }, r));
+      score.record(resolveShot(d, { shotType: x < 0 ? 'LEG' : x > 0 ? 'SQUARE_CUT' : 'STRAIGHT', inputTimeMs: d.idealContactTimeMs }, r));
     }
     expect(score.overs).toBe('5.0'); expect(score.wickets).toBe(0); expect(score.runs).toBeGreaterThanOrEqual(120); expect(score.runs).toBeLessThanOrEqual(180);
   });
@@ -361,7 +370,7 @@ describe('charging down the pitch', () => {
     for (const shot of ADVANCE.shots)
       expect(resolveShot(ball, { shotType: shot, inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance, shot).toBe(true);
     // A leg-side or square swipe is that shot, not a charge.
-    for (const shot of ['LEG', 'OFF'] as const)
+    for (const shot of ['LEG', 'SQUARE_CUT'] as const)
       expect(resolveShot(ball, { shotType: shot, inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance, shot).toBeFalsy();
     // And no charge at a ball that cannot be charged.
     const quick = delivery({ ...onTheStumps, style: 'EXPRESS', speedKph: 155 });

@@ -1,6 +1,10 @@
 import type { ShotOutcome } from './types';
-type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge';
-export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'>): Sound | null {
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge';
+export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'> & { edged?: boolean }): Sound | null {
+  // An edge has its own sound, and it is the sound of the wicket: the thin
+  // noise off the face is the whole story of the dismissal, so it is read
+  // before the general one for a wicket falling.
+  if (outcome.edged) return 'edge';
   if (outcome.isWicket) return 'wicket';
   if (!outcome.madeBatContact) return null;
   return outcome.runs === 4 || outcome.runs === 6 ? 'boundary' : 'hit';
@@ -16,6 +20,7 @@ export class GameAudio {
     ['hit', new URL('../assets/normal-hit.mp3', import.meta.url)],
     ['boundary', new URL('../assets/boundary-hit.mp3', import.meta.url)],
     ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
+    ['edge', new URL('../assets/bat-edge.mp3', import.meta.url)],
   ] as const;
   // Fetch before the innings; decoding and playback are unlocked by Start's tap.
   private downloads = this.files.map(async ([kind, url]) => {
@@ -58,10 +63,10 @@ export class GameAudio {
     // sensible to make of a sledge without its clip, so it stays silent.
     if (kind === 'sledge') return;
     const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.type = kind === 'hit' ? 'triangle' : 'sine';
-    osc.frequency.setValueAtTime(kind === 'hit' ? 720 : kind === 'wicket' ? 170 : kind === 'boundary' ? 540 : 240, now);
+    osc.type = kind === 'hit' || kind === 'edge' ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(kind === 'edge' ? 1550 : kind === 'hit' ? 720 : kind === 'wicket' ? 170 : kind === 'boundary' ? 540 : 240, now);
     osc.frequency.exponentialRampToValueAtTime(kind === 'boundary' ? 980 : 55, now + .18);
-    gain.gain.setValueAtTime(kind === 'bounce' ? .025 : .09, now); gain.gain.exponentialRampToValueAtTime(.001, now + .25);
+    gain.gain.setValueAtTime(kind === 'bounce' ? .025 : .09, now); gain.gain.exponentialRampToValueAtTime(.001, now + (kind === 'edge' ? .09 : .25));
     osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(now + .26);
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }

@@ -6,7 +6,7 @@ import type { ShotType } from '../src/game/types';
 const examples: [string, ShotType, number, number?, boolean?][] = [
   ['Guard · side view', 'STRAIGHT', 0], ['A · leg-side flick', 'LEG', -.3], ['A + W · long-on drive', 'LONG_ON', -.14],
   ['W · straight drive', 'STRAIGHT', 0], ['A vs bouncer · pull', 'LEG', -.02, 1.12], ['W charged · down the pitch', 'STRAIGHT', 0, .54, true],
-  ['D · off-side punch', 'OFF', .42], ['D + S · square cut', 'SQUARE_CUT', .46], ['D + S vs bouncer · cut', 'SQUARE_CUT', .46, 1.12],
+  ['D · square cut', 'SQUARE_CUT', .46], ['D vs bouncer · square cut', 'SQUARE_CUT', .46, 1.12],
 ];
 let time = -1;
 let playing = false;

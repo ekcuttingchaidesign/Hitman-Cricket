@@ -15,33 +15,26 @@ export function shotKey(key: string): 'A' | 'W' | 'D' | 'S' | null {
 }
 export function mapKeys(keys: string[]): ShotType | null {
   const normalized = [...new Set(keys.map(k => k.toUpperCase()))];
-  // Down and off is the cut, the fourth diagonal alongside A+W and W+D. It is
-  // read before the block, so a stroke already begun on D is finished as a cut
-  // rather than abandoned. Live, S pressed first still commits to the block at
-  // once — reaching for it first is deciding not to play a stroke — so the cut
-  // is D and then S, in that order.
-  if (normalized.includes('D') && normalized.includes('S')) return 'SQUARE_CUT';
-  // Defence beats anything else it is pressed with.
+  // Defence beats anything it is pressed with: a player reaching for the block
+  // has decided not to play a stroke.
   if (normalized.includes('S')) return 'DEFEND';
   if (normalized.includes('A') && normalized.includes('W')) return 'LONG_ON';
   if (normalized.includes('W') && normalized.includes('D')) return 'COVER_LONG_OFF';
   if (normalized.includes('A') && normalized.includes('D')) return null;
-  return normalized[0] === 'A' ? 'LEG' : normalized[0] === 'W' ? 'STRAIGHT' : normalized[0] === 'D' ? 'OFF' : null;
+  return normalized[0] === 'A' ? 'LEG' : normalized[0] === 'W' ? 'STRAIGHT' : normalized[0] === 'D' ? 'SQUARE_CUT' : null;
 }
 /**
- * Five 45-degree scoring sectors measured from up, the cut in the sixth one
- * down and to the off, and the block on the fan below. The cut takes its
- * sector out of the block's off-side half, which is the one direction a stroke
- * now competes for: down and to the leg the block keeps all the room it had,
- * and the sliver beyond that stays dead, so a sideways drag is still no shot.
+ * Five 45-degree scoring sectors measured from up, and a 90-degree fan straight
+ * down for the block. The slivers either side of that fan stay dead, so a
+ * sideways drag is still no shot at all. Straight out to the off is the cut:
+ * one flick of the thumb, the same as every other stroke.
  */
 export function mapSwipe(dx: number, dy: number): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
-  if (angle >= 112.5 && angle < 157.5) return 'SQUARE_CUT';
-  if (angle >= 157.5 || angle <= -135) return 'DEFEND';
+  if (Math.abs(angle) >= 135) return 'DEFEND';
   if (Math.abs(angle) > 112.5) return null;
-  return (['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'OFF'] as const)[Math.round(angle / 45) + 2] ?? null;
+  return (['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'] as const)[Math.round(angle / 45) + 2] ?? null;
 }
 export class InputManager {
   private held = new Set<string>();

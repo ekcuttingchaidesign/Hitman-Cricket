@@ -20,7 +20,7 @@ export const GAME = {
 } as const;
 export const LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSIDE_OFF'];
 /** The scoring strokes. Defence is not one of them and is never chosen for you. */
-export const SHOTS: ShotType[] = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'OFF', 'SQUARE_CUT'];
+export const SHOTS: ShotType[] = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'];
 export const LINE_X: Record<BallLine, number> = { OUTSIDE_LEG: -0.42, LEG: -0.14, MIDDLE: 0, OFF: 0.14, OUTSIDE_OFF: 0.42 };
 // `rush` shortens the flight beyond what the speed alone buys and `tight`
 // squeezes the timing windows, so a quick ball is a jolt rather than a number.
@@ -46,15 +46,14 @@ export const COMPATIBILITY: Record<BallLine, Record<ShotType, number>> = {
   // Defence suits every line — the bat comes down in front of the stumps
   // wherever the ball is — and it is resolved on its own terms before any of
   // this is read.
-  // The cut needs width. It is a back-foot stroke played square to a ball the
-  // batter can free his arms at, so it wants the ball further outside off than
-  // the off-side drive does, and it has nothing at all to offer on the stumps:
-  // cutting at a straight ball is how a batter drags one on.
-  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, OFF: 0, SQUARE_CUT: 0, DEFEND: 1 },
-  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1 },
-  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, OFF: 0.55, SQUARE_CUT: 0.2, DEFEND: 1 },
-  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, OFF: 1, SQUARE_CUT: 0.7, DEFEND: 1 },
-  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, OFF: 1, SQUARE_CUT: 1, DEFEND: 1 },
+  // The cut is the off side's square stroke, and it is at its best with width:
+  // a ball he can free his arms at goes away behind point. On the stumps there
+  // is no room to swing square, and down the leg side nothing at all.
+  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1 },
+  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, SQUARE_CUT: 0.1, DEFEND: 1 },
+  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, SQUARE_CUT: 0.4, DEFEND: 1 },
+  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, SQUARE_CUT: 0.85, DEFEND: 1 },
+  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, SQUARE_CUT: 1, DEFEND: 1 },
 };
 export const TIMING_SCORE: Record<TimingGrade, number> = { PERFECT: 1, GOOD: 0.82, OK: 0.58, POOR: 0.25, MISS: 0 };
 // A shot at least this compatible with the line counts as middled; below it the
@@ -65,7 +64,7 @@ export const SOLID_SHOT = 0.55;
 export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 // The cut is the only stroke that scores behind square: past ninety degrees the
 // ball runs away behind point rather than in front of it.
-export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, OFF: 52, SQUARE_CUT: 100, DEFEND: 0 };
+export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0 };
 /**
  * The square cut. It is the one stroke that answers a bouncer outside off: the
  * ball sits up at chest height with width on it, and a batter who rocks back
@@ -78,6 +77,13 @@ export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, S
  * price of playing square to a ball doing something off the pitch.
  */
 export const CUT = {
+  /**
+   * How far outside off a short ball has to finish before there is room to cut
+   * it. This gates the bouncer alone: a ball rearing at the body cannot be cut
+   * however well it is read. Off a length the stroke is judged by the
+   * compatibility table like every other, which is more forgiving, because on a
+   * length a ball on off stump can still be cut square.
+   */
   minWidth: 0.24,
   /** Above this the ball is up at the chest and the stroke is played standing tall. */
   highBallY: 0.78,

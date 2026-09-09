@@ -411,8 +411,6 @@ kbd{
 }
 .coach-cue.left{transform:rotate(-90deg)}
 .coach-cue.right{transform:rotate(90deg)}
-/* The cut is played down and to the off, so its cue sweeps the same diagonal. */
-.coach-cue.cut{transform:rotate(135deg)}
 .cue-track{
   width:100%;
   height:100%;

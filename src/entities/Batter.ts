@@ -83,12 +83,13 @@ const CUT_HIGH: Stroke = {
     grip: [.08, 1.43, .31], yaw: .32, heel: .22 },
 };
 /**
- * How wide the cut reaches. The inner limit is the width the stroke needs to be
- * playable at all, so the bat never comes back inside the body: swung at a ball
- * on the stumps it plays square of them anyway and the ball goes past it, which
- * is what cutting at a straight one deserves.
+ * How wide the cut reaches. It has to cover the off stump, because it is the
+ * off side's square stroke and a ball there is cuttable off a length — but it
+ * never comes back inside that: swung at one on middle or down the leg side the
+ * bat goes square of the stumps anyway and the ball passes it, which is what
+ * cutting at a straight one deserves.
  */
-const CUT_REACH: readonly [number, number] = [CUT.minWidth, .62];
+const CUT_REACH: readonly [number, number] = [.11, .62];
 const STROKES: Record<ShotType, Stroke> = {
   STRAIGHT: {
     contact: { ...GUARD, hip: [-0.05, .83, .14], chest: [.12, 1.17, .23], frontFoot: [.02, .08, .63],
@@ -125,14 +126,6 @@ const STROKES: Record<ShotType, Stroke> = {
     // Soft hands: the bat gives with the ball rather than following through.
     finish: { ...GUARD, hip: [-.06, .87, .09], chest: [.09, 1.21, .16], frontFoot: [.00, .08, .52],
       grip: [.34, .97, .34], batUp: [.02, .98, .19], batFace: [0, -.20, .98], yaw: 1.16, face: 0, heel: .03, leadElbow: .14 },
-  },
-  OFF: {
-    // Back-foot punch through the off side: make room, bend the knees, and push
-    // out at it with the face square to the bowler. Short of the cut's arc.
-    contact: { ...GUARD, hip: [-.16, .78, -.12], chest: [.01, 1.11, .07], frontFoot: [-.23, .08, .18],
-      backFoot: [-.19, .08, -.43], grip: [.31, .85, .27], batUp: [-.88, .43, -.19], batFace: [.10, .18, .98], yaw: 1.65, face: .52, heel: .02 },
-    finish: { ...GUARD, hip: [-.11, .85, -.10], chest: [.06, 1.21, .01], frontFoot: [-.23, .08, .18],
-      backFoot: [-.19, .08, -.43], grip: [.63, 1.26, .26], batUp: [-.66, -.22, -.72], batFace: [.10, .18, .98], yaw: .83, face: .7, heel: .06 },
   },
   SQUARE_CUT: CUT_STROKE,
 };
@@ -438,9 +431,8 @@ export class Batter {
     // somewhere along the selected sector. Wrong shots stay in their own reach.
     const zones: Record<ShotType, readonly [number, number]> = {
       LEG: [-.55, -.05], LONG_ON: [-.55, .08], STRAIGHT: [-.17, .17],
-      COVER_LONG_OFF: [-.08, .55], OFF: [.05, .55],
-      // The cut is played square and wide of the body: it reaches further out
-      // than the off-side punch and never comes back across the stumps.
+      COVER_LONG_OFF: [-.08, .55],
+      // The cut is played square and wide of the body.
       SQUARE_CUT: CUT_REACH,
       // Defence covers the stumps and a little either side, not the whole crease.
       DEFEND: [-.30, .30],

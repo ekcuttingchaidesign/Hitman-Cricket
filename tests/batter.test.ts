@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Batter, STROKE_CONTACT_MS, STROKE_DURATION_MS } from '../src/entities/Batter';
-import { ADVANCE, CUT, GAME, SHOTS } from '../src/config/gameplay';
+import { ADVANCE, GAME, LINE_X, SHOTS } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { Vector3 } from 'three';
 // Every stroke the batter can be asked to play, defence included.
@@ -49,7 +49,7 @@ describe('two-handed cricket animation', () => {
   });
   it('puts the blade at the ball when contact is presented', () => {
     const batter = new Batter();
-    for (const [shot, ballX] of [['LEG', -.3], ['LONG_ON', -.14], ['STRAIGHT', 0], ['COVER_LONG_OFF', .14], ['OFF', .42], ['DEFEND', 0], ['DEFEND', -.18]] as const) {
+    for (const [shot, ballX] of [['LEG', -.3], ['LONG_ON', -.14], ['STRAIGHT', 0], ['COVER_LONG_OFF', .14], ['SQUARE_CUT', .42], ['DEFEND', 0], ['DEFEND', -.18]] as const) {
       batter.reset(); batter.swing(shot, 0, ballX); batter.update(110);
       const point = batter.inspect().bladeContact;
       expect(point[0]).toBeCloseTo(ballX, 6); expect(point[1]).toBeCloseTo(.54, 6); expect(point[2]).toBeCloseTo(GAME.contactZ, 6);
@@ -181,12 +181,17 @@ describe('the square cut', () => {
   });
 
   it('never plays back across the stumps, whatever it is swung at', () => {
-    // Swung at a ball on the leg side the bat still goes square of the off
-    // stump, so the ball goes past it rather than the arms following it round.
-    for (const ballX of [-.55, -.14, 0, .1]) {
+    // Swung at a ball on the leg side the bat still goes square, out past the
+    // off stump, so the ball passes it rather than the arms following it round.
+    for (const ballX of [-.55, -.14, 0, .05]) {
       const blade = at(110, ballX).bladeContact;
-      expect(blade[0], `ball at ${ballX}`).toBeGreaterThanOrEqual(CUT.minWidth - 1e-9);
+      expect(blade[0], `ball at ${ballX}`).toBeGreaterThan(.1);
+      // And well clear of the ball it was swung at, on anything down the leg.
+      if (ballX < 0) expect(blade[0] - ballX, `ball at ${ballX}`).toBeGreaterThan(.2);
     }
+    // A ball on the off stump, though, it does reach: the cut is the off side's
+    // square stroke and there is nothing else out there to play it with.
+    expect(at(110, LINE_X.OFF).bladeContact[0]).toBeCloseTo(LINE_X.OFF, 6);
   });
 
   it('is played off the back foot, without striding down the pitch', () => {

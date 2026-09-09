@@ -4,25 +4,23 @@ import { outcomeSound } from '../src/game/Audio';
 
 describe('swipe directions', () => {
   it.each([
-    [-80, 0, 'LEG'], [-60, -60, 'LONG_ON'], [0, -80, 'STRAIGHT'], [60, -60, 'COVER_LONG_OFF'], [80, 0, 'OFF'],
-    // Down and to the off is the cut, in a 45-degree sector like the rest.
-    [60, 60, 'SQUARE_CUT'], [69, 40, 'SQUARE_CUT'], [40, 69, 'SQUARE_CUT'],
-    // The block keeps the fan below and to the leg, where nothing competes.
-    [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [-20, 75, 'DEFEND'], [20, 75, 'DEFEND'],
-    // The sliver to the leg of that fan stays dead: a sideways drag is no shot.
-    [-69, 40, null],
-    [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'OFF'],
+    [-80, 0, 'LEG'], [-60, -60, 'LONG_ON'], [0, -80, 'STRAIGHT'], [60, -60, 'COVER_LONG_OFF'], [80, 0, 'SQUARE_CUT'],
+    // Down is the block, on a 90-degree fan so a hurried drag still finds it.
+    [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [60, 60, 'DEFEND'], [-20, 75, 'DEFEND'],
+    // The slivers either side of that fan stay dead: a sideways drag is no shot.
+    [69, 40, null], [-69, 40, null],
+    [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'SQUARE_CUT'],
     [NaN, 0, null], [Infinity, 0, null],
   ])('maps (%s, %s) to %s', (x, y, result) => expect(mapSwipe(Number(x), Number(y))).toBe(result));
   it('keeps a useful tolerance around the cardinal directions', () => {
-    expect(mapSwipe(70, 15)).toBe('OFF'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');
+    expect(mapSwipe(70, 15)).toBe('SQUARE_CUT'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');
     expect(mapSwipe(15, 70)).toBe('DEFEND');
   });
-  it('gives the cut its own sector without taking the block off the leg side', () => {
-    // The cut owns the off-side diagonal, corner to corner.
-    for (const [x, y] of [[50, 50], [80, 40], [40, 80]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
-    // Straight down, and everything to the leg of it, is still the block.
-    for (const [x, y] of [[0, 80], [-40, 80], [-70, 70], [18, 78]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
+  it('gives the cut the whole off-side sector, and the block its whole fan', () => {
+    // One flick out to the off is the cut, with the same tolerance as the rest.
+    for (const [x, y] of [[80, 0], [70, -25], [70, 25]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('SQUARE_CUT');
+    // And nothing has been taken out of the block's fan to pay for it.
+    for (const [x, y] of [[0, 80], [-40, 80], [40, 80], [-70, 70], [70, 70]]) expect(mapSwipe(x, y), `${x},${y}`).toBe('DEFEND');
   });
 });
 
@@ -102,16 +100,14 @@ describe('arrow keys', () => {
   };
   it('plays the same five shots as the letters, combos included', () => {
     for (const [keys, shot] of [
-      [['ArrowLeft'], 'LEG'], [['ArrowUp'], 'STRAIGHT'], [['ArrowRight'], 'OFF'],
+      [['ArrowLeft'], 'LEG'], [['ArrowUp'], 'STRAIGHT'], [['ArrowRight'], 'SQUARE_CUT'],
       [['ArrowLeft', 'ArrowUp'], 'LONG_ON'], [['ArrowUp', 'ArrowRight'], 'COVER_LONG_OFF'],
       // A letter and an arrow are the same key, so a mixed pair is still a combo.
       [['A', 'ArrowUp'], 'LONG_ON'],
       // Down is the block, whichever key reaches for it, and it beats a stroke
       // pressed with it: a player blocking has decided not to play one.
       [['ArrowDown'], 'DEFEND'], [['s'], 'DEFEND'], [['ArrowDown', 'ArrowRight'], 'DEFEND'],
-      // Off and then down is the cut: a stroke already begun on D is finished
-      // as one rather than abandoned.
-      [['ArrowRight', 'ArrowDown'], 'SQUARE_CUT'], [['d', 's'], 'SQUARE_CUT'], [['D', 'ArrowDown'], 'SQUARE_CUT'],
+      [['ArrowRight', 'ArrowDown'], 'DEFEND'],
     ] as const) {
       const s = setup();
       for (const key of keys) press(s, key);
@@ -156,5 +152,11 @@ describe('user-supplied hit sounds', () => {
   it('does not play a hit sound on a miss or dismissal', () => {
     expect(outcomeSound({ runs: 0, madeBatContact: false, isWicket: false })).toBeNull();
     expect(outcomeSound({ runs: 0, madeBatContact: true, isWicket: true })).toBe('wicket');
+  });
+  it('gives an edge its own thin knick, ahead of the general wicket sound', () => {
+    // The noise off the face is the whole story of the dismissal.
+    expect(outcomeSound({ runs: 0, madeBatContact: true, isWicket: true, edged: true })).toBe('edge');
+    // And a wicket that is not an edge still sounds like one.
+    expect(outcomeSound({ runs: 0, madeBatContact: false, isWicket: true })).toBe('wicket');
   });
 });

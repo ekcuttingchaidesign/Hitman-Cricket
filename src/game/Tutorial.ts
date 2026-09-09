@@ -5,7 +5,7 @@ export interface TutorialStep {
   line: BallLine;
   shot: ShotType;
   /** Which way the on-screen cue sweeps. */
-  cue: 'up' | 'left' | 'right' | 'cut';
+  cue: 'up' | 'left' | 'right';
   key: string;
   swipe: string;
   brief: string;
@@ -16,10 +16,8 @@ export const TUTORIAL: readonly TutorialStep[] = [
     brief: 'On the stumps. Drive it straight back past the bowler.', praise: 'Straight drive!' },
   { line: 'LEG', shot: 'LEG', cue: 'left', key: 'A', swipe: 'Swipe right to left',
     brief: 'Coming down the leg side. Whip it away square.', praise: 'Flicked away!' },
-  { line: 'OUTSIDE_OFF', shot: 'OFF', cue: 'right', key: 'D', swipe: 'Swipe left to right',
-    brief: 'Wide outside off. Punch it away through the covers.', praise: 'Through the off side!' },
-  { line: 'OUTSIDE_OFF', shot: 'SQUARE_CUT', cue: 'cut', key: 'D, then S', swipe: 'Swipe down towards the off side',
-    brief: 'Wide again, and short. Rock back and cut it square.', praise: 'Square cut!' },
+  { line: 'OUTSIDE_OFF', shot: 'SQUARE_CUT', cue: 'right', key: 'D', swipe: 'Swipe left to right',
+    brief: 'Wide outside off. Rock back and cut it square behind point.', praise: 'Square cut!' },
 ];
 // Gentle and dead straight: the tutorial teaches the gesture, not the reading.
 const TUTORIAL_KPH = 88;

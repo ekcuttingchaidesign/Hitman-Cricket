@@ -301,7 +301,7 @@ export class GameScene {
     // An edge is not a catch in the deep. It flies off the face at gloves height
     // and the keeper has it before the batter has finished the stroke, so it is
     // placed where he stands rather than swept out along the stroke's angle.
-    if (outcome.edged) this.hitEnd.set(0.70, 1.14, -1.35);
+    if (outcome.edged) this.hitEnd.set(0.58, 0.42, -1.6);
     // A skied shot hangs long enough to be watched down; a middled one leaves
     // fast. The charge is worth watching all the way over the roof.
     this.flightMs = outcome.advance ? 2200 : outcome.defended ? 700 : outcome.edged ? 460 : outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
@@ -309,7 +309,10 @@ export class GameScene {
     // ground. Only a six leaves it, and only a mishit hangs.
     this.hitHeight = outcome.advance ? 32 : outcome.defended ? 0.05 : outcome.edged ? 0.18 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
       : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 0.22 : 0.6;
-    if (caught) {
+    // An edge is taken behind the stumps with nobody in the frame: the ball
+    // simply deflects off the face and dies back past him. A fielder placed
+    // there stands between the camera and the batter and fills the shot.
+    if (caught && !outcome.edged) {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     }
     this.bounceRing.visible = false;
@@ -341,7 +344,7 @@ export class GameScene {
     }
     if (result.madeBatContact) {
       this.struckAt(t, this.ball.position);
-      if (result.wicketType === 'CAUGHT' && t > 0.86) this.catcher.arm.rotation.x = -2.5;
+      if (result.wicketType === 'CAUGHT' && !result.edged && t > 0.86) this.catcher.arm.rotation.x = -2.5;
       this.ball.visible = t < 1;
       // The streak behind the ball is most of what sells a struck shot.
       this.trail.forEach((dot, i) => {
