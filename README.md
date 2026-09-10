@@ -109,9 +109,21 @@ and braces, the front arm is pulled down hard into the ribs, and that block is
 what whips the shoulders round and the arm over the top. The ball leaves just
 past vertical, from a hand two and a bit metres up. Then he falls away over the
 braced leg, the back leg swings through, he runs off down the pitch — and he
-stands back up. A follow-through held to the end of the ball leaves a man bent
-double over his own knee for a second and a half, watching a shot he cannot see,
-which is the tell of an animation that stopped rather than finished.
+stands back up. A follow-through held to its last frame leaves a man bent double
+over his own knee, watching a shot he cannot see, which is the tell of an
+animation that stopped rather than finished. It runs on its own clock from the
+moment of release rather than on the ball's flight, because the flight ends when
+the stroke is played: tied to that, a shot cut short strands him half way out of
+the follow-through for as long as the result takes to show.
+
+Standing still is the fielders' own pose, not a second one written out beside
+it. Both ends of the action are stationary — waiting at his mark, where the
+batter looks straight at him for half a second before every ball, and back on
+his feet once the ball has gone — and both used to be frames of the run held
+still, with the feet staggered mid-stride and the arms at the shortened reach a
+runner pumps them at, which puts both elbows out. He is the same body as the men
+in the field, so there is one answer to what standing looks like and one place
+it is written.
 
 He is lowest as the front foot lands and tallest as the ball goes: the hips
 travel up and over the braced leg. That is both what a delivery stride is for

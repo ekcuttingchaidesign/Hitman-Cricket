@@ -136,6 +136,20 @@ describe('the bowling action', () => {
     expect(bowler.root.position.z).toBeLessThan(POPPING_CREASE);
   });
 
+  it('falls away before it stands up, rather than jumping to the end', () => {
+    // The follow-through has to actually run: the body travels on past the
+    // crease over the first third of it. Pinning that to its finished value and
+    // only animating the stand-up teleports him a stride and a half forward at
+    // the instant the ball leaves his hand.
+    const marks = [0, .1, .2, .34].map(p => { bowler.followThrough(p); return bowler.root.position.z; });
+    for (let i = 1; i < marks.length; i++) expect(marks[i]).toBeLessThan(marks[i - 1]);
+    // And having run off, he stays where he stopped rather than drifting on.
+    bowler.followThrough(.34);
+    const stopped = bowler.root.position.z;
+    bowler.followThrough(1);
+    expect(bowler.root.position.z).toBeCloseTo(stopped, 5);
+  });
+
   it('gets back on his feet instead of holding the follow-through', () => {
     // Freezing on the last frame of a follow-through leaves a man bent double
     // over his own knee until the next ball, which is the tell of an animation
@@ -152,6 +166,30 @@ describe('the bowling action', () => {
     for (let i = 0; i < 2; i++) expect(stood.hands[i][1]).toBeLessThan(stood.shoulders[i][1]);
     // And he is still facing the batter, watching the shot.
     expect(Math.abs(stood.yaw - Math.PI)).toBeLessThan(.1);
+  });
+
+  it('stands like the fielders do, at both ends of the action', () => {
+    // He waits at his mark in full view of the batter for half a second before
+    // every ball, and stands again once it has gone. Both used to be frames of
+    // the run held still: feet staggered mid-stride, and the arms carried at
+    // the shortened reach a runner pumps them at, which puts both elbows out
+    // and reads as a man stopped rather than a man standing. The rest pose is
+    // the fielders' own now, so there is one answer to what standing looks like.
+    const resting = new Cricketer().inspect();
+    for (const stood of [at(0), flight(1)]) {
+      expect(stood.hip[1]).toBeCloseTo(resting.hip[1], 5);
+      for (let i = 0; i < 2; i++) {
+        // Arms hanging, not folded up against the ribs.
+        expect(stood.armReach[i]).toBeCloseTo(resting.armReach[i], 5);
+        expect(stood.armReach[i]).toBeGreaterThan(.85);
+        expect(stood.legReach[i]).toBeCloseTo(resting.legReach[i], 5);
+        expect(stood.feet[i][1]).toBeCloseTo(resting.feet[i][1], 5);
+      }
+      // Weight on both feet, level, and squarely apart rather than staggered.
+      expect(stood.feet[0][1]).toBeCloseTo(stood.feet[1][1], 5);
+      expect(Math.abs(stood.feet[0][2] - stood.feet[1][2])).toBeLessThan(.2);
+      expect(Math.abs(stood.feet[0][0] - stood.feet[1][0])).toBeGreaterThan(.25);
+    }
   });
 
   it('stands still at the top of his mark', () => {

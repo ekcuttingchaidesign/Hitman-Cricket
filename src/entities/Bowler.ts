@@ -54,9 +54,13 @@ const BACK_FOOT_PLANT = APPROACH + BOUND_LEAP + .15;
 const FRONT_FOOT_PLANT = RELEASE_ADVANCE + .14;
 /** The two strides of the run-off, and where each of them puts a foot down. */
 const BACK_LAND = .5, FRONT_LAND = .72;
-/** How far through the ball's flight he is back on his feet. */
+/** How far through `followThrough` the falling-away ends and standing up begins. */
+const FOLLOWED = .34;
+/** And how far through it he is back on his feet. */
 const RECOVERED = .78;
 const STRIDE = 1.30;
+/** How much of the run-up he spends leaving the standing pose behind. */
+const WALK_UP = .12;
 /** How far in front of the hips a running foot comes down. */
 const FOOT_AHEAD = .30;
 
@@ -177,7 +181,7 @@ export class Bowler {
     // the next ball leaves a man bent double over his own knee for a second and
     // a half, watching a shot he cannot see, which is the one thing nobody on a
     // cricket field does.
-    this.apply(1, 1, span(progress, .34, RECOVERED));
+    this.apply(1, span(progress, 0, FOLLOWED), span(progress, FOLLOWED, RECOVERED));
   }
 
   /** Where the ball sits in his fingers, for a test that the two line up. */
@@ -217,7 +221,12 @@ export class Bowler {
 
     this.feet(pose, t, after, travelled);
     this.arms(pose, t, after);
-    if (recover > 0) this.stand(pose, ease(recover), travelled);
+    // He is stood still at both ends of this: waiting at the top of his mark,
+    // and back on his feet once the ball has gone. Holding a frame of the run
+    // instead — which is what waiting used to be — leaves him stopped mid-stride
+    // with his weight on nothing and both elbows out, for the half second the
+    // batter spends looking straight at him before every ball.
+    this.stand(pose, after > 0 ? ease(recover) : 1 - ease(span(t, 0, WALK_UP)));
     this.figure.apply(pose);
   }
 
@@ -246,7 +255,7 @@ export class Bowler {
       // He stands at the top of his mark and the gait fades in under him, so the
       // first frame the batter sees is a bowler waiting rather than one frozen
       // in mid-stride.
-      const gait = ease(span(t, 0, .12));
+      const gait = ease(span(t, 0, WALK_UP));
       const contact = .34;
       for (let i = 0; i < 2; i++) {
         const offset = i * .5;
@@ -321,27 +330,38 @@ export class Bowler {
    * under him — as a step rather than a slide, since a foot on the ground is
    * still a foot on the ground.
    */
-  private stand(pose: Figure, amount: number, travelled: number) {
-    const to = (target: THREE.Vector3, x: number, y: number, z: number) =>
-      target.lerp(new THREE.Vector3(x, y, z), amount);
-    const hipY = .845, chestY = hipY + SPINE;
-    to(pose.hip, 0, hipY, 0);
-    to(pose.chest, 0, chestY, .015);
+  private stand(pose: Figure, amount: number) {
+    if (amount <= 0) return;
+    // The rest pose is the fielders' own, not a second one written out beside
+    // it: the bowler is the same body, and two hand-copied versions of "stood
+    // still" drift apart the moment either is touched. It is only turned into
+    // his frame on the way in — his lateral offsets are measured across a body
+    // facing the batter, and dropping the fielder's straight in would put his
+    // right foot under his left hip.
+    const target = this.figure.stand();
+    // Square up first: he finishes the follow-through turned off the pitch, and
+    // a man standing still watching the ball is facing down it. `across` has to
+    // be taken from where he ends up, not where he was, or the feet settle on
+    // the bearing he was turning away from.
     pose.yaw = THREE.MathUtils.lerp(pose.yaw, Math.PI, amount);
-    pose.lean = THREE.MathUtils.lerp(pose.lean, 0, amount);
-    pose.headYaw = THREE.MathUtils.lerp(pose.headYaw, 0, amount);
-    pose.headPitch = THREE.MathUtils.lerp(pose.headPitch, .04, amount);
-    // The feet come back under him along an arc, so each one steps home.
-    const lift = Math.sin(amount * Math.PI) * .12;
     const across = new THREE.Vector3(Math.cos(pose.yaw), 0, -Math.sin(pose.yaw));
-    for (const [foot, lateral, fore] of [[pose.leftFoot, -.15, .07], [pose.rightFoot, .15, -.07]] as const) {
-      const home = new THREE.Vector3(0, .06, travelled - travelledAt(1) + fore).addScaledVector(across, lateral);
-      foot.lerp(home, amount);
-      foot.y += lift;
-    }
-    // And the arms drop to his sides.
-    for (const [hand, side] of [[pose.leftHand, -1], [pose.rightHand, 1]] as const)
-      to(hand, side * .215, chestY - .42, .085);
+    const settle = (point: THREE.Vector3, to: THREE.Vector3) =>
+      point.lerp(new THREE.Vector3(0, to.y, to.z).addScaledVector(across, to.x), amount);
+
+    settle(pose.hip, target.hip);
+    settle(pose.chest, target.chest);
+    pose.lean = THREE.MathUtils.lerp(pose.lean, target.lean, amount);
+    pose.headYaw = THREE.MathUtils.lerp(pose.headYaw, target.headYaw, amount);
+    pose.headPitch = THREE.MathUtils.lerp(pose.headPitch, target.headPitch, amount);
+    settle(pose.leftHand, target.leftHand);
+    settle(pose.rightHand, target.rightHand);
+    settle(pose.leftFoot, target.leftFoot);
+    settle(pose.rightFoot, target.rightFoot);
+    // Each foot arcs on its way home so it steps rather than slides. The arc
+    // closes itself at both ends, so a pose already settled stays put.
+    const lift = Math.sin(amount * Math.PI) * .11;
+    pose.leftFoot.y += lift;
+    pose.rightFoot.y += lift;
   }
 
   /** Both arms, each on its own circle about its own shoulder. */

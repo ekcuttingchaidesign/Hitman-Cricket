@@ -6,6 +6,8 @@ import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
+/** How long the bowler takes to fall away, run off, and stand back up. */
+const BOWLER_FOLLOW_MS = 1600;
 /** Where a beaten ball runs out of steam: just short of the stumps. */
 const BEATEN_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
 const colors = { grass: 0x668b49, grassLight: 0x70974e, pitch: 0xcbb283, navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
@@ -57,6 +59,9 @@ export class GameScene {
   private bailsBrokeAt = 0;
   private flightMs: number = GAME.hitAnimationMs;
   private hitHeight = 0;
+  /** When the ball left his hand, so the follow-through can finish on its own. */
+  private releasedAt = Infinity;
+  private released = false;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -200,7 +205,7 @@ export class GameScene {
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.catcher.root.position.set(12, 0, 20); this.catcher.root.rotation.y = Math.atan2(-12, -20); this.catcher.catchAt(0);
-    this.bowler.reset();
+    this.bowler.reset(); this.released = false; this.releasedAt = Infinity;
   }
   runup(t: number) { this.bowler.runup(t); }
   /**
@@ -228,7 +233,11 @@ export class GameScene {
     const age = (progress - bounce) * delivery.durationMs;
     this.bounceRing.visible = age > 0 && age < 260;
     if (this.bounceRing.visible) { this.bounceRing.position.set(pos.x, 0.037, delivery.bounceZ); this.bounceRing.scale.setScalar(1 + age / 65); (this.bounceRing.material as THREE.MeshBasicMaterial).opacity = 1 - age / 260; }
-    this.bowler.followThrough(progress);
+    // The follow-through runs on its own clock from here. Driving it off the
+    // ball's flight ties it to a phase that ends the moment the stroke is
+    // played, which strands him half way out of it — bent over, not standing,
+    // not moving — for the second the result takes to show.
+    this.released = true;
   }
   swing(shot: ShotType, now: number, delivery: Delivery, charging = false) {
     const contact = ballPosition(delivery, 1);
@@ -339,6 +348,10 @@ export class GameScene {
   }
   render(now: number) {
     this.batter.update(now);
+    if (this.released) {
+      if (!Number.isFinite(this.releasedAt)) this.releasedAt = now;
+      this.bowler.followThrough((now - this.releasedAt) / BOWLER_FOLLOW_MS);
+    }
     const outcome = this.hitOutcome, since = now - this.hitStart;
     // A skied ball shakes the same whatever it becomes, so the camera cannot
     // give the result away before the fielder has settled under it.
