@@ -23,6 +23,14 @@ npm run preview  # Serve the production build locally
 
 The production build can be served by any static web host. `base: './'` supports deployment in a subdirectory.
 
+```sh
+npx vite build --config vite.single.config.ts   # one self-contained HTML file
+```
+
+That build inlines every asset as a data URI and splits nothing, so `dist-single`
+holds a page with nothing left to fetch — which is what a branch preview needs
+when the only real deployment tracks the default branch.
+
 ## Start screen
 
 A phone gets the cover art. `src/assets/cover.webp` fills the screen, `title.webp` sits in the sky, and **Play** and **How to play** sit low on the pitch at the artwork's own proportions: a button is 54% of the width, and the pair end a twentieth off the foot of the screen. Nothing else is on it — the scoreboard, the confidence meter, the field labels and the button row all wait until there is an innings to describe. A personal best appears above the buttons once there is one. Across a landscape phone a portrait cover crops to nothing useful, so the live ground stands in for it and the lockup sits over the real thing.
