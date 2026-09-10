@@ -87,6 +87,37 @@ Reaching for a shot the line does not suit skies it whatever the timing, and so 
 
 Deliveries are not all the same pace, and the gap is the point. A spinner floats down in about 1.3 seconds and a seam ball takes under 0.9; an **express** ball arrives in 0.43 and tightens the timing windows with it. You have to read the pace before you can time it.
 
+## The bowler
+
+He is a right-arm quick, and the action is the five things a real one does, in
+the order that makes them work. He runs in — a proper approach, eight metres of
+it, with the stride tied to the ground he covers so his feet plant rather than
+skate. He leaps into the bound and turns side-on in the air, bowling arm swept
+down and back, front arm reaching up at the target: the gather, where the energy
+is stored. His back foot lands parallel to the crease and takes the load. The
+front leg reaches out and braces, the front arm is pulled down hard into the
+ribs, and that block is what whips the shoulders round and the arm over the top.
+The ball leaves just past vertical, from a hand two and a bit metres up. Then he
+falls away over the braced leg, the back leg swings through, and he runs off
+down the pitch.
+
+The bowling arm is a straight arm on a circle rather than a hand the limb solver
+chases, because that is what it physically is: an arm that bends at the elbow
+through the delivery swing is a throw, and it is the one thing the laws of the
+game actually measure. Driving it by angle means it cannot quietly soften into
+one, and a test measures it anyway.
+
+Two things are checked rather than watched. The ball has to leave his hand at
+the point the delivery's own trajectory starts from, or it appears out of the
+air beside him. And no limb may be asked to reach further than it is long: past
+that the two-bone solver clamps, the shin stops short of the foot, and on screen
+the leg has come off at the knee. Both plants — the back foot he runs up over
+and the braced front foot — are measured in the world he is travelling through
+rather than in his own frame, because a foot that slides while it is carrying
+weight is the whole tell of a figure being dragged along instead of running. The
+front foot also lands behind the popping crease, since the game has no way to
+call a no-ball.
+
 ## Special deliveries
 
 The bowler is not a random number generator — he watches the innings and answers it.
@@ -129,7 +160,9 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/game/`: seeded delivery generation that tracks what the innings has done to the bowler, continuous bounce/swing/spin trajectories with per-delivery length, shot resolution, scorekeeping, keyboard input, and small Web Audio effects.
 - `src/game/Tutorial.ts`: the three scripted coaching balls, their deliveries, and an outcome that never dismisses the player.
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
-- `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. The popping crease is 1.2m in front of each wicket and the batter stands inside it rather than over the stumps, so the ball is met about a metre in front of them; `GAME.travelScale` carries the shorter flight that leaves, and every delivery keeps the duration it was tuned to. Bowler and fielders are modelled from smooth spheres, capsules, and rounded boxes with sphere joints, so they read as sculpted clay rather than stacked cuboids; the distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
+- `src/entities/Cricketer.ts`: the body the bowler and every fielder are built from, and `src/entities/rig.ts`: the two-bone solver and segment placement they share with the batter.
+- `src/entities/Bowler.ts`: the bowling action, from the top of the mark to the end of the follow-through.
+- `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. The popping crease is 1.2m in front of each wicket and the batter stands inside it rather than over the stumps, so the ball is met about a metre in front of them; `GAME.travelScale` carries the shorter flight that leaves, and every delivery keeps the duration it was tuned to. Bowler and fielders are articulated rather than stacked: every limb is solved between two points and drawn as a tapered segment with a joint sphere buried in each end, so an elbow reads as a bend instead of a gap. The distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
 - **No stroke passes the bat through the batter.** The pick-up holds the blade up behind one shoulder and the contact holds it down at the ball, half a turn away, so the short path between them can run round the back of his hip; a wrapped follow-through ends behind the other shoulder, so the short path home can run through his head. Both are steered by the poses either side of them — the leg-side flick lays its handle back so the blade comes down in front of him, the straight drive finishes a little wider of the grille, and the cut and the long-on drive each name a `recover` pose. A test measures the bat against the ellipsoids the figure is actually built from — trunk, hips and helmet — every 8ms of every stroke, at both lengths, across the full width of the crease, and fails if it reaches inside any of them.
 
 - `src/entities/Batter.ts`: articulated right-handed batter with eight strokes — the five shot directions, a back-foot pull the leg-side input selects at bouncer height, a square cut that stands tall for a ball at the chest, and a charge down the pitch the confidence meter unlocks — built from smooth primitives, with the bat blade extruded from a real cricket-bat outline, with a side-on guard, flexed knees, the back bent forward over the ball, the head carried on the spine, the bat cocked back over the shoulder so the toe points at first slip with the face opened up, a shared two-hand bat grip, and two-bone arm/leg posing. Both fists ride the bat's own rotation — the right hand below the left on the handle, knuckles lined up along it — and only the gauntlets turn, back up the forearm; a hand free to face its own arm ends up gripping the handle a quarter-turn away from the other one. Elbow hints are scored for room and turned around the arm when one would bury the elbow in the chest or lay the forearm along the handle. The bat carries a full orientation — a handle axis plus a blade face — and poses slerp that rotation, so the blade travels a clean arc instead of rolling at random when a stroke reverses it. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut rocks back onto the back foot, strikes square with a horizontal bat, and wraps the blade up over the front shoulder. A stroke may also name a `recover` pose, the shape the bat comes down through on its way back to the guard, for a follow-through the bat cannot travel home from in a straight line without passing through the batter. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.
@@ -140,6 +173,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, and the WhatsApp share message.
 - `tests/batter.test.ts`: grip attachment, hand order and fist alignment on the handle, guard geometry, per-stroke footwork, blade placement at contact, elbow clearance from trunk and handle, hands kept in front of the shoulders through every stroke, and continuous blade travel with a squared face.
+- `tests/bowler.test.ts`: the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
 - `tests/scoreboard.test.ts`: a lamp face for every character the board can show, the dark grid behind the lit one, and panel sizing.
 - `tests/mobile.test.ts`: swipe directions including the defensive fan and its dead slivers, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 
@@ -147,7 +181,7 @@ Lines are shuffled in bags of five, giving six of each base line over a 30-ball 
 
 The score is recorded when a ball is resolved and displayed at visual contact. The result animation completes before the end screen; no additional ball is generated after the innings ends. Fielders are scenery except for the scripted catcher. There are no extras, running controls, teams, or full fielding AI.
 
-During local development, open `/tools/pose-lab.html` to review the guard, backlift, contact, follow-through, and recovery for every stroke side by side, and orbit the whole grid — a stroke played square cannot be judged from the one angle the game happens to use. This review page is excluded from the production build. The animation tests verify connected grips, reachable arms, planted back toes, distinct footwork, and blade-to-ball alignment across the delivery range.
+During local development, open `/tools/pose-lab.html` to review the guard, backlift, contact, follow-through, and recovery for every stroke side by side, and orbit the whole grid — a stroke played square cannot be judged from the one angle the game happens to use. `/tools/bowler-lab.html` does the same for the bowling action, one panel per moment, and carries the fielders' own figure below it; a side-on gather cannot be judged from behind the bowler's arm either. This review page is excluded from the production build. The animation tests verify connected grips, reachable arms, planted back toes, distinct footwork, and blade-to-ball alignment across the delivery range.
 
 ## Reproduce and inspect
 

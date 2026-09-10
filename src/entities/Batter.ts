@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ADVANCE, CUT, GAME } from '../config/gameplay';
+import { solveJoint } from './rig';
 import type { ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -268,19 +269,7 @@ function mix(a: Pose, b: Pose, amount: number): Pose {
   };
 }
 
-/** Two-bone joint with a stable bend plane and fixed segment lengths. */
-export function solveJoint(start: THREE.Vector3, end: THREE.Vector3, upper: number, lower: number, pole: THREE.Vector3) {
-  const axis = end.clone().sub(start);
-  const distance = THREE.MathUtils.clamp(axis.length(), .001, upper + lower - .001);
-  axis.normalize();
-  const along = (upper * upper - lower * lower + distance * distance) / (2 * distance);
-  const height = Math.sqrt(Math.max(0, upper * upper - along * along));
-  const bend = pole.clone().sub(start);
-  bend.addScaledVector(axis, -bend.dot(axis));
-  if (bend.lengthSq() < .0001) bend.set(1, 0, 0).cross(axis);
-  bend.normalize();
-  return start.clone().addScaledVector(axis, along).addScaledVector(bend, height);
-}
+export { solveJoint } from './rig';
 
 export class Batter {
   readonly root = new THREE.Group();

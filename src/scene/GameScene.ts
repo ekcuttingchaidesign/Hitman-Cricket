@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Batter } from '../entities/Batter';
+import { Bowler } from '../entities/Bowler';
+import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
 import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
@@ -27,54 +28,9 @@ function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sides), sides > 8 ? soft(color, 0.8) : mat(color));
   mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
-interface Player { root: THREE.Group; arm: THREE.Group; legs: THREE.Group[] }
-// One set of smooth primitives, scaled into limbs and torsos: spheres carry the
-// joints so every fielder reads as a soft sculpted figure rather than a stack.
-const SHAPES = {
-  ball: new THREE.SphereGeometry(1, 22, 15),
-  tube: new THREE.CylinderGeometry(0.5, 0.5, 1, 18),
-  soft: new RoundedBoxGeometry(1, 1, 1, 4, 0.3),
-};
-function part(parent: THREE.Object3D, shape: keyof typeof SHAPES, color: number, scale: [number, number, number], position: [number, number, number] = [0, 0, 0]) {
-  const mesh = new THREE.Mesh(SHAPES[shape], soft(color));
-  mesh.scale.set(...scale); mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true;
-  parent.add(mesh); return mesh;
-}
-function limb(parent: THREE.Object3D, color: number, radius: number, length: number, y: number) {
-  part(parent, 'tube', color, [radius * 2, length, radius * 2], [0, y - length / 2, 0]);
-  return part(parent, 'ball', color, [radius, radius, radius], [0, y - length, 0]);
-}
-function player(color: number): Player {
-  const root = new THREE.Group();
-  part(root, 'ball', color, [0.225, 0.215, 0.155], [0, 1.20, 0]);
-  part(root, 'ball', color, [0.195, 0.19, 0.14], [0, 0.97, 0]);
-  part(root, 'ball', colors.white, [0.205, 0.15, 0.145], [0, 0.83, 0]);
-  // A visible neck and shoulder caps keep the figure from reading as a skittle.
-  part(root, 'tube', colors.skin, [0.115, 0.17, 0.115], [0, 1.44, 0]);
-  for (const x of [-0.205, 0.205]) part(root, 'ball', color, [0.108, 0.10, 0.108], [x, 1.325, 0]);
-  const legs = [-0.115, 0.115].map(x => {
-    const leg = new THREE.Group(); leg.position.set(x, 0.8, 0); root.add(leg);
-    limb(leg, colors.white, 0.095, 0.36, 0);
-    limb(leg, colors.white, 0.08, 0.33, -0.36);
-    const shoe = new THREE.Group(); shoe.position.y = -0.69; leg.add(shoe);
-    part(shoe, 'soft', colors.white, [0.185, 0.11, 0.30], [0, 0.01, 0.05]);
-    part(shoe, 'ball', colors.white, [0.085, 0.05, 0.055], [0, -0.015, 0.19]);
-    return leg;
-  });
-  part(root, 'ball', colors.skin, [0.175, 0.19, 0.175], [0, 1.63, 0]);
-  part(root, 'ball', color, [0.185, 0.14, 0.19], [0, 1.70, -0.015]);
-  part(root, 'soft', color, [0.34, 0.048, 0.22], [0, 1.68, 0.15]);
-  const arm = new THREE.Group(); arm.position.set(0.235, 1.33, 0); root.add(arm);
-  limb(arm, color, 0.075, 0.24, 0);
-  const forearm = new THREE.Group(); forearm.position.y = -0.24; arm.add(forearm);
-  limb(forearm, colors.skin, 0.065, 0.22, 0);
-  part(forearm, 'ball', colors.skin, [0.085, 0.09, 0.085], [0, -0.24, 0]);
-  const other = new THREE.Group(); other.position.set(-0.255, 1.33, 0.02); other.rotation.z = -0.18; root.add(other);
-  limb(other, color, 0.075, 0.24, 0);
-  limb(other, colors.skin, 0.065, 0.22, -0.24);
-  part(other, 'ball', colors.skin, [0.085, 0.09, 0.085], [0, -0.5, 0]);
-  return { root, arm, legs };
-}
+// The ball and its trail are the only things left that want a bare sphere;
+// every figure on the field is a Cricketer, which carries its own primitives.
+const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
 
 export class GameScene {
   readonly renderer: THREE.WebGLRenderer;
@@ -82,8 +38,8 @@ export class GameScene {
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   private world = new THREE.Group();
   private batter = new Batter();
-  private bowler = player(colors.orange);
-  private catcher = player(colors.orange);
+  private bowler = new Bowler();
+  private catcher = new Cricketer();
   private ball: THREE.Mesh;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
@@ -124,7 +80,6 @@ export class GameScene {
     this.scene.add(sun);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
-    this.bowler.root.position.set(0, 0, 21);
     this.catcher.root.position.set(12, 0, 20);
     this.world.add(this.batter.root, this.bowler.root, this.catcher.root);
     this.ball = new THREE.Mesh(SHAPES.ball, soft(0xe84829, 0.55));
@@ -176,7 +131,7 @@ export class GameScene {
     this.createStadium();
     // Fielders are scenery except the one scripted catcher.
     [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]].forEach(([x, z]) => {
-      const fielder = player(colors.orange); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
+      const fielder = new Cricketer(); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
     });
   }
   private createStadium() {
@@ -244,16 +199,10 @@ export class GameScene {
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
-    this.catcher.root.position.set(12, 0, 20); this.catcher.arm.rotation.x = 0;
-    this.bowler.root.position.set(0, 0, 21); this.bowler.arm.rotation.x = 0;
-    this.bowler.legs.forEach(leg => leg.rotation.x = 0);
+    this.catcher.root.position.set(12, 0, 20); this.catcher.root.rotation.y = Math.atan2(-12, -20); this.catcher.catchAt(0);
+    this.bowler.reset();
   }
-  runup(t: number) {
-    this.bowler.root.position.z = 21 - t * 3;
-    this.bowler.root.position.y = Math.abs(Math.sin(t * Math.PI * 6)) * 0.055;
-    this.bowler.legs.forEach((leg, i) => leg.rotation.x = Math.sin(t * 20 + i * Math.PI) * 0.35);
-    this.bowler.arm.rotation.x = t > 0.55 ? -(t - 0.55) / 0.45 * Math.PI * 2 : Math.sin(t * 18) * 0.6;
-  }
+  runup(t: number) { this.bowler.runup(t); }
   /**
    * Past the bat, the ball eases through to the stumps over the rest of the
    * late-swing window instead of running on at full speed. That window is worth
@@ -279,7 +228,7 @@ export class GameScene {
     const age = (progress - bounce) * delivery.durationMs;
     this.bounceRing.visible = age > 0 && age < 260;
     if (this.bounceRing.visible) { this.bounceRing.position.set(pos.x, 0.037, delivery.bounceZ); this.bounceRing.scale.setScalar(1 + age / 65); (this.bounceRing.material as THREE.MeshBasicMaterial).opacity = 1 - age / 260; }
-    this.bowler.arm.rotation.x = Math.PI * 0.5;
+    this.bowler.followThrough(progress);
   }
   swing(shot: ShotType, now: number, delivery: Delivery, charging = false) {
     const contact = ballPosition(delivery, 1);
@@ -313,7 +262,9 @@ export class GameScene {
     // simply deflects off the face and dies back past him. A fielder placed
     // there stands between the camera and the batter and fills the shot.
     if (caught && !outcome.edged) {
-      this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z); this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
+      this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z);
+      this.catcher.root.rotation.y = Math.atan2(-this.hitEnd.x, -this.hitEnd.z);
+      this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     }
     this.bounceRing.visible = false;
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
@@ -344,7 +295,7 @@ export class GameScene {
     }
     if (result.madeBatContact) {
       this.struckAt(t, this.ball.position);
-      if (result.wicketType === 'CAUGHT' && !result.edged && t > 0.86) this.catcher.arm.rotation.x = -2.5;
+      if (result.wicketType === 'CAUGHT' && !result.edged) this.catcher.catchAt(THREE.MathUtils.clamp((t - 0.62) / 0.24, 0, 1));
       this.ball.visible = t < 1;
       // The streak behind the ball is most of what sells a struck shot.
       this.trail.forEach((dot, i) => {
@@ -405,7 +356,12 @@ export class GameScene {
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });
     // The shared character primitives outlive any one scene; the rest is ours.
+    // That now covers the figures too — bowler and fielders are built from one
+    // set of geometries and one set of materials, and freeing either would take
+    // them out from under the next scene to be built.
     Object.values(SHAPES).forEach(shape => geometries.delete(shape));
+    FIGURE_ASSETS.shapes.forEach(shape => geometries.delete(shape));
+    FIGURE_ASSETS.materials.forEach(material => mats.delete(material));
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); materials.clear(); this.renderer.dispose();
   }
 }
