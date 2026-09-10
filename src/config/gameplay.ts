@@ -11,7 +11,7 @@ export const GAME = {
   // Arcade time scaling gives the player time to read a 3D ball on a small
   // screen. It carries the shorter flight the deeper crease leaves, so every
   // delivery keeps the duration it was tuned to.
-  travelScale: 1.79, readyMs: 550, runupMs: 820, resultMs: 1050, hitAnimationMs: 1250,
+  travelScale: 1.79, readyMs: 550, runupMs: 840, resultMs: 1050, hitAnimationMs: 1250,
   timing: { perfect: 40, good: 78, ok: 135, poor: 205 }, fastTimingScale: 0.82,
   // How steeply a normal ball climbs off the pitch; specials override it.
   rise: 1.25,
@@ -20,7 +20,7 @@ export const GAME = {
   // What a ball off a length takes to arrive, and how much of a slower one's
   // pace is held back off the hand and paid for later in the flight. See
   // `flightProgress`: this is the whole of what makes a slower ball a surprise.
-  nominalFlightMs: 880, slowBallDrag: 0.62, maxSlowBallDrag: 0.42,
+  nominalFlightMs: 830, slowBallDrag: 0.62, maxSlowBallDrag: 0.42,
 } as const;
 export const LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSIDE_OFF'];
 /** The scoring strokes. Defence is not one of them and is never chosen for you. */
@@ -36,16 +36,16 @@ export const LINE_X: Record<BallLine, number> = { OUTSIDE_LEG: -0.42, LEG: -0.14
 // a bouncer lands short and rears. Zero-weight styles are only ever bowled as
 // specials, by the state of the innings.
 export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: number; label: string; rush?: number; tight?: boolean; bounce?: number; rise?: number }> = {
-  NORMAL: { weight: 0.36, min: 115, max: 130, label: 'SEAM' },
-  FAST: { weight: 0.14, min: 137, max: 153, label: 'FAST', rush: 0.80, tight: true },
-  EXPRESS: { weight: 0.05, min: 158, max: 170, label: 'EXPRESS', rush: 0.62, tight: true },
+  NORMAL: { weight: 0.36, min: 122, max: 138, label: 'SEAM' },
+  FAST: { weight: 0.14, min: 142, max: 158, label: 'FAST', rush: 0.80, tight: true },
+  EXPRESS: { weight: 0.05, min: 164, max: 176, label: 'EXPRESS', rush: 0.64, tight: true },
   SLOWER: { weight: 0.06, min: 78, max: 98, label: 'SLOWER BALL', rush: 1.15 },
-  SWING_IN: { weight: 0.155, min: 110, max: 135, label: 'INSWINGER' },
-  SWING_OUT: { weight: 0.145, min: 110, max: 135, label: 'OUTSWINGER' },
+  SWING_IN: { weight: 0.155, min: 118, max: 140, label: 'INSWINGER' },
+  SWING_OUT: { weight: 0.145, min: 118, max: 140, label: 'OUTSWINGER' },
   OFF_SPIN: { weight: 0.045, min: 72, max: 92, label: 'OFF SPIN' },
   LEG_SPIN: { weight: 0.045, min: 72, max: 92, label: 'LEG SPIN' },
-  YORKER: { weight: 0, min: 152, max: 163, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
-  SHORT: { weight: 0, min: 118, max: 134, label: 'BOUNCER', rush: 0.95, bounce: 10.4, rise: 2.9 },
+  YORKER: { weight: 0, min: 158, max: 170, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
+  SHORT: { weight: 0, min: 132, max: 168, label: 'BOUNCER', rush: 0.95, bounce: 10.4, rise: 2.9 },
 };
 // The bowler answers being hit, and mixes his pace up when he has been quick.
 export const SPECIALS = { sixesForYorker: 3, quickForSlower: 4, shortChance: 0.13 };

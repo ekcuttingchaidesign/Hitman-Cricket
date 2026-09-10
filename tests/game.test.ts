@@ -499,7 +499,9 @@ describe('a slower ball is meant to be a surprise', () => {
   /** Metres per second over the first `ms` of the flight. */
   const offTheHand = (delivery: Delivery, ms = 120) =>
     (ballPosition(delivery, 0).z - ballPosition(delivery, flightProgress(delivery, ms)).z) / (ms / 1000);
-  const lengthBall = flight(122);
+  // A ball off a length is whatever the innings bowls most of, so it tracks the
+  // seam band rather than a number typed in beside it.
+  const lengthBall = flight((STYLES.NORMAL.min + STYLES.NORMAL.max) / 2);
 
   it('leaves the hand at nearly the pace of a length ball', () => {
     // The bowler's action is identical every ball, so the ball itself is the
@@ -523,7 +525,7 @@ describe('a slower ball is meant to be a surprise', () => {
 
   it('never asks a quick ball to accelerate down the pitch', () => {
     // Balls slow down; they do not speed up. Only a floated one is held back.
-    for (const [kph, rush] of [[168, .62], [153, .8], [130, 1]] as const) {
+    for (const [kph, rush] of [[176, .64], [158, .8], [138, 1]] as const) {
       expect(flightDrag(flight(kph, rush).durationMs)).toBe(0);
     }
     // A ball off a length is the reference, so it is held back by nothing worth

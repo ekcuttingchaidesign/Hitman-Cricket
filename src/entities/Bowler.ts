@@ -44,15 +44,20 @@ const RELEASE_HIP_Z = 18.31;
  */
 const APPROACH = 2.6;
 /**
- * The bound, the gather and the delivery stride. These were far too short for
- * the time they were given, and short distance over fixed time is a bowler
- * slowing down: he ran in at 6.6 m/s, leapt at 8.3, and then crawled through
- * the gather at 3.4 and the delivery stride at 2.8 — losing every bit of the
- * momentum the run-up had just built, in the one part of the action that is
- * supposed to spend it. A fast bowler's delivery stride alone is longer than
- * the two of them put together were.
+ * The bound, the gather and the delivery stride.
+ *
+ * What matters here is not any one of these numbers but the shape they make
+ * against the clock: 5.9 m/s in, 8.2 through the leap, 7.2 through the gather
+ * and 7.1 through the delivery stride. He is quickest at the leap and never
+ * drops back below the speed he ran in at, which is what a bowler accelerating
+ * into the crease looks like, and it is the only way the action reads as one
+ * movement rather than a run followed by a bowl. Getting there meant slowing
+ * the approach as much as it meant quickening the delivery — at 6.9 in and 6.1
+ * through the stride the arithmetic was nearly level, and it still looked like
+ * a man losing momentum, because against a fast run-in anything short of
+ * faster reads as slower.
  */
-const BOUND_LEAP = 1.5, GATHER = .95, DELIVERY_STRIDE = .75;
+const BOUND_LEAP = 1.5, GATHER = .85, DELIVERY_STRIDE = .70;
 const RELEASE_ADVANCE = APPROACH + BOUND_LEAP + GATHER + DELIVERY_STRIDE;
 /** Where he starts, and how far he travels before the ball leaves his hand. */
 const START_Z = RELEASE_HIP_Z + RELEASE_ADVANCE;
@@ -85,7 +90,7 @@ const BACK_MARK = travelledAt(BACK_LAND) + .32;
 const FRONT_MARK = travelledAt(FRONT_LAND) + .40;
 
 /** The phases of the action, as fractions of the run-up. */
-const BOUND = .46, BACK_FOOT = .68, BACK_LIFT = .77, STRIDE_START = .85, FRONT_FOOT = .94;
+const BOUND = .525, BACK_FOOT = .743, BACK_LIFT = .80, STRIDE_START = .883, FRONT_FOOT = .955;
 
 /**
  * How far he has come at `t`. Not linear: he accelerates in, the bound covers
@@ -131,7 +136,7 @@ const GATHER_ANGLE = -2.42;
  */
 const ARM_WHIP = 2.4;
 /** How much of the follow-through the arm spends coming down across the body. */
-const ARM_THROUGH = .42;
+const ARM_THROUGH = .36;
 /** Just past vertical, which is where a ball actually leaves the hand. */
 const RELEASE_ANGLE = .20;
 

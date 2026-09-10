@@ -93,7 +93,7 @@ Only a middled ball reaches the rope, and timing alone decides which one:
 
 Reaching for a shot the line does not suit skies it whatever the timing, and so does poor timing. **A ball in the air is only ever six or a catch** — never a nudged single — and the call is held back until it comes down, so a skied shot has to be watched all the way. A shot the line suits outright is never caught. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
 
-Deliveries are not all the same pace, and the gap is the point. A spinner floats down in about 1.3 seconds and a seam ball takes under 0.9; an **express** ball arrives in 0.4 and tightens the timing windows with it. You have to read the pace before you can time it.
+Deliveries are not all the same pace, and the gap is the point. A spinner floats down in about 1.3 seconds and a seam ball in about 0.8; an **express** ball arrives in 0.4 and tightens the timing windows with it. A bouncer is not a slow ball with a length on it either — it can come at you at 168. You have to read the pace before you can time it.
 
 But not off the hand. The bowler's action is identical every ball, so the ball itself is the only thing left to read a slower one off — and a ball that crawls out of the hand at two thirds the pace of the last one announces itself in the first frame, a whole second before it arrives. There is nothing to be deceived by in that. So a slower ball leaves the hand at very nearly the pace of a length ball — 84% of it rather than 63% — and dies on the way down instead, reaching the bat at under half the speed it left at. That is also what a floated ball does: the drag it never had the speed to overcome takes the pace off it late.
 
@@ -145,7 +145,7 @@ cannot reach it even by accident. Measured across an innings from 117 to 155
 kph, the run-up is 900 ms on every ball.
 
 The arm goes over in one accelerating sweep, from the bottom of the gather to
-the ball leaving the hand, and it is doing about 24 rad/s as it lets go — a fast
+the ball leaving the hand, and it is doing about 29 rad/s as it lets go — a fast
 bowler's arm. It used to be two sweeps: a climb at 8 rad/s and a last flick at
 18, so the arm was still gathering pace at the exact moment the ball went, and
 then fell off a cliff to 5 on the far side of it. An arm that stops at release
@@ -153,14 +153,17 @@ is what a slow action actually looks like, because the eye follows it through
 the ball and what it sees is the arm stop. It carries its speed past the ball
 now and bleeds it off over the next fifth of a second.
 
-The run-up builds speed and the delivery is what spends it, so the fastest he
-moves all day is the leap and the two strides after it: 6.9 m/s in, 8.3 through
-the bound, 6.8 through the gather and 6.1 through the delivery stride. It used
-to fall off a cliff there — 3.4 and then 2.8 — because the gather and the stride
-were given a fifth of a second between them to cover a metre, and short distance
-over fixed time is a man slowing down. A fast bowler's delivery stride alone is
-longer than the two of them were put together; it is 1.5m now, which is longer
-than his leg.
+He accelerates into the crease and never drops back below the speed he ran in
+at: 5.9 m/s in, 8.2 through the leap, 7.2 through the gather and 7.1 through the
+delivery stride. The shape is what matters rather than any one of those numbers.
+It used to fall off a cliff — 6.6 in, then 3.4 and 2.8 — because the gather and
+the delivery stride had a fifth of a second between them to cover a metre, and
+short distance over fixed time is a man slowing down. Getting the shape right
+meant slowing the approach as much as quickening the delivery: at 6.9 in and 6.1
+through the stride the arithmetic was nearly level and it still read as momentum
+lost, because against a fast run-in anything short of faster reads as slower. A
+fast bowler's delivery stride alone is longer than the gather and the stride
+were put together; it is 1.4m now, longer than his leg.
 
 He is lowest as the front foot lands and tallest as the ball goes: the hips
 travel up and over the braced leg. That is both what a delivery stride is for
@@ -244,7 +247,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `tests/scoreboard.test.ts`: a lamp face for every character the board can show, the dark grid behind the lit one, and panel sizing.
 - `tests/mobile.test.ts`: swipe directions including the defensive fan and its dead slivers, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 
-Lines are shuffled in bags of five, giving six of each base line over a 30-ball innings. Pace/style is sampled independently, and the innings is medium-fast by default: about two thirds of the balls come out between 110 and 135 kph, roughly one in six is quick and one in six is slow. Everything else is a change from that — the quick ones and the slow ones are what happens to a batter who has settled into a rhythm, and a mix with a quarter of each is not a surprise, it is a lottery. Swing develops before the bounce; spin turns after it and finishes before the final third of the pitch. Compatibility uses the nearest line to the final ball position. Travel duration is scaled for arcade readability. The stage mirrors X so negative world X appears on the left from the batting camera, matching the A key.
+Lines are shuffled in bags of five, giving six of each base line over a 30-ball innings. Pace/style is sampled independently, and the innings is medium-fast by default: about six in ten come out between 118 and 142 kph, roughly one in five is quick, one in seventeen is genuinely express, and one in six is slow. Everything else is a change from that — the quick ones and the slow ones are what happens to a batter who has settled into a rhythm, and a mix with a quarter of each is not a surprise, it is a lottery. Swing develops before the bounce; spin turns after it and finishes before the final third of the pitch. Compatibility uses the nearest line to the final ball position. Travel duration is scaled for arcade readability. The stage mirrors X so negative world X appears on the left from the batting camera, matching the A key.
 
 The score is recorded when a ball is resolved and displayed at visual contact. The result animation completes before the end screen; no additional ball is generated after the innings ends. Fielders are scenery except for the scripted catcher. There are no extras, running controls, teams, or full fielding AI.
 

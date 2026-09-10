@@ -76,7 +76,7 @@ describe('the bowling action', () => {
       const angle = (ms: number) => {
         bowler.animate(ms);
         const s = bowler.figure.inspect();
-        const [hx, hy, hz] = s.hands[1], [sx, sy, sz] = s.shoulders[1];
+        const [, hy, hz] = s.hands[1], [, sy, sz] = s.shoulders[1];
         return Math.atan2(-(hz - sz), hy - sy);
       };
       let a = angle(fromMs), b = angle(toMs), d = b - a;
@@ -181,10 +181,16 @@ describe('the bowling action', () => {
     const stride = speed(PHASES.STRIDE_START, 1);
     // The leap is the quickest thing in it.
     expect(bound).toBeGreaterThan(approach);
-    // And nothing after it drops away: the gather and the delivery stride are
-    // still going at better than four fifths of the speed he ran in at.
-    expect(gather).toBeGreaterThan(approach * .8);
-    expect(stride).toBeGreaterThan(approach * .8);
+    // And nothing after it drops away. Not merely "close to" the run-in either:
+    // both the gather and the delivery stride are quicker than it. Against a
+    // fast approach anything short of faster reads as slower, which is why the
+    // approach came down as much as the delivery went up — at 6.9 in and 6.1
+    // through the stride the arithmetic was nearly level and it still looked
+    // like a man losing momentum.
+    expect(gather).toBeGreaterThan(approach);
+    expect(stride).toBeGreaterThan(approach);
+    // The leap stays the quickest thing in the action, though.
+    expect(bound).toBeGreaterThan(gather);
     // A delivery stride is a stride, not a step: the ground between where the
     // back foot lands and where the front one does is longer than his leg.
     const world = (t: number, foot: 0 | 1) => {
