@@ -4,7 +4,7 @@ import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
 import { DeliveryGenerator } from '../src/game/DeliveryGenerator';
-import { ballPosition, effectiveLine, stumpIntersection } from '../src/game/DeliveryTrajectory';
+import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -487,5 +487,80 @@ describe('sharing a score', () => {
     expect(decodeURIComponent(link.slice('https://wa.me/?text='.length))).toBe(shareText(7, 'https://example.test/game/'));
     // The whole message travels in the query, so nothing may be left unescaped.
     expect(link).not.toContain(' ');
+  });
+});
+
+describe('a slower ball is meant to be a surprise', () => {
+  const PITCH = GAME.releaseZ - GAME.contactZ;
+  const flight = (kph: number, rush = 1) => ({
+    durationMs: PITCH / (kph / 3.6) * 1000 * GAME.travelScale * rush,
+    baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise,
+  } as Delivery);
+  /** Metres per second over the first `ms` of the flight. */
+  const offTheHand = (delivery: Delivery, ms = 120) =>
+    (ballPosition(delivery, 0).z - ballPosition(delivery, flightProgress(delivery, ms)).z) / (ms / 1000);
+  const lengthBall = flight(122);
+
+  it('leaves the hand at nearly the pace of a length ball', () => {
+    // The bowler's action is identical every ball, so the ball itself is the
+    // only thing left to read a slower one off — and one that crawls out of the
+    // hand at two thirds the pace of the last one announces itself in the first
+    // frame, a whole second before it arrives.
+    const slower = flight(88, 1.15);
+    const ratio = offTheHand(slower) / offTheHand(lengthBall);
+    expect(ratio).toBeGreaterThan(.8);
+    // Which is the whole change: flat out, its average pace is far slower.
+    const average = PITCH / (slower.durationMs / 1000);
+    expect(average / (PITCH / (lengthBall.durationMs / 1000))).toBeLessThan(.7);
+  });
+
+  it('pays for it late, and dies on the way down', () => {
+    const slower = flight(88, 1.15);
+    const near = flightProgress(slower, slower.durationMs) - flightProgress(slower, slower.durationMs - 120);
+    const atBat = near * PITCH / .120;
+    expect(atBat).toBeLessThan(offTheHand(slower) * .6);
+  });
+
+  it('never asks a quick ball to accelerate down the pitch', () => {
+    // Balls slow down; they do not speed up. Only a floated one is held back.
+    for (const [kph, rush] of [[168, .62], [153, .8], [130, 1]] as const) {
+      expect(flightDrag(flight(kph, rush).durationMs)).toBe(0);
+    }
+    // A ball off a length is the reference, so it is held back by nothing worth
+    // measuring either way.
+    expect(flightDrag(lengthBall.durationMs)).toBeLessThan(.01);
+    expect(flightDrag(flight(88, 1.15).durationMs)).toBeGreaterThan(.2);
+  });
+
+  it('arrives exactly when it always arrived, whatever it does in between', () => {
+    // Every timing window in the game is measured off the contact time, so the
+    // curve has to reach the bat at precisely the moment the old one did.
+    for (const style of Object.keys(STYLES) as (keyof typeof STYLES)[]) {
+      const shape = STYLES[style];
+      const delivery = flight((shape.min + shape.max) / 2, shape.rush ?? 1);
+      expect(flightProgress(delivery, delivery.durationMs)).toBeCloseTo(1, 9);
+      expect(flightProgress(delivery, 0)).toBeCloseTo(0, 9);
+    }
+  });
+
+  it('never turns round, before the bat or past it', () => {
+    for (const [kph, rush] of [[168, .62], [122, 1], [88, 1.15], [82, 1]] as const) {
+      const delivery = flight(kph, rush);
+      let previous = -Infinity;
+      for (let ms = 0; ms <= delivery.durationMs * 1.8; ms += 5) {
+        const progress = flightProgress(delivery, ms);
+        expect(progress).toBeGreaterThan(previous);
+        previous = progress;
+      }
+    }
+  });
+
+  it('bowls the quick ones a little quicker than it used to', () => {
+    expect(STYLES.EXPRESS.min).toBeGreaterThan(STYLES.FAST.max);
+    expect(STYLES.FAST.min).toBeGreaterThan(STYLES.NORMAL.max);
+    // An express ball still has to be playable: it is the shortest flight in
+    // the game and the timing windows are tightened on top of it.
+    const quickest = flight(STYLES.EXPRESS.max, STYLES.EXPRESS.rush);
+    expect(quickest.durationMs).toBeGreaterThan(380);
   });
 });

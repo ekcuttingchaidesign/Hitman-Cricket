@@ -3,7 +3,7 @@ import { Confidence } from './game/Confidence';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
-import { effectiveLine } from './game/DeliveryTrajectory';
+import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
@@ -54,7 +54,7 @@ export class Game {
     window.addEventListener('blur', this.blur);
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {
-      snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(),
+      snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Fills the meter so the charge can be driven straight from a test.
       fillConfidence: () => { this.confidence.value = CONFIDENCE_FULL; this.showConfidence(); },
     } });
@@ -165,7 +165,7 @@ export class Game {
         this.delivery!.releaseTimeMs = this.elapsed; this.delivery!.idealContactTimeMs = this.elapsed + this.delivery!.durationMs; this.setPhase('BALL_IN_FLIGHT');
       }
     } else if (this.phase === 'BALL_IN_FLIGHT' && this.delivery) {
-      const progress = (this.elapsed - this.delivery.releaseTimeMs) / this.delivery.durationMs;
+      const progress = flightProgress(this.delivery, this.elapsed - this.delivery.releaseTimeMs);
       this.scene.delivery(this.delivery, progress);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }

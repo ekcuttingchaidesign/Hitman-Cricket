@@ -93,7 +93,11 @@ Only a middled ball reaches the rope, and timing alone decides which one:
 
 Reaching for a shot the line does not suit skies it whatever the timing, and so does poor timing. **A ball in the air is only ever six or a catch** — never a nudged single — and the call is held back until it comes down, so a skied shot has to be watched all the way. A shot the line suits outright is never caught. A missed ball on the stumps can be Bowled, or LBW after a failed shot; a miss outside the stumps is a dot ball. Every ball counts, and the innings ends at 30 balls or three wickets.
 
-Deliveries are not all the same pace, and the gap is the point. A spinner floats down in about 1.3 seconds and a seam ball takes under 0.9; an **express** ball arrives in 0.43 and tightens the timing windows with it. You have to read the pace before you can time it.
+Deliveries are not all the same pace, and the gap is the point. A spinner floats down in about 1.3 seconds and a seam ball takes under 0.9; an **express** ball arrives in 0.4 and tightens the timing windows with it. You have to read the pace before you can time it.
+
+But not off the hand. The bowler's action is identical every ball, so the ball itself is the only thing left to read a slower one off — and a ball that crawls out of the hand at two thirds the pace of the last one announces itself in the first frame, a whole second before it arrives. There is nothing to be deceived by in that. So a slower ball leaves the hand at very nearly the pace of a length ball — 84% of it rather than 63% — and dies on the way down instead, reaching the bat at under half the speed it left at. That is also what a floated ball does: the drag it never had the speed to overcome takes the pace off it late.
+
+Only a slow ball is held back. A quick one is never asked to accelerate down the pitch, because balls slow down and do not speed up. And the curve is arranged so the ball still arrives at precisely the moment it always did: every timing window in the game is measured off the contact time, and none of them move. What changes is only where the ball is in between.
 
 ## The bowler
 
@@ -169,9 +173,9 @@ The bowler is not a random number generator — he watches the innings and answe
 
 | Delivery | When it comes | What it does |
 | --- | --- | --- |
-| **Yorker** | After he has been hit for three sixes | 148–158 kph, pitched at the toes and skidding on. It arrives at boot height in under half a second, and it is aimed at the stumps. |
+| **Yorker** | After he has been hit for three sixes | 152–163 kph, pitched at the toes and skidding on. It arrives at boot height in under half a second, and it is aimed at the stumps. |
 | **Bouncer** | Occasionally, any line | Lands short and rears to chest height. It is over the stumps, so you can never be bowled or caught off it — but it can only be **pulled**, and only if you middle it. Perfect timing on a leg-side swipe is six; anything else goes through to the keeper. |
-| **Slower ball** | Once four quick balls have gone by | 78–98 kph and floated in at nearly a second and a half, straight after a burst of pace. |
+| **Slower ball** | Once four quick balls have gone by | 78–98 kph and floated in at nearly a second and a half, straight after a burst of pace — and out of the same arm at the same speed, leaving the hand at nearly the pace of a length ball and dying late. |
 
 The pull is not a separate control: swipe leg side (or press `A`) at a ball up around your chest and the batter plays it off the back foot with a horizontal bat, finishing high with the hands in front of the chest, instead of the front-foot flick he uses at a normal-height ball. Only the pull follows a ball up there — every other stroke swings at its own height and a bouncer passes over the bat.
 
@@ -216,7 +220,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/game/Share.ts`: the innings link and the WhatsApp message built from the final score.
 - `src/ui/DotMatrix.ts`: the scoreboard's lamps. Faces are 7 rows of dots, drawn as SVG with the dark lamps as well as the lit ones — the unlit grid is what makes a panel read as a board rather than as text in a box. Punctuation is narrow, so an over count reads `5.0` rather than `5 . 0`.
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
-- `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, and the WhatsApp share message.
+- `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, the flight curve that hides a slower ball off the hand without moving the moment it arrives, and the WhatsApp share message.
 - `tests/batter.test.ts`: grip attachment, hand order and fist alignment on the handle, guard geometry, per-stroke footwork, blade placement at contact, elbow clearance from trunk and handle, hands kept in front of the shoulders through every stroke, and continuous blade travel with a squared face.
 - `tests/bowler.test.ts`: an action that is the same pose at the same moment whatever the ball does and cannot be told how fast it is, no jump where the run-up hands over to the follow-through, the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
 - `tests/scoreboard.test.ts`: a lamp face for every character the board can show, the dark grid behind the lit one, and panel sizing.

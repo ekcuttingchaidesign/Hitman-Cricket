@@ -374,6 +374,10 @@ export class GameScene {
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }
+  inspectBowler() {
+    const b = this.bowler.figure.inspect();
+    return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1] };
+  }
   dispose() {
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();

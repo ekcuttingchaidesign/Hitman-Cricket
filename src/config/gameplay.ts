@@ -17,6 +17,10 @@ export const GAME = {
   rise: 1.25,
   lbwChance: 0.6, aerialFlightMs: 1900, mishitCaught: 0.75,
   movement: 0.13, boundaryRadius: 30,
+  // What a ball off a length takes to arrive, and how much of a slower one's
+  // pace is held back off the hand and paid for later in the flight. See
+  // `flightProgress`: this is the whole of what makes a slower ball a surprise.
+  nominalFlightMs: 880, slowBallDrag: 0.62, maxSlowBallDrag: 0.42,
 } as const;
 export const LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSIDE_OFF'];
 /** The scoring strokes. Defence is not one of them and is never chosen for you. */
@@ -29,14 +33,14 @@ export const LINE_X: Record<BallLine, number> = { OUTSIDE_LEG: -0.42, LEG: -0.14
 // specials, by the state of the innings.
 export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: number; label: string; rush?: number; tight?: boolean; bounce?: number; rise?: number }> = {
   NORMAL: { weight: 0.30, min: 115, max: 130, label: 'SEAM' },
-  FAST: { weight: 0.18, min: 132, max: 150, label: 'FAST', rush: 0.80, tight: true },
-  EXPRESS: { weight: 0.09, min: 148, max: 162, label: 'EXPRESS', rush: 0.62, tight: true },
+  FAST: { weight: 0.18, min: 137, max: 153, label: 'FAST', rush: 0.80, tight: true },
+  EXPRESS: { weight: 0.09, min: 155, max: 168, label: 'EXPRESS', rush: 0.62, tight: true },
   SLOWER: { weight: 0.10, min: 78, max: 98, label: 'SLOWER BALL', rush: 1.15 },
   SWING_IN: { weight: 0.11, min: 110, max: 135, label: 'INSWINGER' },
   SWING_OUT: { weight: 0.10, min: 110, max: 135, label: 'OUTSWINGER' },
   OFF_SPIN: { weight: 0.06, min: 72, max: 92, label: 'OFF SPIN' },
   LEG_SPIN: { weight: 0.06, min: 72, max: 92, label: 'LEG SPIN' },
-  YORKER: { weight: 0, min: 148, max: 158, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
+  YORKER: { weight: 0, min: 152, max: 163, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
   SHORT: { weight: 0, min: 118, max: 134, label: 'BOUNCER', rush: 0.95, bounce: 10.4, rise: 2.9 },
 };
 // The bowler answers being hit, and mixes his pace up when he has been quick.
