@@ -168,15 +168,23 @@ describe('the bowling action', () => {
     expect(Math.abs(stood.yaw - Math.PI)).toBeLessThan(.1);
   });
 
-  it('stands like the fielders do, at both ends of the action', () => {
+  it('stands like a man standing, at both ends of the action', () => {
     // He waits at his mark in full view of the batter for half a second before
     // every ball, and stands again once it has gone. Both used to be frames of
     // the run held still: feet staggered mid-stride, and the arms carried at
     // the shortened reach a runner pumps them at, which puts both elbows out
-    // and reads as a man stopped rather than a man standing. The rest pose is
-    // the fielders' own now, so there is one answer to what standing looks like.
-    const resting = new Cricketer().inspect();
+    // and reads as a man stopped rather than a man standing. Both are the one
+    // resting pose now, so there is a single answer to what standing looks like
+    // and a single place it is written down.
+    const other = new Cricketer();
+    other.apply(other.rest());
+    const resting = other.inspect();
     for (const stood of [at(0), flight(1)]) {
+      // Knees all but straight. A leg carrying weight at 86% of its length is a
+      // crouch, and a man crouching while he waits reads as braced for
+      // something — which is a fielder watching a stroke, not a bowler at the
+      // top of his mark with nothing to do yet.
+      for (const reach of stood.legReach) expect(reach).toBeGreaterThan(.95);
       expect(stood.hip[1]).toBeCloseTo(resting.hip[1], 5);
       for (let i = 0; i < 2; i++) {
         // Arms hanging, not folded up against the ribs.
@@ -188,7 +196,8 @@ describe('the bowling action', () => {
       // Weight on both feet, level, and squarely apart rather than staggered.
       expect(stood.feet[0][1]).toBeCloseTo(stood.feet[1][1], 5);
       expect(Math.abs(stood.feet[0][2] - stood.feet[1][2])).toBeLessThan(.2);
-      expect(Math.abs(stood.feet[0][0] - stood.feet[1][0])).toBeGreaterThan(.25);
+      // Feet apart, about hip width — not together, and not crossed.
+      expect(Math.abs(stood.feet[0][0] - stood.feet[1][0])).toBeGreaterThan(.18);
     }
   });
 
@@ -207,6 +216,24 @@ describe('the cricketer every fielder is built from', () => {
     const s = fielder.inspect();
     for (const foot of s.feet) expect(foot[1]).toBeLessThan(.09);
     for (const reach of [...s.legReach, ...s.armReach]) expect(reach).toBeLessThanOrEqual(1);
+  });
+
+  it('waits on the ball with its knees softer than a man just standing', () => {
+    // The two are different poses on purpose. A fielder is watching a batter
+    // about to hit it and is bent ready to move; standing is standing. What is
+    // not allowed is the two drifting apart by accident, so the ready stance is
+    // the resting one bent, and the crouch is the whole of the difference.
+    const fielder = new Cricketer();
+    fielder.apply(fielder.rest());
+    const upright = fielder.inspect();
+    fielder.apply(fielder.stand());
+    const ready = fielder.inspect();
+    for (let i = 0; i < 2; i++) {
+      expect(ready.legReach[i]).toBeLessThan(upright.legReach[i]);
+      expect(ready.legReach[i]).toBeGreaterThan(.88);
+    }
+    expect(ready.hip[1]).toBeLessThan(upright.hip[1]);
+    expect(upright.hip[1] - ready.hip[1]).toBeLessThan(.1);
   });
 
   it('takes a catch with both hands up over the head', () => {

@@ -116,14 +116,19 @@ moment of release rather than on the ball's flight, because the flight ends when
 the stroke is played: tied to that, a shot cut short strands him half way out of
 the follow-through for as long as the result takes to show.
 
-Standing still is the fielders' own pose, not a second one written out beside
-it. Both ends of the action are stationary — waiting at his mark, where the
-batter looks straight at him for half a second before every ball, and back on
-his feet once the ball has gone — and both used to be frames of the run held
-still, with the feet staggered mid-stride and the arms at the shortened reach a
-runner pumps them at, which puts both elbows out. He is the same body as the men
-in the field, so there is one answer to what standing looks like and one place
-it is written.
+Both ends of the action are stationary — waiting at his mark, where the batter
+looks straight at him for half a second before every ball, and back on his feet
+once the ball has gone — and both used to be frames of the run held still, with
+the feet staggered mid-stride and the arms at the shortened reach a runner pumps
+them at, which puts both elbows out.
+
+Standing is its own pose now, and the knees are the whole of it: feet under the
+hips, legs all but straight, arms hanging. A leg carrying weight at 86% of its
+length is a crouch, and a man crouching while he waits reads as braced for
+something that never comes. A fielder is a different case — he is watching a
+batter about to hit it, so his stance widens and his knees soften ready to move
+— but that is the resting pose bent rather than a second one written out beside
+it, and the crouch is the only difference between them.
 
 He is lowest as the front foot lands and tallest as the ball goes: the hips
 travel up and over the braced leg. That is both what a delivery stride is for

@@ -338,7 +338,7 @@ export class Bowler {
     // his frame on the way in — his lateral offsets are measured across a body
     // facing the batter, and dropping the fielder's straight in would put his
     // right foot under his left hip.
-    const target = this.figure.stand();
+    const target = this.figure.rest();
     // Square up first: he finishes the follow-through turned off the pitch, and
     // a man standing still watching the ball is facing down it. `across` has to
     // be taken from where he ends up, not where he was, or the feet settle on

@@ -48,6 +48,8 @@ export const BUILD = {
 export const ARM_REACH = BUILD.upperArm + BUILD.foreArm;
 /** Hip to upper chest. One number, so every figure is the same person. */
 export const SPINE = .46;
+/** Hip height stood upright, with the legs very nearly straight. */
+const REST_HIP = .9525;
 
 /**
  * A surface of revolution from a bottom-to-top `[height, radius]` profile,
@@ -205,16 +207,42 @@ export class Cricketer {
     mesh.scale.set(...scale); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
   }
 
-  /** A fielder waiting on the ball: knees soft, hands ready, weight forward. */
-  stand(): Figure {
+  /**
+   * A man simply standing: feet under his hips, legs all but straight, arms
+   * hanging. This is what waiting looks like — a bowler at the top of his mark,
+   * or anyone stood still — and the knees are the whole of it. A leg carrying
+   * weight at 86% of its length is a crouch, and a figure that crouches while
+   * doing nothing reads as braced for something that never comes.
+   */
+  rest(): Figure {
     return {
       root: this.root,
-      hip: new THREE.Vector3(0, .845, 0), chest: new THREE.Vector3(0, .845 + SPINE, .015),
+      hip: new THREE.Vector3(0, REST_HIP, 0), chest: new THREE.Vector3(0, REST_HIP + SPINE, .012),
       yaw: 0, lean: 0,
-      leftFoot: new THREE.Vector3(-.20, .05, .06), rightFoot: new THREE.Vector3(.20, .05, -.06),
-      leftHand: new THREE.Vector3(-.25, .80, .12), rightHand: new THREE.Vector3(.25, .80, .12),
-      headYaw: 0, headPitch: .04,
+      leftFoot: new THREE.Vector3(-.115, .05, .025), rightFoot: new THREE.Vector3(.115, .05, -.025),
+      leftHand: new THREE.Vector3(-.205, REST_HIP - .055, .06), rightHand: new THREE.Vector3(.205, REST_HIP - .055, .06),
+      headYaw: 0, headPitch: .03,
     };
+  }
+
+  /**
+   * A fielder waiting on the ball, which is not the same thing as standing: he
+   * is watching a batter about to hit it, so the stance widens and the knees
+   * soften ready to move. It is the resting pose bent, rather than a second
+   * pose written out beside it — the difference between the two is the crouch
+   * and nothing else.
+   */
+  stand(): Figure {
+    const pose = this.rest();
+    const crouch = .052;
+    pose.hip.y -= crouch;
+    pose.chest.set(0, pose.hip.y + SPINE, .015);
+    pose.leftFoot.set(-.185, .05, .06);
+    pose.rightFoot.set(.185, .05, -.06);
+    pose.leftHand.set(-.245, pose.hip.y - .045, .115);
+    pose.rightHand.set(.245, pose.hip.y - .045, .115);
+    pose.headPitch = .04;
+    return pose;
   }
 
   /**
@@ -223,13 +251,18 @@ export class Cricketer {
    */
   catchAt(reach: number) {
     const r = THREE.MathUtils.clamp(reach, 0, 1);
+    // He comes up out of the ready crouch to take it, so the pose is built from
+    // the crouch rather than from a set of numbers of its own: the rise has to
+    // be measured against where the knees actually were, or a trailing leg
+    // pushed back off a hip that has already lifted runs out of length.
     const pose = this.stand();
-    pose.hip.y += r * .10;
-    pose.chest.set(0, pose.chest.y + r * .12, .015 - r * .05);
-    pose.leftFoot.set(-.20, .05 + r * .03, .06);
-    pose.rightFoot.set(.20, .05, -.06 - r * .10);
-    pose.leftHand.set(-.15, THREE.MathUtils.lerp(.80, 1.98, r), THREE.MathUtils.lerp(.12, .16, r));
-    pose.rightHand.set(.15, THREE.MathUtils.lerp(.80, 1.98, r), THREE.MathUtils.lerp(.12, .16, r));
+    const hipY = pose.hip.y + r * .045;
+    pose.hip.y = hipY;
+    pose.chest.set(0, hipY + SPINE, .015 - r * .05);
+    pose.leftFoot.y += r * .02;
+    pose.rightFoot.z -= r * .05;
+    for (const [hand, side] of [[pose.leftHand, -1], [pose.rightHand, 1]] as const)
+      hand.set(side * .15, THREE.MathUtils.lerp(hipY - .045, hipY + 1.03, r), THREE.MathUtils.lerp(.115, .16, r));
     pose.headPitch = .04 - r * .34;
     this.apply(pose);
   }
