@@ -11,7 +11,7 @@ export const GAME = {
   // Arcade time scaling gives the player time to read a 3D ball on a small
   // screen. It carries the shorter flight the deeper crease leaves, so every
   // delivery keeps the duration it was tuned to.
-  travelScale: 1.79, readyMs: 550, runupMs: 900, resultMs: 1050, hitAnimationMs: 1250,
+  travelScale: 1.79, readyMs: 550, runupMs: 820, resultMs: 1050, hitAnimationMs: 1250,
   timing: { perfect: 40, good: 78, ok: 135, poor: 205 }, fastTimingScale: 0.82,
   // How steeply a normal ball climbs off the pitch; specials override it.
   rise: 1.25,

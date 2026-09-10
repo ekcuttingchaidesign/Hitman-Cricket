@@ -144,6 +144,15 @@ deceived by — so `animate` takes a time and nothing else, and the flight time
 cannot reach it even by accident. Measured across an innings from 117 to 155
 kph, the run-up is 900 ms on every ball.
 
+The run-up builds speed and the delivery is what spends it, so the fastest he
+moves all day is the leap and the two strides after it: 6.9 m/s in, 8.3 through
+the bound, 6.8 through the gather and 6.1 through the delivery stride. It used
+to fall off a cliff there — 3.4 and then 2.8 — because the gather and the stride
+were given a fifth of a second between them to cover a metre, and short distance
+over fixed time is a man slowing down. A fast bowler's delivery stride alone is
+longer than the two of them were put together; it is 1.5m now, which is longer
+than his leg.
+
 He is lowest as the front foot lands and tallest as the ball goes: the hips
 travel up and over the braced leg. That is both what a delivery stride is for
 and the only way a leg that length reaches a foot planted that far in front of
@@ -222,7 +231,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, the flight curve that hides a slower ball off the hand without moving the moment it arrives, and the WhatsApp share message.
 - `tests/batter.test.ts`: grip attachment, hand order and fist alignment on the handle, guard geometry, per-stroke footwork, blade placement at contact, elbow clearance from trunk and handle, hands kept in front of the shoulders through every stroke, and continuous blade travel with a squared face.
-- `tests/bowler.test.ts`: an action that is the same pose at the same moment whatever the ball does and cannot be told how fast it is, no jump where the run-up hands over to the follow-through, the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
+- `tests/bowler.test.ts`: an action that is the same pose at the same moment whatever the ball does and cannot be told how fast it is, momentum carried into the crease rather than lost on the way, no jump where the run-up hands over to the follow-through, the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
 - `tests/scoreboard.test.ts`: a lamp face for every character the board can show, the dark grid behind the lit one, and panel sizing.
 - `tests/mobile.test.ts`: swipe directions including the defensive fan and its dead slivers, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 

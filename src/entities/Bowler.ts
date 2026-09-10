@@ -43,7 +43,16 @@ const RELEASE_HIP_Z = 18.31;
  * the action that follows it.
  */
 const APPROACH = 2.6;
-const BOUND_LEAP = 1.5, GATHER = .55, DELIVERY_STRIDE = .45;
+/**
+ * The bound, the gather and the delivery stride. These were far too short for
+ * the time they were given, and short distance over fixed time is a bowler
+ * slowing down: he ran in at 6.6 m/s, leapt at 8.3, and then crawled through
+ * the gather at 3.4 and the delivery stride at 2.8 — losing every bit of the
+ * momentum the run-up had just built, in the one part of the action that is
+ * supposed to spend it. A fast bowler's delivery stride alone is longer than
+ * the two of them put together were.
+ */
+const BOUND_LEAP = 1.5, GATHER = .95, DELIVERY_STRIDE = .75;
 const RELEASE_ADVANCE = APPROACH + BOUND_LEAP + GATHER + DELIVERY_STRIDE;
 /** Where he starts, and how far he travels before the ball leaves his hand. */
 const START_Z = RELEASE_HIP_Z + RELEASE_ADVANCE;
@@ -51,8 +60,8 @@ const START_Z = RELEASE_HIP_Z + RELEASE_ADVANCE;
 const FOLLOW = 1.7;
 const travelledAt = (after: number) => RELEASE_ADVANCE + after * FOLLOW;
 /** Where each foot is planted, measured along the run from the top of the mark. */
-const BACK_FOOT_PLANT = APPROACH + BOUND_LEAP + .15;
-const FRONT_FOOT_PLANT = RELEASE_ADVANCE + .14;
+const BACK_FOOT_PLANT = APPROACH + BOUND_LEAP + .30;
+const FRONT_FOOT_PLANT = RELEASE_ADVANCE + .07;
 /** The two strides of the run-off, and where each of them puts a foot down. */
 const BACK_LAND = .5, FRONT_LAND = .72;
 /** How far through `followThrough` the falling-away ends and standing up begins. */
@@ -66,7 +75,7 @@ const STRIDE = 1.30;
  * agree on when that is; the follow-through answers to nothing but itself.
  */
 const RUNUP_MS = GAME.runupMs;
-const FOLLOW_MS = 1600;
+const FOLLOW_MS = 1400;
 /** How much of the run-up he spends leaving the standing pose behind. */
 const WALK_UP = .12;
 /** How far in front of the hips a running foot comes down. */
@@ -76,7 +85,7 @@ const BACK_MARK = travelledAt(BACK_LAND) + .32;
 const FRONT_MARK = travelledAt(FRONT_LAND) + .40;
 
 /** The phases of the action, as fractions of the run-up. */
-const BOUND = .44, BACK_FOOT = .64, BACK_LIFT = .74, STRIDE_START = .82, FRONT_FOOT = .92;
+const BOUND = .46, BACK_FOOT = .68, BACK_LIFT = .77, STRIDE_START = .85, FRONT_FOOT = .94;
 
 /**
  * How far he has come at `t`. Not linear: he accelerates in, the bound covers
@@ -228,7 +237,7 @@ export class Bowler {
     // leg is stretched flat before the foot ever gets down.
     const hipY = .865 + (t <= BOUND ? Math.abs(Math.sin(advance(t) / STRIDE * Math.PI)) * .045 : 0)
       + (t > BOUND && t <= BACK_FOOT ? Math.sin(span(t, BOUND, BACK_FOOT) * Math.PI) * .17 : 0)
-      + ease(span(t, STRIDE_START, 1)) * .075 - after * .17;
+      + ease(span(t, STRIDE_START, 1)) * .118 - after * .17;
     pose.hip.set(0, hipY, 0);
 
     // The spine: upright running, coiled back away from the target through the
@@ -335,14 +344,14 @@ export class Bowler {
     // foot that is not braced against anything — and only then steps on.
     const stepOn = ease(span(after, .14, FRONT_LAND));
     const frontDistance = t <= BACK_FOOT
-      ? THREE.MathUtils.lerp(APPROACH, BACK_FOOT_PLANT + .55, ease(boundT))
+      ? THREE.MathUtils.lerp(APPROACH, BACK_FOOT_PLANT + .06, ease(boundT))
       : t <= FRONT_FOOT
-        ? THREE.MathUtils.lerp(BACK_FOOT_PLANT + .55, FRONT_FOOT_PLANT, ease(span(t, BACK_FOOT, FRONT_FOOT)))
+        ? THREE.MathUtils.lerp(BACK_FOOT_PLANT + .06, FRONT_FOOT_PLANT, ease(span(t, BACK_FOOT, FRONT_FOOT)))
         : THREE.MathUtils.lerp(FRONT_FOOT_PLANT, FRONT_MARK, stepOn);
     const frontLift = t <= BACK_FOOT ? Math.sin(boundT * Math.PI) * .30 + boundT * .34
       : t <= FRONT_FOOT ? .34 * (1 - ease(span(t, BACK_FOOT, FRONT_FOOT)) ** 1.5)
       : Math.sin(stepOn * Math.PI) * .30;
-    place(pose.leftFoot, frontDistance, -.14, .06 + frontLift,
+    place(pose.leftFoot, frontDistance, -.10, .06 + frontLift,
       t >= FRONT_FOOT && after === 0 ? FRONT_ACROSS : live);
   }
 
@@ -416,6 +425,12 @@ export class Bowler {
   }
 }
 
+/**
+ * Where the phases fall, as fractions of the run-up. Exported so the tests can
+ * sample the moment a foot is actually planted rather than a number typed in
+ * beside it, which goes stale the first time the action is re-timed.
+ */
+export const PHASES = { BOUND, BACK_FOOT, BACK_LIFT, STRIDE_START, FRONT_FOOT } as const;
 /** The action's length end to end, for anything that needs to wait it out. */
 export const ACTION_MS = RUNUP_MS + FOLLOW_MS;
 /** The top of his mark, and where his hips finish. Read by the action's tests. */

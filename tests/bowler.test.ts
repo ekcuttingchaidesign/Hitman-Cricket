@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { ACTION_MS, Bowler, RELEASE_Z, RUNUP_START_Z } from '../src/entities/Bowler';
+import { ACTION_MS, Bowler, PHASES, RELEASE_Z, RUNUP_START_Z } from '../src/entities/Bowler';
 import { Cricketer } from '../src/entities/Cricketer';
 import { GAME } from '../src/config/gameplay';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -97,12 +97,15 @@ describe('the bowling action', () => {
       const s = at(t);
       return new THREE.Vector3(...s.feet[foot]).add(bowler.root.position);
     };
+    /** Five samples across a window, taken from the phase boundaries themselves. */
+    const across = (from: number, to: number) =>
+      Array.from({ length: 5 }, (_, i) => from + (to - from) * (i / 4));
     // The front foot is braced from the moment it lands until the ball has gone.
-    const braced = [.93, .95, .97, .99, 1].map(t => world(t, 0));
+    const braced = across(PHASES.FRONT_FOOT, 1).map(t => world(t, 0));
     for (const spot of braced) expect(spot.distanceTo(braced[0])).toBeLessThan(.01);
     // And the back foot holds its mark while he runs up over it, until the
     // body has gone past and it is picked up again.
-    const back = [.65, .68, .71, .73].map(t => world(t, 1));
+    const back = across(PHASES.BACK_FOOT, PHASES.BACK_LIFT).map(t => world(t, 1));
     for (const spot of back) expect(spot.distanceTo(back[0])).toBeLessThan(.01);
   });
 
@@ -121,6 +124,40 @@ describe('the bowling action', () => {
     const approach = RUNUP_START_Z - RELEASE_Z;
     expect(approach).toBeGreaterThan(4);
     expect(approach).toBeLessThan(6);
+  });
+
+  it('carries its momentum into the crease instead of stalling there', () => {
+    // The run-up builds speed and the delivery is what spends it, so the fastest
+    // he moves all day is the leap and the two strides after it. He used to run
+    // in at 6.6 m/s, leap at 8.3, and then crawl through the gather at 3.4 and
+    // the delivery stride at 2.8 — losing every bit of it in the one part of
+    // the action it is for, which reads exactly as it sounds: a man who runs up
+    // and then thinks about it.
+    const speed = (from: number, to: number) => {
+      bowler.runup(from); const a = bowler.root.position.z;
+      bowler.runup(to); const b = bowler.root.position.z;
+      return (a - b) / ((to - from) * GAME.runupMs / 1000);
+    };
+    // Averaged over the whole approach: it accelerates, so sampling only its
+    // fast end would set the bar at a speed he is never asked to hold.
+    const approach = speed(0, PHASES.BOUND);
+    const bound = speed(PHASES.BOUND, PHASES.BACK_FOOT);
+    const gather = speed(PHASES.BACK_FOOT, PHASES.STRIDE_START);
+    const stride = speed(PHASES.STRIDE_START, 1);
+    // The leap is the quickest thing in it.
+    expect(bound).toBeGreaterThan(approach);
+    // And nothing after it drops away: the gather and the delivery stride are
+    // still going at better than four fifths of the speed he ran in at.
+    expect(gather).toBeGreaterThan(approach * .8);
+    expect(stride).toBeGreaterThan(approach * .8);
+    // A delivery stride is a stride, not a step: the ground between where the
+    // back foot lands and where the front one does is longer than his leg.
+    const world = (t: number, foot: 0 | 1) => {
+      bowler.runup(t);
+      return bowler.figure.inspect().feet[foot][2] + bowler.root.position.z;
+    };
+    const back = world(PHASES.BACK_FOOT, 1), front = world(1, 0);
+    expect(back - front).toBeGreaterThan(1.2);
   });
 
   it('always moves down the pitch and never backs up', () => {
