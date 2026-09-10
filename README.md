@@ -144,6 +144,15 @@ deceived by — so `animate` takes a time and nothing else, and the flight time
 cannot reach it even by accident. Measured across an innings from 117 to 155
 kph, the run-up is 900 ms on every ball.
 
+The arm goes over in one accelerating sweep, from the bottom of the gather to
+the ball leaving the hand, and it is doing about 24 rad/s as it lets go — a fast
+bowler's arm. It used to be two sweeps: a climb at 8 rad/s and a last flick at
+18, so the arm was still gathering pace at the exact moment the ball went, and
+then fell off a cliff to 5 on the far side of it. An arm that stops at release
+is what a slow action actually looks like, because the eye follows it through
+the ball and what it sees is the arm stop. It carries its speed past the ball
+now and bleeds it off over the next fifth of a second.
+
 The run-up builds speed and the delivery is what spends it, so the fastest he
 moves all day is the leap and the two strides after it: 6.9 m/s in, 8.3 through
 the bound, 6.8 through the gather and 6.1 through the delivery stride. It used
@@ -231,11 +240,11 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, the flight curve that hides a slower ball off the hand without moving the moment it arrives, and the WhatsApp share message.
 - `tests/batter.test.ts`: grip attachment, hand order and fist alignment on the handle, guard geometry, per-stroke footwork, blade placement at contact, elbow clearance from trunk and handle, hands kept in front of the shoulders through every stroke, and continuous blade travel with a squared face.
-- `tests/bowler.test.ts`: an action that is the same pose at the same moment whatever the ball does and cannot be told how fast it is, momentum carried into the crease rather than lost on the way, no jump where the run-up hands over to the follow-through, the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
+- `tests/bowler.test.ts`: an action that is the same pose at the same moment whatever the ball does and cannot be told how fast it is, an arm accelerating into the ball and still going after it, momentum carried into the crease rather than lost on the way, no jump where the run-up hands over to the follow-through, the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
 - `tests/scoreboard.test.ts`: a lamp face for every character the board can show, the dark grid behind the lit one, and panel sizing.
 - `tests/mobile.test.ts`: swipe directions including the defensive fan and its dead slivers, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 
-Lines are shuffled in bags of five, giving six of each base line over a 30-ball innings. Pace/style is sampled independently. Swing develops before the bounce; spin turns after it and finishes before the final third of the pitch. Compatibility uses the nearest line to the final ball position. Travel duration is scaled for arcade readability. The stage mirrors X so negative world X appears on the left from the batting camera, matching the A key.
+Lines are shuffled in bags of five, giving six of each base line over a 30-ball innings. Pace/style is sampled independently, and the innings is medium-fast by default: about two thirds of the balls come out between 110 and 135 kph, roughly one in six is quick and one in six is slow. Everything else is a change from that — the quick ones and the slow ones are what happens to a batter who has settled into a rhythm, and a mix with a quarter of each is not a surprise, it is a lottery. Swing develops before the bounce; spin turns after it and finishes before the final third of the pitch. Compatibility uses the nearest line to the final ball position. Travel duration is scaled for arcade readability. The stage mirrors X so negative world X appears on the left from the batting camera, matching the A key.
 
 The score is recorded when a ball is resolved and displayed at visual contact. The result animation completes before the end screen; no additional ball is generated after the innings ends. Fielders are scenery except for the scripted catcher. There are no extras, running controls, teams, or full fielding AI.
 

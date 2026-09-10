@@ -113,11 +113,25 @@ function armAngle(t: number) {
   // comes through, and an arm on its own clock never quite does.
   if (t <= BOUND) return -Math.PI + Math.sin(advance(t) / STRIDE * Math.PI * 2) * .78;
   // Gather: down and back, the arm at its lowest as he leaves the ground.
-  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(-Math.PI, -2.42, ease(span(t, BOUND, BACK_FOOT)));
-  // The climb behind him, and then over: slow off the bottom, fastest at the top.
-  if (t <= FRONT_FOOT) return THREE.MathUtils.lerp(-2.42, -.72, ease(span(t, BACK_FOOT, FRONT_FOOT)) ** .82);
-  return THREE.MathUtils.lerp(-.72, RELEASE_ANGLE, span(t, FRONT_FOOT, 1) ** .78);
+  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(-Math.PI, GATHER_ANGLE, ease(span(t, BOUND, BACK_FOOT)));
+  // And then one accelerating sweep, all the way from the gather to the ball
+  // leaving the hand. It used to be two: a climb at 8 rad/s and a last flick at
+  // 18, which meant the arm was still gathering pace at the exact moment the
+  // ball went — and then fell off a cliff to 5 on the far side of it. An arm
+  // that reaches its fastest at release and carries on through is the whole
+  // difference between a bowler and someone putting a ball down the pitch.
+  return THREE.MathUtils.lerp(GATHER_ANGLE, RELEASE_ANGLE, span(t, BACK_FOOT, 1) ** ARM_WHIP);
 }
+/** Where the arm hangs at the bottom of the gather, behind and below him. */
+const GATHER_ANGLE = -2.42;
+/**
+ * How hard the sweep accelerates. The arm covers most of its arc in the last
+ * fraction of it, which is why it is a whip and not a windmill: at 2.4 it is
+ * doing about 24 rad/s as the ball goes, which is a fast bowler's arm.
+ */
+const ARM_WHIP = 2.4;
+/** How much of the follow-through the arm spends coming down across the body. */
+const ARM_THROUGH = .42;
 /** Just past vertical, which is where a ball actually leaves the hand. */
 const RELEASE_ANGLE = .20;
 
@@ -126,7 +140,7 @@ function frontArmAngle(t: number) {
   if (t <= BOUND) return -Math.PI - Math.sin(advance(t) / STRIDE * Math.PI * 2) * .78;
   if (t <= BACK_FOOT) return THREE.MathUtils.lerp(Math.PI, -.26, ease(span(t, BOUND, BACK_FOOT)));
   // The pull-down: this is the block that turns the shoulders over.
-  if (t <= 1) return THREE.MathUtils.lerp(-.26, -2.5, ease(span(t, BACK_FOOT, 1)) ** 1.25);
+  if (t <= 1) return THREE.MathUtils.lerp(-.26, -2.5, ease(span(t, BACK_FOOT, 1)) ** 1.8);
   return -2.5;
 }
 
@@ -397,7 +411,11 @@ export class Bowler {
 
   /** Both arms, each on its own circle about its own shoulder. */
   private arms(pose: Figure, t: number, after: number) {
-    const angle = after > 0 ? THREE.MathUtils.lerp(RELEASE_ANGLE, 2.55, ease(after)) : armAngle(t);
+    // Past release the arm keeps the speed it went over at and bleeds it off,
+    // rather than stopping at the moment of release and strolling down. Easing
+    // in from nothing here is what made a 24 rad/s arm read as a slow one: the
+    // eye follows it through the ball, and what it saw was the arm stop.
+    const angle = after > 0 ? THREE.MathUtils.lerp(RELEASE_ANGLE, 2.55, settle(span(after, 0, ARM_THROUGH))) : armAngle(t);
     const front = after > 0 ? THREE.MathUtils.lerp(-2.5, -2.05, ease(after)) : frontArmAngle(t);
 
     // Shoulders, from the trunk the pose has already described.

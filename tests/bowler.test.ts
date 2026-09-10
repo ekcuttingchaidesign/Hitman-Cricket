@@ -47,20 +47,55 @@ describe('the bowling action', () => {
 
   it('swings the arm up behind him and over the top, once', () => {
     // Measured as the hand's height: down at the gather, then climbing without
-    // ever dropping back, all the way to the top of the circle.
-    const heights = [.72, .76, .80, .84, .88, .92, .96].map(t => at(t).hands[1][1]);
-    for (let i = 1; i < heights.length; i++) expect(heights[i]).toBeGreaterThan(heights[i - 1]);
+    // ever dropping back, all the way to the top of the circle. Sampled finely,
+    // because the sweep accelerates — most of the arc is in the last of it, and
+    // a coarse grid misses the top entirely.
+    const steps = 400;
+    const heights = Array.from({ length: steps + 1 }, (_, i) =>
+      at(PHASES.BACK_FOOT + (1 - PHASES.BACK_FOOT) * (i / steps)).hands[1][1]);
+    const apex = heights.indexOf(Math.max(...heights));
+    for (let i = 1; i <= apex; i++) expect(heights[i]).toBeGreaterThan(heights[i - 1]);
     expect(heights[0]).toBeLessThan(1.2);
-    // Release is the far side of the top — a ball let go at the very apex is
-    // one that has not been bowled over the top of the arm at all — so the hand
-    // is a shade below its highest point by the time the ball goes, and still
-    // higher than anywhere else in the action.
+    // Release is the far side of the top — a ball let go at the very apex is one
+    // that has not been bowled over the top of the arm at all — so the hand is a
+    // shade below its highest point by the time the ball goes, and the top is
+    // only just behind it.
     const release = at(1).hands[1][1];
-    expect(release).toBeLessThan(Math.max(...heights));
-    expect(Math.max(...heights) - release).toBeLessThan(.12);
+    expect(release).toBeLessThan(heights[apex]);
+    expect(heights[apex] - release).toBeLessThan(.12);
+    expect(apex / steps).toBeGreaterThan(.9);
     // And behind him before it comes over: the hand is back past the chest.
     const gather = at(.74);
     expect(gather.hands[1][2]).toBeGreaterThan(gather.chest[2] + .3);
+  });
+
+  it('whips the arm over, fastest at the ball and still fast after it', () => {
+    // How quickly the bowling arm is rotating, in radians per second, measured
+    // off the hand going round the shoulder.
+    const rate = (fromMs: number, toMs: number) => {
+      const angle = (ms: number) => {
+        bowler.animate(ms);
+        const s = bowler.figure.inspect();
+        const [hx, hy, hz] = s.hands[1], [sx, sy, sz] = s.shoulders[1];
+        return Math.atan2(-(hz - sz), hy - sy);
+      };
+      let a = angle(fromMs), b = angle(toMs), d = b - a;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      return Math.abs(d) / ((toMs - fromMs) / 1000);
+    };
+    const R = GAME.runupMs;
+    // A fast bowler's arm is doing 25-30 rad/s as the ball goes. It used to
+    // reach 18 and then fall off a cliff to 5 the moment it let go, and an arm
+    // that stops at release is what a slow action actually looks like — the eye
+    // follows it through the ball and sees it stop.
+    const atRelease = rate(R - 25, R);
+    expect(atRelease).toBeGreaterThan(18);
+    // And it carries: no stall on the far side of the ball.
+    const justAfter = rate(R, R + 25);
+    expect(justAfter).toBeGreaterThan(atRelease * .7);
+    // The sweep accelerates into the ball rather than running at one rate.
+    expect(atRelease).toBeGreaterThan(rate(R - 200, R - 150) * 2);
   });
 
   it('turns side-on for the gather and comes back through to face the batter', () => {

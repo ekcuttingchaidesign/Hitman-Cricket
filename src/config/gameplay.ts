@@ -26,20 +26,24 @@ export const LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSID
 /** The scoring strokes. Defence is not one of them and is never chosen for you. */
 export const SHOTS: ShotType[] = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'];
 export const LINE_X: Record<BallLine, number> = { OUTSIDE_LEG: -0.42, LEG: -0.14, MIDDLE: 0, OFF: 0.14, OUTSIDE_OFF: 0.42 };
+// The innings is medium-fast by default and everything else is a change from
+// it: two thirds of the balls come out between 110 and 135, and the quick ones
+// and the slow ones are what happens to a batter who has settled into that. A
+// mix with a quarter of each is not a surprise, it is a lottery.
 // `rush` shortens the flight beyond what the speed alone buys and `tight`
 // squeezes the timing windows, so a quick ball is a jolt rather than a number.
 // `bounce` and `rise` set the length: a yorker pitches at the toes and skids,
 // a bouncer lands short and rears. Zero-weight styles are only ever bowled as
 // specials, by the state of the innings.
 export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: number; label: string; rush?: number; tight?: boolean; bounce?: number; rise?: number }> = {
-  NORMAL: { weight: 0.30, min: 115, max: 130, label: 'SEAM' },
-  FAST: { weight: 0.18, min: 137, max: 153, label: 'FAST', rush: 0.80, tight: true },
-  EXPRESS: { weight: 0.09, min: 155, max: 168, label: 'EXPRESS', rush: 0.62, tight: true },
-  SLOWER: { weight: 0.10, min: 78, max: 98, label: 'SLOWER BALL', rush: 1.15 },
-  SWING_IN: { weight: 0.11, min: 110, max: 135, label: 'INSWINGER' },
-  SWING_OUT: { weight: 0.10, min: 110, max: 135, label: 'OUTSWINGER' },
-  OFF_SPIN: { weight: 0.06, min: 72, max: 92, label: 'OFF SPIN' },
-  LEG_SPIN: { weight: 0.06, min: 72, max: 92, label: 'LEG SPIN' },
+  NORMAL: { weight: 0.36, min: 115, max: 130, label: 'SEAM' },
+  FAST: { weight: 0.14, min: 137, max: 153, label: 'FAST', rush: 0.80, tight: true },
+  EXPRESS: { weight: 0.05, min: 158, max: 170, label: 'EXPRESS', rush: 0.62, tight: true },
+  SLOWER: { weight: 0.06, min: 78, max: 98, label: 'SLOWER BALL', rush: 1.15 },
+  SWING_IN: { weight: 0.155, min: 110, max: 135, label: 'INSWINGER' },
+  SWING_OUT: { weight: 0.145, min: 110, max: 135, label: 'OUTSWINGER' },
+  OFF_SPIN: { weight: 0.045, min: 72, max: 92, label: 'OFF SPIN' },
+  LEG_SPIN: { weight: 0.045, min: 72, max: 92, label: 'LEG SPIN' },
   YORKER: { weight: 0, min: 152, max: 163, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
   SHORT: { weight: 0, min: 118, max: 134, label: 'BOUNCER', rush: 0.95, bounce: 10.4, rise: 2.9 },
 };
