@@ -18,7 +18,13 @@ const icon = (name: string) => {
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
-const coverArt = new URL('../assets/cover.webp', import.meta.url).href;
+/* Three plates of the same ground. The first is the one the game has always
+   opened on, so it is the one that is already there when the screen appears. */
+const coverPlates = [
+  new URL('../assets/cover.webp', import.meta.url).href,
+  new URL('../assets/cover-drive.webp', import.meta.url).href,
+  new URL('../assets/cover-bowled.webp', import.meta.url).href,
+];
 const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
 /**
  * A phone gets the cover art: the illustration, the title lockup and two calls
@@ -27,7 +33,8 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
  */
 const coverIntro = (best: number) => `
         <div id="intro" class="intro cover-intro">
-          <img class="cover-art" src="${coverArt}" alt="" aria-hidden="true" fetchpriority="high" decoding="async">
+          <div class="cover-plate" aria-hidden="true">${coverPlates.map((src, i) =>
+            `<img class="cover-art" src="${src}" alt="" decoding="async"${i ? '' : ' fetchpriority="high"'}>`).join('')}</div>
           <img class="cover-title" src="${coverTitle}" alt="Hitman Cricket" decoding="async">
           <div class="cover-actions">
             <p class="cover-best${best ? '' : ' hidden'}">${icon('trophy')}<span>BEST</span><strong id="best">${best} <small>RUNS</small></strong></p>

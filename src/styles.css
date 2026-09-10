@@ -523,15 +523,74 @@ kbd{
   padding:7.3svh var(--pad-right) calc(var(--pad-bottom) + 3.6svh) var(--pad);
   text-align:center
 }
-.cover-art{
+/* The cover does not sit still. Three plates of the same ground stacked in one
+   window, each held about seven seconds and handed to the next over a second and
+   a half, drifting in a little the whole time. Twenty-one seconds round, which
+   is long enough that it reads as a scene rather than a slideshow.
+   It is three CSS animations and no timer, so there is nothing to start, stop or
+   leak, and the whole thing stops existing the moment the innings hides the
+   cover. */
+.cover-plate{
   position:absolute;
   inset:0;
   z-index:-1;
+  overflow:hidden
+}
+.cover-art{
+  position:absolute;
+  inset:0;
   width:100%;
   height:100%;
   /* Cropped towards the pitch: a landscape phone keeps the sand under the keys. */
   object-fit:cover;
-  object-position:50% 58%
+  object-position:50% 58%;
+  opacity:1
+}
+@media (prefers-reduced-motion:no-preference){
+  .cover-art{
+    animation-duration:21s;
+    animation-timing-function:linear;
+    animation-iteration-count:infinite;
+    animation-fill-mode:both
+  }
+  /* Three plates, three timelines, because a crossfade needs an opaque plate
+     underneath it at every instant or the live ground shows through the middle
+     of the dissolve. So the first plate never fades: it is the floor. The second
+     comes up over it, the third comes up over the second, and then the third
+     fades back off to leave the floor bare again. The second drops out under the
+     opaque third, where nobody can see it go. */
+  .cover-art:nth-child(1){animation-name:cover-one}
+  .cover-art:nth-child(2){animation-name:cover-two}
+  .cover-art:nth-child(3){animation-name:cover-three}
+}
+/* Asked for stillness, the cover is one plate again, and it is the first one. */
+@media (prefers-reduced-motion:reduce){
+  .cover-art:nth-child(n+2){display:none}
+}
+/* Percentages are seconds out of twenty-one: 6, 7.5, 13, 14.5, 19.5. Each plate
+   holds for about seven of them and takes a second and a half to hand over. */
+@keyframes cover-one{
+  0%{opacity:1;transform:scale(1)}
+  35.714%{transform:scale(1.05)}
+  61.905%{transform:scale(1.05)}
+  85%{transform:scale(1)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes cover-two{
+  0%{opacity:0;transform:scale(1)}
+  28.571%{opacity:0;transform:scale(1)}
+  35.714%{opacity:1}
+  69.048%{opacity:1;transform:scale(1.05)}
+  69.5%{opacity:0}
+  85%{transform:scale(1)}
+  100%{opacity:0;transform:scale(1)}
+}
+@keyframes cover-three{
+  0%{opacity:0;transform:scale(1)}
+  61.905%{opacity:0;transform:scale(1)}
+  69.048%{opacity:1}
+  92.857%{opacity:1}
+  100%{opacity:0;transform:scale(1.05)}
 }
 .cover-title{width:min(74%,440px);height:auto}
 .cover-actions{
@@ -1048,7 +1107,7 @@ dialog .primary-button{margin-top:18px}
   .intro-panel{width:min(340px,calc(100% - 2 * var(--pad)));top:calc(50% + 14px)}
   /* A portrait cover crops to nothing useful across a landscape phone, so the
      live ground stands in for it and the lockup sits over the real thing. */
-  .cover-art{display:none}
+  .cover-plate{display:none}
   .cover-intro{padding-top:4svh;padding-bottom:calc(var(--pad-bottom) + 10px)}
   .cover-title{width:min(46%,300px)}
   .cover-actions{gap:9px}
