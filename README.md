@@ -98,16 +98,26 @@ Deliveries are not all the same pace, and the gap is the point. A spinner floats
 ## The bowler
 
 He is a right-arm quick, and the action is the five things a real one does, in
-the order that makes them work. He runs in — a proper approach, eight metres of
-it, with the stride tied to the ground he covers so his feet plant rather than
-skate. He leaps into the bound and turns side-on in the air, bowling arm swept
-down and back, front arm reaching up at the target: the gather, where the energy
-is stored. His back foot lands parallel to the crease and takes the load. The
-front leg reaches out and braces, the front arm is pulled down hard into the
-ribs, and that block is what whips the shoulders round and the arm over the top.
-The ball leaves just past vertical, from a hand two and a bit metres up. Then he
-falls away over the braced leg, the back leg swings through, and he runs off
-down the pitch.
+the order that makes them work. He runs in — a short approach, a couple of
+strides, with the stride tied to the ground he covers so his feet plant rather
+than skate; the bound and the delivery stride are what there is to watch, and a
+long jog in front of them only spends the batter's waiting time. He leaps into
+the bound and turns side-on in the air, bowling arm swept down and back, front
+arm reaching up at the target: the gather, where the energy is stored. His back
+foot lands parallel to the crease and takes the load. The front leg reaches out
+and braces, the front arm is pulled down hard into the ribs, and that block is
+what whips the shoulders round and the arm over the top. The ball leaves just
+past vertical, from a hand two and a bit metres up. Then he falls away over the
+braced leg, the back leg swings through, he runs off down the pitch — and he
+stands back up. A follow-through held to the end of the ball leaves a man bent
+double over his own knee for a second and a half, watching a shot he cannot see,
+which is the tell of an animation that stopped rather than finished.
+
+He is lowest as the front foot lands and tallest as the ball goes: the hips
+travel up and over the braced leg. That is both what a delivery stride is for
+and the only way a leg that length reaches a foot planted that far in front of
+it — stood tall the whole way through, the leg is stretched flat before the foot
+ever gets down.
 
 The bowling arm is a straight arm on a circle rather than a hand the limb solver
 chases, because that is what it physically is: an arm that bends at the elbow
@@ -170,7 +180,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
 - `src/entities/Cricketer.ts`: the body the bowler and every fielder are built from, and `src/entities/rig.ts`: the two-bone solver and segment placement they share with the batter.
 - `src/entities/Bowler.ts`: the bowling action, from the top of the mark to the end of the follow-through.
-- `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. The popping crease is 1.2m in front of each wicket and the batter stands inside it rather than over the stumps, so the ball is met about a metre in front of them; `GAME.travelScale` carries the shorter flight that leaves, and every delivery keeps the duration it was tuned to. Bowler and fielders are articulated rather than stacked: every limb is solved between two points and drawn as a tapered segment with a joint sphere buried in each end, so an elbow reads as a bend instead of a gap. The distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
+- `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. The popping crease is 1.2m in front of each wicket and the batter stands inside it rather than over the stumps, so the ball is met about a metre in front of them; `GAME.travelScale` carries the shorter flight that leaves, and every delivery keeps the duration it was tuned to. Bowler and fielders are articulated rather than stacked. Trunk, pelvis and head are each one lathed skin — shoulders, ribs, waist and neck in a single unbroken surface — and the trunk tucks inside the wider pelvis at the waist so the join is buried rather than shown. Every limb is solved between two points and drawn as a segment tapering towards the joint it points at, with a joint sphere sized to the radius the two limbs meeting inside it actually arrive with: a joint wider than its limbs is a bead on a string, one narrower is a gap, and a limb tapering the wrong way — thickest at the wrist — is most of why a body reads as a pile of parts rather than a body. The distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
 - **No stroke passes the bat through the batter.** The pick-up holds the blade up behind one shoulder and the contact holds it down at the ball, half a turn away, so the short path between them can run round the back of his hip; a wrapped follow-through ends behind the other shoulder, so the short path home can run through his head. Both are steered by the poses either side of them — the leg-side flick lays its handle back so the blade comes down in front of him, the straight drive finishes a little wider of the grille, and the cut and the long-on drive each name a `recover` pose. A test measures the bat against the ellipsoids the figure is actually built from — trunk, hips and helmet — every 8ms of every stroke, at both lengths, across the full width of the crease, and fails if it reaches inside any of them.
 
 - `src/entities/Batter.ts`: articulated right-handed batter with eight strokes — the five shot directions, a back-foot pull the leg-side input selects at bouncer height, a square cut that stands tall for a ball at the chest, and a charge down the pitch the confidence meter unlocks — built from smooth primitives, with the bat blade extruded from a real cricket-bat outline, with a side-on guard, flexed knees, the back bent forward over the ball, the head carried on the spine, the bat cocked back over the shoulder so the toe points at first slip with the face opened up, a shared two-hand bat grip, and two-bone arm/leg posing. Both fists ride the bat's own rotation — the right hand below the left on the handle, knuckles lined up along it — and only the gauntlets turn, back up the forearm; a hand free to face its own arm ends up gripping the handle a quarter-turn away from the other one. Elbow hints are scored for room and turned around the arm when one would bury the elbow in the chest or lay the forearm along the handle. The bat carries a full orientation — a handle axis plus a blade face — and poses slerp that rotation, so the blade travels a clean arc instead of rolling at random when a stroke reverses it. Each shot has its own footwork, contact pose, and follow-through; drives step forward, the leg-side stroke rolls into a flick, and the square cut rocks back onto the back foot, strikes square with a horizontal bat, and wraps the blade up over the front shoulder. A stroke may also name a `recover` pose, the shape the bat comes down through on its way back to the guard, for a follow-through the bat cannot travel home from in a straight line without passing through the batter. Both gloves stay attached to the bat handle throughout the stroke. The blade, outgoing ball, impact sound, and result feedback are synchronized at visual contact without altering input timing scores.

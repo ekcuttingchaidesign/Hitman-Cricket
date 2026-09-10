@@ -10,7 +10,8 @@ const bowler = new Bowler();
 /** Every frame of the run-up, and of the follow-through that runs on from it. */
 const runup = (steps = 240) => Array.from({ length: steps + 1 }, (_, i) => i / steps);
 const at = (t: number) => { bowler.runup(t); return bowler.figure.inspect(); };
-const after = (p: number) => { bowler.followThrough(p * .34); return bowler.figure.inspect(); };
+/** `p` is progress through the ball's flight: follow-through, then standing up. */
+const flight = (p: number) => { bowler.followThrough(p); return bowler.figure.inspect(); };
 
 /** The popping crease at the bowler's end: in front of it is a no-ball. */
 const POPPING_CREASE = 18.7 - GAME.creaseZ;
@@ -77,15 +78,15 @@ describe('the bowling action', () => {
       const s = at(t);
       for (const reach of [...s.legReach, ...s.armReach]) expect(reach).toBeLessThanOrEqual(1);
     }
-    for (const p of runup(80)) {
-      const s = after(p);
+    for (const p of runup(120)) {
+      const s = flight(p);
       for (const reach of [...s.legReach, ...s.armReach]) expect(reach).toBeLessThanOrEqual(1);
     }
   });
 
   it('never puts a foot through the ground', () => {
     for (const t of runup()) for (const foot of at(t).feet) expect(foot[1]).toBeGreaterThan(.02);
-    for (const p of runup(80)) for (const foot of after(p).feet) expect(foot[1]).toBeGreaterThan(.02);
+    for (const p of runup(120)) for (const foot of flight(p).feet) expect(foot[1]).toBeGreaterThan(.02);
   });
 
   it('leaves a planted foot exactly where it was put', () => {
@@ -99,8 +100,9 @@ describe('the bowling action', () => {
     // The front foot is braced from the moment it lands until the ball has gone.
     const braced = [.93, .95, .97, .99, 1].map(t => world(t, 0));
     for (const spot of braced) expect(spot.distanceTo(braced[0])).toBeLessThan(.01);
-    // And the back foot holds its mark while he runs up over it.
-    const back = [.73, .75, .77, .79].map(t => world(t, 1));
+    // And the back foot holds its mark while he runs up over it, until the
+    // body has gone past and it is picked up again.
+    const back = [.65, .68, .71, .73].map(t => world(t, 1));
     for (const spot of back) expect(spot.distanceTo(back[0])).toBeLessThan(.01);
   });
 
@@ -113,8 +115,12 @@ describe('the bowling action', () => {
     // way to call one — so the action has to be legal by construction.
     const frontFoot = at(1).feet[0][2] + bowler.root.position.z;
     expect(frontFoot).toBeGreaterThan(POPPING_CREASE);
-    // He does travel, and the whole way: no shuffling on the spot.
-    expect(RUNUP_START_Z - RELEASE_Z).toBeGreaterThan(6);
+    // He does travel: a run-up rather than a shuffle on the spot, but a short
+    // one — the bound and the delivery stride are most of what there is to see,
+    // and a long approach only spends the batter's waiting time on jogging.
+    const approach = RUNUP_START_Z - RELEASE_Z;
+    expect(approach).toBeGreaterThan(4);
+    expect(approach).toBeLessThan(6);
   });
 
   it('always moves down the pitch and never backs up', () => {
@@ -128,6 +134,24 @@ describe('the bowling action', () => {
     // dead on the popping crease the moment the ball has gone.
     bowler.followThrough(.34);
     expect(bowler.root.position.z).toBeLessThan(POPPING_CREASE);
+  });
+
+  it('gets back on his feet instead of holding the follow-through', () => {
+    // Freezing on the last frame of a follow-through leaves a man bent double
+    // over his own knee until the next ball, which is the tell of an animation
+    // that stopped rather than finished.
+    const bent = flight(.34);
+    const stood = flight(1);
+    expect(Math.abs(stood.lean)).toBeLessThan(.05);
+    expect(Math.abs(stood.lean)).toBeLessThan(Math.abs(bent.lean));
+    // Upright: the chest back over the hips rather than thrown out past them.
+    expect(Math.abs(stood.chest[2] - stood.hip[2])).toBeLessThan(.06);
+    expect(stood.chest[1] - stood.hip[1]).toBeGreaterThan(.4);
+    // Both feet under him, and his hands down by his sides.
+    for (const foot of stood.feet) expect(foot[1]).toBeLessThan(.09);
+    for (let i = 0; i < 2; i++) expect(stood.hands[i][1]).toBeLessThan(stood.shoulders[i][1]);
+    // And he is still facing the batter, watching the shot.
+    expect(Math.abs(stood.yaw - Math.PI)).toBeLessThan(.1);
   });
 
   it('stands still at the top of his mark', () => {

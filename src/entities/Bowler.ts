@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARM_REACH, BUILD, Cricketer, Figure, Kit } from './Cricketer';
+import { ARM_REACH, BUILD, Cricketer, Figure, Kit, SPINE } from './Cricketer';
 import { ease, settle, span } from './rig';
 
 /**
@@ -29,24 +29,34 @@ import { ease, settle, span } from './rig';
  * angle means it cannot accidentally soften into one.
  */
 
-/** Where he starts, and how far he travels before the ball leaves his hand. */
-const START_Z = 26;
-/** How far the follow-through carries him past the crease, and its landing marks. */
-const FOLLOW = 1.7;
-const travelledAt = (after: number) => RELEASE_ADVANCE + after * FOLLOW;
 /**
  * Where his hips are when the ball leaves. Everything downstream is measured
  * back from this: the hand has to arrive at the trajectory's own release point,
  * or the ball appears out of thin air beside him.
  */
 const RELEASE_HIP_Z = 18.31;
-const RELEASE_ADVANCE = START_Z - RELEASE_HIP_Z;
+/**
+ * The approach, and the three fixed strides in front of it. Only the approach
+ * is a choice — the bound and the delivery stride are the length of a man's
+ * legs, so shortening the run in means shortening the run in, not squashing
+ * the action that follows it.
+ */
+const APPROACH = 2.6;
+const BOUND_LEAP = 1.5, GATHER = .55, DELIVERY_STRIDE = .45;
+const RELEASE_ADVANCE = APPROACH + BOUND_LEAP + GATHER + DELIVERY_STRIDE;
+/** Where he starts, and how far he travels before the ball leaves his hand. */
+const START_Z = RELEASE_HIP_Z + RELEASE_ADVANCE;
+/** How far the follow-through carries him past the crease, and its landing marks. */
+const FOLLOW = 1.7;
+const travelledAt = (after: number) => RELEASE_ADVANCE + after * FOLLOW;
 /** Where each foot is planted, measured along the run from the top of the mark. */
-const BACK_FOOT_PLANT = 6.75;
-const FRONT_FOOT_PLANT = 7.92;
+const BACK_FOOT_PLANT = APPROACH + BOUND_LEAP + .15;
+const FRONT_FOOT_PLANT = RELEASE_ADVANCE + .14;
 /** The two strides of the run-off, and where each of them puts a foot down. */
 const BACK_LAND = .5, FRONT_LAND = .72;
-const STRIDE = 1.78;
+/** How far through the ball's flight he is back on his feet. */
+const RECOVERED = .78;
+const STRIDE = 1.30;
 /** How far in front of the hips a running foot comes down. */
 const FOOT_AHEAD = .30;
 
@@ -54,7 +64,7 @@ const BACK_MARK = travelledAt(BACK_LAND) + .32;
 const FRONT_MARK = travelledAt(FRONT_LAND) + .40;
 
 /** The phases of the action, as fractions of the run-up. */
-const BOUND = .52, BACK_FOOT = .72, BACK_LIFT = .80, STRIDE_START = .86, FRONT_FOOT = .93;
+const BOUND = .44, BACK_FOOT = .64, BACK_LIFT = .74, STRIDE_START = .82, FRONT_FOOT = .92;
 
 /**
  * How far he has come at `t`. Not linear: he accelerates in, the bound covers
@@ -62,10 +72,11 @@ const BOUND = .52, BACK_FOOT = .72, BACK_LIFT = .80, STRIDE_START = .86, FRONT_F
  * him. A constant speed reads as a conveyor belt.
  */
 function advance(t: number) {
-  if (t <= BOUND) return 4.3 * (t / BOUND) ** 1.35;
-  if (t <= BACK_FOOT) return 4.3 + 2.3 * ease(span(t, BOUND, BACK_FOOT));
-  if (t <= STRIDE_START) return 6.6 + .75 * span(t, BACK_FOOT, STRIDE_START);
-  return 7.35 + (RELEASE_ADVANCE - 7.35) * settle(span(t, STRIDE_START, 1));
+  const bound = APPROACH + BOUND_LEAP, gathered = bound + GATHER;
+  if (t <= BOUND) return APPROACH * (t / BOUND) ** 1.35;
+  if (t <= BACK_FOOT) return APPROACH + BOUND_LEAP * ease(span(t, BOUND, BACK_FOOT));
+  if (t <= STRIDE_START) return bound + GATHER * span(t, BACK_FOOT, STRIDE_START);
+  return gathered + DELIVERY_STRIDE * settle(span(t, STRIDE_START, 1));
 }
 
 /**
@@ -161,7 +172,12 @@ export class Bowler {
    */
   followThrough(progress: number) {
     this.ball.visible = false;
-    this.apply(1, THREE.MathUtils.clamp(progress / .34, 0, 1));
+    // The follow-through is the first third of the flight; the rest of it is
+    // him standing back up. Holding the last frame of a follow-through until
+    // the next ball leaves a man bent double over his own knee for a second and
+    // a half, watching a shot he cannot see, which is the one thing nobody on a
+    // cricket field does.
+    this.apply(1, 1, span(progress, .34, RECOVERED));
   }
 
   /** Where the ball sits in his fingers, for a test that the two line up. */
@@ -170,7 +186,7 @@ export class Bowler {
     return this.ball.getWorldPosition(new THREE.Vector3());
   }
 
-  private apply(t: number, after: number) {
+  private apply(t: number, after: number, recover = 0) {
     const travelled = after > 0 ? travelledAt(after) : advance(t);
     this.root.position.set(this.laneX, 0, START_Z - travelled);
 
@@ -179,10 +195,14 @@ export class Bowler {
     pose.yaw = Math.PI + turn - after * .5;
 
     // He stands tallest at release and collapses over the front leg afterwards.
-    const rise = t <= BACK_FOOT ? 0 : ease(span(t, BACK_FOOT, 1));
+    // He is at his lowest as the front foot lands and his tallest as the ball
+    // goes: the hips travel up and over the braced leg, which is both what a
+    // delivery stride is for and the only way a leg this long reaches a foot
+    // planted that far in front of it. Standing tall the whole way through, the
+    // leg is stretched flat before the foot ever gets down.
     const hipY = .865 + (t <= BOUND ? Math.abs(Math.sin(advance(t) / STRIDE * Math.PI)) * .045 : 0)
       + (t > BOUND && t <= BACK_FOOT ? Math.sin(span(t, BOUND, BACK_FOOT) * Math.PI) * .17 : 0)
-      + rise * .065 - after * .17;
+      + ease(span(t, STRIDE_START, 1)) * .075 - after * .17;
     pose.hip.set(0, hipY, 0);
 
     // The spine: upright running, coiled back away from the target through the
@@ -190,13 +210,14 @@ export class Bowler {
     // leg on release and further still on the follow-through.
     const coil = t <= BOUND ? 0 : t <= BACK_FOOT ? ease(span(t, BOUND, BACK_FOOT)) : 1 - ease(span(t, BACK_FOOT, 1));
     const fall = ease(span(t, FRONT_FOOT, 1)) * .16 + after * .19;
-    pose.chest.set(0, hipY + .52 - fall * .22, coil * .10 - fall * .58);
+    pose.chest.set(0, hipY + SPINE - fall * .16, coil * .10 - fall * .58);
     pose.lean = coil * .22 - (ease(span(t, FRONT_FOOT, 1)) * .16 + after * .26);
     pose.headYaw = coil * -.5 + after * .35;
     pose.headPitch = .05 + coil * .06 + after * .22;
 
     this.feet(pose, t, after, travelled);
     this.arms(pose, t, after);
+    if (recover > 0) this.stand(pose, ease(recover), travelled);
     this.figure.apply(pose);
   }
 
@@ -263,7 +284,7 @@ export class Bowler {
     // Where the trailing leg comes down once it has swung past the front one.
     const swingThrough = ease(span(after, 0, BACK_LAND));
     place(pose.rightFoot,
-      t <= BACK_FOOT ? THREE.MathUtils.lerp(4.3, BACK_FOOT_PLANT, ease(boundT))
+      t <= BACK_FOOT ? THREE.MathUtils.lerp(APPROACH, BACK_FOOT_PLANT, ease(boundT))
         : t <= BACK_LIFT ? BACK_FOOT_PLANT
         : after > 0 ? THREE.MathUtils.lerp(travelledAt(0) - .40, BACK_MARK, swingThrough)
         : trailing,
@@ -283,15 +304,44 @@ export class Bowler {
     // foot that is not braced against anything — and only then steps on.
     const stepOn = ease(span(after, .14, FRONT_LAND));
     const frontDistance = t <= BACK_FOOT
-      ? THREE.MathUtils.lerp(4.3, 6.3, ease(boundT))
+      ? THREE.MathUtils.lerp(APPROACH, BACK_FOOT_PLANT + .55, ease(boundT))
       : t <= FRONT_FOOT
-        ? THREE.MathUtils.lerp(6.3, FRONT_FOOT_PLANT, ease(span(t, BACK_FOOT, FRONT_FOOT)))
+        ? THREE.MathUtils.lerp(BACK_FOOT_PLANT + .55, FRONT_FOOT_PLANT, ease(span(t, BACK_FOOT, FRONT_FOOT)))
         : THREE.MathUtils.lerp(FRONT_FOOT_PLANT, FRONT_MARK, stepOn);
     const frontLift = t <= BACK_FOOT ? Math.sin(boundT * Math.PI) * .30 + boundT * .34
-      : t <= FRONT_FOOT ? .34 * (1 - ease(span(t, BACK_FOOT, FRONT_FOOT)) ** .6)
+      : t <= FRONT_FOOT ? .34 * (1 - ease(span(t, BACK_FOOT, FRONT_FOOT)) ** 1.5)
       : Math.sin(stepOn * Math.PI) * .30;
     place(pose.leftFoot, frontDistance, -.14, .06 + frontLift,
       t >= FRONT_FOOT && after === 0 ? FRONT_ACROSS : live);
+  }
+
+  /**
+   * Straightening up out of the follow-through. He unbends over the front leg,
+   * squares up to watch the ball, drops his arms, and brings his feet back
+   * under him — as a step rather than a slide, since a foot on the ground is
+   * still a foot on the ground.
+   */
+  private stand(pose: Figure, amount: number, travelled: number) {
+    const to = (target: THREE.Vector3, x: number, y: number, z: number) =>
+      target.lerp(new THREE.Vector3(x, y, z), amount);
+    const hipY = .845, chestY = hipY + SPINE;
+    to(pose.hip, 0, hipY, 0);
+    to(pose.chest, 0, chestY, .015);
+    pose.yaw = THREE.MathUtils.lerp(pose.yaw, Math.PI, amount);
+    pose.lean = THREE.MathUtils.lerp(pose.lean, 0, amount);
+    pose.headYaw = THREE.MathUtils.lerp(pose.headYaw, 0, amount);
+    pose.headPitch = THREE.MathUtils.lerp(pose.headPitch, .04, amount);
+    // The feet come back under him along an arc, so each one steps home.
+    const lift = Math.sin(amount * Math.PI) * .12;
+    const across = new THREE.Vector3(Math.cos(pose.yaw), 0, -Math.sin(pose.yaw));
+    for (const [foot, lateral, fore] of [[pose.leftFoot, -.15, .07], [pose.rightFoot, .15, -.07]] as const) {
+      const home = new THREE.Vector3(0, .06, travelled - travelledAt(1) + fore).addScaledVector(across, lateral);
+      foot.lerp(home, amount);
+      foot.y += lift;
+    }
+    // And the arms drop to his sides.
+    for (const [hand, side] of [[pose.leftHand, -1], [pose.rightHand, 1]] as const)
+      to(hand, side * .215, chestY - .42, .085);
   }
 
   /** Both arms, each on its own circle about its own shoulder. */

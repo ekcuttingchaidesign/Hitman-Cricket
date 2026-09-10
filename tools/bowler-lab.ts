@@ -20,7 +20,8 @@ const frames: Frame[] = [
   ['Delivery stride · arm climbing', .89, 0],
   ['Release · just past vertical', 1, 0],
   ['Falling away', 1, .35],
-  ['Back leg through', 1, 1],
+  ['Back leg through', 1, .7],
+  ['Back on his feet', 1, 1],
 ];
 
 const grid = document.querySelector('.grid')!;
@@ -102,7 +103,7 @@ let started = 0;
 function draw(t?: number, after?: number) {
   for (const view of views) {
     const at = t ?? view.t, tail = after ?? view.after;
-    if (tail > 0) { view.bowler.runup(1); view.bowler.followThrough(tail * .34); }
+    if (tail > 0) { view.bowler.runup(1); view.bowler.followThrough(tail); }
     else view.bowler.runup(at);
     // The camera walks in with him, so every panel frames the body rather than
     // the ten metres of turf he has covered.
@@ -127,9 +128,9 @@ if (play) play.onclick = () => { playing = !playing; started = performance.now()
 function frame(now: number) {
   if (playing) {
     // The run-up and the follow-through at the speeds the game runs them.
-    const age = (now - started) % 2100;
+    const age = (now - started) % 2400;
     if (age < 900) draw(age / 900, 0);
-    else draw(1, Math.min(1, (age - 900) / 700));
+    else draw(1, Math.min(1, (age - 900) / 1100));
   }
   requestAnimationFrame(frame);
 }

@@ -46,15 +46,49 @@ export const BUILD = {
   hipX: .125,
 } as const;
 export const ARM_REACH = BUILD.upperArm + BUILD.foreArm;
+/** Hip to upper chest. One number, so every figure is the same person. */
+export const SPINE = .46;
+
+/**
+ * A surface of revolution from a bottom-to-top `[height, radius]` profile,
+ * flattened front to back. One of these is a whole trunk — shoulders, ribs,
+ * waist and neck in a single unbroken skin — where a stack of ellipsoids leaves
+ * a seam at every join and reads as exactly what it is.
+ */
+function lathe(profile: [number, number][], depth: number, segments = 32) {
+  const geometry = new THREE.LatheGeometry(profile.map(([y, r]) => new THREE.Vector2(Math.max(r, .002), y)), segments);
+  geometry.scale(1, 1, depth);
+  geometry.computeVertexNormals();
+  return geometry;
+}
 
 const SHAPES = {
-  ball: new THREE.SphereGeometry(1, 24, 16),
-  /** A unit tube that tapers to 55% at the top: every limb narrows towards its joint. */
-  limb: new THREE.CylinderGeometry(.55, .5, 1, 18, 1),
-  tube: new THREE.CylinderGeometry(.5, .5, 1, 18, 1),
-  soft: new RoundedBoxGeometry(1, 1, 1, 4, .3),
-  /** The peak of a cap: a shallow arc, wider than it is deep, curving down at the sides. */
-  peak: new THREE.SphereGeometry(1, 20, 8, 0, Math.PI * 2, Math.PI * .38, Math.PI * .12),
+  ball: new THREE.SphereGeometry(1, 28, 20),
+  /**
+   * A limb, tapering towards the joint it points at. `segment` puts the top of
+   * this at the far end, so the top is the narrow one: an arm is thickest at
+   * the shoulder and thinnest at the wrist, and getting that the wrong way
+   * round is most of why a limb reads as a stack of parts rather than an arm.
+   */
+  limb: new THREE.CylinderGeometry(.5, .62, 1, 24, 1),
+  tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
+  soft: new RoundedBoxGeometry(1, 1, 1, 5, .3),
+  /** Shoulders down to the waist, and up into the neck, in one piece. */
+  trunk: lathe([
+    [-.34, .02], [-.325, .112], [-.27, .142], [-.17, .163], [-.05, .190],
+    [.055, .201], [.125, .186], [.170, .140], [.200, .098],
+    [.245, .072], [.300, .067], [.325, .02],
+  ], .74),
+  /** The pelvis, wide enough at the top for the trunk to tuck inside it. */
+  pelvis: lathe([
+    [-.20, .02], [-.185, .098], [-.125, .146], [-.02, .170], [.075, .167],
+    [.150, .150], [.200, .092], [.225, .02],
+  ], .80),
+  /** A head, rather than a ball with a jaw stuck under it. */
+  head: lathe([
+    [-.160, .02], [-.144, .066], [-.112, .105], [-.058, .129],
+    [.011, .139], [.075, .132], [.126, .099], [.158, .02],
+  ], .92),
 };
 
 export interface Kit {
@@ -73,6 +107,14 @@ function material(color: number, roughness: number) {
   if (!cache.has(key)) cache.set(key, new THREE.MeshStandardMaterial({ color, roughness }));
   return cache.get(key)!;
 }
+
+/**
+ * How wide each limb is, and the joint balls that close its ends. The taper is
+ * .62 of the width at the anchor and .5 at the far joint, so a joint ball takes
+ * the radius the two limbs meeting inside it actually arrive with.
+ */
+const ARM_UPPER = .132, ARM_LOWER = .106, LEG_UPPER = .195, LEG_LOWER = .150;
+const ELBOW = ARM_UPPER * .5, KNEE = LEG_UPPER * .5;
 
 /** A limb: the tapered shaft, plus the joint balls that close both of its ends. */
 interface Limb { upper: THREE.Mesh; lower: THREE.Mesh; joint: THREE.Mesh; cap: THREE.Mesh; end: THREE.Group }
@@ -101,54 +143,56 @@ export class Cricketer {
     this.root.name = 'Articulated cricketer';
     this.root.add(this.hips, this.torso, this.head);
 
-    // Torso: a ribcage that is wide at the shoulders and narrows into the waist,
-    // with the pelvis as its own block below. Two ellipsoids rather than one is
-    // what gives the figure a waist to turn at.
-    this.mesh(this.torso, shirt, [.215, .25, .155], 'ball').position.y = -.03;
-    this.mesh(this.torso, shirt, [.185, .13, .135], 'ball').position.y = -.235;
-    this.mesh(this.hips, trousers, [.175, .145, .142], 'ball');
-    // Collar, sleeve trim and a placket, so a turning body reads as turning.
-    this.mesh(this.torso, trim, [.108, .036, .108], 'tube').position.y = .175;
-    this.mesh(this.torso, trim, [.036, .30, .012], 'soft').position.set(0, -.05, .142);
-    this.mesh(this.torso, skin, [.062, .09, .062], 'tube').position.y = .20;
+    // Trunk and pelvis are one lathed skin each, and they overlap at the waist
+    // with the trunk tucked inside the wider pelvis, so the join is buried
+    // rather than shown. The neck is part of the trunk for the same reason.
+    this.mesh(this.torso, shirt, [1, 1, 1], 'trunk');
+    this.mesh(this.hips, trousers, [1, 1, 1], 'pelvis');
+    // Collar and placket, so a turning body reads as turning.
+    this.mesh(this.torso, trim, [.172, .036, .166], 'tube').position.y = .196;
+    this.mesh(this.torso, trim, [.034, .26, .012], 'soft').position.set(0, .01, .142);
+    this.mesh(this.torso, skin, [.128, .10, .118], 'tube').position.y = .27;
 
-    // Head: a skull, a jaw that is narrower than it, ears, and a real cap — a
-    // dome with a peak curving away from it, rather than a slab across the brow.
-    this.mesh(this.head, skin, [.125, .145, .131], 'ball');
-    this.mesh(this.head, skin, [.10, .08, .112], 'ball').position.set(0, -.082, .018);
-    for (const x of [-.123, .123]) this.mesh(this.head, skin, [.024, .04, .03], 'ball').position.set(x, -.01, -.01);
-    const dome = this.mesh(this.head, material(kit.cap, .74), [.133, .127, .139], 'ball');
-    dome.position.set(0, .048, -.006);
-    const peak = this.mesh(this.head, material(kit.cap, .74), [.135, .16, .175], 'peak');
-    peak.position.set(0, .09, .056); peak.rotation.x = -.30;
-    this.mesh(this.head, material(kit.cap, .74), [.026, .026, .026], 'ball').position.set(0, .16, -.006);
+    // Head: one shape, with the cap sitting on it.
+    this.mesh(this.head, skin, [1, 1, 1], 'head');
+    for (const x of [-.127, .127]) this.mesh(this.head, skin, [.024, .044, .034], 'ball').position.set(x, -.005, -.012);
+    const cap = material(kit.cap, .74);
+    this.mesh(this.head, cap, [.144, .128, .152], 'ball').position.set(0, .050, -.004);
+    // The peak: a flattened lobe out over the brow, its back half buried in the
+    // dome. A band round a sphere would ring the whole head like a crest.
+    const peak = this.mesh(this.head, cap, [.152, .030, .150], 'ball');
+    peak.position.set(0, .046, .072); peak.rotation.x = -.18;
+    this.mesh(this.head, cap, [.027, .027, .027], 'ball').position.set(0, .164, -.004);
 
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? -1 : 1;
-      // Hand: a palm with a thumb, small enough to read as a fist at this scale.
+      // A hand, small enough to read as a fist at this scale.
       const hand = new THREE.Group(); this.root.add(hand); this.hands.push(hand);
-      this.mesh(hand, skin, [.062, .085, .048], 'ball');
-      this.mesh(hand, skin, [.028, .05, .03], 'ball').position.set(side * .045, .022, .012);
+      this.mesh(hand, skin, [.058, .082, .05], 'ball');
+      this.mesh(hand, skin, [.026, .048, .03], 'ball').position.set(side * .042, .02, .012);
+      // Joint balls are sized to the radius the limbs actually arrive with, so
+      // the sphere and the taper meet flush instead of stepping. A joint wider
+      // than the limbs inside it is a bead on a string; one narrower is a gap.
       this.arms.push({
         upper: this.mesh(this.root, shirt, [1, 1, 1], 'limb'),
         lower: this.mesh(this.root, skin, [1, 1, 1], 'limb'),
-        joint: this.mesh(this.root, skin, [.060, .060, .060], 'ball'),
-        cap: this.mesh(this.root, shirt, [.098, .092, .1], 'ball'),
+        joint: this.mesh(this.root, skin, [ELBOW, ELBOW, ELBOW], 'ball'),
+        cap: this.mesh(this.root, shirt, [.086, .082, .086], 'ball'),
         end: hand,
       });
-      // The sleeve hem sits on the upper arm, so it travels with the shoulder.
-      this.mesh(this.arms[i].upper, trim, [1.06, .07, 1.06], 'tube').position.y = -.36;
+      // The sleeve hem rides the upper arm, so it travels with the shoulder.
+      this.mesh(this.arms[i].upper, trim, [1.04, .075, 1.04], 'tube').position.y = -.30;
 
       const foot = new THREE.Group(); this.root.add(foot);
-      this.mesh(foot, shoe, [.088, .058, .16], 'soft').position.z = .04;
-      this.mesh(foot, shoe, [.045, .032, .035], 'ball').position.set(0, -.012, .125);
-      this.mesh(foot, sole, [.09, .022, .162], 'soft').position.set(0, -.036, .04);
-      this.mesh(foot, material(kit.shirt, .7), [.092, .016, .05], 'soft').position.set(0, .012, .0);
+      this.mesh(foot, shoe, [.09, .062, .165], 'soft').position.z = .042;
+      this.mesh(foot, shoe, [.046, .034, .036], 'ball').position.set(0, -.012, .128);
+      this.mesh(foot, sole, [.092, .024, .167], 'soft').position.set(0, -.038, .042);
+      this.mesh(foot, material(kit.shirt, .7), [.094, .016, .05], 'soft').position.set(0, .014, 0);
       this.legs.push({
         upper: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),
         lower: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),
-        joint: this.mesh(this.root, trousers, [.098, .098, .098], 'ball'),
-        cap: this.mesh(this.root, trousers, [.128, .124, .128], 'ball'),
+        joint: this.mesh(this.root, trousers, [KNEE, KNEE, KNEE], 'ball'),
+        cap: this.mesh(this.root, trousers, [.121, .118, .121], 'ball'),
         end: foot,
       });
     }
@@ -165,10 +209,10 @@ export class Cricketer {
   stand(): Figure {
     return {
       root: this.root,
-      hip: new THREE.Vector3(0, .845, 0), chest: new THREE.Vector3(0, 1.215, .015),
+      hip: new THREE.Vector3(0, .845, 0), chest: new THREE.Vector3(0, .845 + SPINE, .015),
       yaw: 0, lean: 0,
       leftFoot: new THREE.Vector3(-.20, .05, .06), rightFoot: new THREE.Vector3(.20, .05, -.06),
-      leftHand: new THREE.Vector3(-.27, .74, .13), rightHand: new THREE.Vector3(.27, .74, .13),
+      leftHand: new THREE.Vector3(-.25, .80, .12), rightHand: new THREE.Vector3(.25, .80, .12),
       headYaw: 0, headPitch: .04,
     };
   }
@@ -184,8 +228,8 @@ export class Cricketer {
     pose.chest.set(0, pose.chest.y + r * .12, .015 - r * .05);
     pose.leftFoot.set(-.20, .05 + r * .03, .06);
     pose.rightFoot.set(.20, .05, -.06 - r * .10);
-    pose.leftHand.set(-.14, THREE.MathUtils.lerp(.74, 1.92, r), THREE.MathUtils.lerp(.13, .16, r));
-    pose.rightHand.set(.14, THREE.MathUtils.lerp(.74, 1.92, r), THREE.MathUtils.lerp(.13, .16, r));
+    pose.leftHand.set(-.15, THREE.MathUtils.lerp(.80, 1.98, r), THREE.MathUtils.lerp(.12, .16, r));
+    pose.rightHand.set(.15, THREE.MathUtils.lerp(.80, 1.98, r), THREE.MathUtils.lerp(.12, .16, r));
     pose.headPitch = .04 - r * .34;
     this.apply(pose);
   }
@@ -213,7 +257,7 @@ export class Cricketer {
     this.hips.quaternion.copy(yaw).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pose.lean * .5));
     this.torso.position.copy(chest);
     this.torso.quaternion.copy(trunk);
-    this.head.position.copy(chest).addScaledVector(spine.clone().applyQuaternion(roll), .325);
+    this.head.position.copy(chest).addScaledVector(spine.clone().applyQuaternion(roll), .33);
     this.head.quaternion.copy(trunk).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(pose.headPitch, pose.headYaw, 0)));
 
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(trunk);
@@ -235,8 +279,8 @@ export class Cricketer {
       if (hint.lengthSq() < .0001) hint.copy(right).multiplyScalar(side);
       hint.normalize();
       const elbow = solveJoint(shoulder, hand, BUILD.upperArm, BUILD.foreArm, shoulder.clone().addScaledVector(hint, .5));
-      segment(arm.upper, shoulder, elbow, .128, .134);
-      segment(arm.lower, elbow, hand, .101, .105);
+      segment(arm.upper, shoulder, elbow, ARM_UPPER, ARM_UPPER * 1.04);
+      segment(arm.lower, elbow, hand, ARM_LOWER, ARM_LOWER * 1.04);
       arm.joint.position.copy(elbow);
       arm.cap.position.copy(shoulder);
       // The hand keeps the forearm's own direction, so the wrist never snaps.
@@ -251,8 +295,8 @@ export class Cricketer {
       // Knees lead forward, in the direction the body faces.
       const knee = solveJoint(hipJoint, foot, BUILD.thigh, BUILD.shin,
         hipJoint.clone().addScaledVector(forward, .8).addScaledVector(UP, -.15));
-      segment(leg.upper, hipJoint, knee, .188, .196);
-      segment(leg.lower, knee, foot, .142, .150);
+      segment(leg.upper, hipJoint, knee, LEG_UPPER, LEG_UPPER * 1.04);
+      segment(leg.lower, knee, foot, LEG_LOWER, LEG_LOWER * 1.04);
       leg.joint.position.copy(knee);
       leg.cap.position.copy(hipJoint);
       leg.end.position.copy(foot);
