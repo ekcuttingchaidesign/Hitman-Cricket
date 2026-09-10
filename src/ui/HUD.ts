@@ -225,9 +225,12 @@ ${touch ? coverIntro(best) : panelIntro(best)}
     // already banked by the time this runs, so it is only worth quoting back
     // when the innings did not set it.
     this.$('end-title').textContent = isRecord ? 'New personal best.' : score.wickets >= 3 ? 'All out.' : 'Innings complete.';
-    this.$('end-message').textContent = isRecord
-      ? `${score.runs} runs off ${score.balls} balls, your highest yet.`
-      : `${score.runs} runs off ${score.balls} balls. Your best stands at ${best}.`;
+    // A best is worth quoting back only when there is one and this innings did
+    // not set it. On a first time out there is nothing to stand at, and "your
+    // best stands at 0" is a sentence about nobody.
+    const runs = `${score.runs} runs off ${score.balls} balls`;
+    this.$('end-message').textContent = isRecord ? `${runs}, your highest yet.`
+      : best > 0 ? `${runs}. Your best stands at ${best}.` : `${runs}.`;
     this.$('best').innerHTML = `${best} <small>RUNS</small>`; this.$('again').focus();
     // A real link rather than a scripted popup: it survives popup blockers and
     // opens the WhatsApp app on a phone.
