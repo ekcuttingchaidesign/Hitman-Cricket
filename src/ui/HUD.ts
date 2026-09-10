@@ -119,7 +119,7 @@ ${touch ? coverIntro(best) : panelIntro(best)}
               <div><dt>Strike rate</dt><dd id="final-rate"></dd></div>
             </dl>
             <button id="again" class="key-button">PLAY AGAIN</button>
-            <a id="whatsapp" class="plate-button" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} BRAG TO A FRIEND</a>
+            <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} BRAG YOUR SCORE TO A FRIEND</a>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>

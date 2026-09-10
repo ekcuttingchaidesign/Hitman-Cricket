@@ -762,29 +762,30 @@ body.start-screen .hud-top{display:none}
    an orange ledge; the innings hands you this, built the same way, so the first
    thing and the last thing are cut from one material.
    A dark card on a dark ground cannot separate itself by tone, so it does it by
-   edge: a lit rule along the top where the light would catch it, a ledge under
-   it cut from a lighter navy than the ground so the band still reads, and a real
-   shadow past that.
+   edge: a lit rule along the top where the light would catch it, a ledge cut
+   from the darkest shade of its own navy, and a real shadow past that. The ledge
+   is a shadow, so it is never a colour of its own. Not on a personal best either.
    Everything on it is Satoshi: one family, four weights, and the score is
    allowed to be the largest thing on the screen because the score is the point.
-   Radius: 18 for the card, 10 for the key, 9 for the plate. Three steps, no more. */
+   Radius: 18 for the card and 10 for both keys. Two steps, no more. */
 .scorecard{
   --ink:#f7f0e5;
   --quiet:#9fb2bd;
   --rule:#ffffff21;
+  --ball:#e5473a;
   width:min(392px,100%);
   margin:auto;
   padding:24px 26px 22px;
   border-radius:18px;
-  background:#17384e;
+  background:#0f2738;
   font-family:var(--card);
   color:var(--ink);
   text-align:left;
-  box-shadow:0 9px 0 #0e2739,0 26px 46px #030c12a6,inset 0 1px 0 #ffffff24
+  box-shadow:0 9px 0 #040e15,0 26px 46px #010609b3,inset 0 1px 0 #ffffff1f
 }
 /* The ground behind the last card of the innings goes down further than it does
    behind a pause, so a navy card still has something to stand out from. */
-#end{background:#06131bf2}
+#end{background:#071219f2}
 .scorecard h2{
   font-size:10.5px;
   font-weight:700;
@@ -862,19 +863,21 @@ body.start-screen .hud-top{display:none}
   opacity:calc(.24 + var(--r,0) * .126)
 }
 .card-balls .ball-unfaced{height:3px;opacity:.13}
-/* A wicket scores nothing, so height cannot carry it. The mark above the stub
-   can, and it costs the card no second colour. */
-.card-balls .ball-out{position:relative;opacity:1}
+/* A wicket scores nothing, so height cannot carry it. The ball can: the one
+   that got him sits above the stub in cricket-ball red, and the stub under it
+   turns the same colour, so a dismissal is the one thing on the track that is
+   not written in the card's own ink. */
+.card-balls .ball-out{position:relative;opacity:1;background:var(--ball)}
 .card-balls .ball-out::after{
   content:'';
   position:absolute;
   left:50%;
-  bottom:9px;
+  bottom:10px;
   translate:-50% 0;
-  width:5px;
-  height:5px;
+  width:6px;
+  height:6px;
   border-radius:50%;
-  background:var(--ink)
+  background:var(--ball)
 }
 /* One hairline above the group, not one under every row. The three columns are
    sized by their labels, so they sit where the words end rather than on thirds. */
@@ -899,8 +902,11 @@ body.start-screen .hud-top{display:none}
   margin:2px 0 0
 }
 /* The start screen's two keys, at card scale. Primary: white, stood on orange.
-   Secondary: the batter's navy, half the lift, no white and no orange. */
-.key-button,.plate-button{
+   Secondary goes where it sends you, so it wears WhatsApp's green rather than
+   the card's navy. Not the logo green: white on that reads at 2:1. This is the
+   same green darkened until the label clears 5:1, which is what WhatsApp does
+   with it on their own buttons. */
+.key-button,.whatsapp-key{
   display:flex;
   align-items:center;
   justify-content:center;
@@ -924,31 +930,29 @@ body.start-screen .hud-top{display:none}
 }
 .key-button:hover:not(:disabled){box-shadow:0 7px 0 var(--cta-orange),0 12px 14px #7a4a1e38}
 .key-button:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--cta-orange),0 4px 7px #7a4a1e24}
-.plate-button{
+.whatsapp-key{
   min-height:46px;
   margin-top:11px;
   border:0;
-  background:#26506e;
-  color:#ffeede;
-  font-size:14px;
-  letter-spacing:1.1px;
-  box-shadow:0 4px 0 #0b1e2b,inset 0 1px 0 #ffffff1f
+  background:#0b8043;
+  color:#fff;
+  font-size:13.5px;
+  letter-spacing:1px;
+  box-shadow:0 4px 0 #05502a,inset 0 1px 0 #ffffff2b
 }
-.plate-button svg{width:17px;height:17px}
-.plate-button:hover{background:#2e5f82}
-.plate-button:active{transform:translateY(2px);box-shadow:0 2px 0 #0b1e2b,inset 0 1px 0 #ffffff1f}
+.whatsapp-key svg{width:17px;height:17px}
+.whatsapp-key:hover{background:#0d9550}
+.whatsapp-key:active{transform:translateY(2px);box-shadow:0 2px 0 #05502a,inset 0 1px 0 #ffffff2b}
 .scorecard .start-hint{margin-top:13px;text-align:center;font-size:11.5px;color:var(--quiet)}
 /* An orange ring vanishes against an orange ledge, and the card the ring lands
    on is navy, so it is drawn in the light the rest of the card is written in. */
 .scorecard button:focus-visible,.scorecard a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
-/* A best is the one thing the card says differently, and it changes the object
-   rather than pinning a badge to it: the number takes the accent, the stamp
-   above it comes up to full strength, and the ledge the card stands on turns the
-   accent the key already wears. One state, three places it shows. The number
-   takes the accent a shade lighter, because that one has to be read off navy. */
+/* A best is the one thing the card says differently, and it says it where the
+   eye already is: the number takes the accent, and the stamp above it comes up
+   to full strength. The accent is a shade lighter than the key's, because this
+   one has to be read off navy rather than sit behind a border. */
 #end.is-record .card-runs{color:#f2814f}
 #end.is-record h2{color:var(--ink)}
-#end.is-record .scorecard{box-shadow:0 9px 0 var(--cta-orange),0 26px 46px #030c12a6,inset 0 1px 0 #ffffff24}
 /* The card is put down in front of you: it arrives once, from just below, and
    the score lands a beat after the stock does. */
 @media (prefers-reduced-motion:no-preference){
@@ -1086,7 +1090,7 @@ dialog .primary-button{margin-top:18px}
   .card-balls{display:none}
   .card-stats dd{font-size:18px}
   .key-button{min-height:44px;font-size:15px}
-  .plate-button{min-height:40px;margin-top:8px;font-size:13px}
+  .whatsapp-key{min-height:40px;margin-top:8px;font-size:12px;letter-spacing:.6px}
   .swipe-symbols,.shot-keys{display:none}
   .result{top:14%}
 }
