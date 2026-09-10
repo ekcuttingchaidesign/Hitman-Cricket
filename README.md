@@ -2,6 +2,8 @@
 
 A small, browser-based 3D cricket batting game. Five overs, 30 legal balls, three wickets. Read the delivery, pick a direction, and time your swing. Built with plain TypeScript, Three.js, and Vite; no external art, fonts, character packs, or physics engine are required.
 
+**[Play it here](https://ekcuttingchaidesign.github.io/Hitman-Cricket/)** — nothing to install, and it works on a phone.
+
 ## Run locally
 
 Requires Node.js 22.12+ (or 20.19+) and npm.
@@ -165,4 +167,4 @@ Verified in Edge: a 30-ball seeded innings finished at **138/0 in 5.0 overs**, a
 
 ## Hosting
 
-The public deployment is managed by Sites using `.openai/hosting.json`; only `dist/` is published. Source remains in the Hitman-Cricket GitHub repository. No account, download, or local server is required to play the published link. Scores stay on each player’s device. Both provided sound clips are included in the public game.
+The game is published at **https://ekcuttingchaidesign.github.io/Hitman-Cricket/**. `.github/workflows/deploy.yml` builds and deploys it to GitHub Pages on every push to `codex/cricket-batting-game`, the default branch; only `dist/` is published, and `base: './'` is what lets it serve from a repository subdirectory. A second deployment is managed by Sites using `.openai/hosting.json`. Source remains in the Hitman-Cricket GitHub repository. No account, download, or local server is required to play the published link. Scores stay on each player’s device. Both provided sound clips are included in the public game.
