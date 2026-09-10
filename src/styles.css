@@ -757,29 +757,34 @@ body.start-screen .hud-top{display:none}
 .modal-overlay>.panel{width:min(420px,100%);margin:auto}
 
 /* ── The innings-end scorecard ─────────────────────────────────────────── */
-/* Not a panel. A card of card stock, the sand of the cover art, lying on the
-   darkened ground with its own shadow under it. The start screen hands you a
-   white key stood on an orange ledge; the innings hands you this, made the same
-   way, so the first thing and the last thing are cut from one material.
+/* Not a panel. A slab of the batter's own navy, lying on the darkened ground
+   with its own shadow under it. The start screen hands you a white key stood on
+   an orange ledge; the innings hands you this, built the same way, so the first
+   thing and the last thing are cut from one material.
+   A dark card on a dark ground cannot separate itself by tone, so it does it by
+   edge: a lit rule along the top where the light would catch it, a ledge under
+   it cut from a lighter navy than the ground so the band still reads, and a real
+   shadow past that.
    Everything on it is Satoshi: one family, four weights, and the score is
    allowed to be the largest thing on the screen because the score is the point.
    Radius: 18 for the card, 10 for the key, 9 for the plate. Three steps, no more. */
 .scorecard{
-  --ink:#14293a;
-  --quiet:#6f6659;
-  --rule:#14293a1c;
+  --ink:#f7f0e5;
+  --quiet:#9fb2bd;
+  --rule:#ffffff21;
   width:min(392px,100%);
   margin:auto;
   padding:24px 26px 22px;
   border-radius:18px;
-  background:#fbf4e8;
+  background:#17384e;
   font-family:var(--card);
   color:var(--ink);
   text-align:left;
-  /* A solid ledge, then a real shadow on the grass. The ledge is what makes it
-     an object rather than a sheet, and it is the Play button's own trick. */
-  box-shadow:0 9px 0 #12303f,0 26px 44px #04121b73
+  box-shadow:0 9px 0 #0e2739,0 26px 46px #030c12a6,inset 0 1px 0 #ffffff24
 }
+/* The ground behind the last card of the innings goes down further than it does
+   behind a pause, so a navy card still has something to stand out from. */
+#end{background:#06131bf2}
 .scorecard h2{
   font-size:10.5px;
   font-weight:700;
@@ -854,9 +859,9 @@ body.start-screen .hud-top{display:none}
   transform-origin:50% 100%;
   border-radius:1.5px;
   background:var(--ink);
-  opacity:calc(.17 + var(--r,0) * .138)
+  opacity:calc(.24 + var(--r,0) * .126)
 }
-.card-balls .ball-unfaced{height:3px;opacity:.07}
+.card-balls .ball-unfaced{height:3px;opacity:.13}
 /* A wicket scores nothing, so height cannot carry it. The mark above the stub
    can, and it costs the card no second colour. */
 .card-balls .ball-out{position:relative;opacity:1}
@@ -923,27 +928,27 @@ body.start-screen .hud-top{display:none}
   min-height:46px;
   margin-top:11px;
   border:0;
-  background:#16324a;
+  background:#26506e;
   color:#ffeede;
   font-size:14px;
   letter-spacing:1.1px;
-  box-shadow:0 4px 0 #0c1f31
+  box-shadow:0 4px 0 #0b1e2b,inset 0 1px 0 #ffffff1f
 }
 .plate-button svg{width:17px;height:17px}
-.plate-button:hover{background:#1d4160}
-.plate-button:active{transform:translateY(2px);box-shadow:0 2px 0 #0c1f31}
+.plate-button:hover{background:#2e5f82}
+.plate-button:active{transform:translateY(2px);box-shadow:0 2px 0 #0b1e2b,inset 0 1px 0 #ffffff1f}
 .scorecard .start-hint{margin-top:13px;text-align:center;font-size:11.5px;color:var(--quiet)}
-.scorecard kbd{border-color:#14293a33;background:#14293a12;color:var(--ink)}
-/* Orange rings vanish against an orange ledge and a cream card. Navy does not. */
+/* An orange ring vanishes against an orange ledge, and the card the ring lands
+   on is navy, so it is drawn in the light the rest of the card is written in. */
 .scorecard button:focus-visible,.scorecard a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 /* A best is the one thing the card says differently, and it changes the object
    rather than pinning a badge to it: the number takes the accent, the stamp
    above it comes up to full strength, and the ledge the card stands on turns the
    accent the key already wears. One state, three places it shows. The number
-   takes the accent a shade deeper, because that one has to be read. */
-#end.is-record .card-runs{color:#c8461c}
+   takes the accent a shade lighter, because that one has to be read off navy. */
+#end.is-record .card-runs{color:#f2814f}
 #end.is-record h2{color:var(--ink)}
-#end.is-record .scorecard{box-shadow:0 9px 0 var(--cta-orange),0 26px 44px #04121b73}
+#end.is-record .scorecard{box-shadow:0 9px 0 var(--cta-orange),0 26px 46px #030c12a6,inset 0 1px 0 #ffffff24}
 /* The card is put down in front of you: it arrives once, from just below, and
    the score lands a beat after the stock does. */
 @media (prefers-reduced-motion:no-preference){
