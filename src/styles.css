@@ -37,6 +37,10 @@ button,a{-webkit-tap-highlight-color:transparent}
 button{font:inherit;cursor:pointer;transition:background .16s,transform .16s,opacity .16s}
 button:disabled{opacity:.3;cursor:default}
 button:focus-visible,a:focus-visible{outline:3px solid #ec754a;outline-offset:4px}
+/* The orange ring is invisible against an orange button, and the primary action
+   is the one the innings-end card focuses on open, so it is the ring most often
+   on screen. Light against the button, still dark enough against the panel. */
+.primary-button:focus-visible{outline-color:#fff2e4}
 button:hover:not(:disabled){transform:translateY(-1px)}
 button:active:not(:disabled){transform:translateY(1px)}
 .hidden{display:none!important}
@@ -117,7 +121,7 @@ kbd{
   --lamp-on:#ffb03f;
   --lamp-off:#ffffff10
 }
-.scoreboard,.confidence{
+.scoreboard,.confidence,.end-board{
   position:relative;
   border-radius:7px;
   background:linear-gradient(#333f45,var(--bezel) 42%,#1d262a);
@@ -125,7 +129,7 @@ kbd{
   box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset
 }
 /* Four bolts, one element. */
-.scoreboard::before,.confidence::before{
+.scoreboard::before,.confidence::before,.end-board::before{
   content:'';
   position:absolute;
   inset:0;
@@ -654,7 +658,7 @@ body.start-screen .hud-top{display:none}
   border:0;
   border-radius:8px;
   background:var(--orange);
-  color:#fff;
+  color:var(--cta-ink);
   font-size:12px;
   font-weight:800;
   letter-spacing:1.7px
@@ -685,6 +689,46 @@ body.start-screen .hud-top{display:none}
 }
 .whatsapp-button:hover{background:#63c4731f}
 .whatsapp-button svg{width:17px;height:17px}
+.end-content{
+  text-align:left;
+  padding:20px 20px 22px
+}
+.end-content h2{
+  font-size:27px;
+  letter-spacing:-.5px;
+  margin:20px 0 5px
+}
+.end-content p{font-size:13.5px;line-height:1.55;color:#a9c0c6;margin:0 0 16px}
+/* Sentence case and normal tracking. Letter-spaced caps on every control is the
+   loudest tell on the card, and a button does not need to shout to be pressed. */
+.end-content .primary-button{
+  font-size:14px;
+  font-weight:750;
+  letter-spacing:.2px;
+  min-height:48px;
+  border-radius:9px
+}
+.end-content .secondary-button{
+  font-size:13px;
+  font-weight:650;
+  letter-spacing:.2px;
+  min-height:44px;
+  border-radius:9px;
+  margin-top:9px
+}
+.end-content .start-hint{margin-top:14px;font-size:11.5px;color:#8ea6ad}
+.end-content .primary-button:active,.end-content .secondary-button:active{transform:translateY(1px)}
+/* The board posts the score: the total lands, then the innings behind it. One
+   state change, one reason. Off under reduced motion, like everything else. */
+@media (prefers-reduced-motion:no-preference){
+  #end:not(.hidden) .end-board .cell{animation:board-post .38s cubic-bezier(.16,1,.3,1) backwards}
+  #end:not(.hidden) .end-cells .cell:nth-child(1){animation-delay:.10s}
+  #end:not(.hidden) .end-cells .cell:nth-child(2){animation-delay:.15s}
+  #end:not(.hidden) .end-cells .cell:nth-child(3){animation-delay:.20s}
+  #end:not(.hidden) .end-cells .cell:nth-child(4){animation-delay:.25s}
+}
+@keyframes board-post{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
 .start-hint{
   display:block;
   margin-top:12px;
@@ -752,24 +796,38 @@ body.start-screen .hud-top{display:none}
   touch-action:pan-y
 }
 .modal-overlay>.panel{width:min(420px,100%);margin:auto}
-.final-score{
-  font-family:var(--display);
-  font-size:84px;
-  line-height:1;
-  margin:6px 0 10px
+/* ── The innings-end board ─────────────────────────────────────────────── */
+/* The card is the ground's own scoreboard, not a panel that happens to sit near
+   one. It carries the same housing, the same bolts and the same lamps the
+   player has been reading the innings off for five overs, so the last thing
+   they see belongs to the same place as everything before it.
+   Radius rule for this card, in three steps and no more: the panel is 14px, the
+   board inside it is 9px, and the board's recessed window is 5px. Those are the
+   same three the board on the field uses. */
+.end-board{
+  --label:#7d929b;
+  --housing:#161d21;
+  --bezel:#2c363b;
+  --window:#0a1013;
+  --lamp-on:#ffb03f;
+  --lamp-off:#ffffff10;
+  border-radius:9px;
+  text-align:left
 }
-.final-score small{font-size:34px;color:#7f9aa1}
-.final-stats{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:8px;
-  margin:18px 0 20px;
-  padding:16px 0;
-  border-top:1px solid #ffffff1a;
-  border-bottom:1px solid #ffffff1a
-}
-.final-stats strong{font-family:var(--display);font-size:25px;display:block;line-height:1}
-.final-stats span{font-size:8px;letter-spacing:1px;color:#9fb6bb;font-weight:650}
+.end-board .board-head{padding:4px 12px 5px}
+.end-board .board-cells{border-radius:0}
+.end-board .cell-label{color:var(--label)}
+.end-board .cell{flex:1;justify-content:flex-end}
+.end-total .cell{padding:12px 14px 13px}
+.end-total .cell-value{height:38px}
+.end-cells{margin-top:1px}
+.end-cells .cell{padding:9px 4px 10px;gap:5px}
+.end-cells .cell-value{height:16px}
+.end-cells .cell-label{font-size:7px;letter-spacing:1.1px}
+.end-board .board-cells:last-child{border-radius:0 0 5px 5px;overflow:hidden}
+/* A personal best lights the total the way the board lights a boundary. The
+   colour is the board's own, and it is saying something: state, not decoration. */
+#end.is-record .end-total{--lamp-on:#b9e37a}
 
 .share-status{
   position:absolute;
@@ -837,8 +895,6 @@ dialog .primary-button{margin-top:18px}
   .panel{padding:22px 20px 24px}
   .panel h2{font-size:33px}
   .panel p{font-size:12px}
-  .final-score{font-size:66px}
-  .final-stats strong{font-size:20px}
   .brand{font-size:20px}
   .brand-mark{font-size:32px}
 }
@@ -883,9 +939,13 @@ dialog .primary-button{margin-top:18px}
   .panel p br{display:none}
   .challenge-tag{margin-bottom:9px}
   .personal-best{margin-top:12px;padding-top:11px}
-  .final-score{font-size:44px;margin:2px 0 6px}
-  .final-stats{margin:10px 0 12px;padding:10px 0}
-  .final-stats strong{font-size:19px}
+  .end-content{padding:16px 16px 18px}
+  .end-content h2{font-size:22px;margin:15px 0 4px}
+  .end-content p{font-size:12.5px;margin:0 0 13px}
+  .end-total .cell-value{height:30px}
+  .end-total .cell{padding:10px 12px 11px}
+  .end-cells .cell{padding:8px 3px 9px}
+  .end-cells .cell-value{height:14px}
   .swipe-symbols,.shot-keys{display:none}
   .result{top:14%}
 }

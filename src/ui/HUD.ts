@@ -103,7 +103,25 @@ export class HUD {
         <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
 ${touch ? coverIntro(best) : panelIntro(best)}
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-content"><p class="eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p>The next shot can wait.</p><button id="resume" class="primary-button">RESUME INNINGS ${icon('arrow')}</button><button id="restart" class="secondary-button">RESTART INNINGS</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
-        <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title"><div class="panel end-content"><span class="challenge-tag" id="end-tag">INNINGS COMPLETE</span><h2 id="end-title">That's a wrap.</h2><div class="final-score" id="final-score">0<small>/0</small></div><p id="end-message"></p><div class="final-stats"><div><strong id="final-overs">0.0</strong><span>OVERS</span></div><div><strong id="final-fours">0</strong><span>FOURS</span></div><div><strong id="final-sixes">0</strong><span>SIXES</span></div><div><strong id="final-rate">0</strong><span>STRIKE RATE</span></div></div><button id="again" class="primary-button">PLAY AGAIN ${icon('arrow')}</button><a id="whatsapp" class="secondary-button whatsapp-button" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} BRAG YOUR SCORE TO A FRIEND</a><span class="start-hint">A fresh innings. A bigger score. <kbd class="keyboard-only">R</kbd></span></div></div>
+        <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
+          <div class="panel end-content">
+            <div class="end-board" role="group" aria-label="Final scoreboard">
+              <div class="board-head"><span class="board-name">HITMAN OVAL</span><span class="board-lamp"></span></div>
+              <div class="board-cells end-total"><div class="cell"><span class="cell-label">FINAL</span><span class="cell-value" id="final-score"></span></div></div>
+              <div class="board-cells end-cells">
+                <div class="cell"><span class="cell-label">OVERS</span><span class="cell-value" id="final-overs"></span></div>
+                <div class="cell"><span class="cell-label">FOURS</span><span class="cell-value" id="final-fours"></span></div>
+                <div class="cell"><span class="cell-label">SIXES</span><span class="cell-value" id="final-sixes"></span></div>
+                <div class="cell"><span class="cell-label">S/R</span><span class="cell-value" id="final-rate"></span></div>
+              </div>
+            </div>
+            <h2 id="end-title">Innings complete.</h2>
+            <p id="end-message"></p>
+            <button id="again" class="primary-button">Play again ${icon('arrow')}</button>
+            <a id="whatsapp" class="secondary-button whatsapp-button" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} Brag to a friend</a>
+            <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
+          </div>
+        </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
         <pre id="debug" class="debug hidden"></pre>
       </div>
@@ -194,10 +212,22 @@ ${touch ? coverIntro(best) : panelIntro(best)}
     this.viewport.classList.add('modal-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
-    this.$('final-score').innerHTML = `${score.runs}<small>/${score.wickets}</small>`;
-    this.$('final-overs').textContent = score.overs; this.$('final-fours').textContent = String(score.fours); this.$('final-sixes').textContent = String(score.sixes); this.$('final-rate').textContent = String(score.strikeRate);
-    this.$('end-tag').textContent = isRecord ? 'A NEW PERSONAL BEST' : 'INNINGS COMPLETE';
-    this.$('end-message').textContent = score.wickets >= 3 ? 'All out. The crease is calling for a comeback.' : 'Five overs in the books. Can you go one better?';
+    // The board the innings was read off posts the final score, rather than a
+    // number in a different typeface on a card that shares nothing with it. The
+    // lamps carry a spoken label each, because "S/R" is not a word.
+    this.$('final-score').innerHTML = dotMatrix(`${score.runs}/${score.wickets}`, `${score.runs} for ${score.wickets}`);
+    this.$('final-overs').innerHTML = dotMatrix(score.overs, `${score.overs} overs`);
+    this.$('final-fours').innerHTML = dotMatrix(String(score.fours), `${score.fours} fours`);
+    this.$('final-sixes').innerHTML = dotMatrix(String(score.sixes), `${score.sixes} sixes`);
+    this.$('final-rate').innerHTML = dotMatrix(String(score.strikeRate), `Strike rate ${score.strikeRate}`);
+    this.$('end').classList.toggle('is-record', isRecord);
+    // What happened, then the number that makes it mean something. A best is
+    // already banked by the time this runs, so it is only worth quoting back
+    // when the innings did not set it.
+    this.$('end-title').textContent = isRecord ? 'New personal best.' : score.wickets >= 3 ? 'All out.' : 'Innings complete.';
+    this.$('end-message').textContent = isRecord
+      ? `${score.runs} runs off ${score.balls} balls, your highest yet.`
+      : `${score.runs} runs off ${score.balls} balls. Your best stands at ${best}.`;
     this.$('best').innerHTML = `${best} <small>RUNS</small>`; this.$('again').focus();
     // A real link rather than a scripted popup: it survives popup blockers and
     // opens the WhatsApp app on a phone.
