@@ -130,6 +130,16 @@ batter about to hit it, so his stance widens and his knees soften ready to move
 — but that is the resting pose bent rather than a second one written out beside
 it, and the crouch is the only difference between them.
 
+The action is the disguise, so it runs on a clock of its own and the ball is
+never passed into it. A bowler runs in and bowls at the same tempo every ball,
+and what changes is the ball: a slower one comes out of the same arm at the same
+speed, and the batter reads the action, commits, and finds the ball is not where
+the action said it would be. An action that slowed down with the ball would
+announce every variation a full second before it arrived and leave nothing to be
+deceived by — so `animate` takes a time and nothing else, and the flight time
+cannot reach it even by accident. Measured across an innings from 117 to 155
+kph, the run-up is 900 ms on every ball.
+
 He is lowest as the front foot lands and tallest as the ball goes: the hips
 travel up and over the braced leg. That is both what a delivery stride is for
 and the only way a leg that length reaches a foot planted that far in front of
@@ -196,7 +206,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/game/Tutorial.ts`: the three scripted coaching balls, their deliveries, and an outcome that never dismisses the player.
 - `src/Game.ts`: explicit innings state machine and game clock. Pausing freezes gameplay time.
 - `src/entities/Cricketer.ts`: the body the bowler and every fielder are built from, and `src/entities/rig.ts`: the two-bone solver and segment placement they share with the batter.
-- `src/entities/Bowler.ts`: the bowling action, from the top of the mark to the end of the follow-through.
+- `src/entities/Bowler.ts`: the bowling action, from the top of the mark to the end of the follow-through, on one clock of its own that the delivery cannot reach.
 - `src/scene/GameScene.ts`: reusable procedural characters, bat, wickets, ball, field, instanced crowd, and an aspect-aware camera. The popping crease is 1.2m in front of each wicket and the batter stands inside it rather than over the stumps, so the ball is met about a metre in front of them; `GAME.travelScale` carries the shorter flight that leaves, and every delivery keeps the duration it was tuned to. Bowler and fielders are articulated rather than stacked. Trunk, pelvis and head are each one lathed skin — shoulders, ribs, waist and neck in a single unbroken surface — and the trunk tucks inside the wider pelvis at the waist so the join is buried rather than shown. Every limb is solved between two points and drawn as a segment tapering towards the joint it points at, with a joint sphere sized to the radius the two limbs meeting inside it actually arrive with: a joint wider than its limbs is a bead on a string, one narrower is a gap, and a limb tapering the wrong way — thickest at the wrist — is most of why a body reads as a pile of parts rather than a body. The distant stadium keeps its cheaper faceted shading. The resolver determines outcomes; rendering visualizes them.
 - **No stroke passes the bat through the batter.** The pick-up holds the blade up behind one shoulder and the contact holds it down at the ball, half a turn away, so the short path between them can run round the back of his hip; a wrapped follow-through ends behind the other shoulder, so the short path home can run through his head. Both are steered by the poses either side of them — the leg-side flick lays its handle back so the blade comes down in front of him, the straight drive finishes a little wider of the grille, and the cut and the long-on drive each name a `recover` pose. A test measures the bat against the ellipsoids the figure is actually built from — trunk, hips and helmet — every 8ms of every stroke, at both lengths, across the full width of the crease, and fails if it reaches inside any of them.
 
@@ -208,7 +218,7 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, and the WhatsApp share message.
 - `tests/batter.test.ts`: grip attachment, hand order and fist alignment on the handle, guard geometry, per-stroke footwork, blade placement at contact, elbow clearance from trunk and handle, hands kept in front of the shoulders through every stroke, and continuous blade travel with a squared face.
-- `tests/bowler.test.ts`: the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
+- `tests/bowler.test.ts`: an action that is the same pose at the same moment whatever the ball does and cannot be told how fast it is, no jump where the run-up hands over to the follow-through, the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
 - `tests/scoreboard.test.ts`: a lamp face for every character the board can show, the dark grid behind the lit one, and panel sizing.
 - `tests/mobile.test.ts`: swipe directions including the defensive fan and its dead slivers, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 

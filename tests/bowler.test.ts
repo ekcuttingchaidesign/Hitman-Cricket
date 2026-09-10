@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { Bowler, RELEASE_Z, RUNUP_START_Z } from '../src/entities/Bowler';
+import { ACTION_MS, Bowler, RELEASE_Z, RUNUP_START_Z } from '../src/entities/Bowler';
 import { Cricketer } from '../src/entities/Cricketer';
 import { GAME } from '../src/config/gameplay';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -207,6 +207,67 @@ describe('the bowling action', () => {
     // to be right.
     const s = at(0);
     for (const foot of s.feet) expect(foot[1]).toBeLessThan(.09);
+  });
+});
+
+describe('the action is the disguise', () => {
+  // A bowler runs in and bowls at the same tempo every ball, and what changes
+  // is the ball. That is the whole trick of a slower one: it comes out of the
+  // same arm at the same speed, the batter reads the action, commits, and finds
+  // the ball is not where the action said it would be. An action that slowed
+  // down with the ball would announce every variation a second before it
+  // arrived, and there would be nothing left to be deceived by.
+  const poses = (ms: number) => { bowler.animate(ms); return bowler.figure.inspect(); };
+  const frames = Array.from({ length: 60 }, (_, i) => i / 59 * ACTION_MS);
+
+  it('cannot be told how fast the ball is', () => {
+    // Not a matter of it happening not to look: there is nowhere to put it.
+    // `animate` takes a time and nothing else, so a delivery cannot reach the
+    // action even by accident.
+    expect(bowler.animate.length).toBe(1);
+    expect(bowler.runup.length).toBe(1);
+    expect(bowler.followThrough.length).toBe(1);
+  });
+
+  it('is the same pose at the same moment, every ball', () => {
+    // Two overs bowled at wildly different speeds are the same animation: the
+    // pose at 400ms is the pose at 400ms.
+    const first = frames.map(poses).map(s => JSON.stringify(s));
+    // Run some unrelated work between, as a whole innings would.
+    bowler.animate(0); bowler.reset(); bowler.animate(ACTION_MS * .5);
+    const second = frames.map(poses).map(s => JSON.stringify(s));
+    expect(second).toEqual(first);
+  });
+
+  it('hands the ball over exactly when the run-up ends', () => {
+    // The action's clock and the game's have to agree on the moment of release,
+    // or the ball leaves before or after the arm does.
+    bowler.animate(GAME.runupMs);
+    const atRelease = bowler.releasePoint().toArray();
+    bowler.runup(1);
+    expect(bowler.releasePoint().toArray()).toEqual(atRelease);
+  });
+
+  it('runs the run-up into the follow-through without a jump at the join', () => {
+    // One timeline in two halves is two chances to disagree at the seam, and a
+    // seam that disagrees is a bowler who twitches at the moment of release —
+    // the one frame the batter is looking hardest at.
+    const before = poses(GAME.runupMs - 1);
+    const after = poses(GAME.runupMs + 1);
+    expect(Math.abs(after.hip[1] - before.hip[1])).toBeLessThan(.01);
+    for (let i = 0; i < 2; i++) {
+      const gap = Math.hypot(...after.hands[i].map((v, k) => v - before.hands[i][k]));
+      expect(gap).toBeLessThan(.05);
+      const step = Math.hypot(...after.feet[i].map((v, k) => v - before.feet[i][k]));
+      expect(step).toBeLessThan(.05);
+    }
+  });
+
+  it('keeps every limb inside its length across the whole timeline', () => {
+    for (const ms of frames) {
+      const s = poses(ms);
+      for (const reach of [...s.legReach, ...s.armReach]) expect(reach).toBeLessThanOrEqual(1);
+    }
   });
 });
 

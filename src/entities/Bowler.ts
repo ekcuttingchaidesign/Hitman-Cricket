@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ARM_REACH, BUILD, Cricketer, Figure, Kit, SPINE } from './Cricketer';
+import { GAME } from '../config/gameplay';
 import { ease, settle, span } from './rig';
 
 /**
@@ -59,6 +60,13 @@ const FOLLOWED = .34;
 /** And how far through it he is back on his feet. */
 const RECOVERED = .78;
 const STRIDE = 1.30;
+/**
+ * The action's own two durations. The run-up shares the game's, because the
+ * ball is handed over to its trajectory at the end of it and the two have to
+ * agree on when that is; the follow-through answers to nothing but itself.
+ */
+const RUNUP_MS = GAME.runupMs;
+const FOLLOW_MS = 1600;
 /** How much of the run-up he spends leaving the standing pose behind. */
 const WALK_UP = .12;
 /** How far in front of the hips a running foot comes down. */
@@ -158,29 +166,43 @@ export class Bowler {
   }
 
   /**
+   * The whole action on one clock of its own, `ms` counted from the first step
+   * of the run-up. Nothing about it is a function of the delivery.
+   *
+   * That is the point, and it is the point in cricket rather than in code. The
+   * action is the disguise: a bowler runs in and bowls at the same tempo every
+   * ball, and what changes is the ball. A slower one is bowled out of the same
+   * arm at the same speed — that is the whole trick of it, and a batter reads
+   * the action, commits, and finds the ball is not where the action said it
+   * would be. An action that slowed down with the ball would announce every
+   * variation a full second before it arrived, and there would be nothing left
+   * to be deceived by.
+   *
+   * So the ball is never passed in here, and the two durations below are its
+   * own. The delivery's flight time cannot reach this code even by accident.
+   */
+  animate(ms: number) {
+    if (ms <= RUNUP_MS) this.runup(ms / RUNUP_MS);
+    else this.followThrough((ms - RUNUP_MS) / FOLLOW_MS);
+  }
+
+  /**
    * The run-up, the bound and the delivery stride, with `t` running 0 to 1 over
-   * `GAME.runupMs`. The ball leaves at exactly `t === 1`, which is when the
+   * `RUNUP_MS`. The ball leaves at exactly `t === 1`, which is when the
    * delivery's own trajectory takes it over.
    */
   runup(t: number) {
     const clamped = THREE.MathUtils.clamp(t, 0, 1);
-    this.apply(clamped, 0);
+    this.apply(clamped, 0, 0);
     this.ball.visible = clamped < 1;
   }
 
   /**
-   * The follow-through, driven by how far the ball has flown. It is over well
-   * before the ball reaches the batter — a bowler has finished falling away by
-   * the time the stroke is played — so it runs on the first third of the flight
-   * and then holds.
+   * The follow-through, and then standing back up out of it. `progress` runs 0
+   * to 1 over `FOLLOW_MS` from the moment of release.
    */
   followThrough(progress: number) {
     this.ball.visible = false;
-    // The follow-through is the first third of the flight; the rest of it is
-    // him standing back up. Holding the last frame of a follow-through until
-    // the next ball leaves a man bent double over his own knee for a second and
-    // a half, watching a shot he cannot see, which is the one thing nobody on a
-    // cricket field does.
     this.apply(1, span(progress, 0, FOLLOWED), span(progress, FOLLOWED, RECOVERED));
   }
 
@@ -394,6 +416,8 @@ export class Bowler {
   }
 }
 
+/** The action's length end to end, for anything that needs to wait it out. */
+export const ACTION_MS = RUNUP_MS + FOLLOW_MS;
 /** The top of his mark, and where his hips finish. Read by the action's tests. */
 export const RUNUP_START_Z = START_Z;
 export const RELEASE_Z = RELEASE_HIP_Z;
