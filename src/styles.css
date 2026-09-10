@@ -6,6 +6,16 @@
   font-weight:400;
   font-display:swap
 }
+/* Satoshi, by Deni Anggara for the Indian Type Foundry. Used under the ITF
+   Free Font License; the notice ships beside the file in
+   src/assets/satoshi-LICENSE.txt. Latin subset of the variable release, so one
+   14 KB file covers every weight the innings-end card asks for. */
+@font-face{
+  font-family:Satoshi;
+  src:url('./assets/satoshi-latin.woff2') format('woff2');
+  font-weight:300 900;
+  font-display:swap
+}
 @font-face{
   font-family:Display;
   src:local('Bahnschrift Condensed'),local('Bahnschrift');
@@ -25,6 +35,7 @@
   /* The orange off the cover art, which is a shade deeper than the interface's. */
   --cta-orange:#e9582b;
   --cta-ink:#152b3c;
+  --card:Satoshi,'Segoe UI',Arial,sans-serif;
   --pad:max(16px,env(safe-area-inset-left));
   --pad-right:max(16px,env(safe-area-inset-right));
   --pad-top:max(14px,env(safe-area-inset-top));
@@ -121,7 +132,7 @@ kbd{
   --lamp-on:#ffb03f;
   --lamp-off:#ffffff10
 }
-.scoreboard,.confidence,.end-board{
+.scoreboard,.confidence{
   position:relative;
   border-radius:7px;
   background:linear-gradient(#333f45,var(--bezel) 42%,#1d262a);
@@ -129,7 +140,7 @@ kbd{
   box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset
 }
 /* Four bolts, one element. */
-.scoreboard::before,.confidence::before,.end-board::before{
+.scoreboard::before,.confidence::before{
   content:'';
   position:absolute;
   inset:0;
@@ -491,7 +502,6 @@ kbd{
   background:#0f2433f2;
   color:#fff;
   border-radius:14px;
-  border-top:3px solid var(--orange);
   box-shadow:0 20px 50px #06131c59;
   backdrop-filter:blur(6px);
   padding:26px 30px 28px;
@@ -678,57 +688,6 @@ body.start-screen .hud-top{display:none}
   margin-top:10px
 }
 .secondary-button:hover{background:#ffffff14}
-.whatsapp-button{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:9px;
-  text-decoration:none;
-  border-color:#63c47380;
-  color:#e2f6e5
-}
-.whatsapp-button:hover{background:#63c4731f}
-.whatsapp-button svg{width:17px;height:17px}
-.end-content{
-  text-align:left;
-  padding:20px 20px 22px
-}
-.end-content h2{
-  font-size:27px;
-  letter-spacing:-.5px;
-  margin:20px 0 5px
-}
-.end-content p{font-size:13.5px;line-height:1.55;color:#a9c0c6;margin:0 0 16px}
-/* Sentence case and normal tracking. Letter-spaced caps on every control is the
-   loudest tell on the card, and a button does not need to shout to be pressed. */
-.end-content .primary-button{
-  font-size:14px;
-  font-weight:750;
-  letter-spacing:.2px;
-  min-height:48px;
-  border-radius:9px
-}
-.end-content .secondary-button{
-  font-size:13px;
-  font-weight:650;
-  letter-spacing:.2px;
-  min-height:44px;
-  border-radius:9px;
-  margin-top:9px
-}
-.end-content .start-hint{margin-top:14px;font-size:11.5px;color:#8ea6ad}
-.end-content .primary-button:active,.end-content .secondary-button:active{transform:translateY(1px)}
-/* The board posts the score: the total lands, then the innings behind it. One
-   state change, one reason. Off under reduced motion, like everything else. */
-@media (prefers-reduced-motion:no-preference){
-  #end:not(.hidden) .end-board .cell{animation:board-post .38s cubic-bezier(.16,1,.3,1) backwards}
-  #end:not(.hidden) .end-cells .cell:nth-child(1){animation-delay:.10s}
-  #end:not(.hidden) .end-cells .cell:nth-child(2){animation-delay:.15s}
-  #end:not(.hidden) .end-cells .cell:nth-child(3){animation-delay:.20s}
-  #end:not(.hidden) .end-cells .cell:nth-child(4){animation-delay:.25s}
-}
-@keyframes board-post{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
-
 .start-hint{
   display:block;
   margin-top:12px;
@@ -796,38 +755,210 @@ body.start-screen .hud-top{display:none}
   touch-action:pan-y
 }
 .modal-overlay>.panel{width:min(420px,100%);margin:auto}
-/* ── The innings-end board ─────────────────────────────────────────────── */
-/* The card is the ground's own scoreboard, not a panel that happens to sit near
-   one. It carries the same housing, the same bolts and the same lamps the
-   player has been reading the innings off for five overs, so the last thing
-   they see belongs to the same place as everything before it.
-   Radius rule for this card, in three steps and no more: the panel is 14px, the
-   board inside it is 9px, and the board's recessed window is 5px. Those are the
-   same three the board on the field uses. */
-.end-board{
-  --label:#7d929b;
-  --housing:#161d21;
-  --bezel:#2c363b;
-  --window:#0a1013;
-  --lamp-on:#ffb03f;
-  --lamp-off:#ffffff10;
-  border-radius:9px;
-  text-align:left
+
+/* ── The innings-end scorecard ─────────────────────────────────────────── */
+/* Not a panel. A card of card stock, the sand of the cover art, lying on the
+   darkened ground with its own shadow under it. The start screen hands you a
+   white key stood on an orange ledge; the innings hands you this, made the same
+   way, so the first thing and the last thing are cut from one material.
+   Everything on it is Satoshi: one family, four weights, and the score is
+   allowed to be the largest thing on the screen because the score is the point.
+   Radius: 18 for the card, 10 for the key, 9 for the plate. Three steps, no more. */
+.scorecard{
+  --ink:#14293a;
+  --quiet:#6f6659;
+  --rule:#14293a1c;
+  width:min(392px,100%);
+  margin:auto;
+  padding:24px 26px 22px;
+  border-radius:18px;
+  background:#fbf4e8;
+  font-family:var(--card);
+  color:var(--ink);
+  text-align:left;
+  /* A solid ledge, then a real shadow on the grass. The ledge is what makes it
+     an object rather than a sheet, and it is the Play button's own trick. */
+  box-shadow:0 9px 0 #12303f,0 26px 44px #04121b73
 }
-.end-board .board-head{padding:4px 12px 5px}
-.end-board .board-cells{border-radius:0}
-.end-board .cell-label{color:var(--label)}
-.end-board .cell{flex:1;justify-content:flex-end}
-.end-total .cell{padding:12px 14px 13px}
-.end-total .cell-value{height:38px}
-.end-cells{margin-top:1px}
-.end-cells .cell{padding:9px 4px 10px;gap:5px}
-.end-cells .cell-value{height:16px}
-.end-cells .cell-label{font-size:7px;letter-spacing:1.1px}
-.end-board .board-cells:last-child{border-radius:0 0 5px 5px;overflow:hidden}
-/* A personal best lights the total the way the board lights a boundary. The
-   colour is the board's own, and it is saying something: state, not decoration. */
-#end.is-record .end-total{--lamp-on:#b9e37a}
+.scorecard h2{
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--quiet);
+  margin:0
+}
+/* Runs left, overs right, sharing one baseline. The number is the headline. */
+.card-figures{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:16px;
+  margin:2px 0 0
+}
+.card-runs{
+  font-size:clamp(60px,17vw,78px);
+  font-weight:900;
+  letter-spacing:-3.4px;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+  margin:0
+}
+/* 87/2, the way a board writes it: same baseline, a third the size, quieter.
+   Quieter, not faint: at a third of the number it is 18px on a landscape phone,
+   which is small text, and how many wickets went down is not a detail. */
+.card-wickets{
+  font-size:.34em;
+  font-weight:600;
+  letter-spacing:-.5px;
+  color:var(--quiet)
+}
+.card-overs{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:1px;
+  font-size:26px;
+  font-weight:800;
+  letter-spacing:-.8px;
+  font-variant-numeric:tabular-nums;
+  margin:0
+}
+.card-overs small{
+  font-size:10.5px;
+  font-weight:600;
+  letter-spacing:0;
+  color:var(--quiet)
+}
+.card-line{
+  font-size:13.5px;
+  font-weight:500;
+  line-height:1.5;
+  color:var(--quiet);
+  margin:7px 0 0
+}
+/* The innings itself, ball by ball, under the number it came to. Each bar is as
+   tall as the runs off that ball and as dark as they were worth, the ball that
+   got him out carries a mark above it, and the balls he never faced stay on the
+   track as gaps. Nothing here is decoration: it is the innings, in order. */
+.card-balls{
+  display:grid;
+  grid-template-columns:repeat(var(--balls,30),1fr);
+  align-items:end;
+  gap:0 2px;
+  height:30px;
+  margin-top:13px
+}
+.card-balls i{
+  height:calc(4px + var(--r,0) * 4.3px);
+  transform-origin:50% 100%;
+  border-radius:1.5px;
+  background:var(--ink);
+  opacity:calc(.17 + var(--r,0) * .138)
+}
+.card-balls .ball-unfaced{height:3px;opacity:.07}
+/* A wicket scores nothing, so height cannot carry it. The mark above the stub
+   can, and it costs the card no second colour. */
+.card-balls .ball-out{position:relative;opacity:1}
+.card-balls .ball-out::after{
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:9px;
+  translate:-50% 0;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:var(--ink)
+}
+/* One hairline above the group, not one under every row. The three columns are
+   sized by their labels, so they sit where the words end rather than on thirds. */
+.card-stats{
+  display:grid;
+  grid-template-columns:auto auto 1fr;
+  gap:0 26px;
+  margin:16px 0 20px;
+  padding-top:14px;
+  border-top:1px solid var(--rule)
+}
+.card-stats dt{
+  font-size:10.5px;
+  font-weight:600;
+  color:var(--quiet)
+}
+.card-stats dd{
+  font-size:21px;
+  font-weight:800;
+  letter-spacing:-.6px;
+  font-variant-numeric:tabular-nums;
+  margin:2px 0 0
+}
+/* The start screen's two keys, at card scale. Primary: white, stood on orange.
+   Secondary: the batter's navy, half the lift, no white and no orange. */
+.key-button,.plate-button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  width:100%;
+  border-radius:10px;
+  font-family:var(--cta);
+  font-weight:400;
+  text-decoration:none
+}
+.key-button{
+  min-height:54px;
+  border:3px solid var(--cta-orange);
+  border-radius:10px;
+  background:#fff;
+  color:var(--cta-ink);
+  font-size:17px;
+  letter-spacing:2px;
+  text-indent:2px;
+  box-shadow:0 6px 0 var(--cta-orange),0 10px 12px #7a4a1e2e
+}
+.key-button:hover:not(:disabled){box-shadow:0 7px 0 var(--cta-orange),0 12px 14px #7a4a1e38}
+.key-button:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--cta-orange),0 4px 7px #7a4a1e24}
+.plate-button{
+  min-height:46px;
+  margin-top:11px;
+  border:0;
+  background:#16324a;
+  color:#ffeede;
+  font-size:14px;
+  letter-spacing:1.1px;
+  box-shadow:0 4px 0 #0c1f31
+}
+.plate-button svg{width:17px;height:17px}
+.plate-button:hover{background:#1d4160}
+.plate-button:active{transform:translateY(2px);box-shadow:0 2px 0 #0c1f31}
+.scorecard .start-hint{margin-top:13px;text-align:center;font-size:11.5px;color:var(--quiet)}
+.scorecard kbd{border-color:#14293a33;background:#14293a12;color:var(--ink)}
+/* Orange rings vanish against an orange ledge and a cream card. Navy does not. */
+.scorecard button:focus-visible,.scorecard a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+/* A best is the one thing the card says differently, and it changes the object
+   rather than pinning a badge to it: the number takes the accent, the stamp
+   above it comes up to full strength, and the ledge the card stands on turns the
+   accent the key already wears. One state, three places it shows. The number
+   takes the accent a shade deeper, because that one has to be read. */
+#end.is-record .card-runs{color:#c8461c}
+#end.is-record h2{color:var(--ink)}
+#end.is-record .scorecard{box-shadow:0 9px 0 var(--cta-orange),0 26px 44px #04121b73}
+/* The card is put down in front of you: it arrives once, from just below, and
+   the score lands a beat after the stock does. */
+@media (prefers-reduced-motion:no-preference){
+  #end:not(.hidden) .scorecard{animation:card-down .34s cubic-bezier(.18,.9,.25,1.06) backwards}
+  #end:not(.hidden) .card-figures{animation:card-figure .34s ease-out .1s backwards}
+  /* Then the innings goes back over itself, ball by ball, in the order it was
+     played. It is the one thing on the card with an order to replay. */
+  #end:not(.hidden) .card-balls i{
+    animation:ball-rise .3s cubic-bezier(.2,.9,.3,1.1) backwards;
+    animation-delay:calc(.16s + var(--i,0) * .008s)
+  }
+}
+@keyframes card-down{from{opacity:0;transform:translateY(-14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes card-figure{from{opacity:0}to{opacity:1}}
+@keyframes ball-rise{from{opacity:0;transform:scaleY(.05)}to{transform:none}}
 
 .share-status{
   position:absolute;
@@ -939,13 +1070,18 @@ dialog .primary-button{margin-top:18px}
   .panel p br{display:none}
   .challenge-tag{margin-bottom:9px}
   .personal-best{margin-top:12px;padding-top:11px}
-  .end-content{padding:16px 16px 18px}
-  .end-content h2{font-size:22px;margin:15px 0 4px}
-  .end-content p{font-size:12.5px;margin:0 0 13px}
-  .end-total .cell-value{height:30px}
-  .end-total .cell{padding:10px 12px 11px}
-  .end-cells .cell{padding:8px 3px 9px}
-  .end-cells .cell-value{height:14px}
+  /* Landscape phone: the card loses its breathing room, not its hierarchy. */
+  .scorecard{padding:16px 18px 18px;width:min(360px,100%)}
+  .card-runs{font-size:clamp(44px,11vw,54px);letter-spacing:-2.4px}
+  .card-overs{font-size:21px}
+  .card-line{font-size:12px;margin-top:5px}
+  .card-stats{margin:11px 0 14px;padding-top:10px;gap:0 20px}
+  /* No room for the ball track once the card has to clear a landscape phone,
+     and every number it draws is already spelled out above it. */
+  .card-balls{display:none}
+  .card-stats dd{font-size:18px}
+  .key-button{min-height:44px;font-size:15px}
+  .plate-button{min-height:40px;margin-top:8px;font-size:13px}
   .swipe-symbols,.shot-keys{display:none}
   .result{top:14%}
 }

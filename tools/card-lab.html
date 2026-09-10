@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hitman: innings-end card review</title>
+<style>
+  html,body{height:100%;overflow:hidden;margin:0;background:#2f5a34}
+  #lab{position:fixed;left:12px;top:12px;z-index:99;display:flex;gap:7px;flex-wrap:wrap;font:12px system-ui}
+  #lab button{border:1px solid #ffffff4d;background:#00000059;color:#fff;border-radius:5px;padding:6px 11px;cursor:pointer}
+  #lab button[aria-pressed=true]{background:#fff;color:#153}
+  #stage{height:100%}
+  /* The lab stands in for the ground the overlay normally darkens. */
+  #stage .stage{background:radial-gradient(circle at 50% 38%,#4d8347,#24462a 78%)}
+</style></head>
+<body>
+<div id="lab">
+  <button data-state="complete">Innings complete</button>
+  <button data-state="record">Personal best</button>
+  <button data-state="first">First innings</button>
+  <button data-state="allout">All out</button>
+  <button data-state="big">Big score</button>
+</div>
+<div id="stage"></div>
+<script type="module" src="/tools/card-lab.ts"></script>
+</body></html>

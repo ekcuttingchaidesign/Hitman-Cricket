@@ -1,3 +1,4 @@
+import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, whatsappLink } from '../game/Share';
 import { dotMatrix } from './DotMatrix';
@@ -104,21 +105,21 @@ export class HUD {
 ${touch ? coverIntro(best) : panelIntro(best)}
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-content"><p class="eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p>The next shot can wait.</p><button id="resume" class="primary-button">RESUME INNINGS ${icon('arrow')}</button><button id="restart" class="secondary-button">RESTART INNINGS</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
-          <div class="panel end-content">
-            <div class="end-board" role="group" aria-label="Final scoreboard">
-              <div class="board-head"><span class="board-name">HITMAN OVAL</span><span class="board-lamp"></span></div>
-              <div class="board-cells end-total"><div class="cell"><span class="cell-label">FINAL</span><span class="cell-value" id="final-score"></span></div></div>
-              <div class="board-cells end-cells">
-                <div class="cell"><span class="cell-label">OVERS</span><span class="cell-value" id="final-overs"></span></div>
-                <div class="cell"><span class="cell-label">FOURS</span><span class="cell-value" id="final-fours"></span></div>
-                <div class="cell"><span class="cell-label">SIXES</span><span class="cell-value" id="final-sixes"></span></div>
-                <div class="cell"><span class="cell-label">S/R</span><span class="cell-value" id="final-rate"></span></div>
-              </div>
-            </div>
+          <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
-            <p id="end-message"></p>
-            <button id="again" class="primary-button">Play again ${icon('arrow')}</button>
-            <a id="whatsapp" class="secondary-button whatsapp-button" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} Brag to a friend</a>
+            <div class="card-figures">
+              <p class="card-runs" id="final-score" role="img"></p>
+              <p class="card-overs"><span id="final-overs"></span><small>Overs</small></p>
+            </div>
+            <div class="card-balls" id="final-balls" aria-hidden="true"></div>
+            <p id="end-message" class="card-line"></p>
+            <dl class="card-stats">
+              <div><dt>Fours</dt><dd id="final-fours"></dd></div>
+              <div><dt>Sixes</dt><dd id="final-sixes"></dd></div>
+              <div><dt>Strike rate</dt><dd id="final-rate"></dd></div>
+            </dl>
+            <button id="again" class="key-button">PLAY AGAIN</button>
+            <a id="whatsapp" class="plate-button" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} BRAG TO A FRIEND</a>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
@@ -212,25 +213,45 @@ ${touch ? coverIntro(best) : panelIntro(best)}
     this.viewport.classList.add('modal-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
-    // The board the innings was read off posts the final score, rather than a
-    // number in a different typeface on a card that shares nothing with it. The
-    // lamps carry a spoken label each, because "S/R" is not a word.
-    this.$('final-score').innerHTML = dotMatrix(`${score.runs}/${score.wickets}`, `${score.runs} for ${score.wickets}`);
-    this.$('final-overs').innerHTML = dotMatrix(score.overs, `${score.overs} overs`);
-    this.$('final-fours').innerHTML = dotMatrix(String(score.fours), `${score.fours} fours`);
-    this.$('final-sixes').innerHTML = dotMatrix(String(score.sixes), `${score.sixes} sixes`);
-    this.$('final-rate').innerHTML = dotMatrix(String(score.strikeRate), `Strike rate ${score.strikeRate}`);
+    // The innings reads as one number. Runs carry the card; the wickets ride the
+    // same baseline a third of the size, the way a board writes 87/2, and the
+    // pair get one spoken label because "87 slash 2" is not how anyone says it.
+    const total = this.$('final-score');
+    total.innerHTML = `${score.runs}<span class="card-wickets">/${score.wickets}</span>`;
+    total.setAttribute('aria-label', `${score.runs} for ${score.wickets}`);
+    this.$('final-overs').textContent = score.overs;
+    this.$('final-fours').textContent = String(score.fours);
+    this.$('final-sixes').textContent = String(score.sixes);
+    this.$('final-rate').textContent = String(score.strikeRate);
+    // Every ball of the innings, in order: a bar as tall as the runs off it, and
+    // a mark over the ball that got him out. It says nothing the figures do not,
+    // so it speaks to nobody who cannot see it, but it is the only thing on the
+    // card that shows how the innings went rather than what it came to. The
+    // track is always the whole innings, so the balls he never got to face stay
+    // on it as gaps: three wickets inside two overs looks like three wickets
+    // inside two overs. Each bar carries its own place in the order, which is
+    // what lets the stylesheet play them back in it.
+    const track = this.$('final-balls');
+    track.style.setProperty('--balls', String(GAME.totalBalls));
+    track.innerHTML = Array.from({ length: GAME.totalBalls }, (_, i) => {
+      const ball = score.history[i];
+      if (!ball) return `<i class="ball-unfaced" style="--i:${i}"></i>`;
+      return `<i class="${ball.isWicket ? 'ball-out' : ''}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
+    }).join('');
     this.$('end').classList.toggle('is-record', isRecord);
     // What happened, then the number that makes it mean something. A best is
     // already banked by the time this runs, so it is only worth quoting back
     // when the innings did not set it.
-    this.$('end-title').textContent = isRecord ? 'New personal best.' : score.wickets >= 3 ? 'All out.' : 'Innings complete.';
-    // A best is worth quoting back only when there is one and this innings did
-    // not set it. On a first time out there is nothing to stand at, and "your
-    // best stands at 0" is a sentence about nobody.
-    const runs = `${score.runs} runs off ${score.balls} balls`;
-    this.$('end-message').textContent = isRecord ? `${runs}, your highest yet.`
-      : best > 0 ? `${runs}. Your best stands at ${best}.` : `${runs}.`;
+    this.$('end-title').textContent = isRecord ? 'New personal best' : score.wickets >= 3 ? 'All out' : 'Innings complete';
+    // The number is already the largest thing on the card, so the line under it
+    // does not repeat it. It adds what the figures cannot: how long the innings
+    // lasted, and where it stands against the last one. A best is only worth
+    // quoting back when there is one, since "your best stands at 0" is a
+    // sentence about nobody, and a first score is worth saying so outright.
+    const faced = `${score.balls} balls faced`;
+    this.$('end-message').textContent = isRecord
+      ? best > 0 ? `${faced}, past your old best of ${best}.` : `${faced}. First score on the board.`
+      : best > 0 ? `${faced}. Your best stands at ${best}.` : `${faced}.`;
     this.$('best').innerHTML = `${best} <small>RUNS</small>`; this.$('again').focus();
     // A real link rather than a scripted popup: it survives popup blockers and
     // opens the WhatsApp app on a phone.
