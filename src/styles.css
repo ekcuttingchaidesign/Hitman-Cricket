@@ -524,9 +524,9 @@ kbd{
   text-align:center
 }
 /* The cover does not sit still. Three plates of the same ground stacked in one
-   window, each held about seven seconds and handed to the next over a second and
-   a half, drifting in a little the whole time. Twenty-one seconds round, which
-   is long enough that it reads as a scene rather than a slideshow.
+   window, each held about seven seconds and handed to the next in a little under
+   a second, drifting in the whole time. Twenty-one seconds round, which is long
+   enough that it reads as a scene rather than a slideshow.
    It is three CSS animations and no timer, so there is nothing to start, stop or
    leak, and the whole thing stops existing the moment the innings hides the
    cover. */
@@ -567,11 +567,11 @@ kbd{
 @media (prefers-reduced-motion:reduce){
   .cover-art:nth-child(n+2){display:none}
 }
-/* Percentages are seconds out of twenty-one: 6, 7.5, 13, 14.5, 19.5. Each plate
-   holds for about seven of them and takes a second and a half to hand over. */
+/* Percentages are seconds out of twenty-one: 6, 6.9, 13, 13.9, 20.1. Each plate
+   holds for about seven of them and takes nine tenths of a second to hand over. */
 @keyframes cover-one{
   0%{opacity:1;transform:scale(1)}
-  35.714%{transform:scale(1.05)}
+  32.857%{transform:scale(1.05)}
   61.905%{transform:scale(1.05)}
   85%{transform:scale(1)}
   100%{opacity:1;transform:scale(1)}
@@ -579,17 +579,17 @@ kbd{
 @keyframes cover-two{
   0%{opacity:0;transform:scale(1)}
   28.571%{opacity:0;transform:scale(1)}
-  35.714%{opacity:1}
-  69.048%{opacity:1;transform:scale(1.05)}
-  69.5%{opacity:0}
+  32.857%{opacity:1}
+  66.190%{opacity:1;transform:scale(1.05)}
+  66.5%{opacity:0}
   85%{transform:scale(1)}
   100%{opacity:0;transform:scale(1)}
 }
 @keyframes cover-three{
   0%{opacity:0;transform:scale(1)}
   61.905%{opacity:0;transform:scale(1)}
-  69.048%{opacity:1}
-  92.857%{opacity:1}
+  66.190%{opacity:1}
+  95.714%{opacity:1}
   100%{opacity:0;transform:scale(1.05)}
 }
 .cover-title{width:min(74%,440px);height:auto}
