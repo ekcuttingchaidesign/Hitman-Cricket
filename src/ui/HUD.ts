@@ -1,6 +1,8 @@
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
-import { gameLink, whatsappLink } from '../game/Share';
+import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
+import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
+import type { CardFacts } from '../game/ShareCard';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
@@ -13,6 +15,7 @@ const icon = (name: string) => {
     pause: '<path d="M8 5v14M16 5v14"/>',
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
     share: '<path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8"/>',
+    story: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 8v6m-3-3 3-3 3 3"/>',
     trophy: '<path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4"/>',
     whatsapp: '<path d="M3.5 20.5 5 16a8 8 0 1 1 3 3l-4.5 1.5Z"/><path d="M9 9c0 3 3 6 6 6 1 0 1.5-1 1.5-1L15 13l-1.5 1S12 13.5 11 12t.5-2L10 8.5S9 9 9 9Z"/>',
   };
@@ -58,6 +61,8 @@ const panelIntro = (best: number) => `
         </div>`;
 export class HUD {
   readonly viewport: HTMLElement;
+  /** The innings the card is showing, for whatever the share buttons draw. */
+  private shared: CardFacts | null = null;
   private $ = (id: string) => document.getElementById(id)!;
   constructor(root: HTMLElement, best: number) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
@@ -126,7 +131,10 @@ ${touch ? coverIntro(best) : panelIntro(best)}
               <div><dt>Strike rate</dt><dd id="final-rate"></dd></div>
             </dl>
             <button id="again" class="key-button">PLAY AGAIN</button>
-            <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} BRAG YOUR SCORE TO A FRIEND</a>
+            <div class="card-shares">
+              <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span class="key-long">BRAG YOUR SCORE TO A FRIEND</span><span class="key-short">SHARE</span></a>
+              <button id="story" class="story-key">${icon('story')}<span class="key-long">SHARE SCORE IN STORY</span><span class="key-short">STORY</span></button>
+            </div>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
@@ -136,6 +144,8 @@ ${touch ? coverIntro(best) : panelIntro(best)}
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
+    this.$('whatsapp').addEventListener('click', event => this.shareScore(event, 'card'));
+    this.$('story').addEventListener('click', event => this.shareScore(event, 'story'));
     const dialog = this.$('help-dialog') as HTMLDialogElement;
     this.$('help-done').onclick = () => dialog.close();
     dialog.querySelector<HTMLButtonElement>('.close-help')!.onclick = () => dialog.close();
@@ -260,10 +270,72 @@ ${touch ? coverIntro(best) : panelIntro(best)}
       ? best > 0 ? `${faced}, past your old best of ${best}.` : `${faced}. First score on the board.`
       : best > 0 ? `${faced}. Your best stands at ${best}.` : `${faced}.`;
     this.$('best').innerHTML = `${best} <small>RUNS</small>`; this.$('again').focus();
-    // A real link rather than a scripted popup: it survives popup blockers and
-    // opens the WhatsApp app on a phone.
+    // The href is the floor, not the plan: a wa.me link carries text and nothing
+    // else, so it is what a browser that cannot hand a file to another app falls
+    // back to. Where one can, the click below sends the picture instead.
     (this.$('whatsapp') as HTMLAnchorElement).href = whatsappLink(score.runs, gameLink());
+    this.shared = cardFacts(score, best, isRecord);
+    // Fonts and cover art, fetched while the player is still reading the card,
+    // so the first tap on a share button does not wait on the network.
+    void prepareShareAssets();
   }
+  /**
+   * Sends the innings out as a picture. Both buttons draw the same card; the
+   * story one stands it on the cover art in a 9:16 frame with the address
+   * painted on, because a picture in a story is a picture. Link stickers get
+   * added inside Instagram or WhatsApp, not by whoever sent the image, so the
+   * only link that survives the trip is one a person can read and type.
+   *
+   * A wa.me link cannot carry a file, so where the browser can hand a file to
+   * another app this takes over the click and goes through the share sheet
+   * instead. Where it cannot, the anchor's own href still opens WhatsApp with
+   * the text, and the story button offers the picture as a download.
+   */
+  private async shareScore(event: Event, kind: 'card' | 'story') {
+    const facts = this.shared;
+    if (!facts) return;
+    const url = gameLink();
+    const caption = kind === 'story' ? storyText(facts.runs, url) : shareText(facts.runs, url);
+    if (kind === 'story') event.preventDefault();
+    if (!canShareImage()) {
+      // WhatsApp's own link still works for the text; the story has no such
+      // fallback but a saved file, so say which one happened.
+      if (kind === 'story') await this.saveShare(facts, caption);
+      return;
+    }
+    event.preventDefault();
+    const status = this.$('share-status');
+    try {
+      const picture = kind === 'story' ? await storyImage(facts, url) : await scorecardImage(facts);
+      const file = new File([picture], shareFileName(facts.runs, kind), { type: shareFileType(kind) });
+      await navigator.share({ files: [file], text: caption });
+    } catch (error) {
+      // A cancelled sheet is the player changing their mind, not a failure.
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      status.textContent = 'Could not open the share sheet. Saving the picture instead.';
+      status.classList.remove('hidden');
+      await this.saveShare(facts, caption);
+    }
+  }
+
+  /** No share sheet: put the picture in the downloads folder and say so. */
+  private async saveShare(facts: CardFacts, caption: string) {
+    const status = this.$('share-status');
+    try {
+      const kind = 'story';
+      const picture = await storyImage(facts, gameLink());
+      const href = URL.createObjectURL(picture);
+      const link = document.createElement('a');
+      link.href = href; link.download = shareFileName(facts.runs, kind);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+      status.textContent = 'Story picture saved. Post it with: ' + caption;
+    } catch {
+      status.textContent = 'Could not build the picture on this browser.';
+    }
+    status.classList.remove('hidden');
+  }
+
   /**
    * The meter reads full at 100 and pulses there. When the ball on its way is one
    * he can charge, it says so — the shot is worth knowing about, and the timing
