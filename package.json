@@ -10,6 +10,16 @@
     "test": "vitest run",
     "test:browser": "node scripts/browser-check.mjs && node scripts/innings-check.mjs"
   },
-  "dependencies": { "three": "^0.180.0" },
-  "devDependencies": { "@types/three": "^0.180.0", "typescript": "~5.9.3", "vite": "^7.1.7", "vitest": "^3.2.4", "@playwright/test": "^1.55.1" }
+  "dependencies": {
+    "@upstash/redis": "^1.38.4",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@types/three": "^0.180.0",
+    "@vercel/node": "^13.0.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.7",
+    "vitest": "^3.2.4"
+  }
 }

@@ -37,16 +37,23 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
  */
 /* The trophy line is the way onto the board from the cover, so it is always
    there. What it quotes is not: a best of nought is a sentence about nobody, so
-   until there is one it quotes the board's leader instead. */
+   until there is one it quotes the board's leader instead — and the board is
+   fetched, so until that arrives it quotes nothing and says only where it goes. */
 const trophyLine = (best: number, top: number) =>
-  best > 0 ? { label: 'BEST', runs: best } : { label: 'TOP OF THE BOARD', runs: top };
+  best > 0 ? { label: 'BEST', runs: best } : top > 0 ? { label: 'TOP OF THE BOARD', runs: top } : null;
+const trophyFigure = (best: number, top: number) => {
+  const line = trophyLine(best, top);
+  return line
+    ? `<span id="best-label">${line.label}</span><strong id="best">${line.runs} <small>RUNS</small></strong>`
+    : `<span id="best-label">TOP 50</span><strong id="best"></strong>`;
+};
 const coverIntro = (best: number, top: number) => `
         <div id="intro" class="intro cover-intro">
           <div class="cover-plate" aria-hidden="true">${coverPlates.map((src, i) =>
             `<img class="cover-art" src="${src}" alt="" decoding="async"${i ? '' : ' fetchpriority="high"'}>`).join('')}</div>
           <img class="cover-title" src="${coverTitle}" alt="Hitman Cricket" decoding="async">
           <div class="cover-actions">
-            <button id="cover-board" class="cover-best">${icon('trophy')}<span id="best-label">${trophyLine(best, top).label}</span><strong id="best">${trophyLine(best, top).runs} <small>RUNS</small></strong></button>
+            <button id="cover-board" class="cover-best">${icon('trophy')}${trophyFigure(best, top)}</button>
             <button id="start" class="play-button">PLAY</button>
             <button id="tutorial" class="learn-button">HOW TO PLAY</button>
           </div>
@@ -63,7 +70,7 @@ const panelIntro = (best: number, top: number) => `
           <span class="shot-keys keyboard-only"><b>←</b><kbd>A</kbd><b>↖</b><kbd>A+W</kbd><b>↑</b><kbd>W</kbd><b>↗</b><kbd>W+D</kbd><b>→</b><kbd>D</kbd><b>↓</b><kbd>S</kbd></span>
           <span class="start-hint keyboard-only">or play the same shots on the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> arrow keys</span>
           <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat. Swipe down to block.<b class="swipe-symbols">← ↖ ↑ ↗ → ↓</b></span>
-          <button id="panel-board" class="personal-best">${icon('trophy')}<div><span id="best-label">${best ? 'PERSONAL BEST' : trophyLine(best, top).label}</span><strong id="best">${trophyLine(best, top).runs} <small>RUNS</small></strong></div>${icon('arrow')}</button>
+          <button id="panel-board" class="personal-best">${icon('trophy')}<div>${trophyFigure(best, top)}</div>${icon('arrow')}</button>
         </div>`;
 export class HUD {
   readonly viewport: HTMLElement;
@@ -179,6 +186,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('board-close').focus();
   }
   get boardOpen() { return !this.$('board-overlay').classList.contains('hidden'); }
+  /**
+   * The board's leader, once it has been fetched. The cover quotes it while the
+   * player has no best of their own — so the line goes from naming only where it
+   * leads to naming a score to chase, without the screen being rebuilt.
+   */
+  leader(top: number, best: number) {
+    if (best > 0 || top <= 0) return;
+    this.$('best-label').textContent = document.getElementById('cover-board') ? 'TOP OF THE BOARD' : 'TOP 50 BOARD';
+    this.$('best').innerHTML = `${top} <small>RUNS</small>`;
+  }
   /** Puts the sheet away and hands the screen back to whatever was under it. */
   closeBoard() {
     this.$('board-overlay').classList.add('hidden');

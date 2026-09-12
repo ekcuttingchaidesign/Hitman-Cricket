@@ -25,6 +25,8 @@ export interface BoardView {
   youId?: string | null;
   /** The innings the player just played, when it did not make the board. */
   yours?: Innings | null;
+  /** Whether these rows are the board, on their way, or unavailable. */
+  state?: 'ready' | 'loading' | 'offline';
 }
 
 /**
@@ -67,7 +69,7 @@ export function cutoff(rows: readonly BoardRow[]): BoardRow | null {
 
 /** The whole screen, header to footer. */
 export function boardMarkup(view: BoardView): string {
-  const { rows, youId = null, yours = null } = view;
+  const { rows, youId = null, yours = null, state = 'ready' } = view;
   const edge = cutoff(rows);
   const yourPlace = rows.findIndex(row => row.playerId === youId);
   return `
@@ -77,8 +79,11 @@ export function boardMarkup(view: BoardView): string {
         <h2 id="board-title">Top ${BOARD_SIZE}</h2>
         <button id="board-close" class="board-close" aria-label="Close the board">×</button>
       </div>
-      <p class="board-line">${standing(rows, yourPlace, yours, edge)}</p>
-      <div class="board-scroll">
+      <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
+        state === 'loading' ? 'Fetching the board…'
+        : state === 'offline' ? 'The board could not be reached.'
+        : standing(rows, yourPlace, yours, edge)}</p>
+      <div class="board-scroll">${state === 'offline' ? offlineMarkup(yours) : ''}
         <ol class="board-list">${rows.map((row, i) => rowMarkup(row, i, rows[i - 1] ?? null, row.playerId === youId)).join('')}
         </ol>
         ${edge ? `<p class="board-cut">${cutLabel(edge)}</p>` : ''}
@@ -113,6 +118,26 @@ export function rowMarkup(row: BoardRow, index: number, above: BoardRow | null, 
  */
 export function cutLabel(edge: BoardRow): string {
   return edge.runs > 0 ? `${edge.runs} gets you on the board` : 'Any run gets you on the board';
+}
+
+/**
+ * The board being down is never the player's problem, so this says what happened
+ * and what is still true rather than apologising. The innings just played is
+ * still shown, because it is the thing they came to look at.
+ */
+function offlineMarkup(yours: Innings | null): string {
+  return `
+        <p class="board-offline">Nothing is lost &mdash; your innings still counts on this device, and the board will have it next time. Try again in a moment.</p>${
+          yours ? `
+        <ol class="board-list board-missed">
+          <li class="board-row is-you" style="--i:0">
+            <span class="board-place">&mdash;</span>
+            <span class="board-kit" style="--kit:${AVATAR_COLOURS[0]}" aria-hidden="true">?</span>
+            <span class="board-who"><b>This innings</b><small>not sent yet</small></span>
+            <span class="board-runs">${yours.runs}<i>/${yours.wickets}</i></span>
+            <span class="board-hits"><em>${yours.sixes}<small>6s</small></em><em>${yours.fours}<small>4s</small></em></span>
+          </li>
+        </ol>` : ''}`;
 }
 
 /**

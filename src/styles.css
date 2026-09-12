@@ -1279,6 +1279,18 @@ body.start-screen .hud-top{display:none}
 }
 .board-cut::before{flex:0 0 14px}
 .board-missed{margin-top:10px}
+/* The board being down is a sentence, not an empty table. It reads on the sheet
+   the rows would have filled, so the screen still has a shape. */
+.board-offline{
+  margin:4px 0 0;
+  padding:16px 18px;
+  border:1px solid var(--rule);
+  border-radius:12px;
+  background:#ffffff0a;
+  font-size:13.5px;
+  line-height:1.55;
+  color:var(--quiet)
+}
 .board-foot{
   flex:none;
   margin:0;

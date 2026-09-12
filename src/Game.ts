@@ -12,7 +12,7 @@ import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
-import { inventedBoard } from './game/board-fixture';
+import { fetchBoard } from './game/board-api';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
@@ -29,14 +29,8 @@ export class Game {
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
-  /**
-   * The board, and who the board thinks you are. Both are stand-ins for the two
-   * endpoints that are not built yet: the rows are invented and the id is only
-   * ever compared against them, so nothing here reaches the network. When
-   * `GET /api/board` exists it fills the same field with the same shape, and
-   * the screen that draws it does not change.
-   */
-  private board: BoardRow[] = inventedBoard();
+  /** The fifty as last fetched, and who the board thinks you are. */
+  private board: BoardRow[] = [];
   private player: string | null = null;
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
@@ -50,10 +44,13 @@ export class Game {
   private disposed = false;
   constructor(root: HTMLElement) {
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
-    this.hud = new HUD(root, this.best, this.board[0]?.runs ?? 0);
-    // Settling the id touches three stores, one of which can hang, so it runs
-    // alongside the game rather than in front of it. Nothing waits on it.
+    this.hud = new HUD(root, this.best);
+    // Neither of these is allowed to hold up an innings. Settling the id touches
+    // three stores, one of which can hang; the board is a network call that may
+    // never answer. Both run alongside the game, and the cover's trophy line
+    // picks up the board's leader if and when one arrives.
     void playerId().then(id => { this.player = id; }).catch(() => {});
+    void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); this.hud.error(); return; }
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot, this.hud.viewport);
     this.hud.on('start', this.start); this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
@@ -138,13 +135,37 @@ export class Game {
    * one. An innings in progress is not offered up: half an over is not a score,
    * and the board is opened between innings anyway.
    */
+  /**
+   * The board, in the background. Nothing waits on it: if it never answers, the
+   * cover simply goes on showing whatever it was showing.
+   */
+  private async loadBoard() {
+    const payload = await fetchBoard();
+    if (this.disposed || !payload) return;
+    this.board = payload.rows;
+    this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
+  }
+
+  /**
+   * The board, opened. The sheet goes up straight away saying it is fetching,
+   * rather than the button doing nothing for a second and then a screen
+   * appearing — and if the fetch fails it says so instead of showing an empty
+   * fifty or, worse, fifty invented names.
+   */
   private showBoard = () => {
     // Mid-innings the board is a distraction with a ball on its way, so it
     // pauses first, the way the instructions do. The pause card is still behind
     // it when the sheet is put away, which is the point.
     if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause();
     const played = this.phase === 'INNINGS_END' ? asInnings(this.score) : null;
-    this.hud.board({ rows: this.board, youId: this.player, yours: played });
+    const view = { youId: this.player, yours: played };
+    if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
+    else this.hud.board({ ...view, rows: [], state: 'loading' as const });
+    void fetchBoard().then(payload => {
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (payload) this.board = payload.rows;
+      this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
+    });
   };
   private visibility = () => { if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
