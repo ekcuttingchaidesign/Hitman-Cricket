@@ -13,11 +13,11 @@
  * gap in their numbering (1, 2, 3, 6, 7) costs nothing.
  */
 export const KITS = [
-  { name: 'pink', colour: '#d31e6e', file: 'avatar_7.png' },
-  { name: 'india blue', colour: '#0248c8', file: 'avatar_1.png' },
-  { name: 'purple', colour: '#3f0884', file: 'avatar_2.png' },
-  { name: 'orange', colour: '#f55b11', file: 'avatar_3.png' },
-  { name: 'teal', colour: '#018ea3', file: 'avatar_6.png' },
+  { name: 'pink', colour: '#d31e6e', file: 'avatar_7.webp' },
+  { name: 'india blue', colour: '#0248c8', file: 'avatar_1.webp' },
+  { name: 'purple', colour: '#3f0884', file: 'avatar_2.webp' },
+  { name: 'orange', colour: '#f55b11', file: 'avatar_3.webp' },
+  { name: 'teal', colour: '#018ea3', file: 'avatar_6.webp' },
 ] as const;
 
 /** How many kits there are. The store turns down anything outside this. */
@@ -29,8 +29,8 @@ export const AVATARS = KITS.length;
  * Deliberately a bare relative path, with no leading slash and no
  * `import.meta.env.BASE_URL` in front of it. The browser resolves it against
  * the page's own URL, which is right on both hosts this game can be published
- * to: `…/Hitman-Cricket/avatars/avatar_7.png` under a GitHub Pages
- * subdirectory, and `/avatars/avatar_7.png` at a domain root. A leading slash
+ * to: `…/Hitman-Cricket/avatars/avatar_7.webp` under a GitHub Pages
+ * subdirectory, and `/avatars/avatar_7.webp` at a domain root. A leading slash
  * would look for the file at the top of github.io.
  */
 export function avatarSrc(avatar: number): string {

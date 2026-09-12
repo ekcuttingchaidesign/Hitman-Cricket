@@ -992,7 +992,7 @@ body.start-screen .hud-top{display:none}
 /* Two ways out of the card, side by side at half the width each. They are the
    quieter pair under the primary key, so they read as one row of alternatives
    rather than as two more decisions. */
-.card-shares{display:flex;gap:9px;margin-top:9px}
+.card-shares{display:flex;gap:9px;margin-top:16px}
 .card-shares>*{flex:1;min-width:0;margin-top:0}
 .key-button{
   min-height:54px;
@@ -1404,6 +1404,11 @@ body.start-screen .hud-top{display:none}
 .card-peek .board-row{grid-template-columns:20px 26px minmax(0,1fr) auto auto;padding:7px 0}
 .card-peek .board-kit{width:26px;height:26px}
 .card-peek .board-row.is-you{margin:0 -8px;padding:7px 8px}
+/* Place and runs carry the widget, so they are the one warm colour in it —
+   5.6:1 on the strip and 4.9:1 on the tint behind the player's own row. The
+   sixes and fours stay quiet: they are the supporting figures, not the point. */
+.card-peek .board-place,
+.card-peek .board-runs{color:#DD784C}
 /* Everyone else on the peek is a bar rather than a name. The peek is about
    where the player sits, not about who they are sitting next to — and the full
    board, one tap away, has every name on it. */
@@ -1681,7 +1686,7 @@ dialog .primary-button{margin-top:18px}
   .board-actions .key-button{min-height:42px;font-size:15px}
   /* Side by side once the card has to clear a landscape phone. The labels lose
      their tail rather than the buttons losing their tap target. */
-  .card-shares{flex-direction:row;gap:8px;margin-top:8px}
+  .card-shares{flex-direction:row;gap:8px;margin-top:12px}
   .card-shares>*{flex:1;min-width:0;margin-top:0}
   .whatsapp-key,.story-key{min-height:40px;font-size:13px;letter-spacing:1px;gap:7px}
   .key-long{display:none}
