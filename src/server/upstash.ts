@@ -37,17 +37,37 @@ const NAMES = `${SCOPE}names`;
 const RATE = `${SCOPE}rate:`;
 
 /**
+ * No database behind the board. This is a setup that was never finished, not an
+ * outage, and the two must not be reported as the same thing: one is fixed by
+ * adding an environment variable and the other by waiting.
+ */
+export class NoDatabase extends Error {
+  constructor(missing: string) {
+    super(`The board has no database: ${missing} is missing.`);
+    this.name = 'NoDatabase';
+  }
+}
+
+/**
  * The credentials Vercel's Upstash integration injects. They are `KV_`-prefixed
  * rather than `UPSTASH_`-prefixed, which is why this does not use the client's
  * own `Redis.fromEnv()` — that looks for `UPSTASH_REDIS_REST_URL` and would find
  * nothing here, at runtime, on a page nobody is watching.
+ *
+ * Reading falls back to the write token, which is usually a kindness and once
+ * was not: with only the read-only token set, the board reads perfectly and
+ * every submission fails, so the game looks healthy right up until somebody
+ * tries to get on it. The fallback stays, because the opposite arrangement is
+ * the common one, but a write that has no token of its own now says which token
+ * it wanted rather than reporting itself as unreachable.
  */
 export function redisFromEnv(readOnly = false): Redis {
   const url = process.env.KV_REST_API_URL;
   const token = readOnly
     ? process.env.KV_REST_API_READ_ONLY_TOKEN ?? process.env.KV_REST_API_TOKEN
     : process.env.KV_REST_API_TOKEN;
-  if (!url || !token) throw new Error('The board has no database: KV_REST_API_URL or KV_REST_API_TOKEN is missing.');
+  if (!url) throw new NoDatabase('KV_REST_API_URL');
+  if (!token) throw new NoDatabase(readOnly ? 'KV_REST_API_READ_ONLY_TOKEN and KV_REST_API_TOKEN' : 'KV_REST_API_TOKEN');
   return new Redis({ url, token });
 }
 

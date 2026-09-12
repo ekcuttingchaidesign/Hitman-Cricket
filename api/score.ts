@@ -1,5 +1,5 @@
 import { refused, submitScore, type Submission } from '../src/server/board-store.js';
-import { redisFromEnv, upstashStore } from '../src/server/upstash.js';
+import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 
@@ -35,6 +35,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(outcome);
   } catch (error) {
+    if (error instanceof NoDatabase) return failed(res, 503, 'The board is not set up yet.', error);
     failed(res, 503, 'The board could not be reached.', error);
   }
 }

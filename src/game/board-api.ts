@@ -44,6 +44,13 @@ export interface SubmitResult {
   reason?: string;
 }
 
+/**
+ * Every failure of the board is followed by this, because it is true: the card,
+ * the personal best and the innings itself are the player's own and were never
+ * the board's to lose.
+ */
+const STILL_COUNTS = 'Your innings still counts on this device.';
+
 let cached: { at: number; payload: BoardPayload } | null = null;
 
 /**
@@ -53,7 +60,10 @@ let cached: { at: number; payload: BoardPayload } | null = null;
  */
 export async function fetchBoard(force = false): Promise<BoardPayload | null> {
   if (!force && cached && Date.now() - cached.at < FRESH_MS) return cached.payload;
-  const payload = await ask<BoardPayload>(`${API}/api/board`);
+  // `ask` hands back a refusal as readily as a board, and the sheet has one line
+  // for every way this can fail, so anything carrying `error` is no board here.
+  const answer = await ask<BoardPayload & { error?: string }>(`${API}/api/board`);
+  const payload = answer && !answer.error ? answer : null;
   if (payload) cached = { at: Date.now(), payload };
   // In development there is usually no database behind any of this, so the
   // invented fifty stand in. They never stand in for a live board.
@@ -68,12 +78,17 @@ export async function fetchBoard(force = false): Promise<BoardPayload | null> {
 export async function submitInnings(
   playerId: string, name: string, avatar: number, innings: Innings,
 ): Promise<SubmitResult> {
-  const answer = await ask<{ improved: boolean; score: number; board: BoardPayload; error?: string }>(
+  const answer = await ask<{ improved: boolean; score: number; board: BoardPayload; error?: string; retry?: boolean }>(
     `${API}/api/score`,
     { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerId, name, avatar, innings }) },
   );
-  if (!answer) return { ok: false, reason: 'The board could not be reached. Your innings still counts on this device.' };
-  if (answer.error) return { ok: false, reason: answer.error };
+  // Nothing came back at all: a timeout, a dropped connection, or a crash with
+  // no body to read. There is nothing more specific to say than this.
+  if (!answer) return { ok: false, reason: `The board could not be reached. ${STILL_COUNTS}` };
+  // A refusal is read out as it stands, because the player can act on it. A
+  // failure of the board itself gets the reassurance appended, because they
+  // cannot, and being told their hundred vanished would be the wrong reading.
+  if (answer.error) return { ok: false, reason: answer.retry ? `${answer.error} ${STILL_COUNTS}` : answer.error };
   cached = { at: Date.now(), payload: answer.board };
   return { ok: true, improved: answer.improved, score: answer.score, board: answer.board };
 }
@@ -82,10 +97,16 @@ export async function submitInnings(
 export function forgetBoard() { cached = null; }
 
 /**
- * One request, with a timeout and no way to throw. A rejected fetch, a timeout,
- * a 500 and a body that is not JSON all mean the same thing to the caller: no
- * answer. The one exception is a refusal the player needs to read — a name
- * already taken — which comes back as an object carrying `error`.
+ * One request, with a timeout and no way to throw. A rejected fetch, a timeout
+ * and a body that is not JSON all mean the same thing to the caller: no answer.
+ *
+ * The exception is a body carrying `error`, which comes back whatever the
+ * status. Only the endpoints' own `failed` writes that field, and every message
+ * it writes is already in words the player can read — a name already taken, an
+ * innings that could not have happened, a board with no database behind it. The
+ * status is carried alongside it as `retry` rather than inspected here, so a
+ * refusal and an outage are told apart by what the answer says rather than by a
+ * number this function would have to interpret.
  */
 async function ask<T>(url: string, init: RequestInit = {}): Promise<T | null> {
   const stop = new AbortController();
@@ -94,8 +115,7 @@ async function ask<T>(url: string, init: RequestInit = {}): Promise<T | null> {
     const response = await fetch(url, { ...init, signal: stop.signal });
     const body = await response.json().catch(() => null);
     if (response.ok) return body as T;
-    // 4xx carries a reason worth showing; 5xx is the board being down.
-    return body && typeof body === 'object' && 'error' in body && response.status < 500 ? body as T : null;
+    return body && typeof body === 'object' && 'error' in body ? body as T : null;
   } catch {
     return null;
   } finally {

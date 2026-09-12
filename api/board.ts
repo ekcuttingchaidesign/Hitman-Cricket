@@ -6,7 +6,7 @@
 // beside it, and Vite and Vitest resolve it the same way, so this costs the rest
 // of the project nothing. `scripts/function-check.mjs` is what keeps it honest.
 import { readBoard } from '../src/server/board-store.js';
-import { redisFromEnv, upstashStore } from '../src/server/upstash.js';
+import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
@@ -33,6 +33,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=59');
     res.status(200).json(board);
   } catch (error) {
+    // A board with no database behind it was never set up; a board that is down
+    // was. Saying which one saves reading the logs to find out.
+    if (error instanceof NoDatabase) return failed(res, 503, 'The board is not set up yet.', error);
     // The board being down must never be the player's problem, so this says so
     // plainly and the game carries on without it.
     failed(res, 503, 'The board could not be reached.', error);

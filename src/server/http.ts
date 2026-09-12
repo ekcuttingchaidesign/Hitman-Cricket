@@ -74,8 +74,13 @@ export function addressOf(req: ApiRequest): string {
 /**
  * A failure the player will see. The message says what happened in words they
  * can act on; the detail goes to the log, where it is useful and harmless.
+ *
+ * `retry` separates the two kinds of failure without the browser having to read
+ * the status code: a refusal is something the player can do differently — a name
+ * already taken, an innings that could not have happened — and everything from
+ * five hundred up is the board's own problem, which they can only wait out.
  */
 export function failed(res: ApiResponse, status: number, reason: string, detail?: unknown) {
   if (detail) console.error(reason, detail);
-  res.status(status).json({ error: reason });
+  res.status(status).json({ error: reason, retry: status >= 500 });
 }
