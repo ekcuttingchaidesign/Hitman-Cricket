@@ -17,16 +17,17 @@ import {
  */
 
 /**
- * A player's kit: the picture where there is one, the coloured disc with their
- * initial where there is not.
+ * A player's kit: their picture, on a disc the colour of that picture's own ring.
  *
- * Both are always drawn, one over the other. A picture that has not arrived —
- * or never will, because the files are not in `public/avatars/` yet — takes
- * itself off the page and leaves the disc, so the board degrades to the version
- * of itself it had yesterday rather than to a row of broken images.
+ * The disc is not decoration and not a fallback letter. It is what fills the
+ * space for the moment before the picture paints, and because its colour is
+ * sampled off the ring in the picture itself, that moment is a continuous load
+ * rather than a colour changing under the reader. A picture that will not load
+ * at all leaves the disc behind, which still tells the five kits apart — and in
+ * a board row the player's name is written beside it either way.
  */
-export function kitMarkup(avatar: number, name: string, extra = ''): string {
-  return `<span class="board-kit${extra}" style="--kit:${kitColour(avatar)}" aria-hidden="true">${initial(name)}<img src="${avatarSrc(avatar)}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></span>`;
+export function kitMarkup(avatar: number, _name = '', extra = ''): string {
+  return `<span class="board-kit${extra}" style="--kit:${kitColour(avatar)}" aria-hidden="true"><img src="${avatarSrc(avatar)}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></span>`;
 }
 
 export interface BoardView {
@@ -121,7 +122,7 @@ export function peekMarkup(
  */
 function peekRow(place: number, name: string, kit: number | null, figures: Innings, you: boolean): string {
   const disc = kit === null
-    ? `<span class="board-kit is-unclaimed" aria-hidden="true">${escape([...name.trim()][0]?.toUpperCase() ?? '')}</span>`
+    ? `<span class="board-kit is-unclaimed" aria-hidden="true">${initial(name)}</span>`
     : kitMarkup(kit, you ? name : '');
   return `
             <li class="board-row${you ? ' is-you' : ''}" style="--i:${place}"${you ? ' aria-current="true"' : ''}>
@@ -279,9 +280,8 @@ export function pickerMarkup(chosen: number): string {
 }
 
 /**
- * The letter in the disc until there is a picture to put there. A nameless kit
- * — the five in the picker — gets no letter at all rather than a question mark,
- * because five identical question marks say less than five colours do.
+ * The letter in a disc that has no picture behind it — which is now only the
+ * row of a player who has not registered yet, and so has not picked a kit.
  */
 function initial(name: string) {
   return escape([...name.trim()][0]?.toUpperCase() ?? '');

@@ -5,9 +5,10 @@ import { inventInnings, inventedBoard } from '../src/game/board-fixture';
 import { BOARD_SIZE, compareRows, decidedBy, plausible, unpackScore } from '../src/game/leaderboard';
 import type { BoardRow, Innings } from '../src/game/leaderboard';
 import {
-  asInnings, boardMarkup, cutLabel, cutoff, decider, escape, kitMarkup, pickerMarkup, placeOf, rowMarkup, tieNote,
+  asInnings, boardMarkup, cutLabel, cutoff, decider, escape, kitMarkup, peekMarkup, pickerMarkup, placeOf, rowMarkup, tieNote,
 } from '../src/ui/Leaderboard';
-import { AVATARS, kitColour } from '../src/config/board';
+import { AVATARS, KITS, kitColour } from '../src/config/board';
+import { readdirSync } from 'node:fs';
 
 const board = inventedBoard();
 const row = (over: Partial<BoardRow> = {}): BoardRow => ({
@@ -205,17 +206,26 @@ describe('the sheet', () => {
 });
 
 describe('the kits', () => {
-  it('draws the disc and the picture together, so one can stand in for the other', () => {
-    const kit = kitMarkup(2, 'Rohit');
+  it('puts the picture on a disc of that picture\'s own ring colour', () => {
+    // The disc fills the space for the moment before the picture paints, so its
+    // colour is sampled off the picture rather than chosen: a continuous load
+    // rather than a colour changing under the reader.
+    const kit = kitMarkup(2);
     expect(kit).toContain(kitColour(2));
-    expect(kit).toContain('avatars/3.webp');
-    // The initial is in the markup whether or not the picture ever arrives.
-    expect(kit).toContain('>R<');
+    expect(kit).toContain(`avatars/${KITS[2].file}`);
   });
 
-  it('escapes the initial too, since it is the first character of a name', () => {
-    expect(kitMarkup(0, '<script>')).toContain('&lt;');
-    expect(kitMarkup(0, '<script>')).not.toContain('<script');
+  it('maps every kit to a picture that is actually in the repository', () => {
+    const shipped = readdirSync('public/avatars');
+    for (const kit of KITS) expect(shipped, kit.name).toContain(kit.file);
+  });
+
+  it('escapes the letter on the one disc that has no picture behind it', () => {
+    // A player who has not registered has not picked a kit, so their row is the
+    // only disc still carrying a letter — and the name is theirs to type.
+    const nasty = peekMarkup(board, 3, board[2], null, '<script>x');
+    expect(nasty).toContain('&lt;');
+    expect(nasty).not.toContain('<script');
   });
 
   it('takes a picture that will not load off the page rather than showing it broken', () => {
