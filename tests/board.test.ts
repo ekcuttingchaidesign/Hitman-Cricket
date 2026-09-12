@@ -304,3 +304,36 @@ describe('offering a place', () => {
     expect(shouldOfferPlace(true, [], duck, at)).toBe(false);
   });
 });
+
+
+describe('an innings that is not a row yet', () => {
+  const at = Date.UTC(2026, 5, 1);
+  const good: Innings = { runs: 111, sixes: 15, fours: 5, wickets: 3, dots: 4, balls: GAME.totalBalls };
+
+  /**
+   * The one in the screenshot. On an empty board the innings was drawn as
+   * having missed the cut: a dash where its place should be, and "level, and
+   * below on the split" under it, against nobody. A hundred and eleven was
+   * being told it came up short of an empty board.
+   */
+  it('shows the top spot to the first innings, not a miss', () => {
+    const markup = boardMarkup({ rows: [], yours: good, atMs: at });
+    expect(markup).toContain('takes the top');
+    expect(markup).toContain('>1<');
+    expect(markup).not.toContain('level, and below on the split');
+    expect(markup).toContain('Nobody has batted yet');
+  });
+
+  it('shows the place an innings would take on a board with room', () => {
+    const markup = boardMarkup({ rows: board.slice(0, 3), yours: good, atMs: at });
+    expect(markup).toMatch(/takes the top|yours to claim/);
+    expect(markup).not.toContain('level, and below on the split');
+  });
+
+  it('still says plainly when an innings missed a full board', () => {
+    const short: Innings = { runs: 1, sixes: 0, fours: 0, wickets: 3, dots: 6, balls: 9 };
+    const markup = boardMarkup({ rows: board, yours: short, atMs: at });
+    expect(markup).toContain('short');
+    expect(markup).toContain('board-place">&mdash;');
+  });
+});

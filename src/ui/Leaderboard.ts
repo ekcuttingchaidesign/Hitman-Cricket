@@ -35,8 +35,10 @@ export interface BoardView {
   rows: readonly BoardRow[];
   /** Which row is the player's, if one of them is. */
   youId?: string | null;
-  /** The innings the player just played, when it did not make the board. */
+  /** The innings the player just played, when it is not already a row. */
   yours?: Innings | null;
+  /** When the sheet is being drawn. Only a test ever needs to say. */
+  atMs?: number;
   /** Whether these rows are the board, on their way, or unavailable. */
   state?: 'ready' | 'loading' | 'offline';
   /**
@@ -136,9 +138,14 @@ function peekRow(place: number, name: string, kit: number | null, figures: Innin
 
 /** The whole screen, header to footer. */
 export function boardMarkup(view: BoardView): string {
-  const { rows, youId = null, yours = null, state = 'ready', actions = false } = view;
+  const { rows, youId = null, yours = null, state = 'ready', actions = false, atMs = Date.now() } = view;
   const edge = cutoff(rows);
   const yourPlace = rows.findIndex(row => row.playerId === youId);
+  // An innings that is not a row yet is one of two things, and they are not the
+  // same news. On a board with room on it, it is a place waiting to be taken; on
+  // a full board it has missed. Showing the first as the second tells a player
+  // who is about to go top that they came up short.
+  const waiting = yourPlace < 0 && yours ? qualifies(yours, atMs, rows) : false;
   return `
     <div class="board-sheet" role="document">
       <div class="sheet-head">
@@ -154,7 +161,9 @@ export function boardMarkup(view: BoardView): string {
         <ol class="board-list">${rows.map((row, i) => rowMarkup(row, i, rows[i - 1] ?? null, row.playerId === youId)).join('')}
         </ol>
         ${edge ? `<p class="board-cut">${cutLabel(edge)}</p>` : ''}
-        ${yourPlace < 0 && yours ? missedMarkup(yours, edge) : ''}
+        ${yourPlace < 0 && yours
+          ? waiting ? waitingMarkup(yours, placeOf(rows, yours, atMs)) : missedMarkup(yours, edge)
+          : ''}
       </div>
       <p class="board-foot">One innings a player, best only. Level scores are split on sixes, then fours, then wickets, then dot balls &mdash; and if all of that ties, whoever got there first stays above.</p>
       ${actions ? actionsMarkup() : ''}
@@ -249,6 +258,25 @@ function splitWord(edge: Innings, yours: Innings): string {
   const key = decidedBy(edge, yours);
   return key === 'sixes' ? 'sixes' : key === 'fours' ? 'fours'
     : key === 'wickets' ? 'wickets lost' : key === 'dots' ? 'dot balls' : 'getting there first';
+}
+
+/**
+ * Your innings, shown below the line when it would get on. The place is the one
+ * it would take, not a dash: the dash belongs to an innings that has no place,
+ * and this one has a place it simply has not claimed.
+ */
+function waitingMarkup(yours: Innings, place: number): string {
+  return `
+        <ol class="board-list board-missed" start="${place}">
+          <li class="board-row is-you" style="--i:0">
+            <span class="board-place">${place}</span>
+            <span class="board-kit" style="--kit:${kitColour(0)}" aria-hidden="true">?</span>
+            <span class="board-who"><b>This innings</b><small>${
+              place === 1 ? 'takes the top' : `yours to claim`}</small></span>
+            <span class="board-runs">${yours.runs}<i>/${yours.wickets}</i></span>
+            <span class="board-hits"><em>${yours.sixes}<small>6s</small></em><em>${yours.fours}<small>4s</small></em></span>
+          </li>
+        </ol>`;
 }
 
 /** Your innings, shown below the line when it did not make it. */
