@@ -1,7 +1,7 @@
-import { refused, submitScore, type Submission } from '../src/server/board-store';
-import { redisFromEnv, upstashStore } from '../src/server/upstash';
-import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http';
-import type { Innings } from '../src/game/leaderboard';
+import { refused, submitScore, type Submission } from '../src/server/board-store.js';
+import { redisFromEnv, upstashStore } from '../src/server/upstash.js';
+import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
+import type { Innings } from '../src/game/leaderboard.js';
 
 /**
  * `POST /api/score` — an innings offered to the board.

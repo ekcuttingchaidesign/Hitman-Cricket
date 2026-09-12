@@ -1,4 +1,4 @@
-import type { BoardStore, StoredRow } from './board-store';
+import type { BoardStore, StoredRow } from './board-store.js';
 
 /**
  * The board, in memory.

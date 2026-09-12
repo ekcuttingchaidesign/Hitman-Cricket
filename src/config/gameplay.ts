@@ -1,4 +1,4 @@
-import type { BallLine, DeliveryStyle, ShotType, TimingGrade } from '../game/types';
+import type { BallLine, DeliveryStyle, ShotType, TimingGrade } from '../game/types.js';
 export const GAME = {
   totalBalls: 30, maxWickets: 3, ballsPerOver: 6, comboMs: 100,
   swipeDistance: 24,

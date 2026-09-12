@@ -1,6 +1,13 @@
-import { readBoard } from '../src/server/board-store';
-import { redisFromEnv, upstashStore } from '../src/server/upstash';
-import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http';
+// The `.js` on these is not a mistake and must not be tidied away. package.json
+// declares `"type": "module"`, so Node resolves these as ESM — and ESM requires
+// an explicit extension on a relative import. Written extensionless, the
+// function crashes on load with ERR_MODULE_NOT_FOUND before any handler runs,
+// which is a 500 with no log of its own. TypeScript maps `.js` back to the `.ts`
+// beside it, and Vite and Vitest resolve it the same way, so this costs the rest
+// of the project nothing. `scripts/function-check.mjs` is what keeps it honest.
+import { readBoard } from '../src/server/board-store.js';
+import { redisFromEnv, upstashStore } from '../src/server/upstash.js';
+import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
  * `GET /api/board` — the fifty, and the score the fiftieth is holding.

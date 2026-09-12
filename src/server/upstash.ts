@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis';
-import type { BoardStore, StoredRow } from './board-store';
+import type { BoardStore, StoredRow } from './board-store.js';
 
 /**
  * The board kept in Redis.

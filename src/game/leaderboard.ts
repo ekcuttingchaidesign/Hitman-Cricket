@@ -1,5 +1,5 @@
-import { GAME } from '../config/gameplay';
-import type { ScoreManager } from './ScoreManager';
+import { GAME } from '../config/gameplay.js';
+import type { ScoreManager } from './ScoreManager.js';
 
 /**
  * How fifty innings are put in order, written once and imported by both sides.

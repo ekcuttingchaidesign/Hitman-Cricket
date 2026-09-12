@@ -1,4 +1,4 @@
-import { BOARD_SIZE, packScore, plausible, type BoardRow, type Innings } from '../game/leaderboard';
+import { BOARD_SIZE, packScore, plausible, type BoardRow, type Innings } from '../game/leaderboard.js';
 
 /**
  * What the board is, on the store's side of the wire.

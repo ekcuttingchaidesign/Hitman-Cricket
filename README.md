@@ -280,6 +280,16 @@ vercel env pull .env.development.local
 vercel dev
 ```
 
+### Three compilers, three answers
+
+`npm run build` runs `tsc --noEmit`, then `node scripts/function-check.mjs`, then `vite build` — because the first two ask questions the third cannot.
+
+The middle one exists for a bug that shipped: `package.json` declares `"type": "module"`, so Vercel loads each function as ESM, and **ESM requires an explicit extension on every relative import**. Extensionless specifiers resolve perfectly in Vite, in Vitest and under `moduleResolution: "Bundler"`, and crash in Node. The deployment went green, the build was clean, and every request died with `FUNCTION_INVOCATION_FAILED` before a line of the handler ran — so there was nothing in the logs the handler wrote, because the handler never existed.
+
+Hence the `.js` on relative imports in `api/` and in everything those files reach. It is not a mistake and must not be tidied away. TypeScript maps `.js` back to the `.ts` beside it, so it costs the rest of the project nothing.
+
+`function-check.mjs` transpiles `api/` to real ESM with no bundler in the way and imports each handler in Node, asserting a function comes back. Nothing is called, so it needs no credentials and makes no requests — it asks only whether the module graph resolves. Reintroduce a missing extension and it fails; that was verified rather than assumed.
+
 ### The functions carry nothing of their own
 
 `api/board.ts` and `api/score.ts` import no Vercel package and have no tsconfig of their own, deliberately. Both were tried and both made things worse:
@@ -347,6 +357,7 @@ Rate limiting is by address and the address is **never** used as identity, becau
 - `src/server/memory-store.ts`: the board in memory, behind the same interface. It backs the dev server and the tests — one implementation rather than two, because a second copy drifts from the one the endpoints are developed against. It keeps the semantics the Redis adapter leans on rather than the convenient ones.
 - `src/server/upstash.ts`: that interface over Upstash. Note it does not use the client's own `Redis.fromEnv()` — Vercel's integration injects `KV_`-prefixed names, `fromEnv` looks for `UPSTASH_`-prefixed ones, and it would find nothing at runtime on a page nobody is watching.
 - `src/server/http.ts`: CORS, the address the edge reports, and how a failure is phrased. The allowlist is an allowlist rather than a `*` because one of the two endpoints writes.
+- `scripts/function-check.mjs`: whether each function loads at all in Node. Part of `npm run build`.
 - `api/board.ts` and `api/score.ts`: thin handlers. They turn a request into a call and the answer into a response, and hold no rules of their own.
 - `src/game/board-api.ts`: the browser's side. Every call is on a four-second leash and a failure is an answer rather than an exception, because the board must never hold up an innings. The invented fifty answer only where there is no API to ask — a live board that quietly fell back to made-up names would be lying about who is on it.
 - `src/config/board.ts`: the five kits and where their pictures live. One place, because three screens draw them.
