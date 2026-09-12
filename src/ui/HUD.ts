@@ -3,6 +3,7 @@ import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
+import { boardMarkup, type BoardView } from './Leaderboard';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
@@ -34,18 +35,23 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
  * to action, with nothing else on the screen. A desktop keeps the card over the
  * live ground, where there is room for the keys and the pitch behind them.
  */
-const coverIntro = (best: number) => `
+/* The trophy line is the way onto the board from the cover, so it is always
+   there. What it quotes is not: a best of nought is a sentence about nobody, so
+   until there is one it quotes the board's leader instead. */
+const trophyLine = (best: number, top: number) =>
+  best > 0 ? { label: 'BEST', runs: best } : { label: 'TOP OF THE BOARD', runs: top };
+const coverIntro = (best: number, top: number) => `
         <div id="intro" class="intro cover-intro">
           <div class="cover-plate" aria-hidden="true">${coverPlates.map((src, i) =>
             `<img class="cover-art" src="${src}" alt="" decoding="async"${i ? '' : ' fetchpriority="high"'}>`).join('')}</div>
           <img class="cover-title" src="${coverTitle}" alt="Hitman Cricket" decoding="async">
           <div class="cover-actions">
-            <p class="cover-best${best ? '' : ' hidden'}">${icon('trophy')}<span>BEST</span><strong id="best">${best} <small>RUNS</small></strong></p>
+            <button id="cover-board" class="cover-best">${icon('trophy')}<span id="best-label">${trophyLine(best, top).label}</span><strong id="best">${trophyLine(best, top).runs} <small>RUNS</small></strong></button>
             <button id="start" class="play-button">PLAY</button>
             <button id="tutorial" class="learn-button">HOW TO PLAY</button>
           </div>
         </div>`;
-const panelIntro = (best: number) => `
+const panelIntro = (best: number, top: number) => `
         <div id="intro" class="panel intro-panel">
           <div class="brand"><span class="brand-mark">H</span><span>HITMAN<span class="brand-sub">CRICKET</span></span></div>
           <span class="challenge-tag">5 OVER BATTING CHALLENGE</span>
@@ -57,14 +63,14 @@ const panelIntro = (best: number) => `
           <span class="shot-keys keyboard-only"><b>←</b><kbd>A</kbd><b>↖</b><kbd>A+W</kbd><b>↑</b><kbd>W</kbd><b>↗</b><kbd>W+D</kbd><b>→</b><kbd>D</kbd><b>↓</b><kbd>S</kbd></span>
           <span class="start-hint keyboard-only">or play the same shots on the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> arrow keys</span>
           <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat. Swipe down to block.<b class="swipe-symbols">← ↖ ↑ ↗ → ↓</b></span>
-          <div class="personal-best">${icon('trophy')}<div><span>PERSONAL BEST</span><strong id="best">${best} <small>RUNS</small></strong></div></div>
+          <button id="panel-board" class="personal-best">${icon('trophy')}<div><span id="best-label">${best ? 'PERSONAL BEST' : trophyLine(best, top).label}</span><strong id="best">${trophyLine(best, top).runs} <small>RUNS</small></strong></div>${icon('arrow')}</button>
         </div>`;
 export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
   private shared: CardFacts | null = null;
   private $ = (id: string) => document.getElementById(id)!;
-  constructor(root: HTMLElement, best: number) {
+  constructor(root: HTMLElement, best: number, top = 0) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
     const touch = document.documentElement.classList.contains('touch-device');
     // The cover fills the screen, so the scoreboard, the meter, the field labels
@@ -78,6 +84,7 @@ export class HUD {
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Mute sound" title="Sound (M)">${icon('sound')}</button>
             <button id="help" class="hud-button" aria-label="How to play" title="How to play">${icon('help')}</button>
+            <button id="board" class="hud-button" aria-label="Top 50 board" title="Top 50 (B)">${icon('trophy')}</button>
             <button id="share" class="hud-button" aria-label="Share game" title="Share game">${icon('share')}</button>
             <button id="pause" class="hud-button" aria-label="Pause innings" title="Pause (Esc)" disabled>${icon('pause')}</button>
             <button id="fullscreen" class="hud-button" aria-label="Enter fullscreen" title="Fullscreen">${icon('expand')}</button>
@@ -114,7 +121,8 @@ export class HUD {
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
         <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
-${touch ? coverIntro(best) : panelIntro(best)}
+${touch ? coverIntro(best, top) : panelIntro(best, top)}
+        <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-content"><p class="eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p>The next shot can wait.</p><button id="resume" class="primary-button">RESUME INNINGS ${icon('arrow')}</button><button id="restart" class="secondary-button">RESTART INNINGS</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
@@ -153,6 +161,34 @@ ${touch ? coverIntro(best) : panelIntro(best)}
   on(id: string, fn: () => void) { this.$(id).addEventListener('click', fn); }
   help() { (this.$('help-dialog') as HTMLDialogElement).showModal(); }
   get helpOpen() { return (this.$('help-dialog') as HTMLDialogElement).open; }
+  /**
+   * The board, drawn whole every time it is opened. Fifty rows is a few
+   * thousand nodes and it is opened between innings rather than during one, so
+   * there is nothing to be gained by keeping them around and patching them:
+   * a fresh sheet is always the rows it was handed.
+   */
+  board(view: BoardView) {
+    const overlay = this.$('board-overlay');
+    overlay.innerHTML = boardMarkup(view);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    // The backdrop is the whole overlay, so a click that lands on the sheet is
+    // not a click on the way out.
+    overlay.onclick = event => { if (event.target === overlay) this.closeBoard(); };
+    this.$('board-close').onclick = () => this.closeBoard();
+    this.$('board-close').focus();
+  }
+  get boardOpen() { return !this.$('board-overlay').classList.contains('hidden'); }
+  /** Puts the sheet away and hands the screen back to whatever was under it. */
+  closeBoard() {
+    this.$('board-overlay').classList.add('hidden');
+    this.$('board-overlay').innerHTML = '';
+    // The pause card and the innings card are both modals in their own right, so
+    // the darkened ground only lifts if the board was the last thing on it.
+    const stacked = ['end', 'pause-overlay', 'tutorial-done'].some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+    this.$('board').focus();
+  }
   score(score: ScoreManager) {
     this.$('runs').innerHTML = dotMatrix(String(score.runs), `${score.runs} runs`);
     this.$('wickets').innerHTML = dotMatrix(String(score.wickets), `${score.wickets} wickets`);
@@ -269,7 +305,13 @@ ${touch ? coverIntro(best) : panelIntro(best)}
     this.$('end-message').textContent = isRecord
       ? best > 0 ? `${faced}, past your old best of ${best}.` : `${faced}. First score on the board.`
       : best > 0 ? `${faced}. Your best stands at ${best}.` : `${faced}.`;
-    this.$('best').innerHTML = `${best} <small>RUNS</small>`; this.$('again').focus();
+    // The trophy line was quoting the board's leader while there was no best of
+    // your own. There is one now, so it goes back to quoting yours.
+    if (best > 0) {
+      this.$('best-label').textContent = document.getElementById('cover-board') ? 'BEST' : 'PERSONAL BEST';
+      this.$('best').innerHTML = `${best} <small>RUNS</small>`;
+    }
+    this.$('again').focus();
     // The href is the floor, not the plan: a wa.me link carries text and nothing
     // else, so it is what a browser that cannot hand a file to another app falls
     // back to. Where one can, the click below sends the picture instead.

@@ -12,6 +12,10 @@ import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
+import { inventedBoard } from './game/board-fixture';
+import { playerId } from './game/identity';
+import { asInnings } from './ui/Leaderboard';
+import type { BoardRow } from './game/leaderboard';
 export class Game {
   private phase: GamePhase = 'START';
   private previousPhase: GamePhase = 'READY';
@@ -25,6 +29,15 @@ export class Game {
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
+  /**
+   * The board, and who the board thinks you are. Both are stand-ins for the two
+   * endpoints that are not built yet: the rows are invented and the id is only
+   * ever compared against them, so nothing here reaches the network. When
+   * `GET /api/board` exists it fills the same field with the same shape, and
+   * the screen that draws it does not change.
+   */
+  private board: BoardRow[] = inventedBoard();
+  private player: string | null = null;
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
   /** -1 outside the tutorial, otherwise the ball being coached. */
@@ -37,7 +50,10 @@ export class Game {
   private disposed = false;
   constructor(root: HTMLElement) {
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
-    this.hud = new HUD(root, this.best);
+    this.hud = new HUD(root, this.best, this.board[0]?.runs ?? 0);
+    // Settling the id touches three stores, one of which can hang, so it runs
+    // alongside the game rather than in front of it. Nothing waits on it.
+    void playerId().then(id => { this.player = id; }).catch(() => {});
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); this.hud.error(); return; }
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot, this.hud.viewport);
     this.hud.on('start', this.start); this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
@@ -45,6 +61,8 @@ export class Game {
     this.hud.on('sound', this.toggleSound);
     this.hud.on('restart', this.start);
     this.hud.on('share', () => { void this.hud.share(); });
+    this.hud.on('board', this.showBoard);
+    this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
     this.hud.on('help', () => { if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
       if (document.fullscreenElement) void document.exitFullscreen();
@@ -115,12 +133,33 @@ export class Game {
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else { this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true); }
   };
+  /**
+   * The board, with the innings just played measured against it when there is
+   * one. An innings in progress is not offered up: half an over is not a score,
+   * and the board is opened between innings anyway.
+   */
+  private showBoard = () => {
+    // Mid-innings the board is a distraction with a ball on its way, so it
+    // pauses first, the way the instructions do. The pause card is still behind
+    // it when the sheet is put away, which is the point.
+    if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause();
+    const played = this.phase === 'INNINGS_END' ? asInnings(this.score) : null;
+    this.hud.board({ rows: this.board, youId: this.player, yours: played });
+  };
   private visibility = () => { if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private shortcuts = (event: KeyboardEvent) => {
     if (event.repeat || this.hud.helpOpen) return;
     const key = event.key.toUpperCase();
+    // The board is the thing on top while it is open, so it answers first: Esc
+    // puts it away rather than pausing whatever is behind it, and the keys that
+    // start an innings would otherwise start one under a sheet nobody closed.
+    if (this.hud.boardOpen) {
+      if (key === 'ESCAPE' || key === 'B') { event.preventDefault(); this.hud.closeBoard(); }
+      return;
+    }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) { event.preventDefault(); this.start(); }
+    else if (key === 'B') { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
     else if (key === 'ESCAPE') { event.preventDefault(); this.togglePause(); }
     else if (key === 'M') { event.preventDefault(); this.toggleSound(); }

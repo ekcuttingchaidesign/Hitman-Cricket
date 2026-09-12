@@ -33,7 +33,7 @@ when the only real deployment tracks the default branch.
 
 ## Start screen
 
-A phone gets the cover art. `src/assets/cover.webp` fills the screen, `title.webp` sits in the sky, and **Play** and **How to play** sit low on the pitch at the artwork's own proportions: a button is 54% of the width, and the pair end a twentieth off the foot of the screen. Nothing else is on it — the scoreboard, the confidence meter, the field labels and the button row all wait until there is an innings to describe. A personal best appears above the buttons once there is one. Across a landscape phone a portrait cover crops to nothing useful, so the live ground stands in for it and the lockup sits over the real thing.
+A phone gets the cover art. `src/assets/cover.webp` fills the screen, `title.webp` sits in the sky, and **Play** and **How to play** sit low on the pitch at the artwork's own proportions: a button is 54% of the width, and the pair end a twentieth off the foot of the screen. Nothing else is on it — the scoreboard, the confidence meter, the field labels and the button row all wait until there is an innings to describe. The trophy line above the buttons is the way onto the board, and it is always there; what it quotes is not. Until there is a personal best it quotes the board's leader, because a best of nought is a sentence about nobody. Across a landscape phone a portrait cover crops to nothing useful, so the live ground stands in for it and the lockup sits over the real thing.
 
 Both calls to action are set in **Jaro** (Agyei Archer, Céline Hurka, Mirko Velimirović), bundled as a 19 kB latin subset at `src/assets/jaro-latin.woff2` under the SIL Open Font License 1.1; the notice ships beside it in `jaro-OFL.txt`. The orange is `#e9582b`, taken off the cover art rather than the interface's own `--orange`.
 
@@ -74,6 +74,7 @@ Use the on-screen Pause button to resume or restart. Page scrolling is suppresse
 | Enter | Start innings / play again |
 | Esc | Pause / resume |
 | R | Restart innings |
+| B | Open the board (Esc or B closes it) |
 | M | Mute / unmute sound |
 
 The arrow keys are read as the same three shots before anything else looks at them, so combos, the one-shot gate and the timing bands work identically whichever pair a player reaches for — and a mixed pair such as `A` + `↑` is still a combo. Arrow keys are also swallowed during a delivery so the page cannot scroll out from under the innings.
@@ -224,6 +225,29 @@ The length and pace windows exclude every special without naming one: a yorker p
 
 The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), `boundary-hit.mp3` plays for both fours and sixes, `bat-edge.mp3` is the thin knick off the face when a cut is edged behind, and `sledge.mp3` comes back from the field after three balls the batter has not scored off. The synthesized fallback is an impact rather than a voice, so a sledge without its clip simply stays silent. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
+## The board
+
+A top fifty, one row per player, best innings only. The ranking is built and tested; the two endpoints behind it are not, so the screen runs against fifty invented innings until they are.
+
+Innings are ordered by **runs**, then **sixes**, then **fours**, then **fewest wickets**, then **fewest dots**, then **earliest submission**. A dot is a ball that scored nothing *and* was not a wicket, which keeps the last two keys independent of each other.
+
+**Strike rate is deliberately not on the ladder.** The innings ends at thirty balls or three wickets, so fewer balls faced means the player got out — ranking on strike rate would put whoever threw it away above whoever saw it through. Wickets lost already carries that, the right way round.
+
+All six keys pack into one number, so a store can sort the board natively with no comparator in the query path and the browser computes the identical number to answer "do I qualify" with no network call:
+
+```
+rank  = runs<<17 | sixes<<12 | fours<<7 | (3-wickets)<<5 | (30-dots)
+score = rank * 2**28 + (MAX_T - secondsSinceLaunch)
+```
+
+Twenty-five bits of rank over twenty-eight of clock is **exactly 53**, a double's mantissa, with nothing spare. Two tests guard it: one pins the budget at 53, the other proves a real innings packs past 2^32 without wrapping — because JavaScript's shift operators are 32-bit and a `<<` on that second line would hand back a small scrambled number with no error anywhere. `LAUNCH_MS` is 1 Jan 2026, and changing it reshuffles existing ties; the submission stamp has to come from the store, or a wrong clock decides a tiebreak.
+
+A row reads left to right as one sentence: where they came, who they are, what the innings came to, and how it was made. Where two rows are level on runs, the lower one says what split them — `level · fewer 6s`, `level · lost more`, `level · later` — and lights the figure it turned on where that figure has a column. Colour is not carrying that alone; the note says the same thing in words. Under the fiftieth row is the cut, the only rule on the sheet with a colour and words on it, and below the cut sits the innings just played when it did not make it.
+
+The fifty invented rows are the best fifty of a field of a hundred and ten, because that is what a board is: sample fifty at random and the worst of them is whoever was bowled in the first over, and the cut-off line reads four runs. Every one of them is played out ball by ball rather than written down as figures, so the runs add up out of the balls that produced them and `plausible()` passes on all fifty. Two ties are planted — one split below runs, one the clock alone split — because both are rare enough in fifty innings to go unseen until they turn up on the real board.
+
+A player is a long random id the browser holds on to, written to localStorage, a long-lived cookie and IndexedDB at once and restored from whichever survived. They fail in different ways and at different times, which is the point: a browser that forgets the id has not lost a row, it has quietly minted a second player who plays under the same name. Each id carries the moment it was minted, so when the copies disagree the older one wins and is written back over the younger. None of this is a security measure — an id in a browser identifies a browser, not a person — and the answer to someone wanting two rows is a delete path for the owner rather than a cleverer cookie.
+
 ## Architecture and tuning
 
 - `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds/lengths, the compatibility matrix and the threshold that separates a middled shot from a skied one, the triggers for each special delivery, wicket probabilities, and innings pacing.
@@ -240,12 +264,19 @@ The game automatically pauses when its tab is hidden or its window loses focus. 
 - `src/game/Sledge.ts`: counts the run of balls the batter has not scored off, and says when the fielders have heard enough.
 - `src/game/Share.ts`: the innings link, the WhatsApp message, and the file name and type each shared picture travels under.
 - `src/game/ShareCard.ts`: the innings-end card painted onto a canvas so it can leave the page as a picture. Both share buttons draw the same card, minus its buttons, with the Hitman Cricket lockup in the corner; the story button stands that card on the cover art in a 1080x1920 frame with the address painted on. Two platform limits shape it. A `wa.me` link carries text and nothing else, so where the browser can hand a file to another app the button goes through the share sheet instead and the link stays as the fallback; and a picture in a story is a picture, so the address is readable type rather than a tappable sticker, since link stickers are added inside Instagram or WhatsApp and not by whoever sent the image. The card is a PNG for its flat colour and sharp type, the story a JPEG for its photograph.
+- `src/game/leaderboard.ts`: the ladder, written once and imported by both sides — the browser runs it to decide whether an innings is worth asking a name for, and the store will run it to decide what the board actually is. Carries the packed score, the plausibility floor, and `decidedBy`, which names the figure that separated two innings so a row can point at the reason it sits where it does.
+- `src/game/board-fixture.ts`: fifty innings nobody played, so the board could be designed before there is a database behind it. Deterministic from one seed.
+- `src/game/identity.ts`: the player id, written to and restored from three stores at once. A store that throws is treated as empty and a store that hangs is left behind after a second, so a wedged IndexedDB costs the player a second rather than the game.
+- `src/ui/Leaderboard.ts`: the board as a string of HTML built from figures and nothing else, the way the rest of this interface is written, which is what lets fifty rows be checked with no browser in the room. Names come off the board, which is to say off other players, so they are written into the page as text and never as markup.
 - `src/ui/DotMatrix.ts`: the scoreboard's lamps. Faces are 7 rows of dots, drawn as SVG with the dark lamps as well as the lit ones — the unlit grid is what makes a panel read as a board rather than as text in a box. Punctuation is narrow, so an over count reads `5.0` rather than `5 . 0`.
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/share.test.ts`: what the shared card says for every innings ending, that it copies the innings rather than holding a reference to it, the file name and type each picture travels under, and that the address is in the caption because the picture cannot be tapped.
 - `tests/game.test.ts`: deterministic game-rule and progression tests, confidence-meter arithmetic, which deliveries can be charged, the flight curve that hides a slower ball off the hand without moving the moment it arrives, and the WhatsApp share message.
 - `tests/batter.test.ts`: grip attachment, hand order and fist alignment on the handle, guard geometry, per-stroke footwork, blade placement at contact, elbow clearance from trunk and handle, hands kept in front of the shoulders through every stroke, and continuous blade travel with a squared face.
 - `tests/bowler.test.ts`: an action that is the same pose at the same moment whatever the ball does and cannot be told how fast it is, an arm accelerating into the ball and still going after it, momentum carried into the crease rather than lost on the way, no jump where the run-up hands over to the follow-through, the ball leaving the hand where the delivery starts, a straight bowling arm, an arm that climbs over the top once, planted feet that do not slide, a legal front foot, and no limb reaching past its own length anywhere in the action.
+- `tests/leaderboard.test.ts`: every rung of the ladder in turn, the packed score's 53-bit budget and that a real innings packs past 2^32 without wrapping, and the innings the plausibility floor turns down.
+- `tests/board.test.ts`: that all fifty invented innings could have been dealt, that the last row is a real innings rather than a duck, both planted ties, what a row says about why it sits where it does, and that a name is written into the page as text.
+- `tests/identity.test.ts`: restoring a player from whichever store survived, folding a browser that minted a second id back onto the first, and staying playable when every store is broken.
 - `tests/scoreboard.test.ts`: a lamp face for every character the board can show, the dark grid behind the lit one, and panel sizing.
 - `tests/mobile.test.ts`: swipe directions including the defensive fan and its dead slivers, actual pointer event listeners, recognition timing, cancellation, one-shot gating, and normal/boundary sound selection.
 

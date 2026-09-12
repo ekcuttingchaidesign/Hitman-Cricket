@@ -632,7 +632,13 @@ kbd{
 }
 .learn-button:hover:not(:disabled){background:#1d4160;box-shadow:0 5px 0 #0c1f31,0 10px 16px #7a4a1e38}
 .learn-button:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #0c1f31,0 3px 7px #7a4a1e26}
+/* A button rather than a caption: it is the way onto the board from a cover
+   that hides every other control. Nothing about how it looks changes. */
 .cover-best{
+  border:0;
+  background:none;
+  padding:0;
+  font-family:inherit;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -770,7 +776,13 @@ body.start-screen .hud-top{display:none}
   letter-spacing:10px;
   margin-top:9px
 }
+/* Same line, same job, on the desktop panel: the board opens from it. */
 .personal-best{
+  border:0;
+  background:none;
+  width:100%;
+  font-family:inherit;
+  color:inherit;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -780,6 +792,7 @@ body.start-screen .hud-top{display:none}
   border-top:1px solid #ffffff1a
 }
 .personal-best>svg{width:24px;height:24px;color:#e0ab5f}
+.personal-best>svg:last-child{width:18px;height:18px;color:#9fb6bb;margin-left:auto}
 .personal-best span{
   font-size:8px;
   letter-spacing:1.6px;
@@ -1046,6 +1059,245 @@ body.start-screen .hud-top{display:none}
 @keyframes card-down{from{opacity:0;transform:translateY(-14px) scale(.97)}to{opacity:1;transform:none}}
 @keyframes card-figure{from{opacity:0}to{opacity:1}}
 @keyframes ball-rise{from{opacity:0;transform:scaleY(.05)}to{transform:none}}
+
+/* ── The top fifty ─────────────────────────────────────────────────────── */
+/* Cut from the same navy as the innings-end card, because it is the same
+   object seen from the other side: the card is your innings, this is where it
+   landed. Same slab, same ledge, same cream, same Satoshi — what changes is
+   that fifty of them have to fit, so the type comes down a step and the sheet
+   grows a scrolling middle rather than a longer body.
+   A row is read left to right as one sentence: where you came, who you are,
+   what it came to, and how it was made. The figures are tabular so fifty of
+   them line up as a column rather than as fifty separate numbers. */
+.board-sheet{
+  --ink:#f7f0e5;
+  --quiet:#9fb2bd;
+  --rule:#ffffff1c;
+  --accent:#f2814f;
+  --edge:#e5473a;
+  display:flex;
+  flex-direction:column;
+  width:min(440px,100%);
+  max-height:100%;
+  margin:auto;
+  padding:20px 0 0;
+  border-radius:18px;
+  background:#0f2738;
+  font-family:var(--card);
+  color:var(--ink);
+  text-align:left;
+  box-shadow:0 9px 0 #040e15,0 26px 46px #010609b3,inset 0 1px 0 #ffffff1f
+}
+/* The sheet is full height, so unlike the pause card it reaches up under the
+   button row, which sits above every other modal on purpose. This one goes over
+   it: a close button you cannot press because Mute is in front of it is not a
+   close button, and the sheet's own × and Esc are both ways out. */
+#board-overlay{background:#071219f2;z-index:10}
+/* Ground, then title, then the way out. The stamp is the one place on this
+   sheet that is set in tracked caps; everything else is sentence case. */
+.sheet-head{
+  position:relative;
+  padding:0 22px 2px;
+  flex:none
+}
+.board-eyebrow{
+  margin:0;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--quiet)
+}
+.board-sheet h2{
+  margin:2px 0 0;
+  font-size:30px;
+  font-weight:900;
+  letter-spacing:-1.2px;
+  line-height:1
+}
+.board-close{
+  position:absolute;
+  top:-4px;
+  right:14px;
+  width:38px;
+  height:38px;
+  border:0;
+  border-radius:10px;
+  background:#ffffff12;
+  color:var(--ink);
+  font-size:21px;
+  line-height:1
+}
+.board-close:hover{background:#ffffff20}
+/* The one question the sheet was opened to ask, answered above the fifty rows
+   rather than left to be found among them. */
+.board-line{
+  flex:none;
+  margin:9px 0 0;
+  padding:0 22px 14px;
+  font-size:13.5px;
+  font-weight:500;
+  line-height:1.5;
+  color:var(--quiet)
+}
+.board-line b{color:var(--ink);font-weight:800}
+.board-scroll{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:0 22px 18px;
+  /* Fifty rows never end on a hard edge: the last of them fades under the foot. */
+  mask-image:linear-gradient(#000 calc(100% - 18px),transparent)
+}
+.board-list{
+  list-style:none;
+  margin:0;
+  padding:0
+}
+.board-row{
+  display:grid;
+  grid-template-columns:22px 28px minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:0 10px;
+  padding:8px 0;
+  border-top:1px solid var(--rule)
+}
+.board-list li:first-child{border-top:0}
+.board-place{
+  font-size:12px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  text-align:right;
+  color:var(--quiet)
+}
+/* A disc in the player's kit colour, with their initial in the sheet's own
+   navy. It is a placeholder for a picture, so it is a shape and a letter and
+   nothing more — and every one of the five clears 6:1 against that navy, which
+   is what lets the letter be read rather than merely seen. */
+.board-kit{
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  background:var(--kit,#9fb2bd);
+  color:#0f2738;
+  font-size:12px;
+  font-weight:800;
+  line-height:1
+}
+.board-who{min-width:0}
+.board-who b{
+  display:block;
+  font-size:14.5px;
+  font-weight:700;
+  letter-spacing:-.2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+/* Why this row is under the one above it, when the two came to the same score.
+   Without it a board that reads 87, 87, 87 looks broken. */
+.board-who small{
+  display:block;
+  margin-top:1px;
+  font-size:10.5px;
+  font-weight:500;
+  color:var(--quiet)
+}
+.board-runs{
+  font-size:19px;
+  font-weight:800;
+  letter-spacing:-.7px;
+  font-variant-numeric:tabular-nums;
+  text-align:right
+}
+.board-runs i{
+  font-style:normal;
+  font-size:.62em;
+  font-weight:600;
+  color:var(--quiet)
+}
+/* How the runs were made, at a size that says it is the supporting figure. */
+.board-hits{
+  display:flex;
+  gap:9px;
+  margin-left:4px
+}
+.board-hits em{
+  display:flex;
+  align-items:baseline;
+  gap:2px;
+  /* Wide enough for a two-figure count, so a fourteen-six innings does not push
+     its own column out past the fifty rows that are lined up under it. */
+  width:31px;
+  font-style:normal;
+  font-size:13px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  justify-content:flex-end;
+  color:var(--quiet)
+}
+.board-hits small{font-size:8.5px;font-weight:600}
+/* The figure that actually split a tie, lit where the eye already is. Colour is
+   not carrying this on its own: the note under the name says the same thing in
+   words, so a player who cannot tell the two apart still gets the reason. */
+.board-hits em.is-split,.board-runs.is-split,.board-runs.is-split i{color:var(--accent)}
+.board-row.is-level .board-place{color:#ffffff5c}
+/* Your row: the sheet's accent down its edge and its own tint behind it, so it
+   is findable in a scroll of fifty without being louder than the leader. */
+.board-row.is-you{
+  margin:0 -10px;
+  padding:8px 10px;
+  border-top-color:transparent;
+  border-radius:9px;
+  background:#ffffff0f;
+  box-shadow:inset 3px 0 0 var(--accent)
+}
+.board-row.is-you .board-who b{color:var(--accent)}
+/* The line under the fiftieth row. Everything above it is on the board and
+   everything below it is not, so it is the only rule on the sheet with a colour
+   and the only one with words on it. */
+.board-cut{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:10px 0 0;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:1.6px;
+  text-transform:uppercase;
+  color:#ff8a7a
+}
+.board-cut::before,.board-cut::after{
+  content:'';
+  flex:1;
+  height:2px;
+  border-radius:1px;
+  background:var(--edge)
+}
+.board-cut::before{flex:0 0 14px}
+.board-missed{margin-top:10px}
+.board-foot{
+  flex:none;
+  margin:0;
+  padding:13px 22px calc(15px + var(--pad-bottom) - 14px);
+  border-top:1px solid var(--rule);
+  font-size:11.5px;
+  line-height:1.55;
+  color:var(--quiet)
+}
+.board-sheet button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+/* The sheet is put down the way the innings card is, and the rows come up
+   under it in the order they are ranked. */
+@media (prefers-reduced-motion:no-preference){
+  #board-overlay:not(.hidden) .board-sheet{animation:card-down .3s cubic-bezier(.18,.9,.25,1.06) backwards}
+  #board-overlay:not(.hidden) .board-row{
+    animation:card-figure .24s ease-out backwards;
+    animation-delay:calc(.08s + min(var(--i,0),14) * .022s)
+  }
+}
 
 .share-status{
   position:absolute;
