@@ -14,13 +14,27 @@ import type { BoardStore, StoredRow } from './board-store';
  * makes a name unique across the board.
  */
 
+/**
+ * Preview deployments and production share one database, because the
+ * integration injects one set of credentials into every environment. Without a
+ * prefix, testing a branch writes to the board people are playing for — and a
+ * name claimed by a test is never released, which is the whole point of that
+ * rule. So every environment but production keeps its own keys.
+ *
+ * Vercel sets `VERCEL_ENV` to production, preview or development on its own.
+ * Anywhere it is unset — a script run by hand against the real database — is
+ * treated as development rather than as production, so the accident is a wasted
+ * key rather than a polluted board.
+ */
+const SCOPE = process.env.VERCEL_ENV === 'production' ? '' : `${process.env.VERCEL_ENV ?? 'development'}:`;
+
 /** Player id to packed score. The board's order, and nothing else. */
-const RANKING = 'board';
+const RANKING = `${SCOPE}board`;
 /** Player id to their row, as JSON. The figures behind the order. */
-const ROWS = 'players';
+const ROWS = `${SCOPE}players`;
 /** Folded name to the player id that holds it. */
-const NAMES = 'names';
-const RATE = 'rate:';
+const NAMES = `${SCOPE}names`;
+const RATE = `${SCOPE}rate:`;
 
 /**
  * The credentials Vercel's Upstash integration injects. They are `KV_`-prefixed

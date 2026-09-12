@@ -3,40 +3,25 @@ import { GAME } from '../src/config/gameplay';
 import { BOARD_SIZE, LAUNCH_MS, packScore, plausible, unpackScore, type Innings } from '../src/game/leaderboard';
 import {
   AVATARS, NAME_MAX, RATE_LIMIT, cleanName, foldName, readBoard, submitScore,
-  type BoardStore, type StoredRow, type Submission,
+  type BoardStore, type Submission,
 } from '../src/server/board-store';
+import { memoryStore } from '../src/server/memory-store';
 
 /**
- * Redis, in memory, with the semantics the adapter leans on: `ZADD GT` only
- * moves a score upwards, and `HSETNX` only claims a name nobody holds. A fake
- * that took every write would pass tests the real store would fail.
+ * The same in-memory store the dev server runs on, wrapped so a test can look
+ * at what was actually written. One implementation rather than two: a second
+ * copy would drift from the one the endpoints are developed against.
  */
 function fakeStore() {
-  const ranking = new Map<string, number>();
-  const rows = new Map<string, StoredRow>();
-  const names = new Map<string, string>();
-  const rate = new Map<string, number>();
-  const store: BoardStore = {
-    async top(n) {
-      return [...ranking.entries()]
-        .map(([id, score]) => ({ id, score }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, n);
+  const store = memoryStore();
+  return {
+    store,
+    /** What the ranking holds for a player, read back through the store. */
+    async runsFor(id: string) {
+      const [row] = await store.rows([id]);
+      return row?.runs ?? null;
     },
-    async rows(ids) { return ids.map(id => rows.get(id) ?? null); },
-    async record(id, score, row) {
-      if ((ranking.get(id) ?? -1) >= score) return false;
-      ranking.set(id, score);
-      rows.set(id, row);
-      return true;
-    },
-    async claimName(folded, id) {
-      if (!names.has(folded)) names.set(folded, id);
-      return names.get(folded)!;
-    },
-    async hits(address) { return rate.set(address, (rate.get(address) ?? 0) + 1).get(address)!; },
   };
-  return { store, ranking, rows, names, rate };
 }
 
 /**
@@ -103,9 +88,11 @@ describe('reading the board', () => {
   it('leaves out a ranked id with no row behind it', async () => {
     // A half-written submission. A blank line on the board is worse than a
     // board of forty-nine.
-    const { store, ranking } = fakeStore();
+    const { store } = fakeStore();
     await seed(store, ID, 40);
-    ranking.set('ghost0-aaaaaaaaaaaa', packScore(innings(99), LAUNCH_MS));
+    // A ranked id with nothing written beside it, which is what a submission
+    // interrupted between its two writes leaves behind.
+    await store.record('ghost0-aaaaaaaaaaaa', packScore(innings(99), LAUNCH_MS), null as never);
     const board = await readBoard(store);
     expect(board.rows.map(r => r.playerId)).toEqual([ID]);
   });
@@ -133,7 +120,7 @@ describe('submitting an innings', () => {
   });
 
   it('keeps a better innings when a worse one follows it', async () => {
-    const { store, rows } = fakeStore();
+    const { store, runsFor } = fakeStore();
     await submitScore(store, submission({ innings: innings(90) }), LAUNCH_MS + 1000);
     const second = await submitScore(store, submission({ innings: innings(40) }), LAUNCH_MS + 2000);
     expect(second.ok).toBe(true);
@@ -142,7 +129,7 @@ describe('submitting an innings', () => {
     expect(second.board.rows[0].runs).toBe(90);
     // And the figures beside the ranking still describe the innings that earned
     // it — not the latest one played.
-    expect(rows.get(ID)!.runs).toBe(90);
+    expect(await runsFor(ID)).toBe(90);
   });
 
   it('replaces a row when the innings does beat it', async () => {
@@ -252,9 +239,9 @@ describe('the rate limit', () => {
 
   it('charges a bad submission nothing to be turned away', async () => {
     // The limit is read before anything else, so a script pays for its attempts.
-    const { store, rate } = fakeStore();
+    const { store } = fakeStore();
     await submitScore(store, submission({ playerId: 'nope' }));
-    expect(rate.get('1.2.3.4')).toBe(1);
+    expect(await store.hits('1.2.3.4', 3600)).toBe(2);
   });
 });
 

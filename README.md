@@ -262,6 +262,33 @@ A returning player is not asked twice: the name and kit are kept in `localStorag
 
 Five pictures, at `public/avatars/1.webp` … `5.webp`, 96 px square. They are served as files rather than bundled, so the game builds and runs whether or not they are there. Until they arrive — and if one ever fails to load — each kit is the coloured disc with the player's initial that the board has always drawn, and the picture simply takes itself off the page. The board never shows a broken image, only an earlier version of itself. Kit colours are in `src/config/board.ts`, taken off the kits in the pictures and lightened until navy ink on them clears 6:1.
 
+### Running the board locally
+
+`npm run dev` serves the endpoints itself, over an in-memory board. **No Vercel CLI, no credentials, no database** — the whole feature works on localhost: play an innings, claim a place, watch a name be refused because somebody already has it. The rules are the real ones (`vite.config.ts` mounts the same `readBoard` and `submitScore` that `api/` does); only where the rows are kept stands in. The board starts empty and is forgotten when the server stops.
+
+To run against the real database instead, use Vercel's own CLI, which pulls the credentials down rather than having you copy them:
+
+```
+npm i -g vercel && vercel link
+vercel env pull .env.development.local
+vercel dev
+```
+
+### Checking a deployment
+
+```
+npm run check:board                                    # the dev server
+node scripts/board-check.mjs https://…vercel.app       # a real deployment
+```
+
+Unit tests run the rules against an in-memory store, which catches logic and **cannot** catch a missing credential, a function in the wrong region, or an `api/` directory Vercel never turned into functions. This is the check that does, and it is the first thing to run against any new deployment. It reads the board, submits a real innings, proves the row survives a fresh read, proves a worse innings does not displace it, and proves each refusal — a taken name, an impossible innings, something that is not a player, a kit that does not exist — then checks the preflight and the edge-cache header.
+
+It writes. Every run leaves a row under a throwaway id and a name nobody would want, and **a name it claims is never released**. Point it at a preview rather than at the board people are playing for.
+
+### One database, three environments
+
+The integration injects one set of credentials into Production, Preview and Development alike, so without care a branch under test writes to the board people are playing for. Every environment but production therefore prefixes its keys (`preview:board`, `development:board`), driven by `VERCEL_ENV`, which Vercel sets on its own. Anywhere it is unset is treated as development rather than as production, so the accident is a wasted key rather than a polluted board.
+
 ### The two endpoints
 
 `GET /api/board` answers with the fifty and the packed score the fiftieth is holding — **the same answer for everybody**, deliberately, so it can sit in Vercel's edge cache for ten seconds. Where a player stands is worked out in their own browser from the packed score, which is the same number computed by the same function, so the response carries nothing personal. A hundred people opening the board in the same ten seconds cost one pair of Redis commands rather than a hundred, which is what keeps a half-million-command month out of reach. It reads with the read-only token: an endpoint that cannot write is one fewer thing to get wrong.
@@ -302,6 +329,7 @@ Rate limiting is by address and the address is **never** used as identity, becau
 - `src/game/ShareCard.ts`: the innings-end card painted onto a canvas so it can leave the page as a picture. Both share buttons draw the same card, minus its buttons, with the Hitman Cricket lockup in the corner; the story button stands that card on the cover art in a 1080x1920 frame with the address painted on. Two platform limits shape it. A `wa.me` link carries text and nothing else, so where the browser can hand a file to another app the button goes through the share sheet instead and the link stays as the fallback; and a picture in a story is a picture, so the address is readable type rather than a tappable sticker, since link stickers are added inside Instagram or WhatsApp and not by whoever sent the image. The card is a PNG for its flat colour and sharp type, the story a JPEG for its photograph.
 - `src/game/leaderboard.ts`: the ladder, written once and imported by both sides — the browser runs it to decide whether an innings is worth asking a name for, and the store will run it to decide what the board actually is. Carries the packed score, the plausibility floor, and `decidedBy`, which names the figure that separated two innings so a row can point at the reason it sits where it does.
 - `src/server/board-store.ts`: what the board is on the store's side — reading it, and everything that decides whether a submitted innings is taken. Every command it needs is named on a `BoardStore` interface rather than reached for through a Redis client, so the whole submit path is tested with no network and no database, and the day this moves off Redis one adapter changes and none of the rules do.
+- `src/server/memory-store.ts`: the board in memory, behind the same interface. It backs the dev server and the tests — one implementation rather than two, because a second copy drifts from the one the endpoints are developed against. It keeps the semantics the Redis adapter leans on rather than the convenient ones.
 - `src/server/upstash.ts`: that interface over Upstash. Note it does not use the client's own `Redis.fromEnv()` — Vercel's integration injects `KV_`-prefixed names, `fromEnv` looks for `UPSTASH_`-prefixed ones, and it would find nothing at runtime on a page nobody is watching.
 - `src/server/http.ts`: CORS, the address the edge reports, and how a failure is phrased. The allowlist is an allowlist rather than a `*` because one of the two endpoints writes.
 - `api/board.ts` and `api/score.ts`: thin handlers. They turn a request into a call and the answer into a response, and hold no rules of their own.

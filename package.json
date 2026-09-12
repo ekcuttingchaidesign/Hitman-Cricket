@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
-    "test:browser": "node scripts/browser-check.mjs && node scripts/innings-check.mjs"
+    "test:browser": "node scripts/browser-check.mjs && node scripts/innings-check.mjs",
+    "check:board": "node scripts/board-check.mjs"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.4",
