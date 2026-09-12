@@ -1,7 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { readBoard } from '../src/server/board-store';
 import { redisFromEnv, upstashStore } from '../src/server/upstash';
-import { cors, failed } from '../src/server/http';
+import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http';
 
 /**
  * `GET /api/board` — the fifty, and the score the fiftieth is holding.
@@ -16,7 +15,7 @@ import { cors, failed } from '../src/server/http';
  * It reads with the read-only token. An endpoint that cannot write is one fewer
  * thing to get wrong.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   if (req.method !== 'GET') return failed(res, 405, 'Use GET.');
   try {

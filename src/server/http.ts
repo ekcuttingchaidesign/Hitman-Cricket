@@ -1,5 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 /**
  * The few HTTP manners both endpoints need, in one place.
  *
@@ -9,6 +7,30 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * ask permission first. That is what the allowlist below is for — and it is an
  * allowlist rather than a `*` because `POST /api/score` writes.
  */
+
+/**
+ * What a serverless function is handed, named here rather than imported from
+ * `@vercel/node`.
+ *
+ * That package is the builder as well as the types, and a copy of it pinned in
+ * this repository is one more thing that can disagree with the platform's own.
+ * These two interfaces are the whole surface the endpoints touch, they are
+ * structural so any host that passes something of this shape works, and they
+ * cost nothing to keep.
+ */
+export interface ApiRequest {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  body?: unknown;
+  socket?: { remoteAddress?: string };
+}
+
+export interface ApiResponse {
+  status(code: number): ApiResponse;
+  json(body: unknown): void;
+  setHeader(name: string, value: string): void;
+  end(): void;
+}
 
 /** Origins the board may be fetched from. Add one here, not a wildcard. */
 export const ALLOWED_ORIGINS = [
@@ -23,7 +45,7 @@ export const ALLOWED_ORIGINS = [
  * should be skipped. A preflight is an `OPTIONS` request the browser sends on
  * its own before a `POST` carrying JSON; it wants headers, not a board.
  */
-export function cors(req: VercelRequest, res: VercelResponse): boolean {
+export function cors(req: ApiRequest, res: ApiResponse): boolean {
   const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
   if (ALLOWED_ORIGINS.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin);
   // Same URL, different answer per origin — say so, or a shared cache will hand
@@ -43,7 +65,7 @@ export function cors(req: VercelRequest, res: VercelResponse): boolean {
  * behind CGNAT all arrive as one. The first entry in the chain is the client;
  * the rest are proxies.
  */
-export function addressOf(req: VercelRequest): string {
+export function addressOf(req: ApiRequest): string {
   const forwarded = req.headers['x-forwarded-for'];
   const chain = Array.isArray(forwarded) ? forwarded[0] : forwarded ?? '';
   return chain.split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
@@ -53,7 +75,7 @@ export function addressOf(req: VercelRequest): string {
  * A failure the player will see. The message says what happened in words they
  * can act on; the detail goes to the log, where it is useful and harmless.
  */
-export function failed(res: VercelResponse, status: number, reason: string, detail?: unknown) {
+export function failed(res: ApiResponse, status: number, reason: string, detail?: unknown) {
   if (detail) console.error(reason, detail);
   res.status(status).json({ error: reason });
 }

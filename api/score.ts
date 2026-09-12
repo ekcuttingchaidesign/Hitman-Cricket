@@ -1,7 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { refused, submitScore, type Submission } from '../src/server/board-store';
 import { redisFromEnv, upstashStore } from '../src/server/upstash';
-import { addressOf, cors, failed } from '../src/server/http';
+import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http';
 import type { Innings } from '../src/game/leaderboard';
 
 /**
@@ -14,7 +13,7 @@ import type { Innings } from '../src/game/leaderboard';
  * the store stamps the submission itself, or a laptop running fast would win
  * tiebreaks.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   if (req.method !== 'POST') return failed(res, 405, 'Use POST.');
 
