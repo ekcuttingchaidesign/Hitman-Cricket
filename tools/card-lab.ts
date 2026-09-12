@@ -55,6 +55,10 @@ const states: Record<string, () => void> = {
   board: () => { states.offer(); hud.claimDone(); hud.board({ rows: fullBoard, youId: fullBoard[place - 1].playerId, state: 'ready', actions: true }); },
 };
 const show = (name: string) => {
+  // The board sheet sits over the card, so it has to come down before the next
+  // state is drawn — otherwise every state after "full board" is reviewed with
+  // the board still on top of it.
+  hud.closeBoard();
   states[name]?.();
   document.querySelectorAll<HTMLButtonElement>('#lab button')
     .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.state === name)));
