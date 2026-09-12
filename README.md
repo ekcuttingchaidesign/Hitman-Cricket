@@ -2,7 +2,7 @@
 
 A small, browser-based 3D cricket batting game. Five overs, 30 legal balls, three wickets. Read the delivery, pick a direction, and time your swing. Built with plain TypeScript, Three.js, and Vite; no external art, fonts, character packs, or physics engine are required.
 
-**[Play it here](https://ekcuttingchaidesign.github.io/Hitman-Cricket/)** — nothing to install, and it works on a phone.
+**[Play it here](https://hitman-cricket.vercel.app/)** — nothing to install, and it works on a phone.
 
 ## Run locally
 
@@ -392,4 +392,13 @@ Verified in Edge: a 30-ball seeded innings finished at **138/0 in 5.0 overs**, a
 
 ## Hosting
 
-The game is published at **https://ekcuttingchaidesign.github.io/Hitman-Cricket/**. `.github/workflows/deploy.yml` builds and deploys it to GitHub Pages on every push to `codex/cricket-batting-game`, the default branch; only `dist/` is published, and `base: './'` is what lets it serve from a repository subdirectory. A second deployment is managed by Sites using `.openai/hosting.json`. **Neither can serve the board**: GitHub Pages and Sites both publish files and nothing else, and `GET /api/board` is a function. The endpoints run on Vercel, where the Upstash Redis database is attached. If Vercel is not the address players use, build with `VITE_BOARD_API` set to the Vercel origin and the board is fetched across origins instead — `src/server/http.ts` has to name that origin in its allowlist for the browser to allow it. Put the Vercel functions in the same region as the Redis database (Project → Settings → Functions): functions default to Washington DC, and a database in Mumbai makes every Redis command cross the planet twice. Source remains in the Hitman-Cricket GitHub repository. No account, download, or local server is required to play the published link. Scores stay on each player’s device. Both provided sound clips are included in the public game.
+The game is published at **https://hitman-cricket.vercel.app/**, from `codex/cricket-batting-game`, and Vercel is the only host of the three this repository has used that can serve the board: `GET /api/board` and `POST /api/score` are functions, and GitHub Pages and Sites both publish files and nothing else. That is why it is the address.
+
+Two consequences worth knowing:
+
+- **Share the short alias, never a deployment URL.** `hitman-cricket.vercel.app` follows the latest production deployment. The long per-deployment URLs — `hitman-cricket-1qc721gwe-…` and friends — are nailed to one commit each, deliberately, so they never update. A link shared from the deployments list will never show anything you ship afterwards.
+- **Put the functions in the database's region.** Both live in Mumbai (`ap-south-1` / `bom1`). Functions default to Washington DC, which makes every Redis command cross the planet twice on a screen that should open instantly.
+
+`.github/workflows/deploy.yml` is gone: it published to GitHub Pages on every push, and a second copy of the game with no board behind it is worse than no second copy. Whatever Pages last built stays up until Pages is switched off in the repository's settings. `.openai/hosting.json` still describes a Sites deployment and has been left alone.
+
+Source remains in the Hitman-Cricket GitHub repository. No account, download, or local server is required to play the published link. A personal best stays on each player's device; a place on the board is kept by the store. Both provided sound clips are included in the public game.
