@@ -93,10 +93,37 @@ export async function readBoard(store: BoardStore, size = BOARD_SIZE): Promise<B
   return { rows, cutoff: rows.length >= size ? rows[size - 1].score : null, size };
 }
 
-/** Why a submission was turned down, or that it was not. */
-export type SubmitOutcome =
-  | { ok: true; improved: boolean; score: number; at: number; board: BoardPayload }
-  | { ok: false; status: number; reason: string };
+/** An innings the board took, and where it landed. */
+export interface SubmitAccepted {
+  ok: true;
+  improved: boolean;
+  score: number;
+  at: number;
+  board: BoardPayload;
+}
+
+/** An innings the board turned down, and what to tell the player. */
+export interface SubmitRefusal {
+  ok: false;
+  status: number;
+  reason: string;
+}
+
+/**
+ * Both halves are named rather than written inline, and `refused` below is a
+ * real type predicate rather than an `if (!outcome.ok)` that leans on
+ * inference. TypeScript only narrows a `true | false` discriminant under
+ * `strictNullChecks`, and these types are read by a compiler this repository
+ * does not configure — Vercel builds `api/` with its own settings, and this
+ * union not narrowing there failed three deployments while `tsc --noEmit`
+ * passed every time locally.
+ */
+export type SubmitOutcome = SubmitAccepted | SubmitRefusal;
+
+/** Whether the board turned this innings down. */
+export function refused(outcome: SubmitOutcome): outcome is SubmitRefusal {
+  return !outcome.ok;
+}
 
 export interface Submission {
   playerId: string;

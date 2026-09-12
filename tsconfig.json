@@ -5,5 +5,5 @@
     "skipLibCheck": true, "noEmit": true, "isolatedModules": true,
     "noUnusedLocals": true, "noUnusedParameters": true
   },
-  "include": ["src", "tests", "tools", "api"]
+  "include": ["src", "tests", "tools"]
 }

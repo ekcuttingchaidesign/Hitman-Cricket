@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { submitScore, type Submission } from '../src/server/board-store';
+import { refused, submitScore, type Submission } from '../src/server/board-store';
 import { redisFromEnv, upstashStore } from '../src/server/upstash';
 import { addressOf, cors, failed } from '../src/server/http';
 import type { Innings } from '../src/game/leaderboard';
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const outcome = await submitScore(upstashStore(redisFromEnv()), input);
-    if (!outcome.ok) return failed(res, outcome.status, outcome.reason);
+    if (refused(outcome)) return failed(res, outcome.status, outcome.reason);
     // A submission is never cached, by anyone, ever.
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(outcome);

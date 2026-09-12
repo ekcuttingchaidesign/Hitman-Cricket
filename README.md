@@ -274,6 +274,10 @@ vercel env pull .env.development.local
 vercel dev
 ```
 
+### Two compilers, two answers
+
+`npm run build` runs `tsc --noEmit` over `src`, `tests` and `tools`, **and then `tsc -p api --noEmit` over the functions**, because Vercel compiles those for Node with its own settings rather than with the root config written for a bundler. The second pass is not belt and braces: a discriminated union keyed on `ok: true | false` only narrows under `strictNullChecks`, so `api/score.ts` reading `outcome.status` type-checked here and failed there — three deployments in a row, while `tsc --noEmit` passed every time. Hence `api/tsconfig.json`, and hence `refused()` in `board-store.ts` being a real type predicate rather than an `if (!outcome.ok)` that leans on inference.
+
 ### Checking a deployment
 
 ```

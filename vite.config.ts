@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import { memoryStore } from './src/server/memory-store';
-import { readBoard, submitScore } from './src/server/board-store';
+import { readBoard, refused, submitScore } from './src/server/board-store';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -49,7 +49,7 @@ function boardEndpoints(): Plugin {
             // One address in development: whatever the dev server sees.
             address: 'dev',
           });
-          return outcome.ok ? send(200, outcome) : send(outcome.status, { error: outcome.reason });
+          return refused(outcome) ? send(outcome.status, { error: outcome.reason }) : send(200, outcome);
         } catch (error) {
           send(400, { error: error instanceof Error ? error.message : 'Bad request.' });
         }
