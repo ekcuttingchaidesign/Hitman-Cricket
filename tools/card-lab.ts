@@ -31,6 +31,14 @@ const states: Record<string, () => void> = {
   complete: () => hud.end(innings(87, 2, 30, 8, 3), 214, false),
   allout: () => hud.end(innings(6, 3, 13, 1, 0), 214, false),
   big: () => hud.end(innings(180, 0, 30, 21, 14), 214, false),
+  /* The claim step, in each of the states it passes through. Driving these off a
+     real innings needs a board behind it as well as thirty balls. */
+  offer: () => { hud.end(innings(87, 2, 30, 8, 3), 214, false); hud.offerClaim(12, null); },
+  'offer-known': () => { hud.end(innings(87, 2, 30, 8, 3), 214, false); hud.offerClaim(4, { name: 'Rohit', avatar: 2 }); },
+  form: () => { states.offer(); hud.openClaim(); },
+  'form-error': () => { states.form(); hud.claimFailed('Somebody already bats under that name.'); },
+  sending: () => { states.form(); hud.claimSending(true); },
+  claimed: () => { states.offer(); hud.claimDone(12); },
 };
 const show = (name: string) => {
   states[name]?.();

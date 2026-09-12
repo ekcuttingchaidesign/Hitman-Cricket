@@ -12,7 +12,10 @@ import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
-import { fetchBoard } from './game/board-api';
+import { fetchBoard, submitInnings } from './game/board-api';
+import { readPlayer, writePlayer } from './game/player';
+import { placeOf } from './ui/Leaderboard';
+import { qualifies } from './game/leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
@@ -59,6 +62,13 @@ export class Game {
     this.hud.on('restart', this.start);
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
+    this.hud.on('claim', this.startClaim);
+    this.hud.on('claim-cancel', () => this.hud.closeClaim());
+    this.hud.on('claim-skip', () => this.hud.declineClaim());
+    (this.hud.viewport.querySelector('#card-claim') as HTMLFormElement).addEventListener('submit', event => {
+      event.preventDefault();
+      void this.sendClaim();
+    });
     this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
     this.hud.on('help', () => { if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
@@ -171,12 +181,22 @@ export class Game {
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private shortcuts = (event: KeyboardEvent) => {
     if (event.repeat || this.hud.helpOpen) return;
+    // A player typing their name into the claim field is not pressing shortcuts.
+    // Without this, "Rohit" restarts the innings on the R and Escape abandons
+    // the form by pausing whatever is behind it.
+    const typing = event.target instanceof HTMLElement
+      && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable);
+    if (typing && event.key !== 'Escape') return;
     const key = event.key.toUpperCase();
     // The board is the thing on top while it is open, so it answers first: Esc
     // puts it away rather than pausing whatever is behind it, and the keys that
     // start an innings would otherwise start one under a sheet nobody closed.
     if (this.hud.boardOpen) {
       if (key === 'ESCAPE' || key === 'B') { event.preventDefault(); this.hud.closeBoard(); }
+      return;
+    }
+    if (this.hud.claimOpen) {
+      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeClaim(); }
       return;
     }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) { event.preventDefault(); this.start(); }
@@ -277,10 +297,53 @@ export class Game {
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
   }
+  /**
+   * Whether this innings is worth asking a name for, answered from the board
+   * already on screen so nothing waits on the network at the one moment a wait
+   * would be felt. A board that has not loaded is not a reason to say no: the
+   * store ranks it properly either way, and the worst case is an offer that
+   * turns out to be a place in the sixties.
+   */
+  private offerBoard() {
+    const played = asInnings(this.score);
+    if (!played.runs) return;
+    if (this.board.length && !qualifies(played, Date.now(), this.board)) return;
+    const place = this.board.length ? placeOf(this.board, played, Date.now()) : null;
+    this.hud.offerClaim(place, readPlayer());
+  }
+
+  /**
+   * A returning player has already picked a kit and a name, so the key sends
+   * the innings rather than asking them again. A new one gets the form.
+   */
+  private startClaim = () => {
+    if (readPlayer()) void this.sendClaim();
+    else this.hud.openClaim();
+  };
+
+  /**
+   * The innings, offered. The store ranks it and answers with the board it
+   * made, so where the player actually landed comes back rather than being
+   * guessed at — and the board on screen is up to date the moment they open it.
+   */
+  private async sendClaim() {
+    const entry = this.hud.claimEntry.name ? this.hud.claimEntry : readPlayer();
+    if (!entry || !this.player) return this.hud.openClaim();
+    this.hud.claimSending(true);
+    const result = await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
+    if (this.disposed) return;
+    if (!result.ok) return this.hud.claimFailed(result.reason ?? 'That did not go through.');
+    writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
+    if (result.board) this.board = result.board.rows;
+    const place = this.board.findIndex(row => row.playerId === this.player);
+    this.hud.claimDone(place >= 0 ? place + 1 : null);
+  }
+
   private end() {
     this.setPhase('INNINGS_END'); const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
     try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
     this.hud.end(this.score, this.best, record);
+    this.offerBoard();
   }
   private snapshot() {
     return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed), balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,

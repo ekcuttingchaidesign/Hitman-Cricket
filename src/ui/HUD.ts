@@ -3,10 +3,17 @@ import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
-import { boardMarkup, type BoardView } from './Leaderboard';
+import { boardMarkup, pickerMarkup, type BoardView } from './Leaderboard';
+import { AVATARS } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
+/** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
+const ordinal = (n: number) => {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+  return `${n}${suffix}`;
+};
 const icon = (name: string) => {
   const paths: Record<string, string> = {
     sound: '<path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
@@ -76,6 +83,10 @@ export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
   private shared: CardFacts | null = null;
+  /** The kit the picker is on, and what this browser last batted under. */
+  private kit = 0;
+  private claimed: { name: string; avatar: number } | null = null;
+  private claimPlace: number | null = null;
   private $ = (id: string) => document.getElementById(id)!;
   constructor(root: HTMLElement, best: number, top = 0) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
@@ -145,11 +156,23 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <div><dt>Sixes</dt><dd id="final-sixes"></dd></div>
               <div><dt>Strike rate</dt><dd id="final-rate"></dd></div>
             </dl>
-            <button id="again" class="key-button">PLAY AGAIN</button>
-            <div class="card-shares">
-              <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span class="key-long">BRAG YOUR SCORE TO A FRIEND</span><span class="key-short">SHARE</span></a>
-              <button id="story" class="story-key">${icon('story')}<span class="key-long">SHARE SCORE IN STORY</span><span class="key-short">STORY</span></button>
+            <div id="card-keys" class="card-keys">
+              <button id="again" class="key-button">PLAY AGAIN</button>
+              <button id="claim" class="key-button claim-key hidden"></button>
+              <div class="card-shares">
+                <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span class="key-long">BRAG YOUR SCORE TO A FRIEND</span><span class="key-short">SHARE</span></a>
+                <button id="story" class="story-key">${icon('story')}<span class="key-long">SHARE SCORE IN STORY</span><span class="key-short">STORY</span></button>
+              </div>
+              <button id="claim-skip" class="ghost-link hidden">Play again instead</button>
             </div>
+            <form id="card-claim" class="card-claim hidden">
+              <p class="claim-line" id="claim-line"></p>
+              <div id="claim-picker"></div>
+              <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
+              <p id="claim-error" class="claim-error hidden" role="alert"></p>
+              <button id="claim-send" type="submit" class="key-button">PUT ME ON THE BOARD</button>
+              <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
+            </form>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
@@ -309,6 +332,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       return `<i class="${ball.isWicket ? 'ball-out' : ''}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
     }).join('');
     this.$('end').classList.toggle('is-record', isRecord);
+    // Last innings' claim does not carry over to this one.
+    this.$('end').classList.remove('is-claimed', 'is-offering');
+    this.closeClaim();
+    this.$('claim').classList.add('hidden');
+    this.$('claim-skip').classList.add('hidden');
+    this.$('again').classList.remove('hidden');
     // What happened, then the number that makes it mean something. A best is
     // already banked by the time this runs, so it is only worth quoting back
     // when the innings did not set it.
@@ -338,6 +367,116 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // so the first tap on a share button does not wait on the network.
     void prepareShareAssets();
   }
+  /**
+   * The innings-end card's button area, in whichever of its three states this
+   * innings has earned. The card does not grow to hold a claim form: it is
+   * already 349 px tall on a landscape phone with three keys on it, so the
+   * button area is what changes and everything above it — the score, the ball
+   * track, the stats — stays exactly where the player is already looking.
+   *
+   * `place` is what the browser worked out from the board it has. It is a good
+   * guess, not the answer: the store ranks the innings itself and the line above
+   * the buttons is rewritten with what it says.
+   */
+  offerClaim(place: number | null, known: { name: string; avatar: number } | null) {
+    const key = this.$('claim') as HTMLButtonElement;
+    key.textContent = place ? `CLAIM ${ordinal(place)} PLACE` : 'PUT ME ON THE BOARD';
+    key.classList.remove('hidden');
+    // The claim is the thing to do next, so it takes the primary key's place
+    // rather than becoming a fourth one there is no room for.
+    this.$('again').classList.add('hidden');
+    this.$('claim-skip').classList.remove('hidden');
+    // The offer costs the card a line it did not have. On a short screen the
+    // stylesheet takes that line back from somewhere else.
+    this.$('end').classList.add('is-offering');
+    this.claimed = known;
+    this.claimPlace = place;
+  }
+
+  /** The form, once the player has asked for it. */
+  get claimOpen() { return !this.$('card-claim').classList.contains('hidden'); }
+  openClaim() {
+    this.$('card-keys').classList.add('hidden');
+    this.$('card-claim').classList.remove('hidden');
+    // On a short screen the card cannot hold the figures and the form at once,
+    // and the form is the task. The stylesheet decides what gives.
+    this.$('end').classList.add('is-claiming');
+    this.$('claim-line').textContent = this.claimPlace
+      ? `${ordinal(this.claimPlace)} on the board, if you claim it.`
+      : 'Put this innings on the board.';
+    this.kit = this.claimed?.avatar ?? 0;
+    this.$('claim-picker').innerHTML = pickerMarkup(this.kit);
+    this.$('claim-picker').querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
+      option.onclick = () => this.chooseKit(Number(option.dataset.kit));
+    });
+    const field = this.$('claim-name') as HTMLInputElement;
+    field.value = this.claimed?.name ?? '';
+    this.$('claim-error').classList.add('hidden');
+    field.focus();
+  }
+
+  private chooseKit(kit: number) {
+    this.kit = ((kit % AVATARS) + AVATARS) % AVATARS;
+    this.$('claim-picker').querySelectorAll<HTMLButtonElement>('.kit-option').forEach((option, i) => {
+      option.classList.toggle('is-chosen', i === this.kit);
+      option.setAttribute('aria-checked', String(i === this.kit));
+    });
+  }
+
+  /** What the player is offering: the kit they picked and the name they typed. */
+  get claimEntry() {
+    return { name: (this.$('claim-name') as HTMLInputElement).value, avatar: this.kit };
+  }
+
+  /** The form, while the store is thinking about it. */
+  claimSending(sending: boolean) {
+    const send = this.$('claim-send') as HTMLButtonElement;
+    send.disabled = sending;
+    send.textContent = sending ? 'SENDING…' : 'PUT ME ON THE BOARD';
+  }
+
+  /** The store turned it down, and the player can do something about it. */
+  claimFailed(reason: string) {
+    this.claimSending(false);
+    this.$('claim-error').textContent = reason;
+    this.$('claim-error').classList.remove('hidden');
+  }
+
+  /**
+   * Done. The buttons come back, with where the innings actually landed written
+   * above them — the store's answer, not the browser's guess.
+   */
+  claimDone(place: number | null) {
+    this.closeClaim();
+    this.$('end').classList.remove('is-offering');
+    this.$('claim').classList.add('hidden');
+    this.$('claim-skip').classList.add('hidden');
+    this.$('again').classList.remove('hidden');
+    this.$('end-message').textContent = place
+      ? `${ordinal(place)} on the board.`
+      : 'On the board.';
+    this.$('end').classList.add('is-claimed');
+    this.$('again').focus();
+  }
+
+  /** Out of the form, back to the keys, with the offer still standing. */
+  closeClaim() {
+    this.$('card-claim').classList.add('hidden');
+    this.$('card-keys').classList.remove('hidden');
+    this.$('end').classList.remove('is-claiming');
+    this.claimSending(false);
+  }
+
+  /** The offer withdrawn: the player would rather just play again. */
+  declineClaim() {
+    this.closeClaim();
+    this.$('end').classList.remove('is-offering');
+    this.$('claim').classList.add('hidden');
+    this.$('claim-skip').classList.add('hidden');
+    this.$('again').classList.remove('hidden');
+    this.$('again').focus();
+  }
+
   /**
    * Sends the innings out as a picture. Both buttons draw the same card; the
    * story one stands it on the cover art in a 9:16 frame with the address

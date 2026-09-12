@@ -1176,6 +1176,7 @@ body.start-screen .hud-top{display:none}
    nothing more — and every one of the five clears 6:1 against that navy, which
    is what lets the letter be read rather than merely seen. */
 .board-kit{
+  position:relative;
   display:grid;
   place-items:center;
   width:28px;
@@ -1185,7 +1186,19 @@ body.start-screen .hud-top{display:none}
   color:#0f2738;
   font-size:12px;
   font-weight:800;
-  line-height:1
+  line-height:1;
+  overflow:hidden;
+  flex:none
+}
+/* The picture lies over the initial rather than replacing it, so a row that is
+   still loading — or one whose picture never arrives — reads as the coloured
+   disc it always was instead of as a hole. */
+.board-kit img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover
 }
 .board-who{min-width:0}
 .board-who b{
@@ -1279,6 +1292,87 @@ body.start-screen .hud-top{display:none}
 }
 .board-cut::before{flex:0 0 14px}
 .board-missed{margin-top:10px}
+
+/* ── Claiming a place ──────────────────────────────────────────────────── */
+/* The card does not grow to hold this. It is already 349px tall on a landscape
+   phone with three keys on it, so the button area is what changes: the keys go,
+   the picker and the field take exactly their place, and everything the player
+   is actually looking at — the score, the ball track, the stats — does not move
+   a pixel. */
+.card-keys{display:flex;flex-direction:column}
+.claim-key{
+  border-color:#e5473a;
+  box-shadow:0 6px 0 #e5473a,0 10px 12px #7a1e1e2e
+}
+.claim-key:hover:not(:disabled){box-shadow:0 7px 0 #e5473a,0 12px 14px #7a1e1e38}
+.claim-key:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #e5473a,0 4px 7px #7a1e1e24}
+/* Not a key. The way out of an offer should not compete with taking it. */
+.ghost-link{
+  margin-top:11px;
+  padding:6px;
+  border:0;
+  background:none;
+  color:var(--quiet);
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:600;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+.ghost-link:hover{color:var(--ink)}
+.card-claim{display:flex;flex-direction:column}
+.claim-line{
+  margin:0 0 12px;
+  font-size:13.5px;
+  font-weight:600;
+  color:var(--ink)
+}
+/* Five kits, one choice. They are the same discs the board draws, at the size a
+   thumb needs rather than the size a row needs. */
+.kit-picker{display:flex;gap:9px;margin-bottom:14px}
+.kit-option{
+  padding:3px;
+  border:2px solid transparent;
+  border-radius:50%;
+  background:none;
+  line-height:0
+}
+.kit-option .board-kit{width:44px;height:44px;font-size:16px}
+.kit-option:hover{border-color:#ffffff3d}
+.kit-option.is-chosen{border-color:var(--accent,#f2814f)}
+.claim-field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.claim-field span{
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:var(--quiet)
+}
+.claim-field input{
+  width:100%;
+  min-height:46px;
+  padding:0 13px;
+  border:1px solid var(--rule);
+  border-radius:10px;
+  background:#0a1e2c;
+  color:var(--ink);
+  font:600 16px var(--card);
+  /* 16px or smaller and iOS zooms the whole card on focus. */
+}
+.claim-field input::placeholder{color:#7e919d;font-weight:500}
+.claim-field input:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-color:transparent}
+.claim-error{
+  margin:0 0 11px;
+  font-size:13px;
+  font-weight:600;
+  line-height:1.45;
+  /* Cricket red fails AA as text on this navy; this is the same red lifted
+     until it clears 5:1. */
+  color:#ff8a7a
+}
+/* Claimed. The stamp above the number goes green, because the innings has done
+   the one thing left for it to do. */
+#end.is-claimed .card-line{color:#43b978;font-weight:700}
 /* The board being down is a sentence, not an empty table. It reads on the sheet
    the rows would have filled, so the screen still has a shape. */
 .board-offline{
@@ -1432,6 +1526,35 @@ dialog .primary-button{margin-top:18px}
   .card-balls{display:none}
   .card-stats dd{font-size:18px}
   .key-button{min-height:44px;font-size:15px}
+  /* The card is at its tightest here, so the picker comes down to the size the
+     board's own rows use and the field loses its label's breathing room. */
+  .kit-option .board-kit{width:36px;height:36px;font-size:14px}
+  .kit-picker{gap:7px;margin-bottom:10px}
+  .claim-line{margin-bottom:9px;font-size:12.5px}
+  .claim-field{margin-bottom:9px}
+  .claim-field input{min-height:40px}
+  .ghost-link{margin-top:8px}
+  /* A landscape phone cannot hold the figures and the form at once, and a
+     submit key you have to scroll to find is not a submit key. So while the
+     form is open the supporting figures stand down — the score stays, because
+     the score is what is being claimed — and they are all back the moment it
+     closes. The stats are still on the board's own row afterwards. */
+  #end.is-claiming .card-stats,
+  #end.is-claiming .card-line,
+  #end.is-claiming .scorecard>.start-hint{display:none}
+  #end.is-claiming .card-runs{font-size:38px;letter-spacing:-1.8px}
+  #end.is-claiming .card-overs{font-size:17px}
+  #end.is-claiming .scorecard{padding:13px 18px 15px}
+  /* A refusal adds a line the form did not budget for, and it is the one moment
+     the player most needs to reach the key again. */
+  .claim-error{margin-bottom:8px;font-size:12px;line-height:1.35}
+  /* The offer costs the card a line it did not have, and the card had none to
+     spare here — 349 px of it in a 380 px screen. So the line about how the
+     innings went stands down while there is a place to claim: the figures it
+     quotes are all still on the card, and the offer expires the moment it is
+     taken or refused. */
+  #end.is-offering .card-line{display:none}
+  #end.is-offering .ghost-link{margin-top:5px;padding:3px;font-size:11.5px}
   /* Side by side once the card has to clear a landscape phone. The labels lose
      their tail rather than the buttons losing their tap target. */
   .card-shares{flex-direction:row;gap:8px;margin-top:8px}

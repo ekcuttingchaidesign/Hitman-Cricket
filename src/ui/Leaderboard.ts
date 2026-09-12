@@ -1,3 +1,4 @@
+import { AVATARS, avatarSrc, kitColour } from '../config/board';
 import { GAME } from '../config/gameplay';
 import {
   BOARD_SIZE, decidedBy, packScore, type BoardRow, type Innings, type LadderKey,
@@ -15,8 +16,18 @@ import {
  * knows that, and nothing in here will have to change when they do.
  */
 
-/** The five kits, until there are pictures to put in the discs. */
-export const AVATAR_COLOURS = ['#f2874f', '#6fb2e8', '#57c68d', '#d9b640', '#b998e8'];
+/**
+ * A player's kit: the picture where there is one, the coloured disc with their
+ * initial where there is not.
+ *
+ * Both are always drawn, one over the other. A picture that has not arrived —
+ * or never will, because the files are not in `public/avatars/` yet — takes
+ * itself off the page and leaves the disc, so the board degrades to the version
+ * of itself it had yesterday rather than to a row of broken images.
+ */
+export function kitMarkup(avatar: number, name: string, extra = ''): string {
+  return `<span class="board-kit${extra}" style="--kit:${kitColour(avatar)}" aria-hidden="true">${initial(name)}<img src="${avatarSrc(avatar)}" alt="" loading="lazy" decoding="async" onerror="this.remove()"></span>`;
+}
 
 export interface BoardView {
   /** In board order, best first. Fifty of them, or fewer while it fills. */
@@ -101,7 +112,7 @@ export function rowMarkup(row: BoardRow, index: number, above: BoardRow | null, 
   return `
           <li class="${classes}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
-            <span class="board-kit" style="--kit:${AVATAR_COLOURS[row.avatar % AVATAR_COLOURS.length]}" aria-hidden="true">${initial(row.name)}</span>
+            ${kitMarkup(row.avatar, row.name)}
             <span class="board-who"><b>${escape(row.name)}</b>${note ? `<small>${note}</small>` : ''}</span>
             <span class="board-runs${split === 'wickets' ? ' is-split' : ''}">${row.runs}<i>/${row.wickets}</i></span>
             <span class="board-hits">
@@ -132,7 +143,7 @@ function offlineMarkup(yours: Innings | null): string {
         <ol class="board-list board-missed">
           <li class="board-row is-you" style="--i:0">
             <span class="board-place">&mdash;</span>
-            <span class="board-kit" style="--kit:${AVATAR_COLOURS[0]}" aria-hidden="true">?</span>
+            <span class="board-kit" style="--kit:${kitColour(0)}" aria-hidden="true">?</span>
             <span class="board-who"><b>This innings</b><small>not sent yet</small></span>
             <span class="board-runs">${yours.runs}<i>/${yours.wickets}</i></span>
             <span class="board-hits"><em>${yours.sixes}<small>6s</small></em><em>${yours.fours}<small>4s</small></em></span>
@@ -170,7 +181,7 @@ function missedMarkup(yours: Innings, edge: BoardRow | null): string {
         <ol class="board-list board-missed" start="${BOARD_SIZE + 1}">
           <li class="board-row is-you" style="--i:0">
             <span class="board-place">&mdash;</span>
-            <span class="board-kit" style="--kit:${AVATAR_COLOURS[0]}" aria-hidden="true">?</span>
+            <span class="board-kit" style="--kit:${kitColour(0)}" aria-hidden="true">?</span>
             <span class="board-who"><b>This innings</b><small>${short ? `${short} short` : 'level, and below on the split'}</small></span>
             <span class="board-runs">${yours.runs}<i>/${yours.wickets}</i></span>
             <span class="board-hits"><em>${yours.sixes}<small>6s</small></em><em>${yours.fours}<small>4s</small></em></span>
@@ -178,9 +189,26 @@ function missedMarkup(yours: Innings, edge: BoardRow | null): string {
         </ol>`;
 }
 
-/** The letter in the disc until there is a picture to put there. */
+/**
+ * The five kits to choose from, on the innings-end card. One radio group, so a
+ * keyboard arrows through it and a screen reader announces it as the one choice
+ * it is rather than as five buttons.
+ */
+export function pickerMarkup(chosen: number): string {
+  return `<div class="kit-picker" role="radiogroup" aria-label="Pick your kit">${
+    Array.from({ length: AVATARS }, (_, i) => `
+      <button type="button" class="kit-option${i === chosen ? ' is-chosen' : ''}" role="radio" aria-checked="${i === chosen}" data-kit="${i}" aria-label="Kit ${i + 1}">
+        ${kitMarkup(i, '')}
+      </button>`).join('')}</div>`;
+}
+
+/**
+ * The letter in the disc until there is a picture to put there. A nameless kit
+ * — the five in the picker — gets no letter at all rather than a question mark,
+ * because five identical question marks say less than five colours do.
+ */
 function initial(name: string) {
-  return escape([...name.trim()][0]?.toUpperCase() ?? '?');
+  return escape([...name.trim()][0]?.toUpperCase() ?? '');
 }
 
 function ordinal(n: number) {

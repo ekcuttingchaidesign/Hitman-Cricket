@@ -5,8 +5,9 @@ import { inventInnings, inventedBoard } from '../src/game/board-fixture';
 import { BOARD_SIZE, compareRows, decidedBy, plausible, unpackScore } from '../src/game/leaderboard';
 import type { BoardRow, Innings } from '../src/game/leaderboard';
 import {
-  AVATAR_COLOURS, asInnings, boardMarkup, cutLabel, cutoff, decider, escape, placeOf, rowMarkup, tieNote,
+  asInnings, boardMarkup, cutLabel, cutoff, decider, escape, kitMarkup, pickerMarkup, placeOf, rowMarkup, tieNote,
 } from '../src/ui/Leaderboard';
+import { AVATARS, kitColour } from '../src/config/board';
 
 const board = inventedBoard();
 const row = (over: Partial<BoardRow> = {}): BoardRow => ({
@@ -53,7 +54,7 @@ describe('fifty innings nobody played', () => {
   });
 
   it('picks a kit the board has a colour for', () => {
-    for (const r of board) expect(AVATAR_COLOURS[r.avatar]).toBeTruthy();
+    for (const r of board) expect(r.avatar).toBeLessThan(AVATARS);
   });
 
   it('keeps the best fifty of a whole field, so the last row is a real innings', () => {
@@ -186,15 +187,58 @@ describe('the sheet', () => {
   });
 
   it('writes a name into the page as text and never as markup', () => {
-    // Names come off the board, which is to say off other players.
+    // Names come off the board, which is to say off other players. The kit has
+    // an <img> of its own, so this asks whether the name became markup rather
+    // than whether the row contains any — and the kit's own onerror is why the
+    // check names the payload rather than the attribute.
     const nasty = rowMarkup(row({ name: '<img src=x onerror=alert(1)>' }), 0, null, false);
-    expect(nasty).not.toContain('<img');
-    expect(nasty).toContain('&lt;img');
+    // One <img> in the row: the kit's own. The name did not become a second.
+    expect(nasty.match(/<img/g)).toHaveLength(1);
+    expect(nasty).not.toContain('<img src=x');
+    expect(nasty).toContain('&lt;img src=x onerror=alert(1)&gt;');
   });
 
   it('numbers the places from one', () => {
     expect(rowMarkup(row(), 0, null, false)).toContain('>1</span>');
     expect(rowMarkup(row(), 49, null, false)).toContain('>50</span>');
+  });
+});
+
+describe('the kits', () => {
+  it('draws the disc and the picture together, so one can stand in for the other', () => {
+    const kit = kitMarkup(2, 'Rohit');
+    expect(kit).toContain(kitColour(2));
+    expect(kit).toContain('avatars/3.webp');
+    // The initial is in the markup whether or not the picture ever arrives.
+    expect(kit).toContain('>R<');
+  });
+
+  it('escapes the initial too, since it is the first character of a name', () => {
+    expect(kitMarkup(0, '<script>')).toContain('&lt;');
+    expect(kitMarkup(0, '<script>')).not.toContain('<script');
+  });
+
+  it('takes a picture that will not load off the page rather than showing it broken', () => {
+    // The files may not be in public/avatars yet. The board degrades to the
+    // version of itself it had yesterday, not to a row of broken images.
+    expect(kitMarkup(0, 'A')).toContain('onerror');
+  });
+
+  it('asks for the picture relative to the page, not the domain root', () => {
+    // The game is published into a repository subdirectory on GitHub Pages.
+    expect(kitMarkup(0, 'A')).not.toContain('src="/avatars');
+  });
+
+  it('wraps round rather than reaching past the kits that exist', () => {
+    expect(kitMarkup(AVATARS, 'A')).toContain(kitColour(0));
+  });
+
+  it('offers every kit as one choice rather than as five buttons', () => {
+    const picker = pickerMarkup(1);
+    expect(picker.match(/role="radio"/g)).toHaveLength(AVATARS);
+    expect(picker).toContain('role="radiogroup"');
+    expect(picker.match(/aria-checked="true"/g)).toHaveLength(1);
+    expect(picker.match(/is-chosen/g)).toHaveLength(1);
   });
 });
 
