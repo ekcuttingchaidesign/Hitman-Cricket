@@ -306,9 +306,15 @@ export class Game {
   private offerBoard() {
     const played = asInnings(this.score);
     if (!played.runs) return;
-    if (this.board.length && !qualifies(played, Date.now(), this.board)) return;
-    const place = this.board.length ? placeOf(this.board, played, Date.now()) : null;
-    this.hud.offerClaim(place, readPlayer(), this.board, played);
+    // No board, no offer. The game is published to GitHub Pages as well, which
+    // serves files and nothing else, so there the endpoints do not exist at all
+    // — and every innings would be offered a place that cannot be taken, which
+    // the player would discover only after picking a kit and typing a name. A
+    // board that is briefly down is the same case from here: if the fifty could
+    // not be fetched, a submission is not going to land either.
+    if (!this.board.length) return;
+    if (!qualifies(played, Date.now(), this.board)) return;
+    this.hud.offerClaim(placeOf(this.board, played, Date.now()), readPlayer(), this.board, played);
   }
 
   /**
