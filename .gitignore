@@ -5,3 +5,7 @@ playwright-report/
 *.local
 .claude/
 dist-single
+
+# Throwaway scripts for driving a browser while reviewing something. A dot
+# prefix keeps them out of `git add -A`, which is how one of them got committed.
+scripts/.*
