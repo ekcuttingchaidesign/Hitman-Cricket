@@ -3,7 +3,8 @@ import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
-import { boardMarkup, pickerMarkup, type BoardView } from './Leaderboard';
+import { boardMarkup, peekMarkup, pickerMarkup, type BoardView } from './Leaderboard';
+import type { BoardRow, Innings } from '../game/leaderboard';
 import { AVATARS } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
@@ -86,7 +87,6 @@ export class HUD {
   /** The kit the picker is on, and what this browser last batted under. */
   private kit = 0;
   private claimed: { name: string; avatar: number } | null = null;
-  private claimPlace: number | null = null;
   private $ = (id: string) => document.getElementById(id)!;
   constructor(root: HTMLElement, best: number, top = 0) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
@@ -156,23 +156,25 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <div><dt>Sixes</dt><dd id="final-sixes"></dd></div>
               <div><dt>Strike rate</dt><dd id="final-rate"></dd></div>
             </dl>
-            <div id="card-keys" class="card-keys">
-              <button id="again" class="key-button">PLAY AGAIN</button>
-              <button id="claim" class="key-button claim-key hidden"></button>
-              <div class="card-shares">
-                <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span class="key-long">BRAG YOUR SCORE TO A FRIEND</span><span class="key-short">SHARE</span></a>
-                <button id="story" class="story-key">${icon('story')}<span class="key-long">SHARE SCORE IN STORY</span><span class="key-short">STORY</span></button>
-              </div>
-              <button id="claim-skip" class="ghost-link hidden">Play again instead</button>
+            <div id="card-board" class="card-board hidden">
+              <p class="card-board-head" id="card-board-head"></p>
+              <div id="card-peek"></div>
+              <button id="claim" class="key-button claim-key">REGISTER SCORE ON LEADERBOARD</button>
+              <form id="card-claim" class="card-claim hidden">
+                <div id="claim-picker"></div>
+                <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
+                <p id="claim-error" class="claim-error hidden" role="alert"></p>
+                <button id="claim-send" type="submit" class="key-button claim-key">PUT ME ON THE BOARD</button>
+                <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
+              </form>
             </div>
-            <form id="card-claim" class="card-claim hidden">
-              <p class="claim-line" id="claim-line"></p>
-              <div id="claim-picker"></div>
-              <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
-              <p id="claim-error" class="claim-error hidden" role="alert"></p>
-              <button id="claim-send" type="submit" class="key-button">PUT ME ON THE BOARD</button>
-              <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
-            </form>
+            <div class="card-keys">
+              <button id="again" class="key-button">PLAY AGAIN</button>
+              <div class="card-shares">
+                <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span>SHARE</span></a>
+                <button id="story" class="story-key">${icon('story')}<span>INSTA STORY</span></button>
+              </div>
+            </div>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
@@ -206,7 +208,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // not a click on the way out.
     overlay.onclick = event => { if (event.target === overlay) this.closeBoard(); };
     this.$('board-close').onclick = () => this.closeBoard();
-    this.$('board-close').focus();
+    // The sheet's own keys, when it is carrying them. They are the card's keys
+    // under different ids, so they do the same things.
+    const again = document.getElementById('board-again');
+    if (again) {
+      again.onclick = () => { this.closeBoard(); this.$('again').click(); };
+      (this.$('board-whatsapp') as HTMLAnchorElement).href = (this.$('whatsapp') as HTMLAnchorElement).href;
+      this.$('board-whatsapp').addEventListener('click', event => this.shareScore(event, 'card'));
+      this.$('board-story').addEventListener('click', event => this.shareScore(event, 'story'));
+      again.focus();
+    } else {
+      this.$('board-close').focus();
+    }
   }
   get boardOpen() { return !this.$('board-overlay').classList.contains('hidden'); }
   /**
@@ -333,11 +346,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }).join('');
     this.$('end').classList.toggle('is-record', isRecord);
     // Last innings' claim does not carry over to this one.
-    this.$('end').classList.remove('is-claimed', 'is-offering');
+    // Last innings' place does not carry over to this one.
     this.closeClaim();
-    this.$('claim').classList.add('hidden');
-    this.$('claim-skip').classList.add('hidden');
-    this.$('again').classList.remove('hidden');
+    this.$('card-board').classList.add('hidden');
     // What happened, then the number that makes it mean something. A best is
     // already banked by the time this runs, so it is only worth quoting back
     // when the innings did not set it.
@@ -368,42 +379,50 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     void prepareShareAssets();
   }
   /**
-   * The innings-end card's button area, in whichever of its three states this
-   * innings has earned. The card does not grow to hold a claim form: it is
-   * already 349 px tall on a landscape phone with three keys on it, so the
-   * button area is what changes and everything above it — the score, the ball
-   * track, the stats — stays exactly where the player is already looking.
+   * The leaderboard, inside the card, when this innings has earned a place on
+   * it.
+   *
+   * Not a fourth key and not a screen of its own: a strip between the figures
+   * and the keys carrying where the innings landed, the two rows it landed
+   * between, and the one thing to do about it. The row above and the row below
+   * are the whole point — "fifth has 106" is what makes 101 mean something, and
+   * a place on its own does not.
    *
    * `place` is what the browser worked out from the board it has. It is a good
-   * guess, not the answer: the store ranks the innings itself and the line above
-   * the buttons is rewritten with what it says.
+   * guess, not the answer: the store ranks the innings itself, and what comes
+   * back is what the full board then shows.
    */
-  offerClaim(place: number | null, known: { name: string; avatar: number } | null) {
-    const key = this.$('claim') as HTMLButtonElement;
-    key.textContent = place ? `CLAIM ${ordinal(place)} PLACE` : 'PUT ME ON THE BOARD';
-    key.classList.remove('hidden');
-    // The claim is the thing to do next, so it takes the primary key's place
-    // rather than becoming a fourth one there is no room for.
-    this.$('again').classList.add('hidden');
-    this.$('claim-skip').classList.remove('hidden');
-    // The offer costs the card a line it did not have. On a short screen the
-    // stylesheet takes that line back from somewhere else.
-    this.$('end').classList.add('is-offering');
+  offerClaim(
+    place: number | null,
+    known: { name: string; avatar: number } | null,
+    rows: readonly BoardRow[],
+    yours: Innings,
+  ) {
     this.claimed = known;
-    this.claimPlace = place;
+    this.$('card-board-head').innerHTML = place
+      ? `${icon('trophy')}<span>You're <b>${ordinal(place)}</b> on the board</span>`
+      : `${icon('trophy')}<span>Put this innings on the board</span>`;
+    // With no board fetched there is nothing to sit between, so the strip is
+    // the banner and the key alone rather than three empty rows.
+    this.$('card-peek').innerHTML = place && rows.length
+      ? peekMarkup(rows, place, yours, known?.avatar ?? null)
+      : '';
+    this.$('card-board').classList.remove('hidden');
   }
 
   /** The form, once the player has asked for it. */
   get claimOpen() { return !this.$('card-claim').classList.contains('hidden'); }
+
+  /**
+   * The strip morphs rather than the card growing: the peek and the register
+   * key step aside and the picker and the field take exactly their place, so
+   * nothing above moves while the player is filling it in.
+   */
   openClaim() {
-    this.$('card-keys').classList.add('hidden');
+    this.$('card-peek').classList.add('hidden');
+    this.$('claim').classList.add('hidden');
     this.$('card-claim').classList.remove('hidden');
-    // On a short screen the card cannot hold the figures and the form at once,
-    // and the form is the task. The stylesheet decides what gives.
     this.$('end').classList.add('is-claiming');
-    this.$('claim-line').textContent = this.claimPlace
-      ? `${ordinal(this.claimPlace)} on the board, if you claim it.`
-      : 'Put this innings on the board.';
     this.kit = this.claimed?.avatar ?? 0;
     this.$('claim-picker').innerHTML = pickerMarkup(this.kit);
     this.$('claim-picker').querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
@@ -443,38 +462,22 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
-   * Done. The buttons come back, with where the innings actually landed written
-   * above them — the store's answer, not the browser's guess.
+   * Done. The strip has nothing left to say, so it goes — the player is about
+   * to be looking at the whole board instead, which is where the place they
+   * just took is written.
    */
-  claimDone(place: number | null) {
+  claimDone() {
     this.closeClaim();
-    this.$('end').classList.remove('is-offering');
-    this.$('claim').classList.add('hidden');
-    this.$('claim-skip').classList.add('hidden');
-    this.$('again').classList.remove('hidden');
-    this.$('end-message').textContent = place
-      ? `${ordinal(place)} on the board.`
-      : 'On the board.';
-    this.$('end').classList.add('is-claimed');
-    this.$('again').focus();
+    this.$('card-board').classList.add('hidden');
   }
 
-  /** Out of the form, back to the keys, with the offer still standing. */
+  /** Out of the form, back to the peek, with the offer still standing. */
   closeClaim() {
     this.$('card-claim').classList.add('hidden');
-    this.$('card-keys').classList.remove('hidden');
+    this.$('card-peek').classList.remove('hidden');
+    this.$('claim').classList.remove('hidden');
     this.$('end').classList.remove('is-claiming');
     this.claimSending(false);
-  }
-
-  /** The offer withdrawn: the player would rather just play again. */
-  declineClaim() {
-    this.closeClaim();
-    this.$('end').classList.remove('is-offering');
-    this.$('claim').classList.add('hidden');
-    this.$('claim-skip').classList.add('hidden');
-    this.$('again').classList.remove('hidden');
-    this.$('again').focus();
   }
 
   /**

@@ -7,6 +7,9 @@ import '../src/styles.css';
 import { HUD } from '../src/ui/HUD';
 import { ScoreManager } from '../src/game/ScoreManager';
 import type { ShotOutcome } from '../src/game/types';
+import { inventedBoard } from '../src/game/board-fixture';
+import type { Innings } from '../src/game/leaderboard';
+import { placeOf } from '../src/ui/Leaderboard';
 
 const hud = new HUD(document.getElementById('stage')!, 214);
 hud.start();
@@ -25,6 +28,15 @@ const innings = (runs: number, wickets: number, balls: number, fours: number, si
   return Object.assign(new ScoreManager(), { runs, wickets, balls, fours, sixes, history });
 };
 
+/* A board to sit inside, so the strip has real rows above and below it. The
+   place is asked of the board rather than written down: 101 runs is not 6th on
+   a board topped at 107, and a peek built from a made-up place shows the
+   player sitting between two rows that do not bracket them. */
+const fullBoard = inventedBoard();
+const played: Innings = { runs: 101, sixes: 9, fours: 8, wickets: 2, dots: 6, balls: 30 };
+const place = placeOf(fullBoard, played, Date.now());
+const top: Innings = { runs: 148, sixes: 14, fours: 9, wickets: 1, dots: 6, balls: 30 };
+
 const states: Record<string, () => void> = {
   record: () => hud.end(innings(148, 1, 30, 14, 9), 121, true),
   first: () => hud.end(innings(93, 2, 30, 9, 4), 0, true),
@@ -33,12 +45,14 @@ const states: Record<string, () => void> = {
   big: () => hud.end(innings(180, 0, 30, 21, 14), 214, false),
   /* The claim step, in each of the states it passes through. Driving these off a
      real innings needs a board behind it as well as thirty balls. */
-  offer: () => { hud.end(innings(87, 2, 30, 8, 3), 214, false); hud.offerClaim(12, null); },
-  'offer-known': () => { hud.end(innings(87, 2, 30, 8, 3), 214, false); hud.offerClaim(4, { name: 'Rohit', avatar: 2 }); },
+  offer: () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(place, null, fullBoard, played); },
+  'offer-known': () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(place, { name: 'Rohit', avatar: 2 }, fullBoard, played); },
+  'offer-top': () => { hud.end(innings(148, 1, 30, 14, 9), 121, true); hud.offerClaim(placeOf(fullBoard, top, Date.now()), null, fullBoard, top); },
+  'offer-blind': () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(null, null, [], played); },
   form: () => { states.offer(); hud.openClaim(); },
   'form-error': () => { states.form(); hud.claimFailed('Somebody already bats under that name.'); },
   sending: () => { states.form(); hud.claimSending(true); },
-  claimed: () => { states.offer(); hud.claimDone(12); },
+  board: () => { states.offer(); hud.claimDone(); hud.board({ rows: fullBoard, youId: fullBoard[place - 1].playerId, state: 'ready', actions: true }); },
 };
 const show = (name: string) => {
   states[name]?.();

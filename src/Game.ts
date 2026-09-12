@@ -64,7 +64,6 @@ export class Game {
     this.hud.on('board', this.showBoard);
     this.hud.on('claim', this.startClaim);
     this.hud.on('claim-cancel', () => this.hud.closeClaim());
-    this.hud.on('claim-skip', () => this.hud.declineClaim());
     (this.hud.viewport.querySelector('#card-claim') as HTMLFormElement).addEventListener('submit', event => {
       event.preventDefault();
       void this.sendClaim();
@@ -309,7 +308,7 @@ export class Game {
     if (!played.runs) return;
     if (this.board.length && !qualifies(played, Date.now(), this.board)) return;
     const place = this.board.length ? placeOf(this.board, played, Date.now()) : null;
-    this.hud.offerClaim(place, readPlayer());
+    this.hud.offerClaim(place, readPlayer(), this.board, played);
   }
 
   /**
@@ -335,8 +334,11 @@ export class Game {
     if (!result.ok) return this.hud.claimFailed(result.reason ?? 'That did not go through.');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
     if (result.board) this.board = result.board.rows;
-    const place = this.board.findIndex(row => row.playerId === this.player);
-    this.hud.claimDone(place >= 0 ? place + 1 : null);
+    // The board is where the place the player just took is written, so that is
+    // where they are taken — with the keys carried onto it, since it is now the
+    // screen they are on.
+    this.hud.claimDone();
+    this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
   }
 
   private end() {

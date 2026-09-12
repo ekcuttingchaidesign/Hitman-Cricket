@@ -989,12 +989,11 @@ body.start-screen .hud-top{display:none}
   font-weight:400;
   text-decoration:none
 }
-/* Two ways out of the card, stacked while there is room for both labels to read
-   at full length and turned into a row the moment there is not. */
-.card-shares{display:flex;flex-direction:column}
-/* A key carries the label it has room for. Both are in the markup so the swap
-   costs no reflow of the button itself, only of the word inside it. */
-.key-short{display:none}
+/* Two ways out of the card, side by side at half the width each. They are the
+   quieter pair under the primary key, so they read as one row of alternatives
+   rather than as two more decisions. */
+.card-shares{display:flex;gap:9px;margin-top:9px}
+.card-shares>*{flex:1;min-width:0;margin-top:0}
 .key-button{
   min-height:54px;
   border:3px solid var(--cta-orange);
@@ -1010,7 +1009,6 @@ body.start-screen .hud-top{display:none}
 .key-button:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--cta-orange),0 4px 7px #7a4a1e24}
 .whatsapp-key{
   min-height:46px;
-  margin-top:11px;
   border:0;
   background:#0b8043;
   color:#fff;
@@ -1023,7 +1021,6 @@ body.start-screen .hud-top{display:none}
 .whatsapp-key:active{transform:translateY(2px);box-shadow:0 2px 0 #05502a,inset 0 1px 0 #ffffff2b}
 .story-key{
   min-height:46px;
-  margin-top:9px;
   border:0;
   background:#26506e;
   color:#ffeede;
@@ -1370,9 +1367,100 @@ body.start-screen .hud-top{display:none}
      until it clears 5:1. */
   color:#ff8a7a
 }
+/* ── The board, inside the card ────────────────────────────────────────── */
+/* A strip between the figures and the keys, sunk into the card so it reads as
+   a window onto something else rather than as more card. It carries where the
+   innings landed, the two rows it landed between, and the one thing to do about
+   it — and it is only ever there when there is a place to take. */
+.card-board{
+  display:flex;
+  flex-direction:column;
+  margin:0 0 14px;
+  border-radius:12px;
+  background:#0a1e2c;
+  box-shadow:inset 0 0 0 1px var(--rule)
+}
+/* The good news, on its own ground. Green because it is the one moment on this
+   card that is unambiguously good, and dark enough that cream on it clears 7:1. */
+.card-board-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  padding:10px 14px;
+  border-radius:12px 12px 0 0;
+  background:#14543a;
+  font-size:13.5px;
+  font-weight:600;
+  line-height:1.3;
+  color:#eaf6ee
+}
+.card-board-head svg{width:17px;height:17px;color:#6fdba1}
+.card-board-head b{font-weight:800;color:#fff}
+.card-peek{list-style:none;margin:0;padding:4px 14px 2px}
+.card-peek .board-row{grid-template-columns:20px 26px minmax(0,1fr) auto auto;padding:7px 0}
+.card-peek .board-kit{width:26px;height:26px}
+.card-peek .board-row.is-you{margin:0 -8px;padding:7px 8px}
+/* Everyone else on the peek is a bar rather than a name. The peek is about
+   where the player sits, not about who they are sitting next to — and the full
+   board, one tap away, has every name on it. */
+/* Nobody's kit yet: the card's own accent, so a player who has not chosen one
+   still stands apart from whoever they are sitting next to. */
+.board-kit.is-unclaimed{background:#f2814f}
+.board-blank{
+  display:block;
+  width:min(100%,86px);
+  height:7px;
+  border-radius:4px;
+  background:#ffffff2e
+}
+/* Filled rather than stood on a ledge, and green, so it reads as the end of the
+   banner above it rather than as a second PLAY AGAIN. The white key with the
+   orange ledge is the card's primary and stays the card's primary; this is the
+   one thing to do about the strip it sits in. Sized to hold its own label on
+   one line at 390 px, which the card's key size does not. */
+.card-board .claim-key{
+  margin:10px 14px 14px;
+  min-height:50px;
+  border:0;
+  background:#17694a;
+  color:#f7f0e5;
+  font-size:14px;
+  letter-spacing:1.2px;
+  text-indent:1.2px;
+  box-shadow:0 4px 0 #0b3d29,inset 0 1px 0 #ffffff26
+}
+.card-board .claim-key:hover:not(:disabled){background:#1c7c58;box-shadow:0 5px 0 #0b3d29,inset 0 1px 0 #ffffff26}
+.card-board .claim-key:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #0b3d29,inset 0 1px 0 #ffffff26}
+.card-board .card-claim{padding:12px 14px 14px}
 /* Claimed. The stamp above the number goes green, because the innings has done
    the one thing left for it to do. */
 #end.is-claimed .card-line{color:#43b978;font-weight:700}
+
+/* ── The board's own keys ──────────────────────────────────────────────── */
+/* Pinned to the foot of the sheet, with the fifty rows running under them.
+   Fifty rows is a long scroll, and a player who has just been put on the board
+   should not have to reach the bottom of it to leave. */
+.board-actions{
+  flex:none;
+  position:relative;
+  padding:12px 22px calc(14px + var(--pad-bottom) - 14px);
+  background:#0f2738;
+  border-top:1px solid var(--rule)
+}
+/* The rows do not end at the bar, they fade into it. */
+.board-actions::before{
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:100%;
+  height:22px;
+  background:linear-gradient(transparent,#0f2738);
+  pointer-events:none
+}
+.board-actions .key-button{min-height:48px;font-size:16px}
+.board-sheet:has(.board-actions) .board-foot{display:none}
 /* The board being down is a sentence, not an empty table. It reads on the sheet
    the rows would have filled, so the screen still has a shape. */
 .board-offline{
@@ -1548,13 +1636,29 @@ dialog .primary-button{margin-top:18px}
   /* A refusal adds a line the form did not budget for, and it is the one moment
      the player most needs to reach the key again. */
   .claim-error{margin-bottom:8px;font-size:12px;line-height:1.35}
-  /* The offer costs the card a line it did not have, and the card had none to
-     spare here — 349 px of it in a 380 px screen. So the line about how the
-     innings went stands down while there is a place to claim: the figures it
-     quotes are all still on the card, and the offer expires the moment it is
-     taken or refused. */
-  #end.is-offering .card-line{display:none}
-  #end.is-offering .ghost-link{margin-top:5px;padding:3px;font-size:11.5px}
+  /* The strip costs the card a good 200 px it does not have here — 349 px of
+     card in a 380 px screen. So on a landscape phone the supporting figures
+     stand down for it: the score stays, because the score is what earned the
+     place, and everything the stats row quotes is on the peek's own row. */
+  .card-board~.card-keys{margin-top:0}
+  #end:has(.card-board:not(.hidden)) .card-stats,
+  #end:has(.card-board:not(.hidden)) .card-line{display:none}
+  #end:has(.card-board:not(.hidden)) .card-runs{font-size:40px;letter-spacing:-2px}
+  #end:has(.card-board:not(.hidden)) .card-overs{font-size:18px}
+  .card-board-head{padding:8px 12px;font-size:12.5px}
+  .card-peek{padding:2px 12px 0}
+  .card-peek .board-row{padding:5px 0}
+  /* The rows either side are what make a place mean something, but they are not
+     worth a submit key below the fold. On a landscape phone the player's own
+     row stays and its neighbours go. */
+  .card-peek .board-row:not(.is-you){display:none}
+  /* The form is taller than a landscape phone whatever is trimmed, so rather
+     than shaving the card down to nothing the key rides the bottom of it: the
+     card scrolls, the way out of the form does not move. */
+  .card-claim .claim-key{position:sticky;bottom:0;z-index:1}
+  .card-board .claim-key{margin:8px 12px 12px}
+  .board-actions{padding:9px 22px 11px}
+  .board-actions .key-button{min-height:42px;font-size:15px}
   /* Side by side once the card has to clear a landscape phone. The labels lose
      their tail rather than the buttons losing their tap target. */
   .card-shares{flex-direction:row;gap:8px;margin-top:8px}

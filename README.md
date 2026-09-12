@@ -250,7 +250,13 @@ A player is a long random id the browser holds on to, written to localStorage, a
 
 ### Claiming a place
 
-An innings that would make the fifty turns the card's primary key into **CLAIM 12TH PLACE**, and tapping it morphs the button area into five kits and a name field. The card does not grow to hold that: it is already 349 px tall on a 390 px landscape phone with three keys on it, so the button area is what changes and the score, the ball track and the stats stay exactly where the player is already looking. On a short screen the supporting figures stand down while the form is open, because a submit key you have to scroll to find is not a submit key. Every state is in `/tools/card-lab.html`.
+An innings that earns a place puts a strip on the card between the figures and the keys: a green banner saying where it landed, the two rows it landed between, and one key to do something about it. The rows either side are the point — *fifth has 102* is what makes 101 mean something, and a place on its own does not. Each peek row carries the same three figures the board does (runs, sixes, fours), so it is a true preview of the screen the key opens rather than a different thing that resembles it. Other players are bars rather than names: the peek is about where the player sits, and the full board one tap away has every name on it.
+
+Tapping the key morphs the strip rather than growing the card — the peek and the key step aside, the picker and the name field take exactly their place, and nothing above moves. Submitting opens the **full board**, with Play again, Share and Insta Story pinned to the foot of it: fifty rows is a long scroll, and a player who has just been put on the board should not have to reach the bottom of it to leave.
+
+The register key is filled and green, continuing its banner, rather than a second white-on-orange key competing with Play again. Play again is the card's primary and stays the card's primary.
+
+Every state is in `/tools/card-lab.html`, which is also where the peek's own bug showed up: a hardcoded place put the player between two rows that did not bracket them, because 101 runs is not sixth on a board topped at 107. The lab asks the board where the innings goes now.
 
 Whether an innings qualifies is answered from the board already on screen, so nothing waits on the network at the one moment a wait would be felt. A board that has not loaded is not a reason to say no — the store ranks it properly either way. The place shown on the key is the browser's guess; the line after claiming is the store's answer.
 

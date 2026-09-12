@@ -38,6 +38,12 @@ export interface BoardView {
   yours?: Innings | null;
   /** Whether these rows are the board, on their way, or unavailable. */
   state?: 'ready' | 'loading' | 'offline';
+  /**
+   * Whether the sheet carries the innings-end keys. It does when the board is
+   * opened straight after claiming a place, because at that moment the board is
+   * the screen the player is on and playing again has to be reachable from it.
+   */
+  actions?: boolean;
 }
 
 /**
@@ -78,9 +84,58 @@ export function cutoff(rows: readonly BoardRow[]): BoardRow | null {
   return rows.length >= BOARD_SIZE ? rows[BOARD_SIZE - 1] : null;
 }
 
+/**
+ * The three rows around the player, for the innings-end card.
+ *
+ * Not the board — a glimpse of the part of it the player is standing in. The
+ * row above and the row below are the whole point: "fifth has 106" is what
+ * makes 101 mean something, and a place on its own does not. Each row carries
+ * the same three figures the board does, so the peek is a true preview of the
+ * screen the register key opens rather than a different thing that resembles it.
+ *
+ * The player's own row is synthesised, because until they register they are not
+ * on the board at all.
+ */
+export function peekMarkup(
+  rows: readonly BoardRow[], place: number, yours: Innings, kit: number | null = null, name = 'You',
+): string {
+  const lines: string[] = [];
+  // `place` is where the innings would sit, counting from one. The row above it
+  // is the one currently holding that place minus one; the row below is the one
+  // currently holding it, since submitting pushes everything down.
+  const above = rows[place - 2];
+  const below = rows[place - 1];
+  if (above) lines.push(peekRow(place - 1, above.name, above.avatar, above, false));
+  lines.push(peekRow(place, name, kit, yours, true));
+  if (below) lines.push(peekRow(place + 1, below.name, below.avatar, below, false));
+  // At the very top there is nothing above, so the board's second row stands in
+  // rather than leaving a gap where a row should be.
+  if (!above && rows[place]) lines.push(peekRow(place + 2, rows[place].name, rows[place].avatar, rows[place], false));
+  return `<ol class="board-list card-peek">${lines.join('')}</ol>`;
+}
+
+/**
+ * A player who has not picked a kit yet gets the card's accent rather than the
+ * first kit, or their row can end up the same colour as the neighbour it is
+ * meant to stand out from.
+ */
+function peekRow(place: number, name: string, kit: number | null, figures: Innings, you: boolean): string {
+  const disc = kit === null
+    ? `<span class="board-kit is-unclaimed" aria-hidden="true">${escape([...name.trim()][0]?.toUpperCase() ?? '')}</span>`
+    : kitMarkup(kit, you ? name : '');
+  return `
+            <li class="board-row${you ? ' is-you' : ''}" style="--i:${place}"${you ? ' aria-current="true"' : ''}>
+              <span class="board-place">${place}</span>
+              ${disc}
+              <span class="board-who"><b>${you ? escape(name) : '<i class="board-blank"></i>'}</b></span>
+              <span class="board-runs">${figures.runs}</span>
+              <span class="board-hits"><em>${figures.sixes}<small>6s</small></em><em>${figures.fours}<small>4s</small></em></span>
+            </li>`;
+}
+
 /** The whole screen, header to footer. */
 export function boardMarkup(view: BoardView): string {
-  const { rows, youId = null, yours = null, state = 'ready' } = view;
+  const { rows, youId = null, yours = null, state = 'ready', actions = false } = view;
   const edge = cutoff(rows);
   const yourPlace = rows.findIndex(row => row.playerId === youId);
   return `
@@ -101,6 +156,7 @@ export function boardMarkup(view: BoardView): string {
         ${yourPlace < 0 && yours ? missedMarkup(yours, edge) : ''}
       </div>
       <p class="board-foot">One innings a player, best only. Level scores are split on sixes, then fours, then wickets, then dot balls &mdash; and if all of that ties, whoever got there first stays above.</p>
+      ${actions ? actionsMarkup() : ''}
     </div>`;
 }
 
@@ -120,6 +176,26 @@ export function rowMarkup(row: BoardRow, index: number, above: BoardRow | null, 
               <em class="${split === 'fours' ? 'is-split' : ''}">${row.fours}<small>4s</small></em>
             </span>
           </li>`;
+}
+
+/**
+ * Play again, and the two ways of sending the innings out, pinned to the foot of
+ * the sheet rather than sitting after the fiftieth row. Fifty rows is a long
+ * scroll, and a player who has just been put on the board should not have to
+ * reach the bottom of it to leave.
+ *
+ * Their ids are the card's own with a prefix, because the same two keys exist on
+ * the card and one document cannot hold two of an id.
+ */
+function actionsMarkup(): string {
+  return `
+      <div class="board-actions">
+        <button id="board-again" class="key-button">PLAY AGAIN</button>
+        <div class="card-shares">
+          <a id="board-whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">SHARE</a>
+          <button id="board-story" class="story-key">INSTA STORY</button>
+        </div>
+      </div>`;
 }
 
 /**
