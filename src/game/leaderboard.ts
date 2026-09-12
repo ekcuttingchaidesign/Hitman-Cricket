@@ -182,7 +182,7 @@ export function compareRows(a: BoardRow, b: BoardRow) {
  * moment a wait would be felt. The store answers it again on submit and is the
  * one that counts.
  */
-export function qualifies(innings: Innings, atMs: number, board: { score: number }[]) {
+export function qualifies(innings: Innings, atMs: number, board: readonly { score: number }[]) {
   if (board.length < BOARD_SIZE) return true;
   const cutoff = board[BOARD_SIZE - 1].score;
   return packScore(innings, atMs) > cutoff;

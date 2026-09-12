@@ -14,8 +14,7 @@ import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
 import { fetchBoard, submitInnings } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { placeOf } from './ui/Leaderboard';
-import { qualifies } from './game/leaderboard';
+import { placeOf, shouldOfferPlace } from './ui/Leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
@@ -34,6 +33,12 @@ export class Game {
   private best = 0; private bounced = false; private seed = 0;
   /** The fifty as last fetched, and who the board thinks you are. */
   private board: BoardRow[] = [];
+  /**
+   * Whether the board has ever answered. Not the same as holding rows: a board
+   * that answered with nothing is the launch-day board, and somebody has to be
+   * allowed to be first on it.
+   */
+  private boardSeen = false;
   private player: string | null = null;
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
@@ -151,6 +156,7 @@ export class Game {
   private async loadBoard() {
     const payload = await fetchBoard();
     if (this.disposed || !payload) return;
+    this.boardSeen = true;
     this.board = payload.rows;
     this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
   }
@@ -172,7 +178,7 @@ export class Game {
     else this.hud.board({ ...view, rows: [], state: 'loading' as const });
     void fetchBoard().then(payload => {
       if (this.disposed || !this.hud.boardOpen) return;
-      if (payload) this.board = payload.rows;
+      if (payload) { this.boardSeen = true; this.board = payload.rows; }
       this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
     });
   };
@@ -305,16 +311,9 @@ export class Game {
    */
   private offerBoard() {
     const played = asInnings(this.score);
-    if (!played.runs) return;
-    // No board, no offer. The game is published to GitHub Pages as well, which
-    // serves files and nothing else, so there the endpoints do not exist at all
-    // — and every innings would be offered a place that cannot be taken, which
-    // the player would discover only after picking a kit and typing a name. A
-    // board that is briefly down is the same case from here: if the fifty could
-    // not be fetched, a submission is not going to land either.
-    if (!this.board.length) return;
-    if (!qualifies(played, Date.now(), this.board)) return;
-    this.hud.offerClaim(placeOf(this.board, played, Date.now()), readPlayer(), this.board, played);
+    const now = Date.now();
+    if (!shouldOfferPlace(this.boardSeen, this.board, played, now)) return;
+    this.hud.offerClaim(placeOf(this.board, played, now), readPlayer(), this.board, played);
   }
 
   /**

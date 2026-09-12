@@ -5,7 +5,8 @@ import { inventInnings, inventedBoard } from '../src/game/board-fixture';
 import { BOARD_SIZE, compareRows, decidedBy, plausible, unpackScore } from '../src/game/leaderboard';
 import type { BoardRow, Innings } from '../src/game/leaderboard';
 import {
-  asInnings, boardMarkup, cutLabel, cutoff, decider, escape, kitMarkup, peekMarkup, pickerMarkup, placeOf, rowMarkup, tieNote,
+  asInnings, boardMarkup, cutLabel, cutoff, decider, escape, kitMarkup, peekMarkup, pickerMarkup, placeOf, rowMarkup,
+  shouldOfferPlace, tieNote,
 } from '../src/ui/Leaderboard';
 import { AVATARS, KITS, kitColour } from '../src/config/board';
 import { readdirSync } from 'node:fs';
@@ -263,5 +264,43 @@ describe('measuring an innings against the board', () => {
     expect(placeOf(board, board[0], at)).toBe(2);
     expect(placeOf(board, { ...board[0], runs: board[0].runs + 1 }, at)).toBe(1);
     expect(placeOf(board, { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 3, balls: 3 }, at)).toBe(BOARD_SIZE + 1);
+  });
+});
+
+
+describe('offering a place', () => {
+  const at = Date.UTC(2026, 5, 1);
+  const good: Innings = { runs: 111, sixes: 15, fours: 5, wickets: 3, dots: 4, balls: GAME.totalBalls };
+
+  /**
+   * The one that shipped. An empty board and a reached board both leave `rows`
+   * empty, and gating on the row count refused the first player a place: no rows
+   * means no offer, and no offer means it never gets a row. A board nobody can
+   * ever get onto is not a board.
+   */
+  it('offers the first player a place on a board that is empty but reachable', () => {
+    expect(shouldOfferPlace(true, [], good, at)).toBe(true);
+  });
+
+  it('offers nothing when the board was never reached', () => {
+    // A host that only serves files has no endpoints at all, and a kit and a
+    // name should not be asked for against a place that cannot be taken.
+    expect(shouldOfferPlace(false, [], good, at)).toBe(false);
+    expect(shouldOfferPlace(false, board, good, at)).toBe(false);
+  });
+
+  it('offers a place to an innings that clears the fiftieth', () => {
+    const best = { ...board[0], runs: board[0].runs + 1 };
+    expect(shouldOfferPlace(true, board, best, at)).toBe(true);
+  });
+
+  it('offers nothing to an innings that does not clear it', () => {
+    const worst = { ...board[BOARD_SIZE - 1], runs: 1, sixes: 0, fours: 0 };
+    expect(shouldOfferPlace(true, board, worst, at)).toBe(false);
+  });
+
+  it('offers nothing for a duck, even onto an empty board', () => {
+    const duck: Innings = { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 };
+    expect(shouldOfferPlace(true, [], duck, at)).toBe(false);
   });
 });

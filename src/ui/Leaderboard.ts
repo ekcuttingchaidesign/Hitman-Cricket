@@ -1,7 +1,7 @@
 import { AVATARS, avatarSrc, kitColour } from '../config/board';
 import { GAME } from '../config/gameplay';
 import {
-  BOARD_SIZE, decidedBy, packScore, type BoardRow, type Innings, type LadderKey,
+  BOARD_SIZE, decidedBy, packScore, qualifies, type BoardRow, type Innings, type LadderKey,
 } from '../game/leaderboard';
 
 /**
@@ -308,6 +308,32 @@ export function asInnings(score: { runs: number; wickets: number; balls: number;
     runs: score.runs, sixes: score.sixes, fours: score.fours,
     wickets: score.wickets, dots: score.dots, balls: Math.min(score.balls, GAME.totalBalls),
   };
+}
+
+/**
+ * Whether to offer the player a place on the board.
+ *
+ * Three things have to be true, and two of them look identical from here, which
+ * is the trap this function exists to name.
+ *
+ * The board must have been *reached*. On a host that cannot run the endpoints
+ * there is nothing to claim, and offering a place that cannot be taken costs the
+ * player a kit, a name and their goodwill before anything tells them.
+ *
+ * What that must not be confused with is a board that came back **empty**. A
+ * board with no rows on it is the launch-day board, where every innings
+ * qualifies and somebody has to be first. Gating on the row count instead of on
+ * whether the fetch succeeded deadlocks the board shut: no rows means no offer,
+ * and no offer means it never gets a row. Both cases leave `rows` empty, so the
+ * caller has to keep the two apart and hand the answer in.
+ *
+ * And the innings has to be worth something. Nought is not a place.
+ */
+export function shouldOfferPlace(
+  reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number,
+) {
+  if (!reached || !yours.runs) return false;
+  return qualifies(yours, atMs, rows);
 }
 
 /** Where an innings would sit, if it were submitted now. Used for the cover line. */
