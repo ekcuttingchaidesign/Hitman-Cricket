@@ -1,4 +1,4 @@
-import { AVATARS, avatarSrc, kitColour } from '../config/board';
+import { AVATARS, avatarSrc, kitColour, kitName } from '../config/board';
 import { GAME } from '../config/gameplay';
 import {
   BOARD_SIZE, decidedBy, improvesOn, packScore, qualifies, type BoardRow, type Innings, type LadderKey,
@@ -303,13 +303,18 @@ function missedMarkup(yours: Innings, edge: BoardRow | null): string {
  * it, which is why the group points at it: a screen reader then reads "Choose
  * your avatar" on arriving, the same words on the screen, instead of a second
  * wording kept only for it.
+ *
+ * `order` is which kits go where, which is dealt per player rather than fixed —
+ * see `kitDeal`. Nothing else may assume a disc's position means anything: a
+ * kit's number rides on `data-kit` and its label is its own name, so the row can
+ * be laid out in any order without a disc answering to the wrong one.
  */
-export function pickerMarkup(chosen: number): string {
+export function pickerMarkup(chosen: number, order: readonly number[] = [...Array(AVATARS).keys()]): string {
   return `<p class="claim-label" id="kit-picker-label">Choose your avatar</p>
     <div class="kit-picker" role="radiogroup" aria-labelledby="kit-picker-label">${
-    Array.from({ length: AVATARS }, (_, i) => `
-      <button type="button" class="kit-option${i === chosen ? ' is-chosen' : ''}" role="radio" aria-checked="${i === chosen}" data-kit="${i}" aria-label="Kit ${i + 1}">
-        ${kitMarkup(i, '')}
+    order.map(kit => `
+      <button type="button" class="kit-option${kit === chosen ? ' is-chosen' : ''}" role="radio" aria-checked="${kit === chosen}" data-kit="${kit}" aria-label="${escape(kitName(kit))}">
+        ${kitMarkup(kit, '')}<small>${escape(kitName(kit))}</small>
       </button>`).join('')}</div>`;
 }
 

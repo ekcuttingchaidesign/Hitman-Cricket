@@ -1,3 +1,5 @@
+import { SeededRandom } from '../game/SeededRandom';
+
 /**
  * The five kits, in one place, because three screens draw them: the board's
  * rows, the picker on the innings-end card, and eventually the shared picture.
@@ -14,7 +16,7 @@
  */
 export const KITS = [
   { name: 'pink', colour: '#d31e6e', file: 'avatar_7.webp' },
-  { name: 'india blue', colour: '#0248c8', file: 'avatar_1.webp' },
+  { name: 'blue', colour: '#0248c8', file: 'avatar_1.webp' },
   { name: 'purple', colour: '#3f0884', file: 'avatar_2.webp' },
   { name: 'orange', colour: '#f55b11', file: 'avatar_3.webp' },
   { name: 'teal', colour: '#018ea3', file: 'avatar_6.webp' },
@@ -39,4 +41,45 @@ export function avatarSrc(avatar: number): string {
 
 export function kitColour(avatar: number): string {
   return KITS[avatar % AVATARS].colour;
+}
+
+/** What a kit is called, for the label under its disc and for a screen reader. */
+export function kitName(avatar: number): string {
+  return KITS[avatar % AVATARS].name;
+}
+
+/**
+ * The order the five kits are offered in, and which one the form opens on.
+ *
+ * Both are shuffled, and both are shuffled off the player's own id rather than
+ * off the clock. That distinction is the whole of this function.
+ *
+ * The picker used to open on kit zero with the ring already on it, which reads
+ * as an answer rather than a question — so almost nobody moved it, and the board
+ * filled up with one colour. Dealing the kits out differently to different
+ * people fixes that without costing anybody a tap.
+ *
+ * Seeding it off the id is what keeps it from being maddening. A fresh roll each
+ * time the form opened would hand a player a different kit for closing the form
+ * and opening it again, and rearrange the row underneath them while they looked
+ * at it. Off the id, one browser sees one arrangement for as long as it keeps
+ * its id, and two browsers see different ones — which is the only thing the
+ * board cares about.
+ */
+export function kitDeal(playerId: string | null): { order: number[]; opening: number } {
+  const order = new SeededRandom(seedOf(playerId)).shuffle([...KITS.keys()]);
+  return { order, opening: order[0] };
+}
+
+/**
+ * An id as a number. Any spread will do — this picks one of five kits and
+ * shuffles five things, and is not asked to be anything more than that.
+ */
+function seedOf(playerId: string | null): number {
+  let hash = 0x811c9dc5;
+  for (const character of playerId ?? '') {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }

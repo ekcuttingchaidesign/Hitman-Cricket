@@ -313,7 +313,7 @@ export class Game {
     const played = asInnings(this.score);
     this.hud.offerClaim(
       cardOffer(this.boardSeen, this.board, played, Date.now(), this.player),
-      readPlayer(), this.board, played,
+      readPlayer(), this.board, played, this.player,
     );
   }
 

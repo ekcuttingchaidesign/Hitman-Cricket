@@ -5,7 +5,7 @@ import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImag
 import type { CardFacts } from '../game/ShareCard';
 import { boardMarkup, peekMarkup, pickerMarkup, standingPeek, type BoardView, type CardOffer } from './Leaderboard';
 import type { BoardRow, Innings } from '../game/leaderboard';
-import { AVATARS } from '../config/board';
+import { AVATARS, kitDeal } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
@@ -87,6 +87,12 @@ export class HUD {
   /** The kit the picker is on, and what this browser last batted under. */
   private kit = 0;
   private claimed: { name: string; avatar: number } | null = null;
+  /**
+   * How this player's five kits are dealt: the order they are laid out in and
+   * the one the form opens on. Dealt off their id, so it is the same every time
+   * they see it and different from the next player's.
+   */
+  private deal = kitDeal(null);
   /**
    * What the strip's one key does. The strip has two states and they want
    * opposite things of the same key: an innings worth registering opens the form,
@@ -413,8 +419,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     known: { name: string; avatar: number } | null,
     rows: readonly BoardRow[],
     yours: Innings,
+    playerId: string | null = null,
   ) {
     this.claimed = known;
+    this.deal = kitDeal(playerId);
     this.offer = offer;
     if (offer.kind === 'silent') return;
     this.onBoard = offer.kind === 'standing';
@@ -463,8 +471,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('claim').classList.add('hidden');
     this.$('card-claim').classList.remove('hidden');
     this.$('end').classList.add('is-claiming');
-    this.kit = this.claimed?.avatar ?? 0;
-    this.$('claim-picker').innerHTML = pickerMarkup(this.kit);
+    // A returning player's own kit, or the one this player was dealt. Never kit
+    // zero: opening on the same kit for everybody is what put one colour all
+    // over the board.
+    this.kit = this.claimed?.avatar ?? this.deal.opening;
+    this.$('claim-picker').innerHTML = pickerMarkup(this.kit, this.deal.order);
     this.$('claim-picker').querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
       option.onclick = () => this.chooseKit(Number(option.dataset.kit));
     });
@@ -477,9 +488,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   private chooseKit(kit: number) {
     this.kit = ((kit % AVATARS) + AVATARS) % AVATARS;
-    this.$('claim-picker').querySelectorAll<HTMLButtonElement>('.kit-option').forEach((option, i) => {
-      option.classList.toggle('is-chosen', i === this.kit);
-      option.setAttribute('aria-checked', String(i === this.kit));
+    // Which kit a disc is, off the disc itself. It used to be its position in
+    // the row, which was the same thing only while the row was in kit order —
+    // and it is dealt now, so the ring would have landed on the wrong face.
+    this.$('claim-picker').querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
+      const mine = Number(option.dataset.kit) === this.kit;
+      option.classList.toggle('is-chosen', mine);
+      option.setAttribute('aria-checked', String(mine));
     });
   }
 

@@ -8,7 +8,7 @@ import {
   asInnings, boardMarkup, cardOffer, cutLabel, cutoff, decider, escape, kitMarkup, peekMarkup, pickerMarkup, placeOf,
   rowMarkup, standingPeek, tieNote,
 } from '../src/ui/Leaderboard';
-import { AVATARS, KITS, kitColour } from '../src/config/board';
+import { AVATARS, KITS, kitColour, kitDeal, kitName } from '../src/config/board';
 import { readdirSync } from 'node:fs';
 
 const board = inventedBoard();
@@ -252,6 +252,26 @@ describe('the kits', () => {
     expect(picker.match(/is-chosen/g)).toHaveLength(1);
   });
 
+  it('lays the kits out in the order it is given, labelled by name', () => {
+    const picker = pickerMarkup(2, [4, 0, 2, 1, 3]);
+    // The order the discs appear in, read off the markup.
+    expect([...picker.matchAll(/data-kit="(\d)"/g)].map(m => m[1])).toEqual(['4', '0', '2', '1', '3']);
+    // A disc carries its own kit number, so nothing downstream has to know that
+    // the third one along is not kit three.
+    expect(picker).toContain('data-kit="2" aria-label="purple"');
+    expect(picker.match(/aria-checked="true"/g)).toHaveLength(1);
+    expect(picker).toContain('<small>purple</small>');
+  });
+
+  it('rings the kit it was given, wherever that kit has been dealt', () => {
+    // Kit 3, dealt last. Ringing by position instead would light kit 1.
+    const picker = pickerMarkup(3, [4, 0, 2, 1, 3]);
+    expect(picker.match(/is-chosen/g)).toHaveLength(1);
+    const ringed = picker.split('<button').find(disc => disc.includes('is-chosen'))!;
+    expect(ringed).toContain('data-kit="3"');
+    expect(ringed).toContain('aria-checked="true"');
+  });
+
   it('says what the discs are for, in one title the group is named by', () => {
     const picker = pickerMarkup(0);
     expect(picker).toContain('Choose your avatar');
@@ -260,6 +280,68 @@ describe('the kits', () => {
     expect(picker).toContain('aria-labelledby="kit-picker-label"');
     expect(picker).toContain('id="kit-picker-label"');
     expect(picker).not.toContain('aria-label="Pick your kit"');
+  });
+});
+
+/**
+ * Everybody was shown kit zero with the ring already on it, which reads as an
+ * answer rather than a question — so almost nobody moved it and the board filled
+ * up with one colour. The kits are dealt per player now.
+ */
+describe('dealing the five kits', () => {
+  const ids = Array.from({ length: 400 }, (_, i) => `${(1e12 + i).toString(36)}-abcdefghijk${i}`);
+
+  it('gives a player every kit, once each', () => {
+    const { order } = kitDeal(ids[0]);
+    expect([...order].sort()).toEqual([...Array(AVATARS).keys()]);
+  });
+
+  it('opens on the kit it dealt first, whichever that is', () => {
+    for (const id of ids.slice(0, 20)) {
+      const { order, opening } = kitDeal(id);
+      expect(opening).toBe(order[0]);
+    }
+  });
+
+  /**
+   * The one that would be maddening rather than merely wrong. A fresh roll each
+   * time would hand a player a different kit for closing the form and opening it
+   * again, and shuffle the row under them while they were looking at it.
+   */
+  it('deals the same player the same hand every time', () => {
+    for (const id of ids.slice(0, 20)) expect(kitDeal(id)).toEqual(kitDeal(id));
+  });
+
+  it('does not open everybody on the same kit', () => {
+    const opened = new Set(ids.map(id => kitDeal(id).opening));
+    expect(opened.size).toBe(AVATARS);
+  });
+
+  it('spreads the opening kit roughly evenly, which is the whole point', () => {
+    const counts = new Array(AVATARS).fill(0);
+    for (const id of ids) counts[kitDeal(id).opening]++;
+    // An even deal is 80 of 400. Well inside this, and nowhere near the 400 and
+    // four noughts the fixed default produced.
+    for (const [kit, count] of counts.entries()) {
+      expect(count, `${kitName(kit)}: ${counts.join(',')}`).toBeGreaterThan(400 / AVATARS / 2);
+      expect(count, `${kitName(kit)}: ${counts.join(',')}`).toBeLessThan(400 / AVATARS * 2);
+    }
+  });
+
+  it('does not put the same kit first for everybody in the row either', () => {
+    expect(new Set(ids.map(id => kitDeal(id).order.join(''))).size).toBeGreaterThan(AVATARS * 2);
+  });
+
+  it('deals a player with no id yet a hand rather than falling over', () => {
+    const { order, opening } = kitDeal(null);
+    expect([...order].sort()).toEqual([...Array(AVATARS).keys()]);
+    expect(opening).toBe(order[0]);
+  });
+
+  it('names every kit in one short word, because the name is drawn under it', () => {
+    for (let kit = 0; kit < AVATARS; kit++) {
+      expect(kitName(kit)).toMatch(/^[a-z]{4,7}$/);
+    }
   });
 });
 
