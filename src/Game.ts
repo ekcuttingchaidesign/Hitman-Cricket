@@ -14,7 +14,7 @@ import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
 import { fetchBoard, submitInnings } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { placeOf, shouldOfferPlace } from './ui/Leaderboard';
+import { cardOffer } from './ui/Leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
@@ -303,26 +303,33 @@ export class Game {
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
   }
   /**
-   * Whether this innings is worth asking a name for, answered from the board
-   * already on screen so nothing waits on the network at the one moment a wait
-   * would be felt. A board that has not loaded is not a reason to say no: the
-   * store ranks it properly either way, and the worst case is an offer that
-   * turns out to be a place in the sixties.
+   * What the board has to say about the innings just played, answered from the
+   * board already on screen so nothing waits on the network at the one moment a
+   * wait would be felt. A board that has not loaded is not a reason to say
+   * nothing: the store ranks it properly either way, and the worst case is an
+   * offer that turns out to be a place in the sixties.
    */
   private offerBoard() {
     const played = asInnings(this.score);
-    const now = Date.now();
-    if (!shouldOfferPlace(this.boardSeen, this.board, played, now)) return;
-    this.hud.offerClaim(placeOf(this.board, played, now), readPlayer(), this.board, played);
+    this.hud.offerClaim(
+      cardOffer(this.boardSeen, this.board, played, Date.now(), this.player),
+      readPlayer(), this.board, played,
+    );
   }
 
   /**
-   * A returning player has already picked a kit and a name, so the key sends
-   * the innings rather than asking them again. A new one gets the form.
+   * The strip's key. An innings already beaten by the player's own row has
+   * nothing to register, so its key opens the board; anything else opens the
+   * form.
+   *
+   * The form opens for a returning player too, filled in with the name and kit
+   * they last batted under. It used to send straight off, which saved them a tap
+   * and left them no way to change either — and an innings that beats their own
+   * best is exactly the moment somebody wants a different name on it.
    */
   private startClaim = () => {
-    if (readPlayer()) void this.sendClaim();
-    else this.hud.openClaim();
+    if (this.hud.offerKind === 'standing') return this.showBoard();
+    this.hud.openClaim();
   };
 
   /**

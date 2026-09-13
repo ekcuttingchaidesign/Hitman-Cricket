@@ -1,7 +1,7 @@
 import { AVATARS, avatarSrc, kitColour } from '../config/board';
 import { GAME } from '../config/gameplay';
 import {
-  BOARD_SIZE, decidedBy, packScore, qualifies, type BoardRow, type Innings, type LadderKey,
+  BOARD_SIZE, decidedBy, improvesOn, packScore, qualifies, type BoardRow, type Innings, type LadderKey,
 } from '../game/leaderboard';
 
 /**
@@ -345,29 +345,58 @@ export function asInnings(score: { runs: number; wickets: number; balls: number;
 }
 
 /**
- * Whether to offer the player a place on the board.
+ * What the innings-end card has to say about the board, if anything.
  *
- * Three things have to be true, and two of them look identical from here, which
- * is the trap this function exists to name.
+ * Three answers, and the one that was missing is the middle one.
  *
- * The board must have been *reached*. On a host that cannot run the endpoints
- * there is nothing to claim, and offering a place that cannot be taken costs the
- * player a kit, a name and their goodwill before anything tells them.
+ * `claim` is a place worth asking a name for. `silent` is an innings the board
+ * has nothing to say about, and the card simply does not mention it.
  *
- * What that must not be confused with is a board that came back **empty**. A
- * board with no rows on it is the launch-day board, where every innings
- * qualifies and somebody has to be first. Gating on the row count instead of on
- * whether the fetch succeeded deadlocks the board shut: no rows means no offer,
- * and no offer means it never gets a row. Both cases leave `rows` empty, so the
- * caller has to keep the two apart and hand the answer in.
+ * `standing` is a player who is already on the board above this innings. The
+ * board keeps one row a player, their best, so such an innings cannot be
+ * registered however good it looks against everybody else's — somebody sitting
+ * top with a hundred and forty who then makes a hundred and twenty would have
+ * been told they were fourth and handed a key that did nothing. What they want
+ * to know is that the hundred and forty still stands, and the only useful thing
+ * to offer them is the board itself.
  *
- * And the innings has to be worth something. Nought is not a place.
+ * Two things about the order below. The standing answer comes before the duck
+ * check, because after a bad innings what still stands is worth more than
+ * silence. And it is decided on the whole ladder rather than on runs, so the
+ * screen and the store agree about what counts as beating yourself.
+ *
+ * Reached is not the same as empty, which is the trap this file has already
+ * fallen into once: an unreachable board and a board nobody has batted on both
+ * arrive as no rows, and gating on the row count refused the first player the
+ * place that would have started the board.
  */
-export function shouldOfferPlace(
-  reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number,
-) {
-  if (!reached || !yours.runs) return false;
-  return qualifies(yours, atMs, rows);
+export type CardOffer =
+  | { kind: 'silent' }
+  | { kind: 'claim'; place: number }
+  | { kind: 'standing'; runs: number; place: number };
+
+export function cardOffer(
+  reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,
+): CardOffer {
+  if (!reached) return { kind: 'silent' };
+  const mine = youId ? rows.findIndex(row => row.playerId === youId) : -1;
+  if (mine >= 0 && !improvesOn(yours, atMs, rows[mine])) {
+    return { kind: 'standing', runs: rows[mine].runs, place: mine + 1 };
+  }
+  if (!yours.runs || !qualifies(yours, atMs, rows)) return { kind: 'silent' };
+  return { kind: 'claim', place: placeOf(rows, yours, atMs) };
+}
+
+/**
+ * The three rows around the row a player already holds, for the standing state.
+ *
+ * Their own row is taken out and put back at the place it was in, which is the
+ * same peek the claim state draws and lands on the same three rows: nothing is
+ * being inserted here, so removing and re-inserting cancels out.
+ */
+export function standingPeek(rows: readonly BoardRow[], place: number): string {
+  const mine = rows[place - 1];
+  return peekMarkup(rows.filter(row => row !== mine), place, mine, mine.avatar, mine.name);
 }
 
 /** Where an innings would sit, if it were submitted now. Used for the cover line. */

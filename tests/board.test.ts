@@ -5,8 +5,8 @@ import { inventInnings, inventedBoard } from '../src/game/board-fixture';
 import { BOARD_SIZE, compareRows, decidedBy, plausible, unpackScore } from '../src/game/leaderboard';
 import type { BoardRow, Innings } from '../src/game/leaderboard';
 import {
-  asInnings, boardMarkup, cutLabel, cutoff, decider, escape, kitMarkup, peekMarkup, pickerMarkup, placeOf, rowMarkup,
-  shouldOfferPlace, tieNote,
+  asInnings, boardMarkup, cardOffer, cutLabel, cutoff, decider, escape, kitMarkup, peekMarkup, pickerMarkup, placeOf,
+  rowMarkup, standingPeek, tieNote,
 } from '../src/ui/Leaderboard';
 import { AVATARS, KITS, kitColour } from '../src/config/board';
 import { readdirSync } from 'node:fs';
@@ -281,6 +281,7 @@ describe('measuring an innings against the board', () => {
 describe('offering a place', () => {
   const at = Date.UTC(2026, 5, 1);
   const good: Innings = { runs: 111, sixes: 15, fours: 5, wickets: 3, dots: 4, balls: GAME.totalBalls };
+  const kind = (...args: Parameters<typeof cardOffer>) => cardOffer(...args).kind;
 
   /**
    * The one that shipped. An empty board and a reached board both leave `rows`
@@ -289,32 +290,111 @@ describe('offering a place', () => {
    * ever get onto is not a board.
    */
   it('offers the first player a place on a board that is empty but reachable', () => {
-    expect(shouldOfferPlace(true, [], good, at)).toBe(true);
+    expect(cardOffer(true, [], good, at)).toEqual({ kind: 'claim', place: 1 });
   });
 
   it('offers nothing when the board was never reached', () => {
     // A host that only serves files has no endpoints at all, and a kit and a
     // name should not be asked for against a place that cannot be taken.
-    expect(shouldOfferPlace(false, [], good, at)).toBe(false);
-    expect(shouldOfferPlace(false, board, good, at)).toBe(false);
+    expect(kind(false, [], good, at)).toBe('silent');
+    expect(kind(false, board, good, at)).toBe('silent');
   });
 
   it('offers a place to an innings that clears the fiftieth', () => {
     const best = { ...board[0], runs: board[0].runs + 1 };
-    expect(shouldOfferPlace(true, board, best, at)).toBe(true);
+    expect(cardOffer(true, board, best, at)).toEqual({ kind: 'claim', place: 1 });
   });
 
   it('offers nothing to an innings that does not clear it', () => {
     const worst = { ...board[BOARD_SIZE - 1], runs: 1, sixes: 0, fours: 0 };
-    expect(shouldOfferPlace(true, board, worst, at)).toBe(false);
+    expect(kind(true, board, worst, at)).toBe('silent');
   });
 
   it('offers nothing for a duck, even onto an empty board', () => {
     const duck: Innings = { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 };
-    expect(shouldOfferPlace(true, [], duck, at)).toBe(false);
+    expect(kind(true, [], duck, at)).toBe('silent');
   });
 });
 
+/**
+ * The board keeps one row a player, their best, so an innings below that row
+ * changes nothing however good it looks against everybody else's. The screen
+ * used to measure it against the fiftieth alone: somebody top of the board with
+ * 140 who then made 120 was told they were fourth and handed a key that did
+ * nothing at all.
+ */
+describe('an innings beaten by your own row', () => {
+  const at = Date.UTC(2026, 5, 1);
+  const leader = board[0];
+  const lesser = (over: Partial<Innings> = {}): Innings =>
+    ({ ...leader, runs: leader.runs - 20, ...over });
+
+  it('says what still stands instead of offering a place it cannot take', () => {
+    expect(cardOffer(true, board, lesser(), at, leader.playerId))
+      .toEqual({ kind: 'standing', runs: leader.runs, place: 1 });
+  });
+
+  it('would have offered that same innings a place to anybody else', () => {
+    // The innings is good — fourth or thereabouts. It is only this player it
+    // does nothing for, which is exactly what made the old screen wrong.
+    const offer = cardOffer(true, board, lesser(), at, 'somebody-else');
+    expect(offer.kind).toBe('claim');
+  });
+
+  it('names the place the standing row holds, not the place this innings would', () => {
+    const seventh = board[6];
+    expect(cardOffer(true, board, { ...seventh, runs: seventh.runs - 5 }, at, seventh.playerId))
+      .toEqual({ kind: 'standing', runs: seventh.runs, place: 7 });
+  });
+
+  it('offers a place again the moment the innings beats that row', () => {
+    const better = { ...leader, runs: leader.runs + 1 };
+    expect(cardOffer(true, board, better, at, leader.playerId)).toEqual({ kind: 'claim', place: 1 });
+  });
+
+  /**
+   * Beating yourself is a whole-ladder question, not a runs question: the store
+   * writes the new row whenever it outranks the old one, so the screen has to
+   * offer the place on the same terms or the two disagree.
+   */
+  it('counts a level score with one more six as beating it', () => {
+    const sharper = { ...leader, sixes: leader.sixes + 1, fours: Math.max(0, leader.fours - 2) };
+    expect(cardOffer(true, board, sharper, at, leader.playerId).kind).toBe('claim');
+  });
+
+  it('does not count the same innings played again, because it got there later', () => {
+    // Identical on every playing key, so the clock splits them — and the row
+    // already up there got there first. The store would refuse it too.
+    expect(cardOffer(true, board, { ...leader }, at, leader.playerId).kind).toBe('standing');
+  });
+
+  it('still says what stands after an innings that was going nowhere', () => {
+    // A duck is silent for everybody else. For a player who is on the board it
+    // is the moment their best is worth quoting back.
+    const duck: Innings = { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 };
+    expect(cardOffer(true, board, duck, at, leader.playerId))
+      .toEqual({ kind: 'standing', runs: leader.runs, place: 1 });
+  });
+
+  it('shows the rows around the row that is standing, not around this innings', () => {
+    const peek = standingPeek(board, 1);
+    expect(peek).toContain(escape(board[0].name));
+    // Three rows, placed 1, 2, 3: nothing is being inserted, so nothing shifts.
+    expect(peek.match(/class="board-row/g)).toHaveLength(3);
+    expect(peek.match(/class="board-place">(\d+)</g)).toEqual([
+      'class="board-place">1<', 'class="board-place">2<', 'class="board-place">3<',
+    ]);
+    expect(peek.match(/is-you/g)).toHaveLength(1);
+  });
+
+  it('brackets a row in the middle of the board with its real neighbours', () => {
+    const peek = standingPeek(board, 7);
+    expect(peek.match(/class="board-place">(\d+)</g)).toEqual([
+      'class="board-place">6<', 'class="board-place">7<', 'class="board-place">8<',
+    ]);
+    expect(peek).toContain(escape(board[6].name));
+  });
+});
 
 describe('an innings that is not a row yet', () => {
   const at = Date.UTC(2026, 5, 1);

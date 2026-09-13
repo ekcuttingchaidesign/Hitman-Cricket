@@ -9,7 +9,7 @@ import { ScoreManager } from '../src/game/ScoreManager';
 import type { ShotOutcome } from '../src/game/types';
 import { inventedBoard } from '../src/game/board-fixture';
 import type { Innings } from '../src/game/leaderboard';
-import { placeOf } from '../src/ui/Leaderboard';
+import { placeOf, type CardOffer } from '../src/ui/Leaderboard';
 
 const hud = new HUD(document.getElementById('stage')!, 214);
 hud.start();
@@ -37,6 +37,9 @@ const played: Innings = { runs: 101, sixes: 9, fours: 8, wickets: 2, dots: 6, ba
 const place = placeOf(fullBoard, played, Date.now());
 const top: Innings = { runs: 148, sixes: 14, fours: 9, wickets: 1, dots: 6, balls: 30 };
 
+/** The offer the strip is given, for the states that are about claiming one. */
+const claim = (place: number): CardOffer => ({ kind: 'claim', place });
+
 const states: Record<string, () => void> = {
   record: () => hud.end(innings(148, 1, 30, 14, 9), 121, true),
   first: () => hud.end(innings(93, 2, 30, 9, 4), 0, true),
@@ -45,10 +48,23 @@ const states: Record<string, () => void> = {
   big: () => hud.end(innings(180, 0, 30, 21, 14), 214, false),
   /* The claim step, in each of the states it passes through. Driving these off a
      real innings needs a board behind it as well as thirty balls. */
-  offer: () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(place, null, fullBoard, played); },
-  'offer-known': () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(place, { name: 'Rohit', avatar: 2 }, fullBoard, played); },
-  'offer-top': () => { hud.end(innings(148, 1, 30, 14, 9), 121, true); hud.offerClaim(placeOf(fullBoard, top, Date.now()), null, fullBoard, top); },
-  'offer-blind': () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(null, null, [], played); },
+  offer: () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(claim(place), null, fullBoard, played); },
+  'offer-known': () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(claim(place), { name: 'Rohit', avatar: 2 }, fullBoard, played); },
+  'offer-top': () => { hud.end(innings(148, 1, 30, 14, 9), 121, true); hud.offerClaim(claim(placeOf(fullBoard, top, Date.now())), null, fullBoard, top); },
+  'offer-blind': () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim(claim(0), null, [], played); },
+  /* Already on the board, above what was just played: the one state where the
+     strip has nothing to register and says what still stands instead. */
+  standing: () => {
+    hud.end(innings(120, 2, 30, 9, 7), fullBoard[0].runs, false);
+    hud.offerClaim({ kind: 'standing', runs: fullBoard[0].runs, place: 1 }, { name: fullBoard[0].name, avatar: fullBoard[0].avatar }, fullBoard, played);
+  },
+  'standing-mid': () => {
+    hud.end(innings(40, 3, 24, 2, 3), fullBoard[6].runs, false);
+    hud.offerClaim({ kind: 'standing', runs: fullBoard[6].runs, place: 7 }, { name: fullBoard[6].name, avatar: fullBoard[6].avatar }, fullBoard, played);
+  },
+  /* The form a returning player who has just beaten their own best now gets:
+     their name and kit are in it, and the key says so. */
+  'form-update': () => { states['offer-known'](); hud.onTheBoard(true); hud.openClaim(); },
   form: () => { states.offer(); hud.openClaim(); },
   'form-error': () => { states.form(); hud.claimFailed('Somebody already bats under that name.'); },
   sending: () => { states.form(); hud.claimSending(true); },

@@ -3,7 +3,7 @@ import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
-import { boardMarkup, peekMarkup, pickerMarkup, type BoardView } from './Leaderboard';
+import { boardMarkup, peekMarkup, pickerMarkup, standingPeek, type BoardView, type CardOffer } from './Leaderboard';
 import type { BoardRow, Innings } from '../game/leaderboard';
 import { AVATARS } from '../config/board';
 import { dotMatrix } from './DotMatrix';
@@ -87,6 +87,15 @@ export class HUD {
   /** The kit the picker is on, and what this browser last batted under. */
   private kit = 0;
   private claimed: { name: string; avatar: number } | null = null;
+  /**
+   * What the strip's one key does. The strip has two states and they want
+   * opposite things of the same key: an innings worth registering opens the form,
+   * and an innings already beaten by the player's own row has nothing to register
+   * and opens the board instead.
+   */
+  private offer: CardOffer = { kind: 'silent' };
+  /** Whether the player is on the board already, which the submit key says. */
+  private onBoard = false;
   private $ = (id: string) => document.getElementById(id)!;
   constructor(root: HTMLElement, best: number, top = 0) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
@@ -345,8 +354,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       return `<i class="${ball.isWicket ? 'ball-out' : ''}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
     }).join('');
     this.$('end').classList.toggle('is-record', isRecord);
-    // Last innings' claim does not carry over to this one.
-    // Last innings' place does not carry over to this one.
+    // Last innings' claim does not carry over to this one, and neither does what
+    // the board had to say about it: the strip is silent until this innings has
+    // been measured, so a stale key is never left behind to be pressed.
+    //
+    // These two are cleared before the form is put away, not after. Closing it
+    // relabels the submit key, and it reads the pair to decide what the key
+    // says — so clearing them second leaves last innings' wording on it.
+    this.offer = { kind: 'silent' };
+    this.onBoard = false;
     this.closeClaim();
     this.$('card-board').classList.add('hidden');
     // What happened, then the number that makes it mean something. A best is
@@ -393,22 +409,46 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * back is what the full board then shows.
    */
   offerClaim(
-    place: number | null,
+    offer: CardOffer,
     known: { name: string; avatar: number } | null,
     rows: readonly BoardRow[],
     yours: Innings,
   ) {
     this.claimed = known;
-    this.$('card-board-head').innerHTML = place
-      ? `${icon('trophy')}<span>You're <b>${ordinal(place)}</b> on the board</span>`
-      : `${icon('trophy')}<span>Put this innings on the board</span>`;
-    // With no board fetched there is nothing to sit between, so the strip is
-    // the banner and the key alone rather than three empty rows.
-    this.$('card-peek').innerHTML = place && rows.length
-      ? peekMarkup(rows, place, yours, known?.avatar ?? null)
-      : '';
+    this.offer = offer;
+    if (offer.kind === 'silent') return;
+    this.onBoard = offer.kind === 'standing';
+    const key = this.$('claim');
+    if (offer.kind === 'standing') {
+      // Their own row is the news, not this innings. What it says is what still
+      // stands, and the only thing left to offer is the board it stands on.
+      this.$('card-board-head').innerHTML =
+        `${icon('trophy')}<span>Your best score is still <b>${offer.runs}</b></span>`;
+      this.$('card-peek').innerHTML = rows.length ? standingPeek(rows, offer.place) : '';
+      key.textContent = 'VIEW LEADERBOARD';
+    } else {
+      this.$('card-board-head').innerHTML = offer.place
+        ? `${icon('trophy')}<span>You're <b>${ordinal(offer.place)}</b> on the board</span>`
+        : `${icon('trophy')}<span>Put this innings on the board</span>`;
+      // With no board fetched there is nothing to sit between, so the strip is
+      // the banner and the key alone rather than three empty rows.
+      this.$('card-peek').innerHTML = offer.place && rows.length
+        ? peekMarkup(rows, offer.place, yours, known?.avatar ?? null)
+        : '';
+      key.textContent = 'REGISTER SCORE ON LEADERBOARD';
+    }
     this.$('card-board').classList.remove('hidden');
   }
+
+  /** What the strip's key should do: open the form, or open the board. */
+  get offerKind() { return this.offer.kind; }
+
+  /**
+   * Whether the player already has a row this innings is about to replace. The
+   * submit key says so, because "put me on the board" is the wrong sentence for
+   * somebody who is on it and about to move up.
+   */
+  onTheBoard(already: boolean) { this.onBoard = already; }
 
   /** The form, once the player has asked for it. */
   get claimOpen() { return !this.$('card-claim').classList.contains('hidden'); }
@@ -431,6 +471,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const field = this.$('claim-name') as HTMLInputElement;
     field.value = this.claimed?.name ?? '';
     this.$('claim-error').classList.add('hidden');
+    this.claimSending(false);
     field.focus();
   }
 
@@ -451,7 +492,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   claimSending(sending: boolean) {
     const send = this.$('claim-send') as HTMLButtonElement;
     send.disabled = sending;
-    send.textContent = sending ? 'SENDING…' : 'PUT ME ON THE BOARD';
+    send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY PLACE' : 'PUT ME ON THE BOARD';
   }
 
   /** The store turned it down, and the player can do something about it. */

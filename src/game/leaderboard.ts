@@ -188,6 +188,26 @@ export function qualifies(innings: Innings, atMs: number, board: readonly { scor
   return packScore(innings, atMs) > cutoff;
 }
 
+/**
+ * Whether an innings would actually replace the row a player is already holding.
+ *
+ * This is the one rule the store and the browser have to agree on twice over. The
+ * store keeps a single row per player and only writes when the new score is
+ * higher, so an innings that does not clear a player's own row changes nothing at
+ * all — and a screen that offered a place for it would promise fourth and deliver
+ * the hundred and forty already standing.
+ *
+ * It is a whole-ladder comparison rather than runs alone, because the row can be
+ * beaten without the runs being beaten: the same score with one more six is a
+ * better innings and the store will take it. The submission time sits underneath
+ * the playing keys, which is what makes an identical innings played again come
+ * out lower rather than level — the same answer the store gives, for the same
+ * reason.
+ */
+export function improvesOn(innings: Innings, atMs: number, standing: { score: number } | null): boolean {
+  return !standing || packScore(innings, atMs) > standing.score;
+}
+
 /** The largest score the game can produce: every ball hit for six. */
 export function maxRuns() {
   return GAME.totalBalls * MAX_BALL_RUNS;

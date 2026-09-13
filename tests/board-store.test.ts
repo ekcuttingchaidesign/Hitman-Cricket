@@ -153,6 +153,57 @@ describe('submitting an innings', () => {
     expect(board.rows[0].runs).toBe(90);
   });
 
+  /**
+   * A player who beats their own best gets the form again, filled in with what
+   * they last batted under, so the innings that moves them up is also where a
+   * name or a kit can change. The row is theirs and is written over, so changing
+   * either never mints a second entry.
+   */
+  it('writes the new name and kit onto the row it replaces', async () => {
+    const { store } = fakeStore();
+    await submitScore(store, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
+    const better = await submitScore(
+      store, submission({ name: 'Sharma', avatar: 3, innings: innings(141) }), LAUNCH_MS + 2000,
+    );
+    expect(better.ok).toBe(true);
+    if (!better.ok) return;
+    expect(better.board.rows).toHaveLength(1);
+    expect(better.board.rows[0]).toMatchObject({ playerId: ID, name: 'Sharma', avatar: 3, runs: 141 });
+  });
+
+  it('leaves the name they had free for nobody but themselves', async () => {
+    // A name once held is never released, so the one they batted under before is
+    // still theirs to go back to — and still nobody else's to pick up.
+    const { store } = fakeStore();
+    await submitScore(store, submission({ name: 'Rohit', innings: innings(140) }), LAUNCH_MS + 1000);
+    await submitScore(store, submission({ name: 'Sharma', innings: innings(141) }), LAUNCH_MS + 2000);
+    expect(await submitScore(store, submission({ playerId: OTHER, name: 'Rohit' }), LAUNCH_MS + 3000))
+      .toMatchObject({ ok: false, status: 409 });
+    const back = await submitScore(store, submission({ name: 'Rohit', innings: innings(142) }), LAUNCH_MS + 4000);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.board.rows[0]).toMatchObject({ name: 'Rohit', runs: 142 });
+  });
+
+  /**
+   * The screen will not ask for a name against an innings that cannot take one,
+   * which is what `cardOffer` is for. If one arrives anyway the row stands: the
+   * figures beside a ranking have to describe the innings that earned it, and a
+   * name written onto a row whose score was refused is a row half updated.
+   */
+  it('changes nothing at all when the innings does not beat the row', async () => {
+    const { store } = fakeStore();
+    await submitScore(store, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
+    const worse = await submitScore(
+      store, submission({ name: 'Sharma', avatar: 3, innings: innings(120) }), LAUNCH_MS + 2000,
+    );
+    expect(worse.ok).toBe(true);
+    if (!worse.ok) return;
+    expect(worse.improved).toBe(false);
+    expect(worse.board.rows).toHaveLength(1);
+    expect(worse.board.rows[0]).toMatchObject({ name: 'Rohit', avatar: 0, runs: 140 });
+  });
+
   it('turns down an innings that could not have happened', async () => {
     const { store } = fakeStore();
     // Thirty balls, and every one of them a six, would be 180.
