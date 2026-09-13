@@ -492,7 +492,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   claimSending(sending: boolean) {
     const send = this.$('claim-send') as HTMLButtonElement;
     send.disabled = sending;
-    send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY PLACE' : 'PUT ME ON THE BOARD';
+    send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
   }
 
   /** The store turned it down, and the player can do something about it. */
