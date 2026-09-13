@@ -16,7 +16,7 @@ import { SeededRandom } from '../game/SeededRandom';
  */
 export const KITS = [
   { name: 'pink', colour: '#d31e6e', file: 'avatar_7.webp' },
-  { name: 'blue', colour: '#0248c8', file: 'avatar_1.webp' },
+  { name: 'india blue', colour: '#0248c8', file: 'avatar_1.webp' },
   { name: 'purple', colour: '#3f0884', file: 'avatar_2.webp' },
   { name: 'orange', colour: '#f55b11', file: 'avatar_3.webp' },
   { name: 'teal', colour: '#018ea3', file: 'avatar_6.webp' },

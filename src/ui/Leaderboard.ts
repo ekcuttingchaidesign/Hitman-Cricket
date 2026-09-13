@@ -306,15 +306,17 @@ function missedMarkup(yours: Innings, edge: BoardRow | null): string {
  *
  * `order` is which kits go where, which is dealt per player rather than fixed —
  * see `kitDeal`. Nothing else may assume a disc's position means anything: a
- * kit's number rides on `data-kit` and its label is its own name, so the row can
- * be laid out in any order without a disc answering to the wrong one.
+ * kit's number rides on `data-kit`, and what a screen reader is told is the
+ * kit's own name rather than where it is standing, so the row can be laid out in
+ * any order without a disc answering to the wrong one. The name is not drawn:
+ * the faces are what the choice is made on.
  */
 export function pickerMarkup(chosen: number, order: readonly number[] = [...Array(AVATARS).keys()]): string {
   return `<p class="claim-label" id="kit-picker-label">Choose your avatar</p>
     <div class="kit-picker" role="radiogroup" aria-labelledby="kit-picker-label">${
     order.map(kit => `
       <button type="button" class="kit-option${kit === chosen ? ' is-chosen' : ''}" role="radio" aria-checked="${kit === chosen}" data-kit="${kit}" aria-label="${escape(kitName(kit))}">
-        ${kitMarkup(kit, '')}<small>${escape(kitName(kit))}</small>
+        ${kitMarkup(kit, '')}
       </button>`).join('')}</div>`;
 }
 

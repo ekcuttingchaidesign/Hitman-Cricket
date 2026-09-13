@@ -1341,53 +1341,18 @@ body.start-screen .hud-top{display:none}
   gap:8px;
   margin-bottom:14px
 }
-/* The ring belongs to the face, not to the whole button: the button now holds a
-   name under the disc, and a 50% radius around both would draw an oval around a
-   circle and a word. So the button is the target and the disc inside it is what
-   is ringed — which also keeps the tap area the full height of both. */
 .kit-option{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
   width:100%;
   max-width:54px;
-  padding:0;
-  border:0;
+  padding:3px;
+  border:2px solid transparent;
+  border-radius:50%;
   background:none;
   line-height:0
 }
-/* The ring is an outline rather than a border, because the face inside the disc
-   is an absolutely positioned image filling it: padding a border away from the
-   image would have to move the image too, and it is laid out against the disc's
-   padding box, so it does not move. An outline is drawn outside the box and
-   takes the border radius with it, which is the whole effect wanted. The disc is
-   narrowed by exactly what the ring and its gap occupy, so the five still divide
-   the width they are given. */
-.kit-option .board-kit{
-  width:calc(100% - 10px);
-  height:auto;
-  aspect-ratio:1;
-  outline:2px solid transparent;
-  outline-offset:3px;
-  font-size:16px
-}
-/* The kit's name under its face. Five unlabelled pictures read as decoration;
-   five named ones read as a choice — and a name is also what a screen reader
-   announces, now that a disc's position no longer says which kit it is. */
-.kit-option small{
-  display:block;
-  margin-top:4px;
-  font-size:9px;
-  font-weight:700;
-  letter-spacing:.4px;
-  line-height:1.1;
-  text-transform:uppercase;
-  color:var(--quiet)
-}
-.kit-option.is-chosen small{color:var(--ink)}
-.kit-option:hover .board-kit{outline-color:#ffffff3d}
-.kit-option.is-chosen .board-kit{outline-color:var(--accent,#f2814f)}
-.kit-option:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:8px}
+.kit-option .board-kit{width:100%;height:auto;aspect-ratio:1;font-size:16px}
+.kit-option:hover{border-color:#ffffff3d}
+.kit-option.is-chosen{border-color:var(--accent,#f2814f)}
 .claim-field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
 /* The picker's title and the name field's label are the same kind of thing —
    one word telling you what the control below it is for — so they are the same

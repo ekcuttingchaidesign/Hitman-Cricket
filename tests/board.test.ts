@@ -259,8 +259,10 @@ describe('the kits', () => {
     // A disc carries its own kit number, so nothing downstream has to know that
     // the third one along is not kit three.
     expect(picker).toContain('data-kit="2" aria-label="purple"');
+    expect(picker).toContain('aria-label="india blue"');
     expect(picker.match(/aria-checked="true"/g)).toHaveLength(1);
-    expect(picker).toContain('<small>purple</small>');
+    // The name is what a screen reader is given, and is not drawn on the card.
+    expect(picker).not.toContain('<small>');
   });
 
   it('rings the kit it was given, wherever that kit has been dealt', () => {
@@ -338,10 +340,10 @@ describe('dealing the five kits', () => {
     expect(opening).toBe(order[0]);
   });
 
-  it('names every kit in one short word, because the name is drawn under it', () => {
-    for (let kit = 0; kit < AVATARS; kit++) {
-      expect(kitName(kit)).toMatch(/^[a-z]{4,7}$/);
-    }
+  it('gives every kit a name of its own, which is what a screen reader is told', () => {
+    const named = Array.from({ length: AVATARS }, (_, kit) => kitName(kit));
+    for (const name of named) expect(name).toMatch(/^[a-z][a-z ]*[a-z]$/);
+    expect(new Set(named).size).toBe(AVATARS);
   });
 });
 
