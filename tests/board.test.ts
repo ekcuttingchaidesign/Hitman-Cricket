@@ -251,6 +251,16 @@ describe('the kits', () => {
     expect(picker.match(/aria-checked="true"/g)).toHaveLength(1);
     expect(picker.match(/is-chosen/g)).toHaveLength(1);
   });
+
+  it('says what the discs are for, in one title the group is named by', () => {
+    const picker = pickerMarkup(0);
+    expect(picker).toContain('Choose your avatar');
+    // On screen and to a screen reader, the same words: the group points at the
+    // title rather than carrying a second wording of its own.
+    expect(picker).toContain('aria-labelledby="kit-picker-label"');
+    expect(picker).toContain('id="kit-picker-label"');
+    expect(picker).not.toContain('aria-label="Pick your kit"');
+  });
 });
 
 describe('measuring an innings against the board', () => {

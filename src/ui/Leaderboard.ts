@@ -298,9 +298,15 @@ function missedMarkup(yours: Innings, edge: BoardRow | null): string {
  * The five kits to choose from, on the innings-end card. One radio group, so a
  * keyboard arrows through it and a screen reader announces it as the one choice
  * it is rather than as five buttons.
+ *
+ * The title is the group's label rather than a heading that happens to sit above
+ * it, which is why the group points at it: a screen reader then reads "Choose
+ * your avatar" on arriving, the same words on the screen, instead of a second
+ * wording kept only for it.
  */
 export function pickerMarkup(chosen: number): string {
-  return `<div class="kit-picker" role="radiogroup" aria-label="Pick your kit">${
+  return `<p class="claim-label" id="kit-picker-label">Choose your avatar</p>
+    <div class="kit-picker" role="radiogroup" aria-labelledby="kit-picker-label">${
     Array.from({ length: AVATARS }, (_, i) => `
       <button type="button" class="kit-option${i === chosen ? ' is-chosen' : ''}" role="radio" aria-checked="${i === chosen}" data-kit="${i}" aria-label="Kit ${i + 1}">
         ${kitMarkup(i, '')}

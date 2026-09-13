@@ -1327,6 +1327,7 @@ body.start-screen .hud-top{display:none}
   font-weight:600;
   color:var(--ink)
 }
+.claim-label{margin:0 0 7px}
 /* Five kits, one choice. They are the same discs the board draws, at the size a
    thumb needs rather than the size a row needs.
    A grid rather than a row, because five fixed discs plus their gaps add up to
@@ -1353,7 +1354,10 @@ body.start-screen .hud-top{display:none}
 .kit-option:hover{border-color:#ffffff3d}
 .kit-option.is-chosen{border-color:var(--accent,#f2814f)}
 .claim-field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
-.claim-field span{
+/* The picker's title and the name field's label are the same kind of thing —
+   one word telling you what the control below it is for — so they are the same
+   size, weight and colour rather than two near-misses. */
+.claim-field span,.claim-label{
   font-size:10.5px;
   font-weight:700;
   letter-spacing:1.4px;
