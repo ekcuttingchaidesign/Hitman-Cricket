@@ -1524,10 +1524,11 @@ body.start-screen .hud-top{display:none}
   line-height:1.5;
   color:var(--quiet)
 }
-/* Restarting throws the innings away, so it is the quiet one — the same
-   underlined twin the claim form gives "Not now". Quiet is not small, though:
-   the padding is what carries it to a thumb's worth of target. */
-.pause-card .ghost-link{margin-top:9px;padding:11px 6px}
+/* The second key is the card's quieter one: the navy the innings card gives its
+   story key, on its own dark ledge. Subordinate to the white key above it by
+   tone and height rather than by being a line of text — restarting is a real
+   decision, and it should be as easy to hit as resuming. */
+.pause-card .story-key{margin-top:11px}
 .pause-card .start-hint{margin-top:10px;color:var(--quiet)}
 
 /* ── The board's own keys ──────────────────────────────────────────────── */
