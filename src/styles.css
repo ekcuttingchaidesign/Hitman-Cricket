@@ -858,6 +858,7 @@ body.start-screen .hud-top{display:none}
 /* The ground behind the last card of the innings goes down further than it does
    behind a pause, so a navy card still has something to stand out from. */
 #end{background:#071219f2}
+#pause-overlay{background:#0a1c28e6}
 .scorecard h2{
   font-size:10.5px;
   font-weight:700;
@@ -1479,6 +1480,55 @@ body.start-screen .hud-top{display:none}
 /* Claimed. The stamp above the number goes green, because the innings has done
    the one thing left for it to do. */
 #end.is-claimed .card-line{color:#43b978;font-weight:700}
+
+/* ── The pause card ────────────────────────────────────────────────────── */
+/* The same slab the innings ends on, cut shorter. A pause and an innings-end are
+   the same moment structurally — the game has stopped and is asking what next —
+   so they are the same object rather than two panels that happen to overlap.
+   It takes the scorecard's navy, its ledge, its radius and its Satoshi, and the
+   label above the line reads the way "INNINGS COMPLETE" does.
+   The ground behind it is lighter than the one behind the innings card, on
+   purpose: an innings is over and the field can go dark, but a pause is a game
+   still standing there waiting, and it should look like one. */
+.pause-card{
+  padding:22px 26px 20px;
+  /* The scorecard is a left-hand column of figures. This is two keys and a
+     sentence, and they share the card's width, so they are centred on it. */
+  text-align:center
+}
+.pause-eyebrow{
+  margin:0 0 6px;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--quiet)
+}
+/* Big, but nothing like the score: a number is the point of that card and this
+   is only a word. Same family and the same tight setting, two steps down. */
+.pause-card h2{
+  margin:0 0 7px;
+  font-size:clamp(30px,8vw,37px);
+  font-weight:900;
+  letter-spacing:-1.4px;
+  line-height:1.04;
+  /* The scorecard's h2 is its small uppercase stamp. This one is the sentence
+     the card is built around, so it is set as written. */
+  text-transform:none;
+  color:var(--ink)
+}
+.pause-line{
+  margin:0 0 20px;
+  font-size:13.5px;
+  font-weight:600;
+  line-height:1.5;
+  color:var(--quiet)
+}
+/* Restarting throws the innings away, so it is the quiet one — the same
+   underlined twin the claim form gives "Not now". Quiet is not small, though:
+   the padding is what carries it to a thumb's worth of target. */
+.pause-card .ghost-link{margin-top:9px;padding:11px 6px}
+.pause-card .start-hint{margin-top:10px;color:var(--quiet)}
 
 /* ── The board's own keys ──────────────────────────────────────────────── */
 /* Pinned to the foot of the sheet, with the fifty rows running under them.
