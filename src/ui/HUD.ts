@@ -143,7 +143,7 @@ export class HUD {
         <div id="survive-strip" class="survive-strip hidden" role="status">
           <span class="strip-cell"><span class="strip-label">TARGET</span><strong id="strip-target"></strong></span>
           <span class="strip-cell"><span class="strip-label">TO WIN</span><strong id="strip-need"></strong></span>
-          <span class="strip-cell"><span class="strip-label">BALLS LEFT</span><strong id="strip-left"></strong></span>
+          <span class="strip-cell"><span class="strip-label">BALLS</span><strong id="strip-left"></strong></span>
         </div>
         </div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>

@@ -1,6 +1,6 @@
 import { COMPATIBILITY, CUT, SOLID_SHOT } from '../config/gameplay.js';
 import {
-  BANDS, BODY_ZONE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
+  BANDS, BODY_ZONE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
 import { gradeTiming } from './ShotResolver.js';
@@ -68,6 +68,24 @@ export function atTheBody(delivery: Delivery): boolean {
   return Math.abs(delivery.finalTargetX - PITCH.stanceX) <= BODY_ZONE;
 }
 
+/**
+ * Whether this is a ball a number eleven could put over the rope.
+ *
+ * Full enough to swing through and slow enough to line up. A tailender who
+ * middles an express ball has middled it — he has not cleared the ropes with
+ * it — so everything outside this is worth four at the very best however well it
+ * is timed. This is the gate that turns the maximum from a reward for timing
+ * into a reward for waiting for the right ball.
+ */
+export function inTheSlot(delivery: Delivery, compatibility = 1): boolean {
+  return delivery.speedKph <= SIX.maxKph
+    && delivery.bounceZ >= SIX.minBounce && delivery.bounceZ <= SIX.maxBounce
+    // And the stroke has to be the one the line was asking for. A tailender who
+    // middles a cover drive to a ball angled at his hip has middled it; he has
+    // not cleared long-off with it.
+    && compatibility >= SIX.minCompatibility;
+}
+
 /** Far enough outside off that playing at it is a decision, and missing it is an edge. */
 export function outsideOff(delivery: Delivery): boolean {
   return delivery.finalTargetX >= OFF_WIDTH;
@@ -130,15 +148,35 @@ function nick(base: ShotOutcome, rng: { next(): number }, said = 'EDGED — CAUG
  * innings hands out, which with a single wicket would be a lottery ticket.
  */
 function skied(base: ShotOutcome, rng: { next(): number }): ShotOutcome {
+  // The hang is shorter than the classic innings'. A skied ball is the slowest
+  // thing that happens in a game of sixty deliveries, and at nearly two seconds
+  // it was the single longest wait in the mode for what is usually a wicket.
+  const up = { ...base, aerial: true, madeBatContact: true, hangMs: SURVIVE.hangMs };
   if (rng.next() < RISK.mishitCaught) {
-    return { ...base, aerial: true, madeBatContact: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' };
+    return { ...up, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' };
   }
   let roll = rng.next();
   for (const [value, weight] of SAFE_MISHIT) {
     roll -= weight;
-    if (roll <= 0) return { ...base, aerial: true, madeBatContact: true, runs: value, feedback: value ? award(value) : 'DROPPED SHORT OF THE FIELDER' };
+    if (roll <= 0) return { ...up, runs: value, feedback: value ? award(value) : 'DROPPED SHORT OF THE FIELDER' };
   }
-  return { ...base, aerial: true, madeBatContact: true, feedback: 'DOT BALL' };
+  return { ...up, feedback: 'DOT BALL' };
+}
+
+/**
+ * Through the shot, but not so badly that it goes up. The ball comes off the
+ * leading edge and squirts away along the ground for nothing much.
+ *
+ * This exists because every early mistake used to sky it, which put a ball in
+ * the air several times an over — far too often to read as a mistake, and far
+ * too long to watch. Only a genuinely bad one goes up now; this is the rest.
+ */
+function leadingEdge(base: ShotOutcome, rng: { next(): number }): ShotOutcome {
+  if (rng.next() < RISK.leadingEdgeCaught) {
+    return { ...base, madeBatContact: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'LEADING EDGE — CAUGHT!' };
+  }
+  const runs = rng.next() < 0.7 ? 0 : 1;
+  return { ...base, madeBatContact: true, runs: runs as 0 | 1, feedback: runs ? award(1) : 'OFF THE LEADING EDGE' };
 }
 
 /**
@@ -173,14 +211,22 @@ function nudged(base: ShotOutcome, rng: { next(): number }): ShotOutcome {
  * past it: into him if it was angled at him, off the top edge if it was going
  * across him, and harmlessly into the pitch otherwise.
  */
-function defended(base: ShotOutcome, delivery: Delivery, contact: Contact, rng: { next(): number }): ShotOutcome {
-  // A bouncer is ducked, and ducking is always right. It is the one answer in
-  // the mode that cannot go wrong, which is what makes leaving one alone —
-  // doing nothing at all — a mistake rather than the same thing.
-  if (delivery.style === 'SHORT') return { ...base, defended: true, madeBatContact: false, feedback: 'DUCKED' };
+function defended(base: ShotOutcome, delivery: Delivery, contact: Contact, delta: number | null, rng: { next(): number }): ShotOutcome {
+  // A bouncer is ducked — but it has to be ducked in time. Ducking used to be
+  // unconditionally safe, which made the fastest, nastiest ball in the mode the
+  // one delivery a player could answer without thinking: press the block key
+  // and nothing could happen to him. Get under it late and you are still
+  // standing up when it arrives.
+  if (delivery.style === 'SHORT') {
+    if (delta === null || delta > BANDS.clean) return blow(base, delivery, blowSpot(delivery));
+    return { ...base, defended: true, madeBatContact: false, feedback: 'DUCKED' };
+  }
   if (contact === 'CLEAN') return { ...base, defended: true, madeBatContact: true, feedback: 'DEFENDED' };
   if (contact === 'BEATEN') return beaten({ ...base, feedback: 'PLAYED AND MISSED' }, delivery, rng);
-  if (contact === 'EDGED_LATE') return blow(base, delivery, 'GLOVES');
+  // Late, the ball beats the bat. At a ball angled into him that means the body
+  // rather than the glove — the glove is where a ball going past the outside of
+  // the bat catches him, not one coming at his ribs.
+  if (contact === 'EDGED_LATE') return blow(base, delivery, atTheBody(delivery) ? blowSpot(delivery) : 'GLOVES');
   // Early: the bat has come and gone.
   if (atTheBody(delivery)) return blow(base, delivery, blowSpot(delivery));
   if (outsideOff(delivery)) return nick(base, rng, 'TOP EDGE — CAUGHT BEHIND!');
@@ -242,7 +288,7 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
     return beaten({ ...base, feedback: 'LEFT ALONE' }, delivery, rng);
   }
 
-  if (attempt.shotType === 'DEFEND') return defended(base, delivery, contact, rng);
+  if (attempt.shotType === 'DEFEND') return defended(base, delivery, contact, delta, rng);
   if (delivery.style === 'SHORT') return shortBall(base, delivery, attempt.shotType, contact, rng);
 
   // Middled: bat on ball, and a stroke the line actually allowed. The grade
@@ -250,7 +296,13 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
   // a tailender does not place the ball, he either times it or he does not.
   const middled = compatibility >= SOLID_SHOT && timingGrade !== 'POOR' && timingGrade !== 'MISS';
   if (middled) {
-    if (timingGrade === 'PERFECT') return { ...base, runs: 6, madeBatContact: true, feedback: award(6) };
+    // The maximum wants the right ball as well as the right moment — see
+    // `inTheSlot`. Middled anything else and it is four, which is what a
+    // tailender's best shot is actually worth.
+    if (timingGrade === 'PERFECT') {
+      const runs = inTheSlot(delivery, compatibility) ? 6 : 4;
+      return { ...base, runs, madeBatContact: true, feedback: award(runs) };
+    }
     if (timingGrade === 'GOOD') return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };
     return nudged(base, rng);
   }
@@ -267,7 +319,17 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
   // attacking windows, so a shot could be graded POOR and read CLEAN at the same
   // time, and fall through to being bowled with the bat on the ball.
   if (timingGrade === 'MISS') return beaten({ ...base, feedback: 'PLAYED AND MISSED' }, delivery, rng);
-  if (delta !== null && delta < 0) return skied(base, rng);
+  if (delta !== null && delta < 0) {
+    // Through the shot at one aimed at him: the bat is past and the ball is
+    // still coming, so it hits him. Playing a stroke at a ball angled into the
+    // body is how a tailender gets hurt, and without this the only way to take
+    // a blow was to block — so a batter who attacked was never hit at all.
+    if (atTheBody(delivery)) return blow(base, delivery, blowSpot(delivery));
+    // Only a badly early stroke goes up. Everything else comes off the leading
+    // edge and stays on the ground, which is both the commoner miss in cricket
+    // and the one that does not stop the game for two seconds.
+    return timingGrade === 'POOR' ? skied(base, rng) : leadingEdge(base, rng);
+  }
   return outsideOff(delivery) ? nick(base, rng) : insideEdge(base, delivery, rng);
 }
 

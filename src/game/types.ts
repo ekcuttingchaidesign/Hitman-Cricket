@@ -44,4 +44,6 @@ export interface ShotOutcome {
   side?: TimingSide;
   /** A ball that missed the bat and hit the batter instead. Survive only. */
   hit?: { where: BodyPart; damage: number };
+  /** How long a skied ball should hang before it is judged. Defaults to the classic hang. */
+  hangMs?: number;
 }

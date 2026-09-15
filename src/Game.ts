@@ -31,6 +31,9 @@ const SURVIVE_LIMITS: InningsLimits = {
 };
 const SURVIVE_PLAN: BowlingPlan = {
   styles: SURVIVE_STYLES, specials: SURVIVE_SPECIALS, travelScale: SURVIVE.travelScale,
+  // This bowler is aiming: the bouncer goes at the head and the express ball at
+  // fifth stump, rather than both being dealt whatever line comes next.
+  aimed: true,
 };
 
 export class Game {

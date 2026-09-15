@@ -1817,15 +1817,18 @@ dialog .primary-button{margin-top:18px}
   .confidence.is-hurt{animation:none;box-shadow:0 0 0 4px #d8443a45}
 }
 
-/* What is left to do, kept where the score already is. */
+/* What is left to do, kept where the score already is.
+   Three blocks stacked down the left edge — scoreboard, meter, this — reached
+   the bowler's mark on a phone, so every part of it is sized to stay clear of
+   him: one line per label, no wrapping, and the whole stack scaled down where
+   the screen is narrow. */
 .survive-strip{
   display:flex;
   gap:2px;
-  margin-top:6px;
-  border-radius:10px;
+  border-radius:9px;
   overflow:hidden;
   background:#0d2233e6;
-  box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset;
+  box-shadow:0 6px 16px #06121b4d,0 1px 0 #ffffff1a inset;
   font-family:var(--font-display,inherit)
 }
 .survive-strip .strip-cell{
@@ -1833,13 +1836,18 @@ dialog .primary-button{margin-top:18px}
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:1px;
-  padding:6px 8px;
-  background:#12293c
+  gap:0;
+  padding:4px 9px 5px;
+  background:#12293c;
+  white-space:nowrap
 }
-.survive-strip .strip-label{font-size:8px;letter-spacing:.14em;color:#7fa6c0}
-.survive-strip strong{font-size:17px;line-height:1;color:#f4efe2;font-variant-numeric:tabular-nums}
+.survive-strip .strip-label{font-size:7.5px;letter-spacing:.13em;color:#7fa6c0;line-height:1.5}
+.survive-strip strong{font-size:15px;line-height:1.05;color:#f4efe2;font-variant-numeric:tabular-nums}
 .survive-strip.is-close strong{color:#ffce7a}
+/* Survive carries a third block, so its stack is tighter than the other mode's
+   and the meter loses the breathing room it does not need here. */
+body.survive-mode .score-stack{gap:5px}
+body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 
 /* The picker. Two cards, and the Test match says plainly what it costs. */
 .modes-card{max-width:440px}
@@ -1879,6 +1887,11 @@ dialog .primary-button{margin-top:18px}
    no ladder of its own yet, and it has no business on the other mode's. */
 body.survive-mode #board,body.survive-mode #share{opacity:.3;pointer-events:none}
 @media (max-width:560px){
-  .survive-strip strong{font-size:15px}
   .mode-option strong{font-size:19px}
+  /* The whole readout shrinks rather than any one part of it, so the scoreboard,
+     the meter and the strip keep their proportions and clear the bowler's mark. */
+  body.survive-mode .score-stack{transform:scale(.86);transform-origin:top left}
+}
+@media (max-width:420px){
+  body.survive-mode .score-stack{transform:scale(.78);transform-origin:top left}
 }

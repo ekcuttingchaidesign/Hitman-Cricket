@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, STYLES as CLASSIC_STYLES } from '../src/config/gameplay';
-import { BANDS, DAMAGE, HEALTH, STYLES, SURVIVE, damageFor } from '../src/config/survive';
+import { BANDS, DAMAGE, HEALTH, SIX, STYLES, SURVIVE, damageFor } from '../src/config/survive';
 import { ballPosition, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { Health } from '../src/game/Health';
 import {
-  atTheBody, blowSpot, contactOf, endingOf, outsideOff, resolveSurvive, teamScore, timingSide,
+  atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, teamScore, timingSide,
 } from '../src/game/Survive';
 import type { Delivery, DeliveryStyle } from '../src/game/types';
 
@@ -143,11 +143,19 @@ describe('the block', () => {
 });
 
 describe('the bouncer', () => {
-  it('is safe to duck, always', () => {
-    const played = resolveSurvive(ball('SHORT'), at(400, 'DEFEND'), rolls(0.5));
+  it('is safe to duck on time', () => {
+    const played = resolveSurvive(ball('SHORT'), at(0, 'DEFEND'), rolls(0.5));
     expect(played.isWicket).toBe(false);
     expect(played.hit).toBeUndefined();
     expect(played.feedback).toBe('DUCKED');
+  });
+
+  it('hits him if he ducks late', () => {
+    // Ducking used to be unconditionally safe, which made the fastest ball in
+    // the mode the one a player could answer without thinking. Get under it
+    // late and you are still standing up when it arrives.
+    const played = resolveSurvive(ball('SHORT'), at(BANDS.clean + 40, 'DEFEND'), rolls(0.5));
+    expect(played.hit?.where).toBe('HELMET');
   });
 
   it('hits him on the helmet if he does nothing at all', () => {
@@ -165,11 +173,38 @@ describe('the bouncer', () => {
 });
 
 describe('a mistimed stroke', () => {
-  it('goes up when he is early, and can be caught', () => {
+  it('goes up only when he is badly early, and is usually caught', () => {
     const played = resolveSurvive(ball(), at(-130), rolls(0));
+    expect(played.timingGrade).toBe('POOR');
     expect(played.aerial).toBe(true);
     expect(played.isWicket).toBe(true);
     expect(played.wicketType).toBe('CAUGHT');
+  });
+
+  it('comes off the leading edge along the ground when he is only a little early', () => {
+    // Every early stroke used to go up, which put a ball in the air twice an
+    // over — too often to read as a mistake and too slow to watch.
+    const wide = ball('NORMAL', { line: 'OUTSIDE_OFF', baseTargetX: 0.42, finalTargetX: 0.42 });
+    const played = resolveSurvive(wide, at(-60), rolls(0.99, 0.99));
+    expect(played.aerial).toBe(false);
+    expect(played.isWicket).toBe(false);
+    expect(played.runs).toBeLessThanOrEqual(1);
+  });
+
+  it('hangs for less time than the classic innings when it does go up', () => {
+    const played = resolveSurvive(ball(), at(-130), rolls(0.99, 0.99));
+    expect(played.hangMs).toBe(SURVIVE.hangMs);
+    expect(played.hangMs!).toBeLessThan(GAME.aerialFlightMs);
+  });
+
+  it('hits him when he plays early at one angled into his body', () => {
+    // Without this the only way to take a blow was to block, so a batter who
+    // attacked was never hit at all — which is exactly what the playtest found.
+    const inswinger = ball('RIB', { finalTargetX: GAME.stanceX });
+    const played = resolveSurvive(inswinger, at(-130, 'LEG'), rolls(0.5));
+    expect(played.timingGrade).toBe('POOR');
+    expect(played.hit?.where).toBe('RIBS');
+    expect(played.isWicket).toBe(false);
   });
 
   it('never pays a boundary for a mishit that lands safely', () => {
@@ -202,9 +237,28 @@ describe('a mistimed stroke', () => {
 });
 
 describe('middling it', () => {
-  it('pays six for perfect and four for good', () => {
-    expect(resolveSurvive(ball(), at(0), rolls(0.5)).runs).toBe(6);
-    expect(resolveSurvive(ball(), at(SURVIVE.timing.perfect + 5), rolls(0.5)).runs).toBe(4);
+  /** A ball in the slot: full enough to swing through and slow enough to line up. */
+  const slot = () => ball('NORMAL', { speedKph: SIX.maxKph - 2 });
+
+  it('pays six only for a perfect stroke at a ball that was there to be hit', () => {
+    expect(resolveSurvive(slot(), at(0), rolls(0.5)).runs).toBe(6);
+    expect(inTheSlot(slot())).toBe(true);
+  });
+
+  it('pays four for the same stroke at a ball that was not', () => {
+    // A number eleven who middles an express delivery has middled it. He has
+    // not cleared the rope with it.
+    const quick = ball('EXPRESS');
+    expect(inTheSlot(quick)).toBe(false);
+    expect(resolveSurvive(quick, at(0), rolls(0.5)).runs).toBe(4);
+  });
+
+  it('pays four for a perfect stroke that was not the one the line asked for', () => {
+    expect(inTheSlot(slot(), 0.6)).toBe(false);
+  });
+
+  it('pays four for good timing', () => {
+    expect(resolveSurvive(slot(), at(SURVIVE.timing.perfect + 5), rolls(0.5)).runs).toBe(4);
   });
 
   it('is worked away for ones and twos when it is only well enough timed', () => {

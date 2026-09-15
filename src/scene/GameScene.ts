@@ -289,7 +289,7 @@ export class GameScene {
     if (outcome.edged) this.hitEnd.set(0.58, 0.42, -1.6);
     // A skied shot hangs long enough to be watched down; a middled one leaves
     // fast. The charge is worth watching all the way over the roof.
-    this.flightMs = outcome.advance ? 2200 : outcome.defended ? 700 : outcome.edged ? 460 : outcome.aerial ? GAME.aerialFlightMs : GAME.hitAnimationMs;
+    this.flightMs = outcome.advance ? 2200 : outcome.defended ? 700 : outcome.edged ? 460 : outcome.aerial ? (outcome.hangMs ?? GAME.aerialFlightMs) : GAME.hitAnimationMs;
     // A four is a boundary along the turf — a drive races to the rope on the
     // ground. Only a six leaves it, and only a mishit hangs.
     this.hitHeight = outcome.advance ? 32 : outcome.defended ? 0.05 : outcome.edged ? 0.18 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)

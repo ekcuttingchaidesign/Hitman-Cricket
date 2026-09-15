@@ -305,6 +305,10 @@ export class Batter {
   };
   private palette = {
     shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
+    // The helmet is its own material rather than the shirt's, because it is navy
+    // in both innings: a cricketer's lid does not change colour when the rest of
+    // the kit does, and in whites a cream one read as a bald head.
+    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
@@ -342,8 +346,8 @@ export class Batter {
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
-    const helmet = this.mesh(this.head, this.palette.shirt, [.188, .175, .195], 'ball'); helmet.position.set(0, .045, -.018);
-    this.mesh(this.head, this.palette.shirt, [.34, .045, .20], 'soft').position.set(0, .045, .135);
+    const helmet = this.mesh(this.head, this.palette.helmet, [.188, .175, .195], 'ball'); helmet.position.set(0, .045, -.018);
+    this.mesh(this.head, this.palette.helmet, [.34, .045, .20], 'soft').position.set(0, .045, .135);
     for (const y of [-.055, -.115]) {
       const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');
       bar.rotation.z = Math.PI / 2; bar.position.set(0, y, .175);

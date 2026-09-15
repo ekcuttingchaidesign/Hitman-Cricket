@@ -1,5 +1,5 @@
 import type { BodyPart, DeliveryStyle, TimingGrade } from '../game/types.js';
-import { GAME } from './gameplay.js';
+import { GAME, type StyleShape } from './gameplay.js';
 
 /**
  * Survive: a tailender, one wicket, and ten overs to bat out.
@@ -33,21 +33,22 @@ import { GAME } from './gameplay.js';
  *     times. That number is the price of the safe strategy and therefore the
  *     length of time the safe strategy lasts.
  *
- * Both were tuned against `scripts/survive-sim.ts` rather than by feel. What it
- * says at these numbers, over twenty-five thousand innings of each:
+ * Both were tuned against `scripts/survive-sim.ts` rather than by feel, and
+ * retuned against it after the first playtest — which reported the mode too
+ * easy, sixes far too common, and the batter never once hit. What it says now,
+ * over twelve thousand innings of each:
  *
- *            player        won   drawn  bowled  retire   runs  balls  health
- *   expert · chasing      73.2%    0.0%   26.8%    0.0%   86.9   27.5      90
- *   competent · chasing   18.7%    0.0%   81.3%    0.0%   48.2   19.3      91
- *   novice · chasing       0.3%    0.0%   99.7%    0.0%   16.2    8.9      95
- *   expert · blocking      0.0%   75.2%   12.5%   12.3%    0.0   54.8      38
- *   competent · blocking   0.0%    5.5%   54.8%   39.7%    0.0   29.5      34
+ *            player        won   drawn  bowled  retire  balls  health   six  aerial
+ *   expert · chasing      24.5%    0.0%   72.2%    3.2%   24.2      78  1/21   1/63
+ *   expert · measured     14.0%    5.8%   66.8%   13.4%   29.5      60  1/24   1/75
+ *   competent · chasing    0.7%    0.1%   95.4%    3.9%   11.7      79  1/31   1/20
+ *   expert · blocking      0.0%   31.4%   14.6%   54.0%   43.6      19     —      —
  *
- * Which is the mode working as intended, in three readings. A competent player
- * chases it down about twice in ten. A good one blocking for the draw gets
- * there three times in four but arrives with a third of his health, and retires
- * hurt one time in eight — so the draw is survivable rather than safe. And
- * blocking does not save a middling player at all: he has to score.
+ * A good player chases it down about a quarter of the time and bats out the ten
+ * overs about a third — both of them hard, neither of them out of reach. A six
+ * comes round once in twenty-odd balls and is rarer still in a real innings,
+ * where the stroke is not always the one the line was asking for. And a ball in
+ * the air is now a once-an-innings event rather than a twice-an-over one.
  */
 
 /** The innings, and what winning it means. */
@@ -72,12 +73,14 @@ export const SURVIVE = {
    * frames at sixty hertz, so a shot timed by the frame that noticed it rather
    * than by the press itself would be graded by rounding.
    */
-  timing: { perfect: 26, good: 52, ok: 100, poor: 195 },
+  timing: { perfect: 18, good: 40, ok: 78, poor: 165 },
   /** Quick deliveries squeeze the windows further, but less brutally than classic's .82. */
   fastTimingScale: 0.86,
   /** How long an innings holds between balls. Trimmed, because sixty balls is a long sit. */
   readyMs: 420,
   resultMs: 760,
+  /** How long a skied ball hangs before it is judged. The classic innings waits 1900. */
+  hangMs: 1150,
 } as const;
 
 /**
@@ -149,20 +152,27 @@ export function damageFor(where: BodyPart, speedKph: number): number {
  * the stumps and is a bouncer; below about 1.8 it is a length ball. The window
  * is narrow and these numbers sit in the middle of it.
  */
-export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: number; label: string; rush?: number; tight?: boolean; bounce?: number; rise?: number }> = {
-  NORMAL: { weight: 0.24, min: 138, max: 150, label: 'SEAM', rush: 0.86 },
-  FAST: { weight: 0.19, min: 152, max: 165, label: 'FAST', rush: 0.78, tight: true },
-  EXPRESS: { weight: 0.07, min: 168, max: 178, label: 'EXPRESS', rush: 0.70, tight: true },
-  RIB: { weight: 0.13, min: 140, max: 158, label: 'BACK OF A LENGTH', rush: 0.84, bounce: 9.6, rise: 2.0 },
-  SHORT: { weight: 0.09, min: 150, max: 165, label: 'BOUNCER', rush: 0.82, bounce: 10.4, rise: 2.9 },
-  SLOWER: { weight: 0.06, min: 82, max: 100, label: 'SLOWER BALL', rush: 1.15 },
-  SWING_IN: { weight: 0.11, min: 138, max: 152, label: 'INSWINGER', rush: 0.86 },
-  SWING_OUT: { weight: 0.11, min: 138, max: 152, label: 'OUTSWINGER', rush: 0.86 },
+export const STYLES: Record<DeliveryStyle, StyleShape> = {
+  NORMAL: { weight: 0.17, min: 138, max: 150, label: 'SEAM', rush: 0.86 },
+  FAST: { weight: 0.18, min: 152, max: 166, label: 'FAST', rush: 0.76, tight: true, aimWide: 0.4 },
+  // Barely reactable, and meant to be: about 340ms from hand to bat, which is
+  // inside the time it takes to choose a stroke. It is bowled at fifth stump
+  // four times in five, because the punishment for an express ball is supposed
+  // to be the drive you should not have played at it.
+  EXPRESS: { weight: 0.09, min: 172, max: 186, label: 'EXPRESS', rush: 0.62, tight: true, aimWide: 0.8 },
+  // Into the ribs, and aimed there. Dealt from the bag it came down the off side
+  // as often as not, which is a ball nobody has to think about.
+  RIB: { weight: 0.18, min: 142, max: 160, label: 'BACK OF A LENGTH', rush: 0.82, bounce: 9.6, rise: 2.0, aimBody: 0.75 },
+  // A bouncer at fifth stump is a wide. This one is at his head.
+  SHORT: { weight: 0.13, min: 158, max: 172, label: 'BOUNCER', rush: 0.72, tight: true, bounce: 10.4, rise: 2.9, aimBody: 0.8 },
+  SLOWER: { weight: 0.05, min: 82, max: 100, label: 'SLOWER BALL', rush: 1.15 },
+  SWING_IN: { weight: 0.10, min: 138, max: 152, label: 'INSWINGER', rush: 0.86, aimBody: 0.3 },
+  SWING_OUT: { weight: 0.10, min: 138, max: 152, label: 'OUTSWINGER', rush: 0.86, aimWide: 0.45 },
   // Spin has no place in a spell this quick, and the yorker is earned rather
   // than rolled for — see SPECIALS.
   OFF_SPIN: { weight: 0, min: 72, max: 92, label: 'OFF SPIN' },
   LEG_SPIN: { weight: 0, min: 72, max: 92, label: 'LEG SPIN' },
-  YORKER: { weight: 0, min: 158, max: 172, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
+  YORKER: { weight: 0, min: 160, max: 174, label: 'YORKER', rush: 0.62, tight: true, bounce: 1.6, rise: 0.28 },
 };
 
 /**
@@ -199,9 +209,33 @@ export const OFF_WIDTH = 0.16;
  * outside edge: a feather to the keeper is the most common way a tailender
  * goes, so it has to be frequent enough to fear and rare enough to bat through.
  */
+/**
+ * The ball a tailender can actually hit for six.
+ *
+ * Timing alone used to be the whole condition, and it made a six the reward for
+ * being good at the game rather than for getting the one ball an hour that is
+ * there to be swung at. A number eleven does not middle a 179kph delivery over
+ * the rope however well he picks it up — he blocks it and waits. So the maximum
+ * is gated on the ball first and the stroke second: full enough to swing
+ * through, and slow enough to line up. Everything outside this is worth four at
+ * the very best.
+ *
+ * Between this and the perfect window, a six comes round about once in
+ * twenty-five balls, which `scripts/survive-sim.ts` reports on every run.
+ */
+export const SIX = { maxKph: 140, minBounce: 8.1, maxBounce: 8.6, minCompatibility: 0.9 } as const;
+
 export const RISK = {
-  mishitCaught: 0.26,
-  nickCarries: 0.38,
+  /**
+   * A ball skied to a fielder is taken far more often than not. The mode used
+   * to drop three of every four, which read as the game letting him off — and,
+   * with a mishit going up on every early stroke, it happened several times an
+   * over.
+   */
+  mishitCaught: 0.62,
+  /** A leading edge that loops to a close fielder rather than dying in the pitch. */
+  leadingEdgeCaught: 0.14,
+  nickCarries: 0.44,
   /** A ball that beats the bat on the stumps, with the batter's leg in the way. */
   lbwChance: 0.45,
   /**

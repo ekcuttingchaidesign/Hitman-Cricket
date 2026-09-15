@@ -35,7 +35,17 @@ export const LINE_X: Record<BallLine, number> = { OUTSIDE_LEG: -0.42, LEG: -0.14
 // `bounce` and `rise` set the length: a yorker pitches at the toes and skids,
 // a bouncer lands short and rears. Zero-weight styles are only ever bowled as
 // specials, by the state of the innings.
-export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: number; label: string; rush?: number; tight?: boolean; bounce?: number; rise?: number }> = {
+/**
+ * What a delivery style is. `aimBody` and `aimWide` are how often a bowler puts
+ * this ball at the batter or at fifth stump rather than letting the bag of lines
+ * deal it; the classic innings sets neither and its bowler aims at nothing.
+ */
+export interface StyleShape {
+  weight: number; min: number; max: number; label: string;
+  rush?: number; tight?: boolean; bounce?: number; rise?: number;
+  aimBody?: number; aimWide?: number;
+}
+export const STYLES: Record<DeliveryStyle, StyleShape> = {
   NORMAL: { weight: 0.36, min: 122, max: 138, label: 'SEAM' },
   FAST: { weight: 0.14, min: 142, max: 158, label: 'FAST', rush: 0.80, tight: true },
   EXPRESS: { weight: 0.05, min: 164, max: 176, label: 'EXPRESS', rush: 0.64, tight: true },

@@ -35,7 +35,7 @@ import { SeededRandom } from '../src/game/SeededRandom.js';
 import { endingOf, resolveSurvive } from '../src/game/Survive.js';
 import type { Delivery, Ending, ShotType } from '../src/game/types.js';
 
-const PLAN = { styles: STYLES, specials: SPECIALS, travelScale: SURVIVE.travelScale };
+const PLAN = { styles: STYLES, specials: SPECIALS, travelScale: SURVIVE.travelScale, aimed: true };
 
 /** A player, as two numbers and an intention. */
 interface Player {
@@ -93,7 +93,7 @@ function chooseShot(delivery: Delivery, policy: Player['policy'], rng: SeededRan
 function playInnings(player: Player, seed: number) {
   const rng = new SeededRandom(seed);
   const generator = new DeliveryGenerator(rng, PLAN);
-  let runs = 0, balls = 0, wickets = 0, health = HEALTH.full, blows = 0, attacked = 0;
+  let runs = 0, balls = 0, wickets = 0, health = HEALTH.full, blows = 0, attacked = 0, sixes = 0, aerials = 0;
   let ending: Ending | null = null;
   let cause = '';
 
@@ -110,23 +110,26 @@ function playInnings(player: Player, seed: number) {
     runs += outcome.runs;
     wickets += Number(outcome.isWicket);
     balls++;
+    if (outcome.runs === 6) sixes++;
+    if (outcome.aerial) aerials++;
     if (outcome.hit) { health -= outcome.hit.damage; blows++; }
     if (outcome.isWicket) cause = outcome.feedback;
     generator.record(outcome);
     ending = endingOf(runs, balls, wickets, health <= 0);
   }
-  return { ending, runs, balls, health: Math.max(0, health), blows, attacked, cause };
+  return { ending, runs, balls, health: Math.max(0, health), blows, attacked, cause, sixes, aerials };
 }
 
 function run(player: Player, innings: number) {
   const tally: Record<Ending, number> = { CHASED: 0, DRAWN: 0, BOWLED_OUT: 0, RETIRED: 0 };
-  let runs = 0, balls = 0, blows = 0, health = 0;
+  let runs = 0, balls = 0, blows = 0, health = 0, sixes = 0, aerials = 0;
   const causes = new Map<string, number>();
   for (let i = 0; i < innings; i++) {
     const played = playInnings(player, (i * 2654435761) >>> 0);
     tally[played.ending]++;
     if (played.cause) causes.set(played.cause, (causes.get(played.cause) ?? 0) + 1);
     runs += played.runs; balls += played.balls; blows += played.blows; health += played.health;
+    sixes += played.sixes; aerials += played.aerials;
   }
   if (process.env.CAUSES) {
     const top = [...causes].sort((a, b) => b[1] - a[1]).slice(0, 6)
@@ -141,6 +144,11 @@ function run(player: Player, innings: number) {
     (balls / innings).toFixed(1).padStart(7),
     (blows / innings).toFixed(1).padStart(7),
     (health / innings).toFixed(0).padStart(7),
+    // The two the playtest complained about: a six should be one ball in
+    // twenty-five, and a ball in the air should be a rare event rather than a
+    // thing that happens twice an over.
+    (sixes ? `1/${Math.round(balls / sixes)}` : '—').padStart(8),
+    (aerials ? `1/${Math.round(balls / aerials)}` : '—').padStart(8),
   ].join(' ');
 }
 
@@ -158,7 +166,7 @@ const PLAYERS: Player[] = [
 ];
 
 console.log(`\nSurvive — ${INNINGS.toLocaleString()} innings each\n`);
-console.log(['player'.padEnd(22), '   won', ' drawn', 'bowled', 'retire', '   runs', '  balls', '  blows', ' health'].join(' '));
-console.log('-'.repeat(94));
+console.log(['player'.padEnd(22), '   won', ' drawn', 'bowled', 'retire', '   runs', '  balls', '  blows', ' health', '     six', '  aerial'].join(' '));
+console.log('-'.repeat(112));
 for (const player of PLAYERS) console.log(run(player, INNINGS));
-console.log('\nTargets: competent·chasing won ≈ 20%; blockers reaching the draw but battered.\n');
+console.log('\nTargets: a good player won ≈ 20%, six ≈ 1/25 balls, blows ≥ 2 an innings.\n');
