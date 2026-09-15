@@ -61,6 +61,15 @@ export class GameScene {
   private bailsBrokeAt = 0;
   private flightMs: number = GAME.hitAnimationMs;
   private hitHeight = 0;
+  /** Where in a skied ball's flight it is spilled, or 0 when it is not. */
+  private dropAt = 0;
+  /**
+   * Where in the flight the ball arrives at whoever is under it. One for
+   * everything nobody catches; short of it when there is a fielder, because a
+   * sine arc that only comes down on the final frame had him closing his hands
+   * on a ball still nine metres above his head.
+   */
+  private takeAt = 1;
   /**
    * When the run-up started. The bowler's whole action runs off this one clock,
    * so nothing about how fast the ball is bowled can reach it.
@@ -225,7 +234,7 @@ export class GameScene {
   }
 
   reset() {
-    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
+    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
@@ -281,39 +290,75 @@ export class GameScene {
     const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
     let angle = (SHOT_ANGLES[shot ?? 'STRAIGHT'] + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
+    /**
+     * A ball that hit him rather than the bat. It has spent itself on his body,
+     * so it drops where he stands — it does not carry on through to the keeper,
+     * which is what it used to do and what made a blow to the ribs look like a
+     * ball he had simply missed.
+     */
+    const struckBody = !!outcome.hit;
+    // A skied mishit goes out to a fielder whether or not it sticks. Landing it
+    // five metres from the bat with nobody near it was the whole reason a ball
+    // in the air read as nothing happening.
+    const skyward = outcome.aerial && !outcome.advance;
+    this.dropAt = outcome.dropped ? 0.88 : 0;
     // A charged straight hit does not land in the ground: it clears the stand.
     // A defended ball drops dead in front of him; it does not trickle away.
-    const distance = outcome.advance ? 78 : outcome.defended ? 1.9 : caught ? (outcome.aerial ? 27 : 18) : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
-    if (caught && Math.abs(angle) < 0.2) angle = 0.35;
-    this.hitEnd.set(Math.sin(angle) * distance, caught ? 1.5 : 0.1, Math.cos(angle) * distance);
+    const distance = outcome.advance ? 78 : struckBody ? 2.4 : outcome.defended ? 1.9
+      // Far enough out to need a fielder, near enough that the take happens
+      // where the camera can see it. Twenty-seven metres was the first try and
+      // it put the catch on the right-hand edge of the frame, half out of shot.
+      : skyward ? 19 : caught ? 18 : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
+    if ((caught || skyward) && Math.abs(angle) < 0.2) angle = 0.22;
+    // A ball off the body drops away on the leg side, at his feet.
+    if (struckBody) angle = -0.85;
+    this.hitEnd.set(Math.sin(angle) * distance, caught || outcome.dropped ? 1.5 : 0.1, Math.cos(angle) * distance);
     // An edge is not a catch in the deep. It flies off the face at gloves height
     // and the keeper has it before the batter has finished the stroke, so it is
     // placed where he stands rather than swept out along the stroke's angle.
     if (outcome.edged) this.hitEnd.set(0.58, 0.42, -1.6);
     // A skied shot hangs long enough to be watched down; a middled one leaves
     // fast. The charge is worth watching all the way over the roof.
-    this.flightMs = outcome.advance ? 2200 : outcome.defended ? 700 : outcome.edged ? 460 : outcome.aerial ? (outcome.hangMs ?? GAME.aerialFlightMs) : GAME.hitAnimationMs;
+    this.flightMs = outcome.advance ? 2200 : struckBody ? 640 : outcome.defended ? 700 : outcome.edged ? 460
+      : outcome.aerial ? (outcome.hangMs ?? GAME.aerialFlightMs) : GAME.hitAnimationMs;
     // A four is a boundary along the turf — a drive races to the rope on the
     // ground. Only a six leaves it, and only a mishit hangs.
-    this.hitHeight = outcome.advance ? 32 : outcome.defended ? 0.05 : outcome.edged ? 0.18 : outcome.aerial ? (outcome.runs === 6 ? 15 : 11)
+    this.hitHeight = outcome.advance ? 32 : struckBody ? 0.42 : outcome.defended ? 0.05 : outcome.edged ? 0.18
+      // Skied means skied: it goes up far enough to be lost against the sky and
+      // watched all the way down, which is what makes the catch worth holding.
+      : skyward ? (outcome.runs === 6 ? 15 : 14)
       : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 0.22 : 0.6;
     // An edge is taken behind the stumps with nobody in the frame: the ball
     // simply deflects off the face and dies back past him. A fielder placed
     // there stands between the camera and the batter and fills the shot.
-    if (caught && !outcome.edged) {
+    // Somebody is under every skied ball, whether he holds it or not.
+    if ((caught || outcome.dropped) && !outcome.edged) {
       this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z);
       this.catcher.root.rotation.y = Math.atan2(-this.hitEnd.x, -this.hitEnd.z);
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     }
+    // The take lines up with the fielder's hands closing — see `takeAt`.
+    this.takeAt = (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
     this.bounceRing.visible = false;
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
-    // Hold the call back until a skied ball is taken or clears the rope.
-    return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.82 : 0), endAt: this.hitStart + this.flightMs };
+    // Hold the call back until a skied ball is taken, put down, or clears the rope.
+    return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.88 : 0), endAt: this.hitStart + this.flightMs };
   }
   /** Where a struck ball sits at `t` through its flight; also drives the trail. */
   private struckAt(t: number, into: THREE.Vector3) {
-    into.lerpVectors(this.hitOrigin, this.hitEnd, t);
-    into.y += Math.sin(Math.min(1, t) * Math.PI) * this.hitHeight;
+    // Measured against the take rather than against the end of the animation, so
+    // a ball with somebody under it is in his hands when his hands close and
+    // waits there rather than still falling.
+    const flown = Math.min(1, t / this.takeAt);
+    into.lerpVectors(this.hitOrigin, this.hitEnd, flown);
+    into.y += Math.sin(flown * Math.PI) * this.hitHeight;
+    // A dropped catch. The ball is in his hands and then it is not: past the
+    // take it leaves them and goes to the turf, accelerating, just beyond him.
+    if (this.dropAt > 0 && t > this.dropAt) {
+      const fall = Math.min(1, (t - this.dropAt) / (1 - this.dropAt));
+      into.y = THREE.MathUtils.lerp(1.42, 0.12, fall * fall);
+      into.z += fall * 0.6;
+    }
     return into;
   }
   result(now: number) {
@@ -332,14 +377,21 @@ export class GameScene {
       this.chargeRing.scale.setScalar(1 + age / 105);
       (this.chargeRing.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.85 - age / 760);
     }
-    if (result.madeBatContact) {
+    if (result.madeBatContact || result.hit) {
       this.struckAt(t, this.ball.position);
-      if (result.wicketType === 'CAUGHT' && !result.edged) this.catcher.catchAt(THREE.MathUtils.clamp((t - 0.62) / 0.24, 0, 1));
-      this.ball.visible = t < 1;
-      // The streak behind the ball is most of what sells a struck shot.
+      // The fielder reaches for it either way. Whether it stays in his hands is
+      // decided by `dropAt`, not by whether he gets there.
+      if ((result.wicketType === 'CAUGHT' || result.dropped) && !result.edged) {
+        this.catcher.catchAt(THREE.MathUtils.clamp((t - 0.62) / 0.24, 0, 1));
+      }
+      // A ball he did not hold, and a ball that came off the body, both finish
+      // on the ground in shot rather than winking out at the end of a flight.
+      this.ball.visible = t < 1 || !!result.dropped || !!result.hit;
+      // The streak behind the ball is most of what sells a struck shot. A ball
+      // off the body is not a struck shot, and a tail behind it says it was.
       this.trail.forEach((dot, i) => {
         const behind = t - (i + 1) * 0.019;
-        dot.visible = this.ball.visible && behind > 0;
+        dot.visible = !result.hit && this.ball.visible && behind > 0;
         if (dot.visible) this.struckAt(behind, dot.position);
       });
     } else {

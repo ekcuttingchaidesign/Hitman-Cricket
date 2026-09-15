@@ -46,4 +46,6 @@ export interface ShotOutcome {
   hit?: { where: BodyPart; damage: number };
   /** How long a skied ball should hang before it is judged. Defaults to the classic hang. */
   hangMs?: number;
+  /** Skied, reached, and put down: the fielder gets hands to it and it does not stick. */
+  dropped?: boolean;
 }

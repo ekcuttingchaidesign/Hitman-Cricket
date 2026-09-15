@@ -155,12 +155,15 @@ function skied(base: ShotOutcome, rng: { next(): number }): ShotOutcome {
   if (rng.next() < RISK.mishitCaught) {
     return { ...up, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' };
   }
+  // Not taken. A ball that goes that high does not land in a gap — somebody is
+  // under it, gets hands to it, and spills it. Saying it was dropped rather
+  // than that it fell safe is the difference between a let-off and a shrug.
   let roll = rng.next();
   for (const [value, weight] of SAFE_MISHIT) {
     roll -= weight;
-    if (roll <= 0) return { ...up, runs: value, feedback: value ? award(value) : 'DROPPED SHORT OF THE FIELDER' };
+    if (roll <= 0) return { ...up, dropped: true, runs: value, feedback: value ? 'DROPPED — 1 RUN' : 'DROPPED!' };
   }
-  return { ...up, feedback: 'DOT BALL' };
+  return { ...up, dropped: true, feedback: 'DROPPED!' };
 }
 
 /**
@@ -331,6 +334,18 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
     return timingGrade === 'POOR' ? skied(base, rng) : leadingEdge(base, rng);
   }
   return outsideOff(delivery) ? nick(base, rng) : insideEdge(base, delivery, rng);
+}
+
+/**
+ * Whether the field has something to say after this ball.
+ *
+ * The classic innings counts a run of balls the batter went nowhere with and
+ * answers that. Here almost every ball is one he went nowhere with, so the same
+ * counter would have the slips talking over each other all afternoon. A Test
+ * match needles on its own clock instead.
+ */
+export function sledgeDue(balls: number): boolean {
+  return balls > 0 && balls % SURVIVE.sledgeEvery === 0;
 }
 
 /**

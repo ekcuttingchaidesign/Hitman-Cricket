@@ -2,7 +2,7 @@ import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { SPECIALS as SURVIVE_SPECIALS, STYLES as SURVIVE_STYLES, SURVIVE } from './config/survive';
 import { Confidence } from './game/Confidence';
 import { Health } from './game/Health';
-import { endingOf, resolveSurvive, teamScore } from './game/Survive';
+import { endingOf, resolveSurvive, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
 import { CLASSIC_PLAN, type BowlingPlan } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
@@ -425,7 +425,8 @@ export class Game {
         this.confidence.record(this.outcome);
       }
       this.showConfidence();
-      this.sledgeDue = this.sledger.record(this.outcome);
+      // The Test match needles on a clock rather than on a run of quiet balls.
+      this.sledgeDue = this.surviving ? sledgeDue(this.score.balls) : this.sledger.record(this.outcome);
     }
     this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);

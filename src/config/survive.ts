@@ -79,14 +79,28 @@ export const SURVIVE = {
   /** How long an innings holds between balls. Trimmed, because sixty balls is a long sit. */
   readyMs: 420,
   resultMs: 760,
-  /** How long a skied ball hangs before it is judged. The classic innings waits 1900. */
-  hangMs: 1150,
+  /**
+   * How long a skied ball hangs. Longer than it was, because a mishit off a
+   * tailender's bat now goes genuinely up rather than looping to nobody — and a
+   * ball that high has to be watched down for the catch to mean anything.
+   */
+  hangMs: 1450,
   /**
    * The extra beat the last ball is held for, so the batter is on the ground
    * before the card comes up over him. Without it the innings ended on the blow
    * and the fall played out behind a dialog nobody could see.
    */
   felledMs: 1000,
+  /**
+   * How often the field has something to say.
+   *
+   * The classic innings counts a run of balls the batter went nowhere with and
+   * answers that. Here almost every ball is one he went nowhere with, so the
+   * same counter would have the slips talking over each other all afternoon. A
+   * Test match needles on its own clock instead: once an over and a bit,
+   * whatever he happens to be doing.
+   */
+  sledgeEvery: 10,
 } as const;
 
 /**

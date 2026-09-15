@@ -4,7 +4,8 @@ import { BANDS, DAMAGE, HEALTH, SIX, STYLES, SURVIVE, damageFor } from '../src/c
 import { ballPosition, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { Health } from '../src/game/Health';
 import {
-  atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, teamScore, timingSide,
+  atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, sledgeDue,
+  teamScore, timingSide,
 } from '../src/game/Survive';
 import type { Delivery, DeliveryStyle } from '../src/game/types';
 
@@ -345,6 +346,48 @@ describe('the blow that finishes him', () => {
     health.record(played);
     expect(health.spent).toBe(false);
     expect(endingOf(40, 30, 0, health.spent)).toBeNull();
+  });
+});
+
+describe('the field having something to say', () => {
+  it('needles on a clock rather than on a run of quiet balls', () => {
+    // Almost every ball in this mode is one he went nowhere with, so the classic
+    // innings' counter would have the slips talking over each other all day.
+    expect([...Array(21).keys()].filter(sledgeDue)).toEqual([10, 20]);
+  });
+
+  it('says nothing before a ball has been bowled', () => {
+    expect(sledgeDue(0)).toBe(false);
+  });
+});
+
+describe('a ball that goes up', () => {
+  it('is put down rather than falling safe in a gap', () => {
+    // A ball skied that high does not land where nobody is. Somebody gets under
+    // it and gets hands to it, and the scene needs to know which so it can send
+    // the fielder and then spill it.
+    const played = resolveSurvive(ball(), at(-130), rolls(0.99, 0.99));
+    expect(played.aerial).toBe(true);
+    expect(played.dropped).toBe(true);
+    expect(played.isWicket).toBe(false);
+    expect(played.feedback).toContain('DROPPED');
+  });
+
+  it('is not marked dropped when it is held', () => {
+    const played = resolveSurvive(ball(), at(-130), rolls(0));
+    expect(played.isWicket).toBe(true);
+    expect(played.dropped).toBeUndefined();
+  });
+});
+
+describe('a ball that hits him', () => {
+  it('never counts as bat contact, so it dies on the pitch instead of carrying on', () => {
+    // The scene reads `hit` to drop the ball at his feet. Before it did, a blow
+    // to the ribs ran through to the keeper like a ball he had simply missed.
+    const played = resolveSurvive(ball('RIB', { finalTargetX: GAME.stanceX }), at(-130, 'LEG'), rolls(0.5));
+    expect(played.hit?.where).toBe('RIBS');
+    expect(played.madeBatContact).toBe(false);
+    expect(played.aerial).toBe(false);
   });
 });
 
