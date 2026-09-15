@@ -23,18 +23,28 @@ export function mapKeys(keys: string[]): ShotType | null {
   if (normalized.includes('A') && normalized.includes('D')) return null;
   return normalized[0] === 'A' ? 'LEG' : normalized[0] === 'W' ? 'STRAIGHT' : normalized[0] === 'D' ? 'SQUARE_CUT' : null;
 }
+const SWIPE_SHOTS = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'] as const;
 /**
- * Five 45-degree scoring sectors measured from up, and a 90-degree fan straight
- * down for the block. The slivers either side of that fan stay dead, so a
- * sideways drag is still no shot at all. Straight out to the off is the cut:
- * one flick of the thumb, the same as every other stroke.
+ * Five scoring sectors measured from straight up, and a 90-degree fan straight
+ * down for the block. Straight out to the off is the cut: one flick of the
+ * thumb, the same as every other stroke.
+ *
+ * There used to be a dead sliver either side of the block's fan — between 112.5
+ * and 135 degrees — on the reasoning that a sideways drag should be no shot at
+ * all. It was a bug in practice. A thumb flicking left across a phone arcs
+ * downward as it goes, so a perfectly ordinary leg-side swipe of sixty pixels
+ * across and thirty down came out at 117 degrees and played nothing: the batter
+ * simply stood there. Twenty-two degrees of drift is nothing to ask of a thumb.
+ *
+ * The two outer sectors now run all the way to the fan, so every gesture past
+ * the minimum distance plays something. The block is untouched — it is the one
+ * stroke that has to be reliable, and its fan is exactly where it was.
  */
 export function mapSwipe(dx: number, dy: number): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
   if (Math.abs(angle) >= 135) return 'DEFEND';
-  if (Math.abs(angle) > 112.5) return null;
-  return (['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'] as const)[Math.round(angle / 45) + 2] ?? null;
+  return SWIPE_SHOTS[Math.min(4, Math.max(0, Math.round(angle / 45) + 2))];
 }
 export class InputManager {
   private held = new Set<string>();

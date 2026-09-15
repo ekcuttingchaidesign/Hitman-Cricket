@@ -7,7 +7,7 @@ import {
   atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, sledgeDue,
   teamScore, timingSide,
 } from '../src/game/Survive';
-import type { Delivery, DeliveryStyle } from '../src/game/types';
+import type { Delivery, DeliveryStyle, ShotOutcome } from '../src/game/types';
 
 /** A delivery, built from a style in the Survive table so lengths are the real ones. */
 function ball(style: DeliveryStyle = 'NORMAL', over: Partial<Delivery> = {}): Delivery {
@@ -350,14 +350,37 @@ describe('the blow that finishes him', () => {
 });
 
 describe('the field having something to say', () => {
-  it('needles on a clock rather than on a run of quiet balls', () => {
-    // Almost every ball in this mode is one he went nowhere with, so the classic
-    // innings' counter would have the slips talking over each other all day.
-    expect([...Array(21).keys()].filter(sledgeDue)).toEqual([10, 20]);
+  /** An innings as a run of per-ball scores. */
+  const over = (...runs: number[]) => runs.map(r => ({ runs: r as ShotOutcome['runs'] }));
+  const quiet = (n: number) => over(...Array(n).fill(0));
+
+  it('needles a batter who has been stuck', () => {
+    expect(sledgeDue(quiet(10), 0)).toBe(true);
   });
 
-  it('says nothing before a ball has been bowled', () => {
-    expect(sledgeDue(0)).toBe(false);
+  it('says nothing to one who is scoring', () => {
+    // Four runs in the window is enough to be getting on with, and a fixed
+    // clock would have had them needling a man who had just hit a boundary.
+    expect(sledgeDue(over(0, 0, 0, 0, 4, 0, 0, 0, 0, 0), 0)).toBe(false);
+    expect(sledgeDue(over(0, 0, 0, 0, 3, 0, 0, 0, 0, 0), 0)).toBe(true);
+  });
+
+  it('waits for a full window before saying anything at all', () => {
+    expect(sledgeDue(quiet(9), 0)).toBe(false);
+  });
+
+  it('does not repeat itself every ball while the drought goes on', () => {
+    // Said on ball 10; silent through 11 to 19 however quiet it stays.
+    expect(sledgeDue(quiet(15), 10)).toBe(false);
+    expect(sledgeDue(quiet(20), 10)).toBe(true);
+  });
+
+  it('catches a drought that straddles the boundary, which a clock would miss', () => {
+    // Six off the first four balls, then nothing: by ball fourteen the last ten
+    // have produced nothing at all, and a check every tenth ball would be silent.
+    const innings = over(6, 0, 0, 0, ...Array(10).fill(0));
+    expect(innings).toHaveLength(14);
+    expect(sledgeDue(innings, 0)).toBe(true);
   });
 });
 

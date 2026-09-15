@@ -7,14 +7,27 @@ describe('swipe directions', () => {
     [-80, 0, 'LEG'], [-60, -60, 'LONG_ON'], [0, -80, 'STRAIGHT'], [60, -60, 'COVER_LONG_OFF'], [80, 0, 'SQUARE_CUT'],
     // Down is the block, on a 90-degree fan so a hurried drag still finds it.
     [0, 80, 'DEFEND'], [-60, 60, 'DEFEND'], [60, 60, 'DEFEND'], [-20, 75, 'DEFEND'],
-    // The slivers either side of that fan stay dead: a sideways drag is no shot.
-    [69, 40, null], [-69, 40, null],
+    // There is no dead ground between the outer sectors and the block's fan. A
+    // thumb flicking sideways across a phone arcs downward as it goes, and these
+    // two used to play nothing at all — which is what a player reported as the
+    // batter being unresponsive to a leg-side swipe.
+    [69, 40, 'SQUARE_CUT'], [-69, 40, 'LEG'],
+    [60, 30, 'SQUARE_CUT'], [-60, 30, 'LEG'], [-40, 30, 'LEG'],
     [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'SQUARE_CUT'],
     [NaN, 0, null], [Infinity, 0, null],
   ])('maps (%s, %s) to %s', (x, y, result) => expect(mapSwipe(Number(x), Number(y))).toBe(result));
   it('keeps a useful tolerance around the cardinal directions', () => {
     expect(mapSwipe(70, 15)).toBe('SQUARE_CUT'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');
     expect(mapSwipe(15, 70)).toBe('DEFEND');
+  });
+  it('plays something for every gesture that clears the minimum distance', () => {
+    // The one rule the sectors have to keep: past the threshold, a swipe is
+    // always a stroke. Anything else reads as the game ignoring you.
+    for (let angle = 0; angle < 360; angle += 5) {
+      const radians = angle * Math.PI / 180;
+      const [x, y] = [Math.sin(radians) * 60, -Math.cos(radians) * 60];
+      expect(mapSwipe(x, y), `${angle} degrees`).not.toBeNull();
+    }
   });
   it('gives the cut the whole off-side sector, and the block its whole fan', () => {
     // One flick out to the off is the cut, with the same tolerance as the rest.

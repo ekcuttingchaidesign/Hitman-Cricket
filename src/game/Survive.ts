@@ -192,7 +192,7 @@ function leadingEdge(base: ShotOutcome, rng: { next(): number }): ShotOutcome {
  */
 function insideEdge(base: ShotOutcome, delivery: Delivery, rng: { next(): number }): ShotOutcome {
   if (stumpIntersection(delivery) && rng.next() < RISK.playedOn) {
-    return { ...base, madeBatContact: true, isWicket: true, wicketType: 'BOWLED', feedback: 'PLAYED ON!' };
+    return { ...base, madeBatContact: true, isWicket: true, wicketType: 'BOWLED', feedback: 'PLAYED ON — BOWLED!' };
   }
   return { ...base, madeBatContact: true, feedback: 'INSIDE EDGE' };
 }
@@ -339,13 +339,16 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
 /**
  * Whether the field has something to say after this ball.
  *
- * The classic innings counts a run of balls the batter went nowhere with and
- * answers that. Here almost every ball is one he went nowhere with, so the same
- * counter would have the slips talking over each other all afternoon. A Test
- * match needles on its own clock instead.
+ * They needle a batter who is stuck, not one who is merely there: ten balls for
+ * three runs or fewer. `since` is the ball the last one was said on, which is
+ * what keeps them quiet for a full window afterwards rather than repeating
+ * themselves every ball for as long as the drought lasts.
  */
-export function sledgeDue(balls: number): boolean {
-  return balls > 0 && balls % SURVIVE.sledgeEvery === 0;
+export function sledgeDue(history: readonly Pick<ShotOutcome, 'runs'>[], since: number): boolean {
+  const balls = history.length;
+  if (balls < SURVIVE.sledgeWindow || balls - since < SURVIVE.sledgeWindow) return false;
+  const scored = history.slice(-SURVIVE.sledgeWindow).reduce((total, ball) => total + ball.runs, 0);
+  return scored <= SURVIVE.sledgeRuns;
 }
 
 /**

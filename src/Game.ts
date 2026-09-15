@@ -69,6 +69,8 @@ export class Game {
   /** Three balls that went nowhere and the fielders have something to say. */
   private sledger = new Sledger();
   private sledgeDue = false;
+  /** The ball the field last had something to say on, so they do not repeat themselves. */
+  private lastSledge = 0;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
@@ -166,7 +168,7 @@ export class Game {
     this.lesson = -1;
     this.audio.stop(); this.audio.unlock();
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
-    this.sledger = new Sledger(); this.sledgeDue = false; this.ending = null;
+    this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed);
@@ -435,8 +437,14 @@ export class Game {
         this.confidence.record(this.outcome);
       }
       this.showConfidence();
-      // The Test match needles on a clock rather than on a run of quiet balls.
-      this.sledgeDue = this.surviving ? sledgeDue(this.score.balls) : this.sledger.record(this.outcome);
+      // The Test match needles a batter who is stuck rather than one who has
+      // simply played a few balls — see `sledgeDue`.
+      if (this.surviving) {
+        this.sledgeDue = sledgeDue(this.score.history, this.lastSledge);
+        if (this.sledgeDue) this.lastSledge = this.score.balls;
+      } else {
+        this.sledgeDue = this.sledger.record(this.outcome);
+      }
     }
     this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);

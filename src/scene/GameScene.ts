@@ -297,6 +297,15 @@ export class GameScene {
      * ball he had simply missed.
      */
     const struckBody = !!outcome.hit;
+    /**
+     * Played on: the inside edge that comes back off the bat into his own
+     * stumps. It is the one dismissal in the game with bat on ball *and* the
+     * timber going over, and the scene used to handle only the first half of
+     * that — the ball squirted away five metres into the field and the stumps
+     * stood there, while the call said he was out. Nobody could tell what had
+     * happened, which is exactly what got reported.
+     */
+    const playedOn = outcome.wicketType === 'BOWLED' && outcome.madeBatContact;
     // A skied mishit goes out to a fielder whether or not it sticks. Landing it
     // five metres from the bat with nobody near it was the whole reason a ball
     // in the air read as nothing happening.
@@ -304,7 +313,7 @@ export class GameScene {
     this.dropAt = outcome.dropped ? 0.88 : 0;
     // A charged straight hit does not land in the ground: it clears the stand.
     // A defended ball drops dead in front of him; it does not trickle away.
-    const distance = outcome.advance ? 78 : struckBody ? 2.4 : outcome.defended ? 1.9
+    const distance = outcome.advance ? 78 : playedOn ? 1.4 : struckBody ? 2.4 : outcome.defended ? 1.9
       // Far enough out to need a fielder, near enough that the take happens
       // where the camera can see it. Twenty-seven metres was the first try and
       // it put the catch on the right-hand edge of the frame, half out of shot.
@@ -313,17 +322,24 @@ export class GameScene {
     // A ball off the body drops away on the leg side, at his feet.
     if (struckBody) angle = -0.85;
     this.hitEnd.set(Math.sin(angle) * distance, caught || outcome.dropped ? 1.5 : 0.1, Math.cos(angle) * distance);
+    // Off the inside edge, into the stumps behind him, and away. It carries on
+    // past them rather than stopping dead on them, and that is not decoration:
+    // the bails are thrown from the frame the ball reaches the stumps, so a ball
+    // that only arrives on the last frame of its flight sets them going with no
+    // flight left to go. Finishing well behind the timber means it gets there
+    // around the halfway mark with the whole throw still to come.
+    if (playedOn) this.hitEnd.set(0.1, 0.14, -1.5);
     // An edge is not a catch in the deep. It flies off the face at gloves height
     // and the keeper has it before the batter has finished the stroke, so it is
     // placed where he stands rather than swept out along the stroke's angle.
     if (outcome.edged) this.hitEnd.set(0.58, 0.42, -1.6);
     // A skied shot hangs long enough to be watched down; a middled one leaves
     // fast. The charge is worth watching all the way over the roof.
-    this.flightMs = outcome.advance ? 2200 : struckBody ? 640 : outcome.defended ? 700 : outcome.edged ? 460
+    this.flightMs = outcome.advance ? 2200 : playedOn ? 1100 : struckBody ? 640 : outcome.defended ? 700 : outcome.edged ? 460
       : outcome.aerial ? (outcome.hangMs ?? GAME.aerialFlightMs) : GAME.hitAnimationMs;
     // A four is a boundary along the turf — a drive races to the rope on the
     // ground. Only a six leaves it, and only a mishit hangs.
-    this.hitHeight = outcome.advance ? 32 : struckBody ? 0.42 : outcome.defended ? 0.05 : outcome.edged ? 0.18
+    this.hitHeight = outcome.advance ? 32 : playedOn ? 0.18 : struckBody ? 0.42 : outcome.defended ? 0.05 : outcome.edged ? 0.18
       // Skied means skied: it goes up far enough to be lost against the sky and
       // watched all the way down, which is what makes the catch worth holding.
       : skyward ? (outcome.runs === 6 ? 15 : 14)
@@ -344,6 +360,22 @@ export class GameScene {
     // Hold the call back until a skied ball is taken, put down, or clears the rope.
     return { contactAt: this.hitStart, presentAt: this.hitStart + (outcome.aerial ? this.flightMs * 0.88 : 0), endAt: this.hitStart + this.flightMs };
   }
+  /**
+   * The bails leave when the ball reaches them, not on a fixed delay. Called
+   * from both halves of `result` — a ball that beat the bat and a ball the
+   * batter dragged back onto his own stumps both end with the timber going.
+   */
+  private breakBails(now: number) {
+    if (!this.bailsBrokeAt && this.ball.position.z <= 0) this.bailsBrokeAt = now;
+    if (!this.bailsBrokeAt) return;
+    const flung = Math.min(1, (now - this.bailsBrokeAt) / 620);
+    this.bails.forEach((bail, i) => {
+      bail.position.z = -flung * 1.9;
+      bail.position.y = Math.max(0.05, GAME.stumpHeight + 0.02 + flung * 0.9 - flung * flung * 1.6);
+      bail.rotation.x = flung * 11; bail.rotation.z = flung * (i ? 5 : -5);
+    });
+  }
+
   /** Where a struck ball sits at `t` through its flight; also drives the trail. */
   private struckAt(t: number, into: THREE.Vector3) {
     // Measured against the take rather than against the end of the animation, so
@@ -386,6 +418,9 @@ export class GameScene {
       }
       // A ball he did not hold, and a ball that came off the body, both finish
       // on the ground in shot rather than winking out at the end of a flight.
+      // Played on, the stumps go when the ball gets there, the same as any other
+      // ball that finishes in them.
+      if (result.wicketType === 'BOWLED') this.breakBails(now);
       this.ball.visible = t < 1 || !!result.dropped || !!result.hit;
       // The streak behind the ball is most of what sells a struck shot. A ball
       // off the body is not a struck shot, and a tail behind it says it was.
@@ -402,17 +437,7 @@ export class GameScene {
       const stopZ = result.wicketType === 'LBW' ? from.z : -1.3;
       this.ball.position.set(from.x, Math.max(0.1, from.y - t * 0.3), THREE.MathUtils.lerp(from.z, stopZ, Math.min(1, t * 5)));
       // The bails leave when the ball reaches them, not on a fixed delay.
-      if (result.wicketType === 'BOWLED') {
-        if (!this.bailsBrokeAt && this.ball.position.z <= 0) this.bailsBrokeAt = now;
-        if (this.bailsBrokeAt) {
-          const flung = Math.min(1, (now - this.bailsBrokeAt) / 620);
-          this.bails.forEach((bail, i) => {
-            bail.position.z = -flung * 1.9;
-            bail.position.y = Math.max(0.05, GAME.stumpHeight + 0.02 + flung * 0.9 - flung * flung * 1.6);
-            bail.rotation.x = flung * 11; bail.rotation.z = flung * (i ? 5 : -5);
-          });
-        }
-      }
+      if (result.wicketType === 'BOWLED') this.breakBails(now);
       if (result.wicketType === 'LBW') {
         this.batter.root.position.x = THREE.MathUtils.lerp(GAME.stanceX, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
         this.batter.root.rotation.z = Math.sin(Math.min(1, t * 4) * Math.PI) * 0.13;

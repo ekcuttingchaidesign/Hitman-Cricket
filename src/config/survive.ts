@@ -92,15 +92,22 @@ export const SURVIVE = {
    */
   felledMs: 1000,
   /**
-   * How often the field has something to say.
+   * When the field has something to say: a run of ten balls that produced three
+   * runs or fewer.
    *
-   * The classic innings counts a run of balls the batter went nowhere with and
-   * answers that. Here almost every ball is one he went nowhere with, so the
-   * same counter would have the slips talking over each other all afternoon. A
-   * Test match needles on its own clock instead: once an over and a bit,
-   * whatever he happens to be doing.
+   * The classic innings counts consecutive balls the batter went nowhere with.
+   * Here almost every ball is one he went nowhere with, so that counter would
+   * have the slips talking over each other all afternoon. A fixed clock was the
+   * first replacement and it was worse in the other direction — needling a man
+   * who had just hit two fours reads as the fielders not watching the game.
+   *
+   * So it is the thing actually worth needling about: he has been stuck. The
+   * window rolls, so a drought that straddles the tenth ball is caught the same
+   * as one that sits neatly inside it, and nothing is said again until another
+   * full window has gone by.
    */
-  sledgeEvery: 10,
+  sledgeWindow: 10,
+  sledgeRuns: 3,
 } as const;
 
 /**
