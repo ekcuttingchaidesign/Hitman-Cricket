@@ -231,7 +231,12 @@ export class Game {
     return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
   }
   private showConfidence() {
-    if (this.surviving) return this.hud.health(this.health.fraction, this.health.critical);
+    if (this.surviving) {
+      // The meter and the man say the same thing: the bar in the corner and the
+      // state of his whites come off the one number.
+      this.scene.bruise(this.health.fraction);
+      return this.hud.health(this.health.fraction, this.health.critical);
+    }
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
   private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };

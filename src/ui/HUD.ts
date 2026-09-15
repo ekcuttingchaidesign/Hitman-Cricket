@@ -224,15 +224,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         </div>
         <div id="end-survive" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
           <div class="scorecard">
-            <p class="pause-eyebrow" id="survive-eyebrow">THE TEST MATCH</p>
-            <h2 id="survive-title">Innings complete.</h2>
+            <h2 id="survive-title">MATCH DRAWN</h2>
             <div class="card-figures">
               <p class="card-runs" id="survive-score" role="img"></p>
               <p class="card-overs"><span id="survive-overs"></span><small>Overs</small></p>
             </div>
+            <div class="card-balls" id="survive-track" aria-hidden="true"></div>
             <p id="survive-message" class="card-line"></p>
             <dl class="card-stats">
-              <div><dt>Balls faced</dt><dd id="survive-balls"></dd></div>
+              <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
               <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
               <div><dt>Fitness left</dt><dd id="survive-health"></dd></div>
             </dl>
@@ -759,32 +759,56 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   endSurvive(score: ScoreManager, health: { value: number; blows: unknown[] }, ending: Ending, teamScore: number) {
     const total = teamScore + score.runs;
-    const said: Record<Ending, { eyebrow: string; title: string; line: string }> = {
-      CHASED: { eyebrow: 'MATCH WON', title: 'You got them home.',
-        line: `A hundred from the last man. ${total} all out, and the game is yours.` },
-      DRAWN: { eyebrow: 'MATCH DRAWN', title: 'You batted out the day.',
-        line: `Ten overs survived on ${total} for 9. Not a win, but they could not finish you.` },
-      BOWLED_OUT: { eyebrow: 'MATCH LOST', title: 'All out.',
-        line: `${total} all out with ${SURVIVE.totalBalls - score.balls} balls still to survive.` },
-      RETIRED: { eyebrow: 'RETIRED HURT', title: 'He could not go on.',
-        line: health.blows.length === 1
-          ? 'One blow, and he could not take another.'
-          : `${health.blows.length} blows taken, and the last of them was one too many.` },
+    // Nine down when he walked out; only being dismissed makes it ten. Retiring
+    // hurt does not cost the side a wicket, which is the whole difference
+    // between the two ways of losing this.
+    const down = 9 + score.wickets;
+    const left = SURVIVE.totalBalls - score.balls;
+    const blows = health.blows.length;
+    const said: Record<Ending, { stamp: string; line: string }> = {
+      CHASED: { stamp: 'MATCH WON', line: `A hundred from the last man. ${total} all out, and the game is yours.` },
+      DRAWN: { stamp: 'MATCH DRAWN', line: 'Ten overs survived. Not a win, but they could not finish you.' },
+      BOWLED_OUT: { stamp: 'MATCH LOST', line: `He could not last. ${left} balls still to survive when the wicket fell.` },
+      RETIRED: { stamp: 'RETIRED HURT', line: blows === 1
+        ? 'He could not go on. One blow, and there was nothing left to take another with.'
+        : `He could not go on. ${blows} blows taken, and the last of them was one too many.` },
     };
     const copy = said[ending];
-    this.$('survive-eyebrow').textContent = copy.eyebrow;
-    this.$('survive-title').textContent = copy.title;
+    // The stamp is the card's h2 — small, spaced and uppercase — and the number
+    // is the headline, the way every other card in the game is built. Writing
+    // the sentence into the h2 turned the headline into a second stamp and left
+    // the card with no figure on it at all.
+    this.$('survive-title').textContent = copy.stamp;
     this.$('survive-message').textContent = copy.line;
-    this.$('survive-score').innerHTML = dotMatrix(String(score.runs), `${score.runs} runs`);
+    const runs = this.$('survive-score');
+    runs.innerHTML = `${total}<span class="card-wickets">/${down}</span>`;
+    runs.setAttribute('aria-label', `${total} for ${down}`);
     this.$('survive-overs').textContent = score.overs;
-    this.$('survive-balls').textContent = String(score.balls);
-    this.$('survive-blows').textContent = String(health.blows.length);
+    this.$('survive-runs').textContent = String(score.runs);
+    this.$('survive-blows').textContent = String(blows);
     this.$('survive-health').textContent = `${Math.max(0, Math.round(health.value))}%`;
-    this.$('end-survive').classList.remove('hidden');
+    this.ballTrack('survive-track', score, SURVIVE.totalBalls);
     this.$('end-survive').className = `modal-overlay outcome-${ending.toLowerCase()}`;
     this.viewport.classList.add('modal-open');
     this.viewport.classList.remove('hurt-on');
     this.$('survive-again').focus();
+  }
+
+  /**
+   * The innings as a row of bars, one per ball, in the order they were bowled.
+   * Lifted out of the classic card so both modes draw it the same way — the
+   * balls he never faced stay on it as gaps, which is what makes a short innings
+   * look short rather than merely end early.
+   */
+  private ballTrack(id: string, score: ScoreManager, balls: number) {
+    const track = this.$(id);
+    track.style.setProperty('--balls', String(balls));
+    track.innerHTML = Array.from({ length: balls }, (_, i) => {
+      const ball = score.history[i];
+      if (!ball) return `<i class="ball-unfaced" style="--i:${i}"></i>`;
+      const mark = ball.isWicket ? 'ball-out' : ball.hit ? 'ball-hit' : '';
+      return `<i class="${mark}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
+    }).join('');
   }
 
   sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }

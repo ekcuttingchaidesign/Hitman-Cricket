@@ -1944,6 +1944,18 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 
 /* The picker. Two cards, and the Test match says plainly what it costs. */
 .modes-card{max-width:440px}
+/* A scorecard's h2 is its small uppercase stamp, because a number is the point
+   of that card. This one has no number on it — the sentence is the point — so it
+   is set as written, the way the pause card's is. */
+.modes-card h2{
+  margin:0 0 14px;
+  font-size:clamp(26px,7vw,32px);
+  font-weight:900;
+  letter-spacing:-1.2px;
+  line-height:1.06;
+  text-transform:none;
+  color:var(--ink)
+}
 .mode-option{
   display:block;
   width:100%;
@@ -1970,11 +1982,28 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .mode-option.mode-survive .mode-tag{color:#e8a06a}
 .mode-option.mode-survive:hover,.mode-option.mode-survive:focus-visible{border-color:#e8a06a8c}
 
-/* The result leads the card, so it carries the colour. */
-#end-survive.outcome-chased .pause-eyebrow{color:#8ddc9a}
-#end-survive.outcome-drawn .pause-eyebrow{color:#ffce7a}
-#end-survive.outcome-bowled_out .pause-eyebrow,
-#end-survive.outcome-retired .pause-eyebrow{color:#ff8a7e}
+/* The result carries the colour, the same way a record innings does on the other
+   card: the number takes the accent and the stamp above it comes up to full
+   strength. Four results rather than one, because in this mode the difference
+   between them is the whole point of the card. */
+#end-survive .card-runs{color:#ffce7a}
+#end-survive h2{color:var(--ink)}
+#end-survive.outcome-chased .card-runs{color:#7ed894}
+#end-survive.outcome-drawn .card-runs{color:#ffce7a}
+#end-survive.outcome-bowled_out .card-runs,
+#end-survive.outcome-retired .card-runs{color:#ff8a7e}
+/* A ball he was hit on is marked the way a wicket is, in the colour the blow
+   flashed in — so the innings reads back as the beating it was. */
+.card-balls .ball-hit{opacity:1;background:#d8443a}
+/* The card arrives the same way the other one does. */
+@media (prefers-reduced-motion:no-preference){
+  #end-survive:not(.hidden) .scorecard{animation:card-down .34s cubic-bezier(.18,.9,.25,1.06) backwards}
+  #end-survive:not(.hidden) .card-figures{animation:card-figure .34s ease-out .1s backwards}
+  #end-survive:not(.hidden) .card-balls i{
+    animation:ball-rise .3s cubic-bezier(.2,.9,.3,1.1) backwards;
+    animation-delay:calc(.16s + var(--i,0) * .004s)
+  }
+}
 
 /* Survive borrows the scoreboard but never the board or the share keys: it has
    no ladder of its own yet, and it has no business on the other mode's. */

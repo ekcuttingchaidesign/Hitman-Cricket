@@ -17,6 +17,8 @@ interface Pose {
   bat?: THREE.Quaternion;
   yaw: number;
   face: number;
+  /** Chin down. Only the fall uses it, and without it a beaten man stares straight ahead. */
+  headDown?: number;
   heel: number;
   leadElbow: number;
 }
@@ -58,24 +60,55 @@ const RECOIL: Pose = {
   hip: [-.06, .90, -.09], chest: [.01, 1.23, -.06],
   frontFoot: [-.11, .08, .26], backFoot: [-.14, .08, -.27],
   grip: [.24, .84, .06], batUp: [-.46, -.55, .70], batFace: [.26, .86, .28],
-  face: .18, heel: .10, leadElbow: -.18,
+  face: .18, headDown: .16, heel: .10, leadElbow: -.18,
 };
 const BUCKLED: Pose = {
   ...GUARD,
-  hip: [-.04, .58, -.10], chest: [.02, .98, .14],
-  frontFoot: [-.16, .08, .22], backFoot: [-.06, .08, -.18],
-  grip: [.26, .62, .30], batUp: [-.30, .60, .74], batFace: [.80, .30, .52],
-  face: .15, heel: .15, leadElbow: -.05,
+  // The knees have gone and he is doubled over them, weight still going
+  // forward. This is the frame between being hit and being down.
+  hip: [-.04, .56, -.12], chest: [.02, .95, .12],
+  frontFoot: [-.16, .08, .26], backFoot: [-.04, .08, -.12],
+  grip: [.26, .56, .34], batUp: [-.20, .46, .86], batFace: [.84, .26, .48],
+  face: .15, headDown: .34, heel: .15, leadElbow: -.05,
 };
 const FELLED: Pose = {
   ...GUARD,
-  hip: [-.03, .26, -.16], chest: [0, .60, .02],
-  frontFoot: [-.22, .08, .16], backFoot: [.10, .08, .10],
-  grip: [.32, .34, .18], batUp: [-.20, .92, .34], batFace: [.86, .16, .48],
-  face: .25, heel: 0, leadElbow: .10,
+  // Down on the turf with his legs out in front of him, one straighter than the
+  // other, propped back on his hands with the bat let go across his shins and
+  // his chin on his chest. The legs are what the shape is read from at this
+  // camera: knees drawn up under him read as kneeling, and he is not kneeling.
+  hip: [-.02, .25, -.22], chest: [.01, .60, -.30],
+  frontFoot: [-.20, .09, .58], backFoot: [.12, .09, .40],
+  grip: [.30, .15, .30], batUp: [.86, .12, .49], batFace: [-.12, .96, .24],
+  face: .12, headDown: .44, heel: 0, leadElbow: .22,
 };
 /** How long each stage of going down lasts, cumulative from the blow. */
-const FALL = { recoil: 130, buckle: 430, settled: 1180 } as const;
+const FALL = { recoil: 130, buckle: 430, settled: 1260 } as const;
+
+/**
+ * Where the ball has found him, as directions out from the middle of his trunk
+ * rather than as points in space.
+ *
+ * Given as directions because the marks are then projected onto the trunk's
+ * surface and turned to lie flat against it, thin edge outward. Hand-placed
+ * points were the first attempt and they sat proud of the shirt like beads —
+ * the body is an ellipsoid a good deal wider than it is deep, so a position
+ * that looks right on one axis floats on another.
+ *
+ * Spread round him, and weighted to the back and the off shoulder: this camera
+ * is behind the batter, and a mark he is sitting on says nothing.
+ */
+const MARKS: readonly (readonly [number, number, number, number])[] = [
+  [.55, .50, -.66, .052],
+  [-.48, -.18, -.85, .046],
+  [.12, .84, -.52, .038],
+  [.06, -.82, -.56, .048],
+  [.94, -.28, .18, .044],
+  [-.90, .22, .26, .040],
+];
+/** The trunk's half-extents and where its middle sits, for placing those marks. */
+const TRUNK = new THREE.Vector3(.205, .275, .145);
+const TRUNK_MID = new THREE.Vector3(0, -.075, 0);
 
 const BACKLIFT: Pose = {
   ...GUARD, grip: [0.28, 0.96, 0.11], batUp: [-0.39, -0.73, 0.56], batFace: [0.28, 0.86, 0.30],
@@ -303,6 +336,7 @@ function mix(a: Pose, b: Pose, amount: number): Pose {
     batUp: new THREE.Vector3(0, 1, 0).applyQuaternion(bat).toArray() as unknown as Point,
     batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(bat).toArray() as unknown as Point,
     yaw: THREE.MathUtils.lerp(a.yaw, b.yaw, t), face: THREE.MathUtils.lerp(a.face, b.face, t), heel: THREE.MathUtils.lerp(a.heel, b.heel, t),
+    headDown: THREE.MathUtils.lerp(a.headDown ?? 0, b.headDown ?? 0, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
   };
 }
@@ -330,6 +364,8 @@ export class Batter {
   /** When he went down, and the shape he was in when it happened. */
   private felledAt = -Infinity;
   private felledFrom: Pose = GUARD;
+  /** The stains on the whites, revealed one at a time as he is worn down. */
+  private marks: THREE.Mesh[] = [];
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -350,6 +386,8 @@ export class Batter {
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
     helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
+    /** Where the ball has been. Dark and matt, so it reads as a stain on whites. */
+    blood: new THREE.MeshStandardMaterial({ color: 0x8c1a12, roughness: .96 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
@@ -431,6 +469,24 @@ export class Batter {
         knee: this.mesh(this.root, this.palette.trousers, [.078, .078, .078], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.115, .115, .115], 'ball'),
         pad, shoe });
     }
+    // Where he has been hit, in the order the marks come out. Parented to the
+    // trunk so they travel with him through every stroke and through the fall,
+    // and spread round it rather than clustered on one face, because the camera
+    // sees his back and his off side and a mark he is sitting on says nothing.
+    for (const [dx, dy, dz, r] of MARKS) {
+      const out = new THREE.Vector3(dx, dy, dz).normalize();
+      // Where that direction leaves the trunk, and a hair beyond it so the mark
+      // breaks the surface instead of being buried in the shirt.
+      const reach = 1.012 / Math.hypot(out.x / TRUNK.x, out.y / TRUNK.y, out.z / TRUNK.z);
+      const mark = this.mesh(this.torso, this.palette.blood, [r, r * .86, r * .26], 'ball');
+      mark.position.copy(out).multiplyScalar(reach).add(TRUNK_MID);
+      // Flattened on its own z, so turning that axis outward lays it against him.
+      mark.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), out);
+      mark.visible = false;
+      mark.castShadow = false;
+      this.marks.push(mark);
+    }
+
     this.reset();
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
@@ -443,6 +499,20 @@ export class Batter {
     mesh.quaternion.setFromUnitVectors(UP, axis.clone().normalize());
     mesh.scale.set(width, axis.length(), depth);
   }
+  /**
+   * Mark the whites for what he has taken.
+   *
+   * Driven by what is left of him rather than by the count of blows, so a
+   * bouncer off the helmet shows more than a ball into the pad — and so the
+   * shirt and the meter always agree. By the time the meter is critical he is
+   * wearing most of them, which is the point: the state is legible on the
+   * batter himself and not only on a bar in the corner.
+   */
+  bruise(fraction: number) {
+    const shown = Math.round(THREE.MathUtils.clamp(1 - fraction, 0, 1) * this.marks.length);
+    this.marks.forEach((mark, i) => { mark.visible = i < shown; });
+  }
+
   /**
    * He has taken one too many and cannot go on.
    *
@@ -462,6 +532,7 @@ export class Batter {
 
   reset() {
     this.felledAt = -Infinity;
+    this.marks.forEach(mark => { mark.visible = false; });
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
@@ -590,7 +661,7 @@ export class Batter {
     this.torso.position.copy(chest);
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
-    this.head.rotation.set(.09, pose.face, -.04);
+    this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
     this.bat.position.set(...pose.grip);
     this.bat.quaternion.copy(batOrientation(pose));
     this.root.updateMatrixWorld(true);
