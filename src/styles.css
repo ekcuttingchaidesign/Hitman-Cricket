@@ -1778,3 +1778,107 @@ dialog .primary-button{margin-top:18px}
      snapping to the animation's transparent final frame. */
   .result{animation:none!important;opacity:1;transform:none}
 }
+
+/* ── Survive: the Test match ───────────────────────────────────────────────
+   Everything below belongs to the second mode and is inert in the first: the
+   markup it styles is hidden unless an innings of Survive is being played. */
+
+/* The fitness meter shares the confidence meter's housing — the two never
+   appear together — so it only has to restate the colours. */
+.confidence.is-hurt{border-left-color:#d8443a;animation:hurt-meter 1.1s ease-in-out infinite}
+.confidence.is-hurt .confidence-label{color:#ffb4ab}
+.confidence.is-hurt .confidence-track>i{background:linear-gradient(90deg,#8e1d16,#e8564a)}
+@keyframes hurt-meter{
+  0%,100%{box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset,0 0 0 0 #d8443a00}
+  50%{box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset,0 0 0 6px #d8443a45}
+}
+
+/* A red edge on the whole field when one more blow ends the innings.
+   It beats hard three times and then holds. Nothing heals in this mode, so a
+   batter can be critical for a third of an innings — a border pulsing at two
+   hertz for ninety seconds is a headache rather than a warning, and the steady
+   state says exactly the same thing without becoming furniture. */
+.stage.hurt-on::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:2;
+  box-shadow:inset 0 0 0 3px #d8443ab3,inset 0 0 52px 10px #8e1d1642;
+  animation:hurt-edge .62s ease-in-out 3
+}
+@keyframes hurt-edge{
+  0%,100%{box-shadow:inset 0 0 0 3px #d8443ab3,inset 0 0 52px 10px #8e1d1642}
+  50%{box-shadow:inset 0 0 0 6px #ff5a4ee6,inset 0 0 78px 22px #8e1d1682}
+}
+/* Motion sensitivity: the information is the red edge, not the movement. */
+@media (prefers-reduced-motion:reduce){
+  .stage.hurt-on::before{animation:none}
+  .confidence.is-hurt{animation:none;box-shadow:0 0 0 4px #d8443a45}
+}
+
+/* What is left to do, kept where the score already is. */
+.survive-strip{
+  display:flex;
+  gap:2px;
+  margin-top:6px;
+  border-radius:10px;
+  overflow:hidden;
+  background:#0d2233e6;
+  box-shadow:0 8px 20px #06121b59,0 1px 0 #ffffff1f inset;
+  font-family:var(--font-display,inherit)
+}
+.survive-strip .strip-cell{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:1px;
+  padding:6px 8px;
+  background:#12293c
+}
+.survive-strip .strip-label{font-size:8px;letter-spacing:.14em;color:#7fa6c0}
+.survive-strip strong{font-size:17px;line-height:1;color:#f4efe2;font-variant-numeric:tabular-nums}
+.survive-strip.is-close strong{color:#ffce7a}
+
+/* The picker. Two cards, and the Test match says plainly what it costs. */
+.modes-card{max-width:440px}
+.mode-option{
+  display:block;
+  width:100%;
+  margin-top:10px;
+  padding:14px 16px;
+  text-align:left;
+  border:1px solid #ffffff24;
+  border-radius:14px;
+  background:#12293cd9;
+  color:inherit;
+  cursor:pointer;
+  transition:border-color .15s ease,background .15s ease
+}
+.mode-option:hover,.mode-option:focus-visible{border-color:#ffffff5c;background:#173447}
+.mode-option .mode-tag{
+  display:inline-block;
+  font-size:9px;
+  letter-spacing:.16em;
+  color:#7fa6c0;
+  margin-bottom:5px
+}
+.mode-option strong{display:block;font-size:21px;line-height:1.15;margin-bottom:5px}
+.mode-option small{display:block;font-size:12px;line-height:1.5;color:#c6d6e1;opacity:.85}
+.mode-option.mode-survive .mode-tag{color:#e8a06a}
+.mode-option.mode-survive:hover,.mode-option.mode-survive:focus-visible{border-color:#e8a06a8c}
+
+/* The result leads the card, so it carries the colour. */
+#end-survive.outcome-chased .pause-eyebrow{color:#8ddc9a}
+#end-survive.outcome-drawn .pause-eyebrow{color:#ffce7a}
+#end-survive.outcome-bowled_out .pause-eyebrow,
+#end-survive.outcome-retired .pause-eyebrow{color:#ff8a7e}
+
+/* Survive borrows the scoreboard but never the board or the share keys: it has
+   no ladder of its own yet, and it has no business on the other mode's. */
+body.survive-mode #board,body.survive-mode #share{opacity:.3;pointer-events:none}
+@media (max-width:560px){
+  .survive-strip strong{font-size:15px}
+  .mode-option strong{font-size:19px}
+}

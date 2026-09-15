@@ -8,7 +8,8 @@ import type { BoardRow, Innings } from '../game/leaderboard';
 import { AVATARS, kitDeal } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
-import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
+import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
+import { SURVIVE } from '../config/survive';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
@@ -139,6 +140,11 @@ export class HUD {
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
+        <div id="survive-strip" class="survive-strip hidden" role="status">
+          <span class="strip-cell"><span class="strip-label">TARGET</span><strong id="strip-target"></strong></span>
+          <span class="strip-cell"><span class="strip-label">TO WIN</span><strong id="strip-need"></strong></span>
+          <span class="strip-cell"><span class="strip-label">BALLS LEFT</span><strong id="strip-left"></strong></span>
+        </div>
         </div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
@@ -191,6 +197,44 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               </div>
             </div>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
+          </div>
+        </div>
+        <div id="modes" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
+          <div class="scorecard modes-card">
+            <p class="pause-eyebrow">PICK YOUR INNINGS</p>
+            <h2 id="modes-title">Two ways to bat.</h2>
+            <button id="mode-classic" class="mode-option">
+              <span class="mode-tag">5 OVERS</span>
+              <strong>The Blast</strong>
+              <small>Thirty balls, three wickets, and everything to gain. Score as many as you can.</small>
+            </button>
+            <button id="mode-survive" class="mode-option mode-survive">
+              <span class="mode-tag">10 OVERS · TEST MATCH</span>
+              <strong>Survive</strong>
+              <small>You are the last man in, nine down. Score a hundred to win it, or bat out ten overs for the draw. One wicket — and they are bowling at your body.</small>
+            </button>
+            <button id="modes-cancel" class="ghost-link">Back</button>
+          </div>
+        </div>
+        <div id="end-survive" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
+          <div class="scorecard">
+            <p class="pause-eyebrow" id="survive-eyebrow">THE TEST MATCH</p>
+            <h2 id="survive-title">Innings complete.</h2>
+            <div class="card-figures">
+              <p class="card-runs" id="survive-score" role="img"></p>
+              <p class="card-overs"><span id="survive-overs"></span><small>Overs</small></p>
+            </div>
+            <p id="survive-message" class="card-line"></p>
+            <dl class="card-stats">
+              <div><dt>Balls faced</dt><dd id="survive-balls"></dd></div>
+              <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
+              <div><dt>Fitness left</dt><dd id="survive-health"></dd></div>
+            </dl>
+            <div class="card-keys">
+              <button id="survive-again" class="key-button">BAT AGAIN</button>
+              <button id="survive-modes" class="story-key">CHANGE MODE</button>
+            </div>
+            <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
           </div>
         </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
@@ -266,11 +310,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('last').innerHTML = dotMatrix(call, last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
     this.$('last').className = `cell-value ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
   }
-  start() {
+  start(surviving = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
     document.body.classList.add('innings-active');
+    document.body.classList.toggle('survive-mode', surviving);
     this.viewport.classList.remove('modal-open');
-    ['intro', 'end', 'pause-overlay', 'result', 'coach', 'tutorial-done'].forEach(id => this.$(id).classList.add('hidden'));
+    this.viewport.classList.remove('hurt-on');
+    ['intro', 'end', 'end-survive', 'pause-overlay', 'result', 'coach', 'tutorial-done', 'modes']
+      .forEach(id => this.$(id).classList.add('hidden'));
+    this.$('survive-strip').classList.toggle('hidden', !surviving);
+    // The board and the share keys belong to the classic innings. Survive has a
+    // board of its own coming and nothing to say on this one, and a key that
+    // puts a Test match on a thirty-ball ladder would be worse than no key.
+    ['board', 'share'].forEach(id => (this.$(id) as HTMLButtonElement).disabled = surviving);
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
   }
@@ -607,6 +659,93 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
     this.$('confidence-label').textContent = primed ? 'CHARGE IT — SWIPE UP' : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
+  /**
+   * The batter's fitness, in the housing the confidence meter uses in the other
+   * innings — the two never appear together, and a second meter would only be a
+   * second thing to read in the second a ball takes to arrive.
+   *
+   * At critical the whole field takes a red edge. It pulses hard for three
+   * beats and then holds, which is deliberate: nothing heals in this mode, so a
+   * batter can be critical for a third of an innings, and a border pulsing at
+   * two hertz for ninety seconds is a headache rather than a warning. The hold
+   * says the same thing and goes on saying it.
+   */
+  health(fraction: number, critical: boolean) {
+    const meter = this.$('confidence');
+    const percent = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
+    meter.setAttribute('aria-label', 'Fitness');
+    meter.setAttribute('aria-valuenow', String(percent));
+    meter.classList.remove('is-full', 'is-primed');
+    meter.classList.toggle('is-hurt', critical);
+    this.$('confidence-fill').style.width = `${percent}%`;
+    this.$('confidence-label').textContent = critical ? 'ONE MORE AND HE IS OFF' : 'FITNESS';
+    this.viewport.classList.toggle('hurt-on', critical);
+  }
+
+  /** The mode picker. Skipped entirely when a link has already named the mode. */
+  modes() {
+    this.$('modes').classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    (this.$('mode-classic') as HTMLButtonElement).focus();
+  }
+  closeModes() {
+    this.$('modes').classList.add('hidden');
+    if (this.$('end').classList.contains('hidden') && this.$('end-survive').classList.contains('hidden')) {
+      this.viewport.classList.remove('modal-open');
+    }
+  }
+  get modesOpen() { return !this.$('modes').classList.contains('hidden'); }
+  /**
+   * Hide the way back to the picker. A link that names one mode is a link to
+   * that mode, and offering to leave it is how a playtester ends up filing
+   * feedback about the wrong game.
+   */
+  lockMode() { this.$('survive-modes').classList.add('hidden'); }
+
+  /** What is left to do: the target, the runs still wanted, and the balls to get them in. */
+  target(teamScore: number, runs: number, balls: number) {
+    const need = Math.max(0, SURVIVE.target - runs);
+    const left = Math.max(0, SURVIVE.totalBalls - balls);
+    this.$('strip-target').textContent = `${teamScore + SURVIVE.target}`;
+    this.$('strip-need').textContent = `${need}`;
+    this.$('strip-left').textContent = `${left}`;
+    this.$('survive-strip').classList.toggle('is-close', need <= 18 || left <= 12);
+  }
+
+  /**
+   * How a Test match finished. The headline is the result rather than the score,
+   * because in this mode the score is not the point — and a retirement names the
+   * battering rather than the last blow, so that a routine defensive shot never
+   * looks like the thing that killed him.
+   */
+  endSurvive(score: ScoreManager, health: { value: number; blows: unknown[] }, ending: Ending, teamScore: number) {
+    const total = teamScore + score.runs;
+    const said: Record<Ending, { eyebrow: string; title: string; line: string }> = {
+      CHASED: { eyebrow: 'MATCH WON', title: 'You got them home.',
+        line: `A hundred from the last man. ${total} all out, and the game is yours.` },
+      DRAWN: { eyebrow: 'MATCH DRAWN', title: 'You batted out the day.',
+        line: `Ten overs survived on ${total} for 9. Not a win, but they could not finish you.` },
+      BOWLED_OUT: { eyebrow: 'MATCH LOST', title: 'All out.',
+        line: `${total} all out with ${SURVIVE.totalBalls - score.balls} balls still to survive.` },
+      RETIRED: { eyebrow: 'RETIRED HURT', title: 'He could not go on.',
+        line: `${health.blows.length} blows taken, and the last of them was one too many.` },
+    };
+    const copy = said[ending];
+    this.$('survive-eyebrow').textContent = copy.eyebrow;
+    this.$('survive-title').textContent = copy.title;
+    this.$('survive-message').textContent = copy.line;
+    this.$('survive-score').innerHTML = dotMatrix(String(score.runs), `${score.runs} runs`);
+    this.$('survive-overs').textContent = score.overs;
+    this.$('survive-balls').textContent = String(score.balls);
+    this.$('survive-blows').textContent = String(health.blows.length);
+    this.$('survive-health').textContent = `${Math.max(0, Math.round(health.value))}%`;
+    this.$('end-survive').classList.remove('hidden');
+    this.$('end-survive').className = `modal-overlay outcome-${ending.toLowerCase()}`;
+    this.viewport.classList.add('modal-open');
+    this.viewport.classList.remove('hurt-on');
+    this.$('survive-again').focus();
+  }
+
   sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }
   debug(data: object) { this.$('debug').classList.remove('hidden'); this.$('debug').textContent = Object.entries(data).map(([k, v]) => `${k}: ${v}`).join('\n'); }
   async share() {

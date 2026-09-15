@@ -41,7 +41,15 @@ export class InputManager {
   private pending: { keys: string[]; time: number } | null = null;
   private used = false;
   private gesture: { id: number; x: number; y: number } | null = null;
-  constructor(private active: () => boolean, private now: () => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement) {
+  /**
+   * `now` is handed the event's own `timeStamp` so the shot is timed by when the
+   * player actually pressed rather than by the frame that noticed. A rounded
+   * timestamp costs nothing while the tightest window is forty milliseconds
+   * wide, but Survive's is half that and a sixty-hertz frame is sixteen — so
+   * without this the narrow windows would read as a lottery rather than as a
+   * demand on the player.
+   */
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -66,7 +74,7 @@ export class InputManager {
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
-    const time = this.now();
+    const time = this.now(event.timeStamp);
     this.used = true; this.pending = null; this.cancelGesture(); this.shoot(shot, time);
   };
   private pointerUp = (event: PointerEvent) => {
@@ -84,7 +92,7 @@ export class InputManager {
     event.preventDefault();
     if (event.repeat || this.held.has(key) || this.used) return;
     this.held.add(key);
-    const time = this.now();
+    const time = this.now(event.timeStamp);
     if (this.pending && time - this.pending.time > GAME.comboMs) this.flush(time);
     if (this.used) return;
     if (!this.pending) {

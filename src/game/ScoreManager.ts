@@ -1,14 +1,20 @@
 import { GAME } from '../config/gameplay';
 import type { ShotOutcome } from './types';
+/** Where an innings stops. Survive bats twice as long for a single wicket. */
+export interface InningsLimits { totalBalls: number; maxWickets: number; ballsPerOver: number }
+export const CLASSIC_LIMITS: InningsLimits = {
+  totalBalls: GAME.totalBalls, maxWickets: GAME.maxWickets, ballsPerOver: GAME.ballsPerOver,
+};
 export class ScoreManager {
+  constructor(readonly limits: InningsLimits = CLASSIC_LIMITS) {}
   runs = 0; wickets = 0; balls = 0; fours = 0; sixes = 0;
   /** Balls that scored nothing and were not wickets: the board ranks on these,
       and keeping wickets out of the count is what makes the two keys read as
       two different things rather than one thing counted twice. */
   dots = 0;
   history: ShotOutcome[] = [];
-  get overs() { return `${Math.floor(this.balls / GAME.ballsPerOver)}.${this.balls % GAME.ballsPerOver}`; }
-  get ended() { return this.balls >= GAME.totalBalls || this.wickets >= GAME.maxWickets; }
+  get overs() { return `${Math.floor(this.balls / this.limits.ballsPerOver)}.${this.balls % this.limits.ballsPerOver}`; }
+  get ended() { return this.balls >= this.limits.totalBalls || this.wickets >= this.limits.maxWickets; }
   get strikeRate() { return this.balls ? Math.round(this.runs / this.balls * 100) : 0; }
   record(outcome: ShotOutcome) {
     if (this.ended) return;

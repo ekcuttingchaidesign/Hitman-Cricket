@@ -102,6 +102,13 @@ export interface Kit {
   shoe: number;
 }
 export const KIT: Kit = { shirt: 0xe4703a, trousers: 0xf4f0e4, skin: 0xb77950, trim: 0xfbf7ec, cap: 0xe4703a, shoe: 0xfbf7ec };
+/**
+ * The parts of a kit a figure can be re-dressed in. `flash` is the strip of
+ * shirt colour across the toe of the boot — it is the one place a kit colour is
+ * used at a different roughness, so it needs naming separately or a change of
+ * shirt would leave it behind.
+ */
+export type DressRole = keyof Kit | 'flash';
 
 const cache = new Map<string, THREE.MeshStandardMaterial>();
 function material(color: number, roughness: number) {
@@ -135,6 +142,10 @@ export class Cricketer {
   private shoulders = [new THREE.Vector3(), new THREE.Vector3()];
   private hipJoints = [new THREE.Vector3(), new THREE.Vector3()];
 
+  /** Every mesh that wears a kit colour, and what it is wearing it as. */
+  private dressable: THREE.Mesh[] = [];
+  private palette: { role: DressRole; mat: THREE.Material }[] = [];
+
   constructor(kit: Kit = KIT) {
     const skin = material(kit.skin, .86);
     const shirt = material(kit.shirt, .82);
@@ -142,6 +153,14 @@ export class Cricketer {
     const trim = material(kit.trim, .78);
     const shoe = material(kit.shoe, .7);
     const sole = material(0x3d4046, .85);
+    const flash = material(kit.shirt, .7);
+    // Recorded before the first mesh is made, because `mesh` reads it to label
+    // what it builds. The sole is not here: it is the same dark rubber whatever
+    // the kit, so nothing should ever repaint it.
+    this.palette = [
+      { role: 'skin', mat: skin }, { role: 'shirt', mat: shirt }, { role: 'trousers', mat: trousers },
+      { role: 'trim', mat: trim }, { role: 'shoe', mat: shoe }, { role: 'flash', mat: flash },
+    ];
     this.root.name = 'Articulated cricketer';
     this.root.add(this.hips, this.torso, this.head);
 
@@ -159,6 +178,7 @@ export class Cricketer {
     this.mesh(this.head, skin, [1, 1, 1], 'head');
     for (const x of [-.127, .127]) this.mesh(this.head, skin, [.024, .044, .034], 'ball').position.set(x, -.005, -.012);
     const cap = material(kit.cap, .74);
+    this.palette.push({ role: 'cap', mat: cap });
     this.mesh(this.head, cap, [.144, .128, .152], 'ball').position.set(0, .050, -.004);
     // The peak: a flattened lobe out over the brow, its back half buried in the
     // dome. A band round a sphere would ring the whole head like a crest.
@@ -189,7 +209,7 @@ export class Cricketer {
       this.mesh(foot, shoe, [.09, .062, .165], 'soft').position.z = .042;
       this.mesh(foot, shoe, [.046, .034, .036], 'ball').position.set(0, -.012, .128);
       this.mesh(foot, sole, [.092, .024, .167], 'soft').position.set(0, -.038, .042);
-      this.mesh(foot, material(kit.shirt, .7), [.094, .016, .05], 'soft').position.set(0, .014, 0);
+      this.mesh(foot, flash, [.094, .016, .05], 'soft').position.set(0, .014, 0);
       this.legs.push({
         upper: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),
         lower: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),
@@ -202,9 +222,39 @@ export class Cricketer {
     this.apply(this.pose);
   }
 
+  /**
+   * Every piece of the figure is made here, which is what makes `dress` possible:
+   * the role a material was playing is recorded on the mesh as it is built, so a
+   * later change of kit can find every shirt panel without a list of them having
+   * to be kept by hand and kept in step.
+   */
   private mesh(parent: THREE.Object3D, mat: THREE.Material, scale: Point, shape: keyof typeof SHAPES = 'soft') {
     const mesh = new THREE.Mesh(SHAPES[shape], mat);
+    const role = this.palette.find(entry => entry.mat === mat)?.role;
+    if (role) { mesh.userData.role = role; this.dressable.push(mesh); }
     mesh.scale.set(...scale); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+  }
+
+  /**
+   * Put the figure in a different kit.
+   *
+   * Survive is played in whites, and the alternative to this was building a
+   * second batter and a second bowler — or tearing down a scene that holds a
+   * stadium and fourteen hundred instanced seats — every time somebody changed
+   * their mind on the mode screen. Materials are cached by colour, so two
+   * figures in the same kit still share one material each and this costs a
+   * handful of assignments.
+   */
+  dress(kit: Kit) {
+    const swatch: Record<DressRole, THREE.Material> = {
+      skin: material(kit.skin, .86), shirt: material(kit.shirt, .82), trousers: material(kit.trousers, .8),
+      trim: material(kit.trim, .78), shoe: material(kit.shoe, .7), cap: material(kit.cap, .74),
+      flash: material(kit.shirt, .7),
+    };
+    for (const mesh of this.dressable) {
+      const role = mesh.userData.role as DressRole | undefined;
+      if (role) mesh.material = swatch[role];
+    }
   }
 
   /**

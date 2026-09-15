@@ -4,6 +4,8 @@ import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
 import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
+import { KIT } from '../entities/Cricketer';
+import { WHITES } from '../config/survive';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
@@ -40,6 +42,8 @@ export class GameScene {
   private batter = new Batter();
   private bowler = new Bowler();
   private catcher = new Cricketer();
+  /** Scenery, but they are on the same field and wear the same kit as everyone else. */
+  private fielders: Cricketer[] = [];
   private ball: THREE.Mesh;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
@@ -139,6 +143,7 @@ export class GameScene {
     // Fielders are scenery except the one scripted catcher.
     [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]].forEach(([x, z]) => {
       const fielder = new Cricketer(); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
+      this.fielders.push(fielder);
     });
   }
   private createStadium() {
@@ -201,6 +206,21 @@ export class GameScene {
     this.camera.lookAt(0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall));
     this.camera.updateProjectionMatrix();
   };
+  /**
+   * Put both figures into whites, or back into colours. The ball is left alone:
+   * it is red in both, which is the one thing a Test match and this game's
+   * limited-overs innings have always agreed on.
+   */
+  whites(on: boolean) {
+    const kit = on ? WHITES : KIT;
+    this.batter.dress(on);
+    this.bowler.figure.dress(kit);
+    // The fielding side too. Leaving them in coloured clothing while the two
+    // men in the middle wore whites read as a bug rather than as a mode.
+    this.catcher.dress(kit);
+    for (const fielder of this.fielders) fielder.dress(kit);
+  }
+
   reset() {
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();

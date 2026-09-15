@@ -313,6 +313,20 @@ export class Batter {
     grille: new THREE.MeshStandardMaterial({ color: 0x8c9da0, metalness: .6, roughness: .4 }),
     handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
   };
+  /**
+   * Whites, for the Test match, or back into coloured clothing.
+   *
+   * The batter owns his materials outright rather than sharing the cached ones
+   * the other figures use, so this is three colours rather than a re-dress —
+   * and it can be called at any time, which is what lets the mode screen change
+   * its mind without the scene being torn down and rebuilt around it.
+   */
+  dress(whites: boolean) {
+    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x19334a);
+    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0xe7e2d3);
+    this.palette.accent.color.setHex(whites ? 0xd9d3c3 : 0xed7044);
+  }
+
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
