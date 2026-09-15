@@ -17,7 +17,9 @@ name: Publish Survive to Pages
 
 on:
   push:
-    branches: [claude/relaxed-bell-x0wva5]
+    # The branch this is being built on, and the one it will land on, so the
+    # published game does not quietly stop updating the day it is merged.
+    branches: [claude/relaxed-bell-x0wva5, codex/cricket-batting-game]
   workflow_dispatch:
 
 permissions:

@@ -706,7 +706,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * that mode, and offering to leave it is how a playtester ends up filing
    * feedback about the wrong game.
    */
-  lockMode() { this.$('survive-modes').classList.add('hidden'); }
+  lockMode(surviveOnly = false) {
+    this.$('survive-modes').classList.add('hidden');
+    // A build with no board behind it should not offer a way to one. The key is
+    // on the cover under two different ids depending on whether the screen got
+    // the phone layout or the desktop one.
+    if (surviveOnly) document.body.classList.add('survive-only');
+  }
 
   /**
    * The match situation, which in this mode is the whole scoreboard.

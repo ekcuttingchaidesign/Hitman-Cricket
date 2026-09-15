@@ -26,6 +26,13 @@ import type { BoardRow } from './game/leaderboard';
 /** Which innings is being played. The two share a loop and almost nothing else. */
 export type GameMode = 'CLASSIC' | 'SURVIVE';
 
+/**
+ * Whether this bundle was built to play Survive and nothing else. Set by the
+ * GitHub Pages workflow, and the reason that deployment can exist at all: the
+ * host cannot serve the board's two functions, and this build never asks it to.
+ */
+const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
+
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
 };
@@ -98,7 +105,12 @@ export class Game {
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
     void playerId().then(id => { this.player = id; }).catch(() => {});
-    void this.loadBoard();
+    // A survive-only build has no board behind it and no screen that opens one,
+    // so it does not go looking. On GitHub Pages that request is a guaranteed
+    // 404 on every load — harmless, since a board that never answers is already
+    // handled, but a console full of red is a bad first impression for somebody
+    // who was handed the link to give an opinion on the batting.
+    if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); this.hud.error(); return; }
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport);
     // The play key opens the picker rather than an innings — unless a link has
@@ -121,7 +133,7 @@ export class Game {
       event.preventDefault();
       void this.sendClaim();
     });
-    this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
+    if (!SURVIVE_ONLY) this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
     this.hud.on('help', () => { if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
       if (document.fullscreenElement) void document.exitFullscreen();
@@ -132,13 +144,11 @@ export class Game {
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
-    const named = import.meta.env.VITE_SURVIVE_ONLY
-      ? 'SURVIVE'
-      : new URLSearchParams(location.search).get('mode')?.toUpperCase();
+    const named = SURVIVE_ONLY ? 'SURVIVE' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
     if (named === 'SURVIVE' || named === 'CLASSIC') {
       this.mode = named as GameMode;
       this.locked = true;
-      this.hud.lockMode();
+      this.hud.lockMode(SURVIVE_ONLY);
     }
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {

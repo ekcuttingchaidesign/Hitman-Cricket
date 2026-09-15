@@ -2008,6 +2008,9 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 /* Survive borrows the scoreboard but never the board or the share keys: it has
    no ladder of its own yet, and it has no business on the other mode's. */
 body.survive-mode #board,body.survive-mode #share{opacity:.3;pointer-events:none}
+/* A build published somewhere that cannot serve the board hides the way to it
+   entirely, rather than offering a key that can only ever say it is unreachable. */
+body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only #board{display:none}
 @media (max-width:560px){
   .mode-option strong{font-size:19px}
   .hit-burst span{font-size:36px}
