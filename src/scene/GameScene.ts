@@ -211,6 +211,9 @@ export class GameScene {
    * it is red in both, which is the one thing a Test match and this game's
    * limited-overs innings have always agreed on.
    */
+  /** He has taken one too many. Nothing stands him back up but a new innings. */
+  fall(now: number) { this.batter.fall(now); }
+
   whites(on: boolean) {
     const kit = on ? WHITES : KIT;
     this.batter.dress(on);

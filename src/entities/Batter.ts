@@ -39,6 +39,44 @@ const GUARD: Pose = {
   grip: [0.27, 0.90, 0.13], batUp: [-0.43, -0.67, 0.61], batFace: [0.30, 0.82, 0.35],
   yaw: 1.28, face: 0, heel: 0, leadElbow: -.34,
 };
+/**
+ * Going down.
+ *
+ * Three shapes rather than one, because a man does not arrive on the floor — he
+ * is hit, he folds, and then he ends up sitting there. `RECOIL` is the jolt off
+ * the body with the weight still on his feet; `BUCKLED` is the knees giving and
+ * the chest coming over; `FELLED` is what is left, down on the turf with his
+ * knees drawn up and the bat still in his hands because nobody thinks to let go.
+ *
+ * The leg solve bends the knee towards a pole out on the off side, so a seated
+ * pose reads best with the feet drawn back in rather than stretched out in
+ * front: the knees splay up and outward, which is how somebody actually sits
+ * down in pads.
+ */
+const RECOIL: Pose = {
+  ...GUARD,
+  hip: [-.06, .90, -.09], chest: [.01, 1.23, -.06],
+  frontFoot: [-.11, .08, .26], backFoot: [-.14, .08, -.27],
+  grip: [.24, .84, .06], batUp: [-.46, -.55, .70], batFace: [.26, .86, .28],
+  face: .18, heel: .10, leadElbow: -.18,
+};
+const BUCKLED: Pose = {
+  ...GUARD,
+  hip: [-.04, .58, -.10], chest: [.02, .98, .14],
+  frontFoot: [-.16, .08, .22], backFoot: [-.06, .08, -.18],
+  grip: [.26, .62, .30], batUp: [-.30, .60, .74], batFace: [.80, .30, .52],
+  face: .15, heel: .15, leadElbow: -.05,
+};
+const FELLED: Pose = {
+  ...GUARD,
+  hip: [-.03, .26, -.16], chest: [0, .60, .02],
+  frontFoot: [-.22, .08, .16], backFoot: [.10, .08, .10],
+  grip: [.32, .34, .18], batUp: [-.20, .92, .34], batFace: [.86, .16, .48],
+  face: .25, heel: 0, leadElbow: .10,
+};
+/** How long each stage of going down lasts, cumulative from the blow. */
+const FALL = { recoil: 130, buckle: 430, settled: 1180 } as const;
+
 const BACKLIFT: Pose = {
   ...GUARD, grip: [0.28, 0.96, 0.11], batUp: [-0.39, -0.73, 0.56], batFace: [0.28, 0.86, 0.30],
   chest: [0.01, 1.29, 0.01], leadElbow: -.24,
@@ -289,6 +327,9 @@ export class Batter {
   /** A charge down the pitch: the confidence shot. */
   private charging = false;
   private swingStart = -Infinity;
+  /** When he went down, and the shape he was in when it happened. */
+  private felledAt = -Infinity;
+  private felledFrom: Pose = GUARD;
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -402,7 +443,25 @@ export class Batter {
     mesh.quaternion.setFromUnitVectors(UP, axis.clone().normalize());
     mesh.scale.set(width, axis.length(), depth);
   }
+  /**
+   * He has taken one too many and cannot go on.
+   *
+   * Played from wherever he happened to be standing rather than from the guard,
+   * so the blow that finished him flows into the fall instead of the figure
+   * snapping back to a stance first. Once this starts nothing else moves him:
+   * `update` answers here and returns, so no stroke, no walk-back and no return
+   * to the pick-up can stand him up again. Only `reset` does, and that is a new
+   * innings.
+   */
+  fall(now: number) {
+    this.felledFrom = this.pose;
+    this.felledAt = now;
+  }
+  /** Whether he is on his way down or already there. */
+  get felled() { return Number.isFinite(this.felledAt); }
+
   reset() {
+    this.felledAt = -Infinity;
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
@@ -464,6 +523,7 @@ export class Batter {
       chest: [pose.chest[0], pose.chest[1] + bob, pose.chest[2]] };
   }
   update(now: number) {
+    if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     const age = now - this.swingStart;
     this.travel(age);
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
@@ -507,6 +567,20 @@ export class Batter {
     }
     else this.apply(mix(finish, GUARD, (age - 570) / (STROKE_DURATION_MS - 570)));
   }
+  /** The fall, stage by stage, and then he stays where he lands. */
+  private applyFall(age: number) {
+    if (age <= FALL.recoil) return this.apply(mix(this.felledFrom, RECOIL, ease(age / FALL.recoil)));
+    if (age <= FALL.buckle) {
+      return this.apply(mix(RECOIL, BUCKLED, ease((age - FALL.recoil) / (FALL.buckle - FALL.recoil))));
+    }
+    if (age <= FALL.settled) {
+      // The last stretch is the slowest: the knees have already gone, and what
+      // is left is a man settling onto the turf rather than dropping onto it.
+      return this.apply(mix(BUCKLED, FELLED, ease((age - FALL.buckle) / (FALL.settled - FALL.buckle))));
+    }
+    this.apply(FELLED);
+  }
+
   private apply(pose: Pose) {
     this.pose = pose;
     const hip = V(pose.hip), chest = V(pose.chest);

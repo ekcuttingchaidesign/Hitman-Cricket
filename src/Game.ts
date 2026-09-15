@@ -145,6 +145,9 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Fills the meter so the charge can be driven straight from a test.
       fillConfidence: () => { this.confidence.value = CONFIDENCE_FULL; this.showConfidence(); },
+      // Leaves him one blow from the floor, so the fall can be looked at without
+      // waiting for an innings that retires hurt to come round on its own.
+      hurt: () => { this.health.value = 1; this.showConfidence(); },
     } });
   }
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
@@ -184,7 +187,12 @@ export class Game {
   private get limits() { return this.surviving ? SURVIVE_LIMITS : CLASSIC_LIMITS; }
   private get plan() { return this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN; }
   private get readyMs() { return this.surviving ? SURVIVE.readyMs : GAME.readyMs; }
-  private get resultMs() { return this.surviving ? SURVIVE.resultMs : GAME.resultMs; }
+  private get resultMs() {
+    const base = this.surviving ? SURVIVE.resultMs : GAME.resultMs;
+    // The innings that ends with him on the floor is held open long enough for
+    // him to get there. Every other ball is the usual beat.
+    return this.ending === 'RETIRED' ? base + SURVIVE.felledMs : base;
+  }
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() { return this.surviving ? SURVIVE.timing.poor : GAME.timing.poor; }
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
@@ -433,9 +441,13 @@ export class Game {
     this.hud.result(outcome, this.chargeMiss);
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
-      // kick, the damage and the words are one event instead of four.
-      this.hud.blow(outcome.feedback, outcome.hit.damage);
+      // kick and the words are one event instead of three.
+      this.hud.blow(outcome.feedback);
       this.audio.play('edge');
+      // The one that finishes him puts him on the ground. It is the only blow
+      // that does, which is what makes it read as the end rather than as
+      // another dent in the meter.
+      if (this.ending === 'RETIRED') this.scene.fall(this.elapsed);
     }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);

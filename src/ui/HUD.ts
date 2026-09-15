@@ -151,7 +151,7 @@ export class HUD {
           </div>
         </div>
         </div>
-        <div id="hit-burst" class="hit-burst" aria-hidden="true"><span id="hit-damage"></span><em id="hit-where"></em></div>
+        <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
         <div id="coach" class="coach hidden">
@@ -739,9 +739,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * and the body part is named. It lasts about half a second and then the game
    * carries on, which is the difference between feedback and an interruption.
    */
-  blow(where: string, damage: number) {
+  blow(where: string) {
     const burst = this.$('hit-burst');
-    this.$('hit-damage').textContent = `−${damage}`;
     this.$('hit-where').textContent = where;
     // Restarting a CSS animation needs the class off, a reflow, and the class on.
     burst.classList.remove('is-on');
@@ -768,7 +767,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       BOWLED_OUT: { eyebrow: 'MATCH LOST', title: 'All out.',
         line: `${total} all out with ${SURVIVE.totalBalls - score.balls} balls still to survive.` },
       RETIRED: { eyebrow: 'RETIRED HURT', title: 'He could not go on.',
-        line: `${health.blows.length} blows taken, and the last of them was one too many.` },
+        line: health.blows.length === 1
+          ? 'One blow, and he could not take another.'
+          : `${health.blows.length} blows taken, and the last of them was one too many.` },
     };
     const copy = said[ending];
     this.$('survive-eyebrow').textContent = copy.eyebrow;

@@ -81,6 +81,12 @@ export const SURVIVE = {
   resultMs: 760,
   /** How long a skied ball hangs before it is judged. The classic innings waits 1900. */
   hangMs: 1150,
+  /**
+   * The extra beat the last ball is held for, so the batter is on the ground
+   * before the card comes up over him. Without it the innings ended on the blow
+   * and the fall played out behind a dialog nobody could see.
+   */
+  felledMs: 1000,
 } as const;
 
 /**

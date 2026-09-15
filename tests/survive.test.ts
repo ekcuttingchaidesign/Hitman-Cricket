@@ -323,6 +323,31 @@ describe('the meter', () => {
   });
 });
 
+describe('the blow that finishes him', () => {
+  // The three pieces have to agree: the resolver produces a blow, the meter
+  // empties, and the ending reads as a retirement rather than a dismissal.
+  // Nothing else in the game ends an innings without a wicket falling.
+  it('empties the meter and retires him rather than dismissing him', () => {
+    const health = new Health();
+    health.value = 6;
+    const bouncer = ball('SHORT', { finalTargetX: GAME.stanceX });
+    const played = resolveSurvive(bouncer, at(BANDS.clean + 60, 'DEFEND'), rolls(0.5));
+    expect(played.hit).toBeDefined();
+    expect(played.isWicket).toBe(false);
+    health.record(played);
+    expect(health.spent).toBe(true);
+    expect(endingOf(40, 30, 0, health.spent)).toBe('RETIRED');
+  });
+
+  it('leaves him standing while there is anything left', () => {
+    const health = new Health();
+    const played = resolveSurvive(ball('RIB', { finalTargetX: GAME.stanceX }), at(BANDS.clean + 40, 'DEFEND'), rolls(0.5));
+    health.record(played);
+    expect(health.spent).toBe(false);
+    expect(endingOf(40, 30, 0, health.spent)).toBeNull();
+  });
+});
+
 describe('the scoreboard he walks out to', () => {
   it('is drawn from the seed, inside the range the mode advertises', () => {
     for (const roll of [0, 0.5, 1]) {
