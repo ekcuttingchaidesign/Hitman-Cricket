@@ -1817,37 +1817,130 @@ dialog .primary-button{margin-top:18px}
   .confidence.is-hurt{animation:none;box-shadow:0 0 0 4px #d8443a45}
 }
 
-/* What is left to do, kept where the score already is.
-   Three blocks stacked down the left edge — scoreboard, meter, this — reached
-   the bowler's mark on a phone, so every part of it is sized to stay clear of
-   him: one line per label, no wrapping, and the whole stack scaled down where
-   the screen is narrow. */
-.survive-strip{
-  display:flex;
-  gap:2px;
-  border-radius:9px;
+/* The match situation, which in this mode replaces the scoreboard rather than
+   sitting under it. Four numbers: where the side is, where it has to get to, and
+   the two ways of getting there running out. The dot-matrix board is hidden for
+   the innings — it counts wickets that stop at one and overs that say nothing a
+   batter needs, and it reads a running total in a face built for glancing at
+   rather than for measuring against a target. */
+body.survive-mode #scoreboard{display:none}
+.survive-card{
+  min-width:186px;
+  border-radius:12px;
   overflow:hidden;
-  background:#0d2233e6;
-  box-shadow:0 6px 16px #06121b4d,0 1px 0 #ffffff1a inset;
+  background:#0d2233f2;
+  box-shadow:0 8px 22px #06121b66,0 1px 0 #ffffff1f inset;
   font-family:var(--font-display,inherit)
 }
-.survive-strip .strip-cell{
+.survive-card .sc-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  padding:7px 11px 6px;
+  background:#15304697
+}
+.survive-card .sc-score{
+  font-size:25px;
+  line-height:1;
+  color:#f8f3e6;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.01em
+}
+.survive-card .sc-chase{display:flex;align-items:baseline;gap:5px}
+.survive-card .sc-chase b{font-size:15px;color:#ffce7a;font-variant-numeric:tabular-nums}
+.survive-card .sc-feet{display:flex;gap:2px}
+.survive-card .sc-cell{
   flex:1;
   display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:0;
-  padding:4px 9px 5px;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:6px;
+  padding:5px 11px 6px;
   background:#12293c;
   white-space:nowrap
 }
-.survive-strip .strip-label{font-size:7.5px;letter-spacing:.13em;color:#7fa6c0;line-height:1.5}
-.survive-strip strong{font-size:15px;line-height:1.05;color:#f4efe2;font-variant-numeric:tabular-nums}
-.survive-strip.is-close strong{color:#ffce7a}
-/* Survive carries a third block, so its stack is tighter than the other mode's
-   and the meter loses the breathing room it does not need here. */
+.survive-card .sc-label{font-size:7.5px;letter-spacing:.13em;color:#7fa6c0}
+.survive-card .sc-feet b{font-size:15px;line-height:1;color:#f4efe2;font-variant-numeric:tabular-nums}
+.survive-card.is-close .sc-feet b{color:#ffce7a}
+/* Survive carries its own board plus the meter, so the stack is tighter — and
+   the situation goes above the meter, because it is the thing being read every
+   ball and the meter is the thing being watched out of the corner of an eye. */
 body.survive-mode .score-stack{gap:5px}
+body.survive-mode #survive-card{order:-1}
 body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
+
+/* ── Taking one on the body ────────────────────────────────────────────────
+   Until this existed the only sign a batter had been hit was the meter quietly
+   losing a bar, and the first thing a player actually noticed was the critical
+   border — by which point the information had come too late to bat on. The blow
+   itself now lands on the screen: it flashes, it kicks, and the damage comes off
+   him with the body part named. Half a second, then the game goes on. */
+.hit-burst{
+  position:absolute;
+  left:50%;
+  /* Over the batter's chest rather than up in the sky: the blow reads as having
+     landed on him, and it clears the result line, which sits higher. */
+  top:54%;
+  z-index:6;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+  pointer-events:none;
+  opacity:0;
+  font-family:var(--font-display,inherit)
+}
+.hit-burst span{
+  font-size:44px;
+  line-height:1;
+  color:#ff5a4e;
+  text-shadow:0 3px 0 #5c0f0a,0 0 26px #ff5a4e8c;
+  font-variant-numeric:tabular-nums
+}
+.hit-burst em{
+  font-style:normal;
+  font-size:11px;
+  letter-spacing:.18em;
+  color:#ffd9d4;
+  text-shadow:0 2px 6px #3b0a07
+}
+.hit-burst.is-on{animation:hit-rise .78s cubic-bezier(.16,.9,.3,1) forwards}
+@keyframes hit-rise{
+  0%{opacity:0;transform:translate(-50%,10px) scale(.72)}
+  14%{opacity:1;transform:translate(-50%,-4px) scale(1.14)}
+  30%{transform:translate(-50%,-12px) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-62px) scale(.96)}
+}
+/* The whole field takes the impact — the flash and the kick are one event. */
+.stage.struck::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:5;
+  /* Red across the whole field, heaviest at the edges. The first version was a
+     vignette that only reddened the far corners, which at a glance was no flash
+     at all — the point of this is that it is impossible to miss. */
+  background:radial-gradient(ellipse at 50% 48%,#ff3a2a4d 0%,#b81f14e6 100%);
+  animation:hit-flash .46s cubic-bezier(.2,.7,.4,1) forwards
+}
+@keyframes hit-flash{0%{opacity:0}9%{opacity:1}100%{opacity:0}}
+.stage.struck{animation:hit-kick .34s cubic-bezier(.36,.07,.19,.97)}
+@keyframes hit-kick{
+  0%,100%{transform:translate3d(0,0,0)}
+  12%{transform:translate3d(-9px,4px,0)}
+  28%{transform:translate3d(7px,-5px,0)}
+  46%{transform:translate3d(-5px,-2px,0)}
+  66%{transform:translate3d(3px,3px,0)}
+  84%{transform:translate3d(-2px,-1px,0)}
+}
+/* Motion sensitivity: the blow still reads, it just does not move the screen. */
+@media (prefers-reduced-motion:reduce){
+  .stage.struck{animation:none}
+  .hit-burst.is-on{animation:hit-hold .78s ease-out forwards}
+  @keyframes hit-hold{0%,72%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,0)}}
+}
 
 /* The picker. Two cards, and the Test match says plainly what it costs. */
 .modes-card{max-width:440px}
@@ -1888,6 +1981,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 body.survive-mode #board,body.survive-mode #share{opacity:.3;pointer-events:none}
 @media (max-width:560px){
   .mode-option strong{font-size:19px}
+  .hit-burst span{font-size:36px}
   /* The whole readout shrinks rather than any one part of it, so the scoreboard,
      the meter and the strip keep their proportions and clear the bowler's mark. */
   body.survive-mode .score-stack{transform:scale(.86);transform-origin:top left}

@@ -140,12 +140,18 @@ export class HUD {
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
-        <div id="survive-strip" class="survive-strip hidden" role="status">
-          <span class="strip-cell"><span class="strip-label">TARGET</span><strong id="strip-target"></strong></span>
-          <span class="strip-cell"><span class="strip-label">TO WIN</span><strong id="strip-need"></strong></span>
-          <span class="strip-cell"><span class="strip-label">BALLS</span><strong id="strip-left"></strong></span>
+        <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
+          <div class="sc-head">
+            <span class="sc-score" id="sc-score" aria-live="polite"></span>
+            <span class="sc-chase"><span class="sc-label">TARGET</span><b id="sc-target"></b></span>
+          </div>
+          <div class="sc-feet">
+            <span class="sc-cell"><span class="sc-label">TO WIN</span><b id="sc-need"></b></span>
+            <span class="sc-cell"><span class="sc-label">BALLS LEFT</span><b id="sc-balls"></b></span>
+          </div>
         </div>
         </div>
+        <div id="hit-burst" class="hit-burst" aria-hidden="true"><span id="hit-damage"></span><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
         <div id="coach" class="coach hidden">
@@ -318,7 +324,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.remove('hurt-on');
     ['intro', 'end', 'end-survive', 'pause-overlay', 'result', 'coach', 'tutorial-done', 'modes']
       .forEach(id => this.$(id).classList.add('hidden'));
-    this.$('survive-strip').classList.toggle('hidden', !surviving);
+    this.$('survive-card').classList.toggle('hidden', !surviving);
     // The board and the share keys belong to the classic innings. Survive has a
     // board of its own coming and nothing to say on this one, and a key that
     // puts a Test match on a thirty-ball ladder would be worse than no key.
@@ -702,14 +708,48 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   lockMode() { this.$('survive-modes').classList.add('hidden'); }
 
-  /** What is left to do: the target, the runs still wanted, and the balls to get them in. */
-  target(teamScore: number, runs: number, balls: number) {
+  /**
+   * The match situation, which in this mode is the whole scoreboard.
+   *
+   * The dot-matrix board belongs to the other innings: it counts wickets that
+   * cannot go past one and overs that say nothing a batter needs, and it spells
+   * a running total in a typeface built for three digits at a glance rather than
+   * for reading against a target. Here the only four numbers that matter are
+   * where the side is, where it needs to get to, and the two ways of getting
+   * there running out — so those are the four, and the board they replace is
+   * hidden for the innings.
+   */
+  target(teamScore: number, runs: number, balls: number, wickets = 0) {
     const need = Math.max(0, SURVIVE.target - runs);
     const left = Math.max(0, SURVIVE.totalBalls - balls);
-    this.$('strip-target').textContent = `${teamScore + SURVIVE.target}`;
-    this.$('strip-need').textContent = `${need}`;
-    this.$('strip-left').textContent = `${left}`;
-    this.$('survive-strip').classList.toggle('is-close', need <= 18 || left <= 12);
+    this.$('sc-score').textContent = `${teamScore + runs}/${9 + Math.min(1, wickets)}`;
+    this.$('sc-target').textContent = `${teamScore + SURVIVE.target}`;
+    this.$('sc-need').textContent = `${need}`;
+    this.$('sc-balls').textContent = `${left}`;
+    this.$('survive-card').classList.toggle('is-close', need <= 18 || left <= 12);
+  }
+
+  /**
+   * A blow, answered.
+   *
+   * Nothing said anything when the batter was hit until his fitness was already
+   * critical, so the meter quietly drained and the first a player knew of it was
+   * the red border — by which point the information was too late to bat on. This
+   * is the hit itself: the screen takes the impact, the damage flies off him,
+   * and the body part is named. It lasts about half a second and then the game
+   * carries on, which is the difference between feedback and an interruption.
+   */
+  blow(where: string, damage: number) {
+    const burst = this.$('hit-burst');
+    this.$('hit-damage').textContent = `−${damage}`;
+    this.$('hit-where').textContent = where;
+    // Restarting a CSS animation needs the class off, a reflow, and the class on.
+    burst.classList.remove('is-on');
+    this.viewport.classList.remove('struck');
+    void burst.offsetWidth;
+    burst.classList.add('is-on');
+    this.viewport.classList.add('struck');
+    window.setTimeout(() => this.viewport.classList.remove('struck'), 520);
   }
 
   /**

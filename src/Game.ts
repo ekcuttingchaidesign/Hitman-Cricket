@@ -129,7 +129,12 @@ export class Game {
     });
     window.addEventListener('keydown', this.shortcuts); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
-    const named = new URLSearchParams(location.search).get('mode')?.toUpperCase();
+    // A bundle built survive-only plays one innings and offers no way out of
+    // it — that is the whole of what makes it publishable somewhere with no
+    // board behind it. A `?mode=` link does the same thing at runtime.
+    const named = import.meta.env.VITE_SURVIVE_ONLY
+      ? 'SURVIVE'
+      : new URLSearchParams(location.search).get('mode')?.toUpperCase();
     if (named === 'SURVIVE' || named === 'CLASSIC') {
       this.mode = named as GameMode;
       this.locked = true;
@@ -161,7 +166,7 @@ export class Game {
     this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
     this.hud.start(this.surviving);
     this.hud.score(this.score); this.showConfidence();
-    if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls);
+    if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
   };
@@ -407,7 +412,7 @@ export class Game {
         // what makes a blow landing on the sixtieth ball a draw rather than a
         // retirement — he had no more batting left to be unable to do.
         this.ending = endingOf(this.score.runs, this.score.balls, this.score.wickets, this.health.spent);
-        this.hud.target(this.chasing, this.score.runs, this.score.balls);
+        this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
       } else {
         this.confidence.record(this.outcome);
       }
@@ -426,6 +431,12 @@ export class Game {
     const outcome = this.outcome!;
     if (this.lesson < 0) this.hud.score(this.score);
     this.hud.result(outcome, this.chargeMiss);
+    if (outcome.hit) {
+      // The blow lands with the call rather than before it, so the flash, the
+      // kick, the damage and the words are one event instead of four.
+      this.hud.blow(outcome.feedback, outcome.hit.damage);
+      this.audio.play('edge');
+    }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
   }
