@@ -214,9 +214,6 @@ export class GameScene {
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
 
-  /** Mark the whites for what he has taken. Survive only; classic never calls it. */
-  bruise(fraction: number) { this.batter.bruise(fraction); }
-
   whites(on: boolean) {
     const kit = on ? WHITES : KIT;
     this.batter.dress(on);

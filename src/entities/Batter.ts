@@ -85,30 +85,6 @@ const FELLED: Pose = {
 /** How long each stage of going down lasts, cumulative from the blow. */
 const FALL = { recoil: 130, buckle: 430, settled: 1260 } as const;
 
-/**
- * Where the ball has found him, as directions out from the middle of his trunk
- * rather than as points in space.
- *
- * Given as directions because the marks are then projected onto the trunk's
- * surface and turned to lie flat against it, thin edge outward. Hand-placed
- * points were the first attempt and they sat proud of the shirt like beads —
- * the body is an ellipsoid a good deal wider than it is deep, so a position
- * that looks right on one axis floats on another.
- *
- * Spread round him, and weighted to the back and the off shoulder: this camera
- * is behind the batter, and a mark he is sitting on says nothing.
- */
-const MARKS: readonly (readonly [number, number, number, number])[] = [
-  [.55, .50, -.66, .052],
-  [-.48, -.18, -.85, .046],
-  [.12, .84, -.52, .038],
-  [.06, -.82, -.56, .048],
-  [.94, -.28, .18, .044],
-  [-.90, .22, .26, .040],
-];
-/** The trunk's half-extents and where its middle sits, for placing those marks. */
-const TRUNK = new THREE.Vector3(.205, .275, .145);
-const TRUNK_MID = new THREE.Vector3(0, -.075, 0);
 
 const BACKLIFT: Pose = {
   ...GUARD, grip: [0.28, 0.96, 0.11], batUp: [-0.39, -0.73, 0.56], batFace: [0.28, 0.86, 0.30],
@@ -364,8 +340,6 @@ export class Batter {
   /** When he went down, and the shape he was in when it happened. */
   private felledAt = -Infinity;
   private felledFrom: Pose = GUARD;
-  /** The stains on the whites, revealed one at a time as he is worn down. */
-  private marks: THREE.Mesh[] = [];
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -386,8 +360,6 @@ export class Batter {
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
     helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
-    /** Where the ball has been. Dark and matt, so it reads as a stain on whites. */
-    blood: new THREE.MeshStandardMaterial({ color: 0x8c1a12, roughness: .96 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
@@ -469,24 +441,6 @@ export class Batter {
         knee: this.mesh(this.root, this.palette.trousers, [.078, .078, .078], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.115, .115, .115], 'ball'),
         pad, shoe });
     }
-    // Where he has been hit, in the order the marks come out. Parented to the
-    // trunk so they travel with him through every stroke and through the fall,
-    // and spread round it rather than clustered on one face, because the camera
-    // sees his back and his off side and a mark he is sitting on says nothing.
-    for (const [dx, dy, dz, r] of MARKS) {
-      const out = new THREE.Vector3(dx, dy, dz).normalize();
-      // Where that direction leaves the trunk, and a hair beyond it so the mark
-      // breaks the surface instead of being buried in the shirt.
-      const reach = 1.012 / Math.hypot(out.x / TRUNK.x, out.y / TRUNK.y, out.z / TRUNK.z);
-      const mark = this.mesh(this.torso, this.palette.blood, [r, r * .86, r * .26], 'ball');
-      mark.position.copy(out).multiplyScalar(reach).add(TRUNK_MID);
-      // Flattened on its own z, so turning that axis outward lays it against him.
-      mark.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), out);
-      mark.visible = false;
-      mark.castShadow = false;
-      this.marks.push(mark);
-    }
-
     this.reset();
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
@@ -499,20 +453,6 @@ export class Batter {
     mesh.quaternion.setFromUnitVectors(UP, axis.clone().normalize());
     mesh.scale.set(width, axis.length(), depth);
   }
-  /**
-   * Mark the whites for what he has taken.
-   *
-   * Driven by what is left of him rather than by the count of blows, so a
-   * bouncer off the helmet shows more than a ball into the pad — and so the
-   * shirt and the meter always agree. By the time the meter is critical he is
-   * wearing most of them, which is the point: the state is legible on the
-   * batter himself and not only on a bar in the corner.
-   */
-  bruise(fraction: number) {
-    const shown = Math.round(THREE.MathUtils.clamp(1 - fraction, 0, 1) * this.marks.length);
-    this.marks.forEach((mark, i) => { mark.visible = i < shown; });
-  }
-
   /**
    * He has taken one too many and cannot go on.
    *
@@ -532,7 +472,6 @@ export class Batter {
 
   reset() {
     this.felledAt = -Infinity;
-    this.marks.forEach(mark => { mark.visible = false; });
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
