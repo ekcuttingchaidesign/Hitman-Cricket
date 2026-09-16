@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, STYLES as CLASSIC_STYLES } from '../src/config/gameplay';
 import {
-  BANDS, DAMAGE, HEALTH, SIX, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES, SURVIVE, damageFor,
+  BANDS, CLOSE, DAMAGE, HEALTH, SIX, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES, SURVIVE, damageFor,
 } from '../src/config/survive';
 import { ballPosition, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { Health } from '../src/game/Health';
 import {
-  atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, sledgeDue,
+  atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, resultOf, sledgeDue,
   spun, teamScore, timingSide,
 } from '../src/game/Survive';
 import { DeliveryGenerator, SPIN_STYLES, spinOvers } from '../src/game/DeliveryGenerator';
@@ -817,5 +817,43 @@ describe('the spinner does not run in', () => {
     // A shorter run moves where he starts, never where he finishes: the ball
     // has to leave from the crease whoever bowled it.
     expect(SPIN_RUN.startZ - SPIN_RUN.releaseAdvance).toBeCloseTo(PACE_RUN.startZ - PACE_RUN.releaseAdvance, 9);
+  });
+});
+
+
+describe('which card the innings earns', () => {
+  // The four endings are the rules; the five results are what the card says.
+  it('names the three endings that speak for themselves', () => {
+    expect(resultOf('CHASED', 100, 44)).toBe('WON');
+    expect(resultOf('DRAWN', 38, SURVIVE.totalBalls)).toBe('DRAWN');
+    expect(resultOf('RETIRED', 12, 9)).toBe('HURT');
+  });
+
+  it('splits a loss by how close it came', () => {
+    // Twelve short with the field up is not the third ball of the match, and a
+    // card that says the same thing about both has stopped watching.
+    expect(resultOf('BOWLED_OUT', SURVIVE.target - CLOSE.byRuns, 30)).toBe('ALMOST');
+    expect(resultOf('BOWLED_OUT', 4, CLOSE.byBalls)).toBe('ALMOST');
+    expect(resultOf('BOWLED_OUT', 4, 6)).toBe('LOST');
+  });
+
+  it('holds the line on both edges of close', () => {
+    // One run and one ball either side, so neither threshold drifts unnoticed.
+    expect(resultOf('BOWLED_OUT', SURVIVE.target - CLOSE.byRuns - 1, 10)).toBe('LOST');
+    expect(resultOf('BOWLED_OUT', 10, CLOSE.byBalls - 1)).toBe('LOST');
+  });
+
+  it('keeps the hurt card whatever the score', () => {
+    // A man carried off twelve short is still a man carried off: telling him he
+    // almost did it says nothing about the thing that actually stopped him.
+    expect(resultOf('RETIRED', SURVIVE.target - 1, SURVIVE.totalBalls - 1)).toBe('HURT');
+  });
+
+  it('gives every result a card and every card a result', () => {
+    const seen = new Set([
+      resultOf('CHASED', 100, 40), resultOf('DRAWN', 20, 60), resultOf('RETIRED', 20, 20),
+      resultOf('BOWLED_OUT', 90, 20), resultOf('BOWLED_OUT', 2, 2),
+    ]);
+    expect(seen).toEqual(new Set(['WON', 'DRAWN', 'HURT', 'ALMOST', 'LOST']));
   });
 });

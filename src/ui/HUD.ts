@@ -11,6 +11,7 @@ import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
+import { resultOf, type Result } from '../game/Survive';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
@@ -44,6 +45,24 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
    the same kit — and the Test match has its own, in whites with a red ball. */
 const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
+/* The three plates the result card stands on. The loss is used twice: a man
+   carried off and a man bowled twelve short are the same picture of the same
+   over, and what separates them is the line above it, not the art. */
+const resultPlates: Record<Result, string> = {
+  WON: new URL('../assets/result-won.webp', import.meta.url).href,
+  DRAWN: new URL('../assets/result-drawn.webp', import.meta.url).href,
+  HURT: new URL('../assets/result-lost.webp', import.meta.url).href,
+  ALMOST: new URL('../assets/result-lost.webp', import.meta.url).href,
+  LOST: new URL('../assets/result-lost.webp', import.meta.url).href,
+};
+/* What each card says, and the word it puts on the result line. */
+const RESULT_SAID: Record<Result, { title: string; line: string; stamp: string }> = {
+  WON: { title: 'You did the impossible!', line: 'thats a legendary knock from a tailender', stamp: 'MATCH WON' },
+  DRAWN: { title: 'Thats warrior instincts!', line: 'Survived the fiery attack and saved the match', stamp: 'MATCH DRAWN' },
+  HURT: { title: 'Ouch! that hurts', line: 'Thats too many blows on the body', stamp: 'MATCH LOST' },
+  ALMOST: { title: 'You almost did it', line: 'Few balls more and it would\u2019ve been legendary', stamp: 'MATCH LOST' },
+  LOST: { title: 'They got you', line: 'One wicket was all they needed', stamp: 'MATCH LOST' },
+};
 /**
  * A phone gets the cover art: the illustration, the title lockup and two calls
  * to action, with nothing else on the screen. A desktop keeps the card over the
@@ -236,25 +255,31 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <button id="modes-cancel" class="ghost-link">Back</button>
           </div>
         </div>
-        <div id="end-survive" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
-          <div class="scorecard">
-            <h2 id="survive-title">MATCH DRAWN</h2>
-            <div class="card-figures">
-              <p class="card-runs" id="survive-score" role="img"></p>
-              <p class="card-overs"><span id="survive-overs"></span><small>Overs</small></p>
+        <div id="end-survive" class="modal-overlay result-screen hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
+          <div class="result-card">
+            <span class="result-plate"><img id="survive-plate" src="" alt="" decoding="async" /></span>
+            <div class="result-body">
+              <h2 id="survive-title" class="result-headline"></h2>
+              <p id="survive-message" class="result-sub"></p>
+              <hr class="result-rule" />
+              <p class="result-stamp" id="survive-stamp"></p>
+              <div class="result-figures">
+                <p class="result-score" id="survive-score" role="img"></p>
+                <p class="result-balls" id="survive-overs"></p>
+              </div>
+              <div class="card-balls" id="survive-track" aria-hidden="true"></div>
+              <hr class="result-rule" />
+              <dl class="result-stats">
+                <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
+                <div><dt>Blows Taken</dt><dd id="survive-blows"></dd></div>
+                <div><dt>Injury</dt><dd id="survive-health"></dd></div>
+              </dl>
+              <div class="result-keys">
+                <button id="survive-again" class="play-button">PLAY AGAIN</button>
+                <button id="survive-modes" class="learn-button">MODE SELECTION</button>
+              </div>
+              <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
             </div>
-            <div class="card-balls" id="survive-track" aria-hidden="true"></div>
-            <p id="survive-message" class="card-line"></p>
-            <dl class="card-stats">
-              <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
-              <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
-              <div><dt>Injury</dt><dd id="survive-health"></dd></div>
-            </dl>
-            <div class="card-keys">
-              <button id="survive-again" class="key-button">BAT AGAIN</button>
-              <button id="survive-modes" class="story-key">CHANGE MODE</button>
-            </div>
-            <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
           </div>
         </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
@@ -336,6 +361,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     document.body.classList.toggle('survive-mode', surviving);
     this.viewport.classList.remove('modal-open');
     this.viewport.classList.remove('hurt-on');
+    // Both full-screen overlays put the hud row away while they are up.
+    this.viewport.classList.remove('picking-mode', 'result-open');
     ['intro', 'end', 'end-survive', 'pause-overlay', 'result', 'coach', 'tutorial-done', 'modes']
       .forEach(id => this.$(id).classList.add('hidden'));
     this.$('survive-card').classList.toggle('hidden', !surviving);
@@ -806,34 +833,33 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * looks like the thing that killed him.
    */
   endSurvive(score: ScoreManager, health: { value: number; blows: unknown[] }, ending: Ending, teamScore: number) {
+    // The ending is the rule; the result is what the card says about it. They
+    // are different lists — see `resultOf`.
+    const result = resultOf(ending, score.runs, score.balls);
+    const said = RESULT_SAID[result];
     const total = teamScore + score.runs;
     // Nine down when he walked out; only being dismissed makes it ten. Retiring
     // hurt does not cost the side a wicket, which is the whole difference
     // between the two ways of losing this.
     const down = 9 + score.wickets;
     const left = SURVIVE.totalBalls - score.balls;
-    const blows = health.blows.length;
-    const said: Record<Ending, { stamp: string; line: string }> = {
-      CHASED: { stamp: 'MATCH WON', line: `A hundred from the last man. ${total} all out, and the game is yours.` },
-      DRAWN: { stamp: 'MATCH DRAWN', line: 'Ten overs survived. Not a win, but they could not finish you.' },
-      BOWLED_OUT: { stamp: 'MATCH LOST', line: `He could not last. ${left} balls still to survive when the wicket fell.` },
-      RETIRED: { stamp: 'RETIRED HURT', line: blows === 1
-        ? 'He could not go on. One blow, and there was nothing left to take another with.'
-        : `He could not go on. ${blows} blows taken, and the last of them was one too many.` },
-    };
-    const copy = said[ending];
-    // The stamp is the card's h2 — small, spaced and uppercase — and the number
-    // is the headline, the way every other card in the game is built. Writing
-    // the sentence into the h2 turned the headline into a second stamp and left
-    // the card with no figure on it at all.
-    this.$('survive-title').textContent = copy.stamp;
-    this.$('survive-message').textContent = copy.line;
+    (this.$('survive-plate') as HTMLImageElement).src = resultPlates[result];
+    this.$('survive-title').textContent = said.title;
+    this.$('survive-message').textContent = said.line;
+    this.$('survive-stamp').textContent = said.stamp;
     const runs = this.$('survive-score');
     runs.innerHTML = `${total}<span class="card-wickets">/${down}</span>`;
     runs.setAttribute('aria-label', `${total} for ${down}`);
-    this.$('survive-overs').textContent = score.overs;
-    this.$('survive-runs').textContent = String(score.runs);
-    this.$('survive-blows').textContent = String(blows);
+    // The drawn card is the one that counts up rather than down. Surviving the
+    // ten overs *was* the job, so it says what was seen off; every other card
+    // says what was left, because that is the size of the miss.
+    this.$('survive-overs').textContent = result === 'DRAWN'
+      ? `${score.balls} balls survived`
+      : `${left} ${left === 1 ? 'ball' : 'balls'} remaining`;
+    // Cricket's star: not out unless they actually got him. It is the whole
+    // point of the won card — a hundred not out from a number eleven.
+    this.$('survive-runs').textContent = `${score.runs}${score.wickets ? '' : '*'}`;
+    this.$('survive-blows').textContent = String(health.blows.length);
     // Stated as the bar states it, so the card does not invert the one number a
     // player just spent an innings watching. Off the meter's own full rather
     // than a literal hundred: the two have to agree, and a retirement has to
@@ -841,8 +867,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const injury = Math.round((1 - Math.max(0, health.value) / HEALTH.full) * 100);
     this.$('survive-health').textContent = `${injury}%`;
     this.ballTrack('survive-track', score, SURVIVE.totalBalls);
-    this.$('end-survive').className = `modal-overlay outcome-${ending.toLowerCase()}`;
-    this.viewport.classList.add('modal-open');
+    this.$('end-survive').className = `modal-overlay result-screen result-${result.toLowerCase()}`;
+    this.viewport.classList.add('modal-open', 'result-open');
     this.viewport.classList.remove('hurt-on');
     this.$('survive-again').focus();
   }

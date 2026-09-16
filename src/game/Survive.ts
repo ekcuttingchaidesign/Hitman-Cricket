@@ -1,6 +1,6 @@
 import { COMPATIBILITY, CUT, SOLID_SHOT } from '../config/gameplay.js';
 import {
-  BANDS, BODY_ZONE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
+  BANDS, BODY_ZONE, CLOSE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
@@ -429,6 +429,27 @@ export function endingOf(runs: number, balls: number, wickets: number, healthSpe
   if (wickets >= SURVIVE.maxWickets) return 'BOWLED_OUT';
   if (healthSpent) return 'RETIRED';
   return null;
+}
+
+/**
+ * Which of the five result cards an innings has earned.
+ *
+ * The four endings are the *rules*; these are what the card says about them,
+ * and they are not the same list. Being bowled out is one ending and two very
+ * different innings — the third ball of the match, or twelve runs short with
+ * the field up — so a loss that came close gets its own card and its own line.
+ *
+ * Retiring hurt keeps its card whatever the score. It is the one ending with a
+ * cause the player can point at, and telling a man carried off that he almost
+ * did it says nothing about the thing that actually stopped him.
+ */
+export type Result = 'WON' | 'DRAWN' | 'HURT' | 'ALMOST' | 'LOST';
+export function resultOf(ending: Ending, runs: number, balls: number): Result {
+  if (ending === 'CHASED') return 'WON';
+  if (ending === 'DRAWN') return 'DRAWN';
+  if (ending === 'RETIRED') return 'HURT';
+  const nearlyThere = runs >= SURVIVE.target - CLOSE.byRuns || balls >= CLOSE.byBalls;
+  return nearlyThere ? 'ALMOST' : 'LOST';
 }
 
 /** Whether the innings was won, drawn or lost — what the end card leads with. */

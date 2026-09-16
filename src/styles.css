@@ -1995,7 +1995,8 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
    tappable anyway, which is what a thumb is going to do regardless. */
 /* Nothing of the game shows through: the picker is a screen, not a card over
    the ground, and the hud keys are part of the ground. */
-.stage.picking-mode .hud-top,.stage.picking-mode .score-stack{display:none}
+.stage.picking-mode .hud-top,.stage.picking-mode .score-stack,
+.stage.result-open .hud-top,.stage.result-open .score-stack{display:none}
 .mode-screen{
   /* The screen the cards stand on, and it is the one place this differs from
      the other overlays: they sit over the pitch, this one replaces it. */
@@ -2142,23 +2143,158 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   padding:10px 16px
 }
 
-/* The result carries the colour, the same way a record innings does on the other
-   card: the number takes the accent and the stamp above it comes up to full
-   strength. Four results rather than one, because in this mode the difference
-   between them is the whole point of the card. */
-#end-survive .card-runs{color:#ffce7a}
-#end-survive h2{color:var(--ink)}
-#end-survive.outcome-chased .card-runs{color:#7ed894}
-#end-survive.outcome-drawn .card-runs{color:#ffce7a}
-#end-survive.outcome-bowled_out .card-runs,
-#end-survive.outcome-retired .card-runs{color:#ff8a7e}
+/* ── The result card ───────────────────────────────────────────────────────
+   Five cards off one layout. The plate and three colours are all that change:
+   the headline, the number, and on the drawn card a gradient across the words.
+   Sized in `cqw` off the card's own width, the same way the mode cards are, so
+   the whole thing is one drawing at any screen size. */
+.result-screen{
+  background:#081824;
+  align-items:flex-start;
+  padding:0
+}
+.result-card{
+  container-type:inline-size;
+  position:relative;
+  width:100%;
+  max-width:520px;
+  margin:0 auto;
+  background:#0d2438;
+  min-height:100%;
+  display:flex;
+  flex-direction:column
+}
+.result-plate{display:block;position:relative;aspect-ratio:16/9}
+.result-plate img{display:block;width:100%;height:100%;object-fit:cover}
+/* The picture goes down into the card rather than stopping on a line. */
+.result-plate::after{
+  content:'';
+  position:absolute;
+  inset:auto 0 0;
+  height:26%;
+  background:linear-gradient(180deg,#0d243800 0%,#0d2438 100%)
+}
+.result-body{
+  position:relative;
+  display:block;
+  padding:1cqw 7.3cqw calc(5cqw + env(safe-area-inset-bottom))
+}
+.result-headline{
+  margin:0;
+  font-family:var(--card);
+  font-weight:900;
+  font-size:4.97cqw;
+  line-height:1.2;
+  letter-spacing:-.01em;
+  text-transform:none;
+  text-align:center;
+  color:#ff5a5a
+}
+.result-sub{
+  margin:.9cqw 0 0;
+  font-family:var(--card);
+  font-size:2.92cqw;
+  line-height:1.35;
+  text-align:center;
+  color:#e6eef4
+}
+.result-rule{
+  height:0;
+  margin:4.4cqw 0;
+  border:0;
+  border-top:1px solid #ffffff1f
+}
+.result-stamp{
+  margin:0;
+  font-family:var(--card);
+  font-weight:700;
+  font-size:2.63cqw;
+  letter-spacing:.18em;
+  color:#cbd8e2
+}
+/* The number and what it cost, on one baseline. */
+.result-figures{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:3cqw;
+  margin-top:.6cqw
+}
+.result-score{
+  margin:0;
+  font-family:var(--card);
+  font-weight:900;
+  font-size:7.6cqw;
+  line-height:1.05;
+  color:#ff5a5a;
+  font-variant-numeric:tabular-nums
+}
+.result-score .card-wickets{font-size:3.5cqw;color:#b9c9d6;font-weight:700}
+.result-balls{
+  margin:0;
+  font-family:var(--card);
+  font-size:2.63cqw;
+  color:#b9c9d6;
+  white-space:nowrap
+}
+/* The innings as a row of bars. The shared rule paints them in `--ink`, which
+   is the light scorecard's dark type — on this card that is a row of bars the
+   same colour as the card, which is to say no row at all. */
+.result-screen .card-balls{
+  height:7cqw;
+  gap:0 .45cqw;
+  margin-top:3.2cqw
+}
+.result-screen .card-balls i{
+  height:calc(1cqw + var(--r,0) * 1cqw);
+  border-radius:.25cqw;
+  background:#efe7d8;
+  opacity:calc(.32 + var(--r,0) * .12)
+}
+.result-screen .card-balls .ball-unfaced{opacity:.13}
+.result-screen .card-balls .ball-out,.result-screen .card-balls .ball-hit{background:#e0483c;opacity:1}
+.result-stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:2cqw;
+  margin:0
+}
+.result-stats dt{
+  font-family:var(--card);
+  font-size:2.34cqw;
+  color:#b9c9d6;
+  margin-bottom:.8cqw
+}
+.result-stats dd{
+  margin:0;
+  font-family:var(--card);
+  font-weight:800;
+  font-size:4.39cqw;
+  line-height:1;
+  color:#fff;
+  font-variant-numeric:tabular-nums
+}
+.result-keys{display:flex;flex-direction:column;gap:2.2cqw;margin-top:6cqw}
+.result-keys .play-button,.result-keys .learn-button{width:100%;margin:0}
+/* Won: gold over the words, green on the number — the only card in the mode
+   that gets to be green. */
+.result-won .result-headline{color:#ffd24a}
+.result-won .result-score{color:#2fe38a}
+/* Drawn: the words run from gold into green, because a draw is half of each. */
+.result-drawn .result-headline{
+  background:linear-gradient(90deg,#ffd24a 0%,#8fe06a 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent
+}
+.result-drawn .result-score{color:#ff7a45}
 /* A ball he was hit on is marked the way a wicket is, in the colour the blow
    flashed in — so the innings reads back as the beating it was. */
 .card-balls .ball-hit{opacity:1;background:#d8443a}
 /* The card arrives the same way the other one does. */
 @media (prefers-reduced-motion:no-preference){
-  #end-survive:not(.hidden) .scorecard{animation:card-down .34s cubic-bezier(.18,.9,.25,1.06) backwards}
-  #end-survive:not(.hidden) .card-figures{animation:card-figure .34s ease-out .1s backwards}
+  #end-survive:not(.hidden) .result-body{animation:card-down .34s cubic-bezier(.18,.9,.25,1.06) backwards}
+  #end-survive:not(.hidden) .result-figures{animation:card-figure .34s ease-out .1s backwards}
   #end-survive:not(.hidden) .card-balls i{
     animation:ball-rise .3s cubic-bezier(.2,.9,.3,1.1) backwards;
     animation-delay:calc(.16s + var(--i,0) * .004s)

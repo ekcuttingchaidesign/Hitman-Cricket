@@ -239,6 +239,17 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
 export const SPECIALS = { sixesForYorker: 4, quickForSlower: 9, shortChance: 0 } as const;
 
 /**
+ * How near a losing innings has to come before the card says so.
+ *
+ * A tailender's innings is lost nearly every time, and a card that says the
+ * same flat thing about a man bowled off the third ball and a man bowled twelve
+ * short of a hundred is a card that has stopped watching. These are the two
+ * ways of being close — nearly there on runs, or nearly there on time — and
+ * either one earns the better card.
+ */
+export const CLOSE = { byRuns: 20, byBalls: 50 } as const;
+
+/**
  * The spinner's spell: which overs he is given, and what he does with them.
  *
  * Three of the ten. The third over is always his: the mode opens with two of
