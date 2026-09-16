@@ -422,7 +422,7 @@ export class Game {
   }
 
   /** The Test innings just played, as its board ranks it. */
-  private survived() { return asSurvive(this.score, this.health.blows.length); }
+  private survived() { return asSurvive(this.score, this.health.blows.length, this.health.value); }
   private visibility = () => { if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private shortcuts = (event: KeyboardEvent) => {

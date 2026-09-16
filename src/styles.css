@@ -1223,6 +1223,15 @@ body.start-screen .hud-top{display:none}
   font-weight:500;
   color:var(--quiet)
 }
+/* A Test row's line already carries what happened, so a tie note has to share
+   it with something. The note holds its width and the line gives way, because
+   the note is the part the reader cannot get anywhere else — what happened is
+   also in the row's colour and its figures, and half of "Drew the match" still
+   reads as the draw it was. Wrapping instead would make the one row on the
+   sheet that needs explaining the one row that is a different height. */
+.survive-list .board-who small{display:flex;gap:4px;white-space:nowrap}
+.survive-list .board-who small>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.survive-list .board-who small>i{flex:none;font-style:normal}
 .board-runs{
   font-size:19px;
   font-weight:800;

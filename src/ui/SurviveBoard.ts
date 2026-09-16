@@ -1,7 +1,7 @@
 import { kitColour } from '../config/board';
-import { SURVIVE } from '../config/survive';
+import { HEALTH, SURVIVE } from '../config/survive';
 import {
-  SURVIVE_BOARD_SIZE, packSurvive, standingOf, surviveImprovesOn, surviveQualifies,
+  SURVIVE_BOARD_SIZE, packSurvive, standingOf, surviveDecidedBy, surviveImprovesOn, surviveQualifies,
   type Standing, type SurviveInnings, type SurviveRow,
 } from '../game/survive-board';
 import { escape, kitMarkup, type CardOffer } from './Leaderboard';
@@ -96,7 +96,7 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
         : surviveStanding(rows, yourPlace, yours, edge)}</p>
       <div class="board-scroll">${state === 'offline' ? surviveOffline(yours) : ''}
         <ol class="board-list survive-list">${
-          rows.map((row, i) => surviveRowMarkup(row, i, row.playerId === youId)).join('')}
+          rows.map((row, i) => surviveRowMarkup(row, i, row.playerId === youId, rows[i - 1] ?? null)).join('')}
         </ol>
         ${edge ? `<p class="board-cut">${surviveCutLabel(edge)}</p>` : ''}
         ${yourPlace < 0 && yours
@@ -105,19 +105,42 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
             : surviveMine(yours, '&mdash;', 'not good enough yet')
           : ''}
       </div>
-      <p class="board-foot">A win beats a draw beats a loss. Wins are ranked on balls used &mdash; a chase is a race &mdash; draws on the runs made while surviving, and losses on how long the last man kept them out. Level innings are split on runs, and if that ties too, whoever got there first stays above.</p>
+      <p class="board-foot">A win beats a draw beats a loss. Wins are ranked on balls used &mdash; a chase is a race &mdash; draws on the runs made while surviving, and losses on how long the last man kept them out. Level innings are split on runs, then on who took the lesser battering, and if that ties too, whoever got there first stays above.</p>
       ${actions ? surviveActions() : ''}
     </div>`;
 }
 
+/**
+ * Why this row sits under the one above it, in the two cases where nothing on
+ * the row says so.
+ *
+ * A pair split by the tier, by the tier's own figure or by runs needs no note:
+ * the line and the columns already carry all three, and labelling what the
+ * reader can see is noise. The other two are invisible. Level on everything a
+ * scorecard holds and split on the meter reads as an arbitrary order until the
+ * battering is named, and level on the meter too means the clock decided, which
+ * is worth admitting outright rather than leaving as a pair of identical rows
+ * that look like a bug.
+ */
+export function surviveTieNote(above: SurviveInnings | null, row: SurviveInnings): string | null {
+  if (!above) return null;
+  const key = surviveDecidedBy(above, row);
+  if (key) return key === 'health' ? 'more hurt' : null;
+  return 'later';
+}
+
 /** One row: place, kit, name, what happened, and the figures under it. */
-export function surviveRowMarkup(row: SurviveRow, index: number, you: boolean): string {
+export function surviveRowMarkup(
+  row: SurviveRow, index: number, you: boolean, above: SurviveInnings | null = null,
+): string {
+  const note = surviveTieNote(above, row);
   const classes = ['board-row', tierClass(row), you ? 'is-you' : ''].filter(Boolean).join(' ');
   return `
           <li class="${classes}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
             ${kitMarkup(row.avatar, row.name)}
-            <span class="board-who"><b>${escape(row.name)}</b><small>${surviveLine(row)}</small></span>
+            <span class="board-who"><b>${escape(row.name)}</b><small><span>${surviveLine(row)}</span>${
+              note ? `<i>&middot; ${note}</i>` : ''}</small></span>
             <span class="board-runs">${row.runs}<i>${row.wickets ? '' : '*'}</i></span>
             <span class="board-hits">
               <em>${row.balls}<small>balls</small></em>
@@ -245,19 +268,22 @@ export function surviveOffer(
 }
 
 /**
- * The innings just played, as the board ranks it. The four figures and nothing
+ * The innings just played, as the board ranks it. The five figures and nothing
  * else — and the wicket is capped at one because he is the last man in, so a
  * scorecard reading two would be refused by the store as an innings nobody
- * could have batted.
+ * could have batted. The meter is clamped the same way and for the same reason:
+ * it is read off a live object, and a negative reading is a row the store would
+ * throw out.
  */
 export function asSurvive(
-  score: { runs: number; balls: number; wickets: number }, blows: number,
+  score: { runs: number; balls: number; wickets: number }, blows: number, health: number,
 ): SurviveInnings {
   return {
     runs: score.runs,
     balls: Math.min(score.balls, SURVIVE.totalBalls),
     wickets: Math.min(score.wickets, SURVIVE.maxWickets),
     blows: Math.min(blows, Math.min(score.balls, SURVIVE.totalBalls)),
+    health: Math.max(0, Math.min(Math.round(health), HEALTH.full)),
   };
 }
 

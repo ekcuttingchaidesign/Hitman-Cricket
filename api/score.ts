@@ -77,9 +77,12 @@ function figures(raw: unknown): Innings {
   };
 }
 
-/** The Test match's four, the same way. */
+/** The Test match's five, the same way. */
 function surviveFigures(raw: unknown): SurviveInnings {
   const from = (raw ?? {}) as Record<string, unknown>;
   const read = (key: string) => Number(from[key]);
-  return { runs: read('runs'), balls: read('balls'), wickets: read('wickets'), blows: read('blows') };
+  return {
+    runs: read('runs'), balls: read('balls'), wickets: read('wickets'),
+    blows: read('blows'), health: read('health'),
+  };
 }

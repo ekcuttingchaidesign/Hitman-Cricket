@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { SURVIVE } from '../src/config/survive';
+import { HEALTH, SURVIVE } from '../src/config/survive';
 import {
-  SURVIVE_BOARD_SIZE, SURVIVE_PACKED_BITS, compareSurviveRows, maxSurviveRuns, packSurvive,
-  primaryOf, standingOf, surviveImprovesOn, survivePlausible, surviveQualifies, surviveRankKey,
-  unpackSurvive, type SurviveInnings, type SurviveRow,
+  SURVIVE_BOARD_SIZE, SURVIVE_PACKED_BITS, compareSurviveRows, healthStepOf, maxSurviveRuns,
+  packSurvive, primaryOf, standingOf, surviveDecidedBy, surviveImprovesOn, survivePlausible,
+  surviveQualifies, surviveRankKey, unpackSurvive, type SurviveInnings, type SurviveRow,
 } from '../src/game/survive-board';
 
 const innings = (over: Partial<SurviveInnings> = {}): SurviveInnings =>
-  ({ runs: 0, balls: 0, wickets: 0, blows: 0, ...over });
+  ({ runs: 0, balls: 0, wickets: 0, blows: 0, health: HEALTH.full, ...over });
 
 /** An innings as the board would hold it, stamped a minute into the epoch. */
 const AT = Date.UTC(2026, 5, 1);
@@ -143,10 +143,10 @@ describe('whether it is worth asking for a name', () => {
 
 describe('whether the innings could have happened', () => {
   it('takes the three shapes the mode actually produces', () => {
-    expect(survivePlausible(innings({ runs: SURVIVE.target, balls: 38, blows: 2 }))).toBe(true);
-    expect(survivePlausible(innings({ runs: 51, balls: SURVIVE.totalBalls, blows: 6 }))).toBe(true);
-    // Carried off: balls left, and no wicket against him.
-    expect(survivePlausible(innings({ runs: 20, balls: 33, wickets: 0, blows: 9 }))).toBe(true);
+    expect(survivePlausible(innings({ runs: SURVIVE.target, balls: 38, blows: 2, health: 71 }))).toBe(true);
+    expect(survivePlausible(innings({ runs: 51, balls: SURVIVE.totalBalls, blows: 6, health: 18 }))).toBe(true);
+    // Carried off: balls left, no wicket against him, and nothing left on the meter.
+    expect(survivePlausible(innings({ runs: 20, balls: 33, wickets: 0, blows: 9, health: 0 }))).toBe(true);
   });
 
   it('rejects what no scorecard could hold', () => {
@@ -157,8 +157,9 @@ describe('whether the innings could have happened', () => {
     // More blows than balls bowled at him.
     expect(survivePlausible(innings({ balls: 4, blows: 5 }))).toBe(false);
     // Six a ball is the ceiling, and nothing can be scored off no balls at all.
-    expect(survivePlausible(innings({ runs: 60, balls: 10 }))).toBe(true);
-    expect(survivePlausible(innings({ runs: 61, balls: 10 }))).toBe(false);
+    // These end short with no wicket, so they are retirements and read as ones.
+    expect(survivePlausible(innings({ runs: 60, balls: 10, blows: 4, health: 0 }))).toBe(true);
+    expect(survivePlausible(innings({ runs: 61, balls: 10, blows: 4, health: 0 }))).toBe(false);
     expect(survivePlausible(innings({ runs: 3, balls: 0 }))).toBe(false);
   });
 
@@ -172,5 +173,74 @@ describe('whether the innings could have happened', () => {
   it('rejects an innings that carried on past the thing that ends it', () => {
     // The hundred ends the chase, so he cannot be out after reaching it.
     expect(survivePlausible(innings({ runs: SURVIVE.target, balls: 40, wickets: 1 }))).toBe(false);
+  });
+
+  it('rejects a meter that moved with no blow behind it', () => {
+    // Damage comes from blows and from nothing else.
+    expect(survivePlausible(innings({ runs: 20, balls: SURVIVE.totalBalls, health: 60, blows: 0 }))).toBe(false);
+    expect(survivePlausible(innings({ runs: 20, balls: SURVIVE.totalBalls, health: 60, blows: 3 }))).toBe(true);
+  });
+
+  it('rejects a meter outside the bar', () => {
+    expect(survivePlausible(innings({ balls: SURVIVE.totalBalls, health: HEALTH.full + 1 }))).toBe(false);
+    expect(survivePlausible(innings({ balls: SURVIVE.totalBalls, health: -1 }))).toBe(false);
+    expect(survivePlausible(innings({ balls: SURVIVE.totalBalls, health: 61.5 }))).toBe(false);
+  });
+
+  it('rejects a man carried off with something still on the meter', () => {
+    // Balls left and no wicket is the retirement, and the meter is what causes
+    // it, so that shape with health to spare has no way to have happened.
+    expect(survivePlausible(innings({ runs: 12, balls: 30, wickets: 0, blows: 5, health: 40 }))).toBe(false);
+    expect(survivePlausible(innings({ runs: 12, balls: 30, wickets: 0, blows: 5, health: 0 }))).toBe(true);
+    // A wicket is a different ending, and it can fall at any point on the bar.
+    expect(survivePlausible(innings({ runs: 12, balls: 30, wickets: 1, blows: 5, health: 40 }))).toBe(true);
+  });
+});
+
+describe('the meter, as the rung under runs', () => {
+  const drawn = (runs: number, health: number, blows = 4) =>
+    innings({ runs, balls: SURVIVE.totalBalls, health, blows });
+
+  it('splits two innings that are level on everything a scorecard holds', () => {
+    // The tier this rung is here for. A draw is ranked on runs and then tied on
+    // runs, so before the meter every pair who batted the overs out for the
+    // same score fell straight through to the clock.
+    expect(surviveRankKey(drawn(23, 64))).toBeGreaterThan(surviveRankKey(drawn(23, 12)));
+    expect(surviveDecidedBy(drawn(23, 64), drawn(23, 12))).toBe('health');
+  });
+
+  it('never outranks a run', () => {
+    // It sits under runs, so a batter who was barely touched does not climb
+    // past one who scored more while being worked over.
+    expect(surviveRankKey(drawn(24, 0))).toBeGreaterThan(surviveRankKey(drawn(23, HEALTH.full, 0)));
+  });
+
+  it('never outranks the tier or its own figure', () => {
+    const wonHurt = innings({ runs: SURVIVE.target, balls: 30, health: 0, blows: 9 });
+    const drewFresh = drawn(99, HEALTH.full, 0);
+    expect(surviveRankKey(wonHurt)).toBeGreaterThan(surviveRankKey(drewFresh));
+    expect(surviveDecidedBy(wonHurt, drewFresh)).toBe('tier');
+  });
+
+  it('reads the bar in steps of four, which is finer than a blow', () => {
+    // The cheapest blow in the mode still costs several points, so any two
+    // innings that took a different battering land on different steps.
+    expect(healthStepOf(innings({ health: HEALTH.full }))).toBe(HEALTH.full / 4);
+    expect(healthStepOf(innings({ health: 0 }))).toBe(0);
+    expect(healthStepOf(innings({ health: 7 }))).toBe(1);
+    expect(healthStepOf(innings({ health: 8 }))).toBe(2);
+  });
+
+  it('comes back off the packed key', () => {
+    const played = drawn(31, 52);
+    expect(unpackSurvive(packSurvive(played, AT)).health).toBe(52 / 4);
+    expect(unpackSurvive(packSurvive(played, AT)).runs).toBe(31);
+  });
+
+  it('leaves the clock at the bottom, where the store stamps it', () => {
+    const early = row(drawn(23, 40), AT);
+    const late = row(drawn(23, 40), AT + 60_000);
+    expect(order(late, early)[0]).toBe(early);
+    expect(surviveDecidedBy(early, late)).toBe(null);
   });
 });

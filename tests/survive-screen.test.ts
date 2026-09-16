@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SURVIVE } from '../src/config/survive';
+import { HEALTH, SURVIVE } from '../src/config/survive';
 import {
   LAUNCH_MS, SURVIVE_BOARD_SIZE, packSurvive, type SurviveInnings, type SurviveRow,
 } from '../src/game/survive-board';
 import {
   asSurvive, surviveBest, surviveBoardMarkup, surviveCutLabel, surviveCutoff, surviveLine,
   surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup, surviveStandingPeek,
+  surviveTieNote,
 } from '../src/ui/SurviveBoard';
 import {
   CLASSIC_LADDER, SURVIVE_LADDER, readBoard, submitScore, type Submission,
@@ -15,7 +16,7 @@ import { fetchSurviveBoard, forgetBoard, submitSurvive } from '../src/game/board
 
 const AT = LAUNCH_MS + 60_000;
 const innings = (over: Partial<SurviveInnings> = {}): SurviveInnings =>
-  ({ runs: 0, balls: 0, wickets: 0, blows: 0, ...over });
+  ({ runs: 0, balls: 0, wickets: 0, blows: 0, health: HEALTH.full, ...over });
 const row = (over: Partial<SurviveRow> = {}): SurviveRow => {
   const figures = innings(over);
   return { ...figures, playerId: 'p', name: 'Rohit', avatar: 0, score: packSurvive(figures, AT), ...over };
@@ -57,6 +58,33 @@ describe('a row, drawn', () => {
     const drawn = surviveRowMarkup(row({ name: '<script>alert(1)</script>' }), 0, false);
     expect(drawn).not.toContain('<script>');
     expect(drawn).toContain('&lt;script&gt;');
+  });
+
+  it('says the battering split it from the row above, which nothing else shows', () => {
+    // Level on the tier, on its figure and on runs: the order is arbitrary on
+    // the face of it until the meter is named.
+    const above = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 2, health: 72 });
+    const below = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 7, health: 20 });
+    expect(surviveTieNote(above, below)).toBe('more hurt');
+    const markup = surviveRowMarkup(row(below), 1, false, above);
+    expect(markup).toContain('<span>Drew the match</span><i>&middot; more hurt</i>');
+    // The note keeps its width and the line gives way, so the one row that
+    // needs explaining is not the one row that is a different height.
+    expect(surviveRowMarkup(row(above), 0, false, null)).toContain('<span>Drew the match</span></small>');
+  });
+
+  it('says the clock split it when even the meter was level', () => {
+    const level = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 2, health: 72 });
+    expect(surviveTieNote(level, level)).toBe('later');
+  });
+
+  it('says nothing where the row already shows what split it', () => {
+    // Runs, the tier and the tier's own figure are all on the row. Labelling
+    // what the reader can see is noise.
+    const drew = innings({ runs: 23, balls: SURVIVE.totalBalls });
+    expect(surviveTieNote(innings({ runs: 40, balls: SURVIVE.totalBalls }), drew)).toBe(null);
+    expect(surviveTieNote(innings({ runs: SURVIVE.target, balls: 30 }), drew)).toBe(null);
+    expect(surviveTieNote(null, drew)).toBe(null);
   });
 
   it('shows the balls and the blows, which are what the innings cost', () => {
@@ -194,15 +222,24 @@ describe('whether the card says anything about the board', () => {
 });
 
 describe('the innings, as the board takes it', () => {
-  it('keeps the four figures inside what the mode can produce', () => {
+  it('keeps the five figures inside what the mode can produce', () => {
     // A scorecard reading two wickets is one the store would refuse outright,
     // and the number the screen holds is not the one the ladder ranks.
-    const taken = asSurvive({ runs: 40, balls: SURVIVE.totalBalls + 4, wickets: 3 }, 90);
-    expect(taken).toEqual({ runs: 40, balls: SURVIVE.totalBalls, wickets: SURVIVE.maxWickets, blows: SURVIVE.totalBalls });
+    const taken = asSurvive({ runs: 40, balls: SURVIVE.totalBalls + 4, wickets: 3 }, 90, -8);
+    expect(taken).toEqual({
+      runs: 40, balls: SURVIVE.totalBalls, wickets: SURVIVE.maxWickets,
+      blows: SURVIVE.totalBalls, health: 0,
+    });
   });
 
   it('carries the blows, which are the innings and not a decoration', () => {
-    expect(asSurvive({ runs: 12, balls: 30, wickets: 0 }, 9).blows).toBe(9);
+    expect(asSurvive({ runs: 12, balls: 30, wickets: 0 }, 9, 40).blows).toBe(9);
+  });
+
+  it('carries what was left on the meter, which is what the ladder ranks', () => {
+    expect(asSurvive({ runs: 12, balls: 30, wickets: 0 }, 9, 41).health).toBe(41);
+    // Read off a live meter, so it is rounded and held inside the bar.
+    expect(asSurvive({ runs: 12, balls: 30, wickets: 0 }, 0, HEALTH.full + 9).health).toBe(HEALTH.full);
   });
 });
 
@@ -221,13 +258,13 @@ describe('the two ladders, through the store the endpoints run', () => {
     expect(outcome.board.rows[0]).toMatchObject({ name: 'Rohit', runs: SURVIVE.target, balls: 38, blows: 3 });
   });
 
-  it('keeps only the four figures the Test ladder ranks', async () => {
+  it('keeps only the five figures the Test ladder ranks', async () => {
     const store = memoryStore<SurviveInnings>();
     await submitScore(store, SURVIVE_LADDER, offer(), AT);
     const board = await readBoard(store, SURVIVE_LADDER);
-    // Nothing the browser sent beyond the four gets written down.
+    // Nothing the browser sent beyond the five gets written down.
     expect(Object.keys(board.rows[0]).sort())
-      .toEqual(['avatar', 'balls', 'blows', 'name', 'playerId', 'runs', 'score', 'wickets']);
+      .toEqual(['avatar', 'balls', 'blows', 'health', 'name', 'playerId', 'runs', 'score', 'wickets']);
   });
 
   it('puts a win above a draw above a loss, whatever the runs say', async () => {

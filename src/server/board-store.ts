@@ -70,7 +70,7 @@ export const SURVIVE_LADDER: Ladder<SurviveInnings> = {
   plausible: survivePlausible,
   scope: 'survive:',
   figures: from => ({
-    runs: from.runs, balls: from.balls, wickets: from.wickets, blows: from.blows,
+    runs: from.runs, balls: from.balls, wickets: from.wickets, blows: from.blows, health: from.health,
   }),
 };
 
