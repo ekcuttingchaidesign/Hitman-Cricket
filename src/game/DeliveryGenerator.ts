@@ -42,14 +42,28 @@ export interface SpinSpell {
   maxTurn: number;
   /** How wide a turning ball may finish, either side. */
   maxFinalX: number;
-  /** How often the quicker one that goes straight on is slipped in. */
-  armBallChance: number;
+  /** How many of the six go straight on, and the chance of one more. */
+  armBallsPerOver: number;
+  secondArmBallChance: number;
 }
 
 /** The two that turn. The arm ball is his too, and does neither. */
 const TURNING: readonly DeliveryStyle[] = ['OFF_SPIN', 'LEG_SPIN'];
 export const SPIN_STYLES: readonly DeliveryStyle[] = [...TURNING, 'ARM_BALL'];
 const clampX = (v: number, limit: number) => Math.min(limit, Math.max(-limit, v));
+
+/**
+ * The lines a ball turning this way can be pitched on and still bite.
+ *
+ * `sign` is -1 for the off break, which finishes further to leg, and +1 for the
+ * leg break. A line qualifies when the gap between it and the tramline on the
+ * side the ball is heading for is at least the smallest turn he bowls — so each
+ * direction rules out exactly one line, the far one behind it, and keeps the
+ * other four.
+ */
+function turnable(sign: number, spell: SpinSpell): BallLine[] {
+  return LINES.filter(line => spell.maxFinalX - sign * LINE_X[line] >= spell.minTurn);
+}
 
 /**
  * Which overs the spinner gets, drawn once at the top of the innings.
@@ -83,6 +97,8 @@ export class DeliveryGenerator {
   private quick = 0;
   /** Deliveries bowled, which is how the generator knows which over it is in. */
   private bowled = 0;
+  /** Which balls of the over now in progress go straight on. Drawn at its top. */
+  private armBalls = new Set<number>();
   private readonly spinning: Set<number>;
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
     this.spinning = plan.spin ? spinOvers(rng, plan.spin) : new Set();
@@ -108,6 +124,17 @@ export class DeliveryGenerator {
     return null;
   }
   private pick(lines: BallLine[]): BallLine { return lines[Math.floor(this.rng.next() * lines.length)]; }
+  /**
+   * Where in the over the ball that goes straight on comes. Placed rather than
+   * rolled for, so it is never the whole over and never absent from it — and at
+   * a position drawn fresh each time, so it is not the last ball every over.
+   */
+  private placeArmBalls(spell: SpinSpell): Set<number> {
+    const positions = [];
+    for (let ball = 0; ball < spell.ballsPerOver; ball++) positions.push(ball);
+    const wanted = spell.armBallsPerOver + (this.rng.next() < spell.secondArmBallChance ? 1 : 0);
+    return new Set(this.rng.shuffle(positions).slice(0, Math.min(wanted, spell.ballsPerOver)));
+  }
   private chooseStyle(): DeliveryStyle {
     const { specials, styles } = this.plan;
     // His over is his. None of what follows — the yorker owed for a six, the
@@ -115,7 +142,13 @@ export class DeliveryGenerator {
     // least of all.
     if (this.spinnerOn) {
       const spell = this.plan.spin!;
-      if (this.rng.next() < spell.armBallChance) return 'ARM_BALL';
+      const ballInOver = this.bowled % spell.ballsPerOver;
+      // The over is planned at the top of it rather than ball by ball, which is
+      // the only way to promise the quicker one is in there somewhere.
+      if (ballInOver === 0) this.armBalls = this.placeArmBalls(spell);
+      if (this.armBalls.has(ballInOver)) return 'ARM_BALL';
+      // And which way it turns is a coin, every ball. Nothing carries over from
+      // the last one: two off breaks say nothing about the third.
       return this.rng.next() < 0.5 ? 'OFF_SPIN' : 'LEG_SPIN';
     }
     if (this.punished >= specials.sixesForYorker) { this.punished = 0; return 'YORKER'; }
@@ -133,25 +166,29 @@ export class DeliveryGenerator {
   next(releaseTimeMs: number): Delivery {
     if (!this.bag.length) this.bag = this.rng.shuffle(LINES);
     const style = this.chooseStyle();
-    const line = this.aim(style) ?? this.bag.pop()!;
+    const spell = this.plan.spin;
+    const turning = !!spell && TURNING.includes(style);
+    const sign = style === 'SWING_IN' || style === 'OFF_SPIN' ? -1 : style === 'SWING_OUT' || style === 'LEG_SPIN' ? 1 : 0;
+    // A turning ball picks its line from the ones with somewhere to turn *to*,
+    // rather than taking whatever the bag deals and being cut off at the
+    // tramline afterwards. Clamping after the fact looked fine on the average
+    // and was quietly broken at the edges: an off break dealt outside leg tried
+    // to turn further into leg, lost all of it to the clamp, and came out dead
+    // straight — a ball the over promises will turn, going nowhere, and not
+    // even the arm ball. Three of the five lines are common to both directions,
+    // so where it pitches still does not say which way it is going.
+    const line = turning ? this.pick(turnable(sign, spell!)) : (this.aim(style) ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;
     const shape = this.plan.styles[style];
     const speedKph = Math.round(this.rng.range(shape.min, shape.max));
-    const sign = style === 'SWING_IN' || style === 'OFF_SPIN' ? -1 : style === 'SWING_OUT' || style === 'LEG_SPIN' ? 1 : 0;
-    // A ball that turns is not a ball that swings, so it is not drawn from the
-    // same range: the off-spinner comes back in off the pitch by well over what
-    // the seamer moves it through the air, and how far varies ball to ball
-    // because a spinner who imparts identical revolutions every time is a
-    // machine. The bag still deals him the odd line his aim did not ask for,
-    // which is what keeps the over from being six of the same delivery.
-    const spell = this.plan.spin;
-    const turning = spell && TURNING.includes(style);
+    // How much room this line leaves before the ball would finish wide, which
+    // is what the turn is drawn against: every turning ball gets at least
+    // `minTurn`, because the lines that could not offer that were not offered.
+    const room = turning ? spell!.maxFinalX - sign * LINE_X[line] : 0;
     const movement = sign * (turning
-      ? this.rng.range(spell!.minTurn, spell!.maxTurn)
+      ? this.rng.range(spell!.minTurn, Math.min(spell!.maxTurn, room))
       : this.rng.range(GAME.movement * 0.65, GAME.movement));
-    // However far it bites, it finishes inside the widest line the bag deals.
-    // Turn on top of a line already wide is how a leg-break ends up a foot
-    // outside off, and a wide is not a test of anything.
+    // Belt and braces: the line choice above already makes this unreachable.
     const finalTargetX = turning
       ? clampX(LINE_X[line] + movement, spell!.maxFinalX)
       : LINE_X[line] + movement;

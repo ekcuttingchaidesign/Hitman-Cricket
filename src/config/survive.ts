@@ -209,8 +209,14 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
   // Each turns from where a bowler of that kind actually pitches it, which is
   // most of what keeps a turning ball legal: the off-spinner starts it wide and
   // brings it back, the leg-spinner starts it at the pads and takes it away.
-  OFF_SPIN: { weight: 0, min: 84, max: 96, label: 'OFF SPIN', rush: 0.78, aimWide: 0.8 },
-  LEG_SPIN: { weight: 0, min: 82, max: 94, label: 'LEG SPIN', rush: 0.78, aimBody: 0.75 },
+  // Neither carries an aim. Pitching every off break wide and every leg break at
+  // the pads is how a real spinner keeps the ball in play, but it also announces
+  // which way it is about to go before it lands — and a batter reading the turn
+  // off the line is not reading the turn. They take their line from `turnable`
+  // instead, which offers every line with room to turn away from; three of the
+  // five are common to both, so where it pitches does not give the game away.
+  OFF_SPIN: { weight: 0, min: 84, max: 96, label: 'OFF SPIN', rush: 0.78 },
+  LEG_SPIN: { weight: 0, min: 82, max: 94, label: 'LEG SPIN', rush: 0.78 },
   // Held across the seam and pushed through quicker. It does not turn, and that
   // is the whole of it: the batter has spent an over playing for a ball that
   // moves and this one does not, and it is on him before he has finished
@@ -256,15 +262,31 @@ export const SPIN = {
   overs: 3,
   /** The over he is always given, counting from nought: the third. */
   notBefore: 2,
-  /** How far the ball turns off the pitch, at its least and at its most. Both
-      are well beyond the seam bowler's 0.13 of swing, because that is the
-      difference the batter is being asked to read. */
-  minTurn: 0.11,
-  maxTurn: 0.30,
+  /**
+   * How far the ball turns off the pitch, at its least and at its most.
+   *
+   * The floor matters more than the ceiling. Adjacent lines sit 0.14 apart, so
+   * the old minimum of 0.11 was a ball that turned less than the width of one
+   * line — movement a batter could ignore, and half the spell was made of it.
+   * Every ball he bowls now beats a whole line and the biggest beat three, so
+   * the question is never whether it turned, only which way.
+   */
+  minTurn: 0.22,
+  maxTurn: 0.42,
   /** Neither side, ever: `OUTSIDE_OFF` and `OUTSIDE_LEG` sit at 0.42. */
   maxFinalX: 0.42,
-  /** How often he slips in the one that goes straight on. About one an over. */
-  armBallChance: 0.16,
+  /**
+   * The one that goes straight on, and it is scheduled rather than rolled for.
+   *
+   * A chance per ball averaged out to one an over and delivered almost anything:
+   * overs with three of them, and — worse — overs with none, where the batter
+   * faced six turning balls and never had to worry about the quicker one at all.
+   * The threat only works if it is always somewhere in the over, so exactly one
+   * is placed, at a position drawn fresh each time. Now and then he bowls a
+   * second, which is what leaves four turning rather than five.
+   */
+  armBallsPerOver: 1,
+  secondArmBallChance: 0.25,
   /**
    * How often being beaten by a turning ball is a stumping.
    *

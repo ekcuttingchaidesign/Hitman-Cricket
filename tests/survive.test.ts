@@ -622,6 +622,42 @@ describe('the ball that turns', () => {
     }
   });
 
+  it('always bites, and never less than a whole line', () => {
+    // A ball the over promises will turn has to turn. The old version drew the
+    // line first and cut the turn off at the tramline afterwards, so an off
+    // break pitched outside leg lost all of it and came out dead straight — a
+    // non-turning ball that was not the arm ball, which is the one thing the
+    // spell must not contain.
+    const lineGap = 0.14;
+    for (let seed = 0; seed < 60; seed++) {
+      const generator = attack(seed);
+      for (let ball = 0; ball < SURVIVE.totalBalls; ball++) {
+        const delivery = generator.next(0);
+        if (delivery.style !== 'OFF_SPIN' && delivery.style !== 'LEG_SPIN') continue;
+        const turn = Math.abs(delivery.finalTargetX - delivery.baseTargetX);
+        expect(turn).toBeGreaterThanOrEqual(SPIN.minTurn - 1e-9);
+        expect(turn).toBeGreaterThan(lineGap);
+      }
+    }
+  });
+
+  it('leaves both directions available off the same lines', () => {
+    // Three of the five are common to both, so where it pitches does not say
+    // which way it is going. If a line only ever produced one direction the
+    // batter could read the turn before it landed.
+    const both = new Map<string, Set<string>>();
+    for (let seed = 0; seed < 60; seed++) {
+      const generator = attack(seed);
+      for (let ball = 0; ball < SURVIVE.totalBalls; ball++) {
+        const delivery = generator.next(0);
+        if (delivery.style !== 'OFF_SPIN' && delivery.style !== 'LEG_SPIN') continue;
+        if (!both.has(delivery.line)) both.set(delivery.line, new Set());
+        both.get(delivery.line)!.add(delivery.style);
+      }
+    }
+    expect([...both].filter(([, styles]) => styles.size === 2)).toHaveLength(3);
+  });
+
   it('does not turn every ball the same distance', () => {
     const turns = new Set<string>();
     for (let seed = 0; seed < 80; seed++) {
@@ -654,6 +690,48 @@ describe('the ball that turns', () => {
       const arm = turned(seed, 'ARM_BALL');
       if (arm) expect(arm.finalTargetX).toBeCloseTo(arm.baseTargetX, 9);
     }
+  });
+});
+
+describe('the shape of a spin over', () => {
+  const overs = (seed: number) => {
+    const generator = attack(seed);
+    const spell = new Set(generator.spell);
+    const out: string[][] = [];
+    for (let over = 0; over < SPELL.ofOvers; over++) {
+      const balls: string[] = [];
+      for (let ball = 0; ball < SURVIVE.ballsPerOver; ball++) balls.push(generator.next(0).style);
+      if (spell.has(over)) out.push(balls);
+    }
+    return out;
+  };
+
+  it('always puts the quicker one somewhere in the over', () => {
+    // Rolled for per ball this came out as overs with three of them and, worse,
+    // overs with none — six turning balls and nothing to be wary of.
+    for (let seed = 0; seed < 80; seed++) {
+      for (const over of overs(seed)) {
+        expect(over.filter(style => style === 'ARM_BALL').length).toBeGreaterThanOrEqual(SPIN.armBallsPerOver);
+      }
+    }
+  });
+
+  it('turns four or five of the six', () => {
+    for (let seed = 0; seed < 80; seed++) {
+      for (const over of overs(seed)) {
+        const turning = over.filter(style => style === 'OFF_SPIN' || style === 'LEG_SPIN').length;
+        expect(turning).toBeGreaterThanOrEqual(4);
+        expect(turning).toBeLessThanOrEqual(5);
+      }
+    }
+  });
+
+  it('does not bowl it at the same point of every over', () => {
+    const positions = new Set<number>();
+    for (let seed = 0; seed < 60; seed++) {
+      for (const over of overs(seed)) over.forEach((style, at) => { if (style === 'ARM_BALL') positions.add(at); });
+    }
+    expect(positions.size).toBe(SURVIVE.ballsPerOver);
   });
 });
 
