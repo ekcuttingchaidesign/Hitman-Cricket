@@ -2003,21 +2003,6 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   align-items:flex-start;
   padding:0
 }
-/* The warm glow behind the title, thrown from off the top-left corner. It
-   hangs off the sheet rather than off the screen: on a wide window the sheet is
-   centred, and a glow pinned to the viewport's corner ends up lighting empty
-   floor a long way from the title it is meant to be behind. */
-.mode-sheet::before{
-  content:'';
-  position:absolute;
-  left:-14%;
-  top:-8%;
-  width:86%;
-  aspect-ratio:1.25;
-  pointer-events:none;
-  background:radial-gradient(50% 50% at 50% 50%,#7a3d16a6 0%,#4a250d59 46%,#0000 72%);
-  filter:blur(18px)
-}
 .mode-sheet{
   position:relative;
   width:100%;
