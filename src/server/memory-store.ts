@@ -1,3 +1,4 @@
+import type { Innings } from '../game/leaderboard.js';
 import type { BoardStore, StoredRow } from './board-store.js';
 
 /**
@@ -11,11 +12,17 @@ import type { BoardStore, StoredRow } from './board-store.js';
  * would be convenient: `record` only moves a score upwards, and `claimName`
  * only takes a name nobody holds. A fake that took every write would pass tests
  * the real store would fail, which is worse than no fake at all.
+ *
+ * `names` is passed in rather than made here so two boards can share one
+ * registry, which is what the deployed keys do: a name is a person, not an
+ * innings, and the same one must not belong to two people across the two
+ * ladders. Left out, a store keeps its own, which is what a test wants.
  */
-export function memoryStore(): BoardStore & { clear(): void } {
+export function memoryStore<I = Innings>(
+  names = new Map<string, string>(),
+): BoardStore<I> & { clear(): void } {
   const ranking = new Map<string, number>();
-  const rows = new Map<string, StoredRow>();
-  const names = new Map<string, string>();
+  const rows = new Map<string, StoredRow<I>>();
   const rate = new Map<string, { count: number; until: number }>();
   return {
     async top(n) {

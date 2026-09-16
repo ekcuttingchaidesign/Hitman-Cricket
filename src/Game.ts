@@ -17,9 +17,14 @@ import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
-import { fetchBoard, submitInnings } from './game/board-api';
+import {
+  fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
+  type BoardPayload, type SurvivePayload,
+} from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
 import { cardOffer, type CardOffer } from './ui/Leaderboard';
+import { asSurvive, surviveOffer } from './ui/SurviveBoard';
+import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
@@ -119,6 +124,9 @@ export class Game {
    * allowed to be first on it.
    */
   private boardSeen = false;
+  /** The Test fifty, and whether that board has ever answered. Its own ladder. */
+  private surviveRows: SurviveRow[] = [];
+  private surviveSeen = false;
   private player: string | null = null;
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
@@ -239,6 +247,10 @@ export class Game {
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = false;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
     this.hud.start(this.surviving);
+    // The Test board is fetched when a Test innings starts rather than on every
+    // load: a player who only ever picks the five-over innings never asks for
+    // it, and by the time this one ends it is already held.
+    if (this.surviving && !SURVIVE_ONLY) void this.loadSurviveBoard();
     this.hud.score(this.score); this.showConfidence();
     if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
     this.setPhase('READY');
@@ -361,6 +373,14 @@ export class Game {
     this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
   }
 
+  /** The Test fifty, the same way. The cover quotes the other one, not this. */
+  private async loadSurviveBoard() {
+    const payload = await fetchSurviveBoard();
+    if (this.disposed || !payload) return;
+    this.surviveSeen = true;
+    this.surviveRows = payload.rows;
+  }
+
   /**
    * The board, opened. The sheet goes up straight away saying it is fetching,
    * rather than the button doing nothing for a second and then a screen
@@ -368,11 +388,12 @@ export class Game {
    * fifty or, worse, fifty invented names.
    */
   private showBoard = () => {
-    track('board-open', 'Board opened');
+    this.mark('board-open', 'Board opened');
     // Mid-innings the board is a distraction with a ball on its way, so it
     // pauses first, the way the instructions do. The pause card is still behind
     // it when the sheet is put away, which is the point.
     if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause();
+    if (this.surviving) return this.showSurviveBoard();
     const played = this.phase === 'INNINGS_END' ? asInnings(this.score) : null;
     const view = { youId: this.player, yours: played };
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
@@ -383,6 +404,25 @@ export class Game {
       this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
     });
   };
+
+  /** The same opening, over the Test ladder. */
+  private showSurviveBoard(actions = false) {
+    const played = this.phase === 'INNINGS_END' ? this.survived() : null;
+    const view = { youId: this.player, yours: played, actions };
+    this.hud.surviveBoard({
+      ...view,
+      rows: this.surviveRows,
+      state: this.surviveRows.length ? 'ready' as const : 'loading' as const,
+    });
+    void fetchSurviveBoard().then(payload => {
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
+      this.hud.surviveBoard({ ...view, rows: this.surviveRows, state: payload ? 'ready' : 'offline' });
+    });
+  }
+
+  /** The Test innings just played, as its board ranks it. */
+  private survived() { return asSurvive(this.score, this.health.blows.length); }
   private visibility = () => { if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private shortcuts = (event: KeyboardEvent) => {
@@ -415,7 +455,7 @@ export class Game {
       event.preventDefault();
       if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.hud.modes();
     }
-    else if (key === 'B' && !this.surviving) { event.preventDefault(); this.showBoard(); }
+    else if (key === 'B' && !SURVIVE_ONLY) { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
     else if (key === 'ESCAPE') { event.preventDefault(); this.togglePause(); }
     else if (key === 'M') { event.preventDefault(); this.toggleSound(); }
@@ -590,6 +630,14 @@ export class Game {
     this.hud.offerClaim(shown, readPlayer(), this.board, played, this.player);
   }
 
+  /** The same, asked of the Test ladder and answered on the Test card. */
+  private offerSurvive() {
+    const played = this.survived();
+    const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
+    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
+    this.hud.offerSurviveClaim(shown, readPlayer(), this.surviveRows, played, this.player);
+  }
+
   /**
    * The strip's key. An innings already beaten by the player's own row has
    * nothing to register, so its key opens the board; anything else opens the
@@ -603,7 +651,7 @@ export class Game {
   private startClaim = () => {
     // A private window has no place to claim, so its key is the board's.
     if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private') return this.showBoard();
-    track('claim-open', 'Claim form opened');
+    this.mark('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
 
@@ -617,37 +665,50 @@ export class Game {
     if (!this.canRegister) return this.showBoard();
     if (!entry || !this.player) return this.hud.openClaim();
     this.hud.claimSending(true);
-    const result = await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
+    // Each mode offers its own innings to its own ladder. The store keeps the
+    // two under separate keys, so the mode travels with the figures rather than
+    // being inferred from their shape at the far end.
+    const result = this.surviving
+      ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
+      : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
-    if (!result.ok) { track('claim-failed', 'Claim rejected'); return this.hud.claimFailed(result.reason ?? 'That did not go through.'); }
-    track('claim-done', 'Innings put on the board');
+    if (!result.ok) { this.mark('claim-failed', 'Claim rejected'); return this.hud.claimFailed(result.reason ?? 'That did not go through.'); }
+    this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
-    if (result.board) this.board = result.board.rows;
     // The board is where the place the player just took is written, so that is
     // where they are taken — with the keys carried onto it, since it is now the
     // screen they are on.
     this.hud.claimDone();
+    // Each call answers with its own ladder's board; which one came back is
+    // decided by which one was asked, so the mode is what reads it.
+    if (this.surviving) {
+      if (result.board) this.surviveRows = (result.board as SurvivePayload).rows;
+      return this.showSurviveBoard(true);
+    }
+    if (result.board) this.board = (result.board as BoardPayload).rows;
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
   }
 
   private end() {
     this.setPhase('INNINGS_END');
     if (this.surviving) {
-      // Survive keeps its own best and its own card, and is deliberately kept
-      // off the classic board: the two innings are not comparable and a Survive
-      // score standing next to a thirty-ball one would be nonsense in both
-      // directions. Its own board is the next piece of work.
+      // Survive keeps its own best, its own card and its own board. It is
+      // deliberately kept off the classic one: the two innings are not
+      // comparable and a Survive score standing next to a thirty-ball one would
+      // be nonsense in both directions.
       const ending = this.ending ?? 'DRAWN';
       // The classic end block below is never reached from here, so the Test
       // match reports its own. The result rather than the ending, because the
       // result is what the player was actually shown — and it carries the
       // ending anyway, with the close losses split off from the rest.
       this.mark('innings-end', 'Innings completed');
+      this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
       track(`survive-result-${resultOf(ending, this.score.runs, this.score.balls).toLowerCase()}`,
         `Test match ended: ${ending}`);
       track(`survive-${scoreBand(this.score.runs)}`, 'Test match runs');
       track(`survive-${ballsBand(this.score.balls)}`, 'Test match balls faced');
       this.hud.endSurvive(this.score, this.health, ending, this.chasing);
+      this.offerSurvive();
       return;
     }
     const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);

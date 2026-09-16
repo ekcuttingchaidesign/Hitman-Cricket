@@ -1296,6 +1296,29 @@ body.start-screen .hud-top{display:none}
 }
 .board-cut::before{flex:0 0 14px}
 .board-missed{margin-top:10px}
+/* ── The Test ladder's rows ────────────────────────────────────────────────
+   The same row, saying a different thing. On the other board the line under a
+   name explains why two equal scores are not level; here it is the whole point
+   of the row — which of the three contests the innings ended up in — so it is
+   read at the name's weight rather than at a footnote's, and it carries the one
+   colour that says which. The colours are not doing the work on their own: the
+   line says "Won", "Drew the match" or "Bowled out" in words. */
+.survive-list .board-who small{
+  margin-top:2px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.2px
+}
+.survive-list .is-won .board-who small{color:#7de3ad}
+.survive-list .is-drawn .board-who small{color:#f0c65c}
+.survive-list .is-lost .board-who small{color:#f09a8c}
+/* A win is the top tier, so its runs carry the row. */
+.survive-list .is-won .board-runs{color:#7de3ad}
+/* Not out, which in this mode is most of the board: quiet, but never dropped. */
+.survive-list .board-runs i{margin-left:1px;color:var(--accent)}
+/* "balls" and "blows" are wider words than "6s". */
+.survive-list .board-hits em{width:34px}
+.survive-sheet .board-eyebrow{letter-spacing:1.4px}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */
 /* The card does not grow to hold this. It is already 349px tall on a landscape
@@ -1560,6 +1583,9 @@ body.start-screen .hud-top{display:none}
   pointer-events:none
 }
 .board-actions .key-button{min-height:48px;font-size:16px}
+/* The Test sheet's second key is the picker rather than the share pair, so it
+   is the quiet twin of the one above it and wants the same full width. */
+.board-actions .ghost-link{display:block;width:100%;text-align:center}
 .board-sheet:has(.board-actions) .board-foot{display:none}
 /* The board being down is a sentence, not an empty table. It reads on the sheet
    the rows would have filled, so the screen still has a shape. */
@@ -2301,9 +2327,35 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   }
 }
 
-/* Survive borrows the scoreboard but never the board or the share keys: it has
-   no ladder of its own yet, and it has no business on the other mode's. */
-body.survive-mode #board,body.survive-mode #share{opacity:.3;pointer-events:none}
+/* Survive borrows the scoreboard but never the share keys: the picture they
+   draw is a five-over scorecard and there is no Test one to draw yet. The board
+   key stays live, because the key now opens the ladder being played. */
+body.survive-mode #share{opacity:.3;pointer-events:none}
+
+/* ── The claim strip, on the Test card ─────────────────────────────────────
+   The same strip the other card carries, moved here for as long as this is the
+   card on screen. It keeps its own drawing — it is a window onto the board and
+   that is what it should look like in either card — so all this has to do is
+   give it a line of air and take back the negative margins it uses to run out
+   to the light card's edges, which this card's padding does not want. */
+.survive-strip{
+  /* The palette the strip was drawn against. It lives on `.scorecard` and
+     `.board-sheet`, and this card is neither — so moving the strip here left
+     `--ink`, `--quiet`, `--rule` and `--accent` undefined and took the name
+     field's type, the peek's supporting figures and the accent down the
+     player's own row with them. Same values, declared where the strip can
+     reach them. */
+  --ink:#f7f0e5;
+  --quiet:#9fb2bd;
+  --rule:#ffffff21;
+  --accent:#f2814f
+}
+.survive-strip:empty{display:none}
+.survive-strip .card-board{margin:4.4cqw 0 0}
+/* Claiming is the one thing on the card worth reading, so the stats above it
+   step aside on a short screen rather than pushing the form off the bottom. */
+#end-survive.is-claiming .result-stats,
+#end-survive.is-claiming .card-balls{display:none}
 /* A build published somewhere that cannot serve the board hides the way to it
    entirely, rather than offering a key that can only ever say it is unreachable. */
 body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only #board{display:none}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { BOARD_SIZE, LAUNCH_MS, packScore, plausible, unpackScore, type Innings } from '../src/game/leaderboard';
 import {
-  AVATARS, NAME_MAX, RATE_LIMIT, cleanName, foldName, readBoard, submitScore,
+  AVATARS, CLASSIC_LADDER, NAME_MAX, RATE_LIMIT, cleanName, foldName, readBoard, submitScore,
   type BoardStore, type Submission,
 } from '../src/server/board-store';
 import { memoryStore } from '../src/server/memory-store';
@@ -62,14 +62,14 @@ const seed = async (store: BoardStore, id: string, runs = 50, at = LAUNCH_MS + 1
 describe('reading the board', () => {
   it('says nothing rather than nothing-shaped when no one has batted', async () => {
     const { store } = fakeStore();
-    expect(await readBoard(store)).toEqual({ rows: [], cutoff: null, size: BOARD_SIZE });
+    expect(await readBoard(store, CLASSIC_LADDER)).toEqual({ rows: [], cutoff: null, size: BOARD_SIZE });
   });
 
   it('puts the rows in board order and names no cutoff while it fills', async () => {
     const { store } = fakeStore();
     await seed(store, ID, 40);
     await seed(store, OTHER, 90);
-    const board = await readBoard(store);
+    const board = await readBoard(store, CLASSIC_LADDER);
     expect(board.rows.map(r => r.runs)).toEqual([90, 40]);
     expect(board.cutoff).toBeNull();
   });
@@ -79,7 +79,7 @@ describe('reading the board', () => {
     for (let i = 0; i < BOARD_SIZE; i++) {
       await seed(store, `aaaaaa-${i.toString().padStart(12, 'x')}`, 20 + i);
     }
-    const board = await readBoard(store);
+    const board = await readBoard(store, CLASSIC_LADDER);
     expect(board.rows).toHaveLength(BOARD_SIZE);
     expect(board.cutoff).toBe(board.rows[BOARD_SIZE - 1].score);
     expect(board.rows[BOARD_SIZE - 1].runs).toBe(20);
@@ -93,7 +93,7 @@ describe('reading the board', () => {
     // A ranked id with nothing written beside it, which is what a submission
     // interrupted between its two writes leaves behind.
     await store.record('ghost0-aaaaaaaaaaaa', packScore(innings(99), LAUNCH_MS), null as never);
-    const board = await readBoard(store);
+    const board = await readBoard(store, CLASSIC_LADDER);
     expect(board.rows.map(r => r.playerId)).toEqual([ID]);
   });
 });
@@ -101,7 +101,7 @@ describe('reading the board', () => {
 describe('submitting an innings', () => {
   it('takes a real one and hands back the board it made', async () => {
     const { store } = fakeStore();
-    const outcome = await submitScore(store, submission(), LAUNCH_MS + 60_000);
+    const outcome = await submitScore(store, CLASSIC_LADDER, submission(), LAUNCH_MS + 60_000);
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.improved).toBe(true);
@@ -112,7 +112,7 @@ describe('submitting an innings', () => {
     // A laptop running fast would otherwise win every tiebreak it entered.
     const { store } = fakeStore();
     const now = LAUNCH_MS + 7 * 60_000;
-    const outcome = await submitScore(store, submission(), now);
+    const outcome = await submitScore(store, CLASSIC_LADDER, submission(), now);
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.at).toBe(now);
@@ -121,8 +121,8 @@ describe('submitting an innings', () => {
 
   it('keeps a better innings when a worse one follows it', async () => {
     const { store, runsFor } = fakeStore();
-    await submitScore(store, submission({ innings: innings(90) }), LAUNCH_MS + 1000);
-    const second = await submitScore(store, submission({ innings: innings(40) }), LAUNCH_MS + 2000);
+    await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(90) }), LAUNCH_MS + 1000);
+    const second = await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(40) }), LAUNCH_MS + 2000);
     expect(second.ok).toBe(true);
     if (!second.ok) return;
     expect(second.improved).toBe(false);
@@ -134,8 +134,8 @@ describe('submitting an innings', () => {
 
   it('replaces a row when the innings does beat it', async () => {
     const { store } = fakeStore();
-    await submitScore(store, submission({ innings: innings(40) }), LAUNCH_MS + 1000);
-    const better = await submitScore(store, submission({ innings: innings(90) }), LAUNCH_MS + 2000);
+    await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(40) }), LAUNCH_MS + 1000);
+    const better = await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(90) }), LAUNCH_MS + 2000);
     expect(better.ok).toBe(true);
     if (!better.ok) return;
     expect(better.improved).toBe(true);
@@ -146,9 +146,9 @@ describe('submitting an innings', () => {
   it('gives one player one row however many innings they play', async () => {
     const { store } = fakeStore();
     for (const runs of [30, 70, 50, 90, 20]) {
-      await submitScore(store, submission({ innings: innings(runs) }), LAUNCH_MS + runs * 1000);
+      await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(runs) }), LAUNCH_MS + runs * 1000);
     }
-    const board = await readBoard(store);
+    const board = await readBoard(store, CLASSIC_LADDER);
     expect(board.rows).toHaveLength(1);
     expect(board.rows[0].runs).toBe(90);
   });
@@ -161,9 +161,9 @@ describe('submitting an innings', () => {
    */
   it('writes the new name and kit onto the row it replaces', async () => {
     const { store } = fakeStore();
-    await submitScore(store, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
     const better = await submitScore(
-      store, submission({ name: 'Sharma', avatar: 3, innings: innings(141) }), LAUNCH_MS + 2000,
+      store, CLASSIC_LADDER, submission({ name: 'Sharma', avatar: 3, innings: innings(141) }), LAUNCH_MS + 2000,
     );
     expect(better.ok).toBe(true);
     if (!better.ok) return;
@@ -175,11 +175,11 @@ describe('submitting an innings', () => {
     // A name once held is never released, so the one they batted under before is
     // still theirs to go back to — and still nobody else's to pick up.
     const { store } = fakeStore();
-    await submitScore(store, submission({ name: 'Rohit', innings: innings(140) }), LAUNCH_MS + 1000);
-    await submitScore(store, submission({ name: 'Sharma', innings: innings(141) }), LAUNCH_MS + 2000);
-    expect(await submitScore(store, submission({ playerId: OTHER, name: 'Rohit' }), LAUNCH_MS + 3000))
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit', innings: innings(140) }), LAUNCH_MS + 1000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Sharma', innings: innings(141) }), LAUNCH_MS + 2000);
+    expect(await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Rohit' }), LAUNCH_MS + 3000))
       .toMatchObject({ ok: false, status: 409 });
-    const back = await submitScore(store, submission({ name: 'Rohit', innings: innings(142) }), LAUNCH_MS + 4000);
+    const back = await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit', innings: innings(142) }), LAUNCH_MS + 4000);
     expect(back.ok).toBe(true);
     if (!back.ok) return;
     expect(back.board.rows[0]).toMatchObject({ name: 'Rohit', runs: 142 });
@@ -193,9 +193,9 @@ describe('submitting an innings', () => {
    */
   it('changes nothing at all when the innings does not beat the row', async () => {
     const { store } = fakeStore();
-    await submitScore(store, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
     const worse = await submitScore(
-      store, submission({ name: 'Sharma', avatar: 3, innings: innings(120) }), LAUNCH_MS + 2000,
+      store, CLASSIC_LADDER, submission({ name: 'Sharma', avatar: 3, innings: innings(120) }), LAUNCH_MS + 2000,
     );
     expect(worse.ok).toBe(true);
     if (!worse.ok) return;
@@ -207,28 +207,28 @@ describe('submitting an innings', () => {
   it('turns down an innings that could not have happened', async () => {
     const { store } = fakeStore();
     // Thirty balls, and every one of them a six, would be 180.
-    const outcome = await submitScore(store, submission({ innings: { ...innings(60), runs: 200 } }));
+    const outcome = await submitScore(store, CLASSIC_LADDER, submission({ innings: { ...innings(60), runs: 200 } }));
     expect(outcome).toMatchObject({ ok: false, status: 400 });
   });
 
   it('turns down anything that is not a player', async () => {
     const { store } = fakeStore();
     for (const playerId of ['', 'nope', 'abc-def', '<script>']) {
-      expect(await submitScore(store, submission({ playerId })), playerId).toMatchObject({ ok: false, status: 400 });
+      expect(await submitScore(store, CLASSIC_LADDER, submission({ playerId })), playerId).toMatchObject({ ok: false, status: 400 });
     }
   });
 
   it('turns down a kit that does not exist', async () => {
     const { store } = fakeStore();
     for (const avatar of [-1, AVATARS, 1.5, NaN]) {
-      expect(await submitScore(store, submission({ avatar })), String(avatar)).toMatchObject({ ok: false, status: 400 });
+      expect(await submitScore(store, CLASSIC_LADDER, submission({ avatar })), String(avatar)).toMatchObject({ ok: false, status: 400 });
     }
   });
 
   it('turns down a name that is nothing once it is cleaned up', async () => {
     const { store } = fakeStore();
     for (const name of ['', '   ', '​​']) {
-      expect(await submitScore(store, submission({ name }))).toMatchObject({ ok: false, status: 400 });
+      expect(await submitScore(store, CLASSIC_LADDER, submission({ name }))).toMatchObject({ ok: false, status: 400 });
     }
   });
 });
@@ -236,24 +236,24 @@ describe('submitting an innings', () => {
 describe('one name, one player', () => {
   it('keeps a name for whoever claimed it first', async () => {
     const { store } = fakeStore();
-    await submitScore(store, submission({ name: 'Hitman' }), LAUNCH_MS + 1000);
-    const stolen = await submitScore(store, submission({ playerId: OTHER, name: 'Hitman' }), LAUNCH_MS + 2000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman' }), LAUNCH_MS + 1000);
+    const stolen = await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Hitman' }), LAUNCH_MS + 2000);
     expect(stolen).toMatchObject({ ok: false, status: 409 });
   });
 
   it('sees through spacing, case and punctuation', async () => {
     const { store } = fakeStore();
-    await submitScore(store, submission({ name: 'Big Show' }), LAUNCH_MS + 1000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Big Show' }), LAUNCH_MS + 1000);
     for (const name of ['bigshow', 'BIG  SHOW', 'B.i.g-Show', 'Bíg Shów']) {
-      expect(await submitScore(store, submission({ playerId: OTHER, name })), name)
+      expect(await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name })), name)
         .toMatchObject({ ok: false, status: 409 });
     }
   });
 
   it('lets the holder go on using their own name', async () => {
     const { store } = fakeStore();
-    await submitScore(store, submission({ name: 'Hitman' }), LAUNCH_MS + 1000);
-    const again = await submitScore(store, submission({ name: 'hitman', innings: innings(80) }), LAUNCH_MS + 2000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman' }), LAUNCH_MS + 1000);
+    const again = await submitScore(store, CLASSIC_LADDER, submission({ name: 'hitman', innings: innings(80) }), LAUNCH_MS + 2000);
     expect(again.ok).toBe(true);
   });
 
@@ -261,9 +261,9 @@ describe('one name, one player', () => {
     // A name once held stays held. Letting one go free would let the next
     // person pick up somebody else's reputation.
     const { store } = fakeStore();
-    await submitScore(store, submission({ name: 'Hitman', innings: innings(90) }), LAUNCH_MS + 1000);
-    await submitScore(store, submission({ name: 'Hitman', innings: innings(10, GAME.maxWickets) }), LAUNCH_MS + 2000);
-    expect(await submitScore(store, submission({ playerId: OTHER, name: 'Hitman' }), LAUNCH_MS + 3000))
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman', innings: innings(90) }), LAUNCH_MS + 1000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman', innings: innings(10, GAME.maxWickets) }), LAUNCH_MS + 2000);
+    expect(await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Hitman' }), LAUNCH_MS + 3000))
       .toMatchObject({ ok: false, status: 409 });
   });
 });
@@ -272,26 +272,26 @@ describe('the rate limit', () => {
   it('lets a real player submit as often as they can play', async () => {
     const { store } = fakeStore();
     for (let i = 0; i < RATE_LIMIT; i++) {
-      expect((await submitScore(store, submission(), LAUNCH_MS + i * 1000)).ok, `innings ${i}`).toBe(true);
+      expect((await submitScore(store, CLASSIC_LADDER, submission(), LAUNCH_MS + i * 1000)).ok, `innings ${i}`).toBe(true);
     }
   });
 
   it('turns an address away once it is past the limit', async () => {
     const { store } = fakeStore();
-    for (let i = 0; i <= RATE_LIMIT; i++) await submitScore(store, submission(), LAUNCH_MS + i * 1000);
-    expect(await submitScore(store, submission())).toMatchObject({ ok: false, status: 429 });
+    for (let i = 0; i <= RATE_LIMIT; i++) await submitScore(store, CLASSIC_LADDER, submission(), LAUNCH_MS + i * 1000);
+    expect(await submitScore(store, CLASSIC_LADDER, submission())).toMatchObject({ ok: false, status: 429 });
   });
 
   it('counts each address on its own, because one address is many people', async () => {
     const { store } = fakeStore();
-    for (let i = 0; i <= RATE_LIMIT; i++) await submitScore(store, submission(), LAUNCH_MS + i * 1000);
-    expect((await submitScore(store, submission({ address: '5.6.7.8', playerId: OTHER, name: 'Gilly' }))).ok).toBe(true);
+    for (let i = 0; i <= RATE_LIMIT; i++) await submitScore(store, CLASSIC_LADDER, submission(), LAUNCH_MS + i * 1000);
+    expect((await submitScore(store, CLASSIC_LADDER, submission({ address: '5.6.7.8', playerId: OTHER, name: 'Gilly' }))).ok).toBe(true);
   });
 
   it('charges a bad submission nothing to be turned away', async () => {
     // The limit is read before anything else, so a script pays for its attempts.
     const { store } = fakeStore();
-    await submitScore(store, submission({ playerId: 'nope' }));
+    await submitScore(store, CLASSIC_LADDER, submission({ playerId: 'nope' }));
     expect(await store.hits('1.2.3.4', 3600)).toBe(2);
   });
 });

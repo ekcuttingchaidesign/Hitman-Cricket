@@ -5,7 +5,7 @@
 // which is a 500 with no log of its own. TypeScript maps `.js` back to the `.ts`
 // beside it, and Vite and Vitest resolve it the same way, so this costs the rest
 // of the project nothing. `scripts/function-check.mjs` is what keeps it honest.
-import { readBoard } from '../src/server/board-store.js';
+import { CLASSIC_LADDER, SURVIVE_LADDER, readBoard } from '../src/server/board-store.js';
 import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
@@ -21,12 +21,20 @@ import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/h
  *
  * It reads with the read-only token. An endpoint that cannot write is one fewer
  * thing to get wrong.
+ *
+ * `?mode=survive` asks for the Test board instead. The two are separate ladders
+ * over separate keys — a chase and a five-over slog are not comparable, and one
+ * sorted set holding both would rank them against each other — so the mode
+ * picks which pair of keys is read and which ladder shapes the answer. Anything
+ * else, including nothing, is the innings this game opened with.
  */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   if (req.method !== 'GET') return failed(res, 405, 'Use GET.');
   try {
-    const board = await readBoard(upstashStore(redisFromEnv(true)));
+    const survive = String(req.query?.mode ?? '').toLowerCase() === 'survive';
+    const ladder = survive ? SURVIVE_LADDER : CLASSIC_LADDER;
+    const board = await readBoard(upstashStore(redisFromEnv(true), ladder.scope), ladder);
     // Ten seconds of edge cache, then a minute where a stale board is served
     // while a fresh one is fetched behind it. A leaderboard ten seconds old is
     // not wrong; a leaderboard that makes the player wait is.

@@ -28,12 +28,30 @@ import type { BoardStore, StoredRow } from './board-store.js';
  */
 const SCOPE = process.env.VERCEL_ENV === 'production' ? '' : `${process.env.VERCEL_ENV ?? 'development'}:`;
 
-/** Player id to packed score. The board's order, and nothing else. */
-const RANKING = `${SCOPE}board`;
-/** Player id to their row, as JSON. The figures behind the order. */
-const ROWS = `${SCOPE}players`;
-/** Folded name to the player id that holds it. */
-const NAMES = `${SCOPE}names`;
+/**
+ * The keys one board uses. A ladder's own scope goes between the environment's
+ * and the key's name, so the Test match keeps its own ranking and its own rows —
+ * two boards writing one sorted set would rank a chase against a slog, which is
+ * the whole thing the second ladder exists to avoid.
+ *
+ * Two things are deliberately not scoped, and both for the same reason: they
+ * are about the person rather than about the innings. The rate limit counts
+ * submissions from an address, and an address that has posted sixty innings has
+ * posted sixty whichever mode they were played in. And a name is a name — one
+ * registry across the whole game, so a player carries theirs from one board to
+ * the other and nobody else can bat under it on the one they have not played
+ * yet. Two registries would have let two people be the same Rohit.
+ */
+function keysFor(scope: string) {
+  return {
+    /** Player id to packed score. The board's order, and nothing else. */
+    ranking: `${SCOPE}${scope}board`,
+    /** Player id to their row, as JSON. The figures behind the order. */
+    rows: `${SCOPE}${scope}players`,
+    /** Folded name to the player id that holds it. Shared by both boards. */
+    names: `${SCOPE}names`,
+  };
+}
 const RATE = `${SCOPE}rate:`;
 
 /**
@@ -71,11 +89,12 @@ export function redisFromEnv(readOnly = false): Redis {
   return new Redis({ url, token });
 }
 
-export function upstashStore(redis: Redis): BoardStore {
+export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
+  const KEY = keysFor(scope);
   return {
     async top(n) {
       // Flat pairs come back: member, score, member, score.
-      const flat = await redis.zrange<(string | number)[]>(RANKING, 0, n - 1, { rev: true, withScores: true });
+      const flat = await redis.zrange<(string | number)[]>(KEY.ranking, 0, n - 1, { rev: true, withScores: true });
       const ranked: { id: string; score: number }[] = [];
       for (let i = 0; i + 1 < flat.length; i += 2) ranked.push({ id: String(flat[i]), score: Number(flat[i + 1]) });
       return ranked;
@@ -85,25 +104,25 @@ export function upstashStore(redis: Redis): BoardStore {
       if (!ids.length) return [];
       // One command for the whole board. The answer is keyed by field rather
       // than ordered, so it is put back into the ranking's order here.
-      const found = await redis.hmget<Record<string, StoredRow>>(ROWS, ...ids);
+      const found = await redis.hmget<Record<string, StoredRow<I>>>(KEY.rows, ...ids);
       return ids.map(id => found?.[id] ?? null);
     },
 
     async record(id, score, row) {
       // GT writes only when the new score is higher; CH makes the reply say
       // whether anything changed, which is the only way to know from one call.
-      const changed = await redis.zadd(RANKING, { gt: true, ch: true }, { score, member: id });
+      const changed = await redis.zadd(KEY.ranking, { gt: true, ch: true }, { score, member: id });
       if (!changed) return false;
-      await redis.hset(ROWS, { [id]: row });
+      await redis.hset(KEY.rows, { [id]: row });
       return true;
     },
 
     async claimName(folded, id) {
       // Set-if-absent, so two players claiming the same name in the same second
       // cannot both be told it is free.
-      const claimed = await redis.hsetnx(NAMES, folded, id);
+      const claimed = await redis.hsetnx(KEY.names, folded, id);
       if (claimed) return id;
-      return (await redis.hget<string>(NAMES, folded)) ?? id;
+      return (await redis.hget<string>(KEY.names, folded)) ?? id;
     },
 
     async hits(address, windowSeconds) {

@@ -248,6 +248,35 @@ The fifty invented rows are the best fifty of a field of a hundred and ten, beca
 
 A player is a long random id the browser holds on to, written to localStorage, a long-lived cookie and IndexedDB at once and restored from whichever survived. They fail in different ways and at different times, which is the point: a browser that forgets the id has not lost a row, it has quietly minted a second player who plays under the same name. Each id carries the moment it was minted, so when the copies disagree the older one wins and is written back over the younger. None of this is a security measure — an id in a browser identifies a browser, not a person — and the answer to someone wanting two rows is a delete path for the owner rather than a cleverer cookie.
 
+### The Test ladder
+
+Survive has a board of its own, at `?mode=survive` on both endpoints, and it is a second ladder rather than a second copy of this one. The five-over ladder ranks on runs and reads everything else as a tiebreak, because in that innings runs are the only thing anybody is trying to get. A Test match is not one contest, it is three — and a hundred is not a high score in it, a hundred is a **win**.
+
+So the ladder is tiered, and each tier is ranked on the figure that tier was actually about:
+
+| Tier | Ranked on | Why |
+| --- | --- | --- |
+| **Won** | fewest balls used | A chase is a race. The same hundred off thirty-eight beats it off fifty-two. |
+| **Drawn** | most runs made | He had nothing left to chase, so what he made while surviving is the measure. |
+| **Lost** | most balls faced | How long the last man kept them out is the only thing left to be proud of. |
+
+Runs sit under all three as a tiebreak and the clock under that, so two identical chases are split by what was scored on the way. One ladder over one number would put a man who made eighty and lost above a man who blocked sixty balls and saved the match, which is exactly backwards.
+
+```
+rank  = tier<<18 | primary<<9 | runs        (primary = balls saved, runs, or balls faced)
+score = rank * 2**28 + (MAX_T - secondsSinceLaunch)
+```
+
+Twenty bits of rank over twenty-eight of clock, inside a double's fifty-three with room the other ladder has not got — and a test holds it there so a field added later cannot quietly push it over. The tier is read off the figures rather than carried beside them, because the store has to decide it from a row somebody posted and cannot trust an ending sent along with it. The order matches the game's own `endingOf`: the hundred is checked before the overs, so a chase finished on the last ball is a win, and a man bowled on the sixtieth is a draw with ten down.
+
+A row leads with what happened rather than with the number — *Won, 22 balls to spare*, *Drew the match*, *Bowled out*, *Retired hurt* — and carries runs, balls and blows under it. The two ways of losing are told apart on the wicket: nine down and a wicket makes ten, and no wicket at all with balls still to bowl means he was carried off. That difference is the whole of what the injury bar is for, and a board that flattened both into "out" would throw it away. What it takes to get on is said in the terms of whichever contest the fiftieth row is sitting in, because "you are twelve short" means nothing against a row that won.
+
+The Test card's claim strip is the five-over card's strip, moved. One element with one form, one picker and one set of listeners, relocated into whichever card is on screen — two copies under two sets of ids would have been two of every bug as well.
+
+The two boards have **separate ranking and row keys and one shared name registry**. Separate keys because a chase and a five-over slog are not comparable and one sorted set holding both would rank them against each other. Shared names because a name is a person, not an innings: a player carries theirs from one board to the other, and nobody else can bat under it on the board they have not played yet.
+
+There are no invented rows for the Test board. The fifty fixtures stand in for the other one while there is no database; a ladder of people who never batted is worse here than an empty screen.
+
 ### Claiming a place
 
 An innings that earns a place puts a strip on the card between the figures and the keys: a green banner saying where it landed, the two rows it landed between, and one key to do something about it. The rows either side are the point — *fifth has 102* is what makes 101 mean something, and a place on its own does not. Each peek row carries the same three figures the board does (runs, sixes, fours), so it is a true preview of the screen the key opens rather than a different thing that resembles it. Other players are bars rather than names: the peek is about where the player sits, and the full board one tap away has every name on it.
@@ -328,7 +357,7 @@ npm run check:board                                    # the dev server
 node scripts/board-check.mjs https://…vercel.app       # a real deployment
 ```
 
-Unit tests run the rules against an in-memory store, which catches logic and **cannot** catch a missing credential, a function in the wrong region, or an `api/` directory Vercel never turned into functions. This is the check that does, and it is the first thing to run against any new deployment. It reads the board, submits a real innings, proves the row survives a fresh read, proves a worse innings does not displace it, and proves each refusal — a taken name, an impossible innings, something that is not a player, a kit that does not exist — then checks the preflight and the edge-cache header.
+Unit tests run the rules against an in-memory store, which catches logic and **cannot** catch a missing credential, a function in the wrong region, or an `api/` directory Vercel never turned into functions. This is the check that does, and it is the first thing to run against any new deployment. It reads the board, submits a real innings, proves the row survives a fresh read, proves a worse innings does not displace it, and proves each refusal — a taken name, an impossible innings, something that is not a player, a kit that does not exist — then checks the preflight and the edge-cache header. It then does the same for the Test ladder and proves the two are really separated: an innings on one is nowhere near the other, a slower chase does not improve on a faster one, and a name held on either board is refused on the other. One wrong key prefix is invisible to the unit tests, which run two stores because the test made two.
 
 It writes. Every run leaves a row under a throwaway id and a name nobody would want, and **a name it claims is never released**. Point it at a preview rather than at the board people are playing for.
 
@@ -349,6 +378,9 @@ The storage shape is chosen to spend as few commands as possible rather than for
 | `board` | sorted set | player id → packed score. `ZADD GT CH`, so a worse innings cannot displace a better one and the reply says whether anything moved. |
 | `players` | hash | player id → the row as JSON. One `HMGET` returns all fifty. |
 | `names` | hash | folded name → player id. `HSETNX`, so two people claiming one name in the same second cannot both be told it is free. |
+| `survive:board`, `survive:players` | as above | The Test ladder, on its own keys. `?mode=survive` on either endpoint picks them. |
+
+Two things are deliberately **not** scoped by mode. `names` is one registry across the whole game, for the reason given above. The rate limit is the other: it counts submissions from an address, and an address that has posted sixty innings has posted sixty whichever mode they were played in.
 
 Reading the whole board is **two commands**, not fifty. The row is written only when the score actually improved — the ranking and the figures beside it have to describe the same innings, or the board shows a player's best score next to their latest innings' boundaries.
 
@@ -375,7 +407,7 @@ Rate limiting is by address and the address is **never** used as identity, becau
 - `src/game/Share.ts`: the innings link, the WhatsApp message, and the file name and type each shared picture travels under.
 - `src/game/ShareCard.ts`: the innings-end card painted onto a canvas so it can leave the page as a picture. Both share buttons draw the same card, minus its buttons, with the Hitman Cricket lockup in the corner; the story button stands that card on the cover art in a 1080x1920 frame with the address painted on. Two platform limits shape it. A `wa.me` link carries text and nothing else, so where the browser can hand a file to another app the button goes through the share sheet instead and the link stays as the fallback; and a picture in a story is a picture, so the address is readable type rather than a tappable sticker, since link stickers are added inside Instagram or WhatsApp and not by whoever sent the image. The card is a PNG for its flat colour and sharp type, the story a JPEG for its photograph.
 - `src/game/leaderboard.ts`: the ladder, written once and imported by both sides — the browser runs it to decide whether an innings is worth asking a name for, and the store will run it to decide what the board actually is. Carries the packed score, the plausibility floor, and `decidedBy`, which names the figure that separated two innings so a row can point at the reason it sits where it does.
-- `src/server/board-store.ts`: what the board is on the store's side — reading it, and everything that decides whether a submitted innings is taken. Every command it needs is named on a `BoardStore` interface rather than reached for through a Redis client, so the whole submit path is tested with no network and no database, and the day this moves off Redis one adapter changes and none of the rules do.
+- `src/server/board-store.ts`: what the board is on the store's side — reading it, and everything that decides whether a submitted innings is taken. Every command it needs is named on a `BoardStore` interface rather than reached for through a Redis client, so the whole submit path is tested with no network and no database, and the day this moves off Redis one adapter changes and none of the rules do. A `Ladder` says which figures a row carries, how they pack, what could not have happened, and which keys to write; the rules above it are written once and run for both boards.
 - `src/server/memory-store.ts`: the board in memory, behind the same interface. It backs the dev server and the tests — one implementation rather than two, because a second copy drifts from the one the endpoints are developed against. It keeps the semantics the Redis adapter leans on rather than the convenient ones.
 - `src/server/upstash.ts`: that interface over Upstash. Note it does not use the client's own `Redis.fromEnv()` — Vercel's integration injects `KV_`-prefixed names, `fromEnv` looks for `UPSTASH_`-prefixed ones, and it would find nothing at runtime on a page nobody is watching.
 - `src/server/http.ts`: CORS, the address the edge reports, and how a failure is phrased. The allowlist is an allowlist rather than a `*` because one of the two endpoints writes.
@@ -387,6 +419,7 @@ Rate limiting is by address and the address is **never** used as identity, becau
 - `src/game/board-fixture.ts`: fifty innings nobody played, so the board could be designed before there is a database behind it. Deterministic from one seed.
 - `src/game/identity.ts`: the player id, written to and restored from three stores at once. A store that throws is treated as empty and a store that hangs is left behind after a second, so a wedged IndexedDB costs the player a second rather than the game.
 - `src/ui/Leaderboard.ts`: the board as a string of HTML built from figures and nothing else, the way the rest of this interface is written, which is what lets fifty rows be checked with no browser in the room. Names come off the board, which is to say off other players, so they are written into the page as text and never as markup.
+- `src/game/survive-board.ts` and `src/ui/SurviveBoard.ts`: the Test ladder and the sheet that draws it. Same shapes, same escaping, same peek — a different ladder underneath and a row that leads with what happened rather than with the number.
 - `src/ui/DotMatrix.ts`: the scoreboard's lamps. Faces are 7 rows of dots, drawn as SVG with the dark lamps as well as the lit ones — the unlit grid is what makes a panel read as a board rather than as text in a box. Punctuation is narrow, so an over count reads `5.0` rather than `5 . 0`.
 - `src/ui/HUD.ts` and `src/styles.css`: a full-window stage holding the start card, scoreboard, in-field controls, shot feedback, help, pause, and innings-end screens. Ball feedback is a call that rises off the field and fades on its own — no panel interrupts play, and delivery speed and style are not reported.
 - `tests/share.test.ts`: what the shared card says for every innings ending, that it copies the innings rather than holding a reference to it, the file name and type each picture travels under, and that the address is in the caption because the picture cannot be tapped.
@@ -441,13 +474,16 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
 | `board-open` | Whether the fifty is looked at. |
 | `claim-open`, `claim-done`, `claim-failed` | The registration funnel: offered, taken, and refused by the store. |
+| `survive-…` | The same events again, for a Test innings. GoatCounter has no custom properties, so the mode is in the name or it is nowhere — everything about an *innings* is prefixed, and everything about a *session* (the first shot, the help screen, the minutes played) is not, because those are the same fact whichever innings they happened in. |
+| `survive-result-won` … `survive-result-lost` | Which of the five result cards the Test innings earned. |
+| `survive-balls-under-1-over` … `survive-balls-8-10-overs` | How long the last man lasted, in overs rather than balls, because that is how a Test innings is read. |
 | `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
 | `help-open` | The controls did not explain themselves. |
 | `webgl-fail` | The ground could not load, and nothing that follows was ever possible. |
 | `visitor-new`, `visitor-returning` | Whether this browser has played here before. |
 | `back-same-day` … `back-over-30-days` | How long a returning player was away. |
 | `days-played-1` … `days-played-11-plus` | How many separate days this browser has played on. |
-| `innings-under-30s` … `innings-over-5m` | How long an innings took. |
+| `innings-under-30s` … `innings-over-5m` | How long an innings took, in each mode under its own prefix. |
 | `played-1m`, `played-3m`, `played-5m`, `played-10m`, `played-20m`, `played-30m` | Marks a session got past. |
 
 `counting()` in `src/game/analytics.ts` decides who is counted: not localhost, and not a page opened with `?seed=` or `?debug=1`, which is how the browser checks and a tuning session play their innings. A scripted thirty balls is not a player. The counter script is loaded async, so events raised before it lands queue for up to fifteen seconds and go out when it does; if it never lands — a blocked script, an ad blocker — the queue is dropped and the innings is untouched. Nothing here can throw into the game loop.

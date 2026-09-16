@@ -1,5 +1,6 @@
 import { inventedBoard } from './board-fixture';
 import type { BoardRow, Innings } from './leaderboard';
+import type { SurviveInnings, SurviveRow } from './survive-board';
 
 /**
  * The board, fetched.
@@ -26,8 +27,18 @@ const TIMEOUT_MS = 4000;
 /** How long a fetched board is reused before asking again. */
 const FRESH_MS = 20_000;
 
+/** Which board is being asked for. The two are separate ladders over separate keys. */
+export type BoardMode = 'classic' | 'survive';
+
 export interface BoardPayload {
   rows: BoardRow[];
+  cutoff: number | null;
+  size: number;
+}
+
+/** The same answer, shaped by the Test match's own ladder. */
+export interface SurvivePayload {
+  rows: SurviveRow[];
   cutoff: number | null;
   size: number;
 }
@@ -35,11 +46,12 @@ export interface BoardPayload {
 /** What the sheet knows about the board it is drawing. */
 export type BoardState = 'ready' | 'loading' | 'offline';
 
-export interface SubmitResult {
+export interface SubmitResult<P = BoardPayload> {
   ok: boolean;
   improved?: boolean;
   score?: number;
-  board?: BoardPayload;
+  /** The board as it stands with this innings on it, so nothing has to guess. */
+  board?: P;
   /** Why it was turned down, in words the player can act on. */
   reason?: string;
 }
@@ -51,7 +63,13 @@ export interface SubmitResult {
  */
 const STILL_COUNTS = 'Your innings still counts on this device.';
 
-let cached: { at: number; payload: BoardPayload } | null = null;
+/**
+ * One held board per mode. Keyed rather than single, or opening the Test board
+ * and then the five-over one would hand the second the first one's fifty — the
+ * rows have different figures on them and the sheet would draw whichever it was
+ * given.
+ */
+const cached: Partial<Record<BoardMode, { at: number; payload: BoardPayload | SurvivePayload }>> = {};
 
 /**
  * The fifty. A board fetched in the last few seconds is reused rather than
@@ -59,15 +77,28 @@ let cached: { at: number; payload: BoardPayload } | null = null;
  * Answers null when there is nothing to show, which the sheet says out loud.
  */
 export async function fetchBoard(force = false): Promise<BoardPayload | null> {
-  if (!force && cached && Date.now() - cached.at < FRESH_MS) return cached.payload;
+  return await board(force, 'classic') as BoardPayload | null;
+}
+
+/** The Test fifty, under its own ladder. */
+export async function fetchSurviveBoard(force = false): Promise<SurvivePayload | null> {
+  return await board(force, 'survive') as SurvivePayload | null;
+}
+
+async function board(force: boolean, mode: BoardMode) {
+  const held = cached[mode];
+  if (!force && held && Date.now() - held.at < FRESH_MS) return held.payload;
+  const query = mode === 'survive' ? '?mode=survive' : '';
   // `ask` hands back a refusal as readily as a board, and the sheet has one line
   // for every way this can fail, so anything carrying `error` is no board here.
-  const answer = await ask<BoardPayload & { error?: string }>(`${API}/api/board`);
+  const answer = await ask<BoardPayload & { error?: string }>(`${API}/api/board${query}`);
   const payload = answer && !answer.error ? answer : null;
-  if (payload) cached = { at: Date.now(), payload };
+  if (payload) cached[mode] = { at: Date.now(), payload };
   // In development there is usually no database behind any of this, so the
-  // invented fifty stand in. They never stand in for a live board.
-  else if (import.meta.env.DEV) return { rows: inventedBoard(), cutoff: null, size: 50 };
+  // invented fifty stand in. They never stand in for a live board — and there
+  // are none invented for the Test match, which would rather show nothing than
+  // a ladder of people who never batted.
+  else if (import.meta.env.DEV && mode === 'classic') return { rows: inventedBoard(), cutoff: null, size: 50 };
   return payload;
 }
 
@@ -75,12 +106,31 @@ export async function fetchBoard(force = false): Promise<BoardPayload | null> {
  * An innings offered to the board. The server stamps it, ranks it and answers
  * with the board it made, so nothing here has to guess where the player landed.
  */
-export async function submitInnings(
+export function submitInnings(
   playerId: string, name: string, avatar: number, innings: Innings,
-): Promise<SubmitResult> {
-  const answer = await ask<{ improved: boolean; score: number; board: BoardPayload; error?: string; retry?: boolean }>(
+): Promise<SubmitResult<BoardPayload>> {
+  return offer(playerId, name, avatar, innings, 'classic') as Promise<SubmitResult<BoardPayload>>;
+}
+
+/** The Test innings, offered to the Test ladder. */
+export function submitSurvive(
+  playerId: string, name: string, avatar: number, innings: SurviveInnings,
+): Promise<SubmitResult<SurvivePayload>> {
+  return offer(playerId, name, avatar, innings, 'survive') as Promise<SubmitResult<SurvivePayload>>;
+}
+
+async function offer(
+  playerId: string, name: string, avatar: number, innings: Innings | SurviveInnings, mode: BoardMode,
+): Promise<SubmitResult<BoardPayload | SurvivePayload>> {
+  const answer = await ask<{
+    improved: boolean; score: number; board: BoardPayload | SurvivePayload; error?: string; retry?: boolean;
+  }>(
     `${API}/api/score`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerId, name, avatar, innings }) },
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, name, avatar, innings, mode }),
+    },
   );
   // Nothing came back at all: a timeout, a dropped connection, or a crash with
   // no body to read. There is nothing more specific to say than this.
@@ -89,12 +139,12 @@ export async function submitInnings(
   // failure of the board itself gets the reassurance appended, because they
   // cannot, and being told their hundred vanished would be the wrong reading.
   if (answer.error) return { ok: false, reason: answer.retry ? `${answer.error} ${STILL_COUNTS}` : answer.error };
-  cached = { at: Date.now(), payload: answer.board };
+  cached[mode] = { at: Date.now(), payload: answer.board };
   return { ok: true, improved: answer.improved, score: answer.score, board: answer.board };
 }
 
 /** Throws away the board held from last time, so the next open asks again. */
-export function forgetBoard() { cached = null; }
+export function forgetBoard() { delete cached.classic; delete cached.survive; }
 
 /**
  * One request, with a timeout and no way to throw. A rejected fetch, a timeout

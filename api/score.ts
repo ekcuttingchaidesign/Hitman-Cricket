@@ -1,7 +1,10 @@
-import { refused, submitScore, type Submission } from '../src/server/board-store.js';
+import {
+  CLASSIC_LADDER, SURVIVE_LADDER, refused, submitScore, type Submission,
+} from '../src/server/board-store.js';
 import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
+import type { SurviveInnings } from '../src/game/survive-board.js';
 
 /**
  * `POST /api/score` — an innings offered to the board.
@@ -20,16 +23,28 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const body = parse(req.body);
   if (!body) return failed(res, 400, 'Send an innings as JSON.');
 
-  const input: Submission = {
+  // Which board is being offered an innings. The two are separate ladders over
+  // separate keys, and the figures a row carries differ, so this decides both.
+  const survive = String(body.mode ?? '').toLowerCase() === 'survive';
+  const who = {
     playerId: String(body.playerId ?? ''),
     name: String(body.name ?? ''),
     avatar: Number(body.avatar),
-    innings: figures(body.innings),
     address: addressOf(req),
   };
 
   try {
-    const outcome = await submitScore(upstashStore(redisFromEnv()), input);
+    const outcome = survive
+      ? await submitScore(
+        upstashStore<SurviveInnings>(redisFromEnv(), SURVIVE_LADDER.scope),
+        SURVIVE_LADDER,
+        { ...who, innings: surviveFigures(body.innings) } satisfies Submission<SurviveInnings>,
+      )
+      : await submitScore(
+        upstashStore(redisFromEnv()),
+        CLASSIC_LADDER,
+        { ...who, innings: figures(body.innings) } satisfies Submission<Innings>,
+      );
     if (refused(outcome)) return failed(res, outcome.status, outcome.reason);
     // A submission is never cached, by anyone, ever.
     res.setHeader('Cache-Control', 'no-store');
@@ -60,4 +75,11 @@ function figures(raw: unknown): Innings {
     runs: read('runs'), sixes: read('sixes'), fours: read('fours'),
     wickets: read('wickets'), dots: read('dots'), balls: read('balls'),
   };
+}
+
+/** The Test match's four, the same way. */
+function surviveFigures(raw: unknown): SurviveInnings {
+  const from = (raw ?? {}) as Record<string, unknown>;
+  const read = (key: string) => Number(from[key]);
+  return { runs: read('runs'), balls: read('balls'), wickets: read('wickets'), blows: read('blows') };
 }

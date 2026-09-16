@@ -162,10 +162,15 @@ describe('whether the innings could have happened', () => {
     expect(survivePlausible(innings({ runs: 3, balls: 0 }))).toBe(false);
   });
 
+  it('takes a wicket on the very last ball, which the mode does produce', () => {
+    // The overs are read before the wicket, so being bowled on the sixtieth
+    // ball is a draw with ten down rather than a scorecard nobody could hold.
+    expect(survivePlausible(innings({ runs: 20, balls: SURVIVE.totalBalls, wickets: 1 }))).toBe(true);
+    expect(standingOf(innings({ runs: 20, balls: SURVIVE.totalBalls, wickets: 1 }))).toBe('DRAWN');
+  });
+
   it('rejects an innings that carried on past the thing that ends it', () => {
-    // The wicket is the last one, so nothing follows it.
-    expect(survivePlausible(innings({ runs: 20, balls: SURVIVE.totalBalls, wickets: 1 }))).toBe(false);
-    // And the hundred ends the chase, so he cannot be out after reaching it.
+    // The hundred ends the chase, so he cannot be out after reaching it.
     expect(survivePlausible(innings({ runs: SURVIVE.target, balls: 40, wickets: 1 }))).toBe(false);
   });
 });

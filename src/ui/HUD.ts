@@ -5,7 +5,12 @@ import { track } from '../game/analytics';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import { boardMarkup, peekMarkup, pickerMarkup, standingPeek, type BoardView, type CardOffer } from './Leaderboard';
+import {
+  surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
+  type SurviveBoardView,
+} from './SurviveBoard';
 import type { BoardRow, Innings } from '../game/leaderboard';
+import type { SurviveInnings, SurviveRow } from '../game/survive-board';
 import { AVATARS, kitDeal } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
@@ -274,6 +279,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <div><dt>Blows Taken</dt><dd id="survive-blows"></dd></div>
                 <div><dt>Injury</dt><dd id="survive-health"></dd></div>
               </dl>
+              <div id="survive-strip" class="survive-strip"></div>
               <div class="result-keys">
                 <button id="survive-again" class="play-button">PLAY AGAIN</button>
                 <button id="survive-modes" class="learn-button">MODE SELECTION</button>
@@ -303,9 +309,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * there is nothing to be gained by keeping them around and patching them:
    * a fresh sheet is always the rows it was handed.
    */
-  board(view: BoardView) {
+  board(view: BoardView) { this.sheet(boardMarkup(view), false); }
+
+  /**
+   * The Test board. The same overlay and the same keys — only the rows and the
+   * ladder they are ordered by differ, and those are the markup's business.
+   */
+  surviveBoard(view: SurviveBoardView) { this.sheet(surviveBoardMarkup(view), true); }
+
+  private sheet(markup: string, surviving: boolean) {
     const overlay = this.$('board-overlay');
-    overlay.innerHTML = boardMarkup(view);
+    overlay.innerHTML = markup;
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     // The backdrop is the whole overlay, so a click that lands on the sheet is
@@ -315,15 +329,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
     const again = document.getElementById('board-again');
-    if (again) {
-      again.onclick = () => { this.closeBoard(); this.$('again').click(); };
+    if (!again) return this.$('board-close').focus();
+    again.onclick = () => { this.closeBoard(); this.$(surviving ? 'survive-again' : 'again').click(); };
+    if (surviving) {
+      // The Test card offers the picker rather than the share keys, so the
+      // sheet standing in for it offers the same thing — and drops it on a
+      // build where the card has no picker to offer either.
+      const modes = this.$('board-modes');
+      if (this.$('survive-modes').classList.contains('hidden')) modes.remove();
+      else modes.onclick = () => { this.closeBoard(); this.$('survive-modes').click(); };
+    } else {
       (this.$('board-whatsapp') as HTMLAnchorElement).href = (this.$('whatsapp') as HTMLAnchorElement).href;
       this.$('board-whatsapp').addEventListener('click', event => this.shareScore(event, 'card'));
       this.$('board-story').addEventListener('click', event => this.shareScore(event, 'story'));
-      again.focus();
-    } else {
-      this.$('board-close').focus();
     }
+    again.focus();
   }
   get boardOpen() { return !this.$('board-overlay').classList.contains('hidden'); }
   /**
@@ -342,9 +362,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('board-overlay').innerHTML = '';
     // The pause card and the innings card are both modals in their own right, so
     // the darkened ground only lifts if the board was the last thing on it.
-    const stacked = ['end', 'pause-overlay', 'tutorial-done'].some(id => !this.$(id).classList.contains('hidden'));
+    const stacked = ['end', 'end-survive', 'modes', 'pause-overlay', 'tutorial-done']
+      .some(id => !this.$(id).classList.contains('hidden'));
     this.viewport.classList.toggle('modal-open', stacked);
-    this.$('board').focus();
+    // In Survive the hud row is not on screen while the card is, so there is
+    // nothing there to hand the focus back to.
+    if (this.$('end-survive').classList.contains('hidden')) this.$('board').focus();
   }
   score(score: ScoreManager) {
     this.$('runs').innerHTML = dotMatrix(String(score.runs), `${score.runs} runs`);
@@ -366,10 +389,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     ['intro', 'end', 'end-survive', 'pause-overlay', 'result', 'coach', 'tutorial-done', 'modes']
       .forEach(id => this.$(id).classList.add('hidden'));
     this.$('survive-card').classList.toggle('hidden', !surviving);
-    // The board and the share keys belong to the classic innings. Survive has a
-    // board of its own coming and nothing to say on this one, and a key that
-    // puts a Test match on a thirty-ball ladder would be worse than no key.
-    ['board', 'share'].forEach(id => (this.$(id) as HTMLButtonElement).disabled = surviving);
+    // The share keys belong to the classic innings: the picture they draw is a
+    // five-over scorecard and there is no Test one to draw yet. The board key
+    // works in both, because each mode now has a ladder of its own behind it
+    // and the key opens whichever one is being played.
+    (this.$('share') as HTMLButtonElement).disabled = surviving;
+    (this.$('board') as HTMLButtonElement).disabled = false;
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
   }
@@ -469,6 +494,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.offer = { kind: 'silent' };
     this.onBoard = false;
     this.closeClaim();
+    // The Test card may be holding the strip. Take it back before hiding it, or
+    // an innings that earns a place here unhides one sitting in the other card.
+    this.hostStrip(false);
     this.$('card-board').classList.add('hidden');
     // What happened, then the number that makes it mean something. A best is
     // already banked by the time this runs, so it is only worth quoting back
@@ -520,10 +548,57 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     yours: Innings,
     playerId: string | null = null,
   ) {
+    this.strip(offer, known, playerId, false, {
+      best: standing => `Your best score is still <b>${standing.runs}</b>`,
+      peek: place => (rows.length ? peekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
+      held: place => (rows.length ? standingPeek(rows, place) : ''),
+    });
+  }
+
+  /**
+   * The same strip, for the Test card. The one thing it says differently is
+   * what a standing row still stands *for*: on the other board that is a
+   * number, and here a number on its own would be the least interesting thing
+   * about it — a hundred is a win and sixty blocked balls is a draw, and those
+   * are what a player would be sorry to lose.
+   */
+  offerSurviveClaim(
+    offer: CardOffer,
+    known: { name: string; avatar: number } | null,
+    rows: readonly SurviveRow[],
+    yours: SurviveInnings,
+    playerId: string | null = null,
+  ) {
+    this.strip(offer, known, playerId, true, {
+      best: standing => `Your best still stands &mdash; <b>${surviveBest(rows, standing.place)}</b>`,
+      peek: place => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
+      held: place => (rows.length ? surviveStandingPeek(rows, place) : ''),
+    });
+  }
+
+  /**
+   * The strip itself, which is one element moved between the two cards rather
+   * than one per card. The form inside it carries the picker, the name field
+   * and the listeners the game hung on them, and two of everything under two
+   * sets of ids would be two of every bug as well — so the Test card borrows
+   * the strip for as long as it is the card on screen.
+   */
+  private strip(
+    offer: CardOffer,
+    known: { name: string; avatar: number } | null,
+    playerId: string | null,
+    surviving: boolean,
+    say: {
+      best(standing: { runs: number; place: number }): string;
+      peek(place: number): string;
+      held(place: number): string;
+    },
+  ) {
     this.claimed = known;
     this.deal = kitDeal(playerId);
     this.offer = offer;
     if (offer.kind === 'silent') return;
+    this.hostStrip(surviving);
     this.onBoard = offer.kind === 'standing';
     const key = this.$('claim');
     if (offer.kind === 'private') {
@@ -538,9 +613,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     } else if (offer.kind === 'standing') {
       // Their own row is the news, not this innings. What it says is what still
       // stands, and the only thing left to offer is the board it stands on.
-      this.$('card-board-head').innerHTML =
-        `${icon('trophy')}<span>Your best score is still <b>${offer.runs}</b></span>`;
-      this.$('card-peek').innerHTML = rows.length ? standingPeek(rows, offer.place) : '';
+      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>${say.best(offer)}</span>`;
+      this.$('card-peek').innerHTML = say.held(offer.place);
       key.textContent = 'VIEW LEADERBOARD';
     } else {
       this.$('card-board-head').innerHTML = offer.place
@@ -548,12 +622,28 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         : `${icon('trophy')}<span>Put this innings on the board</span>`;
       // With no board fetched there is nothing to sit between, so the strip is
       // the banner and the key alone rather than three empty rows.
-      this.$('card-peek').innerHTML = offer.place && rows.length
-        ? peekMarkup(rows, offer.place, yours, known?.avatar ?? null)
-        : '';
+      this.$('card-peek').innerHTML = offer.place ? say.peek(offer.place) : '';
       key.textContent = 'REGISTER SCORE ON LEADERBOARD';
     }
     this.$('card-board').classList.remove('hidden');
+  }
+
+  /** Which card the strip is living in at the moment. */
+  private stripHost: 'end' | 'end-survive' = 'end';
+
+  /**
+   * The strip, moved to whichever card is about to go up. A move rather than a
+   * copy: the ids go with it, so every method that reaches for `card-board`,
+   * `claim` or `card-claim` goes on working without knowing which card it is
+   * standing in.
+   */
+  private hostStrip(surviving: boolean) {
+    const host = surviving ? 'end-survive' : 'end';
+    if (this.stripHost === host) return;
+    const strip = this.$('card-board');
+    if (surviving) this.$('survive-strip').append(strip);
+    else this.$('end').querySelector('.scorecard')!.insertBefore(strip, this.$('end').querySelector('.card-keys'));
+    this.stripHost = host;
   }
 
   /** What the strip's key should do: open the form, or open the board. */
@@ -578,7 +668,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('card-peek').classList.add('hidden');
     this.$('claim').classList.add('hidden');
     this.$('card-claim').classList.remove('hidden');
-    this.$('end').classList.add('is-claiming');
+    this.$(this.stripHost).classList.add('is-claiming');
     // A returning player's own kit, or the one this player was dealt. Never kit
     // zero: opening on the same kit for everybody is what put one colour all
     // over the board.
@@ -640,7 +730,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('card-claim').classList.add('hidden');
     this.$('card-peek').classList.remove('hidden');
     this.$('claim').classList.remove('hidden');
-    this.$('end').classList.remove('is-claiming');
+    this.$(this.stripHost).classList.remove('is-claiming');
     this.claimSending(false);
   }
 
@@ -842,6 +932,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // are different lists — see `resultOf`.
     const result = resultOf(ending, score.runs, score.balls);
     const said = RESULT_SAID[result];
+    // The same housekeeping the other card does: last innings' offer is not
+    // this one's, and the strip is silent until `offerSurviveClaim` says
+    // otherwise.
+    this.offer = { kind: 'silent' };
+    this.onBoard = false;
+    this.closeClaim();
+    this.hostStrip(true);
+    this.$('card-board').classList.add('hidden');
     const total = teamScore + score.runs;
     // Nine down when he walked out; only being dismissed makes it ten. Retiring
     // hurt does not cost the side a wicket, which is the whole difference

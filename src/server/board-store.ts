@@ -1,4 +1,7 @@
-import { BOARD_SIZE, packScore, plausible, type BoardRow, type Innings } from '../game/leaderboard.js';
+import { BOARD_SIZE, packScore, plausible, type Innings } from '../game/leaderboard.js';
+import {
+  SURVIVE_BOARD_SIZE, packSurvive, survivePlausible, type SurviveInnings,
+} from '../game/survive-board.js';
 
 /**
  * What the board is, on the store's side of the wire.
@@ -27,27 +30,71 @@ export const AVATARS = 5;
 export const RATE_LIMIT = 120;
 export const RATE_WINDOW_SECONDS = 3600;
 
-/** A row as it is kept: the six figures, plus who owns them and when. */
-export interface StoredRow extends Innings {
+/**
+ * What separates one board from another, and it is only ever these four things.
+ *
+ * Everything else the store does — the rate limit, claiming a name, writing only
+ * when the score improves, reading fifty rows in two commands — is the same
+ * whichever innings was played. So the plumbing is written once and the ladder
+ * is handed to it, rather than a second copy of the store growing beside the
+ * first and drifting from it a fix at a time.
+ */
+export interface Ladder<I> {
+  /** How many rows this board holds. */
+  size: number;
+  /** The whole ladder as one number. The store stamps it, never the browser. */
+  pack(innings: I, atMs: number): number;
+  /** Whether the innings could have happened at all. */
+  plausible(innings: I): boolean;
+  /** The figures alone, so a row never carries a field nobody ranks on. */
+  figures(from: I): I;
+  /** Where this board's keys live. Empty for the five-over innings, which was
+      here first and whose keys are already written. */
+  scope: string;
+}
+
+export const CLASSIC_LADDER: Ladder<Innings> = {
+  size: BOARD_SIZE,
+  pack: packScore,
+  plausible,
+  scope: '',
+  figures: from => ({
+    runs: from.runs, sixes: from.sixes, fours: from.fours,
+    wickets: from.wickets, dots: from.dots, balls: from.balls,
+  }),
+};
+
+export const SURVIVE_LADDER: Ladder<SurviveInnings> = {
+  size: SURVIVE_BOARD_SIZE,
+  pack: packSurvive,
+  plausible: survivePlausible,
+  scope: 'survive:',
+  figures: from => ({
+    runs: from.runs, balls: from.balls, wickets: from.wickets, blows: from.blows,
+  }),
+};
+
+/** A row as it is kept: the figures that board ranks, plus who owns them and when. */
+export type StoredRow<I = Innings> = I & {
   name: string;
   avatar: number;
   /** When the store stamped it. Never the browser's clock. */
   at: number;
-}
+};
 
 /** Everything the board needs from whatever is keeping it. */
-export interface BoardStore {
+export interface BoardStore<I = Innings> {
   /** The best `n` player ids with their packed scores, best first. */
   top(n: number): Promise<{ id: string; score: number }[]>;
   /** The rows for these ids, in the order asked; anything missing comes back null. */
-  rows(ids: string[]): Promise<(StoredRow | null)[]>;
+  rows(ids: string[]): Promise<(StoredRow<I> | null)[]>;
   /**
    * Records a score only if it beats the one already standing, and says whether
    * it did. The row must only be written when it did: the ranking and the
    * figures beside it have to describe the same innings, or the board will show
    * a player's best score next to their latest innings' boundaries.
    */
-  record(id: string, score: number, row: StoredRow): Promise<boolean>;
+  record(id: string, score: number, row: StoredRow<I>): Promise<boolean>;
   /**
    * Claims the folded name for this player if nobody holds it, and answers with
    * whoever holds it once that is done. One call rather than a read then a
@@ -60,8 +107,8 @@ export interface BoardStore {
 }
 
 /** What `GET /api/board` answers with. */
-export interface BoardPayload {
-  rows: BoardRow[];
+export interface BoardPayload<I = Innings> {
+  rows: (I & { playerId: string; name: string; avatar: number; score: number })[];
   /** The packed score the fiftieth row is holding, or null while the board fills. */
   cutoff: number | null;
   size: number;
@@ -78,7 +125,9 @@ export interface BoardPayload {
  *
  * Two commands: the ids in order, then every row in one go. Not fifty.
  */
-export async function readBoard(store: BoardStore, size = BOARD_SIZE): Promise<BoardPayload> {
+export async function readBoard<I>(
+  store: BoardStore<I>, ladder: Ladder<I>, size = ladder.size,
+): Promise<BoardPayload<I>> {
   const ranked = await store.top(size);
   if (!ranked.length) return { rows: [], cutoff: null, size };
   const stored = await store.rows(ranked.map(entry => entry.id));
@@ -87,19 +136,19 @@ export async function readBoard(store: BoardStore, size = BOARD_SIZE): Promise<B
     // A ranked id with no row behind it is a half-written submission, not a
     // player. Leaving it out is better than drawing a blank line.
     return row
-      ? [{ ...figuresOf(row), playerId: entry.id, name: row.name, avatar: row.avatar, score: entry.score }]
+      ? [{ ...ladder.figures(row), playerId: entry.id, name: row.name, avatar: row.avatar, score: entry.score }]
       : [];
   });
   return { rows, cutoff: rows.length >= size ? rows[size - 1].score : null, size };
 }
 
 /** An innings the board took, and where it landed. */
-export interface SubmitAccepted {
+export interface SubmitAccepted<I = Innings> {
   ok: true;
   improved: boolean;
   score: number;
   at: number;
-  board: BoardPayload;
+  board: BoardPayload<I>;
 }
 
 /** An innings the board turned down, and what to tell the player. */
@@ -118,18 +167,18 @@ export interface SubmitRefusal {
  * union not narrowing there failed three deployments while `tsc --noEmit`
  * passed every time locally.
  */
-export type SubmitOutcome = SubmitAccepted | SubmitRefusal;
+export type SubmitOutcome<I = Innings> = SubmitAccepted<I> | SubmitRefusal;
 
 /** Whether the board turned this innings down. */
-export function refused(outcome: SubmitOutcome): outcome is SubmitRefusal {
+export function refused<I>(outcome: SubmitOutcome<I>): outcome is SubmitRefusal {
   return !outcome.ok;
 }
 
-export interface Submission {
+export interface Submission<I = Innings> {
   playerId: string;
   name: string;
   avatar: number;
-  innings: Innings;
+  innings: I;
   /** Whoever the edge says is asking. Used to rate limit, never as identity. */
   address: string;
 }
@@ -143,7 +192,9 @@ export interface Submission {
  * is wrong often enough that letting it stamp its own submission would hand a
  * tiebreak to whoever's laptop is running fast.
  */
-export async function submitScore(store: BoardStore, input: Submission, now = Date.now()): Promise<SubmitOutcome> {
+export async function submitScore<I>(
+  store: BoardStore<I>, ladder: Ladder<I>, input: Submission<I>, now = Date.now(),
+): Promise<SubmitOutcome<I>> {
   if (await store.hits(input.address, RATE_WINDOW_SECONDS) > RATE_LIMIT) {
     return { ok: false, status: 429, reason: 'Too many innings from here. Try again in an hour.' };
   }
@@ -156,7 +207,7 @@ export async function submitScore(store: BoardStore, input: Submission, now = Da
   // Not an anti-cheat measure and not to be mistaken for one: the game is a
   // static page, so a determined person can post any innings that passes. This
   // turns down the ones that could not have happened, which is the floor.
-  if (!plausible(input.innings)) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
+  if (!ladder.plausible(input.innings)) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
 
   // The name is claimed before the score is written, and it is claimed whether
   // or not the innings improves, so a player keeps their name across a bad day.
@@ -167,12 +218,12 @@ export async function submitScore(store: BoardStore, input: Submission, now = Da
     return { ok: false, status: 409, reason: 'Somebody already bats under that name.' };
   }
 
-  const score = packScore(input.innings, now);
+  const score = ladder.pack(input.innings, now);
   const improved = await store.record(input.playerId, score, {
-    ...figuresOf(input.innings), name, avatar: input.avatar, at: now,
+    ...ladder.figures(input.innings), name, avatar: input.avatar, at: now,
   });
 
-  return { ok: true, improved, score, at: now, board: await readBoard(store) };
+  return { ok: true, improved, score, at: now, board: await readBoard(store, ladder) };
 }
 
 /**
@@ -207,10 +258,3 @@ function isPlayerId(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-z]{6,10}-[0-9a-z]{12,}$/.test(value);
 }
 
-/** The six figures on their own, so a row never carries a field nobody ranks on. */
-function figuresOf(from: Innings): Innings {
-  return {
-    runs: from.runs, sixes: from.sixes, fours: from.fours,
-    wickets: from.wickets, dots: from.dots, balls: from.balls,
-  };
-}

@@ -21,6 +21,8 @@
 export interface ApiRequest {
   method?: string;
   headers: Record<string, string | string[] | undefined>;
+  /** Vercel parses the query string itself. `?mode=survive` arrives here. */
+  query?: Record<string, string | string[] | undefined>;
   body?: unknown;
   socket?: { remoteAddress?: string };
 }

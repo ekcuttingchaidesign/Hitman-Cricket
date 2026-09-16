@@ -158,12 +158,13 @@ export function surviveImprovesOn(innings: SurviveInnings, atMs: number, standin
  * determined person can post anything that passes. It rejects what could not
  * exist.
  *
- * The rules this mode adds are its own. He has one wicket, so the innings ends
- * the moment it falls — an innings with a wicket down and balls left is a
- * scorecard nobody could have batted. He can also be carried off with balls
- * remaining and no wicket at all, which is the one shape the five-over board
- * would have rejected out of hand, so the length rule is about the *wicket*
- * rather than about the overs.
+ * The rules this mode adds are its own, and they are looser than they look,
+ * because three of the four endings stop short of the tenth over. He has one
+ * wicket; he can also be carried off with balls remaining and no wicket at all,
+ * which is the one shape the five-over board would have rejected out of hand.
+ * So a short innings proves nothing either way and there is no rule about the
+ * length here — only about the ceilings, and about the hundred, which really
+ * does end the match the moment it is reached.
  */
 export function survivePlausible(innings: SurviveInnings): boolean {
   const { runs, balls, wickets, blows } = innings;
@@ -172,10 +173,14 @@ export function survivePlausible(innings: SurviveInnings): boolean {
   if (blows > balls) return false;
   // Six an over is the ceiling, and the chase stops the moment it is reached.
   if (runs > balls * 6) return false;
-  // The wicket ends it, so nothing can follow it.
-  if (wickets >= SURVIVE.maxWickets && balls >= SURVIVE.totalBalls) return false;
-  // And a hundred ends it, so an innings that carried on past the target and
-  // then lost its wicket never happened.
+  // A wicket on the sixtieth ball is a real scorecard and a drawn one: the
+  // innings reads the overs before it reads the wicket, because a man who is
+  // out on the last ball had no batting left to fail to do. So there is no rule
+  // here about a wicket and a full ten overs — that shape is one the mode
+  // produces, and refusing it would refuse an innings somebody actually played.
+  //
+  // A hundred does end it, though, so an innings that carried on past the
+  // target and then lost its wicket never happened.
   if (wickets >= SURVIVE.maxWickets && runs >= SURVIVE.target) return false;
   return true;
 }

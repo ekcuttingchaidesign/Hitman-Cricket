@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import { memoryStore } from './src/server/memory-store';
-import { readBoard, refused, submitScore } from './src/server/board-store';
+import type { SurviveInnings } from './src/game/survive-board';
+import { CLASSIC_LADDER, SURVIVE_LADDER, readBoard, refused, submitScore } from './src/server/board-store';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -16,7 +17,15 @@ import { readBoard, refused, submitScore } from './src/server/board-store';
  * which is what you want while working on it.
  */
 function boardEndpoints(): Plugin {
-  const store = memoryStore();
+  // One store per board, the same way the deployed keys are scoped. Sharing one
+  // here would let a dev session rank a chase against a five-over slog and look
+  // fine, which is exactly the bug the scoping exists to stop.
+  //
+  // The names are the exception, and shared for the same reason they are shared
+  // in Redis: a name belongs to a person rather than to an innings, so a player
+  // carries theirs from one board to the other and nobody else can bat under it.
+  const names = new Map<string, string>();
+  const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names) };
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
@@ -32,23 +41,31 @@ function boardEndpoints(): Plugin {
         };
         try {
           if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
+          const survive = new URLSearchParams((req.url ?? '').split('?')[1] ?? '').get('mode') === 'survive';
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
+            if (survive) {
+              return send(200, await readBoard(boards['survive:'], SURVIVE_LADDER),
+                'public, s-maxage=10, stale-while-revalidate=59');
+            }
             // The same header the deployed endpoint sends. There is no edge
             // cache in front of a dev server, so it costs nothing here — and it
             // means `npm run check:board` asks the same question of both.
-            return send(200, await readBoard(store), 'public, s-maxage=10, stale-while-revalidate=59');
+            return send(200, await readBoard(boards[''], CLASSIC_LADDER), 'public, s-maxage=10, stale-while-revalidate=59');
           }
           if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
           const body = JSON.parse(await read(req)) as Record<string, unknown>;
-          const outcome = await submitScore(store, {
+          const who = {
             playerId: String(body.playerId ?? ''),
             name: String(body.name ?? ''),
             avatar: Number(body.avatar),
-            innings: figures(body.innings),
             // One address in development: whatever the dev server sees.
             address: 'dev',
-          });
+          };
+          const asked = String(body.mode ?? '').toLowerCase() === 'survive';
+          const outcome = asked
+            ? await submitScore(boards['survive:'], SURVIVE_LADDER, { ...who, innings: surviveFigures(body.innings) })
+            : await submitScore(boards[''], CLASSIC_LADDER, { ...who, innings: figures(body.innings) });
           return refused(outcome) ? send(outcome.status, { error: outcome.reason }) : send(200, outcome);
         } catch (error) {
           send(400, { error: error instanceof Error ? error.message : 'Bad request.' });
@@ -74,6 +91,13 @@ function figures(raw: unknown) {
     runs: read('runs'), sixes: read('sixes'), fours: read('fours'),
     wickets: read('wickets'), dots: read('dots'), balls: read('balls'),
   };
+}
+
+/** The Test match's four, the same way. */
+function surviveFigures(raw: unknown): SurviveInnings {
+  const from = (raw ?? {}) as Record<string, unknown>;
+  const read = (key: string) => Number(from[key]);
+  return { runs: read('runs'), balls: read('balls'), wickets: read('wickets'), blows: read('blows') };
 }
 
 export default defineConfig({

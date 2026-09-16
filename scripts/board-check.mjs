@@ -44,6 +44,11 @@ function innings(runs) {
   return { runs, sixes, fours: 0, wickets: 1, dots: 30 - sixes - singles - 1, balls: 30 };
 }
 
+/** A Test innings: four figures, and the hundred reached inside the ten overs. */
+function chase(runs, balls) {
+  return { runs, balls, wickets: 0, blows: 2 };
+}
+
 console.log(`\nBoard check against ${base}\n`);
 
 // ── The board reads ────────────────────────────────────────────────────────
@@ -114,6 +119,58 @@ check(nobody.status === 400, `something that is not a player is refused (${nobod
 const nokit = await post({ playerId: other, name: `${name}d`, avatar: 99, innings: innings(60) });
 check(nokit.status === 400, `a kit that does not exist is refused (${nokit.status})`, nokit.body);
 
+// ── The other ladder ───────────────────────────────────────────────────────
+// Two boards over one database. Whether they are really on separate keys is the
+// thing unit tests cannot see: they run two stores because the test made two,
+// and here one wrong prefix puts a Test match on the five-over ladder.
+const survive = await call('/api/board?mode=survive');
+check(survive.status === 200, `GET /api/board?mode=survive answers 200 (${survive.status}, ${survive.ms}ms)`, survive.text.slice(0, 200));
+check(Array.isArray(survive.body?.rows), 'the Test board carries rows', survive.body);
+check(
+  !survive.body?.rows?.some(r => 'sixes' in r),
+  'and carries the Test figures rather than the five-over ones',
+  survive.body?.rows?.[0],
+);
+
+const test = `${me.slice(0, 6)}-tttttttttttt`;
+const testName = `zztest${run.slice(-5)}`;
+const chased = await post({ playerId: test, name: testName, avatar: 3, mode: 'survive', innings: chase(104, 41) });
+check(chased.status === 200, `POST /api/score takes a Test innings (${chased.status}, ${chased.ms}ms)`, chased.body ?? chased.text.slice(0, 200));
+check(
+  chased.body?.board?.rows?.some(r => r.playerId === test && r.runs === 104 && r.balls === 41),
+  'and hands back the Test board with it on',
+  chased.body?.board?.rows?.slice(0, 3),
+);
+
+const slower = await post({ playerId: test, name: testName, avatar: 3, mode: 'survive', innings: chase(104, 55) });
+check(
+  slower.status === 200 && slower.body?.improved === false,
+  'a slower chase is taken but does not improve: a chase is a race',
+  slower.body,
+);
+
+const bothBoards = await Promise.all([call('/api/board'), call('/api/board?mode=survive')]);
+check(
+  !bothBoards[0].body?.rows?.some(r => r.playerId === test),
+  'the Test innings is nowhere near the five-over board',
+  bothBoards[0].body?.rows?.find(r => r.playerId === test),
+);
+check(
+  !bothBoards[1].body?.rows?.some(r => r.playerId === me),
+  'and the five-over innings is nowhere near the Test one',
+  bothBoards[1].body?.rows?.find(r => r.playerId === me),
+);
+
+const impossibleTest = await post({
+  playerId: other, name: `${testName}b`, avatar: 0, mode: 'survive', innings: chase(400, 10),
+});
+check(impossibleTest.status === 400, `a Test innings that could not have happened is refused (${impossibleTest.status})`, impossibleTest.body);
+
+// The name registry is the one key the two boards share, and the only way to
+// see that from out here is to take a name on one and reach for it on the other.
+const crossName = await post({ playerId: other, name, avatar: 0, mode: 'survive', innings: chase(104, 44) });
+check(crossName.status === 409, `a name held on the five-over board is refused on the Test one (${crossName.status})`, crossName.body);
+
 // ── Cross-origin, which matters if the game is not served from here ────────
 const preflight = await call('/api/score', { method: 'OPTIONS', headers: { Origin: 'https://ekcuttingchaidesign.github.io' } });
 check(preflight.status === 204 || preflight.status === 200, `a preflight is answered (${preflight.status})`);
@@ -121,6 +178,6 @@ check(preflight.status === 204 || preflight.status === 200, `a preflight is answ
 console.log(
   failures
     ? `\n${failures} check${failures === 1 ? '' : 's'} failed.\n`
-    : `\nAll checks passed. The board is live.\n  Test rows left behind: player ${me}, name "${name}".\n`,
+    : `\nAll checks passed. Both boards are live.\n  Rows left behind: ${me}/"${name}" on the five-over board, ${test}/"${testName}" on the Test one.\n`,
 );
 process.exit(failures ? 1 : 0);
