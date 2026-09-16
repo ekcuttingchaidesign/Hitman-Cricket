@@ -313,6 +313,26 @@ describe('the meter', () => {
     expect(health.blows).toHaveLength(2);
   });
 
+  it('fills as the blows land rather than draining', () => {
+    // The bar draws `injury`, so this is the direction a player actually sees.
+    const health = new Health();
+    expect(health.injury).toBe(0);
+    health.record({ hit: { where: 'RIBS', damage: HEALTH.full / 4 } });
+    expect(health.injury).toBeCloseTo(0.25);
+    health.record({ hit: { where: 'RIBS', damage: HEALTH.full / 4 } });
+    expect(health.injury).toBeCloseTo(0.5);
+  });
+
+  it('reaches the end of the track exactly when he is retired', () => {
+    // The right-hand end of the meter is labelled RETIRE HURT, so a full bar
+    // and a finished innings have to be the same moment — and a blow bigger
+    // than what was left must not push it past the end and out of the track.
+    const health = new Health();
+    health.record({ hit: { where: 'HELMET', damage: HEALTH.full * 3 } });
+    expect(health.injury).toBe(1);
+    expect(health.spent).toBe(true);
+  });
+
   it('warns before it ends the innings', () => {
     const health = new Health();
     health.record({ hit: { where: 'HELMET', damage: HEALTH.full - HEALTH.critical } });
@@ -446,5 +466,31 @@ describe('the classic innings is untouched', () => {
   it('keeps its own flight, so no Survive tuning reaches it', () => {
     expect(GAME.travelScale).not.toBe(SURVIVE.travelScale);
     expect(GAME.timing.poor).not.toBe(SURVIVE.timing.poor);
+  });
+});
+
+describe('what the scorecard says he cost the side', () => {
+  // The card renders `9 + wickets`: he walked out with nine already down. These
+  // pin the half of that sum the card cannot work out for itself — being
+  // carried off is not a dismissal, so it must never reach the card as one.
+  it('does not count a retired batter out', () => {
+    // Nine down and no wicket to this innings: 9, not 10.
+    expect(endingOf(40, 30, 0, true)).toBe('RETIRED');
+  });
+
+  it('counts a dismissed batter out', () => {
+    expect(endingOf(40, 30, SURVIVE.maxWickets, false)).toBe('BOWLED_OUT');
+  });
+
+  it('calls him out rather than hurt when the wicket and the last blow land together', () => {
+    // Both at once is the awkward case, and being bowled off a blow that would
+    // also have finished him is still being bowled: the side loses the wicket.
+    expect(endingOf(40, 30, SURVIVE.maxWickets, true)).toBe('BOWLED_OUT');
+  });
+
+  it('costs the side nothing when he is carried off having saved the match', () => {
+    // A batter who survives the last ball and collapses has drawn the match,
+    // and a draw with nine down is not the same scorecard as one with ten.
+    expect(endingOf(40, SURVIVE.totalBalls, 0, true)).toBe('DRAWN');
   });
 });

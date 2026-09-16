@@ -272,6 +272,12 @@ kbd{
   color:#a9c0c4;
   transition:color .3s
 }
+.confidence-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:10px
+}
 .confidence-track{
   display:block;
   height:7px;
@@ -1783,8 +1789,40 @@ dialog .primary-button{margin-top:18px}
    Everything below belongs to the second mode and is inert in the first: the
    markup it styles is hidden unless an innings of Survive is being played. */
 
-/* The fitness meter shares the confidence meter's housing — the two never
-   appear together — so it only has to restate the colours. */
+/* The injury meter shares the confidence meter's housing — the two never appear
+   together — so it only has to restate the colours and turn the bar around.
+
+   It fills where the confidence meter empties. A meter that drains reads as a
+   resource being spent and invites the player to spend it; this is damage
+   piling up against a fixed limit, and a player watching red creep rightward
+   toward a line marked RETIRE HURT knows both where he stands and what happens
+   when it gets there. Draining, the same information needed a number and a
+   guess at what zero meant. */
+.confidence.is-injury .confidence-track{position:relative}
+.confidence.is-injury .confidence-track>i{background:linear-gradient(90deg,#8e1d16,#e8564a)}
+/* The far end of the track, which is the retirement. It sits under the caption
+   so the two read as one statement, and the fill covering it is the innings
+   ending. */
+.confidence.is-injury .confidence-track::after{
+  content:'';
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  width:3px;
+  background:#ff6b5e;
+  box-shadow:0 0 6px #ff6b5ea6
+}
+.injury-cap{
+  font-size:7px;
+  font-weight:700;
+  letter-spacing:1.2px;
+  color:#c9736b;
+  white-space:nowrap;
+  transition:color .3s
+}
+.confidence.is-hurt .injury-cap{color:#ff9d93}
+
 .confidence.is-hurt{border-left-color:#d8443a;animation:hurt-meter 1.1s ease-in-out infinite}
 .confidence.is-hurt .confidence-label{color:#ffb4ab}
 .confidence.is-hurt .confidence-track>i{background:linear-gradient(90deg,#8e1d16,#e8564a)}

@@ -22,6 +22,18 @@ export class Health {
   blows: { where: string; damage: number }[] = [];
 
   get fraction() { return Math.max(0, this.value) / HEALTH.full; }
+  /**
+   * How far the injury has got, which is what the meter actually draws.
+   *
+   * The bar fills rather than drains, and the inversion lives here rather than
+   * in the HUD because it is the same fact stated the other way up and there
+   * should only be one place it is stated. A meter that empties is read as a
+   * resource being spent — the confidence meter it replaces is exactly that —
+   * and this is not one: it is damage accumulating toward a fixed end, so it
+   * is drawn accumulating. The right-hand end of the track is the retirement,
+   * and the player can see how much room is left before he reaches it.
+   */
+  get injury() { return 1 - this.fraction; }
   /** One more blow and he is off. The screen says so from here on. */
   get critical() { return this.value > 0 && this.value <= HEALTH.critical; }
   get spent() { return this.value <= 0; }

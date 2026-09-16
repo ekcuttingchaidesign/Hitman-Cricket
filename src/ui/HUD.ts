@@ -10,7 +10,7 @@ import { AVATARS, kitDeal } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
-import { SURVIVE } from '../config/survive';
+import { HEALTH, SURVIVE } from '../config/survive';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
@@ -137,7 +137,10 @@ export class HUD {
         </div>
         <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
-            <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
+            <span class="confidence-head">
+              <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
+              <span class="injury-cap" id="injury-cap" hidden>RETIRE HURT</span>
+            </span>
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
@@ -235,7 +238,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <dl class="card-stats">
               <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
               <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
-              <div><dt>Fitness left</dt><dd id="survive-health"></dd></div>
+              <div><dt>Injury</dt><dd id="survive-health"></dd></div>
             </dl>
             <div class="card-keys">
               <button id="survive-again" class="key-button">BAT AGAIN</button>
@@ -666,11 +669,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     meter.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
     meter.classList.toggle('is-full', full);
     meter.classList.toggle('is-primed', primed);
+    // The housing is shared and a player can come back here straight from a
+    // Test match, so this undoes Survive rather than assuming a fresh meter:
+    // without it the classic innings inherited a red, pulsing, inverted bar.
+    meter.classList.remove('is-injury', 'is-hurt');
+    meter.setAttribute('aria-label', 'Confidence');
+    this.$('injury-cap').hidden = true;
+    this.viewport.classList.remove('hurt-on');
     this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
     this.$('confidence-label').textContent = primed ? 'CHARGE IT — SWIPE UP' : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
   /**
-   * The batter's fitness, in the housing the confidence meter uses in the other
+   * The batter's injury, in the housing the confidence meter uses in the other
    * innings — the two never appear together, and a second meter would only be a
    * second thing to read in the second a ball takes to arrive.
    *
@@ -680,15 +690,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * two hertz for ninety seconds is a headache rather than a warning. The hold
    * says the same thing and goes on saying it.
    */
-  health(fraction: number, critical: boolean) {
+  injury(fraction: number, critical: boolean) {
     const meter = this.$('confidence');
     const percent = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
-    meter.setAttribute('aria-label', 'Fitness');
+    meter.setAttribute('aria-label', 'Injury');
     meter.setAttribute('aria-valuenow', String(percent));
     meter.classList.remove('is-full', 'is-primed');
+    meter.classList.add('is-injury');
     meter.classList.toggle('is-hurt', critical);
     this.$('confidence-fill').style.width = `${percent}%`;
-    this.$('confidence-label').textContent = critical ? 'ONE MORE AND HE IS OFF' : 'FITNESS';
+    // The caption names what the far end of the track means, and it is up from
+    // the first ball rather than appearing at the moment it stops being news.
+    this.$('injury-cap').hidden = false;
+    this.$('confidence-label').textContent = critical ? 'ONE MORE AND HE IS OFF' : 'INJURY';
     this.viewport.classList.toggle('hurt-on', critical);
   }
 
@@ -742,8 +756,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   /**
    * A blow, answered.
    *
-   * Nothing said anything when the batter was hit until his fitness was already
-   * critical, so the meter quietly drained and the first a player knew of it was
+   * Nothing said anything when the batter was hit until he was already critical,
+   * so the meter moved in silence and the first a player knew of it was
    * the red border — by which point the information was too late to bat on. This
    * is the hit itself: the screen takes the impact, the damage flies off him,
    * and the body part is named. It lasts about half a second and then the game
@@ -796,7 +810,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('survive-overs').textContent = score.overs;
     this.$('survive-runs').textContent = String(score.runs);
     this.$('survive-blows').textContent = String(blows);
-    this.$('survive-health').textContent = `${Math.max(0, Math.round(health.value))}%`;
+    // Stated as the bar states it, so the card does not invert the one number a
+    // player just spent an innings watching. Off the meter's own full rather
+    // than a literal hundred: the two have to agree, and a retirement has to
+    // read as 100% however much punishment the meter is set to hold.
+    const injury = Math.round((1 - Math.max(0, health.value) / HEALTH.full) * 100);
+    this.$('survive-health').textContent = `${injury}%`;
     this.ballTrack('survive-track', score, SURVIVE.totalBalls);
     this.$('end-survive').className = `modal-overlay outcome-${ending.toLowerCase()}`;
     this.viewport.classList.add('modal-open');

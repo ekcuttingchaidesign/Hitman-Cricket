@@ -288,7 +288,7 @@ export class Game {
     return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
   }
   private showConfidence() {
-    if (this.surviving) return this.hud.health(this.health.fraction, this.health.critical);
+    if (this.surviving) return this.hud.injury(this.health.injury, this.health.critical);
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
   private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };
