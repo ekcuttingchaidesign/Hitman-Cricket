@@ -1800,18 +1800,20 @@ dialog .primary-button{margin-top:18px}
    guess at what zero meant. */
 .confidence.is-injury .confidence-track{position:relative}
 .confidence.is-injury .confidence-track>i{background:linear-gradient(90deg,#8e1d16,#e8564a)}
-/* The far end of the track, which is the retirement. It sits under the caption
-   so the two read as one statement, and the fill covering it is the innings
-   ending. */
+/* The far end of the track, which is the retirement. A hairline rather than a
+   block: solid red at the end of an empty track is indistinguishable from a
+   little bit of fill, and a meter that reads as already damaged before a ball
+   has been bowled is worse than no marker at all. Pale, one pixel and inset
+   clear of the end, it reads as a marking on the scale — which is what it is.
+   The caption above it does the naming. */
 .confidence.is-injury .confidence-track::after{
   content:'';
   position:absolute;
-  top:0;
-  right:0;
-  bottom:0;
-  width:3px;
-  background:#ff6b5e;
-  box-shadow:0 0 6px #ff6b5ea6
+  top:1px;
+  right:2px;
+  bottom:1px;
+  width:1px;
+  background:#ffffff4d
 }
 .injury-cap{
   font-size:7px;
