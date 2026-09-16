@@ -18,6 +18,7 @@ import { cardOffer } from './ui/Leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
+import { scoreBand, track, trackOnce } from './game/analytics';
 export class Game {
   private phase: GamePhase = 'START';
   private previousPhase: GamePhase = 'READY';
@@ -31,6 +32,8 @@ export class Game {
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
+  /** Innings begun this session, for telling a replay from a first go. */
+  private innings = 0;
   /** The fifty as last fetched, and who the board thinks you are. */
   private board: BoardRow[] = [];
   /**
@@ -59,7 +62,7 @@ export class Game {
     // picks up the board's leader if and when one arrives.
     void playerId().then(id => { this.player = id; }).catch(() => {});
     void this.loadBoard();
-    try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); this.hud.error(); return; }
+    try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot, this.hud.viewport);
     this.hud.on('start', this.start); this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
@@ -74,7 +77,7 @@ export class Game {
       void this.sendClaim();
     });
     this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
-    this.hud.on('help', () => { if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
+    this.hud.on('help', () => { trackOnce('help-open', 'Instructions opened'); if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
       if (document.fullscreenElement) void document.exitFullscreen();
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
@@ -89,6 +92,12 @@ export class Game {
     } });
   }
   start = () => {
+    // A restart is an innings walked out on, and reads as nothing else: it is
+    // the only way here that is not the cover, the tutorial, or the card.
+    if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) track('innings-restart', 'Innings restarted');
+    this.innings++;
+    track('innings-start', 'Innings started');
+    if (this.innings > 1) track('innings-replay', 'Innings replayed');
     this.lesson = -1;
     this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager(); this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     const param = new URLSearchParams(location.search).get('seed');
@@ -100,6 +109,7 @@ export class Game {
   };
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
+    track('tutorial-start', 'Tutorial started');
     this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -109,6 +119,10 @@ export class Game {
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
   private shoot = (shotType: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
+    // The first swing of the session, tutorial or not: a player who never plays
+    // one did not understand the controls, and that is a different problem from
+    // a player who played and lost.
+    trackOnce('first-shot', 'First shot played');
     this.attempt = { shotType, inputTimeMs };
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
     this.primed = false;
@@ -168,6 +182,7 @@ export class Game {
    * fifty or, worse, fifty invented names.
    */
   private showBoard = () => {
+    track('board-open', 'Board opened');
     // Mid-innings the board is a distraction with a ball on its way, so it
     // pauses first, the way the instructions do. The pause card is still behind
     // it when the sheet is put away, which is the point.
@@ -272,7 +287,7 @@ export class Game {
     } else if (this.phase === 'RESULT' && age >= GAME.resultMs) {
       if (this.lesson >= 0) {
         this.lesson++;
-        if (this.lesson >= TUTORIAL.length) { this.lesson = -1; this.setPhase('START'); this.hud.tutorialComplete(); }
+        if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
       } else if (this.score.ended) this.end(); else this.setPhase('READY');
     }
@@ -329,6 +344,7 @@ export class Game {
    */
   private startClaim = () => {
     if (this.hud.offerKind === 'standing') return this.showBoard();
+    track('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
 
@@ -343,7 +359,8 @@ export class Game {
     this.hud.claimSending(true);
     const result = await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
-    if (!result.ok) return this.hud.claimFailed(result.reason ?? 'That did not go through.');
+    if (!result.ok) { track('claim-failed', 'Claim rejected'); return this.hud.claimFailed(result.reason ?? 'That did not go through.'); }
+    track('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
     if (result.board) this.board = result.board.rows;
     // The board is where the place the player just took is written, so that is
@@ -356,6 +373,10 @@ export class Game {
   private end() {
     this.setPhase('INNINGS_END'); const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
     try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
+    track('innings-end', 'Innings completed');
+    track(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
+      this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
+    track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
     this.hud.end(this.score, this.best, record);
     this.offerBoard();
   }

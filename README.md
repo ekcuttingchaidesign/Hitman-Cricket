@@ -401,6 +401,32 @@ The supplied scripts use headless Microsoft Edge through Playwright (`channel: '
 
 Verified in Edge: a 30-ball seeded innings finished at **138/0 in 5.0 overs**, all seven delivery styles appeared, and a no-shot innings ended at three wickets. Unit tests cover all supported scores, timing boundaries, compatibility entries, wicket rules, trajectory continuity, line balance, and deterministic outcomes. Chrome and Safari are target browsers but have not been manually certified here.
 
+## What is counted
+
+The game reports to GoatCounter, which is a hit counter with events: a page view, and named events that are paths with a flag on them. There are no custom properties, so everything worth knowing is in the event's name — runs go out as a band, `score-50-74`, never as a figure, because fifty thousand distinct paths is not a dashboard.
+
+Nothing is reported ball by ball. A thirty-ball innings that sent a hit per delivery would be thirty hits for two minutes of one player's time, which buys nothing except a noisier dashboard. The moments below are the ones that answer a question:
+
+| Event | What it answers |
+| --- | --- |
+| *page view* | How many arrive, from where, on what. GoatCounter collects this on its own. |
+| `first-shot` | Whether they worked out how to swing. Once per session, tutorial or innings. |
+| `tutorial-start`, `tutorial-complete` | Whether the three balls are taken up, and whether they are seen through. |
+| `innings-start`, `innings-replay` | Every innings begun, and the ones that were not the first of the session. |
+| `innings-restart` | An innings walked out on mid-over. Frustration, or a bad first ball. |
+| `innings-end` | An innings played out. Against `innings-start`, the completion rate. |
+| `innings-all-out`, `innings-overs-up` | Which way it ended: three wickets, or thirty balls. The difficulty dial. |
+| `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
+| `board-open` | Whether the fifty is looked at. |
+| `claim-open`, `claim-done`, `claim-failed` | The registration funnel: offered, taken, and refused by the store. |
+| `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
+| `help-open` | The controls did not explain themselves. |
+| `webgl-fail` | The ground could not load, and nothing that follows was ever possible. |
+
+`counting()` in `src/game/analytics.ts` decides who is counted: not localhost, and not a page opened with `?seed=` or `?debug=1`, which is how the browser checks and a tuning session play their innings. A scripted thirty balls is not a player. The counter script is loaded async, so events raised before it lands queue for up to fifteen seconds and go out when it does; if it never lands — a blocked script, an ad blocker — the queue is dropped and the innings is untouched. Nothing here can throw into the game loop.
+
+Two things GoatCounter cannot do, and where to go instead. It cannot cross-tabulate, so *did the players who took the tutorial score better* is not a question it will answer; the board store holds the exact figures for every claimed innings and can. And it counts a visitor per path per day, so `innings-start` gives both totals (hits) and players who started at least one (visits) — the replay rate falls out of the two without a second event.
+
 ## Hosting
 
 The game is published at **https://hitman-cricket.vercel.app/**, from `codex/cricket-batting-game`, and Vercel is the only host of the three this repository has used that can serve the board: `GET /api/board` and `POST /api/score` are functions, and GitHub Pages and Sites both publish files and nothing else. That is why it is the address.

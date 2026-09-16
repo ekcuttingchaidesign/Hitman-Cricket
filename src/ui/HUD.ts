@@ -1,6 +1,7 @@
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
+import { track } from '../game/analytics';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import { boardMarkup, peekMarkup, pickerMarkup, standingPeek, type BoardView, type CardOffer } from './Leaderboard';
@@ -551,6 +552,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private async shareScore(event: Event, kind: 'card' | 'story') {
     const facts = this.shared;
     if (!facts) return;
+    // The tap, not the delivery: whether the sheet was then sent or dismissed
+    // is between the player and their phone, and no browser tells us.
+    track(kind === 'story' ? 'share-story' : 'share-whatsapp', kind === 'story' ? 'Shared a story' : 'Shared the card');
     const url = gameLink();
     const caption = kind === 'story' ? storyText(facts.runs, url) : shareText(facts.runs, url);
     if (kind === 'story') event.preventDefault();
@@ -610,6 +614,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }
   debug(data: object) { this.$('debug').classList.remove('hidden'); this.$('debug').textContent = Object.entries(data).map(([k, v]) => `${k}: ${v}`).join('\n'); }
   async share() {
+    track('share-link', 'Shared the game link');
     const url = new URL(location.pathname, location.origin).href;
     try {
       if (navigator.share) { await navigator.share({ title: 'Hitman Cricket', text: 'Five overs. Three wickets. Can you beat my score?', url }); return; }
