@@ -1,5 +1,10 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
+import { SPECIALS as SURVIVE_SPECIALS, STYLES as SURVIVE_STYLES, SURVIVE } from './config/survive';
 import { Confidence } from './game/Confidence';
+import { Health } from './game/Health';
+import { endingOf, resolveSurvive, sledgeDue, teamScore } from './game/Survive';
+import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
+import { CLASSIC_PLAN, type BowlingPlan } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -9,7 +14,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { advanceShot, chargeable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
-import type { Delivery, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
+import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
 import { fetchBoard, submitInnings } from './game/board-api';
@@ -22,17 +27,54 @@ import { counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from 
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
+/** Which innings is being played. The two share a loop and almost nothing else. */
+export type GameMode = 'CLASSIC' | 'SURVIVE';
+
+/**
+ * Whether this bundle was built to play Survive and nothing else. Set by the
+ * GitHub Pages workflow, and the reason that deployment can exist at all: the
+ * host cannot serve the board's two functions, and this build never asks it to.
+ */
+const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
+
+const SURVIVE_LIMITS: InningsLimits = {
+  totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
+};
+const SURVIVE_PLAN: BowlingPlan = {
+  styles: SURVIVE_STYLES, specials: SURVIVE_SPECIALS, travelScale: SURVIVE.travelScale,
+  // This bowler is aiming: the bouncer goes at the head and the express ball at
+  // fifth stump, rather than both being dealt whatever line comes next.
+  aimed: true,
+};
 
 export class Game {
   private phase: GamePhase = 'START';
   private previousPhase: GamePhase = 'READY';
   private elapsed = 0; private phaseStart = 0; private previousFrame = 0; private frameId = 0;
+  /**
+   * The `requestAnimationFrame` stamp `elapsed` was last brought up to. Input is
+   * timed against it rather than against `elapsed` alone — see `clockAt`.
+   */
+  private frameClock = 0;
   private score = new ScoreManager();
   /** Full, it buys one charge down the pitch. */
   private confidence = new Confidence();
+  /**
+   * Which innings is being played. Everything that differs between them is
+   * reached through the four getters below rather than by branching at the call
+   * site, so the loop itself reads the same in both.
+   */
+  private mode: GameMode = 'CLASSIC';
+  /** Survive only: what is left of the batter, and how the innings finished. */
+  private health = new Health();
+  private ending: Ending | null = null;
+  /** The score he walked out to, nine down. Cosmetic, and drawn from the seed. */
+  private chasing = 0;
   /** Three balls that went nowhere and the fielders have something to say. */
   private sledger = new Sledger();
   private sledgeDue = false;
+  /** The ball the field last had something to say on, so they do not repeat themselves. */
+  private lastSledge = 0;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   private best = 0; private bounced = false; private seed = 0;
@@ -65,6 +107,12 @@ export class Game {
   private input!: InputManager;
   private audio = new GameAudio();
   private debug = new URLSearchParams(location.search).get('debug') === '1';
+  /**
+   * A link that names its mode. `?mode=survive` is how the Test match is handed
+   * to playtesters on its own: the picker never opens, Play Again replays the
+   * same innings, and there is no key out of it.
+   */
+  private locked = false;
   private disposed = false;
   constructor(root: HTMLElement) {
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
@@ -75,10 +123,23 @@ export class Game {
     // picks up the board's leader if and when one arrives.
     void playerId().then(id => { this.player = id; }).catch(() => {});
     this.countVisit();
-    void this.loadBoard();
+    // A survive-only build has no board behind it and no screen that opens one,
+    // so it does not go looking. On GitHub Pages that request is a guaranteed
+    // 404 on every load — harmless, since a board that never answers is already
+    // handled, but a console full of red is a bad first impression for somebody
+    // who was handed the link to give an opinion on the batting.
+    if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
-    this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot, this.hud.viewport);
-    this.hud.on('start', this.start); this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
+    this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport);
+    // The play key opens the picker rather than an innings — unless a link has
+    // already named the mode, in which case it is that mode's play key.
+    this.hud.on('start', () => (this.locked ? this.start() : this.hud.modes()));
+    this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
+    this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
+    this.hud.on('modes-cancel', () => this.hud.closeModes());
+    this.hud.on('survive-again', this.start);
+    this.hud.on('survive-modes', () => { this.hud.closeModes(); this.hud.modes(); });
+    this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
     this.hud.on('restart', this.start);
@@ -90,7 +151,7 @@ export class Game {
       event.preventDefault();
       void this.sendClaim();
     });
-    this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
+    if (!SURVIVE_ONLY) this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
     this.hud.on('help', () => { trackOnce('help-open', 'Instructions opened'); if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
       if (document.fullscreenElement) void document.exitFullscreen();
@@ -98,13 +159,27 @@ export class Game {
     });
     window.addEventListener('keydown', this.shortcuts); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
+    // A bundle built survive-only plays one innings and offers no way out of
+    // it — that is the whole of what makes it publishable somewhere with no
+    // board behind it. A `?mode=` link does the same thing at runtime.
+    const named = SURVIVE_ONLY ? 'SURVIVE' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
+    if (named === 'SURVIVE' || named === 'CLASSIC') {
+      this.mode = named as GameMode;
+      this.locked = true;
+      this.hud.lockMode(SURVIVE_ONLY);
+    }
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Fills the meter so the charge can be driven straight from a test.
       fillConfidence: () => { this.confidence.value = CONFIDENCE_FULL; this.showConfidence(); },
+      // Leaves him one blow from the floor, so the fall can be looked at without
+      // waiting for an innings that retires hurt to come round on its own.
+      hurt: () => { this.health.value = 1; this.showConfidence(); },
     } });
   }
+  /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
+  choose = (mode: GameMode) => { this.mode = mode; this.start(); };
   start = () => {
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
@@ -114,17 +189,30 @@ export class Game {
     track('innings-start', 'Innings started');
     if (this.innings > 1) track('innings-replay', 'Innings replayed');
     this.lesson = -1;
-    this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager(); this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
+    this.audio.stop(); this.audio.unlock();
+    this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
+    this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
-    this.rng = new SeededRandom(this.seed); this.generator = new DeliveryGenerator(this.rng);
+    this.rng = new SeededRandom(this.seed);
+    // The score at the other end is drawn first, off the innings seed, so that
+    // the same seed always walks out to the same scoreboard. Drawing it from the
+    // clock would have made a share card a lie the moment it was reloaded.
+    this.chasing = this.surviving ? teamScore(this.rng) : 0;
+    this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = false;
-    this.input.reset(); this.scene.reset(); this.hud.start(); this.hud.score(this.score); this.showConfidence(); this.setPhase('READY');
+    this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
+    this.hud.start(this.surviving);
+    this.hud.score(this.score); this.showConfidence();
+    if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
+    this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
   };
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
+    this.mode = 'CLASSIC';
+    this.scene.whites(false);
     this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -146,6 +234,18 @@ export class Game {
     events.forEach(event => track(event));
   }
 
+  private get surviving() { return this.mode === 'SURVIVE'; }
+  private get limits() { return this.surviving ? SURVIVE_LIMITS : CLASSIC_LIMITS; }
+  private get plan() { return this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN; }
+  private get readyMs() { return this.surviving ? SURVIVE.readyMs : GAME.readyMs; }
+  private get resultMs() {
+    const base = this.surviving ? SURVIVE.resultMs : GAME.resultMs;
+    // The innings that ends with him on the floor is held open long enough for
+    // him to get there. Every other ball is the usual beat.
+    return this.ending === 'RETIRED' ? base + SURVIVE.felledMs : base;
+  }
+  /** How long after the ideal moment a swing still counts as a swing at all. */
+  private get swingWindow() { return this.surviving ? SURVIVE.timing.poor : GAME.timing.poor; }
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
   private shoot = (shotType: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
@@ -159,8 +259,12 @@ export class Game {
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging);
     this.hud.select(shotType, charging);
   };
-  /** Confidence is only a shot outside the tutorial, where nothing is scored. */
-  private get charged() { return this.lesson < 0 && this.confidence.full; }
+  /**
+   * Confidence is only a shot outside the tutorial, where nothing is scored —
+   * and it does not exist at all in Survive. A tailender walking down the pitch
+   * at a man bowling at 170 is not a shot, it is a decision to be hit.
+   */
+  private get charged() { return this.lesson < 0 && !this.surviving && this.confidence.full; }
   /** This ball can be charged, and the meter is full to do it. */
   private set primed(value: boolean) {
     if (value) this.chargeBall = true;
@@ -181,7 +285,10 @@ export class Game {
     if (!this.chargeBall || !this.attempt || this.outcome?.advance) return null;
     return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
   }
-  private showConfidence() { this.hud.confidence(this.confidence.fraction, this.isPrimed); }
+  private showConfidence() {
+    if (this.surviving) return this.hud.health(this.health.fraction, this.health.critical);
+    this.hud.confidence(this.confidence.fraction, this.isPrimed);
+  }
   private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
@@ -249,15 +356,47 @@ export class Game {
       if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeClaim(); }
       return;
     }
-    if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) { event.preventDefault(); this.start(); }
-    else if (key === 'B') { event.preventDefault(); this.showBoard(); }
+    // The picker is the thing on top while it is open, so it answers first —
+    // otherwise Enter starts an innings underneath a sheet nobody closed.
+    if (this.hud.modesOpen) {
+      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeModes(); }
+      return;
+    }
+    if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {
+      event.preventDefault();
+      if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.hud.modes();
+    }
+    else if (key === 'B' && !this.surviving) { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
     else if (key === 'ESCAPE') { event.preventDefault(); this.togglePause(); }
     else if (key === 'M') { event.preventDefault(); this.toggleSound(); }
   };
+  /**
+   * The innings clock at the moment an input actually happened.
+   *
+   * `elapsed` only moves once per frame, so reading it directly rounded every
+   * shot to the nearest frame — sixteen milliseconds at sixty hertz and
+   * thirty-three on a phone that is working hard. Against Survive's windows,
+   * where a perfect shot is twenty-six milliseconds either side, that rounding
+   * is most of the window: two players who pressed at genuinely different
+   * moments got the same grade, and the mode would have felt like chance.
+   *
+   * A keyboard or pointer event carries the time it was generated, in the same
+   * clock `requestAnimationFrame` is handed. So the honest answer is the
+   * innings clock as of the last frame, plus however long after that frame the
+   * press landed. The gap is clamped to one slow frame's worth: an event that
+   * has been sitting in a queue through a stall should be treated as having
+   * just happened, not as having happened in the future.
+   */
+  private clockAt = (at?: number) => {
+    if (!this.frameClock) return this.elapsed;
+    const stamp = typeof at === 'number' && at > 0 ? at : performance.now();
+    return this.elapsed + Math.min(Math.max(stamp - this.frameClock, 0), 60) * this.timeScale;
+  };
   private frame = (time: number) => {
     if (this.disposed) return;
     const dt = this.previousFrame ? Math.min(time - this.previousFrame, 60) : 0; this.previousFrame = time;
+    this.frameClock = time;
     if (LIVE.includes(this.phase) && !document.hidden) {
       // Wall-clock rather than the game's own clock, which the charge stretches
       // into slow motion: a second of slow motion is still a second of playing.
@@ -285,7 +424,7 @@ export class Game {
   }
   private update() {
     const age = this.elapsed - this.phaseStart;
-    if (this.phase === 'READY' && age >= GAME.readyMs) {
+    if (this.phase === 'READY' && age >= this.readyMs) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.generator.next(this.elapsed + GAME.runupMs);
       this.attempt = null; this.outcome = null; this.bounced = false; this.primed = false; this.chargeBall = false;
@@ -305,7 +444,7 @@ export class Game {
       this.scene.delivery(this.delivery, progress);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }
-      if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + GAME.timing.poor + GAME.comboMs) this.resolve();
+      if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + this.swingWindow + GAME.comboMs) this.resolve();
     } else if (this.phase === 'SHOT_RESOLVE') {
       this.scene.result(this.elapsed);
       // A skied ball cracks off the bat now and is judged when it comes down.
@@ -320,23 +459,42 @@ export class Game {
         // field once the ball is dead.
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
       }
-    } else if (this.phase === 'RESULT' && age >= GAME.resultMs) {
+    } else if (this.phase === 'RESULT' && age >= this.resultMs) {
       if (this.lesson >= 0) {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
-      } else if (this.score.ended) this.end(); else this.setPhase('READY');
+      } else if (this.surviving ? this.ending : this.score.ended) this.end(); else this.setPhase('READY');
     }
   }
   private resolve() {
     const step = this.lesson >= 0 ? TUTORIAL[this.lesson] : null;
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
+      : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng)
       : resolveShot(this.delivery!, this.attempt, this.rng, this.charged);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
-      this.confidence.record(this.outcome); this.showConfidence();
-      this.sledgeDue = this.sledger.record(this.outcome);
+      if (this.surviving) {
+        this.health.record(this.outcome);
+        // Read in the order cricket reads it: the target first, then the last
+        // ball of the tenth over, then the two ways of failing. That order is
+        // what makes a blow landing on the sixtieth ball a draw rather than a
+        // retirement — he had no more batting left to be unable to do.
+        this.ending = endingOf(this.score.runs, this.score.balls, this.score.wickets, this.health.spent);
+        this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
+      } else {
+        this.confidence.record(this.outcome);
+      }
+      this.showConfidence();
+      // The Test match needles a batter who is stuck rather than one who has
+      // simply played a few balls — see `sledgeDue`.
+      if (this.surviving) {
+        this.sledgeDue = sledgeDue(this.score.history, this.lastSledge);
+        if (this.sledgeDue) this.lastSledge = this.score.balls;
+      } else {
+        this.sledgeDue = this.sledger.record(this.outcome);
+      }
     }
     this.input.reset();
     const flight = this.scene.hit(this.outcome, this.attempt?.shotType, this.delivery!, this.elapsed);
@@ -350,6 +508,16 @@ export class Game {
     const outcome = this.outcome!;
     if (this.lesson < 0) this.hud.score(this.score);
     this.hud.result(outcome, this.chargeMiss);
+    if (outcome.hit) {
+      // The blow lands with the call rather than before it, so the flash, the
+      // kick and the words are one event instead of three.
+      this.hud.blow(outcome.feedback);
+      this.audio.play('edge');
+      // The one that finishes him puts him on the ground. It is the only blow
+      // that does, which is what makes it read as the end rather than as
+      // another dent in the meter.
+      if (this.ending === 'RETIRED') this.scene.fall(this.elapsed);
+    }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
   }
@@ -407,7 +575,16 @@ export class Game {
   }
 
   private end() {
-    this.setPhase('INNINGS_END'); const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
+    this.setPhase('INNINGS_END');
+    if (this.surviving) {
+      // Survive keeps its own best and its own card, and is deliberately kept
+      // off the classic board: the two innings are not comparable and a Survive
+      // score standing next to a thirty-ball one would be nonsense in both
+      // directions. Its own board is the next piece of work.
+      this.hud.endSurvive(this.score, this.health, this.ending ?? 'DRAWN', this.chasing);
+      return;
+    }
+    const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
     try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
     track('innings-end', 'Innings completed');
     track(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');

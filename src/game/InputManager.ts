@@ -23,25 +23,43 @@ export function mapKeys(keys: string[]): ShotType | null {
   if (normalized.includes('A') && normalized.includes('D')) return null;
   return normalized[0] === 'A' ? 'LEG' : normalized[0] === 'W' ? 'STRAIGHT' : normalized[0] === 'D' ? 'SQUARE_CUT' : null;
 }
+const SWIPE_SHOTS = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'] as const;
 /**
- * Five 45-degree scoring sectors measured from up, and a 90-degree fan straight
- * down for the block. The slivers either side of that fan stay dead, so a
- * sideways drag is still no shot at all. Straight out to the off is the cut:
- * one flick of the thumb, the same as every other stroke.
+ * Five scoring sectors measured from straight up, and a 90-degree fan straight
+ * down for the block. Straight out to the off is the cut: one flick of the
+ * thumb, the same as every other stroke.
+ *
+ * There used to be a dead sliver either side of the block's fan — between 112.5
+ * and 135 degrees — on the reasoning that a sideways drag should be no shot at
+ * all. It was a bug in practice. A thumb flicking left across a phone arcs
+ * downward as it goes, so a perfectly ordinary leg-side swipe of sixty pixels
+ * across and thirty down came out at 117 degrees and played nothing: the batter
+ * simply stood there. Twenty-two degrees of drift is nothing to ask of a thumb.
+ *
+ * The two outer sectors now run all the way to the fan, so every gesture past
+ * the minimum distance plays something. The block is untouched — it is the one
+ * stroke that has to be reliable, and its fan is exactly where it was.
  */
 export function mapSwipe(dx: number, dy: number): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
   if (Math.abs(angle) >= 135) return 'DEFEND';
-  if (Math.abs(angle) > 112.5) return null;
-  return (['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT'] as const)[Math.round(angle / 45) + 2] ?? null;
+  return SWIPE_SHOTS[Math.min(4, Math.max(0, Math.round(angle / 45) + 2))];
 }
 export class InputManager {
   private held = new Set<string>();
   private pending: { keys: string[]; time: number } | null = null;
   private used = false;
   private gesture: { id: number; x: number; y: number } | null = null;
-  constructor(private active: () => boolean, private now: () => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement) {
+  /**
+   * `now` is handed the event's own `timeStamp` so the shot is timed by when the
+   * player actually pressed rather than by the frame that noticed. A rounded
+   * timestamp costs nothing while the tightest window is forty milliseconds
+   * wide, but Survive's is half that and a sixty-hertz frame is sixteen — so
+   * without this the narrow windows would read as a lottery rather than as a
+   * demand on the player.
+   */
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -66,7 +84,7 @@ export class InputManager {
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
-    const time = this.now();
+    const time = this.now(event.timeStamp);
     this.used = true; this.pending = null; this.cancelGesture(); this.shoot(shot, time);
   };
   private pointerUp = (event: PointerEvent) => {
@@ -84,7 +102,7 @@ export class InputManager {
     event.preventDefault();
     if (event.repeat || this.held.has(key) || this.used) return;
     this.held.add(key);
-    const time = this.now();
+    const time = this.now(event.timeStamp);
     if (this.pending && time - this.pending.time > GAME.comboMs) this.flush(time);
     if (this.used) return;
     if (!this.pending) {

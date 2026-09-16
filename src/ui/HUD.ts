@@ -9,7 +9,8 @@ import type { BoardRow, Innings } from '../game/leaderboard';
 import { AVATARS, kitDeal } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
-import type { GamePhase, ShotOutcome, ShotType } from '../game/types';
+import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
+import { SURVIVE } from '../config/survive';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
@@ -140,7 +141,18 @@ export class HUD {
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
+        <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
+          <div class="sc-head">
+            <span class="sc-score" id="sc-score" aria-live="polite"></span>
+            <span class="sc-chase"><span class="sc-label">TARGET</span><b id="sc-target"></b></span>
+          </div>
+          <div class="sc-feet">
+            <span class="sc-cell"><span class="sc-label">TO WIN</span><b id="sc-need"></b></span>
+            <span class="sc-cell"><span class="sc-label">BALLS LEFT</span><b id="sc-balls"></b></span>
+          </div>
         </div>
+        </div>
+        <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
         <div id="coach" class="coach hidden">
@@ -192,6 +204,44 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               </div>
             </div>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
+          </div>
+        </div>
+        <div id="modes" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
+          <div class="scorecard modes-card">
+            <p class="pause-eyebrow">PICK YOUR INNINGS</p>
+            <h2 id="modes-title">Two ways to bat.</h2>
+            <button id="mode-classic" class="mode-option">
+              <span class="mode-tag">5 OVERS</span>
+              <strong>The Blast</strong>
+              <small>Thirty balls, three wickets, and everything to gain. Score as many as you can.</small>
+            </button>
+            <button id="mode-survive" class="mode-option mode-survive">
+              <span class="mode-tag">10 OVERS · TEST MATCH</span>
+              <strong>Survive</strong>
+              <small>You are the last man in, nine down. Score a hundred to win it, or bat out ten overs for the draw. One wicket — and they are bowling at your body.</small>
+            </button>
+            <button id="modes-cancel" class="ghost-link">Back</button>
+          </div>
+        </div>
+        <div id="end-survive" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
+          <div class="scorecard">
+            <h2 id="survive-title">MATCH DRAWN</h2>
+            <div class="card-figures">
+              <p class="card-runs" id="survive-score" role="img"></p>
+              <p class="card-overs"><span id="survive-overs"></span><small>Overs</small></p>
+            </div>
+            <div class="card-balls" id="survive-track" aria-hidden="true"></div>
+            <p id="survive-message" class="card-line"></p>
+            <dl class="card-stats">
+              <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
+              <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
+              <div><dt>Fitness left</dt><dd id="survive-health"></dd></div>
+            </dl>
+            <div class="card-keys">
+              <button id="survive-again" class="key-button">BAT AGAIN</button>
+              <button id="survive-modes" class="story-key">CHANGE MODE</button>
+            </div>
+            <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
           </div>
         </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
@@ -267,11 +317,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('last').innerHTML = dotMatrix(call, last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
     this.$('last').className = `cell-value ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
   }
-  start() {
+  start(surviving = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
     document.body.classList.add('innings-active');
+    document.body.classList.toggle('survive-mode', surviving);
     this.viewport.classList.remove('modal-open');
-    ['intro', 'end', 'pause-overlay', 'result', 'coach', 'tutorial-done'].forEach(id => this.$(id).classList.add('hidden'));
+    this.viewport.classList.remove('hurt-on');
+    ['intro', 'end', 'end-survive', 'pause-overlay', 'result', 'coach', 'tutorial-done', 'modes']
+      .forEach(id => this.$(id).classList.add('hidden'));
+    this.$('survive-card').classList.toggle('hidden', !surviving);
+    // The board and the share keys belong to the classic innings. Survive has a
+    // board of its own coming and nothing to say on this one, and a key that
+    // puts a Test match on a thirty-ball ladder would be worse than no key.
+    ['board', 'share'].forEach(id => (this.$(id) as HTMLButtonElement).disabled = surviving);
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
   }
@@ -611,6 +669,158 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
     this.$('confidence-label').textContent = primed ? 'CHARGE IT — SWIPE UP' : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
+  /**
+   * The batter's fitness, in the housing the confidence meter uses in the other
+   * innings — the two never appear together, and a second meter would only be a
+   * second thing to read in the second a ball takes to arrive.
+   *
+   * At critical the whole field takes a red edge. It pulses hard for three
+   * beats and then holds, which is deliberate: nothing heals in this mode, so a
+   * batter can be critical for a third of an innings, and a border pulsing at
+   * two hertz for ninety seconds is a headache rather than a warning. The hold
+   * says the same thing and goes on saying it.
+   */
+  health(fraction: number, critical: boolean) {
+    const meter = this.$('confidence');
+    const percent = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
+    meter.setAttribute('aria-label', 'Fitness');
+    meter.setAttribute('aria-valuenow', String(percent));
+    meter.classList.remove('is-full', 'is-primed');
+    meter.classList.toggle('is-hurt', critical);
+    this.$('confidence-fill').style.width = `${percent}%`;
+    this.$('confidence-label').textContent = critical ? 'ONE MORE AND HE IS OFF' : 'FITNESS';
+    this.viewport.classList.toggle('hurt-on', critical);
+  }
+
+  /** The mode picker. Skipped entirely when a link has already named the mode. */
+  modes() {
+    this.$('modes').classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    (this.$('mode-classic') as HTMLButtonElement).focus();
+  }
+  closeModes() {
+    this.$('modes').classList.add('hidden');
+    if (this.$('end').classList.contains('hidden') && this.$('end-survive').classList.contains('hidden')) {
+      this.viewport.classList.remove('modal-open');
+    }
+  }
+  get modesOpen() { return !this.$('modes').classList.contains('hidden'); }
+  /**
+   * Hide the way back to the picker. A link that names one mode is a link to
+   * that mode, and offering to leave it is how a playtester ends up filing
+   * feedback about the wrong game.
+   */
+  lockMode(surviveOnly = false) {
+    this.$('survive-modes').classList.add('hidden');
+    // A build with no board behind it should not offer a way to one. The key is
+    // on the cover under two different ids depending on whether the screen got
+    // the phone layout or the desktop one.
+    if (surviveOnly) document.body.classList.add('survive-only');
+  }
+
+  /**
+   * The match situation, which in this mode is the whole scoreboard.
+   *
+   * The dot-matrix board belongs to the other innings: it counts wickets that
+   * cannot go past one and overs that say nothing a batter needs, and it spells
+   * a running total in a typeface built for three digits at a glance rather than
+   * for reading against a target. Here the only four numbers that matter are
+   * where the side is, where it needs to get to, and the two ways of getting
+   * there running out — so those are the four, and the board they replace is
+   * hidden for the innings.
+   */
+  target(teamScore: number, runs: number, balls: number, wickets = 0) {
+    const need = Math.max(0, SURVIVE.target - runs);
+    const left = Math.max(0, SURVIVE.totalBalls - balls);
+    this.$('sc-score').textContent = `${teamScore + runs}/${9 + Math.min(1, wickets)}`;
+    this.$('sc-target').textContent = `${teamScore + SURVIVE.target}`;
+    this.$('sc-need').textContent = `${need}`;
+    this.$('sc-balls').textContent = `${left}`;
+    this.$('survive-card').classList.toggle('is-close', need <= 18 || left <= 12);
+  }
+
+  /**
+   * A blow, answered.
+   *
+   * Nothing said anything when the batter was hit until his fitness was already
+   * critical, so the meter quietly drained and the first a player knew of it was
+   * the red border — by which point the information was too late to bat on. This
+   * is the hit itself: the screen takes the impact, the damage flies off him,
+   * and the body part is named. It lasts about half a second and then the game
+   * carries on, which is the difference between feedback and an interruption.
+   */
+  blow(where: string) {
+    const burst = this.$('hit-burst');
+    this.$('hit-where').textContent = where;
+    // Restarting a CSS animation needs the class off, a reflow, and the class on.
+    burst.classList.remove('is-on');
+    this.viewport.classList.remove('struck');
+    void burst.offsetWidth;
+    burst.classList.add('is-on');
+    this.viewport.classList.add('struck');
+    window.setTimeout(() => this.viewport.classList.remove('struck'), 520);
+  }
+
+  /**
+   * How a Test match finished. The headline is the result rather than the score,
+   * because in this mode the score is not the point — and a retirement names the
+   * battering rather than the last blow, so that a routine defensive shot never
+   * looks like the thing that killed him.
+   */
+  endSurvive(score: ScoreManager, health: { value: number; blows: unknown[] }, ending: Ending, teamScore: number) {
+    const total = teamScore + score.runs;
+    // Nine down when he walked out; only being dismissed makes it ten. Retiring
+    // hurt does not cost the side a wicket, which is the whole difference
+    // between the two ways of losing this.
+    const down = 9 + score.wickets;
+    const left = SURVIVE.totalBalls - score.balls;
+    const blows = health.blows.length;
+    const said: Record<Ending, { stamp: string; line: string }> = {
+      CHASED: { stamp: 'MATCH WON', line: `A hundred from the last man. ${total} all out, and the game is yours.` },
+      DRAWN: { stamp: 'MATCH DRAWN', line: 'Ten overs survived. Not a win, but they could not finish you.' },
+      BOWLED_OUT: { stamp: 'MATCH LOST', line: `He could not last. ${left} balls still to survive when the wicket fell.` },
+      RETIRED: { stamp: 'RETIRED HURT', line: blows === 1
+        ? 'He could not go on. One blow, and there was nothing left to take another with.'
+        : `He could not go on. ${blows} blows taken, and the last of them was one too many.` },
+    };
+    const copy = said[ending];
+    // The stamp is the card's h2 — small, spaced and uppercase — and the number
+    // is the headline, the way every other card in the game is built. Writing
+    // the sentence into the h2 turned the headline into a second stamp and left
+    // the card with no figure on it at all.
+    this.$('survive-title').textContent = copy.stamp;
+    this.$('survive-message').textContent = copy.line;
+    const runs = this.$('survive-score');
+    runs.innerHTML = `${total}<span class="card-wickets">/${down}</span>`;
+    runs.setAttribute('aria-label', `${total} for ${down}`);
+    this.$('survive-overs').textContent = score.overs;
+    this.$('survive-runs').textContent = String(score.runs);
+    this.$('survive-blows').textContent = String(blows);
+    this.$('survive-health').textContent = `${Math.max(0, Math.round(health.value))}%`;
+    this.ballTrack('survive-track', score, SURVIVE.totalBalls);
+    this.$('end-survive').className = `modal-overlay outcome-${ending.toLowerCase()}`;
+    this.viewport.classList.add('modal-open');
+    this.viewport.classList.remove('hurt-on');
+    this.$('survive-again').focus();
+  }
+
+  /**
+   * The innings as a row of bars, one per ball, in the order they were bowled.
+   * Lifted out of the classic card so both modes draw it the same way — the
+   * balls he never faced stay on it as gaps, which is what makes a short innings
+   * look short rather than merely end early.
+   */
+  private ballTrack(id: string, score: ScoreManager, balls: number) {
+    const track = this.$(id);
+    track.style.setProperty('--balls', String(balls));
+    track.innerHTML = Array.from({ length: balls }, (_, i) => {
+      const ball = score.history[i];
+      if (!ball) return `<i class="ball-unfaced" style="--i:${i}"></i>`;
+      const mark = ball.isWicket ? 'ball-out' : ball.hit ? 'ball-hit' : '';
+      return `<i class="${mark}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
+    }).join('');
+  }
+
   sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }
   debug(data: object) { this.$('debug').classList.remove('hidden'); this.$('debug').textContent = Object.entries(data).map(([k, v]) => `${k}: ${v}`).join('\n'); }
   async share() {

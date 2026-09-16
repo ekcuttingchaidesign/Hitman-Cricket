@@ -1,10 +1,24 @@
 import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, GAME, GROUND_RUNS, SOLID_SHOT, STYLES, TIMING_SCORE } from '../config/gameplay';
 import { effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import type { Delivery, ShotAttempt, ShotOutcome, TimingGrade } from './types';
-export function gradeTiming(delta: number, fast = false): TimingGrade {
-  const value = Math.abs(delta) / (fast ? GAME.fastTimingScale : 1);
-  return value <= GAME.timing.perfect ? 'PERFECT' : value <= GAME.timing.good ? 'GOOD'
-    : value <= GAME.timing.ok ? 'OK' : value <= GAME.timing.poor ? 'POOR' : 'MISS';
+/**
+ * How well a stroke was timed, by the size of the error and nothing else. The
+ * sign is thrown away here and always has been: which side of the ball a
+ * classic stroke was played on has never changed what it was worth. Survive
+ * reads the sign separately, in `timingSide`, and leaves this exactly as it is.
+ *
+ * `windows` and `scale` default to the classic innings', so every existing call
+ * means what it has always meant.
+ */
+export function gradeTiming(
+  delta: number,
+  fast = false,
+  windows: { perfect: number; good: number; ok: number; poor: number } = GAME.timing,
+  scale: number = GAME.fastTimingScale,
+): TimingGrade {
+  const value = Math.abs(delta) / (fast ? scale : 1);
+  return value <= windows.perfect ? 'PERFECT' : value <= windows.good ? 'GOOD'
+    : value <= windows.ok ? 'OK' : value <= windows.poor ? 'POOR' : 'MISS';
 }
 const award = (runs: ShotOutcome['runs']) =>
   runs === 6 ? 'SIX!' : runs === 4 ? 'FOUR!' : runs ? `${runs} RUN${runs > 1 ? 'S' : ''}` : 'DOT BALL';

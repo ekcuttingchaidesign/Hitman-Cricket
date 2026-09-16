@@ -17,6 +17,8 @@ interface Pose {
   bat?: THREE.Quaternion;
   yaw: number;
   face: number;
+  /** Chin down. Only the fall uses it, and without it a beaten man stares straight ahead. */
+  headDown?: number;
   heel: number;
   leadElbow: number;
 }
@@ -39,6 +41,51 @@ const GUARD: Pose = {
   grip: [0.27, 0.90, 0.13], batUp: [-0.43, -0.67, 0.61], batFace: [0.30, 0.82, 0.35],
   yaw: 1.28, face: 0, heel: 0, leadElbow: -.34,
 };
+/**
+ * Going down.
+ *
+ * Three shapes rather than one, because a man does not arrive on the floor — he
+ * is hit, he folds, and then he ends up sitting there. `RECOIL` is the jolt off
+ * the body with the weight still on his feet; `BUCKLED` is the knees giving and
+ * the chest coming over; `FELLED` is what is left, down on the turf with his
+ * knees drawn up and the bat still in his hands because nobody thinks to let go.
+ *
+ * The leg solve bends the knee towards a pole out on the off side, so a seated
+ * pose reads best with the feet drawn back in rather than stretched out in
+ * front: the knees splay up and outward, which is how somebody actually sits
+ * down in pads.
+ */
+const RECOIL: Pose = {
+  ...GUARD,
+  hip: [-.06, .90, -.09], chest: [.01, 1.23, -.06],
+  frontFoot: [-.11, .08, .26], backFoot: [-.14, .08, -.27],
+  grip: [.24, .84, .06], batUp: [-.46, -.55, .70], batFace: [.26, .86, .28],
+  face: .18, headDown: .16, heel: .10, leadElbow: -.18,
+};
+const BUCKLED: Pose = {
+  ...GUARD,
+  // The knees have gone and he is doubled over them, weight still going
+  // forward. This is the frame between being hit and being down.
+  hip: [-.04, .56, -.12], chest: [.02, .95, .12],
+  frontFoot: [-.16, .08, .26], backFoot: [-.04, .08, -.12],
+  grip: [.26, .56, .34], batUp: [-.20, .46, .86], batFace: [.84, .26, .48],
+  face: .15, headDown: .34, heel: .15, leadElbow: -.05,
+};
+const FELLED: Pose = {
+  ...GUARD,
+  // Down on the turf with his legs out in front of him, one straighter than the
+  // other, propped back on his hands with the bat let go across his shins and
+  // his chin on his chest. The legs are what the shape is read from at this
+  // camera: knees drawn up under him read as kneeling, and he is not kneeling.
+  hip: [-.02, .25, -.22], chest: [.01, .60, -.30],
+  frontFoot: [-.20, .09, .58], backFoot: [.12, .09, .40],
+  grip: [.30, .15, .30], batUp: [.86, .12, .49], batFace: [-.12, .96, .24],
+  face: .12, headDown: .44, heel: 0, leadElbow: .22,
+};
+/** How long each stage of going down lasts, cumulative from the blow. */
+const FALL = { recoil: 130, buckle: 430, settled: 1260 } as const;
+
+
 const BACKLIFT: Pose = {
   ...GUARD, grip: [0.28, 0.96, 0.11], batUp: [-0.39, -0.73, 0.56], batFace: [0.28, 0.86, 0.30],
   chest: [0.01, 1.29, 0.01], leadElbow: -.24,
@@ -265,6 +312,7 @@ function mix(a: Pose, b: Pose, amount: number): Pose {
     batUp: new THREE.Vector3(0, 1, 0).applyQuaternion(bat).toArray() as unknown as Point,
     batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(bat).toArray() as unknown as Point,
     yaw: THREE.MathUtils.lerp(a.yaw, b.yaw, t), face: THREE.MathUtils.lerp(a.face, b.face, t), heel: THREE.MathUtils.lerp(a.heel, b.heel, t),
+    headDown: THREE.MathUtils.lerp(a.headDown ?? 0, b.headDown ?? 0, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
   };
 }
@@ -289,6 +337,9 @@ export class Batter {
   /** A charge down the pitch: the confidence shot. */
   private charging = false;
   private swingStart = -Infinity;
+  /** When he went down, and the shape he was in when it happened. */
+  private felledAt = -Infinity;
+  private felledFrom: Pose = GUARD;
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -305,6 +356,10 @@ export class Batter {
   };
   private palette = {
     shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
+    // The helmet is its own material rather than the shirt's, because it is navy
+    // in both innings: a cricketer's lid does not change colour when the rest of
+    // the kit does, and in whites a cream one read as a bald head.
+    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
@@ -313,6 +368,20 @@ export class Batter {
     grille: new THREE.MeshStandardMaterial({ color: 0x8c9da0, metalness: .6, roughness: .4 }),
     handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
   };
+  /**
+   * Whites, for the Test match, or back into coloured clothing.
+   *
+   * The batter owns his materials outright rather than sharing the cached ones
+   * the other figures use, so this is three colours rather than a re-dress —
+   * and it can be called at any time, which is what lets the mode screen change
+   * its mind without the scene being torn down and rebuilt around it.
+   */
+  dress(whites: boolean) {
+    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x19334a);
+    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0xe7e2d3);
+    this.palette.accent.color.setHex(whites ? 0xd9d3c3 : 0xed7044);
+  }
+
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
@@ -328,8 +397,8 @@ export class Batter {
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
-    const helmet = this.mesh(this.head, this.palette.shirt, [.188, .175, .195], 'ball'); helmet.position.set(0, .045, -.018);
-    this.mesh(this.head, this.palette.shirt, [.34, .045, .20], 'soft').position.set(0, .045, .135);
+    const helmet = this.mesh(this.head, this.palette.helmet, [.188, .175, .195], 'ball'); helmet.position.set(0, .045, -.018);
+    this.mesh(this.head, this.palette.helmet, [.34, .045, .20], 'soft').position.set(0, .045, .135);
     for (const y of [-.055, -.115]) {
       const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');
       bar.rotation.z = Math.PI / 2; bar.position.set(0, y, .175);
@@ -384,7 +453,25 @@ export class Batter {
     mesh.quaternion.setFromUnitVectors(UP, axis.clone().normalize());
     mesh.scale.set(width, axis.length(), depth);
   }
+  /**
+   * He has taken one too many and cannot go on.
+   *
+   * Played from wherever he happened to be standing rather than from the guard,
+   * so the blow that finished him flows into the fall instead of the figure
+   * snapping back to a stance first. Once this starts nothing else moves him:
+   * `update` answers here and returns, so no stroke, no walk-back and no return
+   * to the pick-up can stand him up again. Only `reset` does, and that is a new
+   * innings.
+   */
+  fall(now: number) {
+    this.felledFrom = this.pose;
+    this.felledAt = now;
+  }
+  /** Whether he is on his way down or already there. */
+  get felled() { return Number.isFinite(this.felledAt); }
+
   reset() {
+    this.felledAt = -Infinity;
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
@@ -446,6 +533,7 @@ export class Batter {
       chest: [pose.chest[0], pose.chest[1] + bob, pose.chest[2]] };
   }
   update(now: number) {
+    if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     const age = now - this.swingStart;
     this.travel(age);
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
@@ -489,6 +577,20 @@ export class Batter {
     }
     else this.apply(mix(finish, GUARD, (age - 570) / (STROKE_DURATION_MS - 570)));
   }
+  /** The fall, stage by stage, and then he stays where he lands. */
+  private applyFall(age: number) {
+    if (age <= FALL.recoil) return this.apply(mix(this.felledFrom, RECOIL, ease(age / FALL.recoil)));
+    if (age <= FALL.buckle) {
+      return this.apply(mix(RECOIL, BUCKLED, ease((age - FALL.recoil) / (FALL.buckle - FALL.recoil))));
+    }
+    if (age <= FALL.settled) {
+      // The last stretch is the slowest: the knees have already gone, and what
+      // is left is a man settling onto the turf rather than dropping onto it.
+      return this.apply(mix(BUCKLED, FELLED, ease((age - FALL.buckle) / (FALL.settled - FALL.buckle))));
+    }
+    this.apply(FELLED);
+  }
+
   private apply(pose: Pose) {
     this.pose = pose;
     const hip = V(pose.hip), chest = V(pose.chest);
@@ -498,7 +600,7 @@ export class Batter {
     this.torso.position.copy(chest);
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
-    this.head.rotation.set(.09, pose.face, -.04);
+    this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
     this.bat.position.set(...pose.grip);
     this.bat.quaternion.copy(batOrientation(pose));
     this.root.updateMatrixWorld(true);

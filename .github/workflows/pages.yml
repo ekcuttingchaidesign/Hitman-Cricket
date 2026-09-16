@@ -1,0 +1,67 @@
+# Survive, published on GitHub Pages so it can be handed round for feedback.
+#
+# The README explains why this repository stopped publishing to Pages: the board
+# is two serverless functions, Pages serves files and nothing else, and a second
+# copy of the game with a dead leaderboard behind it is worse than no second
+# copy. That objection is real and it still stands — for the innings that has a
+# board.
+#
+# It does not apply to Survive, which never asks the board anything. So this
+# builds with VITE_SURVIVE_ONLY, which locks the bundle to that one mode and
+# takes the picker away: there is no route from this deployment to a screen that
+# would go looking for an endpoint Pages cannot serve.
+#
+# The game is published at the repository's Pages address and Vercel remains the
+# home of the real thing.
+name: Publish Survive to Pages
+
+on:
+  push:
+    # The branch this is being built on, and the one it will land on, so the
+    # published game does not quietly stop updating the day it is merged.
+    branches: [claude/modest-brown-cvm5oq, codex/cricket-batting-game]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and a push mid-run wins rather than being queued
+# behind a build of something older.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The same checks the branch has to pass anywhere else. A build that
+      # cannot survive its own test suite has no business being handed to
+      # anybody for an opinion.
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_SURVIVE_ONLY: '1'
+      # Vite is configured with a relative base, so the bundle works unchanged
+      # under a project subdirectory. Nothing here needs to know the path.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

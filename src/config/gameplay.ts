@@ -35,7 +35,17 @@ export const LINE_X: Record<BallLine, number> = { OUTSIDE_LEG: -0.42, LEG: -0.14
 // `bounce` and `rise` set the length: a yorker pitches at the toes and skids,
 // a bouncer lands short and rears. Zero-weight styles are only ever bowled as
 // specials, by the state of the innings.
-export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: number; label: string; rush?: number; tight?: boolean; bounce?: number; rise?: number }> = {
+/**
+ * What a delivery style is. `aimBody` and `aimWide` are how often a bowler puts
+ * this ball at the batter or at fifth stump rather than letting the bag of lines
+ * deal it; the classic innings sets neither and its bowler aims at nothing.
+ */
+export interface StyleShape {
+  weight: number; min: number; max: number; label: string;
+  rush?: number; tight?: boolean; bounce?: number; rise?: number;
+  aimBody?: number; aimWide?: number;
+}
+export const STYLES: Record<DeliveryStyle, StyleShape> = {
   NORMAL: { weight: 0.36, min: 122, max: 138, label: 'SEAM' },
   FAST: { weight: 0.14, min: 142, max: 158, label: 'FAST', rush: 0.80, tight: true },
   EXPRESS: { weight: 0.05, min: 164, max: 176, label: 'EXPRESS', rush: 0.64, tight: true },
@@ -46,6 +56,10 @@ export const STYLES: Record<DeliveryStyle, { weight: number; min: number; max: n
   LEG_SPIN: { weight: 0.045, min: 72, max: 92, label: 'LEG SPIN' },
   YORKER: { weight: 0, min: 158, max: 170, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
   SHORT: { weight: 0, min: 132, max: 168, label: 'BOUNCER', rush: 0.95, bounce: 10.4, rise: 2.9 },
+  // Back of a length, climbing into the ribs. Survive's ball, and it is never
+  // bowled here — it is listed only because the table is keyed by every style
+  // the game knows. A zero weight is how YORKER and SHORT sit here too.
+  RIB: { weight: 0, min: 140, max: 158, label: 'BACK OF A LENGTH', rush: 0.84, bounce: 9.6, rise: 2.0 },
 };
 // The bowler answers being hit, and mixes his pace up when he has been quick.
 export const SPECIALS = { sixesForYorker: 3, quickForSlower: 4, shortChance: 0.13 };
