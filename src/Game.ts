@@ -18,7 +18,11 @@ import { cardOffer } from './ui/Leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
-import { scoreBand, track, trackOnce } from './game/analytics';
+import { counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from './game/analytics';
+import { readVisits, today, visiting, writeVisits } from './game/visits';
+/** The phases that count as playing. Not the cover, the end card or a pause. */
+const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
+
 export class Game {
   private phase: GamePhase = 'START';
   private previousPhase: GamePhase = 'READY';
@@ -34,6 +38,15 @@ export class Game {
   private best = 0; private bounced = false; private seed = 0;
   /** Innings begun this session, for telling a replay from a first go. */
   private innings = 0;
+  /**
+   * Milliseconds actually spent playing this session: the clock runs while a
+   * ball is live, the bowler is walking back or the call is on screen, and stops
+   * for a pause, a hidden tab, the cover and the end card. A tab left open on
+   * the cover all afternoon has not been played all afternoon.
+   */
+  private playedMs = 0;
+  /** What that clock read when this innings began. */
+  private inningsFrom = 0;
   /** The fifty as last fetched, and who the board thinks you are. */
   private board: BoardRow[] = [];
   /**
@@ -61,6 +74,7 @@ export class Game {
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
     void playerId().then(id => { this.player = id; }).catch(() => {});
+    this.countVisit();
     void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', () => this.elapsed, this.shoot, this.hud.viewport);
@@ -96,6 +110,7 @@ export class Game {
     // the only way here that is not the cover, the tutorial, or the card.
     if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) track('innings-restart', 'Innings restarted');
     this.innings++;
+    this.inningsFrom = this.playedMs;
     track('innings-start', 'Innings started');
     if (this.innings > 1) track('innings-replay', 'Innings replayed');
     this.lesson = -1;
@@ -116,6 +131,21 @@ export class Game {
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
     (document.activeElement as HTMLElement | null)?.blur();
   };
+  /**
+   * New or returning, and how long they were away. Worked out on this machine
+   * because GoatCounter cannot do it — it forgets a visitor overnight by
+   * design — and what goes out is a band, never a date.
+   */
+  private countVisit() {
+    const { held, storable } = readVisits();
+    // A browser that cannot remember would report itself new every session, so
+    // it reports nothing: one silent visitor beats an inflated count of them.
+    if (!storable || !counting(location)) return;
+    const { visits, events } = visiting(held, today());
+    writeVisits(visits);
+    events.forEach(event => track(event));
+  }
+
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
   private shoot = (shotType: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
@@ -228,6 +258,12 @@ export class Game {
   private frame = (time: number) => {
     if (this.disposed) return;
     const dt = this.previousFrame ? Math.min(time - this.previousFrame, 60) : 0; this.previousFrame = time;
+    if (LIVE.includes(this.phase) && !document.hidden) {
+      // Wall-clock rather than the game's own clock, which the charge stretches
+      // into slow motion: a second of slow motion is still a second of playing.
+      this.playedMs += dt;
+      marksPassed(this.playedMs).forEach(mark => trackOnce(mark, `Played ${mark.slice(7)}`));
+    }
     if (this.phase !== 'PAUSED' && !document.hidden) {
       this.elapsed += dt * this.timeScale;
       this.input.flush(this.elapsed);
@@ -374,6 +410,7 @@ export class Game {
     this.setPhase('INNINGS_END'); const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
     try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
     track('innings-end', 'Innings completed');
+    track(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
     track(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
       this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);

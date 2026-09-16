@@ -71,6 +71,43 @@ export function trackOnce(name: string, title = name) {
 }
 
 /**
+ * How long an innings took, in bands.
+ *
+ * A counter cannot be told "this one took 104 seconds" any more than it can be
+ * told how many runs were scored, so the average comes out of a histogram: the
+ * bands are narrow where the innings actually fall — thirty balls is around two
+ * minutes — and open-ended at both ends, where an innings is either three
+ * wickets inside an over or somebody who wandered off mid-over.
+ */
+export function inningsBand(ms: number) {
+  const seconds = ms / 1000;
+  if (seconds < 30) return 'innings-under-30s';
+  if (seconds < 60) return 'innings-30-60s';
+  if (seconds < 90) return 'innings-60-90s';
+  if (seconds < 120) return 'innings-90-120s';
+  if (seconds < 180) return 'innings-2-3m';
+  if (seconds < 300) return 'innings-3-5m';
+  return 'innings-over-5m';
+}
+
+/**
+ * The marks a session is counted past, in minutes.
+ *
+ * Reported as they are reached rather than totted up at the end, which is the
+ * whole trick: there is no reliable moment to measure a session's length in,
+ * because a browser closing a tab will not be waited on to send anything. A mark
+ * passed is sent while the page is alive and cannot be lost, and the counts
+ * falling away across the marks are the distribution — a hundred sessions past
+ * one minute and thirty past ten says more than an average would.
+ */
+export const PLAY_MARKS = [1, 3, 5, 10, 20, 30] as const;
+
+/** The mark names this many milliseconds of play has passed. */
+export function marksPassed(playedMs: number) {
+  return PLAY_MARKS.filter(minutes => playedMs >= minutes * 60_000).map(minutes => `played-${minutes}m`);
+}
+
+/**
  * The innings' runs as a band. The cut-offs are the ones a cricketer reads: out
  * for single figures, a start, a thirty, a fifty, and a hundred — which on
  * thirty balls is a very good innings indeed.
