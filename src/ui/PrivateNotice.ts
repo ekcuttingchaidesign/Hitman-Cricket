@@ -3,22 +3,26 @@ import { track } from '../game/analytics';
 /**
  * The screen a private window gets instead of the game.
  *
- * It is one picture, one sentence and one way past it. The picture carries the
- * message — it is the artwork the game is shipped with — so the words under it
- * say the part the artwork cannot: what is actually lost by batting here, which
- * is the board and only the board. Nothing here is a lock. The check that put
- * this screen up is a guess (see `game/private-mode.ts`), so the key at the
- * bottom lets a player it guessed wrong about carry on, and one it guessed right
- * about bat anyway with the register key turned off for the innings.
+ * The poster is the screen. It already says the thing in its own type — "you
+ * naughty you, don't try in incognito, play in normal tab" — so nothing here
+ * repeats it in HTML; what goes over the art is the pair of keys the cover
+ * stands over its own art, in the same white-on-orange and navy, because this
+ * is a screen of the game and not a browser warning.
  *
- * The artwork sits in `public/` rather than being bundled: a missing file then
- * costs a fallback headline rather than a build, and the headline below says the
- * same thing in text for anybody whose browser never loads the picture.
+ * Nothing here is a lock. The check that put this screen up is a guess (see
+ * `game/private-mode.ts`), so the key lets a player it guessed wrong about carry
+ * on, and one it guessed right about bat anyway with the register key turned off
+ * for the innings. That is what the second line inside the key is for: it is the
+ * cost of pressing it, not a paragraph about private browsing.
+ *
+ * The artwork sits in `public/` rather than being bundled, so a missing file
+ * costs a headline rather than a build — the words the poster carries are in the
+ * page too, hidden, and take its place if it never loads.
  */
 const ARTWORK = 'incognito.webp';
 
-/** The message, for a screen reader and for a browser with no picture. */
-const ALT = 'You naughty you — don’t try in incognito, play in a normal tab.';
+/** What the poster says, for a screen reader and for a browser with no picture. */
+const ALT = 'You naughty you — don’t try in incognito, play in normal tab.';
 
 /**
  * Puts the screen up and settles when the player asks to bat anyway. The node
@@ -31,25 +35,24 @@ export function privateNotice(root: HTMLElement): Promise<void> {
   gate.className = 'private-gate';
   gate.setAttribute('role', 'dialog');
   gate.setAttribute('aria-modal', 'true');
-  gate.setAttribute('aria-labelledby', 'private-head');
+  gate.setAttribute('aria-label', ALT);
   gate.innerHTML = `
-    <div class="private-sheet">
-      <img class="private-art" src="${ARTWORK}" alt="${ALT}" decoding="async">
-      <div class="private-words" id="private-head" hidden>
+    <div class="private-poster">
+      <img class="private-art" src="${ARTWORK}" alt="${ALT}" decoding="async" fetchpriority="high">
+      <div class="private-words" hidden aria-hidden="true">
         <h1>You naughty you</h1>
-        <p class="private-line">Don’t try in incognito, play in normal tab</p>
+        <p>Don’t try in incognito, play in normal tab</p>
       </div>
-      <p class="private-note">A private window forgets everything the moment you close it — including who the leaderboard thinks you are. Play here and the innings still counts for you, but it can’t be registered on the board.</p>
       <div class="private-keys">
-        <button id="private-copy" class="secondary-button" type="button">COPY LINK</button>
-        <button id="private-anyway" class="primary-button" type="button">PLAY ANYWAY <small>SCORE WON’T COUNT</small></button>
+        <button id="private-anyway" class="play-button" type="button">PLAY ANYWAY<small>SCORE WON’T COUNT</small></button>
+        <button id="private-copy" class="learn-button" type="button">COPY LINK</button>
       </div>
     </div>`;
   const art = gate.querySelector<HTMLImageElement>('.private-art')!;
   const words = gate.querySelector<HTMLElement>('.private-words')!;
   // No artwork, no blank screen: the headline it carries, set in the game's own
   // type, stands in for it.
-  art.onerror = () => { art.remove(); words.hidden = false; };
+  art.onerror = () => { art.remove(); words.hidden = false; words.removeAttribute('aria-hidden'); gate.classList.add('is-wordless'); };
   root.appendChild(gate);
   document.body.classList.add('private-window');
   const copy = gate.querySelector<HTMLButtonElement>('#private-copy')!;
@@ -58,7 +61,7 @@ export function privateNotice(root: HTMLElement): Promise<void> {
     // the clipboard says so rather than pretending it worked.
     void navigator.clipboard?.writeText(location.href)
       .then(() => { copy.textContent = 'LINK COPIED'; })
-      .catch(() => { copy.textContent = 'COPY IT FROM THE ADDRESS BAR'; });
+      .catch(() => { copy.textContent = 'COPY FROM THE ADDRESS BAR'; });
   };
   return new Promise<void>(resolve => {
     gate.querySelector<HTMLButtonElement>('#private-anyway')!.onclick = () => {

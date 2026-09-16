@@ -1779,9 +1779,14 @@ dialog .primary-button{margin-top:18px}
   .result{animation:none!important;opacity:1;transform:none}
 }
 /* The private-window screen, which stands where the game would be until the
-   player either moves to a normal tab or asks to bat anyway. The artwork is a
-   tall poster, so it is fitted rather than cropped and the sheet under it holds
-   the sentence and the two keys within a thumb's reach on a phone. */
+   player either moves to a normal tab or asks to bat anyway.
+
+   The poster is the screen: it is held at its own portrait shape and filled,
+   so a phone sees it edge to edge and a wide screen sees it as a tall plate on
+   the game's navy rather than a landscape crop of a portrait picture. Over it
+   go the cover's own two keys — the white key on its orange base and the navy
+   plate behind it — because the cover already stands that pair over artwork and
+   this is the same game. */
 .private-gate{
   position:fixed;
   inset:0;
@@ -1789,28 +1794,62 @@ dialog .primary-button{margin-top:18px}
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:max(16px,env(safe-area-inset-top)) var(--pad-right) max(16px,env(safe-area-inset-bottom)) var(--pad);
-  background:radial-gradient(120% 90% at 50% 0%,#1d4f78,#0f1f2b 70%);
-  overflow-y:auto
+  background:#0f1f2b
 }
-.private-sheet{
+.private-poster{
+  position:relative;
+  /* Nine by sixteen, or the screen, whichever runs out first. */
+  width:min(100%,56.25vh);
+  height:100vh;
+  overflow:hidden
+}
+@supports(height:100dvh){
+  .private-poster{width:min(100%,56.25dvh);height:100dvh}
+}
+.private-art{width:100%;height:100%;object-fit:cover;display:block}
+.private-keys{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:14px;
-  width:100%;
-  max-width:420px;
-  margin:auto;
-  text-align:center
+  gap:11px;
+  padding:88px var(--pad-right) calc(22px + env(safe-area-inset-bottom)) var(--pad);
+  /* The poster ends in pitch and pads, which is a light surface under white
+     type. The keys bring their own night with them. */
+  background:linear-gradient(to top,#08192acc 58%,#08192a00)
 }
-.private-art{
-  width:100%;
-  max-height:min(62vh,560px);
-  object-fit:contain;
-  border-radius:14px
+.private-keys .play-button{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:1px;
+  line-height:1.05;
+  padding:8px 0
 }
-/* Only on screen where the picture did not arrive. The poster says this in
-   type, so this says it in the game's own. */
+/* The cost of pressing it, inside the key rather than beside it. */
+.private-keys .play-button small{
+  font-family:var(--card);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:1.6px;
+  text-indent:1.6px;
+  color:#b2542a
+}
+.private-keys .learn-button{
+  min-height:44px;
+  font-size:15px;
+  letter-spacing:1.8px
+}
+/* Nothing behind the screen scrolls while it is up. */
+body.private-window{overflow:hidden}
+/* With no poster there is nothing to stand the keys over, so the words it
+   carries take the middle of the screen and the keys sit under them. */
+.private-gate.is-wordless .private-poster{width:min(100%,420px);display:flex;flex-direction:column;justify-content:center;padding:0 var(--pad-right) 0 var(--pad)}
+.private-gate.is-wordless .private-keys{position:static;padding:26px 0 0;background:none}
+.private-words{text-align:center}
 .private-words h1{
   font-family:var(--cta);
   font-size:clamp(34px,11vw,54px);
@@ -1819,37 +1858,13 @@ dialog .primary-button{margin-top:18px}
   color:#ffd23f;
   text-shadow:0 3px 0 #0b2740
 }
-.private-line{
+.private-words p{
   margin:12px 0 0;
   font-family:var(--card);
   font-size:15px;
   font-weight:700;
   color:#fff
 }
-.private-note{
-  margin:0;
-  font-family:var(--card);
-  font-size:13px;
-  line-height:1.5;
-  color:#bcd2da;
-  max-width:36ch
-}
-.private-keys{width:100%}
-.private-keys .secondary-button{margin-top:0}
-.private-keys .primary-button{
-  margin-top:10px;
-  flex-wrap:wrap;
-  gap:6px;
-  padding:10px 14px
-}
-.private-keys .primary-button small{
-  font-size:9.5px;
-  font-weight:750;
-  letter-spacing:1.2px;
-  opacity:.72
-}
-/* Nothing behind the screen scrolls while it is up. */
-body.private-window{overflow:hidden}
 /* The strip's line for a window that cannot claim: no rows to sit between,
    just the one thing to do about it. */
 .peek-note{
@@ -1860,6 +1875,7 @@ body.private-window{overflow:hidden}
   color:#9fb6bb
 }
 @media(max-height:620px){
-  .private-art{max-height:44vh}
-  .private-note{font-size:12px}
+  .private-keys{padding-top:58px;gap:8px}
+  .private-keys .play-button{min-height:46px;font-size:16px}
+  .private-keys .learn-button{min-height:38px;font-size:13px}
 }
