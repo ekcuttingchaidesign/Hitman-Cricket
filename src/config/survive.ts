@@ -1,5 +1,5 @@
 import type { BodyPart, DeliveryStyle, TimingGrade } from '../game/types.js';
-import { GAME, type StyleShape } from './gameplay.js';
+import { GAME, SPIN_BOWLING, type StyleShape } from './gameplay.js';
 
 /**
  * Survive: a tailender, one wicket, and ten overs to bat out.
@@ -259,34 +259,10 @@ export const SPECIALS = { sixesForYorker: 4, quickForSlower: 9, shortChance: 0 }
  * anything.
  */
 export const SPIN = {
+  ...SPIN_BOWLING,
   overs: 3,
   /** The over he is always given, counting from nought: the third. */
   notBefore: 2,
-  /**
-   * How far the ball turns off the pitch, at its least and at its most.
-   *
-   * The floor matters more than the ceiling. Adjacent lines sit 0.14 apart, so
-   * the old minimum of 0.11 was a ball that turned less than the width of one
-   * line — movement a batter could ignore, and half the spell was made of it.
-   * Every ball he bowls now beats a whole line and the biggest beat three, so
-   * the question is never whether it turned, only which way.
-   */
-  minTurn: 0.22,
-  maxTurn: 0.42,
-  /** Neither side, ever: `OUTSIDE_OFF` and `OUTSIDE_LEG` sit at 0.42. */
-  maxFinalX: 0.42,
-  /**
-   * The one that goes straight on, and it is scheduled rather than rolled for.
-   *
-   * A chance per ball averaged out to one an over and delivered almost anything:
-   * overs with three of them, and — worse — overs with none, where the batter
-   * faced six turning balls and never had to worry about the quicker one at all.
-   * The threat only works if it is always somewhere in the over, so exactly one
-   * is placed, at a position drawn fresh each time. Now and then he bowls a
-   * second, which is what leaves four turning rather than five.
-   */
-  armBallsPerOver: 1,
-  secondArmBallChance: 0.25,
   /**
    * How often being beaten by a turning ball is a stumping.
    *

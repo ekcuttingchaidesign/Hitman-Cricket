@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, STYLES } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SPIN_BOWLING, STYLES } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -253,15 +253,55 @@ describe('the square cut', () => {
   });
 });
 describe('delivery fairness and determinism', () => {
-  it('balances all five lines across an innings and respects speed and movement ranges', () => {
+  it('balances the bag across every ball that is not turning, and respects speed and movement ranges', () => {
+    // Only the two that turn come out of the bag's reckoning: they take their
+    // line from the ones with room to turn away from instead.
     const gen = new DeliveryGenerator(new SeededRandom(42)); const counts = Object.fromEntries(LINES.map(l => [l, 0]));
-    for (let i = 0; i < 30; i++) { const d = gen.next(0); counts[d.line]++; expect(d.speedKph).toBeGreaterThanOrEqual(STYLES[d.style].min); expect(d.speedKph).toBeLessThanOrEqual(STYLES[d.style].max); expect(Math.abs(d.finalTargetX - d.baseTargetX)).toBeLessThanOrEqual(GAME.movement); }
-    expect(Object.values(counts)).toEqual([6,6,6,6,6]);
+    let pace = 0;
+    for (let i = 0; i < 30; i++) {
+      const d = gen.next(0);
+      expect(d.speedKph).toBeGreaterThanOrEqual(STYLES[d.style].min);
+      expect(d.speedKph).toBeLessThanOrEqual(STYLES[d.style].max);
+      if (d.style === 'OFF_SPIN' || d.style === 'LEG_SPIN') {
+        // A turning ball moves far more than the seamer does, and is the one
+        // delivery with a promise about how far: never less than a full line,
+        // and never finishing outside the widest one.
+        const turn = Math.abs(d.finalTargetX - d.baseTargetX);
+        expect(turn).toBeGreaterThanOrEqual(SPIN_BOWLING.minTurn - 1e-9);
+        expect(turn).toBeLessThanOrEqual(SPIN_BOWLING.maxTurn + 1e-9);
+        expect(Math.abs(d.finalTargetX)).toBeLessThanOrEqual(SPIN_BOWLING.maxFinalX + 1e-9);
+        continue;
+      }
+      // Everything else takes its line from the bag, the spinner's arm ball
+      // included: it goes straight on, so it wants a line like any other ball.
+      pace++; counts[d.line]++;
+      expect(Math.abs(d.finalTargetX - d.baseTargetX)).toBeLessThanOrEqual(GAME.movement);
+    }
+    // Four or five of the six turn, so the bag deals the other twenty-five or
+    // twenty-six — and it deals them evenly, which is the whole of what it is
+    // for: no line comes up more than one time oftener than any other.
+    expect(pace).toBeGreaterThanOrEqual(25);
+    expect(pace).toBeLessThanOrEqual(26);
+    const dealt = Object.values(counts);
+    expect(Math.max(...dealt) - Math.min(...dealt)).toBeLessThanOrEqual(1);
   });
   it('produces every style a fresh bowler can pick', () => {
-    // Nine: the eight weighted styles plus the bouncer. The yorker is an answer
-    // to being hit, so it never appears without sixes going against him.
-    const gen = new DeliveryGenerator(new SeededRandom(875)); expect(new Set(Array.from({ length: 400 }, () => gen.next(0).style)).size).toBe(9);
+    // Ten: the six weighted pace styles, the bouncer, and the spinner's three.
+    // The yorker is an answer to being hit, so it never appears without sixes
+    // going against him.
+    const gen = new DeliveryGenerator(new SeededRandom(875)); expect(new Set(Array.from({ length: 400 }, () => gen.next(0).style)).size).toBe(10);
+  });
+  it('gives the classic innings a single over of spin, and it is the third', () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const gen = new DeliveryGenerator(new SeededRandom(seed));
+      const spinning: number[] = [];
+      for (let ball = 0; ball < GAME.totalBalls; ball++) {
+        const style = gen.next(0).style;
+        if (['OFF_SPIN', 'LEG_SPIN', 'ARM_BALL'].includes(style)) spinning.push(Math.floor(ball / GAME.ballsPerOver));
+      }
+      expect(new Set(spinning)).toEqual(new Set([CLASSIC_SPIN.notBefore]));
+      expect(spinning).toHaveLength(GAME.ballsPerOver);
+    }
   });
   it('is continuous through the bounce and lands on the stated contact plane', () => {
     const gen = new DeliveryGenerator(new SeededRandom(91));

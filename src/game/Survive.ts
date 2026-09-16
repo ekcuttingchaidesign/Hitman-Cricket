@@ -3,7 +3,10 @@ import {
   BANDS, BODY_ZONE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
+import { spun } from './DeliveryGenerator.js';
 import { gradeTiming } from './ShotResolver.js';
+
+export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
 
 /**
@@ -130,13 +133,7 @@ const PAD_SAID: Record<BodyPart, string> = {
   HELMET: 'UP INTO THE GRILLE', RIBS: 'INTO THE BODY', GLOVES: 'OFF THE GLOVE', THIGH: 'ONTO THE PAD',
 };
 
-/**
- * Whether the spinner is bowling. His three deliveries, the arm ball included —
- * it is his ball, bowled in his over, off the same stationary action.
- */
-export function spun(delivery: Delivery): boolean {
-  return delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN' || delivery.style === 'ARM_BALL';
-}
+
 
 /**
  * A ball that went through to the body. Never a wicket, never a run, and off

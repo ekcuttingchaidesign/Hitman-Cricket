@@ -1,4 +1,4 @@
-import { GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
+import { CLASSIC_SPIN, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } from '../config/gameplay';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
@@ -50,6 +50,18 @@ export interface SpinSpell {
 /** The two that turn. The arm ball is his too, and does neither. */
 const TURNING: readonly DeliveryStyle[] = ['OFF_SPIN', 'LEG_SPIN'];
 export const SPIN_STYLES: readonly DeliveryStyle[] = [...TURNING, 'ARM_BALL'];
+
+/**
+ * Whether this is one of the spinner's three, the arm ball included.
+ *
+ * It lives here rather than with Survive's rules because both innings need it
+ * now — the stationary action is the bowler's, not the mode's — and Survive.ts
+ * says in its own first paragraph that nothing in it is reachable from the
+ * classic innings, which has to stay true.
+ */
+export function spun(delivery: { style: DeliveryStyle }): boolean {
+  return SPIN_STYLES.includes(delivery.style);
+}
 const clampX = (v: number, limit: number) => Math.min(limit, Math.max(-limit, v));
 
 /**
@@ -84,7 +96,9 @@ export function spinOvers(rng: SeededRandom, spell: SpinSpell): Set<number> {
   for (let over = spell.notBefore + 1; over < spell.ofOvers; over++) later.push(over);
   return new Set([spell.notBefore, ...rng.shuffle(later).slice(0, spell.overs - 1)]);
 }
-export const CLASSIC_PLAN: BowlingPlan = { styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale };
+export const CLASSIC_PLAN: BowlingPlan = {
+  styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale, spin: CLASSIC_SPIN,
+};
 
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
 const BODY_LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG'];

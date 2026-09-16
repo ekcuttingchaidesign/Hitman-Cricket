@@ -46,14 +46,17 @@ export interface StyleShape {
   aimBody?: number; aimWide?: number;
 }
 export const STYLES: Record<DeliveryStyle, StyleShape> = {
-  NORMAL: { weight: 0.36, min: 122, max: 138, label: 'SEAM' },
-  FAST: { weight: 0.14, min: 142, max: 158, label: 'FAST', rush: 0.80, tight: true },
-  EXPRESS: { weight: 0.05, min: 164, max: 176, label: 'EXPRESS', rush: 0.64, tight: true },
-  SLOWER: { weight: 0.06, min: 78, max: 98, label: 'SLOWER BALL', rush: 1.15 },
-  SWING_IN: { weight: 0.155, min: 118, max: 140, label: 'INSWINGER' },
-  SWING_OUT: { weight: 0.145, min: 118, max: 140, label: 'OUTSWINGER' },
-  OFF_SPIN: { weight: 0.045, min: 72, max: 92, label: 'OFF SPIN' },
-  LEG_SPIN: { weight: 0.045, min: 72, max: 92, label: 'LEG SPIN' },
+  NORMAL: { weight: 0.396, min: 122, max: 138, label: 'SEAM' },
+  FAST: { weight: 0.154, min: 142, max: 158, label: 'FAST', rush: 0.80, tight: true },
+  EXPRESS: { weight: 0.055, min: 164, max: 176, label: 'EXPRESS', rush: 0.64, tight: true },
+  SLOWER: { weight: 0.066, min: 78, max: 98, label: 'SLOWER BALL', rush: 1.15 },
+  SWING_IN: { weight: 0.170, min: 118, max: 140, label: 'INSWINGER' },
+  SWING_OUT: { weight: 0.159, min: 118, max: 140, label: 'OUTSWINGER' },
+  // The spinner's, and they carry no weight because he is not rolled for: he is
+  // given the third over whole, the same as in the Test match. The pace table
+  // below them describes the other four overs only.
+  OFF_SPIN: { weight: 0, min: 84, max: 96, label: 'OFF SPIN', rush: 0.78 },
+  LEG_SPIN: { weight: 0, min: 82, max: 94, label: 'LEG SPIN', rush: 0.78 },
   // The ball the spinner holds across the seam so it goes on with the arm
   // instead of turning. Survive's, and never bowled here — listed because the
   // table is keyed by every style the game knows.
@@ -65,6 +68,42 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
   // the game knows. A zero weight is how YORKER and SHORT sit here too.
   RIB: { weight: 0, min: 140, max: 158, label: 'BACK OF A LENGTH', rush: 0.84, bounce: 9.6, rise: 2.0 },
 };
+/**
+ * How a spinner bowls, in either innings.
+ *
+ * These are the numbers that make a turning ball a turning ball rather than a
+ * slow one, and there is no reason for the two modes to disagree about them: a
+ * ball that beats a full line and might go either way is the same delivery
+ * whether it is bowled in a five-over slog or a Test match. What each mode
+ * decides for itself is how many overs he gets and when — see `CLASSIC_SPIN`
+ * here and `SPIN` in the Survive config.
+ */
+export const SPIN_BOWLING = {
+  /** Adjacent lines sit 0.14 apart, so the floor is a ball that beats one. */
+  minTurn: 0.22,
+  maxTurn: 0.42,
+  /** Neither side, ever: the widest lines sit at 0.42. */
+  maxFinalX: 0.42,
+  /** Placed in the over rather than rolled for, so it is never absent from it. */
+  armBallsPerOver: 1,
+  secondArmBallChance: 0.25,
+} as const;
+
+/**
+ * The spinner's over in the classic innings: the third, and only the third.
+ *
+ * Five overs is not a spell, it is a cameo, so he gets one — and the same one
+ * every innings, because with a single over a drawn position would mean a
+ * player could go a whole game without meeting him.
+ */
+export const CLASSIC_SPIN = {
+  ...SPIN_BOWLING,
+  overs: 1,
+  notBefore: 2,
+  ofOvers: GAME.totalBalls / GAME.ballsPerOver,
+  ballsPerOver: GAME.ballsPerOver,
+};
+
 // The bowler answers being hit, and mixes his pace up when he has been quick.
 export const SPECIALS = { sixesForYorker: 3, quickForSlower: 4, shortChance: 0.13 };
 export const QUICK_STYLES: readonly DeliveryStyle[] = ['FAST', 'EXPRESS', 'YORKER'];

@@ -416,8 +416,10 @@ export class GameScene {
       const from = this.incomingPosition;
       const stopZ = result.wicketType === 'LBW' ? from.z : -1.3;
       this.ball.position.set(from.x, Math.max(0.1, from.y - t * 0.3), THREE.MathUtils.lerp(from.z, stopZ, Math.min(1, t * 5)));
-      // The bails leave when the ball reaches them, not on a fixed delay.
-      if (result.wicketType === 'BOWLED') this.breakBails(now);
+      // The bails leave when the ball reaches them, not on a fixed delay. A
+      // stumping breaks them too: the ball carries through to the keeper either
+      // way, and without this the call read STUMPED over a standing wicket.
+      if (result.wicketType === 'BOWLED' || result.wicketType === 'STUMPED') this.breakBails(now);
       if (result.wicketType === 'LBW') {
         this.batter.root.position.x = THREE.MathUtils.lerp(GAME.stanceX, this.hitOrigin.x - 0.13, Math.min(1, t * 8));
         this.batter.root.rotation.z = Math.sin(Math.min(1, t * 4) * Math.PI) * 0.13;
