@@ -6,6 +6,7 @@ import { GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
+import { flightOf } from './flight';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
@@ -297,53 +298,26 @@ export class GameScene {
      * ball he had simply missed.
      */
     const struckBody = !!outcome.hit;
-    /**
-     * Played on: the inside edge that comes back off the bat into his own
-     * stumps. It is the one dismissal in the game with bat on ball *and* the
-     * timber going over, and the scene used to handle only the first half of
-     * that — the ball squirted away five metres into the field and the stumps
-     * stood there, while the call said he was out. Nobody could tell what had
-     * happened, which is exactly what got reported.
-     */
+    // Everything about where the ball goes and how long it takes lives in
+    // `flightOf`, out of this file, so it can be tested without a browser.
+    const flight = flightOf(outcome);
     const playedOn = outcome.wicketType === 'BOWLED' && outcome.madeBatContact;
-    // A skied mishit goes out to a fielder whether or not it sticks. Landing it
-    // five metres from the bat with nobody near it was the whole reason a ball
-    // in the air read as nothing happening.
-    const skyward = outcome.aerial && !outcome.advance;
-    this.dropAt = outcome.dropped ? 0.88 : 0;
-    // A charged straight hit does not land in the ground: it clears the stand.
-    // A defended ball drops dead in front of him; it does not trickle away.
-    const distance = outcome.advance ? 78 : playedOn ? 1.4 : struckBody ? 2.4 : outcome.defended ? 1.9
-      // Far enough out to need a fielder, near enough that the take happens
-      // where the camera can see it. Twenty-seven metres was the first try and
-      // it put the catch on the right-hand edge of the frame, half out of shot.
-      : skyward ? 19 : caught ? 18 : ({ 0: 5, 1: 10, 2: 19, 3: 26, 4: 44, 6: 52 }[outcome.runs]);
-    if ((caught || skyward) && Math.abs(angle) < 0.2) angle = 0.22;
+    const toAFielder = (caught || !!outcome.dropped) && outcome.aerial;
+    this.dropAt = flight.dropAt;
+    this.takeAt = flight.takeAt;
+    this.flightMs = flight.flightMs;
+    this.hitHeight = flight.height;
+    // A ball going to a fielder is swept off the straight, so the take does not
+    // happen directly behind the bowler where nothing can be seen of it.
+    if ((caught || toAFielder) && Math.abs(angle) < 0.2) angle = 0.22;
     // A ball off the body drops away on the leg side, at his feet.
     if (struckBody) angle = -0.85;
-    this.hitEnd.set(Math.sin(angle) * distance, caught || outcome.dropped ? 1.5 : 0.1, Math.cos(angle) * distance);
-    // Off the inside edge, into the stumps behind him, and away. It carries on
-    // past them rather than stopping dead on them, and that is not decoration:
-    // the bails are thrown from the frame the ball reaches the stumps, so a ball
-    // that only arrives on the last frame of its flight sets them going with no
-    // flight left to go. Finishing well behind the timber means it gets there
-    // around the halfway mark with the whole throw still to come.
-    if (playedOn) this.hitEnd.set(0.1, 0.14, -1.5);
-    // An edge is not a catch in the deep. It flies off the face at gloves height
-    // and the keeper has it before the batter has finished the stroke, so it is
-    // placed where he stands rather than swept out along the stroke's angle.
-    if (outcome.edged) this.hitEnd.set(0.58, 0.42, -1.6);
-    // A skied shot hangs long enough to be watched down; a middled one leaves
-    // fast. The charge is worth watching all the way over the roof.
-    this.flightMs = outcome.advance ? 2200 : playedOn ? 1100 : struckBody ? 640 : outcome.defended ? 700 : outcome.edged ? 460
-      : outcome.aerial ? (outcome.hangMs ?? GAME.aerialFlightMs) : GAME.hitAnimationMs;
-    // A four is a boundary along the turf — a drive races to the rope on the
-    // ground. Only a six leaves it, and only a mishit hangs.
-    this.hitHeight = outcome.advance ? 32 : playedOn ? 0.18 : struckBody ? 0.42 : outcome.defended ? 0.05 : outcome.edged ? 0.18
-      // Skied means skied: it goes up far enough to be lost against the sky and
-      // watched all the way down, which is what makes the catch worth holding.
-      : skyward ? (outcome.runs === 6 ? 15 : 14)
-      : outcome.runs === 6 ? 12 : caught ? 5 : outcome.runs === 4 ? 0.22 : 0.6;
+    this.hitEnd.set(Math.sin(angle) * flight.distance, flight.endY, Math.cos(angle) * flight.distance);
+    // Played on and edged are both placed rather than swept out along the
+    // stroke's angle: one finishes in his own stumps, the other in the keeper's
+    // gloves before the stroke is over.
+    if (playedOn) this.hitEnd.set(0.1, flight.endY, -1.5);
+    if (outcome.edged) this.hitEnd.set(0.58, flight.endY, -1.6);
     // An edge is taken behind the stumps with nobody in the frame: the ball
     // simply deflects off the face and dies back past him. A fielder placed
     // there stands between the camera and the batter and fills the shot.
