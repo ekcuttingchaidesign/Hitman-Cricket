@@ -422,8 +422,33 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
 | `help-open` | The controls did not explain themselves. |
 | `webgl-fail` | The ground could not load, and nothing that follows was ever possible. |
+| `visitor-new`, `visitor-returning` | Whether this browser has played here before. |
+| `back-same-day` … `back-over-30-days` | How long a returning player was away. |
+| `days-played-1` … `days-played-11-plus` | How many separate days this browser has played on. |
+| `innings-under-30s` … `innings-over-5m` | How long an innings took. |
+| `played-1m`, `played-3m`, `played-5m`, `played-10m`, `played-20m`, `played-30m` | Marks a session got past. |
 
 `counting()` in `src/game/analytics.ts` decides who is counted: not localhost, and not a page opened with `?seed=` or `?debug=1`, which is how the browser checks and a tuning session play their innings. A scripted thirty balls is not a player. The counter script is loaded async, so events raised before it lands queue for up to fifteen seconds and go out when it does; if it never lands — a blocked script, an ad blocker — the queue is dropped and the innings is untouched. Nothing here can throw into the game loop.
+
+### Time, and how it is measured
+
+The clock only runs while the game is actually being played: a ball live, the bowler walking back, the call on screen. It stops for a pause, a hidden tab, the cover and the end card, so a tab left open all afternoon is not an afternoon of play. It is wall-clock time rather than the game's own, which the charge stretches into slow motion — a second of slow motion is still a second of somebody's life.
+
+A session's length is reported as **marks passed** rather than measured at the end, because there is no reliable end to measure at: a browser closing a tab will not be waited on to send anything, and a beacon fired on the way out is the least trustworthy hit there is. A mark is sent while the page is alive and cannot be lost. The counts falling away across the marks are the distribution — a hundred sessions past one minute and thirty past ten is a curve, and the median is wherever it crosses half. An average would have been one number hiding that shape, and would have needed the unreliable beacon to compute.
+
+An innings is different: it has a real end, and its length is known at that moment, so it goes out as a band. Seven of them, narrow where the innings actually fall — thirty balls is around two minutes — and open at both ends for the three-wicket collapse and the player who wandered off mid-over.
+
+### Daily and monthly players
+
+GoatCounter counts a visitor once a day and, deliberately, cannot recognise them tomorrow: the hash it identifies a visit by is salted, and the salt rotates. That is most of why the game needs no cookie banner, and it has a consequence worth being plain about — **the dashboard gives a daily active count and can never give a monthly one.** Thirty days of uniques added up counts somebody who played every day as thirty people, and no amount of squinting at that figure turns it into a monthly one.
+
+So the recognising happens in the player's own browser, which remembers what GoatCounter has forgotten, and what leaves it is a band: new or returning, how long since last time, how many separate days in total. No date and no identifier goes out, so the counter stays as anonymous as it was. That gives:
+
+- **Daily players** — GoatCounter's own unique visits, as before.
+- **New players, exactly** — `visitor-new` fires once per browser, ever. Summed over a month, that is new players that month, with no double counting.
+- **Retention** — the `back-*` bands are a return curve, and `days-played-*` is how sticky the game is. This is what a monthly active count is usually a proxy for, measured directly instead.
+
+A browser with storage switched off reports none of these rather than reporting itself new every session, which would have made the one exact figure here the least trustworthy thing on the dashboard.
 
 Two things GoatCounter cannot do, and where to go instead. It cannot cross-tabulate, so *did the players who took the tutorial score better* is not a question it will answer; the board store holds the exact figures for every claimed innings and can. And it counts a visitor per path per day, so `innings-start` gives both totals (hits) and players who started at least one (visits) — the replay rate falls out of the two without a second event.
 
