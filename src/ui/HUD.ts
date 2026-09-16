@@ -489,7 +489,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (offer.kind === 'silent') return;
     this.onBoard = offer.kind === 'standing';
     const key = this.$('claim');
-    if (offer.kind === 'standing') {
+    if (offer.kind === 'private') {
+      // The innings was good enough and the window cannot keep a player id, so
+      // the strip says so plainly rather than offering a form that would file a
+      // row nobody could ever come back to. The board is still worth a look.
+      this.$('card-board-head').innerHTML =
+        `${icon('trophy')}<span>Private window — this innings can’t go on the board</span>`;
+      this.$('card-peek').innerHTML =
+        '<p class="peek-note">Open the game in a normal tab to register a score.</p>';
+      key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'standing') {
       // Their own row is the news, not this innings. What it says is what still
       // stands, and the only thing left to offer is the board it stands on.
       this.$('card-board-head').innerHTML =

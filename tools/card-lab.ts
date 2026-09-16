@@ -62,6 +62,9 @@ const states: Record<string, () => void> = {
     hud.end(innings(40, 3, 24, 2, 3), fullBoard[6].runs, false);
     hud.offerClaim({ kind: 'standing', runs: fullBoard[6].runs, place: 7 }, { name: fullBoard[6].name, avatar: fullBoard[6].avatar }, fullBoard, played);
   },
+  /* A private window: the innings was worth a place and there is no player id
+     to give it to, so the strip says so and offers the board instead. */
+  private: () => { hud.end(innings(101, 2, 30, 8, 9), 96, true); hud.offerClaim({ kind: 'private' }, null, fullBoard, played); },
   /* The form a returning player who has just beaten their own best now gets:
      their name and kit are in it, and the key says so. */
   'form-update': () => { states['offer-known'](); hud.onTheBoard(true); hud.openClaim(); },

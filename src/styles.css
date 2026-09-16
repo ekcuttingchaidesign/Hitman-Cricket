@@ -2061,3 +2061,135 @@ body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only 
 @media (max-width:420px){
   body.survive-mode .score-stack{transform:scale(.78);transform-origin:top left}
 }
+/* The private-window screen, which stands where the game would be until the
+   player either moves to a normal tab or asks to bat anyway.
+
+   The poster is the screen, and it is shown whole. The line it carries runs
+   along the top and the two emoji sit right out at its edges, so it is fitted
+   to the window rather than filled to it: a phone is a narrower shape than the
+   poster, and cropping it to fit would cut the joke off at both ends. What is
+   left over is the game's own navy. Over the foot of it go the cover's two keys
+   — the white key on its orange base and the navy plate behind it — because the
+   cover already stands that pair over artwork and this is the same game. */
+.private-gate{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(to bottom,#0f1f2b 30%,#0c4c88 72%,#0a5da6 100%)
+}
+.private-poster{
+  position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  width:100%;
+  height:100vh;
+  overflow:hidden
+}
+@supports(height:100dvh){
+  .private-poster{height:100dvh}
+}
+/* Held to the top of whatever room there is, so the slack a narrow screen
+   leaves over gathers under the poster where the keys are rather than being
+   split into two bands, one of which the keys then sit on top of anyway.
+
+   Its last tenth is faded out. A poster that simply stopped left a ruled line
+   across the screen between the pitch and the blue under it, and where that
+   line falls depends on the phone; a picture that dissolves into the blue has
+   no edge to place. A browser without masks gets the ruled line back and
+   nothing else changes. */
+.private-art{
+  /* Scaled to fit by its own box rather than by `object-fit`, so the element is
+     the picture: a mask on a letterboxed image fades the empty room around it
+     and leaves the edge exactly where it was. */
+  max-width:100%;
+  max-height:100%;
+  display:block;
+  -webkit-mask-image:linear-gradient(to bottom,#000 88%,transparent 99%);
+  mask-image:linear-gradient(to bottom,#000 88%,transparent 99%)
+}
+.private-keys{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:11px;
+  padding:88px var(--pad-right) calc(22px + env(safe-area-inset-bottom)) var(--pad);
+  /* The keys are the game's, not the poster's: they keep the cover's own width
+     however wide the screen the poster is standing on. */
+  /* The poster ends in pitch and pads, which is a light surface under white
+     type, and on a phone the room left under it would otherwise be a band of
+     flat navy. So the keys bring their own sky with them: the poster's own blue,
+     deepened, fading up into the foot of the picture. Every stop is the same
+     hue — a gradient that ran out to `transparent` would pass through grey on
+     the way, and the grey is exactly what this is here to avoid. */
+  background:linear-gradient(to top,
+    #0a5da6 0%,
+    rgba(13,99,175,.86) 46%,
+    rgba(22,122,214,.42) 76%,
+    rgba(33,140,246,0) 100%)
+}
+.private-keys .play-button{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:1px;
+  line-height:1.05;
+  padding:8px 0
+}
+/* The cost of pressing it, inside the key rather than beside it. */
+.private-keys .play-button small{
+  font-family:var(--card);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:1.6px;
+  text-indent:1.6px;
+  color:#b2542a
+}
+.private-keys .learn-button{
+  min-height:44px;
+  font-size:15px;
+  letter-spacing:1.8px
+}
+/* Nothing behind the screen scrolls while it is up. */
+body.private-window{overflow:hidden}
+/* With no poster there is nothing to stand the keys over, so the words it
+   carries take the middle of the screen and the keys sit under them. */
+.private-gate.is-wordless .private-poster{display:flex;flex-direction:column;justify-content:center;padding:0 var(--pad-right) 0 var(--pad)}
+.private-gate.is-wordless .private-keys{position:static;padding:26px 0 0;background:none}
+.private-words{text-align:center}
+.private-words h1{
+  font-family:var(--cta);
+  font-size:clamp(34px,11vw,54px);
+  line-height:1;
+  margin:0;
+  color:#ffd23f;
+  text-shadow:0 3px 0 #0b2740
+}
+.private-words p{
+  margin:12px 0 0;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:700;
+  color:#fff
+}
+/* The strip's line for a window that cannot claim: no rows to sit between,
+   just the one thing to do about it. */
+.peek-note{
+  margin:0;
+  padding:9px 15px 4px;
+  font-size:12px;
+  line-height:1.4;
+  color:#9fb6bb
+}
+@media(max-height:620px){
+  .private-keys{padding-top:58px;gap:8px}
+  .private-keys .play-button{min-height:46px;font-size:16px}
+  .private-keys .learn-button{min-height:38px;font-size:13px}
+}
