@@ -1795,10 +1795,13 @@ dialog .primary-button{margin-top:18px}
   display:flex;
   align-items:center;
   justify-content:center;
-  background:#0f1f2b
+  background:linear-gradient(to bottom,#0f1f2b 30%,#0c4c88 72%,#0a5da6 100%)
 }
 .private-poster{
   position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
   width:100%;
   height:100vh;
   overflow:hidden
@@ -1808,8 +1811,23 @@ dialog .primary-button{margin-top:18px}
 }
 /* Held to the top of whatever room there is, so the slack a narrow screen
    leaves over gathers under the poster where the keys are rather than being
-   split into two bands, one of which the keys then sit on top of anyway. */
-.private-art{width:100%;height:100%;object-fit:contain;object-position:50% 0;display:block}
+   split into two bands, one of which the keys then sit on top of anyway.
+
+   Its last tenth is faded out. A poster that simply stopped left a ruled line
+   across the screen between the pitch and the blue under it, and where that
+   line falls depends on the phone; a picture that dissolves into the blue has
+   no edge to place. A browser without masks gets the ruled line back and
+   nothing else changes. */
+.private-art{
+  /* Scaled to fit by its own box rather than by `object-fit`, so the element is
+     the picture: a mask on a letterboxed image fades the empty room around it
+     and leaves the edge exactly where it was. */
+  max-width:100%;
+  max-height:100%;
+  display:block;
+  -webkit-mask-image:linear-gradient(to bottom,#000 88%,transparent 99%);
+  mask-image:linear-gradient(to bottom,#000 88%,transparent 99%)
+}
 .private-keys{
   position:absolute;
   left:0;
@@ -1823,8 +1841,16 @@ dialog .primary-button{margin-top:18px}
   /* The keys are the game's, not the poster's: they keep the cover's own width
      however wide the screen the poster is standing on. */
   /* The poster ends in pitch and pads, which is a light surface under white
-     type. The keys bring their own night with them. */
-  background:linear-gradient(to top,#08192acc 58%,#08192a00)
+     type, and on a phone the room left under it would otherwise be a band of
+     flat navy. So the keys bring their own sky with them: the poster's own blue,
+     deepened, fading up into the foot of the picture. Every stop is the same
+     hue — a gradient that ran out to `transparent` would pass through grey on
+     the way, and the grey is exactly what this is here to avoid. */
+  background:linear-gradient(to top,
+    #0a5da6 0%,
+    rgba(13,99,175,.86) 46%,
+    rgba(22,122,214,.42) 76%,
+    rgba(33,140,246,0) 100%)
 }
 .private-keys .play-button{
   display:flex;
