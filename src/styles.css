@@ -1778,3 +1778,88 @@ dialog .primary-button{margin-top:18px}
      snapping to the animation's transparent final frame. */
   .result{animation:none!important;opacity:1;transform:none}
 }
+/* The private-window screen, which stands where the game would be until the
+   player either moves to a normal tab or asks to bat anyway. The artwork is a
+   tall poster, so it is fitted rather than cropped and the sheet under it holds
+   the sentence and the two keys within a thumb's reach on a phone. */
+.private-gate{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:max(16px,env(safe-area-inset-top)) var(--pad-right) max(16px,env(safe-area-inset-bottom)) var(--pad);
+  background:radial-gradient(120% 90% at 50% 0%,#1d4f78,#0f1f2b 70%);
+  overflow-y:auto
+}
+.private-sheet{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+  width:100%;
+  max-width:420px;
+  margin:auto;
+  text-align:center
+}
+.private-art{
+  width:100%;
+  max-height:min(62vh,560px);
+  object-fit:contain;
+  border-radius:14px
+}
+/* Only on screen where the picture did not arrive. The poster says this in
+   type, so this says it in the game's own. */
+.private-words h1{
+  font-family:var(--cta);
+  font-size:clamp(34px,11vw,54px);
+  line-height:1;
+  margin:0;
+  color:#ffd23f;
+  text-shadow:0 3px 0 #0b2740
+}
+.private-line{
+  margin:12px 0 0;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:700;
+  color:#fff
+}
+.private-note{
+  margin:0;
+  font-family:var(--card);
+  font-size:13px;
+  line-height:1.5;
+  color:#bcd2da;
+  max-width:36ch
+}
+.private-keys{width:100%}
+.private-keys .secondary-button{margin-top:0}
+.private-keys .primary-button{
+  margin-top:10px;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:10px 14px
+}
+.private-keys .primary-button small{
+  font-size:9.5px;
+  font-weight:750;
+  letter-spacing:1.2px;
+  opacity:.72
+}
+/* Nothing behind the screen scrolls while it is up. */
+body.private-window{overflow:hidden}
+/* The strip's line for a window that cannot claim: no rows to sit between,
+   just the one thing to do about it. */
+.peek-note{
+  margin:0;
+  padding:9px 15px 4px;
+  font-size:12px;
+  line-height:1.4;
+  color:#9fb6bb
+}
+@media(max-height:620px){
+  .private-art{max-height:44vh}
+  .private-note{font-size:12px}
+}

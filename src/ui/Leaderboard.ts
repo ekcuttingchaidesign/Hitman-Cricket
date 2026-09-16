@@ -380,7 +380,9 @@ export function asInnings(score: { runs: number; wickets: number; balls: number;
 export type CardOffer =
   | { kind: 'silent' }
   | { kind: 'claim'; place: number }
-  | { kind: 'standing'; runs: number; place: number };
+  | { kind: 'standing'; runs: number; place: number }
+  /** A private window: the innings was worth a place and cannot be given one. */
+  | { kind: 'private' };
 
 export function cardOffer(
   reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,
