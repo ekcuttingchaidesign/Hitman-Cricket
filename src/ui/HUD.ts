@@ -40,6 +40,10 @@ const coverPlates = [
   new URL('../assets/cover-bowled.webp', import.meta.url).href,
 ];
 const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
+/* The mode cards' plates. The Blast borrows the cover's drive — the same shot,
+   the same kit — and the Test match has its own, in whites with a red ball. */
+const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
+const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
 /**
  * A phone gets the cover art: the illustration, the title lockup and two calls
  * to action, with nothing else on the screen. A desktop keeps the card over the
@@ -209,19 +213,25 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
-        <div id="modes" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
-          <div class="scorecard modes-card">
-            <p class="pause-eyebrow">PICK YOUR INNINGS</p>
-            <h2 id="modes-title">Two ways to bat.</h2>
-            <button id="mode-classic" class="mode-option">
-              <span class="mode-tag">5 OVERS</span>
-              <strong>The Blast</strong>
-              <small>Thirty balls, three wickets, and everything to gain. Score as many as you can.</small>
+        <div id="modes" class="modal-overlay mode-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
+          <div class="mode-sheet">
+            <h2 id="modes-title" class="mode-heading">Select Mode</h2>
+            <button id="mode-classic" class="mode-card">
+              <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
+              <span class="mode-body">
+                <span class="mode-name">The Blast</span>
+                <span class="mode-copy">Five overs, three wickets, nothing to lose. Find the gaps, clear the ropes, and put a record on the board.</span>
+                <span class="mode-key">PLAY THE BLAST</span>
+              </span>
             </button>
-            <button id="mode-survive" class="mode-option mode-survive">
-              <span class="mode-tag">10 OVERS · TEST MATCH</span>
-              <strong>Survive</strong>
-              <small>You are the last man in, nine down. Score a hundred to win it, or bat out ten overs for the draw. One wicket — and they are bowling at your body.</small>
+            <button id="mode-survive" class="mode-card mode-survive">
+              <span class="mode-flag">NEW</span>
+              <span class="mode-plate"><img src="${survivePlate}" alt="" decoding="async" /></span>
+              <span class="mode-body">
+                <span class="mode-name">Test Survival</span>
+                <span class="mode-copy">You are the last man standing. 60 balls to survive. Chase or Draw the match for the glory.</span>
+                <span class="mode-key">PLAY TEST SURVIVAL</span>
+              </span>
             </button>
             <button id="modes-cancel" class="ghost-link">Back</button>
           </div>
@@ -719,10 +729,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   modes() {
     this.$('modes').classList.remove('hidden');
     this.viewport.classList.add('modal-open');
+    // This screen is not a card over the ground, it replaces it — so the row of
+    // hud keys goes with it. They sit above the overlay and were being drawn
+    // straight across the title.
+    this.viewport.classList.add('picking-mode');
     (this.$('mode-classic') as HTMLButtonElement).focus();
   }
   closeModes() {
     this.$('modes').classList.add('hidden');
+    this.viewport.classList.remove('picking-mode');
     if (this.$('end').classList.contains('hidden') && this.$('end-survive').classList.contains('hidden')) {
       this.viewport.classList.remove('modal-open');
     }

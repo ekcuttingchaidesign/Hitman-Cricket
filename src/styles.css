@@ -1982,45 +1982,180 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   @keyframes hit-hold{0%,72%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,0)}}
 }
 
-/* The picker. Two cards, and the Test match says plainly what it costs. */
-.modes-card{max-width:440px}
-/* A scorecard's h2 is its small uppercase stamp, because a number is the point
-   of that card. This one has no number on it — the sentence is the point — so it
-   is set as written, the way the pause card's is. */
-.modes-card h2{
-  margin:0 0 14px;
-  font-size:clamp(26px,7vw,32px);
-  font-weight:900;
-  letter-spacing:-1.2px;
-  line-height:1.06;
-  text-transform:none;
-  color:var(--ink)
+/* ── The mode selection screen ─────────────────────────────────────────────
+   Built to the Figma frame, which is 804 wide — two times a 402pt phone. So
+   every number below is the design's halved, and the card carries the scale
+   itself: it is a container, and everything inside it is sized in `cqw`, a
+   percentage of the card's own width. That is what makes the whole card one
+   drawing at any width rather than a stack of parts each guessing at its own
+   breakpoint, and it is why there is no media query in here.
+
+   The card is the button. The key inside it is a span, because a button inside
+   a button is not markup a browser will accept — and the whole plate should be
+   tappable anyway, which is what a thumb is going to do regardless. */
+/* Nothing of the game shows through: the picker is a screen, not a card over
+   the ground, and the hud keys are part of the ground. */
+.stage.picking-mode .hud-top,.stage.picking-mode .score-stack{display:none}
+.mode-screen{
+  /* The screen the cards stand on, and it is the one place this differs from
+     the other overlays: they sit over the pitch, this one replaces it. */
+  background:linear-gradient(180deg,#000 0%,#0b0c19 100%);
+  align-items:flex-start;
+  padding:0
 }
-.mode-option{
+/* The warm glow behind the title, thrown from off the top-left corner. It
+   hangs off the sheet rather than off the screen: on a wide window the sheet is
+   centred, and a glow pinned to the viewport's corner ends up lighting empty
+   floor a long way from the title it is meant to be behind. */
+.mode-sheet::before{
+  content:'';
+  position:absolute;
+  left:-14%;
+  top:-8%;
+  width:86%;
+  aspect-ratio:1.25;
+  pointer-events:none;
+  background:radial-gradient(50% 50% at 50% 50%,#7a3d16a6 0%,#4a250d59 46%,#0000 72%);
+  filter:blur(18px)
+}
+.mode-sheet{
+  position:relative;
+  width:100%;
+  max-width:520px;
+  margin:0 auto;
+  padding:calc(var(--pad-top) + 10px) var(--pad) calc(28px + env(safe-area-inset-bottom)) var(--pad);
+  display:flex;
+  flex-direction:column;
+  /* 20 at 804, so 10 between the cards. */
+  gap:10px
+}
+/* 64 at 804 is 32 on the phone this was drawn for, and it holds that share of
+   the screen on anything narrower. */
+.mode-heading{
+  margin:0 0 14px;
+  font-family:var(--cta);
+  font-size:clamp(25px,8vw,40px);
+  font-weight:400;
+  letter-spacing:0;
+  line-height:1.1;
+  text-transform:none;
+  color:#fff
+}
+.mode-card{
+  container-type:inline-size;
+  position:relative;
   display:block;
   width:100%;
-  margin-top:10px;
-  padding:14px 16px;
+  padding:0;
+  border:0;
   text-align:left;
-  border:1px solid #ffffff24;
-  border-radius:14px;
-  background:#12293cd9;
+  background:#0f2738;
+  border-radius:6.14cqw;
   color:inherit;
   cursor:pointer;
-  transition:border-color .15s ease,background .15s ease
+  overflow:hidden;
+  transition:transform .16s ease,box-shadow .16s ease
 }
-.mode-option:hover,.mode-option:focus-visible{border-color:#ffffff5c;background:#173447}
-.mode-option .mode-tag{
-  display:inline-block;
-  font-size:9px;
-  letter-spacing:.16em;
-  color:#7fa6c0;
-  margin-bottom:5px
+.mode-card:hover,.mode-card:focus-visible{transform:translateY(-2px);box-shadow:0 10px 26px #0006}
+.mode-card:active{transform:translateY(0)}
+/* The plate, and the scrim that carries it down into the card so the name can
+   sit over the foot of the picture rather than under a hard edge. */
+.mode-plate{
+  display:block;
+  position:relative;
+  aspect-ratio:684/486
 }
-.mode-option strong{display:block;font-size:21px;line-height:1.15;margin-bottom:5px}
-.mode-option small{display:block;font-size:12px;line-height:1.5;color:#c6d6e1;opacity:.85}
-.mode-option.mode-survive .mode-tag{color:#e8a06a}
-.mode-option.mode-survive:hover,.mode-option.mode-survive:focus-visible{border-color:#e8a06a8c}
+.mode-plate img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  /* The Blast borrows the cover's portrait drive, so the band is placed rather
+     than centred: at the middle it is all torso. This puts the ball in the
+     top corner with the bat under it, which is the shot the card is about.
+     The design's own plate is a wider crop that carries the stumps as well —
+     that is not reachable from a 9:16 source at this ratio, and chasing it
+     would mean losing the ball off the top. */
+  object-position:50% 26%
+}
+.mode-survive .mode-plate img{object-position:50% 54%}
+.mode-plate::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg,#0f273800 0%,#0f2738 100%)
+}
+/* Pulled up over the foot of the plate: the name sits 49 above the picture's
+   bottom edge in the design, which the scrim has already faded to the card. */
+.mode-body{
+  position:relative;
+  display:block;
+  margin-top:-7.16cqw;
+  padding:0 6.58cqw 5.41cqw
+}
+.mode-name{
+  display:block;
+  font-family:var(--card);
+  font-weight:900;
+  font-size:5.85cqw;
+  line-height:1.302;
+  color:#fff
+}
+.mode-copy{
+  display:block;
+  margin-top:1.16cqw;
+  font-family:var(--card);
+  font-weight:400;
+  font-size:3.51cqw;
+  line-height:1.302;
+  color:#dcdcdc
+}
+/* The key: a face with a darker slab under it, which is the design's two
+   stacked rectangles said as one shadow. */
+.mode-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:5.78cqw;
+  width:100%;
+  height:10.23cqw;
+  border-radius:1.64cqw;
+  background:linear-gradient(90deg,#4fcff2 0%,#a8ecff 100%);
+  box-shadow:0 1.46cqw 0 #1c95b7,0 2.49cqw 2.26cqw #0000005c;
+  font-family:var(--cta);
+  font-size:3.51cqw;
+  letter-spacing:.14cqw;
+  color:#000;
+  white-space:nowrap
+}
+/* The flag, which only the new mode wears. */
+.mode-flag{
+  position:absolute;
+  z-index:1;
+  top:2.49cqw;
+  right:2.92cqw;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:18.71cqw;
+  height:8.48cqw;
+  border-radius:2.92cqw;
+  background:linear-gradient(111.44deg,#ff1212 1.04%,#940c0c 106.3%);
+  box-shadow:0 .58cqw 1.02cqw #00000040;
+  font-family:var(--card);
+  font-weight:900;
+  font-style:italic;
+  font-size:5.85cqw;
+  line-height:1;
+  color:#fff
+}
+/* The way back to the cover. Not on the board in Figma, but the screen has to
+   have one: it is opened from Play, and without it Play is a one-way door. */
+.mode-screen .ghost-link{
+  align-self:center;
+  margin-top:6px;
+  padding:10px 16px
+}
 
 /* The result carries the colour, the same way a record innings does on the other
    card: the number takes the accent and the stamp above it comes up to full
@@ -2052,7 +2187,6 @@ body.survive-mode #board,body.survive-mode #share{opacity:.3;pointer-events:none
    entirely, rather than offering a key that can only ever say it is unreachable. */
 body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only #board{display:none}
 @media (max-width:560px){
-  .mode-option strong{font-size:19px}
   .hit-burst span{font-size:36px}
   /* The whole readout shrinks rather than any one part of it, so the scoreboard,
      the meter and the strip keep their proportions and clear the bowler's mark. */
