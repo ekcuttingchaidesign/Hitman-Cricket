@@ -18,6 +18,50 @@ export interface BowlingPlan {
    * actually faces stay varied while the short ball stops being a free one.
    */
   aimed?: boolean;
+  /** The spinner's spell, if this mode has one. See `SpinSpell`. */
+  spin?: SpinSpell;
+}
+
+/**
+ * A spell of spin measured in overs rather than in deliveries.
+ *
+ * Every other change in this game is per-ball: a yorker is earned, a bouncer is
+ * rolled for, a slower ball is owed. Spin is not a ball, it is a bowler — so it
+ * comes in whole overs, and inside one the seam bowler does not bowl at all.
+ */
+export interface SpinSpell {
+  /** How many overs of the innings he is given. */
+  overs: number;
+  /** The first over he can have, counting from nought. */
+  notBefore: number;
+  /** How many overs the innings runs to. */
+  ofOvers: number;
+  ballsPerOver: number;
+  /** How far the ball turns off the pitch, least and most. */
+  minTurn: number;
+  maxTurn: number;
+  /** How wide a turning ball may finish, either side. */
+  maxFinalX: number;
+  /** How often the quicker one that goes straight on is slipped in. */
+  armBallChance: number;
+}
+
+/** The two that turn. The arm ball is his too, and does neither. */
+const TURNING: readonly DeliveryStyle[] = ['OFF_SPIN', 'LEG_SPIN'];
+export const SPIN_STYLES: readonly DeliveryStyle[] = [...TURNING, 'ARM_BALL'];
+const clampX = (v: number, limit: number) => Math.min(limit, Math.max(-limit, v));
+
+/**
+ * Which overs the spinner gets, drawn once at the top of the innings.
+ *
+ * Every over from `notBefore` on is equally likely, and the three are distinct —
+ * a shuffle rather than three independent rolls, which would sometimes hand him
+ * the same over twice and quietly bowl two of pace instead.
+ */
+export function spinOvers(rng: SeededRandom, spell: SpinSpell): Set<number> {
+  const available: number[] = [];
+  for (let over = spell.notBefore; over < spell.ofOvers; over++) available.push(over);
+  return new Set(rng.shuffle(available).slice(0, Math.min(spell.overs, available.length)));
 }
 export const CLASSIC_PLAN: BowlingPlan = { styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale };
 
@@ -30,7 +74,18 @@ export class DeliveryGenerator {
   /** Sixes conceded since the last yorker, quick balls since the last change-up. */
   private punished = 0;
   private quick = 0;
-  constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {}
+  /** Deliveries bowled, which is how the generator knows which over it is in. */
+  private bowled = 0;
+  private readonly spinning: Set<number>;
+  constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
+    this.spinning = plan.spin ? spinOvers(rng, plan.spin) : new Set();
+  }
+  /** Whether the ball about to be bowled belongs to the spinner. */
+  get spinnerOn() {
+    return !!this.plan.spin && this.spinning.has(Math.floor(this.bowled / this.plan.spin.ballsPerOver));
+  }
+  /** The overs he was given, for the HUD and for a test that there are three. */
+  get spell(): readonly number[] { return [...this.spinning].sort((a, b) => a - b); }
   /** The bowler watches what happens to him and answers it next ball. */
   record(outcome: ShotOutcome) { if (outcome.runs === 6) this.punished++; }
   /**
@@ -48,6 +103,14 @@ export class DeliveryGenerator {
   private pick(lines: BallLine[]): BallLine { return lines[Math.floor(this.rng.next() * lines.length)]; }
   private chooseStyle(): DeliveryStyle {
     const { specials, styles } = this.plan;
+    // His over is his. None of what follows — the yorker owed for a six, the
+    // change-up owed for a spell of pace — belongs to a spinner, and a bouncer
+    // least of all.
+    if (this.spinnerOn) {
+      const spell = this.plan.spin!;
+      if (this.rng.next() < spell.armBallChance) return 'ARM_BALL';
+      return this.rng.next() < 0.5 ? 'OFF_SPIN' : 'LEG_SPIN';
+    }
     if (this.punished >= specials.sixesForYorker) { this.punished = 0; return 'YORKER'; }
     // A change of pace only surprises once the batter has been fed quick ones.
     // Counting them consecutively would almost never fire, so they accumulate.
@@ -68,9 +131,26 @@ export class DeliveryGenerator {
     const shape = this.plan.styles[style];
     const speedKph = Math.round(this.rng.range(shape.min, shape.max));
     const sign = style === 'SWING_IN' || style === 'OFF_SPIN' ? -1 : style === 'SWING_OUT' || style === 'LEG_SPIN' ? 1 : 0;
-    const movement = sign * this.rng.range(GAME.movement * 0.65, GAME.movement);
+    // A ball that turns is not a ball that swings, so it is not drawn from the
+    // same range: the off-spinner comes back in off the pitch by well over what
+    // the seamer moves it through the air, and how far varies ball to ball
+    // because a spinner who imparts identical revolutions every time is a
+    // machine. The bag still deals him the odd line his aim did not ask for,
+    // which is what keeps the over from being six of the same delivery.
+    const spell = this.plan.spin;
+    const turning = spell && TURNING.includes(style);
+    const movement = sign * (turning
+      ? this.rng.range(spell!.minTurn, spell!.maxTurn)
+      : this.rng.range(GAME.movement * 0.65, GAME.movement));
+    // However far it bites, it finishes inside the widest line the bag deals.
+    // Turn on top of a line already wide is how a leg-break ends up a foot
+    // outside off, and a wide is not a test of anything.
+    const finalTargetX = turning
+      ? clampX(LINE_X[line] + movement, spell!.maxFinalX)
+      : LINE_X[line] + movement;
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
-    return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX: LINE_X[line] + movement,
+    this.bowled++;
+    return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
       bounceZ: shape.bounce ?? GAME.bounceZ, rise: shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs };
   }

@@ -195,10 +195,27 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
   SLOWER: { weight: 0.05, min: 82, max: 100, label: 'SLOWER BALL', rush: 1.15 },
   SWING_IN: { weight: 0.10, min: 138, max: 152, label: 'INSWINGER', rush: 0.86, aimBody: 0.3 },
   SWING_OUT: { weight: 0.10, min: 138, max: 152, label: 'OUTSWINGER', rush: 0.86, aimWide: 0.45 },
-  // Spin has no place in a spell this quick, and the yorker is earned rather
-  // than rolled for — see SPECIALS.
-  OFF_SPIN: { weight: 0, min: 72, max: 92, label: 'OFF SPIN' },
-  LEG_SPIN: { weight: 0, min: 72, max: 92, label: 'LEG SPIN' },
+  // The spinner's three balls. All three carry a zero weight because they are
+  // never rolled for: the spell is given whole overs by SPIN below, and inside
+  // one of those overs these are the only deliveries bowled.
+  //
+  // `rush` is doing real work here. At 90kph the arithmetic alone puts the ball
+  // in the air for about eleven hundred milliseconds, which is the slower
+  // ball's flight — and a spell where every delivery floats like the change-up
+  // is a spell with no change-up in it. Pulled back to 0.78 it arrives in the
+  // high eight hundreds: plainly slower than the seam bowler's six hundred, and
+  // nowhere near the twelve hundred of the ball that is meant to deceive.
+  //
+  // Each turns from where a bowler of that kind actually pitches it, which is
+  // most of what keeps a turning ball legal: the off-spinner starts it wide and
+  // brings it back, the leg-spinner starts it at the pads and takes it away.
+  OFF_SPIN: { weight: 0, min: 84, max: 96, label: 'OFF SPIN', rush: 0.78, aimWide: 0.8 },
+  LEG_SPIN: { weight: 0, min: 82, max: 94, label: 'LEG SPIN', rush: 0.78, aimBody: 0.75 },
+  // Held across the seam and pushed through quicker. It does not turn, and that
+  // is the whole of it: the batter has spent an over playing for a ball that
+  // moves and this one does not, and it is on him before he has finished
+  // waiting for it.
+  ARM_BALL: { weight: 0, min: 118, max: 130, label: 'ARM BALL', rush: 0.86 },
   YORKER: { weight: 0, min: 160, max: 174, label: 'YORKER', rush: 0.62, tight: true, bounce: 1.6, rise: 0.28 },
 };
 
@@ -214,6 +231,53 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
  * rather than rolled for separately.
  */
 export const SPECIALS = { sixesForYorker: 4, quickForSlower: 9, shortChance: 0 } as const;
+
+/**
+ * The spinner's spell: which overs he is given, and what he does with them.
+ *
+ * Three of the ten, and never the first two. The mode opens with pace because
+ * that is what it is about — the batter has to be made to feel the quick
+ * bowling before taking it away means anything — and after that the captain can
+ * throw the ball to the spinner whenever he likes. Which three is drawn fresh
+ * every innings, so a player cannot learn that the seventh is the one to see
+ * off and bat to a timetable instead of to the ball.
+ *
+ * `maxFinalX` is the promise that a turning ball stays a cricket ball. The turn
+ * is drawn from a range rather than fixed — a spinner who gives every delivery
+ * the same revolutions is a bowling machine — but however far it bites, it
+ * finishes no wider than the widest line the bag deals. A ball that pitches leg
+ * and finishes a foot outside off is a wide, and a wide is not a test of
+ * anything.
+ */
+export const SPIN = {
+  overs: 3,
+  /** The first over he can be given, counting from nought: the third. */
+  notBefore: 2,
+  /** How far the ball turns off the pitch, at its least and at its most. Both
+      are well beyond the seam bowler's 0.13 of swing, because that is the
+      difference the batter is being asked to read. */
+  minTurn: 0.11,
+  maxTurn: 0.30,
+  /** Neither side, ever: `OUTSIDE_OFF` and `OUTSIDE_LEG` sit at 0.42. */
+  maxFinalX: 0.42,
+  /** How often he slips in the one that goes straight on. About one an over. */
+  armBallChance: 0.16,
+  /**
+   * How often being beaten by a turning ball is a stumping.
+   *
+   * This is the spinner's wicket, and without it he had none. Beaten by the
+   * quick bowler you are bowled or you survive, because the keeper is twenty
+   * yards back and there is nothing else on; beaten by a spinner you are out of
+   * your ground with a man standing over the stumps. It is also exactly the
+   * dismissal this batter is built for — a number eleven who has been drawn
+   * forward and has not got back is the stumping every tailender has been out
+   * to — and it is what stops three overs of spin being three overs off.
+   *
+   * Only the two that turn. The arm ball beats him by going straight on, and
+   * beating him from the crease is being bowled.
+   */
+  stumpedChance: 0.34,
+} as const;
 
 /**
  * How close to the batter a ball has to finish before it is coming at him

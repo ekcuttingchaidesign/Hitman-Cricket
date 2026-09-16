@@ -1,6 +1,6 @@
 import { COMPATIBILITY, CUT, SOLID_SHOT } from '../config/gameplay.js';
 import {
-  BANDS, BODY_ZONE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
+  BANDS, BODY_ZONE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
 import { gradeTiming } from './ShotResolver.js';
@@ -78,6 +78,13 @@ export function atTheBody(delivery: Delivery): boolean {
  * into a reward for waiting for the right ball.
  */
 export function inTheSlot(delivery: Delivery, compatibility = 1): boolean {
+  // Never off the spinner, and the gate as written says the opposite: it asks
+  // for slow and full, which every ball he bowls is, so all three overs came
+  // back as slot balls and the maximum stopped being a reward for waiting. It
+  // is the wrong test for him. Clearing the rope off a slow bowler is done by
+  // going down the pitch to reach the pitch of it — the one thing a number
+  // eleven cannot do — and off the back foot the best he gets is four.
+  if (spun(delivery)) return false;
   return delivery.speedKph <= SIX.maxKph
     && delivery.bounceZ >= SIX.minBounce && delivery.bounceZ <= SIX.maxBounce
     // And the stroke has to be the one the line was asking for. A tailender who
@@ -114,16 +121,62 @@ const SPOT_SAID: Record<BodyPart, string> = {
   HELMET: 'ON THE HELMET', RIBS: 'INTO THE RIBS', GLOVES: 'OFF THE GLOVES', THIGH: 'INTO THE PAD',
 };
 
-/** A ball that went through to the body. Never a wicket, never a run, always a mark on the meter. */
+/**
+ * The same contact off the spinner, said without the damage. A ball at ninety
+ * that hits the glove has been kept out, not survived, and the call should not
+ * borrow the language of a ball that hurt.
+ */
+const PAD_SAID: Record<BodyPart, string> = {
+  HELMET: 'UP INTO THE GRILLE', RIBS: 'INTO THE BODY', GLOVES: 'OFF THE GLOVE', THIGH: 'ONTO THE PAD',
+};
+
+/**
+ * Whether the spinner is bowling. His three deliveries, the arm ball included —
+ * it is his ball, bowled in his over, off the same stationary action.
+ */
+export function spun(delivery: Delivery): boolean {
+  return delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN' || delivery.style === 'ARM_BALL';
+}
+
+/**
+ * A ball that went through to the body. Never a wicket, never a run, and off
+ * the quick bowler always a mark on the meter.
+ *
+ * The spinner cannot hurt him, and not as a mercy: the meter is kinetic —
+ * `damage = base × (kph/140)²` — and at ninety off a pitch it would be reading
+ * a sixth of what an express bouncer costs, which is a number pretending to be
+ * a threat. A spell that cannot injure is a different kind of pressure and a
+ * cleaner one: the batter can stop protecting himself for three overs and go
+ * back to protecting his wicket, which is the only thing the spinner can take.
+ *
+ * So it is the same ball in every other respect — it still beats the bat, still
+ * finds the edge, still bowls him — and hitting him is simply a dot.
+ */
 function blow(base: ShotOutcome, delivery: Delivery, where: BodyPart): ShotOutcome {
+  if (spun(delivery)) {
+    return { ...base, runs: 0, isWicket: false, madeBatContact: where === 'GLOVES', aerial: false, feedback: PAD_SAID[where] };
+  }
   return {
     ...base, runs: 0, isWicket: false, madeBatContact: where === 'GLOVES', aerial: false,
     hit: { where, damage: damageFor(where, delivery.speedKph) }, feedback: SPOT_SAID[where],
   };
 }
 
+/** The two that turn. The arm ball beats him by going straight on. */
+function turns(delivery: Delivery): boolean {
+  return delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN';
+}
+
 /** Beaten on the stumps. The one dismissal this mode shares unchanged with the classic innings. */
 function beaten(base: ShotOutcome, delivery: Delivery, rng: { next(): number }): ShotOutcome {
+  // Beaten by a turning ball, with a man over the stumps. This is the only
+  // wicket the spinner had — the quick bowler beats him and it costs nothing
+  // unless the ball goes on to hit something, because the keeper is standing
+  // twenty yards back. It is read before the stumps are, so a batter beaten
+  // outside off is out here where against pace he would have got away with it.
+  if (turns(delivery) && rng.next() < SPIN.stumpedChance) {
+    return { ...base, madeBatContact: false, isWicket: true, wicketType: 'STUMPED', feedback: 'STUMPED!' };
+  }
   if (!stumpIntersection(delivery)) {
     if (atTheBody(delivery)) return blow(base, delivery, blowSpot(delivery));
     return { ...base, madeBatContact: false, feedback: base.feedback };
@@ -302,11 +355,23 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
     // The maximum wants the right ball as well as the right moment — see
     // `inTheSlot`. Middled anything else and it is four, which is what a
     // tailender's best shot is actually worth.
+    // Off the spinner every reward is one grade worse, and that is where the
+    // three overs stopped being three overs off. The slot gate already denies
+    // him the maximum, but the rest of the ladder was still paying a seam
+    // bowler's rates for a ball that is far easier to middle — so an expert
+    // came out of the spell having scored faster than he manages against pace,
+    // which is the opposite of what a spell of spin does to a number eleven.
+    //
+    // The reason is footwork he has not got. A boundary off a slow bowler comes
+    // from getting to the pitch of it and hitting through the line; stuck in the
+    // crease, a well-timed ball goes firmly to a fielder, and only the one he
+    // absolutely middles beats them.
+    const spin = spun(delivery);
     if (timingGrade === 'PERFECT') {
       const runs = inTheSlot(delivery, compatibility) ? 6 : 4;
       return { ...base, runs, madeBatContact: true, feedback: award(runs) };
     }
-    if (timingGrade === 'GOOD') return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };
+    if (timingGrade === 'GOOD' && !spin) return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };
     return nudged(base, rng);
   }
 

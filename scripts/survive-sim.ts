@@ -28,14 +28,17 @@
  *   npx vite-node scripts/survive-sim.ts [innings]
  */
 import { COMPATIBILITY, SHOTS } from '../src/config/gameplay.js';
-import { HEALTH, SPECIALS, STYLES, SURVIVE } from '../src/config/survive.js';
+import { HEALTH, SPECIALS, SPIN, STYLES, SURVIVE } from '../src/config/survive.js';
 import { DeliveryGenerator } from '../src/game/DeliveryGenerator.js';
 import { effectiveLine } from '../src/game/DeliveryTrajectory.js';
 import { SeededRandom } from '../src/game/SeededRandom.js';
 import { endingOf, resolveSurvive } from '../src/game/Survive.js';
 import type { Delivery, Ending, ShotType } from '../src/game/types.js';
 
-const PLAN = { styles: STYLES, specials: SPECIALS, travelScale: SURVIVE.travelScale, aimed: true };
+const PLAN = {
+  styles: STYLES, specials: SPECIALS, travelScale: SURVIVE.travelScale, aimed: true,
+  spin: { ...SPIN, ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver, ballsPerOver: SURVIVE.ballsPerOver },
+};
 
 /** A player, as two numbers and an intention. */
 interface Player {

@@ -1,9 +1,9 @@
 export type BallLine = 'OUTSIDE_LEG' | 'LEG' | 'MIDDLE' | 'OFF' | 'OUTSIDE_OFF';
-export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' | 'RIB' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'OFF_SPIN' | 'LEG_SPIN';
+export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' | 'RIB' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'OFF_SPIN' | 'LEG_SPIN' | 'ARM_BALL';
 /** The five scoring strokes, plus the forward defensive. */
 export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'SQUARE_CUT' | 'DEFEND';
 export type TimingGrade = 'PERFECT' | 'GOOD' | 'OK' | 'POOR' | 'MISS';
-export type WicketType = 'BOWLED' | 'LBW' | 'CAUGHT';
+export type WicketType = 'BOWLED' | 'LBW' | 'CAUGHT' | 'STUMPED';
 /**
  * Which side of the ball a stroke was played. The magnitude of a timing error
  * says how badly it was misjudged; this says which way, and in Survive the two

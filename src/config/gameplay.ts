@@ -54,6 +54,10 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
   SWING_OUT: { weight: 0.145, min: 118, max: 140, label: 'OUTSWINGER' },
   OFF_SPIN: { weight: 0.045, min: 72, max: 92, label: 'OFF SPIN' },
   LEG_SPIN: { weight: 0.045, min: 72, max: 92, label: 'LEG SPIN' },
+  // The ball the spinner holds across the seam so it goes on with the arm
+  // instead of turning. Survive's, and never bowled here — listed because the
+  // table is keyed by every style the game knows.
+  ARM_BALL: { weight: 0, min: 118, max: 130, label: 'ARM BALL', rush: 0.86 },
   YORKER: { weight: 0, min: 158, max: 170, label: 'YORKER', rush: 0.64, tight: true, bounce: 1.6, rise: 0.28 },
   SHORT: { weight: 0, min: 132, max: 168, label: 'BOUNCER', rush: 0.95, bounce: 10.4, rise: 2.9 },
   // Back of a length, climbing into the ribs. Survive's ball, and it is never

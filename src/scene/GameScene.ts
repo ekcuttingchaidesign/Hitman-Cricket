@@ -250,6 +250,12 @@ export class GameScene {
    */
   runup(t: number) { this.bowling = true; this.runupProgress = t; }
   /**
+   * Which bowler is at the top of the mark. Set after `reset` and before the
+   * action starts, because `reset` puts the ball back in the quick bowler's
+   * hand and the spinner has to take it again each ball of his over.
+   */
+  spinner(on: boolean) { this.bowler.spinner(on); }
+  /**
    * Past the bat, the ball eases through to the stumps over the rest of the
    * late-swing window instead of running on at full speed. That window is worth
    * most of a second, so extrapolating it flew the ball through the stumps and

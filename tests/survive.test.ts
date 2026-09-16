@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, STYLES as CLASSIC_STYLES } from '../src/config/gameplay';
-import { BANDS, DAMAGE, HEALTH, SIX, STYLES, SURVIVE, damageFor } from '../src/config/survive';
+import {
+  BANDS, DAMAGE, HEALTH, SIX, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES, SURVIVE, damageFor,
+} from '../src/config/survive';
 import { ballPosition, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { Health } from '../src/game/Health';
 import {
   atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, sledgeDue,
-  teamScore, timingSide,
+  spun, teamScore, timingSide,
 } from '../src/game/Survive';
+import { DeliveryGenerator, SPIN_STYLES, spinOvers } from '../src/game/DeliveryGenerator';
+import { SeededRandom } from '../src/game/SeededRandom';
+import { PACE_RUN, SPIN_RUN } from '../src/entities/Bowler';
 import type { Delivery, DeliveryStyle, ShotOutcome } from '../src/game/types';
 
 /** A delivery, built from a style in the Survive table so lengths are the real ones. */
@@ -492,5 +497,215 @@ describe('what the scorecard says he cost the side', () => {
     // A batter who survives the last ball and collapses has drawn the match,
     // and a draw with nine down is not the same scorecard as one with ten.
     expect(endingOf(40, SURVIVE.totalBalls, 0, true)).toBe('DRAWN');
+  });
+});
+
+
+/** The Survive attack, exactly as Game builds it. */
+const SPELL = { ...SPIN, ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver, ballsPerOver: SURVIVE.ballsPerOver };
+const attack = (seed: number) => new DeliveryGenerator(new SeededRandom(seed), {
+  styles: STYLES, specials: SURVIVE_SPECIALS, travelScale: SURVIVE.travelScale, aimed: true, spin: SPELL,
+});
+
+describe('the spinner gets overs, not deliveries', () => {
+  it('gives him three of the ten, every innings', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      expect(spinOvers(new SeededRandom(seed), SPELL).size).toBe(SPIN.overs);
+    }
+  });
+
+  it('never hands him the first two', () => {
+    // The mode opens with pace: the batter has to feel the quick bowling before
+    // taking it away can mean anything.
+    for (let seed = 0; seed < 300; seed++) {
+      for (const over of spinOvers(new SeededRandom(seed), SPELL)) {
+        expect(over).toBeGreaterThanOrEqual(SPIN.notBefore);
+        expect(over).toBeLessThan(SPELL.ofOvers);
+      }
+    }
+  });
+
+  it('draws a different three from innings to innings', () => {
+    // A fixed spell is a timetable, and a batter who knows the seventh is the
+    // one to see off is batting to the clock rather than to the ball.
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) seen.add([...spinOvers(new SeededRandom(seed), SPELL)].sort().join(','));
+    expect(seen.size).toBeGreaterThan(10);
+  });
+
+  it('bowls only his own deliveries inside his over, and none outside it', () => {
+    for (let seed = 0; seed < 40; seed++) {
+      const generator = attack(seed);
+      const spell = new Set(generator.spell);
+      for (let ball = 0; ball < SURVIVE.totalBalls; ball++) {
+        const over = Math.floor(ball / SURVIVE.ballsPerOver);
+        const delivery = generator.next(0);
+        expect(SPIN_STYLES.includes(delivery.style)).toBe(spell.has(over));
+      }
+    }
+  });
+
+  it('bowls him a whole over at a time', () => {
+    // Six from the same bowler, not a spinner spliced into a seamer's over.
+    const generator = attack(7);
+    const styles: boolean[] = [];
+    for (let ball = 0; ball < SURVIVE.totalBalls; ball++) styles.push(SPIN_STYLES.includes(generator.next(0).style));
+    for (let over = 0; over < SPELL.ofOvers; over++) {
+      const inOver = styles.slice(over * 6, over * 6 + 6);
+      expect(new Set(inOver).size).toBe(1);
+    }
+  });
+});
+
+describe('the ball that turns', () => {
+  const turned = (seed: number, wanted: DeliveryStyle) => {
+    const generator = attack(seed);
+    for (let ball = 0; ball < SURVIVE.totalBalls * 4; ball++) {
+      const delivery = generator.next(0);
+      if (delivery.style === wanted) return delivery;
+    }
+    return null;
+  };
+
+  it('brings the off break back in and takes the leg break away', () => {
+    // Off spin turns in towards the batter, leg spin away from him. He stands
+    // outside leg, so in is negative and away is positive.
+    for (let seed = 0; seed < 120; seed++) {
+      const off = turned(seed, 'OFF_SPIN');
+      if (off) expect(off.finalTargetX).toBeLessThanOrEqual(off.baseTargetX);
+      const leg = turned(seed, 'LEG_SPIN');
+      if (leg) expect(leg.finalTargetX).toBeGreaterThanOrEqual(leg.baseTargetX);
+    }
+  });
+
+  it('never finishes wide, either side', () => {
+    for (let seed = 0; seed < 60; seed++) {
+      const generator = attack(seed);
+      for (let ball = 0; ball < SURVIVE.totalBalls; ball++) {
+        const delivery = generator.next(0);
+        if (delivery.style === 'OFF_SPIN' || delivery.style === 'LEG_SPIN') {
+          expect(Math.abs(delivery.finalTargetX)).toBeLessThanOrEqual(SPIN.maxFinalX + 1e-9);
+        }
+      }
+    }
+  });
+
+  it('does not turn every ball the same distance', () => {
+    const turns = new Set<string>();
+    for (let seed = 0; seed < 80; seed++) {
+      const off = turned(seed, 'OFF_SPIN');
+      if (off) turns.add((off.finalTargetX - off.baseTargetX).toFixed(4));
+    }
+    expect(turns.size).toBeGreaterThan(20);
+  });
+
+  it('arrives quicker than the change-up and slower than the seamer', () => {
+    // The whole point of the rush on these: at ninety kph the arithmetic alone
+    // floats the ball for as long as the slower one, and a spell where every
+    // delivery behaves like the change-up has no change-up in it.
+    const flight = (style: DeliveryStyle) => {
+      const shape = STYLES[style];
+      const kph = (shape.min + shape.max) / 2;
+      return (GAME.releaseZ - GAME.contactZ) / (kph / 3.6) * 1000 * SURVIVE.travelScale * (shape.rush ?? 1);
+    };
+    for (const style of ['OFF_SPIN', 'LEG_SPIN'] as const) {
+      expect(flight(style)).toBeGreaterThan(flight('NORMAL'));
+      expect(flight(style)).toBeLessThan(flight('SLOWER'));
+    }
+    // And the one that goes straight on is quicker than both of them.
+    expect(flight('ARM_BALL')).toBeLessThan(flight('OFF_SPIN'));
+    expect(flight('ARM_BALL')).toBeGreaterThan(flight('NORMAL'));
+  });
+
+  it('does not turn the arm ball at all', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      const arm = turned(seed, 'ARM_BALL');
+      if (arm) expect(arm.finalTargetX).toBeCloseTo(arm.baseTargetX, 9);
+    }
+  });
+});
+
+describe('the spinner cannot hurt him', () => {
+  it('takes nothing off the meter, wherever it hits him', () => {
+    // Every injury in the mode goes through one funnel, so this is the whole of
+    // it: a ball that would be a blow off the quick bowler is a dot off him.
+    for (const style of SPIN_STYLES) {
+      const delivery = ball(style, { finalTargetX: GAME.stanceX });
+      const played = resolveSurvive(delivery, at(BANDS.clean + 40, 'DEFEND'), rolls(0.5));
+      expect(played.hit).toBeUndefined();
+      expect(played.isWicket).toBe(false);
+      expect(played.runs).toBe(0);
+    }
+  });
+
+  it('still takes the meter down off the quick bowler', () => {
+    const played = resolveSurvive(ball('RIB', { finalTargetX: GAME.stanceX }), at(BANDS.clean + 40, 'DEFEND'), rolls(0.5));
+    expect(played.hit).toBeDefined();
+  });
+
+  it('leaves a blow off the spinner off the meter entirely', () => {
+    const health = new Health();
+    const played = resolveSurvive(ball('OFF_SPIN', { finalTargetX: GAME.stanceX }), at(BANDS.clean + 40, 'DEFEND'), rolls(0.5));
+    health.record(played);
+    expect(health.value).toBe(HEALTH.full);
+    expect(health.blows).toHaveLength(0);
+  });
+
+  it('knows which deliveries are his', () => {
+    for (const style of SPIN_STYLES) expect(spun(ball(style))).toBe(true);
+    for (const style of ['NORMAL', 'RIB', 'SHORT', 'EXPRESS', 'SLOWER'] as const) expect(spun(ball(style))).toBe(false);
+  });
+});
+
+describe('what the spinner can take instead', () => {
+  it('stumps a batter beaten by a turning ball', () => {
+    // His wicket, and without it three overs of spin were three overs off: an
+    // expert is beaten on about one ball in a thousand by pace and it costs
+    // him nothing unless the ball hits something.
+    const played = resolveSurvive(ball('OFF_SPIN'), at(BANDS.beaten + 200, 'DEFEND'), rolls(0.01));
+    expect(played.isWicket).toBe(true);
+    expect(played.wicketType).toBe('STUMPED');
+  });
+
+  it('lets him back in when the roll goes the other way', () => {
+    const played = resolveSurvive(ball('OFF_SPIN', { finalTargetX: 0.40 }), at(BANDS.beaten + 200, 'DEFEND'), rolls(0.99));
+    expect(played.wicketType).not.toBe('STUMPED');
+  });
+
+  it('does not stump him off the arm ball', () => {
+    // Beaten by a ball that went straight on is being bowled, not stumped.
+    const played = resolveSurvive(ball('ARM_BALL', { finalTargetX: 0.40 }), at(BANDS.beaten + 200, 'DEFEND'), rolls(0.01));
+    expect(played.wicketType).not.toBe('STUMPED');
+  });
+
+  it('never pays the maximum off him', () => {
+    // The slot gate asks for slow and full, which every ball he bowls is — so
+    // left alone it made all three overs slot balls and the six stopped being
+    // a reward for waiting for the right one.
+    for (const style of SPIN_STYLES) {
+      expect(inTheSlot(ball(style, { bounceZ: (SIX.minBounce + SIX.maxBounce) / 2, speedKph: 88 }), 1)).toBe(false);
+    }
+  });
+});
+
+describe('the spinner does not run in', () => {
+  it('walks to the crease instead of running to it', () => {
+    expect(SPIN_RUN.approach).toBeLessThan(PACE_RUN.approach / 2);
+    expect(SPIN_RUN.releaseAdvance).toBeLessThan(PACE_RUN.releaseAdvance);
+  });
+
+  it('keeps the action that follows the run', () => {
+    // Only the approach is a choice. The gather and the delivery stride are the
+    // length of a man's legs, so the spinner keeps both — the distance from his
+    // back foot landing to the ball leaving is the quick bowler's exactly.
+    const paceAction = PACE_RUN.frontFootPlant - PACE_RUN.backFootPlant;
+    const spinAction = SPIN_RUN.frontFootPlant - SPIN_RUN.backFootPlant;
+    expect(spinAction).toBeCloseTo(paceAction, 9);
+  });
+
+  it('releases the ball from the same place', () => {
+    // A shorter run moves where he starts, never where he finishes: the ball
+    // has to leave from the crease whoever bowled it.
+    expect(SPIN_RUN.startZ - SPIN_RUN.releaseAdvance).toBeCloseTo(PACE_RUN.startZ - PACE_RUN.releaseAdvance, 9);
   });
 });

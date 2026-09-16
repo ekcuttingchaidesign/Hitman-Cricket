@@ -1,8 +1,8 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
-import { SPECIALS as SURVIVE_SPECIALS, STYLES as SURVIVE_STYLES, SURVIVE } from './config/survive';
+import { SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE } from './config/survive';
 import { Confidence } from './game/Confidence';
 import { Health } from './game/Health';
-import { endingOf, resolveSurvive, sledgeDue, teamScore } from './game/Survive';
+import { endingOf, resolveSurvive, sledgeDue, spun, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
 import { CLASSIC_PLAN, type BowlingPlan } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
@@ -45,6 +45,14 @@ const SURVIVE_PLAN: BowlingPlan = {
   // This bowler is aiming: the bouncer goes at the head and the express ball at
   // fifth stump, rather than both being dealt whatever line comes next.
   aimed: true,
+  // The spell, composed from the two halves that know about it: SPIN says how
+  // the spinner bowls, SURVIVE says how long the innings is, and neither has
+  // any business importing the other.
+  spin: {
+    ...SPIN,
+    ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver,
+    ballsPerOver: SURVIVE.ballsPerOver,
+  },
 };
 
 export class Game {
@@ -435,7 +443,10 @@ export class Game {
       // cue, change the shot he had in mind and time it — and that was most of
       // why a full meter kept going unspent.
       this.primed = this.charged && chargeable(this.delivery);
-      this.scene.reset(); this.input.reset(); this.showConfidence(); this.setPhase('BOWLER_RUNUP');
+      this.scene.reset(); this.input.reset();
+      // After the reset, which hands the ball back to the quick bowler.
+      this.scene.spinner(spun(this.delivery));
+      this.showConfidence(); this.setPhase('BOWLER_RUNUP');
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
