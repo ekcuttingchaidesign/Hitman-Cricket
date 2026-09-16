@@ -14,7 +14,7 @@ import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
 import { fetchBoard, submitInnings } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { cardOffer } from './ui/Leaderboard';
+import { cardOffer, type CardOffer } from './ui/Leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
@@ -66,7 +66,14 @@ export class Game {
   private audio = new GameAudio();
   private debug = new URLSearchParams(location.search).get('debug') === '1';
   private disposed = false;
-  constructor(root: HTMLElement) {
+  /**
+   * Whether an innings played here can be registered. False in a private
+   * window, where the player id is minted fresh every session: a row claimed
+   * from one is a row nobody can ever come back to and improve.
+   */
+  private canRegister: boolean;
+  constructor(root: HTMLElement, options: { canRegister?: boolean } = {}) {
+    this.canRegister = options.canRegister !== false;
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best);
     // Neither of these is allowed to hold up an innings. Settling the id touches
@@ -362,10 +369,12 @@ export class Game {
    */
   private offerBoard() {
     const played = asInnings(this.score);
-    this.hud.offerClaim(
-      cardOffer(this.boardSeen, this.board, played, Date.now(), this.player),
-      readPlayer(), this.board, played, this.player,
-    );
+    const offer = cardOffer(this.boardSeen, this.board, played, Date.now(), this.player);
+    // An innings that had nothing to offer stays quiet in a private window too:
+    // the strip is there to say what is being missed, and a two-run innings was
+    // missing nothing.
+    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
+    this.hud.offerClaim(shown, readPlayer(), this.board, played, this.player);
   }
 
   /**
@@ -379,7 +388,8 @@ export class Game {
    * best is exactly the moment somebody wants a different name on it.
    */
   private startClaim = () => {
-    if (this.hud.offerKind === 'standing') return this.showBoard();
+    // A private window has no place to claim, so its key is the board's.
+    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private') return this.showBoard();
     track('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
@@ -391,6 +401,7 @@ export class Game {
    */
   private async sendClaim() {
     const entry = this.hud.claimEntry.name ? this.hud.claimEntry : readPlayer();
+    if (!this.canRegister) return this.showBoard();
     if (!entry || !this.player) return this.hud.openClaim();
     this.hud.claimSending(true);
     const result = await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
