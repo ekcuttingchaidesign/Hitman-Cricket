@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { counting, scoreBand } from '../src/game/analytics';
 
 const at = (hostname: string, search = '') => counting({ hostname, search });
@@ -41,5 +41,69 @@ describe('the score bands', () => {
   it('never invents a band between two of them', () => {
     const bands = new Set(Array.from({ length: 181 }, (_, runs) => scoreBand(runs)));
     expect(bands.size).toBe(6);
+  });
+});
+
+/**
+ * The gate, loaded fresh each time.
+ *
+ * `enabled` is settled once when the module loads, off a `location` that does
+ * not exist under the node runner — so a gate test that imports the module
+ * normally passes whatever it asserts, because nothing was ever going to be
+ * sent. Each case here stubs a live host and a counter, then re-imports.
+ */
+async function counted() {
+  const count = vi.fn();
+  vi.stubGlobal('location', { hostname: 'hitman-cricket.vercel.app', search: '' });
+  vi.stubGlobal('window', { goatcounter: { count } });
+  vi.resetModules();
+  return { count, analytics: await import('../src/game/analytics') };
+}
+
+describe('the innings that does not count', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('sends a classic moment', async () => {
+    const { count, analytics } = await counted();
+    analytics.track('innings-start');
+    expect(count).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends nothing while Survive is being played', async () => {
+    const { count, analytics } = await counted();
+    analytics.reporting(false);
+    analytics.track('innings-start');
+    analytics.trackOnce('first-shot');
+    expect(count).not.toHaveBeenCalled();
+  });
+
+  it('counts again when the player goes back to the classic innings', async () => {
+    const { count, analytics } = await counted();
+    analytics.reporting(false);
+    analytics.track('innings-start');
+    analytics.reporting(true);
+    analytics.track('innings-start');
+    expect(count).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a suspended moment burn its only turn', async () => {
+    // trackOnce marks a name fired before track ever looks at the gate, so the
+    // naive version of this would spend `first-shot` on a Survive innings that
+    // sent nothing — and the player's first classic shot would go unreported
+    // for the rest of the session.
+    const { count, analytics } = await counted();
+    analytics.reporting(false);
+    analytics.trackOnce('first-shot', 'First shot played');
+    analytics.reporting(true);
+    analytics.trackOnce('first-shot', 'First shot played');
+    expect(count).toHaveBeenCalledTimes(1);
+    expect(count).toHaveBeenCalledWith({ path: 'first-shot', title: 'First shot played', event: true });
+  });
+
+  it('still only counts a once-moment once', async () => {
+    const { count, analytics } = await counted();
+    analytics.trackOnce('help-open');
+    analytics.trackOnce('help-open');
+    expect(count).toHaveBeenCalledTimes(1);
   });
 });

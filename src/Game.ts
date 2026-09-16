@@ -23,7 +23,7 @@ import { cardOffer } from './ui/Leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
-import { counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from './game/analytics';
+import { counting, inningsBand, marksPassed, reporting, scoreBand, track, trackOnce } from './game/analytics';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -122,7 +122,7 @@ export class Game {
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
     void playerId().then(id => { this.player = id; }).catch(() => {});
-    this.countVisit();
+    if (SURVIVE_ONLY) reporting(false); else this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
     // 404 on every load — harmless, since a board that never answers is already
@@ -181,6 +181,7 @@ export class Game {
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
   choose = (mode: GameMode) => { this.mode = mode; this.start(); };
   start = () => {
+    if (!SURVIVE_ONLY) reporting(!this.surviving);
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
     if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) track('innings-restart', 'Innings restarted');
@@ -210,6 +211,7 @@ export class Game {
   };
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
+    if (!SURVIVE_ONLY) reporting(true);
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
     this.scene.whites(false);

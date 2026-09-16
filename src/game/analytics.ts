@@ -39,6 +39,27 @@ export function counting(where: { hostname: string; search: string }) {
 const enabled = (() => { try { return counting(location); } catch { return false; } })();
 
 /**
+ * Whether the innings being played is one the dashboard counts.
+ *
+ * Survive is not. It shares this loop with the classic innings but almost
+ * nothing else — no board, no best score, and two win conditions the bands
+ * below cannot describe — so an innings of it reporting `innings-start` and
+ * then never reporting an end would read as a five-over innings somebody
+ * abandoned. The distinction the dashboard is for is between a player who
+ * finished and one who walked off, and Survive would put thousands of false
+ * walk-offs on the wrong side of it.
+ *
+ * So it says nothing at all rather than saying something wrong. The cost is
+ * real and worth naming: the mode being actively playtested is the one there
+ * is no data for, and the Pages build is Survive end to end, so that whole
+ * deployment is silent.
+ */
+let suspended = false;
+
+/** Turn counting on for the classic innings, off for Survive. */
+export function reporting(on: boolean) { suspended = !on; }
+
+/**
  * Sends whatever is waiting. The script is loaded async, so the first events of
  * a session can beat it to the page; they queue and go out when it lands.
  * Fifteen seconds of trying is long enough for a slow connection and short
@@ -58,14 +79,14 @@ function drain() {
 
 /** One moment, named. Unknown to the dashboard until it happens for the first time. */
 export function track(name: string, title = name) {
-  if (!enabled) return;
+  if (!enabled || suspended) return;
   pending.push({ path: name, title, event: true });
   drain();
 }
 
 /** The same, but only the first time it happens in this session. */
 export function trackOnce(name: string, title = name) {
-  if (fired.has(name)) return;
+  if (suspended || fired.has(name)) return;
   fired.add(name);
   track(name, title);
 }
