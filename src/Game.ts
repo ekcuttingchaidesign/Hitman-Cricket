@@ -37,6 +37,20 @@ export type GameMode = 'CLASSIC' | 'SURVIVE';
  */
 const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
 
+/**
+ * Whether this build offers the Test match at all.
+ *
+ * Off unless asked for. The mode is still in playtest and the production ground
+ * is not where that happens — somebody arriving for the five-over innings should
+ * get the five-over innings, not a choice between it and a mode still being
+ * tuned. The Pages build sets `VITE_SURVIVE_ONLY` and plays nothing else; every
+ * other build gets the classic innings and no picker.
+ *
+ * `?mode=SURVIVE` still works, so the mode stays one link away for anyone
+ * testing it. It is hidden, not removed.
+ */
+const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
+
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
 };
@@ -182,6 +196,13 @@ export class Game {
       this.mode = named as GameMode;
       this.locked = true;
       this.hud.lockMode(SURVIVE_ONLY);
+    } else if (!SHOW_SURVIVE) {
+      // Nothing to pick between, so Play is the classic innings and the picker
+      // never opens. The same lock a named mode uses, arrived at from the build
+      // rather than from the link.
+      this.mode = 'CLASSIC';
+      this.locked = true;
+      this.hud.lockMode(false);
     }
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {
