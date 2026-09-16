@@ -235,12 +235,15 @@ export const SPECIALS = { sixesForYorker: 4, quickForSlower: 9, shortChance: 0 }
 /**
  * The spinner's spell: which overs he is given, and what he does with them.
  *
- * Three of the ten, and never the first two. The mode opens with pace because
- * that is what it is about — the batter has to be made to feel the quick
- * bowling before taking it away means anything — and after that the captain can
- * throw the ball to the spinner whenever he likes. Which three is drawn fresh
- * every innings, so a player cannot learn that the seventh is the one to see
- * off and bat to a timetable instead of to the ball.
+ * Three of the ten. The third over is always his: the mode opens with two of
+ * pace because that is what it is about — the batter has to be made to feel the
+ * quick bowling before taking it away means anything — and then the ball is
+ * tossed to the spinner on a fixed cue, so the change of pace arrives as an
+ * event rather than as a coin landing.
+ *
+ * When he comes *back* is the open question. The other two are drawn fresh from
+ * the seven overs after it, so a player cannot learn that the seventh is the one
+ * to see off and bat to a timetable instead of to the ball.
  *
  * `maxFinalX` is the promise that a turning ball stays a cricket ball. The turn
  * is drawn from a range rather than fixed — a spinner who gives every delivery
@@ -251,7 +254,7 @@ export const SPECIALS = { sixesForYorker: 4, quickForSlower: 9, shortChance: 0 }
  */
 export const SPIN = {
   overs: 3,
-  /** The first over he can be given, counting from nought: the third. */
+  /** The over he is always given, counting from nought: the third. */
   notBefore: 2,
   /** How far the ball turns off the pitch, at its least and at its most. Both
       are well beyond the seam bowler's 0.13 of swing, because that is the

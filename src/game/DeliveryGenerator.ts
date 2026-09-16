@@ -54,14 +54,21 @@ const clampX = (v: number, limit: number) => Math.min(limit, Math.max(-limit, v)
 /**
  * Which overs the spinner gets, drawn once at the top of the innings.
  *
- * Every over from `notBefore` on is equally likely, and the three are distinct —
- * a shuffle rather than three independent rolls, which would sometimes hand him
- * the same over twice and quietly bowl two of pace instead.
+ * The first of them is not drawn at all: `notBefore` is always his, so the
+ * change always comes at the same moment. Two overs of pace and then the ball
+ * is tossed to the spinner — the batter has felt the quick bowling by then, and
+ * taking it away is the point.
+ *
+ * The other two are drawn from everything after it, so when he comes *back* is
+ * still an open question and nobody can bat to a timetable. They are shuffled
+ * rather than rolled for independently, which would sometimes hand him the same
+ * over twice and quietly bowl one of pace instead.
  */
 export function spinOvers(rng: SeededRandom, spell: SpinSpell): Set<number> {
-  const available: number[] = [];
-  for (let over = spell.notBefore; over < spell.ofOvers; over++) available.push(over);
-  return new Set(rng.shuffle(available).slice(0, Math.min(spell.overs, available.length)));
+  if (spell.overs <= 0) return new Set();
+  const later: number[] = [];
+  for (let over = spell.notBefore + 1; over < spell.ofOvers; over++) later.push(over);
+  return new Set([spell.notBefore, ...rng.shuffle(later).slice(0, spell.overs - 1)]);
 }
 export const CLASSIC_PLAN: BowlingPlan = { styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale };
 

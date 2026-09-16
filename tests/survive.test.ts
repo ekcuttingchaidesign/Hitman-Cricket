@@ -525,6 +525,38 @@ describe('the spinner gets overs, not deliveries', () => {
     }
   });
 
+  it('always gives him the third, whatever else it draws', () => {
+    // The change arrives on a fixed cue rather than as a coin landing, so two
+    // overs of pace and then the ball goes to the spinner, every innings.
+    for (let seed = 0; seed < 300; seed++) {
+      expect(spinOvers(new SeededRandom(seed), SPELL).has(SPIN.notBefore)).toBe(true);
+    }
+  });
+
+  it('leaves when he comes back an open question', () => {
+    // Only the first is fixed. If the other two were fixed as well the whole
+    // spell would be a timetable, which is the thing the draw is there to stop.
+    const later = new Set<string>();
+    for (let seed = 0; seed < 120; seed++) {
+      const rest = [...spinOvers(new SeededRandom(seed), SPELL)].filter(o => o !== SPIN.notBefore).sort();
+      expect(rest).toHaveLength(SPIN.overs - 1);
+      later.add(rest.join(','));
+    }
+    expect(later.size).toBeGreaterThan(8);
+  });
+
+  it('bowls him the third over in a real innings, not just on paper', () => {
+    // The generator counts its own deliveries, so this is the guarantee as the
+    // batter meets it: balls 13 to 18 are his.
+    for (let seed = 0; seed < 25; seed++) {
+      const generator = attack(seed);
+      for (let ball = 0; ball < SURVIVE.totalBalls; ball++) {
+        const spin = SPIN_STYLES.includes(generator.next(0).style);
+        if (Math.floor(ball / SURVIVE.ballsPerOver) === SPIN.notBefore) expect(spin).toBe(true);
+      }
+    }
+  });
+
   it('draws a different three from innings to innings', () => {
     // A fixed spell is a timetable, and a batter who knows the seventh is the
     // one to see off is batting to the clock rather than to the ball.
