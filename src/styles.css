@@ -2233,7 +2233,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .result-balls{
   margin:0;
   font-family:var(--card);
-  font-size:2.63cqw;
+  font-size:3.2cqw;
   color:#b9c9d6;
   white-space:nowrap
 }
@@ -2274,7 +2274,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   color:#fff;
   font-variant-numeric:tabular-nums
 }
-.result-keys{display:flex;flex-direction:column;gap:2.2cqw;margin-top:6cqw}
+.result-keys{display:flex;flex-direction:column;gap:5.5cqw;margin-top:6cqw}
 .result-keys .play-button,.result-keys .learn-button{width:100%;margin:0}
 /* Won: gold over the words, green on the number — the only card in the mode
    that gets to be green. */

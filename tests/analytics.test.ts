@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { counting, scoreBand } from '../src/game/analytics';
+import { ballsBand, counting, scoreBand } from '../src/game/analytics';
 
 const at = (hostname: string, search = '') => counting({ hostname, search });
 
@@ -60,50 +60,52 @@ async function counted() {
   return { count, analytics: await import('../src/game/analytics') };
 }
 
-describe('the innings that does not count', () => {
+describe('counting a moment', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('sends a classic moment', async () => {
+  it('sends a moment once the counter is there', async () => {
     const { count, analytics } = await counted();
     analytics.track('innings-start');
     expect(count).toHaveBeenCalledTimes(1);
   });
 
-  it('sends nothing while Survive is being played', async () => {
-    const { count, analytics } = await counted();
-    analytics.reporting(false);
-    analytics.track('innings-start');
-    analytics.trackOnce('first-shot');
-    expect(count).not.toHaveBeenCalled();
-  });
-
-  it('counts again when the player goes back to the classic innings', async () => {
-    const { count, analytics } = await counted();
-    analytics.reporting(false);
-    analytics.track('innings-start');
-    analytics.reporting(true);
-    analytics.track('innings-start');
-    expect(count).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not let a suspended moment burn its only turn', async () => {
-    // trackOnce marks a name fired before track ever looks at the gate, so the
-    // naive version of this would spend `first-shot` on a Survive innings that
-    // sent nothing — and the player's first classic shot would go unreported
-    // for the rest of the session.
-    const { count, analytics } = await counted();
-    analytics.reporting(false);
-    analytics.trackOnce('first-shot', 'First shot played');
-    analytics.reporting(true);
-    analytics.trackOnce('first-shot', 'First shot played');
-    expect(count).toHaveBeenCalledTimes(1);
-    expect(count).toHaveBeenCalledWith({ path: 'first-shot', title: 'First shot played', event: true });
-  });
-
-  it('still only counts a once-moment once', async () => {
+  it('only counts a once-moment once', async () => {
     const { count, analytics } = await counted();
     analytics.trackOnce('help-open');
     analytics.trackOnce('help-open');
     expect(count).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the two innings apart by name', async () => {
+    // GoatCounter has no custom properties, so the mode is in the name or it is
+    // nowhere. A Test match reports `survive-innings-start`; the five-over
+    // innings reports `innings-start`, and neither is counted as the other.
+    const { count, analytics } = await counted();
+    analytics.track('innings-start');
+    analytics.track('survive-innings-start');
+    expect(count).toHaveBeenNthCalledWith(1, expect.objectContaining({ path: 'innings-start' }));
+    expect(count).toHaveBeenNthCalledWith(2, expect.objectContaining({ path: 'survive-innings-start' }));
+  });
+});
+
+describe('how far he got', () => {
+  it('cuts the bands where the mode\u2019s own furniture is', () => {
+    // Nine off four balls and nine off forty are the same row on a score band
+    // and two completely different innings.
+    expect(ballsBand(0)).toBe('balls-under-1-over');
+    expect(ballsBand(5)).toBe('balls-under-1-over');
+    expect(ballsBand(6)).toBe('balls-1-3-overs');
+    expect(ballsBand(17)).toBe('balls-1-3-overs');
+    expect(ballsBand(18)).toBe('balls-3-5-overs');
+    expect(ballsBand(29)).toBe('balls-3-5-overs');
+    expect(ballsBand(30)).toBe('balls-5-8-overs');
+    expect(ballsBand(47)).toBe('balls-5-8-overs');
+    expect(ballsBand(48)).toBe('balls-8-10-overs');
+    expect(ballsBand(60)).toBe('balls-8-10-overs');
+  });
+
+  it('never invents a band between two of them', () => {
+    const bands = new Set(Array.from({ length: 61 }, (_, balls) => ballsBand(balls)));
+    expect(bands.size).toBe(5);
   });
 });

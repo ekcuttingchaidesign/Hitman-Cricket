@@ -754,6 +754,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /** The mode picker. Skipped entirely when a link has already named the mode. */
   modes() {
+    // Whatever was over the ground goes first. The picker is a screen, and both
+    // end cards sit later in the markup on the same layer — opened from one of
+    // them the picker appeared *behind* it, which read as the key doing nothing.
+    ['end', 'end-survive'].forEach(id => this.$(id).classList.add('hidden'));
+    this.viewport.classList.remove('result-open');
     this.$('modes').classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     // This screen is not a card over the ground, it replaces it — so the row of

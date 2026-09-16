@@ -2,7 +2,7 @@ import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE } from './config/survive';
 import { Confidence } from './game/Confidence';
 import { Health } from './game/Health';
-import { endingOf, resolveSurvive, sledgeDue, teamScore } from './game/Survive';
+import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
 import { CLASSIC_PLAN, spun, type BowlingPlan } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
@@ -23,7 +23,7 @@ import { cardOffer, type CardOffer } from './ui/Leaderboard';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
-import { counting, inningsBand, marksPassed, reporting, scoreBand, track, trackOnce } from './game/analytics';
+import { ballsBand, counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from './game/analytics';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -151,7 +151,7 @@ export class Game {
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
     void playerId().then(id => { this.player = id; }).catch(() => {});
-    if (SURVIVE_ONLY) reporting(false); else this.countVisit();
+    this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
     // 404 on every load — harmless, since a board that never answers is already
@@ -167,7 +167,7 @@ export class Game {
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('modes-cancel', () => this.hud.closeModes());
     this.hud.on('survive-again', this.start);
-    this.hud.on('survive-modes', () => { this.hud.closeModes(); this.hud.modes(); });
+    this.hud.on('survive-modes', () => this.hud.modes());
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
@@ -217,14 +217,13 @@ export class Game {
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
   choose = (mode: GameMode) => { this.mode = mode; this.start(); };
   start = () => {
-    if (!SURVIVE_ONLY) reporting(!this.surviving);
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
-    if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) track('innings-restart', 'Innings restarted');
+    if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) this.mark('innings-restart', 'Innings restarted');
     this.innings++;
     this.inningsFrom = this.playedMs;
-    track('innings-start', 'Innings started');
-    if (this.innings > 1) track('innings-replay', 'Innings replayed');
+    this.mark('innings-start', 'Innings started');
+    if (this.innings > 1) this.mark('innings-replay', 'Innings replayed');
     this.lesson = -1;
     this.audio.stop(); this.audio.unlock();
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
@@ -247,7 +246,6 @@ export class Game {
   };
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
-    if (!SURVIVE_ONLY) reporting(true);
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
     this.scene.whites(false);
@@ -284,6 +282,19 @@ export class Game {
   }
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() { return this.surviving ? SURVIVE.timing.poor : GAME.timing.poor; }
+  /**
+   * A moment, named for the innings it happened in.
+   *
+   * GoatCounter has no custom properties — an event is a path and a title — so
+   * the mode has to be in the name or it is not anywhere. Everything that is
+   * about a session rather than an innings (the first shot, the help screen,
+   * the minutes played) stays unprefixed: those are the same fact whichever
+   * innings it happened in, and splitting them would halve every count for
+   * nothing.
+   */
+  private mark(name: string, title: string) {
+    track(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
+  }
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
   private shoot = (shotType: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
@@ -626,7 +637,17 @@ export class Game {
       // off the classic board: the two innings are not comparable and a Survive
       // score standing next to a thirty-ball one would be nonsense in both
       // directions. Its own board is the next piece of work.
-      this.hud.endSurvive(this.score, this.health, this.ending ?? 'DRAWN', this.chasing);
+      const ending = this.ending ?? 'DRAWN';
+      // The classic end block below is never reached from here, so the Test
+      // match reports its own. The result rather than the ending, because the
+      // result is what the player was actually shown — and it carries the
+      // ending anyway, with the close losses split off from the rest.
+      this.mark('innings-end', 'Innings completed');
+      track(`survive-result-${resultOf(ending, this.score.runs, this.score.balls).toLowerCase()}`,
+        `Test match ended: ${ending}`);
+      track(`survive-${scoreBand(this.score.runs)}`, 'Test match runs');
+      track(`survive-${ballsBand(this.score.balls)}`, 'Test match balls faced');
+      this.hud.endSurvive(this.score, this.health, ending, this.chasing);
       return;
     }
     const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
