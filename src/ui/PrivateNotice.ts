@@ -17,9 +17,12 @@ import { track } from '../game/analytics';
  *
  * The artwork sits in `public/` rather than being bundled, so a missing file
  * costs a headline rather than a build — the words the poster carries are in the
- * page too, hidden, and take its place if it never loads.
+ * page too, hidden, and take its place if it never loads. It is fitted rather
+ * than filled: the joke is written along the top of it and the two emoji sit out
+ * at its edges, so a phone that cropped it to its own shape would cut the line
+ * the screen exists to deliver.
  */
-const ARTWORK = 'incognito.webp';
+const ARTWORK = 'younaughtyyou.webp';
 
 /** What the poster says, for a screen reader and for a browser with no picture. */
 const ALT = 'You naughty you — don’t try in incognito, play in normal tab.';

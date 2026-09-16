@@ -1781,12 +1781,13 @@ dialog .primary-button{margin-top:18px}
 /* The private-window screen, which stands where the game would be until the
    player either moves to a normal tab or asks to bat anyway.
 
-   The poster is the screen: it is held at its own portrait shape and filled,
-   so a phone sees it edge to edge and a wide screen sees it as a tall plate on
-   the game's navy rather than a landscape crop of a portrait picture. Over it
-   go the cover's own two keys — the white key on its orange base and the navy
-   plate behind it — because the cover already stands that pair over artwork and
-   this is the same game. */
+   The poster is the screen, and it is shown whole. The line it carries runs
+   along the top and the two emoji sit right out at its edges, so it is fitted
+   to the window rather than filled to it: a phone is a narrower shape than the
+   poster, and cropping it to fit would cut the joke off at both ends. What is
+   left over is the game's own navy. Over the foot of it go the cover's two keys
+   — the white key on its orange base and the navy plate behind it — because the
+   cover already stands that pair over artwork and this is the same game. */
 .private-gate{
   position:fixed;
   inset:0;
@@ -1798,15 +1799,17 @@ dialog .primary-button{margin-top:18px}
 }
 .private-poster{
   position:relative;
-  /* Nine by sixteen, or the screen, whichever runs out first. */
-  width:min(100%,56.25vh);
+  width:100%;
   height:100vh;
   overflow:hidden
 }
 @supports(height:100dvh){
-  .private-poster{width:min(100%,56.25dvh);height:100dvh}
+  .private-poster{height:100dvh}
 }
-.private-art{width:100%;height:100%;object-fit:cover;display:block}
+/* Held to the top of whatever room there is, so the slack a narrow screen
+   leaves over gathers under the poster where the keys are rather than being
+   split into two bands, one of which the keys then sit on top of anyway. */
+.private-art{width:100%;height:100%;object-fit:contain;object-position:50% 0;display:block}
 .private-keys{
   position:absolute;
   left:0;
@@ -1817,6 +1820,8 @@ dialog .primary-button{margin-top:18px}
   align-items:center;
   gap:11px;
   padding:88px var(--pad-right) calc(22px + env(safe-area-inset-bottom)) var(--pad);
+  /* The keys are the game's, not the poster's: they keep the cover's own width
+     however wide the screen the poster is standing on. */
   /* The poster ends in pitch and pads, which is a light surface under white
      type. The keys bring their own night with them. */
   background:linear-gradient(to top,#08192acc 58%,#08192a00)
@@ -1847,7 +1852,7 @@ dialog .primary-button{margin-top:18px}
 body.private-window{overflow:hidden}
 /* With no poster there is nothing to stand the keys over, so the words it
    carries take the middle of the screen and the keys sit under them. */
-.private-gate.is-wordless .private-poster{width:min(100%,420px);display:flex;flex-direction:column;justify-content:center;padding:0 var(--pad-right) 0 var(--pad)}
+.private-gate.is-wordless .private-poster{display:flex;flex-direction:column;justify-content:center;padding:0 var(--pad-right) 0 var(--pad)}
 .private-gate.is-wordless .private-keys{position:static;padding:26px 0 0;background:none}
 .private-words{text-align:center}
 .private-words h1{

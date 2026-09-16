@@ -266,13 +266,13 @@ A returning player is not asked twice: the name and kit are kept in `localStorag
 
 ### Private windows
 
-A private window is handed a player id it will forget the moment it closes, so an innings claimed from one takes a row on the board that nobody can ever come back to and improve. The game therefore opens such a window on the poster at `public/incognito.webp` rather than on the cover.
+A private window is handed a player id it will forget the moment it closes, so an innings claimed from one takes a row on the board that nobody can ever come back to and improve. The game therefore opens such a window on the poster at `public/younaughtyyou.webp` rather than on the cover.
 
 **No browser will say whether it is private.** It is deliberately undetectable: a page that could tell would be a page that could treat those players differently, which is the thing private browsing exists to stop. So `src/game/private-mode.ts` guesses, from the one side effect left to read. A private window is given a small temporary quota where an ordinary one is given a share of the disk, and `navigator.storage.estimate()` reports the gap: tens of gigabytes against a fraction of one. Firefox adds a second tell — no service workers in a private window — and that is the lot. Nothing asks whether storage *works*, because in a private window it works fine; it is only forgotten afterwards.
 
 The quota tell has one predictable way of being wrong, and it was wrong the first time it was run: a machine with very little disk left reports a private window's figure while being nothing of the kind. So the line is drawn low — twice the JS heap ceiling, held between one and two gigabytes — and a browser that has been here **on an earlier day** is cleared whatever its quota says. That mark (`hitman-seen`, a date in `localStorage`) is the one thing a private window can never produce, because it does not last the night.
 
-**The poster is the screen.** It already says the thing in its own type, so the page adds no words of its own: it is held at its own portrait shape and filled, edge to edge on a phone and a tall plate on the game's navy on a wide screen. What goes over it is the cover's own key pair — the white key on its orange base, the navy plate under it — because the cover already stands that pair over artwork and this is the same game.
+**The poster is the screen.** It already says the thing in its own type, so the page adds no words of its own. It is fitted rather than filled, and held to the top of the window: the line runs along the top of the poster and the two emoji sit right out at its edges, so a phone — a narrower shape than the poster — would cut the joke off at both ends if the picture were cropped to fit. The room left over gathers underneath as the game's own navy, which is where the keys go: the cover's own pair, the white key on its orange base and the navy plate under it, because the cover already stands that pair over artwork and this is the same game. On a screen with no room to spare they sit over the foot of the poster on a scrim instead.
 
 What the keys do is not a lock, because the check is a guess:
 
@@ -280,7 +280,9 @@ What the keys do is not a lock, because the check is a guess:
 - **Copy link**, for pasting into an ordinary tab, which is the thing the poster is asking for.
 - The notice is shown **once a session**. A reload does not ask again.
 - `?private=1` forces it on and `?private=0` forces it off, which is how the screen is worked on without two browsers open.
-- The artwork is served from `public/` rather than bundled, so a missing file costs a headline set in the game's own type rather than a build. The words the poster carries are in the page too, hidden, and take its place if it never loads.
+- The artwork is served from `public/` rather than bundled, so a missing file costs a headline set in the game's own type rather than a build. The words the poster carries are in the page too, hidden, and take its place if it never loads. The file name is the whole contract — `src/ui/PrivateNotice.ts` is the only place it is asked for, and any format a browser reads will do.
+
+The poster is portrait, near enough to nine by sixteen; this one is 941 &times; 1672, which arrived as a 1.8 MB PNG and was written to WebP at quality 82 — the setting the kit pictures use — for 122 KB with nothing visible lost. A replacement wants the same shape, its own copy of the line along the top, and a quiet lower fifth, which is where the keys land on a screen with no room to spare.
 
 Two events are counted: `private-window` when the notice goes up, and `private-play-anyway` when somebody bats on regardless. The second is the one worth watching — it is also how a check that has started guessing wrong would show up, as a ratio that climbs after a browser release.
 
