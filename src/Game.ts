@@ -179,12 +179,12 @@ export class Game {
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
-    this.hud.on('start', () => (this.locked ? this.start() : this.hud.modes()));
+    this.hud.on('start', () => (this.locked ? this.start() : this.modes()));
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('modes-cancel', () => this.hud.closeModes());
     this.hud.on('survive-again', this.start);
-    this.hud.on('survive-modes', () => this.hud.modes());
+    this.hud.on('survive-modes', this.modes);
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
@@ -238,6 +238,17 @@ export class Game {
       hurt: () => { this.health.value = 1; this.showConfidence(); },
     } });
   }
+  /**
+   * The mode picker, and the cover's music with it.
+   *
+   * The picker is a start screen — it replaces the ground rather than standing
+   * over it, and the end card it can be opened from is put away to make room —
+   * so it is the cover's music that belongs on it however it was reached. From
+   * the cover that is already what is playing and this changes nothing; from
+   * the Test card it is the card's music handing over to the screen that has
+   * just replaced the card.
+   */
+  private modes = () => { this.audio.music('cover'); this.hud.modes(); };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
   choose = (mode: GameMode) => { this.mode = mode; this.start(); };
   start = () => {
@@ -503,7 +514,7 @@ export class Game {
     }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {
       event.preventDefault();
-      if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.hud.modes();
+      if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.modes();
     }
     else if (key === 'B' && !SURVIVE_ONLY) { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }

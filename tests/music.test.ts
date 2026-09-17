@@ -84,6 +84,19 @@ describe('the music a screen owns', () => {
     expect(result()!.calls).toEqual(['play']);
     audio.dispose();
   });
+  it('hands the card\'s music over to the cover\'s for the picker', () => {
+    const audio = new GameAudio();
+    // The mode picker is reached from the Test card as well as from the cover,
+    // and it replaces whichever it was reached from — so it takes the cover's
+    // music with it either way.
+    audio.music('result');
+    result()!.currentTime = 12;
+    audio.music('cover');
+    expect(result()!.calls).toEqual(['play', 'pause']);
+    expect(result()!.currentTime).toBe(0);
+    expect(cover()!.calls).toEqual(['play']);
+    audio.dispose();
+  });
   it('fetches the card\'s music without playing it', () => {
     const audio = new GameAudio();
     audio.warm('result');
