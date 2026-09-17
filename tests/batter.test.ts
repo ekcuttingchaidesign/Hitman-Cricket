@@ -372,6 +372,9 @@ describe('the grip', () => {
           expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])),where).toBeLessThan(.30);
           expect(pose.cuffAim[i].socketError,where).toBeLessThan(1e-9);
           expect(pose.cuffAim[i].flex,where).toBeLessThan(Math.PI/2);
+          // A skin ball smaller than the sleeve radius left an open seam
+          // at the folded charge elbow despite correct joint coordinates.
+          expect(pose.elbowCoverage[i],where).toBeGreaterThan(0);
         }
         previous=pose;
       }
@@ -405,7 +408,7 @@ describe('the grip', () => {
     expect(flattest, `closest elbow to the handle: ${wristWhere}`).toBeGreaterThan(.09);
   });
 
-  it('waits with the bat cocked back towards first slip, face opened up', () => {
+  it('waits with the bat cocked back towards first slip, flat face down', () => {
     const batter = new Batter();
     batter.reset();
     const guard = batter.inspect();
@@ -417,8 +420,8 @@ describe('the grip', () => {
     expect(lift.y).toBeGreaterThan(.3);
     // Laid back rather than stood up: nearer the horizontal than the vertical.
     expect(Math.atan2(lift.y, Math.hypot(lift.x, lift.z))).toBeLessThan(.85);
-    // And the face turned up to the sky, not held square while the blade lifts.
-    expect(guard.batFace[1]).toBeGreaterThan(.5);
+    // The flat striking face looks down; the raised spine is on top.
+    expect(guard.batFace[1]).toBeLessThan(-.4);
   });
 });
 
@@ -460,15 +463,28 @@ describe('shoulders', () => {
 });
 
 describe('the charge', () => {
-  it('keeps both grip rotations fixed through the gather, downswing and contact',()=>{
+  it.each(['straight','cover','charge'])('presents the flat face from face-down pickup into %s contact',kind=>{
     for(const x of [-.17,0,.17]) {
       const batter=new Batter(); batter.prepare(1); batter.update(0);
-      const grip=batter.inspect().gripRotation.map(q=>new Quaternion(...q));
-      batter.swing('STRAIGHT',0,x,.54,GAME.contactZ,true);
-      for(let time=100;time<=CHARGE_CONTACT_MS;time+=2) {
+      expect(batter.inspect().batFace[1]).toBeLessThan(-.4);
+      const impact=kind==='charge'?CHARGE_CONTACT_MS:110;
+      batter.swing(kind==='cover'?'COVER_LONG_OFF':'STRAIGHT',0,x,.54,GAME.contactZ,kind==='charge');
+      batter.update(impact);
+      const contactFace=new Vector3(...batter.inspect().batFace);
+      const contactUp=new Vector3(0,1,0).applyQuaternion(batter.bat.quaternion);
+      for(let time=0;time<=impact;time+=2) {
         batter.update(time);
-        batter.inspect().gripRotation.forEach((q,i)=>expect(new Quaternion(...q).angleTo(grip[i])).toBeLessThan(1e-7));
+        const pose=batter.inspect();
+        const up=new Vector3(0,1,0).applyQuaternion(batter.bat.quaternion);
+        const unrolled=contactFace.clone().applyQuaternion(new Quaternion().setFromUnitVectors(contactUp,up));
+        // Cover opens from the shared straight-facing guard toward off side;
+        // allow that placement adjustment, never a flat/back-face reversal.
+        expect(new Vector3(...pose.batFace).dot(unrolled)).toBeGreaterThan(.5);
+        // Both palms retain the handle axis; wrists must never fold backwards.
+        for(const axis of pose.gripAxis) expect(axis).toBeCloseTo(1,9);
+        for(const cuff of pose.cuffAim) expect(cuff.flex).toBeLessThan(Math.PI/2);
       }
+      expect(batter.inspect().batFace[2]).toBeGreaterThan(.8);
     }
   });
   it.each(['pull','charge','straight','cover'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {

@@ -43,8 +43,9 @@ export const CHARGE_DURATION_MS = 1320;
 // solve back from those grip anchors, so neither hand can leave the bat.
 // The waiting stance is the raised pick-up: knees flexed, hands up off the front
 // hip, and the bat cocked back over the shoulder so the toe points at first slip
-// with the face opened to the sky. A handle held out square while the blade is
-// lifted is the one thing wrists cannot do.
+// above the hands. The original pose orientations below are retained as motion
+// guides so the approved blade path stays unchanged; apply() corrects the
+// rendered face to face-down at pickup and flat-face-forward at drive contact.
 const GUARD: Pose = {
   hip: [-0.05, 0.94, -0.03], chest: [0.02, 1.28, 0.03],
   frontFoot: [-0.10, 0.08, 0.27], backFoot: [-0.13, 0.08, -0.25],
@@ -396,7 +397,6 @@ export { solveJoint } from './rig';
 
 export class Batter {
   private poseAge = 0;
-  private chargeGrip: number[] = [];
   readonly root = new THREE.Group();
   readonly bat = new THREE.Group();
   private torso = new THREE.Group();
@@ -502,7 +502,7 @@ export class Batter {
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
-        elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
+        elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3() });
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
@@ -548,7 +548,6 @@ export class Batter {
   get felled() { return Number.isFinite(this.felledAt); }
 
   reset() {
-    this.chargeGrip = [];
     this.poseAge = Infinity;
     this.felledAt = -Infinity;
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.charging = false;
@@ -557,7 +556,6 @@ export class Batter {
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false) {
-    this.chargeGrip = this.arms.map(arm => arm.glove.rotation.y);
     this.shot = shot; this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
     this.swingStart = now; this.contactTime = now + (charging ? CHARGE_CONTACT_MS : this.pulling ? PULL_CONTACT_MS : STROKE_CONTACT_MS);
@@ -748,6 +746,36 @@ export class Batter {
     this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
     this.bat.position.set(...pose.grip);
     this.bat.quaternion.copy(batOrientation(pose));
+    // Keep the approved blade axis/path, but orient its flat face in the
+    // stroke plane. The former guard opened the face skyward and then rolled
+    // it around the handle on the way down. A drive needs no such axial roll.
+    const driveShot=this.charging || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF';
+    const idle=!Number.isFinite(this.poseAge) || this.poseAge >= (this.charging?CHARGE_DURATION_MS:STROKE_DURATION_MS);
+    if (!this.felled) {
+      const up=UP.clone().applyQuaternion(this.bat.quaternion);
+      const impact=this.charging?CHARGE_CONTACT_MS:STROKE_CONTACT_MS;
+      const reference=this.charging?CHARGE.contact:this.shot==='COVER_LONG_OFF'?STROKES.COVER_LONG_OFF.contact:STROKES.STRAIGHT.contact;
+      const referenceQ=batOrientation(STROKES.STRAIGHT.contact).clone().slerp(batOrientation(reference),idle?0:ease(THREE.MathUtils.clamp(this.poseAge/impact,0,1)));
+      const referenceUp=UP.clone().applyQuaternion(referenceQ);
+      const transported=new THREE.Quaternion().setFromUnitVectors(referenceUp,up).multiply(referenceQ);
+      if(idle || (driveShot && this.poseAge<=impact)) this.bat.quaternion.copy(transported);
+      else {
+        // Return the same corrected guard without snapping the other strokes.
+        const duration=this.charging?CHARGE_DURATION_MS:STROKE_DURATION_MS;
+        const returnSpan=260;
+        const returnWeight=ease(THREE.MathUtils.clamp((this.poseAge-(duration-returnSpan))/returnSpan,0,1));
+        const entryWeight=driveShot?0:1-ease(THREE.MathUtils.clamp(this.poseAge/STROKE_CONTACT_MS,0,1));
+        const guardPose=entryWeight>0?this.swingFrom:GUARD;
+        const guardQ=batOrientation(guardPose), guardUp=UP.clone().applyQuaternion(guardQ);
+        const corrected=new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(batOrientation(STROKES.STRAIGHT.contact)),guardUp)
+          .multiply(batOrientation(STROKES.STRAIGHT.contact));
+        const localFace=new THREE.Vector3(0,0,1).applyQuaternion(corrected).applyQuaternion(guardQ.clone().invert());
+        let roll=Math.atan2(localFace.x,localFace.z);
+        if(roll<0) roll+=Math.PI*2;
+        if(entryWeight>0) roll-=Math.PI*2;
+        this.bat.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP,roll*Math.max(entryWeight,returnWeight)));
+      }
+    }
     this.root.updateMatrixWorld(true);
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i];
@@ -838,20 +866,6 @@ export class Batter {
         for (let iteration=0; iteration<6; iteration++) {
           elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
           radial.copy(elbow).sub(grip).addScaledVector(axis, -elbow.clone().sub(grip).dot(axis)).normalize();
-          if (this.chargeGrip.length && this.charging && !this.felled) {
-            const release = CHARGE_CONTACT_MS;
-            const weight = ease(THREE.MathUtils.clamp(this.poseAge/100,0,1))
-              * (1-ease(THREE.MathUtils.clamp((this.poseAge-release)/120,0,1)));
-            const local = radial.clone().applyQuaternion(this.bat.quaternion.clone().invert());
-            const automatic = Math.atan2(-local.x,-local.z);
-            const delta = Math.atan2(Math.sin(this.chargeGrip[i]-automatic),Math.cos(this.chargeGrip[i]-automatic));
-            const angle = automatic + delta*weight;
-            radial.set(-Math.sin(angle),0,-Math.cos(angle)).applyQuaternion(this.bat.quaternion);
-            // With a stable grip it is the elbow that must follow the palm,
-            // not the fist that spins around the bat to follow an elbow.
-            const wristPole = hand.clone().addScaledVector(radial,.34);
-            pole.lerp(wristPole,.12*weight);
-          }
           hand.copy(grip).addScaledVector(radial,.075);
         }
         elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
@@ -912,6 +926,8 @@ export class Batter {
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),
       chest: [...this.pose.chest], hip: [...this.pose.hip],
       armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),
+      elbowCoverage: this.arms.map(arm=>Math.min(arm.elbow.scale.x,arm.elbow.scale.y,arm.elbow.scale.z)
+        - Math.max(arm.upper.scale.x,arm.upper.scale.z)*.5),
       legLengths: this.legs.map(leg => [leg.thigh.scale.y, leg.shin.scale.y]),
       charging: this.charging, downPitch: this.root.position.z - GAME.stanceZ,
       backToe: this.legs[1].shoe.localToWorld(new THREE.Vector3(0, -.07, .225)).toArray(),

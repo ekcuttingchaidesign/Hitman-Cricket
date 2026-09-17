@@ -138,3 +138,23 @@ Regression checks require both upper arms to sweep more than 45 degrees between
 contact and finish, hands to rise over 0.5 m, and the straight blade to remain
 upright throughout its post-contact active phase. These tests guard the intended
 motion; they do not by themselves certify realism.
+
+## Face orientation and folded-elbow seam — IMG_4055 / IMG_4056
+
+The raised guard previously authored the flat face skyward. The rendered
+drive orientation now transports the impact frame back along the existing
+blade axis, yielding a downward-facing flat surface at pickup without changing
+the approved blade-tip or hand trajectory. Contact remains flat-face-forward.
+Return-to-guard roll is spread over the recovery, with a consistent signed
+rotation so crossing a quaternion hemisphere cannot flip the face.
+
+Removed the earlier charge-specific frozen glove-angle workaround: it encoded
+the old reversed-face setup and forced the wrists backwards when used with the
+corrected face. Both hands retain their handle stations and grasp axes, while
+the continuous shoulder/elbow solve determines the wrist sockets. Continuity,
+wrist flexion and blade-volume clearance remain checked throughout the motion.
+
+The folded elbow also exposed a mesh seam: the old 0.05 m skin joint sphere did
+not cover the 0.0725 m sleeve-end radius. A matching rounded jersey elbow now
+encloses that end in every bend plane. Tests check this geometric coverage as
+well as the existing joint-position and bat/body-clearance constraints.
