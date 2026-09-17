@@ -2163,9 +2163,19 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
    a button is not markup a browser will accept — and the whole plate should be
    tappable anyway, which is what a thumb is going to do regardless. */
 /* Nothing of the game shows through: the picker is a screen, not a card over
-   the ground, and the hud keys are part of the ground. */
-.stage.picking-mode .hud-top,.stage.picking-mode .score-stack,
-.stage.result-open .hud-top,.stage.result-open .score-stack{display:none}
+   the ground, and the hud keys are part of the ground.
+
+   The sound key is the one exception, and it is the exception because both of
+   these screens have music of their own. A player who wants it off needs
+   something to press, and on a phone the keyboard's M is not something to
+   press. The row it stands in stops taking taps, so the rest of the strip
+   belongs to the screen underneath it the way it did when the whole row was
+   hidden. */
+.stage.picking-mode .score-stack,.stage.result-open .score-stack{display:none}
+.stage.picking-mode .hud-top,.stage.result-open .hud-top{pointer-events:none}
+.stage.picking-mode .hud-actions>:not(#sound),
+.stage.result-open .hud-actions>:not(#sound){display:none}
+.stage.picking-mode #sound,.stage.result-open #sound{pointer-events:auto}
 .mode-screen{
   /* The screen the cards stand on, and it is the one place this differs from
      the other overlays: they sit over the pitch, this one replaces it. */

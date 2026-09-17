@@ -224,6 +224,10 @@ export class Game {
       this.locked = true;
       this.hud.lockMode(false);
     }
+    // The cover has music of its own. It is asked for rather than waited on:
+    // a browser that will not play it yet is not a failure, it is a browser
+    // nobody has touched, and the first touch of the page lets it through.
+    this.audio.music('cover');
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
@@ -245,7 +249,10 @@ export class Game {
     this.mark('innings-start', 'Innings started');
     if (this.innings > 1) this.mark('innings-replay', 'Innings replayed');
     this.lesson = -1;
-    this.audio.stop(); this.audio.unlock();
+    // Walking out takes the cover's music with it: an innings is played to the
+    // bat and the crowd. The card's music is fetched now instead, so that the
+    // card does not go up in silence waiting for a megabyte to arrive.
+    this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     const param = new URLSearchParams(location.search).get('seed');
@@ -273,7 +280,7 @@ export class Game {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
     this.scene.whites(false);
-    this.audio.stop(); this.audio.unlock(); this.score = new ScoreManager();
+    this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
@@ -466,7 +473,7 @@ export class Game {
 
   /** The Test innings just played, as its board ranks it. */
   private survived() { return asSurvive(this.score, this.health.blows.length, this.health.value); }
-  private visibility = () => { if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
+  private visibility = () => { this.audio.background(document.hidden); if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private shortcuts = (event: KeyboardEvent) => {
     if (event.repeat || this.hud.helpOpen) return;
@@ -740,6 +747,10 @@ export class Game {
 
   private end() {
     this.setPhase('INNINGS_END');
+    // Both cards get it, and it is asked for before the modes part company
+    // below: the innings that just ended is a different innings in each of
+    // them, but the screen it ends on is the same screen.
+    this.audio.music('result');
     if (this.surviving) {
       // Survive keeps its own best, its own card and its own board. It is
       // deliberately kept off the classic one: the two innings are not
