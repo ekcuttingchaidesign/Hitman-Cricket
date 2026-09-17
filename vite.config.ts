@@ -106,5 +106,5 @@ function surviveFigures(raw: unknown): SurviveInnings {
 export default defineConfig({
   base: './',
   plugins: [boardEndpoints()],
-  build: { rollupOptions: { output: { manualChunks: { three: ['three'] } } } },
+  build: { rollupOptions: { input: { game: 'index.html', shots: 'shot-preview.html' }, output: { manualChunks: { three: ['three'] } } } },
 });
