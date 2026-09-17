@@ -5,8 +5,8 @@ import { inventInnings, inventedBoard } from '../src/game/board-fixture';
 import { BOARD_SIZE, compareRows, decidedBy, plausible, unpackScore } from '../src/game/leaderboard';
 import type { BoardRow, Innings } from '../src/game/leaderboard';
 import {
-  asInnings, boardMarkup, cardOffer, cutLabel, cutoff, decider, escape, kitMarkup, peekMarkup, pickerMarkup, placeOf,
-  rowMarkup, standingPeek, tieNote,
+  BOARD_TABS, asInnings, boardMarkup, boardTabsMarkup, cardOffer, cutLabel, cutoff, decider, escape, kitMarkup,
+  peekMarkup, pickerMarkup, placeOf, rowMarkup, standingPeek, tieNote,
 } from '../src/ui/Leaderboard';
 import { AVATARS, KITS, kitColour, kitDeal, kitName } from '../src/config/board';
 import { readdirSync } from 'node:fs';
@@ -509,5 +509,28 @@ describe('an innings that is not a row yet', () => {
     const markup = boardMarkup({ rows: board, yours: short, atMs: at });
     expect(markup).toContain('short');
     expect(markup).toContain('board-place">&mdash;');
+  });
+});
+
+describe('the two ladders, as tabs over the sheet', () => {
+  it('opens on the mode the player came from', () => {
+    // The tab is a way out of the board they asked for, not a question about
+    // which one they meant.
+    const blast = boardTabsMarkup('classic');
+    expect(blast).toContain('class="board-tab is-on" role="tab" type="button" aria-selected="true">The Blast');
+    expect(blast).toContain('class="board-tab" role="tab" type="button" aria-selected="false">Test Survival');
+    const test = boardTabsMarkup('survive');
+    expect(test).toContain('aria-selected="true">Test Survival');
+    expect(test).toContain('aria-selected="false">The Blast');
+  });
+
+  it('names both ladders the way the mode screen names them', () => {
+    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival']);
+    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive']);
+  });
+
+  it('leaves both keys reachable from a keyboard', () => {
+    // A roving tabindex would need arrow keys behind it, and there are none.
+    expect(boardTabsMarkup('classic')).not.toContain('tabindex');
   });
 });

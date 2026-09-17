@@ -82,6 +82,41 @@ export function decider(above: Innings | null, row: Innings): LadderKey | null {
   return key && key !== 'runs' && key !== 'dots' ? key : null;
 }
 
+/**
+ * The two ladders, as tabs over the sheet.
+ *
+ * The board a player asks for is the board for the innings they are in, which
+ * is right nearly always and leaves no way at all to the other one: the Test
+ * ladder was reachable only by playing a Test, and the Blast's only by playing
+ * a Blast. The sheet is the same screen in both modes, so the switch belongs on
+ * the sheet rather than being a second trip through the mode picker.
+ *
+ * It opens on the mode the player came from — the tab is a way *out* of the
+ * board they asked for, not a question about which one they meant — and it is
+ * drawn at all only where both ladders exist. A build that plays one mode has
+ * one board, and a row of tabs over it would be two names for one thing.
+ */
+export const BOARD_TABS = [
+  { mode: 'classic', id: 'board-tab-classic', name: 'The Blast' },
+  { mode: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
+] as const;
+
+export type BoardTab = (typeof BOARD_TABS)[number]['mode'];
+
+export function boardTabsMarkup(active: BoardTab): string {
+  return `
+    <div class="board-tabs" role="tablist" aria-label="Which leaderboard">${BOARD_TABS.map(tab => {
+      const on = tab.mode === active;
+      // Both stay tabbable. A tablist usually moves one tab stop between its
+      // tabs and drives the rest from the arrow keys; two keys that are also
+      // the only way to the other ladder are better off reachable the ordinary
+      // way than correct about a convention nothing here implements.
+      return `
+      <button id="${tab.id}" class="board-tab${on ? ' is-on' : ''}" role="tab" type="button" aria-selected="${on}">${tab.name}</button>`;
+    }).join('')}
+    </div>`;
+}
+
 /** The score an innings has to beat to get on, or null while the board fills. */
 export function cutoff(rows: readonly BoardRow[]): BoardRow | null {
   return rows.length >= BOARD_SIZE ? rows[BOARD_SIZE - 1] : null;

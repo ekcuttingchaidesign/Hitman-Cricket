@@ -1097,6 +1097,49 @@ body.start-screen .hud-top{display:none}
    it: a close button you cannot press because Mute is in front of it is not a
    close button, and the sheet's own × and Esc are both ways out. */
 #board-overlay{background:#071219f2;z-index:10}
+/* The tabs and the sheet are one column, so the sheet keeps the rest of the
+   screen and scrolls inside it rather than pushing the tabs off the top. */
+.board-stack{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  width:min(440px,100%);
+  max-height:100%;
+  margin:auto
+}
+.board-stack .board-sheet{width:100%;min-height:0;margin:0}
+/* Which ladder, in the dark above the sheet — the one piece of space on this
+   screen that was carrying nothing. A segmented key rather than two buttons:
+   the two are one choice, and the choice always has an answer. */
+.board-tabs{
+  display:flex;
+  gap:3px;
+  align-self:center;
+  width:min(320px,100%);
+  padding:3px;
+  border-radius:999px;
+  background:#ffffff14
+}
+.board-tab{
+  flex:1;
+  min-height:34px;
+  border:0;
+  border-radius:999px;
+  background:none;
+  font-family:var(--card);
+  font-size:11.5px;
+  font-weight:750;
+  letter-spacing:.8px;
+  color:#9fb2bd
+}
+.board-tab:hover:not(.is-on){color:#dce8ee}
+/* The live one is the sheet's own surface, lifted, so the tab reads as the
+   thing the sheet under it is showing rather than as a second button. */
+.board-tab.is-on{
+  background:#0f2738;
+  color:#fff;
+  box-shadow:0 1px 3px #0000004d
+}
 /* Ground, then title, then the way out. The stamp is the one place on this
    sheet that is set in tracked caps; everything else is sentence case. */
 .sheet-head{

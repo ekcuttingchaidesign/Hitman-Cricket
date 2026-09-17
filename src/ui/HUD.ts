@@ -4,7 +4,10 @@ import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappL
 import { track } from '../game/analytics';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
-import { boardMarkup, peekMarkup, pickerMarkup, standingPeek, type BoardView, type CardOffer } from './Leaderboard';
+import {
+  boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
+  type BoardTab, type BoardView, type CardOffer,
+} from './Leaderboard';
 import {
   surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
   type SurviveBoardView,
@@ -317,9 +320,28 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   surviveBoard(view: SurviveBoardView) { this.sheet(surviveBoardMarkup(view), true); }
 
+  /**
+   * Whether the sheet carries the two ladders' tabs. A build that plays one
+   * mode has one board, and tabs over it would be two names for one thing.
+   */
+  private tabbed = false;
+  showBoardTabs(on: boolean) { this.tabbed = on; }
+  /** What a tab does. The game decides, because the rows are the game's. */
+  onBoardTab: ((mode: BoardTab) => void) | null = null;
+
   private sheet(markup: string, surviving: boolean) {
     const overlay = this.$('board-overlay');
-    overlay.innerHTML = markup;
+    const tab: BoardTab = surviving ? 'survive' : 'classic';
+    // The tabs and the sheet are one column, so the sheet can still have the
+    // rest of the screen and scroll inside it.
+    overlay.innerHTML = this.tabbed
+      ? `<div class="board-stack">${boardTabsMarkup(tab)}${markup}</div>`
+      : markup;
+    if (this.tabbed) {
+      for (const other of ['classic', 'survive'] as const) {
+        this.$(`board-tab-${other}`).onclick = () => { if (other !== tab) this.onBoardTab?.(other); };
+      }
+    }
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     // The backdrop is the whole overlay, so a click that lands on the sheet is

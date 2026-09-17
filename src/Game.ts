@@ -22,7 +22,7 @@ import {
   type BoardPayload, type SurvivePayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { cardOffer, type CardOffer } from './ui/Leaderboard';
+import { cardOffer, type BoardTab, type CardOffer } from './ui/Leaderboard';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
 import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
@@ -128,6 +128,15 @@ export class Game {
   private surviveRows: SurviveRow[] = [];
   private surviveSeen = false;
   private player: string | null = null;
+  /** Which ladder the sheet is showing, which is the tab drawn as the live one. */
+  private boardTab: BoardTab = 'classic';
+  /**
+   * Whether this opening of the sheet is the one that follows a claim, and so
+   * carries the card's keys at its foot. Held across a tab rather than passed
+   * through it: a player who has just taken a place, looked at the other ladder
+   * and come back has not given up their way to play again.
+   */
+  private boardActions = false;
   private presentationAt = 0; private resultPresented = false;
   private contactAt = 0; private contactPlayed = false; private resolveEndsAt = 0;
   /** -1 outside the tutorial, otherwise the ball being coached. */
@@ -182,6 +191,9 @@ export class Game {
     this.hud.on('restart', this.start);
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
+    // Both ladders exist, so the sheet carries a way between them.
+    this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
+    this.hud.onBoardTab = this.tabBoard;
     this.hud.on('claim', this.startClaim);
     this.hud.on('claim-cancel', () => this.hud.closeClaim());
     (this.hud.viewport.querySelector('#card-claim') as HTMLFormElement).addEventListener('submit', event => {
@@ -393,29 +405,60 @@ export class Game {
     // pauses first, the way the instructions do. The pause card is still behind
     // it when the sheet is put away, which is the point.
     if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause();
-    if (this.surviving) return this.showSurviveBoard();
-    const played = this.phase === 'INNINGS_END' ? asInnings(this.score) : null;
-    const view = { youId: this.player, yours: played };
+    // The board a player asks for is the board for the innings they are in. The
+    // other one is a tab away, and never the one they land on.
+    this.boardActions = false;
+    this.openBoard(this.surviving ? 'survive' : 'classic');
+  };
+
+  /** The other ladder, from the tab over the sheet. */
+  private tabBoard = (mode: BoardTab) => {
+    if (mode === this.boardTab) return;
+    this.mark(`board-tab-${mode}`, 'The other board opened from a tab');
+    this.openBoard(mode);
+  };
+
+  private openBoard(mode: BoardTab) {
+    if (mode === 'survive') this.showSurviveBoard();
+    else this.showClassicBoard();
+  }
+
+  /**
+   * The Blast board. The sheet goes up straight away saying it is fetching,
+   * rather than the tab doing nothing for a second and then a screen appearing.
+   *
+   * The innings just played peeks on its own board and on no other: a Test
+   * innings has no place on this ladder, so switching to it from a Test card
+   * shows the fifty and nothing of yours.
+   */
+  private showClassicBoard() {
+    this.boardTab = 'classic';
+    const mine = this.phase === 'INNINGS_END' && !this.surviving;
+    const view = { youId: this.player, yours: mine ? asInnings(this.score) : null, actions: this.boardActions && mine };
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
     else this.hud.board({ ...view, rows: [], state: 'loading' as const });
     void fetchBoard().then(payload => {
-      if (this.disposed || !this.hud.boardOpen) return;
+      if (this.disposed || !this.hud.boardOpen || this.boardTab !== 'classic') return;
       if (payload) { this.boardSeen = true; this.board = payload.rows; }
       this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
     });
-  };
+  }
 
   /** The same opening, over the Test ladder. */
-  private showSurviveBoard(actions = false) {
-    const played = this.phase === 'INNINGS_END' ? this.survived() : null;
-    const view = { youId: this.player, yours: played, actions };
+  private showSurviveBoard() {
+    this.boardTab = 'survive';
+    const mine = this.phase === 'INNINGS_END' && this.surviving;
+    const view = { youId: this.player, yours: mine ? this.survived() : null, actions: this.boardActions && mine };
     this.hud.surviveBoard({
       ...view,
       rows: this.surviveRows,
       state: this.surviveRows.length ? 'ready' as const : 'loading' as const,
     });
     void fetchSurviveBoard().then(payload => {
-      if (this.disposed || !this.hud.boardOpen) return;
+      // A fetch that lands after the player has tabbed away belongs to a sheet
+      // that is no longer on screen, and drawing it would put the other ladder
+      // back under the tab they just chose.
+      if (this.disposed || !this.hud.boardOpen || this.boardTab !== 'survive') return;
       if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
       this.hud.surviveBoard({ ...view, rows: this.surviveRows, state: payload ? 'ready' : 'offline' });
     });
@@ -683,9 +726,15 @@ export class Game {
     // decided by which one was asked, so the mode is what reads it.
     if (this.surviving) {
       if (result.board) this.surviveRows = (result.board as SurvivePayload).rows;
-      return this.showSurviveBoard(true);
+      this.boardActions = true;
+      return this.openBoard('survive');
     }
     if (result.board) this.board = (result.board as BoardPayload).rows;
+    // Drawn from what the store just handed back rather than fetched again, so
+    // the place the player took is on screen and not a cached fifty from before
+    // they took it. The tab is set by hand for the same reason.
+    this.boardTab = 'classic';
+    this.boardActions = true;
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
   }
 
