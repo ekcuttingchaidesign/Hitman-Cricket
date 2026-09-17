@@ -27,6 +27,15 @@ const UP = new THREE.Vector3(0, 1, 0);
 const ease = (t: number) => t * t * (3 - 2 * t);
 export const STROKE_CONTACT_MS = 110;
 export const STROKE_DURATION_MS = 940;
+/**
+ * Where the two fists sit on the handle, measured up the bat from its origin.
+ * The handle runs from the shoulder of the blade at -.134 to the top of the
+ * knob at .245; a fist is .15 deep. The top hand is the left one and it goes to
+ * the knob, the bottom hand is the right and it follows it up, so the pair holds
+ * the top of the handle the way a right-hander's does and the spare handle is
+ * below them rather than above.
+ */
+const HAND = { top: .155, bottom: .020 } as const;
 
 // A right-handed guard: left shoulder and left foot lead toward the bowler.
 // The bat has one transform. Both fists are attached to its handle; the arms
@@ -143,7 +152,12 @@ const CUT_STROKE: Stroke = {
  * bouncer is where he stands, not what he does.
  */
 const CUT_HIGH: Stroke = {
-  contact: { ...CUT_STROKE.contact, hip: [-.15, .90, -.20], chest: [-.06, 1.25, -.05],
+  // Rocked that bit further back and across than the cut off a length: the ball
+  // is at his chest, so the hands come inside the line up where his own shoulder
+  // is rather than down beside his hip, and the chest has to travel with them.
+  // Left where the length cut stands, the front hand is carried round behind
+  // the front shoulder, which no shoulder does.
+  contact: { ...CUT_STROKE.contact, hip: [-.17, .90, -.20], chest: [-.13, 1.25, -.05],
     batUp: [-.86, .42, -.28], yaw: 1.42, heel: .06, leadElbow: -.06 },
   finish: { ...CUT_STROKE.finish, hip: [-.05, .92, -.23], chest: [.05, 1.31, -.13],
     grip: [.08, 1.43, .31], yaw: .32, heel: .22 },
@@ -269,11 +283,25 @@ const CHARGE: Stroke = {
     grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18 },
   // Charging is running: by the finish he has pushed off the front foot and
   // stepped through onto the back one, with the front leg trailing in the air.
-  // The hands finish high and in front of the chest with the bat wrapped down
-  // over the shoulder. Carried round behind the back — where the swing wants to
-  // take them — no shoulder reaches, and both arms end up somewhere no body goes.
+  // The bat finishes the way the straight drive's does — blade up and pointing
+  // away down the ground, hands high and out in front of the off shoulder.
+  // Wrapping the blade down over the shoulder instead is what the swing wants
+  // to do, and it is the one finish this stroke cannot take: the hands are in
+  // front of the chest and the blade is behind it, so the shaft between them
+  // lies through the trunk, and the sweep up to it drags the blade through him
+  // on the way.
+  //
+  // Wider of his head than the straight drive's finish, too. He is running at
+  // the ball rather than leaning into it, so the hands come up from further
+  // forward and take a tighter line past the grille on their way; carried at
+  // the drive's own width the top glove goes through the side of the helmet.
   finish: { ...GUARD, hip: [-.04, .86, .40], chest: [.04, 1.26, .42], frontFoot: [-.02, .30, -.06], backFoot: [-.22, .08, .30],
-    grip: [-.22, 1.42, .78], batUp: [.42, .32, .85], batFace: [.55, .55, -.45], yaw: .50, face: -.18, heel: 0, leadElbow: -.06 },
+    grip: [.40, 1.58, .72], batUp: [-.10, -.62, -.78], batFace: [0, .14, .99], yaw: .70, face: -.10, heel: 0, leadElbow: -.06 },
+  // Off the shoulder and down in front of him before the pick-up. He is walking
+  // back up the pitch through this, so the hands come down the off side where
+  // the camera can see them rather than across a chest that is moving.
+  recover: { ...GUARD, hip: [-.06, .90, .20], chest: [.04, 1.26, .24], frontFoot: [-.04, .08, .34], backFoot: [-.18, .08, -.16],
+    grip: [.34, 1.16, .46], batUp: [-.22, -.52, -.82], batFace: [.10, .84, -.53], yaw: .92, face: -.04, heel: .08, leadElbow: -.18 },
 };
 
 /**
@@ -414,8 +442,15 @@ export class Batter {
       // the handle, fingers curled over the face side. Turning each hand to face
       // its own forearm instead lets the two disagree about how they hold the
       // same stick — which is the twist no grip can make.
+      //
+      // Where the pair sits on the handle is the grip itself. Both hands go to
+      // the top of it: the left heel of the hand against the knob, the right
+      // directly under it, and the bare handle left between the bottom hand and
+      // the shoulder of the blade. Slid down the handle instead, the knob stands
+      // proud above the top fist and the bottom one chokes up against the blade
+      // — a short-handled hold nobody drives from.
       const glove = new THREE.Group(); this.bat.add(glove);
-      glove.position.set(0, i === 0 ? .10 : -.035, 0);
+      glove.position.set(0, i === 0 ? HAND.top : HAND.bottom, 0);
       this.mesh(glove, this.palette.pad, [.118, .150, .124], 'soft');
       for (let roll = 0; roll < 3; roll++)
         this.mesh(glove, this.palette.pad, [.112, .034, .034], 'soft').position.set(0, .046 - roll * .046, .050);
