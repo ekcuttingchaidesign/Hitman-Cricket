@@ -1316,17 +1316,54 @@ body.start-screen .hud-top{display:none}
   margin-top:2px;
   font-size:11px;
   font-weight:700;
-  letter-spacing:.2px
+  letter-spacing:.2px;
+  /* Quiet, now that the letter carries the result: two things in two colours
+     saying one fact was one thing too many. */
+  color:var(--quiet)
 }
-.survive-list .is-won .board-who small{color:#7de3ad}
-.survive-list .is-drawn .board-who small{color:#f0c65c}
-.survive-list .is-lost .board-who small{color:#f09a8c}
-/* A win is the top tier, so its runs carry the row. */
-.survive-list .is-won .board-runs{color:#7de3ad}
-/* Not out, which in this mode is most of the board: quiet, but never dropped. */
+/* A letter's worth of column, between the place and the kit, where a league
+   table puts it. The tiers are contiguous — tier is the ladder's top key — so
+   one column of letters bands the sheet into its three contests at a glance. */
+.survive-list .board-row{grid-template-columns:22px 13px 28px minmax(0,1fr) auto auto;gap:0 9px}
+.survive-list .board-result{
+  font-size:12.5px;
+  font-weight:800;
+  letter-spacing:.2px;
+  text-align:center
+}
+.survive-list .is-won .board-result{color:#7de3ad}
+.survive-list .is-drawn .board-result{color:#f0c65c}
+.survive-list .is-lost .board-result{color:#f09a8c}
+/* The ranked figure is never written bare: what it means changes with the tier,
+   and the same 47 is a rearguard on one row and nothing of the kind on another.
+   The unit sits under the figure rather than beside it — "to spare" alongside
+   "22" is half as wide again as the number it labels, and every pixel of that
+   comes off the names. */
+.survive-list .board-runs{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  line-height:1
+}
+.survive-list .board-runs b{font-weight:inherit;letter-spacing:inherit}
+.survive-list .board-runs small{
+  margin-top:2px;
+  font-size:8.5px;
+  font-weight:650;
+  letter-spacing:.2px;
+  color:var(--quiet)
+}
+/* The figure and its star are one thing; the label is not. */
+.survive-list .board-hits{margin-left:12px}
+.survive-list .board-hits em{gap:0}
+.survive-list .board-hits em small{margin-left:3px}
+/* Not out, which in this mode is most of the board: quiet, but never dropped.
+   It rides with the runs, which are the big figure on a draw and a supporting
+   one everywhere else. */
 .survive-list .board-runs i{margin-left:1px;color:var(--accent)}
+.survive-list .board-hits em i{font-size:1em;color:var(--accent)}
 /* "balls" and "blows" are wider words than "6s". */
-.survive-list .board-hits em{width:34px}
+.survive-list .board-hits em{width:36px}
 .survive-sheet .board-eyebrow{letter-spacing:1.4px}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */
@@ -1460,6 +1497,7 @@ body.start-screen .hud-top{display:none}
 .card-board-head b{font-weight:800}
 .card-peek{list-style:none;margin:0;padding:4px 15px 2px}
 .card-peek .board-row{grid-template-columns:20px 26px minmax(0,1fr) auto auto;padding:7px 0}
+.survive-list.card-peek .board-row{grid-template-columns:20px 13px 26px minmax(0,1fr) auto auto}
 .card-peek .board-kit{width:26px;height:26px}
 .card-peek .board-row.is-you{margin:0 -8px;padding:7px 8px}
 /* Place and runs carry the widget, so they are the one warm colour in it —

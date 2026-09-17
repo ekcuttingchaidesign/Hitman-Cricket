@@ -1,8 +1,8 @@
 import { kitColour } from '../config/board';
 import { HEALTH, SURVIVE } from '../config/survive';
 import {
-  SURVIVE_BOARD_SIZE, packSurvive, standingOf, surviveDecidedBy, surviveImprovesOn, surviveQualifies,
-  type Standing, type SurviveInnings, type SurviveRow,
+  SURVIVE_BOARD_SIZE, packSurvive, primaryOf, standingOf, surviveDecidedBy, surviveImprovesOn,
+  surviveQualifies, type Standing, type SurviveInnings, type SurviveRow,
 } from '../game/survive-board';
 import { escape, kitMarkup, type CardOffer } from './Leaderboard';
 
@@ -47,11 +47,85 @@ export interface SurviveBoardView {
 export function surviveLine(innings: SurviveInnings): string {
   const standing = standingOf(innings);
   if (standing === 'WON') {
-    const spare = SURVIVE.totalBalls - innings.balls;
-    return spare > 0 ? `Won, ${spare} ${spare === 1 ? 'ball' : 'balls'} to spare` : 'Won off the last ball';
+    // What it took, rather than what it left: the margin is the row's own
+    // figure now, so the line would be saying it twice.
+    if (innings.balls >= SURVIVE.totalBalls) return 'Won off the last ball';
+    return `Won off ${innings.balls} ${innings.balls === 1 ? 'ball' : 'balls'}`;
   }
   if (standing === 'DRAWN') return 'Drew the match';
   return innings.wickets > 0 ? 'Bowled out' : 'Retired hurt';
+}
+
+/**
+ * The result, as a letter.
+ *
+ * Three contests stacked into one list read as one list unless something says
+ * where each begins, and the tiers are always contiguous — tier is the top key
+ * — so a single column of letters bands the sheet at a glance. The colour is
+ * the sheet's own tier palette and is not carrying this alone: the letter says
+ * it, and the line under the name says it in full for anybody who cannot tell
+ * mint from salmon.
+ *
+ * It is `aria-hidden` on the row, because that line is already read out and
+ * "L, bowled out" is the same fact twice.
+ */
+const RESULT: Record<Standing, string> = { WON: 'W', DRAWN: 'D', LOST: 'L' };
+
+/**
+ * The figure the row is ranked on, and what to call it.
+ *
+ * The value is `primaryOf` itself — the function the ladder sorts by — so the
+ * biggest number on a row is always the number that put it there, and more is
+ * always better. What it *means* changes with the tier, which is why it is
+ * never written without its label: a chase is a race and a rearguard is not,
+ * and the same 47 means opposite things in the two.
+ */
+export function primaryFigure(innings: SurviveInnings): { value: number; label: string } {
+  const standing = standingOf(innings);
+  return {
+    value: primaryOf(innings),
+    label: standing === 'WON' ? 'to spare' : standing === 'DRAWN' ? 'runs' : 'balls',
+  };
+}
+
+/**
+ * The scorecard figure the big one leaves behind: runs, unless runs is already
+ * the big one, in which case the balls faced — which for a draw is every ball
+ * there was, and is the fact of the draw.
+ */
+export function secondFigure(innings: SurviveInnings): { value: number; label: string } {
+  return standingOf(innings) === 'DRAWN'
+    ? { value: innings.balls, label: 'balls' }
+    : { value: innings.runs, label: 'runs' };
+}
+
+/** The star is not-out, and it belongs to the runs wherever the runs are. */
+function starred(innings: SurviveInnings, label: string): string {
+  return label === 'runs' && innings.wickets === 0 ? '<i>*</i>' : '<i></i>';
+}
+
+/**
+ * The ranked figure, big, with the unit that stops it being ambiguous. The
+ * figure and its star are wrapped together because the unit sits under them,
+ * and a bare star between the two would take a line of its own.
+ */
+function primaryMarkup(innings: SurviveInnings): string {
+  const { value, label } = primaryFigure(innings);
+  return `<span class="board-runs"><b>${value}${starred(innings, label)}</b><small>${label}</small></span>`;
+}
+
+/** The two supporting figures, at a size that says they are supporting. */
+function secondMarkup(innings: SurviveInnings): string {
+  const { value, label } = secondFigure(innings);
+  return `<span class="board-hits">
+              <em>${value}${starred(innings, label)}<small>${label}</small></em>
+              <em>${innings.blows}<small>blows</small></em>
+            </span>`;
+}
+
+/** The letter, for the row and for the peek. */
+function resultMarkup(innings: SurviveInnings): string {
+  return `<span class="board-result" aria-hidden="true">${RESULT[standingOf(innings)]}</span>`;
 }
 
 /** The row's tier, as a class, so the line above can be coloured by it. */
@@ -105,7 +179,7 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
             : surviveMine(yours, '&mdash;', 'not good enough yet')
           : ''}
       </div>
-      <p class="board-foot">A win beats a draw beats a loss. Wins are ranked on balls used &mdash; a chase is a race &mdash; draws on the runs made while surviving, and losses on how long the last man kept them out. Level innings are split on runs, then on who took the lesser battering, and if that ties too, whoever got there first stays above.</p>
+      <p class="board-foot">A win beats a draw beats a loss. Wins are ranked on balls to spare &mdash; a chase is a race &mdash; draws on the runs made while surviving, and losses on how long the last man kept them out. Level innings are split on runs, then on who took the lesser battering, and if that ties too, whoever got there first stays above.</p>
       ${actions ? surviveActions() : ''}
     </div>`;
 }
@@ -138,14 +212,12 @@ export function surviveRowMarkup(
   return `
           <li class="${classes}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
+            ${resultMarkup(row)}
             ${kitMarkup(row.avatar, row.name)}
             <span class="board-who"><b>${escape(row.name)}</b><small><span>${surviveLine(row)}</span>${
               note ? `<i>&middot; ${note}</i>` : ''}</small></span>
-            <span class="board-runs">${row.runs}<i>${row.wickets ? '' : '*'}</i></span>
-            <span class="board-hits">
-              <em>${row.balls}<small>balls</small></em>
-              <em>${row.blows}<small>blows</small></em>
-            </span>
+            ${primaryMarkup(row)}
+            ${secondMarkup(row)}
           </li>`;
 }
 
@@ -229,10 +301,11 @@ function peekRow(place: number, name: string, kit: number | null, figures: Survi
   return `
             <li class="board-row ${tierClass(figures)}${you ? ' is-you' : ''}" style="--i:${place}"${you ? ' aria-current="true"' : ''}>
               <span class="board-place">${place}</span>
+              ${resultMarkup(figures)}
               ${disc}
               <span class="board-who"><b>${you ? escape(name) : '<i class="board-blank"></i>'}</b><small>${surviveLine(figures)}</small></span>
-              <span class="board-runs">${figures.runs}<i>${figures.wickets ? '' : '*'}</i></span>
-              <span class="board-hits"><em>${figures.balls}<small>balls</small></em><em>${figures.blows}<small>blows</small></em></span>
+              ${primaryMarkup(figures)}
+              ${secondMarkup(figures)}
             </li>`;
 }
 

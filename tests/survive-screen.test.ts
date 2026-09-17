@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HEALTH, SURVIVE } from '../src/config/survive';
 import {
-  LAUNCH_MS, SURVIVE_BOARD_SIZE, packSurvive, type SurviveInnings, type SurviveRow,
+  LAUNCH_MS, SURVIVE_BOARD_SIZE, packSurvive, primaryOf, type SurviveInnings, type SurviveRow,
 } from '../src/game/survive-board';
 import {
-  asSurvive, surviveBest, surviveBoardMarkup, surviveCutLabel, surviveCutoff, surviveLine,
-  surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup, surviveStandingPeek,
-  surviveTieNote,
+  asSurvive, primaryFigure, secondFigure, surviveBest, surviveBoardMarkup, surviveCutLabel,
+  surviveCutoff, surviveLine, surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup,
+  surviveStandingPeek, surviveTieNote,
 } from '../src/ui/SurviveBoard';
 import {
   CLASSIC_LADDER, SURVIVE_LADDER, readBoard, submitScore, type Submission,
@@ -31,9 +31,10 @@ describe('what a row says happened', () => {
     expect(surviveLine(innings({ runs: 31, balls: 24, wickets: 0 }))).toBe('Retired hurt');
   });
 
-  it('measures a win by what was left rather than what was used', () => {
-    expect(surviveLine(innings({ runs: SURVIVE.target, balls: 38 }))).toBe(`Won, ${SURVIVE.totalBalls - 38} balls to spare`);
-    expect(surviveLine(innings({ runs: SURVIVE.target, balls: SURVIVE.totalBalls - 1 }))).toBe('Won, 1 ball to spare');
+  it('says what a win took, since the row itself says what it left', () => {
+    // The margin is the row's own ranked figure now, so a line quoting it too
+    // would be the same fact written twice on one row.
+    expect(surviveLine(innings({ runs: SURVIVE.target, balls: 38 }))).toBe('Won off 38 balls');
     expect(surviveLine(innings({ runs: SURVIVE.target, balls: SURVIVE.totalBalls }))).toBe('Won off the last ball');
   });
 
@@ -87,11 +88,38 @@ describe('a row, drawn', () => {
     expect(surviveTieNote(null, drew)).toBe(null);
   });
 
-  it('shows the balls and the blows, which are what the innings cost', () => {
+  it('leads with the figure its tier is ranked on, and labels it', () => {
+    // The whole point: a loss is ranked on how long he lasted, so 47 balls is
+    // the big number and the 72 runs beside it are the supporting figure. A
+    // board that led with the runs put 72 above 86 and looked broken.
+    const lost = surviveRowMarkup(row({ runs: 72, balls: 47, blows: 5, wickets: 1 }), 5, false);
+    expect(lost).toContain('<b>47<i></i></b><small>balls</small>');
+    expect(lost).toContain('<em>72<i></i><small>runs</small></em>');
+    // A draw is ranked on runs, so the runs lead and the sixty balls support.
+    const drew = surviveRowMarkup(row({ runs: 23, balls: SURVIVE.totalBalls, blows: 2 }), 2, false);
+    expect(drew).toContain('<b>23<i>*</i></b><small>runs</small>');
+    expect(drew).toContain(`<em>${SURVIVE.totalBalls}<i></i><small>balls</small></em>`);
+    // A chase is a race, so what it led with is what it saved.
+    const won = surviveRowMarkup(row({ runs: SURVIVE.target, balls: 38, blows: 1 }), 0, false);
+    expect(won).toContain(`<b>${SURVIVE.totalBalls - 38}<i></i></b><small>to spare</small>`);
+  });
+
+  it('shows the blows, which are what the innings cost', () => {
     const drawn = surviveRowMarkup(row({ runs: 12, balls: 44, blows: 7, wickets: 1 }), 3, true);
-    expect(drawn).toContain('44<small>balls</small>');
     expect(drawn).toContain('7<small>blows</small>');
     expect(drawn).toContain('aria-current="true"');
+  });
+
+  it('bands the sheet with a letter, which the line under the name says in full', () => {
+    // Three contests in one list read as one list unless something marks where
+    // each begins. The letter is hidden from a screen reader because the line
+    // beside it is already read out, and "L, bowled out" is one fact twice.
+    expect(surviveRowMarkup(row({ runs: SURVIVE.target, balls: 30 }), 0, false))
+      .toContain('<span class="board-result" aria-hidden="true">W</span>');
+    expect(surviveRowMarkup(row({ runs: 20, balls: SURVIVE.totalBalls }), 0, false))
+      .toContain('<span class="board-result" aria-hidden="true">D</span>');
+    expect(surviveRowMarkup(row({ runs: 20, balls: 30, wickets: 1 }), 0, false))
+      .toContain('<span class="board-result" aria-hidden="true">L</span>');
   });
 });
 
@@ -187,7 +215,7 @@ describe('the peek on the card', () => {
   });
 
   it('names what a held row still stands for, rather than quoting a number', () => {
-    expect(surviveBest([row({ runs: SURVIVE.target, balls: 44 })], 1)).toBe('won, 16 balls to spare');
+    expect(surviveBest([row({ runs: SURVIVE.target, balls: 44 })], 1)).toBe('won off 44 balls');
   });
 });
 
@@ -350,5 +378,44 @@ describe('which board the browser asks for', () => {
     vi.stubEnv('DEV', true);
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 503 })));
     expect(await fetchSurviveBoard(true)).toBeNull();
+  });
+});
+
+describe('the figure a row leads with', () => {
+  const won = innings({ runs: SURVIVE.target, balls: 38, blows: 1, health: 88 });
+  const drew = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 2, health: 71 });
+  const lost = innings({ runs: 72, balls: 47, wickets: 1, blows: 5, health: 30 });
+
+  it('is the one the ladder ranks that tier on, in every tier', () => {
+    // Not "the same as" by coincidence — it is the ladder's own function, so
+    // the biggest number on a row cannot drift from the number that put it
+    // there. That drift is exactly what made 72 sit above 86 and look broken.
+    for (const played of [won, drew, lost]) {
+      expect(primaryFigure(played).value).toBe(primaryOf(played));
+    }
+  });
+
+  it('is never written bare, because the same number means different things', () => {
+    expect(primaryFigure(won)).toEqual({ value: SURVIVE.totalBalls - 38, label: 'to spare' });
+    expect(primaryFigure(drew)).toEqual({ value: 23, label: 'runs' });
+    expect(primaryFigure(lost)).toEqual({ value: 47, label: 'balls' });
+  });
+
+  it('leaves the other scorecard figure beside it', () => {
+    // Runs, unless runs is already the big one — and for a draw that leaves the
+    // balls, which is every ball there was and is the fact of the draw.
+    expect(secondFigure(won)).toEqual({ value: SURVIVE.target, label: 'runs' });
+    expect(secondFigure(lost)).toEqual({ value: 72, label: 'runs' });
+    expect(secondFigure(drew)).toEqual({ value: SURVIVE.totalBalls, label: 'balls' });
+  });
+
+  it('puts the longer rearguard above the bigger score, and says why', () => {
+    // The pair that started this. Both bowled out, so both read L; what orders
+    // them is how long each kept them out, and that is now what each row leads
+    // with.
+    const rows = [row({ playerId: 'a', runs: 72, balls: 47, wickets: 1 }), row({ playerId: 'b', runs: 86, balls: 35, wickets: 1 })]
+      .sort((x, y) => y.score - x.score);
+    expect(rows[0].runs).toBe(72);
+    expect(primaryFigure(rows[0]).value).toBeGreaterThan(primaryFigure(rows[1]).value);
   });
 });
