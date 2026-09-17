@@ -29,27 +29,29 @@ class FakeAudio {
   removeAttribute(name: string) { this.calls.push(`remove:${name}`); }
 }
 
-/** The page's listeners, so a refused track can be handed its tap. */
+/**
+ * The page's listeners, so a refused track can be handed its tap.
+ *
+ * `tap` is the window seeing a click, which in a browser is after the page's
+ * own handler for that same press has run — so a test that wants to model the
+ * play key does what the play key does *first*, then taps.
+ */
 const listeners = new Map<string, Set<() => void>>();
-const tap = (type = 'pointerdown') => [...(listeners.get(type) ?? [])].forEach(fn => fn());
-let timers: (() => void)[] = [];
-/** Runs whatever the fade-in scheduled, the way a real 220 ms would. */
-const settle = () => { const due = timers; timers = []; due.forEach(fn => fn()); };
+const tap = (type = 'click') => [...(listeners.get(type) ?? [])].forEach(fn => fn());
 
 const cover = () => FakeAudio.made.find(element => element.src.includes('start_screen'));
 const result = () => FakeAudio.made.find(element => element.src.includes('survival_glory'));
 
 beforeEach(() => {
-  FakeAudio.made = []; FakeAudio.refusal = null; listeners.clear(); timers = [];
+  FakeAudio.made = []; FakeAudio.refusal = null; listeners.clear();
   const fakeWindow = {
     addEventListener: (type: string, fn: () => void) => {
       if (!listeners.has(type)) listeners.set(type, new Set());
       listeners.get(type)!.add(fn);
     },
     removeEventListener: (type: string, fn: () => void) => { listeners.get(type)?.delete(fn); },
-    setTimeout: (fn: () => void) => { timers.push(fn); return timers.length; },
   };
-  Object.assign(globalThis, { Audio: FakeAudio, window: fakeWindow, clearTimeout: () => { timers = []; } });
+  Object.assign(globalThis, { Audio: FakeAudio, window: fakeWindow });
 });
 afterEach(() => { delete (globalThis as Record<string, unknown>).Audio; delete (globalThis as Record<string, unknown>).window; });
 
@@ -97,6 +99,14 @@ describe('the music a screen owns', () => {
     expect(cover()!.calls).toEqual(['play']);
     audio.dispose();
   });
+  it('sets the card\'s music lower than the cover\'s', () => {
+    const audio = new GameAudio();
+    audio.music('cover');
+    audio.music('result');
+    expect(cover()!.volume).toBe(.5);
+    expect(result()!.volume).toBe(.3);
+    audio.dispose();
+  });
   it('fetches the card\'s music without playing it', () => {
     const audio = new GameAudio();
     audio.warm('result');
@@ -141,33 +151,30 @@ describe('the sound switch and the tab', () => {
 });
 
 describe('a browser that will not play it yet', () => {
-  it('waits for the first touch of the page, and comes up silent for a beat', async () => {
+  it('plays at full volume on the first touch of the page, with nothing to wait for', async () => {
     FakeAudio.refusal = 'NotAllowedError';
     const audio = new GameAudio();
     audio.music('cover');
     await Promise.resolve();
     FakeAudio.refusal = null;
     tap();
-    // The tap that let it through may be the tap on the play key, so what comes
-    // up is muted; the fade is what decides whether anybody hears it.
     expect(cover()!.calls).toEqual(['play', 'play']);
-    expect(cover()!.muted).toBe(true);
-    settle();
     expect(cover()!.muted).toBe(false);
+    expect(cover()!.volume).toBe(.5);
     audio.dispose();
   });
-  it('stays silent when the tap was the one that started the innings', async () => {
+  it('has nothing left to start when that touch was the play key', async () => {
     FakeAudio.refusal = 'NotAllowedError';
     const audio = new GameAudio();
     audio.music('cover');
     await Promise.resolve();
     FakeAudio.refusal = null;
-    tap();
-    // Walking out is what that tap did, and the fade has not run yet.
+    // The play key's own handler runs first and walks out to bat; the window
+    // sees the click afterwards, by which time there is no track wanted. This
+    // ordering is why a track let through by a tap needs no fade to hide it.
     audio.music(null);
-    settle();
-    expect(cover()!.muted).toBe(true);
-    expect(cover()!.calls).toEqual(['play', 'play', 'pause']);
+    tap();
+    expect(cover()!.calls).toEqual(['play', 'pause']);
     audio.dispose();
   });
   it('asks once for a file it cannot play at all', async () => {

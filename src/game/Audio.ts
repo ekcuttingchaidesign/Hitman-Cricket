@@ -19,19 +19,27 @@ export type Track = 'cover' | 'result';
  * They sit in `public/` rather than being bundled so that the single-file build
  * does not try to carry two megabytes of music as a data URI.
  */
-const TRACKS: Record<Track, string> = {
-  cover: 'Hitman_start_screen.aac',
-  result: 'test_survival_glory.aac',
+const TRACKS: Record<Track, { file: string; gain: number }> = {
+  /* The cover is a title screen and the music is most of what is on it. */
+  cover: { file: 'Hitman_start_screen.aac', gain: .5 },
+  /* The card is lower, because the card is being read rather than watched: a
+     scorecard, a place on the board and a decision about playing again. Music
+     at the cover's level sits on top of all three. */
+  result: { file: 'test_survival_glory.aac', gain: .3 },
 };
 /**
- * Under the calls rather than over them. Ignored on iOS, which does not let a
- * page set its own volume — there the device's own is the only one there is.
+ * What counts as the touch of the page that lets a refused track through.
+ *
+ * Both of these land *after* the page's own handler for the same press — a
+ * listener on the window sees a click once it has bubbled all the way up, and
+ * `keyup` follows the `keydown` the shortcuts are bound to. That ordering is
+ * the whole reason they are the two chosen, and it is what makes a track
+ * started this way safe to start at full volume: if the press was the play key,
+ * the innings has already taken the music away by the time this runs, and there
+ * is nothing left to start. `pointerdown` would arrive first and play a
+ * fragment of the cover on the way out of it.
  */
-const MUSIC_GAIN = .5;
-/** How long a track started off a tap stays silent before it is let through. */
-const FADE_IN_MS = 220;
-/** What counts as the tap that lets a refused track through. */
-const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
+const GESTURES = ['click', 'keyup'] as const;
 export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'> & { edged?: boolean }): Sound | null {
   // An edge has its own sound, and it is the sound of the wicket: the thin
   // noise off the face is the whole story of the dismissal, so it is read
@@ -55,7 +63,6 @@ export class GameAudio {
   /** Tracks this browser has already refused to decode. Asked for once only. */
   private broken = new Set<Track>();
   private gesture: (() => void) | null = null;
-  private fade = 0;
   private backgrounded = false;
   private files = [
     ['hit', new URL('../assets/normal-hit.mp3', import.meta.url)],
@@ -123,21 +130,11 @@ export class GameAudio {
     this.backgrounded = hidden;
     if (hidden) this.hush(false); else this.resume();
   }
-  /**
-   * Starts the wanted track, if there is one and anything is willing to play it.
-   *
-   * `afterGesture` is the retry that follows a refused autoplay, and it comes up
-   * silent for a beat. The tap that let it through is very often a tap that is
-   * leaving this screen — the play key is on the cover and the board key is on
-   * the card — and by the time the fade is over, whatever that tap started has
-   * already taken the music away if it was going to. Muted rather than turned
-   * down, because iOS ignores a volume a page sets for itself.
-   */
-  private resume(afterGesture = false) {
+  /** Starts the wanted track, if there is one and anything is willing to play it. */
+  private resume() {
     const track = this.wanted;
     if (!track || this.muted || this.backgrounded || this.disposed || this.broken.has(track)) return;
     const element = this.element(track);
-    element.muted = afterGesture;
     try {
       void element.play().catch((error: unknown) => {
         // A browser refusing to autoplay is a browser waiting to be asked: the
@@ -149,7 +146,6 @@ export class GameAudio {
         else this.broken.add(track);
       });
     } catch { this.arm(); }
-    if (afterGesture) this.fade = window.setTimeout(() => { this.fade = 0; element.muted = false; }, FADE_IN_MS);
   }
   /**
    * Stops whatever is playing. Rewound when the screen it belongs to is done
@@ -158,7 +154,6 @@ export class GameAudio {
    */
   private hush(rewind: boolean) {
     this.disarm();
-    if (this.fade) { clearTimeout(this.fade); this.fade = 0; }
     const element = this.wanted ? this.elements.get(this.wanted) : null;
     if (!element) return;
     element.pause();
@@ -167,8 +162,8 @@ export class GameAudio {
   private element(track: Track) {
     let element = this.elements.get(track);
     if (!element) {
-      element = new Audio(TRACKS[track]);
-      element.loop = true; element.preload = 'auto'; element.volume = MUSIC_GAIN;
+      element = new Audio(TRACKS[track].file);
+      element.loop = true; element.preload = 'auto'; element.volume = TRACKS[track].gain;
       this.elements.set(track, element);
     }
     return element;
@@ -176,7 +171,7 @@ export class GameAudio {
   /** Autoplay was refused. The next touch of the page is what lets it through. */
   private arm() {
     if (this.gesture || this.disposed) return;
-    const through = () => { this.disarm(); this.resume(true); };
+    const through = () => { this.disarm(); this.resume(); };
     this.gesture = through;
     GESTURES.forEach(type => window.addEventListener(type, through, { passive: true }));
   }
