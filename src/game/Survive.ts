@@ -418,15 +418,20 @@ export function sledgeDue(history: readonly Pick<ShotOutcome, 'runs'>[], since: 
  *
  * The order is the whole of the rule and it is cricket's, not a convenience.
  * Passing the target ends it there and then, so a chased innings is always
- * between a hundred and a hundred and five. Surviving the last ball is a draw
- * whatever state the batter is in — a blow that empties the meter as the tenth
- * over finishes has not stopped him batting, because there was no more batting
- * to do. Only then do the two ways of failing get asked about.
+ * between a hundred and a hundred and five. The wicket is asked about next,
+ * because out is out whenever it happened: the last man bowled on the sixtieth
+ * ball is all out and has lost, and a scorecard that called it a draw would be
+ * reading the overs as though surviving them were the same as being there at
+ * the end of them.
+ *
+ * Only the meter is read after the overs, and deliberately. A blow that empties
+ * it as the tenth over finishes has not stopped him batting, because there was
+ * no more batting to do — nothing was cut short, so nothing was lost.
  */
 export function endingOf(runs: number, balls: number, wickets: number, healthSpent: boolean): Ending | null {
   if (runs >= SURVIVE.target) return 'CHASED';
-  if (balls >= SURVIVE.totalBalls) return 'DRAWN';
   if (wickets >= SURVIVE.maxWickets) return 'BOWLED_OUT';
+  if (balls >= SURVIVE.totalBalls) return 'DRAWN';
   if (healthSpent) return 'RETIRED';
   return null;
 }

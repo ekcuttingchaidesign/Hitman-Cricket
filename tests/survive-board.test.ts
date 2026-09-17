@@ -163,11 +163,17 @@ describe('whether the innings could have happened', () => {
     expect(survivePlausible(innings({ runs: 3, balls: 0 }))).toBe(false);
   });
 
-  it('takes a wicket on the very last ball, which the mode does produce', () => {
-    // The overs are read before the wicket, so being bowled on the sixtieth
-    // ball is a draw with ten down rather than a scorecard nobody could hold.
-    expect(survivePlausible(innings({ runs: 20, balls: SURVIVE.totalBalls, wickets: 1 }))).toBe(true);
-    expect(standingOf(innings({ runs: 20, balls: SURVIVE.totalBalls, wickets: 1 }))).toBe('DRAWN');
+  it('takes a wicket on the very last ball, and reads it as the loss it is', () => {
+    // Out is out whenever it happened: the last man bowled on the sixtieth ball
+    // is all out, not a man who saw the match through. He kept them out longer
+    // than any other loser, which is what the lost tier ranks on, so he sits at
+    // the top of it — under every draw.
+    const lastBall = innings({ runs: 20, balls: SURVIVE.totalBalls, wickets: 1 });
+    expect(survivePlausible(lastBall)).toBe(true);
+    expect(standingOf(lastBall)).toBe('LOST');
+    expect(primaryOf(lastBall)).toBe(SURVIVE.totalBalls);
+    const scrapedDraw = innings({ runs: 0, balls: SURVIVE.totalBalls });
+    expect(surviveRankKey(scrapedDraw)).toBeGreaterThan(surviveRankKey(lastBall));
   });
 
   it('rejects an innings that carried on past the thing that ends it', () => {

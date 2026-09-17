@@ -77,11 +77,15 @@ export const SURVIVE_BOARD_SIZE = 50;
  *
  * The store has to be able to decide this from a row somebody posted, so it
  * cannot trust an ending sent along with it. The order matches `endingOf`: the
- * hundred is checked before the overs, so a chase completed on the last ball is
- * a win and not a draw.
+ * hundred is checked first, so a chase completed on the last ball is a win; the
+ * wicket is checked next, because out is out whenever it happened — the last
+ * man bowled on the sixtieth ball is all out and has lost, not drawn, however
+ * little batting was left. A draw is what is left: every ball bowled and still
+ * standing at the end of it.
  */
 export function standingOf(innings: SurviveInnings): Standing {
   if (innings.runs >= SURVIVE.target) return 'WON';
+  if (innings.wickets >= SURVIVE.maxWickets) return 'LOST';
   if (innings.balls >= SURVIVE.totalBalls) return 'DRAWN';
   return 'LOST';
 }
@@ -258,11 +262,10 @@ export function survivePlausible(innings: SurviveInnings): boolean {
   if (standingOf(innings) === 'LOST' && wickets === 0 && health > 0) return false;
   // Six an over is the ceiling, and the chase stops the moment it is reached.
   if (runs > balls * 6) return false;
-  // A wicket on the sixtieth ball is a real scorecard and a drawn one: the
-  // innings reads the overs before it reads the wicket, because a man who is
-  // out on the last ball had no batting left to fail to do. So there is no rule
-  // here about a wicket and a full ten overs — that shape is one the mode
-  // produces, and refusing it would refuse an innings somebody actually played.
+  // A wicket on the sixtieth ball is a real scorecard, and a lost one: out is
+  // out whenever it happened. So there is no rule here against a wicket and a
+  // full ten overs — that shape is one the mode produces, and refusing it would
+  // refuse an innings somebody actually played.
   //
   // A hundred does end it, though, so an innings that carried on past the
   // target and then lost its wicket never happened.
