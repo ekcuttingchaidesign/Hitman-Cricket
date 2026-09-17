@@ -31,7 +31,8 @@ export interface ApiResponse {
   status(code: number): ApiResponse;
   json(body: unknown): void;
   setHeader(name: string, value: string): void;
-  end(): void;
+  /** A body where there is one: the questionnaire's read answers with CSV. */
+  end(body?: string): void;
 }
 
 /** Origins the board may be fetched from. Add one here, not a wildcard. */

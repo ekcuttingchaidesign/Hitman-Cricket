@@ -23,6 +23,8 @@ import {
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
 import { cardOffer, type BoardTab, type CardOffer } from './ui/Leaderboard';
+import { openFeedback } from './ui/Feedback';
+import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
 import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
@@ -194,6 +196,14 @@ export class Game {
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
     this.hud.onBoardTab = this.tabBoard;
+    // The three ways into the questionnaire. The cover offers it only to
+    // somebody who has played before — a form is a strange thing to be handed
+    // by a game you have not started — and the card waits for a second innings
+    // so that nothing stands between a first score and the board.
+    this.hud.on('feedback-open', () => this.openFeedback('cover'));
+    this.hud.on('feedback-card', () => this.openFeedback('card'));
+    this.hud.on('feedback-pause', () => this.openFeedback('pause'));
+    this.hud.offerFeedback({ cover: this.best > 0, card: false, pause: false });
     this.hud.on('claim', this.startClaim);
     this.hud.on('claim-cancel', () => this.hud.closeClaim());
     (this.hud.viewport.querySelector('#card-claim') as HTMLFormElement).addEventListener('submit', event => {
@@ -384,7 +394,12 @@ export class Game {
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
-    else { this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true); }
+    else {
+      this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
+      // A paused innings is the one moment in the game where nothing is waiting
+      // on the player, which is the only kind of moment worth asking in.
+      this.hud.offerFeedback({ pause: true });
+    }
   };
   /**
    * The board, with the innings just played measured against it when there is
@@ -428,6 +443,50 @@ export class Game {
     this.boardActions = false;
     this.openBoard(this.surviving ? 'survive' : 'classic');
   };
+
+  /**
+   * The questionnaire, opened.
+   *
+   * Mid-innings it pauses first, the same way the board and the instructions do:
+   * a ball is on its way, and a screen that goes up in front of one is a wicket
+   * nobody played a shot at. The pause card is still behind it when the form is
+   * put away, which is the point.
+   *
+   * What the answers carry with them is assembled here rather than in the form,
+   * because this is the object that knows it: which innings was played, what it
+   * came to, what the best is, and how many days this browser has been coming
+   * back. None of it is asked as a question — a question whose answer is already
+   * on the machine is a screen somebody has to tap through for nothing.
+   */
+  private openFeedback = (from: 'cover' | 'card' | 'pause') => {
+    this.mark(`feedback-${from}`, `Feedback opened from the ${from}`);
+    if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause();
+    openFeedback({
+      root: this.hud.viewport,
+      playerId: this.player,
+      context: this.feedbackContext(),
+      onDone: () => {
+        // Answered, and the links go; waved away, and they stay where they were.
+        if (feedbackGiven()) this.hud.offerFeedback({ cover: false, card: false, pause: false });
+      },
+    });
+  };
+
+  /** What rides along with the answers, none of it asked. */
+  private feedbackContext(): FeedbackContext {
+    const { held } = readVisits();
+    return {
+      mode: this.surviving ? 'survive' : 'classic',
+      // The innings just played, where one has been. Nought off nought balls
+      // before the first ball is a fact about nobody, so it is left out.
+      runs: this.score.balls ? this.score.runs : undefined,
+      balls: this.score.balls || undefined,
+      best: this.best,
+      innings: this.innings,
+      days: held?.days,
+      device: document.documentElement.classList.contains('touch-device') ? 'touch' : 'keyboard',
+    };
+  }
 
   /** The other ladder, from the tab over the sheet. */
   private tabBoard = (mode: BoardTab) => {
@@ -790,6 +849,11 @@ export class Game {
       this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
     this.hud.end(this.score, this.best, record);
+    // From the second innings on. The first card is about the score and the
+    // board, and a questionnaire under it would be asking what somebody thought
+    // of a game they have played once, in the same breath as telling them how
+    // they did.
+    this.hud.offerFeedback({ card: this.innings > 1, cover: this.best > 0 });
     this.offerBoard();
   }
   private snapshot() {

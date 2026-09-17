@@ -1,5 +1,5 @@
 import './styles.css';
-import { Game } from './Game';
+import { feedbackRoute } from './game/feedback';
 import { markNoticeSeen, noticeSeen, privateWindow } from './game/private-mode';
 import { privateNotice } from './ui/PrivateNotice';
 const root = document.querySelector<HTMLDivElement>('#app')!;
@@ -11,10 +11,27 @@ const root = document.querySelector<HTMLDivElement>('#app')!;
  * to letting the player through, so an ordinary tab waits on it once and barely.
  */
 void (async () => {
+  /**
+   * The shared feedback link is a page, not a game, and it is decided here —
+   * before anything is imported — because of what the game costs to import. A
+   * friend who tapped a link to answer ten questions about a cricket game should
+   * not be made to download three.js, the ground, the crowd and five megabytes
+   * of cover art to do it. `Game` is behind a dynamic import for that one
+   * reason: it keeps the form to the handful of kilobytes it actually is.
+   *
+   * The private-window check is skipped too. It exists to protect a place on the
+   * board, and there is no board on this page.
+   */
+  if (feedbackRoute(location)) {
+    const { feedbackPage } = await import('./ui/Feedback');
+    feedbackPage(root);
+    return;
+  }
   const hidden = await privateWindow();
   // Asked once a session: a player who has read the notice and chosen to bat on
   // should not meet it again every time the page reloads.
   if (hidden && !noticeSeen()) { await privateNotice(root); markNoticeSeen(); }
+  const { Game } = await import('./Game');
   // A forgetful window can still bat; what it cannot do is take a place on the
   // board, so the card offers it nothing to claim.
   const game = new Game(root, { canRegister: !hidden });

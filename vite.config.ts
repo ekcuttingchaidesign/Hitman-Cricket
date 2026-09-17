@@ -2,6 +2,8 @@ import { defineConfig, type Plugin } from 'vite';
 import { memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
 import { CLASSIC_LADDER, SURVIVE_LADDER, readBoard, refused, submitScore } from './src/server/board-store';
+import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
+import { memoryFeedback } from './src/server/memory-feedback';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -26,13 +28,18 @@ function boardEndpoints(): Plugin {
   // carries theirs from one board to the other and nobody else can bat under it.
   const names = new Map<string, string>();
   const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names) };
+  // The questionnaire, backed the same way and for the same reason: the form can
+  // be opened, filled in, sent and read back as a spreadsheet with no
+  // credentials and no database. It is forgotten when the server stops, which is
+  // what you want while working on the questions.
+  const feedback = memoryFeedback();
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
-        if (path !== '/api/board' && path !== '/api/score') return next();
+        if (path !== '/api/board' && path !== '/api/score' && path !== '/api/feedback') return next();
         const send = (status: number, body: unknown, cache = 'no-store') => {
           res.statusCode = status;
           res.setHeader('Content-Type', 'application/json');
@@ -41,6 +48,27 @@ function boardEndpoints(): Plugin {
         };
         try {
           if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
+          if (path === '/api/feedback') {
+            // No key on the read here. The deployed endpoint holds one because
+            // it is answering the internet; this one is answering whoever is
+            // running the dev server, and they wrote the answers.
+            if (req.method === 'GET') {
+              const entries = await feedback.read(FEEDBACK_KEPT);
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+              res.setHeader('Cache-Control', 'no-store');
+              return res.end(feedbackCsv(entries));
+            }
+            if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
+            const form = JSON.parse(await read(req)) as Record<string, unknown>;
+            const outcome = await takeFeedback(feedback, {
+              playerId: form.playerId, answers: form.answers,
+              suggestion: form.suggestion, context: form.context, address: 'dev',
+            });
+            return refusedFeedback(outcome)
+              ? send(outcome.status, { error: outcome.reason })
+              : send(200, { ok: true });
+          }
           const survive = new URLSearchParams((req.url ?? '').split('?')[1] ?? '').get('mode') === 'survive';
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });

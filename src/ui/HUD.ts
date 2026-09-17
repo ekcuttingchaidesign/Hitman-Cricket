@@ -2,6 +2,7 @@ import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
 import { track } from '../game/analytics';
+import { feedbackGiven } from '../game/feedback';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import {
@@ -97,6 +98,7 @@ const coverIntro = (best: number, top: number) => `
             <button id="cover-board" class="cover-best">${icon('trophy')}${trophyFigure(best, top)}</button>
             <button id="start" class="play-button">PLAY</button>
             <button id="tutorial" class="learn-button">HOW TO PLAY</button>
+            <button id="feedback-open" class="cover-feedback hidden" type="button">WHAT DO YOU THINK?</button>
           </div>
         </div>`;
 const panelIntro = (best: number, top: number) => `
@@ -112,6 +114,7 @@ const panelIntro = (best: number, top: number) => `
           <span class="start-hint keyboard-only">or play the same shots on the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> arrow keys</span>
           <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat. Swipe down to block.<b class="swipe-symbols">← ↖ ↑ ↗ → ↓</b></span>
           <button id="panel-board" class="personal-best">${icon('trophy')}<div>${trophyFigure(best, top)}</div>${icon('arrow')}</button>
+          <button id="feedback-open" class="ghost-link hidden" type="button">Tell me what you think</button>
         </div>`;
 export class HUD {
   readonly viewport: HTMLElement;
@@ -203,7 +206,7 @@ export class HUD {
         <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
 ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><button id="restart" class="story-key">RESTART INNINGS</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
+        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><button id="restart" class="story-key">RESTART INNINGS</button><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -237,6 +240,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <button id="story" class="story-key">${icon('story')}<span>INSTA STORY</span></button>
               </div>
             </div>
+            <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
@@ -1013,6 +1017,29 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       const mark = ball.isWicket ? 'ball-out' : ball.hit ? 'ball-hit' : '';
       return `<i class="${mark}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
     }).join('');
+  }
+
+  /**
+   * The quiet lines that open the questionnaire.
+   *
+   * Three of them — the cover, the innings-end card and the pause card — and
+   * every one is a ghost link rather than a key, because none of them is ever
+   * the thing the player came to that screen to do. The button row is
+   * deliberately not a fourth: it is six keys already, it sits over a live ball,
+   * and a form is not something to reach for mid-over.
+   *
+   * Once the form has been answered every one of them goes for good. A link
+   * that keeps asking after it has been answered is not an invitation any more.
+   */
+  offerFeedback(where: { cover?: boolean; card?: boolean; pause?: boolean }) {
+    const given = feedbackGiven();
+    const offer = (id: string, on: boolean | undefined) => {
+      const key = document.getElementById(id);
+      if (key && on !== undefined) key.classList.toggle('hidden', given || !on);
+    };
+    offer('feedback-open', where.cover);
+    offer('feedback-card', where.card);
+    offer('feedback-pause', where.pause);
   }
 
   sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }

@@ -409,6 +409,73 @@ Rate limiting is by address and the address is **never** used as identity, becau
 
 `plausible()` is not an anti-cheat measure and should not be mistaken for one. The game is a static page, so a determined person can post any innings that passes it. It turns down the ones that could not have happened, which is the floor. Replay verification is the ceiling, and nothing built here is thrown away by it.
 
+## Feedback
+
+A questionnaire, in the game and on a link of its own, answered entirely by tapping. **[hitman-cricket.vercel.app/feedback](https://hitman-cricket.vercel.app/feedback)** is the link to hand round; inside the game it is a quiet line on the cover, the pause card and the innings-end card.
+
+Every question is a tap and there is exactly one box anybody types in, at the end, optional. That rule decides most of the design: a form that asks somebody to type is a form they fill in on a laptop later, which is to say never, and the people worth hearing from are on a phone with one thumb free and an innings they have just lost. Ten taps, forty seconds.
+
+Nothing is asked that the page already knows. The mode played, the runs, the balls faced, the personal best, how many separate days this browser has come back and whether it is a thumb or a keyboard all ride along as context rather than costing a screen — a question whose answer is already on the machine only buys a worse answer. What goes with the answers is said on the form itself, above the send key, rather than in a policy nobody opens: *sent with your device type and this innings' figures. No name, no email.*
+
+### The questions
+
+| Asked | Answers |
+| --- | --- |
+| *Have you played it yet?* | Played a full innings · Opened it, didn't finish · Not yet. **Link only** — in the game the answer is that they are mid-innings. |
+| *Where did you come from?* | A friend sent it · Social post · Search · I built it · Somewhere else. Link only. |
+| *Honestly, how much fun was that?* | Not really · It's okay · Good fun · Loved it · Couldn't stop |
+| *How hard did it feel?* | Too easy · About right · Tough but fair · Too hard · Couldn't middle a thing |
+| *Did the keys play the shot you meant?* | Every time · Mostly · About half · Rarely. Asked about **swipes** on a phone: asking a phone player about the keys is asking about a game they did not play. |
+| *What let you down most?* | Timing the swing · Reading the line · Seeing the pitch · Loading or stutter · Sound · Nothing really |
+| *Which shot felt best to play?* | Straight drive · Cover drive · Leg side · Square cut · The block · None of them |
+| *Would you come back tomorrow?* | Definitely · Maybe · Probably not |
+| *Would you send it to a friend?* | Already did · Yes · Maybe · No |
+| *What would you want next?* | More overs · Bowl as well as bat · Head-to-head with a friend · More shots · A season or career · Better looks · Keep it simple. **Two picks**, and the only question that takes more than one. |
+| *What would get you to have a go?* | Asked instead of all of the above where the gate says they have never played. |
+| *Anything you'd change?* | The one box. 280 characters, optional. |
+
+The one multi-answer question is multi-answer on purpose: what somebody wants next is a shortlist rather than a winner, and forcing it to one turns every answer into whatever was nearest the thumb. At the limit, a third tap pushes the oldest pick out rather than doing nothing — a key that refuses to go down reads as broken.
+
+The branch is the whole reason the link has a gate on it. Somebody who followed it from a friend and has never faced a ball cannot say which shot felt best, and asking them anyway fills the answers with noise; they get one question about what would get them to play, the box, and a key into the game.
+
+### The screen
+
+One question at a time, filling the card, with the answers as keys at a thumb's size. A single-answer question records the tap and moves on by itself, so ten questions are ten taps and there is no Next key to find between them. The alternative — every question on one scrolling sheet — is a wall of them, a thumb on the scrollbar and a decision about whether to start at all. The pips along the top are what promise it will be over shortly; they are marks rather than "4 of 11", which is a quantity to dread.
+
+It is built out of the innings-end card's own parts: the same navy slab, the same lit top rule and cut ledge, the same two radii. A form in a different material would read as a survey bolted onto a game.
+
+Nothing is sent until the last screen, and a form left half-done is left rather than sent: an opinion somebody stopped giving halfway through is not an opinion they gave. What was tapped on the way is held in `sessionStorage`, so a mis-hit on the back gesture costs nobody their answers, and a send that fails says so and keeps them.
+
+Once it has been answered, every link into it goes for good. A link that keeps asking after it has been answered is not an invitation.
+
+### Where the game offers it
+
+- **The innings-end card**, from the second innings on. The first card is about the score and the board; a questionnaire under it would be asking what somebody thought of a game they have played once, in the same breath as telling them how they did.
+- **The pause card.** The one moment in the game where nothing is waiting on the player.
+- **The cover**, for somebody who has played before — a form is a strange thing to be handed by a game you have not started.
+
+The button row is deliberately not a fourth. It is six keys already, it sits over a live ball, and a form is not something to reach for mid-over.
+
+### The link, and why it is two spellings
+
+`/feedback` is the link to send people, and it works because `vercel.json` rewrites it to the same page. Everywhere without that rewrite — the dev server, a Pages build, the one-file preview — the query does the same job: `?feedback=1`. `feedbackRoute()` reads both, before anything else on the page runs.
+
+That route is settled in `main.ts` **before the game is imported**, which is the reason `Game` sits behind a dynamic import. A friend who tapped a link to answer ten questions about a cricket game should not have to download three.js, the ground, the crowd and the cover art to do it: the form is about 19 kB of the bundle, the game is 665 kB, and only one of them is fetched. The private-window check is skipped on that page too — it exists to protect a place on the board, and there is no board on it.
+
+### Where the answers go
+
+`POST /api/feedback` on the same Upstash database the board uses, as one list: `LPUSH` then `LTRIM` is two commands a form and keeps it to the most recent `FEEDBACK_KEPT` without anything having to tidy up later. The rate counter is deliberately not the board's — somebody who has posted forty innings has not filled in forty questionnaires, and one shared key would let an evening of play use up the right to say what they thought of it. Ten forms an hour from an address, against the board's hundred and twenty innings.
+
+The rules live in `src/server/feedback-store.ts` and the questions in `src/game/feedback.ts`, which is what the form is drawn from **and** what the endpoint validates against. One list, so an answer that arrived by any route other than tapping a chip is dropped rather than stored, and a question id can be a column heading without anybody wondering what is underneath it. A form is never turned down for being incomplete: somebody who tapped once and left has told you something.
+
+Reading them back is `GET /api/feedback?key=…`, gated on `FEEDBACK_KEY` in the environment and answering anything without it the way it answers a request for a page that is not there. A 401 would confirm there is something here worth a key. It returns CSV — one row per form, one column per question, the shortlist joined by a space — because what actually happens to it is a paste into a spreadsheet and a sort. `?format=json` is there for anything reading it by machine.
+
+The suggestion is the only field anybody typed, and it is handled as such. Control characters and the invisible formatting marks go on the way in, the same set a board name is stripped of and for the same reason: a directional override turns the rest of a spreadsheet row around. A cell opening with `=` is a formula to Excel and Sheets, so it is prefixed with a quote on the way out. And it is never rendered into a page by this game — write-only, read as a spreadsheet — which is what removes the question of escaping it rather than answering it.
+
+`npm run dev` serves all of this from memory, the way it serves the board: the form can be opened, filled in, sent, and read back at `http://127.0.0.1:5173/api/feedback` with no credentials and no database. The dev read has no key on it — it is answering whoever is running the dev server, and they wrote the answers.
+
+**On a Pages build there is no endpoint behind the form.** That deployment is survive-only and deliberately has no functions; a form opened there will say it could not be sent. Set `VITE_BOARD_API` to the Vercel origin on that workflow if playtest feedback should reach you — the allowlist in `src/server/http.ts` already names the Pages origin.
+
 ## Architecture and tuning
 
 - `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds/lengths, the compatibility matrix and the threshold that separates a middled shot from a skied one, the triggers for each special delivery, wicket probabilities, and innings pacing.
@@ -498,6 +565,10 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `survive-balls-under-1-over` … `survive-balls-8-10-overs` | How long the last man lasted, in overs rather than balls, because that is how a Test innings is read. |
 | `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
 | `help-open` | The controls did not explain themselves. |
+| `feedback-open`, `feedback-open-link` | The questionnaire opened, and whether from inside the game or from the shared link. |
+| `feedback-cover`, `feedback-card`, `feedback-pause` | Which of the three lines into it is the one people actually use. |
+| `feedback-sent`, `feedback-failed` | Forms finished, and forms the endpoint could not take. |
+| `feedback-left-0` … | Which screen a form was abandoned on. A questionnaire everybody leaves on the same screen has a bad question on it. |
 | `webgl-fail` | The ground could not load, and nothing that follows was ever possible. |
 | `visitor-new`, `visitor-returning` | Whether this browser has played here before. |
 | `back-same-day` … `back-over-30-days` | How long a returning player was away. |
@@ -533,9 +604,12 @@ Two things GoatCounter cannot do, and where to go instead. It cannot cross-tabul
 
 The game is published at **https://hitman-cricket.vercel.app/**, from `codex/cricket-batting-game`, and Vercel is the only host of the three this repository has used that can serve the board: `GET /api/board` and `POST /api/score` are functions, and GitHub Pages and Sites both publish files and nothing else. That is why it is the address.
 
+`vercel.json` carries one rewrite, `/feedback` to the page, which is what makes the questionnaire a link worth sending rather than a query string. Everywhere without it, `?feedback=1` opens the same form.
+
 Two consequences worth knowing:
 
 - **Share the short alias, never a deployment URL.** `hitman-cricket.vercel.app` follows the latest production deployment. The long per-deployment URLs — `hitman-cricket-1qc721gwe-…` and friends — are nailed to one commit each, deliberately, so they never update. A link shared from the deployments list will never show anything you ship afterwards.
+- **`FEEDBACK_KEY` is what makes the answers readable.** Set it in the Vercel environment and `GET /api/feedback?key=…` hands back every questionnaire as CSV. Until it is set there is nothing to read and the endpoint says so as a 404.
 - **Put the functions in the database's region.** Both live in Mumbai (`ap-south-1` / `bom1`). Functions default to Washington DC, which makes every Redis command cross the planet twice on a screen that should open instantly.
 
 `.github/workflows/deploy.yml` is gone: it published to GitHub Pages on every push, and a second copy of the game with no board behind it is worse than no second copy. Whatever Pages last built stays up until Pages is switched off in the repository's settings. `.openai/hosting.json` still describes a Sites deployment and has been left alone.

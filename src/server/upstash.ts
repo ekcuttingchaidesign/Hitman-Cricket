@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import type { BoardStore, StoredRow } from './board-store.js';
+import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 
 /**
  * The board kept in Redis.
@@ -53,6 +54,8 @@ function keysFor(scope: string) {
   };
 }
 const RATE = `${SCOPE}rate:`;
+/** The questionnaire's own counter, kept apart from the board's. */
+const FEEDBACK_RATE = `${SCOPE}frate:`;
 
 /**
  * No database behind the board. This is a setup that was never finished, not an
@@ -131,6 +134,47 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
       // Only the first hit in a window sets the clock, so the window rolls
       // forward from the first submission rather than from the latest.
       if (count === 1) await redis.expire(key, windowSeconds);
+      return count;
+    },
+  };
+}
+
+/**
+ * The questionnaire, in the same database.
+ *
+ * A list rather than a sorted set or a hash, because what is wanted of it is
+ * never anything but "the most recent few hundred, newest first": nothing ranks
+ * a form, nothing looks one up by id, and the only read is the one that hands
+ * the lot to a spreadsheet. `LPUSH` then `LTRIM` is two commands a form and
+ * keeps the list from growing past `FEEDBACK_KEPT` without anything having to
+ * come along later and tidy it.
+ *
+ * The rate counter is deliberately not the board's. They are separate
+ * allowances over separate things — somebody who has posted forty innings has
+ * not filled in forty questionnaires — and sharing one key would let an evening
+ * of play use up the right to say what they thought of it.
+ */
+export function upstashFeedback(redis: Redis): FeedbackStore {
+  const key = `${SCOPE}feedback`;
+  return {
+    async save(entry) {
+      await redis.lpush(key, JSON.stringify(entry));
+      await redis.ltrim(key, 0, FEEDBACK_KEPT - 1);
+    },
+    async read(limit) {
+      const held = await redis.lrange<StoredFeedback | string>(key, 0, limit - 1);
+      // Upstash parses a JSON-looking value on the way out, so an entry can
+      // arrive already an object. A row that will not parse is dropped rather
+      // than repaired: one unreadable form must not cost the other thousand.
+      return held.flatMap(one => {
+        if (one && typeof one === 'object') return [one as StoredFeedback];
+        try { return [JSON.parse(String(one)) as StoredFeedback]; } catch { return []; }
+      });
+    },
+    async hits(address, windowSeconds) {
+      const counter = `${FEEDBACK_RATE}${address}`;
+      const count = await redis.incr(counter);
+      if (count === 1) await redis.expire(counter, windowSeconds);
       return count;
     },
   };

@@ -2662,3 +2662,134 @@ body.private-window{overflow:hidden}
   .private-keys .play-button{min-height:46px;font-size:16px}
   .private-keys .learn-button{min-height:38px;font-size:13px}
 }
+
+/* ── The questionnaire ─────────────────────────────────────────────────── */
+/* Built out of the innings-end card's own parts: the same navy slab, the same
+   lit top rule and cut ledge, the same two radii. A form that arrived in a
+   different material would read as a survey somebody bolted onto a game, which
+   is exactly what it must not read as.
+   One question fills it. The answers are keys at a thumb's size rather than a
+   list of radio buttons, because the whole promise of the thing is that it is
+   ten taps and no typing. */
+.feedback-sheet{
+  --ink:#f7f0e5;
+  --quiet:#9fb2bd;
+  width:min(392px,100%);
+  margin:auto;
+  padding:20px 22px 18px;
+  border-radius:18px;
+  background:#0f2738;
+  font-family:var(--card);
+  color:var(--ink);
+  text-align:left;
+  box-shadow:0 9px 0 #040e15,0 26px 46px #010609b3,inset 0 1px 0 #ffffff1f
+}
+.feedback-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.feedback-eyebrow{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--quiet)
+}
+/* The promise that this is nearly over, and the only reason a one-question
+   screen is not alarming. Done, here, and still to come — three states, no
+   numbers: "4 of 11" is a quantity to dread and eleven small marks is not. */
+.feedback-pips{display:flex;gap:4px;margin:12px 0 2px}
+.feedback-pips>i{
+  flex:1;
+  height:3px;
+  border-radius:2px;
+  background:#ffffff1f;
+  transition:background .2s
+}
+.feedback-pips>i.is-done{background:#ffffff4d}
+.feedback-pips>i.is-on{background:var(--orange)}
+.feedback-ask{
+  font-size:21px;
+  font-weight:800;
+  letter-spacing:-.4px;
+  line-height:1.2;
+  margin:14px 0 0;
+  color:var(--ink)
+}
+.feedback-note{margin:6px 0 0;font-size:12.5px;font-weight:600;color:var(--quiet)}
+.feedback-choices{display:flex;flex-direction:column;gap:8px;margin:16px 0 0}
+.feedback-choice{
+  width:100%;
+  min-height:46px;
+  padding:11px 14px;
+  border:1px solid #ffffff24;
+  border-radius:10px;
+  background:#ffffff0a;
+  color:var(--ink);
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:600;
+  text-align:left
+}
+.feedback-choice:hover:not(:disabled){background:#ffffff16}
+/* The one state that matters: a key that has been chosen, and on the two-answer
+   question a key that is still chosen while the next one is picked. */
+.feedback-choice.is-on{
+  border-color:var(--orange);
+  background:#ed704426;
+  color:#ffd9c4
+}
+.feedback-sheet .key-button{margin-top:14px}
+/* The last screen, and the only one with a keyboard on it. */
+.feedback-field{display:block;position:relative;margin:14px 0 0}
+.feedback-field textarea{
+  width:100%;
+  padding:12px 13px;
+  border:1px solid #ffffff24;
+  border-radius:10px;
+  background:#08202f;
+  color:var(--ink);
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:600;
+  line-height:1.45;
+  resize:none
+}
+.feedback-field textarea::placeholder{color:#7e919d;font-weight:500}
+.feedback-field textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-color:transparent}
+.feedback-count{
+  display:block;
+  margin-top:5px;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.6px;
+  color:var(--quiet);
+  text-align:right
+}
+/* What goes with the answers, said plainly and where it is read rather than in
+   a policy nobody opens. */
+.feedback-fine{margin:10px 0 0;font-size:11px;line-height:1.5;color:#7e919d}
+.feedback-thanks h2{font-size:21px;font-weight:800;letter-spacing:-.4px;line-height:1.25;margin:12px 0 0}
+.feedback-thanks p{margin:8px 0 0;font-size:13.5px;font-weight:600;color:var(--quiet)}
+.feedback-thanks .key-button{display:flex;align-items:center;justify-content:center;text-decoration:none}
+.feedback-sheet .ghost-link{display:block;width:100%;text-align:center}
+/* The shared link is a page rather than a screen over an innings, so there is
+   no ground behind it to darken — the sheet stands on the game's own navy. */
+.feedback-page{background:#0c1e2a}
+.feedback-screen.is-standalone{background:#0c1e2a}
+/* The quiet way in, on the cover. Deliberately the smallest thing on a screen
+   whose whole job is the Play key. */
+.cover-feedback{
+  margin-top:10px;
+  padding:6px;
+  border:0;
+  background:none;
+  color:#ffffff9e;
+  font-family:var(--cta);
+  font-size:12px;
+  letter-spacing:1.2px;
+  text-decoration:underline;
+  text-underline-offset:4px
+}
+.cover-feedback:hover{color:#fff}
+/* The board's close key is placed against the board sheet, which is a
+   full-height screen with its own header rail. Here it sits in a row with the
+   eyebrow, so it takes the same shape back out of the flow it was pulled from. */
+.feedback-head .board-close{position:static;width:32px;height:32px;margin:-4px -6px 0 0;font-size:19px;flex:none}
