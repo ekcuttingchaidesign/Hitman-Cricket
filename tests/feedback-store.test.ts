@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FEEDBACK_RATE_LIMIT, cleanPlayerId, feedbackCsv, refusedFeedback, takeFeedback,
+  FEEDBACK_RATE_LIMIT, cleanPlayerId, feedbackCsv, keyAccepted, refusedFeedback, takeFeedback,
   type StoredFeedback,
 } from '../src/server/feedback-store';
 import { memoryFeedback } from '../src/server/memory-feedback';
@@ -129,5 +129,37 @@ describe('the spreadsheet', () => {
 
   it('writes the time as something a person can read', () => {
     expect(feedbackCsv([entry()])).toContain('"2023-11-14T22:13:20.000Z"');
+  });
+});
+
+describe('reading them back', () => {
+  const KEY = 'wJRO5JdPrLjafef';
+
+  it('takes the key', () => {
+    expect(keyAccepted(KEY, KEY)).toBe(true);
+  });
+
+  it('takes it with the space that rides along from a copy and paste', () => {
+    // A key pasted into an address bar with a leading space arrives as %20,
+    // which is not a wrong key and used to answer exactly like one.
+    expect(keyAccepted(KEY, ` ${KEY}`)).toBe(true);
+    expect(keyAccepted(KEY, `${KEY} `)).toBe(true);
+    // And the same mistake made in the box where the variable is set.
+    expect(keyAccepted(` ${KEY} `, KEY)).toBe(true);
+  });
+
+  it('refuses a wrong key, an empty one, and anything that is not a string', () => {
+    expect(keyAccepted(KEY, 'wJRO5JdPrLjafeg')).toBe(false);
+    expect(keyAccepted(KEY, '')).toBe(false);
+    expect(keyAccepted(KEY, undefined)).toBe(false);
+    expect(keyAccepted(KEY, ['a', 'b'])).toBe(false);
+  });
+
+  it('stays shut where no key was ever set', () => {
+    // An unset secret must never be a match, or an environment nobody
+    // configured would be open to everybody.
+    expect(keyAccepted(undefined, '')).toBe(false);
+    expect(keyAccepted('', '')).toBe(false);
+    expect(keyAccepted('   ', '   ')).toBe(false);
   });
 });

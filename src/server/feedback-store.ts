@@ -126,6 +126,26 @@ export function cleanPlayerId(raw: unknown): string {
   return typeof raw === 'string' && /^[0-9a-z]{6,10}-[0-9a-z]{12,}$/.test(raw) ? raw : '';
 }
 
+/**
+ * Whether a request may read the answers.
+ *
+ * Both sides are trimmed, which is not tidiness: a key is copied out of a
+ * password manager and pasted into an address bar, and a space that comes along
+ * with it arrives as `%20` on the front of the value. The same mistake happens
+ * at the other end, in the box where the variable is set. Neither is a wrong
+ * key, and both used to answer exactly like one — a 404 that says nothing,
+ * which is the right answer to a stranger and a maddening one to the owner.
+ *
+ * An unset secret is never a match, however empty the request. That is what
+ * keeps an environment where nobody configured a key closed rather than open to
+ * everybody.
+ */
+export function keyAccepted(secret: unknown, offered: unknown): boolean {
+  const held = typeof secret === 'string' ? secret.trim() : '';
+  const given = typeof offered === 'string' ? offered.trim() : '';
+  return held.length > 0 && given === held;
+}
+
 /** The columns a sheet gets, in order: when, who, every question, then the words. */
 const CONTEXT_COLUMNS = ['mode', 'runs', 'balls', 'best', 'innings', 'days', 'device', 'link'] as const;
 

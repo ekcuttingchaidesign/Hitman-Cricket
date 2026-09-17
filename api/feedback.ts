@@ -2,7 +2,7 @@
 // note at the top of `api/board.ts`. `scripts/function-check.mjs` is what keeps
 // it honest.
 import {
-  FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback,
+  FEEDBACK_KEPT, feedbackCsv, keyAccepted, refusedFeedback, takeFeedback,
 } from '../src/server/feedback-store.js';
 import { NoDatabase, redisFromEnv, upstashFeedback } from '../src/server/upstash.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
@@ -58,12 +58,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
  * is one fewer thing to get wrong.
  */
 async function read(req: ApiRequest, res: ApiResponse) {
-  const secret = process.env.FEEDBACK_KEY;
-  const offered = typeof req.query?.key === 'string' ? req.query.key : '';
   // No key configured is not an open door. Until one is set there is nothing
   // here to read, and saying so as a 404 keeps the two cases indistinguishable
   // from outside.
-  if (!secret || offered !== secret) return failed(res, 404, 'Not found.');
+  const offered = typeof req.query?.key === 'string' ? req.query.key : '';
+  if (!keyAccepted(process.env.FEEDBACK_KEY, offered)) return failed(res, 404, 'Not found.');
   try {
     const limit = Math.min(FEEDBACK_KEPT, Math.max(1, Number(req.query?.limit) || FEEDBACK_KEPT));
     const entries = await upstashFeedback(redisFromEnv(true)).read(limit);
