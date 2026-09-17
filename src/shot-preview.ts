@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_DURATION_MS, CHARGE_CONTACT_MS, STROKE_DURATION_MS, STROKE_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_DURATION_MS, CHARGE_CONTACT_MS, STROKE_DURATION_MS, PULL_LOAD_MS, PULL_CONTACT_MS } from './entities/Batter';
 import { GAME } from './config/gameplay';
 
 // Isolated from Game: inspecting a pose never submits scores or analytics.
@@ -37,6 +37,25 @@ scrub.oninput = () => { playing = false; play.textContent = 'Play'; age = Number
 document.querySelector<HTMLButtonElement>('#camera')!.onclick = () => {
   camera.position.set(0, 2.9, -5.15); controls.target.set(0, 1.05, 9); controls.update();
 };
+const review = document.createElement('section');
+review.setAttribute('aria-label','Pose review controls');
+document.querySelector('main')!.insertBefore(review,scrub);
+for (const name of ['Front','Side','Load-up','Contact','Extension','Finish']) {
+  const button=document.createElement('button'); button.textContent=name; review.append(button);
+  button.onclick=()=>{
+    if(name==='Front'||name==='Side') {
+      const down=batter.inspect().downPitch;
+      controls.target.set(GAME.stanceX,1.05,GAME.stanceZ+down);
+      if(name==='Front') camera.position.set(.3,1.7,4.5+down);
+      else camera.position.set(3,1.8,1+down);
+      controls.update();
+    } else {
+      const phases=shot.value==='charge'?[290,CHARGE_CONTACT_MS,580,810]:[PULL_LOAD_MS,PULL_CONTACT_MS,340,500];
+      age=phases[['Load-up','Contact','Extension','Finish'].indexOf(name)];
+      playing=false; play.textContent='Play'; batter.update(age);
+    }
+  };
+}
 new ResizeObserver(() => {
   renderer.setSize(stage.clientWidth, stage.clientHeight);
   camera.aspect = stage.clientWidth / stage.clientHeight; camera.updateProjectionMatrix();
@@ -46,7 +65,7 @@ renderer.setAnimationLoop(now => {
   if (playing) age = (age + Math.min(now - previous, 50) * Number(speed.value)) % (duration+300);
   previous = now;
   const time = Math.min(age, duration); batter.update(time); scrub.value = String(time);
-  const impact = shot.value === 'charge' ? CHARGE_CONTACT_MS : STROKE_CONTACT_MS;
+  const impact = shot.value === 'charge' ? CHARGE_CONTACT_MS : PULL_CONTACT_MS;
   document.querySelector<HTMLOutputElement>('#time')!.value = `${Math.round(time)} ms · contact ${impact} ms`;
   controls.update(); renderer.render(scene, camera);
 });

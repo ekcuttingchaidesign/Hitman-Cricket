@@ -27,6 +27,8 @@ const V = (p: Point) => new THREE.Vector3(...p);
 const UP = new THREE.Vector3(0, 1, 0);
 const ease = (t: number) => t * t * (3 - 2 * t);
 export const STROKE_CONTACT_MS = 110;
+export const PULL_LOAD_MS = 120;
+export const PULL_CONTACT_MS = 230;
 export const STROKE_DURATION_MS = 940;
 export const CHARGE_CONTACT_MS = 440;
 export const CHARGE_DURATION_MS = 1320;
@@ -277,8 +279,8 @@ const CHARGE: Stroke = {
   // Brace the front leg and rise onto the back toe; do not kick the lead leg
   // behind the body at the instant the bat finishes. The high hands extend
   // down the target line rather than folding the blade back into the torso.
-  through: { ...GUARD, hip: [-.04, .85, .21], chest: [.06, 1.22, .28], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
-    grip: [.25, 1.39, .68], batUp: [-.10, -.58, -.81], batFace: [0, .82, -.58], yaw: .65, face: 0, heel: .24, leadElbow: .12 },
+  through: { ...GUARD, hip: [-.04, .85, .21], chest: [.06, 1.22, .36], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
+    grip: [.10, 1.43, .88], batUp: [-.10, -.58, -.81], batFace: [0, .82, -.58], yaw: .30, face: 0, heel: .24, leadElbow: .12 },
   finish: { ...GUARD, hip: [-.04, .87, .22], chest: [.04, 1.25, .28], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
     grip: [-.18, 1.47, .55], batUp: [.25, .10, .96], batFace: [-.92, .30, .20], yaw: .20, face: 0, heel: .24, backFootYaw: .80, leadElbow: .12 },
   recover: { ...GUARD, hip: [-.04, .88, .10], chest: [.04, 1.24, .15], frontFoot: [.00, .08, .44],
@@ -376,12 +378,13 @@ function flowing(keys: readonly { time: number; pose: Pose }[], age: number, hor
 export { solveJoint } from './rig';
 
 export class Batter {
+  private poseAge = 0;
   readonly root = new THREE.Group();
   readonly bat = new THREE.Group();
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
-  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; cuff: THREE.Group; shoulder: THREE.Vector3 }[] = [];
+  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3 }[] = [];
   private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
@@ -466,23 +469,23 @@ export class Batter {
     this.mesh(this.bat, this.palette.handle, [.058, .038, .058], 'tube').position.y = .225;
     this.mesh(this.bat, this.palette.bat, [1, 1, 1], 'blade');
     for (let i = 0; i < 2; i++) {
-      // A fist wrapping the handle, locked to the bat: knuckles lined up along
-      // the handle, fingers curled over the face side. Turning each hand to face
-      // its own forearm instead lets the two disagree about how they hold the
-      // same stick — which is the twist no grip can make.
+      // Closed fingers keep their station and grasp axis on the handle.
+      // Forearm pronation rotates the fist around that axis, never off it.
       const glove = new THREE.Group(); this.bat.add(glove);
       glove.position.set(0, i === 0 ? .10 : -.035, 0);
-      this.mesh(glove, this.palette.pad, [.118, .150, .124], 'soft');
+      this.mesh(glove, this.palette.pad, [.118, .125, .124], 'soft');
       for (let roll = 0; roll < 3; roll++)
         this.mesh(glove, this.palette.pad, [.112, .034, .034], 'soft').position.set(0, .046 - roll * .046, .050);
-      this.mesh(glove, this.palette.pad, [.046, .10, .052], 'soft').position.set(.052, -.026, -.042);
+      // Opposing thumbs: these are a left top hand and a right bottom hand,
+      // not two copies of the same mitten. Local -Z is the wrist socket.
+      this.mesh(glove, this.palette.pad, [.046, .085, .052], 'soft').position.set(i === 0 ? -.052 : .052, -.015, -.042);
       // The wrist is what turns: a gauntlet at the hand aimed back up the forearm.
       const cuff = new THREE.Group(); this.root.add(cuff);
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.skin, [.05, .05, .05], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
-        glove, cuff, shoulder: new THREE.Vector3() });
+        glove, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3() });
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
       for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.pad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
@@ -536,7 +539,7 @@ export class Batter {
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false) {
     this.shot = shot; this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
-    this.swingStart = now; this.contactTime = now + (charging ? CHARGE_CONTACT_MS : STROKE_CONTACT_MS);
+    this.swingStart = now; this.contactTime = now + (charging ? CHARGE_CONTACT_MS : this.pulling ? PULL_CONTACT_MS : STROKE_CONTACT_MS);
     this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ + (charging ? ADVANCE.stride : 0);
     // Only the two cross-bat strokes go up after a bouncer — the pull to the leg
     // side and the cut to the off. Every other stroke plays at its own height and
@@ -599,6 +602,7 @@ export class Batter {
   update(now: number) {
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     const age = now - this.swingStart;
+    this.poseAge = age;
     this.travel(age);
     if (!Number.isFinite(age) || age >= (this.charging ? CHARGE_DURATION_MS : STROKE_DURATION_MS)) {
       const guard = mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation);
@@ -630,8 +634,8 @@ export class Batter {
     const contact = { ...reachPose(stroke.contact), grip: contactGrip.toArray() as unknown as Point };
     const finish = reachPose(stroke.finish);
     if (this.pulling || this.charging) {
-      const impact = this.charging ? CHARGE_CONTACT_MS : STROKE_CONTACT_MS;
-      const end = this.charging ? 810 : 410;
+      const impact = this.charging ? CHARGE_CONTACT_MS : PULL_CONTACT_MS;
+      const end = this.charging ? 810 : 500;
       const hold = this.charging ? 980 : 570;
       const duration = this.charging ? CHARGE_DURATION_MS : STROKE_DURATION_MS;
       const through = reachPose(stroke.through!);
@@ -639,7 +643,12 @@ export class Batter {
         const keys = [{ time: 0, pose: this.swingFrom }];
         if (this.charging) keys.push({ time: 290, pose: { ...BACKLIFT, hip: [-.05,.82,.02], chest: [.03,1.18,.06],
           frontFoot: [-.10,.08,.20], backFoot: [-.13,.13,-.08], grip: [.28,1.08,.12] } });
-        keys.push({ time: impact, pose: contact }, { time: this.charging ? 580 : 220, pose: through });
+        else keys.push({ time: PULL_LOAD_MS, pose: reachPose({ ...BACKLIFT,
+          hip: [-.09,.86,-.20], chest: [0,1.20,-.15],
+          frontFoot: [-.24,.08,.20], backFoot: [-.20,.08,-.36],
+          grip: [.26,1.03,-.12], batUp: [-.35,-.85,.39], batFace: [.65,.10,.80],
+          yaw: 1.40, leadElbow: -.15 }) });
+        keys.push({ time: impact, pose: contact }, { time: this.charging ? 580 : 340, pose: through });
         if (this.charging) keys.push({ time: 690, pose: reachPose({ ...CHARGE.finish,
           grip: [-.20,1.55,.60], batUp: [.80,-.50,.33], batFace: [-.30,.14,.94] }) });
         keys.push({ time: end, pose: finish });
@@ -704,7 +713,18 @@ export class Batter {
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i];
       arm.shoulder.set(i === 0 ? -.163 : .163, .075, 0).applyQuaternion(this.torso.quaternion).add(chest);
-      const hand = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
+      const grip = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
+      const axis = UP.clone().applyQuaternion(this.bat.quaternion);
+      // A wrist is beside the handle, never at its centre. Rotate the closed
+      // fist only ABOUT the handle; its grasp axis and grip station stay fixed.
+      const radial = arm.shoulder.clone().sub(grip);
+      radial.addScaledVector(axis, -radial.dot(axis)).normalize();
+      const hand = grip.clone().addScaledVector(radial, .075);
+      arm.wrist.copy(hand);
+      const localRadial = radial.clone().applyQuaternion(this.bat.quaternion.clone().invert());
+      arm.glove.rotation.set(0, Math.atan2(-localRadial.x, -localRadial.z), 0);
+      let elbow = new THREE.Vector3();
+      if (this.cutting) {
       // Elbows bend towards these hints. The back arm's has to follow the hands
       // round the body — pinned to one side it folds the arm through the chest
       // on any stroke that wraps to the other, so take the hand's own bearing
@@ -744,7 +764,7 @@ export class Batter {
         const leaning = square(new THREE.Vector3(0, 1, 0).applyQuaternion(this.bat.quaternion).multiplyScalar(.85).add(hint));
         if (room(bend(leaning)) >= Math.min(room(bend(hint)), 1)) hint = leaning;
       }
-      let elbow = bend(hint);
+      elbow = bend(hint);
       // Either hint can still bury the elbow on a stroke that wraps the hands
       // across the body — in the chest, or out along the handle past the knob.
       // Turn the bend around the arm until it clears, smallest turn first.
@@ -753,12 +773,35 @@ export class Batter {
           const turned = bend(hint.clone().applyAxisAngle(along, side * step * .26));
           if (room(turned) > room(elbow)) elbow = turned;
         }
+      }
+      {
+        // A continuous anatomical pole, not a per-frame clearance winner.
+        // Choosing among discrete bend planes caused the visible elbow flips.
+        const outward = arm.shoulder.clone().sub(chest).normalize();
+        const forward = new THREE.Vector3(0,0,1).applyQuaternion(this.torso.quaternion);
+        const pole = arm.shoulder.clone().addScaledVector(outward,.24)
+          .addScaledVector(spine,-.30).addScaledVector(forward,.18);
+        if (this.cutting) {
+          // Preserve the square cut's raised clearance plane, easing into it
+          // from the shared guard instead of changing solvers at shot input.
+          const weight = ease(THREE.MathUtils.clamp(this.poseAge/60,0,1))
+            * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/150,0,1));
+          pole.lerp(elbow,weight);
+        }
+        for (let iteration=0; iteration<6; iteration++) {
+          elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
+          radial.copy(elbow).sub(grip).addScaledVector(axis, -elbow.clone().sub(grip).dot(axis)).normalize();
+          hand.copy(grip).addScaledVector(radial,.075);
+        }
+        elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
+        arm.wrist.copy(hand);
+        localRadial.copy(radial).applyQuaternion(this.bat.quaternion.clone().invert());
+        arm.glove.rotation.set(0,Math.atan2(-localRadial.x,-localRadial.z),0);
+      }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
-      // The fists ride the bat; only the wrists turn. The gauntlet sits at the
-      // hand and points back up the forearm, so the arm meets the hand at the
-      // wrist however the stroke has rolled the bat over.
+      // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
       arm.cuff.position.copy(hand);
       if (wrist.lengthSq() > .000001) arm.cuff.quaternion.setFromUnitVectors(UP, wrist.normalize());
@@ -798,6 +841,7 @@ export class Batter {
     return {
       shot: this.shot, pulling: this.pulling, cutting: this.cutting, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
       hands: this.arms.map(arm => arm.glove.getWorldPosition(new THREE.Vector3()).toArray()),
+      wrists: this.arms.map(arm => arm.wrist.toArray()),
       elbows: this.arms.map(arm => arm.elbow.position.toArray()),
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),
       chest: [...this.pose.chest], hip: [...this.pose.hip],
@@ -809,8 +853,9 @@ export class Batter {
       bladeTip: this.bat.localToWorld(new THREE.Vector3(0, -.83, 0)).toArray(),
       batUp: V(this.pose.batUp).normalize().toArray(),
       batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(this.bat.quaternion).toArray(),
-      // A fist that has turned away from the bat is a hand that has let go of it.
-      gripTwist: this.arms.map(arm => arm.glove.quaternion.angleTo(new THREE.Quaternion())),
+      // Rotation around the handle is allowed; tilting its grasp axis is not.
+      gripAxis: this.arms.map(arm => UP.clone().applyQuaternion(arm.glove.quaternion).dot(UP)),
+      gripRotation: this.arms.map(arm => arm.glove.quaternion.toArray()),
       // Where each hand sits on the handle, measured up it from the blade.
       handGrip: this.arms.map(arm => arm.glove.position.y),
       // How far in front of each shoulder the hand is carried. A shoulder cannot
@@ -823,10 +868,13 @@ export class Batter {
       // Whether the gauntlet meets the arm, and how far the elbow keeps off the
       // handle: a forearm lying along the handle runs through the bat.
       cuffAim: this.arms.map(arm => {
-        const hand = arm.glove.getWorldPosition(new THREE.Vector3()).sub(this.root.position);
+        const hand = arm.wrist;
         const forearm = arm.elbow.position.clone().sub(hand).normalize();
         const cuff = new THREE.Vector3(0, 1, 0).applyQuaternion(arm.cuff.quaternion);
-        return { alongForearm: cuff.dot(forearm), elbowOffHandle: this.offHandle(arm.elbow.position) };
+        const wristDirection = new THREE.Vector3(0,0,-1).applyQuaternion(arm.glove.quaternion).applyQuaternion(this.bat.quaternion);
+        return { alongForearm: cuff.dot(forearm), flex: wristDirection.angleTo(forearm),
+          socketError: arm.glove.localToWorld(new THREE.Vector3(0,0,-.075)).sub(this.root.position).distanceTo(hand),
+          elbowOffHandle: this.offHandle(arm.elbow.position) };
       }),
     };
   }

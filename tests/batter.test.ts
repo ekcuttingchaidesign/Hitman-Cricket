@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, STROKE_CONTACT_MS, STROKE_DURATION_MS, CHARGE_CONTACT_MS, CHARGE_DURATION_MS } from '../src/entities/Batter';
+import { Batter, PULL_LOAD_MS, PULL_CONTACT_MS, STROKE_DURATION_MS, CHARGE_CONTACT_MS, CHARGE_DURATION_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { Quaternion, Vector3 } from 'three';
@@ -187,7 +187,7 @@ describe('the pull', () => {
     for (const charge of [false, true]) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       batter.swing(charge ? 'STRAIGHT' : 'LEG', 0, 0, charge ? .54 : 1.12, GAME.contactZ, charge);
-      for (const time of charge ? [CHARGE_CONTACT_MS, 580] : [STROKE_CONTACT_MS, 220]) {
+      for (const time of charge ? [CHARGE_CONTACT_MS, 580] : [PULL_CONTACT_MS, 340]) {
         const positions = [time-1, time, time+1].map(t => { batter.update(t); return new Vector3(...batter.inspect().bladeTip); });
         const before = positions[1].clone().sub(positions[0]), after = positions[2].clone().sub(positions[1]);
         expect(before.length(), `${charge} stopped at ${time}`).toBeGreaterThan(.001);
@@ -200,13 +200,18 @@ describe('the pull', () => {
   it('loads the back leg, extends square, then wraps behind the lead shoulder', () => {
     const batter = new Batter();
     batter.prepare(1); batter.update(0); batter.swing('LEG', 0, 0, 1.12);
-    batter.update(110); const contact = batter.inspect();
+    batter.update(PULL_LOAD_MS); const load = batter.inspect();
+    expect(load.batUp[1]).toBeLessThan(-.75);
+    expect(load.grip[2]).toBeLessThan(0);
+    expect(load.yaw).toBeGreaterThan(1.3);
+    expect(batter.strikeAt).toBe(PULL_CONTACT_MS);
+    batter.update(PULL_CONTACT_MS); const contact = batter.inspect();
     expect(contact.hip[2]).toBeLessThan(-.18);
     expect(contact.frontFoot[2]).toBeLessThan(.30);
-    batter.update(220); const through = batter.inspect();
+    batter.update(340); const through = batter.inspect();
     expect(through.grip[0]).toBeLessThan(-.25);
     expect(Math.abs(through.batUp[1])).toBeLessThan(.2);
-    batter.update(410); const finish = batter.inspect();
+    batter.update(500); const finish = batter.inspect();
     expect(finish.yaw).toBeLessThan(through.yaw);
     expect(finish.bladeTip[2]).toBeLessThan(GAME.stanceZ);
   });
@@ -239,7 +244,7 @@ describe('the pull', () => {
   it('reaches the ball up at bouncer height', () => {
     const batter = new Batter();
     for (const ballX of [-.4, -.02, .3]) {
-      batter.reset(); batter.swing('LEG', 0, ballX, 1.12); batter.update(110);
+      batter.reset(); batter.swing('LEG', 0, ballX, 1.12); batter.update(PULL_CONTACT_MS);
       const blade = batter.inspect().bladeContact;
       expect(blade[0]).toBeCloseTo(ballX, 6); expect(blade[1]).toBeCloseTo(1.12, 6);
     }
@@ -329,30 +334,47 @@ describe('the square cut', () => {
 });
 
 describe('the grip', () => {
+  it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
+    for (const charge of [false,true]) for (const x of charge ? [-.17,0,.17] : [-.55,0,.32]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      let previous = batter.inspect();
+      batter.swing(charge?'STRAIGHT':'LEG',0,x,charge?.54:1.12,GAME.contactZ,charge);
+      for (let t=0;t<=(charge?CHARGE_DURATION_MS:STROKE_DURATION_MS);t+=2) {
+        batter.update(t); const pose=batter.inspect();
+        for (let i=0;i<2;i++) {
+          const where=`${charge?'charge':'pull'} x=${x} arm=${i} @${t}`;
+          expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])),where).toBeLessThan(.025);
+          expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])),where).toBeLessThan(.30);
+          expect(pose.cuffAim[i].socketError,where).toBeLessThan(1e-9);
+          expect(pose.cuffAim[i].flex,where).toBeLessThan(Math.PI/2);
+        }
+        previous=pose;
+      }
+    }
+  });
   it('holds the handle with two hands that agree about it', () => {
     const batter = new Batter();
-    let worstTwist = 0, flattest = Infinity, wristWhere = '';
+    let flattest = Infinity, wristWhere = '';
     for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.5, 0, .5]) {
         batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
         for (let time = -1; time <= STROKE_DURATION_MS; time += 20) {
           batter.update(time);
           const pose = batter.inspect();
-          // Both fists ride the bat. A hand free to turn on its own ends up
-          // gripping the handle a quarter-turn away from the other one.
-          for (const twist of pose.gripTwist) worstTwist = Math.max(worstTwist, twist);
+          // Fingers stay wrapped along the handle even as wrists pronate.
+          for (const axis of pose.gripAxis) expect(axis).toBeCloseTo(1, 9);
           // The right hand is the bottom hand: nearer the blade than the left.
           expect(pose.handGrip[1], `${shot} at ${time}ms`).toBeLessThan(pose.handGrip[0]);
           for (const [i, aim] of pose.cuffAim.entries()) {
             // The gauntlet meets the arm wherever the stroke has rolled the bat,
             // and the elbow stays off the handle rather than lying along it.
             expect(aim.alongForearm, `${shot} arm ${i} at ${time}ms`).toBeCloseTo(1, 6);
+            expect(aim.socketError).toBeLessThan(1e-9);
             if (aim.elbowOffHandle < flattest) { flattest = aim.elbowOffHandle; wristWhere = `${shot} arm ${i} at ${time}ms`; }
           }
         }
       }
     }
-    expect(worstTwist).toBeCloseTo(0, 9);
     // The handle is .048 across and a forearm .095: closer than this and one is
     // inside the other.
     expect(flattest, `closest elbow to the handle: ${wristWhere}`).toBeGreaterThan(.09);
@@ -417,6 +439,13 @@ describe('the charge', () => {
         const inverses = spheres.map(mesh => mesh.matrixWorld.clone().invert());
         for (let length = .19; length <= .81; length += .04) for (const width of [-.06,0,.06]) for (const depth of [-.026,.026]) {
           const world = batter.bat.localToWorld(new Vector3(width,-length,depth));
+          const local = world.clone().sub(batter.root.position);
+          for (let arm=0;arm<2;arm++) {
+            const elbow=new Vector3(...pose.elbows[arm]);
+            const line=new Vector3(...pose.wrists[arm]).sub(elbow);
+            const along=Math.max(0,Math.min(1,local.clone().sub(elbow).dot(line)/line.lengthSq()));
+            expect(local.distanceTo(elbow.addScaledVector(line,along)),`${charge} ${x} forearm ${arm} @${time}`).toBeGreaterThan(.0475);
+          }
           inverses.forEach((inverse,i) => {
             const distance=world.clone().applyMatrix4(inverse).length();
             if (distance < worst.distance) worst={distance,time,part:String(i)};
