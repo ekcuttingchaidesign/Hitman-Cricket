@@ -45,10 +45,16 @@ document.querySelector<HTMLButtonElement>('#camera')!.onclick = () => {
 const review = document.createElement('section');
 review.setAttribute('aria-label','Pose review controls');
 document.querySelector('main')!.insertBefore(review,scrub);
-for (const name of ['Front','Side','Load-up','Contact','Extension','Finish']) {
+for (const name of ['Front','Side','Grip close-up','Load-up','Contact','Extension','Finish']) {
   const button=document.createElement('button'); button.textContent=name; review.append(button);
   button.onclick=()=>{
-    if(name==='Front'||name==='Side') {
+    if(name==='Grip close-up') {
+      playing=false; play.textContent='Play'; batter.update(Math.min(age,Number(scrub.max)));
+      const q=batter.bat.getWorldQuaternion(new THREE.Quaternion());
+      controls.target.copy(batter.bat.localToWorld(new THREE.Vector3(0,.02,0)));
+      camera.position.copy(controls.target).add(new THREE.Vector3(.12,.08,-.68).applyQuaternion(q));
+      controls.update();
+    } else if(name==='Front'||name==='Side') {
       const down=batter.inspect().downPitch;
       controls.target.set(-.10,1.2,GAME.stanceZ+down);
       if(name==='Front') camera.position.set(.3,2,6+down);

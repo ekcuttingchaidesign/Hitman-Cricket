@@ -191,3 +191,19 @@ rather than holding it almost vertical until the high finish. This removes the
 upright plateau while retaining the contact point, strike time and high finish.
 The previous upright-until-220 test is replaced by continued angular travel;
 new contact tests check the diagonal top-hand wrist and raised lead elbow.
+
+## Shared V-grip geometry — IMG_4066 / IMG_4067
+
+The previous wrist-only revision did not constrain the thumb/index webs: the
+solver still rotated each complete fist independently about the handle. This
+revision replaces the block mittens with four curled fingers per hand, mirrored
+thumb/index webs and a visible back padding panel. Both webs remain registered
+to the rear spine in the bat frame. Wrist articulation is handled by the palm
+connection around the handle; it no longer spins the fingers and thumb webs.
+The left top hand is brought closer to the right bottom hand (0.110 m anchor
+spacing, previously 0.135 m). This is shared by every shot.
+
+Added spine-alignment checks alongside the existing all-shot hand attachment
+checks. The preview includes a paused Grip close-up camera to inspect the
+fingers, thumb webs and handle directly. The procedural palm bridge is a
+stylized articulated approximation, not a detailed anatomical hand simulation.

@@ -18,7 +18,7 @@ describe('two-handed cricket animation', () => {
         for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();
-          expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.135, 6);
+          expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.110, 6);
           expect(pose.backToe[1]).toBeCloseTo(.01, 5);
           for (const lengths of pose.armLengths) {
             expect(lengths[0]).toBeCloseTo(.32, 3);
@@ -412,6 +412,9 @@ describe('the grip', () => {
           const pose = batter.inspect();
           // Fingers stay wrapped along the handle even as wrists pronate.
           for (const axis of pose.gripAxis) expect(axis).toBeCloseTo(1, 9);
+          // Both thumb/index webs remain on the back spine. The former
+          // independent fist rotations passed grasp-axis tests but failed this.
+          for (const alignment of pose.vSpineAlignment) expect(alignment).toBeCloseTo(1,9);
           // The right hand is the bottom hand: nearer the blade than the left.
           expect(pose.handGrip[1], `${shot} at ${time}ms`).toBeLessThan(pose.handGrip[0]);
           for (const [i, aim] of pose.cuffAim.entries()) {
@@ -660,7 +663,7 @@ describe('the charge', () => {
         expect(thigh, `thigh at ${time}ms`).toBeCloseTo(.43, 3);
         expect(shin, `shin at ${time}ms`).toBeLessThan(.445);
       }
-      expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.135, 6);
+      expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(.110, 6);
     }
   });
 });

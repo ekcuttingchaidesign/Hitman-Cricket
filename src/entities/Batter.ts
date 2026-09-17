@@ -405,7 +405,7 @@ export class Batter {
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
-  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
+  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; palm: THREE.Mesh[]; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
   private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
@@ -490,24 +490,36 @@ export class Batter {
     this.mesh(this.bat,this.palette.handle,[.046,.018,.046],'tube').position.y=-.117;
     this.mesh(this.bat, this.palette.bat, [1, 1, 1], 'blade');
     for (let i = 0; i < 2; i++) {
-      // Closed fingers keep their station and grasp axis on the handle.
-      // Forearm pronation rotates the fist around that axis, never off it.
+      // Fingers and thumb webs stay registered to the spine. Wrist pronation
+      // articulates the palm connection, not the entire grip around the bat.
       const glove = new THREE.Group(); this.bat.add(glove);
-      glove.position.set(0, i === 0 ? .10 : -.035, 0);
-      this.mesh(glove, this.palette.pad, [.118, .125, .124], 'soft');
-      for (let roll = 0; roll < 3; roll++)
-        this.mesh(glove, this.palette.pad, [.112, .034, .034], 'soft').position.set(0, .046 - roll * .046, .050);
-      // Opposing thumbs: these are a left top hand and a right bottom hand,
-      // not two copies of the same mitten. The wrist exits behind the palm
-      // and diagonally toward the butt for the leading top hand.
-      this.mesh(glove, this.palette.pad, [.046, .085, .052], 'soft').position.set(i === 0 ? -.052 : .052, -.015, -.042);
+      glove.position.set(0, i === 0 ? .075 : -.035, 0);
+      const side=i===0?1:-1;
+      const palm=Array.from({length:4},()=>this.mesh(glove,this.palette.pad,[1,1,1],'soft'));
+      this.mesh(glove,this.palette.pad,[.075,.090,.033],'soft').position.z=-.043;
+      // Four individually curled fingers encircle the rubber, leaving a real
+      // handle channel. Both thumb/index webs sit on -Z, the back spine.
+      for(let finger=0;finger<4;finger++) {
+        const y=.033-finger*.023;
+        const points=Array.from({length:12},(_,n)=>{
+          const angle=.7+n/11*4.4;
+          return new THREE.Vector3(side*Math.sin(angle)*.036,y,-Math.cos(angle)*.036);
+        });
+        const mesh=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),16,.010,8,false),this.palette.pad);
+        mesh.castShadow=true; glove.add(mesh);
+      }
+      const web=new THREE.Vector3(0,-.008,-.070);
+      const thumb=this.mesh(glove,this.palette.pad,[1,1,1],'soft');
+      this.segment(thumb,web,new THREE.Vector3(-side*.026,.043,-.060),.025,.025);
+      const index=this.mesh(glove,this.palette.pad,[1,1,1],'soft');
+      this.segment(index,web,new THREE.Vector3(side*.035,.039,-.059),.023,.023);
       // The wrist is what turns: a gauntlet at the hand aimed back up the forearm.
       const cuff = new THREE.Group(); this.root.add(cuff);
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
-        glove, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
+        glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
       for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.pad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
@@ -787,15 +799,14 @@ export class Batter {
       arm.shoulder.set(i === 0 ? -.163 : .163, .075+(pose.shoulderLift??0), 0).applyQuaternion(this.torso.quaternion).add(chest);
       const grip = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
       const axis = UP.clone().applyQuaternion(this.bat.quaternion);
-      // A wrist is beside the handle, never at its centre. Rotate the closed
-      // fist only ABOUT the handle; its grasp axis and grip station stay fixed.
+      // Solve the wrist beside the handle while keeping both Vs registered
+      // to the bat. The palm bridge below accommodates wrist articulation.
       const radial = arm.shoulder.clone().sub(grip);
       radial.addScaledVector(axis, -radial.dot(axis)).normalize();
       const socket=wristSocket(i);
-      const hand = grip.clone().addScaledVector(radial, -socket.z).addScaledVector(axis,socket.y);
+      const hand = grip.clone().addScaledVector(radial,-socket.z).addScaledVector(axis,socket.y);
       arm.wrist.copy(hand);
-      const localRadial = radial.clone().applyQuaternion(this.bat.quaternion.clone().invert());
-      arm.glove.rotation.set(0, Math.atan2(-localRadial.x, -localRadial.z), 0);
+      arm.glove.rotation.set(0,0,0);
       let elbow = new THREE.Vector3();
       if (this.cutting) {
       // Elbows bend towards these hints. The back arm's has to follow the hands
@@ -871,19 +882,24 @@ export class Batter {
             * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/150,0,1));
           pole.lerp(elbow,weight);
         }
-        for (let iteration=0; iteration<6; iteration++) {
-          elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
-          radial.copy(elbow).sub(grip).addScaledVector(axis, -elbow.clone().sub(grip).dot(axis)).normalize();
-          // The wrist uncocks as the forearm passes the hands in a wrap;
-          // retaining the pickup's diagonal here would bend it backwards.
+        for (let iteration=0;iteration<6;iteration++) {
+          elbow=solveJoint(arm.shoulder,hand,.32,.34,pole);
+          radial.copy(elbow).sub(grip).addScaledVector(axis,-elbow.clone().sub(grip).dot(axis)).normalize();
           socket.y=wristSocket(i).y*THREE.MathUtils.smoothstep(elbow.clone().sub(grip).dot(axis),-.08,.20);
           hand.copy(grip).addScaledVector(radial,-socket.z).addScaledVector(axis,socket.y);
         }
         elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
         arm.wrist.copy(hand);
-        arm.socket.copy(socket);
-        localRadial.copy(radial).applyQuaternion(this.bat.quaternion.clone().invert());
-        arm.glove.rotation.set(0,Math.atan2(-localRadial.x,-localRadial.z),0);
+        arm.socket.copy(hand).sub(grip).applyQuaternion(this.bat.quaternion.clone().invert());
+        // The finger and thumb webs remain in the bat frame. Articulate the
+        // palm around the handle to the wrist, instead of spinning the entire
+        // fist and taking its V away from the spine. The curved bridge keeps
+        // a handle channel rather than cutting straight through the rubber.
+        const bearing=Math.atan2(arm.socket.x,-arm.socket.z);
+        for(let n=0;n<arm.palm.length;n++) {
+          const point=(t:number)=>new THREE.Vector3(Math.sin(bearing*t)*(.047+(.020*t)),arm.socket.y*t,-Math.cos(bearing*t)*(.047+(.020*t)));
+          this.segment(arm.palm[n],point(n/4),point((n+1)/4),.042,.047);
+        }
       }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
@@ -950,6 +966,7 @@ export class Batter {
       // Rotation around the handle is allowed; tilting its grasp axis is not.
       gripAxis: this.arms.map(arm => UP.clone().applyQuaternion(arm.glove.quaternion).dot(UP)),
       gripRotation: this.arms.map(arm => arm.glove.quaternion.toArray()),
+      vSpineAlignment: this.arms.map(arm=>new THREE.Vector3(0,0,-1).applyQuaternion(arm.glove.quaternion).dot(new THREE.Vector3(0,0,-1))),
       // Where each hand sits on the handle, measured up it from the blade.
       handGrip: this.arms.map(arm => arm.glove.position.y),
       // How far in front of each shoulder the hand is carried. A shoulder cannot
