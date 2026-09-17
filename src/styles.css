@@ -2781,14 +2781,17 @@ body.private-window{overflow:hidden}
   padding:6px;
   border:0;
   background:none;
-  color:#ffffff9e;
+  /* The ink the PLAY key is set in, and for the same reason: what the cover
+     puts this line on is the pitch — cream, and lit — so white type lies on it
+     almost invisibly. Dark on light, the way everything else on the artwork is. */
+  color:var(--cta-ink);
   font-family:var(--cta);
-  font-size:12px;
+  font-size:12.5px;
   letter-spacing:1.2px;
   text-decoration:underline;
   text-underline-offset:4px
 }
-.cover-feedback:hover{color:#fff}
+.cover-feedback:hover{color:#000}
 /* The board's close key is placed against the board sheet, which is a
    full-height screen with its own header rail. Here it sits in a row with the
    eyebrow, so it takes the same shape back out of the flow it was pulled from. */

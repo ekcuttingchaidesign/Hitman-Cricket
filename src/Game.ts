@@ -197,9 +197,8 @@ export class Game {
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
     this.hud.onBoardTab = this.tabBoard;
     // The three ways into the questionnaire. The cover offers it only to
-    // somebody who has played before — a form is a strange thing to be handed
-    // by a game you have not started — and the card waits for a second innings
-    // so that nothing stands between a first score and the board.
+    // somebody who has played before: a form is a strange thing to be handed by
+    // a game you have not started.
     this.hud.on('feedback-open', () => this.openFeedback('cover'));
     this.hud.on('feedback-card', () => this.openFeedback('card'));
     this.hud.on('feedback-pause', () => this.openFeedback('pause'));
@@ -849,11 +848,11 @@ export class Game {
       this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
     this.hud.end(this.score, this.best, record);
-    // From the second innings on. The first card is about the score and the
-    // board, and a questionnaire under it would be asking what somebody thought
-    // of a game they have played once, in the same breath as telling them how
-    // they did.
-    this.hud.offerFeedback({ card: this.innings > 1, cover: this.best > 0 });
+    // On every card, first innings included. It was held back for a second
+    // innings on the theory that the first card belongs to the score and the
+    // board — but a line nobody ever sees asks nothing at all, and most people
+    // who play once play once.
+    this.hud.offerFeedback({ card: true, cover: this.best > 0 });
     this.offerBoard();
   }
   private snapshot() {
