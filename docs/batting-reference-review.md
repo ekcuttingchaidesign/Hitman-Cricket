@@ -108,3 +108,33 @@ continuous drive velocity through impact/extension. An explicit charge test
 checks that neither glove rotates relative to the handle from 100–440 ms.
 Preview selection now includes Cover drive and Straight drive, with the
 correct contact/extension/finish buttons for each.
+
+## Shoulder-led revision — 17-07-41 cover / 17-09-01 straight recordings
+
+Reviewed the supplied cover recording at 3 fps and straight recording at 4 fps.
+The straight recording includes a long freeze frame: its held upright blade is
+not evidence of a separate wrist rotation. The cover recording shows the hands
+carrying forward and upward while the blade remains down after contact, before
+the late high fold. These motion references supersede the earlier interpretation
+of the finish stills. The charge illustration emphasizes forward/upward arm
+extension; it is a pose reference, not a measured motion sequence.
+
+Drive follow-throughs now carry the hands on a shoulder-centred arc, with an
+authored lead upper-arm bend plane and gradual shoulder elevation. Both upper
+arms move through the shoulder joints; the two wrist targets remain coupled to
+the handle. This is shoulder-guided IK, not a physics simulation of power.
+The straight blade stays toe-down from contact through the held high finish;
+the old lofted intermediate pose and sideways blade return are removed. Cover
+retains a forward carry before folding high. Charge extends its arms forward
+and upward before its high finish. Recovery retains shoulder guidance until
+the arms lower to avoid an elbow-plane flip. The approved pull motion is unchanged.
+
+The multi-view bat reference informs a new cross-section mesh: near-flat bowed
+striking face, beveled edges, raised rear spine, broad rounded toe, tapered
+shoulders, and ribbed rubber grip. Grip anchors and gameplay contact coordinates
+are unchanged. Collision tests now sample the actual blade vertices and triangle
+centres, including the thicker spine, rather than the old rectangular envelope.
+Regression checks require both upper arms to sweep more than 45 degrees between
+contact and finish, hands to rise over 0.5 m, and the straight blade to remain
+upright throughout its post-contact active phase. These tests guard the intended
+motion; they do not by themselves certify realism.

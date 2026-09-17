@@ -3,6 +3,7 @@ import { Batter, PULL_LOAD_MS, PULL_CONTACT_MS, STROKE_DURATION_MS, CHARGE_CONTA
 import { ADVANCE, GAME, LINE_X, SHOTS } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { Quaternion, Vector3 } from 'three';
+import { bladeGeometry } from '../src/entities/batGeometry';
 // Every stroke the batter can be asked to play, defence included.
 const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
 
@@ -422,6 +423,21 @@ describe('the grip', () => {
 });
 
 describe('shoulders', () => {
+  it.each(['straight','cover','charge'])('powers the %s follow-through with upper-arm travel', kind => {
+    const batter=new Batter(); batter.prepare(1); batter.update(0);
+    batter.swing(kind==='cover'?'COVER_LONG_OFF':'STRAIGHT',0,kind==='cover'?.3:0,.54,GAME.contactZ,kind==='charge');
+    batter.update(kind==='charge'?440:110); const contact=batter.inspect();
+    batter.update(kind==='charge'?810:410); const finish=batter.inspect();
+    for(let i=0;i<2;i++) {
+      const from=new Vector3(...contact.elbows[i]).sub(new Vector3(...contact.shoulders[i]));
+      const to=new Vector3(...finish.elbows[i]).sub(new Vector3(...finish.shoulders[i]));
+      expect(from.angleTo(to)).toBeGreaterThan(Math.PI/4);
+    }
+    expect(finish.grip[1]-contact.grip[1]).toBeGreaterThan(.5);
+    if(kind==='straight') for(let t=110;t<=570;t+=4) {
+      batter.update(t); expect(batter.inspect().batUp[1]).toBeGreaterThan(.9);
+    }
+  });
   it('never carries the hands round behind the back', () => {
     const batter = new Batter();
     const strokes: [string, () => void][] = [
@@ -456,6 +472,11 @@ describe('the charge', () => {
     }
   });
   it.each(['pull','charge','straight','cover'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+    const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
+    const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
+    for(let i=0;i<index.count;i+=3) samples.push(
+      new Vector3().add(samples[index.getX(i)]).add(samples[index.getX(i+1)]).add(samples[index.getX(i+2)]).divideScalar(3));
+    geometry.dispose();
     for (const x of kind==='pull'?[-.55,0,.32]:kind==='cover'?[-.08,.30,.55]:[-.17,0,.17]) {
       const charge=kind==='charge';
       const batter = new Batter(); batter.prepare(1); batter.update(0);
@@ -474,8 +495,8 @@ describe('the charge', () => {
         for (const lengths of pose.armLengths) expect(lengths[1], `${charge} ${x} arm @${time}`).toBeLessThan(.345);
         for (const lengths of pose.legLengths) expect(lengths[1], `${charge} ${x} leg @${time}`).toBeLessThan(.445);
         const inverses = spheres.map(mesh => mesh.matrixWorld.clone().invert());
-        for (let length = .19; length <= .81; length += .04) for (const width of [-.06,0,.06]) for (const depth of [-.026,.026]) {
-          const world = batter.bat.localToWorld(new Vector3(width,-length,depth));
+        for (const sample of samples) {
+          const world = batter.bat.localToWorld(sample.clone());
           const local = world.clone().sub(batter.root.position);
           for (let arm=0;arm<2;arm++) {
             const elbow=new Vector3(...pose.elbows[arm]);

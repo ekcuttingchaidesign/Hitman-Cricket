@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ADVANCE, CUT, GAME } from '../config/gameplay';
 import { solveJoint } from './rig';
+import { bladeGeometry, gripGeometry } from './batGeometry';
 import type { ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
@@ -22,6 +23,10 @@ interface Pose {
   heel: number;
   backFootYaw?: number;
   leadElbow: number;
+  /** Shoulder-led drives: elevation of the upper-arm bend plane, not bat roll. */
+  armHinge?: number;
+  armDrive?: number;
+  shoulderLift?: number;
 }
 const V = (p: Point) => new THREE.Vector3(...p);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -165,13 +170,16 @@ const CUT_REACH: readonly [number, number] = [.11, .62];
 const STROKES: Record<ShotType, Stroke> = {
   STRAIGHT: {
     contact: { ...GUARD, hip: [-0.05, .83, .14], chest: [.12, 1.17, .23], frontFoot: [.02, .08, .63],
-      grip: [.34, .98, .36], batUp: [.035, .985, -.17], batFace: [0, .12, 1], yaw: 1.08, face: 0, heel: .07, leadElbow: .13 },
+      grip: [.34, .98, .36], batUp: [.035, .985, -.17], batFace: [0, .12, 1], yaw: 1.08, face: 0, heel: .07, leadElbow: .13,
+      armHinge: -.60, armDrive: 0, shoulderLift: 0 },
     through: { ...GUARD, hip: [-.04,.84,.17], chest: [.10,1.18,.30], frontFoot: [.02,.08,.63],
-      grip: [.30,1.18,.66], batUp: [0,-.38,-.925], batFace: [0,.925,-.38], yaw: .92, face: 0, heel: .15, leadElbow: .15 },
+      grip: [.30,1.32,.77], batUp: [0,.99,-.14], batFace: [0,.14,.99], yaw: .92, face: 0, heel: .15, leadElbow: .15,
+      armHinge: .90, armDrive: 1, shoulderLift: .05 },
     // The supplied straight-drive still: head over the front knee, high lead
     // elbow and a presented blade in front of the body, not a lofted slog.
     finish: { ...GUARD, hip: [-.02,.85,.19], chest: [.10,1.20,.32], frontFoot: [.02,.08,.63],
-      grip: [.34,1.64,.64], batUp: [0,.995,-.10], batFace: [0,.10,.995], yaw: .92, face: 0, heel: .18, leadElbow: .40 },
+      grip: [.34,1.58,.64], batUp: [0,.995,-.10], batFace: [0,.10,.995], yaw: .92, face: 0, heel: .18, leadElbow: .40,
+      armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
     recover: { ...GUARD, grip: [.38,1.12,.43], batUp: [-.15,-.80,-.58], batFace: [.86,-.22,.17], yaw: 1.10 },
   },
   LONG_ON: {
@@ -193,11 +201,14 @@ const STROKES: Record<ShotType, Stroke> = {
   },
   COVER_LONG_OFF: {
     contact: { ...GUARD, hip: [.05, .81, .13], chest: [.19, 1.15, .22], frontFoot: [.10, .08, .60],
-      grip: [.50, .98, .35], batUp: [.34, .93, -.14], batFace: [.42, .10, .90], yaw: 1.42, face: .28, heel: .07, leadElbow: .12 },
+      grip: [.50, .98, .35], batUp: [.34, .93, -.14], batFace: [.42, .10, .90], yaw: 1.42, face: .28, heel: .07, leadElbow: .12,
+      armHinge: -.60, armDrive: 0, shoulderLift: 0 },
     through: { ...GUARD, hip: [.06,.79,.16], chest: [.22,1.13,.28], frontFoot: [.10,.08,.60],
-      grip: [.55,1.23,.66], batUp: [-.55,-.40,-.73], batFace: [.42,.55,-.72], yaw: 1.05, face: .28, heel: .16, leadElbow: .15 },
+      grip: [.48,1.32,.75], batUp: [-.18,.975,-.10], batFace: [.42,.1,.90], yaw: 1.05, face: .28, heel: .16, leadElbow: .15,
+      armHinge: .90, armDrive: 1, shoulderLift: .05 },
     finish: { ...GUARD, hip: [.08,.80,.20], chest: [.22,1.16,.30], frontFoot: [.10,.08,.60],
-      grip: [.47,1.66,.52], batUp: [-.86,.22,-.46], batFace: [.05,.93,.35], yaw: .95, face: .30, heel: .20, leadElbow: .40 },
+      grip: [.47,1.60,.60], batUp: [-.86,.22,-.46], batFace: [.05,.93,.35], yaw: .95, face: .30, heel: .20, leadElbow: .40,
+      armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
     recover: { ...GUARD, grip: [.38,1.10,.40], batUp: [-.15,-.80,-.58], batFace: [.86,-.22,.17], yaw: 1.16 },
   },
   LEG: {
@@ -281,39 +292,20 @@ const PULL_REACH: readonly [number, number] = [-.55, .32];
 // extend up the line, then fold the blade over the left shoulder.
 const CHARGE: Stroke = {
   contact: { ...GUARD, hip: [-.06, .80, .16], chest: [.10, 1.16, .25], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
-    grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18 },
+    grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18,
+    armHinge: -.60, armDrive: 0, shoulderLift: 0 },
   // Brace the front leg and rise onto the back toe; do not kick the lead leg
   // behind the body at the instant the bat finishes. The high hands extend
   // down the target line rather than folding the blade back into the torso.
   through: { ...GUARD, hip: [-.04, .85, .21], chest: [.06, 1.22, .36], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
-    grip: [.10, 1.43, .88], batUp: [-.10, -.58, -.81], batFace: [0, .82, -.58], yaw: .30, face: 0, heel: .24, leadElbow: .12 },
+    grip: [.16,1.46,.96], batUp: [-.10,-.58,-.81], batFace: [0,.82,-.58], yaw: .30, face: 0, heel: .24, leadElbow: .12,
+    armHinge: .65, armDrive: 1, shoulderLift: .07 },
   finish: { ...GUARD, hip: [-.04, .85, .22], chest: [.04, 1.20, .35], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
-    grip: [-.03,1.50,.68], batUp: [.10,-.94,.32], batFace: [0,-.32,-.94], yaw: .30, face: 0, heel: .24, backFootYaw: .80, leadElbow: .22 },
+    grip: [-.03,1.58,.68], batUp: [.10,-.94,.32], batFace: [0,-.32,-.94], yaw: .30, face: 0, heel: .24, backFootYaw: .80, leadElbow: .22,
+    armHinge: 1.55, armDrive: 1, shoulderLift: .08 },
   recover: { ...GUARD, hip: [-.04, .88, .10], chest: [.04, 1.24, .15], frontFoot: [.00, .08, .44],
     grip: [.38, 1.10, .43], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17], yaw: .8, heel: .10 },
 };
-
-/**
- * A bat outline rather than a rounded slab: near-parallel edges down the middle,
- * a domed toe, and a taper into the shoulder where the blade meets the handle.
- * Extruded with a bevel so the edges round over the way a bat's do.
- */
-function bladeGeometry() {
-  const edge: readonly (readonly [number, number])[] = [
-    [.028, -.134], [.046, -.160], [.061, -.222], [.067, -.340],
-    [.068, -.560], [.066, -.720], [.058, -.788], [.038, -.820],
-  ];
-  const outline = new THREE.Shape();
-  outline.moveTo(0, -.832);
-  for (let i = edge.length - 1; i >= 0; i--) outline.lineTo(edge[i][0], edge[i][1]);
-  for (const [x, y] of edge) outline.lineTo(-x, y);
-  outline.lineTo(0, -.832);
-  const blade = new THREE.ExtrudeGeometry(outline, {
-    depth: .044, bevelEnabled: true, bevelSize: .011, bevelThickness: .009, bevelSegments: 3, curveSegments: 8,
-  });
-  blade.translate(0, 0, -.022);
-  return blade;
-}
 
 function mix(a: Pose, b: Pose, amount: number): Pose {
   const t = ease(THREE.MathUtils.clamp(amount, 0, 1));
@@ -332,6 +324,9 @@ function mix(a: Pose, b: Pose, amount: number): Pose {
     headDown: THREE.MathUtils.lerp(a.headDown ?? 0, b.headDown ?? 0, t),
     backFootYaw: THREE.MathUtils.lerp(a.backFootYaw ?? 1.38, b.backFootYaw ?? 1.38, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
+    armHinge: THREE.MathUtils.lerp(a.armHinge ?? -.6,b.armHinge ?? -.6,t),
+    armDrive: THREE.MathUtils.lerp(a.armDrive ?? 0,b.armDrive ?? 0,t),
+    shoulderLift: THREE.MathUtils.lerp(a.shoulderLift ?? 0,b.shoulderLift ?? 0,t),
   };
 }
 
@@ -355,6 +350,8 @@ function flowing(keys: readonly { time: number; pose: Pose }[], age: number, hor
     pose[key] = [0, 1, 2].map(axis => sample(keys.map(k => k.pose[key][axis]))) as unknown as Point;
   for (const key of ['yaw', 'face', 'heel', 'leadElbow'] as const) pose[key] = sample(keys.map(k => k.pose[key]));
   pose.backFootYaw = sample(keys.map(k => k.pose.backFootYaw ?? 1.38));
+  for (const key of ['armHinge','armDrive','shoulderLift'] as const)
+    pose[key] = sample(keys.map(k=>k.pose[key] ?? (key==='armHinge'?-.6:0)));
   const rotations = keys.map(k => batOrientation(k.pose).clone());
   for (let n = 1; n < rotations.length; n++) if (rotations[n-1].dot(rotations[n]) < 0)
     rotations[n].set(...rotations[n].toArray().map(v => -v) as [number, number, number, number]);
@@ -378,6 +375,20 @@ function flowing(keys: readonly { time: number; pose: Pose }[], age: number, hor
     pose.batFace = new THREE.Vector3(Math.cos(azimuth),0,-Math.sin(azimuth)).applyAxisAngle(V(pose.batUp),sample(rolls)).toArray() as unknown as Point;
     delete pose.bat; pose.bat=batOrientation(pose);
   }
+  return pose;
+}
+
+/** Drive hands orbit the shoulder girdle. Bat pitch is a separate, restrained
+ * wrist articulation: a vertical-bat drive must not become a wrist windmill. */
+function shoulderDriven(keys: readonly {time: number; pose: Pose}[], age: number, impact: number): Pose {
+  const centre = (p: Pose) => V(p.chest).addScaledVector(V(p.chest).sub(V(p.hip)).normalize(),.075+(p.shoulderLift??0));
+  const encoded = keys.map(k=>{
+    const offset=V(k.pose.grip).sub(centre(k.pose));
+    return {time:k.time,pose:{...k.pose,grip:[offset.x,Math.hypot(offset.y,offset.z),Math.atan2(offset.y,offset.z)] as Point}};
+  });
+  const pose=flowing(keys,age), arc=flowing(encoded,age).grip;
+  const orbit=centre(pose).add(new THREE.Vector3(arc[0],Math.sin(arc[2])*arc[1],Math.cos(arc[2])*arc[1]));
+  pose.grip=V(pose.grip).lerp(orbit,ease(THREE.MathUtils.clamp((age-impact)/70,0,1))).toArray() as unknown as Point;
   return pose;
 }
 
@@ -471,9 +482,9 @@ export class Batter {
     }
     for (const x of [-.14, .14]) this.mesh(this.head, this.palette.grille, [.016, .19, .016], 'tube').position.set(x, -.045, .175);
     // Bat: a dark bound handle standing clear of a plain blade.
-    this.mesh(this.bat, this.palette.handle, [.040, .36, .040], 'tube').position.y = .05;
-    this.mesh(this.bat, this.palette.handle, [.048, .20, .048], 'tube').position.y = .10;
-    this.mesh(this.bat, this.palette.handle, [.058, .038, .058], 'tube').position.y = .225;
+    const rubber=new THREE.Mesh(gripGeometry(),new THREE.MeshStandardMaterial({color:0x777e80,roughness:.94}));
+    rubber.castShadow=true; rubber.receiveShadow=true; this.bat.add(rubber);
+    this.mesh(this.bat,this.palette.handle,[.046,.018,.046],'tube').position.y=-.117;
     this.mesh(this.bat, this.palette.bat, [1, 1, 1], 'blade');
     for (let i = 0; i < 2; i++) {
       // Closed fingers keep their station and grasp axis on the handle.
@@ -662,7 +673,7 @@ export class Batter {
         if (this.charging) keys.push({ time: 690, pose: reachPose({ ...CHARGE.finish,
           grip: [.04,1.55,.78], batUp: [0,-1,0], batFace: [0,0,-1] }) });
         keys.push({ time: end, pose: finish });
-        const pose = flowing(keys, age, this.pulling);
+        const pose = this.charging ? shoulderDriven(keys,age,impact) : flowing(keys, age, true);
         this.apply(this.charging && age < impact ? this.approach(pose, age) : pose);
       } else if (age < hold) this.apply(finish);
       else {
@@ -675,7 +686,7 @@ export class Batter {
           this.apply(age<first ? mix(finish,out,(age-hold)/(first-hold))
             : age<second ? mix(out,recovery,(age-first)/(second-first)) : mix(recovery,guard,(age-second)/(duration-second)));
         } else {
-          const out = reachPose({ ...CHARGE.finish, grip: [.22,1.48,.72], batUp: [0,-1,0], batFace: [0,0,-1] });
+          const out = reachPose({ ...CHARGE.finish, grip: [.22,1.48,.72], batUp: [0,-1,0], batFace: [0,0,-1],armHinge:.2,armDrive:1,shoulderLift:.04 });
           const clear = hold+90;
           this.apply(age<clear ? mix(finish,out,(age-hold)/(clear-hold))
             : age<mid ? mix(out,recovery,(age-clear)/(mid-clear)) : mix(recovery,guard,(age-mid)/(duration-mid)));
@@ -687,13 +698,11 @@ export class Batter {
       if (age < 410) {
         const keys = [{ time: 0, pose: this.swingFrom }, { time: STROKE_CONTACT_MS, pose: contact },
           { time: 220, pose: reachPose(stroke.through!) }];
-        if (this.shot === 'STRAIGHT') keys.push({ time: 310, pose: reachPose({ ...stroke.finish,
-          grip: [.35,1.56,.68], batUp: [-.85,-.50,-.16], batFace: [-.40,.80,-.40] }) });
         keys.push({ time: 410, pose: finish });
-        this.apply(flowing(keys,age));
+        this.apply(shoulderDriven(keys,age,STROKE_CONTACT_MS));
       } else if (age < 570) this.apply(finish);
       else if (age < 780) {
-        const out=reachPose({ ...stroke.finish, grip: this.shot==='STRAIGHT'?[.42,1.45,.58]:[.50,1.45,.55], batUp: [-1,0,0], batFace: [0,0,1] });
+        const out=reachPose({ ...stroke.finish, grip: this.shot==='STRAIGHT'?[.42,1.45,.58]:[.50,1.45,.55], batUp: [-1,0,0], batFace: [0,0,1],armHinge:.2,armDrive:1,shoulderLift:.04 });
         this.apply(age<660?mix(finish,out,(age-570)/90):mix(out,reachPose(stroke.recover!),(age-660)/120));
       } else this.apply(mix(reachPose(stroke.recover!),GUARD,(age-780)/(STROKE_DURATION_MS-780)));
       return;
@@ -742,7 +751,7 @@ export class Batter {
     this.root.updateMatrixWorld(true);
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i];
-      arm.shoulder.set(i === 0 ? -.163 : .163, .075, 0).applyQuaternion(this.torso.quaternion).add(chest);
+      arm.shoulder.set(i === 0 ? -.163 : .163, .075+(pose.shoulderLift??0), 0).applyQuaternion(this.torso.quaternion).add(chest);
       const grip = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
       const axis = UP.clone().applyQuaternion(this.bat.quaternion);
       // A wrist is beside the handle, never at its centre. Rotate the closed
@@ -813,6 +822,12 @@ export class Batter {
           .addScaledVector(spine,-.30).addScaledVector(forward,.18);
         if (!this.charging && !this.pulling && i===0 && (this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'))
           pole.addScaledVector(spine,Math.max(0,pose.leadElbow)*1.1);
+        const drive=THREE.MathUtils.clamp(pose.armDrive??0,0,1);
+        if (drive>0 && i===0) {
+          const hinge=pose.armHinge??-.6;
+          const aim=new THREE.Vector3(.10,Math.sin(hinge),Math.cos(hinge)).normalize();
+          pole.lerp(arm.shoulder.clone().addScaledVector(aim,.60),drive);
+        }
         if (this.cutting) {
           // Preserve the square cut's raised clearance plane, easing into it
           // from the shared guard instead of changing solvers at shot input.
