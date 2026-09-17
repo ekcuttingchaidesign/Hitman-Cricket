@@ -28,6 +28,8 @@ const UP = new THREE.Vector3(0, 1, 0);
 const ease = (t: number) => t * t * (3 - 2 * t);
 export const STROKE_CONTACT_MS = 110;
 export const STROKE_DURATION_MS = 940;
+export const CHARGE_CONTACT_MS = 440;
+export const CHARGE_DURATION_MS = 1320;
 
 // A right-handed guard: left shoulder and left foot lead toward the bowler.
 // The bat has one transform. Both fists are attached to its handle; the arms
@@ -247,40 +249,40 @@ function batOrientation(pose: Pose) {
 // line, blade swung across the body, and the whole frame opening up to follow it
 // round. It is played on the leg-side input, so it needs its own reach as well.
 const PULL: Stroke = {
-  contact: { ...GUARD, hip: [-.13, .86, -.22], chest: [-.04, 1.20, -.12],
-    frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
-    grip: [-.30, 1.12, .02], batUp: [-.93, .30, -.20], batFace: [-.86, .18, .48],
+  contact: { ...GUARD, hip: [-.13, .86, -.25], chest: [-.04, 1.20, -.32],
+    frontFoot: [-.30, .08, .16], backFoot: [-.20, .08, -.36],
+    grip: [-.30, 1.12, .02], batUp: [-.35, .12, -.93], batFace: [-.93, -.05, .35],
     yaw: .62, face: -.25, heel: .04, backFootYaw: 1.05, leadElbow: -.20 },
   // Extend through the ball before the elbows fold into the wrap. The head
   // stays over the loaded back leg rather than lunging after the hands.
-  through: { ...GUARD, hip: [-.17, .88, -.20], chest: [-.12, 1.24, -.09],
-    frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
-    grip: [-.32, 1.19, .33], batUp: [.55, -.12, -.83], batFace: [-.80, .12, -.55],
+  through: { ...GUARD, hip: [-.17, .88, -.22], chest: [-.12, 1.24, -.15],
+    frontFoot: [-.30, .08, .16], backFoot: [-.20, .08, -.36],
+    grip: [-.32, 1.19, .33], batUp: [.98, .08, -.18], batFace: [-.18, -.05, -.98],
     yaw: .05, face: -.65, heel: .08, backFootYaw: .55, leadElbow: -.12 },
-  // The bat finishes high with the hands together in front of the chest and the
-  // blade pointing up over the off shoulder. Wrapping them round behind the back
-  // is where the arms end up if the grip is left on the leg side, and no shoulder
-  // bends that way.
+  // Mirrored from the supplied left-handed demonstration: the hands fold beside
+  // the left shoulder and the blade settles behind it, clear of the helmet.
   finish: { ...GUARD, hip: [-.17, .90, -.10], chest: [-.16, 1.26, .00],
-    frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
-    grip: [-.30, 1.36, .27], batUp: [.65, -.45, .61], batFace: [-.62, .18, .79],
+    frontFoot: [-.30, .08, .16], backFoot: [-.20, .08, -.36],
+    grip: [-.40, 1.48, .28], batUp: [.14, .10, .985], batFace: [.985, 0, -.14],
     yaw: -.38, face: -.80, heel: .10, backFootYaw: .25, leadElbow: -.10 },
-  recover: { ...GUARD, grip: [.24, 1.15, .36], batUp: [-.15, -.80, -.58],
+  recover: { ...GUARD, grip: [.36, 1.10, .40], batUp: [-.15, -.80, -.58],
     batFace: [.86, -.22, .17], yaw: .70, heel: .04 },
 };
 const PULL_REACH: readonly [number, number] = [-.55, .32];
-// Charging the bowler: a long stride out of the crease with the head over the
-// ball, the bat swung straight through the line and up, and the whole body
-// carried on down the pitch afterwards. The stride is as long as the leg will
-// reach — any further and the shin stretches to meet the foot.
+// Reference charge: gather and advance before impact, plant the lead foot,
+// extend up the line, then fold the blade over the left shoulder.
 const CHARGE: Stroke = {
-  contact: { ...GUARD, hip: [-.06, .80, .36], chest: [.10, 1.16, .40], frontFoot: [.04, .08, .92], backFoot: [-.20, .10, -.26],
+  contact: { ...GUARD, hip: [-.06, .80, .16], chest: [.10, 1.16, .25], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
     grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18 },
   // Brace the front leg and rise onto the back toe; do not kick the lead leg
   // behind the body at the instant the bat finishes. The high hands extend
   // down the target line rather than folding the blade back into the torso.
-  finish: { ...GUARD, hip: [-.04, .85, .35], chest: [.04, 1.24, .43], frontFoot: [.04, .08, .72], backFoot: [-.20, .08, .05],
-    grip: [.28, 1.55, .74], batUp: [-.10, -.62, -.78], batFace: [0, .12, 1], yaw: .62, face: 0, heel: .24, leadElbow: .12 },
+  through: { ...GUARD, hip: [-.04, .85, .21], chest: [.06, 1.22, .28], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
+    grip: [.25, 1.39, .68], batUp: [-.10, -.58, -.81], batFace: [0, .82, -.58], yaw: .65, face: 0, heel: .24, leadElbow: .12 },
+  finish: { ...GUARD, hip: [-.04, .87, .22], chest: [.04, 1.25, .28], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
+    grip: [-.18, 1.47, .55], batUp: [.25, .10, .96], batFace: [-.92, .30, .20], yaw: .20, face: 0, heel: .24, backFootYaw: .80, leadElbow: .12 },
+  recover: { ...GUARD, hip: [-.04, .88, .10], chest: [.04, 1.24, .15], frontFoot: [.00, .08, .44],
+    grip: [.38, 1.10, .43], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17], yaw: .8, heel: .10 },
 };
 
 /**
@@ -323,6 +325,52 @@ function mix(a: Pose, b: Pose, amount: number): Pose {
     backFootYaw: THREE.MathUtils.lerp(a.backFootYaw ?? 1.38, b.backFootYaw ?? 1.38, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
   };
+}
+
+/** Time-aware cubic interpolation: contact/extension are pass-through keys,
+ * not ease-in/ease-out stops. Quaternion components share the same tangents
+ * and hemisphere, then normalize, avoiding an axis flip at a key boundary.
+ * End tangents are zero only at the start and the final shoulder rest. */
+function flowing(keys: readonly { time: number; pose: Pose }[], age: number, horizontalSweep = false): Pose {
+  if (age >= keys[keys.length - 1].time) return keys[keys.length - 1].pose;
+  const i = Math.max(0, keys.findIndex(k => k.time > age) - 1);
+  const a = keys[i], b = keys[i + 1], dt = b.time - a.time;
+  const t = THREE.MathUtils.clamp((age - a.time) / dt, 0, 1);
+  const sample = (values: number[]) => {
+    const slope = (n: number) => n === 0 || n === keys.length - 1 ? 0
+      : (values[n + 1] - values[n - 1]) / (keys[n + 1].time - keys[n - 1].time);
+    return (2*t*t*t - 3*t*t + 1)*values[i] + (t*t*t - 2*t*t + t)*dt*slope(i)
+      + (-2*t*t*t + 3*t*t)*values[i+1] + (t*t*t - t*t)*dt*slope(i+1);
+  };
+  const pose = mix(a.pose, b.pose, t);
+  for (const key of ['hip', 'chest', 'frontFoot', 'backFoot', 'grip'] as const)
+    pose[key] = [0, 1, 2].map(axis => sample(keys.map(k => k.pose[key][axis]))) as unknown as Point;
+  for (const key of ['yaw', 'face', 'heel', 'leadElbow'] as const) pose[key] = sample(keys.map(k => k.pose[key]));
+  pose.backFootYaw = sample(keys.map(k => k.pose.backFootYaw ?? 1.38));
+  const rotations = keys.map(k => batOrientation(k.pose).clone());
+  for (let n = 1; n < rotations.length; n++) if (rotations[n-1].dot(rotations[n]) < 0)
+    rotations[n].set(...rotations[n].toArray().map(v => -v) as [number, number, number, number]);
+  pose.bat = new THREE.Quaternion(...[0,1,2,3].map(axis => sample(rotations.map(q => q.toArray()[axis]))) as [number, number, number, number]).normalize();
+  pose.batUp = new THREE.Vector3(0,1,0).applyQuaternion(pose.bat).toArray() as unknown as Point;
+  pose.batFace = new THREE.Vector3(0,0,1).applyQuaternion(pose.bat).toArray() as unknown as Point;
+  if (horizontalSweep) {
+    // A pull travels around the torso, not over/under it. Interpolating full
+    // orientations can take a shorter route via a vertical dip of the blade.
+    const azimuths = keys.map(k => Math.atan2(k.pose.batUp[0], k.pose.batUp[2]));
+    for (let n=1;n<azimuths.length;n++) while (azimuths[n]>azimuths[n-1]) azimuths[n]-=2*Math.PI;
+    const azimuth = sample(azimuths);
+    const elevation = sample(keys.map(k => Math.asin(V(k.pose.batUp).normalize().y)));
+    pose.batUp = [Math.sin(azimuth)*Math.cos(elevation),Math.sin(elevation),Math.cos(azimuth)*Math.cos(elevation)];
+    const rolls = keys.map((k,n) => {
+      const axis = V(k.pose.batUp).normalize();
+      const tangent = new THREE.Vector3(Math.cos(azimuths[n]),0,-Math.sin(azimuths[n]));
+      const face = new THREE.Vector3(0,0,1).applyQuaternion(batOrientation(k.pose));
+      return Math.atan2(axis.dot(tangent.clone().cross(face)),tangent.dot(face));
+    });
+    pose.batFace = new THREE.Vector3(Math.cos(azimuth),0,-Math.sin(azimuth)).applyAxisAngle(V(pose.batUp),sample(rolls)).toArray() as unknown as Point;
+    delete pose.bat; pose.bat=batOrientation(pose);
+  }
+  return pose;
 }
 
 export { solveJoint } from './rig';
@@ -488,8 +536,8 @@ export class Batter {
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false) {
     this.shot = shot; this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
-    this.swingStart = now; this.contactTime = now + STROKE_CONTACT_MS;
-    this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ;
+    this.swingStart = now; this.contactTime = now + (charging ? CHARGE_CONTACT_MS : STROKE_CONTACT_MS);
+    this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ + (charging ? ADVANCE.stride : 0);
     // Only the two cross-bat strokes go up after a bouncer — the pull to the leg
     // side and the cut to the off. Every other stroke plays at its own height and
     // the ball passes over the bat, rather than the arms stretching to chase a
@@ -497,26 +545,34 @@ export class Batter {
     this.ballY = this.pulling || this.cutting ? ballY : Math.min(ballY, .62);
   }
   get strikeAt() { return this.contactTime; }
-  /**
-   * Where down the pitch the charge has carried him. Barely anything before
-   * contact — the ball arrives where it arrives, and walking the body into it
-   * would leave the hands behind the chest — then the drive carries him out, and
-   * he walks back to his crease with the ball still in the air.
-   */
+  get contactZ() { return this.ballZ; }
+  /** The reference's advance happens BEFORE impact, then the feet hold the
+   * stroke. A separate presentation contact plane keeps the ball at the blade. */
   private downPitch(age: number) {
     if (!this.charging || !Number.isFinite(age) || age <= 0) return 0;
-    const at = (from: number, to: number, start: number, end: number) => from + (to - from) * ease((age - start) / (end - start));
     // Every one of these ranges has to be clamped. `ease` is a cubic, not a
     // curve that flattens: fed a number past 1 it turns and runs away, and the
     // walk back read as reaching the crease and then sprinting at the bowler.
-    const out = age <= STROKE_CONTACT_MS ? at(0, .04, 0, STROKE_CONTACT_MS)
-      : age <= 410 ? at(.04, .92, STROKE_CONTACT_MS, 410)
-      : age <= STROKE_DURATION_MS ? at(.92, 1, 410, STROKE_DURATION_MS)
-      : 1 - ease(THREE.MathUtils.clamp((age - STROKE_DURATION_MS) / ADVANCE.walkBackMs, 0, 1));
+    const out = age <= CHARGE_CONTACT_MS ? ease(age / CHARGE_CONTACT_MS)
+      : age <= CHARGE_DURATION_MS ? 1
+      : 1 - ease(THREE.MathUtils.clamp((age - CHARGE_DURATION_MS) / ADVANCE.walkBackMs, 0, 1));
     return out * ADVANCE.stride;
   }
   private travel(age: number) {
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ + this.downPitch(age));
+  }
+  /** World-space foot plants with lifted travelling feet, not feet attached to
+   * a translating root. The gathering step precedes the final front-foot plant. */
+  private approach(pose: Pose, age: number): Pose {
+    const step = (from: number, to: number, start: number, end: number) => {
+      const t = THREE.MathUtils.clamp((age-start)/(end-start), 0, 1);
+      return { z: THREE.MathUtils.lerp(from, to, ease(t)), lift: .12*Math.sin(Math.PI*t)**2 };
+    };
+    const front = age < 230 ? step(.27, 1.05, 0, 220) : step(1.05, ADVANCE.stride+.63, 230, 425);
+    const back = age < 310 ? step(-.25, 1.15, 45, 300) : step(1.15, ADVANCE.stride-.26, 310, 420);
+    const down = this.downPitch(age);
+    return { ...pose, frontFoot: [pose.frontFoot[0], .08+front.lift, front.z-down],
+      backFoot: [pose.backFoot[0], .08+back.lift, back.z-down] };
   }
   /**
    * The walk back to the crease, as steps rather than a slide. Each foot plants
@@ -544,7 +600,7 @@ export class Batter {
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     const age = now - this.swingStart;
     this.travel(age);
-    if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
+    if (!Number.isFinite(age) || age >= (this.charging ? CHARGE_DURATION_MS : STROKE_DURATION_MS)) {
       const guard = mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation);
       this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
       return;
@@ -563,15 +619,46 @@ export class Batter {
     const targetX = THREE.MathUtils.clamp(this.ballX, ...(this.pulling ? PULL_REACH : zones[this.shot]));
     // The bat meets the ball where he stands at contact. Reading the live root
     // instead drags the hands backwards out of a charge as it carries him on.
-    const planted = GAME.stanceZ + this.downPitch(STROKE_CONTACT_MS);
+    const planted = GAME.stanceZ + this.downPitch(this.charging ? CHARGE_CONTACT_MS : STROKE_CONTACT_MS);
     const contactGrip = new THREE.Vector3(targetX - this.root.position.x, this.ballY, this.ballZ - planted)
       .addScaledVector(V(stroke.contact.batUp).normalize(), .44);
     const step = targetX * .65;
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
     const reachPose = (p: Pose): Pose => ({ ...p, hip: shift(p.hip, step), chest: shift(p.chest, step),
-      frontFoot: shift(p.frontFoot, step), grip: shift(p.grip, step) });
+      frontFoot: shift(p.frontFoot, step), backFoot: this.pulling || this.charging ? shift(p.backFoot, step) : p.backFoot,
+      grip: shift(p.grip, step) });
     const contact = { ...reachPose(stroke.contact), grip: contactGrip.toArray() as unknown as Point };
     const finish = reachPose(stroke.finish);
+    if (this.pulling || this.charging) {
+      const impact = this.charging ? CHARGE_CONTACT_MS : STROKE_CONTACT_MS;
+      const end = this.charging ? 810 : 410;
+      const hold = this.charging ? 980 : 570;
+      const duration = this.charging ? CHARGE_DURATION_MS : STROKE_DURATION_MS;
+      const through = reachPose(stroke.through!);
+      if (age < end) {
+        const keys = [{ time: 0, pose: this.swingFrom }];
+        if (this.charging) keys.push({ time: 290, pose: { ...BACKLIFT, hip: [-.05,.82,.02], chest: [.03,1.18,.06],
+          frontFoot: [-.10,.08,.20], backFoot: [-.13,.13,-.08], grip: [.28,1.08,.12] } });
+        keys.push({ time: impact, pose: contact }, { time: this.charging ? 580 : 220, pose: through });
+        if (this.charging) keys.push({ time: 690, pose: reachPose({ ...CHARGE.finish,
+          grip: [-.20,1.55,.60], batUp: [.80,-.50,.33], batFace: [-.30,.14,.94] }) });
+        keys.push({ time: end, pose: finish });
+        const pose = flowing(keys, age, this.pulling);
+        this.apply(this.charging && age < impact ? this.approach(pose, age) : pose);
+      } else if (age < hold) this.apply(finish);
+      else {
+        const recovery = reachPose(stroke.recover!);
+        const mid = hold + (duration - hold) * .55;
+        const guard = this.charging ? this.walking(GUARD, ADVANCE.stride) : GUARD;
+        if (this.pulling) {
+          const out = reachPose({ ...PULL.finish, grip: [-.20,1.38,.52], batUp: [1,0,0], batFace: [0,.25,-.97] });
+          const first = hold+100, second=hold+240;
+          this.apply(age<first ? mix(finish,out,(age-hold)/(first-hold))
+            : age<second ? mix(out,recovery,(age-first)/(second-first)) : mix(recovery,guard,(age-second)/(duration-second)));
+        } else this.apply(age < mid ? mix(finish, recovery, (age-hold)/(mid-hold)) : mix(recovery, guard, (age-mid)/(duration-mid)));
+      }
+      return;
+    }
     if (age <= STROKE_CONTACT_MS) this.apply(mix(this.swingFrom, contact, age / STROKE_CONTACT_MS));
     else if (stroke.through && age < 220) this.apply(mix(contact, reachPose(stroke.through), (age - STROKE_CONTACT_MS) / (220 - STROKE_CONTACT_MS)));
     else if (age < 410) this.apply(mix(stroke.through ? reachPose(stroke.through) : contact, finish,
@@ -639,8 +726,13 @@ export class Batter {
       };
       // How much room an elbow leaves itself: clear of the trunk, and clear of
       // the handle it would otherwise lie along.
-      const room = (point: THREE.Vector3) =>
-        Math.min(this.offSpine(point, hip, chest, spine) / .19, this.offHandle(point) / .11);
+      const room = (point: THREE.Vector3) => {
+        const axis = new THREE.Vector3(0,1,0).applyQuaternion(this.bat.quaternion);
+        const alongBlade = THREE.MathUtils.clamp(point.clone().sub(this.bat.position).dot(axis), -.83, -.17);
+        const bladeDistance = point.distanceTo(this.bat.position.clone().addScaledVector(axis, alongBlade));
+        return Math.min(this.offSpine(point, hip, chest, spine) / .19, this.offHandle(point) / .11,
+          this.pulling || this.charging ? bladeDistance / .17 : Infinity);
+      };
       let hint = square(arm.shoulder.clone().sub(chest));
       // Out from the body alone puts the back elbow on the off side, which is
       // exactly where a raised blade already is, and the forearm ends up lying
@@ -656,7 +748,7 @@ export class Batter {
       // Either hint can still bury the elbow on a stroke that wraps the hands
       // across the body — in the chest, or out along the handle past the knob.
       // Turn the bend around the arm until it clears, smallest turn first.
-      for (let step = 1; step <= 6 && room(elbow) < 1; step++)
+      for (let step = 1; step <= (this.pulling || this.charging ? 12 : 6) && room(elbow) < 1; step++)
         for (const side of [1, -1]) {
           const turned = bend(hint.clone().applyAxisAngle(along, side * step * .26));
           if (room(turned) > room(elbow)) elbow = turned;
@@ -676,7 +768,8 @@ export class Batter {
       const footPitch = i === 1 ? pose.heel * 2.4 : 0;
       // Lift the heel about a planted toe instead of lifting the entire shoe.
       foot.y += .225 * Math.sin(footPitch) + .07 * (Math.cos(footPitch) - 1);
-      const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(new THREE.Vector3(.65, -.15, .02)));
+      const kneePole = this.charging ? new THREE.Vector3(i === 0 ? .10 : .35, -.15, .65) : new THREE.Vector3(.65, -.15, .02);
+      const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(kneePole));
       this.segment(leg.thigh, hipJoint, knee, .175, .19);
       this.segment(leg.shin, knee, foot, .145, .16);
       leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);

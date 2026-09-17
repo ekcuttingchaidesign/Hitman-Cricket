@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter } from './entities/Batter';
+import { Batter, CHARGE_DURATION_MS, CHARGE_CONTACT_MS, STROKE_DURATION_MS, STROKE_CONTACT_MS } from './entities/Batter';
 import { GAME } from './config/gameplay';
 
 // Isolated from Game: inspecting a pose never submits scores or analytics.
@@ -27,6 +27,7 @@ const scrub = document.querySelector<HTMLInputElement>('#scrub')!;
 const play = document.querySelector<HTMLButtonElement>('#play')!;
 let playing = true, age = 0, previous = performance.now();
 function reset() {
+  scrub.max = String(shot.value === 'charge' ? CHARGE_DURATION_MS : STROKE_DURATION_MS);
   batter.reset(); batter.prepare(1); batter.update(0);
   batter.swing(shot.value === 'pull' ? 'LEG' : 'STRAIGHT', 0, 0, shot.value === 'pull' ? 1.12 : .54, GAME.contactZ, shot.value === 'charge');
 }
@@ -41,9 +42,11 @@ new ResizeObserver(() => {
   camera.aspect = stage.clientWidth / stage.clientHeight; camera.updateProjectionMatrix();
 }).observe(stage);
 renderer.setAnimationLoop(now => {
-  if (playing) age = (age + Math.min(now - previous, 50) * Number(speed.value)) % 1250;
+  const duration = Number(scrub.max);
+  if (playing) age = (age + Math.min(now - previous, 50) * Number(speed.value)) % (duration+300);
   previous = now;
-  const time = Math.min(age, 940); batter.update(time); scrub.value = String(time);
-  document.querySelector<HTMLOutputElement>('#time')!.value = `${Math.round(time)} ms`;
+  const time = Math.min(age, duration); batter.update(time); scrub.value = String(time);
+  const impact = shot.value === 'charge' ? CHARGE_CONTACT_MS : STROKE_CONTACT_MS;
+  document.querySelector<HTMLOutputElement>('#time')!.value = `${Math.round(time)} ms · contact ${impact} ms`;
   controls.update(); renderer.render(scene, camera);
 });

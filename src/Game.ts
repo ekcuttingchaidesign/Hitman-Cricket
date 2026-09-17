@@ -576,7 +576,7 @@ export class Game {
       }
     } else if (this.phase === 'BALL_IN_FLIGHT' && this.delivery) {
       const progress = flightProgress(this.delivery, this.elapsed - this.delivery.releaseTimeMs);
-      this.scene.delivery(this.delivery, progress);
+      this.scene.delivery(this.delivery, progress, this.chargeBall);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }
       if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + this.swingWindow + GAME.comboMs) this.resolve();

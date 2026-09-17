@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Batter } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
-import { GAME, SHOT_ANGLES } from '../config/gameplay';
+import { ADVANCE, GAME, SHOT_ANGLES } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
@@ -267,14 +267,24 @@ export class GameScene {
     const window = (GAME.timing.poor + GAME.comboMs) / delivery.durationMs;
     return 1 + Math.min(1, (progress - 1) / window) * (BEATEN_STOP - 1);
   }
-  delivery(delivery: Delivery, progress: number) {
+  delivery(delivery: Delivery, progress: number, advanceAvailable = false) {
     this.batter.prepare(progress);
     this.ball.visible = this.shadow.visible = true;
-    const pos = ballPosition(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
+    // Reserve the approach beat while the charge is offered, before input.
+    // Otherwise a newly advanced contact point makes an already-arrived ball
+    // reverse towards the bowler. This is presentation only: input grading is
+    // still against the unchanged delivery clock. A normal shot on an offered
+    // charge continues from this position to its ordinary contact point.
+    const position = (p: number) => {
+      const point = ballPosition(delivery, this.flightAt(delivery, p));
+      if (advanceAvailable) point.z += (ADVANCE.stride + .65) * THREE.MathUtils.smoothstep(p, .55, 1);
+      return point;
+    };
+    const pos = position(progress); this.ball.position.set(pos.x, pos.y, pos.z);
     this.groundShadow(this.ball.position, true);
     this.trail.forEach((dot, i) => {
       dot.visible = progress > 0.03;
-      const p = ballPosition(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
+      const p = position(Math.max(0, progress - (i + 1) * 0.009)); dot.position.set(p.x, p.y, p.z);
     });
     const bounce = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
     const age = (progress - bounce) * delivery.durationMs;
@@ -295,6 +305,7 @@ export class GameScene {
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
     const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
+    if (outcome.advance) this.hitOrigin.z = this.batter.contactZ;
     let angle = (SHOT_ANGLES[shot ?? 'STRAIGHT'] + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     /**
