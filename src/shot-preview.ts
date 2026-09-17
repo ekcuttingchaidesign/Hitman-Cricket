@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_DURATION_MS, CHARGE_CONTACT_MS, STROKE_DURATION_MS, PULL_LOAD_MS, PULL_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_DURATION_MS, CHARGE_CONTACT_MS, STROKE_DURATION_MS, STROKE_CONTACT_MS, PULL_LOAD_MS, PULL_CONTACT_MS } from './entities/Batter';
 import { GAME } from './config/gameplay';
 
 // Isolated from Game: inspecting a pose never submits scores or analytics.
@@ -22,6 +22,10 @@ ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground)
 const grid = new THREE.GridHelper(8, 16, 0xa6b296, 0x777958); grid.position.y = .002; scene.add(grid);
 const batter = new Batter(); scene.add(batter.root);
 const shot = document.querySelector<HTMLSelectElement>('#shot')!;
+for (const [value,label] of [['cover','Cover drive'],['straight','Straight drive']]) {
+  const option=document.createElement('option'); option.value=value; option.textContent=label; shot.append(option);
+}
+const impactTime=()=>shot.value==='charge'?CHARGE_CONTACT_MS:shot.value==='pull'?PULL_CONTACT_MS:STROKE_CONTACT_MS;
 const speed = document.querySelector<HTMLSelectElement>('#speed')!;
 const scrub = document.querySelector<HTMLInputElement>('#scrub')!;
 const play = document.querySelector<HTMLButtonElement>('#play')!;
@@ -29,7 +33,8 @@ let playing = true, age = 0, previous = performance.now();
 function reset() {
   scrub.max = String(shot.value === 'charge' ? CHARGE_DURATION_MS : STROKE_DURATION_MS);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(shot.value === 'pull' ? 'LEG' : 'STRAIGHT', 0, 0, shot.value === 'pull' ? 1.12 : .54, GAME.contactZ, shot.value === 'charge');
+  batter.swing(shot.value==='cover'?'COVER_LONG_OFF':shot.value === 'pull' ? 'LEG' : 'STRAIGHT', 0,
+    shot.value==='cover'?.30:0, shot.value === 'pull' ? 1.12 : .54, GAME.contactZ, shot.value === 'charge');
 }
 reset(); shot.onchange = () => { age = 0; reset(); };
 play.onclick = () => { playing = !playing; play.textContent = playing ? 'Pause' : 'Play'; };
@@ -45,12 +50,12 @@ for (const name of ['Front','Side','Load-up','Contact','Extension','Finish']) {
   button.onclick=()=>{
     if(name==='Front'||name==='Side') {
       const down=batter.inspect().downPitch;
-      controls.target.set(GAME.stanceX,1.05,GAME.stanceZ+down);
-      if(name==='Front') camera.position.set(.3,1.7,4.5+down);
-      else camera.position.set(3,1.8,1+down);
+      controls.target.set(-.10,1.2,GAME.stanceZ+down);
+      if(name==='Front') camera.position.set(.3,2,6+down);
+      else camera.position.set(4.5,2,1+down);
       controls.update();
     } else {
-      const phases=shot.value==='charge'?[290,CHARGE_CONTACT_MS,580,810]:[PULL_LOAD_MS,PULL_CONTACT_MS,340,500];
+      const phases=shot.value==='charge'?[290,CHARGE_CONTACT_MS,580,810]:shot.value==='pull'?[PULL_LOAD_MS,PULL_CONTACT_MS,340,500]:[0,STROKE_CONTACT_MS,220,410];
       age=phases[['Load-up','Contact','Extension','Finish'].indexOf(name)];
       playing=false; play.textContent='Play'; batter.update(age);
     }
@@ -65,7 +70,7 @@ renderer.setAnimationLoop(now => {
   if (playing) age = (age + Math.min(now - previous, 50) * Number(speed.value)) % (duration+300);
   previous = now;
   const time = Math.min(age, duration); batter.update(time); scrub.value = String(time);
-  const impact = shot.value === 'charge' ? CHARGE_CONTACT_MS : PULL_CONTACT_MS;
+  const impact = impactTime();
   document.querySelector<HTMLOutputElement>('#time')!.value = `${Math.round(time)} ms · contact ${impact} ms`;
   controls.update(); renderer.render(scene, camera);
 });

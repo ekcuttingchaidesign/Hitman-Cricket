@@ -73,3 +73,38 @@ orientations; it is not a claim that the procedural rig reproduces biomechanics.
 Validation uses actual rig geometry rendered offline from front/side views,
 plus automated sampling. The hosted Vercel preview requires sign-in, so no
 unauthenticated hosted-browser visual verification is claimed.
+
+## Cover / straight drives and revised charge — 16-32-12 recording
+
+Reviewed the new 5.43-second recording at 4 fps, with a denser 6 fps review
+of 2.5–4.5 seconds. It shows a gather with the blade raised, hands leading the
+downswing (roughly 2.5–3.3 s), contact around 3.3 s, and a raised finish over the
+lead shoulder by roughly 4.2–5.4 s. The head remains down over the planted lead
+leg. This latest reference supersedes the earlier flat, behind-shoulder charge
+finish; it is not a request to change the approved pull.
+
+The flagged IMG_4046 frame exposed a limitation in the previous fix: fixed
+grip *positions* did not prevent independent rotation of the two fists about
+the handle. The charge now captures its initial grip angles, locks them during
+the gather/downswing/contact (100–440 ms), and progressively releases that
+constraint over the next 120 ms as the arms follow through. The elbow solve
+accommodates the palms rather than making the palms spin to chase elbows.
+The old sideways clearance key at 690 ms has been replaced by a raised blade
+key, followed by the video-based high finish. Recovery first carries that
+raised blade clear of the helmet before lowering it.
+
+IMG_4043 guides the lower cover-drive lunge, inside-line lead foot and high
+finish; IMG_4044 guides the straight drive's raised lead elbow and vertical
+blade presentation in front of the body. Both drives now have continuous
+contact/extension keys at 110/220 ms, settle at 410 ms and recover through
+an outside clearance pose. Knee poles follow the drive direction to keep the
+front pad out of the swing; the rear foot follows lateral reach to avoid leg
+stretching. The pull poses, timing, grip solve and sweep are unchanged.
+
+Expanded validation covers all four reference shots at the centre and both
+reach limits: 2 ms elbow/wrist continuity checks, 4 ms blade-volume samples
+against body/head/joints and forearm capsules, fixed limb lengths, and nonzero
+continuous drive velocity through impact/extension. An explicit charge test
+checks that neither glove rotates relative to the handle from 100–440 ms.
+Preview selection now includes Cover drive and Straight drive, with the
+correct contact/extension/finish buttons for each.

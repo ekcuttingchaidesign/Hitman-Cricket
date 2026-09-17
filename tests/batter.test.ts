@@ -58,6 +58,29 @@ describe('two-handed cricket animation', () => {
 });
 
 describe('bat travel', () => {
+  it('carries both drives through impact and extension without stopping at a pose key',()=>{
+    for(const shot of ['STRAIGHT','COVER_LONG_OFF'] as const) {
+      const batter=new Batter(); batter.prepare(1); batter.update(0);
+      batter.swing(shot,0,shot==='STRAIGHT'?0:.30);
+      for(const time of [110,220]) {
+        // Compare one-sided derivatives close to the key, not acceleration
+        // averaged over a whole millisecond of the faster drive downswing.
+        const dt=.1;
+        const points=[time-dt,time,time+dt].map(t=>{batter.update(t);return new Vector3(...batter.inspect().bladeTip);});
+        const before=points[1].clone().sub(points[0]).divideScalar(dt),after=points[2].clone().sub(points[1]).divideScalar(dt);
+        expect(before.length()).toBeGreaterThan(.001);
+        expect(before.clone().normalize().dot(after.clone().normalize())).toBeGreaterThan(.995);
+        expect(after.length()/before.length()).toBeGreaterThan(.94);
+        expect(after.length()/before.length()).toBeLessThan(1.06);
+      }
+      batter.update(410); const finish=batter.inspect();
+      expect(finish.frontFoot[2]).toBeGreaterThan(.5);
+      expect(finish.hip[1]).toBeLessThan(.9);
+      expect(finish.elbows[0][1]-finish.shoulders[0][1]).toBeGreaterThan(.12);
+      if(shot==='STRAIGHT') expect(finish.batUp[1]).toBeGreaterThan(.98);
+      else expect(finish.batUp[0]).toBeLessThan(-.8);
+    }
+  });
   const sample = (shot: ShotType, ballX: number) => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);
@@ -335,14 +358,15 @@ describe('the square cut', () => {
 
 describe('the grip', () => {
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const charge of [false,true]) for (const x of charge ? [-.17,0,.17] : [-.55,0,.32]) {
+    for (const kind of ['pull','charge','straight','cover']) for (const x of kind==='pull'?[-.55,0,.32]:kind==='cover'?[-.08,.30,.55]:[-.17,0,.17]) {
+      const charge=kind==='charge';
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
-      batter.swing(charge?'STRAIGHT':'LEG',0,x,charge?.54:1.12,GAME.contactZ,charge);
+      batter.swing(kind==='pull'?'LEG':kind==='cover'?'COVER_LONG_OFF':'STRAIGHT',0,x,kind==='pull'?1.12:.54,GAME.contactZ,charge);
       for (let t=0;t<=(charge?CHARGE_DURATION_MS:STROKE_DURATION_MS);t+=2) {
         batter.update(t); const pose=batter.inspect();
         for (let i=0;i<2;i++) {
-          const where=`${charge?'charge':'pull'} x=${x} arm=${i} @${t}`;
+          const where=`${kind} x=${x} arm=${i} @${t}`;
           expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])),where).toBeLessThan(.025);
           expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])),where).toBeLessThan(.30);
           expect(pose.cuffAim[i].socketError,where).toBeLessThan(1e-9);
@@ -420,16 +444,29 @@ describe('shoulders', () => {
 });
 
 describe('the charge', () => {
-  it('keeps the blade volume outside body, helmet and joints throughout both reference shots', () => {
-    for (const charge of [false, true]) for (const x of charge ? [-.17,0,.17] : [-.55,0,.32]) {
+  it('keeps both grip rotations fixed through the gather, downswing and contact',()=>{
+    for(const x of [-.17,0,.17]) {
+      const batter=new Batter(); batter.prepare(1); batter.update(0);
+      const grip=batter.inspect().gripRotation.map(q=>new Quaternion(...q));
+      batter.swing('STRAIGHT',0,x,.54,GAME.contactZ,true);
+      for(let time=100;time<=CHARGE_CONTACT_MS;time+=2) {
+        batter.update(time);
+        batter.inspect().gripRotation.forEach((q,i)=>expect(new Quaternion(...q).angleTo(grip[i])).toBeLessThan(1e-7));
+      }
+    }
+  });
+  it.each(['pull','charge','straight','cover'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+    for (const x of kind==='pull'?[-.55,0,.32]:kind==='cover'?[-.08,.30,.55]:[-.17,0,.17]) {
+      const charge=kind==='charge';
       const batter = new Batter(); batter.prepare(1); batter.update(0);
-      batter.swing(charge ? 'STRAIGHT' : 'LEG', 0, x, charge ? .54 : 1.12, GAME.contactZ, charge);
+      batter.swing(kind==='pull'?'LEG':kind==='cover'?'COVER_LONG_OFF':'STRAIGHT',0,x,kind==='pull'?1.12:.54,GAME.contactZ,charge);
       const spheres: import('three').Mesh[] = [];
       batter.root.traverse(object => {
         const mesh = object as import('three').Mesh;
         if (mesh.isMesh && mesh.geometry.type === 'SphereGeometry') spheres.push(mesh);
       });
       let worst = {distance: Infinity, time: 0, part: ''};
+      let forearmClearance = {distance: Infinity, time: 0, arm: 0};
       const end = charge ? CHARGE_DURATION_MS : STROKE_DURATION_MS;
       for (let time = 0; time <= end; time += 4) {
         batter.update(time); batter.root.updateMatrixWorld(true);
@@ -444,7 +481,8 @@ describe('the charge', () => {
             const elbow=new Vector3(...pose.elbows[arm]);
             const line=new Vector3(...pose.wrists[arm]).sub(elbow);
             const along=Math.max(0,Math.min(1,local.clone().sub(elbow).dot(line)/line.lengthSq()));
-            expect(local.distanceTo(elbow.addScaledVector(line,along)),`${charge} ${x} forearm ${arm} @${time}`).toBeGreaterThan(.0475);
+            const distance=local.distanceTo(elbow.addScaledVector(line,along));
+            if(distance<forearmClearance.distance) forearmClearance={distance,time,arm};
           }
           inverses.forEach((inverse,i) => {
             const distance=world.clone().applyMatrix4(inverse).length();
@@ -452,7 +490,8 @@ describe('the charge', () => {
           });
         }
       }
-      expect(worst.distance, `${charge?'charge':'pull'} x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(1);
+      expect(worst.distance, `${kind} x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(1);
+      expect(forearmClearance.distance,`${kind} x=${x} ${JSON.stringify(forearmClearance)}`).toBeGreaterThan(.0475);
     }
   });
   it('finishes the drive on a braced front leg with high hands', () => {
@@ -461,7 +500,9 @@ describe('the charge', () => {
     expect(pose.frontFoot[1]).toBeCloseTo(.08);
     expect(pose.frontFoot[2]).toBeGreaterThan(pose.hip[2]);
     expect(pose.grip[1]).toBeGreaterThan(1.4);
-    expect(pose.batUp[2]).toBeGreaterThan(.8);
+    // New supplied video ends high over the lead shoulder, blade still raised.
+    expect(pose.batUp[1]).toBeLessThan(-.85);
+    expect(pose.bladeTip[1]).toBeGreaterThan(pose.grip[1]+.7);
   });
   it('walks down the pitch, launches it, and walks back', () => {
     const batter = new Batter();
