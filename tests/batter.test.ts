@@ -412,9 +412,10 @@ describe('the grip', () => {
           const pose = batter.inspect();
           // Fingers stay wrapped along the handle even as wrists pronate.
           for (const axis of pose.gripAxis) expect(axis).toBeCloseTo(1, 9);
-          // Both thumb/index webs remain on the back spine. The former
-          // independent fist rotations passed grasp-axis tests but failed this.
-          for (const alignment of pose.vSpineAlignment) expect(alignment).toBeCloseTo(1,9);
+          // Real close-up reference: left hand closes over the shaft, right
+          // wraps underneath. Two identical palm-up grips are not equivalent.
+          expect(pose.gloveBack[0]).toEqual([0,0,-1]);
+          expect(pose.gloveBack[1]).toEqual([0,0,1]);
           // The right hand is the bottom hand: nearer the blade than the left.
           expect(pose.handGrip[1], `${shot} at ${time}ms`).toBeLessThan(pose.handGrip[0]);
           for (const [i, aim] of pose.cuffAim.entries()) {

@@ -40,6 +40,7 @@ reset(); shot.onchange = () => { age = 0; reset(); };
 play.onclick = () => { playing = !playing; play.textContent = playing ? 'Pause' : 'Play'; };
 scrub.oninput = () => { playing = false; play.textContent = 'Play'; age = Number(scrub.value); };
 document.querySelector<HTMLButtonElement>('#camera')!.onclick = () => {
+  camera.up.set(0,1,0);
   camera.position.set(0, 2.9, -5.15); controls.target.set(0, 1.05, 9); controls.update();
 };
 const review = document.createElement('section');
@@ -52,9 +53,12 @@ for (const name of ['Front','Side','Grip close-up','Load-up','Contact','Extensio
       playing=false; play.textContent='Play'; batter.update(Math.min(age,Number(scrub.max)));
       const q=batter.bat.getWorldQuaternion(new THREE.Quaternion());
       controls.target.copy(batter.bat.localToWorld(new THREE.Vector3(0,.02,0)));
-      camera.position.copy(controls.target).add(new THREE.Vector3(.12,.08,-.68).applyQuaternion(q));
+      // Match the supplied close-up: blade above, butt below, spine visible.
+      camera.up.set(0,-1,0).applyQuaternion(q);
+      camera.position.copy(controls.target).add(new THREE.Vector3(.12,.18,-.68).applyQuaternion(q));
       controls.update();
     } else if(name==='Front'||name==='Side') {
+      camera.up.set(0,1,0);
       const down=batter.inspect().downPitch;
       controls.target.set(-.10,1.2,GAME.stanceZ+down);
       if(name==='Front') camera.position.set(.3,2,6+down);

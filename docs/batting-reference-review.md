@@ -207,3 +207,26 @@ Added spine-alignment checks alongside the existing all-shot hand attachment
 checks. The preview includes a paused Grip close-up camera to inspect the
 fingers, thumb webs and handle directly. The procedural palm bridge is a
 stylized articulated approximation, not a detailed anatomical hand simulation.
+
+## Real close-up correction — IMG_4073 / IMG_4074
+
+The real photographs supersede the symmetric hand interpretation above.
+IMG_4073 shows the left top hand closed over the handle, with its back facing
+the viewer on the spine side; the right bottom hand wraps underneath. IMG_4074
+shows the rejected palm-up top hand. Fixed grip axes alone did not distinguish
+these two shapes, so the former alignment diagnostic was insufficient.
+
+The shared glove model now gives the left and right hands opposite palm/back
+orientations. The top thumb opposes the curled fingers on the far side instead
+of lying across an exposed palm toward the viewer. Closed rounded glove bodies,
+four thick knuckle pads and padded thumbs restore the earlier puffy appearance;
+the thin finger hoops and floating V-shaped webs are removed. A padded wrist
+heel replaces the long palm bridge. The grip camera presents the blade above
+the hands to make comparison with the real photograph easier.
+
+This changes the shared hand meshes, not the shot curves, contact timing,
+arm solver or blade orientation. A dense comparison against the preceding
+revision measured zero hand-path and blade-tip-path change for straight,
+cover and charge. Existing limb continuity and blade-clearance checks remain.
+The grip regression now checks the actual knuckle-side orientation on both
+hands; it is a guard against the palm-up regression, not proof of realism.
