@@ -1108,6 +1108,10 @@ body.start-screen .hud-top{display:none}
   margin:auto
 }
 .board-stack .board-sheet{width:100%;min-height:0;margin:0}
+/* On a screen too short to hold the sheet's fixed parts the overlay still
+   scrolls, because the way to the foot of the sheet has to exist. The tabs stay
+   where they were put when it does. */
+.board-tabs{position:sticky;top:0;z-index:2}
 /* Which ladder, in the dark above the sheet — the one piece of space on this
    screen that was carrying nothing. A segmented key rather than two buttons:
    the two are one choice, and the choice always has an answer. */
@@ -1118,7 +1122,11 @@ body.start-screen .hud-top{display:none}
   width:min(320px,100%);
   padding:3px;
   border-radius:999px;
-  background:#ffffff14
+  /* Opaque, and the sheet's own surface. A translucent track let the cover's
+     headline through the middle of the control, which read as two words of the
+     screen behind sitting inside a key. */
+  background:#0f2738;
+  box-shadow:0 6px 18px #00000038
 }
 .board-tab{
   flex:1;
@@ -1133,12 +1141,14 @@ body.start-screen .hud-top{display:none}
   color:#9fb2bd
 }
 .board-tab:hover:not(.is-on){color:#dce8ee}
-/* The live one is the sheet's own surface, lifted, so the tab reads as the
-   thing the sheet under it is showing rather than as a second button. */
+/* The live one is white with the sheet's ink on it: the only white surface on
+   the screen, which is what makes it read as chosen rather than as one of two
+   buttons that happen to differ. */
 .board-tab.is-on{
-  background:#0f2738;
-  color:#fff;
-  box-shadow:0 1px 3px #0000004d
+  background:#fff;
+  color:#10293c;
+  font-weight:800;
+  box-shadow:0 1px 3px #00000040
 }
 /* Ground, then title, then the way out. The stamp is the one place on this
    sheet that is set in tracked caps; everything else is sentence case. */
@@ -1193,6 +1203,12 @@ body.start-screen .hud-top{display:none}
   min-height:0;
   overflow-y:auto;
   overscroll-behavior:contain;
+  /* The rows scroll in here and nowhere else. Without containment their height
+     still counts towards the overlay's scrollable area, so fifty rows made the
+     backdrop itself scrollable by fourteen hundred pixels — a flick anywhere
+     off the list dragged the whole sheet, its head and the tabs off the top of
+     the screen and left the ground behind them. */
+  contain:paint;
   padding:0 22px 18px;
   /* Fifty rows never end on a hard edge: the last of them fades under the foot. */
   mask-image:linear-gradient(#000 calc(100% - 18px),transparent)
