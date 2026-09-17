@@ -1322,48 +1322,85 @@ body.start-screen .hud-top{display:none}
   color:var(--quiet)
 }
 /* A letter's worth of column, between the place and the kit, where a league
-   table puts it. The tiers are contiguous — tier is the ladder's top key — so
-   one column of letters bands the sheet into its three contests at a glance. */
-.survive-list .board-row{grid-template-columns:22px 13px 28px minmax(0,1fr) auto auto;gap:0 9px}
+   table puts it — and the whole of what a row says about how the innings ended.
+   The tiers are contiguous, so the letters band the sheet into its three
+   contests at a glance. */
+.survive-list .board-row,
+.survive-list .board-head{
+  grid-template-columns:22px 13px 28px minmax(0,1fr) auto;
+  gap:0 9px
+}
 .survive-list .board-result{
   font-size:12.5px;
   font-weight:800;
   letter-spacing:.2px;
   text-align:center
 }
+.survive-list .board-result i{font-style:normal}
+/* The word behind the letter. A row has no prose on it any more, so this is the
+   only voice it has left for a reader who is not looking at the colour. */
+.survive-list .board-result b{
+  position:absolute;
+  width:1px;
+  height:1px;
+  margin:-1px;
+  overflow:hidden;
+  clip-path:inset(50%);
+  white-space:nowrap
+}
 .survive-list .is-won .board-result{color:#7de3ad}
 .survive-list .is-drawn .board-result{color:#f0c65c}
 .survive-list .is-lost .board-result{color:#f09a8c}
-/* The ranked figure is never written bare: what it means changes with the tier,
-   and the same 47 is a rearguard on one row and nothing of the kind on another.
-   The unit sits under the figure rather than beside it — "to spare" alongside
-   "22" is half as wide again as the number it labels, and every pixel of that
-   comes off the names. */
-.survive-list .board-runs{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  line-height:1
+/* Three columns, one size, one weight, in the same place on every row. There is
+   no hero figure on this board — a win is judged on balls used, a draw on runs
+   and a loss on balls faced — so a row that blew up whichever figure it was
+   judged on blew up a different one every few rows, and the moving emphasis
+   read as the ranking itself. */
+.survive-list .board-hits{gap:0;margin-left:6px}
+.survive-list .board-hits em{width:41px;font-size:14.5px;color:#e8f0f4}
+/* The unit, for a reader only: the head of the list draws it once for everybody
+   else, rather than fifty times down the sheet. */
+.survive-list .board-hits em b{
+  position:absolute;
+  width:1px;
+  height:1px;
+  margin:-1px;
+  overflow:hidden;
+  clip-path:inset(50%);
+  white-space:nowrap
 }
-.survive-list .board-runs b{font-weight:inherit;letter-spacing:inherit}
-.survive-list .board-runs small{
-  margin-top:2px;
-  font-size:8.5px;
-  font-weight:650;
-  letter-spacing:.2px;
+/* Not out, which in this mode is most of the board: quiet, but never dropped. */
+.survive-list .board-hits em i{font-style:normal;font-size:.7em;color:var(--accent)}
+/* The blows, lit where the battering is what put this row under the one above
+   it. The ladder's last rung is the meter and the meter has no column, so this
+   is its shadow: the sheet's other half lights the figure that settled a tie in
+   exactly the same way. */
+.survive-list .board-hits em.is-split{color:var(--accent)}
+/* The head of the list, and the band that says what the block below it is
+   judged on. Both are furniture: they say once what the rows would otherwise
+   repeat, and they say it quietly. */
+.survive-list .board-head{display:grid;align-items:center;border-top:0;padding:0 0 3px}
+.survive-list .board-head .board-hits{grid-column:5}
+.survive-list .board-head em{
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.9px;
+  text-transform:uppercase;
   color:var(--quiet)
 }
-/* The figure and its star are one thing; the label is not. */
-.survive-list .board-hits{margin-left:12px}
-.survive-list .board-hits em{gap:0}
-.survive-list .board-hits em small{margin-left:3px}
-/* Not out, which in this mode is most of the board: quiet, but never dropped.
-   It rides with the runs, which are the big figure on a draw and a supporting
-   one everywhere else. */
-.survive-list .board-runs i{margin-left:1px;color:var(--accent)}
-.survive-list .board-hits em i{font-size:1em;color:var(--accent)}
-/* "balls" and "blows" are wider words than "6s". */
-.survive-list .board-hits em{width:36px}
+.survive-list .board-band{
+  padding:9px 0 4px;
+  font-size:8.5px;
+  font-weight:700;
+  letter-spacing:1.1px;
+  text-transform:uppercase;
+  color:var(--quiet)
+}
+.survive-list .board-band + .board-row{border-top:0}
+.survive-list .board-row{padding:7px 0}
+/* The player's own row is drawn ten pixels wider on each side, so it takes the
+   padding back or its figures sit out past the column they belong to. */
+.survive-list .board-row.is-you{padding:7px 10px}
 .survive-sheet .board-eyebrow{letter-spacing:1.4px}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */

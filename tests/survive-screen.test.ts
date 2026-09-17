@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HEALTH, SURVIVE } from '../src/config/survive';
 import {
-  LAUNCH_MS, SURVIVE_BOARD_SIZE, packSurvive, primaryOf, type SurviveInnings, type SurviveRow,
+  LAUNCH_MS, SURVIVE_BOARD_SIZE, packSurvive, type SurviveInnings, type SurviveRow,
 } from '../src/game/survive-board';
 import {
-  asSurvive, primaryFigure, secondFigure, surviveBest, surviveBoardMarkup, surviveCutLabel,
-  surviveCutoff, surviveLine, surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup,
-  surviveStandingPeek, surviveTieNote,
+  asSurvive, outcomeOf, surviveBest, surviveBoardMarkup, surviveCutLabel, surviveCutoff,
+  surviveLine, surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup,
+  surviveStandingPeek, splitOnBattering,
 } from '../src/ui/SurviveBoard';
 import {
   CLASSIC_LADDER, SURVIVE_LADDER, readBoard, submitScore, type Submission,
@@ -50,76 +50,49 @@ describe('a row, drawn', () => {
     expect(surviveRowMarkup(row({ runs: 20, balls: 30, wickets: 1 }), 0, false)).toContain('is-lost');
   });
 
-  it('stars an innings nobody got out, which in this mode is most of them', () => {
-    expect(surviveRowMarkup(row({ runs: 44, balls: SURVIVE.totalBalls }), 0, false)).toContain('44<i>*</i>');
-    expect(surviveRowMarkup(row({ runs: 44, balls: 30, wickets: 1 }), 0, false)).toContain('44<i></i>');
-  });
-
   it('writes a name as text, because names come from other players', () => {
     const drawn = surviveRowMarkup(row({ name: '<script>alert(1)</script>' }), 0, false);
     expect(drawn).not.toContain('<script>');
     expect(drawn).toContain('&lt;script&gt;');
   });
 
-  it('says the battering split it from the row above, which nothing else shows', () => {
-    // Level on the tier, on its figure and on runs: the order is arbitrary on
-    // the face of it until the meter is named.
+  it('lights the blows where the battering is what put it under the row above', () => {
+    // The ladder's last rung is the meter, and the meter has no column. Two
+    // rows level on everything a scorecard holds read as an arbitrary order
+    // until something points at the reason, so the blows beside it are lit —
+    // the same thing the other sheet does with the figure that settled a tie.
     const above = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 2, health: 72 });
     const below = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 7, health: 20 });
-    expect(surviveTieNote(above, below)).toBe('more hurt');
-    const markup = surviveRowMarkup(row(below), 1, false, above);
-    expect(markup).toContain('<span>Drew the match</span><i>&middot; more hurt</i>');
-    // The note keeps its width and the line gives way, so the one row that
-    // needs explaining is not the one row that is a different height.
-    expect(surviveRowMarkup(row(above), 0, false, null)).toContain('<span>Drew the match</span></small>');
+    expect(splitOnBattering(above, below)).toBe(true);
+    expect(surviveRowMarkup(row(below), 1, false, above)).toContain('<em class="is-split">7<b>blows</b></em>');
   });
 
-  it('says the clock split it when even the meter was level', () => {
-    const level = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 2, health: 72 });
-    expect(surviveTieNote(level, level)).toBe('later');
-  });
-
-  it('says nothing where the row already shows what split it', () => {
-    // Runs, the tier and the tier's own figure are all on the row. Labelling
-    // what the reader can see is noise.
+  it('lights nothing where the row already shows what split it', () => {
     const drew = innings({ runs: 23, balls: SURVIVE.totalBalls });
-    expect(surviveTieNote(innings({ runs: 40, balls: SURVIVE.totalBalls }), drew)).toBe(null);
-    expect(surviveTieNote(innings({ runs: SURVIVE.target, balls: 30 }), drew)).toBe(null);
-    expect(surviveTieNote(null, drew)).toBe(null);
-  });
-
-  it('leads with the figure its tier is ranked on, and labels it', () => {
-    // The whole point: a loss is ranked on how long he lasted, so 47 balls is
-    // the big number and the 72 runs beside it are the supporting figure. A
-    // board that led with the runs put 72 above 86 and looked broken.
-    const lost = surviveRowMarkup(row({ runs: 72, balls: 47, blows: 5, wickets: 1 }), 5, false);
-    expect(lost).toContain('<b>47<i></i></b><small>balls</small>');
-    expect(lost).toContain('<em>72<i></i><small>runs</small></em>');
-    // A draw is ranked on runs, so the runs lead and the sixty balls support.
-    const drew = surviveRowMarkup(row({ runs: 23, balls: SURVIVE.totalBalls, blows: 2 }), 2, false);
-    expect(drew).toContain('<b>23<i>*</i></b><small>runs</small>');
-    expect(drew).toContain(`<em>${SURVIVE.totalBalls}<i></i><small>balls</small></em>`);
-    // A chase is a race, so what it led with is what it saved.
-    const won = surviveRowMarkup(row({ runs: SURVIVE.target, balls: 38, blows: 1 }), 0, false);
-    expect(won).toContain(`<b>${SURVIVE.totalBalls - 38}<i></i></b><small>to spare</small>`);
+    expect(splitOnBattering(innings({ runs: 40, balls: SURVIVE.totalBalls }), drew)).toBe(false);
+    expect(splitOnBattering(innings({ runs: SURVIVE.target, balls: 30 }), drew)).toBe(false);
+    expect(splitOnBattering(null, drew)).toBe(false);
+    // Level even on the meter: the clock decided, and no figure on the row can
+    // say so. The footer says it instead.
+    expect(splitOnBattering(drew, drew)).toBe(false);
   });
 
   it('shows the blows, which are what the innings cost', () => {
     const drawn = surviveRowMarkup(row({ runs: 12, balls: 44, blows: 7, wickets: 1 }), 3, true);
-    expect(drawn).toContain('7<small>blows</small>');
+    expect(drawn).toContain('<em>7<b>blows</b></em>');
     expect(drawn).toContain('aria-current="true"');
   });
 
-  it('bands the sheet with a letter, which the line under the name says in full', () => {
-    // Three contests in one list read as one list unless something marks where
-    // each begins. The letter is hidden from a screen reader because the line
-    // beside it is already read out, and "L, bowled out" is one fact twice.
-    expect(surviveRowMarkup(row({ runs: SURVIVE.target, balls: 30 }), 0, false))
-      .toContain('<span class="board-result" aria-hidden="true">W</span>');
-    expect(surviveRowMarkup(row({ runs: 20, balls: SURVIVE.totalBalls }), 0, false))
-      .toContain('<span class="board-result" aria-hidden="true">D</span>');
-    expect(surviveRowMarkup(row({ runs: 20, balls: 30, wickets: 1 }), 0, false))
-      .toContain('<span class="board-result" aria-hidden="true">L</span>');
+  it('bands the sheet with a letter, and says the word behind it to a reader', () => {
+    // Four letters, not three: a loss comes two ways, and telling them apart is
+    // the whole of what the injury bar is for. The word is what a screen reader
+    // hears, which is the only voice a row has now that the prose is gone.
+    const letter = (over: Partial<SurviveRow>) => surviveRowMarkup(row(over), 0, false);
+    expect(letter({ runs: SURVIVE.target, balls: 30 })).toContain('<i aria-hidden="true">W</i><b>Won</b>');
+    expect(letter({ runs: 20, balls: SURVIVE.totalBalls })).toContain('<i aria-hidden="true">D</i><b>Drew the match</b>');
+    expect(letter({ runs: 20, balls: 30, wickets: 1 })).toContain('<i aria-hidden="true">L</i><b>Bowled out</b>');
+    expect(letter({ runs: 20, balls: 30, wickets: 0 })).toContain('<i aria-hidden="true">R</i><b>Retired hurt</b>');
+    expect(outcomeOf(innings({ runs: 20, balls: 30, wickets: 0 })).letter).toBe('R');
   });
 });
 
@@ -381,41 +354,45 @@ describe('which board the browser asks for', () => {
   });
 });
 
-describe('the figure a row leads with', () => {
-  const won = innings({ runs: SURVIVE.target, balls: 38, blows: 1, health: 88 });
-  const drew = innings({ runs: 23, balls: SURVIVE.totalBalls, blows: 2, health: 71 });
-  const lost = innings({ runs: 72, balls: 47, wickets: 1, blows: 5, health: 30 });
-
-  it('is the one the ladder ranks that tier on, in every tier', () => {
-    // Not "the same as" by coincidence — it is the ladder's own function, so
-    // the biggest number on a row cannot drift from the number that put it
-    // there. That drift is exactly what made 72 sit above 86 and look broken.
-    for (const played of [won, drew, lost]) {
-      expect(primaryFigure(played).value).toBe(primaryOf(played));
+describe('the figures, in three fixed columns', () => {
+  it('draws them at one size, in one place, on every row', () => {
+    // There is no hero number on this board: a win is judged on balls used, a
+    // draw on runs and a loss on balls faced. A row that blew up whichever
+    // figure it was judged on blew up a different one every few rows, and the
+    // moving emphasis read as the ranking itself.
+    const won = surviveRowMarkup(row({ runs: SURVIVE.target, balls: 38, blows: 1 }), 0, false);
+    const lost = surviveRowMarkup(row({ runs: 72, balls: 47, wickets: 1, blows: 5 }), 6, false);
+    for (const markup of [won, lost]) {
+      expect(markup).toMatch(/<em>\d+(<i>\*<\/i>)?<b>runs<\/b><\/em>\s*<em>\d+<b>balls<\/b><\/em>/);
     }
+    // Said once at the head of the list rather than fifty times down it.
+    const sheet = surviveBoardMarkup({ rows: [row({ runs: 20, balls: 30, wickets: 1 })], atMs: AT });
+    expect(sheet).toContain('<em>runs</em><em>balls</em><em>blows</em>');
   });
 
-  it('is never written bare, because the same number means different things', () => {
-    expect(primaryFigure(won)).toEqual({ value: SURVIVE.totalBalls - 38, label: 'to spare' });
-    expect(primaryFigure(drew)).toEqual({ value: 23, label: 'runs' });
-    expect(primaryFigure(lost)).toEqual({ value: 47, label: 'balls' });
+  it('keeps the not-out star on the runs', () => {
+    expect(surviveRowMarkup(row({ runs: 44, balls: SURVIVE.totalBalls }), 0, false)).toContain('44<i>*</i><b>runs</b>');
+    expect(surviveRowMarkup(row({ runs: 44, balls: 30, wickets: 1 }), 0, false)).toContain('44<b>runs</b>');
   });
 
-  it('leaves the other scorecard figure beside it', () => {
-    // Runs, unless runs is already the big one — and for a draw that leaves the
-    // balls, which is every ball there was and is the fact of the draw.
-    expect(secondFigure(won)).toEqual({ value: SURVIVE.target, label: 'runs' });
-    expect(secondFigure(lost)).toEqual({ value: 72, label: 'runs' });
-    expect(secondFigure(drew)).toEqual({ value: SURVIVE.totalBalls, label: 'balls' });
-  });
-
-  it('puts the longer rearguard above the bigger score, and says why', () => {
-    // The pair that started this. Both bowled out, so both read L; what orders
-    // them is how long each kept them out, and that is now what each row leads
-    // with.
+  it('puts the longer rearguard above the bigger score, under one letter', () => {
+    // The pair that started this. Both bowled out, so both read L, and what
+    // orders them is the balls column running down the block.
     const rows = [row({ playerId: 'a', runs: 72, balls: 47, wickets: 1 }), row({ playerId: 'b', runs: 86, balls: 35, wickets: 1 })]
       .sort((x, y) => y.score - x.score);
     expect(rows[0].runs).toBe(72);
-    expect(primaryFigure(rows[0]).value).toBeGreaterThan(primaryFigure(rows[1]).value);
+    expect(outcomeOf(rows[0]).letter).toBe('L');
+    expect(outcomeOf(rows[1]).letter).toBe('L');
+  });
+
+  it('names the block the rows below it belong to, and what it is judged on', () => {
+    const sheet = surviveBoardMarkup({
+      rows: [row({ playerId: 'a', runs: SURVIVE.target, balls: 30 }), row({ playerId: 'b', runs: 20, balls: 30, wickets: 1 })],
+      atMs: AT,
+    });
+    expect(sheet).toContain('Wins &middot; fewest balls used');
+    expect(sheet).toContain('Losses &middot; longest innings');
+    // One band per block, not one per row.
+    expect(sheet.match(/board-band/g)).toHaveLength(2);
   });
 });
