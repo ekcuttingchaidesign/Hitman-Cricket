@@ -173,3 +173,21 @@ release a distinct settling beat. The nominal centre-line blade-tip speed at
 contact rises from 9.74 to 12.30 scene units/second. No ball timing, confidence
 rules, shot outcome, camera shake, or scoring changes accompany this animation
 revision. Preview phase buttons follow the revised charge keys.
+
+## Diagonal top-hand grip and continuous drive arc — IMG_4060–4065
+
+The supplied fifth image identifies the next correction: the lead wrist exits
+diagonally toward the handle butt, with the lead elbow above it. The old shared
+perpendicular wrist sockets produced a paddle-like silhouette even though both
+hands remained attached. The shared sockets now allow a diagonal top-hand
+connection and a smaller bottom-hand offset. That offset relaxes continuously
+as the forearm passes the grip during wrapped finishes; it must not stay fixed
+and bend the wrist backwards. Straight, cover and charge also lead contact
+with a raised elbow. Recovery of cover is slightly redistributed to keep the
+new wrist connection continuous at the reach limits.
+
+Straight-drive extension now already carries the blade forward/up by 220 ms,
+rather than holding it almost vertical until the high finish. This removes the
+upright plateau while retaining the contact point, strike time and high finish.
+The previous upright-until-220 test is replaced by continued angular travel;
+new contact tests check the diagonal top-hand wrist and raised lead elbow.

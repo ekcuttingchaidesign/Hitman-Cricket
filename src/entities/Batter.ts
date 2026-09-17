@@ -30,6 +30,9 @@ interface Pose {
 }
 const V = (p: Point) => new THREE.Vector3(...p);
 const UP = new THREE.Vector3(0, 1, 0);
+// The top hand exits diagonally toward the handle butt. Two perpendicular
+// wrist sockets made the stacked hands read as a rowing/paddle grip.
+const wristSocket = (hand: number) => new THREE.Vector3(0,hand===0?.040:.018,hand===0?-.065:-.072);
 const ease = (t: number) => t * t * (3 - 2 * t);
 export const STROKE_CONTACT_MS = 110;
 export const PULL_LOAD_MS = 120;
@@ -172,9 +175,9 @@ const STROKES: Record<ShotType, Stroke> = {
   STRAIGHT: {
     contact: { ...GUARD, hip: [-0.05, .83, .14], chest: [.12, 1.17, .23], frontFoot: [.02, .08, .63],
       grip: [.34, .98, .36], batUp: [.035, .985, -.17], batFace: [0, .12, 1], yaw: 1.08, face: 0, heel: .07, leadElbow: .13,
-      armHinge: -.60, armDrive: 0, shoulderLift: 0 },
+      armHinge: .85, armDrive: 1, shoulderLift: 0 },
     through: { ...GUARD, hip: [-.04,.84,.17], chest: [.10,1.18,.30], frontFoot: [.02,.08,.63],
-      grip: [.30,1.32,.77], batUp: [0,.99,-.14], batFace: [0,.14,.99], yaw: .92, face: 0, heel: .15, leadElbow: .15,
+      grip: [.30,1.32,.77], batUp: [0,.70,-.714], batFace: [0,.714,.70], yaw: .92, face: 0, heel: .15, leadElbow: .15,
       armHinge: .90, armDrive: 1, shoulderLift: .05 },
     // Continue beyond the upright presentation: hands above the helmet and
     // blade carried forward/up into the high finish in IMG_4057.
@@ -203,7 +206,7 @@ const STROKES: Record<ShotType, Stroke> = {
   COVER_LONG_OFF: {
     contact: { ...GUARD, hip: [.05, .81, .13], chest: [.19, 1.15, .22], frontFoot: [.10, .08, .60],
       grip: [.50, .98, .35], batUp: [.34, .93, -.14], batFace: [.42, .10, .90], yaw: 1.42, face: .28, heel: .07, leadElbow: .12,
-      armHinge: -.60, armDrive: 0, shoulderLift: 0 },
+      armHinge: .85, armDrive: 1, shoulderLift: 0 },
     through: { ...GUARD, hip: [.06,.79,.16], chest: [.22,1.13,.28], frontFoot: [.10,.08,.60],
       grip: [.48,1.32,.75], batUp: [-.18,.975,-.10], batFace: [.42,.1,.90], yaw: 1.05, face: .28, heel: .16, leadElbow: .15,
       armHinge: .90, armDrive: 1, shoulderLift: .05 },
@@ -294,7 +297,7 @@ const PULL_REACH: readonly [number, number] = [-.55, .32];
 const CHARGE: Stroke = {
   contact: { ...GUARD, hip: [-.06, .80, .16], chest: [.10, 1.16, .25], frontFoot: [.04, .08, .63], backFoot: [-.20, .08, -.26],
     grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18,
-    armHinge: -.60, armDrive: 0, shoulderLift: 0 },
+    armHinge: .85, armDrive: 1, shoulderLift: 0 },
   // Brace the front leg and rise onto the back toe; do not kick the lead leg
   // behind the body at the instant the bat finishes. The high hands extend
   // down the target line rather than folding the blade back into the torso.
@@ -402,7 +405,7 @@ export class Batter {
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
-  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3 }[] = [];
+  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
   private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
@@ -495,7 +498,8 @@ export class Batter {
       for (let roll = 0; roll < 3; roll++)
         this.mesh(glove, this.palette.pad, [.112, .034, .034], 'soft').position.set(0, .046 - roll * .046, .050);
       // Opposing thumbs: these are a left top hand and a right bottom hand,
-      // not two copies of the same mitten. Local -Z is the wrist socket.
+      // not two copies of the same mitten. The wrist exits behind the palm
+      // and diagonally toward the butt for the leading top hand.
       this.mesh(glove, this.palette.pad, [.046, .085, .052], 'soft').position.set(i === 0 ? -.052 : .052, -.015, -.042);
       // The wrist is what turns: a gauntlet at the hand aimed back up the forearm.
       const cuff = new THREE.Group(); this.root.add(cuff);
@@ -503,7 +507,7 @@ export class Batter {
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
-        glove, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3() });
+        glove, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
       for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.pad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
@@ -701,7 +705,8 @@ export class Batter {
       } else if (age < 570) this.apply(finish);
       else if (age < 780) {
         const out=reachPose({ ...stroke.finish, grip: this.shot==='STRAIGHT'?[.42,1.45,.58]:[.50,1.45,.55], batUp: [-1,0,0], batFace: [0,0,1],armHinge:.2,armDrive:1,shoulderLift:.04 });
-        this.apply(age<660?mix(finish,out,(age-570)/90):mix(out,reachPose(stroke.recover!),(age-660)/120));
+        const clear=this.shot==='COVER_LONG_OFF'?680:660;
+        this.apply(age<clear?mix(finish,out,(age-570)/(clear-570)):mix(out,reachPose(stroke.recover!),(age-clear)/(780-clear)));
       } else this.apply(mix(reachPose(stroke.recover!),GUARD,(age-780)/(STROKE_DURATION_MS-780)));
       return;
     }
@@ -786,7 +791,8 @@ export class Batter {
       // fist only ABOUT the handle; its grasp axis and grip station stay fixed.
       const radial = arm.shoulder.clone().sub(grip);
       radial.addScaledVector(axis, -radial.dot(axis)).normalize();
-      const hand = grip.clone().addScaledVector(radial, .075);
+      const socket=wristSocket(i);
+      const hand = grip.clone().addScaledVector(radial, -socket.z).addScaledVector(axis,socket.y);
       arm.wrist.copy(hand);
       const localRadial = radial.clone().applyQuaternion(this.bat.quaternion.clone().invert());
       arm.glove.rotation.set(0, Math.atan2(-localRadial.x, -localRadial.z), 0);
@@ -853,7 +859,9 @@ export class Batter {
         const drive=THREE.MathUtils.clamp(pose.armDrive??0,0,1);
         if (drive>0 && i===0) {
           const hinge=pose.armHinge??-.6;
-          const aim=new THREE.Vector3(.10,Math.sin(hinge),Math.cos(hinge)).normalize();
+          const impact=this.charging?CHARGE_CONTACT_MS:STROKE_CONTACT_MS;
+          const opening=.10+.65*(1-ease(THREE.MathUtils.clamp((this.poseAge-impact)/100,0,1)));
+          const aim=new THREE.Vector3(opening,Math.sin(hinge),Math.cos(hinge)).normalize();
           pole.lerp(arm.shoulder.clone().addScaledVector(aim,.60),drive);
         }
         if (this.cutting) {
@@ -866,10 +874,14 @@ export class Batter {
         for (let iteration=0; iteration<6; iteration++) {
           elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
           radial.copy(elbow).sub(grip).addScaledVector(axis, -elbow.clone().sub(grip).dot(axis)).normalize();
-          hand.copy(grip).addScaledVector(radial,.075);
+          // The wrist uncocks as the forearm passes the hands in a wrap;
+          // retaining the pickup's diagonal here would bend it backwards.
+          socket.y=wristSocket(i).y*THREE.MathUtils.smoothstep(elbow.clone().sub(grip).dot(axis),-.08,.20);
+          hand.copy(grip).addScaledVector(radial,-socket.z).addScaledVector(axis,socket.y);
         }
         elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
         arm.wrist.copy(hand);
+        arm.socket.copy(socket);
         localRadial.copy(radial).applyQuaternion(this.bat.quaternion.clone().invert());
         arm.glove.rotation.set(0,Math.atan2(-localRadial.x,-localRadial.z),0);
       }
@@ -953,9 +965,9 @@ export class Batter {
         const hand = arm.wrist;
         const forearm = arm.elbow.position.clone().sub(hand).normalize();
         const cuff = new THREE.Vector3(0, 1, 0).applyQuaternion(arm.cuff.quaternion);
-        const wristDirection = new THREE.Vector3(0,0,-1).applyQuaternion(arm.glove.quaternion).applyQuaternion(this.bat.quaternion);
+        const wristDirection = arm.socket.clone().normalize().applyQuaternion(arm.glove.quaternion).applyQuaternion(this.bat.quaternion);
         return { alongForearm: cuff.dot(forearm), flex: wristDirection.angleTo(forearm),
-          socketError: arm.glove.localToWorld(new THREE.Vector3(0,0,-.075)).sub(this.root.position).distanceTo(hand),
+          socketError: arm.glove.localToWorld(arm.socket.clone()).sub(this.root.position).distanceTo(hand),
           elbowOffHandle: this.offHandle(arm.elbow.position) };
       }),
     };

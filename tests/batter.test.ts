@@ -63,7 +63,7 @@ describe('bat travel', () => {
     const batter=new Batter(); batter.prepare(1); batter.update(0); batter.swing('STRAIGHT',0,0);
     batter.update(220); const through=batter.inspect();
     batter.update(410); const finish=batter.inspect();
-    expect(finish.bladeTip[1]-through.bladeTip[1]).toBeGreaterThan(.7);
+    expect(finish.bladeTip[1]-through.bladeTip[1]).toBeGreaterThan(.6);
     expect(finish.grip[1]).toBeGreaterThan(1.6);
     expect(finish.batUp[2]).toBeLessThan(-.9);
   });
@@ -369,6 +369,16 @@ describe('the square cut', () => {
 });
 
 describe('the grip', () => {
+  it.each(['straight','cover','charge'])('uses a diagonal top-hand wrist and leading elbow for %s',kind=>{
+    const batter=new Batter(); batter.prepare(1); batter.update(0);
+    batter.swing(kind==='cover'?'COVER_LONG_OFF':'STRAIGHT',0,kind==='cover'?.3:0,.54,GAME.contactZ,kind==='charge');
+    batter.update(kind==='charge'?CHARGE_CONTACT_MS:110);
+    const p=batter.inspect(), axis=new Vector3(0,1,0).applyQuaternion(batter.bat.quaternion);
+    const topHand=new Vector3(...p.hands[0]).sub(batter.root.position);
+    const wrist=new Vector3(...p.wrists[0]);
+    expect(wrist.clone().sub(topHand).dot(axis)).toBeGreaterThan(.015);
+    expect(p.elbows[0][1]-wrist.y).toBeGreaterThan(.10);
+  });
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
     for (const kind of ['pull','charge','straight','cover']) for (const x of kind==='pull'?[-.55,0,.32]:kind==='cover'?[-.08,.30,.55]:[-.17,0,.17]) {
       const charge=kind==='charge';
@@ -448,8 +458,9 @@ describe('shoulders', () => {
       expect(from.angleTo(to)).toBeGreaterThan(Math.PI/4);
     }
     expect(finish.grip[1]-contact.grip[1]).toBeGreaterThan(.5);
-    if(kind==='straight') for(let t=110;t<=220;t+=4) {
-      batter.update(t); expect(batter.inspect().batUp[1]).toBeGreaterThan(.9);
+    if(kind==='straight') {
+      batter.update(160); const early=batter.inspect().batUp[2];
+      batter.update(220); expect(batter.inspect().batUp[2]).toBeLessThan(early-.15);
     }
   });
   it('never carries the hands round behind the back', () => {
