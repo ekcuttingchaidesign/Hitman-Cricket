@@ -183,6 +183,32 @@ describe('arm placement', () => {
 });
 
 describe('the pull', () => {
+  it('loads the back leg, extends square, then wraps behind the lead shoulder', () => {
+    const batter = new Batter();
+    batter.prepare(1); batter.update(0); batter.swing('LEG', 0, 0, 1.12);
+    batter.update(110); const contact = batter.inspect();
+    expect(contact.hip[2]).toBeLessThan(-.18);
+    expect(contact.frontFoot[2]).toBeLessThan(.30);
+    batter.update(220); const through = batter.inspect();
+    expect(through.grip[0]).toBeLessThan(-.25);
+    expect(Math.abs(through.batUp[1])).toBeLessThan(.2);
+    batter.update(410); const finish = batter.inspect();
+    expect(finish.yaw).toBeLessThan(through.yaw);
+    expect(finish.bladeTip[2]).toBeLessThan(GAME.stanceZ);
+  });
+  it('keeps the high pull continuous through extension and recovery', () => {
+    for (const x of [-.55, 0, .32]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      batter.swing('LEG', 0, x, 1.12);
+      let previous = batter.inspect();
+      for (let time = 8; time <= STROKE_DURATION_MS; time += 8) {
+        batter.update(time); const pose = batter.inspect();
+        expect(new Vector3(...pose.bladeTip).distanceTo(new Vector3(...previous.bladeTip))).toBeLessThan(.45);
+        expect(new Vector3(...pose.batFace).dot(new Vector3(...previous.batFace))).toBeGreaterThan(.8);
+        previous = pose;
+      }
+    }
+  });
   it('answers a ball at the chest with its own stroke, and only on the leg side', () => {
     const batter = new Batter();
     batter.reset(); batter.swing('LEG', 0, -.02, 1.12); batter.update(110);
@@ -358,6 +384,14 @@ describe('shoulders', () => {
 });
 
 describe('the charge', () => {
+  it('finishes the drive on a braced front leg with high hands', () => {
+    const batter = new Batter(); batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
+    batter.update(410); const pose = batter.inspect();
+    expect(pose.frontFoot[1]).toBeCloseTo(.08);
+    expect(pose.frontFoot[2]).toBeGreaterThan(pose.hip[2]);
+    expect(pose.grip[1]).toBeGreaterThan(1.5);
+    expect(pose.batUp[1]).toBeLessThan(-.5);
+  });
   it('walks down the pitch, launches it, and walks back', () => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0);

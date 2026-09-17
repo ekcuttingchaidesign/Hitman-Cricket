@@ -20,6 +20,7 @@ interface Pose {
   /** Chin down. Only the fall uses it, and without it a beaten man stares straight ahead. */
   headDown?: number;
   heel: number;
+  backFootYaw?: number;
   leadElbow: number;
 }
 const V = (p: Point) => new THREE.Vector3(...p);
@@ -99,7 +100,7 @@ const BACKLIFT: Pose = {
  * the body and the shortest path between them goes through him. A stroke that
  * needs one names the shape the bat comes down through on its way back.
  */
-interface Stroke { contact: Pose; finish: Pose; recover?: Pose }
+interface Stroke { contact: Pose; finish: Pose; through?: Pose; recover?: Pose }
 /**
  * The square cut, off the back foot. He rocks back and across so his weight is
  * over the back leg and his head is outside the line of the ball, frees his arms
@@ -246,18 +247,26 @@ function batOrientation(pose: Pose) {
 // line, blade swung across the body, and the whole frame opening up to follow it
 // round. It is played on the leg-side input, so it needs its own reach as well.
 const PULL: Stroke = {
-  contact: { ...GUARD, hip: [-.13, .86, -.12], chest: [-.04, 1.20, -.02],
+  contact: { ...GUARD, hip: [-.13, .86, -.22], chest: [-.04, 1.20, -.12],
     frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
     grip: [-.30, 1.12, .02], batUp: [-.93, .30, -.20], batFace: [-.86, .18, .48],
-    yaw: .42, face: -.55, heel: .22, leadElbow: -.52 },
+    yaw: .62, face: -.25, heel: .04, backFootYaw: 1.05, leadElbow: -.20 },
+  // Extend through the ball before the elbows fold into the wrap. The head
+  // stays over the loaded back leg rather than lunging after the hands.
+  through: { ...GUARD, hip: [-.17, .88, -.20], chest: [-.12, 1.24, -.09],
+    frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
+    grip: [-.32, 1.19, .33], batUp: [.55, -.12, -.83], batFace: [-.80, .12, -.55],
+    yaw: .05, face: -.65, heel: .08, backFootYaw: .55, leadElbow: -.12 },
   // The bat finishes high with the hands together in front of the chest and the
   // blade pointing up over the off shoulder. Wrapping them round behind the back
   // is where the arms end up if the grip is left on the leg side, and no shoulder
   // bends that way.
   finish: { ...GUARD, hip: [-.17, .90, -.10], chest: [-.16, 1.26, .00],
     frontFoot: [-.30, .08, .26], backFoot: [-.20, .08, -.36],
-    grip: [.02, 1.36, .20], batUp: [-.71, -.71, .10], batFace: [-.62, .42, .66],
-    yaw: -.15, face: -.80, heel: .30, leadElbow: -.10 },
+    grip: [-.30, 1.36, .27], batUp: [.65, -.45, .61], batFace: [-.62, .18, .79],
+    yaw: -.38, face: -.80, heel: .10, backFootYaw: .25, leadElbow: -.10 },
+  recover: { ...GUARD, grip: [.24, 1.15, .36], batUp: [-.15, -.80, -.58],
+    batFace: [.86, -.22, .17], yaw: .70, heel: .04 },
 };
 const PULL_REACH: readonly [number, number] = [-.55, .32];
 // Charging the bowler: a long stride out of the crease with the head over the
@@ -267,13 +276,11 @@ const PULL_REACH: readonly [number, number] = [-.55, .32];
 const CHARGE: Stroke = {
   contact: { ...GUARD, hip: [-.06, .80, .36], chest: [.10, 1.16, .40], frontFoot: [.04, .08, .92], backFoot: [-.20, .10, -.26],
     grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18 },
-  // Charging is running: by the finish he has pushed off the front foot and
-  // stepped through onto the back one, with the front leg trailing in the air.
-  // The hands finish high and in front of the chest with the bat wrapped down
-  // over the shoulder. Carried round behind the back — where the swing wants to
-  // take them — no shoulder reaches, and both arms end up somewhere no body goes.
-  finish: { ...GUARD, hip: [-.04, .86, .40], chest: [.04, 1.26, .42], frontFoot: [-.02, .30, -.06], backFoot: [-.22, .08, .30],
-    grip: [-.22, 1.42, .78], batUp: [.42, .32, .85], batFace: [.55, .55, -.45], yaw: .50, face: -.18, heel: 0, leadElbow: -.06 },
+  // Brace the front leg and rise onto the back toe; do not kick the lead leg
+  // behind the body at the instant the bat finishes. The high hands extend
+  // down the target line rather than folding the blade back into the torso.
+  finish: { ...GUARD, hip: [-.04, .85, .35], chest: [.04, 1.24, .43], frontFoot: [.04, .08, .72], backFoot: [-.20, .08, .05],
+    grip: [.28, 1.55, .74], batUp: [-.10, -.62, -.78], batFace: [0, .12, 1], yaw: .62, face: 0, heel: .24, leadElbow: .12 },
 };
 
 /**
@@ -313,6 +320,7 @@ function mix(a: Pose, b: Pose, amount: number): Pose {
     batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(bat).toArray() as unknown as Point,
     yaw: THREE.MathUtils.lerp(a.yaw, b.yaw, t), face: THREE.MathUtils.lerp(a.face, b.face, t), heel: THREE.MathUtils.lerp(a.heel, b.heel, t),
     headDown: THREE.MathUtils.lerp(a.headDown ?? 0, b.headDown ?? 0, t),
+    backFootYaw: THREE.MathUtils.lerp(a.backFootYaw ?? 1.38, b.backFootYaw ?? 1.38, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
   };
 }
@@ -565,7 +573,9 @@ export class Batter {
     const contact = { ...reachPose(stroke.contact), grip: contactGrip.toArray() as unknown as Point };
     const finish = reachPose(stroke.finish);
     if (age <= STROKE_CONTACT_MS) this.apply(mix(this.swingFrom, contact, age / STROKE_CONTACT_MS));
-    else if (age < 410) this.apply(mix(contact, finish, (age - STROKE_CONTACT_MS) / (410 - STROKE_CONTACT_MS)));
+    else if (stroke.through && age < 220) this.apply(mix(contact, reachPose(stroke.through), (age - STROKE_CONTACT_MS) / (220 - STROKE_CONTACT_MS)));
+    else if (age < 410) this.apply(mix(stroke.through ? reachPose(stroke.through) : contact, finish,
+      (age - (stroke.through ? 220 : STROKE_CONTACT_MS)) / (410 - (stroke.through ? 220 : STROKE_CONTACT_MS))));
     else if (age < 570) this.apply(finish);
     else if (stroke.recover) {
       // Down through the recovery pose first, then home. The bat spends longer
@@ -674,7 +684,7 @@ export class Batter {
       leg.pad.quaternion.setFromUnitVectors(UP, lowerAxis).multiply(new THREE.Quaternion().setFromAxisAngle(UP, 1.38));
       leg.pad.position.copy(foot).lerp(knee, .54).add(new THREE.Vector3(.012, 0, .01));
       leg.shoe.position.copy(foot);
-      leg.shoe.quaternion.setFromAxisAngle(UP, i === 0 ? pose.yaw * .77 : 1.38)
+      leg.shoe.quaternion.setFromAxisAngle(UP, i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38))
         .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), footPitch));
     }
   }
