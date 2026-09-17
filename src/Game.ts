@@ -22,7 +22,7 @@ import {
   type BoardPayload, type SurvivePayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { cardOffer, type BoardTab, type CardOffer } from './ui/Leaderboard';
+import { cardOffer, shownOffer, type BoardTab, type CardOffer } from './ui/Leaderboard';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
 import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
@@ -666,10 +666,8 @@ export class Game {
   private offerBoard() {
     const played = asInnings(this.score);
     const offer = cardOffer(this.boardSeen, this.board, played, Date.now(), this.player);
-    // An innings that had nothing to offer stays quiet in a private window too:
-    // the strip is there to say what is being missed, and a two-run innings was
-    // missing nothing.
-    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
+    const shown = shownOffer(offer, this.canRegister);
+    this.offered(shown);
     this.hud.offerClaim(shown, readPlayer(), this.board, played, this.player);
   }
 
@@ -677,14 +675,27 @@ export class Game {
   private offerSurvive() {
     const played = this.survived();
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
-    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
+    const shown = shownOffer(offer, this.canRegister);
+    this.offered(shown);
     this.hud.offerSurviveClaim(shown, readPlayer(), this.surviveRows, played, this.player);
   }
 
   /**
-   * The strip's key. An innings already beaten by the player's own row has
-   * nothing to register, so its key opens the board; anything else opens the
-   * form.
+   * What the strip counts as, so the offer can be read against what was done
+   * with it. Without this the counter shows how many players opened the board
+   * and not how many were shown one, and those two questions had been answered
+   * with the same figure — which is how a card that stayed silent for most
+   * innings looked, for a day, like a board nobody cared about.
+   */
+  private offered(offer: CardOffer) {
+    this.mark(`offer-${offer.kind}`, `Board strip: ${offer.kind}`);
+  }
+
+  /**
+   * The strip's key. Only a place that can actually be taken opens the form;
+   * every other strip — a standing row, a cut-off missed, a board that did not
+   * answer, a private window — opens the board, which is the thing all four of
+   * them are pointing at.
    *
    * The form opens for a returning player too, filled in with the name and kit
    * they last batted under. It used to send straight off, which saved them a tap
@@ -692,8 +703,7 @@ export class Game {
    * best is exactly the moment somebody wants a different name on it.
    */
   private startClaim = () => {
-    // A private window has no place to claim, so its key is the board's.
-    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private') return this.showBoard();
+    if (this.hud.offerKind !== 'claim') return this.showBoard();
     this.mark('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };

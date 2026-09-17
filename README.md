@@ -298,7 +298,11 @@ There are no invented rows for the Test board. The fifty fixtures stand in for t
 
 ### Claiming a place
 
-An innings that earns a place puts a strip on the card between the figures and the keys: a green banner saying where it landed, the two rows it landed between, and one key to do something about it. The rows either side are the point — *fifth has 102* is what makes 101 mean something, and a place on its own does not. Each peek row carries the same three figures the board does (runs, sixes, fours), so it is a true preview of the screen the key opens rather than a different thing that resembles it. Other players are bars rather than names: the peek is about where the player sits, and the full board one tap away has every name on it.
+Every innings puts a strip on the card between the figures and the keys — and *every* is the recent change. An innings that earns a place gets a green banner saying where it landed, the two rows it landed between, and one key to do something about it. An innings that fell short gets the same strip in slate rather than green, saying what the fiftieth is on and how far short this was, over a key that opens the board. So does a duck, which is the innings with the most to gain from being told the number and was previously told nothing at all. So does a board that never answered, which used to be the quietest failure in the game: a player whose connection blinked once was shown a card with no board on it and had no way to tell that from a game without one.
+
+The strip used to go silent for all three, on the reasoning that a two-run innings was missing nothing. That is true of the innings and wrong about the player — silence withholds the target, and a player who has never been told the board starts at 147 has not declined to chase it. The first day's counter is what settled it: two in five of the players who finished an innings ever opened the board, while better than nine in ten of the ones who opened the claim form completed it. The board was not unpersuasive. It was mostly not on the screen.
+
+Every state of that strip is in the card lab — `npm run dev`, then `/tools/card-lab.html`, or `npm run build:lab` for a copy that can be hosted and tapped through by somebody without a checkout. The rows either side are the point — *fifth has 102* is what makes 101 mean something, and a place on its own does not. Each peek row carries the same three figures the board does (runs, sixes, fours), so it is a true preview of the screen the key opens rather than a different thing that resembles it. Other players are bars rather than names: the peek is about where the player sits, and the full board one tap away has every name on it.
 
 Tapping the key morphs the strip rather than growing the card — the peek and the key step aside, the picker and the name field take exactly their place, and nothing above moves. Submitting opens the **full board**, with Play again, Share and Insta Story pinned to the foot of it: fifty rows is a long scroll, and a player who has just been put on the board should not have to reach the bottom of it to leave.
 
@@ -491,7 +495,8 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `innings-end` | An innings played out. Against `innings-start`, the completion rate. |
 | `innings-all-out`, `innings-overs-up` | Which way it ended: three wickets, or thirty balls. The difficulty dial. |
 | `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
-| `board-open` | Whether the fifty is looked at. |
+| `offer-claim`, `offer-missed`, `offer-standing`, `offer-offline`, `offer-private` | What the card said about the board, which is the question `board-open` on its own cannot answer. A board nobody opens and a board nobody was shown are the same figure without this, and for a day they were: the strip stayed hidden for every innings short of the fiftieth, so the forty per cent who opened it were forty per cent of the ones who *had* one, and the rest were never counted as having declined anything. |
+| `board-open` | Whether the fifty is looked at. Read against the `offer-*` above it, not against `innings-end`. |
 | `claim-open`, `claim-done`, `claim-failed` | The registration funnel: offered, taken, and refused by the store. |
 | `survive-…` | The same events again, for a Test innings. GoatCounter has no custom properties, so the mode is in the name or it is nowhere — everything about an *innings* is prefixed, and everything about a *session* (the first shot, the help screen, the minutes played) is not, because those are the same fact whichever innings they happened in. |
 | `survive-result-won` … `survive-result-lost` | Which of the five result cards the Test innings earned. |
@@ -527,7 +532,9 @@ So the recognising happens in the player's own browser, which remembers what Goa
 
 A browser with storage switched off reports none of these rather than reporting itself new every session, which would have made the one exact figure here the least trustworthy thing on the dashboard.
 
-Two things GoatCounter cannot do, and where to go instead. It cannot cross-tabulate, so *did the players who took the tutorial score better* is not a question it will answer; the board store holds the exact figures for every claimed innings and can. And it counts a visitor per path per day, so `innings-start` gives both totals (hits) and players who started at least one (visits) — the replay rate falls out of the two without a second event.
+Two things GoatCounter cannot do, and where to go instead. It cannot cross-tabulate, so *did the players who took the tutorial score better* is not a question it will answer; the board store holds the exact figures for every claimed innings and can.
+
+And one thing it does that is worth knowing before a figure is read off it. **The counts are not occurrences.** A path fired twice in a session arrives as one, which the first export made plain: the four events an innings-end fires on four adjacent lines came back as 41 `innings-end` against 87 score bands and 85 time bands. Nothing was double-firing — one player's several innings land in several different score bands and are counted once each, while `innings-end` is the same path every time and is counted once in total. So every event here reads as *sessions that did this at least once*, `innings-start` included. The replay rate does not fall out of hits against visits, because there are no hits; `innings-replay` is the event that answers it, and the number of innings actually played is not currently a number this counter can give.
 
 ## Hosting
 

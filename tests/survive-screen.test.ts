@@ -5,8 +5,8 @@ import {
 } from '../src/game/survive-board';
 import {
   asSurvive, outcomeOf, surviveBest, surviveBoardMarkup, surviveCutLabel, surviveCutoff,
-  surviveLine, surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup,
-  surviveStandingPeek, splitOnBattering,
+  surviveLine, surviveMissedLabel, surviveMissedMarkup, surviveOffer, survivePeekMarkup,
+  survivePlaceOf, surviveRowMarkup, surviveStandingPeek, splitOnBattering,
 } from '../src/ui/SurviveBoard';
 import {
   CLASSIC_LADDER, SURVIVE_LADDER, readBoard, submitScore, type Submission,
@@ -196,8 +196,8 @@ describe('whether the card says anything about the board', () => {
   const full = Array.from({ length: SURVIVE_BOARD_SIZE }, (_, i) =>
     row({ playerId: `p${i}`, runs: 80 - i, balls: SURVIVE.totalBalls }));
 
-  it('stays quiet when the board has never answered', () => {
-    expect(surviveOffer(false, [], innings({ runs: SURVIVE.target, balls: 20 }), AT).kind).toBe('silent');
+  it('says the board could not be reached when it never answered', () => {
+    expect(surviveOffer(false, [], innings({ runs: SURVIVE.target, balls: 20 }), AT).kind).toBe('offline');
   });
 
   it('offers a duck that lasted, which the other board would have thrown away', () => {
@@ -207,8 +207,39 @@ describe('whether the card says anything about the board', () => {
       .toEqual({ kind: 'claim', place: 1 });
   });
 
-  it('turns away an innings that cannot reach the fiftieth row', () => {
-    expect(surviveOffer(true, full, innings({ runs: 0, balls: 1, wickets: 1 }), AT).kind).toBe('silent');
+  it('tells an innings that cannot reach the fiftieth row what it would take', () => {
+    expect(surviveOffer(true, full, innings({ runs: 0, balls: 1, wickets: 1 }), AT).kind).toBe('missed');
+  });
+
+  it('never goes silent on a Test innings that was played', () => {
+    const played = [
+      innings({ runs: 0, balls: 1, wickets: 1 }),
+      innings({ runs: 0, balls: 40, wickets: 1 }),
+      innings({ runs: SURVIVE.target, balls: 20 }),
+    ];
+    for (const yours of played) {
+      for (const rows of [[], full]) {
+        expect(surviveOffer(true, rows, yours, AT).kind).not.toBe('silent');
+      }
+    }
+  });
+
+  /**
+   * "Eleven short" cannot be said on this ladder: an innings misses by losing,
+   * by being slower or by not lasting. The cut-off line already names whichever
+   * contest the fiftieth row is in, so the card quotes it rather than inventing
+   * an arithmetic the board does not rank on.
+   */
+  it('borrows the sheet\'s own cut-off sentence for the card', () => {
+    expect(surviveMissedLabel(surviveCutoff(full))).toBe(surviveCutLabel(full[SURVIVE_BOARD_SIZE - 1]));
+    expect(surviveMissedLabel(null)).toBe('Any ball faced gets you on the board');
+  });
+
+  it('shows the Test innings below the line with the figures the board ranks it on', () => {
+    const yours = innings({ runs: 4, balls: 9, wickets: 1 });
+    const markup = surviveMissedMarkup(yours);
+    expect(markup).toContain('not good enough yet');
+    expect(markup).toContain('9<small>balls</small>');
   });
 
   it('tells a player their own row still stands rather than offering one it would not take', () => {

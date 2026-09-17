@@ -284,6 +284,24 @@ function surviveMine(yours: SurviveInnings, place: string, note: string): string
 }
 
 /**
+ * What it takes to get on, said to a Test innings that did not.
+ *
+ * The other ladder can say "eleven short" because it is ranked on one figure.
+ * This one cannot: an innings misses by losing, by being slower, or by not
+ * lasting, so the cut-off line names the contest the fiftieth row is in and
+ * leaves the arithmetic alone. A board with room on it takes anything, and
+ * only reaches here when the innings had nothing on it at all.
+ */
+export function surviveMissedLabel(edge: SurviveRow | null): string {
+  return edge ? surviveCutLabel(edge) : 'Any ball faced gets you on the board';
+}
+
+/** That innings, below the line, on the card rather than on the sheet. */
+export function surviveMissedMarkup(yours: SurviveInnings): string {
+  return surviveMine(yours, '&mdash;', 'not good enough yet');
+}
+
+/**
  * The three rows around the player, for the innings-end card. The same peek the
  * other card draws: the row above and the row below are what make a place mean
  * anything.
@@ -337,12 +355,12 @@ export function survivePlaceOf(rows: readonly SurviveRow[], yours: SurviveInning
 export function surviveOffer(
   reached: boolean, rows: readonly SurviveRow[], yours: SurviveInnings, atMs: number, youId: string | null = null,
 ): CardOffer {
-  if (!reached) return { kind: 'silent' };
+  if (!reached) return { kind: 'offline' };
   const mine = youId ? rows.findIndex(row => row.playerId === youId) : -1;
   if (mine >= 0 && !surviveImprovesOn(yours, atMs, rows[mine])) {
     return { kind: 'standing', runs: rows[mine].runs, place: mine + 1 };
   }
-  if (!surviveQualifies(yours, atMs, rows)) return { kind: 'silent' };
+  if (!surviveQualifies(yours, atMs, rows)) return { kind: 'missed' };
   return { kind: 'claim', place: survivePlaceOf(rows, yours, atMs) };
 }
 

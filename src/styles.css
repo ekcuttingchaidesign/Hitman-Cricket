@@ -1589,7 +1589,15 @@ body.start-screen .hud-top{display:none}
   line-height:1.3;
   color:#fff
 }
+/* The same strip, for the news that is not good: an innings short of the
+   fiftieth, or a board that would not answer. Structure and key stay exactly as
+   they are — this is the same offer and it points at the same screen — but the
+   green belongs to a place taken, and putting it over "eleven short" would be
+   the card congratulating somebody on missing. Slate instead, which is quiet
+   without being a failure state, and carries white at better than 9:1. */
+.card-board-head.is-quiet{background:linear-gradient(90deg,#2B4055,#27405E)}
 .card-board-head svg{width:17px;height:17px;color:#9ff0c4}
+.card-board-head.is-quiet svg{color:#bcd2e4}
 .card-board-head b{font-weight:800}
 .card-peek{list-style:none;margin:0;padding:4px 15px 2px}
 .card-peek .board-row{grid-template-columns:20px 26px minmax(0,1fr) auto auto;padding:7px 0}

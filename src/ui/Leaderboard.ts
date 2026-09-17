@@ -248,6 +248,17 @@ function actionsMarkup(): string {
  * a cut — you have to beat nought on the split to get past it — but "0 gets you
  * on the board" is not what that means, so it is said the other way round.
  */
+/**
+ * The same cut, said on the innings-end card rather than under the board.
+ *
+ * A board with room on it only reaches here for a duck — anything with a run on
+ * it qualifies while the fifty is filling — so that is the innings this sentence
+ * is written for.
+ */
+export function missedLabel(edge: BoardRow | null): string {
+  return edge ? cutLabel(edge) : 'Any run gets you on the board';
+}
+
 export function cutLabel(edge: BoardRow): string {
   return edge.runs > 0 ? `${edge.runs} gets you on the board` : 'Any run gets you on the board';
 }
@@ -315,14 +326,19 @@ function waitingMarkup(yours: Innings, place: number): string {
 }
 
 /** Your innings, shown below the line when it did not make it. */
-function missedMarkup(yours: Innings, edge: BoardRow | null): string {
+export function missedMarkup(yours: Innings, edge: BoardRow | null): string {
   const short = edge ? Math.max(0, edge.runs - yours.runs) : 0;
+  // No fiftieth row means a board still filling, which reaches here only for a
+  // nought — so the note is what that nought is short of, and it is one run.
+  const note = !edge ? 'a run short of the board'
+    : short ? `${short} short`
+    : 'level, and below on the split';
   return `
         <ol class="board-list board-missed" start="${BOARD_SIZE + 1}">
           <li class="board-row is-you" style="--i:0">
             <span class="board-place">&mdash;</span>
             <span class="board-kit" style="--kit:${kitColour(0)}" aria-hidden="true">?</span>
-            <span class="board-who"><b>This innings</b><small>${short ? `${short} short` : 'level, and below on the split'}</small></span>
+            <span class="board-who"><b>This innings</b><small>${note}</small></span>
             <span class="board-runs">${yours.runs}<i>/${yours.wickets}</i></span>
             <span class="board-hits"><em>${yours.sixes}<small>6s</small></em><em>${yours.fours}<small>4s</small></em></span>
           </li>
@@ -387,25 +403,47 @@ export function asInnings(score: { runs: number; wickets: number; balls: number;
 }
 
 /**
- * What the innings-end card has to say about the board, if anything.
+ * What the innings-end card has to say about the board. It always says
+ * something now, and that is the change.
  *
- * Three answers, and the one that was missing is the middle one.
+ * It used to go quiet for an innings that had missed — on the reasoning that a
+ * two-run innings was missing nothing, which is true about the innings and
+ * wrong about the player. Silence did not just withhold a key; it withheld the
+ * number. A player who has never been told the board starts at a hundred and
+ * forty-seven has not declined to chase it, he has not been told there is
+ * anything to chase. The first day's counter bore it out: two in five of the
+ * players who finished an innings ever opened the board at all, and the ones
+ * who did converted at better than nine in ten. The board was not unpersuasive.
+ * It was mostly not on the screen.
  *
- * `claim` is a place worth asking a name for. `silent` is an innings the board
- * has nothing to say about, and the card simply does not mention it.
+ * So five answers, and every innings gets one of them.
  *
- * `standing` is a player who is already on the board above this innings. The
- * board keeps one row a player, their best, so such an innings cannot be
- * registered however good it looks against everybody else's — somebody sitting
- * top with a hundred and forty who then makes a hundred and twenty would have
- * been told they were fourth and handed a key that did nothing. What they want
- * to know is that the hundred and forty still stands, and the only useful thing
- * to offer them is the board itself.
+ * `claim` is a place worth asking a name for. `missed` is short of the
+ * fiftieth, and says by how much — the bar is the whole point of saying
+ * anything, and a man told he was eleven short has a reason to face another
+ * over that a man told nothing does not have.
  *
- * Two things about the order below. The standing answer comes before the duck
- * check, because after a bad innings what still stands is worth more than
- * silence. And it is decided on the whole ladder rather than on runs, so the
- * screen and the store agree about what counts as beating yourself.
+ * `standing` is a player already on the board above this innings. The board
+ * keeps one row a player, their best, so such an innings cannot be registered
+ * however good it looks against everybody else's — somebody sitting top with a
+ * hundred and forty who then makes a hundred and twenty would have been told
+ * they were fourth and handed a key that did nothing. What they want to know is
+ * that the hundred and forty still stands.
+ *
+ * `offline` is a board that never answered. It used to be silent, which taught
+ * a player whose connection blinked once that this game has no board — the
+ * worst thing the card could have told him, and it told him by saying nothing.
+ * It asks for no name, because there is nowhere to send one; it offers the
+ * board's own key, which retries the fetch.
+ *
+ * `silent` survives as the resting state, before any innings has been played.
+ * Nothing that ends an innings returns it.
+ *
+ * Three things about the order below. Offline comes first, because a board that
+ * did not answer cannot rank anything. The standing answer comes before the
+ * duck check, because after a bad innings what still stands is worth more than
+ * a cut-off. And standing is decided on the whole ladder rather than on runs,
+ * so the screen and the store agree about what counts as beating yourself.
  *
  * Reached is not the same as empty, which is the trap this file has already
  * fallen into once: an unreachable board and a board nobody has batted on both
@@ -416,18 +454,41 @@ export type CardOffer =
   | { kind: 'silent' }
   | { kind: 'claim'; place: number }
   | { kind: 'standing'; runs: number; place: number }
+  /** Played, and short of the fiftieth. The strip says by how much. */
+  | { kind: 'missed' }
+  /** The board never answered. There is still a board, and it is worth saying so. */
+  | { kind: 'offline' }
   /** A private window: the innings was worth a place and cannot be given one. */
   | { kind: 'private' };
+
+/**
+ * The offer as the card will actually show it.
+ *
+ * A private window can be handed every answer except a place: a place is the
+ * one that asks for a name, and a window that cannot keep a player id has
+ * nowhere to keep the row that name would go on. Everything else — a cut-off, a
+ * board that did not answer — asks for nothing and reads the same there as
+ * anywhere, so it goes through untouched. The rule used to be the other way
+ * round, passing silence through and converting all the rest, which meant a
+ * private window that missed the fiftieth was told this innings could not go on
+ * the board. True, and not the reason, and not what it had asked.
+ */
+export function shownOffer(offer: CardOffer, canRegister: boolean): CardOffer {
+  return offer.kind === 'claim' && !canRegister ? { kind: 'private' } : offer;
+}
 
 export function cardOffer(
   reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,
 ): CardOffer {
-  if (!reached) return { kind: 'silent' };
+  if (!reached) return { kind: 'offline' };
   const mine = youId ? rows.findIndex(row => row.playerId === youId) : -1;
   if (mine >= 0 && !improvesOn(yours, atMs, rows[mine])) {
     return { kind: 'standing', runs: rows[mine].runs, place: mine + 1 };
   }
-  if (!yours.runs || !qualifies(yours, atMs, rows)) return { kind: 'silent' };
+  // A duck is never offered a place — the store would take it and the board
+  // would carry a nought — but it is still told what a place costs, which is
+  // the one thing a nought has any use for.
+  if (!yours.runs || !qualifies(yours, atMs, rows)) return { kind: 'missed' };
   return { kind: 'claim', place: placeOf(rows, yours, atMs) };
 }
 

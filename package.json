@@ -9,7 +9,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:browser": "node scripts/browser-check.mjs && node scripts/innings-check.mjs",
-    "check:board": "node scripts/board-check.mjs"
+    "check:board": "node scripts/board-check.mjs",
+    "build:lab": "vite build --config vite.lab.config.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.4",

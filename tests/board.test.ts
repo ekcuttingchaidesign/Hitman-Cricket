@@ -6,7 +6,7 @@ import { BOARD_SIZE, compareRows, decidedBy, plausible, unpackScore } from '../s
 import type { BoardRow, Innings } from '../src/game/leaderboard';
 import {
   BOARD_TABS, asInnings, boardMarkup, boardTabsMarkup, cardOffer, cutLabel, cutoff, decider, escape, kitMarkup,
-  peekMarkup, pickerMarkup, placeOf, rowMarkup, standingPeek, tieNote,
+  missedLabel, missedMarkup, peekMarkup, pickerMarkup, placeOf, rowMarkup, shownOffer, standingPeek, tieNote,
 } from '../src/ui/Leaderboard';
 import { AVATARS, KITS, kitColour, kitDeal, kitName } from '../src/config/board';
 import { readdirSync } from 'node:fs';
@@ -377,11 +377,13 @@ describe('offering a place', () => {
     expect(cardOffer(true, [], good, at)).toEqual({ kind: 'claim', place: 1 });
   });
 
-  it('offers nothing when the board was never reached', () => {
+  it('says the board could not be reached rather than saying nothing', () => {
     // A host that only serves files has no endpoints at all, and a kit and a
-    // name should not be asked for against a place that cannot be taken.
-    expect(kind(false, [], good, at)).toBe('silent');
-    expect(kind(false, board, good, at)).toBe('silent');
+    // name should not be asked for against a place that cannot be taken. What
+    // it must not do is imply there is no board: a card that goes blank teaches
+    // a player whose connection blinked once that this game has no fifty.
+    expect(kind(false, [], good, at)).toBe('offline');
+    expect(kind(false, board, good, at)).toBe('offline');
   });
 
   it('offers a place to an innings that clears the fiftieth', () => {
@@ -389,14 +391,114 @@ describe('offering a place', () => {
     expect(cardOffer(true, board, best, at)).toEqual({ kind: 'claim', place: 1 });
   });
 
-  it('offers nothing to an innings that does not clear it', () => {
+  it('tells an innings that does not clear it what clearing it costs', () => {
     const worst = { ...board[BOARD_SIZE - 1], runs: 1, sixes: 0, fours: 0 };
-    expect(kind(true, board, worst, at)).toBe('silent');
+    expect(kind(true, board, worst, at)).toBe('missed');
   });
 
-  it('offers nothing for a duck, even onto an empty board', () => {
+  /**
+   * The duck keeps its old rule and loses its old silence. It is still never
+   * offered a place — the store would take the nought and the board would carry
+   * it — but a nought is the innings with the most to gain from being told what
+   * the fiftieth is on, so it is told.
+   */
+  it('never offers a duck a place, on a full board or an empty one', () => {
     const duck: Innings = { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 };
-    expect(kind(true, [], duck, at)).toBe('silent');
+    expect(kind(true, [], duck, at)).toBe('missed');
+    expect(kind(true, board, duck, at)).toBe('missed');
+  });
+
+  it('has something to say about every innings that was actually played', () => {
+    const played: Innings[] = [
+      good,
+      { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 },
+      { runs: 7, sixes: 0, fours: 1, wickets: 3, dots: 9, balls: 12 },
+      { ...board[BOARD_SIZE - 1], runs: 1, sixes: 0, fours: 0 },
+    ];
+    for (const yours of played) {
+      for (const rows of [[], board]) {
+        expect(kind(true, rows, yours, at)).not.toBe('silent');
+      }
+    }
+  });
+});
+
+/**
+ * What a private window is shown. It can be told everything except that it has
+ * a place, because a place asks for a name and there is nowhere to keep the row
+ * it would go on.
+ */
+describe('the offer a private window is shown', () => {
+  const at = Date.UTC(2026, 5, 1);
+  const good: Innings = { runs: 111, sixes: 15, fours: 5, wickets: 3, dots: 4, balls: GAME.totalBalls };
+
+  it('turns a place into the private note', () => {
+    expect(shownOffer(cardOffer(true, board, good, at), false)).toEqual({ kind: 'private' });
+  });
+
+  it('leaves a place alone in an ordinary window', () => {
+    expect(shownOffer(cardOffer(true, board, good, at), true).kind).toBe('claim');
+  });
+
+  /**
+   * The bug this rule replaced: everything that was not silent became the
+   * private note, so a private window that had missed the fiftieth was told
+   * this innings could not go on the board. It could not, but that was not why,
+   * and it was not what the player had asked.
+   */
+  it('does not tell a missed innings it was too private, rather than too short', () => {
+    const worst = { ...board[BOARD_SIZE - 1], runs: 1, sixes: 0, fours: 0 };
+    expect(shownOffer(cardOffer(true, board, worst, at), false).kind).toBe('missed');
+  });
+
+  it('leaves a board that never answered saying so', () => {
+    expect(shownOffer(cardOffer(false, [], good, at), false).kind).toBe('offline');
+  });
+});
+
+/**
+ * The cut-off, said on the card. The sentence under the board sheet already
+ * exists and already reads correctly, so the card borrows it rather than
+ * writing a second one that would drift away from it.
+ */
+describe('what a missed innings is told', () => {
+  const at = Date.UTC(2026, 5, 1);
+
+  it('quotes the fiftieth score when the board is full', () => {
+    expect(missedLabel(cutoff(board))).toBe(cutLabel(board[BOARD_SIZE - 1]));
+    expect(missedLabel(cutoff(board))).toContain(String(board[BOARD_SIZE - 1].runs));
+  });
+
+  /**
+   * A board with room on it only reaches the missed state for a duck, because
+   * anything with a run on it qualifies while the fifty is filling. So this is
+   * the sentence a nought reads, and "any run" is exactly its price.
+   */
+  it('asks a duck for any run at all while the board still has room', () => {
+    expect(missedLabel(null)).toBe('Any run gets you on the board');
+    expect(missedLabel(cutoff([]))).toBe('Any run gets you on the board');
+  });
+
+  it('shows the innings and how far short it came', () => {
+    const edge = board[BOARD_SIZE - 1];
+    const yours: Innings = { runs: edge.runs - 11, sixes: 1, fours: 2, wickets: 3, dots: 6, balls: 20 };
+    const markup = missedMarkup(yours, edge);
+    expect(markup).toContain('11 short');
+    expect(markup).toContain(`${yours.runs}<i>/${yours.wickets}</i>`);
+  });
+
+  it('says level rather than nought short when the split is what beat it', () => {
+    const edge = board[BOARD_SIZE - 1];
+    expect(missedMarkup({ ...edge, sixes: 0, fours: 0 }, edge)).toContain('level, and below on the split');
+  });
+
+  it('does not tell a duck on a filling board that it was level with anybody', () => {
+    // There is no fiftieth row to be level with. The one true thing to say is
+    // what it would have taken, and that is a single run.
+    const duck: Innings = { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 };
+    expect(missedMarkup(duck, null)).toContain('a run short of the board');
+    expect(missedMarkup(duck, null)).not.toContain('level');
+    expect(cardOffer(true, [], duck, at).kind).toBe('missed');
   });
 });
 

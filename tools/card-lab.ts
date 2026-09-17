@@ -9,7 +9,7 @@ import { ScoreManager } from '../src/game/ScoreManager';
 import type { ShotOutcome } from '../src/game/types';
 import { inventedBoard } from '../src/game/board-fixture';
 import type { Innings } from '../src/game/leaderboard';
-import { placeOf, type CardOffer } from '../src/ui/Leaderboard';
+import { cutoff, placeOf, type CardOffer } from '../src/ui/Leaderboard';
 
 const hud = new HUD(document.getElementById('stage')!, 214);
 hud.start();
@@ -36,6 +36,13 @@ const fullBoard = inventedBoard();
 const played: Innings = { runs: 101, sixes: 9, fours: 8, wickets: 2, dots: 6, balls: 30 };
 const place = placeOf(fullBoard, played, Date.now());
 const top: Innings = { runs: 148, sixes: 14, fours: 9, wickets: 1, dots: 6, balls: 30 };
+/* Eleven short of the fiftieth, taken off the board rather than written down, so
+   the shortfall on the card stays eleven whatever the invented fifty come out
+   at. The states below it are the two ways an innings arrives with nothing: a
+   nought against a full board, and a nought against one still filling. */
+const edge = cutoff(fullBoard);
+const short: Innings = { runs: (edge?.runs ?? 50) - 11, sixes: 6, fours: 7, wickets: 3, dots: 9, balls: 30 };
+const duck: Innings = { runs: 0, sixes: 0, fours: 0, wickets: 3, dots: 5, balls: 8 };
 
 /** The offer the strip is given, for the states that are about claiming one. */
 const claim = (place: number): CardOffer => ({ kind: 'claim', place });
@@ -61,6 +68,29 @@ const states: Record<string, () => void> = {
   'standing-mid': () => {
     hud.end(innings(40, 3, 24, 2, 3), fullBoard[6].runs, false);
     hud.offerClaim({ kind: 'standing', runs: fullBoard[6].runs, place: 7 }, { name: fullBoard[6].name, avatar: fullBoard[6].avatar }, fullBoard, played);
+  },
+  /* Short of the fiftieth. The strip used to be hidden here — for most innings,
+     in other words — which is the whole of what this change is about, so these
+     three are the ones to look at. */
+  missed: () => {
+    hud.end(innings(short.runs, 3, 30, short.fours, short.sixes), 96, false);
+    hud.offerClaim({ kind: 'missed' }, null, fullBoard, short);
+  },
+  'missed-duck': () => {
+    hud.end(innings(0, 3, 8, 0, 0), 96, false);
+    hud.offerClaim({ kind: 'missed' }, null, fullBoard, duck);
+  },
+  /* The same nought against a board still filling, where there is no fiftieth
+     row to be short of and the price is one run. */
+  'missed-room': () => {
+    hud.end(innings(0, 3, 8, 0, 0), 0, false);
+    hud.offerClaim({ kind: 'missed' }, null, [], duck);
+  },
+  /* A board that never answered. Silent before, which taught a player whose
+     connection blinked that the game has no board at all. */
+  offline: () => {
+    hud.end(innings(101, 2, 30, 8, 9), 96, true);
+    hud.offerClaim({ kind: 'offline' }, null, [], played);
   },
   /* A private window: the innings was worth a place and there is no player id
      to give it to, so the strip says so and offers the board instead. */

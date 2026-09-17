@@ -5,12 +5,12 @@ import { track } from '../game/analytics';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
+  boardMarkup, boardTabsMarkup, cutoff, missedLabel, missedMarkup, peekMarkup, pickerMarkup, standingPeek,
   type BoardTab, type BoardView, type CardOffer,
 } from './Leaderboard';
 import {
-  surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
-  type SurviveBoardView,
+  surviveBest, surviveBoardMarkup, surviveCutoff, surviveMissedLabel, surviveMissedMarkup,
+  survivePeekMarkup, surviveStandingPeek, type SurviveBoardView,
 } from './SurviveBoard';
 import type { BoardRow, Innings } from '../game/leaderboard';
 import type { SurviveInnings, SurviveRow } from '../game/survive-board';
@@ -574,6 +574,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       best: standing => `Your best score is still <b>${standing.runs}</b>`,
       peek: place => (rows.length ? peekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
       held: place => (rows.length ? standingPeek(rows, place) : ''),
+      cut: () => missedLabel(cutoff(rows)),
+      missed: () => missedMarkup(yours, cutoff(rows)),
     });
   }
 
@@ -595,6 +597,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       best: standing => `Your best still stands &mdash; <b>${surviveBest(rows, standing.place)}</b>`,
       peek: place => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
       held: place => (rows.length ? surviveStandingPeek(rows, place) : ''),
+      cut: () => surviveMissedLabel(surviveCutoff(rows)),
+      missed: () => surviveMissedMarkup(yours),
     });
   }
 
@@ -614,6 +618,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       best(standing: { runs: number; place: number }): string;
       peek(place: number): string;
       held(place: number): string;
+      /** The head line for an innings that missed: what a place costs. */
+      cut(): string;
+      /** That innings, below the line, the way the board sheet draws it. */
+      missed(): string;
     },
   ) {
     this.claimed = known;
@@ -622,6 +630,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (offer.kind === 'silent') return;
     this.hostStrip(surviving);
     this.onBoard = offer.kind === 'standing';
+    // Set either way rather than added, because the strip is one element reused
+    // across every innings: an offer that dressed itself quiet would stay quiet
+    // over the place the next innings takes.
+    this.$('card-board-head').classList
+      .toggle('is-quiet', offer.kind === 'missed' || offer.kind === 'offline');
     const key = this.$('claim');
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
@@ -631,6 +644,22 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         `${icon('trophy')}<span>Private window — this innings can’t go on the board</span>`;
       this.$('card-peek').innerHTML =
         '<p class="peek-note">Open the game in a normal tab to register a score.</p>';
+      key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'offline') {
+      // A board that did not answer is not a game without a board, and the card
+      // that says nothing is the one that implies it is. No name is asked for —
+      // there is nowhere to send it — and the key retries the fetch.
+      this.$('card-board-head').innerHTML =
+        `${icon('trophy')}<span>The board could not be reached</span>`;
+      this.$('card-peek').innerHTML =
+        '<p class="peek-note">Your innings still counts on this device. Try the board in a moment.</p>';
+      key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'missed') {
+      // The number is the point. An innings that fell short and is told so by a
+      // blank card learns nothing; told the fiftieth is on a hundred and
+      // forty-seven, it has been handed the reason to face another over.
+      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>${say.cut()}</span>`;
+      this.$('card-peek').innerHTML = say.missed();
       key.textContent = 'VIEW LEADERBOARD';
     } else if (offer.kind === 'standing') {
       // Their own row is the news, not this innings. What it says is what still

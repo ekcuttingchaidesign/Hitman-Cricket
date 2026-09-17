@@ -10,6 +10,23 @@
   #lab button{border:1px solid #ffffff4d;background:#00000059;color:#fff;border-radius:5px;padding:6px 11px;cursor:pointer}
   #lab button[aria-pressed=true]{background:#fff;color:#153}
   #stage{height:100%}
+  /* On a phone the card is the whole screen, so the buttons cannot sit over it
+     — which is exactly the width the card most needs reviewing at. They become
+     one scrolling rail along the bottom, and the stage gives up its height
+     rather than its middle. */
+  @media (max-width:820px){
+    #lab{
+      left:0;right:0;top:auto;bottom:0;
+      flex-wrap:nowrap;overflow-x:auto;gap:6px;
+      padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+      background:#0b1f2ceb;backdrop-filter:blur(6px);
+      border-top:1px solid #ffffff24;
+      scrollbar-width:none
+    }
+    #lab::-webkit-scrollbar{display:none}
+    #lab button{flex:0 0 auto;white-space:nowrap;padding:7px 12px}
+    #stage{height:calc(100% - 52px)}
+  }
   /* The lab stands in for the ground the overlay normally darkens. */
   #stage .stage{background:radial-gradient(circle at 50% 38%,#4d8347,#24462a 78%)}
 </style></head>
@@ -23,7 +40,11 @@
   <button data-state="offer">On the board</button>
   <button data-state="offer-known">On the board, returning</button>
   <button data-state="offer-top">Top of the board</button>
-  <button data-state="offer-blind">Board unreachable</button>
+  <button data-state="offer-blind">First on an empty board</button>
+  <button data-state="missed">Missed the fiftieth</button>
+  <button data-state="missed-duck">Out for a duck</button>
+  <button data-state="missed-room">Duck, board still filling</button>
+  <button data-state="offline">Board unreachable</button>
   <button data-state="standing">Beaten by your own top row</button>
   <button data-state="standing-mid">Beaten by your own 7th</button>
   <button data-state="private">Private window</button>
