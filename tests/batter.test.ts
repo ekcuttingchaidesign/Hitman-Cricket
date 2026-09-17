@@ -59,6 +59,14 @@ describe('two-handed cricket animation', () => {
 });
 
 describe('bat travel', () => {
+  it('continues the straight drive past the upright blade into a high finish',()=>{
+    const batter=new Batter(); batter.prepare(1); batter.update(0); batter.swing('STRAIGHT',0,0);
+    batter.update(220); const through=batter.inspect();
+    batter.update(410); const finish=batter.inspect();
+    expect(finish.bladeTip[1]-through.bladeTip[1]).toBeGreaterThan(.7);
+    expect(finish.grip[1]).toBeGreaterThan(1.6);
+    expect(finish.batUp[2]).toBeLessThan(-.9);
+  });
   it('carries both drives through impact and extension without stopping at a pose key',()=>{
     for(const shot of ['STRAIGHT','COVER_LONG_OFF'] as const) {
       const batter=new Batter(); batter.prepare(1); batter.update(0);
@@ -78,7 +86,10 @@ describe('bat travel', () => {
       expect(finish.frontFoot[2]).toBeGreaterThan(.5);
       expect(finish.hip[1]).toBeLessThan(.9);
       expect(finish.elbows[0][1]-finish.shoulders[0][1]).toBeGreaterThan(.12);
-      if(shot==='STRAIGHT') expect(finish.batUp[1]).toBeGreaterThan(.98);
+      if(shot==='STRAIGHT') {
+        expect(finish.batUp[2]).toBeLessThan(-.9);
+        expect(finish.bladeTip[1]).toBeGreaterThan(1.35);
+      }
       else expect(finish.batUp[0]).toBeLessThan(-.8);
     }
   });
@@ -211,7 +222,7 @@ describe('the pull', () => {
     for (const charge of [false, true]) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       batter.swing(charge ? 'STRAIGHT' : 'LEG', 0, 0, charge ? .54 : 1.12, GAME.contactZ, charge);
-      for (const time of charge ? [CHARGE_CONTACT_MS, 580] : [PULL_CONTACT_MS, 340]) {
+      for (const time of charge ? [CHARGE_CONTACT_MS, 560] : [PULL_CONTACT_MS, 340]) {
         const positions = [time-1, time, time+1].map(t => { batter.update(t); return new Vector3(...batter.inspect().bladeTip); });
         const before = positions[1].clone().sub(positions[0]), after = positions[2].clone().sub(positions[1]);
         expect(before.length(), `${charge} stopped at ${time}`).toBeGreaterThan(.001);
@@ -437,7 +448,7 @@ describe('shoulders', () => {
       expect(from.angleTo(to)).toBeGreaterThan(Math.PI/4);
     }
     expect(finish.grip[1]-contact.grip[1]).toBeGreaterThan(.5);
-    if(kind==='straight') for(let t=110;t<=570;t+=4) {
+    if(kind==='straight') for(let t=110;t<=220;t+=4) {
       batter.update(t); expect(batter.inspect().batUp[1]).toBeGreaterThan(.9);
     }
   });
@@ -463,6 +474,19 @@ describe('shoulders', () => {
 });
 
 describe('the charge', () => {
+  it('holds a coiled gather, accelerates through contact and holds the power finish',()=>{
+    const batter=new Batter(); batter.prepare(1); batter.update(0);
+    batter.swing('STRAIGHT',0,0,.54,GAME.contactZ,true);
+    batter.update(330); const gather=batter.inspect();
+    expect(gather.yaw).toBeGreaterThan(1.4);
+    expect(gather.grip[1]).toBeGreaterThan(1.1);
+    batter.update(439); const before=new Vector3(...batter.inspect().bladeTip);
+    batter.update(441); const after=new Vector3(...batter.inspect().bladeTip);
+    expect(after.distanceTo(before)/.002).toBeGreaterThan(11);
+    expect(batter.strikeAt).toBe(CHARGE_CONTACT_MS);
+    batter.update(740); const finish=batter.inspect();
+    batter.update(970); expect(batter.inspect().grip).toEqual(finish.grip);
+  });
   it.each(['straight','cover','charge'])('presents the flat face from face-down pickup into %s contact',kind=>{
     for(const x of [-.17,0,.17]) {
       const batter=new Batter(); batter.prepare(1); batter.update(0);

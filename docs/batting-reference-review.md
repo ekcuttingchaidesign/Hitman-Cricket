@@ -158,3 +158,18 @@ The folded elbow also exposed a mesh seam: the old 0.05 m skin joint sphere did
 not cover the 0.0725 m sleeve-end radius. A matching rounded jersey elbow now
 encloses that end in every bend plane. Tests check this geometric coverage as
 well as the existing joint-position and bat/body-clearance constraints.
+
+## High straight finish and confidence-charge emphasis — IMG_4057
+
+The new side-view reference clarifies that the upright straight-drive blade is
+an intermediate position, not the stopping point. The 220 ms extension remains;
+the hands then rise to 1.62 m and the blade continues forward/up to the high
+410 ms finish. The contact and cover-drive pose keys are unchanged.
+
+Charge now gathers at 330 ms with a stronger shoulder coil, strikes at the
+unchanged 440 ms contact time, extends at 560 ms, and reaches its finish at
+740 ms rather than 810 ms. Holding that finish until 980 ms gives the faster
+release a distinct settling beat. The nominal centre-line blade-tip speed at
+contact rises from 9.74 to 12.30 scene units/second. No ball timing, confidence
+rules, shot outcome, camera shake, or scoring changes accompany this animation
+revision. Preview phase buttons follow the revised charge keys.

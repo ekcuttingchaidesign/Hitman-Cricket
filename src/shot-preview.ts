@@ -55,7 +55,7 @@ for (const name of ['Front','Side','Load-up','Contact','Extension','Finish']) {
       else camera.position.set(4.5,2,1+down);
       controls.update();
     } else {
-      const phases=shot.value==='charge'?[290,CHARGE_CONTACT_MS,580,810]:shot.value==='pull'?[PULL_LOAD_MS,PULL_CONTACT_MS,340,500]:[0,STROKE_CONTACT_MS,220,410];
+      const phases=shot.value==='charge'?[330,CHARGE_CONTACT_MS,560,740]:shot.value==='pull'?[PULL_LOAD_MS,PULL_CONTACT_MS,340,500]:[0,STROKE_CONTACT_MS,220,410];
       age=phases[['Load-up','Contact','Extension','Finish'].indexOf(name)];
       playing=false; play.textContent='Play'; batter.update(age);
     }

@@ -176,10 +176,10 @@ const STROKES: Record<ShotType, Stroke> = {
     through: { ...GUARD, hip: [-.04,.84,.17], chest: [.10,1.18,.30], frontFoot: [.02,.08,.63],
       grip: [.30,1.32,.77], batUp: [0,.99,-.14], batFace: [0,.14,.99], yaw: .92, face: 0, heel: .15, leadElbow: .15,
       armHinge: .90, armDrive: 1, shoulderLift: .05 },
-    // The supplied straight-drive still: head over the front knee, high lead
-    // elbow and a presented blade in front of the body, not a lofted slog.
+    // Continue beyond the upright presentation: hands above the helmet and
+    // blade carried forward/up into the high finish in IMG_4057.
     finish: { ...GUARD, hip: [-.02,.85,.19], chest: [.10,1.20,.32], frontFoot: [.02,.08,.63],
-      grip: [.34,1.58,.64], batUp: [0,.995,-.10], batFace: [0,.10,.995], yaw: .92, face: 0, heel: .18, leadElbow: .40,
+      grip: [.34,1.62,.64], batUp: [0,.22,-.975], batFace: [0,.975,.22], yaw: .92, face: 0, heel: .18, leadElbow: .40,
       armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
     recover: { ...GUARD, grip: [.38,1.12,.43], batUp: [-.15,-.80,-.58], batFace: [.86,-.22,.17], yaw: 1.10 },
   },
@@ -654,21 +654,21 @@ export class Batter {
     const finish = reachPose(stroke.finish);
     if (this.pulling || this.charging) {
       const impact = this.charging ? CHARGE_CONTACT_MS : PULL_CONTACT_MS;
-      const end = this.charging ? 810 : 500;
+      const end = this.charging ? 740 : 500;
       const hold = this.charging ? 980 : 570;
       const duration = this.charging ? CHARGE_DURATION_MS : STROKE_DURATION_MS;
       const through = reachPose(stroke.through!);
       if (age < end) {
         const keys = [{ time: 0, pose: this.swingFrom }];
-        if (this.charging) keys.push({ time: 290, pose: { ...BACKLIFT, hip: [-.05,.82,.02], chest: [.03,1.18,.06],
-          frontFoot: [-.10,.08,.20], backFoot: [-.13,.13,-.08], grip: [.28,1.08,.12] } });
+        if (this.charging) keys.push({ time: 330, pose: { ...BACKLIFT, hip: [-.05,.82,.02], chest: [.03,1.18,.06],
+          frontFoot: [-.10,.08,.20], backFoot: [-.13,.13,-.08], grip: [.28,1.13,.10], yaw:1.48 } });
         else keys.push({ time: PULL_LOAD_MS, pose: reachPose({ ...BACKLIFT,
           hip: [-.09,.86,-.20], chest: [0,1.20,-.15],
           frontFoot: [-.24,.08,.20], backFoot: [-.20,.08,-.36],
           grip: [.26,1.03,-.12], batUp: [-.35,-.85,.39], batFace: [.65,.10,.80],
           yaw: 1.40, leadElbow: -.15 }) });
-        keys.push({ time: impact, pose: contact }, { time: this.charging ? 580 : 340, pose: through });
-        if (this.charging) keys.push({ time: 690, pose: reachPose({ ...CHARGE.finish,
+        keys.push({ time: impact, pose: contact }, { time: this.charging ? 560 : 340, pose: through });
+        if (this.charging) keys.push({ time: 640, pose: reachPose({ ...CHARGE.finish,
           grip: [.04,1.55,.78], batUp: [0,-1,0], batFace: [0,0,-1] }) });
         keys.push({ time: end, pose: finish });
         const pose = this.charging ? shoulderDriven(keys,age,impact) : flowing(keys, age, true);
