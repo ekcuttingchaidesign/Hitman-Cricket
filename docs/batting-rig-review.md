@@ -609,6 +609,55 @@ the front elbow down and under — to (-0.69, 0.82, 0.03) — and the blade pass
 0.26 clear. Turning the whole way bunches the two forearms to 0.082, inside the
 0.098 they need, which is what fixes the amount at 70.
 
+## Tenth pass — the square drive becomes a shot, and what that was actually worth
+
+The square drive had been an animation with no say in anything: `squaring` never
+reached `ShotResolver`, so a wide full ball driven square was scored exactly as
+a cover drive. It now has its own branch, on the same bargain the cut offers —
+timing alone names the result, and driving at it without middling it takes the
+edge behind.
+
+### The premise I argued it from was wrong
+
+The case I made was that a full ball outside off is the only line with no stroke
+worth 1.0 — the cut owns that line but only answers a short ball — so width
+capped the batter at the cover drive's 0.9 and made the easiest ball to hit
+score *worse*.
+
+The first half is true. The conclusion is not, and a simulation of 36,000 balls
+said so by refusing to move at all. In the classic innings `compatibility` does
+exactly one thing: it gates the aerial branch at `SOLID_SHOT`, which is 0.55.
+Runs come from the timing grade alone above that line. At 0.9 the gate never
+trips, so 0.9 and 1.0 score identically, and `quality` — the number the two
+differ in — is read by nothing but a debug overlay.
+
+Graded out, the whole difference is one row:
+
+| timing | before | after |
+|---|---|---|
+| PERFECT | 6 | 6 |
+| GOOD | 4 | 4 |
+| OK | ground runs | ground runs |
+| POOR | out, skied and caught | out, **edged behind** |
+| MISS | dot | dot |
+
+Runs identical, wickets identical, over every grade and across 36,000 simulated
+balls. What changed is the *kind* of dismissal and where the ball goes.
+
+### What it is worth anyway
+
+Both of those are worth having. Chasing a wide half-volley and nicking it to the
+keeper is the most common way a batter gets out to a good bowler, and until now
+the drive had no edge in it at all — a mistimed one could only balloon up and be
+caught in the field. And a stroke called the square drive now goes square: 62
+degrees, between the cover drive's 24 and the cut's 100, instead of flying to
+extra cover.
+
+The happy accident is that this lands on 17% of deliveries and moves the run
+rate by nothing. A change that touches one ball in six and is provably
+balance-neutral is the best version of this there was; it just is not the
+version that was argued for.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SHOT_ANGLES, SPIN_BOWLING, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -8,7 +8,7 @@ import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersect
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, cuttable, gradeTiming, resolveShot, slogSweep, sweepable } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, cuttable, gradeTiming, resolveShot, slogSweep, squareDrivable, sweepable } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
@@ -483,6 +483,65 @@ describe('the slog sweep', () => {
     expect(meter.full).toBe(true);
     meter.record(resolveShot(ball, attempt, new SeededRandom(4), true));
     expect(meter.value).toBe(0);
+  });
+});
+
+describe('the square drive', () => {
+  /** Wide of off and full: the half-volley the stroke answers. */
+  const wide = (changes: Partial<Delivery> = {}) =>
+    delivery({ line: 'OUTSIDE_OFF', baseTargetX: LINE_X.OUTSIDE_OFF, finalTargetX: LINE_X.OUTSIDE_OFF, ...changes });
+  const drive = (d: Delivery, delta = 0, shot: ShotType = 'COVER_LONG_OFF') =>
+    resolveShot(d, { shotType: shot, inputTimeMs: d.idealContactTimeMs + delta }, new SeededRandom(4));
+  it('takes a full ball wide of off, and nothing else', () => {
+    expect(squareDrivable(wide())).toBe(true);
+    // On off stump there is no room to free the arms: that is the cover drive.
+    expect(squareDrivable(delivery({ line: 'OFF', baseTargetX: LINE_X.OFF, finalTargetX: LINE_X.OFF }))).toBe(false);
+    // Swung far enough back in and the width is gone with it — the movement cap
+    // is .13, so a ball that starts at .42 and comes all the way in finishes at
+    // .29, a centimetre under. The same delivery is two different strokes
+    // depending on whether it holds its line.
+    expect(squareDrivable(wide({ finalTargetX: LINE_X.OUTSIDE_OFF - GAME.movement }))).toBe(false);
+    // Short is the cut's, however wide. A bouncer arrives at 1.13, well over
+    // the .70 a batter can get under off the front foot.
+    expect(squareDrivable(wide({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce!, rise: STYLES.SHORT.rise! }))).toBe(false);
+  });
+  it('is judged on timing alone once the ball is right', () => {
+    const ball = wide();
+    const six = drive(ball);
+    expect(six.squared).toBe(true); expect(six.runs).toBe(6);
+    // Full value, where the cover drive on this line is capped at .9 — which
+    // was the whole complaint: width made the easiest ball to hit score worse.
+    expect(six.compatibility).toBe(1);
+    expect(COMPATIBILITY.OUTSIDE_OFF.COVER_LONG_OFF).toBeLessThan(1);
+    expect(drive(ball, GAME.timing.perfect + 5).runs).toBe(4);
+    expect(drive(ball, GAME.timing.good + 5).runs).toBeLessThan(4);
+    expect(drive(ball, GAME.timing.good + 5).isWicket).toBe(false);
+  });
+  it('takes the edge when he drives at it and does not middle it', () => {
+    const played = drive(wide(), GAME.timing.ok + 5);
+    expect(played.isWicket).toBe(true);
+    expect(played.wicketType).toBe('CAUGHT');
+    expect(played.edged).toBe(true);
+    expect(played.feedback).toBe(SQUARE_DRIVE.edged);
+    // Missing it altogether is not an edge — there is nothing to edge it off.
+    const missed = drive(wide(), GAME.timing.ok + 400);
+    expect(missed.edged).toBeFalsy();
+    expect(missed.madeBatContact).toBe(false);
+    // And it cannot bowl him: a ball that wide never reaches the stumps.
+    expect(missed.isWicket).toBe(false);
+  });
+  it('belongs to the off-side drive and to no other swipe', () => {
+    for (const shot of ['LEG', 'LONG_ON', 'STRAIGHT', 'SQUARE_CUT', 'DEFEND'] as const)
+      expect(drive(wide(), 0, shot).squared, shot).toBeFalsy();
+  });
+  it('goes square of the wicket, between the cover drive and the cut', () => {
+    expect(SQUARE_DRIVE.angle).toBeGreaterThan(SHOT_ANGLES.COVER_LONG_OFF);
+    expect(SQUARE_DRIVE.angle).toBeLessThan(SHOT_ANGLES.SQUARE_CUT);
+  });
+  it('leaves the short wide ball to the cut', () => {
+    const short = wide({ style: 'SHORT', bounceZ: STYLES.SHORT.bounce!, rise: STYLES.SHORT.rise! });
+    const cut = resolveShot(short, { shotType: 'SQUARE_CUT', inputTimeMs: short.idealContactTimeMs }, new SeededRandom(4));
+    expect(cut.runs).toBe(6); expect(cut.squared).toBeFalsy();
   });
 });
 

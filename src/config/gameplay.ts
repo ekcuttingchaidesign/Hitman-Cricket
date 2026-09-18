@@ -184,6 +184,28 @@ export const SQUARE_DRIVE = {
    * takes the two a batter can get under and leaves the two he cannot.
    */
   maxBallY: 0.70,
+  /**
+   * Judged on timing alone, the way the cut is, because it is the same bargain:
+   * a ball wide enough to free the arms at is a ball there is no excuse for.
+   * Middled it goes square for six, a shade under for four, worked away along
+   * the ground below that — and driven at and missed by more than that, it
+   * takes the edge.
+   *
+   * That last part is the point of the pairing. Chasing a wide half-volley and
+   * nicking it behind is the most common way a batter gets out to a good
+   * bowler, and until this the drive had no edge in it at all: a mistimed one
+   * could only balloon up and be caught in the field. Width now pays the best
+   * and punishes the worst, which is what makes taking it a decision.
+   */
+  timing: { six: 'PERFECT', four: 'GOOD' } as const,
+  edged: 'DROVE AT IT — CAUGHT BEHIND!',
+  /**
+   * Square of the wicket on the off side, between the cover drive's 24 and the
+   * cut's 100. A stroke called the square drive that went to extra cover was
+   * always going to read oddly; it only did because until now the stroke was an
+   * animation with no say in where the ball went.
+   */
+  angle: 62,
 } as const;
 // A defensive shot: timed this well or better it is dead at his feet, and
 // nothing can be caught off it. Worse, and the ball goes on past the bat — at

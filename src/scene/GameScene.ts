@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Batter } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
-import { GAME, SHOT_ANGLES , SWEEP} from '../config/gameplay';
+import { GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
@@ -298,7 +298,7 @@ export class GameScene {
     const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
     // The sweep is hit where the sweep goes — midwicket — rather than out along
     // the sector of the leg-side swipe that played it.
-    const sector = outcome.swept ? SWEEP.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
+    const sector = outcome.swept ? SWEEP.angle : outcome.squared ? SQUARE_DRIVE.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
     let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     /**

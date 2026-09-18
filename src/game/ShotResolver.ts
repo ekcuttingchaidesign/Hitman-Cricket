@@ -1,5 +1,5 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, GAME, GROUND_RUNS, SOLID_SHOT, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
-import { effectiveLine, stumpIntersection } from './DeliveryTrajectory';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, GAME, GROUND_RUNS, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import type { Delivery, ShotAttempt, ShotOutcome, TimingGrade } from './types';
 /**
  * How well a stroke was timed, by the size of the error and nothing else. The
@@ -95,21 +95,40 @@ export function loftedDrive(delivery: Delivery, attempt: ShotAttempt | null) {
 export function cuttable(delivery: Delivery) {
   return delivery.finalTargetX >= CUT.minWidth;
 }
-/** Feathered off the face and taken behind: the cut's own way of getting out. */
-const edge = (outcome: ShotOutcome): ShotOutcome =>
-  ({ ...outcome, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: CUT.edged });
+/** Feathered off the face and taken behind. */
+const edge = (outcome: ShotOutcome, feedback: string): ShotOutcome =>
+  ({ ...outcome, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback });
 /**
- * The cut, once it is established that the ball is short and wide enough to
- * play it. Timing alone names the result: middled it goes square for six or
- * four, held back it is worked away along the ground, and anything later or
- * earlier than that takes the edge.
+ * A stroke played at a ball wide enough to free the arms at, once it is settled
+ * that this IS that ball. Timing alone names the result — the line has already
+ * done its work in deciding the stroke is on, so reading it twice would only
+ * punish him for the width that made the shot available.
+ *
+ * Middled it goes away square for six or four, held back it is worked along the
+ * ground, and anything later or earlier than that takes the edge. Both the cut
+ * and the square drive are this bargain; they differ only in which ball brings
+ * it about and what the scorecard says afterwards.
  */
-function cutOutcome(outcome: ShotOutcome, rng: { next(): number }): ShotOutcome {
+function squareStroke(outcome: ShotOutcome, rng: { next(): number },
+    spec: { timing: { six: TimingGrade; four: TimingGrade }; edged: string }): ShotOutcome {
   const middled = { ...outcome, compatibility: 1, quality: TIMING_SCORE[outcome.timingGrade], madeBatContact: true };
-  if (outcome.timingGrade === CUT.timing.six) return { ...middled, quality: 1, runs: 6, feedback: award(6) };
-  if (outcome.timingGrade === CUT.timing.four) return { ...middled, runs: 4, feedback: award(4) };
+  if (outcome.timingGrade === spec.timing.six) return { ...middled, quality: 1, runs: 6, feedback: award(6) };
+  if (outcome.timingGrade === spec.timing.four) return { ...middled, runs: 4, feedback: award(4) };
   if (outcome.timingGrade === 'OK') { const runs = groundRuns(rng); return { ...middled, runs, feedback: award(runs) }; }
-  return edge(middled);
+  return edge(middled, spec.edged);
+}
+/**
+ * Whether this is the ball the square drive answers: wide of off, and full
+ * enough to get under. Measured off the contact point rather than the line it
+ * was aimed on, because that is what the rig measures — if these two ever
+ * disagreed the batter would play one stroke and be scored for another.
+ */
+export function squareDrivable(delivery: Delivery) {
+  const contact = ballPosition(delivery, 1);
+  return contact.x >= SQUARE_DRIVE.minWidth && contact.y <= SQUARE_DRIVE.maxBallY;
+}
+export function squareDrive(delivery: Delivery, attempt: ShotAttempt | null) {
+  return !!attempt && attempt.shotType === 'COVER_LONG_OFF' && squareDrivable(delivery);
 }
 /** `charged` is the batter's confidence being full — the shot still has to be played. */
 export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, charged = false): ShotOutcome {
@@ -143,7 +162,7 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
     // free the arms at it, and the stroke is judged on timing alone. Cutting at
     // one too close to the body is cramped, and cramped is the edge.
     if (attempt?.shotType === 'SQUARE_CUT' && cuttable(delivery) && timingGrade !== 'MISS')
-      return cutOutcome(outcome, rng);
+      return squareStroke(outcome, rng, CUT);
     return { ...outcome, madeBatContact: false, feedback: attempt ? 'THROUGH TO THE KEEPER' : 'LEFT ALONE' };
   }
   // The block. Get the bat down in time and the ball dies at his feet: a dot,
@@ -157,6 +176,13 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
     const lbw = Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;
     return { ...outcome, madeBatContact: false, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
   }
+  // Wide of off and full: the half-volley. Until now this was the one ball in
+  // the game with no stroke worth full value — the cut owns the wide line but
+  // only answers a short ball, so a full one left the drive's 0.9 as the
+  // ceiling, and width made the easiest ball to hit score WORSE. It is now the
+  // same bargain the cut offers, edge and all.
+  if (squareDrive(delivery, attempt) && timingGrade !== 'MISS')
+    return { ...squareStroke(outcome, rng, SQUARE_DRIVE), squared: true };
   if (!madeBatContact) {
     if (!stumpIntersection(delivery)) return outcome;
     const lbw = attempt && Math.abs(delivery.finalTargetX) < 0.12 && rng.next() < GAME.lbwChance;
@@ -167,7 +193,7 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
   if (timingGrade === 'POOR' || compatibility < SOLID_SHOT) {
     // A cut that is not middled does not go up: the face is square to a ball
     // going across it, so it feathers off the edge and the keeper takes it.
-    if (attempt?.shotType === 'SQUARE_CUT') return edge(outcome);
+    if (attempt?.shotType === 'SQUARE_CUT') return edge(outcome, CUT.edged);
     const taken = timingGrade === 'POOR' || rng.next() < GAME.mishitCaught;
     return taken
       ? { ...outcome, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' }

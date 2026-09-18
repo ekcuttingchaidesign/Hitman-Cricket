@@ -38,6 +38,8 @@ export interface ShotOutcome {
   advance?: boolean;
   /** Slog-swept off the knee, over midwicket. Six middled, four on the bounce. */
   swept?: boolean;
+  /** Driven square of the wicket off the front foot, rather than through cover. */
+  squared?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */
