@@ -194,12 +194,61 @@ six; everything short of that is the classic drive, which is also everything
 that is not worth six. No scoring changed: the rule reads the existing table
 rather than adding to it.
 
+## Third pass — the square drive, from two more angles
+
+Two further recordings: one from square on the off side showing the footwork,
+one from the bowler's end showing the follow-through. Three things were wrong,
+and all three were confirmed by measurement before being changed.
+
+**He was not getting onto the front foot.** The stroke was played from an
+almost upright stance. It is a lunge: the front foot strides across and down
+the wicket and takes the weight, the knee folds over it, and the back leg is
+left straight behind with the heel off the turf. The hips now sink about a
+third of a metre by contact — from 0.94 at the guard to 0.64 — and stay there
+through the extension before the body rises out of it.
+
+The front foot also now plants INSIDE the line of the ball. It had been
+tracking the ball by the same fraction as the body, which put it outside the
+ball at the narrow end of the stroke's width; the blade then swung through his
+own boot, which the blade-volume sweep caught.
+
+**It finished over the wrong shoulder.** A right-hander's square drive finishes
+over his left — the front one. This finished over the right: the shoulder the
+bat had just come down from, so the swing went out square and then returned the
+way it came. Measured against the two shoulder directions, every other
+cross-batted stroke in the rig — the cut, the pull, the cover drive — was
+already finishing on the correct side, and only the square drive was not.
+
+**The wrists span.** The blade's roll about its own axis ran to 207 degrees
+between the pose keys and, worse, it reversed: +34, +33, then −78. The wrists
+wound over through the stroke and unwound again at the finish. The face at each
+key is now parallel-transported along the blade's own axis with a steady thirty
+degrees of roll added per span — one direction, ninety degrees in total — so
+what is left reads as a wrist roll rather than a windmill.
+
+Two rig-wide faults turned up while fixing it. The bat could outrun the arms
+holding it between two keys, because interpolation overshoots what each key
+was checked for on its own; the bat is now drawn back to whichever shoulder it
+has run away from, by exactly the distance it is out by, which costs nothing in
+the 95% of frames where the arms can reach. And the helmet guard leaned off the
+head using the shoulder's outward bearing, which works while an arm is on its
+own side of the body but resolves upward on a finish that carries the hands
+across to the far shoulder — it was lifting the trailing elbow over the helmet
+instead of tucking it under.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate
 pass by request.
 
 The two straight drives were built from cricket fundamentals and the square
-drive's own recording, because there is no straight-drive reference on this
+drive's own recordings, because there is no straight-drive reference on this
 branch. A recording of both — a checked one and a lofted one — would let the
 split be validated against footage rather than first principles.
+
+The wrists are still bent about 78 degrees away from the handle at the square
+drive's contact, against roughly 40 in the recording. That angle is mostly
+forced rather than authored: the ball is met low and the arms are out straight,
+so the forearms arrive nearly horizontal at a vertical handle. Closing it
+further means either sinking the stance lower again or moving the fists up the
+handle, and both reach past this stroke into every other one.

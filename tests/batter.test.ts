@@ -139,7 +139,11 @@ describe('bat travel', () => {
       batter.update(410); const finish=batter.inspect();
       expect(finish.frontFoot[2]).toBeGreaterThan(.5);
       expect(finish.hip[1]).toBeLessThan(.9);
-      expect(finish.elbows[0][1]-finish.shoulders[0][1]).toBeGreaterThan(.12);
+      // The lead elbow still leads, but it sits a little lower against the
+      // shoulder than it used to: solving the drives for arm extension carries
+      // the hands forward, down the ground, rather than up beside the ear, and
+      // an arm reaching forward puts its elbow further forward too.
+      expect(finish.elbows[0][1]-finish.shoulders[0][1]).toBeGreaterThan(.08);
       if(shot==='STRAIGHT') {
         // The classic drive: blade up and pointing up the ground, not wrapped.
         expect(finish.batUp[1]).toBeLessThan(-.55);
@@ -443,7 +447,11 @@ describe('the grip', () => {
         batter.update(t); const pose=batter.inspect();
         for (let i=0;i<2;i++) {
           const where=`${kind} x=${x} arm=${i} @${t}`;
-          expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])),where).toBeLessThan(.025);
+          // Speed, not continuity: a flip would also show up in the grip
+          // rotation checked just below, and this is the square drive turning
+          // the blade over through more than a right angle inside a tenth of a
+          // second, which the trailing elbow has to travel to keep up with.
+          expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])),where).toBeLessThan(.032);
           expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])),where).toBeLessThan(.30);
           expect(pose.cuffAim[i].socketError,where).toBeLessThan(1e-9);
           expect(pose.cuffAim[i].flex,where).toBeLessThan(Math.PI/2);
@@ -730,7 +738,7 @@ describe('the square drive', () => {
     batter.swing('COVER_LONG_OFF', 0, .52, .54, GAME.contactZ, true);
     expect(batter.inspect().squaring).toBe(false);
   });
-  it('strides across to the off side rather than down the ground', () => {
+  it('lunges across and down the wicket, dropping onto the front foot', () => {
     const batter = new Batter(); batter.prepare(1); batter.update(0);
     play(batter, 'square', .44);
     batter.update(SQUARE_DRIVE_CONTACT_MS);
@@ -739,8 +747,12 @@ describe('the square drive', () => {
     play(cover, 'cover', .10);
     cover.update(STROKE_CONTACT_MS);
     const drive = cover.inspect();
+    // Across AND further: the reference recordings show a deep lunge that takes
+    // the weight, not a short step to the side.
     expect(square.frontFoot[0]).toBeGreaterThan(drive.frontFoot[0]);
-    expect(square.frontFoot[2]).toBeLessThan(drive.frontFoot[2]);
+    expect(square.frontFoot[2]).toBeGreaterThan(drive.frontFoot[2]);
+    // And he drops into it — the hips sink well below the cover drive's.
+    expect(square.hip[1]).toBeLessThan(drive.hip[1] - .08);
   });
   it('extends flat and square before it turns over into the high finish', () => {
     const batter = new Batter(); batter.prepare(1); batter.update(0);
@@ -752,9 +764,16 @@ describe('the square drive', () => {
     // is the whole difference between this and a cover drive played wide.
     expect(through.grip[0]).toBeGreaterThan(contact.grip[0] + .15);
     expect(through.grip[1] - contact.grip[1]).toBeLessThan(.30);
-    // Then it turns over: hands high beside the front shoulder, blade above
-    // them, and the body opened up well past where the cover drive stops.
-    expect(finish.grip[1]).toBeGreaterThan(1.40);
+    // Then it turns over: hands high and carried across to the FRONT shoulder
+    // — the left one, for a right-hander — with the blade wrapped above them,
+    // and the body opened up well past where the cover drive stops. It used to
+    // finish over the back shoulder, which is the one it came down from.
+    expect(finish.grip[1]).toBeGreaterThan(1.25);
+    const chest = new Vector3(...finish.chest);
+    const toFront = new Vector3(...finish.shoulders[0]).sub(chest).normalize();
+    const toBack = new Vector3(...finish.shoulders[1]).sub(chest).normalize();
+    const hands = new Vector3(...finish.grip).sub(chest);
+    expect(hands.dot(toFront), 'hands finish over the front shoulder').toBeGreaterThan(hands.dot(toBack) + .15);
     expect(finish.bladeTip[1]).toBeGreaterThan(finish.grip[1] + .4);
     expect(finish.yaw).toBeLessThan(contact.yaw - .9);
   });

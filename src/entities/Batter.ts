@@ -365,46 +365,66 @@ const PULL_REACH: readonly [number, number] = [-.55, .32];
  * a two-handed grip cannot be taken round behind it.
  */
 const SQUARE_DRIVE: Stroke = {
-  // Contact. He does not get his body across to a wide ball — he stays inside
-  // the line and frees his arms at it, which is the whole point of the stroke
-  // and why it can be played to a ball a cover drive could not reach. Chest
-  // square to the off side, head over the ball, front foot planted across.
-  contact: { ...GUARD, hip: [-.09, .80, .21], chest: [.04, 1.14, .30],
-    frontFoot: [.26, .08, .56], backFoot: [-.13, .08, -.25],
-    grip: [.60, .90, .26], batUp: [.22, .96, -.17], batFace: [.88, .10, .46],
-    yaw: 1.56, face: .42, heel: .10, leadElbow: .16,
+  /**
+   * Contact. He drops into it: the front foot strides across and takes the
+   * weight, the knee folds over it, and the back leg is left straight behind
+   * with the heel off the turf. The hips sink about a third of a metre — the
+   * old pose stood almost upright over the ball, which is the one thing the
+   * reference recordings never do.
+   *
+   * He stays inside the line rather than getting his body across. That is what
+   * frees the arms at a ball a cover drive could not reach, and it is why the
+   * chest is barely off the leg side while the hands are half a metre outside
+   * it.
+   */
+  contact: { ...GUARD, hip: [-.14, .64, .22], chest: [-.01, .98, .31],
+    frontFoot: [.30, .08, .62], backFoot: [-.26, .08, -.30],
+    grip: [.54, .83, .23], batUp: [.18, .97, -.15], batFace: [.86, -.08, .50],
+    yaw: 1.58, face: .44, heel: .18, backFootYaw: 1.30, leadElbow: .16,
     armHinge: .85, armDrive: 1, shoulderLift: 0 },
-  // The stroke's own key: the arms punch out square with the blade still
-  // hanging below the hands, both elbows straight, the hands almost a metre
-  // off the chest. Flat and across — a cover drive's hands leave contact
-  // climbing, and if these climb here the stroke is just a wide cover drive.
-  through: { ...GUARD, hip: [.17, .78, .18], chest: [.31, 1.12, .28],
-    frontFoot: [.26, .08, .56], backFoot: [-.11, .08, -.23],
-    grip: [.90, 1.02, .58], batUp: [.52, .80, -.30], batFace: [.80, -.10, .59],
-    yaw: 1.12, face: .48, heel: .20, leadElbow: .20,
-    armHinge: .60, armDrive: 1, shoulderLift: .05 },
-  // Only now does it turn over, and it turns over late: that is what makes the
-  // finish so much higher and more open than the cover drive's.
-  carry: { ...GUARD, hip: [.14, .82, .20], chest: [.26, 1.16, .26],
-    frontFoot: [.26, .08, .56], backFoot: [-.10, .08, -.20],
-    grip: [.80, 1.28, .52], batUp: [.34, -.18, -.92], batFace: [.30, .96, -.06],
-    yaw: .70, face: .42, heel: .28, backFootYaw: .90, leadElbow: .06,
-    armHinge: 1.20, armDrive: 1, shoulderLift: .06 },
-  // Hands high in front of the front shoulder with the blade standing over
-  // them, the body opened right up and the back heel off the turf.
-  finish: { ...GUARD, hip: [.06, .86, .20], chest: [.10, 1.24, .22],
-    frontFoot: [.26, .08, .56], backFoot: [-.08, .08, -.16],
-    grip: [.30, 1.56, .48], batUp: [.22, -.92, .32], batFace: [.90, .34, .27],
-    yaw: .34, face: .30, heel: .34, backFootYaw: .55, leadElbow: -.12,
-    armHinge: 1.85, armDrive: 1, shoulderLift: .08 },
-  // Off the shoulder and out in front before the pick-up, the same way the cut
-  // comes home: the finish holds the bat behind the front shoulder and the
-  // guard holds it behind the back one, and every short path between the two
-  // goes through his head.
-  recover: { ...GUARD, hip: [.02, .90, .14], chest: [.10, 1.24, .18],
-    frontFoot: [.18, .08, .44], backFoot: [-.13, .08, -.25],
-    grip: [.46, 1.14, .50], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
-    yaw: 1.05, face: .20, heel: .10, leadElbow: -.20 },
+  /**
+   * Extension, and the key the stroke turns on. Both arms come out straight and
+   * the hands run square at hip height with the blade still hanging under them.
+   * They do not climb: a cover drive's hands leave contact rising, and if these
+   * rise the stroke is only a cover drive played at a wider ball. He is at his
+   * lowest here, still over the front knee.
+   */
+  through: { ...GUARD, hip: [.06, .74, .17], chest: [.19, 1.08, .26],
+    frontFoot: [.30, .08, .62], backFoot: [-.26, .08, -.30],
+    grip: [.72, .84, .58], batUp: [-.50, .80, -.33], batFace: [.87, .47, -.17],
+    yaw: .95, face: .46, heel: .44, backFootYaw: 1.00, leadElbow: .20,
+    armHinge: .60, armDrive: 1, shoulderLift: .04 },
+  // Only now does the blade come up, and the body rises out of the lunge with
+  // it. Turning any earlier is a cover drive; turning this late is what puts
+  // the finish so much higher and so much more open.
+  carry: { ...GUARD, hip: [.11, .78, .19], chest: [.24, 1.12, .28],
+    frontFoot: [.30, .08, .62], backFoot: [-.18, .08, -.22],
+    grip: [.60, 1.10, .72], batUp: [.10, -.30, -.95], batFace: [.99, -.06, .12],
+    yaw: .70, face: .40, heel: .52, backFootYaw: .80, leadElbow: .04,
+    armHinge: .05, armDrive: 1, shoulderLift: .05 },
+  /**
+   * The finish is over the FRONT shoulder — the left one, for a right-hander —
+   * with the blade wrapped up and behind it and the hands beside his ear. The
+   * stroke used to finish over the back shoulder, which is the shoulder the
+   * bat came down from: a swing that goes out square and then returns the way
+   * it came is not a stroke, and every other cross-batted shot in the rig was
+   * already finishing on the correct side.
+   *
+   * The back foot has dragged in under him as the body comes up out of the
+   * lunge, and his weight is through onto the front leg.
+   */
+  finish: { ...GUARD, hip: [.14, .80, .24], chest: [.27, 1.16, .32],
+    frontFoot: [.30, .08, .62], backFoot: [-.12, .08, -.12],
+    grip: [.29, 1.36, .74], batUp: [.56, -.62, .55], batFace: [-.04, .64, .76],
+    yaw: .34, face: .26, heel: .58, backFootYaw: .45, leadElbow: -.10,
+    armHinge: -.35, armDrive: 1, shoulderLift: .07 },
+  // Down in front of him before the pick-up. The finish holds the bat behind
+  // the front shoulder and the guard holds it behind the back one, so every
+  // short path between the two goes through his head.
+  recover: { ...GUARD, hip: [.08, .90, .16], chest: [.18, 1.24, .20],
+    frontFoot: [.24, .08, .42], backFoot: [-.13, .08, -.22],
+    grip: [.56, 1.16, .62], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
+    yaw: 1.05, face: .20, heel: .14, leadElbow: -.20 },
 };
 /**
  * How wide a ball has to be before the off-side drive is played square. Inside
@@ -835,7 +855,7 @@ export class Batter {
     // one further than the rest: its arms are already straight at impact, and a
     // body left behind a ball out at the edge of the reach stretches them past
     // their own length rather than extending them.
-    const step = targetX * (this.squaring ? .78 : .65);
+    const step = targetX * (this.squaring ? .86 : .65);
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
     // The charge keeps the production rig's planted back foot: it is the one
     // stroke whose feet are authored against a body that is already travelling.
@@ -879,17 +899,21 @@ export class Batter {
       if (age < settle) {
         const keys = [{ time: 0, pose: this.swingFrom }, { time: impact, pose: contact },
           { time: 240, pose: reachPose(stroke.through!) }];
-        if (stroke.carry) keys.push({ time: 330, pose: reachPose(stroke.carry) });
+        if (stroke.carry) keys.push({ time: 350, pose: reachPose(stroke.carry) });
         keys.push({ time: settle, pose: finish });
         this.apply(shoulderDriven(keys, age, impact));
       } else if (age < 590) this.apply(finish);
-      else if (age < 800) {
-        const out = reachPose({ ...SQUARE_DRIVE.finish, grip: [.52,1.40,.50], batUp: [-.30,-.80,-.52],
-          batFace: [.84,-.12,-.30], armHinge: .2, armDrive: 1, shoulderLift: .04 });
-        const clear = 690;
-        this.apply(age<clear ? mix(finish,out,(age-590)/(clear-590))
-          : mix(out,reachPose(stroke.recover!),(age-clear)/(800-clear)));
-      } else this.apply(mix(reachPose(stroke.recover!),GUARD,(age-800)/(STROKE_DURATION_MS-800)));
+      else {
+        // Down through the recovery pose and then home, the same route the cut
+        // takes off the same shoulder: the finish holds the bat behind the
+        // front one and the guard holds it behind the back one, so the bat is
+        // swung out in front where he can see it before it drops into the
+        // pick-up. Every shorter path between those two goes through him.
+        const recovery = reachPose(stroke.recover!);
+        const through = 590 + (STROKE_DURATION_MS - 590) * .52;
+        this.apply(age < through ? mix(finish, recovery, (age - 590) / (through - 590))
+          : mix(recovery, GUARD, (age - through) / (STROKE_DURATION_MS - through)));
+      }
       return;
     }
     if (!this.charging && (this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF')) {
@@ -980,9 +1004,43 @@ export class Batter {
       }
     }
     this.root.updateMatrixWorld(true);
+    /**
+     * Keep the bat inside the arms that are holding it.
+     *
+     * Both fists are fixed to the handle and the arms solve back from there, so
+     * a grip further from a shoulder than that arm is long does not stretch —
+     * it detaches, and the limb is drawn past its own length. Authored keys can
+     * be checked for this one at a time; the curve between two of them cannot,
+     * because the interpolation overshoots, and a stroke whose hands travel as
+     * far as a square drive's overshoots between every pair.
+     *
+     * So the reach is answered where it arises rather than by tuning each key
+     * until the curve happens to fit: draw the bat back towards the shoulder it
+     * has run away from, by exactly the distance it is out by. It costs nothing
+     * while the arms can reach, which is almost always and includes every
+     * contact, so the blade still meets the ball where the stroke says it does.
+     */
+    const shoulders = [0, 1].map(i => new THREE.Vector3(i === 0 ? -.163 : .163, .075+(pose.shoulderLift??0), 0)
+      .applyQuaternion(this.torso.quaternion).add(chest));
+    for (let pass = 0; pass < 5; pass++) for (let i = 0; i < 2; i++) {
+      // Measured at the wrist the solver is about to place, which is neither
+      // the bat's origin nor the fist: it sits beside the handle, and how far
+      // beside depends on where the arm is coming from.
+      const axis = UP.clone().applyQuaternion(this.bat.quaternion);
+      const anchor = this.arms[i].glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
+      const socket = wristSocket(i);
+      const radial = shoulders[i].clone().sub(anchor);
+      radial.addScaledVector(axis, -radial.dot(axis));
+      if (radial.lengthSq() < 1e-9) continue;
+      const wrist = anchor.clone().addScaledVector(radial.normalize(), -socket.z).addScaledVector(axis, socket.y);
+      const out = wrist.sub(shoulders[i]);
+      const excess = out.length() - .652;
+      if (excess > 0) this.bat.position.addScaledVector(out.normalize(), -excess);
+    }
+    this.root.updateMatrixWorld(true);
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i];
-      arm.shoulder.set(i === 0 ? -.163 : .163, .075+(pose.shoulderLift??0), 0).applyQuaternion(this.torso.quaternion).add(chest);
+      arm.shoulder.copy(shoulders[i]);
       const grip = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
       const axis = UP.clone().applyQuaternion(this.bat.quaternion);
       // Solve the wrist beside the handle while keeping both Vs registered
@@ -1071,18 +1129,6 @@ export class Batter {
         // Give the helmet room.
         //
         // The pole names the plane the elbow bends in, and nothing above knows
-        // where his head is: on any finish that carries the hands up past the
-        // ear, the plane that reads best for the swing is the one that folds
-        // the upper arm straight through the grille. So as the hands come near
-        // the head, lean the plane off it — smoothly, and towards a direction
-        // that is defined for every pose, because picking a new clearing plane
-        // per frame is exactly what made the elbows flip before.
-        //
-        // The trigger is measured off the shoulder-to-hand line rather than the
-        // elbow, so it does not depend on the bend it is about to change.
-        // Give the helmet room.
-        //
-        // The pole names the plane the elbow bends in, and nothing above knows
         // where his head is: on a finish that carries the hands up past the ear,
         // the plane that reads best for the swing is the one that folds the arm
         // straight through the grille.
@@ -1109,8 +1155,14 @@ export class Batter {
               const axisAlong=along.normalize();
               // Away from the head, carrying the shoulder's own outward bearing
               // so that clearing the helmet never means bending into the chest.
+              // Straight away from the head, and only lightly outward. Leaning
+              // hard on the shoulder's outward bearing works while the arm is
+              // on its own side of the body, but on a finish that carries the
+              // hands across to the far shoulder that term dominates and, once
+              // the along-arm part is removed, resolves UPWARD — which lifted
+              // the trailing elbow over the helmet instead of tucking it under.
               const away=arm.shoulder.clone().sub(this.head.position).normalize()
-                .addScaledVector(arm.shoulder.clone().sub(chest).normalize(),.9);
+                .addScaledVector(arm.shoulder.clone().sub(chest).normalize(),.55);
               away.addScaledVector(axisAlong,-away.dot(axisAlong));
               if (away.lengthSq()>1e-6) pole.lerp(arm.shoulder.clone().addScaledVector(away.normalize(),.60),nearness);
             }
