@@ -12,7 +12,7 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
-import { advanceShot, chargeable, resolveShot } from './game/ShotResolver';
+import { advanceShot, loftedDrive, chargeable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
@@ -364,8 +364,9 @@ export class Game {
     trackOnce('first-shot', 'First shot played');
     this.attempt = { shotType, inputTimeMs };
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
+    const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
     this.primed = false;
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging);
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted);
     this.hud.select(shotType, charging);
   };
   /**

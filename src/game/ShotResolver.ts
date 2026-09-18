@@ -51,6 +51,21 @@ export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, cha
     && ADVANCE.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /**
+ * Whether a straight drive is going to be middled for six.
+ *
+ * The batter has to commit to a follow-through at the moment he plays, and the
+ * two straight drives finish differently — the four is checked and controlled,
+ * the six goes up and over the shoulder. So the animation has to read the same
+ * rule the score does, from the same inputs, rather than guessing: middled on
+ * a line that suits the stroke is the six, and everything short of that is the
+ * classic drive, which is also everything that is not worth six.
+ */
+export function loftedDrive(delivery: Delivery, attempt: ShotAttempt | null) {
+  if (!attempt || attempt.shotType !== 'STRAIGHT' || delivery.style === 'SHORT') return false;
+  if (COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] < SOLID_SHOT) return false;
+  return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight) === 'PERFECT';
+}
+/**
  * Whether there is room to cut: the ball has to be far enough outside off that
  * the arms can be freed at it. Read off where the ball finishes rather than the
  * line it was bowled on, so a ball that swings away into the cut is cuttable and

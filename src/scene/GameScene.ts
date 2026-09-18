@@ -285,9 +285,9 @@ export class GameScene {
     // particular ball takes to reach the bat never touches it — which is the
     // whole of the disguise a slower ball is bowled behind.
   }
-  swing(shot: ShotType, now: number, delivery: Delivery, charging = false) {
+  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false) {
     const contact = ballPosition(delivery, 1);
-    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;

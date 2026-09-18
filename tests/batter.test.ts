@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { Batter, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
-import { Quaternion, Vector3 } from 'three';
+import { MathUtils, Quaternion, Vector3 } from 'three';
+const THREE_clamp = (v: number) => MathUtils.clamp(v, 0, 1);
 import { bladeGeometry } from '../src/entities/batGeometry';
 // Every stroke the batter can be asked to play, defence included.
 const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
@@ -13,15 +14,20 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * clock and is covered by its own suite below, so folding it in here would only
  * assert the preview rig this branch does not use.
  */
-const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[] }> = {
-  pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32] },
-  straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17] },
-  cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28] },
-  square: { shot: 'COVER_LONG_OFF', ballY: .40, impact: SQUARE_DRIVE_CONTACT_MS, reach: [.30, .44, .55] },
+const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; settle: number }> = {
+  pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500 },
+  straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], settle: 410 },
+  cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410 },
+  square: { shot: 'COVER_LONG_OFF', ballY: .40, impact: SQUARE_DRIVE_CONTACT_MS, reach: [.30, .44, .55], settle: 430 },
+  // The six: the same ball and the same contact as the classic drive above,
+  // and a different follow-through, which is the whole of the difference.
+  lofted: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], lofted: true, settle: 410 },
+  // The standing cut, at the chest-high ball it answers.
+  cut: { shot: 'SQUARE_CUT', ballY: .92, impact: STROKE_CONTACT_MS, reach: [.11, .40, .62], settle: 410 },
 };
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
-  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ);
+  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ, false, spec.lofted ?? false);
 };
 
 
@@ -77,13 +83,13 @@ describe('two-handed cricket animation', () => {
 });
 
 describe('bat travel', () => {
-  it('carries the straight drive past the upright blade and up over the shoulder',()=>{
-    const batter=new Batter(); batter.prepare(1); batter.update(0); batter.swing('STRAIGHT',0,0);
+  it('carries the lofted straight drive past the upright blade and up over the shoulder',()=>{
+    const batter=new Batter(); batter.prepare(1); batter.update(0); batter.swing('STRAIGHT',0,0,.54,GAME.contactZ,false,true);
     batter.update(220); const through=batter.inspect();
     batter.update(310); const carry=batter.inspect();
     batter.update(410); const finish=batter.inspect();
     expect(finish.bladeTip[1]-through.bladeTip[1]).toBeGreaterThan(.6);
-    expect(finish.grip[1]).toBeGreaterThan(1.45);
+    expect(finish.grip[1]).toBeGreaterThan(1.55);
     // Through the extension the blade still points down the ground; by the
     // carry it has come up in front of him; at the finish it stands above the
     // hands. Held horizontal above the helmet instead — which is where it used
@@ -94,6 +100,26 @@ describe('bat travel', () => {
     expect(finish.bladeTip[1]).toBeGreaterThan(finish.grip[1]+.5);
     // The shoulders turn through it rather than the arms doing all the work.
     expect(finish.yaw).toBeLessThan(.80);
+  });
+  it('keeps the classic straight drive below the lofted one it shares a contact with',()=>{
+    const played = (lofted: boolean) => {
+      const batter=new Batter(); batter.prepare(1); batter.update(0);
+      batter.swing('STRAIGHT',0,0,.54,GAME.contactZ,false,lofted);
+      batter.update(STROKE_CONTACT_MS); const contact=batter.inspect();
+      batter.update(410); return { contact, finish: batter.inspect() };
+    };
+    const four = played(false), six = played(true);
+    // Same ball, same contact: only the follow-through separates them.
+    expect(four.contact.grip).toEqual(six.contact.grip);
+    expect(four.contact.batUp).toEqual(six.contact.batUp);
+    // The six goes up and over; the four is checked, and stays lower and
+    // squarer with the blade still pointing up the ground after the ball.
+    expect(six.finish.grip[1]).toBeGreaterThan(four.finish.grip[1] + .15);
+    expect(six.finish.batUp[1]).toBeLessThan(four.finish.batUp[1] - .15);
+    expect(four.finish.grip[1] - four.contact.grip[1]).toBeGreaterThan(.40);
+    expect(four.finish.bladeTip[1]).toBeGreaterThan(four.finish.grip[1] + .4);
+    // The six comes up off the back foot; the four stays planted on it.
+    expect(six.finish.backFoot[1]).toBeGreaterThan(four.finish.backFoot[1] - 1e-9);
   });
   it('carries both drives through impact and extension without stopping at a pose key',()=>{
     for(const shot of ['STRAIGHT','COVER_LONG_OFF'] as const) {
@@ -115,7 +141,8 @@ describe('bat travel', () => {
       expect(finish.hip[1]).toBeLessThan(.9);
       expect(finish.elbows[0][1]-finish.shoulders[0][1]).toBeGreaterThan(.12);
       if(shot==='STRAIGHT') {
-        expect(finish.batUp[1]).toBeLessThan(-.85);
+        // The classic drive: blade up and pointing up the ground, not wrapped.
+        expect(finish.batUp[1]).toBeLessThan(-.55);
         expect(finish.bladeTip[1]).toBeGreaterThan(1.35);
       }
       else expect(finish.batUp[0]).toBeLessThan(-.8);
@@ -478,17 +505,20 @@ describe('the grip', () => {
 });
 
 describe('shoulders', () => {
-  it.each(['straight','cover','square'])('powers the %s follow-through with upper-arm travel', kind => {
+  it.each(['straight','lofted','cover','square'])('powers the %s follow-through with upper-arm travel', kind => {
     const batter=new Batter(); batter.prepare(1); batter.update(0);
     play(batter, kind, PLAYS[kind].reach[1]);
     batter.update(PLAYS[kind].impact); const contact=batter.inspect();
-    batter.update(kind==='square'?430:410); const finish=batter.inspect();
+    batter.update(PLAYS[kind].settle); const finish=batter.inspect();
+    // The classic straight drive is the checked one: it is held to a smaller
+    // sweep on purpose, and the lofted six beside it carries the full one.
+    const bar = kind==='straight' ? Math.PI/6 : Math.PI/4;
     for(let i=0;i<2;i++) {
       const from=new Vector3(...contact.elbows[i]).sub(new Vector3(...contact.shoulders[i]));
       const to=new Vector3(...finish.elbows[i]).sub(new Vector3(...finish.shoulders[i]));
-      expect(from.angleTo(to)).toBeGreaterThan(Math.PI/4);
+      expect(from.angleTo(to)).toBeGreaterThan(bar);
     }
-    expect(finish.grip[1]-contact.grip[1]).toBeGreaterThan(.5);
+    expect(finish.grip[1]-contact.grip[1]).toBeGreaterThan(kind==='straight'?.40:.5);
     if(kind==='straight') {
       batter.update(160); const early=batter.inspect().batUp[2];
       batter.update(220); expect(batter.inspect().batUp[2]).toBeLessThan(early-.15);
@@ -588,6 +618,93 @@ describe('every stroke, across its reach', () => {
   });
 });
 
+
+describe('the arms', () => {
+  const REACH = .66;   // .32 upper + .34 lower
+  const headOf = (pose: { chest: number[]; hip: number[] }) => new Vector3(...pose.chest)
+    .add(new Vector3(...pose.chest).sub(new Vector3(...pose.hip)).normalize().multiplyScalar(.31))
+    .add(new Vector3(.01, .01, .025));
+  /**
+   * Nothing above the arm solver knows where the batter's head is, and the bend
+   * plane that reads best for a swing is often the one that folds the arm
+   * straight through his own grille. Both drives used to: the lead upper arm
+   * came within 0.09 m of the centre of the helmet on the square drive, which
+   * is well inside it.
+   */
+  it.each(['pull','square','straight','lofted','cover','cut'])('keeps the %s arms out of the helmet', kind => {
+    for (const x of PLAYS[kind].reach) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      play(batter, kind, x);
+      let worst = { gap: Infinity, at: 0, part: '' };
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+        batter.update(time);
+        const pose = batter.inspect(), head = headOf(pose);
+        for (let i = 0; i < 2; i++) {
+          const shoulder = new Vector3(...pose.shoulders[i]), elbow = new Vector3(...pose.elbows[i]), wrist = new Vector3(...pose.wrists[i]);
+          for (const [from, to, part] of [[shoulder, elbow, 'upper'], [elbow, wrist, 'forearm']] as const) {
+            const line = to.clone().sub(from);
+            const at = THREE_clamp(head.clone().sub(from).dot(line) / line.lengthSq());
+            const gap = head.distanceTo(from.clone().addScaledVector(line, at));
+            if (gap < worst.gap) worst = { gap, at: time, part: `${part}${i}` };
+          }
+          // The glove is a body in its own right, not a point on the handle.
+          const glove = new Vector3(...pose.hands[i]).sub(batter.root.position);
+          if (head.distanceTo(glove) - .05 < worst.gap) worst = { gap: head.distanceTo(glove) - .05, at: time, part: `glove${i}` };
+        }
+      }
+      // The helmet is about .135 across and an arm about .05, so anything under
+      // .185 is already inside him.
+      expect(worst.gap, `${kind} x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(.185);
+    }
+  });
+  /**
+   * The elbows open THROUGH the ball. The reference recording shows the arms
+   * still folded at contact and straightening over the next quarter second, and
+   * the drives used to do the opposite: they were tighter at the extension key
+   * than at the contact it came out of, which is the bent-armed, shoulder-hinged
+   * look the whole stroke was judged on.
+   */
+  it.each(['square','straight','lofted','cover'])('opens the %s elbows out through impact', kind => {
+    const spec = PLAYS[kind];
+    for (const x of spec.reach) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      play(batter, kind, x);
+      const spanAt = (time: number) => {
+        batter.update(time);
+        const pose = batter.inspect();
+        return [0, 1].map(i => new Vector3(...pose.shoulders[i]).distanceTo(new Vector3(...pose.wrists[i])) / REACH);
+      };
+      const contact = spanAt(spec.impact), open = spanAt(spec.impact + 110);
+      for (let i = 0; i < 2; i++) {
+        // Neither arm folds back through the ball. Against a wide one the
+        // contact is already most of the way out, so the gain is small there —
+        // what must never happen is the old behaviour, where the extension key
+        // was tighter than the contact it came from.
+        // Once an arm is straight it only has to stay straight; below that it
+        // has to be opening. Either way it never folds back through the ball,
+        // which is what the drives used to do.
+        expect(open[i], `${kind} x=${x} arm ${i} folded back`).toBeGreaterThan(Math.min(contact[i], .90) - .01);
+        expect(open[i], `${kind} x=${x} arm ${i} still tucked`).toBeGreaterThan(.70);
+      }
+      // And at least one of them is genuinely straight, not merely less folded.
+      expect(Math.max(...open), `${kind} x=${x}`).toBeGreaterThan(.86);
+    }
+  });
+  /** An arm past its own length is a stretched limb, not a straight one. */
+  it.each(['pull','square','straight','lofted','cover','cut'])('never reaches the %s arms past their own length', kind => {
+    for (const x of PLAYS[kind].reach) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      play(batter, kind, x);
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+        batter.update(time);
+        const pose = batter.inspect();
+        for (let i = 0; i < 2; i++)
+          expect(new Vector3(...pose.shoulders[i]).distanceTo(new Vector3(...pose.wrists[i])) / REACH,
+            `${kind} x=${x} arm ${i} @${time}`).toBeLessThan(1.001);
+      }
+    }
+  });
+});
 
 describe('the square drive', () => {
   it('is played only at a ball wide enough and full enough to drive square', () => {
@@ -782,9 +899,13 @@ describe('the charge', () => {
       }
       return worst;
     };
-    const drive = closest(false, 0);
+    // 1.0 is the helmet's own surface, so this is an absolute clearance and
+    // not a comparison against another stroke: the drives now carry their
+    // hands much further from the head than the charge does, and holding the
+    // charge to their margin would be measuring them rather than it.
+    expect(closest(false, 0), 'the drive').toBeGreaterThan(1.15);
     for (const ballX of [-GAME.stumpZone, 0, GAME.stumpZone])
-      expect(closest(true, ballX), `charge at ${ballX}`).toBeGreaterThan(drive - .02);
+      expect(closest(true, ballX), `charge at ${ballX}`).toBeGreaterThan(1.15);
   });
 
   it('never outreaches an arm or a leg on the way', () => {

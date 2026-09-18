@@ -133,7 +133,73 @@ only — `rig-sheet.html` is not an entry point and is not in the build.
 Automated sampling is a regression guard, not proof of realism. The strokes were
 also looked at, frame by frame, from more than one angle.
 
+## Second pass — the arms
+
+The first pass fixed where the bat went and left the arms alone. Reviewed on
+the hosted preview, two faults showed up in both drives, and measuring them
+confirmed both.
+
+**The elbows never opened.** Measured as the shoulder-to-wrist span over the
+length of an arm, the straight drive held 0.51 at contact and *0.44* at its
+extension key — it folded tighter after the ball than it was at it. The cover
+drive did the same, 0.60 to 0.53. That is the bent-armed, shoulder-hinged look:
+the swing was being carried by a pole rotating about the shoulder with the
+elbow locked shut behind it.
+
+The cause is geometric and it is not the pole. Both fists hold one handle, so
+the two arms cannot be posed independently: the only place both can be straight
+is directly out in front of the sternum at a shade under an arm's length. Put
+the hands anywhere else and one elbow folds to make up the difference. Every
+drive key is now solved for that rather than eyeballed — hands, torso and yaw
+together, under the leg-length limits.
+
+The drives now run 0.55–0.90 at contact and 0.73–0.94 a tenth of a second
+later, opening through the ball in every case. The square drive, which is the
+one the reference recording shows, reaches 0.94.
+
+At contact the arms are still bent, and they should be: the recording shows
+them folded at impact and straightening over the following quarter second. The
+opening happens *through* the ball.
+
+**The arms went through the helmet.** No part of the arm solver knew where the
+batter's head was. Measured against the head centre, the lead upper arm came to
+0.09 m on the square drive and 0.14 m on the straight — an arm is about 0.05
+thick and a helmet 0.135 across, so both were well inside him.
+
+There is now a clearance guard: solve the arm, measure the two segments against
+the head, and lean the bend plane off it by an amount that varies smoothly with
+how close it actually came. It runs last, after every other pole adjustment,
+because it is the safety net. It measures the solved arm rather than the
+shoulder-to-hand line — the first version used the line, which passes close to
+the head on any stroke played under the eyes even while the elbow bows well
+clear, and leaning off a danger that was not there dragged the front elbow down
+through every drive contact. Every stroke now clears by at least 0.185 m.
+
+The charge is exempt, and remains byte-identical to production.
+
+## Two straight drives
+
+The four and the six are different strokes after impact and the same one
+before it, so they share a contact and separate at the follow-through. The
+classic drive is checked: the hands finish high in front of the chest with the
+blade pointing up the ground after the ball, over a braced front leg. The
+lofted one keeps climbing through the line, the chest opens right up, the back
+foot comes off the turf and the blade finishes over the front shoulder with the
+hands above the helmet.
+
+Which one is played is decided at the moment of the shot, from the same rule
+the score is worked out from — `loftedDrive` in `ShotResolver`, beside the
+`advanceShot` it is modelled on. Middled on a line that suits the stroke is the
+six; everything short of that is the classic drive, which is also everything
+that is not worth six. No scoring changed: the rule reads the existing table
+rather than adding to it.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate
 pass by request.
+
+The two straight drives were built from cricket fundamentals and the square
+drive's own recording, because there is no straight-drive reference on this
+branch. A recording of both — a checked one and a lofted one — would let the
+split be validated against footage rather than first principles.
