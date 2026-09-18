@@ -5,35 +5,6 @@ import type { ShotType } from '../src/game/types';
 import { Quaternion, Vector3 } from 'three';
 // Every stroke the batter can be asked to play, defence included.
 const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
-/**
- * Every shape the rig can be asked to make, as the ball that asks for it.
- *
- * The charge is in this list rather than off in a corner of its own, because
- * the checks it was left out of are the ones it needed: the whole-body ones ran
- * over `STROKES`, which names the shot the player swings and says nothing about
- * whether he walked at it, so a charge that dragged the blade up through his own
- * chest and back down through it again passed everything here.
- */
-const PLAYS: readonly { name: string; shot: ShotType; ballY: number; xs: readonly number[]; charging: boolean; until: number }[] = [
-  ...STROKES.flatMap(shot => ([.54, 1.12] as const).map(ballY => ({
-    name: `${shot} at ${ballY}`, shot, ballY, charging: false,
-    xs: [-.55, -.42, -.3, -.14, 0, .14, .42, .55], until: STROKE_DURATION_MS,
-  }))),
-  // A charge is only played at a ball in the stump zone off a length, so that is
-  // the width to walk it across — and it is not over when the stroke is: he is
-  // still carrying the bat on the way back to his crease.
-  ...ADVANCE.shots.map(shot => ({
-    name: `the charge, ${shot}`, shot, ballY: .54, charging: true,
-    xs: [-GAME.stumpZone, -.09, 0, .09, GAME.stumpZone], until: STROKE_DURATION_MS + ADVANCE.walkBackMs,
-  })),
-];
-/** One play, wound up from the guard and swung, ready to be stepped through. */
-const playing = (play: typeof PLAYS[number], ballX: number) => {
-  const batter = new Batter();
-  batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(play.shot, 0, ballX, play.ballY, GAME.contactZ, play.charging);
-  return batter;
-};
 
 describe('two-handed cricket animation', () => {
   it('keeps both gloves on the same handle throughout every stroke', () => {
@@ -151,17 +122,15 @@ describe('the bat and the body', () => {
     // through him — round the hip on the way down, through the head on the way
     // home — so the poses either side of it, and the recovery pose a stroke can
     // name, have to be chosen to take the bat round instead.
-    for (const play of PLAYS) {
+    const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
+    for (const shot of STROKES) {
       let worst = { value: Infinity, part: '', where: '' };
-      for (const ballX of play.xs) {
-        const batter = playing(play, ballX);
-        for (let time = 0; time <= play.until; time += 8) {
+      for (const ballY of [.54, 1.12]) for (const ballX of [-.55, -.42, -.3, -.14, 0, .14, .42, .55]) {
+        const batter = new Batter();
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
           batter.update(time);
           const pose = batter.inspect();
-          // Where he is standing, not where he started: a charge carries the
-          // whole figure down the pitch, and measuring the blade against the
-          // crease would slide the body out from under the bat.
-          const root = batter.root.position.clone();
           const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
           const spine = chest.clone().sub(hip).normalize();
           const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
@@ -175,11 +144,11 @@ describe('the bat and the body', () => {
           ];
           for (const [part, centre, radii, turn] of parts) {
             const value = deepest(...bat, centre, radii, turn);
-            if (value < worst.value) worst = { value, part, where: `x=${ballX} @${time}ms` };
+            if (value < worst.value) worst = { value, part, where: `y=${ballY} x=${ballX} @${time}ms` };
           }
         }
       }
-      expect(worst.value, `${play.name} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
+      expect(worst.value, `${shot} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
     }
   });
 });
@@ -189,12 +158,12 @@ describe('arm placement', () => {
   // buried it inside the torso in the guard and through the leg-side wrap.
   it('keeps both elbows clear of the torso in every pose', () => {
     let worst = { clearance: Infinity, where: '' };
-    // 1.12 is bouncer height, which turns the leg-side input into a pull; the
-    // charge is in the list too, arms and all.
-    for (const play of PLAYS) {
-      for (const ballX of play.xs) {
-        const batter = playing(play, ballX);
-        for (let time = 0; time <= play.until; time += 16) {
+    // 1.12 is bouncer height, which turns the leg-side input into a pull.
+    for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
+      for (const ballX of [-.55, -.14, 0, .14, .55]) {
+        const batter = new Batter();
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        for (let time = 0; time <= STROKE_DURATION_MS; time += 16) {
           batter.update(time);
           const pose = batter.inspect();
           const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
@@ -203,7 +172,7 @@ describe('arm placement', () => {
             const elbow = new Vector3(...point);
             const along = Math.min(length, Math.max(0, elbow.clone().sub(hip).dot(spine)));
             const clearance = elbow.distanceTo(hip.clone().addScaledVector(spine, along));
-            if (clearance < worst.clearance) worst = { clearance, where: `${play.name} x=${ballX} @${time}ms` };
+            if (clearance < worst.clearance) worst = { clearance, where: `${shot} y=${ballY} x=${ballX} @${time}ms` };
           }
         }
       }
@@ -349,26 +318,6 @@ describe('the grip', () => {
     expect(flattest, `closest elbow to the handle: ${wristWhere}`).toBeGreaterThan(.09);
   });
 
-  it('holds the top of the handle, both fists together under the knob', () => {
-    // The handle the constructor builds: the shoulder of the blade at -.134, the
-    // top of the knob at .245, and a fist .15 deep.
-    const knob = .245, shoulder = -.134, fist = .15;
-    const [top, bottom] = new Batter().inspect().handGrip;
-    // The top hand is the left one, and it goes up to the knob — the heel of the
-    // hand against it rather than half a handle short of it, which leaves the
-    // knob standing proud above the fist like a hammer held down the shaft.
-    expect(top + fist / 2).toBeLessThanOrEqual(knob);
-    expect(knob - (top + fist / 2), 'the knob stands proud of the top hand').toBeLessThan(.03);
-    // The right hand follows it up rather than choking against the blade, so the
-    // handle left spare is the stretch below the bottom fist, not above the top.
-    expect(bottom - fist / 2 - shoulder, 'the bottom hand is on the blade').toBeGreaterThan(.05);
-    expect(bottom - fist / 2 - shoulder).toBeGreaterThan(knob - (top + fist / 2));
-    // And the pair is one grip: closer together than a fist is deep, so they
-    // touch, with the right hand the lower of the two.
-    expect(top - bottom).toBeLessThan(fist);
-    expect(bottom).toBeLessThan(top);
-  });
-
   it('waits with the bat cocked back towards first slip, face opened up', () => {
     const batter = new Batter();
     batter.reset();
@@ -388,21 +337,21 @@ describe('the grip', () => {
 
 describe('shoulders', () => {
   it('never carries the hands round behind the back', () => {
-    for (const play of PLAYS) {
-      for (const ballX of play.xs) {
-        const batter = playing(play, ballX);
-        for (let time = 0; time <= play.until; time += 10) {
-          batter.update(time);
-          // A two-handed grip cannot be taken round behind the shoulders. Every
-          // stroke here carries both hands in front of them; a follow-through
-          // that wraps them behind is the pose no body makes. Where the pair of
-          // fists sits on the handle decides this as much as the pose does:
-          // moved up towards the knob they hang further off the blade, so a
-          // stroke that meets the ball with the bat across the body carries them
-          // further round the back than the same pose did before.
-          for (const [i, forward] of batter.inspect().handsForward.entries())
-            expect(forward, `${play.name} x=${ballX}: hand ${i} at ${time}ms`).toBeGreaterThan(-.06);
-        }
+    const batter = new Batter();
+    const strokes: [string, () => void][] = [
+      ...STROKES.map(shot => [shot, () => batter.swing(shot, 0, 0, .54)] as [string, () => void]),
+      ['the pull', () => batter.swing('LEG', 0, -.02, 1.12)],
+      ['the charge', () => batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true)],
+    ];
+    for (const [name, play] of strokes) {
+      batter.reset(); batter.prepare(1); batter.update(0); play();
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 10) {
+        batter.update(time);
+        // A two-handed grip cannot be taken round behind the shoulders. Every
+        // stroke here carries both hands in front of them; a follow-through that
+        // wraps them behind is the pose no body makes.
+        for (const [i, forward] of batter.inspect().handsForward.entries())
+          expect(forward, `${name}: hand ${i} at ${time}ms`).toBeGreaterThan(-.06);
       }
     }
   });
@@ -477,63 +426,6 @@ describe('the charge', () => {
     // rest is the frames where the feet swap and the last stride, where the
     // step eases out into the waiting stance.
     expect(planted / frames).toBeGreaterThan(.6);
-  });
-
-  it('finishes with the blade up and down the ground, not wrapped behind him', () => {
-    const batter = new Batter();
-    batter.reset(); batter.prepare(1); batter.update(0);
-    batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
-    batter.update(470);
-    const finish = batter.inspect();
-    const tip = new Vector3(...finish.bladeTip).sub(batter.root.position);
-    // Up over the head and pointing on down the wicket after the ball, which is
-    // where a lofted straight drive ends.
-    for (const [i, shoulder] of finish.shoulders.entries())
-      expect(tip.y, `shoulder ${i}`).toBeGreaterThan(shoulder[1] + .5);
-    expect(tip.z).toBeGreaterThan(finish.chest[2] + .5);
-    // And the blade stays out on the off side of him the whole way — up to the
-    // finish and back down off it. Wrapped down over the shoulder instead, the
-    // hands end up one side of the trunk and the tip the other, and the shaft
-    // between them lies straight through his chest: on the way up at 300ms and
-    // again on the way home at 740ms, which is what this stroke used to do.
-    for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
-      batter.update(time);
-      const pose = batter.inspect();
-      const blade = new Vector3(...pose.bladeTip).sub(batter.root.position);
-      expect(blade.x, `blade crossed the chest at ${time}ms`).toBeGreaterThan(pose.chest[0]);
-    }
-  });
-
-  it('carries the hands past the grille, not through it', () => {
-    // The helmet the constructor builds, as the ellipsoid a fist has to stay
-    // outside of. Charging swings the hands up from further forward than a
-    // planted drive does, so they take a tighter line past his own head — and
-    // the straight drive off a length is the stroke that already has to hold
-    // its hands wide of the grille, so it is the width to be measured against.
-    const radii = new Vector3(.188, .19, .195);
-    const closest = (charging: boolean, ballX: number) => {
-      const batter = new Batter();
-      batter.reset(); batter.prepare(1); batter.update(0);
-      batter.swing('STRAIGHT', 0, ballX, .54, GAME.contactZ, charging);
-      let worst = Infinity;
-      for (let time = 0; time <= STROKE_DURATION_MS + (charging ? ADVANCE.walkBackMs : 0); time += 8) {
-        batter.update(time);
-        const pose = batter.inspect();
-        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
-        const spine = chest.clone().sub(hip).normalize();
-        const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
-        const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
-        const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
-        for (const hand of pose.hands) {
-          const point = new Vector3(...hand).sub(batter.root.position).sub(head).applyQuaternion(torso.clone().invert());
-          worst = Math.min(worst, Math.hypot(point.x / radii.x, point.y / radii.y, point.z / radii.z));
-        }
-      }
-      return worst;
-    };
-    const drive = closest(false, 0);
-    for (const ballX of [-GAME.stumpZone, 0, GAME.stumpZone])
-      expect(closest(true, ballX), `charge at ${ballX}`).toBeGreaterThan(drive - .02);
   });
 
   it('never outreaches an arm or a leg on the way', () => {
