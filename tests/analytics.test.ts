@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ballsBand, counting, scoreBand } from '../src/game/analytics';
+import { ballsBand, blowsBand, counting, injuryBand, scoreBand } from '../src/game/analytics';
 
 const at = (hostname: string, search = '') => counting({ hostname, search });
 
@@ -107,5 +107,35 @@ describe('how far he got', () => {
   it('never invents a band between two of them', () => {
     const bands = new Set(Array.from({ length: 61 }, (_, balls) => ballsBand(balls)));
     expect(bands.size).toBe(5);
+  });
+});
+
+describe('the injury bands', () => {
+  it('gives reaching the end of the meter a band of its own', () => {
+    // Retiring is a different event from nearly retiring, and it is the one the
+    // mode is tuned on — folded into the top band it could not be counted.
+    expect(injuryBand(1)).toBe('injury-retired');
+    expect(injuryBand(0.99)).toBe('injury-75-99');
+  });
+
+  it('bands the rest the way the simulator reports them', () => {
+    expect(injuryBand(0)).toBe('injury-0-24');
+    expect(injuryBand(0.24)).toBe('injury-0-24');
+    expect(injuryBand(0.25)).toBe('injury-25-49');
+    expect(injuryBand(0.5)).toBe('injury-50-74');
+    expect(injuryBand(0.75)).toBe('injury-75-99');
+  });
+
+  it('takes a reading outside nought and one without inventing a band', () => {
+    expect(injuryBand(-0.4)).toBe('injury-0-24');
+    expect(injuryBand(3)).toBe('injury-retired');
+  });
+
+  it('counts the first three blows exactly and then gives up counting', () => {
+    expect(blowsBand(0)).toBe('blows-0');
+    expect(blowsBand(1)).toBe('blows-1');
+    expect(blowsBand(2)).toBe('blows-2');
+    expect(blowsBand(4)).toBe('blows-3-4');
+    expect(blowsBand(9)).toBe('blows-5-plus');
   });
 });

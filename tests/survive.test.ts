@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, STYLES as CLASSIC_STYLES } from '../src/config/gameplay';
 import {
-  BANDS, CLOSE, DAMAGE, HEALTH, SIX, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES, SURVIVE, damageFor,
+  BANDS, BOUNCERS, CLOSE, DAMAGE, HEALTH, SIX, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES, SURVIVE, damageFor,
 } from '../src/config/survive';
 import { ballPosition, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { Health } from '../src/game/Health';
@@ -9,7 +9,7 @@ import {
   atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, resultOf, sledgeDue,
   spun, teamScore, timingSide,
 } from '../src/game/Survive';
-import { DeliveryGenerator, SPIN_STYLES, spinOvers } from '../src/game/DeliveryGenerator';
+import { DeliveryGenerator, SPIN_STYLES, SURVIVE_PLAN, spinOvers } from '../src/game/DeliveryGenerator';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { PACE_RUN, SPIN_RUN } from '../src/entities/Bowler';
 import type { Delivery, DeliveryStyle, ShotOutcome } from '../src/game/types';
@@ -501,10 +501,96 @@ describe('what the scorecard says he cost the side', () => {
 });
 
 
-/** The Survive attack, exactly as Game builds it. */
+/**
+ * The Survive attack, which is the one the game bowls rather than one written
+ * out again here. It used to be restated, and a restated plan is a plan that
+ * goes stale: the short ball moved out of the weight table and into a plan of
+ * its own, and every copy went on testing a mode with no bouncers in it.
+ */
 const SPELL = { ...SPIN, ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver, ballsPerOver: SURVIVE.ballsPerOver };
-const attack = (seed: number) => new DeliveryGenerator(new SeededRandom(seed), {
-  styles: STYLES, specials: SURVIVE_SPECIALS, travelScale: SURVIVE.travelScale, aimed: true, spin: SPELL,
+const OVERS = SURVIVE.totalBalls / SURVIVE.ballsPerOver;
+const attack = (seed: number) => new DeliveryGenerator(new SeededRandom(seed), SURVIVE_PLAN);
+/** Every delivery of a full innings, with the over it was bowled in. */
+const innings = (seed: number) => {
+  const generator = attack(seed);
+  return Array.from({ length: SURVIVE.totalBalls }, (_, ball) => ({
+    over: Math.floor(ball / SURVIVE.ballsPerOver),
+    inOver: ball % SURVIVE.ballsPerOver,
+    style: generator.next(0).style,
+  }));
+};
+
+describe('the warning the player actually sees', () => {
+  it('keeps the critical band wider than a typical blow, so it is not stepped over', () => {
+    // The band is presentation — `spent` ends the innings — but a band narrower
+    // than the blows that cross it is a warning nobody ever sees. It was 25
+    // against a helmet blow worth up to 81, and half of all retirements skipped
+    // it entirely. Anything short of the biggest blow will be skipped sometimes;
+    // what this holds is that the common ones land inside it.
+    const typical = Math.max(damageFor('RIBS', 160), damageFor('GLOVES', 172), damageFor('THIGH', 172));
+    expect(HEALTH.critical).toBeGreaterThan(typical);
+  });
+
+  it('leaves the critical state meaning he is most of the way gone', () => {
+    // Wide is not the same as early. Half the meter would make it the innings
+    // rather than its last act.
+    expect(HEALTH.critical).toBeLessThan(HEALTH.full / 2);
+  });
+});
+
+describe('the short ball is planned, not rolled for', () => {
+  it('puts one in every over of pace, and never misses an over', () => {
+    // Rolled for, thirty-eight per cent of innings met no bouncer at all. The
+    // whole point of placing it is that the over always has its quota.
+    for (let seed = 0; seed < 120; seed++) {
+      const spell = new Set(attack(seed).spell);
+      const balls = innings(seed);
+      for (let over = 0; over < OVERS; over++) {
+        if (spell.has(over)) continue;
+        const short = balls.filter(b => b.over === over && b.style === 'SHORT').length;
+        const wanted = over >= OVERS - BOUNCERS.deathOvers ? BOUNCERS.atTheDeath : BOUNCERS.perOver;
+        expect(short, `seed ${seed}, over ${over}`).toBe(wanted);
+      }
+    }
+  });
+
+  it('gives the last two overs to the quick bowlers, so the plan has somewhere to land', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      for (const over of attack(seed).spell) {
+        expect(over, `seed ${seed}`).toBeLessThan(OVERS - BOUNCERS.deathOvers);
+      }
+    }
+  });
+
+  it('still gives the spinner his three overs out of a smaller pool', () => {
+    for (let seed = 0; seed < 200; seed++) expect(attack(seed).spell).toHaveLength(SPIN.overs);
+  });
+
+  it('never bowls it from the same place in the over twice running', () => {
+    // Placed at a position drawn fresh, the way the arm ball already is. A fixed
+    // slot would be a timetable and the batter would simply wait for it.
+    const seen = new Set<number>();
+    for (let seed = 0; seed < 120; seed++) {
+      for (const b of innings(seed)) if (b.style === 'SHORT') seen.add(b.inOver);
+    }
+    expect(seen.size).toBe(SURVIVE.ballsPerOver);
+  });
+
+  it('bowls none at all off the spinner', () => {
+    for (let seed = 0; seed < 120; seed++) {
+      const spell = new Set(attack(seed).spell);
+      for (const b of innings(seed)) {
+        if (spell.has(b.over)) expect(b.style, `seed ${seed}`).not.toBe('SHORT');
+      }
+    }
+  });
+
+  it('is the only thing bowling it, so the two cannot stack', () => {
+    // The weight table gave it thirteen per cent. Left there alongside the plan,
+    // an over could carry three and the measured rates would all have been wrong.
+    expect(STYLES.SHORT.weight).toBe(0);
+    expect(SURVIVE_SPECIALS.shortChance).toBe(0);
+  });
 });
 
 describe('the spinner gets overs, not deliveries', () => {

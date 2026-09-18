@@ -34,7 +34,15 @@ export class Health {
    * and the player can see how much room is left before he reaches it.
    */
   get injury() { return 1 - this.fraction; }
-  /** One more blow and he is off. The screen says so from here on. */
+  /**
+   * Near enough the end that most blows would finish him. The screen keeps a
+   * red edge from here, and the mode explains itself once.
+   *
+   * Not *every* blow — one on the glove at nominal pace would not — which is
+   * why nothing on screen promises that any more. The band is wide because the
+   * alternative is worse: a narrow one is stepped straight over by a helmet
+   * blow, and the warning a player never sees is no warning.
+   */
   get critical() { return this.value > 0 && this.value <= HEALTH.critical; }
   get spent() { return this.value <= 0; }
 

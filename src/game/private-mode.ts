@@ -55,6 +55,8 @@ export interface Signals {
 export const SEEN_KEY = 'hitman-seen';
 /** Set for the rest of the session once the notice has been read. */
 const NOTICE_KEY = 'hitman-private-seen';
+/** Set for good once the injury meter has explained itself once. */
+const HURT_NOTE_KEY = 'hitman-hurt-seen';
 
 /**
  * Whose private mode this might be.
@@ -181,4 +183,20 @@ async function estimateQuota(): Promise<number | null> {
 /** A reading, or what to assume where the browser will not be asked. */
 function read<T>(act: () => T, fallback: T): T {
   try { return act(); } catch { return fallback; }
+}
+
+/**
+ * Whether this device has already been told what a critical injury meter means.
+ *
+ * Kept for good rather than for the session, because it is a lesson and not a
+ * warning: a player who has met it once knows what the red edge is saying, and
+ * a panel that interrupts every innings would be teaching nobody and stopping
+ * everybody. A window that cannot remember gets told again, which is the right
+ * failure — the alternative is a player who never sees it at all.
+ */
+export function hurtNoteSeen(): boolean {
+  try { return localStorage.getItem(HURT_NOTE_KEY) === '1'; } catch { return false; }
+}
+export function markHurtNoteSeen() {
+  try { localStorage.setItem(HURT_NOTE_KEY, '1'); } catch { /* Told again next time, then. */ }
 }

@@ -225,6 +225,34 @@ The length and pace windows exclude every special without naming one: a yorker p
 
 The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), `boundary-hit.mp3` plays for both fours and sixes, `bat-edge.mp3` is the thin knick off the face when a cut is edged behind, and `sledge.mp3` comes back from the field after three balls the batter has not scored off. The synthesized fallback is an impact rather than a voice, so a sledge without its clip simply stays silent. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
+## The injury meter, and the short-pitched plan
+
+Survive replaces the confidence meter with an injury meter, and it is its opposite in the way that matters: confidence is earned and spent and earned again, this only ever goes down. Nothing heals it. A blow costs `DAMAGE[where] × (kph/140)²` out of a hundred — helmet 46, ribs 28, gloves 17, pad 12 — so an express bouncer on the helmet is most of an innings and the same blow off a slower ball is a nuisance. At nought he is carried off, which ends the innings **without a wicket falling**: the scorecard reads 9 down, not 10, and that difference is the whole of what the meter is for.
+
+Sixty-two live innings said it was not working. **One of the sixty-two retired hurt**, and the average innings finished having used nineteen of the hundred. The cause was not the damage numbers — it was that nobody met the mechanic. An attacking innings lasted thirteen balls and took a blow once every thirty-five, and **thirty-eight per cent of innings faced no bouncer at all**, because the short ball was rolled for off the weight table and a roll can simply not come up.
+
+Three things changed, and only after each was measured against the simulator:
+
+**The bouncer is placed, not rolled for.** One in every over of pace, at a position drawn fresh each over — the idiom the spinner's arm ball already used: never the same ball twice, never absent from the over. The plan is asked *before* the two owed deliveries, because asked after, a yorker earned by four sixes displaced the bouncer and the over finished without one, which is the exact failure placing it was meant to end. Neither debt is cleared by standing aside, so the yorker simply arrives next ball.
+
+**The last two overs belong to the quick bowlers, and get two apiece** — the most the laws allow. The spinner is kept out of them. A side nine wickets down with two overs left has stopped trying to bowl him out and started trying to get him off. This shape is worth more than a flat rate because it **taxes surviving rather than taxing every ball**: a batter chasing the hundred is barely troubled, and a batter blocking for the draw walks into a barrage. Measured, it holds a good player's win rate within two points of where it was while roughly quadrupling what the death overs cost him. A flat rate at the same retirement figure cost fifteen points of win rate.
+
+**The damage table went up by about half**, ratios untouched. Raised there rather than by lowering `HEALTH.full`, which is the same arithmetic and would have broken the board: rows carry the meter as a number out of a hundred and the Test ladder ranks on it, so a smaller ceiling would have left every innings played before the change permanently above every innings played after it.
+
+Measured across 20,000 innings a profile, against the live distribution's closest match:
+
+| | retired before | retired after | win rate before → after |
+| --- | --- | --- | --- |
+| competent, chasing | 2.4% | **8.7%** | 2.0% → 0.9% |
+| expert, chasing | 1.4% | **6.4%** | 34.2% → 32.5% |
+| expert, blocking | 28.2% | **64.4%** | draws 57.9% → 25.0% |
+
+Two things were tried and rejected on the numbers. **Injury degrading the timing window** — shrinking the 86ms clean band as the meter fills — moved retirement by nothing and cost an eighth of a good player's wins, because worse timing produces more wickets as fast as it produces more blows; it is also invisible, and invisible difficulty reads as bad luck rather than as injury. And **raising damage alone** bought retirement only by shortening innings, converting bowled-outs into retirements one for one without making the meter any more present.
+
+The meter says its own name and a percentage, and nothing else. It used to relabel itself `ONE MORE AND HE IS OFF` on turning critical — twenty-two characters where six had been — and visibly grew to hold them, shoving the scoreboard beside it about mid-innings. A gauge that changes size when the news gets bad draws the eye to the movement rather than to the reading. Critical is told in colour instead: the meter's own pulse, and the red edge on the field.
+
+The mode explains it **once per device** (`HUD.hurtNote`, remembered in `localStorage` by `private-mode.ts`), the first ball a batter is one blow from being carried off, and never again — a lesson rather than a warning. What it says is a trade, not advice, and deliberately so: the obvious counsel is to get behind it and defend, and that is the one thing the numbers say not to do. Blocking is what lets the ball through to the body, and a batter who defends his way out of a critical meter retires hurt about six times more often than one who keeps playing.
+
 ## The board
 
 A top fifty, one row per player, best innings only. The ranking is built and tested; the two endpoints behind it are not, so the screen runs against fifty invented innings until they are.
@@ -562,6 +590,9 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `claim-open`, `claim-done`, `claim-failed` | The registration funnel: offered, taken, and refused by the store. |
 | `survive-…` | The same events again, for a Test innings. GoatCounter has no custom properties, so the mode is in the name or it is nowhere — everything about an *innings* is prefixed, and everything about a *session* (the first shot, the help screen, the minutes played) is not, because those are the same fact whichever innings they happened in. |
 | `survive-result-won` … `survive-result-lost` | Which of the five result cards the Test innings earned. |
+| `survive-critical-reached` | Whether the batter ever got one blow from being carried off. The direct measure of how many players meet the injury meter at all — the result events cannot answer it, because an innings that goes critical and is then bowled out reports only the bowling. |
+| `survive-injury-0-24` … `survive-injury-retired` | Where the meter finished, in the bands the simulator reports, so the live spread sets against the modelled one without arithmetic. |
+| `survive-blows-0` … `survive-blows-5-plus` | How many blows he took. Read beside the meter rather than instead of it: one on the helmet costs more than two on the pad. |
 | `survive-balls-under-1-over` … `survive-balls-8-10-overs` | How long the last man lasted, in overs rather than balls, because that is how a Test innings is read. |
 | `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
 | `help-open` | The controls did not explain themselves. |

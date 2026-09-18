@@ -1,10 +1,10 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
-import { SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE } from './config/survive';
+import { SURVIVE } from './config/survive';
 import { Confidence } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, spun, type BowlingPlan } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, SURVIVE_PLAN, spun } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -30,7 +30,10 @@ import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
-import { ballsBand, counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from './game/analytics';
+import {
+  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, scoreBand, track, trackOnce,
+} from './game/analytics';
+import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -60,20 +63,6 @@ const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
 
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
-};
-const SURVIVE_PLAN: BowlingPlan = {
-  styles: SURVIVE_STYLES, specials: SURVIVE_SPECIALS, travelScale: SURVIVE.travelScale,
-  // This bowler is aiming: the bouncer goes at the head and the express ball at
-  // fifth stump, rather than both being dealt whatever line comes next.
-  aimed: true,
-  // The spell, composed from the two halves that know about it: SPIN says how
-  // the spinner bowls, SURVIVE says how long the innings is, and neither has
-  // any business importing the other.
-  spin: {
-    ...SPIN,
-    ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver,
-    ballsPerOver: SURVIVE.ballsPerOver,
-  },
 };
 
 export class Game {
@@ -129,6 +118,25 @@ export class Game {
   /** The Test fifty, and whether that board has ever answered. Its own ladder. */
   private surviveRows: SurviveRow[] = [];
   private surviveSeen = false;
+  /**
+   * Whether the batter has been critical yet this innings, so the meter's own
+   * lesson is shown once and the analytics count the innings rather than the
+   * balls. The "once ever" half of it lives in `localStorage`; this is only the
+   * "once this innings" half.
+   */
+  private wasCritical = false;
+  /**
+   * The injury notice, waiting for a gap to appear in.
+   *
+   * It cannot be shown the moment the blow lands: that happens inside the
+   * shot-resolution block, and `setPhase('SHOT_RESOLVE')` runs immediately
+   * after it — so a pause taken there was overwritten a line later and the
+   * panel sat over a game that was still bowling. Dismissing it then *paused*
+   * the innings instead of resuming it, which is the exact opposite of the
+   * button's label. So it waits for the ball to finish and goes up in the gap
+   * before the next one.
+   */
+  private noticeDue = false;
   private player: string | null = null;
   /** Which ladder the sheet is showing, which is the tab drawn as the live one. */
   private boardTab: BoardTab = 'classic';
@@ -275,6 +283,7 @@ export class Game {
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
+    this.wasCritical = false; this.noticeDue = false;
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed);
@@ -675,7 +684,9 @@ export class Game {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
-      } else if (this.surviving ? this.ending : this.score.ended) this.end(); else this.setPhase('READY');
+      } else if (this.surviving ? this.ending : this.score.ended) this.end();
+      else if (this.noticeDue) { this.noticeDue = false; this.showHurtNote(); }
+      else this.setPhase('READY');
     }
   }
   private resolve() {
@@ -698,6 +709,7 @@ export class Game {
         this.confidence.record(this.outcome);
       }
       this.showConfidence();
+      if (this.surviving && this.health.critical && !this.wasCritical) this.turnedCritical();
       // The Test match needles a batter who is stuck rather than one who has
       // simply played a few balls — see `sledgeDue`.
       if (this.surviving) {
@@ -814,6 +826,37 @@ export class Game {
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
   }
 
+  /**
+   * The first ball he is one blow from being carried off.
+   *
+   * Counted every innings it happens, because "how many players ever meet the
+   * injury meter at all" is the question the whole mode turns on and the result
+   * events cannot answer it — an innings that goes critical and is then bowled
+   * out reports only the bowling.
+   *
+   * The panel is shown once per device and never again. It pauses first: the
+   * gap between deliveries is four hundred milliseconds and a card that arrives
+   * inside it would eat a ball the player never saw.
+   */
+  private turnedCritical() {
+    this.wasCritical = true;
+    this.mark('critical-reached', 'Batter one blow from being carried off');
+    if (SURVIVE_ONLY || hurtNoteSeen()) return;
+    this.noticeDue = true;
+  }
+
+  /**
+   * The notice itself, in the gap between deliveries. It takes the guard phase
+   * first and then pauses over it, so dismissing it hands back an innings
+   * waiting to bowl rather than one mid-ball.
+   */
+  private showHurtNote() {
+    markHurtNoteSeen();
+    this.setPhase('READY');
+    this.togglePause();
+    this.hud.hurtNote(() => { if (this.phase === 'PAUSED') this.togglePause(); });
+  }
+
   private end() {
     this.setPhase('INNINGS_END');
     // Both cards get it, and it is asked for before the modes part company
@@ -836,6 +879,10 @@ export class Game {
         `Test match ended: ${ending}`);
       track(`survive-${scoreBand(this.score.runs)}`, 'Test match runs');
       track(`survive-${ballsBand(this.score.balls)}`, 'Test match balls faced');
+      // What the meter finished on, in bands, so the live spread can be read
+      // against the simulator's — the tuning is done in those terms.
+      track(`survive-${injuryBand(this.health.injury)}`, 'Test match injury');
+      track(`survive-${blowsBand(this.health.blows.length)}`, 'Test match blows taken');
       this.hud.endSurvive(this.score, this.health, ending, this.chasing);
       this.offerSurvive();
       return;

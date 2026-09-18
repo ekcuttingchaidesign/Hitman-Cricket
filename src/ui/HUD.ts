@@ -60,7 +60,7 @@ const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).hr
 const resultPlates: Record<Result, string> = {
   WON: new URL('../assets/result-won.webp', import.meta.url).href,
   DRAWN: new URL('../assets/result-drawn.webp', import.meta.url).href,
-  HURT: new URL('../assets/result-lost.webp', import.meta.url).href,
+  HURT: new URL('../assets/result-hurt.webp', import.meta.url).href,
   ALMOST: new URL('../assets/result-lost.webp', import.meta.url).href,
   LOST: new URL('../assets/result-lost.webp', import.meta.url).href,
 };
@@ -173,7 +173,7 @@ export class HUD {
           <span class="confidence-inner">
             <span class="confidence-head">
               <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
-              <span class="injury-cap" id="injury-cap" hidden>RETIRE HURT</span>
+              <span class="injury-cap" id="injury-cap" hidden></span>
             </span>
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
@@ -293,6 +293,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               </div>
               <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
             </div>
+          </div>
+        </div>
+        <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
+          <div class="hurt-note-card">
+            <p class="hurt-note-eyebrow">PHYSIO ON</p>
+            <h2 id="hurt-note-title">He's not going to take much more.</h2>
+            <p class="hurt-note-line">Block and the ball keeps hitting you. Play at it and you risk the edge. There's no safe option left &mdash; pick which way you'd rather go out.</p>
+            <button id="hurt-note-done" class="key-button">BAT ON</button>
           </div>
         </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
@@ -852,6 +860,23 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * two hertz for ninety seconds is a headache rather than a warning. The hold
    * says the same thing and goes on saying it.
    */
+  /**
+   * The injury meter.
+   *
+   * Two things are deliberately fixed here. The label stays the single word
+   * INJURY whatever state he is in — it used to become ONE MORE AND HE IS OFF,
+   * which is twenty-two characters where six had been, and the meter visibly
+   * grew to hold them. A gauge that changes size when the news gets bad draws
+   * the eye to the movement rather than to the reading, and it shoved the
+   * scoreboard beside it about mid-innings.
+   *
+   * And the right-hand slot carries the figure rather than a caption. A
+   * percentage is the same width at every value, says more than the word
+   * RETIRE HURT did, and leaves the critical state to be told the way it should
+   * be told: in colour, by the meter's own pulse and the red edge on the field.
+   * The overlay names it once, the first time it happens, and after that the
+   * player knows.
+   */
   injury(fraction: number, critical: boolean) {
     const meter = this.$('confidence');
     const percent = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
@@ -861,12 +886,39 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     meter.classList.add('is-injury');
     meter.classList.toggle('is-hurt', critical);
     this.$('confidence-fill').style.width = `${percent}%`;
-    // The caption names what the far end of the track means, and it is up from
-    // the first ball rather than appearing at the moment it stops being news.
     this.$('injury-cap').hidden = false;
-    this.$('confidence-label').textContent = critical ? 'ONE MORE AND HE IS OFF' : 'INJURY';
+    this.$('injury-cap').textContent = `${percent}%`;
+    this.$('confidence-label').textContent = 'INJURY';
     this.viewport.classList.toggle('hurt-on', critical);
   }
+
+  /**
+   * The one time the mode explains the injury meter.
+   *
+   * Shown the first ball the batter is critical and never again on this device,
+   * because it is a lesson rather than a warning: after it the meter's own
+   * colour and the red edge on the field say the same thing without a panel.
+   *
+   * What it says is a trade rather than advice, and that is deliberate. The
+   * obvious counsel — get behind it, defend — is the one thing the numbers say
+   * not to do: blocking is what lets the ball through to the body, and a batter
+   * who defends his way out of a critical meter retires hurt about six times
+   * more often than one who keeps playing. So it names both costs and leaves
+   * the choice where it belongs.
+   */
+  hurtNote(onClose: () => void) {
+    const note = this.$('hurt-note');
+    note.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const done = () => {
+      note.classList.add('hidden');
+      this.viewport.classList.remove('modal-open');
+      onClose();
+    };
+    (this.$('hurt-note-done') as HTMLButtonElement).onclick = done;
+    (this.$('hurt-note-done') as HTMLButtonElement).focus();
+  }
+  get hurtNoteOpen() { return !this.$('hurt-note').classList.contains('hidden'); }
 
   /** The mode picker. Skipped entirely when a link has already named the mode. */
   modes() {
