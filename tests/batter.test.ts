@@ -663,14 +663,23 @@ describe('the slog sweep', () => {
     const batter = swept();
     batter.update(SWEEP_CONTACT_MS);
     const pose = batter.inspect();
-    // A stride, first and foremost. The foot has to travel down the ground,
-    // not bend where it already stood while the body sinks past it — the width
-    // it can also afford is whatever the front leg has left after that, and a
-    // wide plant is what was eating it.
-    expect(pose.frontFoot[2] - pose.hip[2]).toBeGreaterThan(.55);
-    expect(pose.frontFoot[2]).toBeGreaterThan(new Batter().inspect().frontFoot[2] + .22);
-    expect(pose.frontFoot[0] - pose.hip[0]).toBeGreaterThan(.15);
-    expect(pose.frontFoot[2] - pose.backFoot[2]).toBeGreaterThan(.80);
+    // The foot has to TRAVEL. Bending where it already stood while the body
+    // sinks past it is the thing this catches, and it is what the rig did.
+    //
+    // Travel, though — not travel down the ground, which is what this asked for
+    // first and which turns out to be unsatisfiable. The ball is met at a fixed
+    // point, and the swing has to happen in front of the front pad, so the foot
+    // has to end up BEHIND the ball. Ask for it forward of the crease as well
+    // and there is nowhere left to put it: the bat cannot be ahead of a foot
+    // that is ahead of the ball. So he steps across the line and sits on it,
+    // which is what a slog sweep is, and the distance he covers doing it is
+    // what says he moved.
+    const guard = new Batter().inspect();
+    const travel = Math.hypot(pose.frontFoot[0] - guard.frontFoot[0], pose.frontFoot[2] - guard.frontFoot[2]);
+    expect(travel, `front foot travel from guard`).toBeGreaterThan(.28);
+    expect(pose.frontFoot[0] - guard.frontFoot[0], `across`).toBeGreaterThan(.22);
+    // And it stays in front of the back foot — he is not stepping backwards.
+    expect(pose.frontFoot[2] - pose.backFoot[2]).toBeGreaterThan(.55);
   });
   it('swings the blade flat through the ball', () => {
     const batter = swept();

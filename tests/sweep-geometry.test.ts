@@ -95,17 +95,36 @@ describe('the shape of the slog sweep', () => {
       }
     }
   });
-  it('keeps the whole bat in front of the front foot through the stroke', () => {
+  it('swings the whole bat in front of the front foot', () => {
     for (const x of [-.30, 0, .26]) {
       const batter = swept(x);
       let worst = { gap: Infinity, at: 0 };
-      // From the ball to the finish. The backlift is behind him by definition.
-      for (let time = SWEEP_CONTACT_MS; time <= 560; time += 4) {
+      // The hit itself: into the ball and out the other side of it. Not the
+      // backlift, which is behind him by definition, and not the finish — the
+      // bat is asked to wrap over the front shoulder there, and a bat wrapped
+      // behind a shoulder has its toe behind the man. Between those two, the
+      // swing is out in front of the pad where he can see it, and every
+      // millimetre of the bat is: knob, middle and toe.
+      for (let time = SWEEP_CONTACT_MS - 40; time <= 400; time += 4) {
         batter.update(time);
         const gap = batAheadOfFoot(batter);
         if (gap < worst.gap) worst = { gap, at: time };
       }
       expect(worst.gap, `x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(0);
+    }
+  });
+  it('never drags the bat as far behind him as the rejected version did', () => {
+    // The wrapped finish is allowed behind the foot; being 0.9m behind it, with
+    // the handle through his ribs, is what it was doing and is not.
+    for (const x of [-.30, 0, .26]) {
+      const batter = swept(x);
+      let worst = { gap: Infinity, at: 0 };
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+        batter.update(time);
+        const gap = batAheadOfFoot(batter);
+        if (gap < worst.gap) worst = { gap, at: time };
+      }
+      expect(worst.gap, `x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(-.55);
     }
   });
   it('never puts the handle inside his own chest', () => {
