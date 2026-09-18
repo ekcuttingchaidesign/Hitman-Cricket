@@ -7,7 +7,7 @@ import { ballPosition, stumpIntersection } from '../src/game/DeliveryTrajectory'
 import { Health } from '../src/game/Health';
 import {
   atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, resultOf, sledgeDue,
-  spun, teamScore, timingSide,
+  spun, surviveBall, teamScore, timingSide,
 } from '../src/game/Survive';
 import { DeliveryGenerator, SPIN_STYLES, SURVIVE_PLAN, spinOvers } from '../src/game/DeliveryGenerator';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -941,5 +941,74 @@ describe('which card the innings earns', () => {
       resultOf('BOWLED_OUT', 90, 20), resultOf('BOWLED_OUT', 2, 2),
     ]);
     expect(seen).toEqual(new Set(['WON', 'DRAWN', 'HURT', 'ALMOST', 'LOST']));
+  });
+});
+
+describe('the square drive in Survive', () => {
+  // The rig animates the square drive off ball position alone, with no mode in
+  // the question — so the stroke is played in this mode as well as the classic
+  // innings. What follows is the other half of that: the ball has to leave on
+  // the sector the stroke sends it, and it has to do so without this mode's
+  // runs being touched.
+  const wideFull = ball('NORMAL', { line: 'OUTSIDE_OFF', finalTargetX: 0.5, bounceZ: 12 });
+  const drive = at(0, 'COVER_LONG_OFF');
+
+  it('is tagged, so the ball goes square rather than through cover', () => {
+    expect(resolveSurvive(wideFull, drive, rolls(.5)).squared).toBe(true);
+  });
+
+  it('is still paid at this mode’s rates, not the classic innings’', () => {
+    // Four, not the classic innings' six: `inTheSlot` denies a tailender the
+    // maximum off a ball he cannot get to the pitch of. The tag must not have
+    // quietly promoted him.
+    const outcome = resolveSurvive(wideFull, drive, rolls(.5));
+    expect(outcome.runs).toBe(4);
+    expect(outcome.madeBatContact).toBe(true);
+  });
+
+  it('is never tagged on a ball the bat did not touch', () => {
+    // A sector is only meaningful for a ball that was hit. Everything else is
+    // placed by `GameScene.hit` regardless, and a tag here would be a lie.
+    for (const delta of [0, 60, 140, 260, 400, -60, -140, -260, -400]) {
+      const outcome = resolveSurvive(wideFull, at(delta, 'COVER_LONG_OFF'), rolls(.5));
+      if (!outcome.madeBatContact) expect(outcome.squared).toBeUndefined();
+    }
+    expect(resolveSurvive(wideFull, null, rolls(.5)).squared).toBeUndefined();
+  });
+
+  it('is not tagged on a ball too straight or too high to drive square', () => {
+    expect(resolveSurvive(ball('NORMAL', { line: 'MIDDLE', finalTargetX: 0, bounceZ: 12 }), drive, rolls(.5)).squared).toBeUndefined();
+    expect(resolveSurvive(ball('SHORT', { line: 'OUTSIDE_OFF', finalTargetX: 0.5 }), drive, rolls(.5)).squared).toBeUndefined();
+  });
+
+  it('is not tagged off any other stroke', () => {
+    for (const shot of ['STRAIGHT', 'LEG', 'SQUARE_CUT', 'DEFEND'] as const) {
+      expect(resolveSurvive(wideFull, at(0, shot), rolls(.5)).squared).toBeUndefined();
+    }
+  });
+
+  it('leaves every run, wicket and blow in the mode exactly as they were', () => {
+    // The tag is additive and nothing else. Stripping it back off has to give
+    // the mode its old answer on every ball it can bowl — which is what makes
+    // this safe to put in front of a ladder tuned over twelve thousand innings.
+    const seeds = [.05, .3, .5, .8, .97];
+    let tagged = 0, balls = 0;
+    for (const style of Object.keys(STYLES) as DeliveryStyle[])
+      for (const line of ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSIDE_OFF'] as const)
+        for (const finalTargetX of [-0.5, -0.2, 0, 0.2, 0.5])
+          for (const shot of ['STRAIGHT', 'LEG', 'SQUARE_CUT', 'COVER_LONG_OFF', 'DEFEND'] as const)
+            for (const delta of [0, 50, 120, 220, 400, -50, -120, -220, -400])
+              for (const seed of seeds) {
+                const delivery = ball(style, { line, finalTargetX });
+                const outcome = resolveSurvive(delivery, at(delta, shot), rolls(seed));
+                balls++;
+                if (outcome.squared) tagged++;
+                // Everything the mode is scored and judged on, untouched.
+                const { squared, ...rest } = outcome;
+                expect(rest).toEqual(surviveBall(delivery, at(delta, shot), rolls(seed)));
+              }
+    // The sweep is meter-gated and this mode has no meter, so it never appears.
+    expect(balls).toBeGreaterThan(20000);
+    expect(tagged).toBeGreaterThan(0);
   });
 });

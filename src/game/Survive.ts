@@ -4,7 +4,7 @@ import {
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { gradeTiming } from './ShotResolver.js';
+import { gradeTiming, squareDrive } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -322,6 +322,30 @@ function shortBall(base: ShotOutcome, delivery: Delivery, shot: string, contact:
  * settled rather than guessed.
  */
 export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }): ShotOutcome {
+  const outcome = surviveBall(delivery, attempt, rng);
+  // The square drive is not one of the two special strokes — it costs no meter,
+  // so unlike the charge and the slog sweep it is played in this mode too, and
+  // `Batter` animates it here off the same ball it animates it off in the
+  // classic innings. What it does not get here is this mode's runs: the ladder
+  // below is a tailender's and stays exactly as it was tuned, which is why this
+  // only tags the outcome rather than resolving it.
+  //
+  // The tag is read by one thing, `GameScene.hit`, and it picks the sector the
+  // ball leaves on. Without it the stroke and the flight disagree in front of
+  // the player: he watches a square drive and the ball goes through cover.
+  // Asking `squareDrive` rather than repeating its arithmetic is what keeps the
+  // animation, the classic innings and this mode on one rule.
+  return outcome.madeBatContact && squareDrive(delivery, attempt) ? { ...outcome, squared: true } : outcome;
+}
+
+/**
+ * The ladder itself: this mode's runs, dismissals and blows, and nothing about
+ * where the ball then goes. Exported so a test can hold `resolveSurvive`
+ * against it and show that the tag above is the only thing the wrapper adds —
+ * the numbers below were tuned over twelve thousand innings apiece and are not
+ * something to take on trust.
+ */
+export function surviveBall(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }): ShotOutcome {
   const delta = attempt ? attempt.inputTimeMs - delivery.idealContactTimeMs : null;
   const tight = !!STYLES[delivery.style].tight;
   const timingGrade = delta === null ? 'MISS'

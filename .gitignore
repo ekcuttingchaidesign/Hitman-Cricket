@@ -14,3 +14,4 @@ scripts/.*
 # resolve @playwright/test. Never part of the project.
 *-shot.mjs
 artifact-out
+dist-survive
