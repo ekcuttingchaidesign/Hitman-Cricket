@@ -203,6 +203,6 @@ scrub.oninput = () => { playing = false; playButton.textContent = 'Play'; age = 
 playButton.onclick = () => { playing = !playing; playButton.textContent = playing ? 'Pause' : 'Play'; };
 addEventListener('resize', resize);
 
-shotPicker.value = 'square';
+shotPicker.value = 'sweep';
 restart(); placeCamera(); resize();
 requestAnimationFrame(frame);

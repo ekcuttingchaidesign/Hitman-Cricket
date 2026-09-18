@@ -13,3 +13,4 @@ scripts/.*
 # Throwaway browser-check scripts, run from the project root so they can
 # resolve @playwright/test. Never part of the project.
 *-shot.mjs
+artifact-out
