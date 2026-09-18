@@ -355,6 +355,91 @@ The gate, the timing split, the disjointness from the charge, the midwicket
 sector and the bouncing four have their own tests in `game.test.ts` and
 `flight.test.ts`.
 
+## Fifth pass — the sweep, rejected and rebuilt
+
+Three faults, reported together, and all three were real.
+
+### He never actually strode
+
+The front foot went from 0.27 at the guard to 0.34 at contact — seven
+centimetres. What looked like a stride was the hips sinking 40cm past a foot
+that stayed where it started, which is a man folding up, not one stepping out.
+
+It was the fourth pass's own fix doing it: the hips had been pushed 14cm back to
+get the front elbow out of the trunk, and the foot was pulled back with them to
+keep the front leg inside its own length. The leg is the whole constraint —
+hip-to-foot cannot exceed 0.87 — and it was already at full stretch, so every
+centimetre the hips moved back cost a centimetre of stride, one for one.
+
+The leg was being spent on **width**, not length: at the carry the hips rotate
+open and carry the front hip joint across to x = −0.31, and with the foot
+planted at +0.30 that is a 61cm lateral span with nothing left for the stride.
+Trading width for length — the foot in to 0.10 across, out to 0.56 down the
+ground — buys back 24cm of stride for 20cm of width nobody was looking at.
+The foot now finishes 0.58 down the ground against the drives' 0.62.
+
+### The arms crossed
+
+Both fists are on one handle, so the two forearms always arrive at the same
+place; what separates a grip from a raft paddle is whether they get there side
+by side or reach across each other. Measured against the other strokes, the
+sweep was the only one that crossed:
+
+| | forearm gap | elbow splay |
+|---|---|---|
+| **sweep, as rejected** | **0.040** | **0.096** |
+| sweep, now | 0.110 | 0.284 |
+| square drive | 0.202 | 0.349 |
+| cover drive | 0.283 | 0.484 |
+| pull | 0.133 | 0.396 |
+
+A forearm is 0.095 across, so 0.040 is one arm inside the other. The splay
+figure is measured along his own shoulder line rather than in world axes, so it
+survives him turning: at 130ms the front elbow was 0.24 to the off side and the
+back elbow 0.03, which is the two arms swapped over.
+
+The cause was the sweep's own bend hint, which leaned 0.78 on "down" and only
+0.62 on "round". Down is where the elbows go on a sweep, but it is also the
+direction both arms already point once he is over the ball, so weighting it
+collapsed them onto one line. Round is what separates them. At 1.0 round and
+0.10 down the arms come apart — and then the front elbow sits exactly where the
+bat wants to be at the finish, so the width is now faded out between 380ms and
+520ms: elbows out to hit, folded as the bat comes over the shoulder, which is
+what arms do anyway.
+
+### The blade spun
+
+The blade turned 187 degrees about its own handle across the stroke and
+reversed twice doing it. `flowing` does not interpolate the blade's orientation
+directly for a cross-bat shot — it takes the bat's horizontal bearing, its
+elevation and a *roll* about the handle, and interpolates those three. So the
+roll is the thing to author, and it had never been authored: it fell out of the
+`batFace` vectors and came to −46, +89, −2, +36, +34 across the five spans.
+Ninety degrees of counter-rotation inside the backlift alone.
+
+Rolls are now stated as angles and the faces derived from them —
+32, 6, 12, 35, 52 — one direction, no reversal:
+
+| | blade turn, 0–620ms | wrist roll, 0–560ms |
+|---|---|---|
+| sweep, as rejected | 187° | 171° |
+| sweep, now | 162° | 121° |
+| square drive | — | 160° |
+| pull | 117° | 90° |
+
+(The square drive's blade-turn figure is not comparable: its handle passes
+through vertical, where a bearing-relative roll is undefined.)
+
+### What is checked now
+
+Two new shared checks, run across the pull, both drives, the cut and the sweep:
+the elbow halves of the two forearms stay more than 0.098 apart and the elbows
+never swap sides; and the sweep's blade turn stays under 175 degrees with no
+single frame turning it more than 12. The stride check now asks for the foot to
+travel, not merely to sit wide of the hips.
+
+The charge is still byte-identical over 6,608 frames — max delta 0.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate

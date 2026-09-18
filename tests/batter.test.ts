@@ -663,11 +663,14 @@ describe('the slog sweep', () => {
     const batter = swept();
     batter.update(SWEEP_CONTACT_MS);
     const pose = batter.inspect();
-    // Across towards the off side, and a stride in front: the leg he sweeps
-    // around, not one folded under him.
-    expect(pose.frontFoot[0] - pose.hip[0]).toBeGreaterThan(.30);
-    expect(pose.frontFoot[2] - pose.hip[2]).toBeGreaterThan(.40);
-    expect(pose.frontFoot[2] - pose.backFoot[2]).toBeGreaterThan(.60);
+    // A stride, first and foremost. The foot has to travel down the ground,
+    // not bend where it already stood while the body sinks past it — the width
+    // it can also afford is whatever the front leg has left after that, and a
+    // wide plant is what was eating it.
+    expect(pose.frontFoot[2] - pose.hip[2]).toBeGreaterThan(.55);
+    expect(pose.frontFoot[2]).toBeGreaterThan(new Batter().inspect().frontFoot[2] + .22);
+    expect(pose.frontFoot[0] - pose.hip[0]).toBeGreaterThan(.15);
+    expect(pose.frontFoot[2] - pose.backFoot[2]).toBeGreaterThan(.80);
   });
   it('swings the blade flat through the ball', () => {
     const batter = swept();
@@ -693,6 +696,77 @@ describe('the slog sweep', () => {
     expect(front.x - hands.x).toBeGreaterThan(.05);
     // And high: the bat has gone up, which is what makes it a slog.
     expect(hands.y).toBeGreaterThan(front.y - .05);
+  });
+  /**
+   * Both fists are on one handle, so the two forearms always arrive at the same
+   * place; what tells a grip from a raft paddle is whether they get there side
+   * by side or reach across each other. The first slog sweep pinched the elbows
+   * onto one line — 0.04m between the forearms where the other strokes keep
+   * 0.13m and up — and read as a man paddling rather than swinging.
+   */
+  it.each(['pull', 'square', 'straight', 'cover', 'sweep'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+    /** Closest approach of the elbow halves, which is the half that can cross. */
+    const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
+      const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
+      const A = u.dot(u), B = u.dot(v), C = v.dot(v), D = u.dot(w), E = v.dot(w);
+      const den = A * C - B * B;
+      let s = den > 1e-9 ? THREE_clamp((B * E - C * D) / den) : 0;
+      const t = den > 1e-9 ? THREE_clamp((A * E - B * D) / den) : THREE_clamp(E / (C || 1));
+      s = THREE_clamp(s);
+      return a.clone().addScaledVector(u, s).distanceTo(c.clone().addScaledVector(v, t));
+    };
+    let worst = { gap: Infinity, at: 0 }, tightest = { splay: Infinity, at: 0 };
+    for (const x of PLAYS[kind].reach) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      play(batter, kind, x);
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+        batter.update(time);
+        const pose = batter.inspect();
+        const el = pose.elbows.map(a => new Vector3(...a));
+        const wr = pose.wrists.map(a => new Vector3(...a));
+        const sh = pose.shoulders.map(a => new Vector3(...a));
+        const half = (a: Vector3, b: Vector3) => [a, a.clone().lerp(b, .55)] as const;
+        const gap = between(...half(el[0], wr[0]), ...half(el[1], wr[1]));
+        if (gap < worst.gap) worst = { gap, at: time };
+        // Measured across his own shoulders, so it survives him turning: the
+        // back elbow belongs on the back side of the front one.
+        const across = sh[1].clone().sub(sh[0]);
+        if (across.lengthSq() > 1e-9) {
+          const splay = el[1].clone().sub(el[0]).dot(across.normalize());
+          if (splay < tightest.splay) tightest = { splay, at: time };
+        }
+      }
+    }
+    // A forearm is .095 across, so anything under that is one inside the other.
+    expect(worst.gap, `${kind} ${JSON.stringify(worst)}`).toBeGreaterThan(.098);
+    expect(tightest.splay, `${kind} ${JSON.stringify(tightest)}`).toBeGreaterThan(.20);
+  });
+  /**
+   * How far the blade turns about its own handle across the stroke. Wrists do
+   * roll through a cross-bat shot and the blade has to turn over; what it must
+   * not do is spin, and the first sweep rolled it a hundred degrees further
+   * than the drives while reversing direction twice on the way.
+   */
+  it('turns the blade over without spinning it', () => {
+    const batter = new Batter(); batter.prepare(1); batter.update(0);
+    play(batter, 'sweep', 0);
+    let previous = NaN, travelled = 0, worst = 0;
+    for (let time = 0; time <= 620; time += 4) {
+      batter.update(time);
+      const up = new Vector3(...batter.inspect().batUp).normalize();
+      const face = new Vector3(0, 0, 1).applyQuaternion(batter.bat.quaternion);
+      const bearing = new Vector3(Math.cos(Math.atan2(up.x, up.z)), 0, -Math.sin(Math.atan2(up.x, up.z)));
+      const roll = Math.atan2(up.dot(bearing.clone().cross(face)), bearing.dot(face)) * 180 / Math.PI;
+      if (!Number.isNaN(previous)) {
+        const step = ((roll - previous + 540) % 360) - 180;
+        travelled += Math.abs(step); worst = Math.max(worst, Math.abs(step));
+      }
+      previous = roll;
+    }
+    // The pull, the other cross-bat stroke, travels about 120 degrees.
+    expect(travelled).toBeLessThan(175);
+    // And no frame turns it a tenth of a revolution on its own.
+    expect(worst).toBeLessThan(12);
   });
   it('is over before the stroke clock is, and comes all the way home', () => {
     const batter = swept();

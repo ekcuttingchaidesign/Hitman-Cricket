@@ -165,7 +165,7 @@ const CUT_STROKE: Stroke = {
   // his neck, and the one route home that touches neither.
   recover: { ...GUARD, hip: [-.09, .90, -.16], chest: [.03, 1.24, -.07],
     frontFoot: [-.15, .08, .18], backFoot: [-.05, .08, -.38],
-    grip: [.30, 1.14, .34], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
+    grip: [.30, 1.14, .34], batUp: [-.15, -.80, -.58], batFace: [-.66, .52, -.55],
     yaw: .86, face: .34, heel: .10, leadElbow: -.20 },
 };
 /**
@@ -453,22 +453,22 @@ const SQUARE_DRIVE_REACH: readonly [number, number] = [.16, .62];
 const SLOG_SWEEP: Stroke = {
   // Down, and swinging. The blade is horizontal and the face is already aimed
   // at midwicket; the hands are inside the line with the toe trailing round.
-  contact: { ...GUARD, hip: [-.11, .52, -.18], chest: [-.08, .86, -.08],
-    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
-    grip: [.20, .52, -.10], batUp: [-.37, -.05, -.93], batFace: [-.92, .10, .37],
+  contact: { ...GUARD, hip: [-.11, .52, -.06], chest: [-.08, .86, .04],
+    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
+    grip: [.20, .52, -.10], batUp: [-.37, -.05, -.93], batFace: [-.93, .10, .36],
     yaw: .78, face: -.34, heel: .62, backFootYaw: 1.55, leadElbow: -.22,
     armHinge: -.30, armDrive: 1, shoulderLift: 0 },
   // Through it. The arms go out straight on the leg side and the blade is still
   // low — the hit is finished before the bat starts climbing.
-  through: { ...GUARD, hip: [-.16, .54, -.14], chest: [-.16, .88, -.02],
-    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
-    grip: [-.34, .64, .30], batUp: [.86, .10, -.50], batFace: [-.48, .12, -.87],
+  through: { ...GUARD, hip: [-.16, .54, -.02], chest: [-.16, .88, .10],
+    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
+    grip: [-.34, .64, .30], batUp: [.86, .10, -.50], batFace: [-.51, .21, -.84],
     yaw: .22, face: -.62, heel: .66, backFootYaw: 1.30, leadElbow: -.16,
     armHinge: -.10, armDrive: 1, shoulderLift: .03 },
   // Then it climbs, and the chest comes up with it.
-  carry: { ...GUARD, hip: [-.18, .58, -.10], chest: [-.20, .92, .02],
-    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
-    grip: [-.44, .96, .34], batUp: [.62, .62, .48], batFace: [-.30, .72, -.62],
+  carry: { ...GUARD, hip: [-.18, .58, .02], chest: [-.20, .92, .14],
+    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
+    grip: [-.44, .96, .34], batUp: [.62, .62, .48], batFace: [.22, .45, -.87],
     yaw: -.18, face: -.78, heel: .70, backFootYaw: 1.05, leadElbow: -.12,
     armHinge: .55, armDrive: 1, shoulderLift: .05 },
   // High and OUTSIDE the front shoulder, with the blade wrapped away behind
@@ -480,8 +480,8 @@ const SLOG_SWEEP: Stroke = {
   // him. Still down on the knee: he does not stand up out of a slog sweep, he
   // watches it from there.
   finish: { ...GUARD, hip: [-.12, .60, .06], chest: [-.10, .94, .18],
-    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
-    grip: [-.42, 1.12, .50], batUp: [.55, -.30, .78], batFace: [.10, .84, .53],
+    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
+    grip: [-.46, 1.10, .48], batUp: [.62, -.45, .65], batFace: [.69, .70, -.17],
     yaw: -.34, face: -.72, heel: .70, backFootYaw: .95, leadElbow: -.10,
     armHinge: .20, armDrive: 1, shoulderLift: .06 },
   // Up off the knee and back to the guard, with the bat brought down in front
@@ -504,7 +504,7 @@ const SLOG_SWEEP: Stroke = {
 const SWEEP_UNWRAP: Pose = { ...GUARD,
   hip: [-.11, .70, -.06], chest: [-.06, 1.04, .02],
   frontFoot: [.16, .08, .34], backFoot: [-.13, .08, -.34],
-  grip: [-.16, .86, .62], batUp: [.30, .30, -.90], batFace: [.96, .22, .18],
+  grip: [-.16, .86, .62], batUp: [.30, .30, -.90], batFace: [-.47, .87, .13],
   yaw: .66, face: -.30, heel: .34, backFootYaw: 1.10, leadElbow: -.16 };
 /** How wide a ball can be and still be swept: it is a straight-ish ball's stroke. */
 const SWEEP_REACH: readonly [number, number] = [-.30, .26];
@@ -966,7 +966,7 @@ export class Batter {
           { time: 130, pose: reachPose({ ...BACKLIFT,
             hip: [-.05,.60,-.04], chest: [-.02,.94,.04],
             frontFoot: [.22,.08,.34], backFoot: [-.07,.08,-.42],
-            grip: [.30,1.02,-.16], batUp: [-.30,-.86,.41], batFace: [.70,.06,.71],
+            grip: [.30,1.02,-.16], batUp: [-.30,-.86,.41], batFace: [.41,.27,.87],
             yaw: 1.22, face: -.10, heel: .50, backFootYaw: 1.55, leadElbow: -.18 }) },
           { time: SWEEP_CONTACT_MS, pose: contact },
           { time: 390, pose: through },
@@ -1377,7 +1377,15 @@ export class Batter {
           // the sideways lean is taken in opposite directions. Its sign comes
           // from which arm this is, which cannot change mid-stroke — not from a
           // dot product against the body, which can and did.
-          const round = base.clone().multiplyScalar(i === 0 ? .62 : -.62);
+          // Wide through the hitting zone, folded away after it. A sweep is
+          // hit with the elbows out and apart — pinch them in and the two
+          // forearms bunch onto one line and he reads as paddling a raft, not
+          // swinging a bat. But the same width at the finish leaves the front
+          // elbow exactly where the wrapped bat wants to be: the blade came out
+          // INSIDE it. So he opens them out to hit and folds them as the bat
+          // comes over the shoulder, which is what the arms do anyway.
+          const fold = ease(THREE.MathUtils.clamp((this.poseAge - 380) / 140, 0, 1));
+          const round = base.clone().multiplyScalar((i === 0 ? 1 : -1) * (1 - fold * .85));
           const lift = new THREE.Vector3().crossVectors(base, armAxis).normalize();
           // Eased in and out, because switching a bend plane on at the instant
           // of input moves the elbow without moving anything that holds it: the
@@ -1391,7 +1399,7 @@ export class Batter {
           // well-defined way round: the shorter way swaps at the crossing and
           // the elbow lurches. A full turn lands on the target whichever way it
           // goes, so there is nothing left to swap.
-          turn(bend, round.addScaledVector(lift, .78).normalize(),
+          turn(bend, round.addScaledVector(lift, .10).normalize(),
             ease(THREE.MathUtils.clamp(this.poseAge/130,0,1))
                * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/200,0,1)));
         }
