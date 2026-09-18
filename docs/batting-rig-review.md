@@ -541,6 +541,34 @@ for most of the stroke, and changing it moves five signed-off strokes. The
 charge keeps the old arithmetic here too, as it does for its radial and its
 elbow pole.
 
+## Eighth pass — the back leg was a rod, not a kneel
+
+Reported as the hip looking isolated from the leg, and the front foot sitting
+directly in front of the back one with no gap between them. Both are the back
+leg, and both are measurable.
+
+**The back knee came off the turf.** It starts on it at the ball — 0.094 — and
+climbs to 0.213 by the finish. Not because anything lifts it: because the back
+foot was pinned 0.79 behind him while the hips turn a quarter of a metre
+forward through the follow-through, most of that from the yaw swinging the hip
+joint's own offset round. The leg ran out of length — 0.846 of its 0.87 — and
+the solver had nothing left to do but straighten it. A straight rod trailing off
+a pelvis is exactly what "the hip is not connected to the leg" looks like.
+
+The fix is to give the leg slack and let the foot travel with him: the back knee
+sits under the hip joint on the turf, the shin lies flat behind, and the foot is
+authored per key so hip-joint-to-foot stays around 0.62 rather than creeping to
+the limit. The knee now runs 0.094 to 0.128 across the whole follow-through.
+
+**The feet were in line.** 0.137 apart across him, which from square of the
+wicket means the front leg covers the back one completely. The reference has a
+clear gap: front leg planted across, back leg folded away behind and to the leg
+side. The back shin now runs back AND to the leg side, and the separation is
+0.31 to 0.37 through the stroke.
+
+Both are held by a test from the ball to the finish, because the fault was never
+visible at the ball — it grew as he turned.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate

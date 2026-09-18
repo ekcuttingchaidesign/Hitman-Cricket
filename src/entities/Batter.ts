@@ -454,20 +454,20 @@ const SLOG_SWEEP: Stroke = {
   // Down, and swinging. The blade is horizontal and the face is already aimed
   // at midwicket; the hands are inside the line with the toe trailing round.
   contact: { ...GUARD, hip: [-.053, .565, -.251], chest: [-.023, .905, -.151],
-    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
+    frontFoot: [.18, .08, -0.12], backFoot: [-.155, .08, -.738],
     grip: [-.075, .48, .300], batUp: [-.99, -.10, 0], batFace: [-.01, .10, .99],
     yaw: .78, face: -.34, heel: .62, backFootYaw: 1.55, leadElbow: -.22,
     armHinge: -.30, armDrive: 1, shoulderLift: 0 },
   // Through it. The arms go out straight on the leg side and the blade is still
   // low — the hit is finished before the bat starts climbing.
   through: { ...GUARD, hip: [-.103, .575, -.211], chest: [-.103, .925, -.091],
-    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
+    frontFoot: [.18, .08, -0.12], backFoot: [-.169, .08, -.632],
     grip: [-.34, .64, .30], batUp: [.78, .38, -.50], batFace: [-.59, .19, -.78],
     yaw: .22, face: -.62, heel: .66, backFootYaw: 1.30, leadElbow: -.16,
     armHinge: -.10, armDrive: 1, shoulderLift: .03 },
   // Then it climbs, and the chest comes up with it.
   carry: { ...GUARD, hip: [-.123, .585, -.171], chest: [-.143, .945, -.051],
-    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
+    frontFoot: [.18, .08, -0.12], backFoot: [-.188, .08, -.539],
     grip: [-.44, .96, .34], batUp: [.62, .62, .48], batFace: [.22, .45, -.87],
     yaw: -.18, face: -.78, heel: .70, backFootYaw: 1.05, leadElbow: -.12,
     armHinge: .55, armDrive: 1, shoulderLift: .05 },
@@ -480,7 +480,7 @@ const SLOG_SWEEP: Stroke = {
   // him. Still down on the knee: he does not stand up out of a slog sweep, he
   // watches it from there.
   finish: { ...GUARD, hip: [-.063, .60, -.131], chest: [-.043, .965, -.011],
-    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
+    frontFoot: [.18, .08, -0.12], backFoot: [-.134, .08, -.478],
     grip: [-.46, 1.15, .48], batUp: [.62, -.45, .65], batFace: [.69, .70, -.17],
     yaw: -.34, face: -.72, heel: .70, backFootYaw: .95, leadElbow: -.10,
     armHinge: .20, armDrive: 1, shoulderLift: .06 },
@@ -965,7 +965,7 @@ export class Batter {
         const keys = [{ time: 0, pose: this.swingFrom },
           { time: 130, pose: reachPose({ ...BACKLIFT,
             hip: [-.05,.78,-.14], chest: [-.02,1.12,-.04],
-            frontFoot: [.06,.08,.20], backFoot: [-.05,.08,-.52],
+            frontFoot: [.06,.08,.20], backFoot: [-.10,.08,-.60],
             grip: [.34,1.06,.24], batUp: [-.30,-.86,.41], batFace: [.41,.27,.87],
             yaw: 1.22, face: -.10, heel: .50, backFootYaw: 1.55, leadElbow: -.18 }) },
           { time: SWEEP_CONTACT_MS, pose: contact },

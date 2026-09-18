@@ -94,6 +94,30 @@ describe('the shape of the slog sweep', () => {
       }
     }
   });
+  it('keeps the back knee on the turf and the two feet apart', () => {
+    for (const x of [-.30, 0, .26]) {
+      const batter = swept(x);
+      let highest = { knee: 0, at: 0 }, closest = { gap: Infinity, at: 0 };
+      // From the ball to the finish. He does not get up out of a slog sweep.
+      for (let time = SWEEP_CONTACT_MS; time <= 560; time += 4) {
+        batter.update(time);
+        const pose = batter.inspect();
+        if (pose.knees[1][1] > highest.knee) highest = { knee: pose.knees[1][1], at: time };
+        const gap = pose.frontFoot[0] - pose.backFoot[0];
+        if (gap < closest.gap) closest = { gap, at: time };
+      }
+      // The back knee came off the turf and climbed to 0.213 when the back foot
+      // was pinned too far behind: the hips turn a quarter of a metre forward
+      // through the follow-through, the leg ran out of length, and the IK had
+      // nothing left to do but straighten it. A straight rod trailing off a
+      // pelvis is what "the hip is not connected to the leg" looks like.
+      expect(highest.knee, `x=${x} back knee ${JSON.stringify(highest)}`).toBeLessThan(.16);
+      // And the feet keep a gap across him. With the back foot tucked in line
+      // behind the front one, the front leg covers the back leg completely from
+      // square — no cricketer's legs do that.
+      expect(closest.gap, `x=${x} foot separation ${JSON.stringify(closest)}`).toBeGreaterThan(.25);
+    }
+  });
   it('swings the whole bat in front of the front foot', () => {
     for (const x of [-.30, 0, .26]) {
       const batter = swept(x);
