@@ -25,7 +25,6 @@ import { MathUtils, Vector3 } from 'three';
  * and a bat that spent the whole stroke between 0.6m and 0.9m BEHIND the front
  * foot.
  */
-const THIGH = .43, SHIN = .44;
 const clamp = (v: number) => MathUtils.clamp(v, -1, 1);
 
 const swept = (ballX = 0) => {
