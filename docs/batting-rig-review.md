@@ -112,9 +112,23 @@ and nonzero, continuous blade velocity through contact and extension. The square
 drive adds checks on its gate, its across-the-line stride, its flat extension and
 its high open finish.
 
-`scripts/rig-sheet.mjs` renders a contact sheet per stroke from a running dev
-server, from square of the wicket, from the bowler, or from the leg side. It is
-a dev tool: `rig-sheet.html` is not an entry point and is not in the build.
+## Looking at it
+
+`shot-preview.html` is an interactive page: every stroke, five camera angles,
+scrub and play/pause, named phase buttons, and a marker at the point the ball is
+met so the blade can be checked against it rather than eyeballed. The readout
+names which variation is live, so the square drive's gate can be seen firing.
+
+    npm run dev        # then open http://127.0.0.1:5173/shot-preview.html
+
+It is a second Vite entry, so a branch deployment serves it at
+`/shot-preview.html` too. It is unlinked from the game and pulls in nothing the
+game does not already ship; drop the entry from `vite.config.ts` before a
+production release if you would rather it were not reachable.
+
+`scripts/rig-sheet.mjs` is the other half: it renders a contact sheet per stroke
+from a running dev server, for comparing frames side by side. That one is dev
+only — `rig-sheet.html` is not an entry point and is not in the build.
 
 Automated sampling is a regression guard, not proof of realism. The strokes were
 also looked at, frame by frame, from more than one angle.

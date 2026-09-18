@@ -134,5 +134,9 @@ function surviveFigures(raw: unknown): SurviveInnings {
 export default defineConfig({
   base: './',
   plugins: [boardEndpoints()],
-  build: { rollupOptions: { output: { manualChunks: { three: ['three'] } } } },
+  // The rig preview is a second entry so a branch deployment serves it at
+  // /shot-preview.html. It is unlinked from the game and pulls in nothing the
+  // game does not already ship; drop this entry before a production release if
+  // you would rather it were not reachable.
+  build: { rollupOptions: { input: { game: 'index.html', preview: 'shot-preview.html' }, output: { manualChunks: { three: ['three'] } } } },
 });
