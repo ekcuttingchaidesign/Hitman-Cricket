@@ -179,7 +179,8 @@ function frame(now: number) {
   marker.visible = shown <= contactOf(play) + 160;
 
   const pose = batter.inspect();
-  const variation = pose.sweeping ? 'slog sweep'
+  const variation = pose.levelled ? 'flat sweep'
+    : pose.sweeping ? 'slog sweep'
     : pose.squaring ? 'square drive'
     : pose.lofted ? 'lofted drive'
     : pose.pulling ? 'pull'
