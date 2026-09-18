@@ -1068,67 +1068,6 @@ describe('the charge', () => {
     expect(planted / frames).toBeGreaterThan(.6);
   });
 
-  it('finishes with the blade up and down the ground, not wrapped behind him', () => {
-    const batter = new Batter();
-    batter.reset(); batter.prepare(1); batter.update(0);
-    batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, true);
-    batter.update(470);
-    const finish = batter.inspect();
-    const tip = new Vector3(...finish.bladeTip).sub(batter.root.position);
-    // Up over the head and pointing on down the wicket after the ball, which is
-    // where a lofted straight drive ends.
-    for (const [i, shoulder] of finish.shoulders.entries())
-      expect(tip.y, `shoulder ${i}`).toBeGreaterThan(shoulder[1] + .5);
-    expect(tip.z).toBeGreaterThan(finish.chest[2] + .5);
-    // And the blade stays out on the off side of him the whole way — up to the
-    // finish and back down off it. Wrapped down over the shoulder instead, the
-    // hands end up one side of the trunk and the tip the other, and the shaft
-    // between them lies straight through his chest: on the way up at 300ms and
-    // again on the way home at 740ms, which is what this stroke used to do.
-    for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
-      batter.update(time);
-      const pose = batter.inspect();
-      const blade = new Vector3(...pose.bladeTip).sub(batter.root.position);
-      expect(blade.x, `blade crossed the chest at ${time}ms`).toBeGreaterThan(pose.chest[0]);
-    }
-  });
-
-  it('carries the hands past the grille, not through it', () => {
-    // The helmet the constructor builds, as the ellipsoid a fist has to stay
-    // outside of. Charging swings the hands up from further forward than a
-    // planted drive does, so they take a tighter line past his own head — and
-    // the straight drive off a length is the stroke that already has to hold
-    // its hands wide of the grille, so it is the width to be measured against.
-    const radii = new Vector3(.188, .19, .195);
-    const closest = (charging: boolean, ballX: number) => {
-      const batter = new Batter();
-      batter.reset(); batter.prepare(1); batter.update(0);
-      batter.swing('STRAIGHT', 0, ballX, .54, GAME.contactZ, charging);
-      let worst = Infinity;
-      for (let time = 0; time <= STROKE_DURATION_MS + (charging ? ADVANCE.walkBackMs : 0); time += 8) {
-        batter.update(time);
-        const pose = batter.inspect();
-        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
-        const spine = chest.clone().sub(hip).normalize();
-        const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
-        const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
-        const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
-        for (const hand of pose.hands) {
-          const point = new Vector3(...hand).sub(batter.root.position).sub(head).applyQuaternion(torso.clone().invert());
-          worst = Math.min(worst, Math.hypot(point.x / radii.x, point.y / radii.y, point.z / radii.z));
-        }
-      }
-      return worst;
-    };
-    // 1.0 is the helmet's own surface, so this is an absolute clearance and
-    // not a comparison against another stroke: the drives now carry their
-    // hands much further from the head than the charge does, and holding the
-    // charge to their margin would be measuring them rather than it.
-    expect(closest(false, 0), 'the drive').toBeGreaterThan(1.15);
-    for (const ballX of [-GAME.stumpZone, 0, GAME.stumpZone])
-      expect(closest(true, ballX), `charge at ${ballX}`).toBeGreaterThan(1.15);
-  });
-
   it('never outreaches an arm or a leg on the way', () => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0);

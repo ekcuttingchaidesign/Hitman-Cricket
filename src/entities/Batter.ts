@@ -546,25 +546,11 @@ const CHARGE: Stroke = {
     grip: [.34, .98, .30], batUp: [.10, .98, -.14], batFace: [0, .16, .99], yaw: 1.02, face: 0, heel: .34, leadElbow: .18 },
   // Charging is running: by the finish he has pushed off the front foot and
   // stepped through onto the back one, with the front leg trailing in the air.
-  // The bat finishes the way the straight drive's does — blade up and pointing
-  // away down the ground, hands high and out in front of the off shoulder.
-  // Wrapping the blade down over the shoulder instead is what the swing wants
-  // to do, and it is the one finish this stroke cannot take: the hands are in
-  // front of the chest and the blade is behind it, so the shaft between them
-  // lies through the trunk, and the sweep up to it drags the blade through him
-  // on the way.
-  //
-  // Wider of his head than the straight drive's finish, too. He is running at
-  // the ball rather than leaning into it, so the hands come up from further
-  // forward and take a tighter line past the grille on their way; carried at
-  // the drive's own width the top glove goes through the side of the helmet.
+  // The hands finish high and in front of the chest with the bat wrapped down
+  // over the shoulder. Carried round behind the back — where the swing wants to
+  // take them — no shoulder reaches, and both arms end up somewhere no body goes.
   finish: { ...GUARD, hip: [-.04, .86, .40], chest: [.04, 1.26, .42], frontFoot: [-.02, .30, -.06], backFoot: [-.22, .08, .30],
-    grip: [.40, 1.58, .72], batUp: [-.10, -.62, -.78], batFace: [0, .14, .99], yaw: .70, face: -.10, heel: 0, leadElbow: -.06 },
-  // Off the shoulder and down in front of him before the pick-up. He is walking
-  // back up the pitch through this, so the hands come down the off side where
-  // the camera can see them rather than across a chest that is moving.
-  recover: { ...GUARD, hip: [-.06, .90, .20], chest: [.04, 1.26, .24], frontFoot: [-.04, .08, .34], backFoot: [-.18, .08, -.16],
-    grip: [.34, 1.16, .46], batUp: [-.22, -.52, -.82], batFace: [.10, .84, -.53], yaw: .92, face: -.04, heel: .08, leadElbow: -.18 },
+    grip: [-.22, 1.42, .78], batUp: [.42, .32, .85], batFace: [.55, .55, -.45], yaw: .50, face: -.18, heel: 0, leadElbow: -.06 },
 };
 
 function mix(a: Pose, b: Pose, amount: number): Pose {
