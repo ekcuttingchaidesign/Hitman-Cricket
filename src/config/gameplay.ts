@@ -155,6 +155,36 @@ export const CUT = {
   timing: { six: 'PERFECT', four: 'GOOD' } as const,
   edged: 'EDGED — CAUGHT BEHIND!',
 } as const;
+/**
+ * When the off-side drive is played square rather than through cover.
+ *
+ * This is a variation on one input, the way the pull is a variation on the
+ * leg-side drive and the standing cut is a variation on the cut: the player
+ * swipes for the off-side drive and the stroke he gets depends on the ball. A
+ * ball wide of off and full enough to drive is driven square of the wicket; the
+ * same swipe at anything straighter or shorter is still the cover drive.
+ *
+ * It changes no scoring. Where the ball goes is the cover drive's business, and
+ * `SHOT_ANGLES` is unchanged: this is how the stroke is played, not where it
+ * is hit. Widening those two things at once is how a rig change turns into a
+ * balance change nobody asked for.
+ */
+export const SQUARE_DRIVE = {
+  /**
+   * How far outside off the ball has to finish before there is room to free the
+   * arms and hit it square. This is roughly the inside edge of the OUTSIDE_OFF
+   * line once movement is accounted for: the wide one is driven square, the one
+   * on off stump is driven through cover, which is what the two strokes are for.
+   */
+  minWidth: 0.30,
+  /**
+   * Above this the ball is up off a length or higher and there is no driving it
+   * off the front foot — that ball is the cut's. A length ball arrives at .54
+   * and a yorker at .19; back of a length is .81 and a bouncer 1.13, so this
+   * takes the two a batter can get under and leaves the two he cannot.
+   */
+  maxBallY: 0.70,
+} as const;
 // A defensive shot: timed this well or better it is dead at his feet, and
 // nothing can be caught off it. Worse, and the ball goes on past the bat — at
 // the stumps, that is the end of it.
