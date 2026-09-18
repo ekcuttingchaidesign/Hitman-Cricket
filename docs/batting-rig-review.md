@@ -501,6 +501,46 @@ collected those copies, so one checkout's run reported another checkout's
 failures and the same test name appeared three times with three different sets
 of numbers. `vite.config.ts` now excludes them.
 
+## Seventh pass — the front pad was never aimed at anything
+
+Reported as the shin turning the opposite way to the swing while the shoe below
+it stayed straight. Both halves of that are exactly right, and the reason is
+that the shoe is aimed and the pad is not.
+
+The shoe is yawed outright, from the pose. The pad was built with
+`setFromUnitVectors(UP, shin)` and a fixed 79-degree twist — and
+`setFromUnitVectors` gives you the shortest turn from vertical to the shin,
+whose roll ABOUT the shin is simply whatever falls out. With the shin lying
+diagonally that lands somewhere plausible, which is why this survived every
+pass so far. With the shin UPRIGHT — which is precisely where the right-angle
+front leg now puts it — the turn collapses to nothing, the roll is left to the
+fixed twist, and the pad points across him. Then, as the shin tips through the
+stroke, the leftover roll swings the other way.
+
+Measured against its own shoe, the front pad was out by up to 95 degrees on the
+sweep, 92 on the pull, 70 on the straight drive. It now takes the shoe's
+bearing and builds its frame around the shin — front where the toes are,
+whatever the shin is doing:
+
+| | pad vs shoe, before | after |
+|---|---|---|
+| sweep | 95° | **3°** |
+| pull | 92° | **11°** |
+| straight drive | 70° | **4°** |
+| square drive | 64° | **21°** |
+| cover drive | 37° | **3°** |
+
+What is left is not error: the pad's face is square to the shin, so a shin
+leaning hard carries it a little off the shoe's flat bearing, which is what a
+real pad does. A test now holds all five strokes under 25 degrees.
+
+The back pad has the same fault and is worse — up to 160 degrees on the sweep,
+where it spends the follow-through pointing backwards. It is left alone for now
+because only the front one was reported, the back leg is folded away under him
+for most of the stroke, and changing it moves five signed-off strokes. The
+charge keeps the old arithmetic here too, as it does for its radial and its
+elbow pole.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate

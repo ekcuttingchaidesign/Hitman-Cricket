@@ -1507,10 +1507,40 @@ export class Batter {
       this.segment(leg.shin, knee, foot, .145, .16);
       leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);
       const lowerAxis = knee.clone().sub(foot).normalize();
-      leg.pad.quaternion.setFromUnitVectors(UP, lowerAxis).multiply(new THREE.Quaternion().setFromAxisAngle(UP, 1.38));
+      const shoeYaw = i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);
+      /**
+       * Which way the front pad faces.
+       *
+       * A pad is strapped to a shin, so the shin says which way is up it — and
+       * nothing else. `setFromUnitVectors` picks the roll about that axis for
+       * you, and what it picks is whatever falls out of the shortest turn from
+       * vertical. With the shin lying diagonally that lands somewhere
+       * plausible, which is why this went unnoticed for so long. With the shin
+       * UPRIGHT, which is exactly where a properly folded front leg puts it,
+       * the turn collapses to nothing and the roll is left to a fixed 79-degree
+       * twist that points the front of the pad across him. Worse, the roll then
+       * swings the OPPOSITE way to the leg as the shin tips through the stroke.
+       *
+       * The shoe never had the problem because the shoe is yawed outright, and
+       * the two are on the same leg — measured against it, the pad was out by
+       * up to 95 degrees on the sweep and 92 on the pull. So give the pad the
+       * shoe's own bearing and build the rest of its frame around the shin:
+       * front where the toes are, whatever the shin happens to be doing.
+       */
+      if (i === 0 && !this.charging) {
+        const facing = new THREE.Vector3(Math.sin(shoeYaw), 0, Math.cos(shoeYaw));
+        facing.addScaledVector(lowerAxis, -facing.dot(lowerAxis));
+        // Only a shin pointing exactly where the toes do, which is no shin.
+        if (facing.lengthSq() < 1e-6) facing.set(0, 0, 1).addScaledVector(lowerAxis, -lowerAxis.z);
+        facing.normalize();
+        leg.pad.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+          new THREE.Vector3().crossVectors(lowerAxis, facing), lowerAxis, facing));
+      } else {
+        leg.pad.quaternion.setFromUnitVectors(UP, lowerAxis).multiply(new THREE.Quaternion().setFromAxisAngle(UP, 1.38));
+      }
       leg.pad.position.copy(foot).lerp(knee, .54).add(new THREE.Vector3(.012, 0, .01));
       leg.shoe.position.copy(foot);
-      leg.shoe.quaternion.setFromAxisAngle(UP, i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38))
+      leg.shoe.quaternion.setFromAxisAngle(UP, shoeYaw)
         .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), footPitch));
     }
   }

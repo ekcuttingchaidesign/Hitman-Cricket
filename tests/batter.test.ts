@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Batter, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
-import { MathUtils, Quaternion, Vector3 } from 'three';
+import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
 const THREE_clamp = (v: number) => MathUtils.clamp(v, 0, 1);
 import { bladeGeometry } from '../src/entities/batGeometry';
 // Every stroke the batter can be asked to play, defence included.
@@ -636,6 +636,36 @@ describe('every stroke, across its reach', () => {
  * in `PLAYS`; what is left is the shape of the stroke itself, which is what
  * separates a sweep from a leg-side swipe played standing up.
  */
+/**
+ * A pad is strapped to a shin and a shoe is on the foot below it, so the two
+ * face the same way — always, in every stroke, whatever the leg is doing. The
+ * rig did not: the pad's roll about the shin was left to whatever
+ * `setFromUnitVectors` happened to produce, which put it up to 95 degrees off
+ * its own shoe and turning the opposite way to the leg through the shot.
+ */
+describe('the front pad', () => {
+  const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
+  it.each(['pull', 'square', 'straight', 'cover', 'sweep'])('faces where the %s shoe faces', kind => {
+    for (const x of PLAYS[kind].reach) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      play(batter, kind, x);
+      const leg = (batter as unknown as { legs: { pad: Object3D; shoe: Object3D }[] }).legs[0];
+      let worst = { off: 0, at: 0 };
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
+        batter.update(time);
+        const pad = flat(new Vector3(0, 0, 1).applyQuaternion(leg.pad.quaternion));
+        const shoe = flat(new Vector3(0, 0, 1).applyQuaternion(leg.shoe.quaternion));
+        const off = pad.angleTo(shoe) * 180 / Math.PI;
+        if (off > worst.off) worst = { off, at: time };
+      }
+      // Not zero: the pad's face is square to the shin, so a shin leaning hard
+      // carries it a little off the shoe's flat bearing, which is what a real
+      // pad does too.
+      expect(worst.off, `${kind} x=${x} ${JSON.stringify(worst)}`).toBeLessThan(25);
+    }
+  });
+});
+
 describe('the slog sweep', () => {
   const swept = (x = 0) => { const batter = new Batter(); batter.prepare(1); batter.update(0); play(batter, 'sweep', x); return batter; };
   it('gets down on it: the back knee goes to the turf and stays there', () => {
