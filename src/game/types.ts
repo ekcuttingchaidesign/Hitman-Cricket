@@ -40,6 +40,8 @@ export interface ShotOutcome {
   swept?: boolean;
   /** Driven square of the wicket off the front foot, rather than through cover. */
   squared?: boolean;
+  /** Swept along the ground, square of the wicket: the orthodox sweep. */
+  sweptFlat?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */

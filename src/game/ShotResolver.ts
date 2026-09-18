@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, GAME, GROUND_RUNS, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import type { Delivery, ShotAttempt, ShotOutcome, TimingGrade } from './types';
 /**
@@ -70,6 +70,34 @@ export function sweepable(delivery: Delivery) {
 export function slogSweep(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
   return charged && !!attempt && SWEEP.shots.includes(attempt.shotType) && sweepable(delivery)
     && SWEEP.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
+}
+/**
+ * The orthodox sweep: the slog's ball and the slog's body, without the meter
+ * and without the arc. It asks nothing of the batter but the right ball and the
+ * leg-side swipe — the grade he gets it on decides what it is worth, and there
+ * is no grade short of a miss that is worth nothing.
+ *
+ * Read after `slogSweep`, never before it: with a full meter and the timing to
+ * match, the same input is the slog, and this is what that input becomes the
+ * rest of the time.
+ */
+export function flatSweep(delivery: Delivery, attempt: ShotAttempt | null) {
+  return !!attempt && FLAT_SWEEP.shots.includes(attempt.shotType) && sweepable(delivery);
+}
+/**
+ * Swept at, and missed.
+ *
+ * The bat is over his shoulder and travelling across the line, so there is
+ * nothing behind it: the ball meets the pad, and the stumps are behind that.
+ * Whether the pad saves him is the one law every sweeper leans on — a ball
+ * pitched outside leg stump cannot be LBW, however dead in front it strikes
+ * him. It can still bowl him, and here it does.
+ */
+function sweptPast(outcome: ShotOutcome, delivery: Delivery, rng: { next(): number }): ShotOutcome {
+  if (!stumpIntersection(delivery)) return { ...outcome, feedback: 'PLAYED AND MISSED' };
+  const outsideLeg = delivery.baseTargetX <= FLAT_SWEEP.outsideLegX;
+  const lbw = !outsideLeg && rng.next() < FLAT_SWEEP.lbwChance;
+  return { ...outcome, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
 }
 /**
  * Whether a straight drive is going to be middled for six.
@@ -152,6 +180,17 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
     const six = timingGrade === 'PERFECT';
     return { ...outcome, runs: six ? 6 : 4, swept: true, compatibility: 1, quality: six ? 1 : TIMING_SCORE.GOOD,
       madeBatContact: true, feedback: six ? SWEEP.feedback.six : SWEEP.feedback.four };
+  }
+  // The same ball without the meter, or with it and mistimed: the orthodox
+  // sweep. The blade stays level, so nothing goes up and nothing goes for six —
+  // it is paid in singles and boundaries off the timing alone. Miss it and the
+  // pads are all that is left behind the bat, which is what playing across a
+  // turning ball costs.
+  if (flatSweep(delivery, attempt)) {
+    if (timingGrade === 'MISS') return sweptPast(outcome, delivery, rng);
+    const runs = FLAT_SWEEP.runs[timingGrade];
+    return { ...outcome, runs, sweptFlat: true, compatibility: 1, quality: TIMING_SCORE[timingGrade],
+      madeBatContact: true, feedback: award(runs) };
   }
   // A bouncer is over the stumps, so it can never bowl you — but it can only be
   // pulled, and only if it is middled. Anything else and it flies through.

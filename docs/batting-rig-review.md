@@ -674,3 +674,39 @@ forced rather than authored: the ball is met low and the arms are out straight,
 so the forearms arrive nearly horizontal at a vertical handle. Closing it
 further means either sinking the stance lower again or moving the fists up the
 handle, and both reach past this stroke into every other one.
+
+## Eleventh pass — the orthodox sweep
+
+A second sweep, and the first stroke in this branch that is a variation of an
+existing one rather than a new one. The brief was unusually precise: same body,
+same everything, and a blade that stays at the height it met the ball at rather
+than climbing over the shoulder. Four, three, two or one off the timing; only
+against the spinner; square leg; and LBW or bowled if he misses.
+
+Because the brief named the body as fixed, the body is not re-authored. Every
+key of `FLAT_SWEEP` is the corresponding key of `SLOG_SWEEP`, passed through a
+function that turns the bat about the axis that levels it and carries the face
+round with it. Rotating rather than rewriting is what keeps `batUp` and
+`batFace` exactly perpendicular: editing the one and leaving the other is how a
+bat ends up twisted off its own handle, and the roll the stroke was authored
+with survives untouched. Only the grip height and the arm hints are set by hand.
+
+Measured against the slog sweep frame by frame, at three ball positions, every
+four milliseconds: `hip`, `chest`, both feet, `knees`, `backToe`, `yaw` and the
+leg lengths are identical to the last digit. The bat and the arms holding it are
+the whole of the difference, which is what the brief asked for. The blade
+climbs 0.95 m out of the slog and 0.11 m out of this one.
+
+One thing did break, and the suite caught it rather than the eye. The sweep's
+elbow `fold` — the hint that lets the elbows collapse under a blade coming over
+the shoulder — was still ramping in at 380 ms. With no climb to fold under it
+closed the forearms to 0.059 m by the finish, where a forearm is 0.095 m across:
+the two arms one inside the other, which is the raft-paddle grip this rig was
+fixed for once already. The fold is now the climbing stroke's alone.
+
+The miss is the interesting half of the scoring. A ball swept at and missed has
+the pads behind it and the stumps behind those, so `stumpIntersection` decides
+whether it is a wicket at all and the line decides which one — except that a
+ball pitched outside leg stump can never be LBW however plumb it strikes him,
+which is the one law in cricket written for the man sweeping. It still bowls him
+if it hits.

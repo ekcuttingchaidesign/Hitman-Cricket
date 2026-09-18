@@ -988,7 +988,7 @@ describe('the square drive in Survive', () => {
   });
 
   it('leaves every run, wicket and blow in the mode exactly as they were', () => {
-    // The tag is additive and nothing else. Stripping it back off has to give
+    // The tags are additive and nothing else. Stripping them back off has to give
     // the mode its old answer on every ball it can bowl — which is what makes
     // this safe to put in front of a ladder tuned over twelve thousand innings.
     const seeds = [.05, .3, .5, .8, .97];
@@ -1004,7 +1004,7 @@ describe('the square drive in Survive', () => {
                 balls++;
                 if (outcome.squared) tagged++;
                 // Everything the mode is scored and judged on, untouched.
-                const { squared, ...rest } = outcome;
+                const { squared, sweptFlat, ...rest } = outcome;
                 expect(rest).toEqual(surviveBall(delivery, at(delta, shot), rolls(seed)));
               }
     // The sweep is meter-gated and this mode has no meter, so it never appears.

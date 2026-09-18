@@ -14,7 +14,7 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * clock and is covered by its own suite below, so folding it in here would only
  * assert the preview rig this branch does not use.
  */
-const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; settle: number }> = {
+const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; settle: number }> = {
   pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500 },
   straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], settle: 410 },
   cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410 },
@@ -27,10 +27,15 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   // The slog sweep: the second special stroke, off the knee at a spinner's
   // length. It runs on the shared rig and so it takes the shared checks.
   sweep: { shot: 'LEG', ballY: .48, impact: SWEEP_CONTACT_MS, reach: [-.30, 0, .26], sweeping: true, settle: 600 },
+  // The orthodox sweep: the same ball and the same body, meterless, with the
+  // blade held level. It runs the sweep's branch, so it takes the sweep's
+  // checks — and it has to, because a flat blade travelling round him is the
+  // easiest of all of these to run through his own shin.
+  flat: { shot: 'LEG', ballY: .48, impact: SWEEP_CONTACT_MS, reach: [-.30, 0, .26], levelled: true, settle: 600 },
 };
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
-  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ, false, spec.lofted ?? false, spec.sweeping ?? false);
+  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ, false, spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false);
 };
 
 
@@ -442,7 +447,7 @@ describe('the grip', () => {
     expect(p.elbows[0][1]-wrist.y).toBeGreaterThan(.10);
   });
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','square','straight','cover','sweep']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','square','straight','cover','sweep','flat']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -585,7 +590,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','square','straight','cover','sweep'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','square','straight','cover','sweep','flat'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -645,7 +650,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['pull', 'square', 'straight', 'cover', 'sweep'])('faces where the %s shoe faces', kind => {
+  it.each(['pull', 'square', 'straight', 'cover', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -754,7 +759,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['pull', 'square', 'straight', 'cover', 'sweep'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['pull', 'square', 'straight', 'cover', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);

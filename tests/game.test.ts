@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -8,7 +8,7 @@ import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersect
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, cuttable, gradeTiming, resolveShot, slogSweep, squareDrivable, sweepable } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, cuttable, flatSweep, gradeTiming, resolveShot, slogSweep, squareDrivable, sweepable } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
@@ -724,5 +724,92 @@ describe('a slower ball is meant to be a surprise', () => {
     // the game and the timing windows are tightened on top of it.
     const quickest = flight(STYLES.EXPRESS.max, STYLES.EXPRESS.rush);
     expect(quickest.durationMs).toBeGreaterThan(380);
+  });
+});
+
+describe('the orthodox sweep', () => {
+  /** A spinner pitched up: the ball both sweeps answer. */
+  const turning = (over: Partial<Delivery> = {}) =>
+    delivery({ style: 'OFF_SPIN', bounceZ: SWEEP.minBounceZ + .4, line: 'MIDDLE', ...over });
+  const swipe = (delta: number) => ({ shotType: 'LEG' as const, inputTimeMs: 1000 + delta });
+  const played = (d: Delivery, delta: number, roll = .99, charged = false) =>
+    resolveShot(d, swipe(delta), rng(roll), charged);
+
+  it('pays four, three, two and one down the timing ladder', () => {
+    // The four grades, in order, at a ball that is always the same ball.
+    const runs = [0, 60, 100, 180].map(delta => played(turning(), delta).runs);
+    expect(runs).toEqual([4, 3, 2, 1]);
+    expect([0, 60, 100, 180].map(d => played(turning(), d).timingGrade))
+      .toEqual(['PERFECT', 'GOOD', 'OK', 'POOR']);
+  });
+
+  it('never goes up and never goes for six', () => {
+    for (const delta of [0, 30, 60, 100, 140, 180]) {
+      const outcome = played(turning(), delta);
+      expect(outcome.aerial, `${delta}ms`).toBe(false);
+      expect(outcome.runs, `${delta}ms`).toBeLessThan(6);
+      expect(outcome.isWicket, `${delta}ms`).toBe(false);
+      expect(outcome.sweptFlat, `${delta}ms`).toBe(true);
+    }
+  });
+
+  it('is offered only against the spinner, and only at one pitched up', () => {
+    expect(flatSweep(turning(), swipe(0))).toBe(true);
+    // Seam of any speed is not a ball to sweep.
+    for (const style of ['NORMAL', 'FAST', 'SWING_IN', 'SLOWER', 'ARM_BALL'] as const)
+      expect(flatSweep(turning({ style }), swipe(0)), style).toBe(false);
+    // Dropped short, even by the spinner: that is how a sweep becomes a top edge.
+    expect(flatSweep(turning({ bounceZ: SWEEP.minBounceZ - .1 }), swipe(0))).toBe(false);
+  });
+
+  it('answers the leg-side swipe alone', () => {
+    for (const shotType of ['STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT', 'LONG_ON', 'DEFEND'] as const)
+      expect(flatSweep(turning(), { shotType, inputTimeMs: 1000 }), shotType).toBe(false);
+    expect(flatSweep(turning(), null)).toBe(false);
+  });
+
+  it('gives way to the slog sweep when the meter is full and it is middled', () => {
+    // Same ball, same swipe: the meter and the timing pick which stroke it was.
+    expect(played(turning(), 0, .99, true).runs).toBe(6);
+    expect(played(turning(), 0, .99, true).swept).toBe(true);
+    // Meter full but mistimed past GOOD — the slog does not fire, so this does.
+    expect(played(turning(), 100, .99, true).runs).toBe(2);
+    expect(played(turning(), 100, .99, true).sweptFlat).toBe(true);
+    // No meter at all: always this one.
+    expect(played(turning(), 0, .99, false).sweptFlat).toBe(true);
+  });
+
+  it('is bowled or given out LBW when he misses it', () => {
+    const missed = (over: Partial<Delivery>, roll: number) =>
+      played(turning({ finalTargetX: 0, ...over }), 400, roll);
+    // Straight, and the pad is in the way: out LBW on the roll.
+    expect(missed({ baseTargetX: 0 }, .1).wicketType).toBe('LBW');
+    expect(missed({ baseTargetX: 0 }, .1).isWicket).toBe(true);
+    // Same ball, the roll goes the other way and it hits the stumps instead.
+    expect(missed({ baseTargetX: 0 }, .99).wicketType).toBe('BOWLED');
+  });
+
+  it('cannot be LBW to one pitched outside leg, however plumb it looks', () => {
+    // The law every sweeper leans on. It still bowls him if it hits.
+    const outsideLeg = turning({ baseTargetX: FLAT_SWEEP.outsideLegX - .05, finalTargetX: 0 });
+    for (const roll of [0, .1, .5, .9, .99]) {
+      const outcome = played(outsideLeg, 400, roll);
+      expect(outcome.wicketType, `roll ${roll}`).toBe('BOWLED');
+    }
+  });
+
+  it('survives the miss when the ball was going past the stumps', () => {
+    const wide = turning({ baseTargetX: 0, finalTargetX: 0.9 });
+    const outcome = played(wide, 400, .1);
+    expect(outcome.isWicket).toBe(false);
+    expect(outcome.runs).toBe(0);
+    expect(outcome.feedback).toBe('PLAYED AND MISSED');
+  });
+
+  it('is hit square of the wicket, squarer than the slog and the swipe', () => {
+    expect(FLAT_SWEEP.angle).toBeLessThan(SWEEP.angle);
+    expect(FLAT_SWEEP.angle).toBeLessThan(SHOT_ANGLES.LEG);
+    // Square leg, not fine leg: still in front of square.
+    expect(FLAT_SWEEP.angle).toBeGreaterThan(-90);
   });
 });

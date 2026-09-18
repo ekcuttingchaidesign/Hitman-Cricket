@@ -194,3 +194,74 @@ describe('the shape of the slog sweep', () => {
     }
   });
 });
+
+/**
+ * The orthodox sweep, which is the slog sweep with one thing taken away.
+ *
+ * The brief was exact: same body, same everything, and a blade that stays at
+ * the height it met the ball at instead of climbing over the shoulder. So the
+ * two tests below are the two halves of that sentence, and between them they
+ * are the whole specification of the stroke.
+ */
+describe('the orthodox sweep', () => {
+  const sweeping = (levelled: boolean, x = 0) => {
+    const batter = new Batter(); batter.prepare(1); batter.update(0);
+    batter.swing('LEG', 0, x, .48, GAME.contactZ, false, false, !levelled, levelled);
+    return batter;
+  };
+  /** Everything that is the batter rather than the bat he is holding. */
+  const BODY = ['hip', 'chest', 'frontFoot', 'backFoot', 'knees', 'backToe', 'legLengths'] as const;
+
+  it('moves the body exactly as the slog sweep does, to the last digit', () => {
+    for (const x of [-.30, 0, .26]) {
+      const slog = sweeping(false, x), flat = sweeping(true, x);
+      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+        slog.update(time); flat.update(time);
+        const a = slog.inspect() as unknown as Record<string, unknown>;
+        const b = flat.inspect() as unknown as Record<string, unknown>;
+        for (const part of BODY)
+          expect(b[part], `${part} at ${time}ms, ball ${x}`).toEqual(a[part]);
+        expect((flat.inspect() as { yaw: number }).yaw).toEqual((slog.inspect() as { yaw: number }).yaw);
+      }
+    }
+  });
+
+  it('keeps the blade level where the slog sweep climbs over the shoulder', () => {
+    for (const x of [-.30, 0, .26]) {
+      const slog = sweeping(false, x), flat = sweeping(true, x);
+      const tip = (b: Batter) => new Vector3(...b.inspect().bladeTip).sub(b.root.position).y;
+      slog.update(SWEEP_CONTACT_MS); flat.update(SWEEP_CONTACT_MS);
+      // Indistinguishable up to the ball being hit: the difference is what he
+      // does after it, not how he arrives.
+      expect(tip(flat)).toBeCloseTo(tip(slog), 9);
+      const met = tip(flat);
+      let highFlat = -Infinity, highSlog = -Infinity;
+      // Contact to the end of the follow-through. The recovery afterwards is
+      // shared — both strokes stand up and bring the bat back to the guard.
+      for (let time = SWEEP_CONTACT_MS; time <= 620; time += 4) {
+        slog.update(time); flat.update(time);
+        highFlat = Math.max(highFlat, tip(flat));
+        highSlog = Math.max(highSlog, tip(slog));
+        // Never below the ball either. Level means level, not digging.
+        expect(tip(flat), `dug in at ${time}ms, ball ${x}`).toBeGreaterThan(met - .16);
+      }
+      // The slog climbs more than a metre out of the shot; this one stays
+      // within a bat's width of the height it struck the ball at.
+      expect(highSlog - met, `slog climb, ball ${x}`).toBeGreaterThan(.90);
+      expect(highFlat - met, `flat climb, ball ${x}`).toBeLessThan(.25);
+    }
+  });
+
+  it('holds the handle level too, rather than standing the bat up', () => {
+    // A blade that stays low while the handle rears up is not a level swing,
+    // it is a bat pointing at the sky from a low grip. The shaft itself has to
+    // stay near the horizontal.
+    const flat = sweeping(true);
+    for (let time = SWEEP_CONTACT_MS; time <= 620; time += 4) {
+      flat.update(time);
+      const pose = flat.inspect();
+      const shaft = new Vector3(...pose.bladeTip).sub(new Vector3(...pose.grip)).normalize();
+      expect(MathUtils.radToDeg(Math.asin(Math.abs(shaft.y))), `shaft tilt at ${time}ms`).toBeLessThan(42);
+    }
+  });
+});

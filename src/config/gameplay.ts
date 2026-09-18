@@ -264,6 +264,53 @@ export const SWEEP = {
   angle: -38,
   feedback: { six: 'INTO THE CROWD!', four: 'SWEPT AWAY!' },
 } as const;
+/**
+ * The orthodox sweep: the same stroke as the slog, played by anybody.
+ *
+ * It shares the slog's ball — only a spinner, only one pitched up far enough to
+ * get under — and the whole of its body. What it does not share is the meter or
+ * the arc. The blade is held level all the way round instead of climbing, and a
+ * level blade cannot lift a ball over anybody, so this stroke never goes for
+ * six and never goes in the air at all. It is the stroke a batter plays to keep
+ * the score moving against spin, and it is paid that way: four for the one he
+ * middles, down to a single for the one he does not.
+ *
+ * The risk is the one the shot has in cricket. Playing across the line with the
+ * bat travelling horizontally leaves nothing behind it but the pads, so a ball
+ * he misses is a ball with his stumps at the end of it.
+ */
+export const FLAT_SWEEP = {
+  /** The slog's ball exactly: see `SWEEP` above, and `sweepable` reads both. */
+  styles: SWEEP.styles,
+  /**
+   * The square leg-side input only. The slog also takes `LONG_ON` because it is
+   * hit in front of square; this one goes square, and asks for the swipe that
+   * points there.
+   */
+  shots: ['LEG'] as readonly ShotType[],
+  /** Timing alone decides it. There is no grade here that is worth nothing. */
+  runs: { PERFECT: 4, GOOD: 3, OK: 2, POOR: 1 } as Record<Exclude<TimingGrade, 'MISS'>, 1 | 2 | 3 | 4>,
+  /**
+   * Square leg: squarer than the slog's midwicket and squarer than the leg-side
+   * swipe that plays it, because the blade is level and travelling across the
+   * line rather than through it.
+   */
+  angle: -80,
+  /**
+   * Pitched wider of leg stump than this and he cannot be LBW however plumb it
+   * looks — the one law in cricket written for the man sweeping. It reads the
+   * line the ball was bowled on rather than where it finished, because pitching
+   * is what the law is about and a ball that turns back in has still pitched
+   * outside leg.
+   */
+  outsideLegX: -0.20,
+  /**
+   * Higher than `GAME.lbwChance`. Missing a sweep is the classic way to be
+   * given out: the bat is over his shoulder, he is down on one knee, and the
+   * pad is the next thing the ball meets.
+   */
+  lbwChance: 0.7,
+} as const;
 export const ADVANCE = {
   minKph: 108, maxKph: 134, minBounceZ: 7.4, maxBounceZ: 9.4,
   // Any upward drive charges it. The gesture asked for is "swipe up", and a

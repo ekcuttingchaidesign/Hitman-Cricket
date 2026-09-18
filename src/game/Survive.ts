@@ -4,7 +4,7 @@ import {
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { gradeTiming, squareDrive } from './ShotResolver.js';
+import { flatSweep, gradeTiming, squareDrive } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -335,7 +335,12 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
   // the player: he watches a square drive and the ball goes through cover.
   // Asking `squareDrive` rather than repeating its arithmetic is what keeps the
   // animation, the classic innings and this mode on one rule.
-  return outcome.madeBatContact && squareDrive(delivery, attempt) ? { ...outcome, squared: true } : outcome;
+  if (!outcome.madeBatContact) return outcome;
+  // The orthodox sweep is meterless too, so it is played here as well, and it
+  // is tagged for the same reason and with the same restraint: the sector the
+  // ball leaves on, and not a run of this mode's.
+  if (flatSweep(delivery, attempt)) return { ...outcome, sweptFlat: true };
+  return squareDrive(delivery, attempt) ? { ...outcome, squared: true } : outcome;
 }
 
 /**

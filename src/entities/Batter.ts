@@ -493,6 +493,54 @@ const SLOG_SWEEP: Stroke = {
     grip: [.26, 1.06, .34], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
     yaw: .92, face: -.10, heel: .24, leadElbow: -.20 },
 };
+
+/** How far off the horizontal the level blade is held, all the way round. */
+const LEVEL_TILT = -.10;
+/**
+ * One pose of a sweep, with the blade brought back to the horizontal.
+ *
+ * The bat is turned about the axis that levels it and the face is carried round
+ * with it, which is the whole reason this is a rotation rather than a rewrite:
+ * the two vectors stay exactly perpendicular, so the blade keeps the roll the
+ * stroke was authored with and only its climb is taken away. Editing `batUp` by
+ * hand and leaving `batFace` where it was is how a bat ends up twisted off its
+ * own handle.
+ *
+ * The bearing is untouched. The blade goes round the same way, through the same
+ * arc, at the same moments — it simply never rises out of the horizontal.
+ */
+function levelled(pose: Pose): Pose {
+  const up = new THREE.Vector3(...pose.batUp).normalize();
+  const flat = new THREE.Vector3(up.x, 0, up.z);
+  if (flat.lengthSq() < 1e-9) return pose;
+  flat.normalize().multiplyScalar(Math.sqrt(1 - LEVEL_TILT * LEVEL_TILT)).setY(LEVEL_TILT);
+  const face = new THREE.Vector3(...pose.batFace)
+    .applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, flat));
+  return { ...pose, batUp: [flat.x, flat.y, flat.z], batFace: [face.x, face.y, face.z] };
+}
+/**
+ * The orthodox sweep. Every key here is the slog's key, and that is deliberate:
+ * the user asked for one stroke with two endings, so the body — the knee on the
+ * ground, the head over the ball, the front leg folded, the back foot dragging
+ * round — is not re-authored, it is inherited. What changes is the bat.
+ *
+ * The blade is levelled at every key and the hands are held at the height they
+ * meet the ball at, so the swing goes round him instead of up over his
+ * shoulder. That is the whole stroke: a slog sweep is a sweep that climbs, and
+ * this is the one that does not.
+ */
+const FLAT_SWEEP: Stroke = {
+  // Already level at the moment of contact — the slog's own contact key, taken
+  // as it stands, which is what makes the two strokes indistinguishable up to
+  // the instant the ball is hit.
+  contact: SLOG_SWEEP.contact,
+  through: { ...levelled(SLOG_SWEEP.through!), grip: [-.34, .48, .30], armHinge: -.12, shoulderLift: 0 },
+  carry: { ...levelled(SLOG_SWEEP.carry!), grip: [-.44, .49, .34], armHinge: .05, shoulderLift: 0 },
+  // Round behind the front shoulder at the height it started, rather than high
+  // and outside it. He is still down on the knee watching it run square.
+  finish: { ...levelled(SLOG_SWEEP.finish!), grip: [-.46, .50, .44], armHinge: .10, shoulderLift: 0 },
+  recover: SLOG_SWEEP.recover,
+};
 /**
  * Halfway home from a slog sweep.
  *
@@ -659,6 +707,8 @@ export class Batter {
   private squaring = false;
   private lofted = false;
   private sweeping = false;
+  /** The sweep that stays level: same body, same clock, a blade that never climbs. */
+  private levelled = false;
   /** A charge down the pitch: the confidence shot. */
   private charging = false;
   private swingStart = -Infinity;
@@ -817,12 +867,12 @@ export class Batter {
   reset() {
     this.poseAge = Infinity;
     this.felledAt = -Infinity;
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.charging = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
-  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false) {
+  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false) {
     this.shot = shot; this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
     // Wide and full off the off-side input: drive it square rather than through
@@ -834,7 +884,11 @@ export class Batter {
     this.lofted = !charging && shot === 'STRAIGHT' && lofted;
     // The second special stroke. Its caller has already established the ball,
     // the meter and the timing; here it only has to displace the pull.
-    this.sweeping = !charging && sweeping;
+    // Both sweeps run the same branch on the same clock, because below the
+    // hands they are the same stroke. `levelled` only picks which set of bat
+    // keys that branch reads.
+    this.levelled = !charging && levelled && !sweeping;
+    this.sweeping = !charging && (sweeping || this.levelled);
     if (this.sweeping) this.pulling = false;
     this.swingStart = now;
     this.contactTime = now + (this.sweeping ? SWEEP_CONTACT_MS : this.pulling ? PULL_CONTACT_MS
@@ -901,7 +955,7 @@ export class Batter {
       this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
       return;
     }
-    const stroke = this.charging ? CHARGE : this.sweeping ? SLOG_SWEEP : this.pulling ? PULL : this.cutting ? CUT_HIGH
+    const stroke = this.charging ? CHARGE : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? PULL : this.cutting ? CUT_HIGH
       : this.squaring ? SQUARE_DRIVE : this.lofted ? STRAIGHT_LOFT : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
@@ -1380,7 +1434,15 @@ export class Batter {
           // and the rising blade went straight through it. `round` and `lift`
           // are perpendicular by construction, so turning from one to the other
           // is a quarter turn that cannot collapse on the way.
-          const fold = ease(THREE.MathUtils.clamp((this.poseAge - 380) / 140, 0, 1));
+          //
+          // The orthodox sweep does not get it. The fold is here to let the
+          // elbows collapse under a blade climbing over the shoulder, and that
+          // blade never climbs: applied anyway it closed the forearms to 0.059
+          // by the finish, where a forearm is 0.095 across — the two arms one
+          // inside the other, which is the paddle this rig was fixed once for
+          // already.
+          const fold = this.levelled ? 0
+            : ease(THREE.MathUtils.clamp((this.poseAge - 380) / 140, 0, 1));
           const lift = new THREE.Vector3().crossVectors(base, armAxis).normalize();
           const round = base.clone().multiplyScalar(i === 0 ? 1 : -1)
             .addScaledVector(lift, .10).normalize()
