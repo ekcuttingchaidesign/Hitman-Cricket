@@ -569,6 +569,46 @@ side. The back shin now runs back AND to the leg side, and the separation is
 Both are held by a test from the ball to the finish, because the fault was never
 visible at the ball — it grew as he turned.
 
+## Ninth pass — one arc, not two movements
+
+Reported as the bat being down at 430ms and up at 590ms, which is not a swing.
+The blade tip's height, from the ball to the finish, said the same thing:
+
+    0.563  contact      toe just above the hands
+    0.325  through      toe 0.24 BELOW them
+    0.445  carry        still down there
+    1.522  finish       hauled a metre back up
+
+A V, and the eye reads a V as two movements. The cause was the `through` and
+`carry` keys holding the handle UP — elevations of +22 and +38 degrees, which
+points the toe DOWN — on the reasoning that the hit finishes before the bat
+starts climbing. It does not: the toe leaves the ball and rises from that
+moment, all the way round to the shoulder. Those two keys now carry the handle
+DOWN instead, at -12 and -26, and the finish at -40, and the tip climbs
+0.57 to 1.68 without falling.
+
+Five centimetres of that is still a sag, in the first 60ms after the ball. It is
+the interpolation, not the keys: the elevation has to climb from -59 at the
+backlift to -6 at contact and then turn back down, so contact is a maximum and
+Catmull-Rom puts its peak a fraction after the key rather than on it. Flattening
+the backlift to -35 halves it and costs the high backlift, which is worth more
+than five centimetres inside the hitting zone.
+
+### Folding means turning, not shrinking
+
+Raising the blade put it straight through the front elbow at the carry — 0.033
+from its centre. The elbow tuck added in the sixth pass was not doing anything:
+it scaled the sideways part of the bend hint while leaving the downward part
+alone, and a normalised sum of a big vector and a small one still points almost
+where the big one did. The elbow stayed out at x = -0.78 and the rising blade
+went through it.
+
+The two components are perpendicular by construction, so turning from one to the
+other is a quarter turn that cannot collapse on the way. Turning 70% of it folds
+the front elbow down and under — to (-0.69, 0.82, 0.03) — and the blade passes
+0.26 clear. Turning the whole way bunches the two forearms to 0.082, inside the
+0.098 they need, which is what fixes the amount at 70.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate

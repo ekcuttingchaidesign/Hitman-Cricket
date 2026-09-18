@@ -143,6 +143,27 @@ describe('the shape of the slog sweep', () => {
       expect(out.gap, `x=${x} through the extension ${JSON.stringify(out)}`).toBeGreaterThan(-.10);
     }
   });
+  it('lifts the blade in one arc rather than dropping it and picking it up', () => {
+    for (const x of [-.30, 0, .26]) {
+      const batter = swept(x);
+      let peak = -Infinity, sag = { drop: 0, at: 0 }, start = 0, end = 0;
+      for (let time = SWEEP_CONTACT_MS; time <= 560; time += 4) {
+        batter.update(time);
+        const tip = new Vector3(...batter.inspect().bladeTip).y;
+        if (time === SWEEP_CONTACT_MS) start = tip;
+        end = tip;
+        if (peak - tip > sag.drop) sag = { drop: peak - tip, at: time };
+        peak = Math.max(peak, tip);
+      }
+      // One movement, not two. The version this replaces sent the toe 0.24
+      // BELOW the hands just after the ball, parked it there, and then hauled
+      // it a metre back up for the finish — down at 430ms, up at 590ms, which
+      // reads as two separate movements because it is.
+      expect(sag.drop, `x=${x} toe sagging ${JSON.stringify(sag)}`).toBeLessThan(.08);
+      // And it genuinely finishes high, over the shoulder.
+      expect(end - start, `x=${x} total lift`).toBeGreaterThan(.9);
+    }
+  });
   it('keeps the follow-through from dragging back behind him', () => {
     // The wrapped finish is allowed behind the foot — that is what wrapping
     // means. Being most of a metre behind it is not. Measured from the ball to

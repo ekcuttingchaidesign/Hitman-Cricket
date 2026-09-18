@@ -458,17 +458,19 @@ const SLOG_SWEEP: Stroke = {
     grip: [-.075, .48, .300], batUp: [-.99, -.10, 0], batFace: [-.01, .10, .99],
     yaw: .78, face: -.34, heel: .62, backFootYaw: 1.55, leadElbow: -.22,
     armHinge: -.30, armDrive: 1, shoulderLift: 0 },
-  // Through it. The arms go out straight on the leg side and the blade is still
-  // low — the hit is finished before the bat starts climbing.
+  // Through it, and already climbing. The toe used to drop 24cm BELOW the hands
+  // here and sit there until the finish yanked it a metre back up — down at
+  // 430ms, up at 590ms, which is two movements rather than one. A swing is one
+  // arc: the toe leaves the ball and rises from that moment, all the way round.
   through: { ...GUARD, hip: [-.103, .575, -.211], chest: [-.103, .925, -.091],
     frontFoot: [.18, .08, -0.12], backFoot: [-.169, .08, -.632],
-    grip: [-.34, .64, .30], batUp: [.78, .38, -.50], batFace: [-.59, .19, -.78],
+    grip: [-.34, .64, .30], batUp: [.82, -.21, -.53], batFace: [-.49, .20, -.85],
     yaw: .22, face: -.62, heel: .66, backFootYaw: 1.30, leadElbow: -.16,
     armHinge: -.10, armDrive: 1, shoulderLift: .03 },
   // Then it climbs, and the chest comes up with it.
   carry: { ...GUARD, hip: [-.123, .585, -.171], chest: [-.143, .945, -.051],
     frontFoot: [.18, .08, -0.12], backFoot: [-.188, .08, -.539],
-    grip: [-.44, .96, .34], batUp: [.62, .62, .48], batFace: [.22, .45, -.87],
+    grip: [-.44, .96, .34], batUp: [.71, -.44, .55], batFace: [.70, .52, -.49],
     yaw: -.18, face: -.78, heel: .70, backFootYaw: 1.05, leadElbow: -.12,
     armHinge: .55, armDrive: 1, shoulderLift: .05 },
   // High and OUTSIDE the front shoulder, with the blade wrapped away behind
@@ -481,7 +483,7 @@ const SLOG_SWEEP: Stroke = {
   // watches it from there.
   finish: { ...GUARD, hip: [-.063, .60, -.131], chest: [-.043, .965, -.011],
     frontFoot: [.18, .08, -0.12], backFoot: [-.134, .08, -.478],
-    grip: [-.46, 1.15, .48], batUp: [.62, -.45, .65], batFace: [.69, .70, -.17],
+    grip: [-.46, 1.15, .48], batUp: [.53, -.64, .55], batFace: [.80, .60, -.06],
     yaw: -.34, face: -.72, heel: .70, backFootYaw: .95, leadElbow: -.10,
     armHinge: .20, armDrive: 1, shoulderLift: .06 },
   // Up off the knee and back to the guard, with the bat brought down in front
@@ -1384,9 +1386,19 @@ export class Batter {
           // elbow exactly where the wrapped bat wants to be: the blade came out
           // INSIDE it. So he opens them out to hit and folds them as the bat
           // comes over the shoulder, which is what the arms do anyway.
+          //
+          // Folding means turning the hint, not shrinking it. Scaling `round`
+          // while `lift` stayed put only changed the RATIO of the two, and a
+          // normalised sum of a big vector and a small one is still pointing
+          // almost where the big one did — the elbow stayed out at x = -0.78
+          // and the rising blade went straight through it. `round` and `lift`
+          // are perpendicular by construction, so turning from one to the other
+          // is a quarter turn that cannot collapse on the way.
           const fold = ease(THREE.MathUtils.clamp((this.poseAge - 380) / 140, 0, 1));
-          const round = base.clone().multiplyScalar((i === 0 ? 1 : -1) * (1 - fold * .85));
           const lift = new THREE.Vector3().crossVectors(base, armAxis).normalize();
+          const round = base.clone().multiplyScalar(i === 0 ? 1 : -1)
+            .addScaledVector(lift, .10).normalize()
+            .multiplyScalar(1 - fold * .70).addScaledVector(lift, -fold * .70);
           // Eased in and out, because switching a bend plane on at the instant
           // of input moves the elbow without moving anything that holds it: the
           // pose at 0ms is still the guard, and the plane alone shifted the
@@ -1399,7 +1411,7 @@ export class Batter {
           // well-defined way round: the shorter way swaps at the crossing and
           // the elbow lurches. A full turn lands on the target whichever way it
           // goes, so there is nothing left to swap.
-          turn(bend, round.addScaledVector(lift, .10).normalize(),
+          turn(bend, round.normalize(),
             ease(THREE.MathUtils.clamp(this.poseAge/130,0,1))
                * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/200,0,1)));
         }
