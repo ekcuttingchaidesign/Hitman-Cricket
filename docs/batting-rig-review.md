@@ -440,6 +440,67 @@ travel, not merely to sit wide of the hips.
 
 The charge is still byte-identical over 6,608 frames — max delta 0.
 
+## Sixth pass — the right-angle leg, and the bat in front of the pad
+
+Two faults, both measurable, both worse than any screenshot made obvious.
+
+**The front leg was a straight diagonal, not a fold.** 111-143 degrees at the
+knee where the shot wants 90, with the thigh 45-64 degrees off flat and the
+shin 58-79 off upright. The reason it never folded is that the knee is not
+placed, it is *solved*: `solveJoint` puts it wherever the knee pole points, and
+the sweep's front pole pointed down. Turning it up, and putting the front hip
+joint level with the knee and 0.43 behind it, gives the L: thigh flat, shin
+upright, ankle under the knee. It now measures 86-95 degrees with both tilts
+inside 12.
+
+**The bat spent the whole stroke behind the front foot** — between 0.6m and
+0.9m behind it, which put the handle 0.059 from the line of his own spine.
+
+That one has a hard geometric cause. The ball is met at a fixed point 0.30 in
+front of the batter's centre, and his *guard* front foot already stands at 0.27.
+So the foot is at the ball's depth before he has moved at all, and any stride
+down the ground puts it past the ball — the previous pass strode it to 0.56,
+0.26 beyond, and a bat that has to reach a ball behind its own front pad has
+nowhere to put its handle except through him.
+
+So he steps across and slightly back rather than down the ground: 0.48 of
+travel from the guard, ending 0.12 behind his own centre, dropping onto the back
+knee with the front leg folded out of the way. The whole bat is then 0.17 in
+front of the foot at the ball, and the handle never comes within 0.31 of his
+spine.
+
+### What the bat can and cannot do
+
+A bat is a 1.05m bar turning about the hands, so the moment its handle lies
+across the ball's line the knob is 0.69 behind the middle by construction.
+Asking for the whole bat to stay in front of the foot for the *whole*
+follow-through would mean planting the front foot 0.39 behind the ball, which is
+not a stance anyone takes. The tests therefore ask for the whole bat in front
+through the hit — knob, middle and toe — and allow a few centimetres of knob
+after it, while the blade is a metre in front. The rejected version fails both.
+
+There was also a genuine conflict between this round and the last, and it is
+recorded in `tests/batter.test.ts` rather than quietly resolved: the previous
+round's check asked for the foot to finish *forward* of the guard, and this
+round's asks for the bat to be ahead of the foot. Nothing satisfies both. The
+first complaint was really that the foot did not MOVE — it bent where it already
+stood while the body sank past it — so that is what is measured now: distance
+travelled and distance across, with no claim about which way down the ground.
+
+### Two bugs found on the way
+
+`tests/batter.test.ts` compared the blade tip's WORLD x against the hands'
+ROOT-LOCAL x. Those frames are 0.36 apart, the same order as the thing being
+measured, so the assertion passed by luck rather than by being true. Corrected,
+it says the thing worth saying: the hands finish inside the line of the ball and
+the blade reaches across to it.
+
+And git worktrees are created inside `.claude/`, which makes each of them a
+second complete copy of the repository — tests included. Vitest's default globs
+collected those copies, so one checkout's run reported another checkout's
+failures and the same test name appeared three times with three different sets
+of numbers. `vite.config.ts` now excludes them.
+
 ## Still open
 
 The advance shot is unchanged and still wants work; it was left for a separate

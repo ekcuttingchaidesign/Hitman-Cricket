@@ -134,6 +134,13 @@ function surviveFigures(raw: unknown): SurviveInnings {
 export default defineConfig({
   base: './',
   plugins: [boardEndpoints()],
+  // Git worktrees get made inside `.claude/`, and a worktree is a whole second
+  // copy of this repository — tests included. Left to its default globs vitest
+  // collects those copies too, so one checkout's run reports another checkout's
+  // failures and the same test name appears three times with three different
+  // sets of numbers. It is a genuinely baffling half hour if you have not seen
+  // it before.
+  test: { exclude: ['**/node_modules/**', '**/dist/**', '**/.claude/**'] },
   // The rig preview is a second entry so a branch deployment serves it at
   // /shot-preview.html. It is unlinked from the game and pulls in nothing the
   // game does not already ship; drop this entry before a production release if

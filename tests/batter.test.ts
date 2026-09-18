@@ -688,8 +688,19 @@ describe('the slog sweep', () => {
     // The handle is across him, not up: a sweep met with the bat vertical is a
     // different shot, and a worse one.
     expect(Math.abs(pose.batUp[1])).toBeLessThan(.30);
-    // And the blade is out to the leg side of the hands by the time it lands.
-    expect(pose.bladeTip[0]).toBeLessThan(new Vector3(...pose.hands[0]).sub(batter.root.position).x + .1);
+    // Hands inside the line of the ball. He stands to the leg side of a ball on
+    // the stumps, so the hands have to finish between him and it and the blade
+    // reaches across — which is what "inside the line" means and what makes it
+    // a sweep rather than a pull.
+    //
+    // (This previously compared the tip's WORLD x against the hands' ROOT-LOCAL
+    // x. Those frames are 0.36 apart, which is the same order as the thing being
+    // measured, and the assertion passed by luck rather than by being true.)
+    const contact = new Vector3(...pose.bladeContact).sub(batter.root.position);
+    const hands = new Vector3(...pose.hands[0]).sub(batter.root.position);
+    const tip = new Vector3(...pose.bladeTip).sub(batter.root.position);
+    expect(hands.x, 'hands inside the ball').toBeLessThan(contact.x - .1);
+    expect(tip.x, 'blade reaching across to it').toBeGreaterThan(hands.x + .2);
   });
   it('finishes over the front shoulder, not the one it started behind', () => {
     const batter = swept();

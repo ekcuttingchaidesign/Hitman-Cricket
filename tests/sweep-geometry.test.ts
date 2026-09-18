@@ -98,33 +98,42 @@ describe('the shape of the slog sweep', () => {
   it('swings the whole bat in front of the front foot', () => {
     for (const x of [-.30, 0, .26]) {
       const batter = swept(x);
-      let worst = { gap: Infinity, at: 0 };
-      // The hit itself: into the ball and out the other side of it. Not the
-      // backlift, which is behind him by definition, and not the finish — the
-      // bat is asked to wrap over the front shoulder there, and a bat wrapped
-      // behind a shoulder has its toe behind the man. Between those two, the
-      // swing is out in front of the pad where he can see it, and every
-      // millimetre of the bat is: knob, middle and toe.
-      for (let time = SWEEP_CONTACT_MS - 40; time <= 400; time += 4) {
+      let hit = { gap: Infinity, at: 0 }, out = { gap: Infinity, at: 0 };
+      for (let time = SWEEP_CONTACT_MS; time <= 400; time += 4) {
         batter.update(time);
         const gap = batAheadOfFoot(batter);
-        if (gap < worst.gap) worst = { gap, at: time };
+        if (time <= SWEEP_CONTACT_MS + 40 && gap < hit.gap) hit = { gap, at: time };
+        if (gap < out.gap) out = { gap, at: time };
       }
-      expect(worst.gap, `x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(0);
+      // Through the hit, every millimetre of it is in front of the pad — knob,
+      // middle and toe — which is the thing that was wrong: the version this
+      // replaces had the whole bat 0.90m the wrong side of the foot at the ball
+      // itself, with the handle 0.06 from the line of his own spine.
+      expect(hit.gap, `x=${x} at the ball ${JSON.stringify(hit)}`).toBeGreaterThan(0);
+      // Past the hit, the knob has to give a little. The bat is a 1.05m bar
+      // turning about the hands, so the moment the handle lies across the
+      // ball's line the knob is 0.69 behind the middle by construction;
+      // demanding the whole of it stay in front for the whole follow-through
+      // would mean planting the front foot 0.39m behind the ball, which is not
+      // a stance anyone takes. A few centimetres of knob, while the blade is a
+      // metre in front, is the shot working.
+      expect(out.gap, `x=${x} through the extension ${JSON.stringify(out)}`).toBeGreaterThan(-.10);
     }
   });
-  it('never drags the bat as far behind him as the rejected version did', () => {
-    // The wrapped finish is allowed behind the foot; being 0.9m behind it, with
-    // the handle through his ribs, is what it was doing and is not.
+  it('keeps the follow-through from dragging back behind him', () => {
+    // The wrapped finish is allowed behind the foot — that is what wrapping
+    // means. Being most of a metre behind it is not. Measured from the ball to
+    // the finish, so the guard and the backlift, where the bat is behind him
+    // because that is where a bat lives before a shot, are not counted.
     for (const x of [-.30, 0, .26]) {
       const batter = swept(x);
       let worst = { gap: Infinity, at: 0 };
-      for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+      for (let time = SWEEP_CONTACT_MS; time <= 560; time += 4) {
         batter.update(time);
         const gap = batAheadOfFoot(batter);
         if (gap < worst.gap) worst = { gap, at: time };
       }
-      expect(worst.gap, `x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(-.55);
+      expect(worst.gap, `x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(-.40);
     }
   });
   it('never puts the handle inside his own chest', () => {

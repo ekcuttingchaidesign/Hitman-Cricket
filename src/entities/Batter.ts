@@ -453,21 +453,21 @@ const SQUARE_DRIVE_REACH: readonly [number, number] = [.16, .62];
 const SLOG_SWEEP: Stroke = {
   // Down, and swinging. The blade is horizontal and the face is already aimed
   // at midwicket; the hands are inside the line with the toe trailing round.
-  contact: { ...GUARD, hip: [-.11, .52, -.06], chest: [-.08, .86, .04],
-    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
-    grip: [.20, .52, -.10], batUp: [-.37, -.05, -.93], batFace: [-.93, .10, .36],
+  contact: { ...GUARD, hip: [-.053, .565, -.251], chest: [-.023, .905, -.151],
+    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
+    grip: [-.075, .48, .300], batUp: [-.99, -.10, 0], batFace: [-.01, .10, .99],
     yaw: .78, face: -.34, heel: .62, backFootYaw: 1.55, leadElbow: -.22,
     armHinge: -.30, armDrive: 1, shoulderLift: 0 },
   // Through it. The arms go out straight on the leg side and the blade is still
   // low — the hit is finished before the bat starts climbing.
-  through: { ...GUARD, hip: [-.16, .54, -.02], chest: [-.16, .88, .10],
-    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
-    grip: [-.34, .64, .30], batUp: [.86, .10, -.50], batFace: [-.51, .21, -.84],
+  through: { ...GUARD, hip: [-.103, .575, -.211], chest: [-.103, .925, -.091],
+    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
+    grip: [-.34, .64, .30], batUp: [.78, .38, -.50], batFace: [-.59, .19, -.78],
     yaw: .22, face: -.62, heel: .66, backFootYaw: 1.30, leadElbow: -.16,
     armHinge: -.10, armDrive: 1, shoulderLift: .03 },
   // Then it climbs, and the chest comes up with it.
-  carry: { ...GUARD, hip: [-.18, .58, .02], chest: [-.20, .92, .14],
-    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
+  carry: { ...GUARD, hip: [-.123, .585, -.171], chest: [-.143, .945, -.051],
+    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
     grip: [-.44, .96, .34], batUp: [.62, .62, .48], batFace: [.22, .45, -.87],
     yaw: -.18, face: -.78, heel: .70, backFootYaw: 1.05, leadElbow: -.12,
     armHinge: .55, armDrive: 1, shoulderLift: .05 },
@@ -479,9 +479,9 @@ const SLOG_SWEEP: Stroke = {
   // the bat travelling the way it was going instead of reversing back across
   // him. Still down on the knee: he does not stand up out of a slog sweep, he
   // watches it from there.
-  finish: { ...GUARD, hip: [-.12, .60, .06], chest: [-.10, .94, .18],
-    frontFoot: [.10, .08, .56], backFoot: [-.07, .08, -.46],
-    grip: [-.46, 1.10, .48], batUp: [.62, -.45, .65], batFace: [.69, .70, -.17],
+  finish: { ...GUARD, hip: [-.063, .60, -.131], chest: [-.043, .965, -.011],
+    frontFoot: [.18, .08, -0.12], backFoot: [.043, .08, -.786],
+    grip: [-.46, 1.15, .48], batUp: [.62, -.45, .65], batFace: [.69, .70, -.17],
     yaw: -.34, face: -.72, heel: .70, backFootYaw: .95, leadElbow: -.10,
     armHinge: .20, armDrive: 1, shoulderLift: .06 },
   // Up off the knee and back to the guard, with the bat brought down in front
@@ -964,9 +964,9 @@ export class Batter {
       if (age < end) {
         const keys = [{ time: 0, pose: this.swingFrom },
           { time: 130, pose: reachPose({ ...BACKLIFT,
-            hip: [-.05,.60,-.04], chest: [-.02,.94,.04],
-            frontFoot: [.22,.08,.34], backFoot: [-.07,.08,-.42],
-            grip: [.30,1.02,-.16], batUp: [-.30,-.86,.41], batFace: [.41,.27,.87],
+            hip: [-.05,.78,-.14], chest: [-.02,1.12,-.04],
+            frontFoot: [.06,.08,.20], backFoot: [-.05,.08,-.52],
+            grip: [.34,1.06,.24], batUp: [-.30,-.86,.41], batFace: [.41,.27,.87],
             yaw: 1.22, face: -.10, heel: .50, backFootYaw: 1.55, leadElbow: -.18 }) },
           { time: SWEEP_CONTACT_MS, pose: contact },
           { time: 390, pose: through },
@@ -1496,7 +1496,7 @@ export class Batter {
       // them and wrong for one with a shin flat on the turf: the back knee has
       // to drop straight down and forward, under the hip, or the leg folds out
       // sideways and he reads as sitting rather than kneeling.
-      const kneePole = this.sweeping ? new THREE.Vector3(i === 0 ? .50 : .06, i === 0 ? -.55 : -.85, i === 0 ? .10 : .42)
+      const kneePole = this.sweeping ? new THREE.Vector3(i === 0 ? .10 : .06, i === 0 ? .95 : -.85, i === 0 ? .30 : .42)
         : this.charging ? new THREE.Vector3(i === 0 ? .10 : .35, -.15, .65) : new THREE.Vector3(.65, -.15, .02);
       if (driving && !this.charging && !this.felled && Number.isFinite(this.poseAge)) {
         const weight=ease(THREE.MathUtils.clamp(this.poseAge/80,0,1))*ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/160,0,1));
