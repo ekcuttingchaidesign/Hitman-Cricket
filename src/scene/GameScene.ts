@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Batter } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
-import { GAME, SHOT_ANGLES } from '../config/gameplay';
+import { GAME, SHOT_ANGLES , SWEEP} from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
@@ -64,6 +64,7 @@ export class GameScene {
   private hitHeight = 0;
   /** Where in a skied ball's flight it is spilled, or 0 when it is not. */
   private dropAt = 0;
+  private bounceAt = 0;
   /**
    * Where in the flight the ball arrives at whoever is under it. One for
    * everything nobody catches; short of it when there is a fielder, because a
@@ -235,7 +236,7 @@ export class GameScene {
   }
 
   reset() {
-    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
+    this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
@@ -285,9 +286,9 @@ export class GameScene {
     // particular ball takes to reach the bat never touches it — which is the
     // whole of the disguise a slower ball is bowled behind.
   }
-  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false) {
+  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false) {
     const contact = ballPosition(delivery, 1);
-    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
@@ -295,7 +296,10 @@ export class GameScene {
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
     const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
-    let angle = (SHOT_ANGLES[shot ?? 'STRAIGHT'] + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
+    // The sweep is hit where the sweep goes — midwicket — rather than out along
+    // the sector of the leg-side swipe that played it.
+    const sector = outcome.swept ? SWEEP.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
+    let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';
     /**
      * A ball that hit him rather than the bat. It has spent itself on his body,
@@ -310,6 +314,7 @@ export class GameScene {
     const playedOn = outcome.wicketType === 'BOWLED' && outcome.madeBatContact;
     const toAFielder = (caught || !!outcome.dropped) && outcome.aerial;
     this.dropAt = flight.dropAt;
+    this.bounceAt = flight.bounceAt;
     this.takeAt = flight.takeAt;
     this.flightMs = flight.flightMs;
     this.hitHeight = flight.height;
@@ -363,7 +368,14 @@ export class GameScene {
     // waits there rather than still falling.
     const flown = Math.min(1, t / this.takeAt);
     into.lerpVectors(this.hitOrigin, this.hitEnd, flown);
-    into.y += Math.sin(flown * Math.PI) * this.hitHeight;
+    // One arc, or two with the turf in between. A ball that reaches the rope on
+    // the bounce comes down inside the ground and goes on lower and flatter,
+    // which is the whole of what makes it read as a four rather than a six.
+    into.y += this.bounceAt > 0
+      ? (flown < this.bounceAt
+        ? Math.sin(flown / this.bounceAt * Math.PI) * this.hitHeight
+        : Math.sin((flown - this.bounceAt) / (1 - this.bounceAt) * Math.PI) * this.hitHeight * .30)
+      : Math.sin(flown * Math.PI) * this.hitHeight;
     // A dropped catch. The ball is in his hands and then it is not: past the
     // take it leaves them and goes to the turf, accelerating, just beyond him.
     if (this.dropAt > 0 && t > this.dropAt) {

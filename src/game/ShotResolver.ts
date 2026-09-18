@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, GAME, GROUND_RUNS, SOLID_SHOT, STYLES, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, GAME, GROUND_RUNS, SOLID_SHOT, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import type { Delivery, ShotAttempt, ShotOutcome, TimingGrade } from './types';
 /**
@@ -49,6 +49,27 @@ export function chargeable(delivery: Delivery) {
 export function advanceShot(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
   return charged && !!attempt && ADVANCE.shots.includes(attempt.shotType) && chargeable(delivery)
     && ADVANCE.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
+}
+/**
+ * Whether this ball can be swept: the turning ball, pitched up enough to get
+ * under. A sweep at one dropped short is a top edge, and there is no sweeping
+ * a quick at all.
+ */
+export function sweepable(delivery: Delivery) {
+  return SWEEP.styles.includes(delivery.style) && delivery.bounceZ >= SWEEP.minBounceZ;
+}
+/**
+ * The slog sweep: a full meter, the spinner's ball, a leg-side input, and
+ * timing good enough to have middled it. Known the moment the player swings,
+ * so the stroke he watches and the runs he is given come from one rule.
+ *
+ * Mistime it past `GOOD` and this returns false, the meter is not spent, and
+ * what he played is the ordinary leg-side stroke — the same bargain the charge
+ * offers.
+ */
+export function slogSweep(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
+  return charged && !!attempt && SWEEP.shots.includes(attempt.shotType) && sweepable(delivery)
+    && SWEEP.timing.includes(gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight));
 }
 /**
  * Whether a straight drive is going to be middled for six.
@@ -105,6 +126,13 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
   // played, so the meter is spent only on the real thing.
   if (advanceShot(delivery, attempt, charged)) {
     return { ...outcome, runs: 6, advance: true, compatibility: 1, quality: 1, madeBatContact: true, feedback: ADVANCE.feedback };
+  }
+  // Off the knee at the spinner. Middled it goes over midwicket; a shade under
+  // and it still beats the field, on the bounce.
+  if (slogSweep(delivery, attempt, charged)) {
+    const six = timingGrade === 'PERFECT';
+    return { ...outcome, runs: six ? 6 : 4, swept: true, compatibility: 1, quality: six ? 1 : TIMING_SCORE.GOOD,
+      madeBatContact: true, feedback: six ? SWEEP.feedback.six : SWEEP.feedback.four };
   }
   // A bouncer is over the stumps, so it can never bowl you — but it can only be
   // pulled, and only if it is middled. Anything else and it flies through.

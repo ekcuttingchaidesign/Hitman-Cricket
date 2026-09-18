@@ -34,7 +34,8 @@ const eye = view === 'front' ? new THREE.Vector3(GAME.stanceX - .1, 1.25, GAME.s
   : new THREE.Vector3(GAME.stanceX + 4.4, 1.35, GAME.stanceZ + .3);
 camera.position.copy(eye); camera.lookAt(focus);
 
-const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CUT'; x: number; y: number; lofted?: boolean} => s === 'PULL' ? { shot: 'LEG' as const, x: -.30, y: 1.12 }
+const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CUT'; x: number; y: number; lofted?: boolean; sweeping?: boolean} => s === 'PULL' ? { shot: 'LEG' as const, x: -.30, y: 1.12 }
+  : s === 'SLOG_SWEEP' ? { shot: 'LEG' as const, x: 0, y: .48, sweeping: true }
   : s === 'SQUARE_DRIVE' ? { shot: 'COVER_LONG_OFF' as const, x: .42, y: .30 }
   : s === 'COVER' ? { shot: 'COVER_LONG_OFF' as const, x: .16, y: .48 }
   : s === 'CHARGE' ? { shot: 'STRAIGHT' as const, x: 0, y: .54 }
@@ -51,7 +52,7 @@ for (let i = 0; i < frames; i++) {
   // under review, so it gets the last few tiles rather than half the sheet.
   const age = i / (frames - 1) <= .75 ? (i / (frames - 1)) / .75 * 620 : 620 + ((i / (frames - 1)) - .75) / .25 * (total - 620);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ, shot === 'CHARGE', spec.lofted ?? false);
+  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ, shot === 'CHARGE', spec.lofted ?? false, spec.sweeping ?? false);
   batter.update(age);
   renderer.render(scene, camera);
   const col = i % COLS, row = Math.floor(i / COLS);

@@ -7,17 +7,22 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, PULL_CONTACT_MS, PULL_LOAD_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, PULL_CONTACT_MS, PULL_LOAD_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
 import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
 interface Play {
-  label: string; shot: ShotType; ballX: number; ballY: number; charging?: boolean; lofted?: boolean;
+  label: string; shot: ShotType; ballX: number; ballY: number; charging?: boolean; lofted?: boolean; sweeping?: boolean;
   phases: readonly (readonly [string, number])[];
   note: string;
 }
 const DRIVE_PHASES = [['Contact', STROKE_CONTACT_MS], ['Extension', 220], ['Carry', 310], ['Finish', 410], ['Recovery', 700]] as const;
 const PLAYS: Record<string, Play> = {
+  sweep: {
+    label: 'Slog sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, sweeping: true,
+    phases: [['Down on it', 130], ['Contact', SWEEP_CONTACT_MS], ['Through', 390], ['Climb', 470], ['Finish', 560], ['Up again', 750]],
+    note: 'The second special stroke, and the only one played off the knee — a spinner pitched up, the meter full, and a leg-side swipe. Watch 130–240 ms: he drops onto the back knee with the front leg planted across him before the bat moves, and the swing is flat and round rather than down and through. Perfect timing is six over midwicket; good is a four that pitches once before the rope.',
+  },
   square: {
     label: 'Square drive (new)', shot: 'COVER_LONG_OFF', ballX: .44, ballY: .40,
     phases: [['Contact', SQUARE_DRIVE_CONTACT_MS], ['Flat extension', 240], ['Turn over', 330], ['High finish', 430], ['Recovery', 700]],
@@ -75,7 +80,8 @@ const VIEWS: Record<string, { label: string; eye: [number, number, number]; at: 
 
 /** The stroke's own contact time, and the height it actually plays the ball at:
  *  everything but the two cross-bat strokes lets a high ball go over the bat. */
-const contactOf = (play: Play) => play.shot === 'LEG' && play.ballY > .85 ? PULL_CONTACT_MS
+const contactOf = (play: Play) => play.sweeping ? SWEEP_CONTACT_MS
+  : play.shot === 'LEG' && play.ballY > .85 ? PULL_CONTACT_MS
   : play.charging ? STROKE_CONTACT_MS
   : play.shot === 'COVER_LONG_OFF' && play.ballX >= .30 && play.ballY <= .70 ? SQUARE_DRIVE_CONTACT_MS
   : STROKE_CONTACT_MS;
@@ -147,7 +153,7 @@ function restart() {
   // back to the crease as well.
   scrub.max = String(play.charging ? STROKE_DURATION_MS + ADVANCE.walkBackMs : STROKE_DURATION_MS);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(play.shot, 0, play.ballX, play.ballY, GAME.contactZ, play.charging ?? false);
+  batter.swing(play.shot, 0, play.ballX, play.ballY, GAME.contactZ, play.charging ?? false, play.lofted ?? false, play.sweeping ?? false);
   note.textContent = play.note;
   buildPhases();
 }
@@ -167,7 +173,8 @@ function frame(now: number) {
   marker.visible = shown <= contactOf(play) + 160;
 
   const pose = batter.inspect();
-  const variation = pose.squaring ? 'square drive'
+  const variation = pose.sweeping ? 'slog sweep'
+    : pose.squaring ? 'square drive'
     : pose.lofted ? 'lofted drive'
     : pose.pulling ? 'pull'
     : pose.cutting ? 'standing cut'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SPIN_BOWLING, STYLES } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SHOT_ANGLES, SPIN_BOWLING, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -8,8 +8,8 @@ import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersect
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, cuttable, gradeTiming, resolveShot } from '../src/game/ShotResolver';
-import type { Delivery, ShotOutcome } from '../src/game/types';
+import { advanceShot, chargeable, cuttable, gradeTiming, resolveShot, slogSweep, sweepable } from '../src/game/ShotResolver';
+import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
 const dot = (): ShotOutcome => resolveShot(delivery({ finalTargetX: 0.5 }), null, rng(0.5));
@@ -422,6 +422,67 @@ describe('charging down the pitch', () => {
     expect(advanceShot(ball, attempt, true)).toBe(resolveShot(ball, attempt, new SeededRandom(4), true).advance);
     expect(advanceShot(ball, attempt, false)).toBe(false);
     expect(advanceShot(ball, null, true)).toBe(false);
+  });
+});
+
+describe('the slog sweep', () => {
+  /** The spinner's stock ball, pitched up enough to get underneath. */
+  const turning = (changes: Partial<Delivery> = {}) =>
+    delivery({ style: 'OFF_SPIN', speedKph: 82, bounceZ: SWEEP.minBounceZ + .4, ...changes });
+  const sweep = (d: Delivery, delta = 0, shot: ShotType = 'LEG') =>
+    resolveShot(d, { shotType: shot, inputTimeMs: d.idealContactTimeMs + delta }, new SeededRandom(4), true);
+  it('takes the turning ball, pitched up, and nothing else', () => {
+    expect(sweepable(turning())).toBe(true);
+    expect(sweepable(turning({ style: 'LEG_SPIN' }))).toBe(true);
+    // Dropped short is how a sweep becomes a top edge, so it is not offered.
+    expect(sweepable(turning({ bounceZ: SWEEP.minBounceZ - .1 }))).toBe(false);
+    // And there is no sweeping a seamer, at any length.
+    for (const style of ['NORMAL', 'SWING_IN', 'SLOWER', 'FAST', 'EXPRESS', 'SHORT', 'YORKER'] as const)
+      expect(sweepable(turning({ style })), style).toBe(false);
+  });
+  it('needs a full meter, a leg-side swipe, and timing worth the shot', () => {
+    const ball = turning();
+    const six = sweep(ball);
+    expect(six.swept).toBe(true); expect(six.runs).toBe(6); expect(six.feedback).toBe(SWEEP.feedback.six);
+    // A shade under is the same stroke for four, and it says so.
+    const four = sweep(ball, GAME.timing.perfect + 5);
+    expect(four.swept).toBe(true); expect(four.runs).toBe(4); expect(four.feedback).toBe(SWEEP.feedback.four);
+    // Worse than that and it is simply the leg-side stroke he played.
+    expect(sweep(ball, GAME.timing.good + 5).swept).toBeFalsy();
+    expect(sweep(ball, GAME.timing.ok + 5).swept).toBeFalsy();
+    // Either leg-side swipe sweeps; an off-side or straight one is that shot.
+    for (const shot of SWEEP.shots) expect(sweep(ball, 0, shot).swept, shot).toBe(true);
+    for (const shot of ['STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT', 'DEFEND'] as const)
+      expect(sweep(ball, 0, shot).swept, shot).toBeFalsy();
+    // Without the meter it is an ordinary leg-side shot off a spinner.
+    expect(resolveShot(ball, { shotType: 'LEG', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4)).swept).toBeFalsy();
+  });
+  it('is never offered against a ball the charge would take, and vice versa', () => {
+    // The two special strokes answer opposite balls: the charge wants a seamer
+    // on the stumps, the sweep a spinner pitched up. Nothing is both, or the
+    // cue on the meter would have to lie about one of them.
+    const seam = delivery({ line: 'MIDDLE', baseTargetX: 0, finalTargetX: 0, style: 'NORMAL', speedKph: 125 });
+    expect(chargeable(seam)).toBe(true); expect(sweepable(seam)).toBe(false);
+    expect(sweepable(turning())).toBe(true); expect(chargeable(turning())).toBe(false);
+  });
+  it('goes to midwicket, between square leg and mid-on', () => {
+    expect(SWEEP.angle).toBeLessThan(SHOT_ANGLES.LONG_ON);
+    expect(SWEEP.angle).toBeGreaterThan(SHOT_ANGLES.LEG);
+  });
+  it('agrees with the swing that plays it, and spends the meter', () => {
+    const ball = turning();
+    const attempt = { shotType: 'LEG' as const, inputTimeMs: ball.idealContactTimeMs + 10 };
+    expect(slogSweep(ball, attempt, true)).toBe(!!resolveShot(ball, attempt, new SeededRandom(4), true).swept);
+    expect(slogSweep(ball, attempt, false)).toBe(false);
+    expect(slogSweep(ball, null, true)).toBe(false);
+    // Spent, like the charge: a special stroke costs the meter it was bought with.
+    const meter = new Confidence();
+    const six: ShotOutcome = { runs: 6, isWicket: false, quality: 1, feedback: '', timingGrade: 'PERFECT',
+      timingDeltaMs: 0, compatibility: 1, madeBatContact: true, aerial: false };
+    for (let i = 0; i < 4; i++) meter.record(six);
+    expect(meter.full).toBe(true);
+    meter.record(resolveShot(ball, attempt, new SeededRandom(4), true));
+    expect(meter.value).toBe(0);
   });
 });
 

@@ -38,6 +38,8 @@ export const STROKE_CONTACT_MS = 110;
 export const PULL_LOAD_MS = 120;
 export const PULL_CONTACT_MS = 230;
 export const SQUARE_DRIVE_CONTACT_MS = 130;
+/** The sweep takes longer to arrive: he has to get down to it first. */
+export const SWEEP_CONTACT_MS = 240;
 /**
  * Where the two fists sit on the handle, measured up the bat from its origin.
  * The top hand is the left one; the bottom hand follows it up, and the pair
@@ -433,6 +435,80 @@ const SQUARE_DRIVE: Stroke = {
  */
 const SQUARE_DRIVE_REACH: readonly [number, number] = [.16, .62];
 /**
+ * The slog sweep, off the knee.
+ *
+ * He goes down to it rather than reaching for it: the back knee folds to the
+ * turf with the shin flat along it, the front leg braces out towards the off
+ * side, and the hips drop the better part of half a metre. From there the bat
+ * comes round flat and hard — a horizontal arc across the line of the ball,
+ * met low and in front of the front pad — and carries on up and over the FRONT
+ * shoulder, which for a right-hander is the left one.
+ *
+ * It is the pull's geometry played from the floor: the same cross-batted sweep
+ * round the body, the same unwrapped azimuth so the blade never takes the short
+ * way through the torso, and the same wrapped finish. What it is not is the
+ * pull's pose list — a man on one knee has a different set of problems, chiefly
+ * that his own front pad is now in the swing's way.
+ */
+const SLOG_SWEEP: Stroke = {
+  // Down, and swinging. The blade is horizontal and the face is already aimed
+  // at midwicket; the hands are inside the line with the toe trailing round.
+  contact: { ...GUARD, hip: [-.11, .52, -.18], chest: [-.08, .86, -.08],
+    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
+    grip: [.20, .52, -.10], batUp: [-.37, -.05, -.93], batFace: [-.92, .10, .37],
+    yaw: .78, face: -.34, heel: .62, backFootYaw: 1.55, leadElbow: -.22,
+    armHinge: -.30, armDrive: 1, shoulderLift: 0 },
+  // Through it. The arms go out straight on the leg side and the blade is still
+  // low — the hit is finished before the bat starts climbing.
+  through: { ...GUARD, hip: [-.16, .54, -.14], chest: [-.16, .88, -.02],
+    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
+    grip: [-.34, .64, .30], batUp: [.86, .10, -.50], batFace: [-.48, .12, -.87],
+    yaw: .22, face: -.62, heel: .66, backFootYaw: 1.30, leadElbow: -.16,
+    armHinge: -.10, armDrive: 1, shoulderLift: .03 },
+  // Then it climbs, and the chest comes up with it.
+  carry: { ...GUARD, hip: [-.18, .58, -.10], chest: [-.20, .92, .02],
+    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
+    grip: [-.44, .96, .34], batUp: [.62, .62, .48], batFace: [-.30, .72, -.62],
+    yaw: -.18, face: -.78, heel: .70, backFootYaw: 1.05, leadElbow: -.12,
+    armHinge: .55, armDrive: 1, shoulderLift: .05 },
+  // High and OUTSIDE the front shoulder, with the blade wrapped away behind
+  // it — not beside the ear. The hands finishing in front of the face read as
+  // the right picture and are not one: they carry the back glove within 19cm
+  // of the helmet and drag both forearms across it on the way. Taking the
+  // finish out past the shoulder, on the line the carry was already on, keeps
+  // the bat travelling the way it was going instead of reversing back across
+  // him. Still down on the knee: he does not stand up out of a slog sweep, he
+  // watches it from there.
+  finish: { ...GUARD, hip: [-.12, .60, .06], chest: [-.10, .94, .18],
+    frontFoot: [.26, .08, .32], backFoot: [-.07, .08, -.46],
+    grip: [-.42, 1.12, .50], batUp: [.55, -.30, .78], batFace: [.10, .84, .53],
+    yaw: -.34, face: -.72, heel: .70, backFootYaw: .95, leadElbow: -.10,
+    armHinge: .20, armDrive: 1, shoulderLift: .06 },
+  // Up off the knee and back to the guard, with the bat brought down in front
+  // of him rather than back across the shoulder it is wrapped behind.
+  recover: { ...GUARD, hip: [-.06, .78, -.02], chest: [-.02, 1.12, .04],
+    frontFoot: [.06, .08, .30], backFoot: [-.14, .08, -.30],
+    grip: [.26, 1.06, .34], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
+    yaw: .92, face: -.10, heel: .24, leadElbow: -.20 },
+};
+/**
+ * Halfway home from a slog sweep.
+ *
+ * The finish holds the bat wrapped behind the front shoulder and the guard
+ * holds it behind the back one, and the straight line between those two runs
+ * through the front shoulder itself — the blade came out 0.25 of a shoulder's
+ * radius from its centre, which is to say inside it. So he unwraps it the way
+ * anyone does: out in front, where he can see it, blade down, and only then
+ * back across into the pick-up.
+ */
+const SWEEP_UNWRAP: Pose = { ...GUARD,
+  hip: [-.11, .70, -.06], chest: [-.06, 1.04, .02],
+  frontFoot: [.16, .08, .34], backFoot: [-.13, .08, -.34],
+  grip: [-.16, .86, .62], batUp: [.30, .30, -.90], batFace: [.96, .22, .18],
+  yaw: .66, face: -.30, heel: .34, backFootYaw: 1.10, leadElbow: -.16 };
+/** How wide a ball can be and still be swept: it is a straight-ish ball's stroke. */
+const SWEEP_REACH: readonly [number, number] = [-.30, .26];
+/**
  * The straight drive, lofted — the six.
  *
  * The same ball and the same contact as the classic drive: what separates them
@@ -594,6 +670,7 @@ export class Batter {
   private cutting = false;
   private squaring = false;
   private lofted = false;
+  private sweeping = false;
   /** A charge down the pitch: the confidence shot. */
   private charging = false;
   private swingStart = -Infinity;
@@ -752,12 +829,12 @@ export class Batter {
   reset() {
     this.poseAge = Infinity;
     this.felledAt = -Infinity;
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.charging = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
-  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false) {
+  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false) {
     this.shot = shot; this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
     // Wide and full off the off-side input: drive it square rather than through
@@ -767,8 +844,13 @@ export class Batter {
     // The six's follow-through, chosen by the caller off the same timing rule
     // the score is worked out from. Charging overrides it, as it does everything.
     this.lofted = !charging && shot === 'STRAIGHT' && lofted;
+    // The second special stroke. Its caller has already established the ball,
+    // the meter and the timing; here it only has to displace the pull.
+    this.sweeping = !charging && sweeping;
+    if (this.sweeping) this.pulling = false;
     this.swingStart = now;
-    this.contactTime = now + (this.pulling ? PULL_CONTACT_MS : this.squaring ? SQUARE_DRIVE_CONTACT_MS : STROKE_CONTACT_MS);
+    this.contactTime = now + (this.sweeping ? SWEEP_CONTACT_MS : this.pulling ? PULL_CONTACT_MS
+      : this.squaring ? SQUARE_DRIVE_CONTACT_MS : STROKE_CONTACT_MS);
     this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ;
     // Only the two cross-bat strokes go up after a bouncer — the pull to the leg
     // side and the cut to the off. Every other stroke plays at its own height and
@@ -831,7 +913,7 @@ export class Batter {
       this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
       return;
     }
-    const stroke = this.charging ? CHARGE : this.pulling ? PULL : this.cutting ? CUT_HIGH
+    const stroke = this.charging ? CHARGE : this.sweeping ? SLOG_SWEEP : this.pulling ? PULL : this.cutting ? CUT_HIGH
       : this.squaring ? SQUARE_DRIVE : this.lofted ? STRAIGHT_LOFT : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
@@ -844,10 +926,11 @@ export class Batter {
       DEFEND: [-.30, .30],
     };
     const targetX = THREE.MathUtils.clamp(this.ballX,
-      ...(this.pulling ? PULL_REACH : this.squaring ? SQUARE_DRIVE_REACH : zones[this.shot]));
+      ...(this.sweeping ? SWEEP_REACH : this.pulling ? PULL_REACH : this.squaring ? SQUARE_DRIVE_REACH : zones[this.shot]));
     // The bat meets the ball where he stands at contact. Reading the live root
     // instead drags the hands backwards out of a charge as it carries him on.
-    const impact = this.pulling ? PULL_CONTACT_MS : this.squaring ? SQUARE_DRIVE_CONTACT_MS : STROKE_CONTACT_MS;
+    const impact = this.sweeping ? SWEEP_CONTACT_MS : this.pulling ? PULL_CONTACT_MS
+      : this.squaring ? SQUARE_DRIVE_CONTACT_MS : STROKE_CONTACT_MS;
     const planted = GAME.stanceZ + this.downPitch(STROKE_CONTACT_MS);
     const contactGrip = new THREE.Vector3(targetX - this.root.position.x, this.ballY, this.ballZ - planted)
       .addScaledVector(V(stroke.contact.batUp).normalize(), .44);
@@ -860,12 +943,46 @@ export class Batter {
     // The charge keeps the production rig's planted back foot: it is the one
     // stroke whose feet are authored against a body that is already travelling.
     const shiftsBackFoot = !this.charging
-      && (this.pulling || this.squaring || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF');
+      && (this.pulling || this.squaring || this.sweeping || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF');
     const reachPose = (p: Pose): Pose => ({ ...p, hip: shift(p.hip, step), chest: shift(p.chest, step),
       frontFoot: shift(p.frontFoot, step), backFoot: shiftsBackFoot ? shift(p.backFoot, step) : p.backFoot,
       grip: shift(p.grip, step) });
     const contact = { ...reachPose(stroke.contact), grip: contactGrip.toArray() as unknown as Point };
     const finish = reachPose(stroke.finish);
+    if (this.sweeping) {
+      // Going down is part of the stroke, so it gets a key of its own: the knee
+      // is on the turf and the bat is up behind the shoulder before the swing
+      // starts. `horizontalSweep` keeps the blade going round the body rather
+      // than letting the interpolation take the short way through it.
+      // Longer after the ball than the drives are. The swing itself is the
+      // same brutal hurry, but a bat travelling that fast round a kneeling body
+      // carries the elbows round with it, and a follow-through crammed into the
+      // drives' window moved the front elbow eighteen metres a second. He is
+      // not stopping it dead; he is letting it run out.
+      const end = 560, hold = 620;
+      const through = reachPose(stroke.through!);
+      if (age < end) {
+        const keys = [{ time: 0, pose: this.swingFrom },
+          { time: 130, pose: reachPose({ ...BACKLIFT,
+            hip: [-.05,.60,-.04], chest: [-.02,.94,.04],
+            frontFoot: [.22,.08,.34], backFoot: [-.07,.08,-.42],
+            grip: [.30,1.02,-.16], batUp: [-.30,-.86,.41], batFace: [.70,.06,.71],
+            yaw: 1.22, face: -.10, heel: .50, backFootYaw: 1.55, leadElbow: -.18 }) },
+          { time: SWEEP_CONTACT_MS, pose: contact },
+          { time: 390, pose: through },
+          { time: 470, pose: reachPose(stroke.carry!) },
+          { time: end, pose: finish }];
+        this.apply(flowing(keys, age, true));
+      } else if (age < hold) this.apply(finish);
+      else {
+        const recovery = reachPose(stroke.recover!);
+        const out = hold + 130, up = hold + 270;
+        this.apply(age < out ? mix(finish, SWEEP_UNWRAP, (age - hold) / (out - hold))
+          : age < up ? mix(SWEEP_UNWRAP, recovery, (age - out) / (up - out))
+          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up)));
+      }
+      return;
+    }
     if (this.pulling) {
       const end = 500, hold = 570;
       const through = reachPose(stroke.through!);
@@ -1045,8 +1162,42 @@ export class Batter {
       const axis = UP.clone().applyQuaternion(this.bat.quaternion);
       // Solve the wrist beside the handle while keeping both Vs registered
       // to the bat. The palm bridge below accommodates wrist articulation.
-      const radial = arm.shoulder.clone().sub(grip);
-      radial.addScaledVector(axis, -radial.dot(axis)).normalize();
+      /**
+       * Which way round the handle the wrist sits, and how far to believe it:
+       * the arm's own bearing on the bat, with the part along the handle taken
+       * out.
+       *
+       * That subtraction has a hole in it. When the arm arrives along the
+       * handle — which a flat sweep does, because the bat is horizontal and the
+       * arms are stretched out down the same line, and which the back arm does
+       * on a pull at head height — what is left is a centimetre or two, and
+       * normalising that gives a direction that swings round through nothing.
+       *
+       * The fix is not to substitute a direction for it. This used to fade into
+       * a fixed across-the-body bearing, and a fixed bearing has to be given a
+       * side: the side came from the sign of a dot product, that dot product
+       * crossed zero at 244ms into the pull, and the wrist moved 15cm in one
+       * frame with the elbow behind it. Picking a side more carefully would not
+       * have helped, because there is no side to pick — a shoulder sitting on
+       * the handle's own line genuinely has no bearing off it.
+       *
+       * So fade the OFFSET instead, and keep the honest direction all the way
+       * down. A wrist that cannot say which way round the handle it sits ends
+       * up on the handle, which is where the geometry was heading anyway, and
+       * nothing has to choose anything.
+       */
+      const steady = (from: THREE.Vector3) => {
+        from.addScaledVector(axis, -from.dot(axis));
+        // The charge is held to the arithmetic it was authored against, here
+        // and at its pole below: it is folded tight enough that this fade moves
+        // its elbows by more than a metre, and it is finished work.
+        if (this.charging) return from.normalize();
+        const perp = from.length();
+        return perp > 1e-9
+          ? from.multiplyScalar(THREE.MathUtils.smoothstep(perp, .02, .09) / perp)
+          : from.set(0, 0, 0);
+      };
+      const radial = steady(arm.shoulder.clone().sub(grip));
       const socket=wristSocket(i);
       const hand = grip.clone().addScaledVector(radial,-socket.z).addScaledVector(axis,socket.y);
       arm.wrist.copy(hand);
@@ -1103,29 +1254,155 @@ export class Batter {
         }
       }
       {
-        // A continuous anatomical pole, not a per-frame clearance winner.
-        // Choosing among discrete bend planes caused the visible elbow flips.
         const outward = arm.shoulder.clone().sub(chest).normalize();
         const forward = new THREE.Vector3(0,0,1).applyQuaternion(this.torso.quaternion);
+        const drive = THREE.MathUtils.clamp(pose.armDrive??0,0,1);
         const pole = arm.shoulder.clone().addScaledVector(outward,.24)
           .addScaledVector(spine,-.30).addScaledVector(forward,.18);
+        /**
+         * The advance charge is held exactly where it shipped, and that is the
+         * reason for this branch rather than a tidier one.
+         *
+         * Everything below solves the same joint from the same hints, but it
+         * blends them as directions turned about the arm instead of as points
+         * dragged towards each other, which is what stopped the elbows tearing.
+         * The two agree wherever a hint is taken whole and disagree wherever one
+         * is taken part-way — and the charge is folded tight enough, with the
+         * drive aim mixed in part-way, that running it through the new path
+         * moved its elbows more than half a metre. It is a finished, signed-off
+         * animation. It keeps the arithmetic it was authored against.
+         */
+        if (!this.charging) {
+        // A continuous anatomical pole, not a per-frame clearance winner.
+        // Choosing among discrete bend planes caused the visible elbow flips.
+        //
+        // The pole names a plane, not a place: all `solveJoint` reads off it is
+        // the direction from the shoulder square to the arm. Every hint below
+        // therefore names a *direction* to bend in, and each one turns the
+        // running direction about the arm rather than dragging a point towards
+        // its own.
+        //
+        // That distinction is the whole of the elbow tearing. A weighted mix of
+        // two pole *points* travels the straight line between them, and when
+        // those two poles sit on opposite sides of the arm that line runs
+        // through the arm itself: the bend plane passes through undefined and
+        // comes out reversed, and the elbow crosses a third of a metre between
+        // two frames. Nothing upstream is discontinuous — the head guard that
+        // exposed it ramps from 0.003 to 0.9 over five frames — so no amount of
+        // smoothing the weights could have helped. Turning about the arm takes
+        // the same two ends round the short way instead, always square to the
+        // arm, and there is no crossing to fall into.
+        const armAxis = hand.clone().sub(arm.shoulder);
+        if (armAxis.lengthSq() > 1e-9) armAxis.normalize(); else armAxis.copy(outward);
+        // The plane the arm can always bend in, whatever it is doing: square to
+        // the arm because it is crossed out of it, and square to the spine, so
+        // it runs round the body the way the hands do. It only runs out for an
+        // arm lying along the spine — hanging straight down — where the
+        // torso's own forward bearing stands in.
+        const steadyBend = () => {
+          const round = new THREE.Vector3().crossVectors(armAxis, spine);
+          const width = round.length();
+          const flat = new THREE.Vector3().crossVectors(armAxis, forward);
+          if (flat.lengthSq() < 1e-9) flat.crossVectors(armAxis, new THREE.Vector3(1,0,0));
+          flat.normalize();
+          if (width > 1e-9) round.divideScalar(width); else round.copy(flat);
+          if (round.dot(flat) < 0) flat.negate();
+          const trust = THREE.MathUtils.smoothstep(width, .05, .30);
+          round.multiplyScalar(trust).addScaledVector(flat, 1 - trust);
+          if (round.lengthSq() < 1e-9) round.copy(flat); else round.normalize();
+          // Deliberately NOT turned to face outwards here. Testing the sign
+          // against the shoulder's own bearing looks harmless and is the last
+          // threshold switch in the chain: as the arm swings across, that dot
+          // product passes through zero, and at 210ms into the sweep it did —
+          // flipping the plane, and the elbow with it, 10cm inside one frame.
+          // A cross product is already continuous. Whoever needs a side can
+          // turn towards one; nobody needs to snap this.
+          return round;
+        };
+        const base = steadyBend();
+        /** Turn one bend direction towards another, about the arm. */
+        const turn = (from: THREE.Vector3, to: THREE.Vector3, weight: number) => {
+          const w = THREE.MathUtils.clamp(weight, 0, 1);
+          if (w <= 0) return from;
+          const angle = Math.acos(THREE.MathUtils.clamp(from.dot(to), -1, 1));
+          if (angle < 1e-6) return from.copy(to);
+          if (w >= 1) return from.copy(to);
+          const way = Math.sign(new THREE.Vector3().crossVectors(from, to).dot(armAxis)) || 1;
+          return from.applyAxisAngle(armAxis, way * angle * w).normalize();
+        };
+        /**
+         * The part of a hint that is square to the arm, as a direction. A hint
+         * the arm has swung almost parallel to names no plane worth having, so
+         * fade back to the plane the arm can always bend in rather than let
+         * what is left of it — mostly rounding error — set the elbow.
+         */
+        const bendTowards = (hint: THREE.Vector3) => {
+          hint.addScaledVector(armAxis, -hint.dot(armAxis));
+          const size = hint.length();
+          if (size < 1e-9) return base.clone();
+          hint.divideScalar(size);
+          return turn(base.clone(), hint, THREE.MathUtils.smoothstep(size, .04, .18));
+        };
+        const anatomical = outward.clone().multiplyScalar(.24)
+          .addScaledVector(spine,-.30).addScaledVector(forward,.18);
         if (!this.charging && !this.pulling && i===0 && (this.squaring||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'))
-          pole.addScaledVector(spine,Math.max(0,pose.leadElbow)*1.1);
-        const drive=THREE.MathUtils.clamp(pose.armDrive??0,0,1);
+          anatomical.addScaledVector(spine,Math.max(0,pose.leadElbow)*1.1);
+        const bend = bendTowards(anatomical);
         if (drive>0 && i===0) {
           const hinge=pose.armHinge??-.6;
           const impact=this.squaring?SQUARE_DRIVE_CONTACT_MS:STROKE_CONTACT_MS;
           const opening=.10+.65*(1-ease(THREE.MathUtils.clamp((this.poseAge-impact)/100,0,1)));
           const aim=new THREE.Vector3(opening,Math.sin(hinge),Math.cos(hinge)).normalize();
-          pole.lerp(arm.shoulder.clone().addScaledVector(aim,.60),drive);
+          turn(bend, bendTowards(aim), drive);
+        }
+        // After the drive aim, and that ordering is not incidental. The drive
+        // aim is stated in world axes and taken outright on the front arm, so
+        // ahead of it the sweep's plane is simply discarded for that arm — and
+        // the aim, which knows about driving through the line and nothing about
+        // swinging from the knees, walked the front elbow into the helmet
+        // through the follow-through: 7.5cm of clearance at the carry, left for
+        // the head guard to rescue in four frames. Taking the sweep's plane
+        // last leaves 16cm and the guard almost nothing to do.
+        if (this.sweeping) {
+          /**
+           * The sweep's own plane. `round` runs the way the hands are going and
+           * `lift` is the spine's own component square to the arm, so a hint
+           * mixed from the two is square to the arm by construction however far
+           * he swings through it. Elbows down and behind the swing, which is
+           * where they are in the reference: he drops on the back knee and the
+           * arms hinge under the ball rather than round the top of it.
+           */
+          // The two elbows splay, they do not point the same way: one arm wraps
+          // round the front of the chest and the other round the back of it, so
+          // the sideways lean is taken in opposite directions. Its sign comes
+          // from which arm this is, which cannot change mid-stroke — not from a
+          // dot product against the body, which can and did.
+          const round = base.clone().multiplyScalar(i === 0 ? .62 : -.62);
+          const lift = new THREE.Vector3().crossVectors(base, armAxis).normalize();
+          // Eased in and out, because switching a bend plane on at the instant
+          // of input moves the elbow without moving anything that holds it: the
+          // pose at 0ms is still the guard, and the plane alone shifted the
+          // elbow 18cm inside one frame. He leans into the shot's own plane
+          // over the backlift and lets it go again on the way back to guard.
+          // Taken outright, not mixed in at some fraction. The sweep's plane and
+          // the anatomical one are very nearly opposite through the middle of
+          // the shot — he is swinging the elbow round to the far side of the arm
+          // — and a part-way turn between two opposite directions has no
+          // well-defined way round: the shorter way swaps at the crossing and
+          // the elbow lurches. A full turn lands on the target whichever way it
+          // goes, so there is nothing left to swap.
+          turn(bend, round.addScaledVector(lift, .78).normalize(),
+            ease(THREE.MathUtils.clamp(this.poseAge/130,0,1))
+               * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/200,0,1)));
         }
         if (this.cutting) {
           // Preserve the square cut's raised clearance plane, easing into it
           // from the shared guard instead of changing solvers at shot input.
           const weight = ease(THREE.MathUtils.clamp(this.poseAge/60,0,1))
             * ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/150,0,1));
-          pole.lerp(elbow,weight);
+          turn(bend, bendTowards(elbow.clone().sub(arm.shoulder)), weight);
         }
+        pole.copy(arm.shoulder).addScaledVector(bend, .60);
         // Give the helmet room.
         //
         // The pole names the plane the elbow bends in, and nothing above knows
@@ -1140,7 +1417,7 @@ export class Batter {
         // drive contact. So: solve it, look at the two segments, and only then
         // lean the plane off the head, by an amount that varies smoothly with
         // how close it actually came.
-        if (!this.charging) {
+        {
           const reach=(from: THREE.Vector3, to: THREE.Vector3) => {
             const line=to.clone().sub(from), span=line.lengthSq();
             const at=span>1e-9 ? THREE.MathUtils.clamp(this.head.position.clone().sub(from).dot(line)/span,0,1) : 0;
@@ -1148,29 +1425,39 @@ export class Batter {
           };
           const first=solveJoint(arm.shoulder,hand,.32,.34,pole);
           const clearance=Math.min(reach(arm.shoulder,first),reach(first,hand));
-          const nearness=.9*(1-THREE.MathUtils.smoothstep(clearance,.15,.25));
+          // Wide, and deliberately so. A narrow band is a guard that does nothing
+            // until the head is nearly hit and then does all of it at once: at the
+            // sweep's finish the clearance falls from 0.25m to 0.06m in six frames,
+            // so a band of 0.15-0.25 asked for a hundred and thirty degrees of plane
+            // inside four of them, and the elbow travelled a third of a metre. Start
+            // leaning while there is still room to lean gently — it costs nothing
+            // where there was never any danger, because the lean is proportional.
+            const nearness=.75*(1-THREE.MathUtils.smoothstep(clearance,.15,.25));
           if (nearness>0) {
-            const along=hand.clone().sub(arm.shoulder);
-            if (along.lengthSq()>1e-6) {
-              const axisAlong=along.normalize();
-              // Away from the head, carrying the shoulder's own outward bearing
-              // so that clearing the helmet never means bending into the chest.
-              // Straight away from the head, and only lightly outward. Leaning
-              // hard on the shoulder's outward bearing works while the arm is
-              // on its own side of the body, but on a finish that carries the
-              // hands across to the far shoulder that term dominates and, once
-              // the along-arm part is removed, resolves UPWARD — which lifted
-              // the trailing elbow over the helmet instead of tucking it under.
-              const away=arm.shoulder.clone().sub(this.head.position).normalize()
-                .addScaledVector(arm.shoulder.clone().sub(chest).normalize(),.55);
-              away.addScaledVector(axisAlong,-away.dot(axisAlong));
-              if (away.lengthSq()>1e-6) pole.lerp(arm.shoulder.clone().addScaledVector(away.normalize(),.60),nearness);
-            }
+            // Away from the head, carrying the shoulder's own outward bearing
+            // so that clearing the helmet never means bending into the chest.
+            // Straight away from the head, and only lightly outward. Leaning
+            // hard on the shoulder's outward bearing works while the arm is on
+            // its own side of the body, but on a finish that carries the hands
+            // across to the far shoulder that term dominates and, once the
+            // along-arm part is removed, resolves UPWARD — which lifted the
+            // trailing elbow over the helmet instead of tucking it under.
+            const away=arm.shoulder.clone().sub(this.head.position).normalize()
+              .addScaledVector(outward,.55);
+            pole.copy(arm.shoulder).addScaledVector(turn(bend, bendTowards(away), nearness), .60);
           }
+        }
+        } else if (drive>0 && i===0) {
+          // The charge's own path, unchanged: a point pole, mixed towards the
+          // drive aim by lerping the points.
+          const hinge=pose.armHinge??-.6;
+          const opening=.10+.65*(1-ease(THREE.MathUtils.clamp((this.poseAge-STROKE_CONTACT_MS)/100,0,1)));
+          const aim=new THREE.Vector3(opening,Math.sin(hinge),Math.cos(hinge)).normalize();
+          pole.lerp(arm.shoulder.clone().addScaledVector(aim,.60),drive);
         }
         for (let iteration=0;iteration<6;iteration++) {
           elbow=solveJoint(arm.shoulder,hand,.32,.34,pole);
-          radial.copy(elbow).sub(grip).addScaledVector(axis,-elbow.clone().sub(grip).dot(axis)).normalize();
+          steady(radial.copy(elbow).sub(grip));
           socket.y=wristSocket(i).y*THREE.MathUtils.smoothstep(elbow.clone().sub(grip).dot(axis),-.08,.20);
           hand.copy(grip).addScaledVector(radial,-socket.z).addScaledVector(axis,socket.y);
         }
@@ -1196,7 +1483,13 @@ export class Batter {
       // Lift the heel about a planted toe instead of lifting the entire shoe.
       foot.y += .225 * Math.sin(footPitch) + .07 * (Math.cos(footPitch) - 1);
       const driving = !this.pulling && (this.charging || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF');
-      const kneePole = this.charging ? new THREE.Vector3(i === 0 ? .10 : .35, -.15, .65) : new THREE.Vector3(.65, -.15, .02);
+      // Kneeling is a different bend entirely. The default pole throws both
+      // knees out towards the off side, which is right for a man standing on
+      // them and wrong for one with a shin flat on the turf: the back knee has
+      // to drop straight down and forward, under the hip, or the leg folds out
+      // sideways and he reads as sitting rather than kneeling.
+      const kneePole = this.sweeping ? new THREE.Vector3(i === 0 ? .50 : .06, i === 0 ? -.55 : -.85, i === 0 ? .10 : .42)
+        : this.charging ? new THREE.Vector3(i === 0 ? .10 : .35, -.15, .65) : new THREE.Vector3(.65, -.15, .02);
       if (driving && !this.charging && !this.felled && Number.isFinite(this.poseAge)) {
         const weight=ease(THREE.MathUtils.clamp(this.poseAge/80,0,1))*ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/160,0,1));
         kneePole.lerp(new THREE.Vector3(i===0 ? .04 : .35,-.15,.65),weight);
@@ -1228,10 +1521,11 @@ export class Batter {
   inspect() {
     this.root.updateMatrixWorld(true);
     return {
-      shot: this.shot, pulling: this.pulling, cutting: this.cutting, squaring: this.squaring, lofted: this.lofted, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
+      shot: this.shot, pulling: this.pulling, cutting: this.cutting, squaring: this.squaring, lofted: this.lofted, sweeping: this.sweeping, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
       hands: this.arms.map(arm => arm.glove.getWorldPosition(new THREE.Vector3()).toArray()),
       wrists: this.arms.map(arm => arm.wrist.toArray()),
       elbows: this.arms.map(arm => arm.elbow.position.toArray()),
+      knees: this.legs.map(leg => leg.knee.position.toArray()),
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),
       chest: [...this.pose.chest], hip: [...this.pose.hip],
       armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),

@@ -33,6 +33,14 @@ export interface Flight {
   takeAt: number;
   /** Where it is spilled, or zero when it is held or nobody touches it. */
   dropAt: number;
+  /**
+   * Where in the flight it pitches, for a ball that reaches the rope on the
+   * bounce. Zero for everything else, which either carries the whole way or
+   * never leaves the ground. A swept four is the one shot that does this: it
+   * beats the field in the air, lands, and skids over — one bounce, and the
+   * difference between watching a four and watching a six.
+   */
+  bounceAt: number;
 }
 
 /** Runs to how far a ball that stayed down runs away from the bat. */
@@ -53,6 +61,15 @@ export function flightOf(outcome: ShotOutcome): Flight {
   const toAFielder = (caught || !!outcome.dropped) && outcome.aerial;
 
   if (outcome.advance) return shape(78, 32, 2200, 0.1);
+  if (outcome.swept) {
+    // Middled off the knee: over midwicket and into the crowd, flatter and
+    // faster than the charge's towering hit. A shade under and it clears the
+    // infield, pitches around three-quarters of the way out, and skids over
+    // the rope — the same four on the scoreboard, a different ball to watch.
+    return outcome.runs === 6
+      ? shape(74, 21, 2050, 0.1)
+      : { ...shape(GROUND_REACH[4], 7.5, 1650, 0.1), bounceAt: 0.72 };
+  }
   if (playedOn) {
     // It carries on past the timber rather than stopping dead on it, and that
     // is not decoration: the bails are thrown from the frame the ball reaches
@@ -68,7 +85,7 @@ export function flightOf(outcome: ShotOutcome): Flight {
     // the camera can see it — twenty-seven metres put it half out of frame.
     return {
       distance: 19, height: 14, flightMs: hang(outcome), endY: 1.5,
-      takeAt: 0.86, dropAt: outcome.dropped ? 0.88 : 0,
+      takeAt: 0.86, dropAt: outcome.dropped ? 0.88 : 0, bounceAt: 0,
     };
   }
   // In the air and nobody under it: a mishit that cleared the rope.
@@ -82,4 +99,4 @@ export function flightOf(outcome: ShotOutcome): Flight {
 const hang = (outcome: ShotOutcome) => outcome.hangMs ?? GAME.aerialFlightMs;
 
 const shape = (distance: number, height: number, flightMs: number, endY: number, takeAt = 1): Flight =>
-  ({ distance, height, flightMs, endY, takeAt, dropAt: 0 });
+  ({ distance, height, flightMs, endY, takeAt, dropAt: 0, bounceAt: 0 });

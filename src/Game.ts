@@ -12,7 +12,7 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
-import { advanceShot, loftedDrive, chargeable, resolveShot } from './game/ShotResolver';
+import { advanceShot, loftedDrive, slogSweep, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
@@ -292,7 +292,7 @@ export class Game {
     // clock would have made a share card a lie the moment it was reloaded.
     this.chasing = this.surviving ? teamScore(this.rng) : 0;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
-    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = false;
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
     this.hud.start(this.surviving);
     // The Test board is fetched when a Test innings starts rather than on every
@@ -310,7 +310,7 @@ export class Game {
     this.mode = 'CLASSIC';
     this.scene.whites(false);
     this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
-    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
     (document.activeElement as HTMLElement | null)?.blur();
@@ -355,7 +355,7 @@ export class Game {
   private mark(name: string, title: string) {
     track(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
   }
-  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
+  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, !!this.isPrimed); }
   private shoot = (shotType: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
@@ -365,8 +365,9 @@ export class Game {
     this.attempt = { shotType, inputTimeMs };
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
     const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
-    this.primed = false;
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted);
+    const sweeping = !charging && slogSweep(this.delivery!, this.attempt, this.charged);
+    this.primed = null;
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping);
     this.hud.select(shotType, charging);
   };
   /**
@@ -375,15 +376,19 @@ export class Game {
    * at a man bowling at 170 is not a shot, it is a decision to be hit.
    */
   private get charged() { return this.lesson < 0 && !this.surviving && this.confidence.full; }
-  /** This ball can be charged, and the meter is full to do it. */
-  private set primed(value: boolean) {
-    if (value) this.chargeBall = true;
+  /**
+   * This ball is one of the two special strokes, and the meter is full to play
+   * it. Which one matters to the player and not to the meter: the charge is a
+   * swipe up and the sweep is a swipe to leg, so the cue has to name it.
+   */
+  private set primed(value: 'CHARGE' | 'SWEEP' | null) {
+    if (value === 'CHARGE') this.chargeBall = true;
     if (value === this.isPrimed) return;
     this.isPrimed = value; this.showConfidence();
-    this.hud.phase(this.phase, value);
+    this.hud.phase(this.phase, !!value);
   }
   private get primed() { return this.isPrimed; }
-  private isPrimed = false;
+  private isPrimed: 'CHARGE' | 'SWEEP' | null = null;
   /** This ball was a charge and the meter was full, whatever came of it. */
   private chargeBall = false;
   /**
@@ -645,12 +650,14 @@ export class Game {
     if (this.phase === 'READY' && age >= this.readyMs) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.generator.next(this.elapsed + GAME.runupMs);
-      this.attempt = null; this.outcome = null; this.bounced = false; this.primed = false; this.chargeBall = false;
+      this.attempt = null; this.outcome = null; this.bounced = false; this.primed = null; this.chargeBall = false;
       // The ball is settled before the bowler moves, so the call goes out with
       // him. Held to the flight it gave the player under a second to see the
       // cue, change the shot he had in mind and time it — and that was most of
       // why a full meter kept going unspent.
-      this.primed = this.charged && chargeable(this.delivery);
+      this.primed = !this.charged ? null
+        : chargeable(this.delivery) ? 'CHARGE'
+        : sweepable(this.delivery) ? 'SWEEP' : null;
       this.scene.reset(); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));

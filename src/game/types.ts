@@ -36,6 +36,8 @@ export interface ShotOutcome {
   aerial: boolean;
   /** Charged down the pitch and hit out of the ground. */
   advance?: boolean;
+  /** Slog-swept off the knee, over midwicket. Six middled, four on the bounce. */
+  swept?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */

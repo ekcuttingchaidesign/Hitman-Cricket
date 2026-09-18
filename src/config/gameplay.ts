@@ -204,6 +204,44 @@ export const CONFIDENCE_FULL = 100;
  * of five, a chargeable ball came round barely twice an innings and the meter
  * filled with nothing to spend it on.
  */
+/**
+ * The slog sweep: the second special stroke, and the spinner's answer to the
+ * charge. A full meter buys one, the same as the charge does, and spending it
+ * empties it the same way — a run of form, not a bank balance.
+ *
+ * It is a Blast stroke only, and only against spin. There is no sweeping a
+ * quick: the whole shot is built on getting down early to a ball that is slow
+ * enough to wait for, and a batter who kneels to a seamer is a batter who has
+ * been hit. That restriction is also what keeps it from ever colliding with
+ * the charge, which needs a bowler's pace and so can never be offered on the
+ * same ball.
+ *
+ * Middled it clears midwicket. Timed a shade under, it still beats the field
+ * but along the ground and over the rope on the bounce — four either way to the
+ * scorer, and two plainly different balls to watch.
+ */
+export const SWEEP = {
+  /** Only the turning ball. The arm ball goes on with the arm and is not one. */
+  styles: ['OFF_SPIN', 'LEG_SPIN'] as readonly DeliveryStyle[],
+  /** The leg-side inputs. Sweeping is a leg-side stroke and asks for a leg-side swipe. */
+  shots: ['LEG', 'LONG_ON'] as readonly ShotType[],
+  /** Middled is six, a shade under is four. Worse than that and it is just the shot he played. */
+  timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
+  /**
+   * How full the ball has to pitch. Getting down to a ball dropped short is how
+   * a sweep becomes a top edge, so the stroke is only offered at one he can get
+   * under — and `bounceZ` is metres from the bowler, so further is fuller.
+   */
+  minBounceZ: 7.6,
+  /**
+   * Where it goes. Midwicket is between square leg and mid-on, so the sector
+   * sits between `SHOT_ANGLES.LEG` and `SHOT_ANGLES.LONG_ON` — not outside the
+   * pair of them. Wider than square leg is fine leg, which is a different shot
+   * and a much worse one to be given for middling a slog.
+   */
+  angle: -38,
+  feedback: { six: 'INTO THE CROWD!', four: 'SWEPT AWAY!' },
+} as const;
 export const ADVANCE = {
   minKph: 108, maxKph: 134, minBounceZ: 7.4, maxBounceZ: 9.4,
   // Any upward drive charges it. The gesture asked for is "swipe up", and a

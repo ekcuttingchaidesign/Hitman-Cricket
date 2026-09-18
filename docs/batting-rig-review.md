@@ -1,4 +1,4 @@
-# Batting rig review — pull, straight drive, and the new square drive
+# Batting rig review — pull, straight drive, the square drive, and the slog sweep
 
 What was reviewed, what was changed, and what was deliberately left alone.
 These are hand-authored poses judged against video, not motion capture.
@@ -235,6 +235,125 @@ head using the shoulder's outward bearing, which works while an arm is on its
 own side of the body but resolves upward on a finish that carries the hands
 across to the far shoulder — it was lifting the trailing elbow over the helmet
 instead of tucking it under.
+
+## Fourth pass — the slog sweep
+
+The second special stroke, and the first one added since the charge. It is
+gated the way the charge is — a full confidence meter, in The Blast — but it
+answers the opposite ball: a spinner, pitched up enough to get underneath
+(`SWEEP.minBounceZ`), met with a leg-side swipe. Middled it is six over
+midwicket; a shade under is four, and that four is given its own flight — it
+beats the infield in the air, pitches around three-quarters of the way out and
+skids over the rope (`Flight.bounceAt`, drawn as two arcs rather than one).
+
+The two special strokes are deliberately disjoint: nothing is both chargeable
+and sweepable, which is what lets the confidence meter name the shot on its way
+("CHARGE IT — SWIPE UP" against "SWEEP IT — SWIPE TO LEG") instead of offering a
+cue that might be about the wrong one.
+
+### The rig tore, and it was never where it looked
+
+The stroke is played off the knee, which is a pose the rig had never been asked
+for, and it broke it in four separate places. All four were the same kind of
+fault and none of them was in the sweep:
+
+**Poles were being blended as points.** The elbow's bend plane is named by a
+pole, and a weighted mix of two pole *points* travels the straight line between
+them. When the two poles sit on opposite sides of the arm, that line runs
+through the arm itself — the plane passes through undefined and comes out
+reversed, and the elbow crosses a third of a metre between two frames. Nothing
+upstream was discontinuous; the helmet guard that exposed it ramps from 0.003 to
+0.9 over five frames. Every hint now names a *direction* and turns the running
+one about the arm, which takes the same two ends round the short way and has no
+crossing to fall into.
+
+**A sign test on a cross product.** The shared bend plane ended with
+`round.dot(outward) < 0 ? round.negate() : round` — which looks like housekeeping
+and is a threshold switch. As the arm swings across the body that dot product
+passes through zero; at 210 ms into the sweep it did, and took the elbow with
+it. A cross product is already continuous; nobody needed it snapped.
+
+**The wrist offset faded into a fixed direction.** Which way round the handle a
+wrist sits is the shoulder's bearing on the bat, and on a pull at head height
+the back shoulder ends up almost *on* the handle's line, leaving a centimetre to
+normalise. The previous fix faded into a fixed across-the-body bearing — and a
+fixed bearing has to be given a side. The side came from a dot product, that dot
+product crossed zero at 244 ms into the pull, and the wrist moved 15 cm in one
+frame. There is no side to pick: a shoulder on the handle's line has no bearing
+off it. The *offset* now fades to nothing instead, which puts the wrist on the
+axis, which is where the geometry was heading anyway.
+
+**The drive aim was overriding the sweep's own plane.** The front arm's pole is
+taken outright from a world-space drive aim, so ahead of that the sweep's plane
+was simply discarded for that arm — and an aim that knows about driving through
+the line and nothing about swinging from the knees walked the front elbow into
+the helmet: 7.5 cm of clearance at the carry, left for the guard to rescue in
+four frames. Taking the sweep's plane last leaves 16 cm and the guard almost
+nothing to do.
+
+Worst elbow movement between two frames, across each stroke's whole reach, in
+metres per 2 ms — the shared limit is 0.032. "Before" is `HEAD` for the strokes
+that existed there, and the sweep's own first working draft for the sweep:
+
+| | before | after |
+|---|---|---|
+| sweep | 0.52 | 0.025 |
+| square cut | 0.075 | 0.051 |
+| cover drive | 0.026 | 0.028 |
+| pull | 0.018 | 0.018 |
+
+The cut is the one that still reads high; it is not in the flip check's list and
+was higher before. The cover drive is 2 mm worse and inside the limit.
+
+### The charge is still byte-identical
+
+Two of those fixes move the charge, because its arms are folded tight enough to
+sit in exactly the degenerate cases they address — through the new pole pipeline
+its elbows moved more than half a metre. It is finished, signed-off work, so it
+keeps the arithmetic it was authored against: the radial and the pole both have
+an explicit `this.charging` branch, commented as such. Verified by dumping every
+measurement of 6,608 charge frames from this branch and from `HEAD` and
+differencing them: **maximum delta 0**. `src/entities/rig.ts` is untouched for
+the same reason — a continuous-fade `solveJoint` was tried, was no longer needed
+once the poles were square to the arm by construction, and was reverted because
+it was the thing moving the charge.
+
+### The pose, and what the recordings changed
+
+- **He sits back.** The hips were shifted 14 cm back through contact, through
+  and carry, so the ball is met in front of him rather than beside him. Before
+  that the front elbow passed 13.6 cm from the spine — inside his own trunk.
+- **The front knee was in the swing.** It sat at 0.479 m, which is the height
+  the ball is met at, so the blade went through it. Its bend hint now drops the
+  knee under the hip instead of throwing it forward.
+- **The front foot is planted across, not down the ground.** Pulled in to
+  `[.26, .08, .32]` after the hips moved, because a stride that stays where it
+  was drew the front leg 13% past its own length.
+- **It finishes outside the front shoulder.** The hands finishing in front of
+  the face read as the right picture and are not one — they carried the back
+  glove within 19 cm of the helmet. Taken out past the shoulder, on the line the
+  carry was already on, the bat keeps travelling the way it was going instead of
+  reversing back across him.
+- **The follow-through is longer than a drive's.** The swing is the same hurry;
+  a bat travelling that fast round a kneeling body carries the elbows with it,
+  and crammed into the drives' window the front elbow moved 18 m/s.
+- **He unwraps it in front of him.** The finish holds the bat behind the front
+  shoulder and the guard holds it behind the back one, and the straight line
+  between those two runs through the front shoulder. He now takes it out where
+  he can see it first, blade down, then back into the pick-up.
+
+### What it is checked against
+
+The sweep joins `PLAYS`, so it takes the shared arm and blade checks the other
+strokes take — no flips, no limb past its own length, nothing through the
+helmet, nothing through the trunk, the blade's whole volume outside every joint.
+On top of those: the back knee reaches the turf at the ball and neither knee
+ever goes under it, the front foot is planted across and in front of the hips,
+the blade is flat through contact, the finish is nearer the front shoulder than
+the back one and outside it, and the stroke comes all the way home to the guard.
+The gate, the timing split, the disjointness from the charge, the midwicket
+sector and the bouncing four have their own tests in `game.test.ts` and
+`flight.test.ts`.
 
 ## Still open
 

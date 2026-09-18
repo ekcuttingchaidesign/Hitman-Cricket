@@ -830,15 +830,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /**
    * The meter reads full at 100 and pulses there. When the ball on its way is one
-   * he can charge, it says so — the shot is worth knowing about, and the timing
-   * is still the hard part.
+   * he can charge or sweep, it says which — the shot is worth knowing about, and
+   * the timing is still the hard part.
    */
-  confidence(fraction: number, primed: boolean) {
+  confidence(fraction: number, primed: 'CHARGE' | 'SWEEP' | null) {
     const full = fraction >= 1;
     const meter = this.$('confidence');
     meter.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
     meter.classList.toggle('is-full', full);
-    meter.classList.toggle('is-primed', primed);
+    meter.classList.toggle('is-primed', !!primed);
     // The housing is shared and a player can come back here straight from a
     // Test match, so this undoes Survive rather than assuming a fresh meter:
     // without it the classic innings inherited a red, pulsing, inverted bar.
@@ -847,7 +847,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('injury-cap').hidden = true;
     this.viewport.classList.remove('hurt-on');
     this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
-    this.$('confidence-label').textContent = primed ? 'CHARGE IT — SWIPE UP' : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
+    // Two special strokes now, and they are swiped for differently. Saying
+    // "charge it" over a ball that wants a sweep is worse than saying nothing.
+    this.$('confidence-label').textContent = primed === 'CHARGE' ? 'CHARGE IT — SWIPE UP'
+      : primed === 'SWEEP' ? 'SWEEP IT — SWIPE TO LEG'
+      : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
   /**
    * The batter's injury, in the housing the confidence meter uses in the other

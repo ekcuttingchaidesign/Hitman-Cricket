@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from '../src/entities/Batter';
+import { Batter, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Quaternion, Vector3 } from 'three';
@@ -14,7 +14,7 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * clock and is covered by its own suite below, so folding it in here would only
  * assert the preview rig this branch does not use.
  */
-const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; settle: number }> = {
+const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; settle: number }> = {
   pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500 },
   straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], settle: 410 },
   cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410 },
@@ -24,10 +24,13 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   lofted: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], lofted: true, settle: 410 },
   // The standing cut, at the chest-high ball it answers.
   cut: { shot: 'SQUARE_CUT', ballY: .92, impact: STROKE_CONTACT_MS, reach: [.11, .40, .62], settle: 410 },
+  // The slog sweep: the second special stroke, off the knee at a spinner's
+  // length. It runs on the shared rig and so it takes the shared checks.
+  sweep: { shot: 'LEG', ballY: .48, impact: SWEEP_CONTACT_MS, reach: [-.30, 0, .26], sweeping: true, settle: 600 },
 };
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
-  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ, false, spec.lofted ?? false);
+  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ, false, spec.lofted ?? false, spec.sweeping ?? false);
 };
 
 
@@ -439,7 +442,7 @@ describe('the grip', () => {
     expect(p.elbows[0][1]-wrist.y).toBeGreaterThan(.10);
   });
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','square','straight','cover']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','square','straight','cover','sweep']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -582,7 +585,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','square','straight','cover'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','square','straight','cover','sweep'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -627,6 +630,81 @@ describe('every stroke, across its reach', () => {
 });
 
 
+/**
+ * The slog sweep — the second special stroke, and the only one played off the
+ * knee. Everything the shared rig checks already applies to it, because it is
+ * in `PLAYS`; what is left is the shape of the stroke itself, which is what
+ * separates a sweep from a leg-side swipe played standing up.
+ */
+describe('the slog sweep', () => {
+  const swept = (x = 0) => { const batter = new Batter(); batter.prepare(1); batter.update(0); play(batter, 'sweep', x); return batter; };
+  it('gets down on it: the back knee goes to the turf and stays there', () => {
+    const batter = swept();
+    const guard = batter.inspect().hip[1];
+    let lowest = Infinity, atContact = Infinity;
+    for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+      batter.update(time);
+      const pose = batter.inspect();
+      lowest = Math.min(lowest, pose.knees[1][1]);
+      if (time === SWEEP_CONTACT_MS) atContact = pose.knees[1][1];
+      // Never through it: a knee under the turf reads as a man sunk into the
+      // square, and it is the kind of thing only a number catches.
+      expect(pose.knees[1][1], `back knee @${time}ms`).toBeGreaterThan(0);
+      expect(pose.knees[0][1], `front knee @${time}ms`).toBeGreaterThan(0);
+    }
+    // On the ground at the ball, not on the way there.
+    expect(atContact).toBeLessThan(.12);
+    expect(lowest).toBeLessThan(.10);
+    // And the hips go with it — he is not bending at the waist over a standing leg.
+    batter.update(SWEEP_CONTACT_MS);
+    expect(guard - batter.inspect().hip[1]).toBeGreaterThan(.30);
+  });
+  it('plants the front foot across and in front of the hips', () => {
+    const batter = swept();
+    batter.update(SWEEP_CONTACT_MS);
+    const pose = batter.inspect();
+    // Across towards the off side, and a stride in front: the leg he sweeps
+    // around, not one folded under him.
+    expect(pose.frontFoot[0] - pose.hip[0]).toBeGreaterThan(.30);
+    expect(pose.frontFoot[2] - pose.hip[2]).toBeGreaterThan(.40);
+    expect(pose.frontFoot[2] - pose.backFoot[2]).toBeGreaterThan(.60);
+  });
+  it('swings the blade flat through the ball', () => {
+    const batter = swept();
+    batter.update(SWEEP_CONTACT_MS);
+    const pose = batter.inspect();
+    // The handle is across him, not up: a sweep met with the bat vertical is a
+    // different shot, and a worse one.
+    expect(Math.abs(pose.batUp[1])).toBeLessThan(.30);
+    // And the blade is out to the leg side of the hands by the time it lands.
+    expect(pose.bladeTip[0]).toBeLessThan(new Vector3(...pose.hands[0]).sub(batter.root.position).x + .1);
+  });
+  it('finishes over the front shoulder, not the one it started behind', () => {
+    const batter = swept();
+    batter.update(560);
+    const pose = batter.inspect();
+    const hands = new Vector3(...pose.hands[0]).sub(batter.root.position);
+    const front = new Vector3(...pose.shoulders[0]), back = new Vector3(...pose.shoulders[1]);
+    // Right-handed, swept to midwicket: the bat ends up over his left, which is
+    // the shoulder that led. Ending over the back one is the stroke played
+    // backwards, and is exactly what the square drive did before it was rebuilt.
+    expect(hands.distanceTo(front)).toBeLessThan(hands.distanceTo(back));
+    // Outside that shoulder rather than in front of his face.
+    expect(front.x - hands.x).toBeGreaterThan(.05);
+    // And high: the bat has gone up, which is what makes it a slog.
+    expect(hands.y).toBeGreaterThan(front.y - .05);
+  });
+  it('is over before the stroke clock is, and comes all the way home', () => {
+    const batter = swept();
+    const guard = new Batter().inspect();
+    batter.update(STROKE_DURATION_MS);
+    const pose = batter.inspect();
+    expect(pose.grip).toEqual(guard.grip);
+    expect(pose.frontFoot).toEqual(guard.frontFoot);
+    expect(pose.backFoot).toEqual(guard.backFoot);
+  });
+});
+
 describe('the arms', () => {
   const REACH = .66;   // .32 upper + .34 lower
   const headOf = (pose: { chest: number[]; hip: number[] }) => new Vector3(...pose.chest)
@@ -639,7 +717,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['pull','square','straight','lofted','cover','cut'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['pull','square','straight','lofted','cover','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -699,7 +777,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['pull','square','straight','lofted','cover','cut'])('never reaches the %s arms past their own length', kind => {
+  it.each(['pull','square','straight','lofted','cover','cut','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
