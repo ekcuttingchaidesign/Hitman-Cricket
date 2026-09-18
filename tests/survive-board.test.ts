@@ -143,7 +143,7 @@ describe('whether it is worth asking for a name', () => {
 
 describe('whether the innings could have happened', () => {
   it('takes the three shapes the mode actually produces', () => {
-    expect(survivePlausible(innings({ runs: SURVIVE.target, balls: 38, blows: 2, health: 71 }))).toBe(true);
+    expect(survivePlausible(innings({ runs: SURVIVE.target, balls: 38, blows: 2, health: 47 }))).toBe(true);
     expect(survivePlausible(innings({ runs: 51, balls: SURVIVE.totalBalls, blows: 6, health: 18 }))).toBe(true);
     // Carried off: balls left, no wicket against him, and nothing left on the meter.
     expect(survivePlausible(innings({ runs: 20, balls: 33, wickets: 0, blows: 9, health: 0 }))).toBe(true);
@@ -228,18 +228,19 @@ describe('the meter, as the rung under runs', () => {
     expect(surviveDecidedBy(wonHurt, drewFresh)).toBe('tier');
   });
 
-  it('reads the bar in steps of four, which is finer than a blow', () => {
+  it('reads the bar in twenty-five normalized steps, which is finer than a blow', () => {
     // The cheapest blow in the mode still costs several points, so any two
     // innings that took a different battering land on different steps.
-    expect(healthStepOf(innings({ health: HEALTH.full }))).toBe(HEALTH.full / 4);
+    expect(healthStepOf(innings({ health: HEALTH.full }))).toBe(25);
     expect(healthStepOf(innings({ health: 0 }))).toBe(0);
-    expect(healthStepOf(innings({ health: 7 }))).toBe(1);
-    expect(healthStepOf(innings({ health: 8 }))).toBe(2);
+    expect(healthStepOf(innings({ health: 2 }))).toBe(0);
+    expect(healthStepOf(innings({ health: 3 }))).toBe(1);
+    expect(healthStepOf(innings({ health: 6 }))).toBe(2);
   });
 
   it('comes back off the packed key', () => {
     const played = drawn(31, 52);
-    expect(unpackSurvive(packSurvive(played, AT)).health).toBe(52 / 4);
+    expect(unpackSurvive(packSurvive(played, AT)).health).toBe(20);
     expect(unpackSurvive(packSurvive(played, AT)).runs).toBe(31);
   });
 

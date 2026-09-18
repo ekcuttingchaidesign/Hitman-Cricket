@@ -141,9 +141,15 @@ export const BANDS = { clean: 86, beaten: 190 } as const;
  * the whole of why the meter is worth watching.
  */
 export const HEALTH = {
-  full: 100,
+  /**
+   * The full injury budget. The meter still starts empty because `Health`
+   * starts at this value and draws damage as a fraction of the same value.
+   * Sixty-five makes two heavy blows, or three solid body blows, a credible
+   * retirement before the single wicket usually ends the innings first.
+   */
+  full: 65,
   /** At or below this the screen keeps a red edge: one more blow and he is off. */
-  critical: 25,
+  critical: 30,
   nominalKph: 140,
 } as const;
 

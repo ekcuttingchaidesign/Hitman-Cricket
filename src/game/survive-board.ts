@@ -104,16 +104,19 @@ const TIER_BITS = 2;
 const TIME_BITS = 28;
 
 /**
- * The meter, in steps of four points out of a hundred, which is what makes it
- * fit: twenty-five steps need five bits and a hundred would need seven, and
- * seven is two more than the key has to spare.
+ * The meter, normalized into twenty-five steps, which is what makes it fit:
+ * twenty-five steps need five bits while the raw meter would need seven, and
+ * seven is two more than the key has to spare. Keeping the step count stable
+ * also keeps new 65-point innings comparable with scores packed when the meter
+ * held a hundred points: a completely fresh batter is step twenty-five in
+ * either version.
  *
  * Nothing is lost by the rounding. The cheapest blow in the mode is a thigh at
  * the slowest pace and it still costs several points, so any two innings that
- * took a different battering are at least one step apart — and four points is a
- * twenty-fifth of a bar nobody could read that finely anyway.
+ * took a different battering are at least one step apart — and a twenty-fifth
+ * of a bar is finer than anybody could read it anyway.
  */
-const HEALTH_STEP = 4;
+const HEALTH_STEPS = 25;
 
 const RUNS_SHIFT = 2 ** HEALTH_BITS;
 const PRIMARY_SHIFT = RUNS_SHIFT * 2 ** RUNS_BITS;
@@ -158,7 +161,7 @@ export function primaryOf(innings: SurviveInnings): number {
  * Rounded down, so a step is only ever claimed when it was fully earned.
  */
 export function healthStepOf(innings: SurviveInnings): number {
-  return clamp(Math.floor(innings.health / HEALTH_STEP), 0, 2 ** HEALTH_BITS - 1);
+  return clamp(Math.floor(innings.health / HEALTH.full * HEALTH_STEPS), 0, 2 ** HEALTH_BITS - 1);
 }
 
 /** The tier, its figure, the runs and the meter, packed into twenty-five bits. */
