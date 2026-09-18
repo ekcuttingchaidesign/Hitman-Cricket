@@ -12,7 +12,7 @@ import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
 interface Play {
-  label: string; shot: ShotType; ballX: number; ballY: number; charging?: boolean;
+  label: string; shot: ShotType; ballX: number; ballY: number; charging?: boolean; lofted?: boolean;
   phases: readonly (readonly [string, number])[];
   note: string;
 }
@@ -21,15 +21,19 @@ const PLAYS: Record<string, Play> = {
   square: {
     label: 'Square drive (new)', shot: 'COVER_LONG_OFF', ballX: .44, ballY: .40,
     phases: [['Contact', SQUARE_DRIVE_CONTACT_MS], ['Flat extension', 240], ['Turn over', 330], ['High finish', 430], ['Recovery', 700]],
-    note: 'The off-side drive played at a wide, full ball. Watch 130–240 ms: the hands run out square with the blade still under them, and only then does it turn over.',
+    note: 'The off-side drive at a wide, full ball. Watch 130–240 ms: the arms come out straight and punch square with the blade still hanging under them, and only then does it turn over.',
   },
   straight: {
-    label: 'Straight drive', shot: 'STRAIGHT', ballX: 0, ballY: .54, phases: DRIVE_PHASES,
-    note: 'Reworked: the blade now carries up in front and over the front shoulder instead of stopping horizontal above the helmet.',
+    label: 'Straight drive — four', shot: 'STRAIGHT', ballX: 0, ballY: .54, phases: DRIVE_PHASES,
+    note: 'The checked one. Same ball and same contact as the six below; the hands finish high in front of the chest with the blade pointing up the ground after the ball, over a braced front leg.',
+  },
+  lofted: {
+    label: 'Straight drive — six (lofted)', shot: 'STRAIGHT', ballX: 0, ballY: .54, lofted: true, phases: DRIVE_PHASES,
+    note: 'Middled: the blade keeps climbing through the line, the chest opens right up, the back foot comes off and the bat finishes over the front shoulder. Played when the timing is perfect — the same rule that scores it as six.',
   },
   cover: {
     label: 'Cover drive', shot: 'COVER_LONG_OFF', ballX: .12, ballY: .54, phases: DRIVE_PHASES,
-    note: 'Unchanged from the preview branch. Inside the square drive’s width, so the same input stays a cover drive.',
+    note: 'Inside the square drive’s width, so the same input stays a cover drive. Its elbows now open through the ball too.',
   },
   pull: {
     label: 'Pull', shot: 'LEG', ballX: -.30, ballY: 1.12,
@@ -164,6 +168,7 @@ function frame(now: number) {
 
   const pose = batter.inspect();
   const variation = pose.squaring ? 'square drive'
+    : pose.lofted ? 'lofted drive'
     : pose.pulling ? 'pull'
     : pose.cutting ? 'standing cut'
     : pose.charging ? 'charge'
