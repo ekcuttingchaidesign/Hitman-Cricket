@@ -84,7 +84,7 @@ const CHARGE_ONLY = !!import.meta.env.VITE_CHARGE_ONLY;
  * builds against each other. Half speed unless a build says otherwise; 1 is
  * no slow motion at all.
  */
-const CHARGE_SLOWMO = Number(import.meta.env.VITE_CHARGE_SLOWMO) || 0.5;
+const CHARGE_SLOWMO = Number(import.meta.env.VITE_CHARGE_SLOWMO) || 0.65;
 
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
@@ -708,10 +708,11 @@ export class Game {
   private get timeScale() {
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
-    // Half speed. It ran at a third, and with the run down the pitch now
-    // inside the window as well as the hit, a third of that read as a
-    // replay rather than a beat: over a second and a half of him walking at
-    // the ball. Half keeps the run readable and the hit still lands.
+    // Two thirds speed, chosen from three playtest builds side by side. It
+    // ran at a third, and with the run down the pitch now inside the window
+    // as well as the hit, a third of that read as a replay rather than a
+    // beat: over a second and a half of him walking at the ball. Half was
+    // still slow; two thirds keeps the run readable and the hit still lands.
     return since < 340 ? this.chargeSlowmo : 1;
   }
   private update() {

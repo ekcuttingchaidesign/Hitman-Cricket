@@ -27,7 +27,7 @@
  *
  * `VITE_CHARGE_SLOWMO` goes with it: how slowly the clock runs through the
  * charge, as a fraction of real time, so two playtest builds can be put side
- * by side. Half unless set; 1 turns the slow motion off. `?slowmo=` at runtime.
+ * by side. Two thirds unless set; 1 turns the slow motion off. `?slowmo=` at runtime.
  *
  * `VITE_SHOW_SURVIVE` is the other half of that, and it is off unless a build
  * asks for it. Survive is still in playtest: it belongs on the Pages build,
