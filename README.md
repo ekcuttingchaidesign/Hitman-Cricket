@@ -59,6 +59,8 @@ An edge is not a skier. It comes off the face at gloves height and dies behind t
 
 Swipe **left**, **up-left**, **up**, **up-right**, or **right** for leg side, long on, straight, cover, or the square cut, and **down** to block, on a 90-degree fan so a hurried drag still finds it. With the confidence meter full, **down-left** is the scoop and **down-right** the reverse scoop — the two downward diagonals, between 110 and 160 degrees off vertical, with straight down still the block for twenty degrees either side; without the meter those gestures are what they always were. The slivers either side of that fan stay dead, so a sideways drag is still no shot. A short 24-pixel swipe commits the shot immediately when its direction becomes clear. Timing is measured at that moment, not at finger-down or release, and uses the same timing bands, compatibility, scoring, and wickets as keyboard play. One shot per ball is shared across input methods. Taps, second fingers, and cancelled gestures do not trigger a shot. A gesture cannot carry into the next ball.
 
+While the meter is full and a ball is on its way, a swipe guide fades in over the pitch in front of the crease: eight faint spokes, one per direction, in the same cream as the side labels. The spokes that would spend the meter on this ball — the charge's three drives, the sweep's two leg-side swipes, a scoop's diagonal — are gold and pulse with the edge of the field; the rest stay dim. It is a thumb's map, not a menu, and it goes with the shot the moment one is played. Touch devices only: a keyboard has nothing to swipe.
+
 Use the on-screen Pause button to resume or restart. Page scrolling is suppressed on the field during play; dialogs can still scroll on small screens.
 
 ## Keyboard controls

@@ -418,7 +418,7 @@ export class Game {
   private mark(name: string, title: string) {
     track(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
   }
-  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
+  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials); }
   private shoot = (shot: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
@@ -462,10 +462,17 @@ export class Game {
     if (value === 'CHARGE') this.chargeBall = true;
     if (value === this.isPrimed) return;
     this.isPrimed = value; this.showConfidence();
-    this.hud.phase(this.phase, value);
+    this.hud.phase(this.phase, value, this.specials);
   }
   private get primed() { return this.isPrimed; }
   private isPrimed: Primed = null;
+  /**
+   * Every special stroke this ball is for, in the order the cue prefers them.
+   * The cue names the first; the swipe guide lights all of them, because a
+   * ball on the stumps at pace can be charged or scooped and the player may
+   * want the scoop.
+   */
+  private specials: NonNullable<Primed>[] = [];
   /** This ball was a charge and the meter was full, whatever came of it. */
   private chargeBall = false;
   /**
@@ -734,7 +741,7 @@ export class Game {
     if (this.phase === 'READY' && age >= this.readyMs) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
-      this.attempt = null; this.outcome = null; this.bounced = false; this.primed = null; this.chargeBall = false;
+      this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false;
       // The ball is settled before the bowler moves, so the call goes out with
       // him. Held to the flight it gave the player under a second to see the
       // cue, change the shot he had in mind and time it — and that was most of
@@ -743,11 +750,12 @@ export class Game {
       // the charge's first and the scoop's second, so it is called as the
       // charge; the scoops are named for the balls only they answer — the
       // yorker, the slower ball, the quick one, the wide one.
-      this.primed = !this.charged ? null
-        : chargeable(this.delivery) ? 'CHARGE'
-        : sweepable(this.delivery) ? 'SWEEP'
-        : scoopable(this.delivery) && scoopLine(this.delivery, 'SCOOP') ? 'SCOOP'
-        : scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') ? 'REVERSE' : null;
+      this.specials = !this.charged ? [] : ([
+        chargeable(this.delivery) && 'CHARGE', sweepable(this.delivery) && 'SWEEP',
+        scoopable(this.delivery) && scoopLine(this.delivery, 'SCOOP') && 'SCOOP',
+        scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') && 'REVERSE',
+      ] as const).filter((special): special is NonNullable<Primed> => !!special);
+      this.primed = this.specials[0] ?? null;
       this.scene.reset(); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));

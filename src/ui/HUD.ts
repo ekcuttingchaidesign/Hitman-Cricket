@@ -123,6 +123,35 @@ const CUES: Record<NonNullable<Primed>, string> = {
   CHARGE: 'CHARGE IT — SWIPE UP', SWEEP: 'SWEEP IT — SWIPE TO LEG',
   SCOOP: 'SCOOP IT — SWIPE DOWN-LEFT', REVERSE: 'REVERSE IT — SWIPE DOWN-RIGHT',
 };
+/**
+ * The swipe guide: the eight directions a thumb can go, as faint spokes over
+ * the pitch in front of the crease, shown only while there is a meter to spend
+ * and a ball on its way. Which spokes light up is the ball's business — the
+ * charge's three drives, the sweep's two leg-side swipes, a scoop's diagonal —
+ * and the rest stay dim, so the guide says where the special strokes are
+ * without shouting about the ordinary ones. Degrees clockwise from straight up.
+ */
+const SWIPE_SPOKES: readonly { dir: string; angle: number }[] = [
+  { dir: 'STRAIGHT', angle: 0 }, { dir: 'COVER', angle: 45 }, { dir: 'CUT', angle: 90 }, { dir: 'REVERSE', angle: 135 },
+  { dir: 'DEFEND', angle: 180 }, { dir: 'SCOOP', angle: 225 }, { dir: 'LEG', angle: 270 }, { dir: 'LONG_ON', angle: 315 },
+];
+/** Which spokes each special stroke is played off. */
+const SPECIAL_SPOKES: Record<NonNullable<Primed>, readonly string[]> = {
+  CHARGE: ['STRAIGHT', 'LONG_ON', 'COVER'], SWEEP: ['LEG', 'LONG_ON'], SCOOP: ['SCOOP'], REVERSE: ['REVERSE'],
+};
+function swipeGuide() {
+  const spokes = SWIPE_SPOKES.map(({ dir, angle }) => {
+    const a = angle * Math.PI / 180, sin = Math.sin(a), cos = -Math.cos(a);
+    const from = 24, to = 80, head = 7;
+    const x1 = (sin * from).toFixed(1), y1 = (cos * from).toFixed(1), x2 = (sin * to).toFixed(1), y2 = (cos * to).toFixed(1);
+    // The arrowhead: two short strokes back from the tip, either side of it.
+    const left = a + Math.PI * .8, right = a - Math.PI * .8;
+    const lx = (sin * to + Math.sin(left) * head).toFixed(1), ly = (cos * to - Math.cos(left) * head).toFixed(1);
+    const rx = (sin * to + Math.sin(right) * head).toFixed(1), ry = (cos * to - Math.cos(right) * head).toFixed(1);
+    return `<g class="spoke" data-dir="${dir}"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><path class="tip" d="M${lx} ${ly}L${x2} ${y2}L${rx} ${ry}"/></g>`;
+  }).join('');
+  return `<svg id="swipe-guide" class="swipe-guide" viewBox="-100 -100 200 200" aria-hidden="true"><circle class="hub" r="3"/>${spokes}</svg>`;
+}
 export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
@@ -198,6 +227,7 @@ export class HUD {
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
+        ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
@@ -439,12 +469,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
   }
-  phase(phase: GamePhase, primed: Primed = null) {
+  /**
+   * `specials` is every special stroke this ball is for, `primed` the one the
+   * call names. The guide lights a spoke for each of them.
+   */
+  phase(phase: GamePhase, primed: Primed = null, specials: readonly NonNullable<Primed>[] = primed ? [primed] : []) {
     const label = this.$('phase-label');
     // The call goes where the player is already looking — down the pitch —
     // not in the corner with the meter, and it names the stroke this ball is
     // for, because each of the four is swiped for differently.
     const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    this.guide(on, specials);
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
       : phase === 'READY' ? 'TAKE YOUR GUARD' : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
@@ -453,8 +488,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.toggle('charge-on', on);
     if (phase === 'READY') this.$('result').classList.add('hidden');
   }
+  /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
+  private guide(on: boolean, specials: readonly NonNullable<Primed>[]) {
+    const guide = this.$('swipe-guide');
+    guide.classList.toggle('is-on', on);
+    const lit = new Set(specials.flatMap(special => SPECIAL_SPOKES[special]));
+    guide.querySelectorAll<SVGGElement>('.spoke').forEach(spoke => spoke.classList.toggle('is-special', lit.has(spoke.dataset.dir!)));
+  }
   select(_shot: ShotType, charging = false) {
     this.$('phase-label').classList.remove('is-primed'); this.viewport.classList.remove('charge-on');
+    this.$('swipe-guide').classList.remove('is-on');
     this.$('phase-label').textContent = charging ? 'DOWN THE PITCH!' : 'SHOT COMMITTED';
   }
   /** A skied shot: say nothing about the outcome until the ball comes down. */
