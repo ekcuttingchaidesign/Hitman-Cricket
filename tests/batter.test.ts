@@ -1528,9 +1528,9 @@ describe('the charge over long-on', () => {
       expect(elbow.clearance, `x=${x} ${JSON.stringify(elbow)}`).toBeGreaterThan(.15);
     }
   });
-  it('comes home back over the top, on the arc it went over on', () => {
+  it.each([['straight', charge], ['long-on', onCharge]])('the %s charge comes home back over the top, on the arc it went over on', (_, make) => {
     for (const x of PLAYS.onCharge.reach) {
-      const batter = onCharge(x);
+      const batter = make(x);
       // Up out of the wrap the way it went in: by the unwrap key the toe is
       // back up above the hands and behind him, as it was over the top on
       // the way in; by the across key it is up and in front of him, and the
@@ -1544,11 +1544,14 @@ describe('the charge over long-on', () => {
       expect(pose.bladeTip[1], `x=${x} across toe up`).toBeGreaterThan(pose.grip[1] + .35);
       expect(pose.bladeTip[2] - batter.root.position.z, `x=${x} across toe in front`).toBeGreaterThan(pose.grip[2] + .3);
       expect(pose.grip[1], `x=${x} across hands down`).toBeLessThan(1.45);
-      // And it never hangs the blade down beside the hip on the way, which is
-      // the straight charge's route and the one that slid down the shoulder.
+      // And it never hangs the blade down beside the hip on the way, which
+      // was the first route home and the one that slid down the shoulder: the
+      // toe stays above the waist all the way, where the hang had it at the
+      // knee. (The straight charge's wrap itself hangs the toe down behind
+      // the back, at the hip — that is the finish, not the way home.)
       for (let time = CHARGE_CLOCK.hold; time <= CHARGE_CLOCK.recover; time += 4) {
         batter.update(time);
-        expect(batter.inspect().bladeTip[1], `x=${x} toe dropped at ${time}ms`).toBeGreaterThan(batter.inspect().grip[1] - .3);
+        expect(batter.inspect().bladeTip[1], `x=${x} toe dropped at ${time}ms`).toBeGreaterThan(.8);
       }
     }
   });

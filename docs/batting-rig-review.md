@@ -60,10 +60,13 @@ What the recordings show, and what is now keyed, in the charge's own clock:
   the blade wrapped over it with the toe hanging down behind his back. Both
   hands in front of the shoulder line, and out wide rather than tight beside
   the ear, where the shaft came down across the grille.
-- **700–940 ms, home.** The bat drops and hangs beside the left hip, comes
-  across the front with the toe kept down — straight from the hang to the
-  pick-up the knob swung back into his chest — and lifts into the guard. Then
-  the walk back, which is unchanged.
+- **700–940 ms, home.** Back the way it came: the bat comes up over the top
+  on the arc it went over on, toe to the sky above the front shoulder again
+  at 775 ms, then down in front of him with the toe still up and the hands
+  falling to the chest at 835 ms, straight into the pick-up. The first
+  version dropped the blade past the shoulder to hang beside the left hip,
+  which read as the bat sliding down the shoulder. Then the walk back, which
+  is unchanged.
 
 The feet are authored on the ground he is actually covering. The root runs a
 metre down the pitch through the stroke and a planted foot has to stay put
@@ -108,12 +111,9 @@ long-on, and then the straight charge's own over-the-top key and wrap — the
 bat over the front (left) shoulder, toe down behind the back — on this
 stroke's feet and facing mid-on, which is what the user asked for after
 seeing a first version that finished with the bat up to the sky. The way
-home is its own: the straight charge drops the blade down past the shoulder
-to hang beside the hip, and on this shallower wrap that read as the bat
-sliding down the shoulder, so it comes back up over the top on the arc it
-went over on — toe to the sky above the front shoulder again — and only then
-down in front of him, hands to the chest with the toe still up, into the
-pick-up. Played off the long-on swipe, 34° rather than
+home is the straight charge's — back up over the top on the arc it went over
+on, then down in front of him into the pick-up — out of its own shallower
+wrap. Played off the long-on swipe, 34° rather than
 long-on's 24°, with its own call; the swipe leans the same eight degrees
 towards vertical on that side.
 

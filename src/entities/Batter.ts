@@ -770,27 +770,31 @@ const CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
 const CHARGE_CONTACT = CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
 const CHARGE_FINISH = CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.finish)!.pose;
 /**
- * Home from the wrap. The finish holds the bat behind the front shoulder and
- * the guard holds it behind the back one, and every short path between the two
- * goes through his head. So he does what the recording does: the hands drop
- * and the blade swings down past the outside of the front shoulder to hang
- * beside the left hip, toe to the turf, and only then comes forward and
- * across into the pick-up.
+ * Home from the wrap, back the way it came. The finish holds the bat behind
+ * the front shoulder and the guard holds it behind the back one, and every
+ * short path between the two goes through his head. The first way home
+ * dropped the blade past the outside of the front shoulder to hang beside the
+ * left hip, toe to the turf, which read as the bat sliding down the shoulder.
+ * So he now does what the recording does: the bat comes back up over the top
+ * on the arc it went over on — the over-the-top key again, toe to the sky
+ * above the front shoulder — and only then comes down in front of him, the
+ * hands falling to the chest with the toe still up, straight into the
+ * pick-up.
  */
 const CHARGE_UNWRAP: Pose = { ...GUARD, hip: [.00, .88, .02], chest: [.02, 1.23, .06],
-  frontFoot: [-.04, .08, -.13], backFoot: [-.20, .08, .16],
-  grip: [-.22, .98, .42], batUp: [.16, .96, .23], batFace: [.97, -.16, .00],
-  yaw: .30, face: 0, heel: 0, backFootYaw: .50, leadElbow: .10, shoulderLift: .03 };
+  frontFoot: [-.03, .08, -.12], backFoot: [-.21, .08, .18],
+  grip: [-.08, 1.64, .44], batUp: [.20, -.90, .38], batFace: [.97, .20, .10],
+  yaw: .18, face: .02, heel: .10, backFootYaw: .50, leadElbow: .22,
+  armHinge: .60, armDrive: 0, shoulderLift: .07 };
 /**
- * Across the front, blade still hanging. Straight from the hang to the pick-up
- * is most of a half turn, and the short way round it swung the knob back into
- * his chest; carried across with the toe kept down it stays out in front of
- * him until the lift.
+ * Down in front of him, toe still up. From the top to the pick-up is a short
+ * turn with the blade kept up; taken with the toe down it was most of a half
+ * turn, and the short way round it swung the knob back into his chest.
  */
 const CHARGE_ACROSS: Pose = { ...GUARD, hip: [-.02, .90, .00], chest: [.02, 1.25, .04],
   frontFoot: [-.05, .08, .00], backFoot: [-.19, .08, .04],
-  grip: [.12, 1.00, .46], batUp: [.10, .80, -.59], batFace: [.98, -.16, -.05],
-  yaw: .55, face: 0, heel: 0, backFootYaw: .80, leadElbow: -.05 };
+  grip: [.06, 1.34, .50], batUp: [.18, -.72, -.67], batFace: [.95, .20, .08],
+  yaw: .55, face: 0, heel: 0, backFootYaw: .80, leadElbow: .05, armHinge: .50 };
 const CHARGE_RECOVER: Pose = { ...GUARD, hip: [-.04, .92, -.02], chest: [.02, 1.26, .02],
   frontFoot: [-.06, .08, .12], backFoot: [-.18, .08, -.10],
   grip: [.34, 1.08, .44], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
@@ -938,26 +942,17 @@ const ON_CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
 const ON_CHARGE_CONTACT = ON_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
 const ON_CHARGE_FINISH = ON_CHARGE_KEYS[ON_CHARGE_KEYS.length - 1].pose;
 /**
- * Home from the wrap, back the way it came. The straight charge's wrap hangs
- * the toe down behind the back, and its way home drops the blade past the
- * outside of the shoulder to hang beside the hip. This wrap is shallower —
- * the toe sits behind the shoulder barely below the hands — and dropped the
- * same way it slid down the shoulder, which is not what the recording does:
- * the bat comes back up over the top on the arc it went over on, the toe to
- * the sky above the front shoulder again, and only then does it come down in
- * front of him, hands falling to the chest with the toe still up, straight
- * into the pick-up. So the first key home is the over-the-top key again, and
- * the second has the blade up in front of the face.
+ * Home from the wrap, the straight charge's way — back up over the top on the
+ * arc it went over on, then down in front — but out of a shallower wrap and
+ * facing mid-on, so the first key is this stroke's own: the toe comes back up
+ * behind the shoulder to where its over-the-top key held it. The second is
+ * the straight charge's.
  */
 const ON_CHARGE_UNWRAP: Pose = { ...GUARD, hip: [.00, .88, .02], chest: [.02, 1.23, .06],
   frontFoot: [-.06, .08, -.12], backFoot: [-.22, .08, .18],
   grip: [-.14, 1.62, .42], batUp: [.26, -.50, .83], batFace: [.95, .25, -.10],
   yaw: .24, face: -.06, heel: 0, backFootYaw: .50, leadElbow: .22,
   armHinge: .60, armDrive: 0, shoulderLift: .07 };
-const ON_CHARGE_ACROSS: Pose = { ...GUARD, hip: [-.02, .90, .00], chest: [.02, 1.25, .04],
-  frontFoot: [-.05, .08, .00], backFoot: [-.19, .08, .04],
-  grip: [.04, 1.34, .50], batUp: [.22, -.72, -.65], batFace: [.95, .20, .10],
-  yaw: .55, face: 0, heel: 0, backFootYaw: .80, leadElbow: .05, armHinge: .50 };
 
 function mix(a: Pose, b: Pose, amount: number): Pose {
   const t = ease(THREE.MathUtils.clamp(amount, 0, 1));
@@ -1382,13 +1377,14 @@ export class Batter {
       // The way home, as the poses it passes through and when it reaches
       // each. The wrap needs three — up out of it, across, and down into the
       // pick-up — because every straight line from behind one shoulder to
-      // behind the other goes through him. The charge over long-on wraps
-      // shallower and comes home back over the top instead, on the arc it
-      // went over on, then down in front. The high finish over cover needs
-      // two: down in front of the face, then across into the pick-up.
+      // behind the other goes through him, so the bat goes back up over the
+      // top on the arc it went over on, then down in front. The charge over
+      // long-on wraps shallower and has its own first key. The high finish
+      // over cover needs two: down in front of the face, then across into
+      // the pick-up.
       const home: readonly [number, Pose][] = overCover
         ? [[COVER_CHARGE_CLOCK.down, COVER_CHARGE_DOWN], [COVER_CHARGE_CLOCK.recover, COVER_CHARGE_RECOVER]]
-        : overLongOn ? [[unwrap, ON_CHARGE_UNWRAP], [across, ON_CHARGE_ACROSS], [recover, CHARGE_RECOVER]]
+        : overLongOn ? [[unwrap, ON_CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]]
         : [[unwrap, CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]];
       if (age < settle) {
         this.apply(shoulderDriven([{ time: 0, pose: this.swingFrom },
