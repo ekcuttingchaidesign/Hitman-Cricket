@@ -123,20 +123,25 @@ The third pair of special strokes, and the first behind the wicket, each
 from a broadcast recording. The scoop is a ramp rather than a swing: down
 early in a wide crouch, square to the bowler, the bat held out in front of
 the front hip with the toe angled down and forward to the off and the face
-to the sky, the ball met at knee height and ridden off the face. Then the
-wrists roll and the bat goes up and over the front shoulder: the toe swings
-from down and forward, past the leg side of him, back, and down behind him,
-the hands rising up the leg side to finish high beside the front shoulder
-with the blade wrapped over it — the straight charge's wrap from a crouch,
-and the straight charge's way home, back over the top. The first version
-lifted the bat straight up in front of him with the toe still hanging, which
-the user rightly read as a paddle; the recording rolls it round. Two things
-were needed to make the roll clean. The front elbow has to be high through
-it — the drives' `leadElbow` lift, which the scoop now gets too — because
-with the elbow hanging the blade swept back through the forearm; and the
-hands come up first, off the ball, before the toe swings in, because at a
-yorker they start at the shin and a toe brought straight in from there swept
-across the top of the front boot.
+to the sky, the ball met at knee height and ridden off the face. Then the bat
+follows the ball without turning in the hands: it lifts face first, the toe
+swinging up in front of him from down and forward, through level with the
+off side, on up past the head, and curling back over the front shoulder at
+the top, the hands rising with it to finish high beside that shoulder with
+the back of the bat to the sky. It is one turn about one axis — the face that
+met the ball leads the whole way — and the three keys after contact are that
+turn at a quarter, a half and three quarters, so the interpolation cannot
+find a roll to add. Home is the straight charge's way, over the top and down
+in front, with the face turned back round across those three keys, where a
+batter re-grips anyway.
+
+It took three attempts. The first lifted the bat straight up in front of him
+with the toe still hanging, which the user rightly read as a paddle. The
+second rolled the wrists and wrapped the bat round the leg side of him, which
+was a different stroke: the user drew the arc — face first, up, over — and
+that is the third. Two things carried over from the second. The front elbow
+is held high through the lift, the drives' `leadElbow` lift, which the scoop
+now gets too; and the face is turned only on the way home, never mid-stroke.
 
 The reverse borrows the slog sweep's kneel outright — the same hip, the same
 front foot planted across, the same back foot dragged round, and the same
