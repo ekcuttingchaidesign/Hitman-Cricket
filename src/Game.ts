@@ -700,7 +700,11 @@ export class Game {
   private get timeScale() {
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
-    return since < 340 ? 0.38 : 1;
+    // Half speed. It ran at a third, and with the run down the pitch now
+    // inside the window as well as the hit, a third of that read as a
+    // replay rather than a beat: over a second and a half of him walking at
+    // the ball. Half keeps the run readable and the hit still lands.
+    return since < 340 ? 0.5 : 1;
   }
   private update() {
     const age = this.elapsed - this.phaseStart;
