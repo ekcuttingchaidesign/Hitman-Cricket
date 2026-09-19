@@ -79,6 +79,12 @@ const SPIN_ONLY = !!import.meta.env.VITE_SPIN_ONLY;
  * can be walked at, so the stroke can be looked at without batting for it.
  */
 const CHARGE_ONLY = !!import.meta.env.VITE_CHARGE_ONLY;
+/**
+ * How slowly the clock runs through the charge, for comparing playtest
+ * builds against each other. Half speed unless a build says otherwise; 1 is
+ * no slow motion at all.
+ */
+const CHARGE_SLOWMO = Number(import.meta.env.VITE_CHARGE_SLOWMO) || 0.5;
 
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
@@ -353,6 +359,8 @@ export class Game {
   private get limits() { return this.surviving ? SURVIVE_LIMITS : CLASSIC_LIMITS; }
   /** `?spin=1` is the same thing as the build flag, for a dev server. */
   private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
+  /** `?slowmo=0.65` tries a clock speed for the charge on a dev server. */
+  private chargeSlowmo = Number(new URLSearchParams(location.search).get('slowmo')) || CHARGE_SLOWMO;
   /** `?charge=1` likewise. Only the classic innings has a meter to fill. */
   private chargeOnly = CHARGE_ONLY || new URLSearchParams(location.search).get('charge') === '1';
   /**
@@ -704,7 +712,7 @@ export class Game {
     // inside the window as well as the hit, a third of that read as a
     // replay rather than a beat: over a second and a half of him walking at
     // the ball. Half keeps the run readable and the hit still lands.
-    return since < 340 ? 0.5 : 1;
+    return since < 340 ? this.chargeSlowmo : 1;
   }
   private update() {
     const age = this.elapsed - this.phaseStart;

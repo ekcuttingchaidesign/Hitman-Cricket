@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 /**
- * The build-time settings this game has, and there are only five.
+ * The build-time settings this game has, and there are only six.
  *
  * `VITE_BOARD_API` is empty when Vercel serves both the game and its endpoints,
  * and set to the API's origin when the game is published somewhere that cannot
@@ -25,6 +25,10 @@
  * can be looked at in the game without scoring four boundaries to earn each
  * look. `?charge=1` does it at runtime.
  *
+ * `VITE_CHARGE_SLOWMO` goes with it: how slowly the clock runs through the
+ * charge, as a fraction of real time, so two playtest builds can be put side
+ * by side. Half unless set; 1 turns the slow motion off. `?slowmo=` at runtime.
+ *
  * `VITE_SHOW_SURVIVE` is the other half of that, and it is off unless a build
  * asks for it. Survive is still in playtest: it belongs on the Pages build,
  * where people are being handed the link to give an opinion on the batting, and
@@ -38,6 +42,7 @@ interface ImportMetaEnv {
   readonly VITE_SURVIVE_ONLY?: string;
   readonly VITE_SPIN_ONLY?: string;
   readonly VITE_CHARGE_ONLY?: string;
+  readonly VITE_CHARGE_SLOWMO?: string;
   readonly VITE_SHOW_SURVIVE?: string;
 }
 interface ImportMeta {
