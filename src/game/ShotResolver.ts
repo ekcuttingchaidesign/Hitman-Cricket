@@ -137,7 +137,8 @@ function sweptPast(outcome: ShotOutcome, delivery: Delivery, rng: { next(): numb
  * classic drive, which is also everything that is not worth six.
  */
 export function loftedDrive(delivery: Delivery, attempt: ShotAttempt | null) {
-  if (!attempt || attempt.shotType !== 'STRAIGHT' || delivery.style === 'SHORT') return false;
+  // The on drive has a six of its own now, on the same rule.
+  if (!attempt || (attempt.shotType !== 'STRAIGHT' && attempt.shotType !== 'LONG_ON') || delivery.style === 'SHORT') return false;
   if (COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] < SOLID_SHOT) return false;
   return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight) === 'PERFECT';
 }

@@ -599,6 +599,49 @@ const STRAIGHT_LOFT: Stroke = {
   recover: STROKES.STRAIGHT.recover,
 };
 /**
+ * The on drive, lofted — the six, from a broadcast recording.
+ *
+ * The same ball and the same contact as the on drive played along the ground:
+ * the front foot across to the leg side, the face closed towards mid-on, the
+ * ball met beside the pad. What separates them is everything after impact.
+ * The arms open out towards long-on with the blade already climbing, the
+ * hands keep going up and across to the leg side, and the finish is the one
+ * the recording holds for a full second: both arms straight above the helmet,
+ * the bat to the sky over the front shoulder and a little behind it, the back
+ * foot up on its toe and the chest open to the leg side, watching it go.
+ * Timed anything less than perfectly it is the ordinary on drive that gets
+ * played, which is also the ball that is worth less than six.
+ */
+const ON_LOFT: Stroke = {
+  // The drive aim is eased in rather than switched on at the ball: the on
+  // drive's guard has none, and taking it whole inside the pick-up moved the
+  // front elbow too fast at a ball wide of leg stump.
+  contact: { ...STROKES.LONG_ON.contact, armHinge: .90, armDrive: .50, shoulderLift: 0 },
+  // Extension, out towards long-on: both arms straight, the blade climbing.
+  through: { ...GUARD, hip: [-.10, .80, .22], chest: [-.02, 1.14, .32],
+    frontFoot: [-.34, .08, .58], backFoot: [-.16, .10, -.28],
+    grip: [.10, 1.06, .78], batUp: [.32, .50, -.80], batFace: [-.50, .75, .45],
+    yaw: .55, face: -.30, heel: .30, backFootYaw: 1.00, leadElbow: .24,
+    armHinge: .55, armDrive: 1, shoulderLift: .04 },
+  // Up and across to the leg side, the blade with the hands.
+  carry: { ...GUARD, hip: [-.10, .84, .18], chest: [-.06, 1.20, .24],
+    frontFoot: [-.34, .08, .58], backFoot: [-.14, .14, -.26],
+    grip: [-.10, 1.42, .66], batUp: [.32, -.30, -.90], batFace: [-.45, .82, -.35],
+    yaw: .35, face: -.35, heel: .45, backFootYaw: .90, leadElbow: .26,
+    armHinge: 1.00, armDrive: 1, shoulderLift: .06 },
+  // Both arms straight above the helmet, the bat to the sky over the front
+  // shoulder, the back foot on its toe. Held.
+  finish: { ...GUARD, hip: [-.12, .88, .16], chest: [-.08, 1.24, .20],
+    frontFoot: [-.34, .08, .58], backFoot: [-.12, .16, -.22],
+    grip: [-.26, 1.90, .44], batUp: [.36, -.70, .60], batFace: [.85, .20, -.30],
+    yaw: .30, face: -.30, heel: .55, backFootYaw: .70, leadElbow: .30,
+    armHinge: 1.50, armDrive: .80, shoulderLift: .10 },
+  // The on drive's own way home, held a little further out in front: from
+  // this finish the knob passes the grille on the way to the pick-up at a
+  // ball wide of leg stump, where the body has followed the ball across.
+  recover: { ...STROKES.LONG_ON.recover!, grip: [.26, 1.04, .60] },
+};
+/**
  * The advance charge — the reference recordings, from behind and from the front.
  *
  * Both show the same stroke. The back foot skips up to the front one first,
@@ -1178,7 +1221,7 @@ export class Batter {
       && finalBallX >= SQUARE_DRIVE_BALL.minWidth && ballY <= SQUARE_DRIVE_BALL.maxBallY;
     // The six's follow-through, chosen by the caller off the same timing rule
     // the score is worked out from. Charging overrides it, as it does everything.
-    this.lofted = !charging && shot === 'STRAIGHT' && lofted;
+    this.lofted = !charging && (shot === 'STRAIGHT' || shot === 'LONG_ON') && lofted;
     // The second special stroke. Its caller has already established the ball,
     // the meter and the timing; here it only has to displace the pull.
     // Both sweeps run the same branch on the same clock, because below the
@@ -1272,7 +1315,7 @@ export class Batter {
       : overLongOn ? { contact: ON_CHARGE_CONTACT, finish: ON_CHARGE_FINISH }
       : this.charging ? { contact: CHARGE_CONTACT, finish: CHARGE_FINISH }
       : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? PULL : this.cutting ? CUT_HIGH
-      : this.squaring ? SQUARE_DRIVE : this.lofted ? STRAIGHT_LOFT : STROKES[this.shot];
+      : this.squaring ? SQUARE_DRIVE : this.lofted ? (this.shot === 'LONG_ON' ? ON_LOFT : STRAIGHT_LOFT) : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
     const zones: Record<ShotType, readonly [number, number]> = {
@@ -1301,7 +1344,7 @@ export class Batter {
     // their own length rather than extending them.
     const step = targetX * (this.squaring ? .86 : .65);
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
-    const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.charging || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF';
+    const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.charging || this.lofted || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF';
     const reachPose = (p: Pose): Pose => ({ ...p, hip: shift(p.hip, step), chest: shift(p.chest, step),
       frontFoot: shift(p.frontFoot, step), backFoot: shiftsBackFoot ? shift(p.backFoot, step) : p.backFoot,
       grip: shift(p.grip, step) });
@@ -1423,7 +1466,9 @@ export class Batter {
       }
       return;
     }
-    if (this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF') {
+    // The lofted on drive runs the drives' clock too: it is a drive, and the
+    // on drive along the ground it is picked instead of keeps its own.
+    if (this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF' || (this.shot === 'LONG_ON' && this.lofted)) {
       if (age < 410) {
         const keys = [{ time: 0, pose: this.swingFrom }, { time: STROKE_CONTACT_MS, pose: contact },
           { time: 220, pose: reachPose(stroke.through!) }];
@@ -1433,7 +1478,13 @@ export class Batter {
       } else if (age < (this.lofted ? 620 : 570)) this.apply(finish);
       else if (age < 800) {
         const hold=this.lofted?620:570;
-        const out=reachPose({ ...stroke.finish, grip: this.shot==='STRAIGHT'?[.46,1.40,.66]:[.58,1.38,.68], batUp: [-1,0,0], batFace: [0,0,1],armHinge:.2,armDrive:1,shoulderLift:.04 });
+        // Down off the high finish. The on drive's comes down out in front of
+        // the face, toe up and forward, because from above the helmet the knob
+        // points down at him and the short way to the pick-up is through the
+        // grille.
+        const out=reachPose(this.shot==='LONG_ON'
+          ? { ...stroke.finish, grip: [.02,1.42,.74], batUp: [-.15,-.55,-.82], batFace: [.90,-.30,.30], armHinge:.4, armDrive:.5, shoulderLift:.04 }
+          : { ...stroke.finish, grip: this.shot==='STRAIGHT'?[.46,1.40,.66]:[.58,1.38,.68], batUp: [-1,0,0], batFace: [0,0,1],armHinge:.2,armDrive:1,shoulderLift:.04 });
         const clear=hold+(this.shot==='COVER_LONG_OFF'?110:90);
         this.apply(age<clear?mix(finish,out,(age-hold)/(clear-hold)):mix(out,reachPose(stroke.recover!),(age-clear)/(800-clear)));
       } else this.apply(mix(reachPose(stroke.recover!),GUARD,(age-800)/(STROKE_DURATION_MS-800)));
@@ -1483,13 +1534,13 @@ export class Batter {
     // Keep the approved blade axis/path, but orient its flat face in the
     // stroke plane. The former guard opened the face skyward and then rolled
     // it around the handle on the way down. A drive needs no such axial roll.
-    const driveShot=this.charging || this.squaring || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF';
+    const driveShot=this.charging || this.squaring || this.lofted || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF';
     const idle=!Number.isFinite(this.poseAge) || this.poseAge >= STROKE_DURATION_MS;
     if (!this.felled) {
       const up=UP.clone().applyQuaternion(this.bat.quaternion);
       const impact=this.charging?CHARGE_CONTACT_MS:this.squaring?SQUARE_DRIVE_CONTACT_MS:STROKE_CONTACT_MS;
       const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?STROKES.COVER_LONG_OFF.contact
-        :this.charging&&this.shot==='LONG_ON'?ON_CHARGE_CONTACT:STROKES.STRAIGHT.contact;
+        :this.charging&&this.shot==='LONG_ON'?ON_CHARGE_CONTACT:this.shot==='LONG_ON'?STROKES.LONG_ON.contact:STROKES.STRAIGHT.contact;
       const referenceQ=batOrientation(STROKES.STRAIGHT.contact).clone().slerp(batOrientation(reference),idle?0:ease(THREE.MathUtils.clamp(this.poseAge/impact,0,1)));
       const referenceUp=UP.clone().applyQuaternion(referenceQ);
       const transported=new THREE.Quaternion().setFromUnitVectors(referenceUp,up).multiply(referenceQ);
@@ -1719,7 +1770,7 @@ export class Batter {
         };
         const anatomical = outward.clone().multiplyScalar(.24)
           .addScaledVector(spine,-.30).addScaledVector(forward,.18);
-        if (!this.pulling && i===0 && (this.charging||this.squaring||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'))
+        if (!this.pulling && i===0 && (this.charging||this.squaring||this.lofted||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'))
           anatomical.addScaledVector(spine,Math.max(0,pose.leadElbow)*1.1);
         const bend = bendTowards(anatomical);
         if (drive>0 && i===0) {
@@ -1875,7 +1926,7 @@ export class Batter {
       const footPitch = i === 1 ? pose.heel * 2.4 : 0;
       // Lift the heel about a planted toe instead of lifting the entire shoe.
       foot.y += .225 * Math.sin(footPitch) + .07 * (Math.cos(footPitch) - 1);
-      const driving = !this.pulling && (this.charging || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF');
+      const driving = !this.pulling && (this.charging || this.lofted || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF');
       // Kneeling is a different bend entirely. The default pole throws both
       // knees out towards the off side, which is right for a man standing on
       // them and wrong for one with a shin flat on the turf: the back knee has

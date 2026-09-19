@@ -44,6 +44,8 @@ const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CU
   : s === 'ON_CHARGE' ? { shot: 'LONG_ON' as const, x: 0, y: .54 }
   : s === 'CUT' ? { shot: 'SQUARE_CUT' as const, x: .40, y: .92 }
   : s === 'LOFTED' ? { shot: 'STRAIGHT' as const, x: 0, y: .54, lofted: true }
+  : s === 'ON_LOFT' ? { shot: 'LONG_ON' as const, x: -.2, y: .54, lofted: true }
+  : s === 'ON_DRIVE' ? { shot: 'LONG_ON' as const, x: -.2, y: .54 }
   : { shot: 'STRAIGHT' as const, x: 0, y: .54 };
 
 const spec = ballFor(shot);

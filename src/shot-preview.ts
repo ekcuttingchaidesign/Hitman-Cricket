@@ -57,6 +57,10 @@ const PLAYS: Record<string, Play> = {
     label: 'Straight drive — six (lofted)', shot: 'STRAIGHT', ballX: 0, ballY: .54, lofted: true, phases: DRIVE_PHASES,
     note: 'Middled: the blade keeps climbing through the line, the chest opens right up, the back foot comes off and the bat finishes over the front shoulder. Played when the timing is perfect — the same rule that scores it as six.',
   },
+  onLofted: {
+    label: 'On drive — six (lofted, new)', shot: 'LONG_ON', ballX: -.20, ballY: .54, lofted: true, phases: DRIVE_PHASES,
+    note: 'Middled, from a broadcast recording: the same ball and the same contact as the on drive below, then the arms open out towards long-on with the blade climbing, the hands keep going up and across to the leg side, and the finish is both arms straight above the helmet with the bat to the sky over the front shoulder, back foot on its toe. Played when the timing is perfect — the same rule that scores it as six. No slow motion: it is a regular stroke.',
+  },
   cover: {
     label: 'Cover drive', shot: 'COVER_LONG_OFF', ballX: .12, ballY: .54, phases: DRIVE_PHASES,
     note: 'Inside the square drive’s width, so the same input stays a cover drive. Its elbows now open through the ball too.',
@@ -76,8 +80,8 @@ const PLAYS: Record<string, Play> = {
     phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Recovery', 700]], note: 'Unchanged.',
   },
   longon: {
-    label: 'Long on', shot: 'LONG_ON', ballX: -.20, ballY: .54,
-    phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Recovery', 700]], note: 'Unchanged.',
+    label: 'On drive — along the ground', shot: 'LONG_ON', ballX: -.20, ballY: .54,
+    phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Recovery', 700]], note: 'Unchanged: the on drive for anything short of perfect timing — four, three, two, one.',
   },
   defend: {
     label: 'Forward defensive', shot: 'DEFEND', ballX: 0, ballY: .54,

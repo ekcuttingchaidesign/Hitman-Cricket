@@ -199,6 +199,8 @@ The bowler is not a random number generator — he watches the innings and answe
 | **Bouncer** | Occasionally, any line | Lands short and rears to chest height. It is over the stumps, so you can never be bowled or caught off it — but it can only be **pulled**, and only if you middle it. Perfect timing on a leg-side swipe is six; anything else goes through to the keeper. |
 | **Slower ball** | Once four quick balls have gone by | 78–98 kph and floated in at nearly a second and a half, straight after a burst of pace — and out of the same arm at the same speed, leaving the hand at nearly the pace of a length ball and dying late. |
 
+The on drive has a six of its own too, from a broadcast recording: swipe to long-on and time it perfectly on a line that suits the stroke, and the arms open out towards long-on with the blade climbing, the hands keep going up and across, and the finish is both arms straight above the helmet with the bat to the sky over the front shoulder, back foot on its toe. Anything short of perfect is the on drive along the ground, unchanged — four, three, two or one. It is a regular stroke, so no slow motion.
+
 The pull is not a separate control: swipe leg side (or press `A`) at a ball up around your chest and the batter plays it off the back foot with a horizontal bat, finishing high with the hands in front of the chest, instead of the front-foot flick he uses at a normal-height ball. Only the pull follows a ball up there — every other stroke swings at its own height and a bouncer passes over the bat.
 
 A four runs to the rope along the ground; only a six leaves it, and only a mishit hangs in the air.

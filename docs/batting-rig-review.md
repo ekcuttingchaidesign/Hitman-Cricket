@@ -277,6 +277,25 @@ through every drive contact. Every stroke now clears by at least 0.185 m.
 
 The charge was exempt while it kept the production animation; it now runs the same guard (see the rebuild above).
 
+## The lofted on drive
+
+The on drive's six, from a broadcast recording. The same ball and the same
+contact as the on drive along the ground — identical to the last digit, as
+the straight drive's six is to the four's — and then a follow-through of its
+own on the drives' clock: the arms open out towards long-on with the blade
+climbing (220 ms), the hands go up and across to the leg side (310 ms), and
+the finish is both arms straight above the helmet with the bat to the sky
+over the front shoulder, the back foot on its toe (410 ms), held to 620 ms.
+It comes down out in front of the face, because from above the helmet the
+knob points down at him, and then takes the on drive's own way home, held a
+little further out in front.
+
+It is picked by the rule that already picks the straight drive's six — a
+perfect timing on a line that suits the stroke — and the on drive along the
+ground is byte-identical before and after. The pick-up is that stroke's own
+and is held to what the shared check holds it to; from the ball onwards the
+handle is measured against the body as well as the blade.
+
 ## Two straight drives
 
 The four and the six are different strokes after impact and the same one
