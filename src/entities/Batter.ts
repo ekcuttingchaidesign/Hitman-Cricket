@@ -880,16 +880,17 @@ const ON_CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
     armHinge: .80, armDrive: .80, shoulderLift: .06 } },
   // Up and over into the wrap, with less turn than the straight charge
   // gives it. The straight charge stands the bat vertical over the front
-  // shoulder before it drops behind; this one carries it up at an angle —
-  // toe up and back over the shoulder — and wraps to a shallower finish, the
-  // toe behind the shoulder at chest height rather than hanging down behind
-  // the back. The hands and feet are the straight charge's, facing mid-on.
+  // shoulder before it drops behind; this one carries it back over the
+  // shoulder barely above the level — toe up and behind, a fifth of a turn
+  // short of vertical — and settles nearly level behind the shoulder, the
+  // toe a little below the hands rather than hanging down behind the back.
+  // The hands and feet are the straight charge's, facing mid-on.
   { time: CHARGE_CLOCK.over, pose: { ...CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.over)!.pose,
     frontFoot: [-.08, .08, -.01], backFoot: [-.24, .12, .12], yaw: .24, face: -.10,
-    batUp: [.25, -.65, .72], batFace: [.95, .25, -.10] } },
+    batUp: [.28, -.32, .90], batFace: [.95, .25, -.10] } },
   { time: CHARGE_CLOCK.finish, pose: { ...CHARGE_FINISH,
     frontFoot: [-.08, .08, -.10], backFoot: [-.24, .08, .20], yaw: .16, face: -.12,
-    batUp: [.15, .45, .88], batFace: [.98, -.10, -.12] } },
+    batUp: [.18, .25, .95], batFace: [.98, -.10, -.12] } },
 ];
 const ON_CHARGE_CONTACT = ON_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
 const ON_CHARGE_FINISH = ON_CHARGE_KEYS[ON_CHARGE_KEYS.length - 1].pose;
