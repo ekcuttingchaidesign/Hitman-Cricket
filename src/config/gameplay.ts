@@ -337,6 +337,12 @@ export const ADVANCE = {
    */
   coverFeedback: 'INSIDE OUT — OVER COVER!',
   coverAngle: 38,
+  /**
+   * How many degrees closer to vertical the cover swipe reaches while the
+   * charge is on. A little: the straight charge keeps 14.5 degrees on that
+   * side and all of the other, so an honest swipe up still walks straight.
+   */
+  coverLean: 8,
   /** How far down the pitch the charge carries him, and how long the walk back is. */
   stride: 1.15, walkBackMs: 1300,
 } as const;

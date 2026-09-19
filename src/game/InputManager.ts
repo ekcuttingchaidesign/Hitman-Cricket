@@ -40,10 +40,16 @@ const SWIPE_SHOTS = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT
  * the minimum distance plays something. The block is untouched — it is the one
  * stroke that has to be reliable, and its fan is exactly where it was.
  */
-export function mapSwipe(dx: number, dy: number): ShotType | null {
+export function mapSwipe(dx: number, dy: number, coverLean = 0): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
   if (Math.abs(angle) >= 135) return 'DEFEND';
+  // On a ball he can charge, the cover sector reaches a few degrees further
+  // towards vertical. The charge over cover is asked for with a diagonal, and
+  // a thumb that starts straight up and curls right was committing inside the
+  // straight sector's 22.5 degrees before it got there. Only that one boundary
+  // moves, and only by this much: the straight charge keeps the rest.
+  if (coverLean > 0 && angle >= 22.5 - coverLean && angle < 22.5) return 'COVER_LONG_OFF';
   return SWIPE_SHOTS[Math.min(4, Math.max(0, Math.round(angle / 45) + 2))];
 }
 export class InputManager {
@@ -59,7 +65,12 @@ export class InputManager {
    * without this the narrow windows would read as a lottery rather than as a
    * demand on the player.
    */
-  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement) {
+  /**
+   * `coverLean` says how far, in degrees, the cover sector reaches towards
+   * vertical right now: `ADVANCE.coverLean` on a ball he can charge, nothing
+   * otherwise. See `mapSwipe`.
+   */
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -80,7 +91,7 @@ export class InputManager {
     if (!this.gesture || event.pointerId !== this.gesture.id) return;
     if (!this.active() || this.used) { this.cancelGesture(); return; }
     event.preventDefault();
-    const shot = mapSwipe(event.clientX - this.gesture.x, event.clientY - this.gesture.y);
+    const shot = mapSwipe(event.clientX - this.gesture.x, event.clientY - this.gesture.y, this.coverLean());
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
