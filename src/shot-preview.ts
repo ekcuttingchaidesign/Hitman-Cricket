@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
 import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
@@ -19,6 +19,16 @@ interface Play {
 }
 const DRIVE_PHASES = [['Contact', STROKE_CONTACT_MS], ['Extension', 220], ['Carry', 310], ['Finish', 410], ['Recovery', 700]] as const;
 const PLAYS: Record<string, Play> = {
+  scoop: {
+    label: 'Scoop (new)', shot: 'SCOOP', ballX: -.07, ballY: .54,
+    phases: [['Set', 70], ['Contact', SCOOP_CONTACT_MS], ['Lift', 260], ['Finish', 400], ['Up', 700], ['Recovery', 820]],
+    note: 'From the broadcast recording, taken from the bowler\u2019s end. Watch 0\u2013150 ms: he is already down before the ball \u2014 a wide base, both knees bent, square to the bowler \u2014 with the bat brought down early and held out in front of the front hip, toe angled down and forward to the off side and the face turned up at the bowler. The ball is met at knee height in front of the pads and ridden off the face over the keeper\u2019s shoulder. Then the hands lift straight up the front of him to head height with the toe still hanging, the face turning to leg, and he watches it over the front shoulder from the same crouch. Played off the down-and-to-leg swipe with the meter full at a ball on middle or leg.',
+  },
+  reverseScoop: {
+    label: 'Reverse scoop (new)', shot: 'REVERSE_SCOOP', ballX: .28, ballY: .54,
+    phases: [['Down', 130], ['Contact', REVERSE_CONTACT_MS], ['Extension', 340], ['Carry', 400], ['Over', 520], ['Finish', 600], ['Recovery', 780]],
+    note: 'From the broadcast recording, taken from behind the bowler. He goes down the way the sweep does \u2014 onto the back knee, the front foot forward and to the off \u2014 and the bat comes down beside the front pad and out under the ball on the off side, the face turned up, met beside the pad at waist height with the blade level and pointing at point. The arms extend out to the off, and the bat keeps going: up in front of the off ear, across in front of the face with the blade laid back over the top of the helmet, and down the leg side, the shoulders turning with it until he is looking back over them at the ball going over the slips, still on the knee. Played off the down-and-to-off swipe with the meter full at a ball on or outside off.',
+  },
   charge: {
     label: 'Advance charge (new)', shot: 'STRAIGHT', ballX: 0, ballY: .54, charging: true,
     phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['Over', CHARGE_CLOCK.over], ['Finish', CHARGE_CLOCK.finish], ['Unwrap', CHARGE_CLOCK.unwrap], ['Walking back', 1000]],
@@ -101,6 +111,7 @@ const VIEWS: Record<string, { label: string; eye: [number, number, number]; at: 
 /** The stroke's own contact time, and the height it actually plays the ball at:
  *  everything but the two cross-bat strokes lets a high ball go over the bat. */
 const contactOf = (play: Play) => play.sweeping || play.levelled ? SWEEP_CONTACT_MS
+  : play.shot === 'SCOOP' ? SCOOP_CONTACT_MS : play.shot === 'REVERSE_SCOOP' ? REVERSE_CONTACT_MS
   : play.shot === 'LEG' && play.ballY > .85 ? PULL_CONTACT_MS
   : play.charging ? CHARGE_CONTACT_MS
   : play.shot === 'COVER_LONG_OFF' && play.ballX >= .30 && play.ballY <= .70 ? SQUARE_DRIVE_CONTACT_MS
@@ -230,6 +241,6 @@ scrub.oninput = () => { playing = false; playButton.textContent = 'Play'; age = 
 playButton.onclick = () => { playing = !playing; playButton.textContent = playing ? 'Pause' : 'Play'; };
 addEventListener('resize', resize);
 
-shotPicker.value = 'charge';
+shotPicker.value = 'scoop';
 restart(); placeCamera(); resize();
 requestAnimationFrame(frame);

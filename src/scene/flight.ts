@@ -70,6 +70,14 @@ export function flightOf(outcome: ShotOutcome): Flight {
       ? shape(74, 21, 2050, 0.1)
       : { ...shape(GROUND_REACH[4], 7.5, 1650, 0.1), bounceAt: 0.72 };
   }
+  if (outcome.scooped && outcome.madeBatContact && !outcome.isWicket && outcome.runs >= 4) {
+    // Ramped over the keeper: shorter and lower than a drive's six, because it
+    // is the bowler's pace doing the work rather than the bat's. A shade under
+    // clears the keeper, lands, and runs away to the rope.
+    return outcome.runs === 6
+      ? shape(58, 20, 1900, 0.1)
+      : { ...shape(GROUND_REACH[4], 6.5, 1600, 0.1), bounceAt: 0.7 };
+  }
   if (playedOn) {
     // It carries on past the timber rather than stopping dead on it, and that
     // is not decoration: the bails are thrown from the frame the ball reaches

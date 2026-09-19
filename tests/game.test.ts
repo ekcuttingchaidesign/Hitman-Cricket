@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, LINES, LINE_X, QUICK_STYLES, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -8,14 +8,14 @@ import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersect
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, cuttable, gradeOf, gradeTiming, resolveShot, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, cuttable, gradeOf, gradeTiming, playedAs, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
 const dot = (): ShotOutcome => resolveShot(delivery({ finalTargetX: 0.5 }), null, rng(0.5));
 
 describe('shot controls', () => {
-  it.each([ [['A'], 'LEG'], [['W'], 'STRAIGHT'], [['D'], 'SQUARE_CUT'], [['A', 'W'], 'LONG_ON'], [['W', 'D'], 'COVER_LONG_OFF'], [['w', 'a'], 'LONG_ON'], [['D', 'W'], 'COVER_LONG_OFF'], [['A', 'D'], null], [['D', 'S'], 'DEFEND'], [['S', 'D'], 'DEFEND'], [['S'], 'DEFEND'], [['A', 'S'], 'DEFEND'], [[], null] ])('maps %j to %s', (keys, shot) => expect(mapKeys(keys as string[])).toBe(shot));
+  it.each([ [['A'], 'LEG'], [['W'], 'STRAIGHT'], [['D'], 'SQUARE_CUT'], [['A', 'W'], 'LONG_ON'], [['W', 'D'], 'COVER_LONG_OFF'], [['w', 'a'], 'LONG_ON'], [['D', 'W'], 'COVER_LONG_OFF'], [['A', 'D'], null], [['D', 'S'], 'REVERSE_SCOOP'], [['S', 'D'], 'REVERSE_SCOOP'], [['S'], 'DEFEND'], [['A', 'S'], 'SCOOP'], [['s', 'a'], 'SCOOP'], [[], null] ])('maps %j to %s', (keys, shot) => expect(mapKeys(keys as string[])).toBe(shot));
 });
 describe('compatibility and timing', () => {
   it('matches every entry of the specified 5 by 5 matrix', () => {
@@ -864,5 +864,88 @@ describe('the orthodox sweep', () => {
     expect(FLAT_SWEEP.angle).toBeLessThan(SWEEP.angle);
     expect(FLAT_SWEEP.angle).toBeLessThan(SHOT_ANGLES.LEG);
     expect(FLAT_SWEEP.angle).toBeGreaterThan(-90);
+  });
+});
+
+describe('the scoops', () => {
+  const at = (line: keyof typeof LINE_X, changes: Partial<Delivery> = {}) =>
+    delivery({ line, baseTargetX: LINE_X[line], finalTargetX: LINE_X[line], ...changes });
+  const scoop = (d: Delivery, delta = 0, shot: ShotType = 'SCOOP', roll = .99, charged = true) =>
+    resolveShot(d, { shotType: shot, inputTimeMs: d.idealContactTimeMs + delta }, rng(roll), charged);
+  it('takes any ball but the one over his head', () => {
+    for (const style of ['NORMAL', 'FAST', 'EXPRESS', 'SLOWER', 'SWING_IN', 'OFF_SPIN', 'YORKER'] as const)
+      expect(scoopable(delivery({ style })), style).toBe(true);
+    expect(scoopable(delivery({ style: 'SHORT' }))).toBe(false);
+  });
+  it('gives each scoop its lines: the stumps and leg for the scoop, off and outside for the reverse', () => {
+    expect(LINES.map(line => scoopLine(at(line), 'SCOOP'))).toEqual([false, true, true, false, false]);
+    expect(LINES.map(line => scoopLine(at(line), 'REVERSE_SCOOP'))).toEqual([false, false, false, true, true]);
+    // Read off where the ball finishes, like every other line rule.
+    expect(scoopLine(at('MIDDLE', { finalTargetX: LINE_X.OFF }), 'REVERSE_SCOOP')).toBe(true);
+  });
+  it('needs the meter: without it the swipe down is the block it would have been', () => {
+    const ball = at('MIDDLE');
+    const attempt = { shotType: 'SCOOP' as const, inputTimeMs: ball.idealContactTimeMs };
+    expect(scoopShot(ball, attempt, false)).toBeNull();
+    expect(playedAs(ball, attempt, false).shotType).toBe('DEFEND');
+    expect(playedAs(ball, attempt, true).shotType).toBe('SCOOP');
+    expect(scoop(ball, 0, 'SCOOP', .99, false).defended).toBe(true);
+    expect(scoop(ball, 0, 'SCOOP', .99, false).scooped).toBeUndefined();
+    // And at a bouncer, the same: there is no getting under that one.
+    const bouncer = at('OFF', { style: 'SHORT', bounceZ: STYLES.SHORT.bounce!, rise: STYLES.SHORT.rise! });
+    expect(playedAs(bouncer, { ...attempt, shotType: 'REVERSE_SCOOP' }, true).shotType).toBe('DEFEND');
+  });
+  it('is paid by timing: six middled, four a shade under, singles held back', () => {
+    for (const [shot, line] of [['SCOOP', 'LEG'], ['SCOOP', 'MIDDLE'], ['REVERSE_SCOOP', 'OFF'], ['REVERSE_SCOOP', 'OUTSIDE_OFF']] as const) {
+      const six = scoop(at(line), 0, shot);
+      expect(six.runs, `${shot} ${line}`).toBe(6); expect(six.scooped).toBe(true); expect(six.madeBatContact).toBe(true);
+      expect(six.feedback).toBe(SCOOP.feedback[shot].six); expect(six.isWicket).toBe(false); expect(six.aerial).toBe(false);
+      const four = scoop(at(line), GAME.timing.perfect + 5, shot);
+      expect(four.runs, `${shot} ${line}`).toBe(4); expect(four.feedback).toBe(SCOOP.feedback[shot].four); expect(four.scooped).toBe(true);
+      for (const roll of [0, .5, .99]) {
+        const held = scoop(at(line), GAME.timing.good + 5, shot, roll);
+        expect(held.runs, `${shot} ${line} ok`).toBeGreaterThanOrEqual(1); expect(held.runs).toBeLessThanOrEqual(3);
+        expect(held.scooped).toBe(true); expect(held.isWicket).toBe(false);
+      }
+    }
+  });
+  it('top-edges a poor one to the keeper, and is bowled or LBW when it misses', () => {
+    const edged = scoop(at('MIDDLE'), GAME.timing.ok + 5);
+    expect(edged.isWicket).toBe(true); expect(edged.wicketType).toBe('CAUGHT'); expect(edged.edged).toBe(true);
+    expect(edged.feedback).toBe(SCOOP.topEdge); expect(edged.scooped).toBe(true);
+    // Missed altogether on the stumps: nothing but the pads in the way.
+    const bowled = scoop(at('MIDDLE'), GAME.timing.poor + 5, 'SCOOP', .9);
+    expect(bowled.isWicket).toBe(true); expect(bowled.wicketType).toBe('BOWLED'); expect(bowled.madeBatContact).toBe(false);
+    const lbw = scoop(at('MIDDLE'), GAME.timing.poor + 5, 'SCOOP', .1);
+    expect(lbw.wicketType).toBe('LBW');
+    // Missed off the stumps: a play and miss, and the meter spent anyway.
+    const missed = scoop(at('OUTSIDE_OFF'), GAME.timing.poor + 5, 'REVERSE_SCOOP');
+    expect(missed.isWicket).toBe(false); expect(missed.feedback).toBe('PLAYED AND MISSED'); expect(missed.scooped).toBe(true);
+  });
+  it('plays at air on the wrong line, and says so', () => {
+    const wide = scoop(at('OUTSIDE_OFF'), 0, 'SCOOP');
+    expect(wide.madeBatContact).toBe(false); expect(wide.isWicket).toBe(false); expect(wide.feedback).toBe(SCOOP.wrongLine.SCOOP);
+    expect(wide.scooped).toBe(true); expect(wide.runs).toBe(0);
+    // Reversed at a straight one, perfectly timed, is still a straight one
+    // going past a bat that is nowhere near it.
+    const straight = scoop(at('MIDDLE'), 0, 'REVERSE_SCOOP', .9);
+    expect(straight.isWicket).toBe(true); expect(straight.wicketType).toBe('BOWLED');
+    const legSide = scoop(at('OUTSIDE_LEG'), 0, 'REVERSE_SCOOP');
+    expect(legSide.isWicket).toBe(false); expect(legSide.feedback).toBe(SCOOP.wrongLine.REVERSE_SCOOP);
+  });
+  it('spends the meter whatever it was worth, and goes behind the wicket', () => {
+    const meter = new Confidence(); meter.value = CONFIDENCE_FULL;
+    meter.record(scoop(at('MIDDLE'), 0)); expect(meter.value).toBe(0);
+    meter.value = CONFIDENCE_FULL;
+    meter.record(scoop(at('OUTSIDE_OFF'), 0, 'SCOOP')); expect(meter.value).toBe(0);
+    meter.value = CONFIDENCE_FULL;
+    meter.record(scoop(at('LEG'), GAME.timing.good + 5)); expect(meter.value).toBe(0);
+    expect(Math.abs(SHOT_ANGLES.SCOOP)).toBeGreaterThan(90); expect(SHOT_ANGLES.SCOOP).toBeLessThan(0);
+    expect(SHOT_ANGLES.REVERSE_SCOOP).toBeGreaterThan(90);
+  });
+  it('leaves the charge and the sweep to their own inputs', () => {
+    const ball = at('MIDDLE');
+    expect(scoop(ball, 0, 'STRAIGHT').advance).toBe(true);
+    expect(scoop(ball, 0, 'SCOOP').advance).toBeUndefined();
   });
 });

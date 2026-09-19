@@ -11,9 +11,9 @@ export class Confidence {
   value = 0;
   get full() { return this.value >= CONFIDENCE_FULL; }
   get fraction() { return this.value / CONFIDENCE_FULL; }
-  record(outcome: Pick<ShotOutcome, 'runs' | 'isWicket' | 'advance' | 'swept' | 'defended'>) {
-    // Both special strokes spend the meter, whatever they were worth.
-    if (outcome.isWicket || outcome.advance || outcome.swept) { this.value = 0; return; }
+  record(outcome: Pick<ShotOutcome, 'runs' | 'isWicket' | 'advance' | 'swept' | 'scooped' | 'defended'>) {
+    // Every special stroke spends the meter, whatever it was worth.
+    if (outcome.isWicket || outcome.advance || outcome.swept || outcome.scooped) { this.value = 0; return; }
     // A block is a decision, not a failure. It scores nothing and gains
     // nothing, but it does not cost what a ball beating the bat costs.
     if (outcome.defended) return;

@@ -114,11 +114,13 @@ export const COMPATIBILITY: Record<BallLine, Record<ShotType, number>> = {
   // The cut is the off side's square stroke, and it is at its best with width:
   // a ball he can free his arms at goes away behind point. On the stumps there
   // is no room to swing square, and down the leg side nothing at all.
-  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1 },
-  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, SQUARE_CUT: 0.1, DEFEND: 1 },
-  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, SQUARE_CUT: 0.4, DEFEND: 1 },
-  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, SQUARE_CUT: 0.85, DEFEND: 1 },
-  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, SQUARE_CUT: 1, DEFEND: 1 },
+  // The scoops are resolved on their own terms too, by `SCOOP.lines`, and
+  // these columns only restate that rule so the table is keyed by every shot.
+  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 0 },
+  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, SQUARE_CUT: 0.1, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0 },
+  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, SQUARE_CUT: 0.4, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0 },
+  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, SQUARE_CUT: 0.85, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1 },
+  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, SQUARE_CUT: 1, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1 },
 };
 export const TIMING_SCORE: Record<TimingGrade, number> = { PERFECT: 1, GOOD: 0.82, OK: 0.58, POOR: 0.25, MISS: 0 };
 // A shot at least this compatible with the line counts as middled; below it the
@@ -129,7 +131,51 @@ export const SOLID_SHOT = 0.55;
 export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 // The cut is the only stroke that scores behind square: past ninety degrees the
 // ball runs away behind point rather than in front of it.
-export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0 };
+// The scoops are the two that go behind the wicket: over fine leg and the
+// keeper's leg side, and over the slips.
+export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0, SCOOP: -150, REVERSE_SCOOP: 150 };
+/**
+ * The scoop and the reverse scoop: the third pair of special strokes, and the
+ * first that go behind the wicket. A full meter buys one, the same as the
+ * charge and the slog sweep, and playing it spends the meter whatever it was
+ * worth — it is a stroke a batter commits to, not one he can check.
+ *
+ * Each has its ball. The scoop is played from in front of the stumps at a
+ * ball on middle or leg, so the blade can get under it and ramp it over the
+ * keeper's shoulder; the reverse wants width, off stump or outside, to get
+ * the reversed face under. Neither is offered at a bouncer, which is over the
+ * top of the whole idea. Wrong line and he is playing at air.
+ *
+ * Timing names the rest. Middled it clears the keeper for six; a shade under
+ * and it beats the field on the bounce for four; held back it is paddled away
+ * for ones, twos and threes. Poor timing is the top edge, and a top edge with
+ * the keeper standing behind is a catch. Miss it altogether and the stroke has
+ * left nothing but the pads between the ball and the stumps.
+ */
+export const SCOOP = {
+  shots: ['SCOOP', 'REVERSE_SCOOP'] as readonly ShotType[],
+  /** Which lines each answers, read off where the ball finishes. */
+  lines: { SCOOP: ['LEG', 'MIDDLE'], REVERSE_SCOOP: ['OFF', 'OUTSIDE_OFF'] } as Record<'SCOOP' | 'REVERSE_SCOOP', readonly BallLine[]>,
+  /**
+   * The swipe: down and to one side. Measured off vertical, either side, so
+   * a block is still a block for twenty degrees around straight down and the
+   * leg-side and cut swipes keep everything above this.
+   */
+  sector: { from: 110, to: 160 },
+  /**
+   * A scooped-at ball that beats the bat has him crouched right in front of
+   * the stumps with the bat out of the way, so it is given LBW about as often
+   * as bowled.
+   */
+  lbwChance: 0.5,
+  feedback: {
+    SCOOP: { six: 'SCOOPED OVER THE KEEPER!', four: 'SCOOPED AWAY — FOUR!' },
+    REVERSE_SCOOP: { six: 'REVERSED OVER THE SLIPS!', four: 'REVERSE SCOOP — FOUR!' },
+  },
+  topEdge: 'TOP-EDGED — CAUGHT BEHIND!',
+  /** Played at the wrong ball. Said so, so the rule teaches itself. */
+  wrongLine: { SCOOP: 'TOO WIDE TO SCOOP', REVERSE_SCOOP: 'TOO STRAIGHT TO REVERSE' },
+} as const;
 /**
  * The square cut. It is the one stroke that answers a bouncer outside off: the
  * ball sits up at chest height with width on it, and a batter who rocks back

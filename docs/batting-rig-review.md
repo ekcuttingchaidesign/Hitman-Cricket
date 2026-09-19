@@ -117,6 +117,45 @@ wrap. Played off the long-on swipe, 34° rather than
 long-on's 24°, with its own call; the swipe leans the same eight degrees
 towards vertical on that side.
 
+### The scoops
+
+The third pair of special strokes, and the first behind the wicket, each
+from a broadcast recording. The scoop is a ramp rather than a swing: down
+early in a wide crouch, square to the bowler, the bat held out in front of
+the front hip with the toe angled down and forward to the off and the face
+to the sky, the ball met at knee height and ridden off the face. There is no
+follow-through to speak of — the hands lift straight up the front of him to
+the shoulder with the toe still hanging, the head turning to leg — and he
+comes home by dropping the hands to the chest first, toe still down, and only
+then turning the toe up and forward: turned over from up beside the head, the
+knob swept back through the grille. The handle end is a quarter of a metre
+long and points at him whenever the toe points away, which is most of what
+the first version got wrong.
+
+The reverse borrows the slog sweep's kneel outright — the same hip, the same
+front foot planted across, the same back foot dragged round, and the same
+knee pole, which is what puts the back knee on the turf; without it the leg
+folds sideways and he reads as sitting. The bat is this stroke's own: dropped
+beside the front pad on the off side, swept out level under the ball with the
+face up, extended out to point, then up in front of the off ear, across in
+front of the face with the blade laid back over the top of the helmet, and
+down the leg side with the shoulders turned square to leg and the head round
+further still. It cannot go straight over the head: both hands stay within an
+arm of both shoulders, and at that height the knob is in the helmet. Two
+things were learned about the arm solver on the way. The elbow flipped
+between the drop and the ball, and again coming out of the wrap, and both
+were the drive aim and the anatomical bend pointing opposite ways with a
+part-way turn between them; the reverse now goes to the ball on the
+anatomical bend, takes the drive aim only through the extension, where the
+arms are straight and there is nothing to flip, and lets it go before the
+wrap. And an elbow that brushed the trunk as he turned back to the bowler
+wanted the hands carried further out on the leg side, not less turn.
+
+Both take the shared checks — blade volume, elbows, forearms, no flips
+between frames — and their own: the crouch and the face to the sky at the
+ball, the knee on the turf, the turn at the finish, and the bat against the
+trunk, hips and helmet every four milliseconds.
+
 ### What the game had to do to let him charge
 
 The game's contract is that the swipe comes as the ball arrives, and a charge

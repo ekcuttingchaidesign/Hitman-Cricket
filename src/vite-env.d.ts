@@ -25,7 +25,9 @@
  * can be looked at in the game without scoring four boundaries to earn each
  * look. `?charge=1` does it at runtime. Set to `ball`, only the ball is fixed
  * and the meter is the innings' own, for the sixes a perfect drive plays when
- * there is no charge to play instead.
+ * there is no charge to play instead. Set to `meter`, only the meter is filled
+ * and the ball is the innings' own, for the scoops, which want every line the
+ * bowler has.
  *
  * `VITE_CHARGE_SLOWMO` goes with it: how slowly the clock runs through the
  * charge, as a fraction of real time, so two playtest builds can be put side

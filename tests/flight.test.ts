@@ -130,6 +130,16 @@ describe('the strokes that are placed rather than struck', () => {
     expect(flight.height).toBeGreaterThan(30);
   });
 
+  it('ramps a scoop over the keeper, and lands the four before the rope', () => {
+    const six = flightOf(outcome({ scooped: true, runs: 6, madeBatContact: true }));
+    expect(six.distance).toBeGreaterThan(52); expect(six.height).toBeGreaterThan(15); expect(six.bounceAt).toBe(0);
+    const four = flightOf(outcome({ scooped: true, runs: 4, madeBatContact: true }));
+    expect(four.bounceAt).toBeGreaterThan(0); expect(four.distance).toBe(44);
+    // Held back it runs away along the turf like any other single.
+    expect(flightOf(outcome({ scooped: true, runs: 2, madeBatContact: true })).height).toBeLessThan(1);
+    // Top-edged to the keeper it is the edge's short drop, not a stroke.
+    expect(flightOf(outcome({ scooped: true, runs: 0, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT' })).distance).toBeLessThan(2);
+  });
   it('sends a middled slog sweep flat into the crowd', () => {
     const flight = flightOf(outcome({ swept: true, runs: 6 }));
     expect(flight.distance).toBeGreaterThan(70);

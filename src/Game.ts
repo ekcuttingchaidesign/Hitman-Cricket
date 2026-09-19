@@ -12,9 +12,10 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
-import { advanceShot, gradeOf, loftedDrive, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
+import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
+import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
 import {
@@ -215,7 +216,10 @@ export class Game {
     if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport,
-      () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0);
+      () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0,
+      // The downward diagonals are the scoops whenever there is a meter to
+      // spend on them. Which ball they get is settled in `playedAs`.
+      () => this.charged);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', () => (this.locked ? this.start() : this.modes()));
@@ -376,6 +380,9 @@ export class Game {
   private chargeable(delivery: Delivery): Delivery {
     if (!this.chargeOnly || this.surviving || this.lesson >= 0) return delivery;
     if (this.chargeOnly !== 'ball') this.confidence.value = CONFIDENCE_FULL;
+    // `meter`: the meter alone, the ball left to the innings, for the
+    // strokes that want a ball the charge does not — the scoops.
+    if (this.chargeOnly === 'meter') return delivery;
     const speedKph = Math.round((ADVANCE.minKph + ADVANCE.maxKph) / 2);
     return { ...delivery, line: 'MIDDLE', style: 'NORMAL', speedKph, baseTargetX: 0, finalTargetX: 0,
       bounceZ: GAME.bounceZ, rise: GAME.rise,
@@ -411,14 +418,17 @@ export class Game {
   private mark(name: string, title: string) {
     track(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
   }
-  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, !!this.isPrimed); }
-  private shoot = (shotType: ShotType, inputTimeMs: number) => {
+  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
+  private shoot = (shot: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
     // one did not understand the controls, and that is a different problem from
     // a player who played and lost.
     trackOnce('first-shot', 'First shot played');
-    this.attempt = { shotType, inputTimeMs };
+    // A scoop with nothing to spend on it, or at a bouncer, is the block: the
+    // rig and the score read the same answer.
+    this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs }, this.charged);
+    const shotType = this.attempt.shotType;
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
     const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
     const sweeping = !charging && slogSweep(this.delivery!, this.attempt, this.charged);
@@ -448,14 +458,14 @@ export class Game {
    * it. Which one matters to the player and not to the meter: the charge is a
    * swipe up and the sweep is a swipe to leg, so the cue has to name it.
    */
-  private set primed(value: 'CHARGE' | 'SWEEP' | null) {
+  private set primed(value: Primed) {
     if (value === 'CHARGE') this.chargeBall = true;
     if (value === this.isPrimed) return;
     this.isPrimed = value; this.showConfidence();
-    this.hud.phase(this.phase, !!value);
+    this.hud.phase(this.phase, value);
   }
   private get primed() { return this.isPrimed; }
-  private isPrimed: 'CHARGE' | 'SWEEP' | null = null;
+  private isPrimed: Primed = null;
   /** This ball was a charge and the meter was full, whatever came of it. */
   private chargeBall = false;
   /**
@@ -729,9 +739,15 @@ export class Game {
       // him. Held to the flight it gave the player under a second to see the
       // cue, change the shot he had in mind and time it — and that was most of
       // why a full meter kept going unspent.
+      // The cue names one stroke. A ball on the stumps at a bowler's pace is
+      // the charge's first and the scoop's second, so it is called as the
+      // charge; the scoops are named for the balls only they answer — the
+      // yorker, the slower ball, the quick one, the wide one.
       this.primed = !this.charged ? null
         : chargeable(this.delivery) ? 'CHARGE'
-        : sweepable(this.delivery) ? 'SWEEP' : null;
+        : sweepable(this.delivery) ? 'SWEEP'
+        : scoopable(this.delivery) && scoopLine(this.delivery, 'SCOOP') ? 'SCOOP'
+        : scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') ? 'REVERSE' : null;
       this.scene.reset(); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));

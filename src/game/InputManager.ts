@@ -1,4 +1,4 @@
-import { GAME } from '../config/gameplay';
+import { GAME, SCOOP } from '../config/gameplay';
 import type { ShotType } from './types';
 /**
  * The three shot keys, with the arrow keys as the same three. Normalising here
@@ -17,7 +17,10 @@ export function mapKeys(keys: string[]): ShotType | null {
   const normalized = [...new Set(keys.map(k => k.toUpperCase()))];
   // Defence beats anything it is pressed with: a player reaching for the block
   // has decided not to play a stroke.
-  if (normalized.includes('S')) return 'DEFEND';
+  // The block, or with a side key inside the combo window, the scoop that side:
+  // the keyboard's two downward diagonals. Without the meter to spend they
+  // are played as the block they would have been — see `playedAs`.
+  if (normalized.includes('S')) return normalized.includes('A') ? 'SCOOP' : normalized.includes('D') ? 'REVERSE_SCOOP' : 'DEFEND';
   if (normalized.includes('A') && normalized.includes('W')) return 'LONG_ON';
   if (normalized.includes('W') && normalized.includes('D')) return 'COVER_LONG_OFF';
   if (normalized.includes('A') && normalized.includes('D')) return null;
@@ -40,9 +43,13 @@ const SWIPE_SHOTS = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT
  * the minimum distance plays something. The block is untouched — it is the one
  * stroke that has to be reliable, and its fan is exactly where it was.
  */
-export function mapSwipe(dx: number, dy: number, coverLean = 0): ShotType | null {
+export function mapSwipe(dx: number, dy: number, coverLean = 0, scoops = false): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
+  // With a meter to spend, the two downward diagonals are the scoops: down
+  // and to leg the scoop, down and to off the reverse. Straight down is still
+  // the block, and the fan above them is untouched.
+  if (scoops && Math.abs(angle) >= SCOOP.sector.from && Math.abs(angle) <= SCOOP.sector.to) return angle < 0 ? 'SCOOP' : 'REVERSE_SCOOP';
   if (Math.abs(angle) >= 135) return 'DEFEND';
   // On a ball he can charge, the cover and long-on sectors each reach a few
   // degrees further towards vertical. Those two charges are asked for with a
@@ -72,7 +79,8 @@ export class InputManager {
    * vertical right now: `ADVANCE.coverLean` on a ball he can charge, nothing
    * otherwise. See `mapSwipe`.
    */
-  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0) {
+  /** `scoops` says whether the downward diagonals are the scoops right now: the meter is full. */
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -93,7 +101,7 @@ export class InputManager {
     if (!this.gesture || event.pointerId !== this.gesture.id) return;
     if (!this.active() || this.used) { this.cancelGesture(); return; }
     event.preventDefault();
-    const shot = mapSwipe(event.clientX - this.gesture.x, event.clientY - this.gesture.y, this.coverLean());
+    const shot = mapSwipe(event.clientX - this.gesture.x, event.clientY - this.gesture.y, this.coverLean(), this.scoops());
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
@@ -122,8 +130,10 @@ export class InputManager {
       this.pending = { keys: [key], time };
       // Defence pairs with nothing, so it commits at once rather than waiting
       // out the combo window. A block is a late decision by nature, and those
-      // hundred milliseconds were enough to miss the ball being judged.
-      if (key === 'S') this.resolve('DEFEND');
+      // hundred milliseconds were enough to miss the ball being judged. With
+      // a meter to spend it pairs with a side key for the scoops, so it waits
+      // like the rest — the press is still timed from the key, not the wait.
+      if (key === 'S' && !this.scoops()) this.resolve('DEFEND');
     }
     else {
       const pair = [...this.pending.keys, key];

@@ -31,6 +31,18 @@ describe('swipe directions', () => {
     expect(mapSwipe(60, -60, 8)).toBe('COVER_LONG_OFF');
     expect(mapSwipe(-60, -60, 8)).toBe('LONG_ON');
   });
+  it('turns the downward diagonals into the scoops only while there is a meter to spend', () => {
+    // Down and to leg is the scoop, down and to off the reverse; straight
+    // down is still the block, and the fan above is untouched.
+    expect(mapSwipe(-60, 60, 0, true)).toBe('SCOOP'); expect(mapSwipe(60, 60, 0, true)).toBe('REVERSE_SCOOP');
+    expect(mapSwipe(-40, 80, 0, true)).toBe('SCOOP'); expect(mapSwipe(40, 80, 0, true)).toBe('REVERSE_SCOOP');
+    expect(mapSwipe(0, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(-20, 80, 0, true)).toBe('DEFEND'); expect(mapSwipe(20, 80, 0, true)).toBe('DEFEND');
+    expect(mapSwipe(-80, 25, 0, true)).toBe('LEG'); expect(mapSwipe(80, 25, 0, true)).toBe('SQUARE_CUT');
+    expect(mapSwipe(0, -80, 0, true)).toBe('STRAIGHT');
+    // Without the meter the same gestures are what they always were.
+    expect(mapSwipe(-60, 60)).toBe('DEFEND'); expect(mapSwipe(60, 60)).toBe('DEFEND');
+    expect(mapSwipe(-69, 40)).toBe('LEG'); expect(mapSwipe(69, 40)).toBe('SQUARE_CUT');
+  });
   it('keeps a useful tolerance around the cardinal directions', () => {
     expect(mapSwipe(70, 15)).toBe('SQUARE_CUT'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');
     expect(mapSwipe(15, 70)).toBe('DEFEND');
@@ -63,15 +75,15 @@ class Surface extends EventTarget {
 }
 function setup() {
   const keyboard = new EventTarget(); vi.stubGlobal('window', keyboard); vi.stubGlobal('Element', Surface);
-  const surface = new Surface(); let active = true; let now = 100;
+  const surface = new Surface(); let active = true; let now = 100; let scoops = false;
   const shoot = vi.fn();
-  const input = new InputManager(() => active, () => now, shoot, surface as unknown as HTMLElement);
+  const input = new InputManager(() => active, () => now, shoot, surface as unknown as HTMLElement, () => 0, () => scoops);
   const pointer = (type: string, x: number, y: number, options: object = {}) => {
     const event = new Event(type, { cancelable: true });
     Object.assign(event, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, ...options });
     surface.dispatchEvent(event);
   };
-  return { input, shoot, surface, pointer, keyboard, time: (time: number) => now = time, active: (value: boolean) => active = value };
+  return { input, shoot, surface, pointer, keyboard, time: (time: number) => now = time, active: (value: boolean) => active = value, scoops: (value: boolean) => scoops = value };
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('touch input integration', () => {
@@ -132,12 +144,15 @@ describe('arrow keys', () => {
       [['ArrowLeft', 'ArrowUp'], 'LONG_ON'], [['ArrowUp', 'ArrowRight'], 'COVER_LONG_OFF'],
       // A letter and an arrow are the same key, so a mixed pair is still a combo.
       [['A', 'ArrowUp'], 'LONG_ON'],
-      // Down is the block, whichever key reaches for it, and it beats a stroke
-      // pressed with it: a player blocking has decided not to play one.
-      [['ArrowDown'], 'DEFEND'], [['s'], 'DEFEND'], [['ArrowDown', 'ArrowRight'], 'DEFEND'],
-      [['ArrowRight', 'ArrowDown'], 'DEFEND'],
+      // Down is the block, whichever key reaches for it. With a side key it is
+      // the scoop that side — the keyboard's downward diagonals — and what
+      // that is played as without a meter to spend is `playedAs`'s business.
+      [['ArrowDown'], 'DEFEND'], [['s'], 'DEFEND'], [['ArrowDown', 'ArrowRight'], 'REVERSE_SCOOP'],
+      [['ArrowRight', 'ArrowDown'], 'REVERSE_SCOOP'], [['ArrowDown', 'ArrowLeft'], 'SCOOP'], [['a', 'ArrowDown'], 'SCOOP'],
     ] as const) {
-      const s = setup();
+      // With the meter full, so the block waits out the combo window like
+      // the rest; a bare down key is still the block when it does.
+      const s = setup(); s.scoops(true);
       for (const key of keys) press(s, key);
       s.input.flush(500);
       expect(s.shoot, keys.join(' + ')).toHaveBeenCalledWith(shot, 100);
@@ -151,6 +166,14 @@ describe('arrow keys', () => {
     // combo waits are enough for the ball to be judged without it.
     expect(s.shoot).toHaveBeenCalledWith('DEFEND', 100);
     s.input.dispose();
+    // Unless there is a meter to spend, when the same key might be the first
+    // half of a scoop: then it waits, and is still timed from the press.
+    const primed = setup(); primed.scoops(true);
+    press(primed, 's');
+    expect(primed.shoot).not.toHaveBeenCalled();
+    primed.input.flush(500);
+    expect(primed.shoot).toHaveBeenCalledWith('DEFEND', 100);
+    primed.input.dispose();
   });
   it('takes the arrow keys off the browser, and leaves the rest alone', () => {
     const s = setup();

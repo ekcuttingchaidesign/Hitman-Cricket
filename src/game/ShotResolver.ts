@@ -1,6 +1,6 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, SCOOP, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
-import type { Delivery, ShotAttempt, ShotOutcome, TimingGrade } from './types';
+import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
 /**
  * How well a stroke was timed, by the size of the error and nothing else. The
  * sign is thrown away here and always has been: which side of the ball a
@@ -142,6 +142,37 @@ export function loftedDrive(delivery: Delivery, attempt: ShotAttempt | null) {
   if (COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] < SOLID_SHOT) return false;
   return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight) === 'PERFECT';
 }
+/** The two strokes played off the downward diagonals. */
+export const isScoop = (shot: ShotType | undefined): shot is 'SCOOP' | 'REVERSE_SCOOP' => shot === 'SCOOP' || shot === 'REVERSE_SCOOP';
+/**
+ * Whether this ball can be scooped at all: anything but the one over his
+ * head. A yorker is the scoop's favourite ball, and a slower ball or a quick
+ * one is scooped the same way — it is the height that matters, not the pace.
+ */
+export function scoopable(delivery: Delivery) {
+  return delivery.style !== 'SHORT' && delivery.style !== 'RIB';
+}
+/** Whether the ball is on a line this scoop can get under, where it finishes. */
+export function scoopLine(delivery: Delivery, shot: 'SCOOP' | 'REVERSE_SCOOP') {
+  return SCOOP.lines[shot].includes(effectiveLine(delivery));
+}
+/**
+ * Which scoop he is playing, if any: a full meter, a scoop input and a ball
+ * that is not a bouncer. The line is not read here — a scoop at the wrong
+ * ball is still a scoop, and is paid for as one.
+ */
+export function scoopShot(delivery: Delivery, attempt: ShotAttempt | null, charged: boolean) {
+  return charged && !!attempt && isScoop(attempt.shotType) && scoopable(delivery) ? attempt.shotType : null;
+}
+/**
+ * What a scoop input is played as. With the meter full and a ball he can get
+ * under, the scoop; without either, the swipe was still a swipe down, so it is
+ * the block. Read by the rig and by the score, so what he plays and what he is
+ * given are always the same stroke.
+ */
+export function playedAs(delivery: Delivery, attempt: ShotAttempt, charged: boolean): ShotAttempt {
+  return isScoop(attempt.shotType) && !scoopShot(delivery, attempt, charged) ? { ...attempt, shotType: 'DEFEND' } : attempt;
+}
 /**
  * Whether there is room to cut: the ball has to be far enough outside off that
  * the arms can be freed at it. Read off where the ball finishes rather than the
@@ -174,6 +205,30 @@ function squareStroke(outcome: ShotOutcome, rng: { next(): number },
   return edge(middled, spec.edged);
 }
 /**
+ * The scoop, once it is settled that he is playing one. The line decides
+ * whether there is a ball there to hit; timing decides everything after that.
+ */
+function scooped(outcome: ShotOutcome, delivery: Delivery, shot: 'SCOOP' | 'REVERSE_SCOOP', rng: { next(): number }): ShotOutcome {
+  const base = { ...outcome, scooped: true };
+  const onLine = scoopLine(delivery, shot);
+  // Wrong ball, or the right one and too late to get under it: he has ramped
+  // at air, crouched in front of his own stumps with the bat nowhere near
+  // them. On the stumps' line that is the end of him.
+  if (!onLine || outcome.timingGrade === 'MISS') {
+    const beaten = { ...base, compatibility: 0, quality: 0, madeBatContact: false, feedback: onLine ? 'PLAYED AND MISSED' : SCOOP.wrongLine[shot] };
+    if (!stumpIntersection(delivery)) return beaten;
+    const lbw = rng.next() < SCOOP.lbwChance;
+    return { ...beaten, isWicket: true, wicketType: lbw ? 'LBW' : 'BOWLED', feedback: lbw ? 'LBW!' : 'BOWLED!' };
+  }
+  const middled = { ...base, compatibility: 1, quality: TIMING_SCORE[outcome.timingGrade], madeBatContact: true };
+  // Under it late: the top edge, straight up, and the keeper is under it.
+  if (outcome.timingGrade === 'POOR') return edge(middled, SCOOP.topEdge);
+  if (outcome.timingGrade === 'PERFECT') return { ...middled, quality: 1, runs: 6, feedback: SCOOP.feedback[shot].six };
+  if (outcome.timingGrade === 'GOOD') return { ...middled, runs: 4, feedback: SCOOP.feedback[shot].four };
+  const runs = groundRuns(rng);
+  return { ...middled, runs, feedback: award(runs) };
+}
+/**
  * Whether this is the ball the square drive answers: wide of off, and full
  * enough to get under. Measured off the contact point rather than the line it
  * was aimed on, because that is what the rig measures — if these two ever
@@ -188,6 +243,9 @@ export function squareDrive(delivery: Delivery, attempt: ShotAttempt | null) {
 }
 /** `charged` is the batter's confidence being full — the shot still has to be played. */
 export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, charged = false): ShotOutcome {
+  // A scoop input with nothing to spend on it is the block it would otherwise
+  // have been, here as in the rig.
+  if (attempt) attempt = playedAs(delivery, attempt, charged);
   const delta = attempt ? attempt.inputTimeMs - delivery.idealContactTimeMs : null;
   const timingGrade = delta === null ? 'MISS' : gradeTiming(delta, STYLES[delivery.style].tight);
   const compatibility = attempt ? COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] : 0;
@@ -203,6 +261,10 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
     return { ...outcome, runs: 6, advance: true, compatibility: 1, quality: 1, madeBatContact: true,
       feedback: attempt!.shotType === 'COVER_LONG_OFF' ? ADVANCE.coverFeedback : attempt!.shotType === 'LONG_ON' ? ADVANCE.onFeedback : ADVANCE.feedback };
   }
+  // Behind the wicket, off the downward diagonals. Its own bargain from the
+  // ball onwards: see `scooped`.
+  const scoop = scoopShot(delivery, attempt, charged);
+  if (scoop) return scooped(outcome, delivery, scoop, rng);
   // Off the knee at the spinner. Middled it goes over midwicket; a shade under
   // and it still beats the field, on the bounce.
   if (slogSweep(delivery, attempt, charged)) {

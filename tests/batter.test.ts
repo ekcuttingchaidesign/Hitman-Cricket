@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
+import { Batter, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -41,6 +41,12 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   coverCharge: { shot: 'COVER_LONG_OFF', ballY: .54, impact: CHARGE_CONTACT_MS, reach: [-.17, 0, .17], charging: true, settle: 580 },
   // And its mirror over long-on, off the long-on input.
   onCharge: { shot: 'LONG_ON', ballY: .54, impact: CHARGE_CONTACT_MS, reach: [-.17, 0, .17], charging: true, settle: 580 },
+  // The scoops: the third pair of special strokes, behind the wicket. The
+  // scoop's ball is on the stumps or leg stump, the reverse's on or outside
+  // off; both are played by the meter, so they run on the shared rig and
+  // take the shared checks.
+  scoop: { shot: 'SCOOP', ballY: .54, impact: SCOOP_CONTACT_MS, reach: [-.30, -.07, .17], settle: 400 },
+  reverse: { shot: 'REVERSE_SCOOP', ballY: .54, impact: REVERSE_CONTACT_MS, reach: [.05, .28, .62], settle: 600 },
   // The on drive's six: the same ball and contact as the on drive, and a
   // different follow-through, which is the whole of the difference.
   onLofted: { shot: 'LONG_ON', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.55, -.2, .08], lofted: true, settle: 410 },
@@ -465,7 +471,7 @@ describe('the grip', () => {
     expect(p.elbows[0][1]-wrist.y).toBeGreaterThan(.10);
   });
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','square','straight','cover','sweep','flat','charge','coverCharge','onCharge','onLofted']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','square','straight','cover','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -566,6 +572,8 @@ describe('shoulders', () => {
       ['the charge', () => batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true)],
       ['the charge over cover', () => batter.swing('COVER_LONG_OFF', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true)],
       ['the charge over long-on', () => batter.swing('LONG_ON', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true)],
+      ['the scoop', () => batter.swing('SCOOP', 0, -.07)],
+      ['the reverse scoop', () => batter.swing('REVERSE_SCOOP', 0, .28)],
     ];
     for (const [name, play] of strokes) {
       batter.reset(); batter.prepare(1); batter.update(0); play();
@@ -582,7 +590,7 @@ describe('shoulders', () => {
 });
 
 describe('every stroke, across its reach', () => {
-  it.each(['straight','cover','square','charge','coverCharge','onCharge','onLofted'])('presents the flat face from face-down pickup into %s contact',kind=>{
+  it.each(['straight','cover','square','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('presents the flat face from face-down pickup into %s contact',kind=>{
     for(const x of PLAYS[kind].reach) {
       const batter=new Batter(); batter.prepare(1); batter.update(0);
       expect(batter.inspect().batFace[1]).toBeLessThan(-.4);
@@ -606,7 +614,10 @@ describe('every stroke, across its reach', () => {
         // rolls. The rig's own transport (`apply`) has the same freedom there
         // and uses it continuously; this check resumes the moment there is a
         // rotation to compare against.
-        if (up.dot(contactUp) > -.95) expect(new Vector3(...pose.batFace).dot(unrolled), `${kind} x=${x} @${time}`).toBeGreaterThan(.5);
+        // The scoops are the exception: the face is turned over on the way
+        // down, from face-down in the pick-up to the sky at the ball, and
+        // that roll is the stroke. Their face is checked at the ball below.
+        if (up.dot(contactUp) > -.95 && kind!=='scoop' && kind!=='reverse') expect(new Vector3(...pose.batFace).dot(unrolled), `${kind} x=${x} @${time}`).toBeGreaterThan(.5);
         // Both palms retain the handle axis; wrists must never fold backwards.
         for(const axis of pose.gripAxis) expect(axis).toBeCloseTo(1,9);
         for(const cuff of pose.cuffAim) expect(cuff.flex).toBeLessThan(Math.PI/2);
@@ -618,10 +629,13 @@ describe('every stroke, across its reach', () => {
       if(kind==='square') expect(face[0]).toBeGreaterThan(.8);
       else if(kind==='coverCharge') { expect(face[0]).toBeGreaterThan(.3); expect(face[2]).toBeGreaterThan(.7); }
       else if(kind==='onCharge'||kind==='onLofted') { expect(face[0]).toBeLessThan(-.2); expect(face[2]).toBeGreaterThan(.7); }
+      // The scoops present the face to the sky: the ball is ridden off it up
+      // over the keeper rather than hit.
+      else if(kind==='scoop'||kind==='reverse') expect(face[1]).toBeGreaterThan(.75);
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','square','straight','cover','sweep','flat','charge','coverCharge','onCharge','onLofted'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','square','straight','cover','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -1670,6 +1684,173 @@ describe('the lofted on drive', () => {
           if (clearance < elbow.clearance) elbow = { clearance, at: time };
         }
       }
+      expect(worst.value, `x=${x} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
+      expect(elbow.clearance, `x=${x} ${JSON.stringify(elbow)}`).toBeGreaterThan(.15);
+    }
+  });
+});
+
+/**
+ * The scoops: the two strokes played behind the wicket, each from a broadcast
+ * recording. The scoop is a ramp — down early, face to the sky, the ball
+ * ridden over the keeper's shoulder — and the reverse is the sweep's kneel
+ * with the bat taken out under the ball on the off side and up over the
+ * head to leg, the shoulders turning with it.
+ */
+const deepestOf = (a: Vector3, b: Vector3, centre: Vector3, radii: Vector3, turn: Quaternion) => {
+  const inverse = turn.clone().invert();
+  let worst = Infinity;
+  for (let i = 0; i <= 40; i++) {
+    const point = a.clone().lerp(b, i / 40).sub(centre).applyQuaternion(inverse);
+    worst = Math.min(worst, Math.hypot(point.x / radii.x, point.y / radii.y, point.z / radii.z));
+  }
+  return worst;
+};
+/** The bat against the trunk, hips and helmet, and the elbows against the trunk, every 4ms of a stroke. */
+const throughHim = (batter: Batter) => {
+  let worst = { value: Infinity, part: '', at: 0 }, elbow = { clearance: Infinity, at: 0 };
+  for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+    batter.update(time);
+    const pose = batter.inspect();
+    const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+    const spine = chest.clone().sub(hip).normalize(), length = chest.distanceTo(hip);
+    const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
+    const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
+    const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+    const grip = new Vector3(...pose.grip), tip = new Vector3(...pose.bladeTip).sub(batter.root.position);
+    const knob = batter.bat.localToWorld(new Vector3(0, .245, 0)).sub(batter.root.position);
+    const parts: [string, Vector3, Vector3, Quaternion][] = [
+      ['trunk', chest.clone().addScaledVector(spine, -.075), new Vector3(.205, .275, .145), torso],
+      ['hips', hip, new Vector3(.185, .145, .135), yaw],
+      ['helmet', head, new Vector3(.188, .19, .195), torso],
+    ];
+    for (const [part, centre, radii, turn] of parts) {
+      const value = Math.min(deepestOf(grip, tip, centre, radii, turn), deepestOf(grip, knob, centre, radii, turn));
+      if (value < worst.value) worst = { value, part, at: time };
+    }
+    for (const point of pose.elbows) {
+      const e = new Vector3(...point);
+      const along = Math.min(length, Math.max(0, e.clone().sub(hip).dot(spine)));
+      const clearance = e.distanceTo(hip.clone().addScaledVector(spine, along));
+      if (clearance < elbow.clearance) elbow = { clearance, at: time };
+    }
+  }
+  return { worst, elbow };
+};
+describe('the scoop', () => {
+  const scoop = (x = -.07) => {
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);
+    play(batter, 'scoop', x);
+    return batter;
+  };
+  it('is already down before the ball, and ramps it off a face turned to the sky', () => {
+    for (const x of PLAYS.scoop.reach) {
+      const batter = scoop(x);
+      // Set before the ball: the crouch and the low bat are there by the set
+      // key, well before contact.
+      batter.update(70);
+      const set = batter.inspect();
+      expect(set.hip[1], `x=${x} set`).toBeLessThan(.80);
+      expect(set.grip[1], `x=${x} set hands`).toBeLessThan(.90);
+      batter.update(SCOOP_CONTACT_MS);
+      const contact = batter.inspect();
+      expect(contact.bladeContact[0]).toBeCloseTo(x, 6);
+      expect(contact.bladeContact[1]).toBeCloseTo(.54, 6);
+      expect(contact.bladeContact[2]).toBeCloseTo(GAME.contactZ, 6);
+      // Crouched, square to the bowler, hands at the front hip.
+      expect(contact.hip[1], `x=${x} crouch`).toBeLessThan(.75);
+      expect(contact.yaw, `x=${x} square`).toBeLessThan(.6);
+      expect(contact.grip[1], `x=${x} hands low`).toBeLessThan(.90);
+      // The toe down and forward to the off side, the face up at the bowler.
+      const tip = new Vector3(...contact.bladeTip).sub(batter.root.position);
+      expect(tip.y, `x=${x} toe down`).toBeLessThan(contact.grip[1] - .3);
+      expect(tip.x, `x=${x} toe to off`).toBeGreaterThan(contact.grip[0] + .5);
+      expect(tip.z, `x=${x} toe forward`).toBeGreaterThan(contact.grip[2] + .2);
+      expect(contact.batFace[1], `x=${x} face up`).toBeGreaterThan(.75);
+      expect(contact.batFace[2], `x=${x} face to the bowler`).toBeGreaterThan(0);
+    }
+  });
+  it('lifts the hands up the front of him to the shoulder, toe still hanging, and watches it over that shoulder', () => {
+    for (const x of PLAYS.scoop.reach) {
+      const batter = scoop(x);
+      batter.update(400);
+      const finish = batter.inspect();
+      expect(finish.grip[1], `x=${x} hands high`).toBeGreaterThan(1.25);
+      expect(finish.grip[0] - finish.chest[0], `x=${x} beside the front shoulder`).toBeLessThan(-.2);
+      expect(finish.batUp[1], `x=${x} toe hanging`).toBeGreaterThan(.9);
+      expect(finish.hip[1], `x=${x} still down`).toBeLessThan(.80);
+      // Still in front of him, never round the shoulder.
+      for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
+      // And home to the guard.
+      batter.update(STROKE_DURATION_MS);
+      expect(batter.inspect().grip).toEqual(new Batter().inspect().grip);
+    }
+  });
+  it('never passes the bat through him, and keeps the elbows off the trunk', () => {
+    for (const x of PLAYS.scoop.reach) {
+      const { worst, elbow } = throughHim(scoop(x));
+      expect(worst.value, `x=${x} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
+      expect(elbow.clearance, `x=${x} ${JSON.stringify(elbow)}`).toBeGreaterThan(.15);
+    }
+  });
+});
+describe('the reverse scoop', () => {
+  const reverse = (x = .28) => {
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);
+    play(batter, 'reverse', x);
+    return batter;
+  };
+  it('kneels, and takes the level blade out under the ball on the off side with the face up', () => {
+    for (const x of PLAYS.reverse.reach) {
+      const batter = reverse(x);
+      let lowest = Infinity;
+      for (let time = 0; time <= 600; time += 10) {
+        batter.update(time);
+        const pose = batter.inspect();
+        lowest = Math.min(lowest, pose.knees[1][1]);
+        expect(pose.knees[1][1], `x=${x} back knee @${time}ms`).toBeGreaterThan(0);
+        expect(pose.knees[0][1], `x=${x} front knee @${time}ms`).toBeGreaterThan(0);
+      }
+      // Down on the back knee by the ball, and still there at the finish.
+      expect(lowest, `x=${x} knee`).toBeLessThan(.16);
+      batter.update(REVERSE_CONTACT_MS);
+      const contact = batter.inspect();
+      expect(contact.knees[1][1], `x=${x} knee at the ball`).toBeLessThan(.16);
+      expect(contact.bladeContact[0]).toBeCloseTo(x, 6);
+      expect(contact.bladeContact[1]).toBeCloseTo(.54, 6);
+      expect(contact.bladeContact[2]).toBeCloseTo(GAME.contactZ, 6);
+      // Level, pointing at point, face to the sky.
+      expect(Math.abs(contact.batUp[1]), `x=${x} level`).toBeLessThan(.35);
+      expect(contact.batUp[0], `x=${x} to the off`).toBeLessThan(-.8);
+      expect(contact.batFace[1], `x=${x} face up`).toBeGreaterThan(.85);
+      const tip = new Vector3(...contact.bladeTip).sub(batter.root.position);
+      expect(tip.x, `x=${x} toe out to the off`).toBeGreaterThan(contact.grip[0] + .6);
+      batter.update(600);
+      expect(batter.inspect().knees[1][1], `x=${x} knee at the finish`).toBeLessThan(.16);
+    }
+  });
+  it('carries the bat up over the head to leg and turns the shoulders under it, then gets up and comes home', () => {
+    for (const x of PLAYS.reverse.reach) {
+      const batter = reverse(x);
+      // Up past the vertical on the way.
+      let highest = 0;
+      for (let time = REVERSE_CONTACT_MS; time <= 600; time += 4) { batter.update(time); highest = Math.max(highest, batter.inspect().bladeTip[1]); }
+      expect(highest, `x=${x} over the top`).toBeGreaterThan(1.9);
+      batter.update(600);
+      const finish = batter.inspect();
+      expect(finish.yaw, `x=${x} turned to leg`).toBeLessThan(-.8);
+      expect(finish.grip[0] - finish.chest[0], `x=${x} hands on the leg side`).toBeLessThan(-.25);
+      expect(finish.grip[1], `x=${x} hands high`).toBeGreaterThan(1.15);
+      expect(finish.batUp[1], `x=${x} bat up`).toBeLessThan(-.6);
+      for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(-.06);
+      batter.update(STROKE_DURATION_MS);
+      expect(batter.inspect().grip).toEqual(new Batter().inspect().grip);
+      expect(batter.inspect().yaw).toBeCloseTo(new Batter().inspect().yaw, 9);
+    }
+  });
+  it('never passes the bat through him, and keeps the elbows off the trunk', () => {
+    for (const x of PLAYS.reverse.reach) {
+      const { worst, elbow } = throughHim(reverse(x));
       expect(worst.value, `x=${x} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
       expect(elbow.clearance, `x=${x} ${JSON.stringify(elbow)}`).toBeGreaterThan(.15);
     }
