@@ -314,6 +314,7 @@ export class GameScene {
     const sector = outcome.swept ? SWEEP.angle
       : outcome.sweptFlat ? FLAT_SWEEP.angle
       : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
+      : outcome.advance && shot === 'LONG_ON' ? ADVANCE.onAngle
       : outcome.squared ? SQUARE_DRIVE.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
     let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';

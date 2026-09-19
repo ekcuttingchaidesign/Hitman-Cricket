@@ -4,7 +4,7 @@
 //   npx vite --port 5199 &
 //   node scripts/rig-sheet.mjs out-dir SQUARE_DRIVE:side PULL:leg STRAIGHT:front
 //
-// Strokes: STRAIGHT, COVER, SQUARE_DRIVE, PULL, CUT, CHARGE, COVER_CHARGE. Views: side (square
+// Strokes: STRAIGHT, COVER, SQUARE_DRIVE, PULL, CUT, CHARGE, COVER_CHARGE, ON_CHARGE. Views: side (square
 // of the wicket on the off side, the reference recordings' angle), front (from
 // the bowler), leg.
 import { chromium } from '@playwright/test';

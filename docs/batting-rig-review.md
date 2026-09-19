@@ -97,6 +97,21 @@ the straight charge, goes over extra cover (38° rather than long-off's 24°),
 and has its own call. The long-on swipe still plays the straight charge. Same
 travel, same intercept, same clock.
 
+### The charge over long-on
+
+The third recording, from behind the batter, and the cover shot's mirror.
+It shares the straight charge's keys to the top of the downswing, with the
+front foot 6 cm further to the leg side from the plant. From under him: the
+face closed towards mid-on at contact (yaw 1.02 against the straight
+charge's 1.15 — already turning that way), the arms extended out towards
+long-on, and a high finish with the hands beside the front ear and the bat
+to the sky over the front shoulder and a little behind it: not the straight
+charge's wrap, and not the cover shot's pose straight up over the off
+shoulder. The way down is the cover shot's — out in front of the face first,
+then across into the pick-up. Played off the long-on swipe, 34° rather than
+long-on's 24°, with its own call; the swipe leans the same eight degrees
+towards vertical on that side.
+
 ### What the game had to do to let him charge
 
 The game's contract is that the swipe comes as the ball arrives, and a charge

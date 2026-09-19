@@ -412,7 +412,8 @@ describe('charging down the pitch', () => {
     // The cover input is the charge over cover: the same six, its own call.
     const overCover = resolveShot(ball, { shotType: 'COVER_LONG_OFF', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true);
     expect(overCover.runs).toBe(6); expect(overCover.feedback).toBe(ADVANCE.coverFeedback);
-    expect(resolveShot(ball, { shotType: 'LONG_ON', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).feedback).toBe(ADVANCE.feedback);
+    expect(resolveShot(ball, { shotType: 'LONG_ON', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).feedback).toBe(ADVANCE.onFeedback);
+    expect(resolveShot(ball, { shotType: 'STRAIGHT', inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).feedback).toBe(ADVANCE.feedback);
     // A leg-side or square swipe is that shot, not a charge.
     for (const shot of ['LEG', 'SQUARE_CUT'] as const)
       expect(resolveShot(ball, { shotType: shot, inputTimeMs: ball.idealContactTimeMs }, new SeededRandom(4), true).advance, shot).toBeFalsy();

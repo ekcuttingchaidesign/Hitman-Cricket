@@ -44,12 +44,14 @@ export function mapSwipe(dx: number, dy: number, coverLean = 0): ShotType | null
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
   if (Math.abs(angle) >= 135) return 'DEFEND';
-  // On a ball he can charge, the cover sector reaches a few degrees further
-  // towards vertical. The charge over cover is asked for with a diagonal, and
-  // a thumb that starts straight up and curls right was committing inside the
-  // straight sector's 22.5 degrees before it got there. Only that one boundary
-  // moves, and only by this much: the straight charge keeps the rest.
+  // On a ball he can charge, the cover and long-on sectors each reach a few
+  // degrees further towards vertical. Those two charges are asked for with a
+  // diagonal, and a thumb that starts straight up and curls was committing
+  // inside the straight sector's 22.5 degrees before it got there. Only those
+  // two boundaries move, and only by this much: the straight charge keeps the
+  // rest.
   if (coverLean > 0 && angle >= 22.5 - coverLean && angle < 22.5) return 'COVER_LONG_OFF';
+  if (coverLean > 0 && angle <= coverLean - 22.5 && angle > -22.5) return 'LONG_ON';
   return SWIPE_SHOTS[Math.min(4, Math.max(0, Math.round(angle / 45) + 2))];
 }
 export class InputManager {

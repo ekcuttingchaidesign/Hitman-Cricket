@@ -343,6 +343,13 @@ export const ADVANCE = {
    * side and all of the other, so an honest swipe up still walks straight.
    */
   coverLean: 8,
+  /**
+   * And the long-on input, mirrored: the charge over long-on, hit a little
+   * squarer than the long-on sector, with its own call. The swipe leans the
+   * same eight degrees towards vertical on that side.
+   */
+  onFeedback: 'LAUNCHED OVER LONG-ON!',
+  onAngle: -34,
   /** How far down the pitch the charge carries him, and how long the walk back is. */
   stride: 1.15, walkBackMs: 1300,
 } as const;

@@ -16,17 +16,20 @@ describe('swipe directions', () => {
     [0, 0, null], [12, -12, null], [23, 0, null], [24, 0, 'SQUARE_CUT'],
     [NaN, 0, null], [Infinity, 0, null],
   ])('maps (%s, %s) to %s', (x, y, result) => expect(mapSwipe(Number(x), Number(y))).toBe(result));
-  it('leans the cover sector towards vertical only while a charge is on', () => {
+  it('leans the cover and long-on sectors towards vertical only while a charge is on', () => {
     // 18 degrees right of vertical: straight in the ordinary innings, cover
-    // when the ball can be charged. 12 degrees is straight either way, and the
-    // left side of vertical does not move at all.
+    // when the ball can be charged. 12 degrees is straight either way.
     const [x, y] = [Math.sin(18 * Math.PI / 180) * 80, -Math.cos(18 * Math.PI / 180) * 80];
     expect(mapSwipe(x, y)).toBe('STRAIGHT');
     expect(mapSwipe(x, y, 8)).toBe('COVER_LONG_OFF');
     const [x2, y2] = [Math.sin(12 * Math.PI / 180) * 80, -Math.cos(12 * Math.PI / 180) * 80];
     expect(mapSwipe(x2, y2, 8)).toBe('STRAIGHT');
-    expect(mapSwipe(-x, y, 8)).toBe('STRAIGHT');
+    // And the mirror on the left: long-on reaches the same eight degrees.
+    expect(mapSwipe(-x, y, 8)).toBe('LONG_ON');
+    expect(mapSwipe(-x, y)).toBe('STRAIGHT');
+    expect(mapSwipe(-x2, y2, 8)).toBe('STRAIGHT');
     expect(mapSwipe(60, -60, 8)).toBe('COVER_LONG_OFF');
+    expect(mapSwipe(-60, -60, 8)).toBe('LONG_ON');
   });
   it('keeps a useful tolerance around the cardinal directions', () => {
     expect(mapSwipe(70, 15)).toBe('SQUARE_CUT'); expect(mapSwipe(-70, 15)).toBe('LEG'); expect(mapSwipe(15, -70)).toBe('STRAIGHT');

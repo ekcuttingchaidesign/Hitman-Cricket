@@ -832,6 +832,66 @@ const COVER_CHARGE_RECOVER: Pose = { ...GUARD, hip: [-.02, .92, .00], chest: [.0
   yaw: .95, face: .05, heel: 0, backFootYaw: 1.10, leadElbow: -.20 };
 const COVER_CHARGE_CONTACT = COVER_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
 const COVER_CHARGE_FINISH = COVER_CHARGE_KEYS[COVER_CHARGE_KEYS.length - 1].pose;
+/**
+ * The charge over long-on — the third recording, from behind the batter.
+ *
+ * The same walk at the ball again. From the ball onwards it is the mirror of
+ * the shot over cover: the face closed towards mid-on at contact, the arms
+ * extended out that way with the blade climbing, and the finish high — hands
+ * up beside the front ear, the blade pointing to the sky over the front
+ * shoulder and a little behind it. Not the straight charge's wrap, which
+ * takes the toe down behind his back, and not the cover shot's pose with the
+ * bat straight up over the off shoulder: this one is held up and to the leg
+ * side, where the ball went. The chest opens to mid-on rather than to the
+ * bowler, and the front foot lands a little further to the leg side, which is
+ * what lets the hips turn that way.
+ */
+const ON_CHARGE_CLOCK = { finish: 580, down: 770, recover: 835 } as const;
+const ON_CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
+  ...CHARGE_KEYS.filter(k => k.time < CHARGE_CLOCK.under).map(k => k.time === CHARGE_CLOCK.plant || k.time === CHARGE_CLOCK.drop
+    ? { time: k.time, pose: { ...k.pose, frontFoot: [k.pose.frontFoot[0] - .06, k.pose.frontFoot[1], k.pose.frontFoot[2]] as Point } }
+    : k),
+  { time: CHARGE_CLOCK.under, pose: { ...GUARD, hip: [-.09, .77, .14], chest: [.05, 1.11, .26],
+    frontFoot: [-.08, .08, .64], backFoot: [-.22, .08, -.21],
+    grip: [.36, .95, .50], batUp: [-.12, .99, .08], batFace: [-.20, .12, -.97],
+    yaw: 1.12, face: .00, heel: .42, backFootYaw: 1.31, leadElbow: .14,
+    armHinge: .90, armDrive: 1, shoulderLift: 0 } },
+  // Contact. Low in the lunge, the head over it, the face closed towards
+  // mid-on and the blade laid back under the ball. The shoulders are a shade
+  // further round than the straight charge's already.
+  { time: CHARGE_CLOCK.contact, pose: { ...GUARD, hip: [-.10, .76, .14], chest: [.02, 1.10, .26],
+    frontFoot: [-.08, .08, .61], backFoot: [-.22, .08, -.24],
+    grip: [.36, .94, .62], batUp: [-.02, .94, -.34], batFace: [-.35, .28, .90],
+    yaw: 1.02, face: -.04, heel: .45, backFootYaw: 1.30, leadElbow: .20,
+    armHinge: .90, armDrive: 1, shoulderLift: 0 } },
+  // Extension, out towards long-on: both arms straight, the blade climbing.
+  { time: CHARGE_CLOCK.through, pose: { ...GUARD, hip: [-.02, .78, .16], chest: [.08, 1.14, .28],
+    frontFoot: [-.08, .08, .35], backFoot: [-.18, .13, -.30],
+    grip: [.16, 1.08, .84], batUp: [.32, .58, -.75], batFace: [-.50, .70, .50],
+    yaw: .45, face: -.10, heel: .60, backFootYaw: 1.00, leadElbow: .24,
+    armHinge: .55, armDrive: 1, shoulderLift: .04 } },
+  // The hands go up and across to the leg side, the blade with them.
+  { time: CHARGE_CLOCK.carry, pose: { ...GUARD, hip: [.00, .84, .10], chest: [.04, 1.20, .16],
+    frontFoot: [-.08, .08, .10], backFoot: [-.22, .16, .00],
+    grip: [-.02, 1.42, .68], batUp: [.30, -.32, -.90], batFace: [-.45, .82, -.35],
+    yaw: .30, face: -.12, heel: .30, backFootYaw: .90, leadElbow: .26,
+    armHinge: .90, armDrive: .80, shoulderLift: .06 } },
+  // The finish. Hands high beside the front ear, both arms up, the bat to the
+  // sky over the front shoulder and a little behind it. Held, and watched.
+  { time: ON_CHARGE_CLOCK.finish, pose: { ...GUARD, hip: [.00, .88, .06], chest: [.02, 1.24, .10],
+    frontFoot: [-.08, .08, -.04], backFoot: [-.22, .08, .18],
+    grip: [-.24, 1.92, .40], batUp: [.36, -.72, .60], batFace: [.85, .20, -.30],
+    yaw: .30, face: -.15, heel: 0, backFootYaw: .40, leadElbow: .30,
+    armHinge: 1.50, armDrive: .80, shoulderLift: .10 } },
+];
+/** Down in front of the face, then across into the pick-up. */
+const ON_CHARGE_DOWN: Pose = { ...GUARD, hip: [-.02, .90, .04], chest: [.02, 1.25, .08],
+  frontFoot: [-.08, .08, .02], backFoot: [-.20, .08, .06],
+  grip: [.04, 1.48, .60], batUp: [-.12, -.78, -.61], batFace: [.85, -.22, -.10],
+  yaw: .70, face: -.05, heel: 0, backFootYaw: .80, leadElbow: .05,
+  armHinge: .60, armDrive: .40, shoulderLift: .03 };
+const ON_CHARGE_CONTACT = ON_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
+const ON_CHARGE_FINISH = ON_CHARGE_KEYS[ON_CHARGE_KEYS.length - 1].pose;
 
 function mix(a: Pose, b: Pose, amount: number): Pose {
   const t = ease(THREE.MathUtils.clamp(amount, 0, 1));
@@ -1105,10 +1165,9 @@ export class Batter {
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false) {
-    // Two charges: the straight one off the straight and long-on inputs, and
-    // the one over cover off the cover input. Each is one stroke on one line
-    // whichever way the ball was actually going.
-    this.shot = charging ? (shot === 'COVER_LONG_OFF' ? 'COVER_LONG_OFF' : 'STRAIGHT') : shot;
+    // Three charges, one per drive input: straight, over cover, over long-on.
+    // Each is one stroke on one line whichever way the ball was actually going.
+    this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
     this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
     // Wide and full off the off-side input: drive it square rather than through
@@ -1206,7 +1265,9 @@ export class Batter {
       return;
     }
     const overCover = this.charging && this.shot === 'COVER_LONG_OFF';
+    const overLongOn = this.charging && this.shot === 'LONG_ON';
     const stroke = overCover ? { contact: COVER_CHARGE_CONTACT, finish: COVER_CHARGE_FINISH }
+      : overLongOn ? { contact: ON_CHARGE_CONTACT, finish: ON_CHARGE_FINISH }
       : this.charging ? { contact: CHARGE_CONTACT, finish: CHARGE_FINISH }
       : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? PULL : this.cutting ? CUT_HIGH
       : this.squaring ? SQUARE_DRIVE : this.lofted ? STRAIGHT_LOFT : STROKES[this.shot];
@@ -1238,7 +1299,7 @@ export class Batter {
     // their own length rather than extending them.
     const step = targetX * (this.squaring ? .86 : .65);
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
-    const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF';
+    const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.charging || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF';
     const reachPose = (p: Pose): Pose => ({ ...p, hip: shift(p.hip, step), chest: shift(p.chest, step),
       frontFoot: shift(p.frontFoot, step), backFoot: shiftsBackFoot ? shift(p.backFoot, step) : p.backFoot,
       grip: shift(p.grip, step) });
@@ -1250,7 +1311,7 @@ export class Batter {
       // like the swing rather than blended in from the guard, and the hands
       // orbit the shoulders through the drive the way the other drives' do.
       const { hold, unwrap, across, recover } = CHARGE_CLOCK;
-      const keys = overCover ? COVER_CHARGE_KEYS : CHARGE_KEYS;
+      const keys = overCover ? COVER_CHARGE_KEYS : overLongOn ? ON_CHARGE_KEYS : CHARGE_KEYS;
       const settle = keys[keys.length - 1].time;
       // The way home, as the poses it passes through and when it reaches
       // each. The wrap needs three — up out of it, across, and down into the
@@ -1259,6 +1320,7 @@ export class Batter {
       // two: down in front of the face, then across into the pick-up.
       const home: readonly [number, Pose][] = overCover
         ? [[COVER_CHARGE_CLOCK.down, COVER_CHARGE_DOWN], [COVER_CHARGE_CLOCK.recover, COVER_CHARGE_RECOVER]]
+        : overLongOn ? [[ON_CHARGE_CLOCK.down, ON_CHARGE_DOWN], [ON_CHARGE_CLOCK.recover, COVER_CHARGE_RECOVER]]
         : [[unwrap, CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]];
       if (age < settle) {
         this.apply(shoulderDriven([{ time: 0, pose: this.swingFrom },
@@ -1423,7 +1485,8 @@ export class Batter {
     if (!this.felled) {
       const up=UP.clone().applyQuaternion(this.bat.quaternion);
       const impact=this.charging?CHARGE_CONTACT_MS:this.squaring?SQUARE_DRIVE_CONTACT_MS:STROKE_CONTACT_MS;
-      const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?STROKES.COVER_LONG_OFF.contact:STROKES.STRAIGHT.contact;
+      const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?STROKES.COVER_LONG_OFF.contact
+        :this.charging&&this.shot==='LONG_ON'?ON_CHARGE_CONTACT:STROKES.STRAIGHT.contact;
       const referenceQ=batOrientation(STROKES.STRAIGHT.contact).clone().slerp(batOrientation(reference),idle?0:ease(THREE.MathUtils.clamp(this.poseAge/impact,0,1)));
       const referenceUp=UP.clone().applyQuaternion(referenceQ);
       const transported=new THREE.Quaternion().setFromUnitVectors(referenceUp,up).multiply(referenceQ);
@@ -1653,7 +1716,7 @@ export class Batter {
         };
         const anatomical = outward.clone().multiplyScalar(.24)
           .addScaledVector(spine,-.30).addScaledVector(forward,.18);
-        if (!this.pulling && i===0 && (this.squaring||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'))
+        if (!this.pulling && i===0 && (this.charging||this.squaring||this.shot==='STRAIGHT'||this.shot==='COVER_LONG_OFF'))
           anatomical.addScaledVector(spine,Math.max(0,pose.leadElbow)*1.1);
         const bend = bendTowards(anatomical);
         if (drive>0 && i===0) {

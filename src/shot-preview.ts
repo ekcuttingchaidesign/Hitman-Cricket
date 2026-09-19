@@ -29,6 +29,11 @@ const PLAYS: Record<string, Play> = {
     phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['High finish', 580], ['Down', 760], ['Walking back', 1000]],
     note: 'The same walk at the ball as the straight charge — skip, stride, bat to the sky — and a different shot from the ball onwards, built from the two cover recordings. The face is opened to cover at contact with the body still closed, the arms extend out towards extra cover with the blade climbing, and the finish is held with the hands together above the helmet and the bat pointing to the sky over the off shoulder. Played off the cover swipe with the meter full; six over extra cover.',
   },
+  onCharge: {
+    label: 'Advance charge over long-on (new)', shot: 'LONG_ON', ballX: 0, ballY: .54, charging: true,
+    phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['High finish', 580], ['Down', 760], ['Walking back', 1000]],
+    note: 'The same walk at the ball, and the mirror of the shot over cover from the ball onwards, built from the third recording: the face closed towards mid-on at contact, the arms extended out that way with the blade climbing, and the finish held high with the hands beside the front ear and the bat to the sky over the front shoulder. Played off the long-on swipe with the meter full; six a little squarer than long-on.',
+  },
   sweep: {
     label: 'Slog sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, sweeping: true,
     phases: [['Down on it', 130], ['Contact', SWEEP_CONTACT_MS], ['Through', 390], ['Climb', 470], ['Finish', 560], ['Up again', 750]],

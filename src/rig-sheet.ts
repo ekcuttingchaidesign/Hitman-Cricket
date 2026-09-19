@@ -34,13 +34,14 @@ const eye = view === 'front' ? new THREE.Vector3(GAME.stanceX - .1, 1.25, GAME.s
   : new THREE.Vector3(GAME.stanceX + 4.4, 1.35, GAME.stanceZ + .3);
 camera.position.copy(eye); camera.lookAt(focus);
 
-const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CUT'; x: number; y: number; lofted?: boolean; sweeping?: boolean; levelled?: boolean} => s === 'PULL' ? { shot: 'LEG' as const, x: -.30, y: 1.12 }
+const ballFor = (s: string): {shot: 'STRAIGHT'|'COVER_LONG_OFF'|'LEG'|'SQUARE_CUT'|'LONG_ON'; x: number; y: number; lofted?: boolean; sweeping?: boolean; levelled?: boolean} => s === 'PULL' ? { shot: 'LEG' as const, x: -.30, y: 1.12 }
   : s === 'SLOG_SWEEP' ? { shot: 'LEG' as const, x: 0, y: .48, sweeping: true }
   : s === 'FLAT_SWEEP' ? { shot: 'LEG' as const, x: 0, y: .48, levelled: true }
   : s === 'SQUARE_DRIVE' ? { shot: 'COVER_LONG_OFF' as const, x: .42, y: .30 }
   : s === 'COVER' ? { shot: 'COVER_LONG_OFF' as const, x: .16, y: .48 }
   : s === 'CHARGE' ? { shot: 'STRAIGHT' as const, x: 0, y: .54 }
   : s === 'COVER_CHARGE' ? { shot: 'COVER_LONG_OFF' as const, x: 0, y: .54 }
+  : s === 'ON_CHARGE' ? { shot: 'LONG_ON' as const, x: 0, y: .54 }
   : s === 'CUT' ? { shot: 'SQUARE_CUT' as const, x: .40, y: .92 }
   : s === 'LOFTED' ? { shot: 'STRAIGHT' as const, x: 0, y: .54, lofted: true }
   : { shot: 'STRAIGHT' as const, x: 0, y: .54 };
