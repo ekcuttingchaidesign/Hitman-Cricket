@@ -12,7 +12,7 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
-import { advanceShot, flatSweep, loftedDrive, slogSweep, chargeable, sweepable, resolveShot } from './game/ShotResolver';
+import { advanceShot, gradeOf, loftedDrive, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import { GameScene } from './scene/GameScene';
@@ -369,7 +369,8 @@ export class Game {
     // The orthodox sweep is what the same swipe at the same ball becomes when
     // the meter is empty or the timing is not good enough for the slog. It
     // costs nothing, so unlike the two special strokes it needs no meter read.
-    const levelled = !charging && !sweeping && flatSweep(this.delivery!, this.attempt);
+    const levelled = !charging && !sweeping
+      && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt));
     this.primed = null;
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled);
     this.hud.select(shotType, charging);

@@ -4,7 +4,7 @@ import {
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { flatSweep, gradeTiming, squareDrive } from './ShotResolver.js';
+import { gradeTiming, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -339,7 +339,11 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
   // The orthodox sweep is meterless too, so it is played here as well, and it
   // is tagged for the same reason and with the same restraint: the sector the
   // ball leaves on, and not a run of this mode's.
-  if (flatSweep(delivery, attempt)) return { ...outcome, sweptFlat: true };
+  // Asked with this mode's own grade, off the outcome, rather than with the
+  // classic windows: Survive's are two thirds the width, and a stroke tagged by
+  // one ladder and paid by the other would send the ball somewhere the batter
+  // was not.
+  if (attempt && sweeps(delivery, attempt, outcome.timingGrade)) return { ...outcome, sweptFlat: true };
   return squareDrive(delivery, attempt) ? { ...outcome, squared: true } : outcome;
 }
 

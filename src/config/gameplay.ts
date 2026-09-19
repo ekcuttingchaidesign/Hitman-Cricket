@@ -310,6 +310,17 @@ export const FLAT_SWEEP = {
    * pad is the next thing the ball meets.
    */
   lbwChance: 0.7,
+  /**
+   * What he gets for sweeping at one going the other way.
+   *
+   * The stroke is offered at the ball turning *into* him, where the turn brings
+   * the ball onto a face that is travelling to meet it. Turning away it does
+   * the opposite: the face goes one way, the ball the other, and what the two
+   * of them meet on is the top edge. That is the real dismissal for the real
+   * mistake, so it is the one the game gives — and it is certain rather than
+   * rolled for, because a rule a player meets once should teach him the rule.
+   */
+  topEdge: 'TOP-EDGED \u2014 CAUGHT!',
 } as const;
 export const ADVANCE = {
   minKph: 108, maxKph: 134, minBounceZ: 7.4, maxBounceZ: 9.4,

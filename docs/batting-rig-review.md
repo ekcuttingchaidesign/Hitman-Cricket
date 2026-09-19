@@ -710,3 +710,49 @@ whether it is a wicket at all and the line decides which one — except that a
 ball pitched outside leg stump can never be LBW however plumb it strikes him,
 which is the one law in cricket written for the man sweeping. It still bowls him
 if it hits.
+
+## Twelfth pass — which way is it turning
+
+The orthodox sweep as first built had a hole in it, and the hole was that it
+had no conditions worth the name. Any leg-side swipe at any turning ball was a
+sweep, so against the spinner the optimal play was to swipe left at everything
+and never think: 2.12 runs a ball at a 5.0% wicket rate, where the flick it
+replaced managed 1.38 at 25.6%. Strictly better at every timing grade, with no
+decision attached.
+
+The fix came from the author and is better than anything offered against it.
+Read the turn, and let it decide which stroke the swipe is:
+
+  Turning in to him, the sweep. The turn brings the ball onto a face that is
+  already travelling to meet it, which is why the stroke exists.
+
+  Turning away, the flick. The sweep is not offered, and the leg-side swipe is
+  the ordinary stroke it always was, six and risk and all.
+
+  Turning away and mistimed, the sweep anyway — because by then the decision is
+  made and the bat is on its way. Bat on ball and it is the top edge, caught.
+  No bat on ball and there is nothing to catch, so it is the pads and then the
+  stumps, as any miss is.
+
+Three things had to hold for this to be a decision rather than a coin toss, and
+all three were already true. Both spins are bowled inside the same over — 361
+innings in 400 saw off-break and leg-break in over three — split 51/49 ball by
+ball. Every turning ball turns between 0.22 and 0.42, so there is no ambiguous
+near-straight case. And the ball deviates visibly about 360 ms before contact,
+because `DeliveryTrajectory` already settles its movement by two thirds of the
+flight, with a comment saying it is so the required key never changes late.
+Somebody built this game for exactly this decision before the shot existed.
+
+The turn is read off the ball — `finalTargetX - baseTargetX` — and not off the
+bowler's label, the same way `effectiveLine` reads where the ball finished. A
+style name is what the bowler is called; this is what the ball did.
+
+What it does to that over, over 800 innings:
+
+  sweep only the ones turning in    2.12 runs a ball, 4.9% wickets
+  swipe at everything, blind        1.40 runs a ball, 17.8% wickets
+  sweep only the ones turning away  0.63 runs a ball, 31.3% wickets
+
+The gradient is the point. Reading it is worth three and a half times the runs
+and a sixth of the risk of getting it wrong, and the blind player is now well
+short of both.

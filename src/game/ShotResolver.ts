@@ -81,8 +81,35 @@ export function slogSweep(delivery: Delivery, attempt: ShotAttempt | null, charg
  * match, the same input is the slog, and this is what that input becomes the
  * rest of the time.
  */
-export function flatSweep(delivery: Delivery, attempt: ShotAttempt | null) {
-  return !!attempt && FLAT_SWEEP.shots.includes(attempt.shotType) && sweepable(delivery);
+/**
+ * Which way the ball is turning, as the batter sees it: negative is into the
+ * right-hander, positive is away towards off. Read off the ball rather than off
+ * the bowler's label, the same way `effectiveLine` reads where it finished — a
+ * style name is what the bowler is called, and this is what the ball did.
+ */
+export function turn(delivery: Delivery) {
+  return delivery.finalTargetX - delivery.baseTargetX;
+}
+/** Turning in to him: the ball the sweep is for. */
+export function turningIn(delivery: Delivery) {
+  return sweepable(delivery) && turn(delivery) < 0;
+}
+/** The grade this attempt earns at this ball, in one place so nothing disagrees. */
+export function gradeOf(delivery: Delivery, attempt: ShotAttempt) {
+  return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight);
+}
+/**
+ * Whether he commits to the sweep at all — read by the rig and by the score, so
+ * the stroke he watches is always the stroke he is given.
+ *
+ * Into him, he sweeps: that is the ball the shot is for. Away from him he does
+ * not, and plays the ordinary leg-side stroke instead — unless he has already
+ * mistimed it, which is the one case where the stroke comes out anyway, because
+ * by then the decision is made and the bat is on its way.
+ */
+export function sweeps(delivery: Delivery, attempt: ShotAttempt | null, grade: TimingGrade): boolean {
+  if (!attempt || !FLAT_SWEEP.shots.includes(attempt.shotType) || !sweepable(delivery)) return false;
+  return turningIn(delivery) || grade === 'POOR' || grade === 'MISS';
 }
 /**
  * Swept at, and missed.
@@ -186,11 +213,23 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
   // it is paid in singles and boundaries off the timing alone. Miss it and the
   // pads are all that is left behind the bat, which is what playing across a
   // turning ball costs.
-  if (flatSweep(delivery, attempt)) {
+  if (sweeps(delivery, attempt, timingGrade)) {
+    // Swept at and missed, whichever way it was turning. There is no bat on the
+    // ball to edge, so what is behind the bat decides: the pads, then the
+    // stumps — and the leg-stump law decides which of the two it is given as.
     if (timingGrade === 'MISS') return sweptPast(outcome, delivery, rng);
-    const runs = FLAT_SWEEP.runs[timingGrade];
-    return { ...outcome, runs, sweptFlat: true, compatibility: 1, quality: TIMING_SCORE[timingGrade],
-      madeBatContact: true, feedback: award(runs) };
+    // Into him, and he has middled it to whatever degree he has. Four down to
+    // one, along the ground, square of the wicket.
+    if (turningIn(delivery)) {
+      const runs = FLAT_SWEEP.runs[timingGrade];
+      return { ...outcome, runs, sweptFlat: true, compatibility: 1, quality: TIMING_SCORE[timingGrade],
+        madeBatContact: true, feedback: award(runs) };
+    }
+    // Turning away, and mistimed: the face is going to leg and the ball is
+    // going to off, so he gets a glove on it rather than a bat and it goes up.
+    // `sweeps` has already established that only a mistime reaches this.
+    return { ...outcome, sweptFlat: true, aerial: true, madeBatContact: true, compatibility: 1,
+      isWicket: true, wicketType: 'CAUGHT', feedback: FLAT_SWEEP.topEdge };
   }
   // A bouncer is over the stumps, so it can never bowl you — but it can only be
   // pulled, and only if it is middled. Anything else and it flies through.
