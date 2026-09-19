@@ -23,7 +23,9 @@
  * `VITE_CHARGE_ONLY` is the same kind of thing for the advance charge: the
  * meter is full every ball and every ball is one he can walk at, so the stroke
  * can be looked at in the game without scoring four boundaries to earn each
- * look. `?charge=1` does it at runtime.
+ * look. `?charge=1` does it at runtime. Set to `ball`, only the ball is fixed
+ * and the meter is the innings' own, for the sixes a perfect drive plays when
+ * there is no charge to play instead.
  *
  * `VITE_CHARGE_SLOWMO` goes with it: how slowly the clock runs through the
  * charge, as a fraction of real time, so two playtest builds can be put side

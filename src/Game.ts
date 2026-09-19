@@ -77,8 +77,11 @@ const SPIN_ONLY = !!import.meta.env.VITE_SPIN_ONLY;
 /**
  * A playtest build for the charge: the meter is full every ball and every ball
  * can be walked at, so the stroke can be looked at without batting for it.
+ * Set to `ball`, it is only the ball — on the stumps, on a length, at a medium
+ * pacer's pace — with the meter left to the innings, for looking at the
+ * strokes a perfect drive plays when there is no charge to play instead.
  */
-const CHARGE_ONLY = !!import.meta.env.VITE_CHARGE_ONLY;
+const CHARGE_ONLY = import.meta.env.VITE_CHARGE_ONLY ?? '';
 /**
  * How slowly the clock runs through the charge, for comparing playtest
  * builds against each other. Half speed unless a build says otherwise; 1 is
@@ -362,8 +365,8 @@ export class Game {
   private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
   /** `?slowmo=0.65` tries a clock speed for the charge on a dev server. */
   private chargeSlowmo = Number(new URLSearchParams(location.search).get('slowmo')) || CHARGE_SLOWMO;
-  /** `?charge=1` likewise. Only the classic innings has a meter to fill. */
-  private chargeOnly = CHARGE_ONLY || new URLSearchParams(location.search).get('charge') === '1';
+  /** `?charge=1` likewise, and `?charge=ball` for the ball alone. Only the classic innings has a meter to fill. */
+  private chargeOnly = CHARGE_ONLY || new URLSearchParams(location.search).get('charge') || '';
   /**
    * The ball the charge is for, in place of whatever was drawn: on the stumps,
    * on a length, at a medium pacer's speed, and the meter filled to walk at it.
@@ -372,7 +375,7 @@ export class Game {
    */
   private chargeable(delivery: Delivery): Delivery {
     if (!this.chargeOnly || this.surviving || this.lesson >= 0) return delivery;
-    this.confidence.value = CONFIDENCE_FULL;
+    if (this.chargeOnly !== 'ball') this.confidence.value = CONFIDENCE_FULL;
     const speedKph = Math.round((ADVANCE.minKph + ADVANCE.maxKph) / 2);
     return { ...delivery, line: 'MIDDLE', style: 'NORMAL', speedKph, baseTargetX: 0, finalTargetX: 0,
       bounceZ: GAME.bounceZ, rise: GAME.rise,
