@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, PULL_CONTACT_MS, PULL_LOAD_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
+import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, PULL_CONTACT_MS, PULL_LOAD_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from './entities/Batter';
 import { ADVANCE, GAME } from './config/gameplay';
 import type { ShotType } from './game/types';
 
@@ -19,6 +19,11 @@ interface Play {
 }
 const DRIVE_PHASES = [['Contact', STROKE_CONTACT_MS], ['Extension', 220], ['Carry', 310], ['Finish', 410], ['Recovery', 700]] as const;
 const PLAYS: Record<string, Play> = {
+  charge: {
+    label: 'Advance charge (new)', shot: 'STRAIGHT', ballX: 0, ballY: .54, charging: true,
+    phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['Over', CHARGE_CLOCK.over], ['Finish', CHARGE_CLOCK.finish], ['Unwrap', CHARGE_CLOCK.unwrap], ['Walking back', 1000]],
+    note: 'Rebuilt from the two recordings. Watch 0–200 ms: the back foot skips up to the front one, then the front foot strides out a stride and a half down the pitch while the bat goes up to the sky over the back shoulder. From there it is a lofted straight drive on the move — met on the full level with the front pad, arms opening out straight up the ground, the blade climbing up over the front shoulder into a wrap with the hands high beside the helmet and the toe hanging down behind his back. The red marker is a stride and a half short of the crease, because that is where he meets it. Play it at match speed and he hits it in three tenths of a second; in the game the clock runs at a third of that from the swipe.',
+  },
   sweep: {
     label: 'Slog sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, sweeping: true,
     phases: [['Down on it', 130], ['Contact', SWEEP_CONTACT_MS], ['Through', 390], ['Climb', 470], ['Finish', 560], ['Up again', 750]],
@@ -56,11 +61,6 @@ const PLAYS: Record<string, Play> = {
     phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Recovery', 700]],
     note: 'Unchanged. The back-foot answer to a short, wide ball — the square drive is its front-foot counterpart.',
   },
-  charge: {
-    label: 'Advance charge (production)', shot: 'STRAIGHT', ballX: 0, ballY: .54, charging: true,
-    phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Down the pitch', 900], ['Walking back', 1600]],
-    note: 'Deliberately untouched: this is the production animation, verified identical to it to six decimal places. Left for a separate pass.',
-  },
   glance: {
     label: 'Leg-side flick', shot: 'LEG', ballX: -.30, ballY: .54,
     phases: [['Contact', STROKE_CONTACT_MS], ['Finish', 410], ['Recovery', 700]], note: 'Unchanged.',
@@ -88,7 +88,7 @@ const VIEWS: Record<string, { label: string; eye: [number, number, number]; at: 
  *  everything but the two cross-bat strokes lets a high ball go over the bat. */
 const contactOf = (play: Play) => play.sweeping || play.levelled ? SWEEP_CONTACT_MS
   : play.shot === 'LEG' && play.ballY > .85 ? PULL_CONTACT_MS
-  : play.charging ? STROKE_CONTACT_MS
+  : play.charging ? CHARGE_CONTACT_MS
   : play.shot === 'COVER_LONG_OFF' && play.ballX >= .30 && play.ballY <= .70 ? SQUARE_DRIVE_CONTACT_MS
   : STROKE_CONTACT_MS;
 const ballHeight = (play: Play) => play.ballY > .85 && (play.shot === 'LEG' || play.shot === 'SQUARE_CUT')
@@ -140,6 +140,7 @@ function placeCamera() {
   const view = VIEWS[viewPicker.value];
   camera.position.set(GAME.stanceX + view.eye[0], view.eye[1], GAME.stanceZ + view.eye[2]);
   controls.target.set(GAME.stanceX + view.at[0], view.at[1], GAME.stanceZ + view.at[2]);
+  followed = 0;
   controls.update();
 }
 
@@ -159,7 +160,7 @@ function restart() {
   // back to the crease as well.
   scrub.max = String(play.charging ? STROKE_DURATION_MS + ADVANCE.walkBackMs : STROKE_DURATION_MS);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(play.shot, 0, play.ballX, play.ballY, GAME.contactZ, play.charging ?? false, play.lofted ?? false, play.sweeping ?? false, play.levelled ?? false);
+  batter.swing(play.shot, 0, play.ballX, play.ballY, GAME.contactZ + (play.charging ? CHARGE_MEETS_AT : 0), play.charging ?? false, play.lofted ?? false, play.sweeping ?? false, play.levelled ?? false);
   note.textContent = play.note;
   buildPhases();
 }
@@ -175,7 +176,7 @@ function frame(now: number) {
   const play = current();
   // Where the ball is, not where the blade is: a marker that rides the bat
   // proves nothing about whether the two ever met.
-  marker.position.set(play.ballX, ballHeight(play), GAME.contactZ);
+  marker.position.set(play.ballX, ballHeight(play), GAME.contactZ + (play.charging ? CHARGE_MEETS_AT : 0));
   marker.visible = shown <= contactOf(play) + 160;
 
   const pose = batter.inspect();
@@ -193,10 +194,15 @@ function frame(now: number) {
     button.classList.toggle('on', !!phase && button.textContent!.startsWith(phase[0]));
   }
 
+  // The charge runs a metre down the pitch, so the camera goes with him —
+  // eye and target together, which keeps the view the user chose.
+  const follow = pose.downPitch * .8;
+  camera.position.z += follow - followed; controls.target.z += follow - followed; followed = follow;
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
+let followed = 0;
 
 function resize() {
   const { clientWidth: width, clientHeight: height } = stage;
@@ -210,6 +216,6 @@ scrub.oninput = () => { playing = false; playButton.textContent = 'Play'; age = 
 playButton.onclick = () => { playing = !playing; playButton.textContent = playing ? 'Pause' : 'Play'; };
 addEventListener('resize', resize);
 
-shotPicker.value = 'sweep';
+shotPicker.value = 'charge';
 restart(); placeCamera(); resize();
 requestAnimationFrame(frame);

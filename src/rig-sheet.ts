@@ -1,7 +1,7 @@
 // Offline rig contact sheet: every stroke sampled across its own clock from a
 // chosen camera, tiled into one canvas for frame-by-frame review. Dev tool.
 import * as THREE from 'three';
-import { Batter, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, CHARGE_MEETS_AT, STROKE_DURATION_MS } from './entities/Batter';
 import { GAME } from './config/gameplay';
 
 const params = new URLSearchParams(location.search);
@@ -25,7 +25,7 @@ scene.add(new THREE.GridHelper(10, 20, 0x9aa88c, 0x5e6b52));
 
 const batter = new Batter(); scene.add(batter.root);
 const camera = new THREE.PerspectiveCamera(38, 1, .1, 60);
-const focus = new THREE.Vector3(GAME.stanceX, .95, GAME.stanceZ + .2);
+const focus = new THREE.Vector3(GAME.stanceX, .95, GAME.stanceZ + (shot === 'CHARGE' ? .75 : .2));
 // side  = square of the wicket on the off side, the reference recording's view
 // front = from the bowler, down the pitch
 // leg   = square on the leg side
@@ -51,9 +51,12 @@ ctx.fillStyle = '#0d1413'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 for (let i = 0; i < frames; i++) {
   // Bias the sampling towards the active stroke: the recovery is not the part
   // under review, so it gets the last few tiles rather than half the sheet.
-  const age = i / (frames - 1) <= .75 ? (i / (frames - 1)) / .75 * 620 : 620 + ((i / (frames - 1)) - .75) / .25 * (total - 620);
+  // The charge is under review end to end — approach, hit and finish — so it
+  // is sampled evenly instead.
+  const age = shot === 'CHARGE' ? i / (frames - 1) * total
+    : i / (frames - 1) <= .75 ? (i / (frames - 1)) / .75 * 620 : 620 + ((i / (frames - 1)) - .75) / .25 * (total - 620);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ, shot === 'CHARGE', spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false);
+  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ + (shot === 'CHARGE' ? CHARGE_MEETS_AT : 0), shot === 'CHARGE', spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false);
   batter.update(age);
   renderer.render(scene, camera);
   const col = i % COLS, row = Math.floor(i / COLS);

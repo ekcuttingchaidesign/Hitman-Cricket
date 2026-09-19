@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 /**
- * The build-time settings this game has, and there are only four.
+ * The build-time settings this game has, and there are only five.
  *
  * `VITE_BOARD_API` is empty when Vercel serves both the game and its endpoints,
  * and set to the API's origin when the game is published somewhere that cannot
@@ -20,6 +20,11 @@
  * round is no way to look at them. `?spin=1` does the same thing at runtime for
  * anyone who has a dev server rather than a bundle.
  *
+ * `VITE_CHARGE_ONLY` is the same kind of thing for the advance charge: the
+ * meter is full every ball and every ball is one he can walk at, so the stroke
+ * can be looked at in the game without scoring four boundaries to earn each
+ * look. `?charge=1` does it at runtime.
+ *
  * `VITE_SHOW_SURVIVE` is the other half of that, and it is off unless a build
  * asks for it. Survive is still in playtest: it belongs on the Pages build,
  * where people are being handed the link to give an opinion on the batting, and
@@ -32,6 +37,7 @@ interface ImportMetaEnv {
   readonly VITE_BOARD_API?: string;
   readonly VITE_SURVIVE_ONLY?: string;
   readonly VITE_SPIN_ONLY?: string;
+  readonly VITE_CHARGE_ONLY?: string;
   readonly VITE_SHOW_SURVIVE?: string;
 }
 interface ImportMeta {

@@ -18,28 +18,88 @@ grip meshes, the photo-referenced gloves, the diagonal top-hand wrist, and the
 inner-reach clamp in `solveJoint` — without which a two-bone target closer than
 the difference of the bone lengths produced an exploding limb.
 
-## The Advance Charge is untouched
+## The Advance Charge — rebuilt
 
-The charge keeps the production animation and the production clock. The preview
-branch had rebuilt it around a separate 440 ms contact, a 1320 ms duration, a
-pre-contact approach with world-space foot plants and a contact plane a stride
-down the pitch. None of that was taken.
+The charge kept the production animation through every pass below, checked
+byte-identical each time, until the user came back with two recordings of the
+stroke — one from behind the batter, one from the bowler's end — and a report
+that the bat went inside the body and the shot was not right. Both were true.
+The old finish wrapped the bat down across the chest with the hands at
+sternum height, and the blade sat inside the trunk for most of the
+follow-through. And the shot itself was the wrong shape: the batter hit the
+ball from his crease and then slid a metre and three quarters down the pitch
+*after* it, feet frozen, which is a drive with a skate on the end rather than
+a charge.
 
-This is checked rather than asserted: the charge was sampled every 10 ms across
-its whole life including the walk back, at three ball positions, and every
-sampled quantity — grip, blade axis, blade tip, hips, chest, both feet, yaw and
-distance down the pitch — is identical to production to six decimal places.
+What the recordings show, and what is now keyed, in the charge's own clock:
 
-One leak was found and fixed while doing it. The drives shift the back foot
-sideways to follow the ball; the charge is played with `shot === 'STRAIGHT'`, so
-it was picking that shift up and moving its back foot by up to 11 cm. The shift
-now excludes the charge explicitly.
+- **0–110 ms, the skip.** The back foot comes up to the front one — from a
+  quarter of a metre behind it to level with it — while the bat goes up over
+  the shoulder. The front foot has not moved yet: he skips *to* it.
+- **110–200 ms, the stride.** The front foot goes out a stride and a half,
+  landing 0.75 m past the crease, and the bat reaches the top: toe to the sky
+  over the back shoulder, hands at the shoulder.
+- **200–300 ms, the downswing.** Two keys of its own, because from the top to
+  the ball the toe travels half a turn and half a turn keyed end to end has no
+  shortest way round — interpolated in one span it swung out flat to the off
+  side. The keys hold the plane: toe trailing back up the pitch, then under him
+  and through.
+- **300 ms, contact.** A third of a metre out of his ground, low in the lunge
+  with the back leg stretched out behind on its toe, the ball met on the full
+  level with the front pad — a stride and a half short of where the crease
+  contact is — with the blade laid back a shade further than a drive's, because
+  this one is going up.
+- **400–550 ms.** Extension with both arms straight up the ground and the
+  shoulders turned through, the carry up in front of him, and a key with the
+  bat vertical above the front shoulder. That last one exists for the same
+  reason the downswing's do: the other half-turn in this stroke, from up in
+  front to down behind, took the toe over the shoulder and straight down
+  through his hips.
+- **600 ms, the finish.** Square to the bowler, the back foot planted through
+  in front of the front one, hands high and wide beside the front shoulder and
+  the blade wrapped over it with the toe hanging down behind his back. Both
+  hands in front of the shoulder line, and out wide rather than tight beside
+  the ear, where the shaft came down across the grille.
+- **700–940 ms, home.** The bat drops and hangs beside the left hip, comes
+  across the front with the toe kept down — straight from the hang to the
+  pick-up the knob swung back into his chest — and lifts into the guard. Then
+  the walk back, which is unchanged.
 
-Two shared things do still reach the charge, because they are shared and the
-charge cannot be exempted from them without forking the rig: the bat and glove
-meshes from `batGeometry.ts`, and the grip anchor spacing, which the preview
-branch narrowed from 0.135 m to 0.110 m against close-up photographs. If the
-local Advance Charge revert touches either, that is where it will conflict.
+The feet are authored on the ground he is actually covering. The root runs a
+metre down the pitch through the stroke and a planted foot has to stay put
+while it does, so each key writes the planted foot back by exactly what the
+root has moved since the last one, and the root's travel is piecewise-linear
+between the same keys. The front foot lands at 200 ms and moves less than
+0.06 m — the cubic's overshoot at a key — until the finish.
+
+### What the game had to do to let him charge
+
+The game's contract is that the swipe comes as the ball arrives, and a charge
+that runs down the pitch before it hits cannot fit inside that: the batter
+needs three tenths of a second the ball does not have. So the charge is
+resolved the moment it is played, the intercept moves a stride and a half down
+the pitch (`CHARGE_MEETS_AT`), and the ball is drawn to it, eased, over the
+whole of his run — which the existing slow motion now covers, from the swipe
+rather than from the bat. The result is unchanged: same timing grades, same
+six, same spent meter. Nothing about any other stroke's ball moves.
+
+### It runs on the shared rig now
+
+Every `this.charging` exemption in the solver is gone — the radial fade, the
+point-pole elbow path, the drive knee pole, the pad frame, the back-foot shift.
+They existed to keep a signed-off animation byte-identical, and that animation
+is the one being replaced. The charge takes the same elbow pipeline, the same
+head guard and the same front-pad frame as the drives, and it is in the shared
+test sweep: blade volume against every sphere of the body, the elbow-flip
+check at 2 ms, the flat-face check into contact, the shoulder-travel check.
+Its own suite measures the skip, the stride, the planted foot, the top of the
+backlift, the arc from the ball to over the shoulder, the wrap, and the bat
+against the trunk, hips and helmet at 4 ms across the whole of its longer life
+— which is the sampling that caught the toe going through the hips, where 20 ms
+missed it.
+
+Every other stroke was hashed frame by frame, at 172 ball positions and
+variations, before and after: no change.
 
 ## The pull
 
@@ -175,7 +235,7 @@ the head on any stroke played under the eyes even while the elbow bows well
 clear, and leaning off a danger that was not there dragged the front elbow down
 through every drive contact. Every stroke now clears by at least 0.185 m.
 
-The charge is exempt, and remains byte-identical to production.
+The charge was exempt while it kept the production animation; it now runs the same guard (see the rebuild above).
 
 ## Two straight drives
 
@@ -305,18 +365,17 @@ that existed there, and the sweep's own first working draft for the sweep:
 The cut is the one that still reads high; it is not in the flip check's list and
 was higher before. The cover drive is 2 mm worse and inside the limit.
 
-### The charge is still byte-identical
+### The charge was still byte-identical (at the time)
 
-Two of those fixes move the charge, because its arms are folded tight enough to
-sit in exactly the degenerate cases they address — through the new pole pipeline
-its elbows moved more than half a metre. It is finished, signed-off work, so it
-keeps the arithmetic it was authored against: the radial and the pole both have
-an explicit `this.charging` branch, commented as such. Verified by dumping every
-measurement of 6,608 charge frames from this branch and from `HEAD` and
-differencing them: **maximum delta 0**. `src/entities/rig.ts` is untouched for
-the same reason — a continuous-fade `solveJoint` was tried, was no longer needed
-once the poles were square to the arm by construction, and was reverted because
-it was the thing moving the charge.
+Two of those fixes moved the charge, because its arms were folded tight enough
+to sit in exactly the degenerate cases they address — through the new pole
+pipeline its elbows moved more than half a metre. It was finished, signed-off
+work at the time, so it kept the arithmetic it was authored against behind
+explicit `this.charging` branches, verified by differencing 6,608 frames:
+maximum delta 0. Those branches are gone now that the charge has been rebuilt
+on the shared rig (see above). `src/entities/rig.ts` is untouched — a
+continuous-fade `solveJoint` was tried, was no longer needed once the poles
+were square to the arm by construction, and was reverted.
 
 ### The pose, and what the recordings changed
 
@@ -438,7 +497,7 @@ never swap sides; and the sweep's blade turn stays under 175 degrees with no
 single frame turning it more than 12. The stride check now asks for the foot to
 travel, not merely to sit wide of the hips.
 
-The charge is still byte-identical over 6,608 frames — max delta 0.
+The charge was still byte-identical over 6,608 frames at this point — max delta 0. (It has since been rebuilt; see the top of this document.)
 
 ## Sixth pass — the right-angle leg, and the bat in front of the pad
 
@@ -537,9 +596,7 @@ real pad does. A test now holds all five strokes under 25 degrees.
 The back pad has the same fault and is worse — up to 160 degrees on the sweep,
 where it spends the follow-through pointing backwards. It is left alone for now
 because only the front one was reported, the back leg is folded away under him
-for most of the stroke, and changing it moves five signed-off strokes. The
-charge keeps the old arithmetic here too, as it does for its radial and its
-elbow pole.
+for most of the stroke, and changing it moves five signed-off strokes.
 
 ## Eighth pass — the back leg was a rod, not a kneel
 

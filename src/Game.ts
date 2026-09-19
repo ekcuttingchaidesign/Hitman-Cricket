@@ -74,6 +74,11 @@ const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
  * the same scoring. It is only ever the spinner at the other end.
  */
 const SPIN_ONLY = !!import.meta.env.VITE_SPIN_ONLY;
+/**
+ * A playtest build for the charge: the meter is full every ball and every ball
+ * can be walked at, so the stroke can be looked at without batting for it.
+ */
+const CHARGE_ONLY = !!import.meta.env.VITE_CHARGE_ONLY;
 
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
@@ -348,6 +353,22 @@ export class Game {
   private get limits() { return this.surviving ? SURVIVE_LIMITS : CLASSIC_LIMITS; }
   /** `?spin=1` is the same thing as the build flag, for a dev server. */
   private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
+  /** `?charge=1` likewise. Only the classic innings has a meter to fill. */
+  private chargeOnly = CHARGE_ONLY || new URLSearchParams(location.search).get('charge') === '1';
+  /**
+   * The ball the charge is for, in place of whatever was drawn: on the stumps,
+   * on a length, at a medium pacer's speed, and the meter filled to walk at it.
+   * Nothing else about the innings changes — the same scoring, the same
+   * wickets — so a mistimed charge is still a mistimed charge.
+   */
+  private chargeable(delivery: Delivery): Delivery {
+    if (!this.chargeOnly || this.surviving || this.lesson >= 0) return delivery;
+    this.confidence.value = CONFIDENCE_FULL;
+    const speedKph = Math.round((ADVANCE.minKph + ADVANCE.maxKph) / 2);
+    return { ...delivery, line: 'MIDDLE', style: 'NORMAL', speedKph, baseTargetX: 0, finalTargetX: 0,
+      bounceZ: GAME.bounceZ, rise: GAME.rise,
+      durationMs: (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale };
+  }
   private get plan() {
     const plan = this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN;
     if (!this.spinOnly || !plan.spin) return plan;
@@ -397,6 +418,12 @@ export class Game {
     this.primed = null;
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled);
     this.hud.select(shotType, charging);
+    // The charge is judged now rather than when the ball arrives, because the
+    // ball is not going to arrive: he is going down the pitch to meet it, and
+    // the scene needs to know that from the first frame of his run so the ball
+    // can be drawn to where he meets it rather than carrying on to the crease
+    // and turning round.
+    if (charging) this.resolve();
   };
   /**
    * Confidence is only a shot outside the tutorial, where nothing is scored —
@@ -664,20 +691,22 @@ export class Game {
     this.frameId = requestAnimationFrame(this.frame);
   };
   /**
-   * The charge, and only the charge, gets a beat of slow motion off the bat. The
-   * ball is already resolved by then, so nothing the player can still affect is
-   * running slowly — the clock only stretches the replay of a shot he has won.
+   * The charge, and only the charge, gets slow motion: from the swipe that
+   * played it, through the run down the pitch and the hit, to a beat off the
+   * bat. The ball is already resolved at the swipe, so nothing the player can
+   * still affect is running slowly — the clock only stretches the replay of a
+   * shot he has won.
    */
   private get timeScale() {
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
-    return since >= 0 && since < 340 ? 0.38 : 1;
+    return since < 340 ? 0.38 : 1;
   }
   private update() {
     const age = this.elapsed - this.phaseStart;
     if (this.phase === 'READY' && age >= this.readyMs) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
-        : this.generator.next(this.elapsed + GAME.runupMs);
+        : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       this.attempt = null; this.outcome = null; this.bounced = false; this.primed = null; this.chargeBall = false;
       // The ball is settled before the bowler moves, so the call goes out with
       // him. Held to the flight it gave the player under a second to see the

@@ -217,7 +217,11 @@ Confidence is earned by scoring and lost by not scoring. A six adds 28, a four 2
 
 Full, the meter pulses. When a ball you can walk at is coming — on the stumps, on a length, at a bowler's pace — the edge of the field lights up gold and the call goes out from the bowler's run-up, a full delivery before it arrives. Drive it and time it perfectly or well, and the batter charges down the wicket and hits it out of the ground for six, and the meter is spent.
 
+The charge is built from two recordings of the real stroke. The back foot skips up to the front one, the front foot strides out a stride and a half past the crease while the bat goes up to the sky over the back shoulder, and from there it is a lofted straight drive on the move: the ball met on the full a stride and a half short of the crease, the arms opening out straight up the ground, and the blade climbing over the front shoulder into a wrap with the hands high beside the helmet and the toe hanging down behind his back. He stands square to the bowler and watches it go. Because he goes down the pitch *before* he hits it, the charge is resolved the moment you swipe and the ball is drawn to where he meets it; the slow motion runs from the swipe, through the run and the hit, to a beat off the bat.
+
 He walks back to his crease on his feet: each one plants and stays where it was put while the body moves over it, then swings back a stride and plants again. Translating the whole batter instead freezes his feet to him and skates him up the pitch.
+
+`VITE_CHARGE_ONLY` (or `?charge=1` on a dev server) is a playtest build for it: the meter is full every ball and every ball is one he can walk at.
 
 Any upward drive charges it: straight, long-on or cover. The gesture asked for is "swipe up", and a thumb flick that drifts twenty degrees is still a swipe up — but the swipe sectors are 45 degrees wide, so pinning the charge to the straight drive alone threw it away on a gesture the player had no way of seeing was off. Miss it anyway and the call says which half went wrong — `CHARGE MISTIMED` or `THE CHARGE WANTED A DRIVE` — with the meter still charged for the next one.
 

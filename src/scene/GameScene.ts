@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batter } from '../entities/Batter';
+import { Batter, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
 import { FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
@@ -286,8 +286,16 @@ export class GameScene {
     // particular ball takes to reach the bat never touches it — which is the
     // whole of the disguise a slower ball is bowled behind.
   }
+  /**
+   * Where along the flight the ball is met. The crease, for every stroke but
+   * one: the charge goes down the pitch to it and meets it a stride and a
+   * half short of where it would otherwise have arrived.
+   */
+  private static meetsAt(charging: boolean) {
+    return charging ? 1 - CHARGE_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
+  }
   swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false) {
-    const contact = ballPosition(delivery, 1);
+    const contact = ballPosition(delivery, GameScene.meetsAt(charging));
     this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
@@ -295,7 +303,7 @@ export class GameScene {
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
-    const p = ballPosition(delivery, 1); this.hitOrigin.set(p.x, p.y, p.z);
+    const p = ballPosition(delivery, GameScene.meetsAt(!!outcome.advance)); this.hitOrigin.set(p.x, p.y, p.z);
     // The sweep is hit where the sweep goes — midwicket — rather than out along
     // the sector of the leg-side swipe that played it.
     // The orthodox sweep goes squarer than the slog does: the blade is level and
@@ -394,7 +402,11 @@ export class GameScene {
     const result = this.hitOutcome; if (!result) return;
     if (now < this.hitStart) {
       const approach = 1 - (this.hitStart - now) / this.contactDelay;
-      this.ball.position.lerpVectors(this.incomingPosition, this.hitOrigin, approach);
+      // The charge is resolved the moment it is played, with the ball still in
+      // the air and the batter still in his crease, and the ball is drawn to
+      // where he meets it over the whole of his run at it. Eased, so it does
+      // not set off at a new pace on the frame of the swipe.
+      this.ball.position.lerpVectors(this.incomingPosition, this.hitOrigin, result.advance ? THREE.MathUtils.smoothstep(approach, 0, 1) : approach);
       this.groundShadow(this.ball.position, true);
       this.trail.forEach(dot => dot.visible = false);
       return;

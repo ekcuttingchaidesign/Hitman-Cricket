@@ -332,5 +332,5 @@ export const ADVANCE = {
   timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
   feedback: 'OUT OF THE STADIUM!',
   /** How far down the pitch the charge carries him, and how long the walk back is. */
-  stride: 1.75, walkBackMs: 1300,
+  stride: 1.15, walkBackMs: 1300,
 } as const;
