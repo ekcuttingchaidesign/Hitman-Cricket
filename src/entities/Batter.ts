@@ -878,12 +878,18 @@ const ON_CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
     grip: [-.02, 1.42, .68], batUp: [.30, -.32, -.90], batFace: [-.45, .82, -.35],
     yaw: .30, face: -.12, heel: .30, backFootYaw: .90, leadElbow: .26,
     armHinge: .80, armDrive: .80, shoulderLift: .06 } },
-  // Over the top and into the wrap: the straight charge's own two keys, on
-  // this stroke's feet, facing mid-on rather than the bowler.
+  // Up and over into the wrap, with less turn than the straight charge
+  // gives it. The straight charge stands the bat vertical over the front
+  // shoulder before it drops behind; this one carries it up at an angle —
+  // toe up and back over the shoulder — and wraps to a shallower finish, the
+  // toe behind the shoulder at chest height rather than hanging down behind
+  // the back. The hands and feet are the straight charge's, facing mid-on.
   { time: CHARGE_CLOCK.over, pose: { ...CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.over)!.pose,
-    frontFoot: [-.08, .08, -.01], backFoot: [-.24, .12, .12], yaw: .24, face: -.10 } },
+    frontFoot: [-.08, .08, -.01], backFoot: [-.24, .12, .12], yaw: .24, face: -.10,
+    batUp: [.25, -.65, .72], batFace: [.95, .25, -.10] } },
   { time: CHARGE_CLOCK.finish, pose: { ...CHARGE_FINISH,
-    frontFoot: [-.08, .08, -.10], backFoot: [-.24, .08, .20], yaw: .16, face: -.12 } },
+    frontFoot: [-.08, .08, -.10], backFoot: [-.24, .08, .20], yaw: .16, face: -.12,
+    batUp: [.15, .45, .88], batFace: [.98, -.10, -.12] } },
 ];
 const ON_CHARGE_CONTACT = ON_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
 const ON_CHARGE_FINISH = ON_CHARGE_KEYS[ON_CHARGE_KEYS.length - 1].pose;

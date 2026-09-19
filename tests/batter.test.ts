@@ -1461,13 +1461,20 @@ describe('the charge over long-on', () => {
       on.update(CHARGE_CLOCK.finish);
       const finish = on.inspect();
       const root = on.root.position;
-      // The straight charge's wrap: hands high and wide beside the front
-      // (left) shoulder, in front of it, the toe hanging down behind him.
+      // A wrap over the front (left) shoulder, shallower than the straight
+      // charge's: hands high and wide beside it, in front of it, the toe
+      // behind him at chest height rather than hanging down behind the back.
       expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.5);
       expect(finish.grip[0] - finish.chest[0], `x=${x}`).toBeLessThan(-.2);
       for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
-      expect(finish.bladeTip[1], `x=${x}`).toBeLessThan(finish.grip[1] - .45);
-      expect(finish.bladeTip[2] - root.z, `x=${x}`).toBeLessThan(finish.chest[2] - .15);
+      expect(finish.bladeTip[1], `x=${x}`).toBeLessThan(finish.grip[1] - .25);
+      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1] - .55);
+      expect(finish.bladeTip[2] - root.z, `x=${x}`).toBeLessThan(finish.chest[2] - .3);
+      // And it never stands vertical on the way: the bat turns less than the
+      // straight charge's on this stroke.
+      let steepest = 0;
+      for (let time = CHARGE_CLOCK.carry; time <= CHARGE_CLOCK.finish; time += 4) { on.update(time); steepest = Math.max(steepest, -on.inspect().batUp[1]); }
+      expect(steepest, `x=${x} toe pointing straight up`).toBeLessThan(.85);
       // Facing mid-on: a shade less square to the bowler than the straight
       // charge's finish. Only a shade — turned any further, the front elbow
       // outran the shared speed limit on the way out of the wrap.
