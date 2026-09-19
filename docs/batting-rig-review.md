@@ -104,11 +104,11 @@ It shares the straight charge's keys to the top of the downswing, with the
 front foot 6 cm further to the leg side from the plant. From under him: the
 face closed towards mid-on at contact (yaw 1.02 against the straight
 charge's 1.15 — already turning that way), the arms extended out towards
-long-on, and a high finish with the hands beside the front ear and the bat
-to the sky over the front shoulder and a little behind it: not the straight
-charge's wrap, and not the cover shot's pose straight up over the off
-shoulder. The way down is the cover shot's — out in front of the face first,
-then across into the pick-up. Played off the long-on swipe, 34° rather than
+long-on, and then the straight charge's own over-the-top key and wrap — the
+bat over the front (left) shoulder, toe down behind the back — on this
+stroke's feet and facing mid-on, which is what the user asked for after
+seeing a first version that finished with the bat up to the sky. The way
+home is the straight charge's unwrap. Played off the long-on swipe, 34° rather than
 long-on's 24°, with its own call; the swipe leans the same eight degrees
 towards vertical on that side.
 

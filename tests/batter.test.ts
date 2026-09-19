@@ -1451,23 +1451,28 @@ describe('the charge over long-on', () => {
       expect(contact.yaw, `x=${x} open`).toBeLessThan(straight.inspect().yaw - .05);
     }
   });
-  it('extends out towards long-on and finishes high over the front shoulder', () => {
+  it('extends out towards long-on and wraps over the front shoulder, facing mid-on', () => {
     for (const x of PLAYS.onCharge.reach) {
       const on = onCharge(x), straight = charge(x);
       on.update(CHARGE_CLOCK.through); straight.update(CHARGE_CLOCK.through);
       // The hands go out to the leg side of where the straight charge's go.
       expect(on.inspect().grip[0], `x=${x} out`).toBeLessThan(straight.inspect().grip[0] - .2);
       expect(on.inspect().grip[2] - on.inspect().chest[2], `x=${x} forward`).toBeGreaterThan(.3);
-      on.update(580);
+      on.update(CHARGE_CLOCK.finish);
       const finish = on.inspect();
       const root = on.root.position;
-      // Hands high beside the front ear, the toe above them and to the leg
-      // side, and nothing wrapped down behind him.
-      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.75);
-      expect(finish.grip[0] - finish.chest[0], `x=${x}`).toBeLessThan(-.15);
-      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1] + .4);
-      expect(finish.bladeTip[0] - root.x, `x=${x}`).toBeLessThan(finish.grip[0] - .2);
+      // The straight charge's wrap: hands high and wide beside the front
+      // (left) shoulder, in front of it, the toe hanging down behind him.
+      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.5);
+      expect(finish.grip[0] - finish.chest[0], `x=${x}`).toBeLessThan(-.2);
       for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
+      expect(finish.bladeTip[1], `x=${x}`).toBeLessThan(finish.grip[1] - .45);
+      expect(finish.bladeTip[2] - root.z, `x=${x}`).toBeLessThan(finish.chest[2] - .15);
+      // Facing mid-on: a shade less square to the bowler than the straight
+      // charge's finish. Only a shade — turned any further, the front elbow
+      // outran the shared speed limit on the way out of the wrap.
+      straight.update(CHARGE_CLOCK.finish);
+      expect(finish.yaw, `x=${x}`).toBeGreaterThan(straight.inspect().yaw + .04);
     }
   });
   it('never passes the bat through him, and keeps the elbows off the trunk', () => {

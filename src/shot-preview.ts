@@ -31,8 +31,8 @@ const PLAYS: Record<string, Play> = {
   },
   onCharge: {
     label: 'Advance charge over long-on (new)', shot: 'LONG_ON', ballX: 0, ballY: .54, charging: true,
-    phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['High finish', 580], ['Down', 760], ['Walking back', 1000]],
-    note: 'The same walk at the ball, and the mirror of the shot over cover from the ball onwards, built from the third recording: the face closed towards mid-on at contact, the arms extended out that way with the blade climbing, and the finish held high with the hands beside the front ear and the bat to the sky over the front shoulder. Played off the long-on swipe with the meter full; six a little squarer than long-on.',
+    phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['Over', CHARGE_CLOCK.over], ['Finish', CHARGE_CLOCK.finish], ['Unwrap', CHARGE_CLOCK.unwrap], ['Walking back', 1000]],
+    note: 'The same walk at the ball, then the mirror of the shot over cover up to the carry, built from the third recording: the face closed towards mid-on at contact, the arms extended out that way with the blade climbing. It finishes the way the straight charge does — over the top and wrapped over the front (left) shoulder, hands high beside it, toe hanging down behind his back — facing mid-on. Played off the long-on swipe with the meter full; six a little squarer than long-on.',
   },
   sweep: {
     label: 'Slog sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, sweeping: true,

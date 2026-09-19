@@ -836,17 +836,17 @@ const COVER_CHARGE_FINISH = COVER_CHARGE_KEYS[COVER_CHARGE_KEYS.length - 1].pose
  * The charge over long-on — the third recording, from behind the batter.
  *
  * The same walk at the ball again. From the ball onwards it is the mirror of
- * the shot over cover: the face closed towards mid-on at contact, the arms
- * extended out that way with the blade climbing, and the finish high — hands
- * up beside the front ear, the blade pointing to the sky over the front
- * shoulder and a little behind it. Not the straight charge's wrap, which
- * takes the toe down behind his back, and not the cover shot's pose with the
- * bat straight up over the off shoulder: this one is held up and to the leg
- * side, where the ball went. The chest opens to mid-on rather than to the
- * bowler, and the front foot lands a little further to the leg side, which is
- * what lets the hips turn that way.
+ * the shot over cover up to the carry: the face closed towards mid-on at
+ * contact, the arms extended out that way with the blade climbing, the chest
+ * opening to mid-on rather than to the bowler, and the front foot landing a
+ * little further to the leg side, which is what lets the hips turn that way.
+ * Then it finishes the way the straight charge does, and the way the user
+ * asked for: the bat comes up over the top and wraps over the FRONT shoulder
+ * — the left one, for a right-hander — with the hands high beside it and the
+ * toe hanging down behind his back. The over-the-top key and the wrap are the
+ * straight charge's own, on this stroke's feet and facing, and the way home
+ * out of the wrap is the straight charge's too.
  */
-const ON_CHARGE_CLOCK = { finish: 580, down: 770, recover: 835 } as const;
 const ON_CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
   ...CHARGE_KEYS.filter(k => k.time < CHARGE_CLOCK.under).map(k => k.time === CHARGE_CLOCK.plant || k.time === CHARGE_CLOCK.drop
     ? { time: k.time, pose: { ...k.pose, frontFoot: [k.pose.frontFoot[0] - .06, k.pose.frontFoot[1], k.pose.frontFoot[2]] as Point } }
@@ -870,26 +870,21 @@ const ON_CHARGE_KEYS: readonly { time: number; pose: Pose }[] = [
     grip: [.16, 1.08, .84], batUp: [.32, .58, -.75], batFace: [-.50, .70, .50],
     yaw: .45, face: -.10, heel: .60, backFootYaw: 1.00, leadElbow: .24,
     armHinge: .55, armDrive: 1, shoulderLift: .04 } },
-  // The hands go up and across to the leg side, the blade with them.
+  // The hands go up and across to the leg side, the blade with them. The
+  // drive aim is already letting go here, as it is on the straight charge,
+  // so the wrap that follows is solved on the anatomical bend.
   { time: CHARGE_CLOCK.carry, pose: { ...GUARD, hip: [.00, .84, .10], chest: [.04, 1.20, .16],
     frontFoot: [-.08, .08, .10], backFoot: [-.22, .16, .00],
     grip: [-.02, 1.42, .68], batUp: [.30, -.32, -.90], batFace: [-.45, .82, -.35],
     yaw: .30, face: -.12, heel: .30, backFootYaw: .90, leadElbow: .26,
-    armHinge: .90, armDrive: .80, shoulderLift: .06 } },
-  // The finish. Hands high beside the front ear, both arms up, the bat to the
-  // sky over the front shoulder and a little behind it. Held, and watched.
-  { time: ON_CHARGE_CLOCK.finish, pose: { ...GUARD, hip: [.00, .88, .06], chest: [.02, 1.24, .10],
-    frontFoot: [-.08, .08, -.04], backFoot: [-.22, .08, .18],
-    grip: [-.24, 1.92, .40], batUp: [.36, -.72, .60], batFace: [.85, .20, -.30],
-    yaw: .30, face: -.15, heel: 0, backFootYaw: .40, leadElbow: .30,
-    armHinge: 1.50, armDrive: .80, shoulderLift: .10 } },
+    armHinge: .80, armDrive: .80, shoulderLift: .06 } },
+  // Over the top and into the wrap: the straight charge's own two keys, on
+  // this stroke's feet, facing mid-on rather than the bowler.
+  { time: CHARGE_CLOCK.over, pose: { ...CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.over)!.pose,
+    frontFoot: [-.08, .08, -.01], backFoot: [-.24, .12, .12], yaw: .24, face: -.10 } },
+  { time: CHARGE_CLOCK.finish, pose: { ...CHARGE_FINISH,
+    frontFoot: [-.08, .08, -.10], backFoot: [-.24, .08, .20], yaw: .16, face: -.12 } },
 ];
-/** Down in front of the face, then across into the pick-up. */
-const ON_CHARGE_DOWN: Pose = { ...GUARD, hip: [-.02, .90, .04], chest: [.02, 1.25, .08],
-  frontFoot: [-.08, .08, .02], backFoot: [-.20, .08, .06],
-  grip: [.04, 1.48, .60], batUp: [-.12, -.78, -.61], batFace: [.85, -.22, -.10],
-  yaw: .70, face: -.05, heel: 0, backFootYaw: .80, leadElbow: .05,
-  armHinge: .60, armDrive: .40, shoulderLift: .03 };
 const ON_CHARGE_CONTACT = ON_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
 const ON_CHARGE_FINISH = ON_CHARGE_KEYS[ON_CHARGE_KEYS.length - 1].pose;
 
@@ -1316,11 +1311,12 @@ export class Batter {
       // The way home, as the poses it passes through and when it reaches
       // each. The wrap needs three — up out of it, across, and down into the
       // pick-up — because every straight line from behind one shoulder to
-      // behind the other goes through him. The high finish over cover needs
+      // behind the other goes through him. The charge over long-on wraps the
+      // same way and takes the same route. The high finish over cover needs
       // two: down in front of the face, then across into the pick-up.
       const home: readonly [number, Pose][] = overCover
         ? [[COVER_CHARGE_CLOCK.down, COVER_CHARGE_DOWN], [COVER_CHARGE_CLOCK.recover, COVER_CHARGE_RECOVER]]
-        : overLongOn ? [[ON_CHARGE_CLOCK.down, ON_CHARGE_DOWN], [ON_CHARGE_CLOCK.recover, COVER_CHARGE_RECOVER]]
+        : overLongOn ? [[unwrap, CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]]
         : [[unwrap, CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]];
       if (age < settle) {
         this.apply(shoulderDriven([{ time: 0, pose: this.swingFrom },
