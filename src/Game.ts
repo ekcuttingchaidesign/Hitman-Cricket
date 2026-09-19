@@ -225,13 +225,18 @@ export class Game {
     this.hud.on('start', () => (this.locked ? this.start() : this.modes()));
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
-    this.hud.on('modes-cancel', () => this.hud.closeModes());
+    this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
     this.hud.on('restart', this.start);
+    // Out of a paused innings and back to the picker. The picker is a screen
+    // rather than a card, so it covers the pause card rather than replacing
+    // it: pick a mode and the innings is walked out on, back out of it and the
+    // card is exactly where it was.
+    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.modes(); });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
     // Both ladders exist, so the sheet carries a way between them.
@@ -299,6 +304,15 @@ export class Game {
    * just replaced the card.
    */
   private modes = () => { this.audio.music('cover'); this.hud.modes(); };
+  /**
+   * Out of the picker without picking. Opened from the cover that is the cover
+   * again; opened from a paused innings it is the pause card again, silent the
+   * way a paused innings is, with the focus back on the key that resumes it.
+   */
+  private closePicker = () => {
+    this.hud.closeModes();
+    if (this.phase === 'PAUSED') { this.audio.stop(); this.hud.pause(true); }
+  };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
   choose = (mode: GameMode) => { this.mode = mode; this.start(); };
   start = () => {
@@ -666,7 +680,7 @@ export class Game {
     // The picker is the thing on top while it is open, so it answers first —
     // otherwise Enter starts an innings underneath a sheet nobody closed.
     if (this.hud.modesOpen) {
-      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeModes(); }
+      if (key === 'ESCAPE') { event.preventDefault(); this.closePicker(); }
       return;
     }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {

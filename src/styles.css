@@ -1741,10 +1741,15 @@ body.start-screen .hud-top{display:none}
   line-height:1.5;
   color:var(--quiet)
 }
-/* The second key is the card's quieter one: the navy the innings card gives its
-   story key, on its own dark ledge. Subordinate to the white key above it by
-   tone and height rather than by being a line of text — restarting is a real
-   decision, and it should be as easy to hit as resuming. */
+/* The two ways out are the card's quieter pair: the navy the innings card gives
+   its story key, on its own dark ledge, side by side at half the width each the
+   way the end card sets its share keys. Subordinate to the white key above them
+   by tone and height rather than by being lines of text — leaving an innings is
+   a real decision either way, and both should be as easy to hit as resuming.
+   Narrower than the end card's pair, so the type comes down a step to sit in
+   them without breaking. */
+.pause-card .card-shares{margin-top:11px}
+.pause-card .card-shares .story-key{margin-top:0;font-size:12.5px;letter-spacing:.6px}
 .pause-card .story-key{margin-top:11px}
 .pause-card .start-hint{margin-top:10px;color:var(--quiet)}
 
