@@ -108,7 +108,12 @@ long-on, and then the straight charge's own over-the-top key and wrap — the
 bat over the front (left) shoulder, toe down behind the back — on this
 stroke's feet and facing mid-on, which is what the user asked for after
 seeing a first version that finished with the bat up to the sky. The way
-home is the straight charge's unwrap. Played off the long-on swipe, 34° rather than
+home is its own: the straight charge drops the blade down past the shoulder
+to hang beside the hip, and on this shallower wrap that read as the bat
+sliding down the shoulder, so it comes back up over the top on the arc it
+went over on — toe to the sky above the front shoulder again — and only then
+down in front of him, hands to the chest with the toe still up, into the
+pick-up. Played off the long-on swipe, 34° rather than
 long-on's 24°, with its own call; the swipe leans the same eight degrees
 towards vertical on that side.
 
