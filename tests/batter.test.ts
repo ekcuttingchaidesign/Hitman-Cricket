@@ -45,7 +45,7 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   // scoop's ball is on the stumps or leg stump, the reverse's on or outside
   // off; both are played by the meter, so they run on the shared rig and
   // take the shared checks.
-  scoop: { shot: 'SCOOP', ballY: .54, impact: SCOOP_CONTACT_MS, reach: [-.30, -.07, .17], settle: 400 },
+  scoop: { shot: 'SCOOP', ballY: .54, impact: SCOOP_CONTACT_MS, reach: [-.30, -.07, .17], settle: 490 },
   reverse: { shot: 'REVERSE_SCOOP', ballY: .54, impact: REVERSE_CONTACT_MS, reach: [.05, .28, .62], settle: 600 },
   // The on drive's six: the same ball and contact as the on drive, and a
   // different follow-through, which is the whole of the difference.
@@ -1770,16 +1770,28 @@ describe('the scoop', () => {
       expect(contact.batFace[2], `x=${x} face to the bowler`).toBeGreaterThan(0);
     }
   });
-  it('lifts the hands up the front of him to the shoulder, toe still hanging, and watches it over that shoulder', () => {
+  it('rolls the wrists and wraps the bat over the front shoulder, toe down behind him, watching it over that shoulder', () => {
     for (const x of PLAYS.scoop.reach) {
       const batter = scoop(x);
-      batter.update(400);
+      const root = batter.root.position;
+      // The toe goes round the leg side of him: straight down beside the front
+      // leg on the way, then back, never up in front.
+      batter.update(245);
+      const through = batter.inspect();
+      expect(through.batUp[1], `x=${x} toe down through`).toBeGreaterThan(.8);
+      expect(through.grip[0] - through.chest[0], `x=${x} hands to leg`).toBeLessThan(-.1);
+      batter.update(380);
+      const carry = batter.inspect();
+      expect(carry.bladeTip[2] - root.z, `x=${x} toe back`).toBeLessThan(carry.grip[2] - .5);
+      batter.update(490);
       const finish = batter.inspect();
-      expect(finish.grip[1], `x=${x} hands high`).toBeGreaterThan(1.25);
+      expect(finish.grip[1], `x=${x} hands high`).toBeGreaterThan(1.3);
       expect(finish.grip[0] - finish.chest[0], `x=${x} beside the front shoulder`).toBeLessThan(-.2);
-      expect(finish.batUp[1], `x=${x} toe hanging`).toBeGreaterThan(.9);
-      expect(finish.hip[1], `x=${x} still down`).toBeLessThan(.80);
-      // Still in front of him, never round the shoulder.
+      expect(finish.batUp[1], `x=${x} toe hanging`).toBeGreaterThan(.5);
+      expect(finish.bladeTip[2] - root.z, `x=${x} toe behind him`).toBeLessThan(finish.chest[2] - .3);
+      expect(finish.bladeTip[1], `x=${x} toe down`).toBeLessThan(finish.grip[1] - .4);
+      expect(finish.hip[1], `x=${x} up a little, not standing`).toBeLessThan(.86);
+      // Both hands in front of the shoulder line, never round it.
       for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
       // And home to the guard.
       batter.update(STROKE_DURATION_MS);

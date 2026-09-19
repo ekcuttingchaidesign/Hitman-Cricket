@@ -123,14 +123,20 @@ The third pair of special strokes, and the first behind the wicket, each
 from a broadcast recording. The scoop is a ramp rather than a swing: down
 early in a wide crouch, square to the bowler, the bat held out in front of
 the front hip with the toe angled down and forward to the off and the face
-to the sky, the ball met at knee height and ridden off the face. There is no
-follow-through to speak of — the hands lift straight up the front of him to
-the shoulder with the toe still hanging, the head turning to leg — and he
-comes home by dropping the hands to the chest first, toe still down, and only
-then turning the toe up and forward: turned over from up beside the head, the
-knob swept back through the grille. The handle end is a quarter of a metre
-long and points at him whenever the toe points away, which is most of what
-the first version got wrong.
+to the sky, the ball met at knee height and ridden off the face. Then the
+wrists roll and the bat goes up and over the front shoulder: the toe swings
+from down and forward, past the leg side of him, back, and down behind him,
+the hands rising up the leg side to finish high beside the front shoulder
+with the blade wrapped over it — the straight charge's wrap from a crouch,
+and the straight charge's way home, back over the top. The first version
+lifted the bat straight up in front of him with the toe still hanging, which
+the user rightly read as a paddle; the recording rolls it round. Two things
+were needed to make the roll clean. The front elbow has to be high through
+it — the drives' `leadElbow` lift, which the scoop now gets too — because
+with the elbow hanging the blade swept back through the forearm; and the
+hands come up first, off the ball, before the toe swings in, because at a
+yorker they start at the shin and a toe brought straight in from there swept
+across the top of the front boot.
 
 The reverse borrows the slog sweep's kneel outright — the same hip, the same
 front foot planted across, the same back foot dragged round, and the same
