@@ -140,17 +140,24 @@ const SPECIAL_SPOKES: Record<NonNullable<Primed>, readonly string[]> = {
   CHARGE: ['STRAIGHT', 'LONG_ON', 'COVER'], SWEEP: ['LEG', 'LONG_ON'], SCOOP: ['SCOOP'], REVERSE: ['REVERSE'],
 };
 function swipeGuide() {
-  const spokes = SWIPE_SPOKES.map(({ dir, angle }) => {
+  const from = 22, to = 84;
+  const gradients: string[] = [], spokes: string[] = [];
+  for (const { dir, angle } of SWIPE_SPOKES) {
     const a = angle * Math.PI / 180, sin = Math.sin(a), cos = -Math.cos(a);
-    const from = 24, to = 80, head = 7;
     const x1 = (sin * from).toFixed(1), y1 = (cos * from).toFixed(1), x2 = (sin * to).toFixed(1), y2 = (cos * to).toFixed(1);
-    // The arrowhead: two short strokes back from the tip, either side of it.
-    const left = a + Math.PI * .8, right = a - Math.PI * .8;
-    const lx = (sin * to + Math.sin(left) * head).toFixed(1), ly = (cos * to - Math.cos(left) * head).toFixed(1);
-    const rx = (sin * to + Math.sin(right) * head).toFixed(1), ry = (cos * to - Math.cos(right) * head).toFixed(1);
-    return `<g class="spoke" data-dir="${dir}"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><path class="tip" d="M${lx} ${ly}L${x2} ${y2}L${rx} ${ry}"/></g>`;
-  }).join('');
-  return `<svg id="swipe-guide" class="swipe-guide" viewBox="-100 -100 200 200" aria-hidden="true"><circle class="hub" r="3"/>${spokes}</svg>`;
+    // A streak: nothing at the hub, brightest a third of the way out, gone by
+    // the tip — light leaving the thumb, not a pointer. Two colours per
+    // spoke, cream and gold, and the class picks which shows.
+    for (const [tone, colour] of [['plain', '#ffffff'], ['gold', '#ffc766']] as const)
+      gradients.push(`<linearGradient id="sg-${tone}-${dir}" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">`
+        + `<stop offset="0" stop-color="${colour}" stop-opacity="0"/><stop offset=".32" stop-color="${colour}" stop-opacity="1"/><stop offset="1" stop-color="${colour}" stop-opacity="0"/></linearGradient>`);
+    const line = (cls: string, tone: string) => `<line class="${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="url(#sg-${tone}-${dir})"/>`;
+    spokes.push(`<g class="spoke" data-dir="${dir}">${line('glow plain', 'plain')}${line('core plain', 'plain')}${line('glow gold', 'gold')}${line('core gold', 'gold')}`
+      + `<line class="run" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/></g>`);
+  }
+  return `<svg id="swipe-guide" class="swipe-guide" viewBox="-100 -100 200 200" aria-hidden="true"><defs>`
+    + `<filter id="sg-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.8"/></filter>${gradients.join('')}</defs>`
+    + `<circle class="hub" r="2.6"/>${spokes.join('')}</svg>`;
 }
 export class HUD {
   readonly viewport: HTMLElement;

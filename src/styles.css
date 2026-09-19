@@ -381,44 +381,49 @@ kbd{
   50%{opacity:1}
 }
 
-/* The swipe guide: eight faint spokes over the pitch in front of the crease,
-   only while there is a meter to spend and a ball on its way. The spokes that
-   would spend it are gold and pulse with the edge of the field; the rest are
-   the same thin cream as the side labels. A thumb's map, not a menu. */
+/* The swipe guide: eight soft streaks of light over the pitch in front of the
+   crease, only while there is a meter to spend and a ball on its way — the
+   directions a thumb can go, as light leaving it rather than arrows. Each is a
+   blurred glow with a faint sharp core, fading out along its length. The ones
+   that would spend the meter are gold, breathe with the edge of the field,
+   and carry a small pulse of light running outward; the rest stay dim cream. */
 .swipe-guide{
   display:none;
   position:absolute;
   left:50%;
   bottom:calc(var(--pad-bottom) + 46px);
-  width:172px;
-  height:172px;
-  margin-left:-86px;
+  width:176px;
+  height:176px;
+  margin-left:-88px;
   pointer-events:none;
   z-index:2;
   opacity:0;
-  transition:opacity .4s ease
+  transition:opacity .45s ease
 }
 .touch-device .swipe-guide{display:block}
 .swipe-guide.is-on{opacity:1}
-.swipe-guide .hub{fill:#eef6df;fill-opacity:.4}
-.swipe-guide line,.swipe-guide .tip{
-  fill:none;
-  stroke:#eef6df;
-  stroke-opacity:.26;
-  stroke-width:1.3;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-  vector-effect:non-scaling-stroke
-}
-.swipe-guide .is-special line,.swipe-guide .is-special .tip{
-  stroke:#ffd98a;
+.swipe-guide .hub{fill:#eef6df;fill-opacity:.45}
+.swipe-guide line{stroke-linecap:round;transition:opacity .35s ease}
+.swipe-guide .glow{stroke-width:6.5;filter:url(#sg-blur);opacity:.7}
+.swipe-guide .core{stroke-width:1.4;opacity:.7}
+.swipe-guide .gold,.swipe-guide .run{opacity:0}
+.swipe-guide .is-special .plain{opacity:0}
+.swipe-guide .is-special .glow.gold{stroke-width:8.5;opacity:1;animation:guide-breathe .62s ease-in-out infinite}
+.swipe-guide .is-special .core.gold{stroke-width:1.8;opacity:.9}
+.swipe-guide .is-special .run{
+  opacity:.85;
+  stroke:#fff3d0;
   stroke-width:2;
-  filter:drop-shadow(0 0 3px #ed704480);
-  animation:guide-pulse .62s ease-in-out infinite
+  stroke-dasharray:9 70;
+  stroke-dashoffset:79;
+  animation:guide-run 1.15s linear infinite
 }
-@keyframes guide-pulse{
-  0%,100%{stroke-opacity:.6}
-  50%{stroke-opacity:1}
+@keyframes guide-breathe{
+  0%,100%{opacity:.7}
+  50%{opacity:1}
+}
+@keyframes guide-run{
+  to{stroke-dashoffset:0}
 }
 
 /* The one ball he can charge, called where the player is already looking. */
