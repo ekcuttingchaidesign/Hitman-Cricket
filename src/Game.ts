@@ -61,6 +61,20 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
  */
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
 
+/**
+ * Whether the spinner bowls the whole innings.
+ *
+ * A playtest build, and it exists because of what this branch added: the flat
+ * sweep, the slog sweep and the leg-side flick are now three different answers
+ * to the same swipe, and which one is right depends on which way the ball is
+ * turning. All three live in one over out of five, so looking at them meant
+ * batting out two overs of seam first, every time. This hands him the lot.
+ *
+ * Nothing else changes — the same lines, the same turn, the same arm balls,
+ * the same scoring. It is only ever the spinner at the other end.
+ */
+const SPIN_ONLY = !!import.meta.env.VITE_SPIN_ONLY;
+
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
 };
@@ -332,7 +346,16 @@ export class Game {
 
   private get surviving() { return this.mode === 'SURVIVE'; }
   private get limits() { return this.surviving ? SURVIVE_LIMITS : CLASSIC_LIMITS; }
-  private get plan() { return this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN; }
+  /** `?spin=1` is the same thing as the build flag, for a dev server. */
+  private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
+  private get plan() {
+    const plan = this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN;
+    if (!this.spinOnly || !plan.spin) return plan;
+    // Every over his, from the first: `spinOvers` always gives him `notBefore`
+    // and draws the rest from what follows, so asking for all of them from
+    // nought is how you get all of them rather than a coincidence.
+    return { ...plan, spin: { ...plan.spin, overs: plan.spin.ofOvers, notBefore: 0 } };
+  }
   private get readyMs() { return this.surviving ? SURVIVE.readyMs : GAME.readyMs; }
   private get resultMs() {
     const base = this.surviving ? SURVIVE.resultMs : GAME.resultMs;

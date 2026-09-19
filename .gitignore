@@ -15,3 +15,4 @@ scripts/.*
 *-shot.mjs
 artifact-out
 dist-survive
+dist-spin
