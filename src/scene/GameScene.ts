@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Batter, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
-import { FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
+import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
@@ -309,8 +309,11 @@ export class GameScene {
     // The orthodox sweep goes squarer than the slog does: the blade is level and
     // going across the line, so the ball leaves square of the wicket rather than
     // in front of it.
+    // The charge over cover goes over extra cover, where the stroke sends it,
+    // rather than out along the long-off sector the cover input names.
     const sector = outcome.swept ? SWEEP.angle
       : outcome.sweptFlat ? FLAT_SWEEP.angle
+      : outcome.advance && shot === 'COVER_LONG_OFF' ? ADVANCE.coverAngle
       : outcome.squared ? SQUARE_DRIVE.angle : SHOT_ANGLES[shot ?? 'STRAIGHT'];
     let angle = (sector + Math.max(-8, Math.min(8, (outcome.timingDeltaMs ?? 0) / 28))) * Math.PI / 180;
     const caught = outcome.wicketType === 'CAUGHT';

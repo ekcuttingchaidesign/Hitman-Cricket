@@ -72,6 +72,31 @@ root has moved since the last one, and the root's travel is piecewise-linear
 between the same keys. The front foot lands at 200 ms and moves less than
 0.06 m — the cubic's overshoot at a key — until the finish.
 
+### The charge over cover
+
+A second pair of recordings, from behind and from the bowler's end, of the
+same charge played inside out over extra cover. It shares the straight
+charge's keys up to the top of the downswing — the skip, the stride, the bat
+to the sky — with the front foot landing 8 cm further to the off side from the
+plant onwards, which is what opens the hips enough to get the arms out that
+way. From under him it is its own stroke: the face opened to cover at contact
+with the shoulders still closed (yaw 1.30 against the straight charge's
+1.15), the arms extended out towards extra cover rather than up the ground,
+the blade climbing with them, and the finish both recordings hold — hands
+together above the helmet, arms straight, the bat pointing to the sky over the
+off shoulder. No wrap.
+
+The way down from that finish needed a key. A bat held up to the sky has its
+knob pointing down at the batter, and straight from above the helmet to the
+pick-up the knob came down through the grille (the bat-against-body check
+read 0.28, deep inside the helmet). It comes down out in front of the face
+first, then across into the pick-up.
+
+It is played off the cover swipe with the meter full and the same timing as
+the straight charge, goes over extra cover (38° rather than long-off's 24°),
+and has its own call. The long-on swipe still plays the straight charge. Same
+travel, same intercept, same clock.
+
 ### What the game had to do to let him charge
 
 The game's contract is that the swipe comes as the ball arrives, and a charge

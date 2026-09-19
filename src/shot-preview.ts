@@ -24,6 +24,11 @@ const PLAYS: Record<string, Play> = {
     phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['Over', CHARGE_CLOCK.over], ['Finish', CHARGE_CLOCK.finish], ['Unwrap', CHARGE_CLOCK.unwrap], ['Walking back', 1000]],
     note: 'Rebuilt from the two recordings. Watch 0–200 ms: the back foot skips up to the front one, then the front foot strides out a stride and a half down the pitch while the bat goes up to the sky over the back shoulder. From there it is a lofted straight drive on the move — met on the full level with the front pad, arms opening out straight up the ground, the blade climbing up over the front shoulder into a wrap with the hands high beside the helmet and the toe hanging down behind his back. The red marker is a stride and a half short of the crease, because that is where he meets it. Play it at match speed and he hits it in three tenths of a second; in the game the clock runs at two thirds speed from the swipe.',
   },
+  coverCharge: {
+    label: 'Advance charge over cover (new)', shot: 'COVER_LONG_OFF', ballX: 0, ballY: .54, charging: true,
+    phases: [['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS], ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['High finish', 580], ['Down', 760], ['Walking back', 1000]],
+    note: 'The same walk at the ball as the straight charge — skip, stride, bat to the sky — and a different shot from the ball onwards, built from the two cover recordings. The face is opened to cover at contact with the body still closed, the arms extend out towards extra cover with the blade climbing, and the finish is held with the hands together above the helmet and the bat pointing to the sky over the off shoulder. Played off the cover swipe with the meter full; six over extra cover.',
+  },
   sweep: {
     label: 'Slog sweep (new)', shot: 'LEG', ballX: 0, ballY: .48, sweeping: true,
     phases: [['Down on it', 130], ['Contact', SWEEP_CONTACT_MS], ['Through', 390], ['Climb', 470], ['Finish', 560], ['Up again', 750]],

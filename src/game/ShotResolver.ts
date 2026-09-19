@@ -199,7 +199,8 @@ export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng
   // at it and hits it out of the ground. Mistime it and it is just the shot he
   // played, so the meter is spent only on the real thing.
   if (advanceShot(delivery, attempt, charged)) {
-    return { ...outcome, runs: 6, advance: true, compatibility: 1, quality: 1, madeBatContact: true, feedback: ADVANCE.feedback };
+    return { ...outcome, runs: 6, advance: true, compatibility: 1, quality: 1, madeBatContact: true,
+      feedback: attempt!.shotType === 'COVER_LONG_OFF' ? ADVANCE.coverFeedback : ADVANCE.feedback };
   }
   // Off the knee at the spinner. Middled it goes over midwicket; a shade under
   // and it still beats the field, on the bounce.

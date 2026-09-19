@@ -36,6 +36,9 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   // the stumps. Met a stride and a half short of the crease, which is where
   // the game meets it too.
   charge: { shot: 'STRAIGHT', ballY: .54, impact: CHARGE_CONTACT_MS, reach: [-.17, 0, .17], charging: true, settle: 600 },
+  // The charge over cover: the same ball and the same walk at it, played
+  // inside out off the cover input and finished high rather than wrapped.
+  coverCharge: { shot: 'COVER_LONG_OFF', ballY: .54, impact: CHARGE_CONTACT_MS, reach: [-.17, 0, .17], charging: true, settle: 580 },
 };
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
@@ -457,7 +460,7 @@ describe('the grip', () => {
     expect(p.elbows[0][1]-wrist.y).toBeGreaterThan(.10);
   });
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','square','straight','cover','sweep','flat','charge']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','square','straight','cover','sweep','flat','charge','coverCharge']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -531,7 +534,7 @@ describe('the grip', () => {
 });
 
 describe('shoulders', () => {
-  it.each(['straight','lofted','cover','square','charge'])('powers the %s follow-through with upper-arm travel', kind => {
+  it.each(['straight','lofted','cover','square','charge','coverCharge'])('powers the %s follow-through with upper-arm travel', kind => {
     const batter=new Batter(); batter.prepare(1); batter.update(0);
     play(batter, kind, PLAYS[kind].reach[1]);
     batter.update(PLAYS[kind].impact); const contact=batter.inspect();
@@ -556,6 +559,7 @@ describe('shoulders', () => {
       ...STROKES.map(shot => [shot, () => batter.swing(shot, 0, 0, .54)] as [string, () => void]),
       ['the pull', () => batter.swing('LEG', 0, -.02, 1.12)],
       ['the charge', () => batter.swing('STRAIGHT', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true)],
+      ['the charge over cover', () => batter.swing('COVER_LONG_OFF', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true)],
     ];
     for (const [name, play] of strokes) {
       batter.reset(); batter.prepare(1); batter.update(0); play();
@@ -572,7 +576,7 @@ describe('shoulders', () => {
 });
 
 describe('every stroke, across its reach', () => {
-  it.each(['straight','cover','square','charge'])('presents the flat face from face-down pickup into %s contact',kind=>{
+  it.each(['straight','cover','square','charge','coverCharge'])('presents the flat face from face-down pickup into %s contact',kind=>{
     for(const x of PLAYS[kind].reach) {
       const batter=new Batter(); batter.prepare(1); batter.update(0);
       expect(batter.inspect().batFace[1]).toBeLessThan(-.4);
@@ -602,13 +606,15 @@ describe('every stroke, across its reach', () => {
         for(const cuff of pose.cuffAim) expect(cuff.flex).toBeLessThan(Math.PI/2);
       }
       // Each stroke presents its own face: the drives down the ground and
-      // through cover, the square drive square of the wicket.
+      // through cover, the square drive square of the wicket, the charge over
+      // cover opened out between the two.
       const face=batter.inspect().batFace;
       if(kind==='square') expect(face[0]).toBeGreaterThan(.8);
+      else if(kind==='coverCharge') { expect(face[0]).toBeGreaterThan(.3); expect(face[2]).toBeGreaterThan(.7); }
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','square','straight','cover','sweep','flat','charge'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','square','straight','cover','sweep','flat','charge','coverCharge'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -1191,11 +1197,11 @@ describe('the charge', () => {
       expect(worst.clearance, `x=${x} ${JSON.stringify(worst)}`).toBeGreaterThan(.15);
     }
   });
-  it('is the same stroke whichever drive input played it', () => {
-    // Any upward swipe charges it — straight, long-on or cover — and the
-    // charge is one stroke, on one line, whichever it was.
+  it('is the same stroke off the long-on input as off the straight one', () => {
+    // Any upward swipe charges it. Straight and long-on play the straight
+    // charge, one stroke on one line whichever it was; cover has its own.
     const straight = charge(); const other = new Batter(); other.reset(); other.prepare(1); other.update(0);
-    for (const shot of ['LONG_ON', 'COVER_LONG_OFF'] as const) {
+    for (const shot of ['LONG_ON'] as const) {
       other.swing(shot, 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true);
       for (const time of [CHARGE_CLOCK.skip, CHARGE_CLOCK.plant, CHARGE_CONTACT_MS, 400, CHARGE_CLOCK.finish, 800, 940]) {
         straight.update(time); other.update(time);
@@ -1279,6 +1285,136 @@ describe('the charge', () => {
           expect(shin, `shin at ${time}ms`).toBeLessThan(.445);
         }
         expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]))).toBeCloseTo(HAND_SPACING, 6);
+      }
+    }
+  });
+});
+
+/**
+ * The charge over cover: the same walk at the ball as the straight charge and
+ * a different shot from the ball onwards, from the second pair of recordings.
+ * The shared checks hold it to the same grip, reach and clearances; this is
+ * the shape — and that the approach really is shared.
+ */
+describe('the charge over cover', () => {
+  const coverCharge = (x = 0) => {
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);
+    play(batter, 'coverCharge', x);
+    return batter;
+  };
+  it('walks at the ball the way the straight charge does, and meets it in the same place', () => {
+    for (const x of PLAYS.coverCharge.reach) {
+      const straight = charge(x), cover = coverCharge(x);
+      // The skip and the top of the backlift are the same keys; only the front
+      // foot lands a little further to the off side from the plant onwards.
+      for (const time of [40, CHARGE_CLOCK.skip, CHARGE_CLOCK.plant]) {
+        straight.update(time); cover.update(time);
+        expect(cover.inspect().downPitch, `x=${x} @${time}`).toBeCloseTo(straight.inspect().downPitch, 9);
+        expect(cover.inspect().backFoot, `x=${x} @${time}`).toEqual(straight.inspect().backFoot);
+        expect(cover.inspect().grip, `x=${x} @${time}`).toEqual(straight.inspect().grip);
+      }
+      cover.update(CHARGE_CONTACT_MS);
+      const contact = cover.inspect();
+      expect(contact.charging).toBe(true);
+      expect(contact.bladeContact[0]).toBeCloseTo(x, 6);
+      expect(contact.bladeContact[1]).toBeCloseTo(.54, 6);
+      expect(contact.bladeContact[2]).toBeCloseTo(GAME.contactZ + CHARGE_MEETS_AT, 6);
+      // Face opened to cover, body still closed: inside out.
+      expect(contact.batFace[0], `x=${x} face`).toBeGreaterThan(.3);
+      straight.update(CHARGE_CONTACT_MS);
+      expect(contact.yaw, `x=${x} closed`).toBeGreaterThan(straight.inspect().yaw + .1);
+    }
+  });
+  it('extends out towards extra cover and finishes high, not wrapped', () => {
+    for (const x of PLAYS.coverCharge.reach) {
+      const batter = coverCharge(x);
+      batter.update(CHARGE_CLOCK.through);
+      const through = batter.inspect();
+      // The hands go out to the off side of the chest, a full reach away.
+      expect(through.grip[0] - through.chest[0], `x=${x} out`).toBeGreaterThan(.3);
+      expect(through.grip[2] - through.chest[2], `x=${x} forward`).toBeGreaterThan(.3);
+      batter.update(580);
+      const finish = batter.inspect();
+      const root = batter.root.position;
+      // Hands together above the helmet, the bat pointing to the sky over the
+      // off shoulder: the toe is above the hands and off side of them, and
+      // nothing is behind him.
+      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.75);
+      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1] + .4);
+      expect(finish.bladeTip[0] - root.x, `x=${x}`).toBeGreaterThan(finish.grip[0] + .3);
+      expect(finish.bladeTip[2] - root.z, `x=${x}`).toBeGreaterThan(finish.chest[2]);
+      for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
+      // Still closer to side-on than the straight charge's square finish.
+      expect(finish.yaw, `x=${x}`).toBeGreaterThan(.4);
+    }
+  });
+  it('never passes the bat through him, and keeps the elbows off the trunk', () => {
+    const deepest = (a: Vector3, b: Vector3, centre: Vector3, radii: Vector3, turn: Quaternion) => {
+      const inverse = turn.clone().invert();
+      let worst = Infinity;
+      for (let i = 0; i <= 40; i++) {
+        const point = a.clone().lerp(b, i / 40).sub(centre).applyQuaternion(inverse);
+        worst = Math.min(worst, Math.hypot(point.x / radii.x, point.y / radii.y, point.z / radii.z));
+      }
+      return worst;
+    };
+    for (const x of PLAYS.coverCharge.reach) {
+      const batter = coverCharge(x);
+      let worst = { value: Infinity, part: '', at: 0 }, elbow = { clearance: Infinity, at: 0 };
+      for (let time = 0; time <= STROKE_DURATION_MS + ADVANCE.walkBackMs; time += 4) {
+        batter.update(time);
+        const pose = batter.inspect();
+        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+        const spine = chest.clone().sub(hip).normalize(), length = chest.distanceTo(hip);
+        const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
+        const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
+        const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+        const grip = new Vector3(...pose.grip), tip = new Vector3(...pose.bladeTip).sub(batter.root.position);
+        const knob = batter.bat.localToWorld(new Vector3(0, .245, 0)).sub(batter.root.position);
+        const parts: [string, Vector3, Vector3, Quaternion][] = [
+          ['trunk', chest.clone().addScaledVector(spine, -.075), new Vector3(.205, .275, .145), torso],
+          ['hips', hip, new Vector3(.185, .145, .135), yaw],
+          ['helmet', head, new Vector3(.188, .19, .195), torso],
+        ];
+        for (const [part, centre, radii, turn] of parts) {
+          const value = Math.min(deepest(grip, tip, centre, radii, turn), deepest(grip, knob, centre, radii, turn));
+          if (value < worst.value) worst = { value, part, at: time };
+        }
+        for (const point of pose.elbows) {
+          const e = new Vector3(...point);
+          const along = Math.min(length, Math.max(0, e.clone().sub(hip).dot(spine)));
+          const clearance = e.distanceTo(hip.clone().addScaledVector(spine, along));
+          if (clearance < elbow.clearance) elbow = { clearance, at: time };
+        }
+      }
+      // The knob points down at him from a bat held up to the sky, which is
+      // why the way down from the finish goes out in front of the face.
+      expect(worst.value, `x=${x} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
+      expect(elbow.clearance, `x=${x} ${JSON.stringify(elbow)}`).toBeGreaterThan(.15);
+    }
+  });
+  it('runs down the pitch and walks back like the straight charge', () => {
+    const batter = coverCharge();
+    let furthest = 0;
+    for (let time = 0; time <= STROKE_DURATION_MS; time += 20) {
+      batter.update(time);
+      const down = batter.inspect().downPitch;
+      expect(down).toBeGreaterThanOrEqual(furthest - 1e-9);
+      furthest = Math.max(furthest, down);
+    }
+    expect(furthest).toBeCloseTo(ADVANCE.stride, 6);
+    batter.update(STROKE_DURATION_MS + ADVANCE.walkBackMs);
+    expect(batter.inspect().downPitch).toBeCloseTo(0, 6);
+    for (let time = 0; time <= STROKE_DURATION_MS + ADVANCE.walkBackMs + 600; time += 12) {
+      batter.update(time);
+      const pose = batter.inspect();
+      for (const [upper, lower] of pose.armLengths) {
+        expect(upper, `upper arm at ${time}ms`).toBeCloseTo(.32, 3);
+        expect(lower, `forearm at ${time}ms`).toBeLessThan(.345);
+      }
+      for (const [thigh, shin] of pose.legLengths) {
+        expect(thigh, `thigh at ${time}ms`).toBeCloseTo(.43, 3);
+        expect(shin, `shin at ${time}ms`).toBeLessThan(.445);
       }
     }
   });

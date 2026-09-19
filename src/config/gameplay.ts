@@ -331,6 +331,12 @@ export const ADVANCE = {
   shots: ['STRAIGHT', 'LONG_ON', 'COVER_LONG_OFF'] as readonly ShotType[],
   timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
   feedback: 'OUT OF THE STADIUM!',
+  /**
+   * The cover input plays the charge inside out, over extra cover: its own
+   * stroke and its own call, and the ball leaves squarer than long-off.
+   */
+  coverFeedback: 'INSIDE OUT — OVER COVER!',
+  coverAngle: 38,
   /** How far down the pitch the charge carries him, and how long the walk back is. */
   stride: 1.15, walkBackMs: 1300,
 } as const;
