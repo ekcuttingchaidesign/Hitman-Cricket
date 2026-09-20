@@ -529,6 +529,20 @@ One caveat worth recording, because it will matter the next time these are revis
 
 It is read off the figure the mode already leads on — **career runs** in the Blast, **balls faced** in the Test match — rather than off a score of its own. That keeps one number in charge of the headline tile, the badge under it and the progress bar under that, so a card cannot say a player is climbing on one line and stalled on the next. It also means the Test ladder rewards the thing that mode is about: a blocker with two thousand balls and forty runs is a STAR, where a tier read off runs would have called him a debutant.
 
+### A head start for the people who built the board
+
+The board existed before careers did, so everybody already on it would otherwise open their first card and find themselves a DEBUTANT beside somebody who arrived that morning. Being early should count. So the seed hands the **top five STAR** and the **next eleven EMERGING PLAYER** — the shape of a side, and meant to be.
+
+**What it grants is the tier, not the runs.** Their figures stay the one real innings the seed filed: a player who scored 148 has a card that says 148, in silver, with the STAR badge on it. This card is built to be sent to other people, and one claiming three thousand runs for somebody who scored a hundred and forty-eight is a claim about *them* that is not true — which is a different thing from a number being approximate.
+
+Three rules fall out of that and are held by tests:
+
+- The badge prints **what the tier was for** — `Founding place · 3rd on the board` — in place of the usual line. "People turn up to watch" under a handed badge would be the one sentence on the card making something up.
+- The climb comes **off** the card entirely. The bar would sit at nothing, since the figures are far below the rung, and the line under it would repeat the badge word for word. An empty bar and the same sentence twice is a worse card than no bar.
+- A grant is **a floor and never a ceiling**. Play past it and the earned tier takes over, the grant stops being mentioned, and the card goes back to talking about the climb.
+
+It is written once, by the seed, and the counting path only ever carries it forward — so an innings can raise a player above it and nothing can take it away.
+
 ### The tier is the whole card, not a badge on it
 
 Each rung carries a **`Theme`**: the ground it is painted on, the shadow it stands on, the mat behind it, its ink, its quiet, its accent, its sheen, its tiles, and how strongly it blooms. Nothing else on that card decides a colour, so a new tier is a palette rather than an edit to the painter.

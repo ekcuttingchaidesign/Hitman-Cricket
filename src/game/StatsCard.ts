@@ -1,6 +1,6 @@
 import { kitColour, avatarSrc } from '../config/board';
 import { survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
-import { nextLine, standingOf, type Standing, type Theme, type Tier } from './tier';
+import { nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
 
 /**
  * The career card, painted so it can leave the page as a picture.
@@ -162,13 +162,13 @@ export function surviveFacts(career: SurviveCareer): Pick<StatsFacts, 'hero' | '
 export function statsFacts(
   mode: CareerMode,
   career: BlastCareer | SurviveCareer,
-  who: { name: string; avatar: number },
+  who: { name: string; avatar: number; granted?: Granted | null },
   standing: string | null = null,
 ): StatsFacts {
   const split = mode === 'survive'
     ? surviveFacts(career as SurviveCareer)
     : blastFacts(career as BlastCareer);
-  const ladder = standingOf(mode, career);
+  const ladder = standingOf(mode, career, who.granted ?? null);
   return {
     tier: ladder.tier,
     ladder,
@@ -220,6 +220,19 @@ function gridRows(facts: StatsFacts) {
   return Math.ceil(facts.figures.length / PER_ROW);
 }
 
+/**
+ * Whether the card shows the climb to the next rung.
+ *
+ * A granted tier does not. The bar would sit at nothing — the figures behind
+ * it are a long way below the rung the player was handed — and the line under
+ * it would repeat what the badge has already said. An empty bar and the same
+ * sentence twice is a worse card than no bar at all, so the badge carries the
+ * reason and the row comes out.
+ */
+function showsLadder(facts: StatsFacts) {
+  return !facts.ladder.granted;
+}
+
 /** The card's height for a given career, so callers can place it before drawing. */
 export function statsCardHeight(facts: StatsFacts) {
   const rows = gridRows(facts);
@@ -227,7 +240,7 @@ export function statsCardHeight(facts: StatsFacts) {
     + IDENTITY_TOP + IDENTITY_H
     + BADGE_TOP + BADGE_H
     + HERO_TOP + HERO_H
-    + BAR_TOP + BAR_H
+    + (showsLadder(facts) ? BAR_TOP + BAR_H : 0)
     + GRID_TOP + rows * GRID_ROW_H + (rows - 1) * 6
     + FOOT_TOP + FOOT_H
     + STATS_CARD.padBottom;
@@ -347,7 +360,11 @@ function paintBadge(
   const used = tracked(ctx, tier.name, x + 16, y + BADGE_H / 2 + 5.5, 2.4);
   ctx.fillStyle = theme.quiet;
   ctx.font = font(500, 11.5);
-  ctx.fillText(clipped(ctx, tier.blurb, w - used - 44), x + 16 + used + 14, y + BADGE_H / 2 + 4.5);
+  // A granted tier says what it was for. "People turn up to watch" under a
+  // badge somebody was handed for being third on the board is the one line on
+  // the card that would be making something up.
+  const said = facts.ladder.granted ? facts.ladder.granted.reason : tier.blurb;
+  ctx.fillText(clipped(ctx, said, w - used - 44), x + 16 + used + 14, y + BADGE_H / 2 + 4.5);
 }
 
 /**
@@ -555,13 +572,18 @@ export async function paintStatsCard(
 
   // The rung, and how far along it. A card that only says where somebody is
   // says nothing about where they are going, and the figure a player comes
-  // back for is the one that is nearly there.
-  cursor += HERO_H + BAR_TOP;
-  paintLadder(ctx, facts, left, cursor, contentW);
+  // back for is the one that is nearly there. A granted tier has no climb to
+  // show, so the row comes out rather than standing empty.
+  if (showsLadder(facts)) {
+    cursor += HERO_H + BAR_TOP;
+    paintLadder(ctx, facts, left, cursor, contentW);
+    cursor += BAR_H + GRID_TOP;
+  } else {
+    cursor += HERO_H + GRID_TOP;
+  }
 
   // Everything else, four to a row, each column the same width so the numbers
   // line up down the card rather than wandering with the labels above them.
-  cursor += BAR_H + GRID_TOP;
   const colW = contentW / PER_ROW;
   facts.figures.forEach((one, i) => {
     const row = Math.floor(i / PER_ROW);

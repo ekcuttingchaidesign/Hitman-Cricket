@@ -46,6 +46,8 @@ export interface MyCareer<C> {
   career: C | null;
   name: string;
   avatar: number;
+  /** A tier held whatever the figures say — see `foundingGrant` in `tier.ts`. */
+  granted?: { key: string; reason: string } | null;
 }
 
 type AnyCareer = BlastCareer | SurviveCareer;
@@ -83,7 +85,8 @@ export async function countInnings<C extends AnyCareer>(
   who: { name: string; avatar: number } | null, nonce: string,
 ): Promise<MyCareer<C> | null> {
   const answer = await ask<{
-    career: C; name: string; avatar: number; counted?: boolean; error?: string;
+    career: C; name: string; avatar: number; counted?: boolean;
+    granted?: { key: string; reason: string } | null; error?: string;
   }>(`${API}/api/innings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -93,7 +96,9 @@ export async function countInnings<C extends AnyCareer>(
     }),
   });
   if (!answer || answer.error) return null;
-  const mine = { career: answer.career, name: answer.name, avatar: answer.avatar };
+  const mine = {
+    career: answer.career, name: answer.name, avatar: answer.avatar, granted: answer.granted ?? null,
+  };
   mirror(mode, answer.career);
   // The boards held from before this innings no longer have it on them, so the
   // next open asks again. Without this the card would show a total the board

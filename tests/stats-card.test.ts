@@ -4,7 +4,7 @@ import {
   STATS_CARD, blastFacts, statsAlt, statsCardHeight, statsFacts, surviveFacts,
 } from '../src/game/StatsCard';
 import { statsSheetMarkup } from '../src/ui/StatsSheet';
-import { TIERS } from '../src/game/tier';
+import { TIERS, foundingGrant } from '../src/game/tier';
 import { statsShareText, statsStoryText, statsWhatsappLink, statsFileName } from '../src/game/Share';
 
 const blast = {
@@ -329,5 +329,69 @@ describe('what a card is made of', () => {
     expect(gold.tier.theme.accent).not.toBe(navy.tier.theme.accent);
     expect(gold.tier.theme.metal).toBe(true);
     expect(navy.tier.theme.metal).toBe(false);
+  });
+});
+
+describe('the head start the first players get', () => {
+  const tiny = { ...emptyBlast(), innings: 1, runs: 148, balls: 30, highest: 148 };
+
+  it('hands the top five STAR and the next eleven EMERGING PLAYER', () => {
+    expect(foundingGrant(1)?.key).toBe('star');
+    expect(foundingGrant(5)?.key).toBe('star');
+    expect(foundingGrant(6)?.key).toBe('emerging');
+    expect(foundingGrant(16)?.key).toBe('emerging');
+    expect(foundingGrant(17)).toBeNull();
+    expect(foundingGrant(0)).toBeNull();
+  });
+
+  it('gives them the badge and the material without touching their figures', () => {
+    // The whole point: 148 runs is what they scored, and 148 is what the card
+    // says. It is built to be sent to other people.
+    const facts = statsFacts('classic', tiny, { name: 'Ayush K', avatar: 0, granted: foundingGrant(1) });
+    expect(facts.tier.name).toBe('STAR');
+    expect(facts.tier.theme.metal).toBe(true);
+    expect(facts.hero.find(one => one.label === 'Runs')?.value).toBe(148);
+    expect(facts.innings).toBe(1);
+  });
+
+  it('says what the tier was for instead of what is left to it', () => {
+    // "2,600 runs to HITMAN" under a badge somebody was handed for being third
+    // reads as a demotion notice on the card that is meant to be the reward.
+    const facts = statsFacts('classic', tiny, { name: 'Dhruv', avatar: 0, granted: foundingGrant(3) });
+    expect(facts.nextLine).toBe('Founding place · 3rd on the board');
+    expect(facts.ladder.granted?.key).toBe('star');
+  });
+
+  it('is a floor and never a ceiling', () => {
+    // Given STAR for being early, then played their way past it. They keep what
+    // they earned — the grant was to stop them starting at the bottom.
+    const huge = { ...emptyBlast(), innings: 300, runs: 20_000 };
+    const facts = statsFacts('classic', huge, { name: 'R', avatar: 0, granted: foundingGrant(2) });
+    expect(facts.tier.name).toBe('HITMAN');
+    // And once earned, the card goes back to talking about the climb.
+    expect(facts.ladder.granted).toBeNull();
+    expect(facts.nextLine).toBe('Top of the ladder.');
+  });
+
+  it('still reads as granted while the figures have not caught up', () => {
+    const facts = statsFacts('classic', { ...emptyBlast(), innings: 4, runs: 600 },
+      { name: 'R', avatar: 0, granted: foundingGrant(4) });
+    // 600 runs earns EMERGING PLAYER; the grant is STAR, so STAR it is.
+    expect(facts.tier.name).toBe('STAR');
+    expect(facts.ladder.granted).not.toBeNull();
+  });
+
+  it('drops the climb from a granted card rather than standing it at nothing', () => {
+    // The bar would sit empty — the figures are a long way below the rung they
+    // were handed — and the line under it would repeat the badge word for word.
+    const granted = statsFacts('classic', tiny, { name: 'R', avatar: 0, granted: foundingGrant(2) });
+    const earned = statsFacts('classic', tiny, { name: 'R', avatar: 0, granted: null });
+    expect(statsCardHeight(granted)).toBeLessThan(statsCardHeight(earned));
+  });
+
+  it('leaves everybody else to earn theirs', () => {
+    const facts = statsFacts('classic', tiny, { name: 'R', avatar: 0, granted: null });
+    expect(facts.tier.name).toBe('DEBUTANT');
+    expect(facts.ladder.granted).toBeFalsy();
   });
 });

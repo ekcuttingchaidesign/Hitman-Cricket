@@ -34,6 +34,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import type { SurviveTally } from './game/career';
+import type { Granted } from './game/tier';
 import type { Innings } from './game/leaderboard';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
@@ -195,7 +196,9 @@ export class Game {
   /** Each mode's career boards, held from the last fetch. */
   private careerBoards: Partial<Record<BoardTab, CareerBoards<AnyCareer>>> = {};
   /** This player's own figures, as the store last reported them. */
-  private myCareer: Partial<Record<BoardTab, { career: AnyCareer; name: string; avatar: number }>> = {};
+  private myCareer: Partial<Record<BoardTab, {
+    career: AnyCareer; name: string; avatar: number; granted?: Granted | null;
+  }>> = {};
   /** The facts the card on screen was drawn from, so a late paint can be dropped. */
   private statsDrawn: StatsFacts | null = null;
   /**
@@ -758,13 +761,15 @@ export class Game {
   ) {
     const batting = readPlayer();
     const held = this.myCareer[mode] ?? {
-      career: heldCareer(mode), name: batting?.name ?? '', avatar: batting?.avatar ?? 0,
+      career: heldCareer(mode), name: batting?.name ?? '', avatar: batting?.avatar ?? 0, granted: null,
     };
     this.paintStats(mode, held, draw);
     if (this.player) {
       void fetchMyCareer<AnyCareer>(this.player, mode).then(mine => {
         if (this.disposed || !mine?.career) return;
-        const fresh = { career: mine.career, name: mine.name, avatar: mine.avatar };
+        const fresh = {
+          career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
+        };
         this.myCareer[mode] = fresh;
         // Only redrawn where the store actually disagreed, or every open would
         // repaint the card a beat after the player started looking at it.
@@ -793,11 +798,13 @@ export class Game {
    */
   private paintStats(
     mode: BoardTab,
-    mine: { career: AnyCareer; name: string; avatar: number },
+    mine: { career: AnyCareer; name: string; avatar: number; granted?: Granted | null },
     draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
   ) {
     const standing = bestStanding(mode, placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
-    const facts = statsFacts(mode, mine.career, { name: mine.name, avatar: mine.avatar }, standing);
+    const facts = statsFacts(
+      mode, mine.career, { name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null }, standing,
+    );
     this.statsDrawn = facts;
     draw(facts, null, false);
     void statsCardImage(facts, gameLink()).then(picture => {
@@ -1229,7 +1236,9 @@ export class Game {
     const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
       if (this.disposed) return true;
       if (!mine?.career) return false;
-      this.myCareer[mode] = { career: mine.career, name: mine.name, avatar: mine.avatar };
+      this.myCareer[mode] = {
+        career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
+      };
       // The boards held from before this innings no longer have it on them, so
       // the next open asks again rather than drawing a career one innings old.
       delete this.careerBoards[mode];

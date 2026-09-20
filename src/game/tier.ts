@@ -224,8 +224,33 @@ export function measureName(mode: CareerMode): string {
   return mode === 'survive' ? 'balls' : 'runs';
 }
 
+/**
+ * A tier a player holds regardless of their figures, and why.
+ *
+ * The board existed before careers did, so the people who built it would
+ * otherwise open their first card and find themselves DEBUTANT next to
+ * somebody who arrived that morning. Being early should count for something,
+ * and what it buys is the *tier* — the badge and the material — while every
+ * figure on the card stays their own.
+ *
+ * That line matters and is the whole reason this is a grant rather than a pile
+ * of invented runs: the card is built to be sent to other people, and a card
+ * saying three thousand runs to somebody who scored a hundred and forty-eight
+ * is a claim about them that is not true. So the grant carries its own reason,
+ * printed on the card in place of the usual blurb, and the numbers are left
+ * alone.
+ */
+export interface Granted {
+  /** The tier key they hold. */
+  key: string;
+  /** Why, in the words the card prints. */
+  reason: string;
+}
+
 export interface Standing {
   tier: Tier;
+  /** Set where the tier came from a grant rather than from the figures. */
+  granted?: Granted | null;
   /** The rung above, or null at the top of the ladder. */
   next: Tier | null;
   /** The figure the tier was read off. */
@@ -245,16 +270,27 @@ export interface Standing {
  * reads full, because there is nowhere further and a bar stuck at four-fifths
  * for good is a worse reward than no bar.
  */
-export function standingOf(mode: CareerMode, career: BlastCareer | SurviveCareer): Standing {
+export function standingOf(
+  mode: CareerMode, career: BlastCareer | SurviveCareer, granted: Granted | null = null,
+): Standing {
   const measure = Math.max(0, Math.floor(tierMeasure(mode, career)));
   let index = 0;
   for (let i = 0; i < TIERS.length; i++) if (measure >= TIERS[i].at[mode]) index = i;
+  // A grant is a floor, never a ceiling. Somebody who was given STAR for being
+  // early and has since played their way to HITMAN keeps HITMAN — the grant was
+  // to stop them starting at the bottom, not to hold them there.
+  const floor = granted ? TIERS.findIndex(one => one.key === granted.key) : -1;
+  const held = Math.max(index, floor);
+  const earned = held === index;
+  index = held;
   const tier = TIERS[index];
+  const mark = earned ? null : granted;
   const next = TIERS[index + 1] ?? null;
-  if (!next) return { tier, next, measure, progress: 1, toNext: null };
+  if (!next) return { tier, granted: mark, next, measure, progress: 1, toNext: null };
   const span = next.at[mode] - tier.at[mode];
   return {
     tier,
+    granted: mark,
     next,
     measure,
     progress: span > 0 ? Math.min(1, Math.max(0, (measure - tier.at[mode]) / span)) : 1,
@@ -268,6 +304,35 @@ export function standingOf(mode: CareerMode, career: BlastCareer | SurviveCareer
  * card and saying it twice tells nobody anything new.
  */
 export function nextLine(mode: CareerMode, standing: Standing): string {
+  // A granted tier says what it was for rather than what is left to it. The
+  // figure underneath is the player's real one and is a long way off the rung
+  // they have been handed, so printing it would read as a demotion notice on
+  // the very card that is meant to be a reward.
+  if (standing.granted) return standing.granted.reason;
   if (!standing.next || standing.toNext === null) return 'Top of the ladder.';
   return `${standing.toNext.toLocaleString()} ${measureName(mode)} to ${standing.next.name}`;
+}
+
+/**
+ * The tiers the first players on a board are handed, by where they stand on it.
+ *
+ * Top five take STAR and the next eleven take EMERGING PLAYER, which is the
+ * shape of a cricket side and is meant to be: the people who made the board
+ * worth having get to look like it. Everybody below sixteen earns theirs the
+ * ordinary way, which is also what everybody who arrives from now on does.
+ */
+export function foundingGrant(place: number): Granted | null {
+  if (place >= 1 && place <= 5) {
+    return { key: 'star', reason: `Founding place · ${ordinal(place)} on the board` };
+  }
+  if (place >= 6 && place <= 16) {
+    return { key: 'emerging', reason: `Founding place · ${ordinal(place)} on the board` };
+  }
+  return null;
+}
+
+function ordinal(n: number) {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+  return `${n}${suffix}`;
 }

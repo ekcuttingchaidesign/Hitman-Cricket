@@ -2,6 +2,7 @@ import {
   AVATARS, RATE_LIMIT, RATE_WINDOW_SECONDS, cleanName, foldName,
 } from './board-store.js';
 import { rankCareer, type CareerLadder } from '../game/career.js';
+import type { Granted } from '../game/tier.js';
 
 /**
  * Careers, on the store's side of the wire.
@@ -69,6 +70,14 @@ export interface StoredCareer<C> {
   day: number;
   /** Innings counted on that day. */
   today: number;
+  /**
+   * A tier this player holds whatever their figures say, and why.
+   *
+   * Written once, by the seed that opened the board's first careers, and never
+   * by the counting path — so an innings can raise a player above it and
+   * nothing can take it away. See `foundingGrant` in `game/tier.ts`.
+   */
+  granted?: { key: string; reason: string } | null;
 }
 
 /** Everything a career needs from whatever is keeping it. */
@@ -143,16 +152,23 @@ export async function readCareerBoards<C, T>(
 /** One player's own figures, for their card. Never cached: it is theirs alone. */
 export async function readCareer<C, T>(
   store: CareerStore<C>, ladder: CareerLadder<C, T>, playerId: string,
-): Promise<{ career: C | null; name: string; avatar: number }> {
+): Promise<{ career: C | null; name: string; avatar: number; granted?: Granted | null }> {
   if (!isPlayerId(playerId)) return { career: null, name: '', avatar: 0 };
   const held = await store.read(playerId);
   if (!held) return { career: null, name: '', avatar: 0 };
-  return { career: ladder.figures(held.career), name: held.name, avatar: held.avatar };
+  return {
+    career: ladder.figures(held.career),
+    name: held.name,
+    avatar: held.avatar,
+    granted: held.granted ?? null,
+  };
 }
 
 /** An innings the career took, and what it comes to now. */
 export interface CareerAccepted<C> {
   ok: true;
+  /** A tier held whatever the figures say, so the card can print it. */
+  granted?: Granted | null;
   /**
    * Whether this innings actually moved the totals. False for a request the
    * store has already seen, one that arrived too soon after the last, and one
@@ -247,7 +263,7 @@ export async function countInnings<C, T>(
         await store.write(input.playerId, { ...held, ...name });
         await rankAll(store, ladder, input.playerId, held.career, name.name, held.at);
       }
-      return { ok: true, counted: false, career: ladder.figures(held.career), ...name };
+        return { ok: true, counted: false, career: ladder.figures(held.career), granted: held.granted ?? null, ...name };
     }
   }
 
@@ -259,9 +275,12 @@ export async function countInnings<C, T>(
     nonce: input.nonce,
     day,
     today: held && held.day === day ? held.today + 1 : 1,
+    // Carried rather than recomputed. Counting an innings must never be able to
+    // take away something a player was given.
+    granted: held?.granted ?? null,
   });
   await rankAll(store, ladder, input.playerId, career, name.name, now);
-  return { ok: true, counted: true, career: ladder.figures(career), ...name };
+  return { ok: true, counted: true, career: ladder.figures(career), granted: held?.granted ?? null, ...name };
 }
 
 /**
