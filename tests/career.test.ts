@@ -1,23 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLAST_BOARDS, CAREER_PACKED_BITS, PRIMARY_CAP, SECONDARY_CAP, SURVIVE_BOARDS,
-  blastTallyPlausible, emptyBlast, emptySurvive, mergeBlast, mergeSurvive,
+  batsmanScores, blastTallyPlausible, emptyBlast, emptySurvive, mergeBlast, mergeSurvive,
   packCareer, rankCareer, survivals, surviveTallyPlausible, unpackCareer,
-  type BlastCareer, type SurviveTally,
+  type BlastCareer, type BlastTally, type SurviveTally,
 } from '../src/game/career';
-import { LAUNCH_MS, type Innings } from '../src/game/leaderboard';
+import { LAUNCH_MS } from '../src/game/leaderboard';
+import type { ShotOutcome } from '../src/game/types';
+
+/** One ball, as the innings remembers it. */
+const ball = (runs: number, isWicket = false) => ({ runs, isWicket }) as ShotOutcome;
+
+/** A tally with no arithmetic done for it, for the plausibility checks. */
+const blastRaw = (over: Partial<BlastTally>): BlastTally => ({
+  runs: 0, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30, individual: 0, hundreds: 0, ...over,
+});
 
 /** A Blast innings that adds up, so a fixture cannot be one nobody could play. */
-const blast = (runs: number, opts: Partial<Innings> = {}): Innings => {
+const blast = (runs: number, opts: Partial<BlastTally> = {}): BlastTally => {
   const sixes = opts.sixes ?? Math.floor(runs / 6);
   const fours = opts.fours ?? 0;
   const wickets = opts.wickets ?? 0;
   const singles = runs - sixes * 6 - fours * 4;
   const balls = Math.min(30, sixes + fours + singles + wickets + (opts.dots ?? 0));
+  // One batsman made the lot unless the fixture says where the wickets fell.
+  const individual = opts.individual ?? runs;
   const innings = {
     runs, sixes, fours, wickets,
     dots: opts.dots ?? 0,
     balls: opts.balls ?? balls,
+    individual,
+    hundreds: opts.hundreds ?? Number(individual >= 100),
   };
   expect(blastTallyPlausible(innings)).toBe(true);
   return innings;
@@ -80,20 +93,56 @@ describe('a career, added up', () => {
     expect(career.notOut).toBe(0);
   });
 
-  it('counts a hundred only where every wicket is still standing', () => {
-    let career = mergeBlast(null, blast(132, { wickets: 0 }));
+  it('scores a batsman from the wicket before him, not from the start of the innings', () => {
+    // Two down for twenty, 130 all told: the batsman still in made 110.
+    const made = batsmanScores([
+      ...Array.from({ length: 4 }, () => ball(5)),
+      ball(0, true),
+      ball(0, true),
+      ...Array.from({ length: 11 }, () => ball(10)),
+    ]);
+    expect(made).toEqual([20, 0, 110]);
+  });
+
+  it('counts a batsman out first ball as a nought rather than as nobody', () => {
+    expect(batsmanScores([ball(0, true), ball(6)])).toEqual([0, 6]);
+    // And an innings that ended on a wicket leaves nobody in, which is a nought
+    // at the end rather than a batsman who was never there.
+    expect(batsmanScores([ball(6), ball(0, true)])).toEqual([6, 0]);
+  });
+
+  it('counts a hundred to the batsman who made it, wickets or no wickets', () => {
+    // 110 out of 130 for two is a hundred: the innings lost wickets, the
+    // batsman did not lose his.
+    let career = mergeBlast(null, blast(130, { wickets: 2, individual: 110 }));
     expect(career.hundreds).toBe(1);
-    // 140 for one is the bigger score and not a hundred by this reckoning.
-    career = mergeBlast(career, blast(140, { wickets: 1 }));
-    expect(career.hundreds).toBe(1);
-    career = mergeBlast(career, blast(101, { wickets: 0 }));
+    // 132 with nothing lost is one batsman and one hundred.
+    career = mergeBlast(career, blast(132, { wickets: 0 }));
     expect(career.hundreds).toBe(2);
+    // And an innings nobody got to a hundred in adds none, however big it is.
+    career = mergeBlast(career, blast(140, { wickets: 2, individual: 60, hundreds: 0 }));
+    expect(career.hundreds).toBe(2);
+  });
+
+  it('keeps the best individual score apart from the innings total', () => {
+    const career = mergeBlast(null, blast(130, { wickets: 2, individual: 110 }));
+    expect(career.highest).toBe(130);
+    expect(career.individual).toBe(110);
   });
 
   it('wants the whole hundred, not nearly one', () => {
     const career = mergeBlast(null, blast(99, { wickets: 0 }));
     expect(career.hundreds).toBe(0);
     expect(mergeBlast(career, blast(100, { wickets: 0 })).hundreds).toBe(1);
+  });
+
+  it('will not take more hundreds than there were batsmen or runs to make them', () => {
+    // Three hundreds off thirty balls is not an innings anybody played.
+    expect(blastTallyPlausible(blastRaw({ runs: 150, hundreds: 3, individual: 150 }))).toBe(false);
+    // Nor is a hundred by a batsman whose best is ninety.
+    expect(blastTallyPlausible(blastRaw({ runs: 150, hundreds: 1, individual: 90 }))).toBe(false);
+    // Nor one batsman outscoring the whole innings.
+    expect(blastTallyPlausible(blastRaw({ runs: 90, individual: 120 }))).toBe(false);
   });
 
   it('credits a career that already held an unbeaten hundred before this was counted', () => {
@@ -232,17 +281,17 @@ describe('the Test career ladders', () => {
 
 describe('what one innings may contain', () => {
   it('refuses more runs than the balls could have produced', () => {
-    expect(blastTallyPlausible({ runs: 200, sixes: 30, fours: 0, wickets: 0, dots: 0, balls: 30 })).toBe(false);
+    expect(blastTallyPlausible({ runs: 200, sixes: 30, fours: 0, wickets: 0, dots: 0, balls: 30, individual: 0, hundreds: 0 })).toBe(false);
     expect(surviveTallyPlausible({ runs: 400, balls: 60, wickets: 0, blows: 0, health: 100, sixes: 0, fours: 0 })).toBe(false);
   });
 
   it('refuses more balls than the innings has', () => {
-    expect(blastTallyPlausible({ runs: 10, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 31 })).toBe(false);
+    expect(blastTallyPlausible({ runs: 10, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 31, individual: 0, hundreds: 0 })).toBe(false);
     expect(surviveTallyPlausible({ runs: 10, balls: 61, wickets: 0, blows: 0, health: 100, sixes: 0, fours: 0 })).toBe(false);
   });
 
   it('refuses more scoring shots and wickets than there were balls', () => {
-    expect(blastTallyPlausible({ runs: 60, sixes: 10, fours: 0, wickets: 1, dots: 25, balls: 30 })).toBe(false);
+    expect(blastTallyPlausible({ runs: 60, sixes: 10, fours: 0, wickets: 1, dots: 25, balls: 30, individual: 0, hundreds: 0 })).toBe(false);
     expect(surviveTallyPlausible({ runs: 30, balls: 10, wickets: 0, blows: 0, health: 100, sixes: 9, fours: 9 })).toBe(false);
   });
 
@@ -251,8 +300,8 @@ describe('what one innings may contain', () => {
   });
 
   it('refuses a figure that is not a whole number at or above nought', () => {
-    expect(blastTallyPlausible({ runs: -1, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30 })).toBe(false);
-    expect(blastTallyPlausible({ runs: 1.5, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30 })).toBe(false);
-    expect(blastTallyPlausible({ runs: Number.NaN, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30 })).toBe(false);
+    expect(blastTallyPlausible({ runs: -1, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30, individual: 0, hundreds: 0 })).toBe(false);
+    expect(blastTallyPlausible({ runs: 1.5, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30, individual: 0, hundreds: 0 })).toBe(false);
+    expect(blastTallyPlausible({ runs: Number.NaN, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30, individual: 0, hundreds: 0 })).toBe(false);
   });
 });

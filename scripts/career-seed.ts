@@ -1,6 +1,6 @@
 import { Redis } from '@upstash/redis';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, emptyBlast, emptySurvive, rankCareer,
+  BLAST_CAREER, HUNDRED, SURVIVE_CAREER, emptyBlast, emptySurvive, rankCareer,
   type BlastCareer, type CareerLadder, type SurviveCareer,
 } from '../src/game/career';
 import type { StoredCareer } from '../src/server/career-store';
@@ -68,6 +68,12 @@ function blastSeed(row: StoredRow<Innings>): BlastCareer {
     wickets: row.wickets, dots: row.dots,
     highest: row.runs,
     notOut: row.wickets === 0 ? row.runs : 0,
+    // What one batsman made is the one Blast figure a row cannot say: six
+    // totals do not know where the wickets fell. An innings that lost none is
+    // one batsman's whole score, so that much can be seeded honestly and the
+    // rest starts from the next innings rather than from a guess.
+    individual: row.wickets === 0 ? row.runs : 0,
+    hundreds: row.wickets === 0 && row.runs >= HUNDRED ? 1 : 0,
   };
 }
 

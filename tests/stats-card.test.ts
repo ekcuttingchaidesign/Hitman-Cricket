@@ -11,6 +11,7 @@ import { statsShareText, statsStoryText, statsWhatsappLink, statsFileName } from
 const blast = {
   ...emptyBlast(),
   innings: 12, runs: 900, balls: 300, sixes: 40, fours: 30, highest: 140, notOut: 132,
+  individual: 132, hundreds: 2,
 };
 const survive = {
   ...emptySurvive(),
@@ -23,11 +24,12 @@ describe('what the career card says', () => {
     expect(blastFacts(blast).hero.map(one => one.value)).toEqual([900, 140]);
   });
 
-  it('carries the best unbeaten score as its own figure', () => {
-    // 140 for one is the higher score and the lesser innings; the card is the
-    // one screen that shows both and says which is which.
+  it('carries what one batsman made apart from what the innings made', () => {
+    // 140 is the innings and 132 is the batsman; the card is the one screen
+    // that shows both and says which is which.
     const figures = blastFacts(blast).figures;
-    expect(figures.find(one => one.label === 'Best n.o.')?.value).toBe(132);
+    expect(figures.find(one => one.label === 'Best ind.')?.value).toBe(132);
+    expect(blastFacts(blast).hero.find(one => one.label === 'Highest')?.value).toBe(140);
   });
 
   it('leads a Test career on balls faced and innings survived', () => {
@@ -64,7 +66,7 @@ describe('the card as a sentence', () => {
   it('reads out every figure, because a canvas says nothing to a screen reader', () => {
     const alt = statsAlt(statsFacts('classic', blast, { name: 'Rohit', avatar: 1 }));
     expect(alt).toContain('Rohit, EMERGING PLAYER, on The Blast: 12 innings');
-    for (const [label, value] of [['Runs', 900], ['Highest', 140], ['Best n.o.', 132], ['Sixes', 40]] as const) {
+    for (const [label, value] of [['Runs', 900], ['Highest', 140], ['Best ind.', 132], ['Sixes', 40]] as const) {
       expect(alt).toContain(`${label} ${value}`);
     }
   });
@@ -144,7 +146,7 @@ describe('what tapping a figure says', () => {
   });
 
   it('says what a hundred costs, since that is the rule nobody can see', () => {
-    expect(statsExplain('Hundreds')).toContain('wickets still standing');
+    expect(statsExplain('Hundreds')).toContain('a new batsman in');
   });
 
   it('has nothing to say about a figure it has never heard of', () => {

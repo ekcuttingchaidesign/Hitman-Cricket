@@ -131,14 +131,15 @@ export function blastFacts(career: BlastCareer): Pick<StatsFacts, 'hero' | 'figu
     ],
     figures: [
       // First of the small figures, because it is the rarest thing on the card:
-      // a hundred off thirty balls with nothing lost is a season's work for
-      // most players, and a nought here is a target rather than an absence.
+      // a hundred off thirty balls is a season's work for most players, and a
+      // nought here is a target rather than an absence.
       { label: 'Hundreds', value: career.hundreds ?? 0 },
       { label: 'Sixes', value: career.sixes },
       { label: 'Fours', value: career.fours },
-      // The best score made without losing a wicket, which is not the same as
-      // the highest: 140 for one is the bigger score and the lesser innings.
-      { label: 'Best n.o.', value: career.notOut },
+      // What one batsman made, which is not what the innings made: a wicket
+      // brings a new batsman in and the runs start again, so 130 for two can be
+      // a best of 110.
+      { label: 'Best ind.', value: career.individual ?? career.notOut },
       { label: 'Balls', value: career.balls },
     ],
   };
@@ -340,11 +341,11 @@ export function statsHitBoxes(facts: StatsFacts) {
 const EXPLAINS: Record<string, string> = {
   // The Blast.
   'Runs': 'Every run you have scored in the Blast, added up across all your innings.',
-  'Highest': 'Your biggest innings total, whatever it cost in wickets. 140 for one counts as 140.',
-  'Hundreds': `Innings where you reached ${HUNDRED} with all three wickets still standing. Lose one and the innings no longer counts, however big it gets.`,
+  'Highest': 'Your biggest innings total, whatever it cost in wickets. 130 for two counts as 130.',
+  'Hundreds': `Times a batsman of yours got to ${HUNDRED}. A wicket brings a new batsman in and the runs start again, so two down for twenty and 130 all told is a hundred — that batsman made 110.`,
   'Sixes': 'Every six you have hit, added up across all your innings.',
   'Fours': 'Every four you have hit, added up across all your innings.',
-  'Best n.o.': 'Your biggest score in an innings where you never lost a wicket.',
+  'Best ind.': 'The most one batsman made, counted from the wicket before him rather than from the start of the innings.',
   'Balls': 'Every ball you have faced, added up across all your innings.',
   // Test Survival.
   'Balls faced': 'Every ball you have faced out there, added up across all your innings.',

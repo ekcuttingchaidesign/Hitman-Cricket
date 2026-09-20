@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, emptyBlast, emptySurvive, type SurviveTally,
+  BLAST_CAREER, SURVIVE_CAREER, emptyBlast, emptySurvive, type BlastTally, type SurviveTally,
 } from '../src/game/career';
 import {
   CAREER_BOARD_SIZE, DAILY_INNINGS, MIN_INNINGS_MS,
@@ -8,14 +8,16 @@ import {
 } from '../src/server/career-store';
 import { memoryCareer } from '../src/server/memory-career';
 import { foldName } from '../src/server/board-store';
-import { LAUNCH_MS, type Innings } from '../src/game/leaderboard';
+import { LAUNCH_MS } from '../src/game/leaderboard';
 
 const ROHIT = 'abc123-defghijklmno';
 const OTHER = 'abc124-pqrstuvwxyz0';
 
-const blast = (runs = 60, extra: Partial<Innings> = {}): Innings => ({
+const blast = (runs = 60, extra: Partial<BlastTally> = {}): BlastTally => ({
   runs, sixes: Math.floor(runs / 6), fours: 0, wickets: 0,
-  dots: 30 - Math.floor(runs / 6) - (runs % 6), balls: 30, ...extra,
+  dots: 30 - Math.floor(runs / 6) - (runs % 6), balls: 30,
+  // Nothing lost, so one batsman made the lot.
+  individual: runs, hundreds: Number(runs >= 100), ...extra,
 });
 
 const test = (extra: Partial<SurviveTally> = {}): SurviveTally =>
@@ -142,7 +144,7 @@ describe('counting an innings', () => {
     const store = fake({ Rohit: ROHIT });
     const out = await countInnings(
       store, BLAST_CAREER,
-      { ...sending(), tally: { runs: 500, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30 } },
+      { ...sending(), tally: { runs: 500, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 30, individual: 500, hundreds: 5 } },
     );
     expect(refusedCareer(out)).toBe(true);
     if (!refusedCareer(out)) return;
@@ -302,7 +304,7 @@ describe('the career boards, read', () => {
     // A career of singles: runs and a highest score, and not one boundary.
     await countInnings(
       store, BLAST_CAREER,
-      { ...sending(), tally: { runs: 10, sixes: 0, fours: 0, wickets: 0, dots: 20, balls: 30 } },
+      { ...sending(), tally: { runs: 10, sixes: 0, fours: 0, wickets: 0, dots: 20, balls: 30, individual: 10, hundreds: 0 } },
     );
     const payload = await readCareerBoards(store, BLAST_CAREER);
     expect(payload.boards.runs).toHaveLength(1);

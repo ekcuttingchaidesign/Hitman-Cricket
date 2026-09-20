@@ -2,6 +2,8 @@ import { GAME } from '../config/gameplay.js';
 import { LAUNCH_MS, type Innings } from './leaderboard.js';
 import { SURVIVE } from '../config/survive.js';
 import { standingOf, type SurviveInnings } from './survive-board.js';
+import type { ScoreManager } from './ScoreManager.js';
+import type { ShotOutcome } from './types.js';
 
 /**
  * What a player has done over every innings, rather than in the best one.
@@ -36,13 +38,23 @@ export interface BlastCareer {
   /** The biggest total made without losing a wicket at all. */
   notOut: number;
   /**
-   * Innings of a hundred or more with every wicket still standing.
+   * The best score one batsman made, which is not the innings total.
+   *
+   * A wicket brings a new batsman in, so the runs start again: two down for
+   * twenty and 130 all told is a batsman who made 110, not 130. That is the
+   * figure a scorecard prints beside a name and the one this game's own
+   * examples have always meant by an individual score — 140 for one, with the
+   * wicket gone on the first ball, is an individual 140.
+   */
+  individual: number;
+  /**
+   * Hundreds, by that same reckoning: a batsman who got to a hundred.
    *
    * Counted rather than derived, because a career keeps totals and a total has
-   * thrown away the innings it was made of: `notOut` remembers the best unbeaten
-   * score but not how many times one was made. Thirty balls make this rare on
-   * purpose — it is the one figure on the card that most players will never put
-   * a one in, which is exactly what makes it worth putting there.
+   * thrown away the innings it was made of — `individual` remembers the best
+   * one but not how many times a hundred was reached. Thirty balls make it rare
+   * on purpose: it is the one figure on the card most players will never put a
+   * one in, which is exactly what makes it worth putting there.
    *
    * There is no equivalent on the Test career, and there should not be: a
    * hundred is that mode's win condition, so `wins` already counts them.
@@ -69,6 +81,54 @@ export interface SurviveCareer {
 }
 
 /**
+ * A Blast innings as the career counts it: the six the board already ranks,
+ * plus the two the scorecard knows and a rank key never needed.
+ *
+ * Both of these are read off the ball-by-ball history, which only the browser
+ * that played the innings has — the board's row is six totals and a total
+ * cannot say where a wicket fell. So they travel with the tally rather than
+ * being added to `Innings` and quietly widening a packed key measured to the
+ * bit, which is the same arrangement `SurviveTally` has below and for the same
+ * reason.
+ */
+export interface BlastTally extends Innings {
+  /** The best score one batsman made in it. */
+  individual: number;
+  /** How many batsmen in it got to a hundred. */
+  hundreds: number;
+}
+
+/**
+ * What each batsman made, in the order they came in.
+ *
+ * A wicket ends one batsman's score and starts the next at nought; the last
+ * entry is whoever was still in when the innings stopped, which is nought where
+ * the innings ended on a wicket. Nought is a score, so it is pushed rather than
+ * skipped — a batsman out first ball made none and the list says so.
+ */
+export function batsmanScores(history: readonly ShotOutcome[]): number[] {
+  const made: number[] = [];
+  let scored = 0;
+  for (const ball of history) {
+    scored += ball.runs;
+    if (ball.isWicket) { made.push(scored); scored = 0; }
+  }
+  made.push(scored);
+  return made;
+}
+
+/** The innings the career is handed, read off the one that was just played. */
+export function blastTally(score: ScoreManager): BlastTally {
+  const made = batsmanScores(score.history);
+  return {
+    runs: score.runs, sixes: score.sixes, fours: score.fours,
+    wickets: score.wickets, dots: score.dots, balls: score.balls,
+    individual: Math.max(0, ...made),
+    hundreds: made.filter(one => one >= HUNDRED).length,
+  };
+}
+
+/**
  * A Test innings as the career counts it: the five the board already ranks,
  * plus the two boundaries columns it never had.
  *
@@ -88,7 +148,10 @@ export const HUNDRED = 100;
 
 /** A career with nothing in it yet, which is what a first innings folds into. */
 export function emptyBlast(): BlastCareer {
-  return { innings: 0, runs: 0, balls: 0, sixes: 0, fours: 0, wickets: 0, dots: 0, highest: 0, notOut: 0, hundreds: 0 };
+  return {
+    innings: 0, runs: 0, balls: 0, sixes: 0, fours: 0, wickets: 0, dots: 0,
+    highest: 0, notOut: 0, individual: 0, hundreds: 0,
+  };
 }
 
 export function emptySurvive(): SurviveCareer {
@@ -104,9 +167,8 @@ export function emptySurvive(): SurviveCareer {
  * is mutated — the record that came out of the database is left as it was,
  * which is what makes a failed write leave nothing half-applied.
  */
-export function mergeBlast(held: BlastCareer | null, innings: Innings): BlastCareer {
+export function mergeBlast(held: BlastCareer | null, innings: BlastTally): BlastCareer {
   const was = held ?? emptyBlast();
-  const hundred = innings.wickets === 0 && innings.runs >= HUNDRED;
   return {
     innings: was.innings + 1,
     runs: was.runs + innings.runs,
@@ -120,13 +182,15 @@ export function mergeBlast(held: BlastCareer | null, innings: Innings): BlastCar
     // in hand at the last ball is unbeaten, and one lost on the first is not,
     // however the rest of it went.
     notOut: innings.wickets === 0 ? Math.max(was.notOut, innings.runs) : was.notOut,
-    // Floored at one where the career already holds an unbeaten hundred. Every
-    // record written before this figure existed reads back without it, and
-    // starting those players at nought would tell somebody whose best unbeaten
-    // score is 132 that they have never made a hundred. The floor cannot
-    // double-count — it only ever lifts a nought — and it is the most the
-    // stored totals can honestly say, since they no longer know how many.
-    hundreds: (was.hundreds || Number(was.notOut >= HUNDRED)) + Number(hundred),
+    // An innings played without losing a wicket is one batsman's whole score,
+    // so a career's best unbeaten total is a floor under its best individual
+    // one. That is the only thing the records written before either figure
+    // existed can honestly say about them, and it beats starting somebody whose
+    // best unbeaten score is 132 at nought.
+    individual: Math.max(was.individual || was.notOut, innings.individual),
+    // The same floor, for the same reason, and it cannot double-count: it only
+    // ever lifts a nought.
+    hundreds: (was.hundreds || Number(was.notOut >= HUNDRED)) + innings.hundreds,
   };
 }
 
@@ -378,11 +442,22 @@ export type CareerMode = 'classic' | 'survive';
  * The rate limit and the daily count in `career-store.ts` are the other half of
  * that answer — this half only says what one innings may contain.
  */
-export function blastTallyPlausible(innings: Innings): boolean {
-  const whole = [innings.runs, innings.sixes, innings.fours, innings.wickets, innings.dots, innings.balls];
+export function blastTallyPlausible(innings: BlastTally): boolean {
+  const whole = [
+    innings.runs, innings.sixes, innings.fours, innings.wickets, innings.dots, innings.balls,
+    innings.individual, innings.hundreds,
+  ];
   if (whole.some(n => !Number.isInteger(n) || n < 0)) return false;
   if (innings.balls > GAME.totalBalls || innings.wickets > GAME.maxWickets) return false;
   if (innings.sixes + innings.fours + innings.wickets + innings.dots > innings.balls) return false;
+  // One batsman cannot have made more than the innings did, and there are only
+  // as many batsmen as there were wickets plus the one still in — so a hundred
+  // apiece is the most that can be claimed, and each of them costs a hundred
+  // runs off the total.
+  if (innings.individual > innings.runs) return false;
+  if (innings.hundreds > innings.wickets + 1) return false;
+  if (innings.hundreds * HUNDRED > innings.runs) return false;
+  if (innings.hundreds > 0 && innings.individual < HUNDRED) return false;
   return innings.runs <= innings.balls * 6;
 }
 
@@ -411,7 +486,7 @@ export interface CareerLadder<C, T> {
   figures(from: C): C;
 }
 
-export const BLAST_CAREER: CareerLadder<BlastCareer, Innings> = {
+export const BLAST_CAREER: CareerLadder<BlastCareer, BlastTally> = {
   mode: 'classic',
   scope: 'blast:',
   boards: BLAST_BOARDS,
@@ -420,7 +495,8 @@ export const BLAST_CAREER: CareerLadder<BlastCareer, Innings> = {
   figures: from => ({
     innings: from.innings, runs: from.runs, balls: from.balls, sixes: from.sixes,
     fours: from.fours, wickets: from.wickets, dots: from.dots,
-    highest: from.highest, notOut: from.notOut, hundreds: from.hundreds ?? 0,
+    highest: from.highest, notOut: from.notOut,
+    individual: from.individual ?? 0, hundreds: from.hundreds ?? 0,
   }),
 };
 

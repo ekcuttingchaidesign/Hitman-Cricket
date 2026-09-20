@@ -33,9 +33,8 @@ import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
 } from './game/career-api';
-import type { SurviveTally } from './game/career';
+import { blastTally, type BlastTally, type SurviveTally } from './game/career';
 import type { Granted } from './game/tier';
-import type { Innings } from './game/leaderboard';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
@@ -1239,9 +1238,11 @@ export class Game {
   private countThisInnings() {
     if (!this.player || !this.canRegister) return;
     const mode: BoardTab = this.surviving ? 'survive' : 'classic';
-    const tally: Innings | SurviveTally = this.surviving
+    // The career's own tally, not the board's row: it carries what each batsman
+    // made, which the six totals on a row cannot say.
+    const tally: BlastTally | SurviveTally = this.surviving
       ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
-      : asInnings(this.score);
+      : blastTally(this.score);
     const nonce = mintNonce();
     const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
       if (this.disposed) return true;
