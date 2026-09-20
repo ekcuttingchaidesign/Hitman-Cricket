@@ -34,6 +34,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type SurviveTally } from './game/career';
+import { demoBoard, demoCareers, demoSurvive } from './game/demo-board';
 import type { StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
@@ -231,6 +232,17 @@ export class Game {
   private input!: InputManager;
   private audio = new GameAudio();
   private debug = new URLSearchParams(location.search).get('debug') === '1';
+  /**
+   * `?demo=1`: fifty made-up rows on every ladder, and nothing written.
+   *
+   * A leaderboard is a screen you cannot judge empty — the scroll, the cut-off
+   * line, the lit row with rows above and below it. The only other way to see
+   * one full is to write fifty real rows to a real board, and a name claimed on
+   * a board is never released. So this fills the screen and touches nothing:
+   * the rows are made in this browser, live as long as the sheet is open, and
+   * the fetches that would have overwritten them are not made.
+   */
+  private demo = new URLSearchParams(location.search).get('demo') === '1';
   /**
    * A link that names its mode. `?mode=survive` is how the Test match is handed
    * to playtesters on its own: the picker never opens, Play Again replays the
@@ -757,6 +769,7 @@ export class Game {
         actions: this.boardActions && this.atEndOf(mode),
       });
     };
+    if (this.demo) return draw(demoCareers(mode, this.player) as CareerBoards<AnyCareer>, 'ready');
     draw(held, held ? 'ready' : 'loading');
     void fetchCareerBoards<AnyCareer>(mode).then(payload => {
       if (this.disposed || !this.hud.boardOpen) return;
@@ -904,6 +917,7 @@ export class Game {
     this.boardLadder = 'best';
     const mine = this.phase === 'INNINGS_END' && !this.surviving;
     const view = { youId: this.player, yours: mine ? asInnings(this.score) : null, actions: this.boardActions && mine };
+    if (this.demo) return this.hud.board({ ...view, rows: demoBoard(this.player), state: 'ready' });
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
     else this.hud.board({ ...view, rows: [], state: 'loading' as const });
     void fetchBoard().then(payload => {
@@ -923,6 +937,7 @@ export class Game {
     this.boardLadder = 'best';
     const mine = this.phase === 'INNINGS_END' && this.surviving;
     const view = { youId: this.player, yours: mine ? this.survived() : null, actions: this.boardActions && mine };
+    if (this.demo) return this.hud.surviveBoard({ ...view, rows: demoSurvive(this.player), state: 'ready' });
     this.hud.surviveBoard({
       ...view,
       rows: this.surviveRows,

@@ -1179,6 +1179,7 @@ body.start-screen .hud-top{display:none}
    touch — "Test Survival" is the long one and it may not wrap. */
 .board-tabs{
   display:flex;
+  flex:none;
   gap:3px;
   align-self:center;
   width:min(440px,100%);
@@ -3139,6 +3140,13 @@ body.private-window{overflow:hidden}
   position:sticky;
   top:0;
   z-index:2;
+  /* Never squashed. The stack is a flex column with the sheet taking whatever
+     room it can get, and a row that has not said it is fixed gets shrunk to
+     make that room — this one went to fifteen pixels the moment the board had
+     fifty rows in it, with the pills sliced off halfway down. It only ever
+     happened on a full board, which is why `?demo=1` found it and nothing
+     else had. */
+  flex:none;
   display:flex;
   gap:5px;
   align-self:center;
