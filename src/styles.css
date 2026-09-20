@@ -1160,11 +1160,13 @@ body.start-screen .hud-top{display:none}
 /* Which ladder, in the dark above the sheet — the one piece of space on this
    screen that was carrying nothing. A segmented key rather than two buttons:
    the two are one choice, and the choice always has an answer. */
+/* Three tabs now, not two, so the track is wider and the type comes down a
+   touch — "Test Survival" is the long one and it may not wrap. */
 .board-tabs{
   display:flex;
   gap:3px;
   align-self:center;
-  width:min(320px,100%);
+  width:min(440px,100%);
   padding:3px;
   border-radius:999px;
   /* Opaque, and the sheet's own surface. A translucent track let the cover's
@@ -1175,14 +1177,16 @@ body.start-screen .hud-top{display:none}
 }
 .board-tab{
   flex:1;
-  min-height:34px;
+  min-height:36px;
+  padding:0 6px;
   border:0;
   border-radius:999px;
   background:none;
   font-family:var(--card);
-  font-size:11.5px;
+  font-size:11px;
   font-weight:750;
-  letter-spacing:.8px;
+  letter-spacing:.4px;
+  white-space:nowrap;
   color:#9fb2bd
 }
 .board-tab:hover:not(.is-on){color:#dce8ee}
@@ -3031,17 +3035,6 @@ body.private-window{overflow:hidden}
    pills re-sort what is already on screen, and this one leaves for somewhere
    else. Shaping them alike would have been the wrong kind of tidy.
 --------------------------------------------------------------------------- */
-.board-mine{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:9px;
-  flex:none;
-  width:100%;
-  min-height:46px;
-  margin:0
-}
-.board-mine svg{width:18px;height:18px;flex:none;opacity:.9}
 
 /* The card's own sheet. It sits over the board — literally, since the board is
    usually still open behind it — so it takes a rung above the board's own
@@ -3062,10 +3055,47 @@ body.private-window{overflow:hidden}
   overflow-y:auto;
   padding:4px
 }
+/* Under the My Stats tab the card is not a screen of its own — the tabs above
+   it are the way out, and it has to sit in the column they are in rather than
+   centring itself in the viewport behind them. */
+.board-stack.is-mine{gap:12px}
+.stats-sheet-inner.is-sheet{width:100%;margin:0;padding:0}
+
+/* The page's own head: the way back, and what the player travelled to. */
+.stats-head{display:flex;align-items:center;gap:10px;padding:0 2px 2px}
+.stats-back{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  min-height:36px;
+  padding:0 12px 0 8px;
+  border:1px solid #ffffff24;
+  border-radius:999px;
+  background:#0f2738;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.6px;
+  color:#f4f8fa
+}
+.stats-back:hover{background:#1b3d54}
+.stats-back svg{width:16px;height:16px;flex:none}
+.stats-head-title{
+  margin:0;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
 /* The way out sits above the picture rather than on it. On it, the × lands in
    whatever the card's top-right corner happens to be — here that is the mark —
    and a close key you have to hunt for on a screen whose whole job is to be
    left again is the wrong key to hide. */
+/* On the card's own tab the sheet has no header to hang the X on, so it sits
+   above the picture on its own line rather than over the card's top corner —
+   which on this card is where the mark is. */
 .stats-close{
   position:static;
   align-self:flex-end;

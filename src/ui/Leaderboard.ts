@@ -97,22 +97,36 @@ export function decider(above: Innings | null, row: Innings): LadderKey | null {
  * one board, and a row of tabs over it would be two names for one thing.
  */
 export const BOARD_TABS = [
-  { mode: 'classic', id: 'board-tab-classic', name: 'The Blast' },
-  { mode: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
+  { tab: 'classic', id: 'board-tab-classic', name: 'The Blast' },
+  { tab: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
+  { tab: 'mine', id: 'board-tab-mine', name: 'My Stats' },
 ] as const;
 
-export type BoardTab = (typeof BOARD_TABS)[number]['mode'];
+/** One of the two games. Everything that reads a career is keyed on this. */
+export type BoardTab = 'classic' | 'survive';
 
-export function boardTabsMarkup(active: BoardTab): string {
+/**
+ * What the sheet is showing at the top level: one of the two games, or the
+ * player's own card.
+ *
+ * `mine` is a tab rather than a mode, and the distinction is load-bearing
+ * everywhere below: a career belongs to a mode, so the card under this tab is
+ * still the card *for the game the player was last looking at*. Tabbing to it
+ * and back must land where they were, which is why the mode is remembered
+ * separately from which tab is lit.
+ */
+export type SheetTab = BoardTab | 'mine';
+
+export function boardTabsMarkup(active: SheetTab): string {
   return `
-    <div class="board-tabs" role="tablist" aria-label="Which leaderboard">${BOARD_TABS.map(tab => {
-      const on = tab.mode === active;
-      // Both stay tabbable. A tablist usually moves one tab stop between its
-      // tabs and drives the rest from the arrow keys; two keys that are also
-      // the only way to the other ladder are better off reachable the ordinary
-      // way than correct about a convention nothing here implements.
+    <div class="board-tabs" role="tablist" aria-label="Which leaderboard">${BOARD_TABS.map(one => {
+      const on = one.tab === active;
+      // All three stay tabbable. A tablist usually moves one tab stop between
+      // its tabs and drives the rest from the arrow keys; three keys that are
+      // also the only way between the screens are better off reachable the
+      // ordinary way than correct about a convention nothing here implements.
       return `
-      <button id="${tab.id}" class="board-tab${on ? ' is-on' : ''}" role="tab" type="button" aria-selected="${on}">${tab.name}</button>`;
+      <button id="${one.id}" class="board-tab${on ? ' is-on' : ''}" role="tab" type="button" aria-selected="${on}">${one.name}</button>`;
     }).join('')}
     </div>`;
 }

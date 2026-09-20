@@ -23,7 +23,7 @@ import {
   type BoardPayload, type SurvivePayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { cardOffer, type BoardTab, type CardOffer } from './ui/Leaderboard';
+import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from './ui/CareerBoard';
@@ -185,6 +185,13 @@ export class Game {
   private boardTab: BoardTab = 'classic';
   /** Which ladder of that mode the sheet is on. The innings board, always, to open. */
   private boardLadder: LadderTab = 'best';
+  /**
+   * Which of the three tabs is lit. Held apart from `boardTab`, which stays on
+   * the last *game* looked at — the card under My Stats belongs to a mode, and
+   * tabbing away and back has to land where the player was rather than on
+   * whichever game the build opens with.
+   */
+  private sheetTab: SheetTab = 'classic';
   /** Each mode's career boards, held from the last fetch. */
   private careerBoards: Partial<Record<BoardTab, CareerBoards<AnyCareer>>> = {};
   /** This player's own figures, as the store last reported them. */
@@ -629,12 +636,29 @@ export class Game {
     };
   }
 
-  /** The other mode, from the tab over the sheet. It opens on its innings board. */
-  private tabBoard = (mode: BoardTab) => {
-    if (mode === this.boardTab) return;
-    this.mark(`board-tab-${mode}`, 'The other board opened from a tab');
-    this.openBoard(mode, 'best');
+  /** Another tab over the sheet: the other game, or the player's own card. */
+  private tabBoard = (tab: SheetTab) => {
+    if (tab === this.sheetTab) return;
+    this.mark(`board-tab-${tab}`, 'Another tab opened over the sheet');
+    if (tab === 'mine') return this.openMine();
+    this.openBoard(tab, 'best');
   };
+
+  /**
+   * The card, under its own tab on the sheet.
+   *
+   * It shows the career for the game the player was last looking at, which is
+   * why the mode is remembered apart from the tab: a player who came to the
+   * board from a Test innings and tapped My Stats wants their Test figures,
+   * not the Blast's because the Blast is first in the row.
+   */
+  private openMine() {
+    this.sheetTab = 'mine';
+    this.loadStats(this.boardTab, (facts, picture, failed) => {
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
+      this.hud.statsTab({ facts, picture, failed });
+    });
+  }
 
   /** Another ladder of the same mode, from the row of tabs under the first. */
   private tabLadder = (ladder: LadderTab) => {
@@ -645,6 +669,7 @@ export class Game {
 
   private openBoard(mode: BoardTab, ladder: LadderTab): void {
     this.boardTab = mode;
+    this.sheetTab = mode;
     this.boardLadder = ladder;
     if (ladder !== 'best') return this.showCareerBoard(mode, ladder);
     if (mode === 'survive') this.showSurviveBoard();
@@ -693,58 +718,98 @@ export class Game {
    * before drawing anything, and the figures almost never change between the
    * two: the mirror was written by the last innings this browser played.
    */
+  /**
+   * The card, as a page of its own — where the innings-end card's Career Stats
+   * widget leads. A place the player travelled to rather than a tab they
+   * switched to, so it carries a way back and the board is not underneath it.
+   */
   private showStats = () => {
     this.mark('stats-open', 'Career card opened');
-    const mode: BoardTab = this.boardTab;
+    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    this.loadStats(mode, (facts, picture, failed) => {
+      if (this.disposed || !this.hud.statsOpen) return;
+      this.hud.stats({ facts, picture, failed });
+    });
+    this.hud.onStatsBack = () => { this.hud.onStatsBack = null; this.hud.dropStats(); };
+  };
+
+  /**
+   * One player's card, assembled and then painted, handed to whoever is
+   * drawing it.
+   *
+   * Three things happen at once, in the order they can be done. The mirror in
+   * this browser answers immediately, so the screen is up with the player's own
+   * figures rather than a spinner. The card is painted from those figures. And
+   * the store is asked for the truth — which is what carries a career across
+   * from another browser once the ids agree — and where it differs, the card is
+   * painted again.
+   *
+   * Painting twice is deliberate. The alternative is waiting on the network
+   * before drawing anything, and the figures almost never change between the
+   * two: the mirror was written by the last innings this browser played.
+   *
+   * The `draw` it is handed is what makes one path serve both the tab on the
+   * board and the page off the innings card. Neither of them knows any of the
+   * above, and neither of them has a copy of it.
+   */
+  private loadStats(
+    mode: BoardTab,
+    draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
+  ) {
     const batting = readPlayer();
     const held = this.myCareer[mode] ?? {
       career: heldCareer(mode), name: batting?.name ?? '', avatar: batting?.avatar ?? 0,
     };
-    this.drawStats(mode, held);
-    if (!this.player) return;
-    void fetchMyCareer<AnyCareer>(this.player, mode).then(mine => {
-      if (this.disposed || !this.hud.statsOpen || !mine?.career) return;
-      const fresh = { career: mine.career, name: mine.name, avatar: mine.avatar };
-      this.myCareer[mode] = fresh;
-      // Only redrawn where the store actually disagreed, or every open would
-      // repaint the card a beat after the player started looking at it.
-      if (JSON.stringify(fresh) !== JSON.stringify(held)) this.drawStats(mode, fresh);
-    });
-    // The card names a place, which only the boards know. One call, and it is
-    // the same one the career tabs would have made.
-    if (!this.careerBoards[mode]) {
-      void fetchCareerBoards<AnyCareer>(mode).then(payload => {
-        if (this.disposed || !payload || !this.hud.statsOpen) return;
-        this.careerBoards[mode] = payload;
-        this.drawStats(mode, this.myCareer[mode] ?? held);
+    this.paintStats(mode, held, draw);
+    if (this.player) {
+      void fetchMyCareer<AnyCareer>(this.player, mode).then(mine => {
+        if (this.disposed || !mine?.career) return;
+        const fresh = { career: mine.career, name: mine.name, avatar: mine.avatar };
+        this.myCareer[mode] = fresh;
+        // Only redrawn where the store actually disagreed, or every open would
+        // repaint the card a beat after the player started looking at it.
+        if (JSON.stringify(fresh) !== JSON.stringify(held)) this.paintStats(mode, fresh, draw);
       });
     }
-  };
+    // The card names a place, which only the boards know. One call, and it is
+    // the same one the career ladders would have made.
+    if (!this.careerBoards[mode]) {
+      void fetchCareerBoards<AnyCareer>(mode).then(payload => {
+        if (this.disposed || !payload) return;
+        this.careerBoards[mode] = payload;
+        this.paintStats(mode, this.myCareer[mode] ?? held, draw);
+      });
+    }
+  }
 
   /**
-   * The sheet, and then the picture for it.
+   * The figures, then the picture for them.
    *
-   * The sheet goes up first with the keys already on it, because painting takes
-   * a moment on a cold font cache and a screen that appears only once the
+   * The screen goes up first with the keys already on it, because painting
+   * takes a moment on a cold font cache and a screen that appears only once the
    * picture is ready is a key that does nothing for half a second. A card that
    * cannot be painted at all falls back to the figures as text, which is the
    * thing the player came for either way.
    */
-  private drawStats(mode: BoardTab, mine: { career: AnyCareer; name: string; avatar: number }) {
+  private paintStats(
+    mode: BoardTab,
+    mine: { career: AnyCareer; name: string; avatar: number },
+    draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
+  ) {
     const standing = bestStanding(mode, placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
     const facts = statsFacts(mode, mine.career, { name: mine.name, avatar: mine.avatar }, standing);
     this.statsDrawn = facts;
-    this.hud.stats({ facts });
+    draw(facts, null, false);
     void statsCardImage(facts, gameLink()).then(picture => {
       // A card painted for figures the player has already moved past belongs to
-      // a sheet that is no longer the one on screen.
-      if (this.disposed || !this.hud.statsOpen || this.statsDrawn !== facts) return;
+      // a screen that is no longer the one they are looking at.
+      if (this.disposed || this.statsDrawn !== facts) return;
       const url = URL.createObjectURL(picture);
       this.hud.holdStatsPicture(url);
-      this.hud.stats({ facts, picture: url });
+      draw(facts, url, false);
     }).catch(() => {
-      if (this.disposed || !this.hud.statsOpen || this.statsDrawn !== facts) return;
-      this.hud.stats({ facts, failed: true });
+      if (this.disposed || this.statsDrawn !== facts) return;
+      draw(facts, null, true);
     });
   }
 

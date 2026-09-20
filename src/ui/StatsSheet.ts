@@ -19,8 +19,23 @@ import { statsAlt, type StatsFacts } from '../game/StatsCard';
  * what the alt text and the figure list below the keys are for.
  */
 
+/**
+ * Where the card is being shown.
+ *
+ * `sheet` is the My Stats tab on the leaderboard — it sits under the tab row,
+ * so it has no way out of its own and no heading; the tabs are the way out.
+ * `page` is the screen the innings-end card's Career Stats widget opens, which
+ * is a place the player has travelled *to* rather than a tab they switched to,
+ * so it carries a back key and stands alone.
+ *
+ * One markup function for both, because it is one card with one pair of keys
+ * under it — two would drift the first time either was touched.
+ */
+export type StatsWhere = 'sheet' | 'page';
+
 export interface StatsSheetView {
   facts: StatsFacts;
+  where?: StatsWhere;
   /** The drawn card, once it has been painted. Null while it is being drawn. */
   picture?: string | null;
   /** Set where the picture could not be drawn at all. */
@@ -30,10 +45,14 @@ export interface StatsSheetView {
 }
 
 export function statsSheetMarkup(view: StatsSheetView): string {
-  const { facts, picture = null, failed = false } = view;
+  const { facts, picture = null, failed = false, where = 'page' } = view;
   return `
-    <div class="stats-sheet-inner" role="document">
-      <button id="stats-close" class="board-close stats-close" aria-label="Close your card">×</button>
+    <div class="stats-sheet-inner is-${where}" role="document">${where === 'page' ? `
+      <div class="stats-head">
+        <button id="stats-back" class="stats-back" type="button">${backMark()}<span>Back</span></button>
+        <p class="stats-head-title">Career stats</p>
+      </div>` : `
+      <button id="board-close" class="board-close stats-close" aria-label="Close the board">×</button>`}
       <div class="stats-stage">${
         picture
           ? `<img class="stats-shot" src="${picture}" alt="${escape(statsAlt(facts))}">`
@@ -93,4 +112,9 @@ function whatsappMark(): string {
 
 function instaMark(): string {
   return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2Zm0 1.8A4 4 0 0 0 3.8 7.8v8.4a4 4 0 0 0 4 4h8.4a4 4 0 0 0 4-4V7.8a4 4 0 0 0-4-4H7.8ZM12 6.9a5.1 5.1 0 1 1 0 10.2 5.1 5.1 0 0 1 0-10.2Zm0 1.8a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6Zm5.4-3.2a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z"/></svg>`;
+}
+
+/** The way back, on the page presentation. A chevron and the word. */
+function backMark(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M14.5 5.5 8 12l6.5 6.5"/></svg>`;
 }

@@ -149,8 +149,21 @@ describe('the card\'s sheet', () => {
     expect(markup).toContain('could not be drawn');
   });
 
-  it('carries a way out', () => {
-    expect(statsSheetMarkup({ facts })).toContain('id="stats-close"');
+  it('carries a way back on the page, and none in the tab', () => {
+    // The page is somewhere the player travelled to, so it has a way back. The
+    // tab is one of three over the sheet, and the row above it is the way out —
+    // a second one inside would be a way out of the tab to the same tab.
+    expect(statsSheetMarkup({ facts, where: 'page' })).toContain('id="stats-back"');
+    expect(statsSheetMarkup({ facts, where: 'sheet' })).not.toContain('id="stats-back"');
+  });
+
+  it('keeps the same card and the same keys wherever it is standing', () => {
+    const page = statsSheetMarkup({ facts, where: 'page', picture: 'blob:x' });
+    const tab = statsSheetMarkup({ facts, where: 'sheet', picture: 'blob:x' });
+    for (const mark of ['id="stats-whatsapp"', 'id="stats-story"', 'src="blob:x"']) {
+      expect(page).toContain(mark);
+      expect(tab).toContain(mark);
+    }
   });
 
   it('says the link rides along, and says so only once there is something to send', () => {

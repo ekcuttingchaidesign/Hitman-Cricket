@@ -9,8 +9,8 @@ import { feedbackGiven } from '../game/feedback';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  actionsMarkup, boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
-  type BoardTab, type BoardView, type CardOffer,
+  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
+  type BoardTab, type BoardView, type CardOffer, type SheetTab,
 } from './Leaderboard';
 import {
   surviveActions, surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
@@ -427,23 +427,41 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * there is nothing to keep around and patch — either the card is current or
    * it is the wrong card to be sending anybody.
    */
+  /**
+   * The card, under the My Stats tab of the board sheet. Same markup and same
+   * keys as the page below; what differs is that a tab has no way out of its
+   * own — the row above it is the way out.
+   */
+  statsTab(view: StatsSheetView) {
+    this.sheet(statsSheetMarkup({ ...view, where: 'sheet' }), 'mine', 'best');
+    this.statsShown = view.facts;
+    this.wireStatsKeys();
+  }
+
   stats(view: StatsSheetView) {
     const overlay = this.$('stats-overlay');
-    // The sheet goes up before the picture exists and is drawn again when it
+    // The page goes up before the picture exists and is drawn again when it
     // lands, so only the first of those may take the focus — the second would
     // pull it back off whichever key the player had already reached for.
     const opening = overlay.classList.contains('hidden');
     this.statsShown = view.facts;
-    overlay.innerHTML = statsSheetMarkup(view);
+    overlay.innerHTML = statsSheetMarkup({ ...view, where: 'page' });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
-    // The backdrop is the whole overlay, so a click that lands on the card is
-    // not a click on the way out.
-    overlay.onclick = event => { if (event.target === overlay) this.closeStats(); };
-    this.$('stats-close').onclick = () => this.closeStats();
+    this.wireStatsKeys();
+    const back = this.$('stats-back');
+    back.onclick = () => this.closeStats();
+    if (opening) back.focus();
+  }
+
+  /**
+   * The two share keys, wired the same wherever the card is standing. Both
+   * presentations draw the same markup, so both get the same behaviour from
+   * one place rather than each remembering to do it.
+   */
+  private wireStatsKeys() {
     this.$('stats-whatsapp').onclick = () => void this.shareStats('card');
     this.$('stats-story').onclick = () => void this.shareStats('story');
-    if (opening) this.$('stats-close').focus();
   }
 
   /** Hands the drawn picture to the sheet once it has been painted. */
@@ -454,7 +472,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   get statsOpen() { return !this.$('stats-overlay').classList.contains('hidden'); }
 
+  /** What the page's back key does. The game decides where back is. */
+  onStatsBack: (() => void) | null = null;
+
   closeStats() {
+    if (this.onStatsBack) return this.onStatsBack();
+    this.dropStats();
+  }
+
+  /** Puts the page away and hands the screen back to whatever was under it. */
+  dropStats() {
     this.$('stats-overlay').classList.add('hidden');
     this.$('stats-overlay').innerHTML = '';
     this.statsShown = null;
@@ -466,7 +493,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       .some(id => !this.$(id).classList.contains('hidden'));
     this.viewport.classList.toggle('modal-open', stacked);
     if (!this.$('board-overlay').classList.contains('hidden')) {
-      document.getElementById('board-mine')?.focus();
+      document.getElementById('board-tab-mine')?.focus();
     } else if (this.$('end-survive').classList.contains('hidden')) {
       this.$('board').focus();
     }
@@ -538,19 +565,27 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
-   * Whether the sheet carries the two ladders' tabs. A build that plays one
-   * mode has one board, and tabs over it would be two names for one thing.
+   * Whether this build plays both modes.
+   *
+   * It used to decide whether the tab row was drawn at all — one mode, one
+   * board, and a row of tabs over it would be two names for one thing. The row
+   * now carries the player's own card as well, which exists in every build, so
+   * it is always drawn and this only decides whether the *other* game is on it.
    */
-  private tabbed = false;
-  showBoardTabs(on: boolean) { this.tabbed = on; }
+  private bothModes = false;
+  showBoardTabs(on: boolean) { this.bothModes = on; }
   /** What a tab does. The game decides, because the rows are the game's. */
-  onBoardTab: ((mode: BoardTab) => void) | null = null;
+  onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** The same, for the row of ladders inside one mode. */
   onLadderTab: ((ladder: LadderTab) => void) | null = null;
 
-  private sheet(markup: string, tab: BoardTab, ladder: LadderTab) {
+  private sheet(markup: string, tab: SheetTab, ladder: LadderTab) {
     const overlay = this.$('board-overlay');
     const surviving = tab === 'survive';
+    // The card's tab has no ladders under it: a career is one thing and there
+    // is nothing to re-sort. The row is dropped rather than drawn empty, or the
+    // sheet would keep a gap where the player's eye expects a control.
+    const mine = tab === 'mine';
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
     //
@@ -558,35 +593,33 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // the ladders inside a mode are this mode's ladders, so a build that plays
     // one mode still has a career and still has a card, while a build that
     // plays both needs the row above to get between them.
-    const tabs = `${this.tabbed ? boardTabsMarkup(tab) : ''}${ladderTabsMarkup(tab, ladder)}`;
-    // The way to the player's own card, under the sheet rather than in the
-    // strip of pills above it. It is the one key on this screen that leads
-    // somewhere instead of re-sorting what is already there, so it is shaped
-    // like a key and not like a seventh ladder.
-    const mine = `
-      <button id="board-mine" class="key-button board-mine" type="button">
-        ${cardMark()}<span>MY CAREER CARD</span>
-      </button>`;
-    overlay.innerHTML = `<div class="board-stack">${tabs}${markup}${mine}</div>`;
-    if (this.tabbed) {
-      for (const other of ['classic', 'survive'] as const) {
-        this.$(`board-tab-${other}`).onclick = () => { if (other !== tab) this.onBoardTab?.(other); };
-      }
+    const tabs = `${boardTabsMarkup(tab)}${mine ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
+    overlay.innerHTML = `<div class="board-stack${mine ? ' is-mine' : ''}">${tabs}${markup}</div>`;
+    for (const other of BOARD_TABS) {
+      const key = document.getElementById(other.id);
+      if (!key) continue;
+      // A build that plays one mode still has a card, so the row is always
+      // drawn — the other game's tab is simply taken off it.
+      if (!this.bothModes && other.tab !== 'mine' && other.tab !== tab) { key.remove(); continue; }
+      key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }
-    for (const other of laddersOf(tab)) {
-      this.$(`board-ladder-${other.key}`).onclick = () => {
-        if (other.key !== ladder) this.onLadderTab?.(other.key);
-      };
+    if (!mine) {
+      for (const other of laddersOf(tab as BoardTab)) {
+        this.$(`board-ladder-${other.key}`).onclick = () => {
+          if (other.key !== ladder) this.onLadderTab?.(other.key);
+        };
+      }
     }
     // The ladder strip scrolls sideways where the tabs do not fit, and the
     // sheet is drawn whole every time — so without this, opening the card on a
     // narrow phone puts the tab you are standing on off the right-hand edge and
     // the strip looks like it has forgotten which one is live. Its own
     // `scrollLeft` rather than `scrollIntoView`, which would move the page too.
-    const live = this.$(`board-ladder-${ladder}`);
-    const strip = live.parentElement;
-    if (strip) strip.scrollLeft = live.offsetLeft - (strip.clientWidth - live.clientWidth) / 2;
-    this.$('board-mine').onclick = () => this.onStatsOpen?.();
+    if (!mine) {
+      const live = this.$(`board-ladder-${ladder}`);
+      const strip = live.parentElement;
+      if (strip) strip.scrollLeft = live.offsetLeft - (strip.clientWidth - live.clientWidth) / 2;
+    }
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     // The backdrop is the whole overlay, so a click that lands on the sheet is
@@ -1365,11 +1398,3 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   error() { document.body.classList.remove('start-screen'); this.$('intro').className = 'panel intro-panel'; this.$('intro').innerHTML = '<span class="challenge-tag">WEBGL UNAVAILABLE</span><h2>The ground couldn’t load.</h2><p>Enable hardware acceleration in your browser, then reload to play.</p><button class="primary-button" onclick="location.reload()">RELOAD GAME</button>'; }
 }
 
-/**
- * The mark on the career-card key: a card with a line on it. Inline rather than
- * fetched, for the same reason the two share marks are — it is a handful of
- * path and the key would otherwise be wordless for the moment that matters.
- */
-function cardMark(): string {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v10a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 17V7A1.5 1.5 0 0 1 4 5.5Zm0 1.8a.2.2 0 0 0-.2.2v9.999c0 .11.09.2.2.2h16a.2.2 0 0 0 .2-.2V7.5a.2.2 0 0 0-.2-.2H4Zm1.6 2.2h6v1.8h-6V9.5Zm0 3.4h9v1.6h-9v-1.6Zm10.6-3.4h2.2v1.8h-2.2V9.5Z"/></svg>`;
-}
