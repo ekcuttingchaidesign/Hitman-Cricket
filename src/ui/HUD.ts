@@ -209,22 +209,24 @@ export class HUD {
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Mute sound" title="Sound (M)">${icon('sound')}</button>
             <!--
-              The row used to carry six. Five of them were ways to another
-              screen — the board, the instructions, a share, fullscreen, the
-              pause card — and a stack of five grey squares over the top of the
-              ground is a menu bar, not a game. Every one of those screens is
-              reachable from the cover or from the innings card, which are the
-              two moments a player is not facing a ball.
+              The row used to carry six, which over the top of the ground read
+              as a menu bar rather than a game. Three of them were ways to a
+              screen reachable from the cover or the innings card — the
+              instructions, a share, fullscreen — and those are gone.
 
-              They are kept in the document and hidden rather than deleted,
-              because the game drives them by id from a dozen places and a
-              hidden key answers a click exactly the way a visible one does.
-              Nothing behind them has changed.
+              The board and the pause stay, but only while a ball is actually
+              being bowled: they are the two things a player wants *mid*-over
+              and the two that have no other door on a phone, where there is no
+              Escape key. The is-playing class is what decides, in styles.css.
+
+              The three retired keys are hidden rather than deleted, because
+              the game drives them by id from a dozen places and a hidden key
+              answers a click exactly the way a visible one does.
             -->
+            <button id="board" class="hud-button is-playing" aria-label="Top 50 board" title="Top 50 (B)">${icon('trophy')}</button>
+            <button id="pause" class="hud-button is-playing" aria-label="Pause innings" title="Pause (Esc)" disabled>${icon('pause')}</button>
             <button id="help" class="hud-button is-retired" aria-label="How to play" title="How to play" tabindex="-1" aria-hidden="true">${icon('help')}</button>
-            <button id="board" class="hud-button is-retired" aria-label="Top 50 board" title="Top 50 (B)" tabindex="-1" aria-hidden="true">${icon('trophy')}</button>
             <button id="share" class="hud-button is-retired" aria-label="Share game" title="Share game" tabindex="-1" aria-hidden="true">${icon('share')}</button>
-            <button id="pause" class="hud-button is-retired" aria-label="Pause innings" title="Pause (Esc)" tabindex="-1" aria-hidden="true" disabled>${icon('pause')}</button>
             <button id="fullscreen" class="hud-button is-retired" aria-label="Enter fullscreen" title="Fullscreen" tabindex="-1" aria-hidden="true">${icon('expand')}</button>
           </div>
         </div>
