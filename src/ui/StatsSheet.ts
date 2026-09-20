@@ -33,35 +33,41 @@ import { statsAlt, statsExplain, statsHitBoxes, type StatsFacts } from '../game/
  */
 export type StatsWhere = 'sheet' | 'page';
 
-export interface StatsSheetView {
+/** One card on the rail: the figures, and the picture of them once it exists. */
+export interface StatsSlide {
   facts: StatsFacts;
-  where?: StatsWhere;
   /** The drawn card, once it has been painted. Null while it is being drawn. */
   picture?: string | null;
   /** Set where the picture could not be drawn at all. */
   failed?: boolean;
+}
+
+export interface StatsSheetView {
+  /**
+   * The cards, in the order they are swiped through. One card is not a rail —
+   * it is drawn full width, exactly as it was before there were two.
+   */
+  cards: StatsSlide[];
+  /** Which one the sheet opens on. */
+  at?: number;
+  where?: StatsWhere;
   /** Whether this browser will hand a file to another app. */
   canShare?: boolean;
 }
 
 export function statsSheetMarkup(view: StatsSheetView): string {
-  const { facts, picture = null, failed = false, where = 'page' } = view;
+  const { cards, at = 0, where = 'page' } = view;
+  const many = cards.length > 1;
   return `
     <div class="stats-sheet-inner is-${where}" role="document">${where === 'page' ? `
       <div class="stats-head">
         <button id="stats-back" class="stats-back" type="button">${backMark()}<span>Back</span></button>
         <p class="stats-head-title">Career stats</p>
       </div>` : ''}
-      <div class="stats-stage">${
-        picture
-          ? `<div class="stats-frame">
-        <img class="stats-shot" src="${picture}" alt="${escape(statsAlt(facts))}">
-        ${tapsMarkup(facts)}
-      </div>`
-          : failed
-            ? fallbackMarkup(facts)
-            : `<div class="stats-drawing" role="status" aria-live="polite">Drawing your card…</div>`
-      }</div>
+      <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${
+  many ? ' role="group" aria-label="Your cards, one a game"' : ''}>${
+  cards.map((card, i) => slideMarkup(card, many, i === at)).join('')}</div>${
+  many ? dotsMarkup(cards, at) : ''}
       <div class="stats-ctas">
         <button id="stats-whatsapp" class="key-button stats-key is-whatsapp" type="button">
           ${whatsappMark()}<span>BRAG STATS ON WHATSAPP</span>
@@ -71,11 +77,54 @@ export function statsSheetMarkup(view: StatsSheetView): string {
         </button>
       </div>
       <p id="stats-status" class="stats-status hidden" role="status" aria-live="polite"></p>
-      <p class="stats-note">${facts.played
+      <p class="stats-note">${cards.some(card => card.facts.played)
         ? 'Tap any figure to see what it counts. The link to play rides along with the card.'
         : 'Play an innings and these figures start filling up.'}</p>
       <div id="stats-toast" class="stats-toast" role="status" aria-live="polite"></div>
     </div>`;
+}
+
+/**
+ * One card, and whatever it can show of itself yet.
+ *
+ * Each card on the rail is drawn from its own figures and painted on its own
+ * clock, so one of them can still be a picture while the other is a sentence
+ * saying it is being drawn. Swapping the whole rail every time one of them
+ * lands is what keeps that honest — and the scroll position is put back by the
+ * screen that owns the rail, so a player who has already swiped stays where
+ * they swiped to.
+ */
+function slideMarkup(card: StatsSlide, many: boolean, live: boolean): string {
+  const { facts, picture = null, failed = false } = card;
+  const inner = picture
+    ? `<div class="stats-frame">
+          <img class="stats-shot" src="${picture}" alt="${escape(statsAlt(facts))}">
+          ${tapsMarkup(facts)}
+        </div>`
+    : failed
+      ? fallbackMarkup(facts)
+      : `<div class="stats-drawing" role="status" aria-live="polite">Drawing your card…</div>`;
+  if (!many) return inner;
+  return `
+      <div class="stats-slide" data-mode="${escape(facts.mode)}" role="group"
+        aria-label="${escape(facts.modeName)}"${live ? ' data-live="1"' : ''}>${inner}
+      </div>`;
+}
+
+/**
+ * Which card of how many, and a way to get to the other one without swiping.
+ *
+ * The peek at the card's edge is what says there is another one; this is what
+ * says how many and which, and it is the only way through for a keyboard —
+ * a horizontal scroller is not something a Tab key can move.
+ */
+function dotsMarkup(cards: StatsSlide[], at: number): string {
+  return `
+      <div class="stats-dots" role="tablist" aria-label="Which card">${cards.map((card, i) => `
+        <button class="stats-dot${i === at ? ' is-on' : ''}" type="button" role="tab"
+          data-slide="${i}" aria-selected="${i === at}"
+          ><span>${escape(card.facts.modeName)}</span></button>`).join('')}
+      </div>`;
 }
 
 /**

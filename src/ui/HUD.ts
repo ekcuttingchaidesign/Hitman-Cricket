@@ -23,7 +23,7 @@ import {
   careerBoardMarkup, ladderTabsMarkup, laddersOf,
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
-import { statsSheetMarkup, type StatsSheetView } from './StatsSheet';
+import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { storiesMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
@@ -460,8 +460,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
   /** The facts the card on screen was drawn from, held for the share keys. */
   private statsShown: StatsFacts | null = null;
-  /** The object URL of the drawn card, revoked when the sheet is put away. */
-  private statsPicture: string | null = null;
+  /** The object URLs of the drawn cards, revoked when the sheet is put away. */
+  private statsPictures = new Set<string>();
 
   /**
    * The career card, over everything else.
@@ -476,9 +476,26 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * keys as the page below; what differs is that a tab has no way out of its
    * own — the row above it is the way out.
    */
+  /**
+   * Which card of the rail is in front.
+   *
+   * Held on the HUD rather than read off the rail, because the rail is rebuilt
+   * every time either card finishes painting — and a player who has already
+   * swiped to their Test figures must not be carried back to the Blast because
+   * a picture landed. It is the screen's memory of where they are, and the
+   * scroll is put back to match it after every redraw.
+   */
+  private statsAt = 0;
+  private statsCards: StatsSlide[] = [];
+
+  /**
+   * The card, under the My Stats tab of the board sheet. Same markup and same
+   * keys as the page below; what differs is that a tab has no way out of its
+   * own — the row above it is the way out.
+   */
   statsTab(view: StatsSheetView) {
-    this.sheet(statsSheetMarkup({ ...view, where: 'sheet' }), 'mine', 'best');
-    this.statsShown = view.facts;
+    this.holdStats(view);
+    this.sheet(statsSheetMarkup({ ...view, at: this.statsAt, where: 'sheet' }), 'mine', 'best');
     this.wireStatsKeys();
   }
 
@@ -488,14 +505,28 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // lands, so only the first of those may take the focus — the second would
     // pull it back off whichever key the player had already reached for.
     const opening = overlay.classList.contains('hidden');
-    this.statsShown = view.facts;
-    overlay.innerHTML = statsSheetMarkup({ ...view, where: 'page' });
+    this.holdStats(view);
+    overlay.innerHTML = statsSheetMarkup({ ...view, at: this.statsAt, where: 'page' });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     this.wireStatsKeys();
     const back = this.$('stats-back');
     back.onclick = () => this.closeStats();
     if (opening) back.focus();
+  }
+
+  /**
+   * Takes the cards in, and keeps the player where they were standing.
+   *
+   * A rail that has changed length — a second card arriving, or a build that
+   * only plays one game — starts again at the front. A rail of the same cards
+   * being redrawn does not.
+   */
+  private holdStats(view: StatsSheetView) {
+    if (view.cards.length !== this.statsCards.length) this.statsAt = view.at ?? 0;
+    this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1));
+    this.statsCards = view.cards;
+    this.statsShown = view.cards[this.statsAt]?.facts ?? null;
   }
 
   /**
@@ -506,6 +537,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private wireStatsKeys() {
     this.$('stats-whatsapp').onclick = () => void this.shareStats('card');
     this.$('stats-story').onclick = () => void this.shareStats('story');
+    this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
     // the fallback is the presentation least likely to be tried by hand.
@@ -552,10 +584,91 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.statsToast = window.setTimeout(() => toast.classList.remove('is-up'), 4600);
   }
 
+  /**
+   * The rail: where it is put back to, what a swipe changes, and the dots.
+   *
+   * The keys under the cards send whichever card is in front, so what "in
+   * front" means has to be a fact the screen keeps rather than something the
+   * share key works out at the moment it is pressed — by then the rail may
+   * have been redrawn twice.
+   */
+  private wireStatsRail() {
+    const rail = document.getElementById('stats-rail');
+    if (!rail || !rail.classList.contains('is-rail')) return;
+    // No animation on the way back: this is not the player moving, it is the
+    // screen being rebuilt underneath them, and it should look like nothing
+    // happened at all.
+    this.railTo(rail, this.statsAt, 'auto');
+    rail.onscroll = () => {
+      // Whichever card's middle is nearest the rail's middle. Dividing the
+      // scroll by the rail's width would be the same thing only if a card were
+      // as wide as the rail — and a card exactly as wide as the rail is a card
+      // with nothing peeking past it, which is the one thing this must not be.
+      const at = this.railAt(rail);
+      if (at === this.statsAt || at < 0 || at >= this.statsCards.length) return;
+      this.statsAt = at;
+      this.statsShown = this.statsCards[at]?.facts ?? this.statsShown;
+      for (const dot of document.querySelectorAll<HTMLElement>('.stats-dot')) {
+        const on = Number(dot.dataset.slide) === at;
+        dot.classList.toggle('is-on', on);
+        dot.setAttribute('aria-selected', String(on));
+      }
+    };
+    for (const dot of document.querySelectorAll<HTMLButtonElement>('.stats-dot')) {
+      dot.onclick = () => this.railTo(rail, Number(dot.dataset.slide), 'smooth');
+    }
+  }
+
+  /** Which card is in front of the rail right now. */
+  private railAt(rail: HTMLElement) {
+    const middle = rail.scrollLeft + rail.clientWidth / 2;
+    const slides = [...rail.querySelectorAll<HTMLElement>('.stats-slide')];
+    let at = 0;
+    let nearest = Infinity;
+    slides.forEach((slide, i) => {
+      const gap = Math.abs(slide.offsetLeft - rail.offsetLeft + slide.offsetWidth / 2 - middle);
+      if (gap < nearest) { nearest = gap; at = i; }
+    });
+    return at;
+  }
+
+  /**
+   * Puts a card in front. The scroll listener above does the rest.
+   *
+   * The last card is scrolled to its right edge rather than its left, because
+   * that is where its snap point is: a rail only as long as its cards cannot
+   * bring the last one's left edge to the left of the screen.
+   */
+  private railTo(rail: HTMLElement, at: number, behavior: ScrollBehavior) {
+    const slides = [...rail.querySelectorAll<HTMLElement>('.stats-slide')];
+    const slide = slides[at];
+    if (!slide) return;
+    const left = slide.offsetLeft - rail.offsetLeft;
+    const end = at === slides.length - 1;
+    rail.scrollTo({ left: end ? left + slide.offsetWidth - rail.clientWidth : left, behavior });
+  }
+
   /** Hands the drawn picture to the sheet once it has been painted. */
   holdStatsPicture(url: string | null) {
-    if (this.statsPicture && this.statsPicture !== url) URL.revokeObjectURL(this.statsPicture);
-    this.statsPicture = url;
+    if (url) this.statsPictures.add(url);
+  }
+
+  /**
+   * Lets go of every picture the cards minted — once nothing is still showing
+   * one.
+   *
+   * The card has two homes and they can both be up at once: the page opened
+   * from the innings card, with the board's own My Stats tab underneath it. A
+   * picture revoked while the tab behind is still pointing at it leaves that
+   * tab holding a broken image the moment the page comes down, so whichever of
+   * the two closes second is the one that clears up.
+   */
+  private dropStatsPictures() {
+    const showing = !this.$('stats-overlay').classList.contains('hidden')
+      || !this.$('board-overlay').classList.contains('hidden');
+    if (showing) return;
+    for (const url of this.statsPictures) URL.revokeObjectURL(url);
+    this.statsPictures.clear();
   }
 
   /**
@@ -637,8 +750,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('stats-overlay').classList.add('hidden');
     this.$('stats-overlay').innerHTML = '';
     this.statsShown = null;
-    // The picture was minted for this sheet and nothing else is holding it.
-    if (this.statsPicture) { URL.revokeObjectURL(this.statsPicture); this.statsPicture = null; }
+    this.statsCards = [];
+    this.statsAt = 0;
+    // The pictures were minted for this sheet and nothing else is holding them.
+    this.dropStatsPictures();
     // The board is usually still underneath, and the darkened ground only lifts
     // when nothing is left standing on it.
     const stacked = ['board-overlay', 'end', 'end-survive', 'modes', 'pause-overlay', 'tutorial-done']
@@ -841,6 +956,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   closeBoard() {
     this.$('board-overlay').classList.add('hidden');
     this.$('board-overlay').innerHTML = '';
+    // The next open of the board starts at the front of the rail again.
+    this.statsCards = [];
+    this.statsAt = 0;
+    this.dropStatsPictures();
     // The pause card and the innings card are both modals in their own right, so
     // the darkened ground only lifts if the board was the last thing on it.
     const stacked = ['end', 'end-survive', 'modes', 'pause-overlay', 'tutorial-done']

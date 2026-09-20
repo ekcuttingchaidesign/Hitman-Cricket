@@ -269,8 +269,10 @@ export function rowMarkup(row: BoardRow, index: number, above: BoardRow | null, 
 export function actionsMarkup(): string {
   return `
       <div class="board-actions">
-        <button id="board-again" class="key-button">PLAY AGAIN</button>
-        <button id="board-share" class="share-key" type="button">SHARE</button>
+        <div class="card-keys">
+          <button id="board-again" class="key-button">PLAY AGAIN</button>
+          <button id="board-share" class="share-key" type="button">SHARE</button>
+        </div>
       </div>`;
 }
 

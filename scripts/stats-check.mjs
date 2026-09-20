@@ -71,6 +71,39 @@ check(drew, 'the card is painted rather than left drawing', await page.$eval('.s
 const tabs = await page.$$eval('.board-tabs button', keys => keys.map(key => key.textContent.trim()));
 check(tabs.length >= 2, 'the card keeps a way back to the board on the tab row', tabs.join(' | '));
 
+// The rail: two cards where the build plays two games, the Blast in front, and
+// the next one showing at the edge so there is something to swipe towards.
+const slides = await page.$$eval('.stats-slide', all => all.map(one => one.dataset.mode));
+if (slides.length > 1) {
+  check(slides[0] === 'classic', 'the rail opens on the Blast', slides.join(' | '));
+  const rail = await page.evaluate(() => {
+    const track = document.getElementById('stats-rail');
+    const cards = [...track.querySelectorAll('.stats-slide')];
+    const box = track.getBoundingClientRect();
+    return {
+      peek: Math.round(box.right - cards[1].getBoundingClientRect().left),
+      inside: cards.every(card => card.getBoundingClientRect().width <= box.width + 1),
+      scroll: Math.round(track.scrollLeft),
+    };
+  });
+  check(rail.peek > 12 && rail.peek < 80, 'the card behind shows at the edge', JSON.stringify(rail));
+  check(rail.inside && rail.scroll === 0, 'and the front one is whole and at the front', JSON.stringify(rail));
+
+  // A swipe, and what the share keys would send after it.
+  await page.evaluate(() => {
+    const track = document.getElementById('stats-rail');
+    const cards = [...track.querySelectorAll('.stats-slide')];
+    track.scrollTo({ left: cards[1].offsetLeft - track.offsetLeft, behavior: 'instant' });
+  });
+  await page.waitForTimeout(700);
+  const now = await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim());
+  check(now === 'Test Survival', 'swiping moves which card is in front', now);
+  await page.click('.stats-dot[data-slide="0"]');
+  await page.waitForTimeout(900);
+  check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'The Blast',
+    'and the dots take you back without a swipe');
+}
+
 const taps = await page.$$('.stats-tap');
 const figures = await page.$$eval('.stats-tap', keys => keys.map(key => key.dataset.stat));
 check(taps.length > 0, 'every figure on the picture carries a key to press', figures.join(', '));

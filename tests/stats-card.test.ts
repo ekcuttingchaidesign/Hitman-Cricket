@@ -187,10 +187,11 @@ describe('what travels with the card', () => {
 
 describe('the card\'s sheet', () => {
   const facts = statsFacts('classic', blast, { name: 'Rohit', avatar: 1 }, '4th on Boundaries');
+  const surviveCard = statsFacts('survive', survive, { name: 'Rohit', avatar: 1 });
 
   it('offers the two keys, whatever the picture is doing', () => {
-    for (const view of [{ facts }, { facts, picture: 'blob:x' }, { facts, failed: true }]) {
-      const markup = statsSheetMarkup(view);
+    for (const card of [{ facts }, { facts, picture: 'blob:x' }, { facts, failed: true }]) {
+      const markup = statsSheetMarkup({ cards: [card] });
       expect(markup).toContain('id="stats-whatsapp"');
       expect(markup).toContain('id="stats-story"');
       expect(markup).toContain('BRAG STATS ON WHATSAPP');
@@ -199,18 +200,18 @@ describe('the card\'s sheet', () => {
   });
 
   it('says it is drawing before there is a picture', () => {
-    expect(statsSheetMarkup({ facts })).toContain('Drawing your card…');
+    expect(statsSheetMarkup({ cards: [{ facts }] })).toContain('Drawing your card…');
   });
 
   it('shows the painted picture once there is one, described in words', () => {
-    const markup = statsSheetMarkup({ facts, picture: 'blob:abc' });
+    const markup = statsSheetMarkup({ cards: [{ facts, picture: 'blob:abc' }] });
     expect(markup).toContain('src="blob:abc"');
     expect(markup).toContain('alt="Rohit, EMERGING PLAYER, on The Blast: 12 innings');
     expect(markup).not.toContain('Drawing your card');
   });
 
   it('shows the figures as text where the picture could not be drawn', () => {
-    const markup = statsSheetMarkup({ facts, failed: true });
+    const markup = statsSheetMarkup({ cards: [{ facts, failed: true }] });
     expect(markup).toContain('<dd>900</dd>');
     expect(markup).toContain('<dd>132</dd>');
     expect(markup).toContain('could not be drawn');
@@ -220,13 +221,13 @@ describe('the card\'s sheet', () => {
     // The page is somewhere the player travelled to, so it has a way back. The
     // tab is one of three over the sheet, and the row above it is the way out —
     // a second one inside would be a way out of the tab to the same tab.
-    expect(statsSheetMarkup({ facts, where: 'page' })).toContain('id="stats-back"');
-    expect(statsSheetMarkup({ facts, where: 'sheet' })).not.toContain('id="stats-back"');
+    expect(statsSheetMarkup({ cards: [{ facts }], where: 'page' })).toContain('id="stats-back"');
+    expect(statsSheetMarkup({ cards: [{ facts }], where: 'sheet' })).not.toContain('id="stats-back"');
   });
 
   it('keeps the same card and the same keys wherever it is standing', () => {
-    const page = statsSheetMarkup({ facts, where: 'page', picture: 'blob:x' });
-    const tab = statsSheetMarkup({ facts, where: 'sheet', picture: 'blob:x' });
+    const page = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }], where: 'page' });
+    const tab = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }], where: 'sheet' });
     for (const mark of ['id="stats-whatsapp"', 'id="stats-story"', 'src="blob:x"']) {
       expect(page).toContain(mark);
       expect(tab).toContain(mark);
@@ -234,47 +235,88 @@ describe('the card\'s sheet', () => {
   });
 
   it('says the link rides along, and says so only once there is something to send', () => {
-    expect(statsSheetMarkup({ facts })).toContain('link to play rides along');
+    expect(statsSheetMarkup({ cards: [{ facts }] })).toContain('link to play rides along');
     const empty = statsFacts('classic', emptyBlast(), { name: '', avatar: 0 });
-    expect(statsSheetMarkup({ facts: empty })).toContain('Play an innings');
+    expect(statsSheetMarkup({ cards: [{ facts: empty }] })).toContain('Play an innings');
   });
 
   it('lays a key over every figure on the picture, and none where there is no picture', () => {
     const facts = statsFacts('classic', blast, { name: 'R', avatar: 0 });
-    const drawn = statsSheetMarkup({ facts, picture: 'blob:card' });
+    const drawn = statsSheetMarkup({ cards: [{ facts, picture: 'blob:card' }] });
     const keys = drawn.match(/class="stats-tap"/g) ?? [];
     expect(keys).toHaveLength(facts.hero.length + facts.figures.length);
     expect(drawn).toContain('data-stat="Hundreds"');
     // Nothing to lay a key over while the card is still being painted.
-    expect(statsSheetMarkup({ facts })).not.toContain('stats-tap');
+    expect(statsSheetMarkup({ cards: [{ facts }] })).not.toContain('stats-tap');
   });
 
   it('carries the toast the keys speak through, in both presentations', () => {
     const facts = statsFacts('classic', blast, { name: 'R', avatar: 0 });
     for (const where of ['sheet', 'page'] as const) {
-      expect(statsSheetMarkup({ facts, picture: 'blob:card', where })).toContain('id="stats-toast"');
+      expect(statsSheetMarkup({ cards: [{ facts, picture: 'blob:card' }], where })).toContain('id="stats-toast"');
     }
   });
 
   it('makes the text fallback answer the same tap', () => {
     const facts = statsFacts('survive', survive, { name: 'R', avatar: 0 });
-    const plain = statsSheetMarkup({ facts, failed: true });
+    const plain = statsSheetMarkup({ cards: [{ facts, failed: true }] });
     expect(plain).toContain('data-stat="Blows"');
     expect(plain).toContain('tabindex="0"');
   });
 
   it('tells a player the figures can be asked about, once there is something to ask', () => {
     const played = statsFacts('classic', blast, { name: 'R', avatar: 0 });
-    expect(statsSheetMarkup({ facts: played, picture: 'blob:card' })).toContain('Tap any figure');
+    expect(statsSheetMarkup({ cards: [{ facts: played, picture: 'blob:card' }] })).toContain('Tap any figure');
     // Nothing has been counted yet, so there is nothing worth asking about and
     // the line under the card has something more useful to say.
     const fresh = statsFacts('classic', emptyBlast(), { name: 'R', avatar: 0 });
-    expect(statsSheetMarkup({ facts: fresh, picture: 'blob:card' })).not.toContain('Tap any figure');
+    expect(statsSheetMarkup({ cards: [{ facts: fresh, picture: 'blob:card' }] })).not.toContain('Tap any figure');
+  });
+
+  it('is a rail once there is more than one card, and not before', () => {
+    const one = statsSheetMarkup({ cards: [{ facts, picture: 'blob:a' }] });
+    expect(one).not.toContain('is-rail');
+    expect(one).not.toContain('stats-slide');
+    // One card is not a deck, and a lone card in a scroller would sit inset
+    // from the keys under it for no reason anybody could see.
+    expect(one).not.toContain('stats-dot');
+
+    const both = statsSheetMarkup({
+      cards: [{ facts, picture: 'blob:a' }, { facts: surviveCard, picture: 'blob:b' }],
+    });
+    expect(both).toContain('is-rail');
+    expect(both.match(/class="stats-slide"/g)).toHaveLength(2);
+  });
+
+  it('puts the cards on the rail in the order they are handed over', () => {
+    const both = statsSheetMarkup({
+      cards: [{ facts, picture: 'blob:a' }, { facts: surviveCard, picture: 'blob:b' }],
+    });
+    expect(both.indexOf('data-mode="classic"')).toBeLessThan(both.indexOf('data-mode="survive"'));
+  });
+
+  it('names every card on a dot, and lights the one it opens on', () => {
+    const both = statsSheetMarkup({
+      cards: [{ facts, picture: 'blob:a' }, { facts: surviveCard, picture: 'blob:b' }],
+      at: 1,
+    });
+    expect(both).toContain('>The Blast<');
+    expect(both).toContain('>Test Survival<');
+    expect(both.match(/aria-selected="true"/g)).toHaveLength(1);
+    // The lit dot is the second one, which is the card it was told to open on.
+    const dots = [...both.matchAll(/data-slide="(\d)"\s+aria-selected="(\w+)"/g)];
+    expect(dots.map(dot => [dot[1], dot[2]])).toEqual([['0', 'false'], ['1', 'true']]);
+  });
+
+  it('lets one card be a picture while the other is still being drawn', () => {
+    const both = statsSheetMarkup({ cards: [{ facts, picture: 'blob:a' }, { facts: surviveCard }] });
+    expect(both).toContain('src="blob:a"');
+    expect(both).toContain('Drawing your card…');
   });
 
   it('writes a name in as text and never as markup', () => {
     const nasty = statsFacts('classic', blast, { name: '<img src=x>', avatar: 0 });
-    const markup = statsSheetMarkup({ facts: nasty, failed: true });
+    const markup = statsSheetMarkup({ cards: [{ facts: nasty, failed: true }] });
     expect(markup).not.toContain('<img src=x>');
     expect(markup).toContain('&lt;img src=x&gt;');
   });
@@ -372,7 +414,7 @@ describe('the tier a career earns', () => {
   it('puts the tier in the text fallback and in what a screen reader hears', () => {
     const facts = statsFacts('classic', blast, { name: 'Rohit', avatar: 1 });
     expect(statsAlt(facts)).toContain('EMERGING PLAYER');
-    expect(statsSheetMarkup({ facts, failed: true })).toContain('EMERGING PLAYER');
+    expect(statsSheetMarkup({ cards: [{ facts, failed: true }] })).toContain('EMERGING PLAYER');
   });
 });
 

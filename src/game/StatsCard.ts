@@ -339,8 +339,11 @@ export function statsHitBoxes(facts: StatsFacts) {
  * not made tappable.
  */
 const EXPLAINS: Record<string, string> = {
+  // Shared. Both cards carry a Runs figure, and since they sit side by side on
+  // one rail the sentence cannot name a game — it would be wrong on whichever
+  // card the player swiped to.
+  'Runs': 'Every run you have scored, added up across all your innings.',
   // The Blast.
-  'Runs': 'Every run you have scored in the Blast, added up across all your innings.',
   'Highest': 'Your biggest innings total, whatever it cost in wickets. 130 for two counts as 130.',
   'Hundreds': `Times a batsman of yours got to ${HUNDRED}. A wicket brings a new batsman in and the runs start again, so two down for twenty and 130 all told is a hundred — that batsman made 110.`,
   'Sixes': 'Every six you have hit, added up across all your innings.',

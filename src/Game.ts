@@ -34,6 +34,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type SurviveTally } from './game/career';
+import type { StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import type { Granted } from './game/tier';
@@ -201,7 +202,17 @@ export class Game {
     career: AnyCareer; name: string; avatar: number; granted?: Granted | null;
   }>> = {};
   /** The facts the card on screen was drawn from, so a late paint can be dropped. */
-  private statsDrawn: StatsFacts | null = null;
+  /**
+   * The figures each mode's card was last painted for, so a picture arriving
+   * late can tell whether it still belongs on the screen.
+   *
+   * Kept per mode rather than as one, because the My Stats rail paints both
+   * games at once: with a single slot the second card to start painting took
+   * the slot from the first, and the first card's picture was thrown away when
+   * it landed — leaving the Blast for ever "Drawing your card…" beside a
+   * finished Test one.
+   */
+  private statsDrawn: Partial<Record<BoardTab, StatsFacts>> = {};
   /** Whether the career page is wanted. Set before it exists, cleared on the way back. */
   private statsPage = false;
   /**
@@ -685,12 +696,29 @@ export class Game {
    * board from a Test innings and tapped My Stats wants their Test figures,
    * not the Blast's because the Blast is first in the row.
    */
+  /** The cards on the tab's rail, by mode, as each of them is painted. */
+  private mineSlides: Partial<Record<BoardTab, StatsSlide>> = {};
+
   private openMine() {
     this.sheetTab = 'mine';
-    this.loadStats(this.boardTab, (facts, picture, failed) => {
-      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
-      this.hud.statsTab({ facts, picture, failed });
-    });
+    // The Blast first and the Test match behind it, which is the order of the
+    // tabs above and the order somebody swipes. A build that plays one game has
+    // one card, and one card is not a rail.
+    const modes: BoardTab[] = SHOW_SURVIVE && !SURVIVE_ONLY ? ['classic', 'survive'] : [this.boardTab];
+    this.mineSlides = {};
+    for (const mode of modes) {
+      this.loadStats(mode, (facts, picture, failed) => {
+        if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
+        this.mineSlides[mode] = { facts, picture, failed };
+        // The whole rail is redrawn whenever either card finishes painting.
+        // Anything short of that would mean two ways of putting a card on the
+        // screen, and the second one only ever runs a beat after the first.
+        this.hud.statsTab({
+          cards: modes.map(one => this.mineSlides[one] ?? { facts, picture: null, failed: false }),
+          at: 0,
+        });
+      });
+    }
   }
 
   /** Another ladder of the same mode, from the row of tabs under the first. */
@@ -765,7 +793,7 @@ export class Game {
     this.statsPage = true;
     this.loadStats(mode, (facts, picture, failed) => {
       if (this.disposed || !this.statsPage) return;
-      this.hud.stats({ facts, picture, failed });
+      this.hud.stats({ cards: [{ facts, picture, failed }] });
     });
     this.hud.onStatsBack = () => {
       this.statsPage = false;
@@ -843,17 +871,17 @@ export class Game {
     const facts = statsFacts(
       mode, mine.career, { name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null }, standing,
     );
-    this.statsDrawn = facts;
+    this.statsDrawn[mode] = facts;
     draw(facts, null, false);
     void statsCardImage(facts, gameLink()).then(picture => {
       // A card painted for figures the player has already moved past belongs to
       // a screen that is no longer the one they are looking at.
-      if (this.disposed || this.statsDrawn !== facts) return;
+      if (this.disposed || this.statsDrawn[mode] !== facts) return;
       const url = URL.createObjectURL(picture);
       this.hud.holdStatsPicture(url);
       draw(facts, url, false);
     }).catch(() => {
-      if (this.disposed || this.statsDrawn !== facts) return;
+      if (this.disposed || this.statsDrawn[mode] !== facts) return;
       draw(facts, null, true);
     });
   }

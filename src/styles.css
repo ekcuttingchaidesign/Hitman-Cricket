@@ -1925,6 +1925,12 @@ body.start-screen .hud-top{display:none}
   pointer-events:none
 }
 .board-actions .key-button{min-height:48px;font-size:16px}
+/* The pair sits side by side here exactly as it does on the innings card. It
+   used to be a full-width PLAY AGAIN with SHARE loose underneath it, which is
+   what a key built as a flex box does when nothing lays it out: it shrank to
+   the width of its own word and sat there looking like a label that had come
+   off something. */
+.board-actions .card-keys .share-key{min-height:48px;font-size:15px;padding:0 12px}
 /* The Test sheet's second key is the picker rather than the share pair, so it
    is the quiet twin of the one above it and wants the same full width. */
 .board-actions .ghost-link{display:block;width:100%;text-align:center}
@@ -3272,6 +3278,79 @@ body.private-window{overflow:hidden}
   align-items:center;
   justify-content:center;
   min-height:220px
+}
+/* ── Two cards, one rail ────────────────────────────────────────────────────
+   A player has a career in each game and the tab used to show whichever one
+   they came in from, which is a screen that hides half of what it is about.
+   Both are here now, swiped between.
+
+   The peek is the whole mechanism: a card is inset by exactly the width of the
+   edge of the next one, so what says "there is another" is the other one,
+   rather than a hint that has to be read. That costs the card the flush edge
+   it had with the keys underneath — deliberately. Flush with its buttons is
+   what a single card wants; a deck wants to look like a deck. */
+.stats-stage.is-rail{
+  display:flex;
+  align-items:center;
+  /* Not centred. A centred flex container whose content overflows shifts that
+     content left by half the overflow and puts the front of it somewhere no
+     scroll position can reach — so the first card sat permanently cut off at
+     the left edge, which is the one card this rail opens on. */
+  justify-content:flex-start;
+  gap:12px;
+  /* A scroller inside a flex column is sized by its content unless it is told
+     it may be smaller, and a rail two cards wide pushed the whole sheet off
+     the side of the screen. */
+  width:100%;
+  min-width:0;
+  /* No padding on the rail. A percentage width inside a padded scroller is a
+     percentage of what the padding left behind, which took thirty pixels off
+     the card twice over and made it a thumbnail. */
+  padding:0;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none
+}
+.stats-stage.is-rail::-webkit-scrollbar{display:none}
+.stats-slide{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 calc(100% - 44px);
+  scroll-snap-align:start;
+  scroll-snap-stop:always
+}
+/* The last card lands against the right edge rather than the left, which is
+   the only way both ends of a two-card rail are reachable without hanging an
+   empty spacer off the end of it. It also reverses the peek: on the first card
+   the second one shows at the right, and on the second the first shows at the
+   left, so there is always exactly one edge saying which way back. */
+.stats-slide:last-child{scroll-snap-align:end}
+
+/* Which one, and the way through for a keyboard — a horizontal scroller is not
+   something a Tab key can move. */
+.stats-dots{display:flex;justify-content:center;gap:7px;margin:-2px 0 -4px}
+.stats-dot{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-height:28px;
+  padding:0 11px;
+  border:1px solid #ffffff1f;
+  border-radius:999px;
+  background:#ffffff0a;
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.2px;
+  color:#93a8b4
+}
+.stats-dot.is-on{
+  border-color:var(--cta-orange);
+  background:#f2814f24;
+  color:#f7f0e5
 }
 /* Full width, so the card and the two keys under it share one edge. The mat
    painted into the picture is only wide enough to hold the card's own ledge,
