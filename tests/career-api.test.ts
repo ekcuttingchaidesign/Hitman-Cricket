@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { heldCareer, mintNonce } from '../src/game/career-api';
-import { emptyBlast } from '../src/game/career';
+import {
+  BLAST_CAREER, SURVIVE_CAREER, blastTally, emptyBlast, readBlastTally, readSurviveTally,
+} from '../src/game/career';
 
 /** localStorage, as a map, so the mirror can be tested without a browser. */
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -66,5 +68,38 @@ describe('an innings id', () => {
 
   it('is not the same one twice', () => {
     expect(new Set(Array.from({ length: 50 }, mintNonce)).size).toBe(50);
+  });
+});
+
+describe('a tally read off the wire', () => {
+  it('keeps every figure the ladder needs, so the endpoint cannot hand it fewer', () => {
+    // The endpoint used to coerce the body with its own copy of this, and when
+    // the Blast tally grew the two figures a scorecard knows, the copy went on
+    // reading six. Every Blast career was refused as impossible, and nothing
+    // anywhere said so.
+    const played = blastTally({
+      runs: 130, sixes: 18, fours: 4, wickets: 2, dots: 6, balls: 30,
+      history: [
+        ...Array.from({ length: 4 }, () => ({ runs: 5, isWicket: false })),
+        { runs: 0, isWicket: true },
+        { runs: 0, isWicket: true },
+        ...Array.from({ length: 11 }, () => ({ runs: 10, isWicket: false })),
+      ],
+    } as never);
+    const wire = JSON.parse(JSON.stringify(played)) as unknown;
+    expect(readBlastTally(wire)).toEqual(played);
+    expect(BLAST_CAREER.plausible(readBlastTally(wire))).toBe(true);
+  });
+
+  it('refuses a body missing a figure rather than calling it nought', () => {
+    // Six figures is what the old endpoint sent. It must not pass for eight.
+    const six = { runs: 60, sixes: 10, fours: 0, wickets: 0, dots: 20, balls: 30 };
+    expect(BLAST_CAREER.plausible(readBlastTally(six))).toBe(false);
+  });
+
+  it('reads the Test match\'s seven, boundaries included', () => {
+    const tally = { runs: 40, balls: 60, wickets: 0, blows: 3, health: 70, sixes: 2, fours: 3 };
+    expect(readSurviveTally(tally)).toEqual(tally);
+    expect(SURVIVE_CAREER.plausible(readSurviveTally(tally))).toBe(true);
   });
 });

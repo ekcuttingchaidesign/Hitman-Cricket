@@ -5,9 +5,9 @@ import { countInnings, refusedCareer } from '../src/server/career-store.js';
 import { NoDatabase, redisFromEnv, upstashCareer } from '../src/server/upstash.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer, type SurviveTally,
+  BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
+  type BlastCareer, type SurviveCareer,
 } from '../src/game/career.js';
-import type { Innings } from '../src/game/leaderboard.js';
 
 /**
  * `POST /api/innings` — an innings, counted toward a career.
@@ -54,12 +54,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       ? await countInnings(
         upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope),
         SURVIVE_CAREER,
-        { ...who, tally: surviveTally(body.innings) },
+        { ...who, tally: readSurviveTally(body.innings) },
       )
       : await countInnings(
         upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope),
         BLAST_CAREER,
-        { ...who, tally: blastTally(body.innings) },
+        { ...who, tally: readBlastTally(body.innings) },
       );
     if (refusedCareer(outcome)) return failed(res, outcome.status, outcome.reason);
     // A career is one player's own figures. Nobody else's cache may hold it.
@@ -79,27 +79,4 @@ function parse(body: unknown): Record<string, unknown> | null {
   return body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : null;
 }
 
-/**
- * The Blast's six figures, coerced to numbers and nothing else taken. Whether
- * they could have happened is the ladder's own `plausible` to say; this only
- * makes sure it is being handed numbers rather than whatever was in the body.
- */
-function blastTally(raw: unknown): Innings {
-  const from = (raw ?? {}) as Record<string, unknown>;
-  const read = (key: string) => Number(from[key]);
-  return {
-    runs: read('runs'), sixes: read('sixes'), fours: read('fours'),
-    wickets: read('wickets'), dots: read('dots'), balls: read('balls'),
-  };
-}
 
-/** The Test match's five, plus the two boundary columns its board never held. */
-function surviveTally(raw: unknown): SurviveTally {
-  const from = (raw ?? {}) as Record<string, unknown>;
-  const read = (key: string) => Number(from[key]);
-  return {
-    runs: read('runs'), balls: read('balls'), wickets: read('wickets'),
-    blows: read('blows'), health: read('health'),
-    sixes: read('sixes'), fours: read('fours'),
-  };
-}

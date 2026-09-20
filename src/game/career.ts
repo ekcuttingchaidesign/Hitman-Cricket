@@ -487,10 +487,52 @@ export interface CareerLadder<C, T> {
   /** Where this mode's keys live. */
   scope: string;
   boards: readonly CareerBoard<C>[];
-  merge(held: C | null, tally: T): C;
-  plausible(tally: T): boolean;
+  /**
+   * Written as function properties rather than as methods, which is not a
+   * style choice: TypeScript checks a method's parameters bivariantly, so a
+   * ladder that wants a `BlastTally` will quietly accept being treated as one
+   * that wants an `Innings`. It did, and the endpoint handed it six figures
+   * where the ladder wanted eight — every Blast career refused as impossible,
+   * with nothing anywhere saying so. As properties the parameters are checked
+   * the strict way round and the same mistake is a compile error.
+   */
+  merge: (held: C | null, tally: T) => C;
+  plausible: (tally: T) => boolean;
   /** The totals alone, so a stored record never carries a field nobody shows. */
-  figures(from: C): C;
+  figures: (from: C) => C;
+}
+
+/**
+ * A tally read off an untrusted request body.
+ *
+ * These live here, beside the shapes they fill, because the endpoint used to
+ * have its own copy and a copy is a thing that drifts: when the Blast tally
+ * grew the two figures a scorecard knows, the endpoint went on reading six and
+ * the ladder went on wanting eight. Anything the ladder needs is named once,
+ * in the file that says what the ladder needs.
+ *
+ * Nothing is trusted and nothing is defaulted — a figure that was not sent
+ * comes back as `NaN`, which `plausible` refuses. A nought would be a number
+ * the sender never claimed.
+ */
+export function readBlastTally(raw: unknown): BlastTally {
+  const from = (raw ?? {}) as Record<string, unknown>;
+  const read = (key: string) => Number(from[key]);
+  return {
+    runs: read('runs'), sixes: read('sixes'), fours: read('fours'),
+    wickets: read('wickets'), dots: read('dots'), balls: read('balls'),
+    individual: read('individual'), hundreds: read('hundreds'),
+  };
+}
+
+export function readSurviveTally(raw: unknown): SurviveTally {
+  const from = (raw ?? {}) as Record<string, unknown>;
+  const read = (key: string) => Number(from[key]);
+  return {
+    runs: read('runs'), balls: read('balls'), wickets: read('wickets'),
+    blows: read('blows'), health: read('health'),
+    sixes: read('sixes'), fours: read('fours'),
+  };
 }
 
 export const BLAST_CAREER: CareerLadder<BlastCareer, BlastTally> = {
