@@ -16,7 +16,7 @@ describe('the ladder tabs', () => {
   });
 
   it('offers each mode its own career ladders', () => {
-    expect(laddersOf('classic').map(tab => tab.key)).toEqual(['best', 'runs', 'boundaries', 'highest']);
+    expect(laddersOf('classic').map(tab => tab.key)).toEqual(['best', 'runs', 'boundaries', 'individual']);
     expect(laddersOf('survive').map(tab => tab.key)).toEqual(['best', 'balls', 'blows', 'runs', 'boundaries']);
   });
 

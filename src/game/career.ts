@@ -355,17 +355,24 @@ export const BLAST_BOARDS: readonly CareerBoard<BlastCareer>[] = [
     counts: career => career.sixes + career.fours > 0,
   },
   {
-    key: 'highest',
-    name: 'Highest',
-    blurb: 'The biggest single innings anybody has played. A level best is split on the best unbeaten one.',
-    primary: career => career.highest,
-    secondary: career => clamp(career.notOut, 0, SECONDARY_CAP),
+    // The board this one used to be ranked on the innings total, which is the
+    // question the Top score board above already answers — and answers better,
+    // because it holds every innings ever played rather than only the ones
+    // played since careers began. Two tabs for one question is one tab too
+    // many, and neither of them was the one that was actually asked for: the
+    // most one *batsman* made, which is a different number the moment a wicket
+    // falls. 130 for two can be a batsman on 110.
+    key: 'individual',
+    name: 'Individual',
+    blurb: 'The most one batsman has made. A wicket brings the next one in at nought, so this is not the same as a big total. Level scores are split on hundreds made.',
+    primary: career => career.individual ?? 0,
+    secondary: career => clamp(career.hundreds ?? 0, 0, SECONDARY_CAP),
     figures: [
-      { label: 'best', of: career => career.highest },
-      { label: 'n.o.', of: career => career.notOut },
+      { label: 'best', of: career => career.individual ?? 0 },
+      { label: '100s', of: career => career.hundreds ?? 0 },
       { label: 'inns', of: career => career.innings },
     ],
-    counts: career => career.highest > 0,
+    counts: career => (career.individual ?? 0) > 0,
   },
 ];
 

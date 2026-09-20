@@ -243,17 +243,29 @@ describe('the Blast career ladders', () => {
     expect(rankCareer(board('boundaries'), sixer, at)).toBeGreaterThan(rankCareer(board('boundaries'), cutter, at));
   });
 
-  it('splits a level highest score on the best unbeaten one', () => {
-    const out = { ...emptyBlast(), highest: 140, notOut: 90 };
-    const unbeaten = { ...emptyBlast(), highest: 140, notOut: 132 };
+  it('ranks the individual board on the batsman, not on the innings', () => {
+    // The same innings total, made by two different batsmen. The board above
+    // this one already answers who made the bigger total; this one is the only
+    // place that says who made the bigger score.
+    const shared = { ...emptyBlast(), highest: 140, individual: 70 };
+    const alone = { ...emptyBlast(), highest: 130, individual: 110 };
     const at = LAUNCH_MS;
-    expect(rankCareer(board('highest'), unbeaten, at)).toBeGreaterThan(rankCareer(board('highest'), out, at));
+    expect(rankCareer(board('individual'), alone, at))
+      .toBeGreaterThan(rankCareer(board('individual'), shared, at));
+  });
+
+  it('splits a level individual best on hundreds made', () => {
+    const once = { ...emptyBlast(), individual: 132, hundreds: 1 };
+    const often = { ...emptyBlast(), individual: 132, hundreds: 4 };
+    const at = LAUNCH_MS;
+    expect(rankCareer(board('individual'), often, at))
+      .toBeGreaterThan(rankCareer(board('individual'), once, at));
   });
 
   it('keeps a player off a board they have nothing on', () => {
     expect(board('boundaries').counts(emptyBlast())).toBe(false);
     expect(board('boundaries').counts({ ...emptyBlast(), fours: 1 })).toBe(true);
-    expect(board('highest').counts({ ...emptyBlast(), innings: 4 })).toBe(false);
+    expect(board('individual').counts({ ...emptyBlast(), innings: 4 })).toBe(false);
   });
 });
 

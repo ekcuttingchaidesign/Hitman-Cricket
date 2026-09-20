@@ -47,7 +47,7 @@ await page.waitForTimeout(1000);
 // a pill away, and none of them is ever what greets somebody who taps the
 // leaderboard — including after they have been looking at one of the others.
 const live = () => page.$eval('.ladder-tab.is-on', tab => tab.textContent.trim()).catch(() => '');
-check(await live() === 'Best innings', 'the board opens on the one that was already there', await live());
+check(await live() === 'Top score', 'the board opens on the one that was already there', await live());
 const runs = await page.$('#board-ladder-runs');
 if (runs) {
   await runs.click();
@@ -57,7 +57,7 @@ if (runs) {
   await page.waitForTimeout(500);
   await page.click('#cover-board');
   await page.waitForTimeout(1000);
-  check(await live() === 'Best innings', 'and the next open is back on it', await live());
+  check(await live() === 'Top score', 'and the next open is back on it', await live());
 }
 
 const mine = await page.$('#board-tab-mine');

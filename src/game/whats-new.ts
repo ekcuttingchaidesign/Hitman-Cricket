@@ -44,7 +44,7 @@ export const STORIES: readonly Story[] = [
     key: 'counts',
     eyebrow: 'ALL TIME',
     title: 'Every innings counts now',
-    body: 'Not only your best one. Runs, sixes and fours, hundreds and your highest score are added up over every innings you play — four all-time ladders under each game.',
+    body: 'Not only your best one. Runs, boundaries, hundreds and your best individual score now add up over every innings you play — four all-time ladders under each game.',
     art: ladders,
     alt: 'The all-time runs ladder, with career totals and innings played beside each name.',
   },

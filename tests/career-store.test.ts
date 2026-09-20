@@ -282,7 +282,7 @@ describe('the career boards, read', () => {
     const store = fake({ Rohit: ROHIT });
     await countInnings(store, BLAST_CAREER, { ...sending(), tally: blast(60) }, LAUNCH_MS);
     const payload = await readCareerBoards(store, BLAST_CAREER);
-    expect(Object.keys(payload.boards)).toEqual(['runs', 'boundaries', 'highest']);
+    expect(Object.keys(payload.boards)).toEqual(['runs', 'boundaries', 'individual']);
     expect(payload.size).toBe(CAREER_BOARD_SIZE);
   });
 

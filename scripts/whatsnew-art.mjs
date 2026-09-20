@@ -16,11 +16,23 @@
  */
 
 import { chromium } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 const out = new URL('../src/assets/whatsnew/', import.meta.url).pathname;
+/**
+ * Written aside and moved in at the end.
+ *
+ * `src/` is watched by the dev server being screenshotted, so a picture written
+ * straight to its home reloads the page that is halfway through posing for the
+ * next one — the board vanishes mid-run and the script fails on a detached
+ * element. Writing next door and moving at the end costs one reload, after
+ * everything has been taken.
+ */
+const staging = `${tmpdir()}/whatsnew-art-${process.pid}/`;
+const made = [];
 
 const NAMES = ['Rohit', 'Bumrah', 'Hardik', 'Ishan', 'Shreyas', 'Surya', 'Axar', 'Kuldeep'];
 const ME = 'artart-aaaabbbbcccc';
@@ -49,7 +61,7 @@ const careerRow = (i, name) => ({
 const boards = {
   runs: NAMES.map((name, i) => careerRow(i, name)),
   boundaries: NAMES.map((name, i) => careerRow(i, name)),
-  highest: NAMES.map((name, i) => careerRow(i, name)),
+  individual: NAMES.map((name, i) => careerRow(i, name)),
 };
 
 const browser = await chromium.launch({ executablePath });
@@ -99,6 +111,7 @@ rows[2].playerId = me;
 for (const board of Object.values(boards)) board[2].playerId = me;
 
 await mkdir(out, { recursive: true });
+await mkdir(staging, { recursive: true });
 /**
  * Down to a width a phone actually shows it at, and out as WebP.
  *
@@ -124,8 +137,9 @@ async function keep(name, png) {
     return canvas.toDataURL('image/webp', 0.86);
   }, [`data:image/png;base64,${png.toString('base64')}`, WIDTH]);
   const bytes = Buffer.from(webp.split(',')[1], 'base64');
-  await writeFile(`${out}${name}.webp`, bytes);
-  console.log(`  wrote ${name}.webp (${Math.round(bytes.length / 1024)}KB)`);
+  await writeFile(`${staging}${name}.webp`, bytes);
+  made.push(name);
+  console.log(`  drew ${name}.webp (${Math.round(bytes.length / 1024)}KB)`);
 }
 
 /**
@@ -154,8 +168,10 @@ await lightMyRow();
 await shoot('board', '.board-stack');
 
 // The career ladders, which are the part of the board that is actually new.
-const ladder = await page.$('#board-ladder-runs');
-if (ladder) { await ladder.click(); await page.waitForTimeout(1200); }
+// By selector rather than by a handle taken earlier: the sheet redraws when the
+// board's own fetch lands, which detaches anything held from before it.
+await page.click('#board-ladder-runs');
+await page.waitForTimeout(1200);
 await lightMyRow();
 await shoot('ladders', '.board-stack');
 
@@ -175,4 +191,5 @@ const drawn = await page.evaluate(async career => {
 await keep('card', Buffer.from(String(drawn).split(',')[1], 'base64'));
 
 await browser.close();
-console.log('\nart done\n');
+for (const name of made) await rename(`${staging}${name}.webp`, `${out}${name}.webp`);
+console.log(`\nart done: ${made.join(', ')}\n`);

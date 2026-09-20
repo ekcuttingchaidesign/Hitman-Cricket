@@ -60,7 +60,11 @@ export type LadderTab = string;
 export function laddersOf(mode: CareerMode): { key: LadderTab; name: string }[] {
   const career = mode === 'survive' ? SURVIVE_BOARDS : BLAST_BOARDS;
   return [
-    { key: 'best', name: 'Best innings' },
+    // What the board has always been called in everything but name: the biggest
+    // score anybody has put together in one innings. "Best innings" described
+    // it accurately and conveyed nothing — players already know this board as
+    // the one where the highest total stays on top.
+    { key: 'best', name: 'Top score' },
     ...career.map(board => ({ key: board.key, name: board.name })),
   ];
 }
