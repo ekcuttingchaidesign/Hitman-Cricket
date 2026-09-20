@@ -2974,3 +2974,102 @@ body.private-window{overflow:hidden}
    full-height screen with its own header rail. Here it sits in a row with the
    eyebrow, so it takes the same shape back out of the flow it was pulled from. */
 .feedback-head .board-close{position:static;width:32px;height:32px;margin:-4px -6px 0 0;font-size:19px;flex:none}
+
+/* ---------------------------------------------------------------------------
+   The career ladders, and the card.
+
+   A second row of tabs under the first, and deliberately a different shape from
+   it. The row above is one question with two answers and is drawn as a
+   segmented key, because a segmented key says "one of these, always". This row
+   is four or five answers and it scrolls sideways on a phone, so it is drawn as
+   a strip of chips instead: chips can run off the edge and still read as a
+   list, where a segment that runs off the edge reads as a broken control.
+--------------------------------------------------------------------------- */
+.ladder-tabs{
+  position:sticky;
+  top:0;
+  z-index:2;
+  display:flex;
+  gap:5px;
+  align-self:center;
+  width:min(440px,100%);
+  padding:2px 2px 4px;
+  overflow-x:auto;
+  scrollbar-width:none
+}
+.ladder-tabs::-webkit-scrollbar{display:none}
+.ladder-tab{
+  flex:0 0 auto;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid #ffffff1f;
+  border-radius:999px;
+  background:#0f273880;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.4px;
+  color:#9fb2bd;
+  white-space:nowrap
+}
+.ladder-tab:hover:not(.is-on){color:#dce8ee;border-color:#ffffff33}
+/* The live one carries the sheet's accent rather than the white the row above
+   uses, so the two rows never read as two halves of one control. */
+.ladder-tab.is-on{
+  background:#f2814f;
+  border-color:#f2814f;
+  color:#17222b;
+  font-weight:800
+}
+
+/* The card's own head: the kit, larger than a row's, and the one figure the
+   whole thing is really about. */
+.stats-head{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:4px 0 14px
+}
+.board-kit.is-large{width:52px;height:52px;font-size:20px}
+.stats-innings{display:flex;align-items:baseline;gap:6px;margin:0}
+.stats-innings b{font-family:var(--card);font-size:30px;font-weight:800;line-height:1;color:#f4f8fa}
+.stats-innings small{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#9fb2bd}
+
+/* Two columns at phone width and three above it. Every cell is the same shape,
+   because the figures are not ranked against each other — the two that lead are
+   marked by weight rather than by being given their own row, which would have
+   made the rest read as an afterthought. */
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+  margin:0
+}
+@media (min-width:380px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
+.stats-cell{
+  padding:10px 12px;
+  border-radius:12px;
+  background:#ffffff0d;
+  border:1px solid #ffffff12
+}
+.stats-cell dt{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
+.stats-cell dd{
+  margin:2px 0 0;
+  font-family:var(--card);
+  font-size:22px;
+  font-weight:800;
+  line-height:1.1;
+  color:#f4f8fa;
+  font-variant-numeric:tabular-nums
+}
+/* The two figures the mode is actually about, lifted out of the grid by colour
+   rather than by size — a bigger cell would have re-flowed the grid on the two
+   screens that have a different number of them. */
+.stats-cell.is-lead{background:#f2814f1a;border-color:#f2814f4d}
+.stats-cell.is-lead dd{color:#f2a97f}

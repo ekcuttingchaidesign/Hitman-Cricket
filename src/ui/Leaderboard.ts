@@ -232,7 +232,7 @@ export function rowMarkup(row: BoardRow, index: number, above: BoardRow | null, 
  * Their ids are the card's own with a prefix, because the same two keys exist on
  * the card and one document cannot hold two of an id.
  */
-function actionsMarkup(): string {
+export function actionsMarkup(): string {
   return `
       <div class="board-actions">
         <button id="board-again" class="key-button">PLAY AGAIN</button>

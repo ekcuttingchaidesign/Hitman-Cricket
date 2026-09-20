@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import type { BoardStore, StoredRow } from './board-store.js';
+import type { CareerStore, StoredCareer } from './career-store.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 
 /**
@@ -50,6 +51,30 @@ function keysFor(scope: string) {
     /** Player id to their row, as JSON. The figures behind the order. */
     rows: `${SCOPE}${scope}players`,
     /** Folded name to the player id that holds it. Shared by both boards. */
+    names: `${SCOPE}names`,
+  };
+}
+
+/**
+ * The keys one mode's careers use.
+ *
+ * A separate hash and a separate sorted set per board, and deliberately not the
+ * innings board's keys. The two records answer different questions and are
+ * written on different paths — a career counts every innings, an innings board
+ * keeps only the best one — so sharing a key would mean one of the two writes
+ * clobbering the other's row the first time somebody had a bad day.
+ *
+ * The name registry is shared, because a name is a person. A career is ranked
+ * under the name its owner claimed on one of the innings boards, and this
+ * adapter only ever reads it: claiming is a write with a rule attached, and
+ * that rule lives in one place.
+ */
+function careerKeysFor(scope: string) {
+  return {
+    /** Player id to their whole career, as JSON. */
+    records: `${SCOPE}${scope}careers`,
+    /** One ranking a board, named by the board's own key. */
+    ranking: (board: string) => `${SCOPE}${scope}career:${board}`,
     names: `${SCOPE}names`,
   };
 }
@@ -133,6 +158,61 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
       const count = await redis.incr(key);
       // Only the first hit in a window sets the clock, so the window rolls
       // forward from the first submission rather than from the latest.
+      if (count === 1) await redis.expire(key, windowSeconds);
+      return count;
+    },
+  };
+}
+
+/**
+ * Careers in Redis, written to cost as little as the board does.
+ *
+ * Counting an innings is two commands against the hash plus one `ZADD` a
+ * board, and reading a whole mode's boards is one `ZRANGE` each and a single
+ * `HMGET` for everybody who appears on any of them. Nothing walks a key space
+ * and nothing reads a row at a time.
+ *
+ * `rank` uses `GT` rather than a plain write. A career total only ever rises,
+ * so a lower score arriving is a request that overtook a newer one, and taking
+ * it would move a player down a board they had already climbed.
+ */
+export function upstashCareer<C>(redis: Redis, scope: string): CareerStore<C> {
+  const KEY = careerKeysFor(scope);
+  return {
+    async read(id) {
+      const found = await redis.hget<StoredCareer<C>>(KEY.records, id);
+      return found ?? null;
+    },
+
+    async write(id, held) {
+      await redis.hset(KEY.records, { [id]: held });
+    },
+
+    async rank(board, id, score) {
+      await redis.zadd(KEY.ranking(board), { gt: true }, { score, member: id });
+    },
+
+    async top(board, n) {
+      // Flat pairs come back: member, score, member, score.
+      const flat = await redis.zrange<(string | number)[]>(KEY.ranking(board), 0, n - 1, { rev: true, withScores: true });
+      const ranked: { id: string; score: number }[] = [];
+      for (let i = 0; i + 1 < flat.length; i += 2) ranked.push({ id: String(flat[i]), score: Number(flat[i + 1]) });
+      return ranked;
+    },
+
+    async many(ids) {
+      if (!ids.length) return [];
+      const found = await redis.hmget<Record<string, StoredCareer<C>>>(KEY.records, ...ids);
+      return ids.map(id => found?.[id] ?? null);
+    },
+
+    async nameHolder(folded) {
+      return (await redis.hget<string>(KEY.names, folded)) ?? null;
+    },
+
+    async hits(address, windowSeconds) {
+      const key = RATE + address;
+      const count = await redis.incr(key);
       if (count === 1) await redis.expire(key, windowSeconds);
       return count;
     },

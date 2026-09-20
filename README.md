@@ -461,6 +461,80 @@ Rate limiting is by address and the address is **never** used as identity, becau
 
 `plausible()` is not an anti-cheat measure and should not be mistaken for one. The game is a static page, so a determined person can post any innings that passes it. It turns down the ones that could not have happened, which is the floor. Replay verification is the ceiling, and nothing built here is thrown away by it.
 
+## The career boards, and the card
+
+The board above answers one question — what is the best innings anybody has played — and answers it by keeping exactly one row per player and only writing when it improves. Seven more ladders answer a different one: what has a player done over *every* innings. A maximum and a sum are not the same arithmetic, so none of that shape could be reused, and this is a second record rather than a second column.
+
+| The Blast | ranked on | tie split on |
+| --- | --- | --- |
+| Runs | career runs | fewer innings to get there |
+| Boundaries | sixes | fours |
+| Highest | biggest single innings | best unbeaten innings |
+
+| Test Survival | ranked on | tie split on |
+| --- | --- | --- |
+| Balls | balls faced, all innings | fewer innings |
+| Blows | blows taken | balls faced |
+| Runs | career runs | balls faced |
+| Boundaries | sixes | fours |
+
+**Highest is the innings total, wickets and all.** 132 without losing one and 140 for one are 132 and 140; the bigger score is the higher score. *Best unbeaten* is the separate figure — the biggest total made without a wicket falling at all — which is why 140/1 wins the first and 132\* wins the second.
+
+Every career board packs the same way, and deliberately more plainly than the two innings ladders do:
+
+```
+score = (primary * 2**14 + secondary) * 2**14 + (MAX_DAYS - daysSinceLaunch)
+```
+
+Twenty bits of total over fourteen of tiebreak over fourteen of clock is **48**, comfortably inside a double's 53, and the room left over is the point: a career board added later is packed with the same function rather than by finding two spare bits. The clock is in *days* rather than seconds because a career total that is level today was level yesterday too — and dropping the stamp from twenty-eight bits to fourteen is exactly what pays for a twenty-bit total. `LAUNCH_MS` is shared with the innings boards so the two stamps mean one thing.
+
+### Every innings counts, which is the whole point
+
+`POST /api/innings` goes out after **every** innings anybody finishes, with nothing asked of the player and nothing waiting on the answer. That is not a convenience: "most runs, all time" assembled only out of the innings somebody chose to register would be a total of their good days. `POST /api/score` stays what it always was — the *claim*, which wants a name and refuses anything that would not improve the player's row.
+
+A player who has never registered is counted from their first innings and kept off the boards until they claim a name, because the name registry is what makes a name one person's. The moment they claim one, their whole career appears on the ladder rather than only what came after it.
+
+### A sum needs guards a maximum did not
+
+An innings board is self-limiting: the worst a forged submission can do is claim one innings of 180, and the mode's own ceiling caps it. A career adds up every submission, so the same request sent a thousand times is a thousand times the damage. Three rules answer that, and all three are free because the record is being read and written anyway:
+
+- **the nonce** — an innings carries an id minted by the browser, resent unchanged on a retry, and counted once however many times it arrives. The browser deliberately sends it twice: a reply lost on the way back is indistinguishable from a request that never arrived.
+- **the gap** — no two counted innings closer together than ten seconds, which is far below the shortest innings the game can produce and turns a tight submission loop into something that has to wait.
+- **the day** — 120 counted innings per player per day. A bound on one *player*, where the rate limit is a bound on one *address*, which a school, an office and everyone behind CGNAT arrive as.
+
+None of them is an anti-cheat measure and none should be mistaken for one — the game is a static page. They bound what a script can accumulate to roughly what a person could play, which is the floor.
+
+### The card
+
+The last tab of each mode is the player's own figures: innings, runs, highest, best unbeaten, sixes, fours and balls in the Blast; balls faced, innings survived, runs, blows, boundaries and the three results in the Test match. *Survived* is wins and draws added together — the innings he came through — and is derived rather than counted, because a third counter beside the two is a third counter to keep in step.
+
+It is mirrored into `localStorage` so it draws with a number on it the instant it opens, and corrected by the store a moment later. The mirror is never the truth, and the foot of the card says out loud what the tab is really for: **these figures belong to this browser.** Clear its storage or play somewhere else and a second career starts from nought. That is the honest version of the nudge — the card does not merge devices, it makes keeping to one worth something.
+
+### Reading them costs almost nothing
+
+`GET /api/career` answers with **every ladder of a mode at once**, because the sheet draws them as tabs over one screen and a round trip per tab would make switching feel broken. One `ZRANGE` per board and a single `HMGET` for the union of everybody who appears on any of them — four boards cost five commands, not eight, and a player standing on three of them is fetched once. It carries nothing personal, so it sits in the edge cache for five minutes; an all-time total five minutes old is not wrong.
+
+`GET /api/career?player=…` is the same endpoint answering with one player's own figures, never cached by anyone.
+
+| Key | Type | Holds |
+| --- | --- | --- |
+| `blast:careers` | hash | player id → the whole career as JSON, with the name, the last innings' id and the day's count. Two commands to count an innings. |
+| `blast:career:runs`, `…:boundaries`, `…:highest` | sorted sets | player id → packed score, one per ladder. `ZADD GT`, because a career total only ever rises and a lower score arriving is a request that overtook a newer one. |
+| `survivecareer:careers`, `survivecareer:career:*` | as above | The Test career, on its own keys. |
+| `names` | hash | shared with the innings boards, and only ever read here. Claiming is a write with a rule attached, and that rule lives in one place. |
+
+### Seeding day one
+
+The careers start empty, and seven empty boards on the morning a feature ships is the worst possible time for them to be empty. `scripts/career-seed.ts` walks the existing innings boards and files everybody already on one as a career of exactly one innings — the one that put them there, which is a real innings, stamped with the day it was actually played rather than the day of the migration.
+
+```
+npx vite-node scripts/career-seed.ts            # say what it would do
+VERCEL_ENV=production npx vite-node scripts/career-seed.ts --write
+```
+
+What it seeds is **true and incomplete**, which is the trade and worth saying out loud: a player with four hundred innings behind them starts on the runs of their best. Every innings after it is counted in full, so the boards converge on the truth rather than away from it, and nothing is ever invented — a Test row's sixes and fours start at nought, because the Test board never carried them and there is no honest way to guess. It is a one-shot: a record that already exists is left exactly as it is, so running it twice cannot count anybody's best innings twice.
+
+
 ## Feedback
 
 A questionnaire, in the game and on a link of its own, answered entirely by tapping. **[hitman-cricket.vercel.app/feedback](https://hitman-cricket.vercel.app/feedback)** is the link to hand round; inside the game it is a quiet line on the cover, the pause card and the innings-end card.
@@ -611,6 +685,8 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `innings-all-out`, `innings-overs-up` | Which way it ended: three wickets, or thirty balls. The difficulty dial. |
 | `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
 | `board-open` | Whether the fifty is looked at. |
+| `board-tab-classic`, `board-tab-survive` | Whether the other mode's ladder is reached from the tab over the sheet. |
+| `board-ladder-runs`, `…-boundaries`, `…-highest`, `…-balls`, `…-blows`, `…-you` | Which career ladder is opened, and whether the card is looked at at all. The one measure of whether the career boards are worth the tabs they cost. |
 | `claim-open`, `claim-done`, `claim-failed` | The registration funnel: offered, taken, and refused by the store. |
 | `survive-…` | The same events again, for a Test innings. GoatCounter has no custom properties, so the mode is in the name or it is nowhere — everything about an *innings* is prefixed, and everything about a *session* (the first shot, the help screen, the minutes played) is not, because those are the same fact whichever innings they happened in. |
 | `survive-result-won` … `survive-result-lost` | Which of the five result cards the Test innings earned. |

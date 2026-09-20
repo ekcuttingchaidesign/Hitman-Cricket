@@ -24,6 +24,15 @@ import {
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
 import { cardOffer, type BoardTab, type CardOffer } from './ui/Leaderboard';
+import {
+  careerBoardOf, placesOf, type AnyCareer, type LadderTab,
+} from './ui/CareerBoard';
+import {
+  countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
+  type CareerBoards, type CareerRow,
+} from './game/career-api';
+import type { SurviveTally } from './game/career';
+import type { Innings } from './game/leaderboard';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
@@ -38,6 +47,9 @@ import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
+
+/** How long a counted innings waits before its second and final attempt. */
+const RETRY_MS = 4000;
 /** Which innings is being played. The two share a loop and almost nothing else. */
 export type GameMode = 'CLASSIC' | 'SURVIVE';
 
@@ -169,6 +181,12 @@ export class Game {
   private player: string | null = null;
   /** Which ladder the sheet is showing, which is the tab drawn as the live one. */
   private boardTab: BoardTab = 'classic';
+  /** Which ladder of that mode the sheet is on. The innings board, always, to open. */
+  private boardLadder: LadderTab = 'best';
+  /** Each mode's career boards, held from the last fetch. */
+  private careerBoards: Partial<Record<BoardTab, CareerBoards<AnyCareer>>> = {};
+  /** This player's own figures, as the store last reported them. */
+  private myCareer: Partial<Record<BoardTab, { career: AnyCareer; name: string; avatar: number }>> = {};
   /**
    * Whether this opening of the sheet is the one that follows a claim, and so
    * carries the card's keys at its foot. Held across a tab rather than passed
@@ -242,6 +260,7 @@ export class Game {
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
     this.hud.onBoardTab = this.tabBoard;
+    this.hud.onLadderTab = this.tabLadder;
     // The three ways into the questionnaire. The cover offers it only to
     // somebody who has played before: a form is a strange thing to be handed by
     // a game you have not started.
@@ -558,7 +577,7 @@ export class Game {
     // The board a player asks for is the board for the innings they are in. The
     // other one is a tab away, and never the one they land on.
     this.boardActions = false;
-    this.openBoard(this.surviving ? 'survive' : 'classic');
+    this.openBoard(this.surviving ? 'survive' : 'classic', 'best');
   };
 
   /**
@@ -605,16 +624,101 @@ export class Game {
     };
   }
 
-  /** The other ladder, from the tab over the sheet. */
+  /** The other mode, from the tab over the sheet. It opens on its innings board. */
   private tabBoard = (mode: BoardTab) => {
     if (mode === this.boardTab) return;
     this.mark(`board-tab-${mode}`, 'The other board opened from a tab');
-    this.openBoard(mode);
+    this.openBoard(mode, 'best');
   };
 
-  private openBoard(mode: BoardTab) {
+  /** Another ladder of the same mode, from the row of tabs under the first. */
+  private tabLadder = (ladder: LadderTab) => {
+    if (ladder === this.boardLadder) return;
+    this.mark(`board-ladder-${ladder}`, 'A career ladder opened from a tab');
+    this.openBoard(this.boardTab, ladder);
+  };
+
+  private openBoard(mode: BoardTab, ladder: LadderTab): void {
+    this.boardTab = mode;
+    this.boardLadder = ladder;
+    if (ladder === 'you') return this.showStatsCard(mode);
+    if (ladder !== 'best') return this.showCareerBoard(mode, ladder);
     if (mode === 'survive') this.showSurviveBoard();
     else this.showClassicBoard();
+  }
+
+  /**
+   * A career board. Whatever was held from the last fetch goes up straight
+   * away, and the fetch corrects it — which matters more here than on the
+   * innings board, because every career board of a mode arrives in one call, so
+   * moving between three tabs after the first is instant rather than three
+   * round trips.
+   */
+  private showCareerBoard(mode: BoardTab, key: string): void {
+    const board = careerBoardOf(mode, key);
+    if (!board) return this.openBoard(mode, 'best');
+    const held = this.careerBoards[mode];
+    const draw = (payload: CareerBoards<AnyCareer> | undefined, state: 'ready' | 'loading' | 'offline') => {
+      if (this.boardTab !== mode || this.boardLadder !== key) return;
+      this.hud.careerBoard({
+        mode, board, youId: this.player, state,
+        rows: (payload?.boards?.[key] ?? []) as readonly CareerRow<AnyCareer>[],
+        size: payload?.size ?? 50,
+        actions: this.boardActions && this.atEndOf(mode),
+      });
+    };
+    draw(held, held ? 'ready' : 'loading');
+    void fetchCareerBoards<AnyCareer>(mode).then(payload => {
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (payload) this.careerBoards[mode] = payload;
+      draw(this.careerBoards[mode], payload ? 'ready' : 'offline');
+    });
+  }
+
+  /**
+   * The card. The mirror in this browser answers first so there is a number on
+   * screen the instant it opens, and the store's own figures replace it a
+   * moment later — which is the only way a career that was counted on a
+   * previous visit shows up before the network has said anything.
+   */
+  private showStatsCard(mode: BoardTab) {
+    const draw = (
+      mine: { career: AnyCareer; name: string; avatar: number },
+      state: 'ready' | 'loading' | 'offline',
+    ) => {
+      if (this.boardTab !== mode || this.boardLadder !== 'you') return;
+      this.hud.statsCard({
+        mode, ...mine, state,
+        places: placesOf(this.careerBoards[mode]?.boards ?? {}, this.player),
+        actions: this.boardActions && this.atEndOf(mode),
+      });
+    };
+    const batting = readPlayer();
+    const held = this.myCareer[mode] ?? {
+      career: heldCareer(mode), name: batting?.name ?? '', avatar: batting?.avatar ?? 0,
+    };
+    draw(held, this.myCareer[mode] ? 'ready' : 'loading');
+    if (!this.player) return;
+    void fetchMyCareer<AnyCareer>(this.player, mode).then(mine => {
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (mine?.career) this.myCareer[mode] = { career: mine.career, name: mine.name, avatar: mine.avatar };
+      draw(this.myCareer[mode] ?? held, mine ? 'ready' : 'offline');
+    });
+    // The card names a place, which only the boards know, so they are fetched
+    // alongside it where they are not already held. One call, and it is the
+    // same one the career tabs would have made.
+    if (!this.careerBoards[mode]) {
+      void fetchCareerBoards<AnyCareer>(mode).then(payload => {
+        if (this.disposed || !payload || !this.hud.boardOpen) return;
+        this.careerBoards[mode] = payload;
+        draw(this.myCareer[mode] ?? held, 'ready');
+      });
+    }
+  }
+
+  /** Whether the innings just played was this mode's, which is what the keys are for. */
+  private atEndOf(mode: BoardTab) {
+    return this.phase === 'INNINGS_END' && this.surviving === (mode === 'survive');
   }
 
   /**
@@ -627,6 +731,7 @@ export class Game {
    */
   private showClassicBoard() {
     this.boardTab = 'classic';
+    this.boardLadder = 'best';
     const mine = this.phase === 'INNINGS_END' && !this.surviving;
     const view = { youId: this.player, yours: mine ? asInnings(this.score) : null, actions: this.boardActions && mine };
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
@@ -641,6 +746,7 @@ export class Game {
   /** The same opening, over the Test ladder. */
   private showSurviveBoard() {
     this.boardTab = 'survive';
+    this.boardLadder = 'best';
     const mine = this.phase === 'INNINGS_END' && this.surviving;
     const view = { youId: this.player, yours: mine ? this.survived() : null, actions: this.boardActions && mine };
     this.hud.surviveBoard({
@@ -931,6 +1037,13 @@ export class Game {
     if (!result.ok) { this.mark('claim-failed', 'Claim rejected'); return this.hud.claimFailed(result.reason ?? 'That did not go through.'); }
     this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
+    // Claiming a name is what puts a career already counted onto the career
+    // boards, so the copies held from before it are wrong the moment this
+    // returns — including the card's, which was drawn with no name on it.
+    const claimed: BoardTab = this.surviving ? 'survive' : 'classic';
+    delete this.careerBoards[claimed];
+    delete this.myCareer[claimed];
+    forgetCareer();
     // The board is where the place the player just took is written, so that is
     // where they are taken — with the keys carried onto it, since it is now the
     // screen they are on.
@@ -940,13 +1053,14 @@ export class Game {
     if (this.surviving) {
       if (result.board) this.surviveRows = (result.board as SurvivePayload).rows;
       this.boardActions = true;
-      return this.openBoard('survive');
+      return this.openBoard('survive', 'best');
     }
     if (result.board) this.board = (result.board as BoardPayload).rows;
     // Drawn from what the store just handed back rather than fetched again, so
     // the place the player took is on screen and not a cached fifty from before
     // they took it. The tab is set by hand for the same reason.
     this.boardTab = 'classic';
+    this.boardLadder = 'best';
     this.boardActions = true;
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
   }
@@ -982,8 +1096,50 @@ export class Game {
     this.hud.hurtNote(() => { if (this.phase === 'PAUSED') this.togglePause(); });
   }
 
+  /**
+   * The innings, counted toward this player's career.
+   *
+   * Sent after every innings that finishes, with nothing asked of the player
+   * and nothing waiting on the answer — the card is already on screen by the
+   * time this lands. That is the whole point of it: the career boards say
+   * "all time", and an all-time total assembled only out of the innings
+   * somebody chose to register would be a total of their good days.
+   *
+   * A private window is left out, the same way it is left out of claiming a
+   * place. Its id does not survive the session, so every innings played in one
+   * would open a career that is never added to again.
+   *
+   * The innings carries an id of its own so it can be sent twice safely, and it
+   * is sent twice on purpose: a reply lost on the way back is indistinguishable
+   * from a request that never arrived, so the second attempt is the only way to
+   * be sure a counted innings was counted — and the store throws away the one
+   * it has already seen.
+   */
+  private countThisInnings() {
+    if (!this.player || !this.canRegister) return;
+    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    const tally: Innings | SurviveTally = this.surviving
+      ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
+      : asInnings(this.score);
+    const nonce = mintNonce();
+    const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
+      if (this.disposed) return true;
+      if (!mine?.career) return false;
+      this.myCareer[mode] = { career: mine.career, name: mine.name, avatar: mine.avatar };
+      // The boards held from before this innings no longer have it on them, so
+      // the next open asks again rather than drawing a career one innings old.
+      delete this.careerBoards[mode];
+      return true;
+    });
+    void send().then(landed => {
+      if (landed || this.disposed) return;
+      setTimeout(() => { if (!this.disposed) void send(); }, RETRY_MS);
+    });
+  }
+
   private end() {
     this.setPhase('INNINGS_END');
+    this.countThisInnings();
     // Both cards get it, and it is asked for before the modes part company
     // below: the innings that just ended is a different innings in each of
     // them, but the screen it ends on is the same screen.

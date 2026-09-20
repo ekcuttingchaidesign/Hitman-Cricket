@@ -6,15 +6,19 @@ import { feedbackGiven } from '../game/feedback';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
+  actionsMarkup, boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
   type BoardTab, type BoardView, type CardOffer,
 } from './Leaderboard';
 import {
-  surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
+  surviveActions, surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
   type SurviveBoardView,
 } from './SurviveBoard';
 import type { BoardRow, Innings } from '../game/leaderboard';
 import type { SurviveInnings, SurviveRow } from '../game/survive-board';
+import {
+  careerBoardMarkup, ladderTabsMarkup, laddersOf, statsCardMarkup,
+  type CareerBoardView, type LadderTab, type StatsCardView,
+} from './CareerBoard';
 import { AVATARS, kitDeal } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
@@ -371,13 +375,42 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * there is nothing to be gained by keeping them around and patching them:
    * a fresh sheet is always the rows it was handed.
    */
-  board(view: BoardView) { this.sheet(boardMarkup(view), false); }
+  board(view: BoardView) { this.sheet(boardMarkup(view), 'classic', 'best'); }
 
   /**
    * The Test board. The same overlay and the same keys — only the rows and the
    * ladder they are ordered by differ, and those are the markup's business.
    */
-  surviveBoard(view: SurviveBoardView) { this.sheet(surviveBoardMarkup(view), true); }
+  surviveBoard(view: SurviveBoardView) { this.sheet(surviveBoardMarkup(view), 'survive', 'best'); }
+
+  /**
+   * A career board. The same overlay, the same keys and the same rows — what
+   * differs is that it is ranking a total rather than an innings, and which
+   * total is the board's own business rather than this method's.
+   */
+  careerBoard(view: CareerBoardView & { actions?: boolean }) {
+    const markup = careerBoardMarkup({
+      ...view,
+      actionsMarkup: view.actions ? this.actions(view.mode) : '',
+    });
+    this.sheet(markup, view.mode, view.board.key);
+  }
+
+  /** The player's own figures, under the last tab of whichever mode they are in. */
+  statsCard(view: StatsCardView & { actions?: boolean }) {
+    const markup = statsCardMarkup({
+      ...view,
+      actionsMarkup: view.actions ? this.actions(view.mode) : '',
+    });
+    this.sheet(markup, view.mode, 'you');
+  }
+
+  /**
+   * The innings-end keys, pinned to the foot of a sheet that is standing in for
+   * the card. Each mode's own, because the Test card offers the mode picker
+   * where the Blast's offers the two ways of sending an innings out.
+   */
+  private actions(mode: BoardTab) { return mode === 'survive' ? surviveActions() : actionsMarkup(); }
 
   /**
    * Whether the sheet carries the two ladders' tabs. A build that plays one
@@ -387,20 +420,39 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   showBoardTabs(on: boolean) { this.tabbed = on; }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((mode: BoardTab) => void) | null = null;
+  /** The same, for the row of ladders inside one mode. */
+  onLadderTab: ((ladder: LadderTab) => void) | null = null;
 
-  private sheet(markup: string, surviving: boolean) {
+  private sheet(markup: string, tab: BoardTab, ladder: LadderTab) {
     const overlay = this.$('board-overlay');
-    const tab: BoardTab = surviving ? 'survive' : 'classic';
+    const surviving = tab === 'survive';
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
-    overlay.innerHTML = this.tabbed
-      ? `<div class="board-stack">${boardTabsMarkup(tab)}${markup}</div>`
-      : markup;
+    //
+    // Two rows of them, and the second exists whether or not the first does:
+    // the ladders inside a mode are this mode's ladders, so a build that plays
+    // one mode still has a career and still has a card, while a build that
+    // plays both needs the row above to get between them.
+    const tabs = `${this.tabbed ? boardTabsMarkup(tab) : ''}${ladderTabsMarkup(tab, ladder)}`;
+    overlay.innerHTML = `<div class="board-stack">${tabs}${markup}</div>`;
     if (this.tabbed) {
       for (const other of ['classic', 'survive'] as const) {
         this.$(`board-tab-${other}`).onclick = () => { if (other !== tab) this.onBoardTab?.(other); };
       }
     }
+    for (const other of laddersOf(tab)) {
+      this.$(`board-ladder-${other.key}`).onclick = () => {
+        if (other.key !== ladder) this.onLadderTab?.(other.key);
+      };
+    }
+    // The ladder strip scrolls sideways where the tabs do not fit, and the
+    // sheet is drawn whole every time — so without this, opening the card on a
+    // narrow phone puts the tab you are standing on off the right-hand edge and
+    // the strip looks like it has forgotten which one is live. Its own
+    // `scrollLeft` rather than `scrollIntoView`, which would move the page too.
+    const live = this.$(`board-ladder-${ladder}`);
+    const strip = live.parentElement;
+    if (strip) strip.scrollLeft = live.offsetLeft - (strip.clientWidth - live.clientWidth) / 2;
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     // The backdrop is the whole overlay, so a click that lands on the sheet is

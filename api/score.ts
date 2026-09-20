@@ -1,7 +1,11 @@
 import {
-  CLASSIC_LADDER, SURVIVE_LADDER, refused, submitScore, type Submission,
+  CLASSIC_LADDER, SURVIVE_LADDER, cleanName, refused, submitScore, type Submission,
 } from '../src/server/board-store.js';
-import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
+import { nameCareer } from '../src/server/career-store.js';
+import { NoDatabase, redisFromEnv, upstashCareer, upstashStore } from '../src/server/upstash.js';
+import {
+  BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer,
+} from '../src/game/career.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 import type { SurviveInnings } from '../src/game/survive-board.js';
@@ -46,6 +50,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         { ...who, innings: figures(body.innings) } satisfies Submission<Innings>,
       );
     if (refused(outcome)) return failed(res, outcome.status, outcome.reason);
+    // The name is now this player's, so the career they have already been
+    // building under no name at all goes onto the career boards — rather than
+    // waiting for the next innings to carry the name across, which is precisely
+    // the innings a player who has just registered has not played yet.
+    //
+    // It must not be able to fail the claim. The place on the board is what
+    // they asked for and it is already written; a career board that is a few
+    // minutes behind is fixed by the next innings they finish.
+    try {
+      const name = cleanName(who.name);
+      await (survive
+        ? nameCareer(upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope), SURVIVE_CAREER,
+          who.playerId, name, who.avatar)
+        : nameCareer(upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope), BLAST_CAREER,
+          who.playerId, name, who.avatar));
+    } catch (error) {
+      console.error('The career boards did not take the name.', error);
+    }
     // A submission is never cached, by anyone, ever.
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(outcome);

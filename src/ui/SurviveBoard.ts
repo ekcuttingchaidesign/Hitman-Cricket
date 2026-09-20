@@ -228,7 +228,7 @@ export function surviveRowMarkup(
           </li>`;
 }
 
-function surviveActions(): string {
+export function surviveActions(): string {
   return `
       <div class="board-actions">
         <button id="board-again" class="key-button">PLAY AGAIN</button>

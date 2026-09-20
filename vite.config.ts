@@ -1,9 +1,16 @@
 import { defineConfig, type Plugin } from 'vite';
 import { memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
-import { CLASSIC_LADDER, SURVIVE_LADDER, readBoard, refused, submitScore } from './src/server/board-store';
+import { CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, refused, submitScore } from './src/server/board-store';
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
 import { memoryFeedback } from './src/server/memory-feedback';
+import {
+  CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
+} from './src/server/career-store';
+import { memoryCareer } from './src/server/memory-career';
+import {
+  BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer, type SurviveTally,
+} from './src/game/career';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -33,13 +40,21 @@ function boardEndpoints(): Plugin {
   // credentials and no database. It is forgotten when the server stops, which is
   // what you want while working on the questions.
   const feedback = memoryFeedback();
+  // The careers, backed the same way, sharing the same name registry — so a
+  // name claimed on an innings board is the name a career is ranked under, the
+  // way the deployed keys arrange it.
+  const careers = {
+    classic: memoryCareer<BlastCareer>(names),
+    survive: memoryCareer<SurviveCareer>(names),
+  };
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
-        if (path !== '/api/board' && path !== '/api/score' && path !== '/api/feedback') return next();
+        const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings'];
+        if (!known.includes(path)) return next();
         const send = (status: number, body: unknown, cache = 'no-store') => {
           res.statusCode = status;
           res.setHeader('Content-Type', 'application/json');
@@ -69,7 +84,40 @@ function boardEndpoints(): Plugin {
               ? send(outcome.status, { error: outcome.reason })
               : send(200, { ok: true });
           }
-          const survive = new URLSearchParams((req.url ?? '').split('?')[1] ?? '').get('mode') === 'survive';
+          const query = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
+          const survive = query.get('mode') === 'survive';
+          if (path === '/api/career') {
+            if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
+            const player = query.get('player') ?? '';
+            if (player) {
+              return send(200, survive
+                ? await readCareer(careers.survive, SURVIVE_CAREER, player)
+                : await readCareer(careers.classic, BLAST_CAREER, player));
+            }
+            const boards = survive
+              ? await readCareerBoards(careers.survive, SURVIVE_CAREER)
+              : await readCareerBoards(careers.classic, BLAST_CAREER);
+            // The same header the deployed endpoint sends. There is no edge
+            // cache in front of a dev server, so it costs nothing here.
+            return send(200, { ...boards, size: CAREER_BOARD_SIZE },
+              'public, s-maxage=300, stale-while-revalidate=3600');
+          }
+          if (path === '/api/innings') {
+            if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
+            const sent = JSON.parse(await read(req)) as Record<string, unknown>;
+            const counting = {
+              playerId: String(sent.playerId ?? ''),
+              name: String(sent.name ?? ''),
+              avatar: Number(sent.avatar),
+              nonce: String(sent.nonce ?? ''),
+              address: 'dev',
+            };
+            const asked = String(sent.mode ?? '').toLowerCase() === 'survive';
+            const counted = asked
+              ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: surviveTally(sent.innings) })
+              : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: figures(sent.innings) });
+            return refusedCareer(counted) ? send(counted.status, { error: counted.reason }) : send(200, counted);
+          }
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
             if (survive) {
@@ -94,7 +142,14 @@ function boardEndpoints(): Plugin {
           const outcome = asked
             ? await submitScore(boards['survive:'], SURVIVE_LADDER, { ...who, innings: surviveFigures(body.innings) })
             : await submitScore(boards[''], CLASSIC_LADDER, { ...who, innings: figures(body.innings) });
-          return refused(outcome) ? send(outcome.status, { error: outcome.reason }) : send(200, outcome);
+          if (refused(outcome)) return send(outcome.status, { error: outcome.reason });
+          // The same stamp the deployed endpoint makes: a name just claimed
+          // puts the career already counted under it onto the career boards,
+          // rather than waiting for an innings the player has not played yet.
+          await (asked
+            ? nameCareer(careers.survive, SURVIVE_CAREER, who.playerId, cleanName(who.name), who.avatar)
+            : nameCareer(careers.classic, BLAST_CAREER, who.playerId, cleanName(who.name), who.avatar));
+          return send(200, outcome);
         } catch (error) {
           send(400, { error: error instanceof Error ? error.message : 'Bad request.' });
         }
@@ -119,6 +174,11 @@ function figures(raw: unknown) {
     runs: read('runs'), sixes: read('sixes'), fours: read('fours'),
     wickets: read('wickets'), dots: read('dots'), balls: read('balls'),
   };
+}
+
+/** The Test match's five, plus the two boundary columns a career also counts. */
+function surviveTally(raw: unknown): SurviveTally {
+  return { ...surviveFigures(raw), sixes: Number((raw as Record<string, unknown>)?.sixes), fours: Number((raw as Record<string, unknown>)?.fours) };
 }
 
 /** The Test match's five, the same way. */
