@@ -925,11 +925,13 @@ export class Game {
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
     else this.hud.board({ ...view, rows: [], state: 'loading' as const });
     void fetchBoard().then(payload => {
-      // Against the tab the sheet is showing, not the mode it belongs to. A
-      // fetch already in flight lands a moment after the player has tapped My
-      // Stats, and the mode is still exactly what it was — so this guard used
-      // to pass and draw fifty rows straight over the top of their card.
-      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'classic') return;
+      // Against what the sheet is actually showing — the tab and the ladder —
+      // rather than the mode it belongs to. A fetch already in flight lands a
+      // moment after the player has moved, and the mode is still exactly what
+      // it was, so guarding on the mode alone let fifty innings rows draw
+      // straight over the top of a career ladder or of the player's own card.
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (this.sheetTab !== 'classic' || this.boardLadder !== 'best') return;
       if (payload) { this.boardSeen = true; this.board = payload.rows; }
       this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
     });
@@ -951,7 +953,8 @@ export class Game {
       // A fetch that lands after the player has tabbed away belongs to a sheet
       // that is no longer on screen, and drawing it would put the other ladder
       // back under the tab they just chose.
-      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'survive') return;
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (this.sheetTab !== 'survive' || this.boardLadder !== 'best') return;
       if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
       this.hud.surviveBoard({ ...view, rows: this.surviveRows, state: payload ? 'ready' : 'offline' });
     });
@@ -1268,6 +1271,12 @@ export class Game {
     // the place the player took is on screen and not a cached fifty from before
     // they took it. The tab is set by hand for the same reason.
     this.boardTab = 'classic';
+    // The tab the sheet is showing, as well as the mode it is of. This draws
+    // the board by hand rather than through `openBoard`, which is what sets
+    // both — and a player who had been looking at My Stats when they
+    // registered came back to a sheet whose own tab did nothing, because the
+    // row still thought that was where they were.
+    this.sheetTab = 'classic';
     this.boardLadder = 'best';
     this.boardActions = true;
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
