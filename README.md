@@ -527,7 +527,9 @@ The thresholds are shared between the two modes, which the measures happen to al
 
 ### The tier is the whole card, not a badge on it
 
-Each rung carries a **`Theme`**: the ground it is painted on, the shadow it stands on, the mat behind it, its ink, its quiet, its accent, its sheen, its tiles. Nothing else on that card decides a colour, so a new tier is a palette rather than an edit to the painter.
+Each rung carries a **`Theme`**: the ground it is painted on, the shadow it stands on, the mat behind it, its ink, its quiet, its accent, its sheen, its tiles, and how strongly it blooms. Nothing else on that card decides a colour, so a new tier is a palette rather than an edit to the painter.
+
+**On the two black tiers, the black is the card and the metal is the accent.** The ground is a near-black — neutral for silver, the faintest warmth for gold, because gold on gold has nowhere to shine from — and the metal is spent on the badge, the ring round the kit, the bar and the two hairlines, and nowhere else. `bloom` is the figure that decides whether that holds: at the strength the navy card wants, the same accent wash lifts the middle of a near-black ground into grey or brown haze, and the tier stops being black and silver and becomes silver-grey with silver on it. So it is per theme — 0.15 on navy, 0.05 to 0.08 on the metals, enough that the ground is not flat and not a pixel more. Bronze sits darker than it first did for the same reason in reverse: on a milky brown ground, cream figures stop being cream and start being beige.
 
 That is the difference between a screen somebody reads and a thing somebody collects. A card used to be one navy object with a coloured word on it, which made every player's card the same card; a bronze one and a black-and-gold one are recognisable across a room at thumbnail size, where a badge is not. The first rung is deliberately the plainest and the only one that is not a metal — a first-innings card that arrived in gold would leave the top of the ladder nothing to be.
 

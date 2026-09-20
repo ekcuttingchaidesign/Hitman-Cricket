@@ -61,6 +61,17 @@ export interface Theme {
   tileTop: string;
   tileBottom: string;
   /**
+   * How strongly the accent blooms behind the hero row.
+   *
+   * Per theme rather than one figure for the card, because it is the single
+   * thing that decides whether a black card is black. At the strength the navy
+   * card wants, the same wash over a near-black ground lifts the whole middle
+   * of it into grey or brown haze — and then the tier is no longer black and
+   * silver, it is silver-grey with silver on it. The metals keep barely enough
+   * to stop the ground reading as flat.
+   */
+  bloom: number;
+  /**
    * Whether the accent is a metal. A metal tier gets a brushed gradient on the
    * badge and the bar, and a second hairline inset inside the first — the two
    * things that separate a printed card from a coloured rectangle.
@@ -120,6 +131,7 @@ export const TIERS: readonly Tier[] = [
       accent: '#5fa8d8', sheen: '#a8d4ef',
       rule: '#ffffff1f',
       tileTop: '#ffffff1c', tileBottom: '#ffffff08',
+      bloom: 0.15,
       metal: false,
     },
   },
@@ -128,15 +140,18 @@ export const TIERS: readonly Tier[] = [
     name: 'EMERGING PLAYER',
     at: 250,
     blurb: 'Making a name out there.',
-    // Bronze: a warm ground rather than navy tinted brown, or the copper has
-    // nothing to be warm against.
+    // Bronze, and dark. A warm ground rather than navy tinted brown, or the
+    // copper has nothing to be warm against — but a long way below where it
+    // started, because a milky brown card is the one ground on which cream
+    // figures stop being cream figures and start being beige ones.
     theme: {
-      top: '#3d2618', mid: '#241610', bottom: '#150d08',
-      ledge: '#090402', mat: '#0d0705',
-      ink: '#f8ece0', quiet: '#c3a389',
+      top: '#2b1a10', mid: '#180f09', bottom: '#0d0705',
+      ledge: '#050201', mat: '#080403',
+      ink: '#fbf1e6', quiet: '#b7967c',
       accent: '#cd7f32', sheen: '#f3bd80',
-      rule: '#ffffff1c',
-      tileTop: '#ffffff18', tileBottom: '#ffffff06',
+      rule: '#ffffff1a',
+      tileTop: '#ffffff14', tileBottom: '#ffffff05',
+      bloom: 0.08,
       metal: true,
     },
   },
@@ -145,15 +160,18 @@ export const TIERS: readonly Tier[] = [
     name: 'STAR',
     at: 1200,
     blurb: 'People turn up to watch.',
-    // Black and silver. The ground is a cool near-black rather than a true one,
-    // so the silver has something to sit on and the card keeps an edge.
+    // Black and silver, in that order. The ground is a neutral near-black with
+    // just enough lift at the top to keep an edge; the silver is spent on the
+    // badge, the ring, the bar and the two hairlines and nowhere else. Anything
+    // more of it and the card is grey with silver on it, which is neither.
     theme: {
-      top: '#262b31', mid: '#14181c', bottom: '#0a0c0e',
-      ledge: '#000000', mat: '#07080a',
-      ink: '#f5f8fb', quiet: '#9aa4ae',
-      accent: '#ccd6e0', sheen: '#ffffff',
-      rule: '#ffffff24',
-      tileTop: '#ffffff16', tileBottom: '#ffffff05',
+      top: '#1a1d21', mid: '#0e1012', bottom: '#050607',
+      ledge: '#000000', mat: '#040405',
+      ink: '#f6f9fc', quiet: '#8e98a3',
+      accent: '#d6dee7', sheen: '#ffffff',
+      rule: '#ffffff1c',
+      tileTop: '#ffffff10', tileBottom: '#ffffff04',
+      bloom: 0.05,
       metal: true,
     },
   },
@@ -163,13 +181,16 @@ export const TIERS: readonly Tier[] = [
     at: 4000,
     blurb: 'The one the game is named for.',
     // Black and gold, and the only card in the game that gets to be either.
+    // The ground is black with the faintest warmth in it rather than a dark
+    // gold — gold on gold has nowhere to shine from.
     theme: {
-      top: '#282008', mid: '#151105', bottom: '#0a0803',
-      ledge: '#000000', mat: '#080601',
-      ink: '#fdf6e4', quiet: '#bca878',
+      top: '#1c1913', mid: '#0f0d09', bottom: '#060504',
+      ledge: '#000000', mat: '#050403',
+      ink: '#fdf7e8', quiet: '#a2947a',
       accent: '#e8bf5a', sheen: '#fff2bd',
-      rule: '#ffffff22',
-      tileTop: '#ffffff16', tileBottom: '#ffffff05',
+      rule: '#ffffff1c',
+      tileTop: '#ffffff10', tileBottom: '#ffffff04',
+      bloom: 0.07,
       metal: true,
     },
   },

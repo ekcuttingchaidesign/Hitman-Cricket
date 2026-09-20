@@ -454,8 +454,8 @@ export async function paintStatsCard(
   // cool and quiet; a HITMAN's is lit gold from the middle.
   const bloomY = padTop + EYEBROW_H + IDENTITY_TOP + IDENTITY_H + BADGE_TOP + BADGE_H + HERO_TOP + HERO_H / 2;
   const bloom = ctx.createRadialGradient(width / 2, bloomY, 0, width / 2, bloomY, width * 0.78);
-  bloom.addColorStop(0, at(theme.accent, 0.15));
-  bloom.addColorStop(0.62, at(theme.accent, 0.045));
+  bloom.addColorStop(0, at(theme.accent, theme.bloom));
+  bloom.addColorStop(0.62, at(theme.accent, theme.bloom * 0.3));
   bloom.addColorStop(1, at(theme.accent, 0));
   ctx.fillStyle = bloom;
   ctx.fillRect(0, 0, width, height);

@@ -252,6 +252,27 @@ describe('what a card is made of', () => {
     expect(new Set(accents).size).toBe(TIERS.length);
   });
 
+  it('keeps a metal card black, by keeping its bloom off the ground', () => {
+    // The one figure that decides whether a black card is black. At the navy
+    // card's strength the same wash lifts the middle of a near-black ground
+    // into haze, and the tier stops being black and silver.
+    const navy = TIERS[0].theme.bloom;
+    for (const tier of TIERS.slice(1)) {
+      expect(tier.theme.bloom, tier.name).toBeLessThan(navy);
+      expect(tier.theme.bloom, tier.name).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps the metal grounds darker than the navy one', () => {
+    // "Black should be more, silver and gold being accents" — so the accent
+    // lives on the badge, the ring, the bar and the hairlines, and the ground
+    // stays out of its way.
+    const lightness = (hex: string) =>
+      [1, 3, 5].reduce((sum, i) => sum + parseInt(hex.slice(i, i + 2), 16), 0) / 3;
+    const navy = lightness(TIERS[0].theme.mid);
+    for (const tier of TIERS.slice(1)) expect(lightness(tier.theme.mid), tier.name).toBeLessThan(navy);
+  });
+
   it('keeps the first rung the only one that is not a metal', () => {
     // A first-innings card that arrived in gold would leave the top of the
     // ladder nothing to be.
