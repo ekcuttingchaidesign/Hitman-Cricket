@@ -1537,7 +1537,19 @@ body.start-screen .hud-top{display:none}
    the picker and the field take exactly their place, and everything the player
    is actually looking at — the score, the ball track, the stats — does not move
    a pixel. */
-.card-keys{display:flex;flex-direction:column}
+/* Side by side, now that the share is one key rather than two. Stacked, they
+   read as a queue of things to do; in a row they read as the choice they are —
+   go again, or send it to somebody. PLAY AGAIN takes the larger share because
+   it is what most people do next. */
+.card-keys{display:flex;gap:10px;align-items:stretch}
+.card-keys .key-button{flex:1.15 1 0;margin:0;min-width:0}
+.card-keys .share-key{flex:1 1 0;min-width:0;padding:0 14px;font-size:14px}
+/* At the narrowest phone widths the two words stop fitting beside each other,
+   and a key with its label cut in half is worse than a key on its own line. */
+@media (max-width:340px){
+  .card-keys{flex-direction:column}
+  .card-keys .key-button,.card-keys .share-key{flex:none}
+}
 .claim-key{
   border-color:#e5473a;
   box-shadow:0 6px 0 #e5473a,0 10px 12px #7a1e1e2e
