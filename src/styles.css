@@ -1130,8 +1130,23 @@ body.start-screen .hud-top{display:none}
   max-height:100%;
   margin:auto;
   padding:20px 0 0;
-  border-radius:18px;
-  background:#0f2738;
+  border-radius:20px;
+  /* Not a flat navy. Two soft blooms sitting on the ground colour — one high
+     on the left where the title is, one lower and to the right — each fading
+     to nothing well inside the card's own edge so that no ring shows where it
+     stops. A hard-edged glow reads as a shape sitting on the card; one that
+     runs out before the border reads as light in the card.
+
+     `transparent` is deliberately not used as the far stop: in most engines it
+     means transparent *black*, and a navy fading through it picks up a dirty
+     grey band on the way. Fading to the same colour at zero alpha keeps the
+     falloff clean. */
+  background:
+    radial-gradient(118% 76% at 16% 4%, #2b6d9e52 0%, #2b6d9e1f 38%, #2b6d9e00 66%),
+    radial-gradient(86% 58% at 92% 52%, #1d5580 0%, #1d558000 64%),
+    linear-gradient(176deg, #123350 0%, #0d2439 46%, #091c2c 100%);
+  border:1px solid #ffffff14;
+  box-shadow:0 22px 50px #00000059;
   font-family:var(--card);
   color:var(--ink);
   text-align:left;
@@ -1167,12 +1182,18 @@ body.start-screen .hud-top{display:none}
   gap:3px;
   align-self:center;
   width:min(440px,100%);
-  padding:3px;
-  border-radius:999px;
+  padding:5px;
+  /* Rounded rectangles, not pills. A pill is a shape on its own; the sheet
+     under it is a rounded rectangle, and three pills over one made the row
+     read as a separate control that had floated in from another screen. The
+     track's corner is a little softer than the sheet's, and the key's a little
+     softer again, so the three nest rather than repeat. */
+  border-radius:16px;
   /* Opaque, and the sheet's own surface. A translucent track let the cover's
      headline through the middle of the control, which read as two words of the
      screen behind sitting inside a key. */
-  background:#0f2738;
+  background:#0c2135;
+  border:1px solid #ffffff14;
   box-shadow:0 6px 18px #00000038
 }
 .board-tab{
@@ -1180,7 +1201,7 @@ body.start-screen .hud-top{display:none}
   min-height:36px;
   padding:0 6px;
   border:0;
-  border-radius:999px;
+  border-radius:12px;
   background:none;
   font-family:var(--card);
   font-size:11px;
@@ -1267,19 +1288,25 @@ body.start-screen .hud-top{display:none}
   margin:0;
   padding:0
 }
-/* No rule between rows.
-   Fifty hairlines turn a list of people into a spreadsheet, and the row that
-   matters — the player's own, which is lit — has to fight its own borders to
-   stand out. The rows are held apart by their own rhythm instead: the place
-   number and the kit give every line a left edge, and the figures line up down
-   the right. */
+/* A rule between rows, but only just.
+   At the weight it had, fifty hairlines turned a list of people into a
+   spreadsheet and made the one row that matters fight its own borders. Taken
+   out altogether the names ran together at a glance. So it stays, at about a
+   third of what it was: enough to separate two lines, not enough to draw. It
+   is also inset past the place number, so the column of numbers down the left
+   reads as a column rather than as rows of a table. */
 .board-row{
   display:grid;
   grid-template-columns:20px 34px minmax(0,1fr) auto auto;
   align-items:center;
   gap:0 11px;
-  padding:6px 0
+  padding:7px 0;
+  box-shadow:inset 0 1px 0 #ffffff0d
 }
+.board-list li:first-child{box-shadow:none}
+/* The lit row carries its own ground, so a rule across the top of it would be
+   a line drawn over a colour that is already saying the same thing. */
+.board-row.is-you,.board-row.is-you+.board-row{box-shadow:none}
 .board-place{
   font-size:12px;
   font-weight:700;
@@ -1402,15 +1429,19 @@ body.start-screen .hud-top{display:none}
   border-radius:9px;
   background:linear-gradient(90deg,#5a3423 0%,#3a2a29 45%,#1b2b39 100%)
 }
+/* A small triangle pointing into the row, half off its left edge — the shape
+   a scoreboard uses to say "this one". A bar would have been a border, and a
+   border on one row of fifty reads as a divider that got thicker. */
 .board-row.is-you::before{
   content:'';
   position:absolute;
-  left:-3px;
+  left:-4px;
   top:50%;
-  width:6px;
-  height:26px;
-  border-radius:3px;
-  background:var(--accent);
+  width:0;
+  height:0;
+  border-top:7px solid transparent;
+  border-bottom:7px solid transparent;
+  border-left:9px solid var(--accent);
   transform:translateY(-50%)
 }
 .board-row.is-you .board-who b,
@@ -3048,9 +3079,11 @@ body.private-window{overflow:hidden}
 .ladder-tab{
   flex:0 0 auto;
   min-height:30px;
-  padding:0 10px;
+  padding:0 11px;
   border:1px solid #ffffff1f;
-  border-radius:999px;
+  /* The same family as the tabs above: a rounded rectangle, one step softer
+     again so the two rows read as one stack rather than two controls. */
+  border-radius:10px;
   background:#0f273880;
   font-family:var(--card);
   font-size:10.5px;
