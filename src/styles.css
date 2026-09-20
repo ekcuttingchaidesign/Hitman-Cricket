@@ -3245,32 +3245,51 @@ body.private-window{overflow:hidden}
    `border:0` is load-bearing: `.key-button` is the game's white key with an
    orange rim, and these two wear the colour of where they are going instead.
    Left alone, that rim drew an orange outline round a green WhatsApp key. */
-.stats-ctas{display:flex;flex-direction:column;gap:8px}
+.stats-ctas{display:flex;flex-direction:column;gap:14px}
 .stats-key{
   display:flex;
   align-items:center;
   justify-content:center;
   gap:10px;
   width:100%;
-  min-height:50px;
+  min-height:52px;
   margin:0;
-  border:0;
-  font-size:13px;
+  /* The stroke is set per key below, in that key's own colour. It is `0` here
+     only so the orange rim `.key-button` gives every key in the game does not
+     come through on the two that are wearing WhatsApp's green and Instagram's
+     gradient. */
+  border:0 solid transparent;
+  font-size:13.5px;
   letter-spacing:1.4px
 }
 .stats-key svg{width:20px;height:20px;flex:none}
 /* Each key wears the colour of where it is going, which is the fastest label
    there is: nobody reads the words on a green key with that mark on it. */
-.stats-key.is-whatsapp{background:#25d366;color:#04231a;box-shadow:0 5px 0 #128c3f,0 9px 14px #00000038}
-.stats-key.is-whatsapp:hover:not(:disabled){background:#31e074;box-shadow:0 6px 0 #128c3f,0 11px 16px #00000042}
-.stats-key.is-whatsapp:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #128c3f,0 4px 8px #0000002e}
+/* Both keys are built the way every other key in the game is: a three-pixel
+   stroke and a six-pixel ledge, in the key's own colour. They had the ledge
+   and not the stroke, which left them looking like coloured labels beside the
+   keys on the innings card that have both. */
+.stats-key.is-whatsapp{
+  border-width:3px;
+  border-color:#0f7a37;
+  background:#25d366;
+  color:#04231a;
+  box-shadow:0 6px 0 #0f7a37,0 10px 14px #01180d4d
+}
+.stats-key.is-whatsapp:hover:not(:disabled){background:#31e074;box-shadow:0 7px 0 #0f7a37,0 12px 16px #01180d59}
+.stats-key.is-whatsapp:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #0f7a37,0 4px 8px #01180d3d}
 .stats-key.is-story{
+  /* One flat hue for the stroke and the ledge, taken from the deep end of the
+     key's own gradient — a gradient cannot run round a border and a ledge, and
+     two different ones would read as a mistake rather than a choice. */
+  border-width:3px;
+  border-color:#6b2a86;
   background:linear-gradient(100deg,#f2814f,#d62976 55%,#8134af);
   color:#fff;
-  box-shadow:0 5px 0 #5f2477,0 9px 14px #00000038
+  box-shadow:0 6px 0 #6b2a86,0 10px 14px #2a0e364d
 }
-.stats-key.is-story:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 6px 0 #5f2477,0 11px 16px #00000042}
-.stats-key.is-story:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #5f2477,0 4px 8px #0000002e}
+.stats-key.is-story:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 7px 0 #6b2a86,0 12px 16px #2a0e3659}
+.stats-key.is-story:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #6b2a86,0 4px 8px #2a0e363d}
 
 .stats-status{
   margin:0;
@@ -3481,26 +3500,32 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   content:'';
   position:absolute;
   top:-60%;
-  left:-60%;
-  width:42%;
+  left:-80%;
+  /* Wide, and blurred on top of that. A narrow band with stops close together
+     is a lit *edge* travelling across the key — a hard line, however low its
+     alpha. What reads as light is a broad falloff with no edge anywhere in it,
+     which takes both: stops spread the full width, and a blur to take the last
+     of the seams out. */
+  width:62%;
   height:220%;
   pointer-events:none;
-  /* Judged against the key's own text rather than against the key.
-     The sweep crosses dark type on a light ground, so anything strong enough
-     to read clearly as a highlight also takes the contrast out of the word it
-     is crossing — at near-opaque white, LEADERBOARD greyed out as the light
-     went over it. This is the weight that lifts the surface and leaves the
-     label alone. */
-  background:linear-gradient(90deg,#ffffff00,#ffffff54 46%,#ffffff7a 50%,#ffffff54 54%,#ffffff00);
-  transform:rotate(18deg);
-  animation:cta-shimmer 4.6s cubic-bezier(.5,0,.4,1) 1.1s infinite
+  /* Judged against the key's own text rather than against the key. The sweep
+     crosses dark type on a light ground, so anything strong enough to read
+     clearly as a highlight also takes the contrast out of the word underneath
+     — at near-opaque white, LEADERBOARD greyed out as the light went over it. */
+  background:linear-gradient(90deg,
+    #ffffff00 0%,#ffffff12 22%,#ffffff33 40%,#ffffff54 50%,#ffffff33 60%,#ffffff12 78%,#ffffff00 100%);
+  filter:blur(7px);
+  transform:rotate(16deg);
+  animation:cta-shimmer 7.4s cubic-bezier(.45,0,.4,1) 1.6s infinite
 }
 @keyframes cta-shimmer{
-  0%{left:-60%}
-  /* The sweep itself is half a second of the four and a half; the rest is the
-     wait. A shimmer that runs continuously stops being an event and becomes a
-     texture, and a texture is exactly what a key does not want. */
-  12%,100%{left:130%}
+  0%{left:-80%}
+  /* Slow: a little over two seconds to cross, then five in the dark. A sweep
+     that is quick reads as a glint or a glitch; one that takes its time reads
+     as light moving over a surface. And one that never stops is not an event
+     at all, it is a texture — which is exactly what a key does not want. */
+  30%,100%{left:150%}
 }
 
 /* One key, the game's own face. It was set in Satoshi while every other key on
@@ -3528,13 +3553,17 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   content:'';
   position:absolute;
   top:-60%;
-  left:-60%;
-  width:38%;
+  left:-80%;
+  width:58%;
   height:220%;
   pointer-events:none;
-  background:linear-gradient(90deg,#ffffff00,#ffffff3d 47%,#ffffff5c 50%,#ffffff3d 53%,#ffffff00);
-  transform:rotate(18deg);
-  animation:cta-shimmer 5.4s cubic-bezier(.5,0,.4,1) 2.2s infinite
+  background:linear-gradient(90deg,
+    #ffffff00 0%,#ffffff0f 22%,#ffffff2b 40%,#ffffff42 50%,#ffffff2b 60%,#ffffff0f 78%,#ffffff00 100%);
+  filter:blur(7px);
+  transform:rotate(16deg);
+  /* Offset from the key's, so the two never cross together and start reading
+     as one animation over the whole card. */
+  animation:cta-shimmer 8.6s cubic-bezier(.45,0,.4,1) 3.4s infinite
 }
 .career-widget>*{position:relative;z-index:1}
 
