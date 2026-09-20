@@ -955,6 +955,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.hostStrip(surviving);
     this.onBoard = offer.kind === 'standing';
     const key = this.$('claim');
+    // Cleared up front, so the two "view leaderboard" states cannot inherit a
+    // shimmer from an offer the player has already answered.
+    key.classList.remove('is-offer');
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
@@ -978,6 +981,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       // the banner and the key alone rather than three empty rows.
       this.$('card-peek').innerHTML = offer.place ? say.peek(offer.place) : '';
       key.textContent = 'REGISTER SCORE ON LEADERBOARD';
+      // The shimmer belongs to the offer, not to the key. This is the one
+      // state where the key is asking for something rather than going
+      // somewhere, and a light running across it is what makes a player look
+      // at it twice. On "view leaderboard" the same light would be a door
+      // waving at somebody who has already decided.
+      key.classList.add('is-offer');
     }
     this.$('card-board').classList.remove('hidden');
   }
