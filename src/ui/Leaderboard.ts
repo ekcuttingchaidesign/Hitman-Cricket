@@ -217,7 +217,9 @@ export function boardMarkup(view: BoardView): string {
   return `
     <div class="board-sheet" role="document">
       <div class="sheet-head">
-        <h2 id="board-title">Top ${BOARD_SIZE}</h2>
+        <div class="sheet-title">
+          <h2 id="board-title">Top ${BOARD_SIZE}</h2>
+        </div>
         ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${

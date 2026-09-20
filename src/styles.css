@@ -1222,11 +1222,22 @@ body.start-screen .hud-top{display:none}
 }
 /* Ground, then title, then the way out. The stamp is the one place on this
    sheet that is set in tracked caps; everything else is sentence case. */
+/* Title on the left, keys on the right, as a row.
+   The keys used to be placed absolutely over a block of text, which works
+   exactly as long as nothing on the left is long — and then one day the head
+   said HITMAN OVAL · TEST SURVIVAL and the words ran clean under the What's
+   new key. Laid out as a row, the text simply stops where the keys start, and
+   no length of title can reach them again. */
 .sheet-head{
   position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
   padding:0 22px 2px;
   flex:none
 }
+.sheet-title{min-width:0}
 .board-eyebrow{
   margin:0;
   font-size:10.5px;
@@ -1260,12 +1271,14 @@ body.start-screen .hud-top{display:none}
    The pair is placed here so the close key can keep its old position without
    knowing anything has been put beside it. */
 .sheet-keys{
-  position:absolute;
-  top:-4px;
-  right:14px;
   display:flex;
   align-items:center;
-  gap:8px
+  gap:8px;
+  flex:none;
+  /* Pulled up level with the title's cap height rather than its line box, and
+     out to the sheet's own edge, so moving the pair into the flow did not move
+     them on screen. */
+  margin:-4px -8px 0 0
 }
 .sheet-keys .board-close{position:static;top:auto;right:auto;flex:none}
 /* Left of the cross, and the only thing on the sheet asking to be noticed.

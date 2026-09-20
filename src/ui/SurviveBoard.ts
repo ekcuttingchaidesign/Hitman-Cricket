@@ -171,8 +171,10 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
   return `
     <div class="board-sheet survive-sheet" role="document">
       <div class="sheet-head">
-        <p class="board-eyebrow">HITMAN OVAL &middot; TEST SURVIVAL</p>
-        <h2 id="board-title">Top ${SURVIVE_BOARD_SIZE}</h2>
+        <div class="sheet-title">
+          <p class="board-eyebrow">TEST SURVIVAL</p>
+          <h2 id="board-title">Top ${SURVIVE_BOARD_SIZE}</h2>
+        </div>
         ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${

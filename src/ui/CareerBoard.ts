@@ -117,13 +117,19 @@ export interface CareerBoardView {
 
 /** A whole career board, header to footer. */
 export function careerBoardMarkup(view: CareerBoardView): string {
-  const { mode, board, rows, youId = null, state = 'ready', size = 50, actionsMarkup = '' } = view;
+  // The mode is no longer printed here. The tab directly above the sheet is the
+  // name of the game being read, so an eyebrow repeating it was the sheet
+  // saying the same thing twice — and at two lines on a narrow phone, saying it
+  // twice in the space the title wanted.
+  const { board, rows, youId = null, state = 'ready', size = 50, actionsMarkup = '' } = view;
   const place = rows.findIndex(row => row.playerId === youId);
   return `
     <div class="board-sheet" role="document">
       <div class="sheet-head">
-        <p class="board-eyebrow">${mode === 'survive' ? 'TEST SURVIVAL' : 'THE BLAST'} &middot; ALL TIME</p>
-        <h2 id="board-title">${escape(board.name)}</h2>
+        <div class="sheet-title">
+          <p class="board-eyebrow">ALL TIME</p>
+          <h2 id="board-title">${escape(board.name)}</h2>
+        </div>
         ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
