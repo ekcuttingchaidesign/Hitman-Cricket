@@ -3022,23 +3022,156 @@ body.private-window{overflow:hidden}
   font-weight:800
 }
 
-/* The card's own head: the kit, larger than a row's, and the one figure the
-   whole thing is really about. */
-.stats-head{
+
+
+/* ---------------------------------------------------------------------------
+   The career card, and the key that opens it.
+
+   The key sits under the sheet rather than in the strip of pills above it: the
+   pills re-sort what is already on screen, and this one leaves for somewhere
+   else. Shaping them alike would have been the wrong kind of tidy.
+--------------------------------------------------------------------------- */
+.board-mine{
   display:flex;
   align-items:center;
-  gap:14px;
-  padding:4px 0 14px
+  justify-content:center;
+  gap:9px;
+  flex:none;
+  width:100%;
+  min-height:46px;
+  margin:0
 }
-.board-kit.is-large{width:52px;height:52px;font-size:20px}
-.stats-innings{display:flex;align-items:baseline;gap:6px;margin:0}
-.stats-innings b{font-family:var(--card);font-size:30px;font-weight:800;line-height:1;color:#f4f8fa}
-.stats-innings small{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#9fb2bd}
+.board-mine svg{width:18px;height:18px;flex:none;opacity:.9}
 
-/* Two columns at phone width and three above it. Every cell is the same shape,
-   because the figures are not ranked against each other — the two that lead are
-   marked by weight rather than by being given their own row, which would have
-   made the rest read as an afterthought. */
+/* The card's own sheet. It sits over the board — literally, since the board is
+   usually still open behind it — so it takes a rung above the board's own
+   z-index rather than trusting document order, which the board already beats
+   with a rule of its own.
+
+   Darker behind, too: two stacked scrims of the same weight read as one
+   surface, and the board underneath stops looking like somewhere to go back to. */
+.stats-overlay{background:#040c12ef;z-index:11}
+.stats-sheet-inner{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  width:min(440px,100%);
+  max-height:100%;
+  margin:auto;
+  overflow-y:auto;
+  padding:4px
+}
+/* The way out sits above the picture rather than on it. On it, the × lands in
+   whatever the card's top-right corner happens to be — here that is the mark —
+   and a close key you have to hunt for on a screen whose whole job is to be
+   left again is the wrong key to hide. */
+.stats-close{
+  position:static;
+  align-self:flex-end;
+  flex:none;
+  margin:0 2px -4px 0;
+  background:#0f2738;
+  border:1px solid #ffffff33;
+  color:#f4f8fa;
+  box-shadow:0 4px 12px #00000059
+}
+.stats-close:hover{background:#1b3d54}
+
+/* The stage holds the painted picture at its own aspect, so the card is never
+   stretched and never cropped — it is a photograph of an object, and an object
+   with a squashed corner stops reading as one. */
+.stats-stage{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:220px
+}
+.stats-shot{
+  display:block;
+  width:100%;
+  height:auto;
+  border-radius:14px;
+  /* The picture already carries the card's own ledge; this is the glow that
+     lifts the whole photograph off the scrim behind it. */
+  box-shadow:0 18px 44px #00000066
+}
+.stats-drawing{
+  display:grid;
+  place-items:center;
+  width:100%;
+  min-height:300px;
+  border-radius:14px;
+  background:linear-gradient(180deg,#16354a,#0b1f2e);
+  border:1px solid #ffffff14;
+  font-family:var(--card);
+  font-size:12px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
+
+/* Two keys, stacked, because both are a destination and neither is the lesser
+   of the two — a primary and a ghost link would have said the story was an
+   afterthought, and on a card built to be shared it is half the point.
+
+   `border:0` is load-bearing: `.key-button` is the game's white key with an
+   orange rim, and these two wear the colour of where they are going instead.
+   Left alone, that rim drew an orange outline round a green WhatsApp key. */
+.stats-ctas{display:flex;flex-direction:column;gap:8px}
+.stats-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  width:100%;
+  min-height:50px;
+  margin:0;
+  border:0;
+  font-size:13px;
+  letter-spacing:1.4px
+}
+.stats-key svg{width:20px;height:20px;flex:none}
+/* Each key wears the colour of where it is going, which is the fastest label
+   there is: nobody reads the words on a green key with that mark on it. */
+.stats-key.is-whatsapp{background:#25d366;color:#04231a;box-shadow:0 5px 0 #128c3f,0 9px 14px #00000038}
+.stats-key.is-whatsapp:hover:not(:disabled){background:#31e074;box-shadow:0 6px 0 #128c3f,0 11px 16px #00000042}
+.stats-key.is-whatsapp:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #128c3f,0 4px 8px #0000002e}
+.stats-key.is-story{
+  background:linear-gradient(100deg,#f2814f,#d62976 55%,#8134af);
+  color:#fff;
+  box-shadow:0 5px 0 #5f2477,0 9px 14px #00000038
+}
+.stats-key.is-story:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 6px 0 #5f2477,0 11px 16px #00000042}
+.stats-key.is-story:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #5f2477,0 4px 8px #0000002e}
+
+.stats-status{
+  margin:0;
+  font-size:12px;
+  line-height:1.45;
+  color:#f2a97f
+}
+.stats-note{
+  margin:0 0 4px;
+  font-size:11.5px;
+  line-height:1.5;
+  text-align:center;
+  color:#9fb2bd
+}
+
+/* The figures as text, for a browser that would not paint the picture. It is
+   the same grid the sheet used to draw inline, kept because the numbers are
+   what the player came for and an apology is not. */
+.stats-plain{
+  width:100%;
+  padding:20px;
+  border-radius:16px;
+  background:linear-gradient(180deg,#16354a,#0b1f2e);
+  border:1px solid #ffffff14
+}
+.stats-plain h2{margin:2px 0 4px;font-size:26px}
+.stats-plain-line{margin:0 0 14px;font-size:12.5px;color:#9fb2bd}
+.stats-plain-note{margin:14px 0 0;font-size:11.5px;color:#9fb2bd}
 .stats-grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
@@ -3068,8 +3201,5 @@ body.private-window{overflow:hidden}
   color:#f4f8fa;
   font-variant-numeric:tabular-nums
 }
-/* The two figures the mode is actually about, lifted out of the grid by colour
-   rather than by size — a bigger cell would have re-flowed the grid on the two
-   screens that have a different number of them. */
 .stats-cell.is-lead{background:#f2814f1a;border-color:#f2814f4d}
 .stats-cell.is-lead dd{color:#f2a97f}

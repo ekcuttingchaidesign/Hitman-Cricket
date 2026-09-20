@@ -1,6 +1,9 @@
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
-import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
+import {
+  gameLink, shareFileName, shareFileType, shareText, statsFileName, statsShareText,
+  statsStoryText, statsWhatsappLink, storyText, whatsappLink,
+} from '../game/Share';
 import { track } from '../game/analytics';
 import { feedbackGiven } from '../game/feedback';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
@@ -16,9 +19,13 @@ import {
 import type { BoardRow, Innings } from '../game/leaderboard';
 import type { SurviveInnings, SurviveRow } from '../game/survive-board';
 import {
-  careerBoardMarkup, ladderTabsMarkup, laddersOf, statsCardMarkup,
-  type CareerBoardView, type LadderTab, type StatsCardView,
+  careerBoardMarkup, ladderTabsMarkup, laddersOf,
+  type CareerBoardView, type LadderTab,
 } from './CareerBoard';
+import { statsSheetMarkup, type StatsSheetView } from './StatsSheet';
+import {
+  statsCardImage, statsStoryImage, type StatsFacts,
+} from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
@@ -255,6 +262,7 @@ export class HUD {
         <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
 ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
+        <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
@@ -396,14 +404,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.sheet(markup, view.mode, view.board.key);
   }
 
-  /** The player's own figures, under the last tab of whichever mode they are in. */
-  statsCard(view: StatsCardView & { actions?: boolean }) {
-    const markup = statsCardMarkup({
-      ...view,
-      actionsMarkup: view.actions ? this.actions(view.mode) : '',
-    });
-    this.sheet(markup, view.mode, 'you');
-  }
 
   /**
    * The innings-end keys, pinned to the foot of a sheet that is standing in for
@@ -411,6 +411,131 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * where the Blast's offers the two ways of sending an innings out.
    */
   private actions(mode: BoardTab) { return mode === 'survive' ? surviveActions() : actionsMarkup(); }
+
+  /** What the card key does. The game decides: the figures are the game's. */
+  onStatsOpen: (() => void) | null = null;
+  /** The facts the card on screen was drawn from, held for the share keys. */
+  private statsShown: StatsFacts | null = null;
+  /** The object URL of the drawn card, revoked when the sheet is put away. */
+  private statsPicture: string | null = null;
+
+  /**
+   * The career card, over everything else.
+   *
+   * Drawn whole each time it is opened, the same way the board is, and for a
+   * better reason: the picture in it *is* the picture that gets shared, so
+   * there is nothing to keep around and patch — either the card is current or
+   * it is the wrong card to be sending anybody.
+   */
+  stats(view: StatsSheetView) {
+    const overlay = this.$('stats-overlay');
+    // The sheet goes up before the picture exists and is drawn again when it
+    // lands, so only the first of those may take the focus — the second would
+    // pull it back off whichever key the player had already reached for.
+    const opening = overlay.classList.contains('hidden');
+    this.statsShown = view.facts;
+    overlay.innerHTML = statsSheetMarkup(view);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    // The backdrop is the whole overlay, so a click that lands on the card is
+    // not a click on the way out.
+    overlay.onclick = event => { if (event.target === overlay) this.closeStats(); };
+    this.$('stats-close').onclick = () => this.closeStats();
+    this.$('stats-whatsapp').onclick = () => void this.shareStats('card');
+    this.$('stats-story').onclick = () => void this.shareStats('story');
+    if (opening) this.$('stats-close').focus();
+  }
+
+  /** Hands the drawn picture to the sheet once it has been painted. */
+  holdStatsPicture(url: string | null) {
+    if (this.statsPicture && this.statsPicture !== url) URL.revokeObjectURL(this.statsPicture);
+    this.statsPicture = url;
+  }
+
+  get statsOpen() { return !this.$('stats-overlay').classList.contains('hidden'); }
+
+  closeStats() {
+    this.$('stats-overlay').classList.add('hidden');
+    this.$('stats-overlay').innerHTML = '';
+    this.statsShown = null;
+    // The picture was minted for this sheet and nothing else is holding it.
+    if (this.statsPicture) { URL.revokeObjectURL(this.statsPicture); this.statsPicture = null; }
+    // The board is usually still underneath, and the darkened ground only lifts
+    // when nothing is left standing on it.
+    const stacked = ['board-overlay', 'end', 'end-survive', 'modes', 'pause-overlay', 'tutorial-done']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+    if (!this.$('board-overlay').classList.contains('hidden')) {
+      document.getElementById('board-mine')?.focus();
+    } else if (this.$('end-survive').classList.contains('hidden')) {
+      this.$('board').focus();
+    }
+  }
+
+  /**
+   * Sends the career out as a picture.
+   *
+   * Both keys draw the same card; the story one stands it on the cover art in a
+   * 9:16 frame with the address painted on, because a picture in a story is a
+   * picture and no text travels with it.
+   *
+   * The WhatsApp caption carries the playable link, which is the whole
+   * difference between a brag and an invitation — a thread full of somebody's
+   * numbers is a thread where nobody can go and beat them. Where the browser
+   * will not hand a file to another app, the wa.me link still opens WhatsApp
+   * with that text, so the link survives even when the picture cannot.
+   */
+  private async shareStats(kind: 'card' | 'story') {
+    const facts = this.statsShown;
+    if (!facts) return;
+    track(kind === 'story' ? 'stats-share-story' : 'stats-share-whatsapp',
+      kind === 'story' ? 'Shared the career card to a story' : 'Shared the career card to WhatsApp');
+    const url = gameLink();
+    const lead = facts.hero[0] ?? { label: 'runs', value: 0 };
+    const caption = kind === 'story'
+      ? statsStoryText(lead, facts.innings, url)
+      : statsShareText(lead, facts.innings, url);
+    const status = this.$('stats-status');
+    if (!canShareImage()) {
+      // No file can leave this browser. WhatsApp's own link still carries the
+      // text and the address; the story has no such fallback but a saved file.
+      if (kind === 'card') { window.open(statsWhatsappLink(lead, facts.innings, url), '_blank', 'noopener'); return; }
+      await this.saveStats(facts, url, caption);
+      return;
+    }
+    try {
+      const picture = kind === 'story'
+        ? await statsStoryImage(facts, url)
+        : await statsCardImage(facts, url);
+      const file = new File([picture], statsFileName(kind), {
+        type: kind === 'story' ? 'image/jpeg' : 'image/png',
+      });
+      await navigator.share({ files: [file], text: caption });
+    } catch (error) {
+      // A cancelled sheet is the player changing their mind, not a failure.
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      status.textContent = 'Could not open the share sheet. Saving the picture instead.';
+      status.classList.remove('hidden');
+      await this.saveStats(facts, url, caption);
+    }
+  }
+
+  /** No share sheet: put the picture in the downloads folder and say so. */
+  private async saveStats(facts: StatsFacts, url: string, caption: string) {
+    const status = this.$('stats-status');
+    try {
+      const picture = await statsStoryImage(facts, url);
+      const href = URL.createObjectURL(picture);
+      const link = document.createElement('a');
+      link.href = href; link.download = statsFileName('story');
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+      status.textContent = `Card saved. Post it with: ${caption}`;
+    } catch {
+      status.textContent = 'Could not build the picture on this browser.';
+    }
+    status.classList.remove('hidden');
+  }
 
   /**
    * Whether the sheet carries the two ladders' tabs. A build that plays one
@@ -434,7 +559,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // one mode still has a career and still has a card, while a build that
     // plays both needs the row above to get between them.
     const tabs = `${this.tabbed ? boardTabsMarkup(tab) : ''}${ladderTabsMarkup(tab, ladder)}`;
-    overlay.innerHTML = `<div class="board-stack">${tabs}${markup}</div>`;
+    // The way to the player's own card, under the sheet rather than in the
+    // strip of pills above it. It is the one key on this screen that leads
+    // somewhere instead of re-sorting what is already there, so it is shaped
+    // like a key and not like a seventh ladder.
+    const mine = `
+      <button id="board-mine" class="key-button board-mine" type="button">
+        ${cardMark()}<span>MY CAREER CARD</span>
+      </button>`;
+    overlay.innerHTML = `<div class="board-stack">${tabs}${markup}${mine}</div>`;
     if (this.tabbed) {
       for (const other of ['classic', 'survive'] as const) {
         this.$(`board-tab-${other}`).onclick = () => { if (other !== tab) this.onBoardTab?.(other); };
@@ -453,6 +586,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const live = this.$(`board-ladder-${ladder}`);
     const strip = live.parentElement;
     if (strip) strip.scrollLeft = live.offsetLeft - (strip.clientWidth - live.clientWidth) / 2;
+    this.$('board-mine').onclick = () => this.onStatsOpen?.();
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     // The backdrop is the whole overlay, so a click that lands on the sheet is
@@ -1229,4 +1363,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('share-status').classList.remove('hidden');
   }
   error() { document.body.classList.remove('start-screen'); this.$('intro').className = 'panel intro-panel'; this.$('intro').innerHTML = '<span class="challenge-tag">WEBGL UNAVAILABLE</span><h2>The ground couldn’t load.</h2><p>Enable hardware acceleration in your browser, then reload to play.</p><button class="primary-button" onclick="location.reload()">RELOAD GAME</button>'; }
+}
+
+/**
+ * The mark on the career-card key: a card with a line on it. Inline rather than
+ * fetched, for the same reason the two share marks are — it is a handful of
+ * path and the key would otherwise be wordless for the moment that matters.
+ */
+function cardMark(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 5.5h16A1.5 1.5 0 0 1 21.5 7v10a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 17V7A1.5 1.5 0 0 1 4 5.5Zm0 1.8a.2.2 0 0 0-.2.2v9.999c0 .11.09.2.2.2h16a.2.2 0 0 0 .2-.2V7.5a.2.2 0 0 0-.2-.2H4Zm1.6 2.2h6v1.8h-6V9.5Zm0 3.4h9v1.6h-9v-1.6Zm10.6-3.4h2.2v1.8h-2.2V9.5Z"/></svg>`;
 }

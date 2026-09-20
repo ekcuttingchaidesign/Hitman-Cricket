@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { emptyBlast, emptySurvive } from '../src/game/career';
+import { emptyBlast } from '../src/game/career';
 import {
-  careerBoardMarkup, careerBoardOf, ladderTabsMarkup, laddersOf, placesOf, statsCardMarkup,
+  bestStanding, careerBoardMarkup, careerBoardOf, ladderTabsMarkup, laddersOf, placesOf,
   type AnyCareer,
 } from '../src/ui/CareerBoard';
 import type { CareerRow } from '../src/game/career-api';
@@ -11,15 +11,23 @@ const row = (name: string, career: Partial<AnyCareer>, playerId = name): CareerR
 });
 
 describe('the ladder tabs', () => {
-  it('offers the innings board first and the card last', () => {
-    const keys = laddersOf('classic').map(tab => tab.key);
-    expect(keys[0]).toBe('best');
-    expect(keys.at(-1)).toBe('you');
+  it('offers the innings board first', () => {
+    expect(laddersOf('classic').map(tab => tab.key)[0]).toBe('best');
   });
 
   it('offers each mode its own career ladders', () => {
-    expect(laddersOf('classic').map(tab => tab.key)).toEqual(['best', 'runs', 'boundaries', 'highest', 'you']);
-    expect(laddersOf('survive').map(tab => tab.key)).toEqual(['best', 'balls', 'blows', 'runs', 'boundaries', 'you']);
+    expect(laddersOf('classic').map(tab => tab.key)).toEqual(['best', 'runs', 'boundaries', 'highest']);
+    expect(laddersOf('survive').map(tab => tab.key)).toEqual(['best', 'balls', 'blows', 'runs', 'boundaries']);
+  });
+
+  it('keeps the player\'s own card out of the strip', () => {
+    // It is a destination rather than a way of re-sorting the rows, so it has
+    // its own key under the sheet. A pill here would have read as a seventh
+    // ladder and been the only one that did not rank anybody.
+    for (const mode of ['classic', 'survive'] as const) {
+      expect(laddersOf(mode).map(tab => tab.key)).not.toContain('you');
+      expect(ladderTabsMarkup(mode, 'best')).not.toContain('board-ladder-you');
+    }
   });
 
   it('marks exactly one tab as the live one', () => {
@@ -97,70 +105,6 @@ describe('a career board, drawn', () => {
   });
 });
 
-describe('the stats card', () => {
-  it('shows the six figures a Blast career is read in', () => {
-    const markup = statsCardMarkup({
-      mode: 'classic', name: 'Rohit',
-      career: { ...emptyBlast(), innings: 12, runs: 900, sixes: 40, fours: 30, highest: 140, notOut: 132, balls: 300 },
-    });
-    for (const label of ['Runs', 'Highest', 'Sixes', 'Fours', 'Best n.o.', 'Balls']) {
-      expect(markup).toContain(`<dt>${label}</dt>`);
-    }
-    expect(markup).toContain('<dd>900</dd>');
-    expect(markup).toContain('<dd>140</dd>');
-    expect(markup).toContain('<dd>132</dd>');
-    expect(markup).toContain('<b>12</b>');
-  });
-
-  it('shows the Test career with its three results and its survivals', () => {
-    const markup = statsCardMarkup({
-      mode: 'survive', name: 'Rohit',
-      career: { ...emptySurvive(), innings: 9, balls: 400, runs: 120, blows: 22, sixes: 4, fours: 8, wins: 2, draws: 3, losses: 4 },
-    });
-    for (const label of ['Balls faced', 'Survived', 'Runs', 'Blows', 'Sixes', 'Fours', 'Won', 'Drawn', 'Lost']) {
-      expect(markup).toContain(`<dt>${label}</dt>`);
-    }
-    // Survived is the two tiers he came through, and nothing else.
-    expect(markup).toContain('<dd>5</dd>');
-  });
-
-  it('tells a player with no innings that there is nothing yet', () => {
-    expect(statsCardMarkup({ mode: 'classic', career: emptyBlast() }))
-      .toContain('No innings counted yet');
-  });
-
-  it('tells a counted player with no name what is missing', () => {
-    const markup = statsCardMarkup({ mode: 'classic', career: { ...emptyBlast(), innings: 3, runs: 90 } });
-    expect(markup).toContain('register a name');
-  });
-
-  it('names the best standing the player holds on any of the ladders', () => {
-    const markup = statsCardMarkup({
-      mode: 'classic', name: 'Rohit',
-      career: { ...emptyBlast(), innings: 3, runs: 90 },
-      places: { runs: 12, boundaries: 4, highest: 30 },
-    });
-    expect(markup).toContain('<b>4th</b> on Boundaries');
-  });
-
-  it('says so plainly when a name is held and no board has them yet', () => {
-    const markup = statsCardMarkup({
-      mode: 'classic', name: 'Rohit', career: { ...emptyBlast(), innings: 3, runs: 90 }, places: {},
-    });
-    expect(markup).toContain('Counted, and climbing');
-  });
-
-  it('says out loud that the figures belong to this browser', () => {
-    expect(statsCardMarkup({ mode: 'classic', career: emptyBlast() }))
-      .toContain('keep to one window');
-  });
-
-  it('writes the name in as text', () => {
-    expect(statsCardMarkup({ mode: 'classic', name: '<b>x</b>', career: { ...emptyBlast(), innings: 1 } }))
-      .toContain('&lt;b&gt;x&lt;/b&gt;');
-  });
-});
-
 describe('where a player stands', () => {
   it('reads a place off each board they are on, counting from one', () => {
     const boards = {
@@ -173,5 +117,15 @@ describe('where a player stands', () => {
 
   it('has nothing to say about nobody', () => {
     expect(placesOf({ runs: [row('Rohit', {})] }, null)).toEqual({});
+  });
+});
+
+describe('the best standing on any ladder', () => {
+  it('names the highest place the player holds, and the board it is on', () => {
+    expect(bestStanding('classic', { runs: 12, boundaries: 4, highest: 30 })).toBe('4th on Boundaries');
+  });
+
+  it('has nothing to say where no board has them', () => {
+    expect(bestStanding('classic', {})).toBeNull();
   });
 });

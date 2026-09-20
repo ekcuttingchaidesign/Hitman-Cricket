@@ -506,9 +506,18 @@ None of them is an anti-cheat measure and none should be mistaken for one — th
 
 ### The card
 
-The last tab of each mode is the player's own figures: innings, runs, highest, best unbeaten, sixes, fours and balls in the Blast; balls faced, innings survived, runs, blows, boundaries and the three results in the Test match. *Survived* is wins and draws added together — the innings he came through — and is derived rather than counted, because a third counter beside the two is a third counter to keep in step.
+`MY CAREER CARD`, under the sheet rather than among the pills above it. Every pill re-sorts what is already on screen; this one is a destination, and it leaves — so it is shaped like a key, not like a seventh ladder.
 
-It is mirrored into `localStorage` so it draws with a number on it the instant it opens, and corrected by the store a moment later. The mirror is never the truth, and the foot of the card says out loud what the tab is really for: **these figures belong to this browser.** Clear its storage or play somewhere else and a second career starts from nought. That is the honest version of the nudge — the card does not merge devices, it makes keeping to one worth something.
+It shows innings, runs, highest, best unbeaten, sixes, fours and balls in the Blast; balls faced, innings survived, runs, blows, boundaries and the three results in the Test match, where won, drawn and lost carry the Test board's own tier colours. *Survived* is wins and draws added together — the innings he came through — and is derived rather than counted, because a third counter beside the two is a third counter to keep in step.
+
+**The card on screen is a painted picture, not a DOM copy of one.** `game/StatsCard.ts` draws it to a canvas the way `ShareCard.ts` draws the innings card, and the overlay shows that very image. That is the one arrangement which guarantees the card somebody shares is the card they were looking at when they decided to — a second rendering would drift from the first the day one of them gained a figure. The cost is that a canvas is a rectangle to a screen reader, which is what the alt text and the text fallback are for.
+
+Two keys sit under it, stacked and equal, each wearing the colour of where it is going:
+
+- **Brag stats on WhatsApp** — the card as a PNG, with a caption that carries the playable link. That link is the whole difference between a brag and an invitation: a thread full of somebody's numbers is a thread where nobody can go and beat them. Where the browser will not hand a file to another app, the `wa.me` link still opens WhatsApp with that text, so the link survives even when the picture cannot.
+- **Share to Insta story** — the card standing on the cover art in a 9:16 frame, as a JPEG, with the address painted on. It has to be painted: a picture handed to Instagram is a picture, link stickers are added inside the app by whoever posts it, and nothing else survives the trip.
+
+The figures are mirrored into `localStorage`, so the sheet opens with the player's own numbers rather than a spinner and the card is painted from those; the store's answer replaces them a moment later, and only repaints where it actually disagreed. The foot of the card says out loud what the whole thing is for: **these figures belong to this browser.** Clear its storage or play somewhere else and a second career starts from nought. That is the honest version of the nudge — the card does not merge devices, it makes keeping to one worth something.
 
 ### Reading them costs almost nothing
 
@@ -686,7 +695,9 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
 | `board-open` | Whether the fifty is looked at. |
 | `board-tab-classic`, `board-tab-survive` | Whether the other mode's ladder is reached from the tab over the sheet. |
-| `board-ladder-runs`, `…-boundaries`, `…-highest`, `…-balls`, `…-blows`, `…-you` | Which career ladder is opened, and whether the card is looked at at all. The one measure of whether the career boards are worth the tabs they cost. |
+| `board-ladder-runs`, `…-boundaries`, `…-highest`, `…-balls`, `…-blows` | Which career ladder is opened. The one measure of whether the career boards are worth the tabs they cost. |
+| `stats-open` | Whether the career card is looked at at all. |
+| `stats-share-whatsapp`, `stats-share-story` | Whether it is then sent anywhere, which is the whole point of drawing it. The tap, not the delivery — whether the sheet was sent or dismissed is between the player and their phone. |
 | `claim-open`, `claim-done`, `claim-failed` | The registration funnel: offered, taken, and refused by the store. |
 | `survive-…` | The same events again, for a Test innings. GoatCounter has no custom properties, so the mode is in the name or it is nowhere — everything about an *innings* is prefixed, and everything about a *session* (the first shot, the help screen, the minutes played) is not, because those are the same fact whichever innings they happened in. |
 | `survive-result-won` … `survive-result-lost` | Which of the five result cards the Test innings earned. |

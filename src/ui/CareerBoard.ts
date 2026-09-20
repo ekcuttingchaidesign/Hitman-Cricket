@@ -1,5 +1,5 @@
 import {
-  BLAST_BOARDS, SURVIVE_BOARDS, survivals,
+  BLAST_BOARDS, SURVIVE_BOARDS,
   type BlastCareer, type CareerBoard, type CareerMode, type SurviveCareer,
 } from '../game/career';
 import type { CareerRow } from '../game/career-api';
@@ -47,13 +47,21 @@ export type AnyCareer = BlastCareer | SurviveCareer;
  */
 export type LadderTab = string;
 
-/** The tabs one mode offers, in the order they are drawn. */
+/**
+ * The tabs one mode offers, in the order they are drawn.
+ *
+ * The player's own card is deliberately not among them. Every pill here answers
+ * "where do I stand" and is read against the rows underneath it; the card
+ * answers "what have I done", belongs to one person, and exists to be sent to
+ * somebody. Sitting in this strip it read as a seventh ladder — and the one key
+ * on the whole screen that leads somewhere rather than sorting it should not be
+ * disguised as the six that do not. It has its own key under the sheet.
+ */
 export function laddersOf(mode: CareerMode): { key: LadderTab; name: string }[] {
   const career = mode === 'survive' ? SURVIVE_BOARDS : BLAST_BOARDS;
   return [
     { key: 'best', name: 'Best innings' },
     ...career.map(board => ({ key: board.key, name: board.name })),
-    { key: 'you', name: 'You' },
   ];
 }
 
@@ -163,110 +171,6 @@ function careerStanding(
   return `${escape(rows[0].name)} leads with <b>${lead.of(rows[0].career)}</b> ${escape(lead.label)}.`;
 }
 
-export interface StatsCardView {
-  mode: CareerMode;
-  career: AnyCareer;
-  /** The name the career is ranked under, empty until one has been claimed. */
-  name?: string;
-  avatar?: number;
-  /** Whether the figures on screen came from the store or from this browser. */
-  state?: 'ready' | 'loading' | 'offline';
-  /** Where this player stands on each career board, where they are on it. */
-  places?: Record<string, number>;
-  actionsMarkup?: string;
-}
-
-/**
- * The card: one player's own figures, and the one screen in this game that is
- * about them rather than about everybody.
- *
- * It is the answer to the same thing the leaderboards are the answer to, from
- * the other end. A board says who is ahead; this says what *you* have, and what
- * you have is attached to this browser and to nothing else — which is the
- * honest version of the reason it exists. Playing the next innings somewhere
- * else does not move these numbers across, and the line at the foot says so
- * plainly rather than letting somebody find out by losing four hundred runs.
- */
-export function statsCardMarkup(view: StatsCardView): string {
-  const { mode, career, name = '', avatar = 0, state = 'ready', places = {}, actionsMarkup = '' } = view;
-  const figures = mode === 'survive'
-    ? surviveFigures(career as SurviveCareer)
-    : blastFigures(career as BlastCareer);
-  const played = career.innings > 0;
-  return `
-    <div class="board-sheet stats-sheet" role="document">
-      <div class="sheet-head">
-        <p class="board-eyebrow">${mode === 'survive' ? 'TEST SURVIVAL' : 'THE BLAST'} &middot; YOUR CAREER</p>
-        <h2 id="board-title">${name ? escape(name) : 'Your figures'}</h2>
-        <button id="board-close" class="board-close" aria-label="Close the board">×</button>
-      </div>
-      <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
-        state === 'loading' ? 'Fetching your figures…'
-        : !played ? 'No innings counted yet. Play one and it starts here.'
-        : !name ? 'Counted, but not on the boards &mdash; register a name and every innings here comes with you.'
-        : standingLine(mode, places)}</p>
-      <div class="board-scroll">
-        <div class="stats-head">${name ? kitMarkup(avatar, name, ' is-large') : ''}
-          <p class="stats-innings"><b>${career.innings}</b><small>innings</small></p>
-        </div>
-        <dl class="stats-grid">${figures.map(figure => `
-          <div class="stats-cell${figure.lead ? ' is-lead' : ''}">
-            <dt>${escape(figure.label)}</dt>
-            <dd>${figure.value}</dd>
-          </div>`).join('')}
-        </dl>
-        ${state === 'offline' ? '<p class="board-offline">These are the figures this device last saw. Nothing is lost &mdash; the store has the rest.</p>' : ''}
-      </div>
-      <p class="board-foot">Counted on this browser. Clear its storage, or play somewhere else, and a second career starts from nought &mdash; so keep to one window if you want these to be the real numbers.</p>
-      ${actionsMarkup}
-    </div>`;
-}
-
-/** The six figures a Blast career is read in. */
-function blastFigures(career: BlastCareer) {
-  return [
-    { label: 'Runs', value: career.runs, lead: true },
-    { label: 'Highest', value: career.highest, lead: true },
-    { label: 'Sixes', value: career.sixes, lead: false },
-    { label: 'Fours', value: career.fours, lead: false },
-    // The best score made without losing a wicket, which is not the same thing
-    // as the highest: 140 for one is a bigger score than 132 not out and a
-    // lesser innings, and this is the column that says so.
-    { label: 'Best n.o.', value: career.notOut, lead: false },
-    { label: 'Balls', value: career.balls, lead: false },
-  ];
-}
-
-/** The Test career's, with the three results it can end in. */
-function surviveFigures(career: SurviveCareer) {
-  return [
-    { label: 'Balls faced', value: career.balls, lead: true },
-    { label: 'Survived', value: survivals(career), lead: true },
-    { label: 'Runs', value: career.runs, lead: false },
-    { label: 'Blows', value: career.blows, lead: false },
-    { label: 'Sixes', value: career.sixes, lead: false },
-    { label: 'Fours', value: career.fours, lead: false },
-    { label: 'Won', value: career.wins, lead: false },
-    { label: 'Drawn', value: career.draws, lead: false },
-    { label: 'Lost', value: career.losses, lead: false },
-  ];
-}
-
-/**
- * The best place this player holds on any of this mode's career boards, said
- * once. Naming all of them would be four lines of the same sentence; naming
- * none of them would waste the one line on the screen that can say something
- * about where they actually stand.
- */
-function standingLine(mode: CareerMode, places: Record<string, number>): string {
-  const best = Object.entries(places)
-    .filter(([, place]) => place > 0)
-    .sort((a, b) => a[1] - b[1])[0];
-  if (!best) return 'Counted, and climbing. Keep going and a board will have you.';
-  const board = careerBoardOf(mode, best[0]);
-  return `Your best standing is <b>${ordinal(best[1])}</b> on ${escape(board?.name ?? best[0])}.`;
-}
-
 function ordinal(n: number) {
   const tens = n % 100;
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
@@ -284,4 +188,18 @@ export function placesOf(
     if (at >= 0) places[key] = at + 1;
   }
   return places;
+}
+
+/**
+ * The best place this player holds on any of a mode's career ladders, as a
+ * phrase — and only the best one. Naming all four would be four lines of the
+ * same sentence on a card with no room for one; naming none would waste the
+ * only line on it that says where they actually stand.
+ */
+export function bestStanding(mode: CareerMode, places: Record<string, number>): string | null {
+  const best = Object.entries(places)
+    .filter(([, place]) => place > 0)
+    .sort((a, b) => a[1] - b[1])[0];
+  if (!best) return null;
+  return `${ordinal(best[1])} on ${careerBoardOf(mode, best[0])?.name ?? best[0]}`;
 }
