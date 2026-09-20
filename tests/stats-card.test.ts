@@ -177,10 +177,10 @@ describe('the tier a career earns', () => {
   it('climbs with the figure the mode already leads on', () => {
     const at = (runs: number) => statsFacts('classic', { ...emptyBlast(), innings: 9, runs }, { name: 'R', avatar: 0 }).tier.name;
     expect(at(0)).toBe('DEBUTANT');
-    expect(at(249)).toBe('DEBUTANT');
-    expect(at(250)).toBe('EMERGING PLAYER');
-    expect(at(1200)).toBe('STAR');
-    expect(at(4000)).toBe('HITMAN');
+    expect(at(349)).toBe('DEBUTANT');
+    expect(at(350)).toBe('EMERGING PLAYER');
+    expect(at(3600)).toBe('STAR');
+    expect(at(12_000)).toBe('HITMAN');
     expect(at(99_999)).toBe('HITMAN');
   });
 
@@ -190,9 +190,14 @@ describe('the tier a career earns', () => {
     // player can say in one syllable what they are.
     expect(TIERS).toHaveLength(4);
     expect(TIERS.map(tier => tier.name)).toEqual(['DEBUTANT', 'EMERGING PLAYER', 'STAR', 'HITMAN']);
-    // Strictly climbing, or a career could qualify for two rungs at once.
-    for (let i = 1; i < TIERS.length; i++) expect(TIERS[i].at).toBeGreaterThan(TIERS[i - 1].at);
-    expect(TIERS[0].at).toBe(0);
+    // Strictly climbing in both modes, or a career could qualify for two rungs
+    // at once and which one it got would be whichever the loop saw last.
+    for (const mode of ['classic', 'survive'] as const) {
+      expect(TIERS[0].at[mode]).toBe(0);
+      for (let i = 1; i < TIERS.length; i++) {
+        expect(TIERS[i].at[mode], `${TIERS[i].name}.${mode}`).toBeGreaterThan(TIERS[i - 1].at[mode]);
+      }
+    }
   });
 
   it('reads a Test career off balls faced, not runs', () => {
@@ -204,25 +209,50 @@ describe('the tier a career earns', () => {
     expect(statsFacts('survive', { ...blocker, balls: 40 }, { name: 'R', avatar: 0 }).tier.name).toBe('DEBUTANT');
   });
 
+  /**
+   * The two ladders are set off measured play — about 140 runs a day in the
+   * Blast against about 39 balls a day in the Test match — so that they cost
+   * the same effort rather than carrying the same numbers. Held here as a
+   * ratio with room either side, because the thresholds are round numbers a
+   * person chose and will choose again.
+   */
+  it('costs the same effort in either mode', () => {
+    for (const tier of TIERS.slice(1)) {
+      const ratio = tier.at.classic / tier.at.survive;
+      expect(ratio, `${tier.name} classic:survive`).toBeGreaterThan(2.8);
+      expect(ratio, `${tier.name} classic:survive`).toBeLessThan(4.4);
+    }
+  });
+
+  it('puts the second rung where a player reaches it on their second sitting', () => {
+    // Roughly six or seven innings in either mode, at the measured averages of
+    // ~54 runs and ~17 balls an innings. Early enough that anybody who comes
+    // back sees it; late enough that one-and-done players never do.
+    expect(TIERS[1].at.classic / 54).toBeGreaterThan(4);
+    expect(TIERS[1].at.classic / 54).toBeLessThan(10);
+    expect(TIERS[1].at.survive / 17).toBeGreaterThan(4);
+    expect(TIERS[1].at.survive / 17).toBeLessThan(10);
+  });
+
   it('says what the next rung wants, and stops saying it at the top', () => {
     const climbing = statsFacts('classic', { ...emptyBlast(), innings: 9, runs: 400 }, { name: 'R', avatar: 0 });
-    expect(climbing.nextLine).toBe('800 runs to STAR');
+    expect(climbing.nextLine).toBe('3,200 runs to STAR');
     expect(climbing.ladder.next?.name).toBe('STAR');
-    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 9_000 }, { name: 'R', avatar: 0 });
+    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 20_000 }, { name: 'R', avatar: 0 });
     expect(top.ladder.next).toBeNull();
     expect(top.nextLine).toBe('Top of the ladder.');
   });
 
   it('measures the bar across the rung, not from nought', () => {
-    // 725 is halfway between REGULAR at 250 and STAR at 1,200. A bar measured
-    // from nought would read three fifths full and crawl; this one moves every
-    // time somebody plays.
-    const half = statsFacts('classic', { ...emptyBlast(), innings: 9, runs: 725 }, { name: 'R', avatar: 0 });
+    // 1,975 is halfway between EMERGING PLAYER at 350 and STAR at 3,600. A bar
+    // measured from nought would read just over half and crawl from there;
+    // this one moves every time somebody plays.
+    const half = statsFacts('classic', { ...emptyBlast(), innings: 40, runs: 1975 }, { name: 'R', avatar: 0 });
     expect(half.ladder.progress).toBeCloseTo(0.5, 1);
   });
 
   it('fills the bar at the top rather than leaving it stuck', () => {
-    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 9_000 }, { name: 'R', avatar: 0 });
+    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 20_000 }, { name: 'R', avatar: 0 });
     expect(top.ladder.progress).toBe(1);
   });
 
@@ -281,7 +311,7 @@ describe('what a card is made of', () => {
   });
 
   it('carries the theme onto the facts the card is painted from', () => {
-    const gold = statsFacts('classic', { ...emptyBlast(), innings: 90, runs: 5000 }, { name: 'R', avatar: 0 });
+    const gold = statsFacts('classic', { ...emptyBlast(), innings: 220, runs: 13_000 }, { name: 'R', avatar: 0 });
     const navy = statsFacts('classic', { ...emptyBlast(), innings: 1, runs: 10 }, { name: 'R', avatar: 0 });
     expect(gold.tier.theme.accent).not.toBe(navy.tier.theme.accent);
     expect(gold.tier.theme.metal).toBe(true);

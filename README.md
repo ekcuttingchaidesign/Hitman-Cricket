@@ -512,18 +512,22 @@ None of them is an anti-cheat measure and none should be mistaken for one — th
 
 A row of numbers is inert on its own: nine figures and no answer to the only question anybody actually asks about them, which is whether they are any good. The badge answers it in one word, and that word is what makes the card worth sending — *900 runs* means nothing to a friend who has never played this, and *STAR* means something immediately.
 
-| Tier | From | Made of | |
-| --- | --- | --- | --- |
-| DEBUTANT | 0 | Navy | First time out there. |
-| EMERGING PLAYER | 250 | Bronze | Making a name out there. |
-| STAR | 1,200 | Black and silver | People turn up to watch. |
-| HITMAN | 4,000 | Black and gold | The one the game is named for. |
+| Tier | Blast (runs) | Test (balls) | Made of | |
+| --- | --- | --- | --- | --- |
+| DEBUTANT | 0 | 0 | Navy | First time out there. |
+| EMERGING PLAYER | 350 | 100 | Bronze | Making a name out there. |
+| STAR | 3,600 | 1,000 | Black and silver | People turn up to watch. |
+| HITMAN | 12,000 | 3,400 | Black and gold | The one the game is named for. |
+
+**The thresholds are measured, not guessed.** Five days of GoatCounter puts a Blast innings at about **54 runs** and a Test innings at about **17 balls**, and a player at about **2.5 innings** on a day they play at all — so roughly **140 runs a day** in the Blast against **39 balls a day** in the Test match. On those rates, EMERGING PLAYER is six or seven innings (the second or third sitting), STAR is a few committed weeks, and HITMAN is about a month of heavy play and out of reach of everybody else.
+
+One caveat worth recording, because it will matter the next time these are revisited: GoatCounter's export counts **unique visitor-days, not raw events**. That is provable from the export itself — mutually exclusive families disagree with their parent in a way only deduplication explains (the Blast's six score bands sum to 304 against 136 `innings-end`, and the five duration bands independently sum to 293). So innings-per-day is *modelled* from how many distinct bands a player hits, not counted. The band shares are reliable; the volumes are an estimate.
+
+**The two modes carry different numbers, on purpose.** They were shared to begin with, on the assumption that sixty balls and sixty-odd runs an innings put the two measures in the same range. The data says otherwise: Test innings end early where Blast innings mostly run their course, and the gap is about three and a half to one. Shared thresholds would have had Test players climbing three and a half times slower for identical time at the crease, so the two ladders are set to cost the same *effort* instead — about six or seven innings to the second rung in either mode.
 
 **Four rungs, and deliberately not more.** A longer ladder flatters the arithmetic and nobody else: each step means less, and a player two thirds of the way up still cannot say in one syllable what they are. Adding a rung later is one entry in `TIERS` — everything the card paints reads whatever is in that list, and nothing else needs touching.
 
 It is read off the figure the mode already leads on — **career runs** in the Blast, **balls faced** in the Test match — rather than off a score of its own. That keeps one number in charge of the headline tile, the badge under it and the progress bar under that, so a card cannot say a player is climbing on one line and stalled on the next. It also means the Test ladder rewards the thing that mode is about: a blocker with two thousand balls and forty runs is a STAR, where a tier read off runs would have called him a debutant.
-
-The thresholds are shared between the two modes, which the measures happen to allow — sixty balls an innings and something under sixty runs an innings put them in the same range — so there is one ladder to learn rather than two.
 
 ### The tier is the whole card, not a badge on it
 

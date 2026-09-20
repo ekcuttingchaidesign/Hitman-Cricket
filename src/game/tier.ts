@@ -83,8 +83,22 @@ export interface Tier {
   key: string;
   /** The word on the badge. */
   name: string;
-  /** What it takes to get here, in the mode's own lead figure. */
-  at: number;
+  /**
+   * What it takes to get here, per mode, in that mode's own lead figure.
+   *
+   * Per mode rather than one figure for both, and the reason is measured
+   * rather than guessed: five days of play says a Blast player banks about
+   * 140 runs a day and a Test player about 39 balls — roughly three and a half
+   * to one, because Test innings end early where Blast innings mostly run
+   * their course. One shared ladder was the assumption this started on, and it
+   * would have had Test players climbing three and a half times slower for
+   * identical time at the crease.
+   *
+   * So the two ladders are set to cost the same *effort* instead: about six or
+   * seven innings to the second rung, sixty-odd to the third, and a month of
+   * heavy play to the top, whichever mode is being played.
+   */
+  at: Record<CareerMode, number>;
   /** One line saying what it took, for the card and for a screen reader. */
   blurb: string;
   /** What the card is made of at this rung. */
@@ -105,10 +119,14 @@ export interface Tier {
  * bloom, the progress bar and the card's own edges all read whatever is here,
  * and nothing else needs touching. That is the whole reason it is a list.
  *
- * The thresholds are pulled in tighter than the names might suggest, because a
- * rung nobody reaches is the same as no rung at all: at something under fifty
- * runs an innings, EMERGING PLAYER is about five innings, STAR about
- * twenty-five, and HITMAN a season of them.
+ * The thresholds are set off what people actually do rather than off what the
+ * numbers look like. Five days of play put a Blast innings at about
+ * fifty-four runs and a Test innings at about seventeen balls, and a player at
+ * two and a half innings on a day they play at all — so EMERGING PLAYER is
+ * six or seven innings, which is the second or third sitting, STAR is a few
+ * committed weeks, and HITMAN is about a month of heavy play and out of reach
+ * of everybody else. A rung nobody reaches is the same as no rung at all; a
+ * rung everybody reaches is not a rung.
  *
  * The materials climb rather than merely differ — navy, then bronze, then
  * black and silver, then black and gold — so the ladder is legible in a
@@ -120,7 +138,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'debutant',
     name: 'DEBUTANT',
-    at: 0,
+    at: { classic: 0, survive: 0 },
     blurb: 'First time out there.',
     // The game's own navy, which is the card everybody starts on and the only
     // one that is not trying to be a material.
@@ -138,7 +156,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'emerging',
     name: 'EMERGING PLAYER',
-    at: 250,
+    at: { classic: 350, survive: 100 },
     blurb: 'Making a name out there.',
     // Bronze, and dark. A warm ground rather than navy tinted brown, or the
     // copper has nothing to be warm against — but a long way below where it
@@ -158,7 +176,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'star',
     name: 'STAR',
-    at: 1200,
+    at: { classic: 3600, survive: 1000 },
     blurb: 'People turn up to watch.',
     // Black and silver, in that order. The ground is a neutral near-black with
     // just enough lift at the top to keep an edge; the silver is spent on the
@@ -178,7 +196,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'hitman',
     name: 'HITMAN',
-    at: 4000,
+    at: { classic: 12000, survive: 3400 },
     blurb: 'The one the game is named for.',
     // Black and gold, and the only card in the game that gets to be either.
     // The ground is black with the faintest warmth in it rather than a dark
@@ -230,17 +248,17 @@ export interface Standing {
 export function standingOf(mode: CareerMode, career: BlastCareer | SurviveCareer): Standing {
   const measure = Math.max(0, Math.floor(tierMeasure(mode, career)));
   let index = 0;
-  for (let i = 0; i < TIERS.length; i++) if (measure >= TIERS[i].at) index = i;
+  for (let i = 0; i < TIERS.length; i++) if (measure >= TIERS[i].at[mode]) index = i;
   const tier = TIERS[index];
   const next = TIERS[index + 1] ?? null;
   if (!next) return { tier, next, measure, progress: 1, toNext: null };
-  const span = next.at - tier.at;
+  const span = next.at[mode] - tier.at[mode];
   return {
     tier,
     next,
     measure,
-    progress: span > 0 ? Math.min(1, Math.max(0, (measure - tier.at) / span)) : 1,
-    toNext: Math.max(0, next.at - measure),
+    progress: span > 0 ? Math.min(1, Math.max(0, (measure - tier.at[mode]) / span)) : 1,
+    toNext: Math.max(0, next.at[mode] - measure),
   };
 }
 
