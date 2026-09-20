@@ -69,7 +69,7 @@ function fallbackMarkup(facts: StatsFacts): string {
           <h2 id="stats-title">${escape(facts.name)}</h2>
           <p class="stats-plain-line">${facts.innings} innings played${
             facts.standing ? ` &middot; ${escape(facts.standing)}` : ''}</p>
-          <p class="stats-badge" style="--tier:${escape(facts.tier.ink)}">
+          <p class="stats-badge" style="--tier:${escape(facts.tier.theme.accent)}">
             <b>${escape(facts.tier.name)}</b><small>${escape(facts.nextLine)}</small>
           </p>
           <dl class="stats-grid">${[...facts.hero, ...facts.figures].map((figure, i) => `

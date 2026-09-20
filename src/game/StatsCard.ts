@@ -1,6 +1,6 @@
 import { kitColour, avatarSrc } from '../config/board';
 import { survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
-import { nextLine, standingOf, type Standing, type Tier } from './tier';
+import { nextLine, standingOf, type Standing, type Theme, type Tier } from './tier';
 
 /**
  * The career card, painted so it can leave the page as a picture.
@@ -38,14 +38,6 @@ export const STATS_CARD = {
   padX: 26,
   padTop: 26,
   padBottom: 22,
-  ink: '#f7f0e5',
-  quiet: '#9fb2bd',
-  rule: '#ffffff1f',
-  face: '#0f2738',
-  lift: '#16354a',
-  ledge: '#040e15',
-  accent: '#f2814f',
-  accentInk: '#f7c3a4',
 } as const;
 
 /**
@@ -53,8 +45,11 @@ export const STATS_CARD = {
  * its rows with. The card is the one place all three figures sit side by side,
  * and a row of three identical numbers says nothing about which of them a
  * player would rather have more of — the colours are what make it a record
- * rather than a tally. They are the sheet's own, so a card and the board it
- * came from never disagree about what a draw looks like.
+ * rather than a tally.
+ *
+ * These are the one set of colours on the card the theme does not own. A draw
+ * has to look like a draw on every material, or the three columns stop meaning
+ * anything the moment somebody changes tier.
  */
 const RESULT_INK: Record<string, string> = {
   Won: '#7de3ad', Drawn: '#f0c65c', Lost: '#f09a8c',
@@ -312,9 +307,9 @@ async function paintKit(ctx: CanvasRenderingContext2D, facts: StatsFacts, x: num
   ctx.save();
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size / 2 - 1, 0, Math.PI * 2);
-  ctx.strokeStyle = at(facts.tier.ink, 0.85);
+  ctx.strokeStyle = at(facts.tier.theme.accent, 0.9);
   ctx.lineWidth = 2;
-  ctx.shadowColor = at(facts.tier.glow, 0.55);
+  ctx.shadowColor = at(facts.tier.theme.accent, 0.55);
   ctx.shadowBlur = 10;
   ctx.stroke();
   ctx.restore();
@@ -329,26 +324,43 @@ function paintBadge(
   ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, w: number,
 ) {
   const tier = facts.tier;
+  const theme = tier.theme;
   const fill = ctx.createLinearGradient(x, y, x + w, y);
-  fill.addColorStop(0, at(tier.glow, 0.34));
-  fill.addColorStop(1, at(tier.glow, 0.06));
+  fill.addColorStop(0, at(theme.accent, 0.3));
+  fill.addColorStop(1, at(theme.accent, 0.05));
   ctx.fillStyle = fill;
   panel(ctx, x, y, w, BADGE_H, 9); ctx.fill();
-  ctx.strokeStyle = at(tier.ink, 0.5);
+  ctx.strokeStyle = at(theme.accent, 0.5);
   ctx.lineWidth = 1;
   panel(ctx, x + 0.5, y + 0.5, w - 1, BADGE_H - 1, 9); ctx.stroke();
   // A solid flash of the tier's colour at the left edge, the way a rosette has
   // a ribbon. It is what makes the badge read at a glance in a thumbnail,
   // where the word itself is too small to read at all.
-  ctx.fillStyle = tier.ink;
+  ctx.fillStyle = theme.accent;
   panel(ctx, x, y + 6, 4, BADGE_H - 12, 2); ctx.fill();
 
-  ctx.fillStyle = tier.ink;
   ctx.font = font(900, 15);
+  // Brushed, on a tier whose accent is a metal: light at the top edge, the
+  // colour through the middle, dark underneath. It is one gradient and it is
+  // the difference between gold-coloured type and type that looks like gold.
+  ctx.fillStyle = theme.metal ? metal(ctx, theme, y + 8, 18) : theme.accent;
   const used = tracked(ctx, tier.name, x + 16, y + BADGE_H / 2 + 5.5, 2.4);
-  ctx.fillStyle = STATS_CARD.quiet;
+  ctx.fillStyle = theme.quiet;
   ctx.font = font(500, 11.5);
   ctx.fillText(clipped(ctx, tier.blurb, w - used - 44), x + 16 + used + 14, y + BADGE_H / 2 + 4.5);
+}
+
+/**
+ * A brushed-metal fill for a band of the card, light to colour to dark. Handed
+ * back as a fill style rather than applied, so a caller can set it on whatever
+ * it is about to draw and nothing here has to know what that is.
+ */
+function metal(ctx: CanvasRenderingContext2D, theme: Theme, y: number, h: number) {
+  const brush = ctx.createLinearGradient(0, y, 0, y + h);
+  brush.addColorStop(0, theme.sheen);
+  brush.addColorStop(0.45, theme.accent);
+  brush.addColorStop(1, at(theme.accent, 0.72));
+  return brush;
 }
 
 /**
@@ -360,33 +372,45 @@ function paintBadge(
 function paintLadder(
   ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, w: number,
 ) {
-  const tier = facts.tier;
+  const theme = facts.tier.theme;
   const trackH = 6;
   const trackY = y + 2;
   ctx.fillStyle = '#ffffff12';
   panel(ctx, x, trackY, w, trackH, 3); ctx.fill();
   const filled = Math.max(trackH, w * facts.ladder.progress);
-  const run = ctx.createLinearGradient(x, trackY, x + filled, trackY);
-  run.addColorStop(0, at(tier.ink, 0.5));
-  run.addColorStop(1, tier.ink);
-  ctx.fillStyle = run;
+  ctx.fillStyle = theme.metal
+    ? metal(ctx, theme, trackY, trackH)
+    : (() => {
+      const run = ctx.createLinearGradient(x, trackY, x + filled, trackY);
+      run.addColorStop(0, at(theme.accent, 0.5));
+      run.addColorStop(1, theme.accent);
+      return run;
+    })();
   panel(ctx, x, trackY, filled, trackH, 3); ctx.fill();
 
-  ctx.fillStyle = STATS_CARD.quiet;
-  ctx.font = font(600, 10.5);
-  ctx.fillText(facts.nextLine, x, trackY + trackH + 13);
-  // The rung above, right-aligned against the end of its own bar, so the bar
-  // has a destination printed on it rather than just running out.
+  // The rung above goes down first, because it is the fixed one: it sits at the
+  // end of its own bar, and the line on the left gets whatever room is left
+  // over. The other way round, "160 runs to EMERGING PLAYER" and the words
+  // EMERGING PLAYER met in the middle and printed on top of each other.
+  //
+  // It wears the *next* tier's colour, which is the only place on the card that
+  // colour appears — a small preview of what the thing is about to be made of.
+  let room = w;
   if (facts.ladder.next) {
-    ctx.fillStyle = at(facts.ladder.next.ink, 0.75);
+    ctx.fillStyle = at(facts.ladder.next.theme.accent, 0.8);
     ctx.font = font(700, 10.5);
     // Measured and placed by hand rather than right-aligned: `tracked` draws a
     // glyph at a time, and under `textAlign = 'right'` every one of them would
     // be right-aligned against its own cursor and the word would come out
     // backwards on top of itself.
     const name = facts.ladder.next.name;
-    tracked(ctx, name, x + w - measureTracked(ctx, name, 1.2), trackY + trackH + 13, 1.2);
+    const used = measureTracked(ctx, name, 1.2);
+    tracked(ctx, name, x + w - used, trackY + trackH + 13, 1.2);
+    room = w - used - 14;
   }
+  ctx.fillStyle = theme.quiet;
+  ctx.font = font(600, 10.5);
+  ctx.fillText(clipped(ctx, facts.nextLine, room), x, trackY + trackH + 13);
 }
 
 /** How wide a tracked string will be, so it can be right-aligned by hand. */
@@ -402,7 +426,9 @@ function measureTracked(ctx: CanvasRenderingContext2D, text: string, spacing: nu
 export async function paintStatsCard(
   ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, link = '',
 ) {
-  const { width, padX, padTop, ink, quiet, rule, face, lift, ledge, accent } = STATS_CARD;
+  const { width, padX, padTop } = STATS_CARD;
+  const theme = facts.tier.theme;
+  const { ink, quiet, rule, accent } = theme;
   const height = statsCardHeight(facts);
   const left = x + padX, contentW = width - padX * 2;
 
@@ -410,66 +436,57 @@ export async function paintStatsCard(
   ctx.translate(x, y);
   // The ledge first, then the card on it: the same solid shadow the live cards
   // stand on, and the reason this reads as an object in a photo roll.
-  ctx.fillStyle = ledge;
+  ctx.fillStyle = theme.ledge;
   panel(ctx, 0, 10, width, height, STATS_CARD.radius); ctx.fill();
-  // The face is a gradient rather than a flat fill — the innings card is flat
-  // because it is one screen of one result, and this one is meant to be looked
-  // at on its own in a chat thread, where flat navy at this size reads as a
-  // form. Lit at the top, settling into the house colour by the grid.
+  // The ground is the tier's, and it is the whole of what makes two players'
+  // cards different objects rather than the same card with a different word on
+  // it. Navy, bronze, black and silver, black and gold — recognisable across a
+  // room at thumbnail size, where a badge is not.
   const wash = ctx.createLinearGradient(0, 0, 0, height);
-  wash.addColorStop(0, lift);
-  wash.addColorStop(0.55, face);
-  wash.addColorStop(1, '#0b1f2e');
+  wash.addColorStop(0, theme.top);
+  wash.addColorStop(0.55, theme.mid);
+  wash.addColorStop(1, theme.bottom);
   ctx.fillStyle = wash;
   panel(ctx, 0, 0, width, height, STATS_CARD.radius); ctx.fill();
   ctx.save();
   panel(ctx, 0, 0, width, height, STATS_CARD.radius); ctx.clip();
-  // Pinstripes, at an alpha you would not notice and would miss. Flat navy at
-  // this size photographs like a screenshot of a form; a weave in it gives the
-  // card a material, which is most of what separates something worth sending
-  // from a table somebody happened to render.
-  ctx.save();
-  ctx.strokeStyle = '#ffffff07';
-  ctx.lineWidth = 1;
-  for (let i = -height; i < width; i += 7) {
-    ctx.beginPath();
-    ctx.moveTo(i, height);
-    ctx.lineTo(i + height, 0);
-    ctx.stroke();
-  }
-  ctx.restore();
-  // The bloom behind the hero row is the tier's colour, not the brand's. It is
-  // the cheapest way to make two players' cards look like different objects —
-  // a DEBUTANT's is cool and quiet, a HITMAN's is lit red from the middle — and
-  // it costs nothing the card was not already carrying.
-  const glow = facts.tier.glow;
+  // The bloom behind the hero row, in the tier's own colour. A DEBUTANT's is
+  // cool and quiet; a HITMAN's is lit gold from the middle.
   const bloomY = padTop + EYEBROW_H + IDENTITY_TOP + IDENTITY_H + BADGE_TOP + BADGE_H + HERO_TOP + HERO_H / 2;
   const bloom = ctx.createRadialGradient(width / 2, bloomY, 0, width / 2, bloomY, width * 0.78);
-  bloom.addColorStop(0, at(glow, 0.17));
-  bloom.addColorStop(0.62, at(glow, 0.05));
-  bloom.addColorStop(1, at(glow, 0));
+  bloom.addColorStop(0, at(theme.accent, 0.15));
+  bloom.addColorStop(0.62, at(theme.accent, 0.045));
+  bloom.addColorStop(1, at(theme.accent, 0));
   ctx.fillStyle = bloom;
   ctx.fillRect(0, 0, width, height);
-  // A foil sweep across the corner, the way light sits on a printed card. It is
-  // the one thing here that is pure decoration, and it earns its place by being
-  // what makes the object read as an object rather than as a rectangle.
+  // A foil sweep across the corner, the way light sits on a printed card. It
+  // is the one thing here that is pure decoration, and on the metal tiers it
+  // is doing the work the weave used to: giving the surface somewhere to
+  // catch, without ruling lines across the figures.
   const foil = ctx.createLinearGradient(0, height * 0.75, width, -height * 0.1);
   foil.addColorStop(0, '#ffffff00');
-  foil.addColorStop(0.42, '#ffffff00');
-  foil.addColorStop(0.52, '#ffffff0f');
-  foil.addColorStop(0.62, '#ffffff00');
+  foil.addColorStop(0.4, '#ffffff00');
+  foil.addColorStop(0.52, theme.metal ? '#ffffff16' : '#ffffff0e');
+  foil.addColorStop(0.64, '#ffffff00');
   foil.addColorStop(1, '#ffffff00');
   ctx.fillStyle = foil;
   ctx.fillRect(0, 0, width, height);
   // The lit top edge, clipped to the card so it follows the corners.
-  ctx.fillStyle = '#ffffff2b'; ctx.fillRect(0, 0, width, 1);
+  ctx.fillStyle = theme.metal ? at(theme.sheen, 0.3) : '#ffffff2b';
+  ctx.fillRect(0, 0, width, 1);
   ctx.restore();
-  // And a hairline all the way round. WhatsApp puts this on a dark thread and
-  // Instagram on whatever the story is standing on; without an edge of its own
-  // the card dissolves into the first of those and floats on the second.
-  ctx.strokeStyle = at(facts.tier.ink, 0.26);
+  // The edge. WhatsApp puts this on a dark thread and Instagram on whatever the
+  // story is standing on; without one of its own the card dissolves into the
+  // first and floats on the second. A metal tier gets a second hairline inset
+  // inside the first, which is the oldest trick there is for making a printed
+  // thing look like it was worth printing.
+  ctx.strokeStyle = at(theme.accent, theme.metal ? 0.5 : 0.28);
   ctx.lineWidth = 1;
   panel(ctx, 0.5, 0.5, width - 1, height - 1, STATS_CARD.radius); ctx.stroke();
+  if (theme.metal) {
+    ctx.strokeStyle = at(theme.accent, 0.16);
+    panel(ctx, 4.5, 4.5, width - 9, height - 9, STATS_CARD.radius - 4); ctx.stroke();
+  }
   ctx.restore();
 
   ctx.save();
@@ -479,7 +496,7 @@ export async function paintStatsCard(
   // about to travel without the game around it, and a brag with no name on it
   // is a brag nobody can act on.
   let cursor = y + padTop + 10;
-  ctx.fillStyle = accent;
+  ctx.fillStyle = at(accent, 0.95);
   ctx.font = font(700, 10.5);
   tracked(ctx, `${facts.modeName.toUpperCase()} · CAREER`, left, cursor, 2.1);
 
@@ -521,14 +538,14 @@ export async function paintStatsCard(
     // tile is lit white and falling away, the accent is spent on the hairline
     // and the label, and the warmth behind it all is the bloom's job.
     const glass = ctx.createLinearGradient(0, cursor, 0, cursor + HERO_H);
-    glass.addColorStop(0, '#ffffff1c');
-    glass.addColorStop(1, '#ffffff08');
+    glass.addColorStop(0, theme.tileTop);
+    glass.addColorStop(1, theme.tileBottom);
     ctx.fillStyle = glass;
     panel(ctx, tx, cursor, tileW, HERO_H, 14); ctx.fill();
-    ctx.strokeStyle = at(facts.tier.ink, 0.5);
+    ctx.strokeStyle = at(theme.accent, 0.5);
     ctx.lineWidth = 1;
     panel(ctx, tx + 0.5, cursor + 0.5, tileW - 1, HERO_H - 1, 14); ctx.stroke();
-    ctx.fillStyle = at(facts.tier.ink, 0.92);
+    ctx.fillStyle = at(theme.accent, 0.95);
     ctx.font = font(700, 10);
     tracked(ctx, one.label.toUpperCase(), tx + 16, cursor + 25, 1.4);
     ctx.fillStyle = ink;
@@ -568,7 +585,7 @@ export async function paintStatsCard(
   ctx.font = font(600, 11.5);
   ctx.fillText(link ? link.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Hitman Cricket', left, cursor + FOOT_H);
   ctx.textAlign = 'right';
-  ctx.fillStyle = accent;
+  ctx.fillStyle = theme.metal ? metal(ctx, theme, cursor + 2, 13) : accent;
   ctx.font = font(700, 11.5);
   ctx.fillText('BEAT MY NUMBERS', x + width - padX, cursor + FOOT_H);
   ctx.textAlign = 'left';
@@ -601,7 +618,9 @@ export async function statsCardImage(facts: StatsFacts, link: string, scale = 3)
   const margin = 10;
   const height = statsCardHeight(facts) + margin * 2 + 10;
   const { canvas, ctx } = surface(STATS_CARD.width + margin * 2, height, scale);
-  ctx.fillStyle = '#071219';
+  // The mat is the tier's too. A black-and-gold card on the navy mat looked
+  // like a card sitting on a different card.
+  ctx.fillStyle = facts.tier.theme.mat;
   ctx.fillRect(0, 0, STATS_CARD.width + margin * 2, height);
   await paintStatsCard(ctx, facts, margin, margin, link);
   return blob(canvas);
@@ -620,7 +639,7 @@ export async function statsStoryImage(facts: StatsFacts, link: string, scale = 1
   const { width, height } = STORY;
   const { canvas, ctx } = surface(width, height, scale);
 
-  ctx.fillStyle = '#071219';
+  ctx.fillStyle = facts.tier.theme.mat;
   ctx.fillRect(0, 0, width, height);
   const cover = await load(coverArt).catch(() => null);
   if (cover) {

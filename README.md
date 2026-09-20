@@ -512,20 +512,28 @@ None of them is an anti-cheat measure and none should be mistaken for one — th
 
 A row of numbers is inert on its own: nine figures and no answer to the only question anybody actually asks about them, which is whether they are any good. The badge answers it in one word, and that word is what makes the card worth sending — *900 runs* means nothing to a friend who has never played this, and *STAR* means something immediately.
 
-| Tier | From | |
-| --- | --- | --- |
-| DEBUTANT | 0 | First time out there. |
-| REGULAR | 250 | In the side every week. |
-| STAR | 1,200 | People turn up to watch. |
-| HITMAN | 4,000 | The one the game is named for. |
+| Tier | From | Made of | |
+| --- | --- | --- | --- |
+| DEBUTANT | 0 | Navy | First time out there. |
+| EMERGING PLAYER | 250 | Bronze | Making a name out there. |
+| STAR | 1,200 | Black and silver | People turn up to watch. |
+| HITMAN | 4,000 | Black and gold | The one the game is named for. |
 
-**Four rungs, and deliberately not more.** A longer ladder flatters the arithmetic and nobody else: each step means less, and a player two thirds of the way up still cannot say in one syllable what they are. Four names are four things a person can hold in their head, and the gaps are wide enough that moving up is an event. Adding a rung later is one entry in `TIERS` — the badge, the bloom, the bar and the card's hairline all read whatever is in that list, and nothing else needs touching.
+**Four rungs, and deliberately not more.** A longer ladder flatters the arithmetic and nobody else: each step means less, and a player two thirds of the way up still cannot say in one syllable what they are. Adding a rung later is one entry in `TIERS` — everything the card paints reads whatever is in that list, and nothing else needs touching.
 
 It is read off the figure the mode already leads on — **career runs** in the Blast, **balls faced** in the Test match — rather than off a score of its own. That keeps one number in charge of the headline tile, the badge under it and the progress bar under that, so a card cannot say a player is climbing on one line and stalled on the next. It also means the Test ladder rewards the thing that mode is about: a blocker with two thousand balls and forty runs is a STAR, where a tier read off runs would have called him a debutant.
 
 The thresholds are shared between the two modes, which the measures happen to allow — sixty balls an innings and something under sixty runs an innings put them in the same range — so there is one ladder to learn rather than two.
 
-**The tier colours the card.** The badge, the ring round the kit, the hero tiles' edges, the bloom behind them and the hairline round the whole thing all take it, so a DEBUTANT's card is cool and quiet and a HITMAN's is lit red from the middle. That is the cheapest way to make two players' cards look like different objects, and it costs nothing the card was not already carrying. Under the hero row is a bar showing how far into the rung they are — measured *across the gap between two rungs* rather than from nought, which is the difference between a bar that creeps for a week and one that visibly moves every time somebody plays.
+### The tier is the whole card, not a badge on it
+
+Each rung carries a **`Theme`**: the ground it is painted on, the shadow it stands on, the mat behind it, its ink, its quiet, its accent, its sheen, its tiles. Nothing else on that card decides a colour, so a new tier is a palette rather than an edit to the painter.
+
+That is the difference between a screen somebody reads and a thing somebody collects. A card used to be one navy object with a coloured word on it, which made every player's card the same card; a bronze one and a black-and-gold one are recognisable across a room at thumbnail size, where a badge is not. The first rung is deliberately the plainest and the only one that is not a metal — a first-innings card that arrived in gold would leave the top of the ladder nothing to be.
+
+The three metal tiers get two things the navy one does not: a **brushed gradient** on the badge, the bar and the footer's call — light at the top edge, the colour through the middle, dark underneath, which is what separates gold-coloured type from type that looks like gold — and a **second hairline inset inside the first**, which is the oldest trick there is for making a printed thing look like it was worth printing.
+
+Under the hero row is a bar showing how far into the rung a player is, measured *across the gap between two rungs* rather than from nought — the difference between a bar that creeps for a week and one that visibly moves every time somebody plays. The rung above is named at the end of it, in **its own** colour, which is the only place that colour appears on the card: a preview of what the thing is about to be made of.
 
 ### What else is on it
 
