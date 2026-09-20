@@ -35,6 +35,7 @@ const icon = (name: string) => {
     expand: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
+    back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
     share: '<path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8"/>',
     story: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 8v6m-3-3 3-3 3 3"/>',
     trophy: '<path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4"/>',
@@ -290,7 +291,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         </div>
         <div id="modes" class="modal-overlay mode-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
           <div class="mode-sheet">
-            <h2 id="modes-title" class="mode-heading">Select Mode</h2>
+            <div class="mode-top">
+              <button id="modes-cancel" class="hud-button mode-back" aria-label="Back" title="Back">${icon('back')}</button>
+              <h2 id="modes-title" class="mode-heading">Select Mode</h2>
+            </div>
             <button id="mode-classic" class="mode-card">
               <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
               <span class="mode-body">
@@ -308,7 +312,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <span class="mode-key">PLAY TEST SURVIVAL</span>
               </span>
             </button>
-            <button id="modes-cancel" class="ghost-link">Back</button>
           </div>
         </div>
         <div id="end-survive" class="modal-overlay result-screen hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">

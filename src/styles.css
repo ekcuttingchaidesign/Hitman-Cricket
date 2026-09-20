@@ -2283,10 +2283,24 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   /* 20 at 804, so 10 between the cards. */
   gap:10px
 }
+/* The way back, beside the heading rather than under the cards. Not on the
+   board in Figma, but the screen has to have one — it is opened from Play, and
+   from a paused innings, and without it either is a one-way door. It sat at the
+   foot of the sheet, which on a phone is below two full-height cards and a
+   scroll away from a player who has just walked in: a way out nobody can see is
+   not one. Up here it is the twin of the sound key across from it, in the same
+   vocabulary, and it never leaves the screen. */
+.mode-top{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:0 0 14px
+}
+.mode-back{flex:none}
 /* 64 at 804 is 32 on the phone this was drawn for, and it holds that share of
    the screen on anything narrower. */
 .mode-heading{
-  margin:0 0 14px;
+  margin:0;
   font-family:var(--cta);
   font-size:clamp(25px,8vw,40px);
   font-weight:400;
@@ -2402,13 +2416,6 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   font-size:5.85cqw;
   line-height:1;
   color:#fff
-}
-/* The way back to the cover. Not on the board in Figma, but the screen has to
-   have one: it is opened from Play, and without it Play is a one-way door. */
-.mode-screen .ghost-link{
-  align-self:center;
-  margin-top:6px;
-  padding:10px 16px
 }
 
 /* ── The result card ───────────────────────────────────────────────────────
