@@ -311,7 +311,12 @@ export class Game {
    */
   private closePicker = () => {
     this.hud.closeModes();
-    if (this.phase === 'PAUSED') { this.audio.stop(); this.hud.pause(true); }
+    if (this.phase !== 'PAUSED') return;
+    // Back to the card, and back to silence with it. `stop` is the one-shot
+    // clips; the picker's own music is a track, and a track left wanted goes
+    // on playing over a card whose whole point is that nothing is happening.
+    this.audio.music(null); this.audio.stop();
+    this.hud.pause(true);
   };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
   choose = (mode: GameMode) => { this.mode = mode; this.start(); };
