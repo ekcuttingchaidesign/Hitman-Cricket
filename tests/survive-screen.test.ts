@@ -5,7 +5,7 @@ import {
 } from '../src/game/survive-board';
 import {
   asSurvive, outcomeOf, surviveBest, surviveBoardMarkup, surviveCutLabel, surviveCutoff,
-  surviveLine, surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup,
+  surviveActions, surviveLine, surviveOffer, survivePeekMarkup, survivePlaceOf, surviveRowMarkup,
   surviveStandingPeek, splitOnBattering,
 } from '../src/ui/SurviveBoard';
 import {
@@ -145,11 +145,14 @@ describe('the sheet', () => {
     expect(drawn).toContain('not good enough yet');
   });
 
-  it('carries the innings-end keys only when it was opened as one', () => {
-    expect(surviveBoardMarkup({ rows: full, atMs: AT })).not.toContain('board-again');
-    const withKeys = surviveBoardMarkup({ rows: full, actions: true, atMs: AT });
-    expect(withKeys).toContain('board-again');
-    expect(withKeys).toContain('board-modes');
+  it('never carries the innings-end keys, however it was opened', () => {
+    // They stand under the sheet rather than inside it: what to do next is not
+    // a fact about a leaderboard, and the screen is what puts them there.
+    for (const actions of [false, true]) {
+      expect(surviveBoardMarkup({ rows: full, actions, atMs: AT })).not.toContain('board-again');
+    }
+    expect(surviveActions()).toContain('board-again');
+    expect(surviveActions()).toContain('board-modes');
   });
 
   it('answers where you are when one of the rows is yours', () => {

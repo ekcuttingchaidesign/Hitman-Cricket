@@ -1902,27 +1902,19 @@ body.start-screen .hud-top{display:none}
 .pause-card .story-key{margin-top:11px}
 .pause-card .start-hint{margin-top:10px;color:var(--quiet)}
 
-/* ── The board's own keys ──────────────────────────────────────────────── */
-/* Pinned to the foot of the sheet, with the fifty rows running under them.
-   Fifty rows is a long scroll, and a player who has just been put on the board
-   should not have to reach the bottom of it to leave. */
+/* ── What to do next ───────────────────────────────────────────────────── */
+/* Under the sheet, not inside it.
+   They used to be a bar sealed into the foot of the card, with the fifty rows
+   fading under them — which made a way to play again look like part of the
+   leaderboard, and left nobody able to say where the board actually ended. A
+   board is a board and these are what happens after it, so they stand on the
+   ground beneath it the way the card's keys stand under the card. */
 .board-actions{
   flex:none;
-  position:relative;
-  padding:12px 22px calc(14px + var(--pad-bottom) - 14px);
-  background:#0f2738;
-  border-top:1px solid var(--rule)
-}
-/* The rows do not end at the bar, they fade into it. */
-.board-actions::before{
-  content:'';
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:100%;
-  height:22px;
-  background:linear-gradient(transparent,#0f2738);
-  pointer-events:none
+  width:100%;
+  /* Only whatever the home bar needs beyond the fourteen pixels the overlay
+     already puts under everything. On a phone without one this is nought. */
+  padding:0 0 calc(var(--pad-bottom) - 14px)
 }
 .board-actions .key-button{min-height:48px;font-size:16px}
 /* The pair sits side by side here exactly as it does on the innings card. It
@@ -1934,7 +1926,10 @@ body.start-screen .hud-top{display:none}
 /* The Test sheet's second key is the picker rather than the share pair, so it
    is the quiet twin of the one above it and wants the same full width. */
 .board-actions .ghost-link{display:block;width:100%;text-align:center}
-.board-sheet:has(.board-actions) .board-foot{display:none}
+/* With the keys under it the sheet does not also need its footnote: the two
+   together push the rows off a short screen, and the keys are what the player
+   is there for at that moment. */
+.board-stack:has(.board-actions) .board-foot{display:none}
 /* The board being down is a sentence, not an empty table. It reads on the sheet
    the rows would have filled, so the screen still has a shape. */
 .board-offline{
@@ -2133,7 +2128,7 @@ dialog .primary-button{margin-top:18px}
      card scrolls, the way out of the form does not move. */
   .card-claim .claim-key{position:sticky;bottom:0;z-index:1}
   .card-board .claim-key{margin:8px 13px 12px}
-  .board-actions{padding:9px 22px 11px}
+  .board-actions{padding:0 0 calc(var(--pad-bottom) - 14px)}
   .board-actions .key-button{min-height:42px;font-size:15px}
   /* Side by side once the card has to clear a landscape phone. The labels lose
      their tail rather than the buttons losing their tap target. */
@@ -3153,38 +3148,35 @@ body.private-window{overflow:hidden}
   scrollbar-width:none
 }
 .ladder-tabs::-webkit-scrollbar{display:none}
-/* Ghosts, until one is chosen.
-   They used to be filled panels with a border, which put five solid shapes in
-   a row and made the live one — also a solid shape — argue with the other
-   four for the same job. A stroke and a word carries the same tap target and
-   nothing else, so the one that is filled is unmistakably the one that is on.
-   The track behind them is the sheet, so there is nothing to fill against. */
+/* The same key, in two states, which is what the card rail's own pills settled
+   on and what this row now wears.
+   A solid orange fill was the loudest thing on a screen whose job is fifty
+   rows of other people's scores, and it made the row of ladders shout over the
+   board it was sorting. Lit is enough: the live one keeps the accent on its
+   edge and a wash of it behind the word, the rest are the same shape with the
+   colour taken out. Nothing in the row changes size or weight between the two,
+   so the eye reads one control rather than a chosen thing and four leftovers. */
 .ladder-tab{
   flex:0 0 auto;
   min-height:32px;
   padding:0 12px;
-  border:1px solid #ffffff2b;
-  /* The same family as the tabs above: a rounded rectangle, one step softer
-     again so the two rows read as one stack rather than two controls. */
+  border:1px solid #ffffff1f;
+  /* A rounded rectangle, not a pill: the same family as the tabs above it and
+     as the rail's own keys, one step softer again so the rows read as a stack. */
   border-radius:10px;
-  background:transparent;
+  background:#ffffff0a;
   font-family:var(--card);
   font-size:10.5px;
   font-weight:700;
   letter-spacing:.4px;
-  color:#b6c6d2;
+  color:#93a8b4;
   white-space:nowrap
 }
-.ladder-tab:hover:not(.is-on){color:#f4f8fa;border-color:#ffffff4d;background:#ffffff0a}
-/* The live one carries the sheet's accent rather than the white the row above
-   uses, so the two rows never read as two halves of one control. It is the
-   only filled shape in the row, which is the whole of how it is read. */
+.ladder-tab:hover:not(.is-on){color:#dae5ec;border-color:#ffffff3d;background:#ffffff14}
 .ladder-tab.is-on{
-  background:#f2814f;
-  border-color:#f2814f;
-  color:#17222b;
-  font-weight:800;
-  box-shadow:0 2px 10px #f2814f3d
+  border-color:var(--cta-orange);
+  background:#f2814f24;
+  color:#f7f0e5
 }
 
 
@@ -3339,7 +3331,9 @@ body.private-window{overflow:hidden}
   min-height:28px;
   padding:0 11px;
   border:1px solid #ffffff1f;
-  border-radius:999px;
+  /* Square-cornered to the same degree as every other key on this screen. It
+     was a true pill, which was the one shape the board had decided against. */
+  border-radius:10px;
   background:#ffffff0a;
   font-family:var(--card);
   font-size:11px;

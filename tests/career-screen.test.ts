@@ -98,10 +98,11 @@ describe('a career board, drawn', () => {
     expect(markup).toContain('&lt;img src=x&gt;');
   });
 
-  it('carries the sheet\'s way out and the innings-end keys when it is given them', () => {
-    expect(careerBoardMarkup({ mode: 'classic', board, rows: [] })).toContain('id="board-close"');
-    expect(careerBoardMarkup({ mode: 'classic', board, rows: [], actionsMarkup: '<i id="board-again"></i>' }))
-      .toContain('id="board-again"');
+  it('carries the sheet\'s own way out, and none of the innings-end keys', () => {
+    const drawn = careerBoardMarkup({ mode: 'classic', board, rows: [] });
+    expect(drawn).toContain('id="board-close"');
+    // The keys belong to the stack the sheet stands in, not to the sheet.
+    expect(drawn).not.toContain('id="board-again"');
   });
 });
 

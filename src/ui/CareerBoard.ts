@@ -111,8 +111,6 @@ export interface CareerBoardView {
   youId?: string | null;
   state?: 'ready' | 'loading' | 'offline';
   size?: number;
-  /** Whether the sheet carries the innings-end keys, as it does after claiming. */
-  actionsMarkup?: string;
 }
 
 /** A whole career board, header to footer. */
@@ -121,7 +119,7 @@ export function careerBoardMarkup(view: CareerBoardView): string {
   // name of the game being read, so an eyebrow repeating it was the sheet
   // saying the same thing twice — and at two lines on a narrow phone, saying it
   // twice in the space the title wanted.
-  const { board, rows, youId = null, state = 'ready', size = 50, actionsMarkup = '' } = view;
+  const { board, rows, youId = null, state = 'ready', size = 50 } = view;
   const place = rows.findIndex(row => row.playerId === youId);
   return `
     <div class="board-sheet" role="document">
@@ -142,7 +140,6 @@ export function careerBoardMarkup(view: CareerBoardView): string {
         ${state === 'ready' && !rows.length ? '<p class="board-cut">Nobody has a career here yet. Play an innings and it starts.</p>' : ''}
       </div>
       <p class="board-foot">Top ${size}, added up over every innings you have played on this device. ${escape(board.blurb)} Register a name to appear here.</p>
-      ${actionsMarkup}
     </div>`;
 }
 

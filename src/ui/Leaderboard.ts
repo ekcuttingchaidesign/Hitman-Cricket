@@ -46,6 +46,15 @@ export interface BoardView {
    * opened straight after claiming a place, because at that moment the board is
    * the screen the player is on and playing again has to be reachable from it.
    */
+  /**
+   * Whether the innings-end keys stand under the sheet.
+   *
+   * Read by the screen rather than by this markup: the keys are not part of the
+   * board any more. They belong to the stack the board is standing in, under
+   * the card rather than sealed into its foot — a way to play again is not a
+   * fact about a leaderboard, and inside it that is exactly what it looked
+   * like.
+   */
   actions?: boolean;
 }
 
@@ -206,7 +215,7 @@ export function sheetKeys(): string {
 }
 
 export function boardMarkup(view: BoardView): string {
-  const { rows, youId = null, yours = null, state = 'ready', actions = false, atMs = Date.now() } = view;
+  const { rows, youId = null, yours = null, state = 'ready', atMs = Date.now() } = view;
   const edge = cutoff(rows);
   const yourPlace = rows.findIndex(row => row.playerId === youId);
   // An innings that is not a row yet is one of two things, and they are not the
@@ -235,7 +244,6 @@ export function boardMarkup(view: BoardView): string {
           : ''}
       </div>
       <p class="board-foot">Only each player's best innings counts. Ties are broken by 6s, then 4s, then wickets, then dot balls. If everything is tied, whoever got there first stays ahead.</p>
-      ${actions ? actionsMarkup() : ''}
     </div>`;
 }
 
@@ -268,7 +276,7 @@ export function rowMarkup(row: BoardRow, index: number, above: BoardRow | null, 
  */
 export function actionsMarkup(): string {
   return `
-      <div class="board-actions">
+      <div class="board-actions" role="group" aria-label="What now">
         <div class="card-keys">
           <button id="board-again" class="key-button">PLAY AGAIN</button>
           <button id="board-share" class="share-key" type="button">SHARE</button>

@@ -405,13 +405,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * there is nothing to be gained by keeping them around and patching them:
    * a fresh sheet is always the rows it was handed.
    */
-  board(view: BoardView) { this.sheet(boardMarkup(view), 'classic', 'best'); }
+  board(view: BoardView) {
+    this.sheet(boardMarkup(view), 'classic', 'best', view.actions ? this.actions('classic') : '');
+  }
 
   /**
    * The Test board. The same overlay and the same keys — only the rows and the
    * ladder they are ordered by differ, and those are the markup's business.
    */
-  surviveBoard(view: SurviveBoardView) { this.sheet(surviveBoardMarkup(view), 'survive', 'best'); }
+  surviveBoard(view: SurviveBoardView) {
+    this.sheet(surviveBoardMarkup(view), 'survive', 'best', view.actions ? this.actions('survive') : '');
+  }
 
   /**
    * A career board. The same overlay, the same keys and the same rows — what
@@ -419,18 +423,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * total is the board's own business rather than this method's.
    */
   careerBoard(view: CareerBoardView & { actions?: boolean }) {
-    const markup = careerBoardMarkup({
-      ...view,
-      actionsMarkup: view.actions ? this.actions(view.mode) : '',
-    });
-    this.sheet(markup, view.mode, view.board.key);
+    this.sheet(
+      careerBoardMarkup(view), view.mode, view.board.key,
+      view.actions ? this.actions(view.mode) : '',
+    );
   }
 
 
   /**
-   * The innings-end keys, pinned to the foot of a sheet that is standing in for
-   * the card. Each mode's own, because the Test card offers the mode picker
-   * where the Blast's offers the two ways of sending an innings out.
+   * The innings-end keys, under the sheet that is standing in for the card.
+   * Each mode's own, because the Test card offers the mode picker where the
+   * Blast's offers the way of sending an innings out.
    */
   private actions(mode: BoardTab) { return mode === 'survive' ? surviveActions() : actionsMarkup(); }
 
@@ -859,7 +862,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   private lastGame: BoardTab = 'classic';
 
-  private sheet(markup: string, tab: SheetTab, ladder: LadderTab) {
+  private sheet(markup: string, tab: SheetTab, ladder: LadderTab, actions = '') {
     const overlay = this.$('board-overlay');
     const surviving = tab === 'survive';
     // The card's tab has no ladders under it: a career is one thing and there
@@ -875,7 +878,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // one mode still has a career and still has a card, while a build that
     // plays both needs the row above to get between them.
     const tabs = `${boardTabsMarkup(tab)}${mine ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
-    overlay.innerHTML = `<div class="board-stack${mine ? ' is-mine' : ''}">${tabs}${markup}</div>`;
+    // The keys stand under the sheet rather than inside it. They are what to do
+    // next, which is not a fact about a leaderboard — sealed into its foot they
+    // read as part of the board, and a board with a PLAY AGAIN in it is a board
+    // nobody can tell where it ends.
+    overlay.innerHTML = `<div class="board-stack${mine ? ' is-mine' : ''}">${tabs}${markup}${actions}</div>`;
     for (const other of BOARD_TABS) {
       const key = document.getElementById(other.id);
       if (!key) continue;

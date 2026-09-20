@@ -164,7 +164,7 @@ export function surviveCutLabel(edge: SurviveRow): string {
 
 /** The whole screen, header to footer. */
 export function surviveBoardMarkup(view: SurviveBoardView): string {
-  const { rows, youId = null, yours = null, state = 'ready', actions = false, atMs = Date.now() } = view;
+  const { rows, youId = null, yours = null, state = 'ready', atMs = Date.now() } = view;
   const edge = surviveCutoff(rows);
   const yourPlace = rows.findIndex(row => row.playerId === youId);
   const waiting = yourPlace < 0 && yours ? surviveQualifies(yours, atMs, rows) : false;
@@ -197,7 +197,6 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
           : ''}
       </div>
       <p class="board-foot">A win beats a draw beats a loss. Wins are ranked on balls used &mdash; a chase is a race &mdash; draws on the runs made while surviving, and losses on how long the last man kept them out. Level innings are split on runs, then on who took the lesser battering, and if that ties too, whoever got there first stays above.</p>
-      ${actions ? surviveActions() : ''}
     </div>`;
 }
 
@@ -232,7 +231,7 @@ export function surviveRowMarkup(
 
 export function surviveActions(): string {
   return `
-      <div class="board-actions">
+      <div class="board-actions" role="group" aria-label="What now">
         <button id="board-again" class="key-button">PLAY AGAIN</button>
         <button id="board-modes" class="ghost-link">Mode selection</button>
       </div>`;
