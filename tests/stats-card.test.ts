@@ -4,6 +4,7 @@ import {
   STATS_CARD, blastFacts, statsAlt, statsCardHeight, statsFacts, surviveFacts,
 } from '../src/game/StatsCard';
 import { statsSheetMarkup } from '../src/ui/StatsSheet';
+import { TIERS } from '../src/game/tier';
 import { statsShareText, statsStoryText, statsWhatsappLink, statsFileName } from '../src/game/Share';
 
 const blast = {
@@ -176,13 +177,22 @@ describe('the tier a career earns', () => {
   it('climbs with the figure the mode already leads on', () => {
     const at = (runs: number) => statsFacts('classic', { ...emptyBlast(), innings: 9, runs }, { name: 'R', avatar: 0 }).tier.name;
     expect(at(0)).toBe('DEBUTANT');
-    expect(at(150)).toBe('EMERGING');
-    expect(at(500)).toBe('REGULAR');
-    expect(at(1200)).toBe('PRO');
-    expect(at(2500)).toBe('STAR');
-    expect(at(5000)).toBe('LEGEND');
-    expect(at(10_000)).toBe('HITMAN');
+    expect(at(249)).toBe('DEBUTANT');
+    expect(at(250)).toBe('REGULAR');
+    expect(at(1200)).toBe('STAR');
+    expect(at(4000)).toBe('HITMAN');
     expect(at(99_999)).toBe('HITMAN');
+  });
+
+  it('keeps the ladder short enough for the words to mean something', () => {
+    // Four rungs, and the list is the only place that decides. A seventh would
+    // flatter the arithmetic and nobody else — the point of the badge is that a
+    // player can say in one syllable what they are.
+    expect(TIERS).toHaveLength(4);
+    expect(TIERS.map(tier => tier.name)).toEqual(['DEBUTANT', 'REGULAR', 'STAR', 'HITMAN']);
+    // Strictly climbing, or a career could qualify for two rungs at once.
+    for (let i = 1; i < TIERS.length; i++) expect(TIERS[i].at).toBeGreaterThan(TIERS[i - 1].at);
+    expect(TIERS[0].at).toBe(0);
   });
 
   it('reads a Test career off balls faced, not runs', () => {
@@ -190,29 +200,29 @@ describe('the tier a career earns', () => {
     // would be a DEBUTANT, which is exactly backwards for the mode whose whole
     // point is lasting — so the tier reads the figure that mode leads on.
     const blocker = { ...emptySurvive(), innings: 40, balls: 2000, runs: 40 };
-    expect(statsFacts('survive', blocker, { name: 'R', avatar: 0 }).tier.name).toBe('PRO');
+    expect(statsFacts('survive', blocker, { name: 'R', avatar: 0 }).tier.name).toBe('STAR');
     expect(statsFacts('survive', { ...blocker, balls: 40 }, { name: 'R', avatar: 0 }).tier.name).toBe('DEBUTANT');
   });
 
   it('says what the next rung wants, and stops saying it at the top', () => {
     const climbing = statsFacts('classic', { ...emptyBlast(), innings: 9, runs: 400 }, { name: 'R', avatar: 0 });
-    expect(climbing.nextLine).toBe('100 runs to REGULAR');
-    expect(climbing.ladder.next?.name).toBe('REGULAR');
-    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 20_000 }, { name: 'R', avatar: 0 });
+    expect(climbing.nextLine).toBe('800 runs to STAR');
+    expect(climbing.ladder.next?.name).toBe('STAR');
+    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 9_000 }, { name: 'R', avatar: 0 });
     expect(top.ladder.next).toBeNull();
     expect(top.nextLine).toBe('Top of the ladder.');
   });
 
   it('measures the bar across the rung, not from nought', () => {
-    // 825 is halfway between REGULAR at 500 and PRO at 1200. A bar measured
-    // from nought would read two thirds full and crawl; this one moves every
+    // 725 is halfway between REGULAR at 250 and STAR at 1,200. A bar measured
+    // from nought would read three fifths full and crawl; this one moves every
     // time somebody plays.
-    const half = statsFacts('classic', { ...emptyBlast(), innings: 9, runs: 850 }, { name: 'R', avatar: 0 });
+    const half = statsFacts('classic', { ...emptyBlast(), innings: 9, runs: 725 }, { name: 'R', avatar: 0 });
     expect(half.ladder.progress).toBeCloseTo(0.5, 1);
   });
 
   it('fills the bar at the top rather than leaving it stuck', () => {
-    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 20_000 }, { name: 'R', avatar: 0 });
+    const top = statsFacts('classic', { ...emptyBlast(), innings: 300, runs: 9_000 }, { name: 'R', avatar: 0 });
     expect(top.ladder.progress).toBe(1);
   });
 

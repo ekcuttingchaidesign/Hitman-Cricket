@@ -43,19 +43,35 @@ export interface Tier {
 }
 
 /**
- * The ladder, lowest first. Every colour here has been picked to read on the
- * card's navy rather than to sit on a palette: the two pale ones at the bottom
- * are deliberately quiet, because a first-innings badge that shouted would
- * make every card look the same at a glance.
+ * The ladder, lowest first.
+ *
+ * Four rungs, and deliberately not more. A ladder with seven rungs on it
+ * flatters the arithmetic and nobody else: each step means less, the word on
+ * the badge stops being a claim worth making, and a player two thirds of the
+ * way up still cannot say in one syllable what they are. Four names are four
+ * things a person can hold in their head, and the gaps between them are wide
+ * enough that moving up is an event.
+ *
+ * Adding a rung later is one entry in this array — the badge, the bloom, the
+ * progress bar and the card's own hairline all read whatever is here, and
+ * nothing else needs touching. That is the whole reason it is a list.
+ *
+ * The thresholds are pulled in tighter than the names might suggest, because a
+ * rung nobody reaches is the same as no rung at all: at something under fifty
+ * runs an innings, REGULAR is about five innings, STAR about twenty-five, and
+ * HITMAN a season of them.
+ *
+ * Every colour has been picked to read on the card's navy rather than to sit
+ * on a palette, and they run cool to hot so the ladder is legible in a
+ * thumbnail where the word itself is too small to read at all. The first is
+ * deliberately quiet: a first-innings badge that shouted would make every card
+ * look the same at a glance.
  */
 export const TIERS: readonly Tier[] = [
   { key: 'debutant', name: 'DEBUTANT', at: 0, ink: '#9fb2bd', glow: '#9fb2bd', blurb: 'First time out there.' },
-  { key: 'emerging', name: 'EMERGING', at: 150, ink: '#6fd3c0', glow: '#6fd3c0', blurb: 'Past the first hurdle.' },
-  { key: 'regular', name: 'REGULAR', at: 500, ink: '#5aa9f0', glow: '#5aa9f0', blurb: 'In the side every week.' },
-  { key: 'pro', name: 'PRO', at: 1200, ink: '#a98bf5', glow: '#a98bf5', blurb: 'Does this for a living.' },
-  { key: 'star', name: 'STAR', at: 2500, ink: '#f0c65c', glow: '#f0c65c', blurb: 'People turn up to watch.' },
-  { key: 'legend', name: 'LEGEND', at: 5000, ink: '#f2814f', glow: '#f2814f', blurb: 'They name stands after this.' },
-  { key: 'hitman', name: 'HITMAN', at: 10000, ink: '#ff4d5e', glow: '#ff4d5e', blurb: 'The one the game is named for.' },
+  { key: 'regular', name: 'REGULAR', at: 250, ink: '#5aa9f0', glow: '#5aa9f0', blurb: 'In the side every week.' },
+  { key: 'star', name: 'STAR', at: 1200, ink: '#f0c65c', glow: '#f0c65c', blurb: 'People turn up to watch.' },
+  { key: 'hitman', name: 'HITMAN', at: 4000, ink: '#ff4d5e', glow: '#ff4d5e', blurb: 'The one the game is named for.' },
 ] as const;
 
 /** The figure a mode's tier is read off: its own headline number. */

@@ -515,14 +515,13 @@ A row of numbers is inert on its own: nine figures and no answer to the only que
 | Tier | From | |
 | --- | --- | --- |
 | DEBUTANT | 0 | First time out there. |
-| EMERGING | 150 | Past the first hurdle. |
-| REGULAR | 500 | In the side every week. |
-| PRO | 1,200 | Does this for a living. |
-| STAR | 2,500 | People turn up to watch. |
-| LEGEND | 5,000 | They name stands after this. |
-| HITMAN | 10,000 | The one the game is named for. |
+| REGULAR | 250 | In the side every week. |
+| STAR | 1,200 | People turn up to watch. |
+| HITMAN | 4,000 | The one the game is named for. |
 
-It is read off the figure the mode already leads on — **career runs** in the Blast, **balls faced** in the Test match — rather than off a score of its own. That keeps one number in charge of the headline tile, the badge under it and the progress bar under that, so a card cannot say a player is climbing on one line and stalled on the next. It also means the Test ladder rewards the thing that mode is about: a blocker with two thousand balls and forty runs is a PRO, where a tier read off runs would have called him a debutant.
+**Four rungs, and deliberately not more.** A longer ladder flatters the arithmetic and nobody else: each step means less, and a player two thirds of the way up still cannot say in one syllable what they are. Four names are four things a person can hold in their head, and the gaps are wide enough that moving up is an event. Adding a rung later is one entry in `TIERS` — the badge, the bloom, the bar and the card's hairline all read whatever is in that list, and nothing else needs touching.
+
+It is read off the figure the mode already leads on — **career runs** in the Blast, **balls faced** in the Test match — rather than off a score of its own. That keeps one number in charge of the headline tile, the badge under it and the progress bar under that, so a card cannot say a player is climbing on one line and stalled on the next. It also means the Test ladder rewards the thing that mode is about: a blocker with two thousand balls and forty runs is a STAR, where a tier read off runs would have called him a debutant.
 
 The thresholds are shared between the two modes, which the measures happen to allow — sixty balls an innings and something under sixty runs an innings put them in the same range — so there is one ladder to learn rather than two.
 
