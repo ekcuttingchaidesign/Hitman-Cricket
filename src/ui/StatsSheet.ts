@@ -1,5 +1,5 @@
 import { escape } from './Leaderboard';
-import { statsAlt, type StatsFacts } from '../game/StatsCard';
+import { statsAlt, statsExplain, statsHitBoxes, type StatsFacts } from '../game/StatsCard';
 
 /**
  * The career card, as a screen of its own.
@@ -54,7 +54,10 @@ export function statsSheetMarkup(view: StatsSheetView): string {
       </div>` : ''}
       <div class="stats-stage">${
         picture
-          ? `<img class="stats-shot" src="${picture}" alt="${escape(statsAlt(facts))}">`
+          ? `<div class="stats-frame">
+        <img class="stats-shot" src="${picture}" alt="${escape(statsAlt(facts))}">
+        ${tapsMarkup(facts)}
+      </div>`
           : failed
             ? fallbackMarkup(facts)
             : `<div class="stats-drawing" role="status" aria-live="polite">Drawing your card…</div>`
@@ -69,9 +72,34 @@ export function statsSheetMarkup(view: StatsSheetView): string {
       </div>
       <p id="stats-status" class="stats-status hidden" role="status" aria-live="polite"></p>
       <p class="stats-note">${facts.played
-        ? 'The link to play rides along with it, so whoever sees this can have a go.'
+        ? 'Tap any figure to see what it counts. The link to play rides along with the card.'
         : 'Play an innings and these figures start filling up.'}</p>
+      <div id="stats-toast" class="stats-toast" role="status" aria-live="polite"></div>
     </div>`;
+}
+
+/**
+ * An invisible key over every figure on the painted card.
+ *
+ * The card is a picture, which is what makes it shareable and also what leaves
+ * it with nothing to press. These are the presses: one transparent button laid
+ * over each number, placed in percentages of the picture so they stay on their
+ * figures at every width, and carrying the figure's name for the toast to look
+ * up. A figure with no explanation gets no button rather than a dead one.
+ *
+ * They are real buttons rather than a click handler doing arithmetic on the
+ * pointer position, so a keyboard can walk them and a screen reader announces
+ * the figure and the fact that there is something behind it.
+ */
+function tapsMarkup(facts: StatsFacts): string {
+  const keys = statsHitBoxes(facts).filter(box => statsExplain(box.label)).map(box => {
+    const place = `left:${box.left.toFixed(3)}%;top:${box.top.toFixed(3)}%`
+      + `;width:${box.width.toFixed(3)}%;height:${box.height.toFixed(3)}%`;
+    const said = `${escape(box.label)}, ${box.value}. What this counts`;
+    return `<button class="stats-tap" type="button" data-stat="${escape(box.label)}" style="${place}"`
+      + `><span class="stats-tap-say">${said}</span></button>`;
+  });
+  return `<div class="stats-taps">${keys.join('')}</div>`;
 }
 
 /**
@@ -91,7 +119,8 @@ function fallbackMarkup(facts: StatsFacts): string {
             <b>${escape(facts.tier.name)}</b><small>${escape(facts.nextLine)}</small>
           </p>
           <dl class="stats-grid">${[...facts.hero, ...facts.figures].map((figure, i) => `
-            <div class="stats-cell${i < facts.hero.length ? ' is-lead' : ''}">
+            <div class="stats-cell${i < facts.hero.length ? ' is-lead' : ''}"${
+  statsExplain(figure.label) ? ` data-stat="${escape(figure.label)}" role="button" tabindex="0"` : ''}>
               <dt>${escape(figure.label)}</dt>
               <dd>${figure.value}</dd>
             </div>`).join('')}

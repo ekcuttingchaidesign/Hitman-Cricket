@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptySurvive } from '../src/game/career';
 import {
-  STATS_CARD, blastFacts, statsAlt, statsCardHeight, statsFacts, surviveFacts,
+  STATS_CARD, blastFacts, statsAlt, statsCardHeight, statsCardSpots, statsExplain, statsFacts,
+  statsHitBoxes, surviveFacts,
 } from '../src/game/StatsCard';
 import { statsSheetMarkup } from '../src/ui/StatsSheet';
 import { TIERS, foundingGrant } from '../src/game/tier';
@@ -70,20 +71,84 @@ describe('the card as a sentence', () => {
 });
 
 describe('the drawn card', () => {
+  /** The same card, with a made-up number of small figures on it. */
+  const holding = (count: number) => ({
+    ...statsFacts('classic', blast, { name: 'R', avatar: 0 }),
+    figures: Array.from({ length: count }, (_, i) => ({ label: `F${i}`, value: i })),
+  });
+
   it('grows a row for a career with more figures on it', () => {
-    const one = statsFacts('classic', blast, { name: 'R', avatar: 0 });
-    const two = statsFacts('survive', survive, { name: 'R', avatar: 0 });
-    // Four figures fit one row; seven need two, and the card has to be taller.
-    expect(statsCardHeight(two)).toBeGreaterThan(statsCardHeight(one));
+    // Four figures fit one row; five need two, and the card has to be taller.
+    expect(statsCardHeight(holding(5))).toBeGreaterThan(statsCardHeight(holding(4)));
+    // And no taller again until the row after that is needed.
+    expect(statsCardHeight(holding(8))).toBe(statsCardHeight(holding(5)));
+  });
+
+  it('spreads the figures over the rows they take rather than filling from the left', () => {
+    // Five at four-to-a-row would strand one cell under a full row. Three and
+    // two is the same five figures, laid out.
+    const wide = statsCardSpots(holding(4));
+    const spread = statsCardSpots(holding(5));
+    // Two hero tiles come first on both, so the grid starts after them.
+    expect(new Set(wide.slice(2).map(spot => spot.y)).size).toBe(1);
+    expect(new Set(spread.slice(2).map(spot => spot.y)).size).toBe(2);
+    expect(spread.slice(2).filter(spot => spot.y === spread[2].y)).toHaveLength(3);
   });
 
   it('is the same width whatever it is holding', () => {
-    const one = statsFacts('classic', blast, { name: 'R', avatar: 0 });
-    const two = statsFacts('survive', survive, { name: 'R', avatar: 0 });
     expect(STATS_CARD.width).toBe(440);
     // Only the height moves with what is on it; a card that changed width with
     // its contents would not stack with the keys under it.
-    expect(statsCardHeight(one)).not.toBe(statsCardHeight(two));
+    expect(statsCardHeight(holding(4))).not.toBe(statsCardHeight(holding(5)));
+  });
+
+  it('puts a tap target on every figure, hero tiles included', () => {
+    const facts = statsFacts('classic', blast, { name: 'R', avatar: 0 });
+    const boxes = statsHitBoxes(facts);
+    expect(boxes).toHaveLength(facts.hero.length + facts.figures.length);
+    // Inside the picture, all of them, or the key would be off the card.
+    for (const box of boxes) {
+      expect(box.left).toBeGreaterThanOrEqual(0);
+      expect(box.top).toBeGreaterThanOrEqual(0);
+      expect(box.left + box.width).toBeLessThanOrEqual(100);
+      expect(box.top + box.height).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it('never overlaps two tap targets, because a tap has to mean one figure', () => {
+    const boxes = statsHitBoxes(statsFacts('survive', survive, { name: 'R', avatar: 0 }));
+    for (const one of boxes) {
+      for (const other of boxes) {
+        if (one === other) continue;
+        const apart = one.left + one.width <= other.left + 0.001
+          || other.left + other.width <= one.left + 0.001
+          || one.top + one.height <= other.top + 0.001
+          || other.top + other.height <= one.top + 0.001;
+        expect(apart).toBe(true);
+      }
+    }
+  });
+});
+
+describe('what tapping a figure says', () => {
+  it('explains every figure on both cards, because a nought needs a reason', () => {
+    const cards = [
+      statsFacts('classic', blast, { name: 'R', avatar: 0 }),
+      statsFacts('survive', survive, { name: 'R', avatar: 0 }),
+    ];
+    for (const facts of cards) {
+      for (const one of [...facts.hero, ...facts.figures]) {
+        expect(statsExplain(one.label), one.label).toBeTruthy();
+      }
+    }
+  });
+
+  it('says what a hundred costs, since that is the rule nobody can see', () => {
+    expect(statsExplain('Hundreds')).toContain('wickets still standing');
+  });
+
+  it('has nothing to say about a figure it has never heard of', () => {
+    expect(statsExplain('Doosras')).toBeNull();
   });
 });
 
@@ -170,6 +235,39 @@ describe('the card\'s sheet', () => {
     expect(statsSheetMarkup({ facts })).toContain('link to play rides along');
     const empty = statsFacts('classic', emptyBlast(), { name: '', avatar: 0 });
     expect(statsSheetMarkup({ facts: empty })).toContain('Play an innings');
+  });
+
+  it('lays a key over every figure on the picture, and none where there is no picture', () => {
+    const facts = statsFacts('classic', blast, { name: 'R', avatar: 0 });
+    const drawn = statsSheetMarkup({ facts, picture: 'blob:card' });
+    const keys = drawn.match(/class="stats-tap"/g) ?? [];
+    expect(keys).toHaveLength(facts.hero.length + facts.figures.length);
+    expect(drawn).toContain('data-stat="Hundreds"');
+    // Nothing to lay a key over while the card is still being painted.
+    expect(statsSheetMarkup({ facts })).not.toContain('stats-tap');
+  });
+
+  it('carries the toast the keys speak through, in both presentations', () => {
+    const facts = statsFacts('classic', blast, { name: 'R', avatar: 0 });
+    for (const where of ['sheet', 'page'] as const) {
+      expect(statsSheetMarkup({ facts, picture: 'blob:card', where })).toContain('id="stats-toast"');
+    }
+  });
+
+  it('makes the text fallback answer the same tap', () => {
+    const facts = statsFacts('survive', survive, { name: 'R', avatar: 0 });
+    const plain = statsSheetMarkup({ facts, failed: true });
+    expect(plain).toContain('data-stat="Blows"');
+    expect(plain).toContain('tabindex="0"');
+  });
+
+  it('tells a player the figures can be asked about, once there is something to ask', () => {
+    const played = statsFacts('classic', blast, { name: 'R', avatar: 0 });
+    expect(statsSheetMarkup({ facts: played, picture: 'blob:card' })).toContain('Tap any figure');
+    // Nothing has been counted yet, so there is nothing worth asking about and
+    // the line under the card has something more useful to say.
+    const fresh = statsFacts('classic', emptyBlast(), { name: 'R', avatar: 0 });
+    expect(statsSheetMarkup({ facts: fresh, picture: 'blob:card' })).not.toContain('Tap any figure');
   });
 
   it('writes a name in as text and never as markup', () => {

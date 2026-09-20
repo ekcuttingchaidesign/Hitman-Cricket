@@ -9,7 +9,8 @@ import { feedbackGiven } from '../game/feedback';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, kitMarkup, peekMarkup, pickerMarkup, standingPeek,
+  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, kitMarkup, peekMarkup, pickerMarkup,
+  standingPeek,
   type BoardTab, type BoardView, type CardOffer, type SheetTab,
 } from './Leaderboard';
 import {
@@ -24,7 +25,7 @@ import {
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView } from './StatsSheet';
 import {
-  statsCardImage, statsStoryImage, type StatsFacts,
+  statsCardImage, statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
@@ -502,6 +503,50 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private wireStatsKeys() {
     this.$('stats-whatsapp').onclick = () => void this.shareStats('card');
     this.$('stats-story').onclick = () => void this.shareStats('story');
+    // Every figure on the card, and every figure in the text fallback under it.
+    // One selector for both, because what a tap does is the same either way and
+    // the fallback is the presentation least likely to be tried by hand.
+    for (const tap of document.querySelectorAll<HTMLElement>('[data-stat]')) {
+      const label = tap.dataset.stat ?? '';
+      tap.onclick = () => this.explainStat(label);
+      // The fallback's cells are not buttons, so they need the keys spelled out.
+      if (tap.tagName !== 'BUTTON') {
+        tap.onkeydown = event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          this.explainStat(label);
+        };
+      }
+    }
+  }
+
+  /** The toast under the card, and the handle that takes it away again. */
+  private statsToast = 0;
+
+  /**
+   * What a figure counts, said from the bottom of the screen.
+   *
+   * A career card is a dozen numbers and about half of them are counting
+   * something with a rule inside it — a hundred needs the wicket still
+   * standing, a draw is not a loss, the highest score and the best unbeaten one
+   * are different figures. None of that fits on the card, and a player who
+   * cannot find out is left to infer it from a number that will not move.
+   *
+   * It goes away on its own because it is an aside, not a dialogue: nothing is
+   * being asked, so nothing should have to be dismissed.
+   */
+  private explainStat(label: string) {
+    const says = statsExplain(label);
+    const toast = document.getElementById('stats-toast');
+    if (!says || !toast) return;
+    toast.innerHTML = `<b>${escape(label)}</b><span>${escape(says)}</span>`;
+    // Off and on again, so a second tap while the first is still up replays the
+    // rise rather than swapping the words inside a toast that is already there.
+    toast.classList.remove('is-up');
+    void toast.offsetWidth;
+    toast.classList.add('is-up');
+    window.clearTimeout(this.statsToast);
+    this.statsToast = window.setTimeout(() => toast.classList.remove('is-up'), 4600);
   }
 
   /** Hands the drawn picture to the sheet once it has been painted. */
@@ -522,6 +567,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /** Puts the page away and hands the screen back to whatever was under it. */
   dropStats() {
+    window.clearTimeout(this.statsToast);
     this.$('stats-overlay').classList.add('hidden');
     this.$('stats-overlay').innerHTML = '';
     this.statsShown = null;
@@ -619,6 +665,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   /** The same, for the row of ladders inside one mode. */
   onLadderTab: ((ladder: LadderTab) => void) | null = null;
 
+  /**
+   * The game whose board the card was reached from.
+   *
+   * A build that plays one mode takes the other mode's tab off the row, and on
+   * the card's own tab that used to take both of them off — leaving My Stats
+   * standing alone with no way back to the board it was opened from. The row is
+   * the only way between these screens, so the one game this build has stays on
+   * it wherever the player is standing.
+   */
+  private lastGame: BoardTab = 'classic';
+
   private sheet(markup: string, tab: SheetTab, ladder: LadderTab) {
     const overlay = this.$('board-overlay');
     const surviving = tab === 'survive';
@@ -626,6 +683,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // is nothing to re-sort. The row is dropped rather than drawn empty, or the
     // sheet would keep a gap where the player's eye expects a control.
     const mine = tab === 'mine';
+    if (!mine) this.lastGame = tab;
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
     //
@@ -640,7 +698,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       if (!key) continue;
       // A build that plays one mode still has a card, so the row is always
       // drawn — the other game's tab is simply taken off it.
-      if (!this.bothModes && other.tab !== 'mine' && other.tab !== tab) { key.remove(); continue; }
+      const here = mine ? this.lastGame : tab;
+      if (!this.bothModes && other.tab !== 'mine' && other.tab !== here) { key.remove(); continue; }
       key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }
     if (!mine) {
@@ -672,7 +731,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
     const again = document.getElementById('board-again');
-    if (!again) return this.$('board-close').focus();
+    if (!again) {
+      // No keys on this sheet, so the focus goes to the way out — and the card's
+      // tab has no X, which is why this is looked up rather than assumed. It was
+      // assumed, and the throw took the rest of this method with it: the picture
+      // was painted by a call that never came back, so the card's own tab sat on
+      // "Drawing your card…" for good.
+      const way = document.getElementById('board-close') ?? document.getElementById(`board-tab-${tab}`);
+      way?.focus();
+      return;
+    }
     again.onclick = () => { this.closeBoard(); this.$(surviving ? 'survive-again' : 'again').click(); };
     if (surviving) {
       // The Test card offers the picker rather than the share keys, so the

@@ -1,5 +1,5 @@
 import { kitColour, avatarSrc } from '../config/board';
-import { survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
+import { HUNDRED, survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
 import { nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
 
 /**
@@ -130,6 +130,10 @@ export function blastFacts(career: BlastCareer): Pick<StatsFacts, 'hero' | 'figu
       { label: 'Highest', value: career.highest },
     ],
     figures: [
+      // First of the small figures, because it is the rarest thing on the card:
+      // a hundred off thirty balls with nothing lost is a season's work for
+      // most players, and a nought here is a target rather than an absence.
+      { label: 'Hundreds', value: career.hundreds ?? 0 },
       { label: 'Sixes', value: career.sixes },
       { label: 'Fours', value: career.fours },
       // The best score made without losing a wicket, which is not the same as
@@ -202,6 +206,8 @@ export function statsAlt(facts: StatsFacts): string {
 const PER_ROW = 4;
 
 const EYEBROW_H = 13;
+/** Where the eyebrow's baseline sits inside that band. */
+const EYEBROW_BASE = 10;
 const IDENTITY_TOP = 22;
 const IDENTITY_H = 56;
 const BADGE_TOP = 18;
@@ -221,6 +227,19 @@ function gridRows(facts: StatsFacts) {
 }
 
 /**
+ * How many columns the grid actually uses.
+ *
+ * Four is the most it will fit, but four is not always the right number. Five
+ * figures at four to a row leave one cell stranded under a full row; spread
+ * over the rows it takes, the same five come out three and two and the card
+ * looks laid out rather than overflowed. Seven still comes to four and three,
+ * which is what the Test card already did.
+ */
+function gridCols(facts: StatsFacts) {
+  return Math.max(1, Math.ceil(facts.figures.length / gridRows(facts)));
+}
+
+/**
  * Whether the card shows the climb to the next rung.
  *
  * A granted tier does not. The bar would sit at nothing — the figures behind
@@ -231,6 +250,114 @@ function gridRows(facts: StatsFacts) {
  */
 function showsLadder(facts: StatsFacts) {
   return !facts.ladder.granted;
+}
+
+/**
+ * Where each figure sits on the card, in card units from its top-left corner.
+ *
+ * This exists because the card on screen is the painted picture itself and not
+ * a DOM copy of it — which is what guarantees the card somebody shares is the
+ * card they were looking at, and also means there is no element to tap. The
+ * overlay lays an invisible key over each of these boxes, so a player can press
+ * a number and be told what it counts.
+ *
+ * The drawing places its tiles and its grid from this list rather than from its
+ * own sums, so the two cannot drift: move a figure and its tap target moves
+ * with it, because they are the same rectangle read twice.
+ */
+export interface StatsSpot extends StatsFigure {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export function statsCardSpots(facts: StatsFacts): StatsSpot[] {
+  const { padX, padTop, width } = STATS_CARD;
+  const contentW = width - padX * 2;
+  const tileW = (contentW - HERO_GAP) / 2;
+  const heroY = padTop + EYEBROW_BASE + IDENTITY_TOP + IDENTITY_H + BADGE_TOP + BADGE_H + HERO_TOP;
+  const spots: StatsSpot[] = facts.hero.map((one, i) => ({
+    ...one, x: padX + i * (tileW + HERO_GAP), y: heroY, w: tileW, h: HERO_H,
+  }));
+  const gridY = heroY + HERO_H + (showsLadder(facts) ? BAR_TOP + BAR_H : 0) + GRID_TOP;
+  const cols = gridCols(facts);
+  const colW = contentW / cols;
+  facts.figures.forEach((one, i) => {
+    spots.push({
+      ...one,
+      x: padX + (i % cols) * colW,
+      y: gridY + Math.floor(i / cols) * (GRID_ROW_H + 6),
+      w: colW,
+      h: GRID_ROW_H,
+    });
+  });
+  return spots;
+}
+
+/**
+ * The mat painted round the card in the shared picture. Just enough to hold the
+ * card's own ledge and the glow coming off its edge.
+ */
+export const STATS_MAT = 10;
+
+/** The whole picture `statsCardImage` gives back, card and mat together. */
+export function statsCardFrame(facts: StatsFacts) {
+  return {
+    width: STATS_CARD.width + STATS_MAT * 2,
+    height: statsCardHeight(facts) + STATS_MAT * 2 + 10,
+  };
+}
+
+/**
+ * The same boxes as fractions of the picture, which is what the overlay needs:
+ * the image is shown at whatever width the screen gives it, so the only
+ * placement that survives every phone is a percentage one.
+ */
+export function statsHitBoxes(facts: StatsFacts) {
+  const frame = statsCardFrame(facts);
+  return statsCardSpots(facts).map(spot => ({
+    label: spot.label,
+    value: spot.value,
+    left: ((STATS_MAT + spot.x) / frame.width) * 100,
+    top: ((STATS_MAT + spot.y) / frame.height) * 100,
+    width: (spot.w / frame.width) * 100,
+    height: (spot.h / frame.height) * 100,
+  }));
+}
+
+/**
+ * What each figure actually counts, in the words a player would use.
+ *
+ * Every one of these is a rule somebody could otherwise only learn by watching
+ * a number fail to move — why a 140 for one does not count as a hundred, what
+ * separates a draw from a win, why balls faced is the figure the Test card
+ * leads on. Keyed by the label the figure already carries, so a figure added to
+ * a card above arrives here rather than in a second list of names to keep in
+ * step; a label with nothing to say simply has nothing to say, and its box is
+ * not made tappable.
+ */
+const EXPLAINS: Record<string, string> = {
+  // The Blast.
+  'Runs': 'Every run you have scored in the Blast, added up across all your innings.',
+  'Highest': 'Your biggest innings total, whatever it cost in wickets. 140 for one counts as 140.',
+  'Hundreds': `Innings where you reached ${HUNDRED} with all three wickets still standing. Lose one and the innings no longer counts, however big it gets.`,
+  'Sixes': 'Every six you have hit, added up across all your innings.',
+  'Fours': 'Every four you have hit, added up across all your innings.',
+  'Best n.o.': 'Your biggest score in an innings where you never lost a wicket.',
+  'Balls': 'Every ball you have faced, added up across all your innings.',
+  // Test Survival.
+  'Balls faced': 'Every ball you have faced out there, added up across all your innings.',
+  'Survived': 'Innings you came through: the ones you won, plus the ones you drew.',
+  'Blows': 'Bouncers that hit you. You take the blow and keep batting, and every one of them is counted.',
+  'Won': 'Innings where you chased the hundred down before the overs ran out.',
+  'Drawn': 'Innings where you batted out all ten overs without getting to a hundred. You survived, you just did not win.',
+  'Lost': 'Innings where you lost your wicket before either of those happened.',
+};
+
+/** What tapping a figure says, or nothing where the figure speaks for itself. */
+export function statsExplain(label: string): string | null {
+  return EXPLAINS[label] ?? null;
 }
 
 /** The card's height for a given career, so callers can place it before drawing. */
@@ -448,6 +575,11 @@ export async function paintStatsCard(
   const { ink, quiet, rule, accent } = theme;
   const height = statsCardHeight(facts);
   const left = x + padX, contentW = width - padX * 2;
+  // Where every figure sits. The tiles and the grid are placed from this rather
+  // than from a second copy of the same sums, because the tap targets the
+  // overlay lays over the picture are placed from it too — and a hit box that
+  // has drifted from the number under it is worse than no hit box at all.
+  const spots = statsCardSpots(facts);
 
   ctx.save();
   ctx.translate(x, y);
@@ -512,7 +644,7 @@ export async function paintStatsCard(
   // The stamp, and the mark opposite it. The mark goes on because the card is
   // about to travel without the game around it, and a brag with no name on it
   // is a brag nobody can act on.
-  let cursor = y + padTop + 10;
+  let cursor = y + padTop + EYEBROW_BASE;
   ctx.fillStyle = at(accent, 0.95);
   ctx.font = font(700, 10.5);
   tracked(ctx, `${facts.modeName.toUpperCase()} · CAREER`, left, cursor, 2.1);
@@ -548,7 +680,7 @@ export async function paintStatsCard(
   cursor += BADGE_H + HERO_TOP;
   const tileW = (contentW - HERO_GAP) / 2;
   facts.hero.forEach((one, i) => {
-    const tx = left + i * (tileW + HERO_GAP);
+    const tx = x + spots[i].x;
     // Glass rather than tint. Orange at a low alpha over navy is brown — the
     // tiles came out the colour of wet cardboard however the gradient was
     // arranged, because that is simply what those two colours make. So the
@@ -584,18 +716,16 @@ export async function paintStatsCard(
 
   // Everything else, four to a row, each column the same width so the numbers
   // line up down the card rather than wandering with the labels above them.
-  const colW = contentW / PER_ROW;
   facts.figures.forEach((one, i) => {
-    const row = Math.floor(i / PER_ROW);
-    const col = i % PER_ROW;
-    const fx = left + col * colW;
-    const fy = cursor + row * (GRID_ROW_H + 6);
+    const spot = spots[facts.hero.length + i];
+    const fx = x + spot.x;
+    const fy = y + spot.y;
     ctx.fillStyle = quiet;
     ctx.font = font(600, 9.5);
     tracked(ctx, one.label.toUpperCase(), fx, fy + 10, 1);
     ctx.fillStyle = RESULT_INK[one.label] ?? ink;
     ctx.font = font(800, 23);
-    ctx.fillText(clipped(ctx, figure(one.value), colW - 8), fx, fy + 36);
+    ctx.fillText(clipped(ctx, figure(one.value), spot.w - 8), fx, fy + 36);
   });
 
   // One hairline and the address, because the whole point of the picture is
@@ -637,13 +767,13 @@ export async function statsCardImage(facts: StatsFacts, link: string, scale = 3)
   // wrong in the sheet: the picture is shown at the width of the two keys under
   // it, so every pixel of mat made the card itself narrower than its own
   // buttons — which reads as a thumbnail of something rather than the thing.
-  const margin = 10;
-  const height = statsCardHeight(facts) + margin * 2 + 10;
-  const { canvas, ctx } = surface(STATS_CARD.width + margin * 2, height, scale);
+  const margin = STATS_MAT;
+  const { width: frameW, height } = statsCardFrame(facts);
+  const { canvas, ctx } = surface(frameW, height, scale);
   // The mat is the tier's too. A black-and-gold card on the navy mat looked
   // like a card sitting on a different card.
   ctx.fillStyle = facts.tier.theme.mat;
-  ctx.fillRect(0, 0, STATS_CARD.width + margin * 2, height);
+  ctx.fillRect(0, 0, frameW, height);
   await paintStatsCard(ctx, facts, margin, margin, link);
   return blob(canvas);
 }

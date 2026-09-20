@@ -3,7 +3,7 @@ import {
   BLAST_BOARDS, CAREER_PACKED_BITS, PRIMARY_CAP, SECONDARY_CAP, SURVIVE_BOARDS,
   blastTallyPlausible, emptyBlast, emptySurvive, mergeBlast, mergeSurvive,
   packCareer, rankCareer, survivals, surviveTallyPlausible, unpackCareer,
-  type SurviveTally,
+  type BlastCareer, type SurviveTally,
 } from '../src/game/career';
 import { LAUNCH_MS, type Innings } from '../src/game/leaderboard';
 
@@ -78,6 +78,34 @@ describe('a career, added up', () => {
     const career = mergeBlast(null, blast(90, { wickets: 2 }));
     expect(career.highest).toBe(90);
     expect(career.notOut).toBe(0);
+  });
+
+  it('counts a hundred only where every wicket is still standing', () => {
+    let career = mergeBlast(null, blast(132, { wickets: 0 }));
+    expect(career.hundreds).toBe(1);
+    // 140 for one is the bigger score and not a hundred by this reckoning.
+    career = mergeBlast(career, blast(140, { wickets: 1 }));
+    expect(career.hundreds).toBe(1);
+    career = mergeBlast(career, blast(101, { wickets: 0 }));
+    expect(career.hundreds).toBe(2);
+  });
+
+  it('wants the whole hundred, not nearly one', () => {
+    const career = mergeBlast(null, blast(99, { wickets: 0 }));
+    expect(career.hundreds).toBe(0);
+    expect(mergeBlast(career, blast(100, { wickets: 0 })).hundreds).toBe(1);
+  });
+
+  it('credits a career that already held an unbeaten hundred before this was counted', () => {
+    // Every record written before the figure existed reads back without it.
+    // Starting a player whose best unbeaten score is 132 at nought hundreds
+    // would be telling them something untrue about their own career.
+    const legacy = { ...emptyBlast(), innings: 4, runs: 300, highest: 140, notOut: 132 } as BlastCareer;
+    delete (legacy as Partial<BlastCareer>).hundreds;
+    const career = mergeBlast(legacy, blast(10, { wickets: 1 }));
+    expect(career.hundreds).toBe(1);
+    // And the floor only ever lifts a nought — it does not add one a second time.
+    expect(mergeBlast(career, blast(10, { wickets: 1 })).hundreds).toBe(1);
   });
 
   it('counts a Test innings into the tier it ended in', () => {

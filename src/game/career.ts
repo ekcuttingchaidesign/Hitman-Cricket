@@ -35,6 +35,19 @@ export interface BlastCareer {
   highest: number;
   /** The biggest total made without losing a wicket at all. */
   notOut: number;
+  /**
+   * Innings of a hundred or more with every wicket still standing.
+   *
+   * Counted rather than derived, because a career keeps totals and a total has
+   * thrown away the innings it was made of: `notOut` remembers the best unbeaten
+   * score but not how many times one was made. Thirty balls make this rare on
+   * purpose — it is the one figure on the card that most players will never put
+   * a one in, which is exactly what makes it worth putting there.
+   *
+   * There is no equivalent on the Test career, and there should not be: a
+   * hundred is that mode's win condition, so `wins` already counts them.
+   */
+  hundreds: number;
 }
 
 /**
@@ -70,9 +83,12 @@ export interface SurviveTally extends SurviveInnings {
   fours: number;
 }
 
+/** What a hundred is. Written once so the card and the merge cannot disagree. */
+export const HUNDRED = 100;
+
 /** A career with nothing in it yet, which is what a first innings folds into. */
 export function emptyBlast(): BlastCareer {
-  return { innings: 0, runs: 0, balls: 0, sixes: 0, fours: 0, wickets: 0, dots: 0, highest: 0, notOut: 0 };
+  return { innings: 0, runs: 0, balls: 0, sixes: 0, fours: 0, wickets: 0, dots: 0, highest: 0, notOut: 0, hundreds: 0 };
 }
 
 export function emptySurvive(): SurviveCareer {
@@ -90,6 +106,7 @@ export function emptySurvive(): SurviveCareer {
  */
 export function mergeBlast(held: BlastCareer | null, innings: Innings): BlastCareer {
   const was = held ?? emptyBlast();
+  const hundred = innings.wickets === 0 && innings.runs >= HUNDRED;
   return {
     innings: was.innings + 1,
     runs: was.runs + innings.runs,
@@ -103,8 +120,16 @@ export function mergeBlast(held: BlastCareer | null, innings: Innings): BlastCar
     // in hand at the last ball is unbeaten, and one lost on the first is not,
     // however the rest of it went.
     notOut: innings.wickets === 0 ? Math.max(was.notOut, innings.runs) : was.notOut,
+    // Floored at one where the career already holds an unbeaten hundred. Every
+    // record written before this figure existed reads back without it, and
+    // starting those players at nought would tell somebody whose best unbeaten
+    // score is 132 that they have never made a hundred. The floor cannot
+    // double-count — it only ever lifts a nought — and it is the most the
+    // stored totals can honestly say, since they no longer know how many.
+    hundreds: (was.hundreds || Number(was.notOut >= HUNDRED)) + Number(hundred),
   };
 }
+
 
 export function mergeSurvive(held: SurviveCareer | null, tally: SurviveTally): SurviveCareer {
   const was = held ?? emptySurvive();
@@ -395,7 +420,7 @@ export const BLAST_CAREER: CareerLadder<BlastCareer, Innings> = {
   figures: from => ({
     innings: from.innings, runs: from.runs, balls: from.balls, sixes: from.sixes,
     fours: from.fours, wickets: from.wickets, dots: from.dots,
-    highest: from.highest, notOut: from.notOut,
+    highest: from.highest, notOut: from.notOut, hundreds: from.hundreds ?? 0,
   }),
 };
 
