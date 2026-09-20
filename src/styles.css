@@ -2277,7 +2277,10 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   width:100%;
   max-width:520px;
   margin:0 auto;
-  padding:calc(var(--pad-top) + 10px) var(--pad) calc(28px + env(safe-area-inset-bottom)) var(--pad);
+  /* Top padding is the hud row's own inset with nothing added: the key at the
+     head of the sheet sits on the same line as the sound key across from it,
+     and ten more pixels here is ten pixels of it not doing so. */
+  padding:var(--pad-top) var(--pad) calc(28px + env(safe-area-inset-bottom)) var(--pad);
   display:flex;
   flex-direction:column;
   /* 20 at 804, so 10 between the cards. */
@@ -2288,15 +2291,41 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
    from a paused innings, and without it either is a one-way door. It sat at the
    foot of the sheet, which on a phone is below two full-height cards and a
    scroll away from a player who has just walked in: a way out nobody can see is
-   not one. Up here it is the twin of the sound key across from it, in the same
-   vocabulary, and it never leaves the screen. */
+   not one. Up here it is across from the sound key and never leaves the screen.
+
+   The row is the key's own height rather than the heading's, so the key's top
+   lands on `--pad-top` — where the sound key's is — whatever the display type
+   beside it does inside the row. */
 .mode-top{
   display:flex;
   align-items:center;
   gap:12px;
-  margin:0 0 14px
+  height:38px;
+  margin:0 0 22px
 }
-.mode-back{flex:none}
+.touch-device .mode-top{height:44px}
+/* A key, not a hud control: it is a decision on a screen of decisions, so it
+   is written the way the cards' keys are — a ledge under it, a lit top edge,
+   and the same two pixels of travel when it is pressed. Grey because it is the
+   one that goes nowhere: the orange is the innings and the blue is the shot,
+   and neither of those is what this does. */
+.mode-back{
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:38px;
+  height:38px;
+  border:0;
+  border-radius:10px;
+  background:#3c434b;
+  color:#fff;
+  box-shadow:0 4px 0 #191d22,inset 0 1px 0 #ffffff21
+}
+.touch-device .mode-back{width:44px;height:44px}
+.mode-back svg{width:19px;height:19px}
+.mode-back:hover{background:#49515a}
+.mode-back:active{transform:translateY(2px);box-shadow:0 2px 0 #191d22,inset 0 1px 0 #ffffff21}
 /* 64 at 804 is 32 on the phone this was drawn for, and it holds that share of
    the screen on anything narrower. */
 .mode-heading{
@@ -2305,7 +2334,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   font-size:clamp(25px,8vw,40px);
   font-weight:400;
   letter-spacing:0;
-  line-height:1.1;
+  line-height:1;
   text-transform:none;
   color:#fff
 }

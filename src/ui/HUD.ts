@@ -292,7 +292,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="modes" class="modal-overlay mode-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
           <div class="mode-sheet">
             <div class="mode-top">
-              <button id="modes-cancel" class="hud-button mode-back" aria-label="Back" title="Back">${icon('back')}</button>
+              <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="modes-title" class="mode-heading">Select Mode</h2>
             </div>
             <button id="mode-classic" class="mode-card">
