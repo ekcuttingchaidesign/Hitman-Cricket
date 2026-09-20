@@ -186,6 +186,25 @@ function peekRow(place: number, name: string, kit: number | null, figures: Innin
 }
 
 /** The whole screen, header to footer. */
+/**
+ * The two keys on the corner of every sheet: the way into the update's stories,
+ * and the way out of the board.
+ *
+ * Written once and used by all three sheets, because they are the same pair of
+ * keys doing the same two jobs — three copies would have grown apart the first
+ * time either of them was touched, and the What's New key is new enough that
+ * one of the copies would simply have been forgotten.
+ *
+ * It shimmers, and it is the only thing on the sheet that does. Nothing else
+ * here is asking to be noticed; this is, for about a fortnight.
+ */
+export function sheetKeys(): string {
+  return `<div class="sheet-keys">
+          <button id="board-new" class="board-new" type="button">What&rsquo;s new</button>
+          <button id="board-close" class="board-close" aria-label="Close the board">&times;</button>
+        </div>`;
+}
+
 export function boardMarkup(view: BoardView): string {
   const { rows, youId = null, yours = null, state = 'ready', actions = false, atMs = Date.now() } = view;
   const edge = cutoff(rows);
@@ -199,7 +218,7 @@ export function boardMarkup(view: BoardView): string {
     <div class="board-sheet" role="document">
       <div class="sheet-head">
         <h2 id="board-title">Top ${BOARD_SIZE}</h2>
-        <button id="board-close" class="board-close" aria-label="Close the board">×</button>
+        ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
         state === 'loading' ? 'Fetching the board…'

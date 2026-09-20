@@ -24,6 +24,8 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView } from './StatsSheet';
+import { storiesMarkup, type StoriesWhere } from './WhatsNew';
+import { STORIES } from '../game/whats-new';
 import {
   statsCardImage, statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -280,6 +282,7 @@ export class HUD {
 ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
+        <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
@@ -555,6 +558,66 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.statsPicture = url;
   }
 
+  /**
+   * What's new, over everything.
+   *
+   * The whole screen is redrawn on every card rather than the contents being
+   * swapped, which is what restarts the bar's animation without a second
+   * mechanism for restarting it: the bar is a CSS animation on an element that
+   * did not exist a moment ago, so it always runs from the start.
+   */
+  private storyAt = 0;
+  private storyWhere: StoriesWhere = 'intro';
+  private storyHold = 0;
+  /** What to do when the stories are finished with. The game decides. */
+  onStoriesDone: (() => void) | null = null;
+
+  /** How long one card holds before it moves on by itself. */
+  static readonly STORY_MS = 7000;
+
+  stories(where: StoriesWhere) {
+    this.storyWhere = where;
+    this.storyAt = 0;
+    this.drawStory();
+  }
+
+  private drawStory() {
+    const overlay = this.$('whatsnew-overlay');
+    overlay.innerHTML = storiesMarkup({
+      at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS,
+    });
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    this.$('whatsnew-next').onclick = () => this.stepStory(1);
+    this.$('whatsnew-back').onclick = () => this.stepStory(-1);
+    this.$('whatsnew-done').onclick = () => this.closeStories();
+    this.$('whatsnew-done').focus();
+    window.clearTimeout(this.storyHold);
+    this.storyHold = window.setTimeout(() => this.stepStory(1), HUD.STORY_MS);
+  }
+
+  /** Forward off the last card is the way out, the same as the key under it. */
+  private stepStory(by: number) {
+    const next = this.storyAt + by;
+    if (next >= STORIES.length) return this.closeStories();
+    this.storyAt = Math.max(0, next);
+    this.drawStory();
+  }
+
+  get storiesOpen() { return !this.$('whatsnew-overlay').classList.contains('hidden'); }
+
+  closeStories() {
+    window.clearTimeout(this.storyHold);
+    this.$('whatsnew-overlay').classList.add('hidden');
+    this.$('whatsnew-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+    const done = this.onStoriesDone;
+    this.onStoriesDone = null;
+    done?.();
+  }
+
   get statsOpen() { return !this.$('stats-overlay').classList.contains('hidden'); }
 
   /** What the page's back key does. The game decides where back is. */
@@ -662,6 +725,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   showBoardTabs(on: boolean) { this.bothModes = on; }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
+  /** What the sheet's What's New key does. */
+  onBoardStories: (() => void) | null = null;
   /** The same, for the row of ladders inside one mode. */
   onLadderTab: ((ladder: LadderTab) => void) | null = null;
 
@@ -728,6 +793,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // cross inside a tab would be a way out of the tab to the same tab.
     const close = document.getElementById('board-close');
     if (close) close.onclick = () => this.closeBoard();
+    // The way into the stories for somebody who never saw them, or who saw them
+    // and wants another look. It sits beside the close key on every sheet.
+    const news = document.getElementById('board-new');
+    if (news) news.onclick = () => this.onBoardStories?.();
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
     const again = document.getElementById('board-again');

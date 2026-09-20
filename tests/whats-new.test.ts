@@ -1,0 +1,113 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown,
+} from '../src/game/whats-new';
+import { storiesAlt, storiesMarkup } from '../src/ui/WhatsNew';
+
+/** localStorage, as a map, so the counting can be tested without a browser. */
+function fakeStorage(seed: Record<string, string> = {}) {
+  const held = new Map(Object.entries(seed));
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => held.get(key) ?? null,
+    setItem: (key: string, value: string) => { held.set(key, value); },
+  });
+  return held;
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe('what the update says it did', () => {
+  it('says it in three, because a player came here to bat', () => {
+    expect(STORIES).toHaveLength(3);
+  });
+
+  it('gives every card something to show and something to say', () => {
+    for (const story of STORIES) {
+      expect(story.title.length, story.key).toBeGreaterThan(8);
+      expect(story.body.length, story.key).toBeGreaterThan(40);
+      expect(story.art, story.key).toMatch(/whatsnew/);
+      // A canvas says nothing to a screen reader and neither does a screenshot.
+      expect(story.alt.length, story.key).toBeGreaterThan(20);
+    }
+  });
+
+  it('covers the three things that actually changed', () => {
+    const said = STORIES.map(one => `${one.title} ${one.body}`).join(' ').toLowerCase();
+    expect(said).toContain('ladder');
+    expect(said).toContain('every innings');
+    expect(said).toContain('card');
+  });
+
+  it('reads out as one sentence for somebody who cannot see the pictures', () => {
+    const alt = storiesAlt();
+    expect(alt).toContain('3');
+    for (const story of STORIES) expect(alt).toContain(story.title);
+  });
+});
+
+describe('the story screen', () => {
+  it('draws a bar a story, and runs only the live one', () => {
+    const markup = storiesMarkup({ at: 1, where: 'intro', holdMs: 7000 });
+    expect(markup.match(/class="whatsnew-bar(?: is-\w+)?"/g)).toHaveLength(STORIES.length);
+    expect(markup.match(/is-done/g)).toHaveLength(1);
+    expect(markup.match(/is-live/g)).toHaveLength(1);
+    // The bar runs for exactly as long as the card holds, from one number.
+    expect(markup).toContain('--hold:7000ms');
+  });
+
+  it('names the way out for where it was opened from', () => {
+    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).toContain('SKIP TO MODE SELECTION');
+    expect(storiesMarkup({ at: 0, where: 'board', holdMs: 1 })).toContain('CLOSE');
+  });
+
+  it('carries both halves of the page, so a tap means back or on', () => {
+    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 1 });
+    expect(markup).toContain('id="whatsnew-back"');
+    expect(markup).toContain('id="whatsnew-next"');
+    expect(markup).toContain('id="whatsnew-done"');
+  });
+
+  it('shows the card it was asked for, and the first one for a card that is not there', () => {
+    expect(storiesMarkup({ at: 2, where: 'intro', holdMs: 1 })).toContain(STORIES[2].title);
+    expect(storiesMarkup({ at: 9, where: 'intro', holdMs: 1 })).toContain(STORIES[0].title);
+  });
+});
+
+describe('how often it puts itself in front of somebody', () => {
+  it('shows itself twice and then stops', () => {
+    fakeStorage();
+    expect(whatsNewDue()).toBe(true);
+    markWhatsNewShown();
+    expect(whatsNewShown()).toBe(1);
+    expect(whatsNewDue()).toBe(true);
+    markWhatsNewShown();
+    expect(whatsNewShown()).toBe(TIMES);
+    expect(whatsNewDue()).toBe(false);
+    // And no amount of further opening turns it back on.
+    markWhatsNewShown();
+    expect(whatsNewDue()).toBe(false);
+  });
+
+  it('starts again for the next update rather than being spent for ever', () => {
+    fakeStorage({ 'hitman-whatsnew': 'something-older:2' });
+    expect(whatsNewShown()).toBe(0);
+    expect(whatsNewDue()).toBe(true);
+    markWhatsNewShown();
+    expect(localStorage.getItem('hitman-whatsnew')).toBe(`${UPDATE}:1`);
+  });
+
+  it('treats a count it cannot read as never having been shown', () => {
+    fakeStorage({ 'hitman-whatsnew': `${UPDATE}:banana` });
+    expect(whatsNewShown()).toBe(0);
+  });
+
+  it('still shows it where nothing can be remembered', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => { throw new Error('off'); },
+      setItem: () => { throw new Error('off'); },
+    });
+    expect(whatsNewDue()).toBe(true);
+    // And saying so must not throw, or a private window never gets to play.
+    expect(() => markWhatsNewShown()).not.toThrow();
+  });
+});

@@ -4,7 +4,7 @@ import {
   SURVIVE_BOARD_SIZE, packSurvive, standingOf, surviveDecidedBy, surviveImprovesOn,
   surviveQualifies, type Standing, type SurviveInnings, type SurviveRow,
 } from '../game/survive-board';
-import { escape, kitMarkup, type CardOffer } from './Leaderboard';
+import { escape, kitMarkup, sheetKeys, type CardOffer } from './Leaderboard';
 
 /**
  * The Test board, as a screen.
@@ -173,7 +173,7 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
       <div class="sheet-head">
         <p class="board-eyebrow">HITMAN OVAL &middot; TEST SURVIVAL</p>
         <h2 id="board-title">Top ${SURVIVE_BOARD_SIZE}</h2>
-        <button id="board-close" class="board-close" aria-label="Close the board">×</button>
+        ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
         state === 'loading' ? 'Fetching the board…'

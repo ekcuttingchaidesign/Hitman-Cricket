@@ -3,7 +3,7 @@ import {
   type BlastCareer, type CareerBoard, type CareerMode, type SurviveCareer,
 } from '../game/career';
 import type { CareerRow } from '../game/career-api';
-import { escape, kitMarkup } from './Leaderboard';
+import { escape, kitMarkup, sheetKeys } from './Leaderboard';
 
 /**
  * The career boards and the card, as screens.
@@ -120,7 +120,7 @@ export function careerBoardMarkup(view: CareerBoardView): string {
       <div class="sheet-head">
         <p class="board-eyebrow">${mode === 'survive' ? 'TEST SURVIVAL' : 'THE BLAST'} &middot; ALL TIME</p>
         <h2 id="board-title">${escape(board.name)}</h2>
-        <button id="board-close" class="board-close" aria-label="Close the board">×</button>
+        ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
         state === 'loading' ? 'Fetching the board…'

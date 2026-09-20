@@ -1256,6 +1256,55 @@ body.start-screen .hud-top{display:none}
   line-height:1
 }
 .board-close:hover{background:#ffffff20}
+/* The corner of the sheet: the way into the update's stories, and the way out.
+   The pair is placed here so the close key can keep its old position without
+   knowing anything has been put beside it. */
+.sheet-keys{
+  position:absolute;
+  top:-4px;
+  right:14px;
+  display:flex;
+  align-items:center;
+  gap:8px
+}
+.sheet-keys .board-close{position:static;top:auto;right:auto;flex:none}
+/* Left of the cross, and the only thing on the sheet asking to be noticed.
+   A stroke and a word rather than a fill: it sits beside a control nobody
+   needs prompting to find, and a second solid key there would read as the
+   more important of the two. */
+.board-new{
+  position:relative;
+  overflow:hidden;
+  height:38px;
+  padding:0 12px;
+  border:1px solid #ffffff2e;
+  border-radius:10px;
+  background:#ffffff0f;
+  color:var(--ink);
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.2px;
+  white-space:nowrap
+}
+.board-new:hover{background:#ffffff1c}
+.board-new::after{
+  content:'';
+  position:absolute;
+  top:-60%;
+  left:-80%;
+  width:62%;
+  height:220%;
+  pointer-events:none;
+  background:linear-gradient(90deg,
+    #ffffff00 0%,#ffffff12 22%,#ffffff30 40%,#ffffff4d 50%,#ffffff30 60%,#ffffff12 78%,#ffffff00 100%);
+  filter:blur(7px);
+  transform:rotate(16deg);
+  /* Its own period and its own delay, so it never crosses in step with the
+     keys under the innings card. */
+  animation:cta-shimmer 9.2s cubic-bezier(.45,0,.4,1) 2.2s infinite
+}
+
 /* The one question the sheet was opened to ask, answered above the fifty rows
    rather than left to be found among them. */
 .board-line{
@@ -3653,4 +3702,129 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    keys still say what they say and still press the same way. */
 @media (prefers-reduced-motion:reduce){
   .claim-key.is-offer::after,.career-widget::after{animation:none;display:none}
+}
+
+/* ── What's new ─────────────────────────────────────────────────────────────
+   Three cards, the shape every phone already knows: a segmented bar across the
+   top, the page itself as the control, and a key on the bottom edge that is
+   there the whole time. Nothing here is a dialogue — there is nothing to
+   answer — so the only thing it asks of a player is that they can leave. */
+.whatsnew-overlay{z-index:12;padding:0}
+.whatsnew-sheet{
+  /* Its own palette, the way every other sheet in this game declares one. The
+     tokens are set per surface rather than on the root, so a screen that does
+     not say what its ink is inherits whatever the page happens to be using —
+     which on this ground was near enough the ground itself. */
+  --ink:#f7f0e5;
+  --quiet:#c2d2dc;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  width:min(440px,100%);
+  height:100%;
+  max-height:100%;
+  margin:auto;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 18px calc(16px + env(safe-area-inset-bottom,0px));
+  overflow:hidden;
+  background:
+    radial-gradient(120% 70% at 50% 0%,#1b4a72 0%,#0d2739 46%,#07121a 100%)
+}
+.whatsnew-bars{display:flex;gap:5px;flex:none}
+.whatsnew-bar{
+  position:relative;
+  flex:1 1 0;
+  height:3px;
+  border-radius:2px;
+  background:#ffffff26;
+  overflow:hidden
+}
+.whatsnew-bar>i{display:block;height:100%;width:0;border-radius:2px;background:var(--cta-orange)}
+.whatsnew-bar.is-done>i{width:100%}
+/* The bar runs for exactly as long as the card holds, because the same number
+   is handed to both — the markup writes the hold onto the live segment. */
+.whatsnew-bar.is-live>i{width:100%;transform-origin:left;animation:whatsnew-fill var(--hold,7000ms) linear forwards}
+@keyframes whatsnew-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* The page as the control. Back on the left third, on the right the rest of
+   it — which is the division every story app uses and nobody has to be told.
+   They sit under the text and under the key, so neither is ever swallowed. */
+.whatsnew-half{
+  position:absolute;
+  top:0;
+  bottom:96px;
+  z-index:0;
+  border:0;
+  background:transparent;
+  -webkit-tap-highlight-color:transparent
+}
+.whatsnew-half.is-back{left:0;width:32%}
+.whatsnew-half.is-next{right:0;width:68%}
+
+.whatsnew-body{
+  position:relative;
+  z-index:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  flex:1 1 auto;
+  min-height:0;
+  padding-top:16px;
+  color:var(--ink);
+  text-align:center;
+  pointer-events:none
+}
+.whatsnew-eyebrow{
+  margin:0;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:2.2px;
+  color:var(--cta-orange)
+}
+.whatsnew-title{
+  margin:0;
+  /* Said outright. The heading takes its colour from whatever rule reaches it
+     otherwise, and on this ground that was near enough the ground itself. */
+  color:var(--ink);
+  font-size:26px;
+  font-weight:900;
+  letter-spacing:-.8px;
+  line-height:1.15;
+  text-wrap:balance
+}
+/* The picture is the point, and it shrinks rather than pushing the key off the
+   bottom of the screen — but it does not *grow* into the leftover room, or the
+   card ends up marooned in the middle of the screen with a gap above it and a
+   gap below. The whole block is centred instead, as one thing. */
+.whatsnew-art{
+  flex:0 1 auto;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%
+}
+.whatsnew-art img{
+  max-width:min(330px,86%);
+  max-height:min(100%,54vh);
+  width:auto;
+  height:auto;
+  border-radius:16px;
+  border:1px solid #ffffff1f;
+  box-shadow:0 22px 50px #00000073
+}
+.whatsnew-say{
+  margin:0;
+  max-width:34ch;
+  font-size:13.5px;
+  line-height:1.55;
+  color:var(--quiet)
+}
+.whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
+.whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
+
+@media (prefers-reduced-motion:reduce){
+  .board-new::after{animation:none;display:none}
+  .whatsnew-bar.is-live>i{animation:none;transform:scaleX(1)}
 }

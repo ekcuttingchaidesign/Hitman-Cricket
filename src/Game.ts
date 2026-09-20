@@ -34,6 +34,8 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type SurviveTally } from './game/career';
+import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import type { StoriesWhere } from './ui/WhatsNew';
 import type { Granted } from './game/tier';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
@@ -255,7 +257,7 @@ export class Game {
       () => this.charged);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
-    this.hud.on('start', () => (this.locked ? this.start() : this.modes()));
+    this.hud.on('start', this.play);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('modes-cancel', this.closePicker);
@@ -275,6 +277,7 @@ export class Game {
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
     this.hud.onBoardTab = this.tabBoard;
+    this.hud.onBoardStories = () => this.showStories('board');
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onStatsOpen = this.showStats;
     // The three ways into the questionnaire. The cover offers it only to
@@ -584,6 +587,32 @@ export class Game {
    * appearing — and if the fetch fails it says so instead of showing an empty
    * fifty or, worse, fifty invented names.
    */
+  /**
+   * The play key.
+   *
+   * What it does is start the game, except on the first two visits after the
+   * update, where it stops for the three cards explaining what changed. The
+   * stories are counted here rather than when they are closed, because a player
+   * who skips on the first card has still been shown them — counting on the way
+   * out would show the same three cards to the same person for ever.
+   *
+   * The board's own What's New key does not count against it: somebody who went
+   * looking has not used up one of the two they are given.
+   */
+  private play = () => {
+    const go = () => (this.locked ? this.start() : this.modes());
+    if (!whatsNewDue()) return go();
+    markWhatsNewShown();
+    this.showStories('intro', go);
+  };
+
+  /** The update's stories, and whatever happens when they are done with. */
+  private showStories(where: StoriesWhere, then: (() => void) | null = null) {
+    this.mark(`whatsnew-${where}`, 'What\'s new opened');
+    this.hud.onStoriesDone = then;
+    this.hud.stories(where);
+  }
+
   private showBoard = () => {
     this.mark('board-open', 'Board opened');
     // Mid-innings the board is a distraction with a ball on its way, so it
