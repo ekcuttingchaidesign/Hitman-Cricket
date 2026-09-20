@@ -208,11 +208,24 @@ export class HUD {
         <div class="hud-top">
           <div class="hud-actions">
             <button id="sound" class="hud-button" aria-label="Mute sound" title="Sound (M)">${icon('sound')}</button>
-            <button id="help" class="hud-button" aria-label="How to play" title="How to play">${icon('help')}</button>
-            <button id="board" class="hud-button" aria-label="Top 50 board" title="Top 50 (B)">${icon('trophy')}</button>
-            <button id="share" class="hud-button" aria-label="Share game" title="Share game">${icon('share')}</button>
-            <button id="pause" class="hud-button" aria-label="Pause innings" title="Pause (Esc)" disabled>${icon('pause')}</button>
-            <button id="fullscreen" class="hud-button" aria-label="Enter fullscreen" title="Fullscreen">${icon('expand')}</button>
+            <!--
+              The row used to carry six. Five of them were ways to another
+              screen — the board, the instructions, a share, fullscreen, the
+              pause card — and a stack of five grey squares over the top of the
+              ground is a menu bar, not a game. Every one of those screens is
+              reachable from the cover or from the innings card, which are the
+              two moments a player is not facing a ball.
+
+              They are kept in the document and hidden rather than deleted,
+              because the game drives them by id from a dozen places and a
+              hidden key answers a click exactly the way a visible one does.
+              Nothing behind them has changed.
+            -->
+            <button id="help" class="hud-button is-retired" aria-label="How to play" title="How to play" tabindex="-1" aria-hidden="true">${icon('help')}</button>
+            <button id="board" class="hud-button is-retired" aria-label="Top 50 board" title="Top 50 (B)" tabindex="-1" aria-hidden="true">${icon('trophy')}</button>
+            <button id="share" class="hud-button is-retired" aria-label="Share game" title="Share game" tabindex="-1" aria-hidden="true">${icon('share')}</button>
+            <button id="pause" class="hud-button is-retired" aria-label="Pause innings" title="Pause (Esc)" tabindex="-1" aria-hidden="true" disabled>${icon('pause')}</button>
+            <button id="fullscreen" class="hud-button is-retired" aria-label="Enter fullscreen" title="Fullscreen" tabindex="-1" aria-hidden="true">${icon('expand')}</button>
           </div>
         </div>
         <div class="score-stack">
@@ -298,7 +311,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             </button>
             <div class="card-keys">
               <button id="again" class="key-button">PLAY AGAIN</button>
-              <button id="share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
+              <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
             <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
@@ -371,7 +384,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
-    this.$('share').addEventListener('click', () => void this.shareScore());
+    this.$('card-share').addEventListener('click', () => void this.shareScore());
     this.$('card-career').addEventListener('click', () => { this.markCareerSeen(); this.onStatsOpen?.(); });
     const dialog = this.$('help-dialog') as HTMLDialogElement;
     this.$('help-done').onclick = () => dialog.close();
@@ -650,7 +663,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The backdrop is the whole overlay, so a click that lands on the sheet is
     // not a click on the way out.
     overlay.onclick = event => { if (event.target === overlay) this.closeBoard(); };
-    this.$('board-close').onclick = () => this.closeBoard();
+    // The card's tab has no X: the row of tabs above it is the way out, and a
+    // cross inside a tab would be a way out of the tab to the same tab.
+    const close = document.getElementById('board-close');
+    if (close) close.onclick = () => this.closeBoard();
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
     const again = document.getElementById('board-again');

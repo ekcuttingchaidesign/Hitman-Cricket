@@ -51,8 +51,7 @@ export function statsSheetMarkup(view: StatsSheetView): string {
       <div class="stats-head">
         <button id="stats-back" class="stats-back" type="button">${backMark()}<span>Back</span></button>
         <p class="stats-head-title">Career stats</p>
-      </div>` : `
-      <button id="board-close" class="board-close stats-close" aria-label="Close the board">×</button>`}
+      </div>` : ''}
       <div class="stats-stage">${
         picture
           ? `<img class="stats-shot" src="${picture}" alt="${escape(statsAlt(facts))}">`

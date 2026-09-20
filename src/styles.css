@@ -1267,15 +1267,19 @@ body.start-screen .hud-top{display:none}
   margin:0;
   padding:0
 }
+/* No rule between rows.
+   Fifty hairlines turn a list of people into a spreadsheet, and the row that
+   matters — the player's own, which is lit — has to fight its own borders to
+   stand out. The rows are held apart by their own rhythm instead: the place
+   number and the kit give every line a left edge, and the figures line up down
+   the right. */
 .board-row{
   display:grid;
-  grid-template-columns:22px 28px minmax(0,1fr) auto auto;
+  grid-template-columns:20px 34px minmax(0,1fr) auto auto;
   align-items:center;
-  gap:0 10px;
-  padding:8px 0;
-  border-top:1px solid var(--rule)
+  gap:0 11px;
+  padding:6px 0
 }
-.board-list li:first-child{border-top:0}
 .board-place{
   font-size:12px;
   font-weight:700;
@@ -1291,8 +1295,8 @@ body.start-screen .hud-top{display:none}
   position:relative;
   display:grid;
   place-items:center;
-  width:28px;
-  height:28px;
+  width:34px;
+  height:34px;
   border-radius:50%;
   background:var(--kit,#9fb2bd);
   color:#0f2738;
@@ -1315,8 +1319,8 @@ body.start-screen .hud-top{display:none}
 .board-who{min-width:0}
 .board-who b{
   display:block;
-  font-size:14.5px;
-  font-weight:700;
+  font-size:15.5px;
+  font-weight:600;
   letter-spacing:-.2px;
   white-space:nowrap;
   overflow:hidden;
@@ -1341,7 +1345,7 @@ body.start-screen .hud-top{display:none}
 .survive-list .board-who small>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .survive-list .board-who small>i{flex:none;font-style:normal}
 .board-runs{
-  font-size:19px;
+  font-size:21px;
   font-weight:800;
   letter-spacing:-.7px;
   font-variant-numeric:tabular-nums;
@@ -1367,13 +1371,16 @@ body.start-screen .hud-top{display:none}
      its own column out past the fifty rows that are lined up under it. */
   width:31px;
   font-style:normal;
-  font-size:13px;
+  font-size:14px;
   font-weight:700;
   font-variant-numeric:tabular-nums;
   justify-content:flex-end;
-  color:var(--quiet)
+  /* The count is a figure and reads as one; only its unit is a label. Both in
+     grey made the two columns look like a footnote to the score, when they are
+     the two things anybody actually compares after it. */
+  color:var(--ink)
 }
-.board-hits small{font-size:8.5px;font-weight:600}
+.board-hits small{font-size:9px;font-weight:600;color:var(--quiet)}
 /* The figure that actually split a tie, lit where the eye already is. Colour is
    not carrying this on its own: the note under the name says the same thing in
    words, so a player who cannot tell the two apart still gets the reason. */
@@ -3132,6 +3139,7 @@ body.private-window{overflow:hidden}
 /* On the card's own tab the sheet has no header to hang the X on, so it sits
    above the picture on its own line rather than over the card's top corner —
    which on this card is where the mark is. */
+/* Kept for the page presentation, which does have a way out of its own. */
 .stats-close{
   position:static;
   align-self:flex-end;
@@ -3308,6 +3316,10 @@ body.private-window{overflow:hidden}
   align-items:center;
   gap:12px;
   width:100%;
+  /* The keys below stand on a six-pixel ledge, which is drawn outside the box
+     and lands on whatever is above them. Without room of its own the widget
+     had PLAY AGAIN's orange rim sitting across its bottom edge. */
+  margin:4px 0 14px;
   padding:10px 12px;
   border:1px solid #2f6f9e;
   border-radius:14px;
@@ -3376,3 +3388,8 @@ body.private-window{overflow:hidden}
 .share-key:hover:not(:disabled){background:#0e9c52;box-shadow:0 6px 0 #06592e,0 11px 16px #00000042}
 .share-key:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #06592e,0 4px 8px #0000002e}
 .share-key svg{width:19px;height:19px;flex:none}
+
+/* The five keys the top row used to carry. Hidden rather than deleted: the
+   game drives them by id from a dozen places, and a hidden key answers a click
+   exactly the way a visible one does. */
+.hud-button.is-retired{display:none}
