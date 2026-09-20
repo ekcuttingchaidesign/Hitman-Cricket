@@ -9,7 +9,8 @@ import {
 } from './src/server/career-store';
 import { memoryCareer } from './src/server/memory-career';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer, type SurviveTally,
+  BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
+  type BlastCareer, type SurviveCareer,
 } from './src/game/career';
 
 /**
@@ -114,8 +115,8 @@ function boardEndpoints(): Plugin {
             };
             const asked = String(sent.mode ?? '').toLowerCase() === 'survive';
             const counted = asked
-              ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: surviveTally(sent.innings) })
-              : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: figures(sent.innings) });
+              ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: readSurviveTally(sent.innings) })
+              : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: readBlastTally(sent.innings) });
             return refusedCareer(counted) ? send(counted.status, { error: counted.reason }) : send(200, counted);
           }
           if (path === '/api/board') {
@@ -174,11 +175,6 @@ function figures(raw: unknown) {
     runs: read('runs'), sixes: read('sixes'), fours: read('fours'),
     wickets: read('wickets'), dots: read('dots'), balls: read('balls'),
   };
-}
-
-/** The Test match's five, plus the two boundary columns a career also counts. */
-function surviveTally(raw: unknown): SurviveTally {
-  return { ...surviveFigures(raw), sixes: Number((raw as Record<string, unknown>)?.sixes), fours: Number((raw as Record<string, unknown>)?.fours) };
 }
 
 /** The Test match's five, the same way. */

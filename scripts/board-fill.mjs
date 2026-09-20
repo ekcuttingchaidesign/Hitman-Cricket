@@ -106,7 +106,9 @@ for (const one of modes) {
   for (let i = 0; i < rows && !stopped; i++) {
     const playerId = idFor(i);
     const name = `${NAMES[i % NAMES.length]}${one === 'survive' ? 'T' : ''}`;
-    const avatar = i % 6;
+    // Five kits, as `KITS` in src/config/board.ts has it. A sixth is turned
+    // away by the board, which used to lose every sixth row.
+    const avatar = i % 5;
     // Top of the ladder down to the bottom, so the fifty rows are a ladder and
     // not fifty of the same score.
     const innings = one === 'survive' ? test(i) : blast(Math.max(6, 148 - i * 3));

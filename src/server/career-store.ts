@@ -333,6 +333,27 @@ export async function nameCareer<C, T>(
  * moment they do — and nothing is written for a board they have nothing on, so
  * a Blast player never touches the boundaries ranking until they hit one.
  */
+/**
+ * A note on what `GT` means here, because it looks like a bug and is not.
+ *
+ * A packed career key falls as well as rises: the clock underneath it counts
+ * *down* — it is `MAX_DAYS - days`, so that whoever reached a total first stays
+ * above whoever matched it later — and the innings tiebreak is stored as room
+ * left rather than innings used, so one more innings lowers it. An innings that
+ * scores nothing therefore produces a key below the one already written, and
+ * `GT` refuses it.
+ *
+ * That is the point. The rank records how a career got to the total it is on,
+ * stamped at the moment it got there: a thousand runs in fifty innings on day
+ * ten stays ranked as a thousand in fifty on day ten, and a hundred barren
+ * innings afterwards do not push it below somebody who arrived later. The row
+ * shows the innings count now, which is a different true number, and the two
+ * can read as disagreeing on a tie — which is the price, and it is only ever
+ * payable between two careers level on a twenty-bit total.
+ *
+ * Drop the `GT` and both halves of that go: reaching a total first would stop
+ * counting for anything the moment you played again.
+ */
 async function rankAll<C, T>(
   store: CareerStore<C>, ladder: CareerLadder<C, T>, id: string, career: C, name: string, now: number,
 ) {

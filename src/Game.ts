@@ -749,7 +749,7 @@ export class Game {
     if (!board) return this.openBoard(mode, 'best');
     const held = this.careerBoards[mode];
     const draw = (payload: CareerBoards<AnyCareer> | undefined, state: 'ready' | 'loading' | 'offline') => {
-      if (this.boardTab !== mode || this.boardLadder !== key) return;
+      if (this.sheetTab !== mode || this.boardTab !== mode || this.boardLadder !== key) return;
       this.hud.careerBoard({
         mode, board, youId: this.player, state,
         rows: (payload?.boards?.[key] ?? []) as readonly CareerRow<AnyCareer>[],
@@ -907,7 +907,11 @@ export class Game {
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
     else this.hud.board({ ...view, rows: [], state: 'loading' as const });
     void fetchBoard().then(payload => {
-      if (this.disposed || !this.hud.boardOpen || this.boardTab !== 'classic') return;
+      // Against the tab the sheet is showing, not the mode it belongs to. A
+      // fetch already in flight lands a moment after the player has tapped My
+      // Stats, and the mode is still exactly what it was — so this guard used
+      // to pass and draw fifty rows straight over the top of their card.
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'classic') return;
       if (payload) { this.boardSeen = true; this.board = payload.rows; }
       this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
     });
@@ -928,7 +932,7 @@ export class Game {
       // A fetch that lands after the player has tabbed away belongs to a sheet
       // that is no longer on screen, and drawing it would put the other ladder
       // back under the tab they just chose.
-      if (this.disposed || !this.hud.boardOpen || this.boardTab !== 'survive') return;
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'survive') return;
       if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
       this.hud.surviveBoard({ ...view, rows: this.surviveRows, state: payload ? 'ready' : 'offline' });
     });
@@ -947,6 +951,14 @@ export class Game {
       && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable);
     if (typing && event.key !== 'Escape') return;
     const key = event.key.toUpperCase();
+    // The stories sit over everything, including the board that may have opened
+    // them, so they answer first. Without this Enter started an innings behind
+    // them — and then started it again on the way out — 'B' opened the board
+    // underneath, and Esc closed the board the player had come from.
+    if (this.hud.storiesOpen) {
+      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeStories(); }
+      return;
+    }
     // The card sits over the board, so it answers before the board does. Esc
     // puts it away and hands the board back, rather than closing both or
     // pausing whatever is under the two of them.
@@ -1346,7 +1358,10 @@ export class Game {
       track(`survive-${injuryBand(this.health.injury)}`, 'Test match injury');
       track(`survive-${blowsBand(this.health.blows.length)}`, 'Test match blows taken');
       this.hud.endSurvive(this.score, this.health, ending, this.chasing);
-      this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
+      // No career widget here. The one the Blast's card carries lives inside
+      // that card, so this only ever un-hid a button on a screen nobody was
+      // looking at. A Test player reaches their figures the other way: View
+      // Leaderboard, then My Stats, where both cards are now on one rail.
       this.offerSurvive();
       return;
     }
