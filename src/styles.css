@@ -2305,10 +2305,12 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 }
 .touch-device .mode-top{height:44px}
 /* A key, not a hud control: it is a decision on a screen of decisions, so it
-   is written the way the cards' keys are — a ledge under it, a lit top edge,
-   and the same two pixels of travel when it is pressed. Grey because it is the
-   one that goes nowhere: the orange is the innings and the blue is the shot,
-   and neither of those is what this does. */
+   is built the way the key on the card below it is — a face that falls off
+   towards the bottom, a solid ledge under that, and the ground shadow beneath
+   both. Dark grey because it is the one that goes nowhere: the orange is the
+   innings and the blue is the shot, and neither of those is what this does.
+   The ledge stays well clear of the screen's black, because an extrusion drawn
+   in the background colour is not an extrusion. */
 .mode-back{
   flex:none;
   display:flex;
@@ -2318,14 +2320,14 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   height:38px;
   border:0;
   border-radius:10px;
-  background:#3c434b;
+  background:linear-gradient(180deg,#333b43 0%,#232931 100%);
   color:#fff;
-  box-shadow:0 4px 0 #191d22,inset 0 1px 0 #ffffff21
+  box-shadow:0 5px 0 #171c22,0 9px 9px #00000066,inset 0 1px 0 #ffffff1c
 }
 .touch-device .mode-back{width:44px;height:44px}
 .mode-back svg{width:19px;height:19px}
-.mode-back:hover{background:#49515a}
-.mode-back:active{transform:translateY(2px);box-shadow:0 2px 0 #191d22,inset 0 1px 0 #ffffff21}
+.mode-back:hover{background:linear-gradient(180deg,#3d454e 0%,#2b323a 100%)}
+.mode-back:active{transform:translateY(3px);box-shadow:0 2px 0 #171c22,0 4px 6px #0000005c,inset 0 1px 0 #ffffff1c}
 /* 64 at 804 is 32 on the phone this was drawn for, and it holds that share of
    the screen on anything narrower. */
 .mode-heading{
