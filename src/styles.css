@@ -3056,7 +3056,7 @@ body.private-window{overflow:hidden}
   display:flex;
   flex-direction:column;
   gap:14px;
-  width:min(440px,100%);
+  width:min(480px,100%);
   max-height:100%;
   margin:auto;
   overflow-y:auto;
@@ -3087,11 +3087,14 @@ body.private-window{overflow:hidden}
   justify-content:center;
   min-height:220px
 }
+/* Full width, so the card and the two keys under it share one edge. The mat
+   painted into the picture is only wide enough to hold the card's own ledge,
+   which is what lets this line up rather than sitting inside them. */
 .stats-shot{
   display:block;
   width:100%;
   height:auto;
-  border-radius:14px;
+  border-radius:16px;
   /* The picture already carries the card's own ledge; this is the glow that
      lifts the whole photograph off the scrim behind it. */
   box-shadow:0 18px 44px #00000066
@@ -3203,3 +3206,26 @@ body.private-window{overflow:hidden}
 }
 .stats-cell.is-lead{background:#f2814f1a;border-color:#f2814f4d}
 .stats-cell.is-lead dd{color:#f2a97f}
+
+/* The tier, in the text fallback. The painted card carries it as a full-width
+   bar; here it is a pill, because the fallback is a list of figures and a bar
+   across the top of one would be a heading rather than a badge. */
+.stats-badge{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  margin:0 0 14px;
+  padding:8px 12px;
+  border-radius:9px;
+  background:color-mix(in srgb,var(--tier) 16%,transparent);
+  border:1px solid color-mix(in srgb,var(--tier) 45%,transparent);
+  border-left:4px solid var(--tier)
+}
+.stats-badge b{
+  font-family:var(--card);
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:2px;
+  color:var(--tier)
+}
+.stats-badge small{font-size:11px;color:#9fb2bd}

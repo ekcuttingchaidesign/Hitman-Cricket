@@ -508,6 +508,28 @@ None of them is an anti-cheat measure and none should be mistaken for one — th
 
 `MY CAREER CARD`, under the sheet rather than among the pills above it. Every pill re-sorts what is already on screen; this one is a destination, and it leaves — so it is shaped like a key, not like a seventh ladder.
 
+### The tier
+
+A row of numbers is inert on its own: nine figures and no answer to the only question anybody actually asks about them, which is whether they are any good. The badge answers it in one word, and that word is what makes the card worth sending — *900 runs* means nothing to a friend who has never played this, and *STAR* means something immediately.
+
+| Tier | From | |
+| --- | --- | --- |
+| DEBUTANT | 0 | First time out there. |
+| EMERGING | 150 | Past the first hurdle. |
+| REGULAR | 500 | In the side every week. |
+| PRO | 1,200 | Does this for a living. |
+| STAR | 2,500 | People turn up to watch. |
+| LEGEND | 5,000 | They name stands after this. |
+| HITMAN | 10,000 | The one the game is named for. |
+
+It is read off the figure the mode already leads on — **career runs** in the Blast, **balls faced** in the Test match — rather than off a score of its own. That keeps one number in charge of the headline tile, the badge under it and the progress bar under that, so a card cannot say a player is climbing on one line and stalled on the next. It also means the Test ladder rewards the thing that mode is about: a blocker with two thousand balls and forty runs is a PRO, where a tier read off runs would have called him a debutant.
+
+The thresholds are shared between the two modes, which the measures happen to allow — sixty balls an innings and something under sixty runs an innings put them in the same range — so there is one ladder to learn rather than two.
+
+**The tier colours the card.** The badge, the ring round the kit, the hero tiles' edges, the bloom behind them and the hairline round the whole thing all take it, so a DEBUTANT's card is cool and quiet and a HITMAN's is lit red from the middle. That is the cheapest way to make two players' cards look like different objects, and it costs nothing the card was not already carrying. Under the hero row is a bar showing how far into the rung they are — measured *across the gap between two rungs* rather than from nought, which is the difference between a bar that creeps for a week and one that visibly moves every time somebody plays.
+
+### What else is on it
+
 It shows innings, runs, highest, best unbeaten, sixes, fours and balls in the Blast; balls faced, innings survived, runs, blows, boundaries and the three results in the Test match, where won, drawn and lost carry the Test board's own tier colours. *Survived* is wins and draws added together — the innings he came through — and is derived rather than counted, because a third counter beside the two is a third counter to keep in step.
 
 **The card on screen is a painted picture, not a DOM copy of one.** `game/StatsCard.ts` draws it to a canvas the way `ShareCard.ts` draws the innings card, and the overlay shows that very image. That is the one arrangement which guarantees the card somebody shares is the card they were looking at when they decided to — a second rendering would drift from the first the day one of them gained a figure. The cost is that a canvas is a rectangle to a screen reader, which is what the alt text and the text fallback are for.

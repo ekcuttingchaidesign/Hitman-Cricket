@@ -1,5 +1,6 @@
 import { kitColour, avatarSrc } from '../config/board';
 import { survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
+import { nextLine, standingOf, type Standing, type Tier } from './tier';
 
 /**
  * The career card, painted so it can leave the page as a picture.
@@ -28,7 +29,11 @@ const titleArt = new URL('../assets/title.webp', import.meta.url).href;
 const coverArt = new URL('../assets/cover.webp', import.meta.url).href;
 
 export const STATS_CARD = {
-  width: 392,
+  // Wider than the innings card, and wider than it was. Two things wanted it:
+  // the hero numbers get to be numbers rather than digits crowding a tile, and
+  // the picture now sits flush with the two keys under it — a card narrower
+  // than its own buttons reads as a thumbnail of something else.
+  width: 440,
   radius: 20,
   padX: 26,
   padTop: 26,
@@ -114,6 +119,12 @@ export interface StatsFacts {
   standing: string | null;
   /** Whether anything has been counted at all. */
   played: boolean;
+  /** What this player *is*, which is the one thing on the card worth bragging. */
+  tier: Tier;
+  /** How far along the ladder they are, for the bar under the hero row. */
+  ladder: Standing;
+  /** What the bar's line says. */
+  nextLine: string;
 }
 
 /** A Blast career, as the card reads it. */
@@ -162,7 +173,11 @@ export function statsFacts(
   const split = mode === 'survive'
     ? surviveFacts(career as SurviveCareer)
     : blastFacts(career as BlastCareer);
+  const ladder = standingOf(mode, career);
   return {
+    tier: ladder.tier,
+    ladder,
+    nextLine: nextLine(mode, ladder),
     mode,
     modeName: mode === 'survive' ? 'Test Survival' : 'The Blast',
     // A player who has not registered still has a card; it is their figures,
@@ -185,7 +200,7 @@ export function statsFacts(
  */
 export function statsAlt(facts: StatsFacts): string {
   const figures = [...facts.hero, ...facts.figures].map(one => `${one.label} ${one.value}`).join(', ');
-  return `${facts.name} on ${facts.modeName}: ${facts.innings} innings. ${figures}.`;
+  return `${facts.name}, ${facts.tier.name}, on ${facts.modeName}: ${facts.innings} innings. ${figures}. ${facts.nextLine}.`;
 }
 
 /** How many of the small figures sit on one row. */
@@ -194,10 +209,14 @@ const PER_ROW = 4;
 const EYEBROW_H = 13;
 const IDENTITY_TOP = 22;
 const IDENTITY_H = 56;
-const HERO_TOP = 22;
+const BADGE_TOP = 18;
+const BADGE_H = 34;
+const HERO_TOP = 18;
 const HERO_H = 84;
 const HERO_GAP = 12;
-const GRID_TOP = 20;
+const BAR_TOP = 16;
+const BAR_H = 22;
+const GRID_TOP = 18;
 const GRID_ROW_H = 46;
 const FOOT_TOP = 18;
 const FOOT_H = 13;
@@ -211,10 +230,21 @@ export function statsCardHeight(facts: StatsFacts) {
   const rows = gridRows(facts);
   return STATS_CARD.padTop + EYEBROW_H
     + IDENTITY_TOP + IDENTITY_H
+    + BADGE_TOP + BADGE_H
     + HERO_TOP + HERO_H
+    + BAR_TOP + BAR_H
     + GRID_TOP + rows * GRID_ROW_H + (rows - 1) * 6
     + FOOT_TOP + FOOT_H
     + STATS_CARD.padBottom;
+}
+
+/**
+ * A hex colour at an alpha. The tier's ink is written once in `tier.ts` and
+ * spent all over the card at a dozen different strengths, and a second list of
+ * pre-mixed values would be a second list to keep in step with the first.
+ */
+function at(hex: string, alpha: number) {
+  return `${hex}${Math.round(Math.min(1, Math.max(0, alpha)) * 255).toString(16).padStart(2, '0')}`;
 }
 
 function panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -241,6 +271,16 @@ function tracked(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
   return cursor - x - spacing;
 }
 
+/**
+ * A figure as the card prints it. Grouped, always — a career runs into five
+ * digits and `11400` is a number somebody has to count, where `11,400` is one
+ * they read. The locale is pinned rather than the browser's, because a card
+ * shared out of one country and read in another must not say two things.
+ */
+function figure(value: number) {
+  return value.toLocaleString('en-US');
+}
+
 /** Cuts text to what will fit, with an ellipsis where it had to be cut. */
 function clipped(ctx: CanvasRenderingContext2D, text: string, max: number) {
   if (ctx.measureText(text).width <= max) return text;
@@ -265,14 +305,93 @@ async function paintKit(ctx: CanvasRenderingContext2D, facts: StatsFacts, x: num
   const kit = await load(avatarSrc(facts.avatar)).catch(() => null);
   if (kit) ctx.drawImage(kit, x, y, size, size);
   ctx.restore();
-  // A hairline round it, so a dark kit does not dissolve into a dark card.
+  // A ring round it in the tier's colour, with the tier's glow behind — so the
+  // one thing a player looks at first on their own card is also the thing that
+  // says how far up the ladder they are. A plain white hairline said nothing
+  // and was doing the same job.
   ctx.save();
   ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size / 2 - 0.5, 0, Math.PI * 2);
-  ctx.strokeStyle = '#ffffff2e';
-  ctx.lineWidth = 1;
+  ctx.arc(x + size / 2, y + size / 2, size / 2 - 1, 0, Math.PI * 2);
+  ctx.strokeStyle = at(facts.tier.ink, 0.85);
+  ctx.lineWidth = 2;
+  ctx.shadowColor = at(facts.tier.glow, 0.55);
+  ctx.shadowBlur = 10;
   ctx.stroke();
   ctx.restore();
+}
+
+/**
+ * The badge: a tier-coloured bar with the word in it, and the rung's own line
+ * beside it. Full width rather than a pill beside the name, because at pill
+ * size the one word that carries the card would be the smallest thing on it.
+ */
+function paintBadge(
+  ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, w: number,
+) {
+  const tier = facts.tier;
+  const fill = ctx.createLinearGradient(x, y, x + w, y);
+  fill.addColorStop(0, at(tier.glow, 0.34));
+  fill.addColorStop(1, at(tier.glow, 0.06));
+  ctx.fillStyle = fill;
+  panel(ctx, x, y, w, BADGE_H, 9); ctx.fill();
+  ctx.strokeStyle = at(tier.ink, 0.5);
+  ctx.lineWidth = 1;
+  panel(ctx, x + 0.5, y + 0.5, w - 1, BADGE_H - 1, 9); ctx.stroke();
+  // A solid flash of the tier's colour at the left edge, the way a rosette has
+  // a ribbon. It is what makes the badge read at a glance in a thumbnail,
+  // where the word itself is too small to read at all.
+  ctx.fillStyle = tier.ink;
+  panel(ctx, x, y + 6, 4, BADGE_H - 12, 2); ctx.fill();
+
+  ctx.fillStyle = tier.ink;
+  ctx.font = font(900, 15);
+  const used = tracked(ctx, tier.name, x + 16, y + BADGE_H / 2 + 5.5, 2.4);
+  ctx.fillStyle = STATS_CARD.quiet;
+  ctx.font = font(500, 11.5);
+  ctx.fillText(clipped(ctx, tier.blurb, w - used - 44), x + 16 + used + 14, y + BADGE_H / 2 + 4.5);
+}
+
+/**
+ * The bar under the hero row: how far into this rung, and what the next one
+ * wants. Measured across the gap between two rungs rather than from nought,
+ * which is the difference between a bar that creeps for a week and one that
+ * visibly moves every time somebody plays.
+ */
+function paintLadder(
+  ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, w: number,
+) {
+  const tier = facts.tier;
+  const trackH = 6;
+  const trackY = y + 2;
+  ctx.fillStyle = '#ffffff12';
+  panel(ctx, x, trackY, w, trackH, 3); ctx.fill();
+  const filled = Math.max(trackH, w * facts.ladder.progress);
+  const run = ctx.createLinearGradient(x, trackY, x + filled, trackY);
+  run.addColorStop(0, at(tier.ink, 0.5));
+  run.addColorStop(1, tier.ink);
+  ctx.fillStyle = run;
+  panel(ctx, x, trackY, filled, trackH, 3); ctx.fill();
+
+  ctx.fillStyle = STATS_CARD.quiet;
+  ctx.font = font(600, 10.5);
+  ctx.fillText(facts.nextLine, x, trackY + trackH + 13);
+  // The rung above, right-aligned against the end of its own bar, so the bar
+  // has a destination printed on it rather than just running out.
+  if (facts.ladder.next) {
+    ctx.fillStyle = at(facts.ladder.next.ink, 0.75);
+    ctx.font = font(700, 10.5);
+    // Measured and placed by hand rather than right-aligned: `tracked` draws a
+    // glyph at a time, and under `textAlign = 'right'` every one of them would
+    // be right-aligned against its own cursor and the word would come out
+    // backwards on top of itself.
+    const name = facts.ladder.next.name;
+    tracked(ctx, name, x + w - measureTracked(ctx, name, 1.2), trackY + trackH + 13, 1.2);
+  }
+}
+
+/** How wide a tracked string will be, so it can be right-aligned by hand. */
+function measureTracked(ctx: CanvasRenderingContext2D, text: string, spacing: number) {
+  return [...text].reduce((w, c) => w + ctx.measureText(c).width + spacing, 0) - spacing;
 }
 
 /**
@@ -283,7 +402,7 @@ async function paintKit(ctx: CanvasRenderingContext2D, facts: StatsFacts, x: num
 export async function paintStatsCard(
   ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, link = '',
 ) {
-  const { width, padX, padTop, ink, quiet, rule, face, lift, ledge, accent, accentInk } = STATS_CARD;
+  const { width, padX, padTop, ink, quiet, rule, face, lift, ledge, accent } = STATS_CARD;
   const height = statsCardHeight(facts);
   const left = x + padX, contentW = width - padX * 2;
 
@@ -305,14 +424,42 @@ export async function paintStatsCard(
   panel(ctx, 0, 0, width, height, STATS_CARD.radius); ctx.fill();
   ctx.save();
   panel(ctx, 0, 0, width, height, STATS_CARD.radius); ctx.clip();
-  // A soft accent bloom behind the hero row, which is the one thing on the card
-  // that is allowed to glow. It is what stops nine numbers reading as a table.
-  const bloomY = padTop + EYEBROW_H + IDENTITY_TOP + IDENTITY_H + HERO_TOP + HERO_H / 2;
-  const bloom = ctx.createRadialGradient(width / 2, bloomY, 0, width / 2, bloomY, width * 0.72);
-  bloom.addColorStop(0, '#f2814f1c');
-  bloom.addColorStop(0.62, '#f2814f0d');
-  bloom.addColorStop(1, '#f2814f00');
+  // Pinstripes, at an alpha you would not notice and would miss. Flat navy at
+  // this size photographs like a screenshot of a form; a weave in it gives the
+  // card a material, which is most of what separates something worth sending
+  // from a table somebody happened to render.
+  ctx.save();
+  ctx.strokeStyle = '#ffffff07';
+  ctx.lineWidth = 1;
+  for (let i = -height; i < width; i += 7) {
+    ctx.beginPath();
+    ctx.moveTo(i, height);
+    ctx.lineTo(i + height, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // The bloom behind the hero row is the tier's colour, not the brand's. It is
+  // the cheapest way to make two players' cards look like different objects —
+  // a DEBUTANT's is cool and quiet, a HITMAN's is lit red from the middle — and
+  // it costs nothing the card was not already carrying.
+  const glow = facts.tier.glow;
+  const bloomY = padTop + EYEBROW_H + IDENTITY_TOP + IDENTITY_H + BADGE_TOP + BADGE_H + HERO_TOP + HERO_H / 2;
+  const bloom = ctx.createRadialGradient(width / 2, bloomY, 0, width / 2, bloomY, width * 0.78);
+  bloom.addColorStop(0, at(glow, 0.17));
+  bloom.addColorStop(0.62, at(glow, 0.05));
+  bloom.addColorStop(1, at(glow, 0));
   ctx.fillStyle = bloom;
+  ctx.fillRect(0, 0, width, height);
+  // A foil sweep across the corner, the way light sits on a printed card. It is
+  // the one thing here that is pure decoration, and it earns its place by being
+  // what makes the object read as an object rather than as a rectangle.
+  const foil = ctx.createLinearGradient(0, height * 0.75, width, -height * 0.1);
+  foil.addColorStop(0, '#ffffff00');
+  foil.addColorStop(0.42, '#ffffff00');
+  foil.addColorStop(0.52, '#ffffff0f');
+  foil.addColorStop(0.62, '#ffffff00');
+  foil.addColorStop(1, '#ffffff00');
+  ctx.fillStyle = foil;
   ctx.fillRect(0, 0, width, height);
   // The lit top edge, clipped to the card so it follows the corners.
   ctx.fillStyle = '#ffffff2b'; ctx.fillRect(0, 0, width, 1);
@@ -320,7 +467,7 @@ export async function paintStatsCard(
   // And a hairline all the way round. WhatsApp puts this on a dark thread and
   // Instagram on whatever the story is standing on; without an edge of its own
   // the card dissolves into the first of those and floats on the second.
-  ctx.strokeStyle = '#ffffff1a';
+  ctx.strokeStyle = at(facts.tier.ink, 0.26);
   ctx.lineWidth = 1;
   panel(ctx, 0.5, 0.5, width - 1, height - 1, STATS_CARD.radius); ctx.stroke();
   ctx.restore();
@@ -354,12 +501,19 @@ export async function paintStatsCard(
   const behind = `${facts.innings} ${facts.innings === 1 ? 'innings' : 'innings'} played`;
   ctx.fillText(facts.standing ? `${behind} · ${facts.standing}` : behind, nameX, cursor + 46);
 
+  // The badge. It is the answer to the only question anybody actually asks
+  // about a row of numbers — whether they are any good — and it is the reason
+  // the card is worth sending: "900 runs" means nothing to a friend who has
+  // never played this, and "STAR" means something immediately.
+  cursor += IDENTITY_H + BADGE_TOP;
+  paintBadge(ctx, facts, left, cursor, contentW);
+
   // The two figures the mode is about, each in its own tile. Two tiles rather
   // than one big number because both modes have two things worth bragging
   // about, and picking one of them would be picking wrong half the time.
-  cursor += IDENTITY_H + HERO_TOP;
+  cursor += BADGE_H + HERO_TOP;
   const tileW = (contentW - HERO_GAP) / 2;
-  facts.hero.forEach((figure, i) => {
+  facts.hero.forEach((one, i) => {
     const tx = left + i * (tileW + HERO_GAP);
     // Glass rather than tint. Orange at a low alpha over navy is brown — the
     // tiles came out the colour of wet cardboard however the gradient was
@@ -371,32 +525,38 @@ export async function paintStatsCard(
     glass.addColorStop(1, '#ffffff08');
     ctx.fillStyle = glass;
     panel(ctx, tx, cursor, tileW, HERO_H, 14); ctx.fill();
-    ctx.strokeStyle = '#f2814f70';
+    ctx.strokeStyle = at(facts.tier.ink, 0.5);
     ctx.lineWidth = 1;
     panel(ctx, tx + 0.5, cursor + 0.5, tileW - 1, HERO_H - 1, 14); ctx.stroke();
-    ctx.fillStyle = accentInk;
+    ctx.fillStyle = at(facts.tier.ink, 0.92);
     ctx.font = font(700, 10);
-    tracked(ctx, figure.label.toUpperCase(), tx + 16, cursor + 25, 1.4);
+    tracked(ctx, one.label.toUpperCase(), tx + 16, cursor + 25, 1.4);
     ctx.fillStyle = ink;
     ctx.font = font(900, 44);
-    ctx.fillText(clipped(ctx, String(figure.value), tileW - 32), tx + 16, cursor + 69);
+    ctx.fillText(clipped(ctx, figure(one.value), tileW - 32), tx + 16, cursor + 69);
   });
+
+  // The rung, and how far along it. A card that only says where somebody is
+  // says nothing about where they are going, and the figure a player comes
+  // back for is the one that is nearly there.
+  cursor += HERO_H + BAR_TOP;
+  paintLadder(ctx, facts, left, cursor, contentW);
 
   // Everything else, four to a row, each column the same width so the numbers
   // line up down the card rather than wandering with the labels above them.
-  cursor += HERO_H + GRID_TOP;
+  cursor += BAR_H + GRID_TOP;
   const colW = contentW / PER_ROW;
-  facts.figures.forEach((figure, i) => {
+  facts.figures.forEach((one, i) => {
     const row = Math.floor(i / PER_ROW);
     const col = i % PER_ROW;
     const fx = left + col * colW;
     const fy = cursor + row * (GRID_ROW_H + 6);
     ctx.fillStyle = quiet;
     ctx.font = font(600, 9.5);
-    tracked(ctx, figure.label.toUpperCase(), fx, fy + 10, 1);
-    ctx.fillStyle = RESULT_INK[figure.label] ?? ink;
+    tracked(ctx, one.label.toUpperCase(), fx, fy + 10, 1);
+    ctx.fillStyle = RESULT_INK[one.label] ?? ink;
     ctx.font = font(800, 23);
-    ctx.fillText(clipped(ctx, String(figure.value), colW - 8), fx, fy + 36);
+    ctx.fillText(clipped(ctx, figure(one.value), colW - 8), fx, fy + 36);
   });
 
   // One hairline and the address, because the whole point of the picture is
@@ -433,7 +593,12 @@ function surface(width: number, height: number, scale: number) {
 /** The card on its own, on the ground it was won on, ready to go in a chat. */
 export async function statsCardImage(facts: StatsFacts, link: string, scale = 3) {
   await prepareStatsAssets();
-  const margin = 22;
+  // Just enough mat to hold the card's own ledge and the glow off its edge, and
+  // no more. It used to be twenty-two, which looked considered on its own and
+  // wrong in the sheet: the picture is shown at the width of the two keys under
+  // it, so every pixel of mat made the card itself narrower than its own
+  // buttons — which reads as a thumbnail of something rather than the thing.
+  const margin = 10;
   const height = statsCardHeight(facts) + margin * 2 + 10;
   const { canvas, ctx } = surface(STATS_CARD.width + margin * 2, height, scale);
   ctx.fillStyle = '#071219';
