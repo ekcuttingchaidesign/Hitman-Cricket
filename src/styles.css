@@ -1381,15 +1381,35 @@ body.start-screen .hud-top{display:none}
 .board-row.is-level .board-place{color:#ffffff5c}
 /* Your row: the sheet's accent down its edge and its own tint behind it, so it
    is findable in a scroll of fifty without being louder than the leader. */
+/* Your own row, lit. It used to be a flat white wash with an accent edge,
+   which reads as "selected" rather than as "this one is yours" — on a list of
+   fifty near-identical rows the difference matters, because the player is
+   scanning for themselves rather than choosing. A warm gradient fading out to
+   the right, the accent on the name and the figures, and a tab standing proud
+   of the left edge: found at a glance, from any scroll position. */
 .board-row.is-you{
+  position:relative;
   margin:0 -10px;
   padding:8px 10px;
   border-top-color:transparent;
   border-radius:9px;
-  background:#ffffff0f;
-  box-shadow:inset 3px 0 0 var(--accent)
+  background:linear-gradient(90deg,#5a3423 0%,#3a2a29 45%,#1b2b39 100%)
 }
-.board-row.is-you .board-who b{color:var(--accent)}
+.board-row.is-you::before{
+  content:'';
+  position:absolute;
+  left:-3px;
+  top:50%;
+  width:6px;
+  height:26px;
+  border-radius:3px;
+  background:var(--accent);
+  transform:translateY(-50%)
+}
+.board-row.is-you .board-who b,
+.board-row.is-you .board-runs,
+.board-row.is-you .board-hits em{color:var(--accent)}
+.board-row.is-you .board-place{color:var(--accent)}
 /* The line under the fiftieth row. Everything above it is on the board and
    everything below it is not, so it is the only rule on the sheet with a colour
    and the only one with words on it. */
@@ -1671,23 +1691,27 @@ body.start-screen .hud-top{display:none}
    the card's key size does not.
    `width:auto` is load-bearing: `.key-button` is `width:100%`, and 100% plus
    side margins is wider than the strip it sits in. */
+/* Mint into lavender, left to right. The key used to be a flat cyan, which
+   sat in the same family as the banner above it and read as more of the same
+   panel; running it across two hues makes it the one thing on the strip that
+   is obviously a key. */
 .card-board .claim-key{
   width:auto;
   margin:11px 15px 15px;
   min-height:50px;
   border:0;
-  background:linear-gradient(180deg,#A8ECFF,#4FCFF2);
+  background:linear-gradient(100deg,#6FE3A8,#A9A2F4);
   color:var(--cta-ink);
   font-size:14px;
   letter-spacing:1.2px;
   text-indent:1.2px;
-  box-shadow:0 4px 0 #1C95B7,0 8px 12px #0a3a4a4d
+  box-shadow:0 4px 0 #2f8f77,0 8px 12px #0a3a4a4d
 }
 .card-board .claim-key:hover:not(:disabled){
-  background:linear-gradient(180deg,#bdf2ff,#62d6f5);
-  box-shadow:0 5px 0 #1C95B7,0 10px 14px #0a3a4a59
+  background:linear-gradient(100deg,#84eab7,#b9b3f7);
+  box-shadow:0 5px 0 #2f8f77,0 10px 14px #0a3a4a59
 }
-.card-board .claim-key:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #1C95B7,0 4px 7px #0a3a4a3d}
+.card-board .claim-key:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #2f8f77,0 4px 7px #0a3a4a3d}
 /* The submit key inside the form is the same key doing the same job. */
 .card-claim .claim-key{
   border:0;
@@ -3259,3 +3283,84 @@ body.private-window{overflow:hidden}
   color:var(--tier)
 }
 .stats-badge small{font-size:11px;color:#9fb2bd}
+
+/* ---------------------------------------------------------------------------
+   The Career Stats widget under the innings card.
+
+   Its own block rather than a line inside the card: the card is about the
+   thirty balls just played and this is about every ball ever, and putting the
+   second inside the first would read as a footnote to the innings.
+--------------------------------------------------------------------------- */
+.career-widget{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  padding:10px 12px;
+  border:1px solid #2f6f9e;
+  border-radius:14px;
+  background:linear-gradient(100deg,#123049,#0d2135);
+  text-align:left;
+  color:#f4f8fa
+}
+.career-widget:hover{border-color:#4a92c6;background:linear-gradient(100deg,#163b59,#102840)}
+.career-kit{display:flex;flex:none}
+.career-kit .board-kit{width:40px;height:40px}
+.career-words{
+  flex:1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.4px
+}
+/* The flag comes off for good the first time this is opened. A badge that
+   still says NEW on the fortieth innings teaches the player that the flags on
+   this screen mean nothing. */
+.career-new{
+  padding:2px 7px;
+  border-radius:5px;
+  background:#e5473a;
+  font-size:9.5px;
+  font-weight:800;
+  font-style:normal;
+  letter-spacing:1px;
+  color:#fff
+}
+.career-go{
+  display:grid;
+  place-items:center;
+  flex:none;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  background:#f2814f;
+  color:#17222b
+}
+.career-go svg{width:17px;height:17px}
+
+/* One share key where there were two. On a phone both ended in the same system
+   sheet, so choosing between them before seeing it was a decision nobody had
+   the information to make. */
+.share-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:54px;
+  padding:0 22px;
+  border:0;
+  border-radius:10px;
+  background:#0b8043;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:1.6px;
+  color:#fff;
+  box-shadow:0 5px 0 #06592e,0 9px 14px #00000038
+}
+.share-key:hover:not(:disabled){background:#0e9c52;box-shadow:0 6px 0 #06592e,0 11px 16px #00000042}
+.share-key:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #06592e,0 4px 8px #0000002e}
+.share-key svg{width:19px;height:19px;flex:none}

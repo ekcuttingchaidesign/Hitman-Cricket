@@ -1278,6 +1278,7 @@ export class Game {
       track(`survive-${injuryBand(this.health.injury)}`, 'Test match injury');
       track(`survive-${blowsBand(this.health.blows.length)}`, 'Test match blows taken');
       this.hud.endSurvive(this.score, this.health, ending, this.chasing);
+      this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
       this.offerSurvive();
       return;
     }
@@ -1289,6 +1290,10 @@ export class Game {
       this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
     this.hud.end(this.score, this.best, record);
+    // The way to the career card from the innings card. Offered only where a
+    // career is actually being kept: a private window counts nothing, so a
+    // widget there would lead to a card of noughts that never fills.
+    this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
     // On every card, first innings included. It was held back for a second
     // innings on the theory that the first card belongs to the score and the
     // board — but a line nobody ever sees asks nothing at all, and most people

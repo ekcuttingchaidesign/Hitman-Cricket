@@ -2,14 +2,14 @@ import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import {
   gameLink, shareFileName, shareFileType, shareText, statsFileName, statsShareText,
-  statsStoryText, statsWhatsappLink, storyText, whatsappLink,
+  statsStoryText, statsWhatsappLink, whatsappLink,
 } from '../game/Share';
 import { track } from '../game/analytics';
 import { feedbackGiven } from '../game/feedback';
-import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
+import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
+  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, kitMarkup, peekMarkup, pickerMarkup, standingPeek,
   type BoardTab, type BoardView, type CardOffer, type SheetTab,
 } from './Leaderboard';
 import {
@@ -27,6 +27,7 @@ import {
   statsCardImage, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
+import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
@@ -290,12 +291,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
               </form>
             </div>
+            <button id="card-career" class="career-widget hidden" type="button">
+              <span id="career-kit" class="career-kit"></span>
+              <span class="career-words">Career Stats<em id="career-new" class="career-new">NEW</em></span>
+              <span class="career-go" aria-hidden="true">${icon('arrow')}</span>
+            </button>
             <div class="card-keys">
               <button id="again" class="key-button">PLAY AGAIN</button>
-              <div class="card-shares">
-                <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span>SHARE</span></a>
-                <button id="story" class="story-key">${icon('story')}<span>INSTA STORY</span></button>
-              </div>
+              <button id="share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
             <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
@@ -368,8 +371,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
-    this.$('whatsapp').addEventListener('click', event => this.shareScore(event, 'card'));
-    this.$('story').addEventListener('click', event => this.shareScore(event, 'story'));
+    this.$('share').addEventListener('click', () => void this.shareScore());
+    this.$('card-career').addEventListener('click', () => { this.markCareerSeen(); this.onStatsOpen?.(); });
     const dialog = this.$('help-dialog') as HTMLDialogElement;
     this.$('help-done').onclick = () => dialog.close();
     dialog.querySelector<HTMLButtonElement>('.close-help')!.onclick = () => dialog.close();
@@ -414,6 +417,28 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /** What the card key does. The game decides: the figures are the game's. */
   onStatsOpen: (() => void) | null = null;
+
+  /**
+   * The Career Stats widget under the innings card: whose career it is, and
+   * whether it is still news.
+   *
+   * The NEW pill comes off the moment it is opened, once, for good. A badge
+   * that says NEW on the fortieth innings is a badge nobody reads any more,
+   * and worse, it teaches the player that the flags on this screen mean
+   * nothing.
+   */
+  career(show: boolean, kit: number | null) {
+    const widget = this.$('card-career');
+    widget.classList.toggle('hidden', !show);
+    if (!show) return;
+    this.$('career-kit').innerHTML = kit === null ? '' : kitMarkup(kit, '');
+    this.$('career-new').classList.toggle('hidden', careerSeen());
+  }
+
+  private markCareerSeen() {
+    this.$('career-new').classList.add('hidden');
+    rememberCareerSeen();
+  }
   /** The facts the card on screen was drawn from, held for the share keys. */
   private statsShown: StatsFacts | null = null;
   /** The object URL of the drawn card, revoked when the sheet is put away. */
@@ -639,9 +664,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       if (this.$('survive-modes').classList.contains('hidden')) modes.remove();
       else modes.onclick = () => { this.closeBoard(); this.$('survive-modes').click(); };
     } else {
-      (this.$('board-whatsapp') as HTMLAnchorElement).href = (this.$('whatsapp') as HTMLAnchorElement).href;
-      this.$('board-whatsapp').addEventListener('click', event => this.shareScore(event, 'card'));
-      this.$('board-story').addEventListener('click', event => this.shareScore(event, 'story'));
+      this.$('board-share').addEventListener('click', () => void this.shareScore());
     }
     again.focus();
   }
@@ -835,7 +858,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The href is the floor, not the plan: a wa.me link carries text and nothing
     // else, so it is what a browser that cannot hand a file to another app falls
     // back to. Where one can, the click below sends the picture instead.
-    (this.$('whatsapp') as HTMLAnchorElement).href = whatsappLink(score.runs, gameLink());
     this.shared = cardFacts(score, best, isRecord);
     // Fonts and cover art, fetched while the player is still reading the card,
     // so the first tap on a share button does not wait on the network.
@@ -932,7 +954,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       key.textContent = 'VIEW LEADERBOARD';
     } else {
       this.$('card-board-head').innerHTML = offer.place
-        ? `${icon('trophy')}<span>You're <b>${ordinal(offer.place)}</b> on the board</span>`
+        ? `${icon('trophy')}<span>Congrats! You secured <b>${ordinal(offer.place)}</b> position on leaderboard</span>`
         : `${icon('trophy')}<span>Put this innings on the board</span>`;
       // With no board fetched there is nothing to sit between, so the strip is
       // the banner and the key alone rather than three empty rows.
@@ -1049,37 +1071,36 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
-   * Sends the innings out as a picture. Both buttons draw the same card; the
-   * story one stands it on the cover art in a 9:16 frame with the address
-   * painted on, because a picture in a story is a picture. Link stickers get
-   * added inside Instagram or WhatsApp, not by whoever sent the image, so the
-   * only link that survives the trip is one a person can read and type.
+   * Sends the innings out, as one key rather than two.
    *
-   * A wa.me link cannot carry a file, so where the browser can hand a file to
-   * another app this takes over the click and goes through the share sheet
-   * instead. Where it cannot, the anchor's own href still opens WhatsApp with
-   * the text, and the story button offers the picture as a download.
+   * It used to be a WhatsApp anchor beside an Instagram button, which was two
+   * keys asking the same question and getting the same answer: on a phone both
+   * ended in the system share sheet, and choosing between them before seeing
+   * it was a decision nobody had the information to make. So this opens the
+   * sheet with the card in it and lets the phone offer everywhere it can go —
+   * WhatsApp and Instagram included.
+   *
+   * The caption carries the playable link, which is the whole difference
+   * between a score and an invitation. Where the browser will not hand a file
+   * to another app at all, WhatsApp's own link still opens with that text, so
+   * the link travels even when the picture cannot.
    */
-  private async shareScore(event: Event, kind: 'card' | 'story') {
+  private async shareScore() {
     const facts = this.shared;
     if (!facts) return;
     // The tap, not the delivery: whether the sheet was then sent or dismissed
     // is between the player and their phone, and no browser tells us.
-    track(kind === 'story' ? 'share-story' : 'share-whatsapp', kind === 'story' ? 'Shared a story' : 'Shared the card');
+    track('share-innings', 'Shared the innings');
     const url = gameLink();
-    const caption = kind === 'story' ? storyText(facts.runs, url) : shareText(facts.runs, url);
-    if (kind === 'story') event.preventDefault();
+    const caption = shareText(facts.runs, url);
     if (!canShareImage()) {
-      // WhatsApp's own link still works for the text; the story has no such
-      // fallback but a saved file, so say which one happened.
-      if (kind === 'story') await this.saveShare(facts, caption);
+      window.open(whatsappLink(facts.runs, url), '_blank', 'noopener');
       return;
     }
-    event.preventDefault();
     const status = this.$('share-status');
     try {
-      const picture = kind === 'story' ? await storyImage(facts, url) : await scorecardImage(facts);
-      const file = new File([picture], shareFileName(facts.runs, kind), { type: shareFileType(kind) });
+      const picture = await scorecardImage(facts);
+      const file = new File([picture], shareFileName(facts.runs, 'card'), { type: shareFileType('card') });
       await navigator.share({ files: [file], text: caption });
     } catch (error) {
       // A cancelled sheet is the player changing their mind, not a failure.
@@ -1090,18 +1111,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
   }
 
-  /** No share sheet: put the picture in the downloads folder and say so. */
+  /**
+   * No share sheet: put the picture in the downloads folder and say so, with
+   * the caption printed out so the link is still there to copy. The card
+   * rather than the story frame, because the card is what the key offered.
+   */
   private async saveShare(facts: CardFacts, caption: string) {
     const status = this.$('share-status');
     try {
-      const kind = 'story';
-      const picture = await storyImage(facts, gameLink());
+      const picture = await scorecardImage(facts);
       const href = URL.createObjectURL(picture);
       const link = document.createElement('a');
-      link.href = href; link.download = shareFileName(facts.runs, kind);
+      link.href = href; link.download = shareFileName(facts.runs, 'card');
       link.click();
       setTimeout(() => URL.revokeObjectURL(href), 10_000);
-      status.textContent = 'Story picture saved. Post it with: ' + caption;
+      status.textContent = `Picture saved. Post it with: ${caption}`;
     } catch {
       status.textContent = 'Could not build the picture on this browser.';
     }

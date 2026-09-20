@@ -561,6 +561,14 @@ It shows innings, runs, highest, best unbeaten, sixes, fours and balls in the Bl
 
 **The card on screen is a painted picture, not a DOM copy of one.** `game/StatsCard.ts` draws it to a canvas the way `ShareCard.ts` draws the innings card, and the overlay shows that very image. That is the one arrangement which guarantees the card somebody shares is the card they were looking at when they decided to — a second rendering would drift from the first the day one of them gained a figure. The cost is that a canvas is a rectangle to a screen reader, which is what the alt text and the text fallback are for.
 
+### Getting to it, and getting it out
+
+There are two ways in, because there are two moments somebody wants it. **My Stats** is the third tab on the board, beside the two games — it drops the ladder pills while it is lit, since a career is one thing and there is nothing under it to re-sort, and it shows the career for whichever game the player was last looking at rather than whichever is first in the row. And the **Career Stats widget** under the innings card opens it as a page of its own, with a way back to the card rather than a modal over it, because at that moment the player has travelled somewhere rather than switched tabs. The widget's `NEW` flag comes off the first time it is opened, once and for good: a flag that still says new on the fortieth innings is one nobody reads, and it teaches the player that the flags on that screen mean nothing.
+
+The innings card's own share is now **one key, not two**. It was a WhatsApp anchor beside an Instagram button, which is two keys asking the same question and getting the same answer — on a phone both ended in the system share sheet, and choosing between them before seeing it is a decision nobody has the information to make. One key opens the sheet with the card in it and lets the phone offer everywhere it can go. Where a browser will not hand a file to another app at all, WhatsApp's own link still opens with the caption, so the playable link travels even when the picture cannot.
+
+The career card keeps both of its keys, because there the two really are different pictures: a card sized for a chat thread, and a 9:16 frame with the address painted on.
+
 Two keys sit under it, stacked and equal, each wearing the colour of where it is going:
 
 - **Brag stats on WhatsApp** — the card as a PNG, with a caption that carries the playable link. That link is the whole difference between a brag and an invitation: a thread full of somebody's numbers is a thread where nobody can go and beat them. Where the browser will not hand a file to another app, the `wa.me` link still opens WhatsApp with that text, so the link survives even when the picture cannot.

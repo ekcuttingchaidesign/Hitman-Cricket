@@ -200,3 +200,22 @@ export function hurtNoteSeen(): boolean {
 export function markHurtNoteSeen() {
   try { localStorage.setItem(HURT_NOTE_KEY, '1'); } catch { /* Told again next time, then. */ }
 }
+
+/** Set for good once the career widget has been opened once. */
+const CAREER_KEY = 'hitman-career-seen';
+
+/**
+ * Whether this browser has opened the career card before.
+ *
+ * The NEW pill on the innings card's widget comes off the moment it is, once
+ * and for good. A flag that still says NEW on the fortieth innings is one
+ * nobody reads — and worse, it teaches the player that the flags on that
+ * screen do not mean anything.
+ */
+export function careerSeen(): boolean {
+  try { return localStorage.getItem(CAREER_KEY) === '1'; } catch { return false; }
+}
+
+export function markCareerSeen() {
+  try { localStorage.setItem(CAREER_KEY, '1'); } catch { /* It stays new, then. */ }
+}

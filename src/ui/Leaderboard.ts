@@ -198,7 +198,6 @@ export function boardMarkup(view: BoardView): string {
   return `
     <div class="board-sheet" role="document">
       <div class="sheet-head">
-        <p class="board-eyebrow">HITMAN OVAL</p>
         <h2 id="board-title">Top ${BOARD_SIZE}</h2>
         <button id="board-close" class="board-close" aria-label="Close the board">×</button>
       </div>
@@ -214,7 +213,7 @@ export function boardMarkup(view: BoardView): string {
           ? waiting ? waitingMarkup(yours, placeOf(rows, yours, atMs)) : missedMarkup(yours, edge)
           : ''}
       </div>
-      <p class="board-foot">One innings a player, best only. Level scores are split on sixes, then fours, then wickets, then dot balls &mdash; and if all of that ties, whoever got there first stays above.</p>
+      <p class="board-foot">Only each player's best innings counts. Ties are broken by 6s, then 4s, then wickets, then dot balls. If everything is tied, whoever got there first stays ahead.</p>
       ${actions ? actionsMarkup() : ''}
     </div>`;
 }
@@ -250,10 +249,7 @@ export function actionsMarkup(): string {
   return `
       <div class="board-actions">
         <button id="board-again" class="key-button">PLAY AGAIN</button>
-        <div class="card-shares">
-          <a id="board-whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">SHARE</a>
-          <button id="board-story" class="story-key">INSTA STORY</button>
-        </div>
+        <button id="board-share" class="share-key" type="button">SHARE</button>
       </div>`;
 }
 
