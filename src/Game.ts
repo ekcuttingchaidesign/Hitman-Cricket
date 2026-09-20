@@ -201,6 +201,8 @@ export class Game {
   }>> = {};
   /** The facts the card on screen was drawn from, so a late paint can be dropped. */
   private statsDrawn: StatsFacts | null = null;
+  /** Whether the career page is wanted. Set before it exists, cleared on the way back. */
+  private statsPage = false;
   /**
    * Whether this opening of the sheet is the one that follows a claim, and so
    * carries the card's keys at its foot. Held across a tab rather than passed
@@ -729,11 +731,19 @@ export class Game {
   private showStats = () => {
     this.mark('stats-open', 'Career card opened');
     const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    // Wanted, rather than open. The first draw is the one that opens the page,
+    // so it cannot be the one that checks whether the page is open — guarding
+    // on that left the widget doing nothing at all.
+    this.statsPage = true;
     this.loadStats(mode, (facts, picture, failed) => {
-      if (this.disposed || !this.hud.statsOpen) return;
+      if (this.disposed || !this.statsPage) return;
       this.hud.stats({ facts, picture, failed });
     });
-    this.hud.onStatsBack = () => { this.hud.onStatsBack = null; this.hud.dropStats(); };
+    this.hud.onStatsBack = () => {
+      this.statsPage = false;
+      this.hud.onStatsBack = null;
+      this.hud.dropStats();
+    };
   };
 
   /**
