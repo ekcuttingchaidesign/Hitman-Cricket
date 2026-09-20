@@ -34,7 +34,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoSurvive } from './game/demo-board';
+import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
 import type { StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
@@ -242,7 +242,7 @@ export class Game {
    * the rows are made in this browser, live as long as the sheet is open, and
    * the fetches that would have overwritten them are not made.
    */
-  private demo = new URLSearchParams(location.search).get('demo') === '1';
+  private demo = demoWanted();
   /**
    * A link that names its mode. `?mode=survive` is how the Test match is handed
    * to playtesters on its own: the picker never opens, Play Again replays the
@@ -258,6 +258,10 @@ export class Game {
   private canRegister: boolean;
   constructor(root: HTMLElement, options: { canRegister?: boolean } = {}) {
     this.canRegister = options.canRegister !== false;
+    // Said out loud on the screen. A made-up board that looks exactly like a
+    // real one is a good way to look at a screen and a very bad way to read a
+    // number, so while it is on, the board says so above the tabs.
+    if (this.demo) document.documentElement.setAttribute('data-demo', '1');
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best);
     // Neither of these is allowed to hold up an innings. Settling the id touches

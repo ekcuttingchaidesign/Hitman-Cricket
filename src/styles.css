@@ -1159,6 +1159,23 @@ body.start-screen .hud-top{display:none}
 #board-overlay{background:#071219f2;z-index:10}
 /* The tabs and the sheet are one column, so the sheet keeps the rest of the
    screen and scrolls inside it rather than pushing the tabs off the top. */
+/* The made-up board says what it is, first thing on the screen. */
+[data-demo] .board-stack::before{
+  content:'DEMO BOARD — these rows are made up and nothing is saved';
+  flex:none;
+  align-self:center;
+  width:min(440px,100%);
+  padding:7px 12px;
+  border:1px solid #f2814f5c;
+  border-radius:10px;
+  background:#f2814f1f;
+  font-family:var(--card);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:1.1px;
+  text-align:center;
+  color:#f5c0a4
+}
 .board-stack{
   display:flex;
   flex-direction:column;
@@ -1460,6 +1477,7 @@ body.start-screen .hud-top{display:none}
   /* Wide enough for a two-figure count, so a fourteen-six innings does not push
      its own column out past the fifty rows that are lined up under it. */
   width:31px;
+  white-space:nowrap;
   font-style:normal;
   font-size:14px;
   font-weight:700;
@@ -1471,6 +1489,32 @@ body.start-screen .hud-top{display:none}
   color:var(--ink)
 }
 .board-hits small{font-size:9px;font-weight:600;color:var(--quiet)}
+/* ── A career row's own measurements ───────────────────────────────────────
+   An innings board counts to three digits at the very most — fourteen sixes,
+   a hundred and forty-eight runs — and its columns are cut to fit that. A
+   career counts to five: four thousand runs, two hundred and ten sixes, sixty
+   innings. Given the innings board's thirty-one pixels those figures simply
+   overflowed their own boxes, so "121" sat on top of the big number to its
+   left and no two rows lined up with each other.
+
+   So the career row gets columns of its own: a lead figure with a floor under
+   it, and two supporting columns wide enough for anything a career can reach,
+   both fixed so that fifty rows read as columns rather than as fifty separate
+   arrangements. */
+.board-row.is-career{gap:0 7px}
+.board-row.is-career .board-runs{min-width:58px;font-size:18px}
+.board-row.is-career .board-hits{gap:6px;margin-left:0}
+.board-row.is-career .board-hits em{width:46px;font-size:12.5px}
+.board-row.is-career .board-hits small{font-size:8.5px}
+/* Below that, two career columns and a name cannot all have what they need,
+   and the first thing to go is the last column rather than the name: a row
+   that says who and how many is a row; a row of figures beside two initials
+   and a full stop is not. The board's blurb splits ties on the figure that
+   stays. */
+@media (max-width:379px){
+  .board-row.is-career .board-hits em:last-child{display:none}
+}
+
 /* The figure that actually split a tie, lit where the eye already is. Colour is
    not carrying this on its own: the note under the name says the same thing in
    words, so a player who cannot tell the two apart still gets the reason. */

@@ -148,3 +148,34 @@ export function demoCareers(mode: CareerMode, youId: string | null, atMs = Date.
   }
   return { boards, size: DEMO_ROWS };
 }
+
+/** Where the flag is remembered for the rest of the tab's life. */
+const DEMO_KEY = 'hitman-demo';
+
+/**
+ * Whether this session is looking at a made-up board.
+ *
+ * Read from the query, the hash, or the fact that it was read once already.
+ * Three ways in because there is only one way to get this wrong and it is
+ * silent: a flag that has to survive being typed on a phone, pasted into a
+ * chat, and opened again from a link that dropped its query string. Once it
+ * has been asked for, it holds for the tab.
+ *
+ * `?demo=1`, `?demo`, or `#demo`, and `?demo=0` turns it off again.
+ */
+export function demoWanted(): boolean {
+  try {
+    const asked = new URLSearchParams(location.search).get('demo');
+    const hashed = location.hash.replace('#', '').toLowerCase() === 'demo';
+    if (asked !== null || hashed) {
+      const on = hashed || asked === '' || asked === '1' || asked?.toLowerCase() === 'true';
+      sessionStorage.setItem(DEMO_KEY, on ? '1' : '0');
+      return on;
+    }
+    return sessionStorage.getItem(DEMO_KEY) === '1';
+  } catch {
+    // No storage: the flag still works, it just does not survive a link.
+    const asked = new URLSearchParams(location.search).get('demo');
+    return asked === '' || asked === '1';
+  }
+}

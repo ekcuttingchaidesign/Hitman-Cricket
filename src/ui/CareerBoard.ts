@@ -149,18 +149,28 @@ export function careerBoardMarkup(view: CareerBoardView): string {
  * is the innings board's row on purpose, so the two read as one board with more
  * than one ladder rather than as two screens that happen to be tabbed together.
  */
+/**
+ * A career figure as a row prints it. Grouped, because these run into five
+ * digits where an innings board's never leave three, and `11400` is a number
+ * somebody has to count where `11,400` is one they read.
+ */
+function figure(value: number) {
+  return value.toLocaleString('en-US');
+}
+
 export function careerRowMarkup(
   board: CareerBoard<AnyCareer>, row: CareerRow<AnyCareer>, index: number, you: boolean,
 ): string {
   const [lead, ...rest] = board.figures;
   return `
-          <li class="board-row${you ? ' is-you' : ''}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
+          <li class="board-row is-career${you ? ' is-you' : ''}" style="--i:${index}"${
+  you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
             ${kitMarkup(row.avatar, row.name)}
             <span class="board-who"><b>${escape(row.name)}</b></span>
-            <span class="board-runs">${lead.of(row.career)}</span>
-            <span class="board-hits">${rest.map(figure =>
-              `<em>${figure.of(row.career)}<small>${escape(figure.label)}</small></em>`).join('')}</span>
+            <span class="board-runs">${figure(lead.of(row.career))}</span>
+            <span class="board-hits">${rest.map(one =>
+              `<em>${figure(one.of(row.career))}<small>${escape(one.label)}</small></em>`).join('')}</span>
           </li>`;
 }
 
