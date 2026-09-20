@@ -55,9 +55,13 @@ describe('the story screen', () => {
     expect(markup).toContain('--hold:7000ms');
   });
 
-  it('names the way out for where it was opened from', () => {
+  it('names the way out for where it was opened from, and where that goes', () => {
     expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).toContain('SKIP TO MODE SELECTION');
-    expect(storiesMarkup({ at: 0, where: 'board', holdMs: 1 })).toContain('CLOSE');
+    // A build that plays one mode has no picker to skip to, so the key cannot
+    // promise one — it is the only thing on the screen that could lie.
+    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1, locked: true }))
+      .toContain('SKIP AND START BATTING');
+    expect(storiesMarkup({ at: 0, where: 'board', holdMs: 1, locked: true })).toContain('CLOSE');
   });
 
   it('carries both halves of the page, so a tap means back or on', () => {

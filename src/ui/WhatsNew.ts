@@ -23,10 +23,18 @@ export interface StoriesView {
   where: StoriesWhere;
   /** How long one story holds before it moves on, for the bar to run against. */
   holdMs: number;
+  /**
+   * Whether this build, or this link, has already chosen the mode.
+   *
+   * The key says where it goes, and where it goes is not the same in every
+   * build: one that plays a single mode has no picker to skip to, and a key
+   * promising one would be the only thing on the screen that lies.
+   */
+  locked?: boolean;
 }
 
 export function storiesMarkup(view: StoriesView): string {
-  const { at, where, holdMs } = view;
+  const { at, where, holdMs, locked = false } = view;
   const story = STORIES[at] ?? STORIES[0];
   return `
     <div class="whatsnew-sheet" role="document" aria-roledescription="story">
@@ -46,9 +54,15 @@ export function storiesMarkup(view: StoriesView): string {
       </div>
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${
-  where === 'board' ? 'CLOSE' : 'SKIP TO MODE SELECTION'}</button>
+  wayOut(where, locked)}</button>
       </div>
     </div>`;
+}
+
+/** What the key says, which is wherever pressing it actually lands. */
+function wayOut(where: StoriesWhere, locked: boolean): string {
+  if (where === 'board') return 'CLOSE';
+  return locked ? 'SKIP AND START BATTING' : 'SKIP TO MODE SELECTION';
 }
 
 /** The whole update as a sentence, for a screen reader arriving at the first card. */

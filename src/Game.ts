@@ -610,7 +610,7 @@ export class Game {
   private showStories(where: StoriesWhere, then: (() => void) | null = null) {
     this.mark(`whatsnew-${where}`, 'What\'s new opened');
     this.hud.onStoriesDone = then;
-    this.hud.stories(where);
+    this.hud.stories(where, where === 'intro' && this.locked);
   }
 
   private showBoard = () => {

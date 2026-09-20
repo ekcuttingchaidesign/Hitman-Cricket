@@ -575,8 +575,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
 
-  stories(where: StoriesWhere) {
+  private storyLocked = false;
+
+  stories(where: StoriesWhere, locked = false) {
     this.storyWhere = where;
+    this.storyLocked = locked;
     this.storyAt = 0;
     this.drawStory();
   }
@@ -584,7 +587,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private drawStory() {
     const overlay = this.$('whatsnew-overlay');
     overlay.innerHTML = storiesMarkup({
-      at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS,
+      at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
     });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');

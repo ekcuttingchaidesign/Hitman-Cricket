@@ -34,9 +34,9 @@ export interface Story {
 export const STORIES: readonly Story[] = [
   {
     key: 'board',
-    eyebrow: 'THE LEADERBOARD',
-    title: 'The board has rooms now',
-    body: 'The Blast and Test Survival each keep their own ladders, and your own card sits on the row beside them. Wherever your row lands, it is the lit one.',
+    eyebrow: 'LEADERBOARD',
+    title: 'A new-look leaderboard',
+    body: 'Tap to switch between The Blast, Test Survival and your own stats. Wherever you sit on the board, your row is the highlighted one.',
     art: board,
     alt: 'The leaderboard, with tabs for The Blast, Test Survival and My Stats, and one row lit as yours.',
   },

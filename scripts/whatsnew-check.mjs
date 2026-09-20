@@ -52,8 +52,12 @@ check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
 const first = await title();
-check(await page.$eval('#whatsnew-done', key => key.textContent.trim()) === 'SKIP TO MODE SELECTION',
-  'the way out says where it goes');
+// A build that plays one mode has no picker to skip to, so the key says the
+// other thing. Either is right; a key that promises the picker in a build
+// without one is not.
+const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
+check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
+  'the way out says where it goes', says);
 await page.click('#whatsnew-next');
 const second = await title();
 await page.click('#whatsnew-next');
@@ -66,8 +70,10 @@ await page.click('#whatsnew-done');
 await page.waitForTimeout(700);
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
   'the key puts the stories away');
-check(await page.$eval('#modes', node => !node.classList.contains('hidden')),
-  'and lands on the mode picker it promised');
+const picked = await page.$eval('#modes', node => !node.classList.contains('hidden'));
+const batting = await page.$eval('#start', node => !node.offsetParent).catch(() => true);
+check(says === 'SKIP TO MODE SELECTION' ? picked : batting,
+  'and lands where it promised', JSON.stringify({ says, picked, batting }));
 check(await seen() === 'careers:1', 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────
