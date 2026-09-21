@@ -517,9 +517,9 @@ A row of numbers is inert on its own: nine figures and no answer to the only que
 | DEBUTANT | 0 | 0 | Navy | First time out there. |
 | EMERGING PLAYER | 350 | 100 | Bronze | Making a name out there. |
 | STAR | 3,600 | 1,000 | Black and silver | People turn up to watch. |
-| HITMAN | 12,000 | 3,400 | Black and gold | The one the game is named for. |
+| HITMAN | 15,000 | 4,250 | Black and gold | The one the game is named for. |
 
-**The thresholds are measured, not guessed.** Five days of GoatCounter puts a Blast innings at about **54 runs** and a Test innings at about **17 balls**, and a player at about **2.5 innings** on a day they play at all — so roughly **140 runs a day** in the Blast against **39 balls a day** in the Test match. On those rates, EMERGING PLAYER is six or seven innings (the second or third sitting), STAR is a few committed weeks, and HITMAN is about a month of heavy play and out of reach of everybody else.
+**The thresholds are measured, not guessed.** Five days of GoatCounter puts a Blast innings at about **54 runs** and a Test innings at about **17 balls**, and a player at about **2.5 innings** on a day they play at all — so roughly **140 runs a day** in the Blast against **39 balls a day** in the Test match. On those rates, EMERGING PLAYER is six or seven innings (the second or third sitting), STAR is a few committed weeks, and HITMAN is upwards of a month of heavy play and out of reach of everybody else. The top rung is the one figure that is chosen rather than measured: the rates put it anywhere across a wide band, so where in that band it lands says how far away the last rung should feel rather than what the data found.
 
 One caveat worth recording, because it will matter the next time these are revisited: GoatCounter's export counts **unique visitor-days, not raw events**. That is provable from the export itself — mutually exclusive families disagree with their parent in a way only deduplication explains (the Blast's six score bands sum to 304 against 136 `innings-end`, and the five duration bands independently sum to 293). So innings-per-day is *modelled* from how many distinct bands a player hits, not counted. The band shares are reliable; the volumes are an estimate.
 

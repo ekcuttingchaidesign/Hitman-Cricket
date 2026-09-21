@@ -124,9 +124,15 @@ export interface Tier {
  * fifty-four runs and a Test innings at about seventeen balls, and a player at
  * two and a half innings on a day they play at all — so EMERGING PLAYER is
  * six or seven innings, which is the second or third sitting, STAR is a few
- * committed weeks, and HITMAN is about a month of heavy play and out of reach
- * of everybody else. A rung nobody reaches is the same as no rung at all; a
- * rung everybody reaches is not a rung.
+ * committed weeks, and HITMAN is upwards of a month of heavy play and out of
+ * reach of everybody else. A rung nobody reaches is the same as no rung at
+ * all; a rung everybody reaches is not a rung.
+ *
+ * The top rung is the one figure here that is chosen rather than measured. The
+ * rates put it anywhere in a wide band and the band is all the data can say, so
+ * where in it the number lands is a decision about how far away the last rung
+ * should feel — and fifteen thousand is that decision. The three below it are
+ * what the rates give.
  *
  * The materials climb rather than merely differ — navy, then bronze, then
  * black and silver, then black and gold — so the ladder is legible in a
@@ -196,7 +202,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'hitman',
     name: 'HITMAN',
-    at: { classic: 12000, survive: 3400 },
+    at: { classic: 15000, survive: 4250 },
     blurb: 'The one the game is named for.',
     // Black and gold, and the only card in the game that gets to be either.
     // The ground is black with the faintest warmth in it rather than a dark

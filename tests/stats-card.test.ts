@@ -331,12 +331,17 @@ describe('the tier a career earns', () => {
 
   it('climbs with the figure the mode already leads on', () => {
     const at = (runs: number) => statsFacts('classic', { ...emptyBlast(), innings: 9, runs }, { name: 'R', avatar: 0 }).tier.name;
-    expect(at(0)).toBe('DEBUTANT');
-    expect(at(349)).toBe('DEBUTANT');
-    expect(at(350)).toBe('EMERGING PLAYER');
-    expect(at(3600)).toBe('STAR');
-    expect(at(12_000)).toBe('HITMAN');
-    expect(at(99_999)).toBe('HITMAN');
+    // Read off the ladder rather than written out again here. The thresholds
+    // are round figures a person chose and will choose again, and a test that
+    // restates them reports nothing about the climb — only that somebody
+    // changed their mind. What has to hold is that each rung begins exactly
+    // where it says and not a run earlier.
+    const top = TIERS[TIERS.length - 1];
+    TIERS.forEach((tier, i) => {
+      expect(at(tier.at.classic), tier.name).toBe(tier.name);
+      if (i) expect(at(tier.at.classic - 1), `just under ${tier.name}`).toBe(TIERS[i - 1].name);
+    });
+    expect(at(top.at.classic * 10), 'and stays there').toBe(top.name);
   });
 
   it('keeps the ladder short enough for the words to mean something', () => {
