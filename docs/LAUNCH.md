@@ -87,8 +87,13 @@ authenticates with whatever token Vercel is holding:
    variables at deploy time, so until this runs the site is still trying the
    dead token.
 
-Between steps 1 and 4 the leaderboard is down. Do them together, and do them
-after the seed rather than before it — the seed needs a working token too.
+Between steps 1 and 4 the leaderboard is down, so the four run back to back.
+That is the whole of the ordering: rotating before the seed is just as good as
+rotating after it, as long as the seed is run with whichever token is current
+at the time. The seed does not care which token it is given, only that it
+works.
+
+Every step is a dashboard step. Nothing here needs a terminal.
 
 Then open the site and check the board loads.
 
