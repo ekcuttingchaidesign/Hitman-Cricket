@@ -145,7 +145,20 @@ async function seed<C, T>(
 }
 
 const client = redis();
-console.log(WRITE ? `Writing to the ${SCOPE || 'production'} keys.` : 'Dry run. Pass --write to do it.');
+/**
+ * Which keys this is pointed at, said out loud before anything else happens.
+ *
+ * A dry run used to announce only that it was a dry run, which is the half of
+ * the sentence that does not matter: reading is safe whatever it reads. What a
+ * person needs to see is *where*, because the run that follows is the same
+ * command with a flag on it, and by then the answer is written. `VERCEL_ENV`
+ * decides it, and an unset one is the development keys — a harmless default
+ * that also looks exactly like a board with nobody on it.
+ */
+const WHERE = SCOPE || 'production';
+console.log(WRITE
+  ? `WRITING to the ${WHERE} keys. This cannot be undone.`
+  : `Dry run against the ${WHERE} keys. Nothing will be written. Pass --write to do it.`);
 await seed(client, BLAST_CAREER, '', blastSeed as (row: never) => BlastCareer);
 await seed(client, SURVIVE_CAREER, 'survive:', surviveSeed as (row: never) => SurviveCareer);
 console.log(WRITE ? 'Done.' : 'Nothing written.');

@@ -38,6 +38,23 @@ not `KV_REST_API_READ_ONLY_TOKEN`.
 Dry run first. It reads and reports; it writes nothing, and can be run as
 often as you like.
 
+Which board it touches is decided by `VERCEL_ENV` alone, and it says which on
+its first line before doing anything. There is no way to reach one board by
+asking for another:
+
+| `VERCEL_ENV` | What is read and written |
+| --- | --- |
+| `production` | the live board people are playing on |
+| `preview` | the `preview:` keys a branch deployment uses |
+| `development` | the `development:` keys, which is the local default |
+| unset | `development` — harmless, and indistinguishable from an empty board |
+
+The last row is the one to watch. An unset variable is not an error and the run
+looks perfectly successful; it simply reports nobody on the board, because
+nobody is on *that* board. In PowerShell `$env:VERCEL_ENV` lasts as long as the
+window, so a second command in the same window inherits whatever the first one
+set — and a fresh window inherits nothing.
+
 PowerShell:
 
     cd "D:\Built with Claude\4.Hitman Cricket"
