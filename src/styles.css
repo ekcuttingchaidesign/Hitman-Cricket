@@ -2892,7 +2892,15 @@ body.survive-mode #share{opacity:.3;pointer-events:none}
   --accent:#f2814f
 }
 .survive-strip:empty{display:none}
-.survive-strip .card-board{margin:2.6cqw 0 0}
+/* Room under the board, and the same room under the widget below it.
+   The strip's own bottom margin is overridden here to change its side margins,
+   and it was overridden to nothing — so the widget sat four pixels under the
+   leaderboard and fourteen above the keys, which read as the two of them
+   belonging to the board rather than standing between it and the keys.
+   In pixels rather than cqw because the widget's own margins are in pixels:
+   one of each would have the two gaps drifting apart at every other width. */
+.survive-strip .card-board{margin:2.6cqw 0 18px}
+.survive-strip .career-widget{margin-bottom:18px}
 /* Claiming is the one thing on the card worth reading, so the stats above it
    step aside on a short screen rather than pushing the form off the bottom. */
 #end-survive.is-claiming .result-stats,
