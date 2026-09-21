@@ -355,16 +355,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <h2 id="survive-title" class="result-headline"></h2>
               <p id="survive-message" class="result-sub"></p>
               <hr class="result-rule" />
-              <p class="result-stamp" id="survive-stamp"></p>
-              <div class="result-figures">
-                <p class="result-score" id="survive-score" role="img"></p>
-                <p class="result-balls" id="survive-overs"></p>
+              <div class="result-band">
+                <div class="result-figures">
+                  <p class="result-stamp" id="survive-stamp"></p>
+                  <p class="result-score" id="survive-score" role="img"></p>
+                  <p class="result-balls" id="survive-overs"></p>
+                </div>
+                <dl class="result-stats">
+                  <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
+                  <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
+                  <div><dt>Injury</dt><dd id="survive-health"></dd></div>
+                </dl>
               </div>
-              <dl class="result-stats">
-                <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
-                <div><dt>Blows Taken</dt><dd id="survive-blows"></dd></div>
-                <div><dt>Injury</dt><dd id="survive-health"></dd></div>
-              </dl>
               <div id="survive-strip" class="survive-strip"></div>
               <div class="result-keys">
                 <button id="survive-again" class="play-button">PLAY AGAIN</button>

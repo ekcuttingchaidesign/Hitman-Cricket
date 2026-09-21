@@ -2718,27 +2718,39 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   border-top:1px solid #ffffff1f
 }
 .result-stamp{
-  margin:0;
+  margin:0 0 .2cqw;
   font-family:var(--card);
   font-weight:700;
   font-size:2.63cqw;
   letter-spacing:.18em;
   color:#cbd8e2
 }
-/* The number and what it cost, on one baseline. */
+/* ── The result, as one band ───────────────────────────────────────────────
+   What the match came to on the left, what the innings cost on the right, in
+   a well sunk into the card. Before this they were two loose rows floating on
+   the card's own ground with nothing holding either of them — a stamp, a big
+   number and three columns, all at different widths, reading as three things
+   that happened to be stacked rather than as one result. */
+.result-band{
+  display:flex;
+  align-items:stretch;
+  gap:3.4cqw;
+  margin-top:1cqw
+}
 .result-figures{
   display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:3cqw;
-  margin-top:.3cqw
+  flex-direction:column;
+  justify-content:center;
+  gap:.4cqw;
+  flex:1 1 auto;
+  min-width:0
 }
 .result-score{
   margin:0;
   font-family:var(--card);
   font-weight:900;
   font-size:7.6cqw;
-  line-height:1.05;
+  line-height:1;
   color:#ff5a5a;
   font-variant-numeric:tabular-nums
 }
@@ -2756,25 +2768,41 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
    already said in words, and says it in thirty pixels of a screen that has a
    result, a board and a career to fit. The Blast keeps its own: thirty balls
    mostly faced is a shape worth seeing. */
+/* Sunk into the card rather than sitting on it: a well two steps darker than
+   the ground, which is what makes three small figures read as a set of extras
+   beside the score instead of a third row of loose type. */
 .result-stats{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:2cqw;
-  /* Its own room, now that the hairline and the row of balls above it have
-     both gone. */
-  margin:2.4cqw 0 0
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  flex:0 0 46%;
+  margin:0;
+  padding:2cqw 3cqw;
+  border-radius:2.6cqw;
+  border:1px solid #ffffff12;
+  background:#061422;
+  box-shadow:inset 0 1px 0 #ffffff0a
 }
+.result-stats>div{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:2cqw;
+  padding:1.1cqw 0
+}
+.result-stats>div+div{border-top:1px solid #ffffff12}
 .result-stats dt{
   font-family:var(--card);
-  font-size:2.34cqw;
-  color:#b9c9d6;
-  margin-bottom:.4cqw
+  font-size:2.4cqw;
+  line-height:1;
+  color:#8ea6b8;
+  white-space:nowrap
 }
 .result-stats dd{
   margin:0;
   font-family:var(--card);
   font-weight:800;
-  font-size:3.9cqw;
+  font-size:3.5cqw;
   line-height:1;
   color:#fff;
   font-variant-numeric:tabular-nums
