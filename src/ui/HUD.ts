@@ -361,7 +361,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <p class="result-balls" id="survive-overs"></p>
               </div>
               <div class="card-balls" id="survive-track" aria-hidden="true"></div>
-              <hr class="result-rule" />
               <dl class="result-stats">
                 <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
                 <div><dt>Blows Taken</dt><dd id="survive-blows"></dd></div>
@@ -370,7 +369,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <div id="survive-strip" class="survive-strip"></div>
               <div class="result-keys">
                 <button id="survive-again" class="play-button">PLAY AGAIN</button>
-                <button id="survive-modes" class="learn-button">MODE SELECTION</button>
+                <button id="survive-modes" class="learn-button">CHANGE MODE</button>
               </div>
               <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
             </div>
@@ -1269,9 +1268,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private hostStrip(surviving: boolean) {
     const host = surviving ? 'end-survive' : 'end';
     if (this.stripHost === host) return;
-    const strip = this.$('card-board');
-    if (surviving) this.$('survive-strip').append(strip);
-    else this.$('end').querySelector('.scorecard')!.insertBefore(strip, this.$('end').querySelector('.card-keys'));
+    // The career widget goes with it. It is the same one thing — a way to your
+    // own figures from the card you have just finished on — and both modes want
+    // it in the same place, under the board and above the keys. Moved rather
+    // than duplicated, for the reason the strip is moved: the ids travel, so
+    // everything that reaches for `card-career` goes on working without knowing
+    // which card it is standing in.
+    const moving = [this.$('card-board'), this.$('card-career')];
+    if (surviving) this.$('survive-strip').append(...moving);
+    else {
+      const card = this.$('end').querySelector('.scorecard')!;
+      const keys = this.$('end').querySelector('.card-keys');
+      for (const one of moving) card.insertBefore(one, keys);
+    }
     this.stripHost = host;
   }
 

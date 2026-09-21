@@ -1386,10 +1386,10 @@ export class Game {
       track(`survive-${injuryBand(this.health.injury)}`, 'Test match injury');
       track(`survive-${blowsBand(this.health.blows.length)}`, 'Test match blows taken');
       this.hud.endSurvive(this.score, this.health, ending, this.chasing);
-      // No career widget here. The one the Blast's card carries lives inside
-      // that card, so this only ever un-hid a button on a screen nobody was
-      // looking at. A Test player reaches their figures the other way: View
-      // Leaderboard, then My Stats, where both cards are now on one rail.
+      // The widget follows the strip onto whichever card is up, so this card
+      // has one now — and it opens the Test career, because `showStats` reads
+      // the mode from the innings that has just ended.
+      this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
       this.offerSurvive();
       return;
     }

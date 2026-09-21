@@ -233,7 +233,7 @@ export function surviveActions(): string {
   return `
       <div class="board-actions" role="group" aria-label="What now">
         <button id="board-again" class="key-button">PLAY AGAIN</button>
-        <button id="board-modes" class="ghost-link">Mode selection</button>
+        <button id="board-modes" class="ghost-link">Change mode</button>
       </div>`;
 }
 
