@@ -162,6 +162,25 @@ export class Game {
    * allowed to be first on it.
    */
   private boardSeen = false;
+  /**
+   * How many times each board has been written by something other than a fetch.
+   *
+   * A board's rows arrive from a request made some time ago, and by the time
+   * they do the player may have claimed a place — which is answered with the
+   * board the claim was written to, newer than anything already in flight. Each
+   * fetch notes the number on the way out and drops what it brought back if the
+   * number has moved since; otherwise a picture of the board from before the
+   * claim lands on top of it and takes the row the player just took off the
+   * screen they took it on.
+   *
+   * Only a claim moves the number. Two fetches racing each other are two reads
+   * of the same store seconds apart, so either may write and the later one
+   * simply wins — cancelling one for the other would throw away rows that a
+   * failed fetch then has nothing to replace, and an innings-end strip reads
+   * these rows to decide whether there is a place worth offering.
+   */
+  private boardEpoch = 0;
+  private surviveEpoch = 0;
   /** The Test fifty, and whether that board has ever answered. Its own ladder. */
   private surviveRows: SurviveRow[] = [];
   private surviveSeen = false;
@@ -593,17 +612,24 @@ export class Game {
    * cover simply goes on showing whatever it was showing.
    */
   private async loadBoard() {
+    const epoch = this.boardEpoch;
     const payload = await fetchBoard();
     if (this.disposed || !payload) return;
+    // The cover's figure is the top row of whichever board answered, so it is
+    // written either way. The held rows are not: a later fetch, or the rows a
+    // claim answered with, are the newer truth and this one must not land on
+    // top of them.
+    this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
+    if (epoch !== this.boardEpoch) return;
     this.boardSeen = true;
     this.board = payload.rows;
-    this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
   }
 
   /** The Test fifty, the same way. The cover quotes the other one, not this. */
   private async loadSurviveBoard() {
+    const epoch = this.surviveEpoch;
     const payload = await fetchSurviveBoard();
-    if (this.disposed || !payload) return;
+    if (this.disposed || !payload || epoch !== this.surviveEpoch) return;
     this.surviveSeen = true;
     this.surviveRows = payload.rows;
   }
@@ -924,15 +950,21 @@ export class Game {
     if (this.demo) return this.hud.board({ ...view, rows: demoBoard(this.player), state: 'ready' });
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
     else this.hud.board({ ...view, rows: [], state: 'loading' as const });
+    const epoch = this.boardEpoch;
     void fetchBoard().then(payload => {
-      // Against what the sheet is actually showing — the tab and the ladder —
-      // rather than the mode it belongs to. A fetch already in flight lands a
-      // moment after the player has moved, and the mode is still exactly what
-      // it was, so guarding on the mode alone let fifty innings rows draw
-      // straight over the top of a career ladder or of the player's own card.
-      if (this.disposed || !this.hud.boardOpen) return;
-      if (this.sheetTab !== 'classic' || this.boardLadder !== 'best') return;
+      if (this.disposed || epoch !== this.boardEpoch) return;
+      // Kept first and drawn second. What came back is the board whether or not
+      // anybody is still looking at it, and the innings-end strip reads these
+      // rows to decide whether there is a place worth claiming — so throwing
+      // the payload away because the player had moved on left them with no way
+      // to register at all.
       if (payload) { this.boardSeen = true; this.board = payload.rows; }
+      // Drawn only onto the sheet it belongs to — the tab and the ladder,
+      // rather than the mode. A fetch in flight lands a moment after the
+      // player has moved and the mode is still exactly what it was, so
+      // guarding on the mode alone let fifty innings rows draw straight over
+      // the top of a career ladder or of the player's own card.
+      if (!this.hud.boardOpen || this.sheetTab !== 'classic' || this.boardLadder !== 'best') return;
       this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
     });
   }
@@ -949,13 +981,14 @@ export class Game {
       rows: this.surviveRows,
       state: this.surviveRows.length ? 'ready' as const : 'loading' as const,
     });
+    const epoch = this.surviveEpoch;
     void fetchSurviveBoard().then(payload => {
+      if (this.disposed || epoch !== this.surviveEpoch) return;
+      if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
       // A fetch that lands after the player has tabbed away belongs to a sheet
       // that is no longer on screen, and drawing it would put the other ladder
       // back under the tab they just chose.
-      if (this.disposed || !this.hud.boardOpen) return;
-      if (this.sheetTab !== 'survive' || this.boardLadder !== 'best') return;
-      if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
+      if (!this.hud.boardOpen || this.sheetTab !== 'survive' || this.boardLadder !== 'best') return;
       this.hud.surviveBoard({ ...view, rows: this.surviveRows, state: payload ? 'ready' : 'offline' });
     });
   }
@@ -1262,11 +1295,22 @@ export class Game {
     // Each call answers with its own ladder's board; which one came back is
     // decided by which one was asked, so the mode is what reads it.
     if (this.surviving) {
-      if (result.board) this.surviveRows = (result.board as SurvivePayload).rows;
+      if (result.board) {
+        // The rows the claim answered with are newer than anything a fetch
+        // started before it can bring back, so that fetch is retired here
+        // rather than left to land on top of the place just taken.
+        this.surviveEpoch++;
+        this.surviveSeen = true;
+        this.surviveRows = (result.board as SurvivePayload).rows;
+      }
       this.boardActions = true;
       return this.openBoard('survive', 'best');
     }
-    if (result.board) this.board = (result.board as BoardPayload).rows;
+    if (result.board) {
+      this.boardEpoch++;
+      this.boardSeen = true;
+      this.board = (result.board as BoardPayload).rows;
+    }
     // Drawn from what the store just handed back rather than fetched again, so
     // the place the player took is on screen and not a cached fifty from before
     // they took it. The tab is set by hand for the same reason.
