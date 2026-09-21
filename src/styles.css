@@ -2665,10 +2665,11 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   display:flex;
   flex-direction:column
 }
-/* Two by one rather than sixteen by nine. The plate is the tallest thing on the
-   card and the only one whose height buys nothing but itself, so it gives up a
-   little crop to bring the board up the screen. */
-.result-plate{display:block;position:relative;aspect-ratio:2/1;overflow:hidden}
+/* Wider than two by one, let alone the sixteen by nine the art arrives in. The
+   plate is the tallest thing on the card and the only one whose height buys
+   nothing but itself, so it goes on giving up crop to bring the board up the
+   screen. */
+.result-plate{display:block;position:relative;aspect-ratio:2.3/1;overflow:hidden}
 /* Out of flow, or the picture's own sixteen-by-nine wins and the ratio above
    does nothing: a box grows to fit its content whatever ratio it asks for. */
 .result-plate img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -2749,28 +2750,19 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   color:#b9c9d6;
   white-space:nowrap
 }
-/* The innings as a row of bars. The shared rule paints them in `--ink`, which
-   is the light scorecard's dark type — on this card that is a row of bars the
-   same colour as the card, which is to say no row at all. */
-.result-screen .card-balls{
-  height:4.4cqw;
-  gap:0 .45cqw;
-  margin-top:1.5cqw
-}
-.result-screen .card-balls i{
-  height:calc(1cqw + var(--r,0) * 1cqw);
-  border-radius:.25cqw;
-  background:#efe7d8;
-  opacity:calc(.32 + var(--r,0) * .12)
-}
-.result-screen .card-balls .ball-unfaced{opacity:.13}
-.result-screen .card-balls .ball-out,.result-screen .card-balls .ball-hit{background:#e0483c;opacity:1}
+/* The row of balls is not on this card.
+   Ten overs is sixty of them, and an innings that ends on the third ball draws
+   two marks and fifty-eight gaps — which says nothing the line above it has not
+   already said in words, and says it in thirty pixels of a screen that has a
+   result, a board and a career to fit. The Blast keeps its own: thirty balls
+   mostly faced is a shape worth seeing. */
 .result-stats{
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:2cqw;
-  /* Its own room, now that the hairline above it has gone. */
-  margin:2.2cqw 0 0
+  /* Its own room, now that the hairline and the row of balls above it have
+     both gone. */
+  margin:2.4cqw 0 0
 }
 .result-stats dt{
   font-family:var(--card);
@@ -2802,23 +2794,26 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   letter-spacing:1.4px;
   text-indent:1.4px
 }
-/* The same construction the pair on the other card has: a plate, a stroke and a
-   ledge in the key's own colour, so neither of them reads as the outline of a
-   key beside a real one. Its navy is lifted a couple of steps here — at the
-   plate's usual depth the stroke and the ledge were the same darkness as the
-   key and the whole thing read as a flat panel next to PLAY AGAIN's relief. */
-.result-keys .learn-button{
-  border:3px solid #0a2033;
-  background:#1d4a6e;
-  box-shadow:0 6px 0 #0a2033,0 10px 14px #04192b4d
+/* The second key, built the way every key in this game is built: a lit plate, a
+   three-pixel stroke and a ledge under it, all three in the key's own colour.
+   What it had was navy on navy — and an extrusion is only ever visible against
+   the thing it stands on, so a dark blue ledge on a dark blue card was a key
+   with no relief at all beside PLAY AGAIN's. The colour has to differ in hue
+   from the card, not merely in lightness: that is why the green key on the
+   other card reads, on a ground exactly as dark as this one. */
+.change-key{
+  border:3px solid #17527d;
+  background:#2b80b8;
+  color:#f2fbff;
+  box-shadow:0 6px 0 #17527d,0 10px 14px #04192b4d
 }
-.result-keys .learn-button:hover:not(:disabled){
-  background:#245a84;
-  box-shadow:0 7px 0 #0a2033,0 12px 16px #04192b59
+.change-key:hover:not(:disabled){
+  background:#3492cf;
+  box-shadow:0 7px 0 #17527d,0 12px 16px #04192b59
 }
-.result-keys .learn-button:active:not(:disabled){
+.change-key:active:not(:disabled){
   transform:translateY(4px);
-  box-shadow:0 2px 0 #0a2033,0 4px 8px #04192b3d
+  box-shadow:0 2px 0 #17527d,0 4px 8px #04192b3d
 }
 /* Won: gold over the words, green on the number — the only card in the mode
    that gets to be green. */

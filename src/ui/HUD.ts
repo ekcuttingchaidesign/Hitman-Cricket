@@ -360,7 +360,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <p class="result-score" id="survive-score" role="img"></p>
                 <p class="result-balls" id="survive-overs"></p>
               </div>
-              <div class="card-balls" id="survive-track" aria-hidden="true"></div>
               <dl class="result-stats">
                 <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
                 <div><dt>Blows Taken</dt><dd id="survive-blows"></dd></div>
@@ -369,7 +368,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <div id="survive-strip" class="survive-strip"></div>
               <div class="result-keys">
                 <button id="survive-again" class="play-button">PLAY AGAIN</button>
-                <button id="survive-modes" class="learn-button">CHANGE MODE</button>
+                <button id="survive-modes" class="learn-button change-key">CHANGE MODE</button>
               </div>
               <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
             </div>
@@ -1659,28 +1658,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // read as 100% however much punishment the meter is set to hold.
     const injury = Math.round((1 - Math.max(0, health.value) / HEALTH.full) * 100);
     this.$('survive-health').textContent = `${injury}%`;
-    this.ballTrack('survive-track', score, SURVIVE.totalBalls);
     this.$('end-survive').className = `modal-overlay result-screen result-${result.toLowerCase()}`;
     this.viewport.classList.add('modal-open', 'result-open');
     this.viewport.classList.remove('hurt-on');
     this.$('survive-again').focus();
-  }
-
-  /**
-   * The innings as a row of bars, one per ball, in the order they were bowled.
-   * Lifted out of the classic card so both modes draw it the same way — the
-   * balls he never faced stay on it as gaps, which is what makes a short innings
-   * look short rather than merely end early.
-   */
-  private ballTrack(id: string, score: ScoreManager, balls: number) {
-    const track = this.$(id);
-    track.style.setProperty('--balls', String(balls));
-    track.innerHTML = Array.from({ length: balls }, (_, i) => {
-      const ball = score.history[i];
-      if (!ball) return `<i class="ball-unfaced" style="--i:${i}"></i>`;
-      const mark = ball.isWicket ? 'ball-out' : ball.hit ? 'ball-hit' : '';
-      return `<i class="${mark}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
-    }).join('');
   }
 
   /**
