@@ -1554,6 +1554,20 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
   get modesOpen() { return !this.$('modes').classList.contains('hidden'); }
   /**
+   * The end card the picker was opened from, put back the way it was.
+   *
+   * `modes` takes both cards off the screen, because the picker is a screen
+   * rather than something that stands over one. That is right on the way in
+   * and has to be undone on the way out: backing out of the picker with the
+   * card still hidden leaves the ground on its own, with the final score on it
+   * and every key dead, because the innings is over and nothing is listening.
+   */
+  showResult(surviving: boolean) {
+    this.$(surviving ? 'end-survive' : 'end').classList.remove('hidden');
+    this.viewport.classList.add('modal-open', 'result-open');
+    this.$(surviving ? 'survive-again' : 'again').focus();
+  }
+  /**
    * Hide the way back to the picker. A link that names one mode is a link to
    * that mode, and offering to leave it is how a playtester ends up filing
    * feedback about the wrong game.

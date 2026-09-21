@@ -35,7 +35,7 @@ import {
 } from './game/career-api';
 import { blastTally, type BlastTally, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
-import type { StatsSlide } from './ui/StatsSheet';
+import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import type { Granted } from './game/tier';
@@ -395,6 +395,18 @@ export class Game {
    */
   private closePicker = () => {
     this.hud.closeModes();
+    // Opened from an end card, which the picker put away to make room for
+    // itself. Backing out has to put it back: the innings is over, so there is
+    // nothing under the picker but the ground, holding the score it finished on
+    // and refusing every key because the phase says the innings is done.
+    if (this.phase === 'INNINGS_END') {
+      this.hud.showResult(this.surviving);
+      // The card's own music again, in place of the cover's that the picker
+      // brought with it. `modes` hands one to the other on the way in and this
+      // is the same handover run backwards.
+      this.audio.music('result');
+      return;
+    }
     if (this.phase !== 'PAUSED') return;
     // Back to the card, and back to silence with it. `stop` is the one-shot
     // clips; the picker's own music is a track, and a track left wanted goes
@@ -741,26 +753,52 @@ export class Game {
   /** The cards on the tab's rail, by mode, as each of them is painted. */
   private mineSlides: Partial<Record<BoardTab, StatsSlide>> = {};
 
-  private openMine() {
-    this.sheetTab = 'mine';
-    // The Blast first and the Test match behind it, which is the order of the
-    // tabs above and the order somebody swipes. A build that plays one game has
-    // one card, and one card is not a rail.
+  /**
+   * Both cards, painted as they arrive, handed to whoever is drawing them.
+   *
+   * The Blast first and the Test match behind it, which is the order of the
+   * tabs above and the order somebody swipes. A build that plays one game has
+   * one card, and one card is not a rail.
+   *
+   * There is one of these rather than one per screen because there are two
+   * ways to the card — the tab on the board, and the end card's career widget,
+   * which is a page of its own — and a player who swipes on one of them and
+   * not the other has found a bug rather than a second design.
+   *
+   * `open` is the card the rail opens on: the game whose figures the player
+   * asked for. Landing on the Blast after a Test innings is landing on
+   * somebody else's card.
+   */
+  private railStats(open: BoardTab, draw: (view: StatsSheetView) => void) {
     const modes: BoardTab[] = SHOW_SURVIVE && !SURVIVE_ONLY ? ['classic', 'survive'] : [this.boardTab];
+    const at = Math.max(0, modes.indexOf(open));
     this.mineSlides = {};
     for (const mode of modes) {
       this.loadStats(mode, (facts, picture, failed) => {
-        if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
+        if (this.disposed) return;
         this.mineSlides[mode] = { facts, picture, failed };
         // The whole rail is redrawn whenever either card finishes painting.
         // Anything short of that would mean two ways of putting a card on the
         // screen, and the second one only ever runs a beat after the first.
-        this.hud.statsTab({
+        // The card still being painted stands in as the one beside it so the
+        // rail is its full length from the first draw, which is what keeps the
+        // player's place when the second one lands.
+        draw({
           cards: modes.map(one => this.mineSlides[one] ?? { facts, picture: null, failed: false }),
-          at: 0,
+          at,
         });
       });
     }
+  }
+
+  private openMine() {
+    this.sheetTab = 'mine';
+    // The game they were last looking at, which is why the mode is remembered
+    // apart from the tab.
+    this.railStats(this.boardTab, view => {
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
+      this.hud.statsTab(view);
+    });
   }
 
   /** Another ladder of the same mode, from the row of tabs under the first. */
@@ -834,9 +872,12 @@ export class Game {
     // so it cannot be the one that checks whether the page is open — guarding
     // on that left the widget doing nothing at all.
     this.statsPage = true;
-    this.loadStats(mode, (facts, picture, failed) => {
+    // The same rail the tab draws, opened on the game just played. This page
+    // used to be handed a single card, so the swipe the tab offers was missing
+    // from the one screen most players reach first.
+    this.railStats(mode, view => {
       if (this.disposed || !this.statsPage) return;
-      this.hud.stats({ cards: [{ facts, picture, failed }] });
+      this.hud.stats(view);
     });
     this.hud.onStatsBack = () => {
       this.statsPage = false;

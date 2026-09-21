@@ -39,11 +39,25 @@ that touches real players should have to be asked twice.
 
 `npx vitest run` and `npx tsc --noEmit -p .` cover most of it, but the card is
 painted into a canvas and the sheets are wired by hand, so neither sees the
-screen. `scripts/stats-check.mjs` and `scripts/whatsnew-check.mjs` drive a real
-browser against a dev server and are what catch those:
+screen. Three scripts drive a real browser against a dev server and are what
+catch those — `stats-check.mjs` for the card and its rail, `whatsnew-check.mjs`
+for the stories, `end-card-check.mjs` for the end of an innings and the keys
+that live only there.
 
-    npx vite --port 5199 &
-    CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/stats-check.mjs
+**Run the dev server with `VITE_SHOW_SURVIVE=1`.** Without it the build plays
+one game, and a build with one card cannot draw a rail of two — so the whole
+carousel goes unchecked while the checks report success. A carousel bug shipped
+to a preview exactly that way.
+
+    VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
+    CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/end-card-check.mjs
+
+The other two take the server's URL as their argument, so point them at the
+same one rather than at their own defaults.
+
+Reach the screen the way a player does. The checks that open the board from the
+cover missed two bugs on the end card, because nothing had ever finished an
+innings — which is how most players get to that card in the first place.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.

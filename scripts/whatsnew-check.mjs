@@ -13,6 +13,14 @@
  *
  * It writes nothing but this browser's own localStorage, in a throwaway
  * profile, so it is safe to point anywhere.
+ *
+ * Time is driven by hand throughout. A story holds for seven seconds and then
+ * moves on by itself, which is the screen working as intended and a race this
+ * script cannot win: driven against the wall clock it taps a card that has
+ * already moved on, and on a slow enough server it taps past the end and finds
+ * the stories closed. So the page's clock is frozen and wound on where the
+ * waiting is the point — which also makes the auto-advance itself something
+ * that can be checked rather than something to be dodged.
  */
 
 import { chromium } from '@playwright/test';
@@ -32,13 +40,16 @@ const page = await browser.newPage({
 });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+await page.clock.install();
 
+/** The page's own clock, wound on, then a beat of real time to draw in. */
+const tick = async (ms, draw = 200) => { await page.clock.runFor(ms); await page.waitForTimeout(draw); };
 const title = () => page.$eval('.whatsnew-title', node => node.textContent.trim());
 const seen = () => page.evaluate(() => localStorage.getItem('hitman-whatsnew'));
 async function arrive() {
-  await page.waitForTimeout(3000);
+  await tick(3000, 800);
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
-  if (await anyway.count()) { await anyway.first().click(); await page.waitForTimeout(1500); }
+  if (await anyway.count()) { await anyway.first().click(); await tick(1500, 400); }
 }
 
 await page.goto(`${base}/`, { waitUntil: 'load' });
@@ -59,15 +70,29 @@ const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
 await page.click('#whatsnew-next');
+await page.waitForTimeout(200);
 const second = await title();
 await page.click('#whatsnew-next');
+await page.waitForTimeout(200);
 const third = await title();
 check(new Set([first, second, third]).size === 3, 'a tap on the right moves it on', [first, second, third].join(' | '));
 await page.click('#whatsnew-back');
+await page.waitForTimeout(200);
 check(await title() === second, 'and a tap on the left goes back');
 
+// Left alone, a card moves on by itself. Nothing else in the game waits on a
+// clock like this, and a story that stuck would strand a player on card one
+// with no hint that tapping is what moves it.
+await page.click('#whatsnew-back');
+await page.waitForTimeout(200);
+check(await title() === first, 'and back again to the first');
+await tick(7400);
+check(await title() === second, 'a card left alone moves on by itself', await title());
+await page.click('#whatsnew-back');
+await page.waitForTimeout(200);
+
 await page.click('#whatsnew-done');
-await page.waitForTimeout(700);
+await tick(700);
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
   'the key puts the stories away');
 const picked = await page.$eval('#modes', node => !node.classList.contains('hidden'));
@@ -80,14 +105,14 @@ check(await seen() === 'careers:1', 'the showing is counted', await seen());
 await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
-await page.waitForTimeout(800);
+await tick(800);
 check(!!(await page.$('.whatsnew-sheet')), 'it comes back a second time, because once is missed');
 await page.click('#whatsnew-done');
 
 await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
-await page.waitForTimeout(800);
+await tick(800);
 check(!(await page.$('.whatsnew-sheet')), 'and never again on its own');
 check(await seen() === 'careers:2', 'having been counted twice and no more', await seen());
 
@@ -95,7 +120,7 @@ check(await seen() === 'careers:2', 'having been counted twice and no more', awa
 await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#cover-board');
-await page.waitForTimeout(1200);
+await tick(1200, 400);
 const key = await page.$('#board-new');
 check(!!key, 'the board carries a What\'s new key beside its close key');
 if (key) {
@@ -106,7 +131,7 @@ if (key) {
   check(await page.$eval('#whatsnew-done', one => one.textContent.trim()) === 'CLOSE',
     'and offers to close rather than to go somewhere');
   await page.click('#whatsnew-done');
-  await page.waitForTimeout(500);
+  await tick(500);
   check(await page.$eval('#board-overlay', node => !node.classList.contains('hidden')),
     'putting the player back on the board they came from');
   check(await seen() === 'careers:2', 'without spending one of the two', await seen());
