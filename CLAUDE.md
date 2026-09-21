@@ -39,10 +39,17 @@ that touches real players should have to be asked twice.
 
 `npx vitest run` and `npx tsc --noEmit -p .` cover most of it, but the card is
 painted into a canvas and the sheets are wired by hand, so neither sees the
-screen. Three scripts drive a real browser against a dev server and are what
+screen. Four scripts drive a real browser against a dev server and are what
 catch those — `stats-check.mjs` for the card and its rail, `whatsnew-check.mjs`
 for the stories, `end-card-check.mjs` for the end of an innings and the keys
-that live only there.
+that live only there, `career-count-check.mjs` for the rule that only a
+finished innings counts toward a career.
+
+That last one holds a rule about *when* something happens rather than what a
+function answers, so no unit test can reach it. A career is a sum, so an
+innings walked out on counting would let a player stack runs by restarting
+whenever the over went badly. There is one call that counts an innings and it
+is in `end`. Keep it that way.
 
 **Run the dev server with `VITE_SHOW_SURVIVE=1`.** Without it the build plays
 one game, and a build with one card cannot draw a rail of two — so the whole
