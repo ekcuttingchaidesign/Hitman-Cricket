@@ -30,7 +30,8 @@ import {
   keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup, type KeyView,
 } from './CareerKey';
 import {
-  RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, type LocalCareer, type RestoreView,
+  RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
+  type LocalCareer, type RestoreView,
 } from './Restore';
 import {
   statsCardImage, statsExplain, statsStoryImage, type StatsFacts,
@@ -1739,17 +1740,50 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const panel = this.$('card-key');
     const bar = this.$('mode-key');
     const show = !!view && view.state !== 'lost';
-    panel.classList.toggle('hidden', !(show && where.panel));
+    // One slot, two occupants, never both. A key needs a claimed name and the
+    // offer is only made where there is none, so they cannot collide — and the
+    // player sees one object on that strip of card that changes what it says,
+    // rather than two things arguing over the same room.
+    const offering = !show && where.panel && this.offerRestorePanel;
+    panel.classList.toggle('hidden', !((show && where.panel) || offering));
     bar.classList.toggle('hidden', !(show && where.bar));
     if (show && where.panel) {
       panel.innerHTML = keyPanelMarkup(view!);
       this.$('key-panel-save').onclick = () => this.openKeySheet();
+    } else if (offering) {
+      panel.innerHTML = restorePanelMarkup();
+      this.$('restore-panel-go').onclick = () => this.onRestoreOpen?.('card');
+      this.$('restore-panel-close').onclick = () => {
+        panel.classList.add('hidden');
+        panel.innerHTML = '';
+        this.onRestoreDismiss?.();
+      };
+      this.onRestoreShown?.();
     }
     if (show && where.bar) {
       bar.innerHTML = keyBarMarkup();
       this.$('key-bar').onclick = () => this.openKeySheet();
     }
+    // Emptied rather than only hidden. These nodes are shared between the two
+    // end cards and moved between them, so a slot left holding what it held
+    // last time is a widget waiting to reappear on a screen that never asked
+    // for it — which is exactly how the key ended up on the Blast card.
+    if (!((show && where.panel) || offering)) panel.innerHTML = '';
+    if (!(show && where.bar)) bar.innerHTML = '';
   }
+
+  /**
+   * Whether the end of an innings should carry the offer instead of a key.
+   * The game decides — it knows whether a name is claimed, and it is the game
+   * that remembers how often this has been asked.
+   */
+  offerRestorePanel = false;
+
+  /** Counted where it is drawn, so a card that never appeared is never counted. */
+  onRestoreShown: (() => void) | null = null;
+
+  /** Taken away by hand, which is for good. */
+  onRestoreDismiss: (() => void) | null = null;
 
   /** The only place a key is saved, whichever of the four opened it. */
   openKeySheet(about = false) {

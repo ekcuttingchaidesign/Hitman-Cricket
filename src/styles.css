@@ -4474,6 +4474,20 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .restore-sheet .claim-error{margin:0 0 10px;font-size:12px}
 .restore-sheet .key-fine{margin:0 0 2px;text-align:center}
 
+/* The offer at the end of an innings: the career key's row, wearing the same
+   plate and the same stroke, because it stands in the same slot and only ever
+   when the key cannot. The one line it has instead of a key window is set in
+   the card face rather than the drawn one — it is a sentence to read, not a
+   string to copy. */
+.restore-panel-line{
+  margin:0;
+  font-family:var(--card);
+  font-size:11.5px;
+  font-weight:600;
+  line-height:1.35;
+  color:#ffffffd6
+}
+
 /* The way in, wherever the game has reason to think somebody has been here
    before. A link rather than a key: it is an offer, and every screen it
    appears on already has the thing the player came for on it. */

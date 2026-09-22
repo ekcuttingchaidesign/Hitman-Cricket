@@ -127,6 +127,42 @@ function mergeMarkup(local: LocalCareer): string {
           </div>`;
 }
 
+/**
+ * The offer at the end of an innings, in the key card's own clothes.
+ *
+ * The same row as the career key's, in the same slot, and the two can never be
+ * on the screen together: a key needs a claimed name and this is only shown
+ * where there is none. So the slot has one occupant at a time and the player
+ * sees one object that changes what it says, rather than two competing for the
+ * same strip of card.
+ *
+ * It asks rather than assumes. We do not know whether the person reading it has
+ * lost a record or has simply never had one, so "played before?" is the honest
+ * sentence — "welcome back" would be a guess, and wrong for most of the people
+ * who see it.
+ *
+ * One line under the title, and short enough to stay one. It read "bring your
+ * record back to this phone", which wrapped and made this row taller than the
+ * key row it stands in for — and the whole point of wearing the same clothes is
+ * that the slot does not change shape depending on who is in it.
+ */
+export function restorePanelMarkup(): string {
+  return `
+    <section class="key-panel restore-panel" aria-labelledby="restore-panel-title">
+      <div class="key-panel-face">
+        <span class="key-mark" aria-hidden="true">${MARK}</span>
+        <div class="key-panel-say">
+          <h3 id="restore-panel-title">Played before?</h3>
+          <p class="restore-panel-line">Bring your record back</p>
+        </div>
+        <button id="restore-panel-go" class="key-panel-key" type="button">RESTORE</button>
+        <button id="restore-panel-close" class="key-toast-close" type="button" aria-label="No thanks">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    </section>`;
+}
+
 /** The offer, wherever the game has reason to think somebody has been here before. */
 export function restoreLinkMarkup(id: string, words: string): string {
   return `<button id="${escape(id)}" class="restore-link" type="button">${escape(words)}</button>`;

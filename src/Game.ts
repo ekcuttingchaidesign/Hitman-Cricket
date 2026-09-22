@@ -23,6 +23,7 @@ import {
   type BoardPayload, type SurvivePayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
+import { offerRestoreHere, restoreOfferDone, restoreOfferShown } from './game/restore-offer';
 import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
@@ -335,6 +336,11 @@ export class Game {
     };
     this.hud.onRestore = entry => void this.sendRestore(entry);
     this.hud.onRestoreOpen = from => this.openRestore(from);
+    this.hud.onRestoreShown = () => restoreOfferShown();
+    this.hud.onRestoreDismiss = () => {
+      restoreOfferDone();
+      this.mark('restore-offer-dismissed', 'Restore offer waved away');
+    };
     // Offered only where it can be answered. Stubbed with the rest of the key,
     // so production sees none of it.
     this.hud.offerRestore = this.demo;
@@ -425,6 +431,18 @@ export class Game {
    * being handed a key.
    */
   private careerKeyHeld() { return this.demo && readPlayer() ? demoKey() : null; }
+
+  /**
+   * Whether the end of this innings offers the way back instead of a key.
+   *
+   * Only where there is no name, which is the same four arrivals that get no
+   * key: a first innings, a career built but never registered, and either of
+   * those on a phone that has forgotten somebody. We cannot tell them apart,
+   * so the offer goes to all of them and the words carry the doubt.
+   */
+  private offerRestoreOnCard() {
+    return this.demo && !readPlayer() && offerRestoreHere();
+  }
 
   /**
    * What this device has that no record has counted: the innings and the runs
@@ -1607,7 +1625,8 @@ export class Game {
       // has one now — and it opens the Test career, because `showStats` reads
       // the mode from the innings that has just ended.
       this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
-    this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+      this.hud.offerRestorePanel = this.offerRestoreOnCard();
+      this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
       this.offerSurvive();
       return;
     }
@@ -1623,6 +1642,12 @@ export class Game {
     // career is actually being kept: a private window counts nothing, so a
     // widget there would lead to a card of noughts that never fills.
     this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
+    // The same strip as the Test card's, and it was missing here. Both cards
+    // share these nodes — `hostStrip` moves them rather than drawing a second
+    // set — so a slot the Blast path never fills is not empty, it is holding
+    // whatever the Test path last put in it.
+    this.hud.offerRestorePanel = this.offerRestoreOnCard();
+    this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
     // On every card, first innings included. It was held back for a second
     // innings on the theory that the first card belongs to the score and the
     // board — but a line nobody ever sees asks nothing at all, and most people
