@@ -1371,8 +1371,8 @@ export class Game {
         this.surviveRows = (result.board as SurvivePayload).rows;
       }
       this.boardActions = true;
-      this.openBoard('survive', 'best');
-      return this.offerFirstKey();
+      this.offerFirstKey();
+      return this.openBoard('survive', 'best');
     }
     if (result.board) {
       this.boardEpoch++;
@@ -1391,8 +1391,8 @@ export class Game {
     this.sheetTab = 'classic';
     this.boardLadder = 'best';
     this.boardActions = true;
-    this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
     this.offerFirstKey();
+    this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
   }
 
   /**

@@ -287,7 +287,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="key-overlay" class="hidden"></div>
-        <div id="key-toast-slot" class="key-toast-slot hidden"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
@@ -442,7 +441,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * Each mode's own, because the Test card offers the mode picker where the
    * Blast's offers the way of sending an innings out.
    */
-  private actions(mode: BoardTab) { return mode === 'survive' ? surviveActions() : actionsMarkup(); }
+  private actions(mode: BoardTab) {
+    const keys = mode === 'survive' ? surviveActions() : actionsMarkup();
+    // The first key rides above them in the same column. Floating it over the
+    // foot of the board put it on top of these keys, which kept the focus they
+    // had — so the ring of a key nobody could see showed around the widget
+    // covering it, and a return press still reached it.
+    return `${this.keyPending ? keyToastMarkup(this.keyPending) : ''}${keys}`;
+  }
 
   /** What the card key does. The game decides: the figures are the game's. */
   onStatsOpen: (() => void) | null = null;
@@ -957,6 +963,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (news) news.onclick = () => this.onBoardStories?.();
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
+    const keySave = document.getElementById('key-toast-save');
+    if (keySave) keySave.onclick = () => this.openKeySheet();
+    const keyShut = document.getElementById('key-toast-close');
+    if (keyShut) keyShut.onclick = () => this.keyToast(null);
     const again = document.getElementById('board-again');
     if (!again) {
       // No keys on this sheet, so the focus goes to the way out — and the card's
@@ -1627,19 +1637,20 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   get keySheetOpen() { return !this.$('key-overlay').classList.contains('hidden'); }
 
-  /** The first key, the moment a name is claimed. Closed by hand, never a clock. */
+  /**
+   * The first key, the moment a name is claimed. Closed by hand, never a clock.
+   *
+   * Set before the board is drawn: it is a row of the board's own column, so
+   * the sheet that follows carries it. Taken off by hand rather than by drawing
+   * the sheet again, because the sheet is drawn whole — redrawing it to remove
+   * one row would put the ladder strip and the scroll back where they started.
+   */
   keyToast(view: KeyView | null) {
-    const slot = this.$('key-toast-slot');
-    slot.classList.toggle('hidden', !view);
-    // The row floats over the board, and the board ends in keys. Without this
-    // it lands on top of them — and they keep the focus they had, so the ring
-    // of a key nobody can see shows around the widget covering it.
-    this.viewport.classList.toggle('key-up', !!view);
-    if (!view) { slot.innerHTML = ''; return; }
-    slot.innerHTML = keyToastMarkup(view);
-    this.$('key-toast-close').onclick = () => this.keyToast(null);
-    this.$('key-toast-save').onclick = () => this.openKeySheet();
+    this.keyPending = view;
+    if (!view) this.viewport.querySelector('.board-stack .key-toast')?.remove();
   }
+
+  private keyPending: KeyView | null = null;
 
   /** The mode picker. Skipped entirely when a link has already named the mode. */
   modes() {

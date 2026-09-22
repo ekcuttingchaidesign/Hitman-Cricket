@@ -4424,21 +4424,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .card-key .key-panel{margin:0}
 .key-slot{margin:0 0 14px}
 .key-slot .key-bar{margin:0}
-/* The first key, over the board the player has just landed on. Above the
-   sheet and clear of the bottom edge, and never over their own row: it
-   arrives on the same beat as the row being revealed, and a message standing
-   on the thing it is congratulating somebody for is a message in the way. */
-.key-toast-slot{
-  position:absolute;
-  right:var(--pad);
-  bottom:calc(var(--pad-bottom) + 10px);
-  left:var(--pad);
-  z-index:12;
-  pointer-events:none
-}
-.key-toast-slot .key-toast{pointer-events:auto}
-/* The room the floating row needs: its own height, the gap it floats above the
-   bottom edge by, and twelve pixels so the two are not touching. It is given to
-   the board's keys rather than to the sheet, so the rows above them are
-   unaffected and the way out of the board stays reachable. */
-.key-up .board-actions{margin-bottom:83px}
+/* The first key, on the board the player has just landed on. A row of that
+   column rather than a thing floating over it: floated, it stood on the keys
+   underneath, and nothing standing on the way out of a screen is clear of it
+   at every height. Here it takes its own room and the keys keep theirs. */
+.board-stack>.key-toast{flex:none}
