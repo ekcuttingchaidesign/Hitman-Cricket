@@ -61,21 +61,25 @@ export function keyCardMarkup(view: KeyView): string {
   const lost = view.state === 'lost';
   const saved = view.state === 'saved';
   return `
-    <section class="key-card is-${view.state}" aria-labelledby="key-card-title">
-      <div class="key-head">
-        <span class="key-mark" aria-hidden="true">${MARK}</span>
-        <h3 id="key-card-title">Your career key</h3>
-        <button id="key-info" class="key-info" type="button" aria-label="What is a career key?">
-          <span aria-hidden="true">i</span>
-        </button>
+    <section class="key-pass is-${view.state}" aria-labelledby="key-card-title">
+      <div class="key-face">
+        <div class="key-stamp">
+          <span class="key-flash" aria-hidden="true"></span>
+          <h3 id="key-card-title">Career key</h3>
+          <button id="key-info" class="key-info" type="button" aria-label="What is a career key?">
+            <span aria-hidden="true">i</span>
+          </button>
+        </div>
+        ${lost ? '' : `<p class="key-serial">${escape(view.code ?? '')}</p>`}
+        <p class="key-line">${lost
+          ? 'Not on this phone. A key is only ever shown once, so it cannot be shown again \u2014 but you can make another.'
+          : 'Keep this somewhere. It is the only way back to your record if this browser forgets you.'}</p>
       </div>
-      ${lost ? '' : `<p class="key-code">${escape(view.code ?? '')}</p>`}
-      <p class="key-line">${lost
-        ? 'This key isn’t on this phone, and a key is only ever shown once — so it can’t be shown again. You can make a new one.'
-        : 'The only way back to your record if this browser forgets you.'}</p>
-      <button id="key-save" class="key-save" type="button">${
-        lost ? 'MAKE A NEW KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
-      ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
+      <div class="key-stub">
+        <button id="key-save" class="key-save" type="button">${
+          lost ? 'MAKE A NEW KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
+        ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
+      </div>
     </section>`;
 }
 
@@ -88,10 +92,10 @@ export function keyCardMarkup(view: KeyView): string {
 export function keyPanelMarkup(view: KeyView): string {
   return `
     <section class="key-panel" aria-labelledby="key-panel-title">
-      <span class="key-mark" aria-hidden="true">${MARK}</span>
+      <span class="key-flash" aria-hidden="true"></span>
       <div class="key-panel-say">
-        <h3 id="key-panel-title">Your career key</h3>
-        <p>${escape(view.code ?? '')}</p>
+        <h3 id="key-panel-title">Career key</h3>
+        <p class="key-serial is-inline">${escape(view.code ?? '')}</p>
       </div>
       <button id="key-panel-save" class="key-panel-key" type="button">SAVE</button>
     </section>`;
@@ -108,7 +112,7 @@ export function keyPanelMarkup(view: KeyView): string {
 export function keyBarMarkup(): string {
   return `
     <button id="key-bar" class="key-bar" type="button">
-      <span class="key-mark" aria-hidden="true">${MARK}</span>
+      <span class="key-flash" aria-hidden="true"></span>
       <span class="key-bar-say">Save your career key</span>
       <span class="key-bar-go">SAVE</span>
     </button>`;
@@ -128,8 +132,9 @@ export function keyToastMarkup(view: KeyView): string {
       <button id="key-toast-close" class="key-toast-close" type="button" aria-label="Close">
         <span aria-hidden="true">&times;</span>
       </button>
+      <div class="key-stamp"><span class="key-flash" aria-hidden="true"></span><h3>Career key</h3></div>
       <p class="key-toast-say"><b>You have a career key.</b> It is the only way back to your record if this browser forgets you.</p>
-      <p class="key-code is-small">${escape(view.code ?? '')}</p>
+      <p class="key-serial is-small">${escape(view.code ?? '')}</p>
       <button id="key-toast-save" class="key-save" type="button">SAVE YOUR KEY</button>
     </div>`;
 }
@@ -148,7 +153,7 @@ export function keyModalMarkup(view: KeyView): string {
       <div class="key-sheet">
         <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
         <h2 id="key-modal-title">Save your career key</h2>
-        <p class="key-code is-big">${escape(view.code ?? '')}</p>
+        <p class="key-serial is-big">${escape(view.code ?? '')}</p>
         <p class="key-sheet-say">This and your name bring your record back — every run, every
           innings, your tier and your place on the board. Without it, a new phone or a cleared
           browser starts you at nought.</p>

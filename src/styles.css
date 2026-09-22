@@ -4086,31 +4086,65 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   --key-scrim:#06131de8
 }
 .key-card,.key-panel,.key-toast,.key-bar,.key-sheet{font-family:var(--card)}
-.key-card{
+/* The pass. A face and a stub, torn along a perforation that is cut out of
+   the card rather than drawn on it — two circles taken out of the edges by a
+   mask, so the tear shows whatever is behind the widget and reads as a real
+   one on any screen it lands on.
+
+   The anatomy is the game's own. The stats card opens with a letterspaced
+   stamp and closes a badge with a flash of colour at its left edge, "the way a
+   rosette has a ribbon"; both are here for the same reason they are there —
+   they are what makes a rectangle read as a thing rather than a container. */
+.key-pass{
+  --tear:calc(100% - var(--key-stub));
+  --key-stub:66px;
+  --notch:9px;
+  position:relative;
   width:100%;
   margin:0 0 12px;
-  padding:15px 16px 16px;
-  border:1px solid var(--key-edge);
   border-radius:14px;
   background:var(--key-bg);
   box-shadow:0 5px 0 var(--key-ledge),var(--key-glow);
-  text-align:left
+  text-align:left;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 0 var(--tear),#0000 98%,#000 100%),
+    radial-gradient(circle var(--notch) at 100% var(--tear),#0000 98%,#000 100%);
+  -webkit-mask-composite:source-in;
+  mask:
+    radial-gradient(circle var(--notch) at 0 var(--tear),#0000 98%,#000 100%),
+    radial-gradient(circle var(--notch) at 100% var(--tear),#0000 98%,#000 100%);
+  mask-composite:intersect
 }
-.key-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}
-.key-head h3{
+.key-pass.is-saved{--key-stub:92px}
+.key-pass.is-lost{--key-stub:66px}
+.key-face{padding:14px 16px 16px}
+/* The tear. Dashed between the two notches and stopping short of both, so the
+   line ends where the cut begins rather than running into it. */
+.key-stub{
+  padding:14px 16px 16px;
+  border-top:2px dashed var(--key-well-edge);
+  margin:0 var(--notch)
+}
+.key-stamp{display:flex;align-items:center;gap:9px;margin:0 0 12px}
+/* The flash, which is the badge's ribbon at the size a heading needs. Solid
+   colour with nothing else near it: it is what makes the stamp read at a
+   glance, the same job it does on the card this borrows it from. */
+.key-flash{
+  flex:none;
+  width:4px;
+  height:15px;
+  border-radius:2px;
+  background:var(--key-mark)
+}
+.key-stamp h3{
   flex:1;
   margin:0;
-  font-size:12px;
+  font-size:11.5px;
   font-weight:800;
-  letter-spacing:1.5px;
+  letter-spacing:2.1px;
   text-transform:uppercase;
   color:var(--key-title)
 }
-.key-mark{display:flex;color:var(--key-mark)}
-.key-mark svg{width:17px;height:17px}
-.key-mark.is-big svg{width:26px;height:26px}
-/* A circle rather than a glyph on its own, so it reads as a key to press on a
-   card where every other small mark is decoration. */
 .key-info{
   display:grid;
   place-items:center;
@@ -4128,54 +4162,57 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   line-height:1
 }
 .key-info:hover{color:var(--key-ink)}
-/* The key itself, inverted out of the card it sits on: whatever the card is
-   made of, this is the other thing, because it is the only part anybody came
-   to read and everything around it is a label. */
-.key-code{
-  margin:0 0 10px;
-  padding:12px;
-  border:1px solid var(--key-well-edge);
-  border-radius:10px;
-  background:var(--key-well);
-  color:var(--key-code);
-  font-size:15px;
+/* The serial, printed rather than boxed.
+   It had been a bordered block with bold text in it, which is what a form
+   field looks like — and this is the one thing on the widget anybody came to
+   read. Wide tracking, a rule under it and nothing around it: the type is the
+   treatment, and a box would only be something else to look at. */
+.key-serial{
+  margin:0 0 11px;
+  padding:0 0 11px;
+  border-bottom:1px solid var(--key-well-edge);
+  color:var(--key-ink);
+  font-size:20px;
   font-weight:800;
-  letter-spacing:.6px;
-  text-align:center;
-  /* Long keys break rather than shrink: a key that shrinks to fit is a key
-     somebody misreads at the one moment it matters. */
+  letter-spacing:1.4px;
+  line-height:1.25;
   overflow-wrap:anywhere
 }
-.key-code.is-small{font-size:13.5px;padding:9px 10px;margin-bottom:9px}
-.key-code.is-big{font-size:17px;padding:14px;margin:0 0 12px}
+.key-serial.is-inline{
+  margin:0;
+  padding:0;
+  border:0;
+  font-size:14.5px;
+  letter-spacing:.9px
+}
+.key-serial.is-small{margin:0 0 11px;padding:0 0 10px;font-size:16px}
+.key-serial.is-big{margin:0 0 14px;padding:0 0 13px;font-size:22px;text-align:center}
 .key-line{
-  margin:0 0 12px;
+  margin:0;
   font-size:11.5px;
-  line-height:1.5;
+  line-height:1.55;
   color:var(--key-say)
 }
-/* Not the game's white-and-orange key, which belongs to Play Again and should
-   go on meaning that. This is the card's own material turned over. */
 .key-save{
   display:block;
   width:100%;
-  min-height:46px;
+  min-height:44px;
   padding:0 14px;
-  border:2px solid var(--key-cta-edge);
-  border-radius:11px;
+  border:0;
+  border-radius:10px;
   background:var(--key-cta);
-  box-shadow:0 4px 0 var(--key-cta-ledge);
+  box-shadow:0 3px 0 var(--key-cta-ledge);
   color:var(--key-cta-ink);
   font-family:var(--cta);
   font-size:13px;
   letter-spacing:1.3px
 }
-.key-save:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--key-cta-ledge)}
+.key-save:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 var(--key-cta-ledge)}
 .key-ghost{
   display:block;
   width:100%;
-  margin:9px 0 0;
-  padding:4px;
+  margin:8px 0 0;
+  padding:3px;
   border:0;
   background:none;
   color:var(--key-say);
@@ -4195,36 +4232,28 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   gap:11px;
   width:100%;
   margin:0 0 12px;
-  padding:11px 12px;
-  border:1px solid var(--key-edge);
+  padding:11px 13px;
   border-radius:13px;
   background:var(--key-bg);
   box-shadow:0 4px 0 var(--key-ledge),var(--key-glow);
   text-align:left
 }
+.key-panel .key-flash{height:27px}
 .key-panel-say{flex:1;min-width:0}
 .key-panel-say h3{
-  margin:0 0 3px;
-  font-size:10px;
+  margin:0 0 2px;
+  font-size:9.5px;
   font-weight:800;
-  letter-spacing:1.4px;
+  letter-spacing:1.8px;
   text-transform:uppercase;
   color:var(--key-title)
-}
-.key-panel-say p{
-  margin:0;
-  color:var(--key-ink);
-  font-size:13px;
-  font-weight:800;
-  letter-spacing:.4px;
-  overflow-wrap:anywhere
 }
 .key-panel-key{
   flex:none;
   min-height:38px;
-  padding:0 15px;
-  border:2px solid var(--key-cta-edge);
-  border-radius:10px;
+  padding:0 16px;
+  border:0;
+  border-radius:9px;
   background:var(--key-cta);
   box-shadow:0 3px 0 var(--key-cta-ledge);
   color:var(--key-cta-ink);
@@ -4251,6 +4280,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   text-align:left
 }
 .key-bar-say{flex:1;min-width:0;font-size:12.5px;font-weight:800;color:var(--key-ink)}
+.key-bar .key-flash{height:18px}
 .key-bar-go{
   flex:none;
   padding:6px 12px;
@@ -4353,7 +4383,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The one that finishes the job, so it is the one that looks like a key. */
 .key-sheet-key.is-whatsapp{
-  border:2px solid var(--key-cta-edge);
+  border:0;
   background:var(--key-cta);
   box-shadow:0 4px 0 var(--key-cta-ledge);
   color:var(--key-cta-ink)

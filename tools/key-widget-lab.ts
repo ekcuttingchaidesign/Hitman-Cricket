@@ -41,42 +41,41 @@ const LONG = keyText(['stamina', 'sessions', 'boundary'], 93);
  * key alone, for a widget that reads as the valuable thing on the screen.
  */
 /**
- * Three ways to make one widget the thing you look at.
+ * One form, three materials.
  *
- * The game is navy, and every attempt so far has been navy on navy — which is
- * furniture, not a highlight. All three below leave the family on purpose, and
- * none of them borrows the white-and-orange key: that one means Play Again and
- * should go on meaning it.
+ * The form is the change. Three passes went into recolouring the same
+ * rectangle-inside-a-rectangle, which is not iterating on a design — the key
+ * itself, the only part anybody came to read, had the least drawn on it of
+ * anything on the widget.
  *
- * `paper` is a cream card, which is the biggest contrast a dark screen has to
- * offer and the ticket this is asking to be. `bronze` is the metal the second
- * tier is already made of, warm against a cool screen. `chalk` is the paper
- * one turned down, for a widget that wants to be seen without shouting.
+ * This is a pass with a face and a stub, torn along a perforation cut out of
+ * the card, with the stamp and the ribbon flash the game's own stats card
+ * already uses. The key is printed rather than boxed: wide tracking and a
+ * rule under it, because a bordered block of bold text is what a form field
+ * looks like.
  */
 const SKINS: { key: string; name: string; note: string; css: string }[] = [
   {
     key: 'paper',
     name: 'Paper',
-    note: 'Cream on a dark screen \u2014 the biggest contrast the game has, and the ticket this wants to be. Key inverted into navy.',
+    note: 'Warm cream, navy stub. The pass as a thing printed and handed over.',
     css: '',
   },
   {
     key: 'bronze',
     name: 'Bronze',
-    note: 'The metal the second tier is already made of. Warm against a cool screen, without becoming another card.',
+    note: 'The metal the second tier is made of, warm against a cool screen.',
     css: `
       --key-bg:linear-gradient(#d89a52,#b4772f);
       --key-edge:#00000030;
       --key-ledge:#6b3f12;
       --key-title:#5b3410;
       --key-say:#563210;
-      --key-mark:#40230a;
-      --key-well:#25150a;
-      --key-code:#f6d9ae;
+      --key-mark:#3c2108;
+      --key-well-edge:#00000038;
       --key-ink:#2c190a;
       --key-soft:#00000016;
       --key-cta:#25150a;
-      --key-cta-edge:#140b04;
       --key-cta-ledge:#140b04;
       --key-cta-ink:#f6d9ae;
       --key-sheet-bg:linear-gradient(#d89a52,#b4772f);`,
@@ -84,21 +83,19 @@ const SKINS: { key: string; name: string; note: string; css: string }[] = [
   {
     key: 'chalk',
     name: 'Chalk',
-    note: 'Paper turned down. Seen without shouting, for a widget that sits under a card already full of figures.',
+    note: 'Cool light. Quieter under a stats card already full of figures.',
     css: `
-      --key-bg:linear-gradient(#dfe6ea,#c3ced5);
+      --key-bg:linear-gradient(#e4eaee,#c7d2d9);
       --key-edge:#0000001f;
       --key-ledge:#4d5d68;
       --key-title:#5c6d79;
       --key-say:#4e5f6b;
-      --key-mark:var(--cta-orange);
-      --key-well:#152b3c;
+      --key-well-edge:#0000002b;
       --key-ink:#152b3c;
       --key-cta:#152b3c;
-      --key-cta-edge:#0b1926;
       --key-cta-ledge:#0b1926;
       --key-cta-ink:#f2f6f8;
-      --key-sheet-bg:linear-gradient(#dfe6ea,#c3ced5);`,
+      --key-sheet-bg:linear-gradient(#e4eaee,#c7d2d9);`,
   },
 ];
 
