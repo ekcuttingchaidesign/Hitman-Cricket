@@ -4078,7 +4078,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   --key-stroke:linear-gradient(180deg,#707070 0%,#5e5e5e 100%);
   position:relative;
   isolation:isolate;
-  border:2px solid #0000;
+  border:1.2px solid #0000;
   background:var(--key-plate) padding-box,var(--key-stroke) border-box;
   color:#fff;
   font-family:var(--card)
