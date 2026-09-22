@@ -3,7 +3,9 @@ dist/
 test-results/
 playwright-report/
 *.local
-.claude/
+.claude/*
+# ...but the three.js skill references are project knowledge, not local settings.
+!.claude/skills/
 dist-single
 
 # Throwaway scripts for driving a browser while reviewing something. A dot
