@@ -196,7 +196,7 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
             : surviveMine(yours, '&mdash;', 'not good enough yet')
           : ''}
       </div>
-      <p class="board-foot">A win beats a draw beats a loss. Wins are ranked on balls used &mdash; a chase is a race &mdash; draws on the runs made while surviving, and losses on how long the last man kept them out. Level innings are split on runs, then on who took the lesser battering, and if that ties too, whoever got there first stays above.</p>
+      <p class="board-foot">Wins rank by fewest balls, draws by most runs, losses by longest survival. Ties go to runs, then less battering, then earliest finish.</p>
     </div>`;
 }
 
