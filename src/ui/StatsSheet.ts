@@ -75,10 +75,10 @@ export function statsSheetMarkup(view: StatsSheetView): string {
         <button id="stats-back" class="stats-back" type="button">${backMark()}<span>Back</span></button>
         <p class="stats-head-title">Career stats</p>
       </div>` : ''}
+${many ? dotsMarkup(cards, at) : ''}
       <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${
   many ? ' role="group" aria-label="Your cards, one a game"' : ''}>${
   cards.map((card, i) => slideMarkup(card, many, i === at)).join('')}</div>${
-  many ? dotsMarkup(cards, at) : ''}${
   // Below the rail rather than inside it. There are two cards on this screen
   // and one key, and a key that swiped away with the Blast card would read as
   // the Blast's key with the Test match's somewhere behind it.
@@ -132,6 +132,11 @@ function slideMarkup(card: StatsSlide, many: boolean, live: boolean): string {
  * The peek at the card's edge is what says there is another one; this is what
  * says how many and which, and it is the only way through for a keyboard —
  * a horizontal scroller is not something a Tab key can move.
+ *
+ * Above the rail rather than below it. They are tabs, and tabs belong before
+ * the thing they switch: under the cards they read as a caption on what is
+ * already showing, and on a screen that already has a tab row at the top,
+ * a second row of them beneath the content is a second grammar.
  */
 function dotsMarkup(cards: StatsSlide[], at: number): string {
   return `

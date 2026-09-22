@@ -3405,6 +3405,7 @@ body.private-window{overflow:hidden}
   display:flex;
   align-items:center;
   justify-content:center;
+  flex:none;
   min-height:220px
 }
 /* ── Two cards, one rail ────────────────────────────────────────────────────
@@ -3459,7 +3460,7 @@ body.private-window{overflow:hidden}
 
 /* Which one, and the way through for a keyboard — a horizontal scroller is not
    something a Tab key can move. */
-.stats-dots{display:flex;justify-content:center;gap:7px;margin:-2px 0 -4px}
+.stats-dots{display:flex;justify-content:center;gap:7px;margin:0}
 .stats-dot{
   display:flex;
   align-items:center;
@@ -4104,7 +4105,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   align-items:center;
   justify-content:center;
   min-height:44px;
-  margin:0 0 11px;
+  margin:0 0 6px;
   padding:6px 10px;
   border-radius:9.5px;
   background:var(--foil-sweep),var(--foil-spectrum),#11345f;
@@ -4143,8 +4144,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border-radius:15px;
   box-shadow:0 6px 18px #04091066
 }
-.key-pass .key-face{padding:19px 24px 16px}
-.key-stamp{display:flex;align-items:center;gap:7px;margin:0 0 11px}
+.key-pass .key-face{padding:16px}
+.key-stamp{display:flex;align-items:center;gap:7px;margin:0 0 9px}
 .key-mark{display:flex;color:inherit}
 .key-mark svg{width:14px;height:14px}
 .key-mark.is-big svg{width:24px;height:24px}
@@ -4184,7 +4185,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    height to say nothing. Eleven and a half fitted on the lab's bench and
    wrapped on My Stats, where the sheet is the narrower of the two. */
 .key-line{
-  margin:0 0 16px;
+  margin:0 0 12px;
   font-family:var(--card);
   font-size:10.5px;
   font-weight:500;
@@ -4317,7 +4318,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border-radius:15px;
   box-shadow:0 14px 34px #040910a3
 }
-.key-toast .key-face{padding:15px 16px 15px}
+.key-toast .key-face{padding:16px}
 .key-toast-close{
   position:absolute;
   top:2px;
@@ -4353,7 +4354,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border-radius:18px;
   box-shadow:0 20px 44px #0409107a
 }
-.key-sheet .key-face{padding:20px 18px 16px;text-align:center}
+.key-sheet .key-face{padding:18px;text-align:center}
 .key-sheet .key-mark{justify-content:center}
 .key-sheet h2{
   margin:8px 0 11px;
