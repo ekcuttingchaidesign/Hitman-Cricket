@@ -4321,7 +4321,12 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   width:min(392px,100%);
   margin:0 auto;
   border-radius:13px;
-  box-shadow:0 14px 34px #040910a3
+  /* The innings-end row's shadow, not a floating card's. It carried one thrown
+     fourteen pixels down and blurred thirty-four while it hung over the board;
+     in the column that lands on the key ten pixels under it, and a widget
+     casting a shadow onto the thing below it reads as a mistake rather than as
+     height. */
+  box-shadow:0 5px 14px #0409105c
 }
 /* The innings-end card's row, at the innings-end card's size. This one lands
    on the board rather than on a card, and the board is the thing the player
