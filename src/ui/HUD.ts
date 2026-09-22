@@ -335,7 +335,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="modes-title" class="mode-heading">Select Mode</h2>
             </div>
-            <div id="mode-key" class="mode-key hidden"></div>
+            <div id="mode-key" class="key-slot hidden"></div>
             <button id="mode-classic" class="mode-card">
               <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
               <span class="mode-body">
