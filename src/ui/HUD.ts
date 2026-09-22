@@ -30,6 +30,9 @@ import {
   keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup, type KeyView,
 } from './CareerKey';
 import {
+  RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, type LocalCareer, type RestoreView,
+} from './Restore';
+import {
   statsCardImage, statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
@@ -287,6 +290,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="key-overlay" class="hidden"></div>
+        <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
@@ -310,6 +314,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <div id="claim-picker"></div>
                 <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
                 <p id="claim-error" class="claim-error hidden" role="alert"></p>
+                <p id="claim-back" class="claim-back hidden"></p>
                 <button id="claim-send" type="submit" class="key-button claim-key">PUT ME ON THE BOARD</button>
                 <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
               </form>
@@ -511,7 +516,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   statsTab(view: StatsSheetView) {
     this.holdStats(view);
-    this.sheet(statsSheetMarkup({ ...view, careerKey: this.keyView, at: this.statsAt, where: 'sheet' }), 'mine', 'best');
+    this.sheet(statsSheetMarkup({
+      ...view, careerKey: this.keyView, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
+    }), 'mine', 'best');
+    this.wireRestoreLink();
     this.wireStatsKeys();
   }
 
@@ -522,7 +530,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // pull it back off whichever key the player had already reached for.
     const opening = overlay.classList.contains('hidden');
     this.holdStats(view);
-    overlay.innerHTML = statsSheetMarkup({ ...view, careerKey: this.keyView, at: this.statsAt, where: 'page' });
+    overlay.innerHTML = statsSheetMarkup({
+      ...view, careerKey: this.keyView, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
+    });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     this.wireStatsKeys();
@@ -1367,6 +1377,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const field = this.$('claim-name') as HTMLInputElement;
     field.value = this.claimed?.name ?? '';
     this.$('claim-error').classList.add('hidden');
+    this.$('claim-back').classList.add('hidden');
+    this.$('claim-back').innerHTML = '';
     this.claimSending(false);
     field.focus();
   }
@@ -1395,11 +1407,143 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
   }
 
-  /** The store turned it down, and the player can do something about it. */
-  claimFailed(reason: string) {
+  /**
+   * The store turned it down, and the player can do something about it.
+   *
+   * One refusal is not like the others. A name already held is the only moment
+   * in this game where a player who has lost their record gives us evidence of
+   * it: they typed the name they have always batted under, and it is taken,
+   * and the person holding it is almost always them. So that one comes with a
+   * way back rather than a wall — with the name they typed carried over, since
+   * retyping it ten seconds later would read as the screen not listening.
+   */
+  claimFailed(reason: string, taken = false) {
     this.claimSending(false);
     this.$('claim-error').textContent = reason;
     this.$('claim-error').classList.remove('hidden');
+    const back = this.$('claim-back');
+    back.classList.toggle('hidden', !taken);
+    back.innerHTML = taken ? restoreLinkMarkup('claim-restore', RESTORE_TAKEN) : '';
+    if (taken) this.$('claim-restore').onclick = () => this.openRestore(this.claimEntry.name);
+  }
+
+  /**
+   * The screen that takes a key back, wherever it was opened from.
+   *
+   * Held open while the store is asked rather than closed on submit: a wrong
+   * key is the likely outcome the first time somebody reads their own
+   * handwriting, and a screen that shuts on every try makes the second try a
+   * journey instead of a correction.
+   */
+  openRestore(name = '', local: LocalCareer | null = null) {
+    this.restoreView = { name, local, sending: false, error: null };
+    this.drawRestore();
+  }
+
+  /** What the player is offering, and whether they want what is here kept. */
+  get restoreEntry() {
+    const merge = document.getElementById('restore-merge') as HTMLInputElement | null;
+    return {
+      name: (this.$('restore-name') as HTMLInputElement).value,
+      key: (this.$('restore-key') as HTMLInputElement).value,
+      merge: merge ? merge.checked : false,
+    };
+  }
+
+  /** The form, while the store is thinking about it. */
+  restoreSending(sending: boolean) {
+    if (!this.restoreView) return;
+    this.restoreView = { ...this.restoreView, sending, error: sending ? null : this.restoreView.error };
+    this.drawRestore();
+  }
+
+  /** Turned down, and the key field left holding what they typed to correct it. */
+  restoreFailed(reason: string) {
+    if (!this.restoreView) return;
+    this.restoreView = { ...this.restoreView, sending: false, error: reason };
+    this.drawRestore();
+  }
+
+  closeRestore() {
+    this.restoreView = null;
+    this.$('restore-overlay').classList.add('hidden');
+    this.$('restore-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  get restoreOpen() { return !this.$('restore-overlay').classList.contains('hidden'); }
+
+  /** What the game does with a name and a key. The store is the game's. */
+  onRestore: ((entry: { name: string; key: string; merge: boolean }) => void) | null = null;
+
+  /**
+   * It worked, said on the screen the player was already on.
+   *
+   * A toast rather than a screen of its own: what they wanted was their record,
+   * and the record is behind this — so the right thing to do is get out of the
+   * way and let them see it, not stand in front of it with good news.
+   */
+  restoreDone(name: string, merged: boolean) {
+    this.restoreView = { done: { name, merged } };
+    this.drawRestore();
+  }
+
+  private restoreView: RestoreView | null = null;
+
+  /**
+   * Whether the game wants the way back offered where it fits. Off until the
+   * store can answer, so the offer is never made to somebody it would only
+   * send round a loop.
+   */
+  offerRestore = false;
+
+  /** The link on an empty card, which is drawn with the card and so rewired with it. */
+  private wireRestoreLink() {
+    const link = document.getElementById('stats-restore');
+    if (link) link.onclick = () => this.onRestoreOpen?.('stats');
+  }
+
+  /** Where the offer was taken up, so the game can say which door was used. */
+  onRestoreOpen: ((from: string) => void) | null = null;
+
+  /**
+   * Drawn whole every time, so the three states it has — asking, checking,
+   * refused — cannot drift apart. What that costs is the caret: the fields are
+   * written back from what was in them, and focus is put where the player was.
+   */
+  private drawRestore() {
+    const overlay = this.$('restore-overlay');
+    if (!this.restoreView) return this.closeRestore();
+    const held = this.restoreOpen && document.getElementById('restore-name')
+      ? { name: (this.$('restore-name') as HTMLInputElement).value,
+        key: (this.$('restore-key') as HTMLInputElement).value }
+      : null;
+    overlay.innerHTML = restoreMarkup(this.restoreView);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) this.closeRestore(); };
+    if (this.restoreView.done) {
+      const away = this.$('restore-done');
+      away.onclick = () => this.closeRestore();
+      away.focus();
+      return;
+    }
+    const name = this.$('restore-name') as HTMLInputElement;
+    const key = this.$('restore-key') as HTMLInputElement;
+    if (held) { name.value = held.name; key.value = held.key; }
+    this.$('restore-close').onclick = () => this.closeRestore();
+    (this.$('restore-form') as HTMLFormElement).onsubmit = event => {
+      event.preventDefault();
+      if (this.restoreView?.sending) return;
+      this.onRestore?.(this.restoreEntry);
+    };
+    if (this.restoreView.sending) return;
+    // Back to whichever field still needs something: the name where it is
+    // empty, the key otherwise — which is also where a refused try belongs.
+    (name.value ? key : name).focus();
   }
 
   /**

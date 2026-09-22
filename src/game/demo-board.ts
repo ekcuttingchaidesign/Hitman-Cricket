@@ -195,3 +195,28 @@ export function demoWanted(): boolean {
 export function demoKey(): { state: 'unsaved'; code: string } {
   return { state: 'unsaved', code: 'yorker-sprint-cover-47' };
 }
+
+/**
+ * Whether a name and a key would open a record, for the demo alone.
+ *
+ * Nothing here is the real check and none of it is a stand-in for one: the
+ * store keeps a salted hash and answers this over the wire, so what a browser
+ * thinks about a key can never be the thing that decides. This exists so the
+ * screens can be walked end to end — the right key, a wrong one, and a name
+ * left empty — before there is a store to walk them against.
+ */
+export function demoRestore(name: string, key: string): { ok: boolean; reason?: string } {
+  if (!name.trim()) return { ok: false, reason: 'The name you bat under, as you typed it on the board.' };
+  const typed = key.trim().toLowerCase().replace(/\s+/g, '');
+  if (!typed) return { ok: false, reason: 'Paste the key you saved.' };
+  // Wrong in a way the player can fix, told apart from wrong in a way they
+  // cannot: a key of the wrong shape is a typo or a half-paste, and saying so
+  // is kinder than "that did not match" to somebody holding the right key.
+  if (!/^[a-z]+-[a-z]+-[a-z]+-\d{2}$/.test(typed)) {
+    return { ok: false, reason: 'A key is three words and two numbers, like yorker-sprint-cover-47.' };
+  }
+  if (typed !== demoKey().code) {
+    return { ok: false, reason: 'That name and key do not go together. Check both and try again.' };
+  }
+  return { ok: true };
+}

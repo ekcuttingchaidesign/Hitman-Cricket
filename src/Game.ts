@@ -34,7 +34,8 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoKey, demoSurvive, demoWanted } from './game/demo-board';
+import { demoBoard, demoCareers, demoKey, demoRestore, demoSurvive, demoWanted } from './game/demo-board';
+import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
@@ -332,6 +333,11 @@ export class Game {
     this.hud.onKeySave = how => {
       this.mark(`key-saved-${how}`, how === 'whatsapp' ? 'Career key sent to WhatsApp' : 'Career key copied');
     };
+    this.hud.onRestore = entry => void this.sendRestore(entry);
+    this.hud.onRestoreOpen = from => this.openRestore(from);
+    // Offered only where it can be answered. Stubbed with the rest of the key,
+    // so production sees none of it.
+    this.hud.offerRestore = this.demo;
     // The three ways into the questionnaire. The cover offers it only to
     // somebody who has played before: a form is a strange thing to be handed by
     // a game you have not started.
@@ -410,6 +416,51 @@ export class Game {
    * on the screens it shares room with rather than only in its own lab.
    */
   private careerKeyHeld() { return this.demo ? demoKey() : null; }
+
+  /**
+   * What this device has that no record has counted: the innings and the runs
+   * a player put together before realising they could bring their own back.
+   *
+   * Null where there is nothing, which is the ordinary case — a genuinely
+   * wiped phone is empty, so the restore screen never asks the question and
+   * stays two fields and a key.
+   */
+  private localCareer(): LocalCareer | null {
+    const held = Object.values(this.myCareer).map(one => one.career);
+    const innings = held.reduce((sum, one) => sum + one.innings, 0);
+    if (!innings) return null;
+    return { innings, runs: held.reduce((sum, one) => sum + one.runs, 0) };
+  }
+
+  /** The way back, offered with whatever the screen already knows. */
+  private openRestore(from: string, name = '') {
+    this.mark(`restore-open-${from}`, `Restore opened from the ${from}`);
+    this.hud.openRestore(name, this.localCareer());
+  }
+
+  /**
+   * A name and a key, offered to the store.
+   *
+   * Stubbed while there is no store: under the demo flag alone, and answering
+   * from the browser, which is exactly what the real one must never do. What
+   * is kept on our side is a salted hash, so only the store can say whether a
+   * key is right — a check a browser could run is a check anybody can run
+   * offline as many times as they like.
+   */
+  private async sendRestore(entry: { name: string; key: string; merge: boolean }) {
+    if (!this.demo) return this.hud.restoreFailed('Bringing records back is not switched on yet.');
+    this.hud.restoreSending(true);
+    await new Promise(done => setTimeout(done, 450));
+    if (this.disposed) return;
+    const answer = demoRestore(entry.name, entry.key);
+    if (!answer.ok) {
+      this.mark('restore-failed', 'Restore turned down');
+      return this.hud.restoreFailed(answer.reason ?? 'That did not go through.');
+    }
+    this.mark(entry.merge ? 'restore-done-merged' : 'restore-done', 'Record brought back');
+    this.hud.closeRestore();
+    this.hud.restoreDone(entry.name, entry.merge);
+  }
   /**
    * Out of the picker without picking. Opened from the cover that is the cover
    * again; opened from a paused innings it is the pause card again, silent the
@@ -1345,7 +1396,11 @@ export class Game {
       ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
       : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
-    if (!result.ok) { this.mark('claim-failed', 'Claim rejected'); return this.hud.claimFailed(result.reason ?? 'That did not go through.'); }
+    if (!result.ok) {
+      this.mark(result.taken ? 'claim-name-taken' : 'claim-failed',
+        result.taken ? 'Name already held' : 'Claim rejected');
+      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true);
+    }
     this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
     // Claiming a name is what puts a career already counted onto the career

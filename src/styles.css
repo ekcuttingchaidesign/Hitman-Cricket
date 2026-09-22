@@ -4423,6 +4423,77 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   text-wrap:pretty
 }
 
+/* ── Bringing a record back ──────────────────────────────────────────────
+   The key sheet's plate, because it is the same object seen from the other
+   side: that one hands a key over, this one takes it back. Left-aligned
+   though, where the sheet is centred — this is a form, and a label that is
+   not above the left edge of the box it names is a label being read twice. */
+.restore-sheet .key-face{text-align:left}
+.restore-sheet h2,.restore-sheet .key-mark{text-align:center;justify-content:center}
+.restore-field{display:block;margin:0 0 11px}
+.restore-field>span{
+  display:block;
+  margin:0 0 5px;
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.02em;
+  color:#ffffffc4
+}
+.restore-field input{
+  display:block;
+  width:100%;
+  min-height:44px;
+  padding:0 12px;
+  border:1.2px solid #ffffff42;
+  border-radius:10px;
+  background:#0000004d;
+  color:#fff;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:600
+}
+/* The key is typed in the face it was handed over in, so what is on the paper
+   and what is on the screen are the same shape. Tracked a little wider than
+   the card's, because here it is being checked character by character. */
+#restore-key{font-family:var(--cta);font-size:15px;font-weight:400;letter-spacing:.06em}
+#restore-key::placeholder{color:#ffffff4d;letter-spacing:.06em}
+.restore-field input::placeholder{color:#ffffff4d;font-weight:500}
+.restore-field input:focus-visible{outline:2px solid var(--cta-orange);outline-offset:2px;border-color:#0000}
+/* Only ever on the screen when there is something to lose. */
+.restore-merge{
+  margin:0 0 11px;
+  padding:10px 11px;
+  border:1.2px solid #ffffff2b;
+  border-radius:10px;
+  background:#ffffff0d
+}
+.restore-merge-say{margin:0 0 8px;font-size:11.5px;line-height:1.45;color:#fff}
+.restore-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#fff}
+.restore-check input{width:17px;height:17px;accent-color:var(--cta-orange);flex:none}
+.restore-sheet .claim-error{margin:0 0 10px;font-size:12px}
+.restore-sheet .key-fine{margin:0 0 2px;text-align:center}
+
+/* The way in, wherever the game has reason to think somebody has been here
+   before. A link rather than a key: it is an offer, and every screen it
+   appears on already has the thing the player came for on it. */
+.restore-link{
+  display:inline;
+  padding:0;
+  border:0;
+  background:none;
+  color:var(--cta-orange);
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+.restore-link:hover{color:#ff9c6e}
+/* On the claim form it sits under the refusal it answers, so the two read as
+   one thought: the name is taken, and here is what that probably means. */
+.claim-back{margin:-6px 0 11px}
+
 /* Where the key sits on the screens it shares. The widget brings its own
    material; these only say where it goes and how much room it gets. */
 .card-key{margin:0 0 2.6cqw}

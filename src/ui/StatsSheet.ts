@@ -1,4 +1,5 @@
 import { keyCardMarkup, type KeyView } from './CareerKey';
+import { restoreLinkMarkup } from './Restore';
 import { escape } from './Leaderboard';
 import { statsAlt, statsExplain, statsHitBoxes, type StatsFacts } from '../game/StatsCard';
 
@@ -64,6 +65,16 @@ export interface StatsSheetView {
    * opens first would be a warning about a record they have not started.
    */
   careerKey?: KeyView | null;
+  /**
+   * Whether to offer the way back on an empty card.
+   *
+   * Only on an empty one. A player looking at nought innings is either new or
+   * wiped and we cannot tell which — so the offer is a quiet line under the
+   * figures rather than anything that would read as a warning to somebody who
+   * has simply not batted yet. Once there are figures on the card, the person
+   * looking at them is plainly not lost.
+   */
+  offerRestore?: boolean;
 }
 
 export function statsSheetMarkup(view: StatsSheetView): string {
@@ -94,7 +105,9 @@ ${many ? dotsMarkup(cards, at) : ''}
       <p id="stats-status" class="stats-status hidden" role="status" aria-live="polite"></p>
       <p class="stats-note">${cards.some(card => card.facts.played)
         ? 'Tap any figure to see what it counts. The link to play rides along with the card.'
-        : 'Play an innings and these figures start filling up.'}</p>
+        : `Play an innings and these figures start filling up.${view.offerRestore
+          ? `<br>Played before? ${restoreLinkMarkup('stats-restore', 'Bring your record back')}`
+          : ''}`}</p>
       <div id="stats-toast" class="stats-toast" role="status" aria-live="polite"></div>
     </div>`;
 }

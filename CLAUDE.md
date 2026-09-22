@@ -39,11 +39,12 @@ that touches real players should have to be asked twice.
 
 `npx vitest run` and `npx tsc --noEmit -p .` cover most of it, but the card is
 painted into a canvas and the sheets are wired by hand, so neither sees the
-screen. Four scripts drive a real browser against a dev server and are what
+screen. Five scripts drive a real browser against a dev server and are what
 catch those — `stats-check.mjs` for the card and its rail, `whatsnew-check.mjs`
 for the stories, `end-card-check.mjs` for the end of an innings and the keys
 that live only there, `career-count-check.mjs` for the rule that only a
-finished innings counts toward a career.
+finished innings counts toward a career, `restore-check.mjs` for the screen
+that takes a career key back.
 
 That last one holds a rule about *when* something happens rather than what a
 function answers, so no unit test can reach it. A career is a sum, so an

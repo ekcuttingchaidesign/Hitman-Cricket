@@ -54,6 +54,14 @@ export interface SubmitResult<P = BoardPayload> {
   board?: P;
   /** Why it was turned down, in words the player can act on. */
   reason?: string;
+  /**
+   * The name is held by somebody else — which, for a player typing the name
+   * they have always used, almost always means it is held by them, on a
+   * device that has forgotten who they are. It is the one refusal this game
+   * can answer with a way back, so it is carried as a fact rather than left
+   * to be recognised from the sentence.
+   */
+  taken?: boolean;
 }
 
 /**
@@ -123,7 +131,8 @@ async function offer(
   playerId: string, name: string, avatar: number, innings: Innings | SurviveInnings, mode: BoardMode,
 ): Promise<SubmitResult<BoardPayload | SurvivePayload>> {
   const answer = await ask<{
-    improved: boolean; score: number; board: BoardPayload | SurvivePayload; error?: string; retry?: boolean;
+    improved: boolean; score: number; board: BoardPayload | SurvivePayload;
+    error?: string; retry?: boolean; status?: number;
   }>(
     `${API}/api/score`,
     {
@@ -138,7 +147,13 @@ async function offer(
   // A refusal is read out as it stands, because the player can act on it. A
   // failure of the board itself gets the reassurance appended, because they
   // cannot, and being told their hundred vanished would be the wrong reading.
-  if (answer.error) return { ok: false, reason: answer.retry ? `${answer.error} ${STILL_COUNTS}` : answer.error };
+  if (answer.error) {
+    return {
+      ok: false,
+      reason: answer.retry ? `${answer.error} ${STILL_COUNTS}` : answer.error,
+      taken: answer.status === 409,
+    };
+  }
   cached[mode] = { at: Date.now(), payload: answer.board };
   return { ok: true, improved: answer.improved, score: answer.score, board: answer.board };
 }

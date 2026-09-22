@@ -85,5 +85,5 @@ export function addressOf(req: ApiRequest): string {
  */
 export function failed(res: ApiResponse, status: number, reason: string, detail?: unknown) {
   if (detail) console.error(reason, detail);
-  res.status(status).json({ error: reason, retry: status >= 500 });
+  res.status(status).json({ error: reason, retry: status >= 500, status });
 }

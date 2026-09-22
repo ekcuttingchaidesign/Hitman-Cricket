@@ -1,0 +1,100 @@
+/**
+ * Bringing a record back, in a real browser.
+ *
+ *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
+ *   node scripts/restore-check.mjs                  # that dev server
+ *   node scripts/restore-check.mjs http://…:4173    # a preview build
+ *
+ * This screen is three screens wearing one name — asking, refused, done — and
+ * they are drawn whole each time rather than patched, so the way they can go
+ * wrong is that one of them forgets something the last one held. The name
+ * surviving a refusal is the case that matters: somebody who has just been
+ * told their key is wrong is one keystroke from right, and a form that clears
+ * itself sends them back to the beginning for a typo.
+ *
+ * It needs no database. The check behind it is stubbed under `?demo=1` and
+ * answers in the browser, which is exactly what the real one must never do —
+ * what is kept is a salted hash, so only the store can say whether a key is
+ * right. What this covers is the screens, not the secret.
+ */
+
+import { chromium } from '@playwright/test';
+const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
+const S = process.env.SHOTS ?? null;
+const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
+const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+const errs = []; page.on('pageerror', e => errs.push(e.message));
+let bad = 0;
+const ok = (c, what, d) => { if (!c) bad++; console.log(`${c ? '  ok  ' : ' FAIL '} ${what}${c || d === undefined ? '' : `\n        ${d}`}`); };
+const wait = ms => page.waitForTimeout(ms);
+await page.addInitScript(() => {
+  const day = new Date(Date.now() - 172800000).toISOString().slice(0, 10);
+  try { localStorage.setItem('hitman-seen', day); } catch {}
+});
+await page.goto(`${base}/?demo=1&debug=1&seed=222`, { waitUntil: 'load' });
+await wait(3000);
+const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
+if (await anyway.count()) { await anyway.first().click(); await wait(1500); }
+await page.evaluate(() => { const st = document.createElement('style'); st.textContent = '#debug{display:none!important}'; document.head.append(st); });
+await page.locator('#start').click({ force: true });
+await wait(900);
+for (let i = 0; i < 8; i++) {
+  const d = page.locator('#whatsnew-done');
+  if (!(await d.count()) || !(await d.isVisible())) break;
+  await d.click({ force: true }); await wait(500);
+}
+await page.locator('#modes-cancel').click({ force: true });
+await wait(800);
+await page.locator('#cover-board').click({ force: true });
+await wait(2500);
+await page.locator('#board-tab-mine').click({ force: true });
+await wait(3000);
+
+// 1. the empty card offers the way back
+const link = page.locator('#stats-restore');
+ok(await link.count() === 1, 'an empty card offers the way back');
+await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; });
+await wait(400);
+await link.click({ force: true });
+await wait(700);
+ok(await page.locator('#restore-form').count() === 1, 'which opens the restore screen');
+ok(await page.locator('#restore-merge').count() === 0, 'with no merge question, there being nothing to merge');
+
+// 2. a key of the wrong shape is told apart from a wrong key
+await page.locator('#restore-name').fill('Rohit');
+await page.locator('#restore-key').fill('not-a-key');
+await page.locator('#restore-send').click({ force: true });
+await wait(1200);
+const shape = await page.locator('#restore-error').textContent();
+ok(/three words and two numbers/.test(shape ?? ''), 'a half-typed key says what a key looks like', shape ?? '(none)');
+ok((await page.locator('#restore-name').inputValue()) === 'Rohit', 'and the name survives the refusal');
+
+// 3. the right shape, the wrong key
+await page.locator('#restore-key').fill('yorker-sprint-cover-48');
+await page.locator('#restore-send').click({ force: true });
+await wait(1200);
+const wrong = await page.locator('#restore-error').textContent();
+ok(/do not go together/.test(wrong ?? ''), 'a wrong key says so without saying which half was wrong', wrong ?? '(none)');
+
+// 4. the right key
+await page.locator('#restore-key').fill('yorker-sprint-cover-47');
+await page.locator('#restore-send').click({ force: true });
+await wait(1400);
+ok(await page.locator('#restore-done').count() === 1, 'the right key brings the record back');
+await page.locator('#restore-done').click({ force: true });
+await wait(600);
+ok(await page.locator('#restore-form').count() === 0, 'and the way out leaves the screen');
+
+// 5. the ground around it closes it
+await page.locator('#stats-restore').click({ force: true });
+await wait(700);
+const modal = page.locator('#restore-overlay .key-modal');
+const bb = await modal.boundingBox();
+await page.mouse.click(bb.x + 8, bb.y + 8);
+await wait(500);
+ok(await page.locator('#restore-form').count() === 0, 'a press on the ground around it closes it');
+
+console.log(errs.length ? `\nerrors:\n${errs.join('\n')}` : '\nnothing threw');
+console.log(bad ? `\n${bad} failed` : '\nall good');
+await b.close();
+process.exit(bad ? 1 : 0);
