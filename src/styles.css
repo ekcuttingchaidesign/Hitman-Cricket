@@ -4056,26 +4056,48 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    panel on the innings-end card, a line on the mode picker, a toast the first
    time a key is handed out, and the modal all four of them open.
 
-   Blue rather than orange throughout, and that is not decoration. On My Stats
-   the share key is the orange one, and two orange keys stacked are two primary
-   actions arguing. Blue also says the right thing: this is the utility on the
-   screen, not the reward. */
-.key-card,.key-panel,.key-toast,.key-bar{
-  --key-ink:#eaf4fb;
-  --key-quiet:#9fb8c9;
-  --key-lit:#4f9ad4;
-  font-family:var(--card)
+   Everything below is structure. The colours are the fourteen properties on
+   `.key-skin`, so a theme is a block of variables rather than a pass over
+   every rule — which is what let the first attempt go wrong quietly: it was
+   built in one blue nobody had chosen, and blue is not in this game. The game
+   is navy, cream and one orange, with metal kept for the tiers that earned it.
+
+   The default below is that palette. The key itself is the only thing on the
+   widget wearing full cream, because it is the only thing anybody came to
+   read. */
+/* Declared once, at the root, and nowhere else. Setting them on the parts as
+   well looked tidier and broke the only thing they are for: a variable
+   redeclared on `.key-card` is reset by `.key-card`, so an ancestor asking for
+   a different palette is politely ignored and three skins render identical. */
+:root{
+  --key-bg:linear-gradient(#123049,#0d2233);
+  --key-edge:#ffffff1c;
+  --key-ledge:#060f18;
+  --key-title:#8fa6b6;
+  --key-say:#9fb2bd;
+  --key-mark:var(--orange);
+  --key-well:#07161f;
+  --key-well-edge:#ffffff1f;
+  /* On the well. A skin may make this dark, so nothing outside the well
+     may use it. */
+  --key-code:#f7f0e5;
+  /* On the card, where the background is always dark. */
+  --key-ink:#f7f0e5;
+  --key-cta:var(--cta-orange);
+  --key-cta-edge:#ffb089;
+  --key-cta-ledge:#8f2f12;
+  --key-cta-ink:#2a1006;
+  --key-quiet-key:#ffffff12
 }
+.key-card,.key-panel,.key-toast,.key-bar,.key-sheet{font-family:var(--card)}
 .key-card{
   width:100%;
   margin:0 0 12px;
   padding:15px 16px 16px;
-  border:1px solid #4f9ad42e;
+  border:1px solid var(--key-edge);
   border-radius:14px;
-  /* Lifted off whatever it sits on rather than sunk into it: this is a thing
-     to act on, and a well reads as a thing to read. */
-  background:linear-gradient(#173a52,#122c3f);
-  box-shadow:0 5px 0 #08131c,inset 0 1px 0 #ffffff14;
+  background:var(--key-bg);
+  box-shadow:0 5px 0 var(--key-ledge),inset 0 1px 0 #ffffff12;
   text-align:left
 }
 .key-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}
@@ -4086,9 +4108,9 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-weight:800;
   letter-spacing:1.5px;
   text-transform:uppercase;
-  color:var(--key-quiet)
+  color:var(--key-title)
 }
-.key-mark{display:flex;color:var(--key-lit)}
+.key-mark{display:flex;color:var(--key-mark)}
 .key-mark svg{width:17px;height:17px}
 .key-mark.is-big svg{width:26px;height:26px}
 /* A circle rather than a glyph on its own, so it reads as a key to press on a
@@ -4099,34 +4121,33 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   width:21px;
   height:21px;
   padding:0;
-  border:1px solid #ffffff2e;
+  border:1px solid var(--key-edge);
   border-radius:50%;
-  background:#ffffff0f;
-  color:var(--key-quiet);
+  background:var(--key-quiet-key);
+  color:var(--key-title);
   font-family:var(--card);
   font-size:11px;
   font-weight:800;
   font-style:italic;
   line-height:1
 }
-.key-info:hover{background:#ffffff1c;color:var(--key-ink)}
-/* The key itself, which is the one thing on the widget anybody reads. Sunk,
-   so it looks like something written down rather than something said, and
-   wide-tracked so three words and a number are three words and a number
-   rather than a password. */
+.key-info:hover{background:#ffffff24;color:var(--key-ink)}
+/* The key itself, and the one thing on the widget in full cream: it is what
+   anybody came to read, and everything around it is a label. Sunk and dashed,
+   so it reads as something written down rather than something said. */
 .key-code{
   margin:0 0 10px;
   padding:11px 12px;
-  border:1px dashed #4f9ad44a;
+  border:1px dashed var(--key-well-edge);
   border-radius:10px;
-  background:#0b1e2c;
-  color:var(--key-ink);
+  background:var(--key-well);
+  color:var(--key-code);
   font-size:15px;
   font-weight:800;
   letter-spacing:.6px;
   text-align:center;
-  /* Long keys break rather than shrink: eight-letter words are in the list and
-     a key that shrinks to fit is a key somebody misreads. */
+  /* Long keys break rather than shrink: a key that shrinks to fit is a key
+     somebody misreads at the one moment it matters. */
   overflow-wrap:anywhere
 }
 .key-code.is-small{font-size:13.5px;padding:8px 10px;margin-bottom:9px}
@@ -4135,27 +4156,23 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   margin:0 0 12px;
   font-size:11.5px;
   line-height:1.5;
-  color:var(--key-quiet)
+  color:var(--key-say)
 }
-/* The lit plate, the same shape as the game's other keys. Its stroke and ledge
-   are a saturated blue rather than a darker navy: on a navy card a darker edge
-   is not an edge, which is how the first Change Mode key came out flat. */
 .key-save{
   display:block;
   width:100%;
   min-height:44px;
   padding:0 14px;
-  border:2px solid #7cc2f0;
+  border:2px solid var(--key-cta-edge);
   border-radius:11px;
-  background:var(--key-lit);
-  box-shadow:0 4px 0 #1e5c8c;
-  color:#062033;
+  background:var(--key-cta);
+  box-shadow:0 4px 0 var(--key-cta-ledge);
+  color:var(--key-cta-ink);
   font-family:var(--cta);
   font-size:13px;
   letter-spacing:1.3px
 }
-.key-save:hover:not(:disabled){background:#5aa8e0}
-.key-save:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #1e5c8c}
+.key-save:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--key-cta-ledge)}
 .key-ghost{
   display:block;
   width:100%;
@@ -4163,7 +4180,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   padding:4px;
   border:0;
   background:none;
-  color:var(--key-quiet);
+  color:var(--key-say);
   font-family:var(--card);
   font-size:12px;
   text-decoration:underline;
@@ -4181,10 +4198,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   width:100%;
   margin:0 0 12px;
   padding:11px 12px;
-  border:1px solid #4f9ad42e;
+  border:1px solid var(--key-edge);
   border-radius:13px;
-  background:linear-gradient(#173a52,#122c3f);
-  box-shadow:0 4px 0 #08131c,inset 0 1px 0 #ffffff14;
+  background:var(--key-bg);
+  box-shadow:0 4px 0 var(--key-ledge),inset 0 1px 0 #ffffff12;
   text-align:left
 }
 .key-panel-say{flex:1;min-width:0}
@@ -4194,7 +4211,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-weight:800;
   letter-spacing:1.4px;
   text-transform:uppercase;
-  color:var(--key-quiet)
+  color:var(--key-title)
 }
 .key-panel-say p{
   margin:0;
@@ -4208,16 +4225,16 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   flex:none;
   min-height:38px;
   padding:0 15px;
-  border:2px solid #7cc2f0;
+  border:2px solid var(--key-cta-edge);
   border-radius:10px;
-  background:var(--key-lit);
-  box-shadow:0 3px 0 #1e5c8c;
-  color:#062033;
+  background:var(--key-cta);
+  box-shadow:0 3px 0 var(--key-cta-ledge);
+  color:var(--key-cta-ink);
   font-family:var(--cta);
   font-size:12px;
   letter-spacing:1.2px
 }
-.key-panel-key:active{transform:translateY(2px);box-shadow:0 1px 0 #1e5c8c}
+.key-panel-key:active{transform:translateY(2px);box-shadow:0 1px 0 var(--key-cta-ledge)}
 
 /* ── On the mode picker ──────────────────────────────────────────────────
    One line, twice, and then never. */
@@ -4228,25 +4245,24 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   width:min(392px,100%);
   margin:0 auto 12px;
   padding:9px 10px 9px 12px;
-  border:1px solid #4f9ad43a;
+  border:1px solid var(--key-edge);
   border-radius:11px;
-  background:#132f43cc;
-  color:#9fb8c9;
+  background:#0d2233cc;
   font-family:var(--card);
   text-align:left
 }
-.key-bar-say{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#cfe3f1}
+.key-bar-say{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#d8e2e9}
 .key-bar-go{
   flex:none;
   padding:5px 11px;
   border-radius:7px;
-  background:var(--key-lit);
-  color:#062033;
+  background:var(--key-cta);
+  color:var(--key-cta-ink);
   font-family:var(--cta);
   font-size:11px;
   letter-spacing:1.1px
 }
-.key-bar:hover{background:#17384f}
+.key-bar:hover{background:#11293d}
 
 /* ── The first one, the moment a name is claimed ─────────────────────────
    Dismissed by hand, never on a clock. It lands as the board opens on the row
@@ -4257,10 +4273,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   width:min(392px,100%);
   margin:0 auto;
   padding:15px 16px 16px;
-  border:1px solid #4f9ad44a;
+  border:1px solid var(--key-edge);
   border-radius:14px;
-  background:linear-gradient(#1a4260,#102b3e);
-  box-shadow:0 10px 26px #04101a7a,inset 0 1px 0 #ffffff1a;
+  background:var(--key-bg);
+  box-shadow:0 10px 26px #04101a7a,inset 0 1px 0 #ffffff16;
   text-align:left
 }
 .key-toast-close{
@@ -4273,18 +4289,18 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:0;
   border-radius:50%;
   background:none;
-  color:#9fb8c9;
+  color:var(--key-title);
   font-size:19px;
   line-height:1
 }
-.key-toast-close:hover{background:#ffffff14;color:#eaf4fb}
+.key-toast-close:hover{background:#ffffff14;color:var(--key-ink)}
 .key-toast-say{
   margin:0 24px 10px 0;
   font-size:12.5px;
   line-height:1.5;
-  color:#9fb8c9
+  color:var(--key-say)
 }
-.key-toast-say b{color:#eaf4fb}
+.key-toast-say b{color:var(--key-ink)}
 
 /* ── The modal every one of them opens ───────────────────────────────────
    The only place a key is ever saved. */
@@ -4300,13 +4316,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   overflow-y:auto
 }
 .key-sheet{
-  --key-ink:#eaf4fb;
-  --key-quiet:#9fb8c9;
-  --key-lit:#4f9ad4;
   width:min(392px,100%);
   margin:auto;
   padding:22px 22px 18px;
-  border:1px solid #ffffff1f;
+  border:1px solid var(--key-edge);
   border-radius:18px;
   background:#0f2738;
   font-family:var(--card);
@@ -4317,6 +4330,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-family:var(--display);
   font-size:25px;
   font-weight:400;
+  letter-spacing:0;
+  text-transform:none;
   color:#f7f0e5
 }
 .key-sheet .key-mark{justify-content:center}
@@ -4324,7 +4339,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   margin:0 0 11px;
   font-size:12.5px;
   line-height:1.6;
-  color:var(--key-quiet);
+  color:var(--key-say);
   text-wrap:pretty
 }
 .key-sheet-key{
@@ -4339,24 +4354,24 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The one that finishes the job, so it is the one that looks like a key. */
 .key-sheet-key.is-whatsapp{
-  border:2px solid #7cc2f0;
-  background:var(--key-lit);
-  box-shadow:0 4px 0 #1e5c8c;
-  color:#062033
+  border:2px solid var(--key-cta-edge);
+  background:var(--key-cta);
+  box-shadow:0 4px 0 var(--key-cta-ledge);
+  color:var(--key-cta-ink)
 }
-.key-sheet-key.is-whatsapp:active{transform:translateY(3px);box-shadow:0 1px 0 #1e5c8c}
+.key-sheet-key.is-whatsapp:active{transform:translateY(3px);box-shadow:0 1px 0 var(--key-cta-ledge)}
 /* Copy is the lesser save and reads as the lesser key: it lives in one slot
    that the next copy takes, and leaves the player something still to do. */
 .key-sheet-key.is-copy{
-  border:1px solid #ffffff2e;
-  background:#ffffff12;
-  color:#dbe9f3
+  border:1px solid var(--key-edge);
+  background:var(--key-quiet-key);
+  color:#dbe4ea
 }
-.key-sheet-key.is-copy:hover{background:#ffffff1c}
+.key-sheet-key.is-copy:hover{background:#ffffff1f}
 .key-fine{
   margin:2px 0 0;
   font-size:11px;
   line-height:1.5;
-  color:#7e94a4;
+  color:#7e8f9c;
   text-wrap:pretty
 }
