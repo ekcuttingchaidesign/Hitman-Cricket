@@ -41,33 +41,64 @@ const LONG = keyText(['stamina', 'sessions', 'boundary'], 93);
  * key alone, for a widget that reads as the valuable thing on the screen.
  */
 /**
- * Two ways to treat the one thing worth reading.
+ * Three ways to make one widget the thing you look at.
  *
- * Both are the same ground and the same key: a dark warm-lit panel that sits
- * a shade below the card it lands on, one orange mark, and the game's own
- * primary key — white, three-pixel orange stroke, orange ledge, the same one
- * that says RESUME INNINGS. A white stroke on a white plate is not a stroke,
- * which is what the last pass got wrong and what the game had already solved.
+ * The game is navy, and every attempt so far has been navy on navy — which is
+ * furniture, not a highlight. All three below leave the family on purpose, and
+ * none of them borrows the white-and-orange key: that one means Play Again and
+ * should go on meaning it.
  *
- * They differ in one thing. `vault` sinks the key into a dark well ringed in
- * orange; `stub` sits it on cream, like a ticket somebody keeps. Dark reads as
- * part of the panel, cream reads as a thing lifted out of it.
+ * `paper` is a cream card, which is the biggest contrast a dark screen has to
+ * offer and the ticket this is asking to be. `bronze` is the metal the second
+ * tier is already made of, warm against a cool screen. `chalk` is the paper
+ * one turned down, for a widget that wants to be seen without shouting.
  */
 const SKINS: { key: string; name: string; note: string; css: string }[] = [
   {
-    key: 'vault',
-    name: 'Vault',
-    note: 'The key sunk into the panel, ringed in orange. One material, one accent, the game\u2019s own key.',
+    key: 'paper',
+    name: 'Paper',
+    note: 'Cream on a dark screen \u2014 the biggest contrast the game has, and the ticket this wants to be. Key inverted into navy.',
     css: '',
   },
   {
-    key: 'stub',
-    name: 'Stub',
-    note: 'The same panel, the key on cream. The one thing worth reading is the one thing that is not dark.',
+    key: 'bronze',
+    name: 'Bronze',
+    note: 'The metal the second tier is already made of. Warm against a cool screen, without becoming another card.',
     css: `
-      --key-well:#f4ead9;
-      --key-well-edge:#0000002e;
-      --key-code:#152b3c;`,
+      --key-bg:linear-gradient(#d89a52,#b4772f);
+      --key-edge:#00000030;
+      --key-ledge:#6b3f12;
+      --key-title:#5b3410;
+      --key-say:#563210;
+      --key-mark:#40230a;
+      --key-well:#25150a;
+      --key-code:#f6d9ae;
+      --key-ink:#2c190a;
+      --key-soft:#00000016;
+      --key-cta:#25150a;
+      --key-cta-edge:#140b04;
+      --key-cta-ledge:#140b04;
+      --key-cta-ink:#f6d9ae;
+      --key-sheet-bg:linear-gradient(#d89a52,#b4772f);`,
+  },
+  {
+    key: 'chalk',
+    name: 'Chalk',
+    note: 'Paper turned down. Seen without shouting, for a widget that sits under a card already full of figures.',
+    css: `
+      --key-bg:linear-gradient(#dfe6ea,#c3ced5);
+      --key-edge:#0000001f;
+      --key-ledge:#4d5d68;
+      --key-title:#5c6d79;
+      --key-say:#4e5f6b;
+      --key-mark:var(--cta-orange);
+      --key-well:#152b3c;
+      --key-ink:#152b3c;
+      --key-cta:#152b3c;
+      --key-cta-edge:#0b1926;
+      --key-cta-ledge:#0b1926;
+      --key-cta-ink:#f2f6f8;
+      --key-sheet-bg:linear-gradient(#dfe6ea,#c3ced5);`,
   },
 ];
 

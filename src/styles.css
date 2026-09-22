@@ -4056,40 +4056,34 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    panel on the innings-end card, a line on the mode picker, a toast the first
    time a key is handed out, and the modal all four of them open.
 
-   Everything below is structure. The colours are the fourteen properties on
-   `.key-skin`, so a theme is a block of variables rather than a pass over
-   every rule — which is what let the first attempt go wrong quietly: it was
-   built in one blue nobody had chosen, and blue is not in this game. The game
-   is navy, cream and one orange, with metal kept for the tiers that earned it.
-
-   The default below is that palette. The key itself is the only thing on the
-   widget wearing full cream, because it is the only thing anybody came to
-   read. */
-/* Declared once, at the root, and nowhere else. Setting them on the parts as
-   well looked tidier and broke the only thing they are for: a variable
-   redeclared on `.key-card` is reset by `.key-card`, so an ancestor asking for
-   a different palette is politely ignored and three skins render identical. */
+   Everything below is structure. Every colour is a token, including the ones
+   that look safely dark — the modal's ground, the bar's ink, the sheet's
+   heading. A token left hardcoded is a skin that cannot be light, and the
+   whole difficulty here has been that the game is navy and a navy widget on a
+   navy screen is furniture nobody sees. Highlighting it means leaving the
+   family, so the family has to be optional. */
 :root{
-  --key-bg:radial-gradient(125% 95% at 50% 0%,#1b2d3a,#0a141b);
-  --key-edge:#ffffff1f;
-  --key-ledge:#04090d;
-  --key-title:#8fa0ad;
-  --key-say:#97a7b3;
-  --key-mark:var(--orange);
-  --key-well:#060d13;
-  /* The one place the orange is spent other than the key: it rings the thing
-     worth reading rather than sitting on something being pressed. */
-  --key-well-edge:#e9582b4d;
-  /* On the well. A skin may make this dark, so nothing outside the well
-     may use it. */
+  --key-bg:linear-gradient(#f7efe1,#ead9c0);
+  --key-edge:#00000021;
+  --key-ledge:#6c5539;
+  --key-glow:0 10px 26px #0409104a;
+  --key-title:#7b6851;
+  --key-say:#6b5a45;
+  --key-mark:var(--cta-orange);
+  --key-well:#152b3c;
+  --key-well-edge:#00000038;
+  /* On the well. A skin may make this dark, so nothing outside the well may
+     use it. */
   --key-code:#f7f0e5;
-  /* On the card, where the background is always dark. */
-  --key-ink:#f7f0e5;
-  --key-cta:#fff;
-  --key-cta-edge:var(--cta-orange);
-  --key-cta-ledge:var(--cta-orange);
-  --key-cta-ink:var(--cta-ink);
-  --key-quiet-key:#ffffff12
+  /* On the card, whatever the card is made of. */
+  --key-ink:#152b3c;
+  --key-soft:#00000010;
+  --key-cta:#152b3c;
+  --key-cta-edge:#0b1926;
+  --key-cta-ledge:#0b1926;
+  --key-cta-ink:#f7f0e5;
+  --key-sheet-bg:#f7efe1;
+  --key-scrim:#06131de8
 }
 .key-card,.key-panel,.key-toast,.key-bar,.key-sheet{font-family:var(--card)}
 .key-card{
@@ -4099,7 +4093,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid var(--key-edge);
   border-radius:14px;
   background:var(--key-bg);
-  box-shadow:0 5px 0 var(--key-ledge),inset 0 1px 0 #ffffff12;
+  box-shadow:0 5px 0 var(--key-ledge),var(--key-glow);
   text-align:left
 }
 .key-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}
@@ -4125,7 +4119,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   padding:0;
   border:1px solid var(--key-edge);
   border-radius:50%;
-  background:var(--key-quiet-key);
+  background:var(--key-soft);
   color:var(--key-title);
   font-family:var(--card);
   font-size:11px;
@@ -4133,14 +4127,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-style:italic;
   line-height:1
 }
-.key-info:hover{background:#ffffff24;color:var(--key-ink)}
-/* The key itself, and the one thing on the widget in full cream: it is what
-   anybody came to read, and everything around it is a label. Sunk and dashed,
-   so it reads as something written down rather than something said. */
+.key-info:hover{color:var(--key-ink)}
+/* The key itself, inverted out of the card it sits on: whatever the card is
+   made of, this is the other thing, because it is the only part anybody came
+   to read and everything around it is a label. */
 .key-code{
   margin:0 0 10px;
-  padding:11px 12px;
-  border:1px dashed var(--key-well-edge);
+  padding:12px;
+  border:1px solid var(--key-well-edge);
   border-radius:10px;
   background:var(--key-well);
   color:var(--key-code);
@@ -4152,23 +4146,25 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
      somebody misreads at the one moment it matters. */
   overflow-wrap:anywhere
 }
-.key-code.is-small{font-size:13.5px;padding:8px 10px;margin-bottom:9px}
-.key-code.is-big{font-size:17px;padding:13px 14px;margin:0 0 12px}
+.key-code.is-small{font-size:13.5px;padding:9px 10px;margin-bottom:9px}
+.key-code.is-big{font-size:17px;padding:14px;margin:0 0 12px}
 .key-line{
   margin:0 0 12px;
   font-size:11.5px;
   line-height:1.5;
   color:var(--key-say)
 }
+/* Not the game's white-and-orange key, which belongs to Play Again and should
+   go on meaning that. This is the card's own material turned over. */
 .key-save{
   display:block;
   width:100%;
   min-height:46px;
   padding:0 14px;
-  border:3px solid var(--key-cta-edge);
+  border:2px solid var(--key-cta-edge);
   border-radius:11px;
   background:var(--key-cta);
-  box-shadow:0 5px 0 var(--key-cta-ledge),0 9px 11px #7a4a1e2b;
+  box-shadow:0 4px 0 var(--key-cta-ledge);
   color:var(--key-cta-ink);
   font-family:var(--cta);
   font-size:13px;
@@ -4203,7 +4199,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid var(--key-edge);
   border-radius:13px;
   background:var(--key-bg);
-  box-shadow:0 4px 0 var(--key-ledge),inset 0 1px 0 #ffffff12;
+  box-shadow:0 4px 0 var(--key-ledge),var(--key-glow);
   text-align:left
 }
 .key-panel-say{flex:1;min-width:0}
@@ -4249,22 +4245,22 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   padding:9px 10px 9px 12px;
   border:1px solid var(--key-edge);
   border-radius:11px;
-  background:#0d2233cc;
+  background:var(--key-bg);
+  box-shadow:0 3px 0 var(--key-ledge);
   font-family:var(--card);
   text-align:left
 }
-.key-bar-say{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#d8e2e9}
+.key-bar-say{flex:1;min-width:0;font-size:12.5px;font-weight:800;color:var(--key-ink)}
 .key-bar-go{
   flex:none;
-  padding:5px 11px;
-  border-radius:7px;
+  padding:6px 12px;
+  border-radius:8px;
   background:var(--key-cta);
   color:var(--key-cta-ink);
   font-family:var(--cta);
   font-size:11px;
   letter-spacing:1.1px
 }
-.key-bar:hover{background:#11293d}
 
 /* ── The first one, the moment a name is claimed ─────────────────────────
    Dismissed by hand, never on a clock. It lands as the board opens on the row
@@ -4278,7 +4274,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid var(--key-edge);
   border-radius:14px;
   background:var(--key-bg);
-  box-shadow:0 10px 26px #04101a7a,inset 0 1px 0 #ffffff16;
+  box-shadow:0 5px 0 var(--key-ledge),0 14px 30px #04091066;
   text-align:left
 }
 .key-toast-close{
@@ -4295,7 +4291,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-size:19px;
   line-height:1
 }
-.key-toast-close:hover{background:#ffffff14;color:var(--key-ink)}
+.key-toast-close:hover{background:var(--key-soft);color:var(--key-ink)}
 .key-toast-say{
   margin:0 24px 10px 0;
   font-size:12.5px;
@@ -4314,7 +4310,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   align-items:center;
   justify-content:center;
   padding:var(--pad-top) var(--pad);
-  background:#0c1e2ae8;
+  background:var(--key-scrim);
   overflow-y:auto
 }
 .key-sheet{
@@ -4323,7 +4319,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   padding:22px 22px 18px;
   border:1px solid var(--key-edge);
   border-radius:18px;
-  background:#0f2738;
+  background:var(--key-sheet-bg);
+  box-shadow:0 6px 0 var(--key-ledge),0 20px 40px #0409107a;
   font-family:var(--card);
   text-align:center
 }
@@ -4334,7 +4331,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-weight:400;
   letter-spacing:0;
   text-transform:none;
-  color:#f7f0e5
+  color:var(--key-ink)
 }
 .key-sheet .key-mark{justify-content:center}
 .key-sheet-say{
@@ -4356,24 +4353,24 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The one that finishes the job, so it is the one that looks like a key. */
 .key-sheet-key.is-whatsapp{
-  border:3px solid var(--key-cta-edge);
+  border:2px solid var(--key-cta-edge);
   background:var(--key-cta);
-  box-shadow:0 5px 0 var(--key-cta-ledge),0 9px 11px #7a4a1e2b;
+  box-shadow:0 4px 0 var(--key-cta-ledge);
   color:var(--key-cta-ink)
 }
 .key-sheet-key.is-whatsapp:active{transform:translateY(3px);box-shadow:0 1px 0 var(--key-cta-ledge)}
 /* Copy is the lesser save and reads as the lesser key: it lives in one slot
    that the next copy takes, and leaves the player something still to do. */
 .key-sheet-key.is-copy{
-  border:1px solid var(--key-edge);
-  background:var(--key-quiet-key);
-  color:#dbe4ea
+  border:1px solid var(--key-well-edge);
+  background:transparent;
+  color:var(--key-ink)
 }
-.key-sheet-key.is-copy:hover{background:#ffffff1f}
+.key-sheet-key.is-copy:hover{background:var(--key-soft)}
 .key-fine{
   margin:2px 0 0;
   font-size:11px;
   line-height:1.5;
-  color:#7e8f9c;
+  color:var(--key-title);
   text-wrap:pretty
 }
