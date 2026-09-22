@@ -1208,6 +1208,19 @@ export { solveJoint } from './rig';
  * flattened front to back. One of these is a whole trunk — chest, ribs, waist
  * and hem in a single unbroken skin.
  */
+/** An arc of round bar, swept about the head's own axis and centred on the face. */
+function cageBar(arc: number) {
+  const geometry = new THREE.TorusGeometry(1, .049, 7, 26, arc);
+  // A torus is born standing upright in the XY plane, so it needs laying flat
+  // before it is aimed: skip the rotateX and the bars hang down the face like a
+  // visor's hinge rather than crossing it.
+  geometry.rotateZ(-arc / 2);          // centre the sweep on +X
+  geometry.rotateX(Math.PI / 2);       // lay the ring flat, into the XZ plane
+  geometry.rotateY(-Math.PI / 2);      // and swing +X round to +Z, the way he faces
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function lathe(profile: readonly (readonly [number, number])[], depth: number, segments = 32) {
   const geometry = new THREE.LatheGeometry(profile.map(([y, r]) => new THREE.Vector2(Math.max(r, .002), y)), segments);
   geometry.scale(1, 1, depth);
@@ -1313,6 +1326,16 @@ export class Batter {
     trunk: lathe(TRUNK_PROFILE, .145 / .205),
     /** The waistband the shirt tucks into; see `PELVIS_PROFILE`. */
     pelvis: lathe(PELVIS_PROFILE, .135 / .185),
+    /**
+     * One bar of the helmet cage: an arc centred on the face rather than a rod
+     * laid flat across it. Built at unit radius and scaled uniformly per bar, so
+     * a bar low at the chin is shorter and finer than one across the brow — the
+     * way a real cage tightens as it comes round the jaw. Uniform scale is the
+     * point: scaling a torus unevenly would squash the bar into a ribbon.
+     */
+    cage: cageBar(3.30),
+    /** The bar under the jaw, which has no shell to run back into. */
+    chinBar: cageBar(1.95),
     blade: bladeGeometry(),
   };
   private palette = {
@@ -1361,18 +1384,33 @@ export class Batter {
     this.mesh(this.hips, this.palette.trousers, [1, 1, 1], 'pelvis').name = 'Trousers to the waistband';
     this.mesh(this.torso, this.palette.shirt, [1, 1, 1], 'trunk').name = 'Shirt, hem to collar';
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
+    // A collar, sized to the trunk profile at its own height so it sits proud of
+    // the shirt by a few millimetres rather than flaring off it. Both rings stay
+    // inside the trunk ellipsoid, so the bat still clears him by the old figures.
+    this.mesh(this.torso, this.palette.shirt, [.240, .050, .240], 'tube').position.y = .145;
+    this.mesh(this.torso, this.palette.accent, [.184, .016, .184], 'tube').position.y = .168;
     // Jersey seam, collar, and back number make rotation legible from the camera.
     this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.33;
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
     const helmet = this.mesh(this.head, this.palette.helmet, [.188, .175, .195], 'ball'); helmet.position.set(0, .045, -.018);
-    this.mesh(this.head, this.palette.helmet, [.34, .045, .20], 'soft').position.set(0, .045, .135);
-    for (const y of [-.055, -.115]) {
-      const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');
-      bar.rotation.z = Math.PI / 2; bar.position.set(0, y, .175);
-    }
-    for (const x of [-.14, .14]) this.mesh(this.head, this.palette.grille, [.016, .19, .016], 'tube').position.set(x, -.045, .175);
+    // The peak, tipped down over the brow rather than laid out flat. A level
+    // slab reads as a shelf stuck to the shell; the tilt is what makes it a brim.
+    const peak = this.mesh(this.head, this.palette.helmet, [.305, .040, .185], 'soft');
+    peak.position.set(0, .046, .122); peak.rotation.x = -.20;
+    // The cage. Each bar rides its own radius so the grille follows the face in
+    // instead of standing off it as a flat panel. The two upper bars sweep far
+    // enough round to run back into the shell at the temples, the way a real
+    // cage is anchored; the chin bar has no shell to reach, so it keeps a
+    // shorter sweep and is allowed to end where the jaw does. The widest reaches
+    // z .183, which is where the old flat rods sat, so nothing here stands
+    // further off his face than what it replaces.
+    for (const [y, r] of [[-.012, .177], [-.070, .172]] as const)
+      this.mesh(this.head, this.palette.grille, [r, r, r], 'cage').position.y = y;
+    this.mesh(this.head, this.palette.grille, [.150, .150, .150], 'chinBar').position.y = -.124;
+    for (const x of [-.073, .073])
+      this.mesh(this.head, this.palette.grille, [.015, .150, .015], 'tube').position.set(x, -.068, .167);
     // Bat: a dark bound handle standing clear of a plain blade.
     const rubber=new THREE.Mesh(gripGeometry(),new THREE.MeshStandardMaterial({color:0x777e80,roughness:.94}));
     rubber.castShadow=true; rubber.receiveShadow=true; this.bat.add(rubber);
@@ -1412,10 +1450,23 @@ export class Batter {
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'limb'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'limb'),
-        elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
+        elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.094, .112, .094], 'ball'),
         glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
+      // The sleeve has to end somewhere. It rides the upper arm, so it travels
+      // with the shoulder, and sits a millimetre proud of the taper at that
+      // height — without it the shirt just turns into a forearm mid-limb, which
+      // is the other half of why the arms read as tubing.
+      this.mesh(this.arms[i].upper, this.palette.accent, [1.06, .055, 1.06], 'tube').position.y = .34;
+
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
+      // Straps and buckles. A batting pad is held on by three of them and they
+      // are the first thing the eye uses to read it as strapped-on kit rather
+      // than a white slab tied to a shin.
+      for (const y of [-.155, .015, .145]) {
+        this.mesh(pad, this.palette.handle, [.207, .022, .186], 'soft').position.set(0, y, -.006);
+        this.mesh(pad, this.palette.grille, [.034, .030, .03], 'soft').position.set(.098, y, -.042);
+      }
       for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.pad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
       for (const y of [-.10, .06]) this.mesh(pad, this.palette.accent, [.185, .026, .17], 'soft').position.set(0, y, -.008);
       this.mesh(pad, this.palette.pad, [.115, .07, .10], 'ball').position.set(0, .21, .03);
@@ -2219,7 +2270,13 @@ export class Batter {
       // exactly .0475, which is the figure the blade-clearance tests use.
       this.segment(arm.upper, arm.shoulder, elbow, .1129, .1169);
       this.segment(arm.lower, elbow, hand, .0766);
-      arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
+      arm.elbow.position.copy(elbow);
+      // The deltoid takes the sleeve's own direction, so it runs down the arm as
+      // a shoulder does. Left square to the world it was a ball resting against
+      // the shirt — which is the single most obvious tell that a figure has been
+      // assembled out of parts rather than built.
+      arm.cap.position.copy(arm.shoulder);
+      arm.cap.quaternion.copy(arm.upper.quaternion);
       // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
       arm.cuff.position.copy(hand);
