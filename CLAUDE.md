@@ -43,8 +43,15 @@ screen. Five scripts drive a real browser against a dev server and are what
 catch those — `stats-check.mjs` for the card and its rail, `whatsnew-check.mjs`
 for the stories, `end-card-check.mjs` for the end of an innings and the keys
 that live only there, `career-count-check.mjs` for the rule that only a
-finished innings counts toward a career, `restore-check.mjs` for the screen
-that takes a career key back.
+finished innings counts toward a career, `restore-check.mjs` for what a player
+with no name is offered and the screen that takes a key back, `key-check.mjs`
+for what a player who has one is shown.
+
+Those last two are split by whose screen it is, and that is the point. A check
+that registers and then deletes its way back to nameless is testing its own
+teardown: the key card was missing from My Stats for every registered player
+and three browser checks walked past it, because all three reached that screen
+by finishing an innings and none by opening the board from the cover.
 
 That last one holds a rule about *when* something happens rather than what a
 function answers, so no unit test can reach it. A career is a sum, so an

@@ -61,6 +61,11 @@ export function restoreOfferShown() {
   write({ ...offer, shown: offer.shown + 1 });
 }
 
+/** Whether it has been waved away, which ends it on every screen at once. */
+export function restoreOfferDismissed(): boolean {
+  return read().done;
+}
+
 /** Taken away by hand, which is for good. */
 export function restoreOfferDone() {
   write({ ...read(), done: true });

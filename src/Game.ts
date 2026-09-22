@@ -23,7 +23,9 @@ import {
   type BoardPayload, type SurvivePayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { offerRestoreHere, restoreOfferDone, restoreOfferShown } from './game/restore-offer';
+import {
+  offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
+} from './game/restore-offer';
 import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
@@ -339,6 +341,7 @@ export class Game {
     };
     this.hud.onRestore = entry => void this.sendRestore(entry);
     this.hud.onRestoreOpen = from => this.openRestore(from);
+    this.hud.keyNow = () => this.careerKeyHeld();
     this.hud.onNewKey = () => void this.makeNewKey();
     this.hud.onRestoreShown = () => restoreOfferShown();
     this.hud.onRestoreDismiss = () => {
@@ -440,6 +443,20 @@ export class Game {
    */
   private offerRestoreOnCard() {
     return !readPlayer() && offerRestoreHere();
+  }
+
+  /**
+   * And at the foot of the board, for the same four arrivals.
+   *
+   * A ladder somebody is not on is the screen a returning player opens first
+   * to find out their record is gone, so it is worth asking there — but not
+   * against the innings-end cap. That cap is there because a card pushed in
+   * front of somebody after every innings becomes scenery; the board is a
+   * screen they chose to open, and a line at the foot of it is not in the way.
+   * Waving it away anywhere still ends it everywhere.
+   */
+  private boardRestoreOffer() {
+    this.hud.offerRestoreOnBoard = !readPlayer() && !restoreOfferDismissed();
   }
 
   /**
@@ -962,6 +979,9 @@ export class Game {
   };
 
   private openBoard(mode: BoardTab, ladder: LadderTab): void {
+    // Every view of the board comes through here, so the offer is decided once
+    // rather than at each of the four places that draw one.
+    this.boardRestoreOffer();
     this.boardTab = mode;
     this.sheetTab = mode;
     this.boardLadder = ladder;

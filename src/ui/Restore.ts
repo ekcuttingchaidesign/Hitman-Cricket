@@ -136,6 +136,12 @@ function mergeMarkup(local: LocalCareer): string {
  * sees one object that changes what it says, rather than two competing for the
  * same strip of card.
  *
+ * The ids are given rather than fixed, because there are two places it can
+ * stand — the end of an innings and the foot of the board — and the board sits
+ * over the card rather than replacing it, so both can be in the document at
+ * once. Two of anything sharing an id is one of them being wired and the other
+ * being furniture.
+ *
  * It asks rather than assumes. We do not know whether the person reading it has
  * lost a record or has simply never had one, so "played before?" is the honest
  * sentence — "welcome back" would be a guess, and wrong for most of the people
@@ -146,17 +152,17 @@ function mergeMarkup(local: LocalCareer): string {
  * key row it stands in for — and the whole point of wearing the same clothes is
  * that the slot does not change shape depending on who is in it.
  */
-export function restorePanelMarkup(): string {
+export function restorePanelMarkup(id = 'restore-panel'): string {
   return `
-    <section class="key-panel restore-panel" aria-labelledby="restore-panel-title">
+    <section class="key-panel restore-panel" aria-labelledby="${escape(id)}-title">
       <div class="key-panel-face">
         <span class="key-mark" aria-hidden="true">${MARK}</span>
         <div class="key-panel-say">
-          <h3 id="restore-panel-title">Played before?</h3>
+          <h3 id="${escape(id)}-title">Played before?</h3>
           <p class="restore-panel-line">Bring your record back</p>
         </div>
-        <button id="restore-panel-go" class="key-panel-key" type="button">RESTORE</button>
-        <button id="restore-panel-close" class="key-toast-close" type="button" aria-label="No thanks">
+        <button id="${escape(id)}-go" class="key-panel-key" type="button">RESTORE</button>
+        <button id="${escape(id)}-close" class="key-toast-close" type="button" aria-label="No thanks">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>

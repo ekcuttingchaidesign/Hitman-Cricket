@@ -68,6 +68,18 @@ ok(await link.count() === 1, 'an empty card offers the way back');
 // have no name yet, and every one of them was being handed a key.
 ok(await page.locator('.key-pass').count() === 0, 'and no key to somebody who has not claimed a name');
 ok(await page.locator('#mode-key .key-bar').count() === 0, 'nor one on the picker they came through');
+// The board is the other screen worth asking on, and the one a returning
+// player opens first to find out their record is gone. It carries no PLAY
+// AGAIN when it is opened from the cover, so an offer drawn only alongside
+// those keys was absent from exactly the board it was added for.
+await page.locator('#board-tab-classic').click({ force: true });
+await wait(1500);
+ok(await page.locator('#board-restore-go').count() === 1, 'the board offers the way back as well');
+await page.locator('#board-restore-close').click({ force: true });
+await wait(600);
+ok(await page.locator('#board-restore-go').count() === 0, 'and the cross takes it off the board');
+await page.locator('#board-tab-mine').click({ force: true });
+await wait(2500);
 await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; });
 await wait(400);
 await link.click({ force: true });

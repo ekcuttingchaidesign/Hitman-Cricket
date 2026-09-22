@@ -418,7 +418,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * a fresh sheet is always the rows it was handed.
    */
   board(view: BoardView) {
-    this.sheet(boardMarkup(view), 'classic', 'best', view.actions ? this.actions('classic') : '');
+    this.sheet(boardMarkup(view), 'classic', 'best', this.actions('classic', !!view.actions));
   }
 
   /**
@@ -426,7 +426,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * ladder they are ordered by differ, and those are the markup's business.
    */
   surviveBoard(view: SurviveBoardView) {
-    this.sheet(surviveBoardMarkup(view), 'survive', 'best', view.actions ? this.actions('survive') : '');
+    this.sheet(surviveBoardMarkup(view), 'survive', 'best', this.actions('survive', !!view.actions));
   }
 
   /**
@@ -437,7 +437,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   careerBoard(view: CareerBoardView & { actions?: boolean }) {
     this.sheet(
       careerBoardMarkup(view), view.mode, view.board.key,
-      view.actions ? this.actions(view.mode) : '',
+      this.actions(view.mode, !!view.actions),
     );
   }
 
@@ -446,15 +446,35 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * The innings-end keys, under the sheet that is standing in for the card.
    * Each mode's own, because the Test card offers the mode picker where the
    * Blast's offers the way of sending an innings out.
+   *
+   * Called whether or not there are keys to draw, because the two rows that
+   * can ride above them do not depend on there being any. The board opened
+   * from the cover carries no PLAY AGAIN — and that is exactly the board a
+   * returning player opens first, so an offer that came only with the keys was
+   * an offer absent from the one screen it was added for.
    */
-  private actions(mode: BoardTab) {
-    const keys = mode === 'survive' ? surviveActions() : actionsMarkup();
+  private actions(mode: BoardTab, keyed: boolean) {
+    const keys = keyed ? (mode === 'survive' ? surviveActions() : actionsMarkup()) : '';
     // The first key rides above them in the same column. Floating it over the
     // foot of the board put it on top of these keys, which kept the focus they
     // had — so the ring of a key nobody could see showed around the widget
     // covering it, and a return press still reached it.
-    return `${this.keyPending ? keyToastMarkup(this.keyPending) : ''}${keys}`;
+    // A key just minted outranks an offer to bring one back: somebody holding
+    // a brand new key is plainly not the player who lost one.
+    if (this.keyPending) return `${keyToastMarkup(this.keyPending)}${keys}`;
+    // And the board is the other place worth asking. Somebody with no name is
+    // looking at a ladder they are not on — which is exactly the screen a
+    // returning player opens first to find out their record is gone.
+    return `${this.offerRestoreOnBoard ? restorePanelMarkup('board-restore') : ''}${keys}`;
   }
+
+  /**
+   * Whether the board should carry the offer under its rows. The game decides:
+   * it knows whether a name is claimed and whether the offer has been waved
+   * away. Not counted against the innings-end cap — the board is a screen
+   * somebody chose to open, not a card pushed in front of them.
+   */
+  offerRestoreOnBoard = false;
 
   /** What the card key does. The game decides: the figures are the game's. */
   onStatsOpen: (() => void) | null = null;
@@ -983,6 +1003,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (keySave) keySave.onclick = () => this.openKeySheet();
     const keyShut = document.getElementById('key-toast-close');
     if (keyShut) keyShut.onclick = () => this.keyToast(null);
+    const backGo = document.getElementById('board-restore-go');
+    if (backGo) backGo.onclick = () => this.onRestoreOpen?.('board');
+    const backShut = document.getElementById('board-restore-close');
+    if (backShut) {
+      backShut.onclick = () => {
+        document.getElementById('board-restore-go')?.closest('.restore-panel')?.remove();
+        this.onRestoreDismiss?.();
+      };
+    }
     const again = document.getElementById('board-again');
     if (!again) {
       // No keys on this sheet, so the focus goes to the way out — and the card's
@@ -1746,12 +1775,24 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * the line on the mode picker too, and a player asked twice concludes the
    * first answer did not take.
    */
-  private keyView: KeyView | null = null;
+  /**
+   * What the player's key is, asked for rather than remembered.
+   *
+   * It was a field, written only where a key was drawn — the picker and the
+   * end of an innings. Everywhere else read whatever those had last left
+   * behind, so a player who registered and went straight to the board found
+   * the field still holding the null from before they had a name, and My
+   * Stats left the card out. A key is a fact about storage that four screens
+   * ask about at four different moments; the only version that cannot go
+   * stale is the one read when the question is asked.
+   */
+  keyNow: (() => KeyView | null) | null = null;
+
+  private get keyView(): KeyView | null { return this.keyNow?.() ?? null; }
   /** What the modal's two keys do. The game owns the saving. */
   onKeySave: ((how: 'whatsapp' | 'copy') => void) | null = null;
 
   careerKey(view: KeyView | null, where: { panel: boolean; bar: boolean }) {
-    this.keyView = view;
     const panel = this.$('card-key');
     const bar = this.$('mode-key');
     const show = !!view && view.state !== 'lost';
@@ -1766,7 +1807,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       panel.innerHTML = keyPanelMarkup(view!);
       this.$('key-panel-save').onclick = () => this.openKeySheet();
     } else if (offering) {
-      panel.innerHTML = restorePanelMarkup();
+      panel.innerHTML = restorePanelMarkup('restore-panel');
       this.$('restore-panel-go').onclick = () => this.onRestoreOpen?.('card');
       this.$('restore-panel-close').onclick = () => {
         panel.classList.add('hidden');
