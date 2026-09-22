@@ -4320,25 +4320,30 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .key-toast{
   width:min(392px,100%);
   margin:0 auto;
-  border-radius:15px;
+  border-radius:13px;
   box-shadow:0 14px 34px #040910a3
 }
-.key-toast .key-face{padding:16px}
+/* The innings-end card's row, at the innings-end card's size. This one lands
+   on the board rather than on a card, and the board is the thing the player
+   has just earned a place on — so it is the one screen where the widget may
+   not stand on what is underneath it. */
+.key-toast .key-panel-face{padding:9px 10px;gap:9px}
+.key-toast .key-mark svg{width:15px;height:15px}
 .key-toast-close{
-  position:absolute;
-  top:2px;
-  right:0;
-  width:28px;
-  height:28px;
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:24px;
   padding:0;
   border:0;
   border-radius:50%;
   background:none;
-  color:#fff;
-  font-size:20px;
+  color:#ffffffa8;
+  font-size:17px;
   line-height:1
 }
-.key-toast-close:hover{background:#ffffff26}
+.key-toast-close:hover{background:#ffffff26;color:#fff}
 
 /* ── The modal every one of them opens ───────────────────────────────────
    The only place a key is ever saved. */
@@ -4432,3 +4437,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   pointer-events:none
 }
 .key-toast-slot .key-toast{pointer-events:auto}
+/* The room the floating row needs: its own height, the gap it floats above the
+   bottom edge by, and twelve pixels so the two are not touching. It is given to
+   the board's keys rather than to the sheet, so the rows above them are
+   unaffected and the way out of the board stays reachable. */
+.key-up .board-actions{margin-bottom:83px}

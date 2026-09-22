@@ -125,21 +125,26 @@ export function keyBarMarkup(): string {
  * board opening on the row they have just taken, and a message that takes
  * itself away while somebody is looking at their own name is a message that
  * was never read.
+ *
+ * The innings-end card's row rather than a card of its own. A card here stood
+ * on two rows of the board and the whole of the widget under it — on the one
+ * screen where what is underneath is the thing the player came to see. The row
+ * says the same in one line, and the sentence it drops is the sentence the
+ * save sheet opens with, one press away.
  */
 export function keyToastMarkup(view: KeyView): string {
   return `
     <div class="key-toast" role="status">
-      <div class="key-face">
+      <div class="key-panel-face">
+        <span class="key-mark" aria-hidden="true">${MARK}</span>
+        <div class="key-panel-say">
+          <h3>Your career key</h3>
+          <p class="key-serial is-inline"><span>${escape(view.code ?? '')}</span></p>
+        </div>
+        <button id="key-toast-save" class="key-panel-key" type="button">SAVE</button>
         <button id="key-toast-close" class="key-toast-close" type="button" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
-        <div class="key-stamp">
-          <span class="key-mark" aria-hidden="true">${MARK}</span>
-          <h3>Your career key</h3>
-        </div>
-        <p class="key-serial"><span>${escape(view.code ?? '')}</span></p>
-        <p class="key-line">Keep it somewhere. It is the only way back to your record if this browser forgets you.</p>
-        <button id="key-toast-save" class="key-save" type="button">SAVE YOUR KEY</button>
       </div>
     </div>`;
 }

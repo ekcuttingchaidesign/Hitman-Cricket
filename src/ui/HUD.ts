@@ -1631,6 +1631,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   keyToast(view: KeyView | null) {
     const slot = this.$('key-toast-slot');
     slot.classList.toggle('hidden', !view);
+    // The row floats over the board, and the board ends in keys. Without this
+    // it lands on top of them — and they keep the focus they had, so the ring
+    // of a key nobody can see shows around the widget covering it.
+    this.viewport.classList.toggle('key-up', !!view);
     if (!view) { slot.innerHTML = ''; return; }
     slot.innerHTML = keyToastMarkup(view);
     this.$('key-toast-close').onclick = () => this.keyToast(null);
