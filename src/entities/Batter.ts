@@ -1272,6 +1272,189 @@ const PELVIS_PROFILE: readonly (readonly [number, number])[] = [
   [.000, .179], [.045, .170], [.080, .148], [.110, .116], [.130, .078], [.142, .035],
 ];
 
+const LIMB_SIDES = 14;
+/** Rings forming the rounded cap at the anchor — the shoulder, and the hip. */
+const LIMB_DOME = 3;
+/** 5 along the first bone, 7 rounding the joint, 5 along the second. */
+const LIMB_BODY = 17;
+const LIMB_RINGS = LIMB_DOME + LIMB_BODY;
+/** The ring the sleeve ends on, where the surface changes material mid-limb. */
+const LIMB_SEAM = LIMB_DOME + 7;
+/** The ring's shape, which never changes — so it is never recomputed. */
+const LIMB_COS: number[] = [], LIMB_SIN: number[] = [];
+for (let k = 0; k < LIMB_SIDES; k++) {
+  LIMB_COS.push(Math.cos((k / LIMB_SIDES) * Math.PI * 2));
+  LIMB_SIN.push(Math.sin((k / LIMB_SIDES) * Math.PI * 2));
+}
+
+/**
+ * A limb as one unbroken surface, from the shoulder through the elbow to the
+ * wrist — or the hip, the knee and the ankle.
+ *
+ * What it replaces: a tapered cylinder, a sphere dropped on the joint, a second
+ * cylinder, and a third sphere capping the anchor. Four convex lumps whose
+ * surfaces intersect. No amount of sizing fixes that, because an intersection
+ * is what the eye is reading: two surfaces crossing leave a crease, and a
+ * crease is what a join looks like. The joint ball can be made to cover the
+ * seam, and it still reads as a ball covering a seam.
+ *
+ * So there is no seam. Rings are swept along the two bones and round a fillet
+ * at the joint, and stitched into a single skin — the elbow is a bend in one
+ * surface rather than a part sitting between two others. The anchor closes with
+ * a hemisphere, which is the shoulder and the hip: it sits mostly inside the
+ * trunk, and the part that shows is the deltoid, continuous with the arm below
+ * it because it *is* the arm.
+ *
+ * The cost is that the geometry is rebuilt every frame. It is 282 vertices a
+ * limb and four limbs, which is nothing next to a stadium of instanced seats.
+ */
+class LimbSkin {
+  readonly mesh: THREE.Mesh;
+  private readonly position: THREE.Float32BufferAttribute;
+  private readonly normals: THREE.Float32BufferAttribute;
+  private readonly ring: THREE.Vector3[] = [];
+  private readonly aim: THREE.Vector3[] = [];
+  // Scratch, so a frame of animation allocates nothing.
+  private readonly dirIn = new THREE.Vector3();
+  private readonly dirOut = new THREE.Vector3();
+  private readonly p1 = new THREE.Vector3();
+  private readonly p2 = new THREE.Vector3();
+  private readonly normal = new THREE.Vector3();
+  private readonly binormal = new THREE.Vector3();
+  private readonly turn = new THREE.Quaternion();
+  private readonly radius: number[] = new Array(LIMB_RINGS).fill(0);
+
+  constructor(material: THREE.Material | THREE.Material[]) {
+    const geometry = new THREE.BufferGeometry();
+    const count = LIMB_RINGS * LIMB_SIDES + 2;
+    this.position = new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3);
+    this.position.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute('position', this.position);
+    this.normals = new THREE.Float32BufferAttribute(new Float32Array(count * 3), 3);
+    this.normals.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute('normal', this.normals);
+
+    const pole = LIMB_RINGS * LIMB_SIDES, tip = pole + 1;
+    const quads = (from: number, to: number, out: number[]) => {
+      for (let i = from; i < to; i++) for (let k = 0; k < LIMB_SIDES; k++) {
+        const a = i * LIMB_SIDES + k, b = a + LIMB_SIDES;
+        const c = i * LIMB_SIDES + (k + 1) % LIMB_SIDES, d = c + LIMB_SIDES;
+        out.push(a, b, d, a, d, c);
+      }
+    };
+    // Two runs, so a two-material limb can change colour at the sleeve without
+    // the surface itself breaking there.
+    const first: number[] = [], second: number[] = [];
+    for (let k = 0; k < LIMB_SIDES; k++) first.push(pole, (k + 1) % LIMB_SIDES, k);
+    quads(0, LIMB_SEAM, first);
+    quads(LIMB_SEAM, LIMB_RINGS - 1, second);
+    const last = (LIMB_RINGS - 1) * LIMB_SIDES;
+    for (let k = 0; k < LIMB_SIDES; k++) second.push(tip, last + k, last + (k + 1) % LIMB_SIDES);
+    geometry.setIndex([...first, ...second]);
+    if (Array.isArray(material)) {
+      geometry.addGroup(0, first.length, 0);
+      geometry.addGroup(first.length, second.length, 1);
+    }
+    for (let i = 0; i < LIMB_RINGS; i++) { this.ring.push(new THREE.Vector3()); this.aim.push(new THREE.Vector3()); }
+    this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh.castShadow = true; this.mesh.receiveShadow = true;
+    this.mesh.frustumCulled = false;
+  }
+
+  /** Where the surface runs, and which way it is pointing, at a given ring. */
+  centre(index: number) { return this.ring[index]; }
+  heading(index: number) { return this.aim[index]; }
+
+  update(anchor: THREE.Vector3, joint: THREE.Vector3, end: THREE.Vector3, rA: number, rJ: number, rB: number) {
+    this.dirIn.copy(joint).sub(anchor); const lenA = this.dirIn.length();
+    this.dirOut.copy(end).sub(joint); const lenB = this.dirOut.length();
+    if (lenA < 1e-6 || lenB < 1e-6) return;
+    this.dirIn.divideScalar(lenA); this.dirOut.divideScalar(lenB);
+    // Round the corner rather than mitre it: back off along each bone by a
+    // fillet, and bend through the joint on a quadratic. Clamped to the bones
+    // so a fully folded elbow cannot eat more than a third of either one.
+    const fillet = Math.min(rJ * 1.9, lenA * .34, lenB * .34);
+    this.p1.copy(joint).addScaledVector(this.dirIn, -fillet);
+    this.p2.copy(joint).addScaledVector(this.dirOut, fillet);
+
+    const body = (i: number, out: THREE.Vector3) => {
+      if (i <= 4) return out.copy(anchor).lerp(this.p1, i / 4);
+      if (i <= 11) {
+        const t = (i - 4) / 8, u = 1 - t;
+        return out.set(0, 0, 0)
+          .addScaledVector(this.p1, u * u).addScaledVector(joint, 2 * u * t).addScaledVector(this.p2, t * t);
+      }
+      return out.copy(this.p2).lerp(end, (i - 12) / 4);
+    };
+    for (let i = 0; i < LIMB_BODY; i++) {
+      body(i, this.ring[LIMB_DOME + i]);
+      this.radius[LIMB_DOME + i] = i <= 8
+        ? THREE.MathUtils.lerp(rA, rJ, i / 8)
+        : THREE.MathUtils.lerp(rJ, rB, (i - 8) / 8);
+    }
+    // The dome: a hemisphere closing the anchor, swung back along the bone.
+    for (let d = 0; d < LIMB_DOME; d++) {
+      const phi = ((d + 1) / (LIMB_DOME + 1)) * Math.PI / 2;
+      this.ring[d].copy(anchor).addScaledVector(this.dirIn, -rA * Math.cos(phi));
+      this.radius[d] = rA * Math.sin(phi);
+    }
+
+    for (let i = 0; i < LIMB_RINGS; i++) {
+      if (i < LIMB_DOME) this.aim[i].copy(this.dirIn);
+      else if (i === LIMB_RINGS - 1) this.aim[i].copy(this.ring[i]).sub(this.ring[i - 1]).normalize();
+      else this.aim[i].copy(this.ring[i + 1]).sub(this.ring[i - 1]).normalize();
+    }
+    // A rotation-minimising frame: carry one normal along the limb rather than
+    // deriving it fresh per ring, or the rings twist against each other and the
+    // surface creases lengthways.
+    this.normal.set(0, 0, 1);
+    if (Math.abs(this.normal.dot(this.aim[0])) > .9) this.normal.set(1, 0, 0);
+    this.normal.addScaledVector(this.aim[0], -this.normal.dot(this.aim[0])).normalize();
+    const array = this.position.array as Float32Array;
+    const normal = this.normals.array as Float32Array;
+    for (let i = 0; i < LIMB_RINGS; i++) {
+      if (i > 0) { this.turn.setFromUnitVectors(this.aim[i - 1], this.aim[i]); this.normal.applyQuaternion(this.turn); }
+      this.binormal.copy(this.aim[i]).cross(this.normal).normalize();
+      const c = this.ring[i], r = this.radius[i];
+      // How fast the limb is narrowing here, which is how far the surface
+      // normal tilts off radial. A swept tube's normals are analytic, so they
+      // are written straight out: `computeVertexNormals` would walk every
+      // triangle of every limb on every frame to arrive at a worse answer.
+      const before = Math.max(i - 1, 0), after = Math.min(i + 1, LIMB_RINGS - 1);
+      const run = this.ring[after].distanceTo(this.ring[before]);
+      const slope = run > 1e-6 ? (this.radius[after] - this.radius[before]) / run : 0;
+      for (let k = 0; k < LIMB_SIDES; k++) {
+        const cos = LIMB_COS[k], sin = LIMB_SIN[k];
+        const rx = this.normal.x * cos + this.binormal.x * sin;
+        const ry = this.normal.y * cos + this.binormal.y * sin;
+        const rz = this.normal.z * cos + this.binormal.z * sin;
+        const at = (i * LIMB_SIDES + k) * 3;
+        array[at] = c.x + rx * r; array[at + 1] = c.y + ry * r; array[at + 2] = c.z + rz * r;
+        let nx: number, ny: number, nz: number;
+        if (i < LIMB_DOME) {
+          // The cap is a true hemisphere about the anchor, so its normal is
+          // exactly the way out from that centre.
+          nx = array[at] - anchor.x; ny = array[at + 1] - anchor.y; nz = array[at + 2] - anchor.z;
+        } else {
+          nx = rx - this.aim[i].x * slope; ny = ry - this.aim[i].y * slope; nz = rz - this.aim[i].z * slope;
+        }
+        const len = Math.hypot(nx, ny, nz) || 1;
+        normal[at] = nx / len; normal[at + 1] = ny / len; normal[at + 2] = nz / len;
+      }
+    }
+    const pole = LIMB_RINGS * LIMB_SIDES * 3;
+    array[pole] = anchor.x - this.dirIn.x * rA;
+    array[pole + 1] = anchor.y - this.dirIn.y * rA;
+    array[pole + 2] = anchor.z - this.dirIn.z * rA;
+    array[pole + 3] = end.x; array[pole + 4] = end.y; array[pole + 5] = end.z;
+    normal[pole] = -this.dirIn.x; normal[pole + 1] = -this.dirIn.y; normal[pole + 2] = -this.dirIn.z;
+    const tip = this.aim[LIMB_RINGS - 1];
+    normal[pole + 3] = tip.x; normal[pole + 4] = tip.y; normal[pole + 5] = tip.z;
+    this.position.needsUpdate = true;
+    this.normals.needsUpdate = true;
+  }
+}
+
 export class Batter {
   private poseAge = 0;
   readonly root = new THREE.Group();
@@ -1279,8 +1462,8 @@ export class Batter {
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
-  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; palm: THREE.Mesh[]; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
-  private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
+  private arms: { skin: LimbSkin; sleeve: THREE.Mesh; joint: THREE.Vector3; glove: THREE.Group; palm: THREE.Mesh[]; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
+  private legs: { skin: LimbSkin; hip: THREE.Vector3; joint: THREE.Vector3; ankle: THREE.Vector3; pad: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
   private shot: ShotType = 'STRAIGHT';
@@ -1449,15 +1632,14 @@ export class Batter {
       const cuff = new THREE.Group(); this.root.add(cuff);
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
-      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'limb'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'limb'),
-        elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.094, .112, .094], 'ball'),
+      // One skin from the shoulder to the wrist, shirt down to the sleeve and
+      // skin below it. The colour changes; the surface does not.
+      const armSkin = new LimbSkin([this.palette.shirt, this.palette.skin]);
+      armSkin.mesh.name = 'Arm, shoulder to wrist';
+      this.root.add(armSkin.mesh);
+      this.arms.push({ skin: armSkin, sleeve: this.mesh(this.root, this.palette.accent, [.052, .012, .052], 'tube'),
+        joint: new THREE.Vector3(),
         glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
-      // The sleeve has to end somewhere. It rides the upper arm, so it travels
-      // with the shoulder, and sits a millimetre proud of the taper at that
-      // height — without it the shirt just turns into a forearm mid-limb, which
-      // is the other half of why the arms read as tubing.
-      this.mesh(this.arms[i].upper, this.palette.accent, [1.06, .055, 1.06], 'tube').position.y = .34;
-
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
       // Straps and buckles. A batting pad is held on by three of them and they
@@ -1475,9 +1657,10 @@ export class Batter {
       this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);
       this.mesh(shoe, this.palette.handle, [.185, .035, .33], 'soft').position.set(0, -.055, .055);
       this.mesh(shoe, this.palette.accent, [.19, .022, .09], 'soft').position.set(0, .015, .12);
-      this.legs.push({ thigh: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'limb'), shin: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'limb'),
-        knee: this.mesh(this.root, this.palette.trousers, [.084, .084, .084], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.115, .115, .115], 'ball'),
-        pad, shoe });
+      const legSkin = new LimbSkin(this.palette.trousers);
+      legSkin.mesh.name = 'Leg, hip to ankle';
+      this.root.add(legSkin.mesh);
+      this.legs.push({ skin: legSkin, hip: new THREE.Vector3(), joint: new THREE.Vector3(), ankle: new THREE.Vector3(), pad, shoe });
     }
     this.reset();
   }
@@ -2264,19 +2447,17 @@ export class Batter {
         // knuckles into an open palm or flip the visible grip during a shot.
         this.segment(arm.palm[0],arm.socket.clone().multiplyScalar(.40),arm.socket,.081,.080);
       }
-      // .62 of the width at the anchor and .5 at the far joint, so these are the
-      // old .14/.145 and .095 divided by .62: an arm no wider at the shoulder
-      // than it was, and tapering from there. The forearm's widest radius stays
-      // exactly .0475, which is the figure the blade-clearance tests use.
-      this.segment(arm.upper, arm.shoulder, elbow, .1129, .1169);
-      this.segment(arm.lower, elbow, hand, .0766);
-      arm.elbow.position.copy(elbow);
-      // The deltoid takes the sleeve's own direction, so it runs down the arm as
-      // a shoulder does. Left square to the world it was a ball resting against
-      // the shirt — which is the single most obvious tell that a figure has been
-      // assembled out of parts rather than built.
-      arm.cap.position.copy(arm.shoulder);
-      arm.cap.quaternion.copy(arm.upper.quaternion);
+      // Swept in one piece. .085 at the shoulder is the deltoid — it is the
+      // top of the arm now, not a ball resting against the shirt, and most of
+      // its dome sits inside the trunk. The elbow holds .0475 exactly: that is
+      // the forearm's widest radius, the figure every blade-clearance test in
+      // the suite measures against, so the surface may change shape without any
+      // of those numbers moving.
+      arm.joint.copy(elbow);
+      arm.skin.update(arm.shoulder, elbow, hand, .085, .0475, .038);
+      // The sleeve's edge, laid on the surface at the ring where it changes.
+      arm.sleeve.position.copy(arm.skin.centre(LIMB_SEAM));
+      arm.sleeve.quaternion.setFromUnitVectors(UP, arm.skin.heading(LIMB_SEAM));
       // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
       arm.cuff.position.copy(hand);
@@ -2300,9 +2481,11 @@ export class Batter {
         kneePole.lerp(new THREE.Vector3(i===0 ? .04 : .35,-.15,.65),weight);
       }
       const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(kneePole));
-      this.segment(leg.thigh, hipJoint, knee, .1411, .1532);
-      this.segment(leg.shin, knee, foot, .1169, .1290);
-      leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);
+      // The same, from the hip down. .105 at the hip is the buttock and the
+      // top of the thigh in one piece — the pair of overlapping balls that used
+      // to sit there was the other place the figure came apart.
+      leg.hip.copy(hipJoint); leg.joint.copy(knee); leg.ankle.copy(foot);
+      leg.skin.update(hipJoint, knee, foot, .105, .075, .058);
       const lowerAxis = knee.clone().sub(foot).normalize();
       const shoeYaw = i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);
       /**
@@ -2359,14 +2542,19 @@ export class Batter {
       shot: this.shot, pulling: this.pulling, cutting: this.cutting, squaring: this.squaring, lofted: this.lofted, sweeping: this.sweeping, levelled: this.levelled, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
       hands: this.arms.map(arm => arm.glove.getWorldPosition(new THREE.Vector3()).toArray()),
       wrists: this.arms.map(arm => arm.wrist.toArray()),
-      elbows: this.arms.map(arm => arm.elbow.position.toArray()),
-      knees: this.legs.map(leg => leg.knee.position.toArray()),
+      elbows: this.arms.map(arm => arm.joint.toArray()),
+      knees: this.legs.map(leg => leg.joint.toArray()),
       shoulders: this.arms.map(arm => arm.shoulder.toArray()),
       chest: [...this.pose.chest], hip: [...this.pose.hip],
-      armLengths: this.arms.map(arm => [arm.upper.scale.y, arm.lower.scale.y]),
-      elbowCoverage: this.arms.map(arm=>Math.min(arm.elbow.scale.x,arm.elbow.scale.y,arm.elbow.scale.z)
-        - Math.max(arm.upper.scale.x,arm.upper.scale.z)*.5),
-      legLengths: this.legs.map(leg => [leg.thigh.scale.y, leg.shin.scale.y]),
+      // Bone lengths, measured between the joints the solver placed. They used
+      // to be read off the meshes that spanned them, which came to the same
+      // number while every limb was still two stretched cylinders.
+      armLengths: this.arms.map(arm => [arm.shoulder.distanceTo(arm.joint), arm.joint.distanceTo(arm.wrist)]),
+      legLengths: this.legs.map(leg => [leg.hip.distanceTo(leg.joint), leg.joint.distanceTo(leg.ankle)]),
+      // The widest the forearm gets, which is the figure the blade-clearance
+      // tests are written against. It is a constant of the sweep now rather
+      // than a mesh scale, and it is checked so it cannot drift away from them.
+      forearmRadius: this.arms.map(() => .0475),
       charging: this.charging, downPitch: this.root.position.z - GAME.stanceZ,
       backToe: this.legs[1].shoe.localToWorld(new THREE.Vector3(0, -.07, .225)).toArray(),
       bladeContact: this.bat.localToWorld(new THREE.Vector3(0, -.44, 0)).toArray(),
@@ -2394,12 +2582,12 @@ export class Batter {
       // handle: a forearm lying along the handle runs through the bat.
       cuffAim: this.arms.map(arm => {
         const hand = arm.wrist;
-        const forearm = arm.elbow.position.clone().sub(hand).normalize();
+        const forearm = arm.joint.clone().sub(hand).normalize();
         const cuff = new THREE.Vector3(0, 1, 0).applyQuaternion(arm.cuff.quaternion);
         const wristDirection = arm.socket.clone().normalize().applyQuaternion(arm.glove.quaternion).applyQuaternion(this.bat.quaternion);
         return { alongForearm: cuff.dot(forearm), flex: wristDirection.angleTo(forearm),
           socketError: arm.glove.localToWorld(arm.socket.clone()).sub(this.root.position).distanceTo(hand),
-          elbowOffHandle: this.offHandle(arm.elbow.position) };
+          elbowOffHandle: this.offHandle(arm.joint) };
       }),
     };
   }

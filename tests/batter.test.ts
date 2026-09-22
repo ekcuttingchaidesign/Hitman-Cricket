@@ -552,14 +552,22 @@ describe('the grip', () => {
           expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])),where).toBeLessThan(.30);
           expect(pose.cuffAim[i].socketError,where).toBeLessThan(1e-9);
           expect(pose.cuffAim[i].flex,where).toBeLessThan(Math.PI/2);
-          // A skin ball smaller than the sleeve radius left an open seam
-          // at the folded charge elbow despite correct joint coordinates.
-          expect(pose.elbowCoverage[i],where).toBeGreaterThan(0);
+          // There is no joint ball to under-cover any more: the arm is swept as
+          // one surface from shoulder to wrist, so the open seam this used to
+          // catch at the folded charge elbow cannot be built. What can still go
+          // wrong is the sweep's widest forearm radius drifting away from the
+          // figure the clearance tests below are all written against, which
+          // would leave those passing while the blade grazed him.
+          expect(pose.forearmRadius[i],where).toBe(.0475);
         }
         previous=pose;
       }
     }
-  });
+    // Twelve strokes across their reach, stepped every 2ms: about eleven
+    // thousand frames, and a frame now sweeps four limb surfaces rather than
+    // setting eight mesh transforms. At 0.25ms a frame that is a few seconds of
+    // real work, not a hang — the default 5s budget is what it outgrew.
+  }, 25_000);
   it('holds the handle with two hands that agree about it', () => {
     const batter = new Batter();
     let flattest = Infinity, wristWhere = '';
