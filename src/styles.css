@@ -4050,3 +4050,313 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .board-new::after{animation:none;display:none}
   .whatsnew-bar.is-live>i{animation:none;transform:scaleX(1)}
 }
+
+/* ── The career key ───────────────────────────────────────────────────────
+   One component in five sizes: a card that lives on My Stats for good, a
+   panel on the innings-end card, a line on the mode picker, a toast the first
+   time a key is handed out, and the modal all four of them open.
+
+   Blue rather than orange throughout, and that is not decoration. On My Stats
+   the share key is the orange one, and two orange keys stacked are two primary
+   actions arguing. Blue also says the right thing: this is the utility on the
+   screen, not the reward. */
+.key-card,.key-panel,.key-toast,.key-bar{
+  --key-ink:#eaf4fb;
+  --key-quiet:#9fb8c9;
+  --key-lit:#4f9ad4;
+  font-family:var(--card)
+}
+.key-card{
+  width:100%;
+  margin:0 0 12px;
+  padding:15px 16px 16px;
+  border:1px solid #4f9ad42e;
+  border-radius:14px;
+  /* Lifted off whatever it sits on rather than sunk into it: this is a thing
+     to act on, and a well reads as a thing to read. */
+  background:linear-gradient(#173a52,#122c3f);
+  box-shadow:0 5px 0 #08131c,inset 0 1px 0 #ffffff14;
+  text-align:left
+}
+.key-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.key-head h3{
+  flex:1;
+  margin:0;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--key-quiet)
+}
+.key-mark{display:flex;color:var(--key-lit)}
+.key-mark svg{width:17px;height:17px}
+.key-mark.is-big svg{width:26px;height:26px}
+/* A circle rather than a glyph on its own, so it reads as a key to press on a
+   card where every other small mark is decoration. */
+.key-info{
+  display:grid;
+  place-items:center;
+  width:21px;
+  height:21px;
+  padding:0;
+  border:1px solid #ffffff2e;
+  border-radius:50%;
+  background:#ffffff0f;
+  color:var(--key-quiet);
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:800;
+  font-style:italic;
+  line-height:1
+}
+.key-info:hover{background:#ffffff1c;color:var(--key-ink)}
+/* The key itself, which is the one thing on the widget anybody reads. Sunk,
+   so it looks like something written down rather than something said, and
+   wide-tracked so three words and a number are three words and a number
+   rather than a password. */
+.key-code{
+  margin:0 0 10px;
+  padding:11px 12px;
+  border:1px dashed #4f9ad44a;
+  border-radius:10px;
+  background:#0b1e2c;
+  color:var(--key-ink);
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.6px;
+  text-align:center;
+  /* Long keys break rather than shrink: eight-letter words are in the list and
+     a key that shrinks to fit is a key somebody misreads. */
+  overflow-wrap:anywhere
+}
+.key-code.is-small{font-size:13.5px;padding:8px 10px;margin-bottom:9px}
+.key-code.is-big{font-size:17px;padding:13px 14px;margin:0 0 12px}
+.key-line{
+  margin:0 0 12px;
+  font-size:11.5px;
+  line-height:1.5;
+  color:var(--key-quiet)
+}
+/* The lit plate, the same shape as the game's other keys. Its stroke and ledge
+   are a saturated blue rather than a darker navy: on a navy card a darker edge
+   is not an edge, which is how the first Change Mode key came out flat. */
+.key-save{
+  display:block;
+  width:100%;
+  min-height:44px;
+  padding:0 14px;
+  border:2px solid #7cc2f0;
+  border-radius:11px;
+  background:var(--key-lit);
+  box-shadow:0 4px 0 #1e5c8c;
+  color:#062033;
+  font-family:var(--cta);
+  font-size:13px;
+  letter-spacing:1.3px
+}
+.key-save:hover:not(:disabled){background:#5aa8e0}
+.key-save:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #1e5c8c}
+.key-ghost{
+  display:block;
+  width:100%;
+  margin:9px 0 0;
+  padding:4px;
+  border:0;
+  background:none;
+  color:var(--key-quiet);
+  font-family:var(--card);
+  font-size:12px;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+.key-ghost:hover{color:var(--key-ink)}
+
+/* ── On the innings-end card ─────────────────────────────────────────────
+   A row rather than a stack. The card under it is what the player came to
+   look at, and this may not push the keys off the bottom of a short screen. */
+.key-panel{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  width:100%;
+  margin:0 0 12px;
+  padding:11px 12px;
+  border:1px solid #4f9ad42e;
+  border-radius:13px;
+  background:linear-gradient(#173a52,#122c3f);
+  box-shadow:0 4px 0 #08131c,inset 0 1px 0 #ffffff14;
+  text-align:left
+}
+.key-panel-say{flex:1;min-width:0}
+.key-panel-say h3{
+  margin:0 0 3px;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  color:var(--key-quiet)
+}
+.key-panel-say p{
+  margin:0;
+  color:var(--key-ink);
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.4px;
+  overflow-wrap:anywhere
+}
+.key-panel-key{
+  flex:none;
+  min-height:38px;
+  padding:0 15px;
+  border:2px solid #7cc2f0;
+  border-radius:10px;
+  background:var(--key-lit);
+  box-shadow:0 3px 0 #1e5c8c;
+  color:#062033;
+  font-family:var(--cta);
+  font-size:12px;
+  letter-spacing:1.2px
+}
+.key-panel-key:active{transform:translateY(2px);box-shadow:0 1px 0 #1e5c8c}
+
+/* ── On the mode picker ──────────────────────────────────────────────────
+   One line, twice, and then never. */
+.key-bar{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:min(392px,100%);
+  margin:0 auto 12px;
+  padding:9px 10px 9px 12px;
+  border:1px solid #4f9ad43a;
+  border-radius:11px;
+  background:#132f43cc;
+  color:#9fb8c9;
+  font-family:var(--card);
+  text-align:left
+}
+.key-bar-say{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#cfe3f1}
+.key-bar-go{
+  flex:none;
+  padding:5px 11px;
+  border-radius:7px;
+  background:var(--key-lit);
+  color:#062033;
+  font-family:var(--cta);
+  font-size:11px;
+  letter-spacing:1.1px
+}
+.key-bar:hover{background:#17384f}
+
+/* ── The first one, the moment a name is claimed ─────────────────────────
+   Dismissed by hand, never on a clock. It lands as the board opens on the row
+   they have just taken, and anything that takes itself away while somebody is
+   looking at their own name was never read. */
+.key-toast{
+  position:relative;
+  width:min(392px,100%);
+  margin:0 auto;
+  padding:15px 16px 16px;
+  border:1px solid #4f9ad44a;
+  border-radius:14px;
+  background:linear-gradient(#1a4260,#102b3e);
+  box-shadow:0 10px 26px #04101a7a,inset 0 1px 0 #ffffff1a;
+  text-align:left
+}
+.key-toast-close{
+  position:absolute;
+  top:6px;
+  right:6px;
+  width:28px;
+  height:28px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:none;
+  color:#9fb8c9;
+  font-size:19px;
+  line-height:1
+}
+.key-toast-close:hover{background:#ffffff14;color:#eaf4fb}
+.key-toast-say{
+  margin:0 24px 10px 0;
+  font-size:12.5px;
+  line-height:1.5;
+  color:#9fb8c9
+}
+.key-toast-say b{color:#eaf4fb}
+
+/* ── The modal every one of them opens ───────────────────────────────────
+   The only place a key is ever saved. */
+.key-modal{
+  position:absolute;
+  inset:0;
+  z-index:11;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:var(--pad-top) var(--pad);
+  background:#0c1e2ae8;
+  overflow-y:auto
+}
+.key-sheet{
+  --key-ink:#eaf4fb;
+  --key-quiet:#9fb8c9;
+  --key-lit:#4f9ad4;
+  width:min(392px,100%);
+  margin:auto;
+  padding:22px 22px 18px;
+  border:1px solid #ffffff1f;
+  border-radius:18px;
+  background:#0f2738;
+  font-family:var(--card);
+  text-align:center
+}
+.key-sheet h2{
+  margin:9px 0 12px;
+  font-family:var(--display);
+  font-size:25px;
+  font-weight:400;
+  color:#f7f0e5
+}
+.key-sheet .key-mark{justify-content:center}
+.key-sheet-say{
+  margin:0 0 11px;
+  font-size:12.5px;
+  line-height:1.6;
+  color:var(--key-quiet);
+  text-wrap:pretty
+}
+.key-sheet-key{
+  display:block;
+  width:100%;
+  min-height:48px;
+  margin:0 0 9px;
+  border-radius:11px;
+  font-family:var(--cta);
+  font-size:13px;
+  letter-spacing:1.3px
+}
+/* The one that finishes the job, so it is the one that looks like a key. */
+.key-sheet-key.is-whatsapp{
+  border:2px solid #7cc2f0;
+  background:var(--key-lit);
+  box-shadow:0 4px 0 #1e5c8c;
+  color:#062033
+}
+.key-sheet-key.is-whatsapp:active{transform:translateY(3px);box-shadow:0 1px 0 #1e5c8c}
+/* Copy is the lesser save and reads as the lesser key: it lives in one slot
+   that the next copy takes, and leaves the player something still to do. */
+.key-sheet-key.is-copy{
+  border:1px solid #ffffff2e;
+  background:#ffffff12;
+  color:#dbe9f3
+}
+.key-sheet-key.is-copy:hover{background:#ffffff1c}
+.key-fine{
+  margin:2px 0 0;
+  font-size:11px;
+  line-height:1.5;
+  color:#7e94a4;
+  text-wrap:pretty
+}
