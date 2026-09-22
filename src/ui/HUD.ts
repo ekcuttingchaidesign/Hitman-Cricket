@@ -4,7 +4,7 @@ import {
   gameLink, shareFileName, shareFileType, shareText, statsFileName, statsShareText,
   statsStoryText, statsWhatsappLink, whatsappLink,
 } from '../game/Share';
-import { track } from '../game/analytics';
+import { track, trackOnce } from '../game/analytics';
 import { feedbackGiven } from '../game/feedback';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
@@ -577,6 +577,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const says = statsExplain(label);
     const toast = document.getElementById('stats-toast');
     if (!says || !toast) return;
+    // Once per label per session. Counted per tap, one player prodding the same
+    // figure six times would read as six players not understanding it; what is
+    // worth knowing is how many sessions reached for an explanation at all, and
+    // which figure they reached for. A label everybody taps is a label that is
+    // not doing its job.
+    trackOnce(`stats-tap-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+      `Asked what ${label} counts`);
     toast.innerHTML = `<b>${escape(label)}</b><span>${escape(says)}</span>`;
     // Off and on again, so a second tap while the first is still up replays the
     // rise rather than swapping the words inside a toast that is already there.
@@ -609,6 +616,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       // with nothing peeking past it, which is the one thing this must not be.
       const at = this.railAt(rail);
       if (at === this.statsAt || at < 0 || at >= this.statsCards.length) return;
+      // The rail was built so the card behind peeks past the edge, on the
+      // argument that a player who can see there is something there will go and
+      // look. That is a claim about behaviour and this is the only thing that
+      // can say whether it was true.
+      trackOnce('stats-swipe', 'Swiped to the other card');
       this.statsAt = at;
       this.statsShown = this.statsCards[at]?.facts ?? this.statsShown;
       for (const dot of document.querySelectorAll<HTMLElement>('.stats-dot')) {
@@ -727,6 +739,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   closeStories() {
     window.clearTimeout(this.storyHold);
+    // Which card they were standing on when they left. Opening was already
+    // counted and answers nothing on its own: three cards read to the end and
+    // three cards abandoned on the first look identical from the other side,
+    // and they mean opposite things about whether the update introduced itself.
+    // `is-last` rather than a number, because the count will change and a
+    // dashboard comparing "left on 3" across two updates would be comparing
+    // the middle of one with the end of the other.
+    track(this.storyAt >= STORIES.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
+      'How far the What\u2019s new stories were read');
     this.$('whatsnew-overlay').classList.add('hidden');
     this.$('whatsnew-overlay').innerHTML = '';
     const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']

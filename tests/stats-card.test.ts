@@ -5,7 +5,7 @@ import {
   statsHitBoxes, surviveFacts,
 } from '../src/game/StatsCard';
 import { statsSheetMarkup } from '../src/ui/StatsSheet';
-import { TIERS, foundingGrant } from '../src/game/tier';
+import { TIERS, climbedTo, foundingGrant } from '../src/game/tier';
 import { statsShareText, statsStoryText, statsWhatsappLink, statsFileName } from '../src/game/Share';
 
 const blast = {
@@ -476,6 +476,63 @@ describe('what a card is made of', () => {
     expect(gold.tier.theme.accent).not.toBe(navy.tier.theme.accent);
     expect(gold.tier.theme.metal).toBe(true);
     expect(navy.tier.theme.metal).toBe(false);
+  });
+});
+
+describe('the rung a career has just climbed onto', () => {
+  const blast = (runs: number) => ({ ...emptyBlast(), innings: 9, runs });
+
+  it('says nothing while the career stays on its rung', () => {
+    expect(climbedTo('classic', blast(100), blast(300))).toBeNull();
+    expect(climbedTo('classic', blast(349), blast(349))).toBeNull();
+  });
+
+  it('names the rung on the innings that crosses onto it', () => {
+    // Read off the ladder rather than written out again: the thresholds are
+    // round numbers a person chose and the rule is what has to hold.
+    for (let i = 1; i < TIERS.length; i++) {
+      const at = TIERS[i].at.classic;
+      expect(climbedTo('classic', blast(at - 1), blast(at))?.key, TIERS[i].name).toBe(TIERS[i].key);
+      // And not again on the next innings, which is still on the same rung.
+      expect(climbedTo('classic', blast(at), blast(at + 50)), `past ${TIERS[i].name}`).toBeNull();
+    }
+  });
+
+  it('names the rung actually reached when two are cleared at once', () => {
+    // A career seeded, or one that went a long way in a single sitting, can
+    // pass a rung without ever being measured on it. What it climbed onto is
+    // where it now stands, not the one it stepped over.
+    const top = TIERS[TIERS.length - 1];
+    expect(climbedTo('classic', blast(0), blast(top.at.classic))?.key).toBe(top.key);
+  });
+
+  it('counts nothing for a first innings, which is an arrival', () => {
+    expect(climbedTo('classic', null, blast(5000))).toBeNull();
+  });
+
+  it('never reports a fall', () => {
+    // Every figure a tier is read off only rises, so a drop means the two were
+    // measured against different rules rather than that somebody was demoted.
+    expect(climbedTo('classic', blast(5000), blast(100))).toBeNull();
+  });
+
+  it('holds a granted tier as a floor rather than a promotion', () => {
+    // Handed STAR on day one, then played two innings. They were STAR before
+    // and they are STAR after, so nothing has been climbed.
+    const star = foundingGrant(1);
+    expect(climbedTo('classic', blast(148), blast(400), star)).toBeNull();
+    // And the climb that does happen is onto the rung above the grant.
+    const hitman = TIERS[TIERS.length - 1];
+    expect(climbedTo('classic', blast(148), blast(hitman.at.classic), star)?.key).toBe(hitman.key);
+  });
+
+  it('reads a Test career off its own thresholds', () => {
+    const test = (balls: number) => ({ ...emptySurvive(), innings: 9, balls });
+    const at = TIERS[1].at.survive;
+    expect(climbedTo('survive', test(at - 1), test(at))?.key).toBe(TIERS[1].key);
+    // The Blast's threshold is a long way higher, so the same figures on the
+    // other ladder have not climbed anything.
+    expect(climbedTo('classic', blast(at - 1), blast(at))).toBeNull();
   });
 });
 

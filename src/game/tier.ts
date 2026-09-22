@@ -327,6 +327,35 @@ export function nextLine(mode: CareerMode, standing: Standing): string {
  * worth having get to look like it. Everybody below sixteen earns theirs the
  * ordinary way, which is also what everybody who arrives from now on does.
  */
+/**
+ * The rung a career has just climbed onto, or null where it has not moved.
+ *
+ * Lives here rather than where it is counted because it is a question about the
+ * ladder, and because a rule kept inside the thing that reports it is a rule
+ * nothing can check. The two records go in, a tier comes out, and the test can
+ * walk a career over a threshold and watch what it says.
+ *
+ * Only upward. Every figure a tier is read off is a sum or a maximum, so it
+ * cannot fall; a drop would mean the two records were measured against
+ * different rules rather than that anybody was demoted, and reporting it would
+ * put a promotion on the dashboard that nobody earned.
+ */
+export function climbedTo(
+  mode: CareerMode,
+  was: BlastCareer | SurviveCareer | null,
+  now: BlastCareer | SurviveCareer,
+  granted: Granted | null = null,
+): Tier | null {
+  // Nothing to have climbed from. A first innings is an arrival rather than a
+  // promotion, and counting it would make every new player a climber.
+  if (!was) return null;
+  const before = standingOf(mode, was, granted).tier;
+  const after = standingOf(mode, now, granted).tier;
+  if (before.key === after.key) return null;
+  const rung = (tier: Tier) => TIERS.findIndex(one => one.key === tier.key);
+  return rung(after) > rung(before) ? after : null;
+}
+
 export function foundingGrant(place: number): Granted | null {
   if (place >= 1 && place <= 5) {
     return { key: 'star', reason: `Founding place · ${ordinal(place)} on the board` };

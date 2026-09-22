@@ -33,12 +33,12 @@ import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
 } from './game/career-api';
-import { blastTally, type BlastTally, type SurviveTally } from './game/career';
+import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
-import type { Granted } from './game/tier';
+import { climbedTo, type Granted } from './game/tier';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
@@ -532,6 +532,10 @@ export class Game {
    */
   private mark(name: string, title: string) {
     track(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
+  }
+  /** The same, for the moments that must not be counted twice in one session. */
+  private markOnce(name: string, title: string) {
+    trackOnce(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
   }
   private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials); }
   private shoot = (shot: ShotType, inputTimeMs: number) => {
@@ -1429,6 +1433,12 @@ export class Game {
     const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
       if (this.disposed) return true;
       if (!mine?.career) return false;
+      // Read before the held record is replaced, because the climb is the
+      // difference between the two and there is nowhere else it is written
+      // down. The mirror stands in on the first innings of a session, when
+      // nothing has been fetched yet: it is this browser's own last word on
+      // the career and it is what the card would have drawn.
+      this.markClimb(mode, this.myCareer[mode]?.career ?? heldCareer(mode), mine.career, mine.granted ?? null);
       this.myCareer[mode] = {
         career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
       };
@@ -1441,6 +1451,25 @@ export class Game {
       if (landed || this.disposed) return;
       setTimeout(() => { if (!this.disposed) void send(); }, RETRY_MS);
     });
+  }
+
+  /**
+   * A rung climbed, counted once.
+   *
+   * The ladder is the whole argument for a career board — an all-time total
+   * nobody is climbing is a list — and until now nothing said whether anybody
+   * was climbing it. It is the rarest event the game sends and the one that
+   * says most: a rung nobody reaches is the same as no rung at all, and that is
+   * a sentence about thresholds that only this can settle.
+   *
+   * Once per rung per session, because the innings that carries a player over
+   * is deliberately sent twice — a reply lost on the way back is
+   * indistinguishable from a request that never arrived — and a promotion
+   * counted twice is a promotion that did not happen.
+   */
+  private markClimb(mode: CareerMode, was: AnyCareer | null, now: AnyCareer, granted: Granted | null) {
+    const climbed = climbedTo(mode, was, now, granted);
+    if (climbed) this.markOnce(`tier-${climbed.key}`, `Reached ${climbed.name}`);
   }
 
   private end() {
