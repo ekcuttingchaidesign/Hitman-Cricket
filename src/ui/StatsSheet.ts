@@ -66,13 +66,18 @@ export interface StatsSheetView {
    */
   careerKey?: KeyView | null;
   /**
-   * Whether to offer the way back on an empty card.
+   * Whether to offer the way back under the figures.
    *
-   * Only on an empty one. A player looking at nought innings is either new or
-   * wiped and we cannot tell which — so the offer is a quiet line under the
-   * figures rather than anything that would read as a warning to somebody who
-   * has simply not batted yet. Once there are figures on the card, the person
-   * looking at them is plainly not lost.
+   * On every card, not only an empty one. It was only on an empty one, on the
+   * reasoning that figures mean the player is not lost — which is exactly
+   * backwards for the first innings. Somebody whose phone has forgotten them
+   * does not come here first; they play, because that is what the game is for,
+   * and only then go looking for the career that is missing. By the time they
+   * look, the card has an innings on it and the way back had just gone.
+   *
+   * It stays a quiet line at the foot rather than anything louder, because on
+   * a card with forty innings on it there is nothing to bring back and the
+   * line is simply never read.
    */
   offerRestore?: boolean;
 }
@@ -105,9 +110,9 @@ ${many ? dotsMarkup(cards, at) : ''}
       <p id="stats-status" class="stats-status hidden" role="status" aria-live="polite"></p>
       <p class="stats-note">${cards.some(card => card.facts.played)
         ? 'Tap any figure to see what it counts. The link to play rides along with the card.'
-        : `Play an innings and these figures start filling up.${view.offerRestore
-          ? `<br>Played before? ${restoreLinkMarkup('stats-restore', 'Bring your record back')}`
-          : ''}`}</p>
+        : 'Play an innings and these figures start filling up.'}${view.offerRestore
+  ? `<br>Played before? ${restoreLinkMarkup('stats-restore', 'Bring your record back')}`
+  : ''}</p>
       <div id="stats-toast" class="stats-toast" role="status" aria-live="polite"></div>
     </div>`;
 }

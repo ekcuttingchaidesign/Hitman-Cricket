@@ -599,3 +599,41 @@ describe('the head start the first players get', () => {
     expect(facts.ladder.granted).toBeFalsy();
   });
 });
+
+/**
+ * Where the way back is offered, which is a decision about a view object and
+ * so belongs here rather than in a browser.
+ *
+ * It was offered on an empty card alone, on the reasoning that figures mean
+ * the player is not lost. That is backwards for the first innings, and it was
+ * reported missing from a preview by somebody who hit it exactly: nobody whose
+ * phone has forgotten them opens this screen first. They play, because that is
+ * what the game is for, and only then go looking for the career that is gone —
+ * by which time the card has an innings on it and the offer had vanished.
+ */
+describe('the way back, under the figures', () => {
+  const card = (played: boolean) => ({
+    facts: statsFacts('classic', played ? blast : emptyBlast(), { name: 'Rohit', avatar: 0 }),
+  });
+
+  it('is offered on a card with nothing on it', () => {
+    expect(statsSheetMarkup({ cards: [card(false)], offerRestore: true })).toContain('stats-restore');
+  });
+
+  it('is offered just the same once there are figures', () => {
+    expect(statsSheetMarkup({ cards: [card(true)], offerRestore: true })).toContain('stats-restore');
+  });
+
+  it('is offered on neither where the game cannot answer it', () => {
+    expect(statsSheetMarkup({ cards: [card(false)] })).not.toContain('stats-restore');
+    expect(statsSheetMarkup({ cards: [card(true)] })).not.toContain('stats-restore');
+  });
+
+  /** The note it shares still says the thing the card came to say. */
+  it('leaves the note underneath saying what it said', () => {
+    expect(statsSheetMarkup({ cards: [card(true)], offerRestore: true }))
+      .toContain('Tap any figure to see what it counts');
+    expect(statsSheetMarkup({ cards: [card(false)], offerRestore: true }))
+      .toContain('these figures start filling up');
+  });
+});

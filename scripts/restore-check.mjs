@@ -12,6 +12,12 @@
  * told their key is wrong is one keystroke from right, and a form that clears
  * itself sends them back to the beginning for a typo.
  *
+ * What is not here is whether the offer appears on a card that has figures on
+ * it — it used to not, which is the bug this screen was reported with. That is
+ * a decision `statsSheetMarkup` makes about a view object and nothing about it
+ * needs a browser, so it is a unit test in `tests/stats-sheet.test.ts` where it
+ * runs in milliseconds and cannot be flaky.
+ *
  * It needs no database. The check behind it is stubbed under `?demo=1` and
  * answers in the browser, which is exactly what the real one must never do —
  * what is kept is a salted hash, so only the store can say whether a key is
