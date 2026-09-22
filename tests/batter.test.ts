@@ -279,6 +279,71 @@ describe('the bat and the body', () => {
   });
 });
 
+/**
+ * The shirt and the trousers are lathed skins rather than the two scaled spheres
+ * they replaced, and the whole suite of blade-clearance checks above measures the
+ * bat against those spheres — `deepest` takes ellipsoid radii, not a mesh.
+ *
+ * That model stays honest only while nothing is drawn outside the envelope it
+ * describes. So this walks the real vertices of the real geometry, in every pose
+ * of every stroke, and holds each one inside the union of the three ellipsoids
+ * the bat is tested against. A blade clear of the envelope is then clear of the
+ * figure, and reshaping the trunk does not silently invalidate every clearance
+ * figure in this file. Fail this and the clearance tests are guarding a shape
+ * that is no longer on screen.
+ */
+describe('the lathed torso', () => {
+  const inside = (point: Vector3, centre: Vector3, radii: Vector3, turn: Quaternion) => {
+    const p = point.clone().sub(centre).applyQuaternion(turn.clone().invert());
+    return Math.hypot(p.x / radii.x, p.y / radii.y, p.z / radii.z);
+  };
+  it('keeps the lathed torso inside the ellipsoids the bat is tested against', () => {
+    const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
+    const named = (batter: Batter, name: string) => {
+      let found: any;
+      batter.root.traverse((o: any) => { if (o.name === name) found = o; });
+      expect(found, `no mesh named ${name}`).toBeTruthy();
+      return found;
+    };
+    let worst = { value: -Infinity, part: '', where: '' };
+    for (const shot of STROKES) {
+      for (const ballY of [.54, 1.12]) for (const ballX of [-.55, 0, .55]) {
+        const batter = new Batter();
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        const skins = [named(batter, 'Shirt, hem to collar'), named(batter, 'Trousers to the waistband')];
+        for (let time = 0; time <= STROKE_DURATION_MS; time += 40) {
+          batter.update(time);
+          const pose = batter.inspect();
+          batter.root.updateMatrixWorld(true);
+          const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+          const spine = chest.clone().sub(hip).normalize();
+          const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
+          const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
+          const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+          const parts: [Vector3, Vector3, Quaternion][] = [
+            [chest.clone().addScaledVector(spine, -.075), new Vector3(.205, .275, .145), torso],
+            [hip, new Vector3(.185, .145, .135), yaw],
+            [head, new Vector3(.188, .19, .195), torso],
+          ];
+          for (const skin of skins) {
+            const position = skin.geometry.attributes.position;
+            const vertex = new Vector3();
+            for (let i = 0; i < position.count; i++) {
+              vertex.fromBufferAttribute(position, i).applyMatrix4(skin.matrixWorld).sub(root);
+              // Inside the union: the closest-fitting ellipsoid is the one that
+              // has to contain it, so take the best of the three.
+              let best = Infinity;
+              for (const [centre, radii, turn] of parts) best = Math.min(best, inside(vertex, centre, radii, turn));
+              if (best > worst.value) worst = { value: best, part: skin.name, where: `${shot} y=${ballY} x=${ballX} @${time}ms` };
+            }
+          }
+        }
+      }
+    }
+    expect(worst.value, `${worst.part} reaches ${worst.value.toFixed(3)} of the envelope at ${worst.where}`).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('arm placement', () => {
   // The back elbow used to be aimed at a fixed point across the chest, which
   // buried it inside the torso in the guard and through the leg-side wrap.

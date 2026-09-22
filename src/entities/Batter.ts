@@ -1203,6 +1203,62 @@ function shoulderDriven(keys: readonly {time: number; pose: Pose}[], age: number
 
 export { solveJoint } from './rig';
 
+/**
+ * A surface of revolution from a bottom-to-top `[height, radius]` profile,
+ * flattened front to back. One of these is a whole trunk — chest, ribs, waist
+ * and hem in a single unbroken skin.
+ */
+function lathe(profile: readonly (readonly [number, number])[], depth: number, segments = 32) {
+  const geometry = new THREE.LatheGeometry(profile.map(([y, r]) => new THREE.Vector2(Math.max(r, .002), y)), segments);
+  geometry.scale(1, 1, depth);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  return geometry;
+}
+
+/**
+ * The trunk, in the torso's own space: the shirt, from a hem tucked into the
+ * trousers up to the collar.
+ *
+ * It replaces a single scaled sphere. The sphere was not the problem on its own
+ * — the problem was that the pelvis was a second sphere and the two crossed at
+ * the waist, and two spheres crossing leave a hard concave crease all the way
+ * round. There was never a hole there; it read as a join because a crease is
+ * what a join looks like. A profile puts the width where a torso has it: widest
+ * across the chest, drawn in at the waist, and narrowing into a collar instead
+ * of bulging back out to a pole.
+ *
+ * Every radius stays inside the ellipsoid the bat is tested against — centre
+ * .075 below the chest, radii .205/.275/.145 — at about 97% of it. Staying
+ * inside its *own* ellipsoid rather than borrowing room from the hips is what
+ * makes that true in every pose: the trunk and its envelope share a frame, so a
+ * spine that tilts or shortens cannot push one out of the other. The first
+ * draft of this profile did borrow from the hips, and the test below caught it
+ * on the defensive crouch, where the spine tilts far enough that the borrowed
+ * room is not there.
+ */
+const TRUNK_PROFILE: readonly (readonly [number, number])[] = [
+  [-.345, .036], [-.330, .072], [-.310, .100], [-.280, .130], [-.240, .156],
+  [-.190, .178], [-.130, .193], [-.075, .199], [-.020, .193], [.030, .182],
+  [.080, .162], [.125, .134], [.160, .101], [.185, .062], [.198, .022],
+];
+
+/**
+ * The trousers from the seat up to the waistband, in the hips' own space, and
+ * inside their own ellipsoid (radii .185/.145/.135) on the same terms as the
+ * trunk.
+ *
+ * The shirt is worn tucked in, so the two skins still meet — but they meet at a
+ * shallow angle now, a little below the waist, where the trunk is drawing in
+ * steeply and the seat is still wide. What the silhouette does through there is
+ * what a body does: wide at the chest, narrow at the waist, wide again at the
+ * hips. Two spheres did the opposite, bulging at both ends of a crease.
+ */
+const PELVIS_PROFILE: readonly (readonly [number, number])[] = [
+  [-.142, .035], [-.132, .072], [-.115, .108], [-.085, .144], [-.045, .170],
+  [.000, .179], [.045, .170], [.080, .148], [.110, .116], [.130, .078], [.142, .035],
+];
+
 export class Batter {
   private poseAge = 0;
   readonly root = new THREE.Group();
@@ -1237,22 +1293,42 @@ export class Batter {
   private ballX = 0;
   private ballY = .54;
   private ballZ: number = GAME.contactZ;
-  // Every part is modelled from one of four smooth unit primitives, scaled into
-  // place. Nothing is a bare cube, so the figure reads as sculpted clay.
+  // Every part is modelled from one of a handful of smooth unit primitives,
+  // scaled into place. Nothing is a bare cube, so the figure reads as sculpted
+  // clay rather than as a kit of parts.
   private shapes = {
-    soft: new RoundedBoxGeometry(1, 1, 1, 4, .3),
-    ball: new THREE.SphereGeometry(1, 26, 18),
-    tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
-    flat: new THREE.BoxGeometry(1, 1, 1),
+    soft: new RoundedBoxGeometry(1, 1, 1, 5, .3),
+    ball: new THREE.SphereGeometry(1, 32, 24),
+    tube: new THREE.CylinderGeometry(.5, .5, 1, 24, 1),
+    /**
+     * A limb, tapering towards the joint it points at. `segment` puts the top of
+     * this at the far end, so the top is the narrow one: an arm is thickest at
+     * the shoulder and thinnest at the wrist. An untapered tube is most of why a
+     * limb reads as plumbing with beads on it — the joint ball has to bulge past
+     * a constant radius to close the seam, so it shows as a bead instead of
+     * disappearing into the bend.
+     */
+    limb: new THREE.CylinderGeometry(.5, .62, 1, 24, 1),
+    /** Shoulders to hem in one piece; see `TRUNK_PROFILE`. */
+    trunk: lathe(TRUNK_PROFILE, .145 / .205),
+    /** The waistband the shirt tucks into; see `PELVIS_PROFILE`. */
+    pelvis: lathe(PELVIS_PROFILE, .135 / .185),
     blade: bladeGeometry(),
   };
   private palette = {
-    shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
+    // Cloth, with the sheen lobe that separates fabric from painted plastic: a
+    // shirt catches a soft rim of light where it turns away from the sun, and a
+    // plain rough dielectric does not. It is the one thing that makes a matte
+    // surface read as woven rather than as moulded.
+    shirt: new THREE.MeshPhysicalMaterial({ color: 0x19334a, roughness: .88, sheen: .55, sheenRoughness: .82, sheenColor: new THREE.Color(0xbfd2e6) }),
     // The helmet is its own material rather than the shirt's, because it is navy
     // in both innings: a cricketer's lid does not change colour when the rest of
-    // the kit does, and in whites a cream one read as a bald head.
-    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
-    trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
+    // the kit does, and in whites a cream one read as a bald head. It is also
+    // the one lacquered thing he wears, so it gets a clearcoat — a hard, tight
+    // highlight over the navy, where roughness alone gave it the same dead
+    // finish as his sleeves.
+    helmet: new THREE.MeshPhysicalMaterial({ color: 0x18314a, roughness: .52, clearcoat: .7, clearcoatRoughness: .26 }),
+    trousers: new THREE.MeshPhysicalMaterial({ color: 0xe7e2d3, roughness: .82, sheen: .45, sheenRoughness: .85, sheenColor: new THREE.Color(0xe8e2d2) }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
@@ -1282,8 +1358,8 @@ export class Batter {
     // shoulders sounds right but breaks the surface all the way round and, once
     // the batter bends forward, humps out behind the neck. The deltoid caps on
     // the arms carry the shoulder line instead.
-    this.mesh(this.hips, this.palette.trousers, [.185, .145, .135], 'ball');
-    this.mesh(this.torso, this.palette.shirt, [.205, .275, .145], 'ball').position.y = -.075;
+    this.mesh(this.hips, this.palette.trousers, [1, 1, 1], 'pelvis').name = 'Trousers to the waistband';
+    this.mesh(this.torso, this.palette.shirt, [1, 1, 1], 'trunk').name = 'Shirt, hem to collar';
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
     // Jersey seam, collar, and back number make rotation legible from the camera.
     this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.33;
@@ -1335,7 +1411,7 @@ export class Batter {
       const cuff = new THREE.Group(); this.root.add(cuff);
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
-      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
+      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'limb'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'limb'),
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
@@ -1348,8 +1424,8 @@ export class Batter {
       this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);
       this.mesh(shoe, this.palette.handle, [.185, .035, .33], 'soft').position.set(0, -.055, .055);
       this.mesh(shoe, this.palette.accent, [.19, .022, .09], 'soft').position.set(0, .015, .12);
-      this.legs.push({ thigh: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'tube'), shin: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'tube'),
-        knee: this.mesh(this.root, this.palette.trousers, [.078, .078, .078], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.115, .115, .115], 'ball'),
+      this.legs.push({ thigh: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'limb'), shin: this.mesh(this.root, this.palette.trousers, [1, 1, 1], 'limb'),
+        knee: this.mesh(this.root, this.palette.trousers, [.084, .084, .084], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.115, .115, .115], 'ball'),
         pad, shoe });
     }
     this.reset();
@@ -2137,8 +2213,12 @@ export class Batter {
         // knuckles into an open palm or flip the visible grip during a shot.
         this.segment(arm.palm[0],arm.socket.clone().multiplyScalar(.40),arm.socket,.081,.080);
       }
-      this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
-      this.segment(arm.lower, elbow, hand, .095);
+      // .62 of the width at the anchor and .5 at the far joint, so these are the
+      // old .14/.145 and .095 divided by .62: an arm no wider at the shoulder
+      // than it was, and tapering from there. The forearm's widest radius stays
+      // exactly .0475, which is the figure the blade-clearance tests use.
+      this.segment(arm.upper, arm.shoulder, elbow, .1129, .1169);
+      this.segment(arm.lower, elbow, hand, .0766);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
       // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
@@ -2163,8 +2243,8 @@ export class Batter {
         kneePole.lerp(new THREE.Vector3(i===0 ? .04 : .35,-.15,.65),weight);
       }
       const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(kneePole));
-      this.segment(leg.thigh, hipJoint, knee, .175, .19);
-      this.segment(leg.shin, knee, foot, .145, .16);
+      this.segment(leg.thigh, hipJoint, knee, .1411, .1532);
+      this.segment(leg.shin, knee, foot, .1169, .1290);
       leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);
       const lowerAxis = knee.clone().sub(foot).normalize();
       const shoeYaw = i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);
