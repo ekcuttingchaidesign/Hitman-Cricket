@@ -1901,6 +1901,25 @@ body.start-screen .hud-top{display:none}
    The ground behind it is lighter than the one behind the innings card, on
    purpose: an innings is over and the field can go dark, but a pause is a game
    still standing there waiting, and it should look like one. */
+/* The card and its footnote, stacked. The note is not part of the card: it is
+   about leaving the innings rather than about the card's contents, and inside
+   the card it would sit under two keys as though it belonged to the second
+   one. Below it, in the room the card does not use, it reads as a note on the
+   screen — which is what it is. */
+#pause-overlay{flex-direction:column;justify-content:center}
+#pause-overlay>.pause-card{margin:0}
+.pause-foot{
+  width:min(392px,100%);
+  /* Far enough to be a footnote rather than a third line of the card, close
+     enough to still be about the keys above it. */
+  margin:16px auto 0;
+  text-align:center;
+  font-family:var(--card);
+  font-size:11.5px;
+  line-height:1.55;
+  color:#9fb2bdcc;
+  text-wrap:pretty
+}
 .pause-card{
   padding:22px 26px 20px;
   /* The scorecard is a left-hand column of figures. This is two keys and a
@@ -1944,36 +1963,6 @@ body.start-screen .hud-top{display:none}
    them without breaking. */
 .pause-card .card-shares{margin-top:11px}
 .pause-card .card-shares .story-key{margin-top:0;font-size:12.5px;letter-spacing:.6px}
-/* What pressing it costs, inside the key rather than beside it — the same
-   shape the private-window key uses, because it is the same kind of sentence:
-   a consequence the player would otherwise only discover afterwards. Restart
-   is the one key on this card whose meaning is genuinely ambiguous. Change
-   mode announces that it is leaving; resume announces that it is not; restart
-   could as easily mean "play the same innings again from here", and the answer
-   matters now that an innings adds to a career rather than only chasing a
-   best. Stacked rather than inline so the key keeps its height and the row
-   stays the pair of equals it was. */
-.pause-card .card-shares .story-key:has(small){
-  flex-direction:column;
-  gap:2px;
-  line-height:1.05;
-  padding:7px 4px
-}
-.pause-card .card-shares .story-key small{
-  font-family:var(--card);
-  font-size:8.5px;
-  font-weight:800;
-  letter-spacing:.9px;
-  text-indent:.9px;
-  /* Lighter than the key's own ink: it is a footnote to the word above it, and
-     at full strength it competes with the thing it is annotating. */
-  color:#ffeedeb0;
-  /* Allowed to wrap. At the narrowest phone the key is barely a hundred points
-     across and the line does not fit on one; wrapping keeps the sentence whole
-     rather than trimming it to something terser and vaguer, and the row stays
-     level because both keys stretch together. */
-  text-wrap:balance
-}
 .pause-card .story-key{margin-top:11px}
 .pause-card .start-hint{margin-top:10px;color:var(--quiet)}
 
