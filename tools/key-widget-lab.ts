@@ -1,5 +1,5 @@
 /**
- * The career key, in every state and in three skins.
+ * The career key, in every state.
  *
  * The widget is wanted before it is wired: what it says and how it sits are
  * decisions to settle by looking, and looking at it inside the game means
@@ -31,29 +31,20 @@ const USUAL = keyText(['yorker', 'sprint', 'cover'], 47);
 const LONG = keyText(['stamina', 'sessions', 'boundary'], 93);
 
 /**
- * Three ways to colour the same thing.
- *
- * `card` is the game's own scorecard, unchanged: the widget is furniture on a
- * screen full of furniture and does not announce itself. `ticket` gives the
- * key a cream stub to sit on, so the one thing worth reading is the one thing
- * that is not dark — the delight is in the form rather than in another colour.
- * `night` is the black the STAR card is made of, with the orange kept for the
- * key alone, for a widget that reads as the valuable thing on the screen.
- */
-/**
- * The holographic pass, in every state.
+ * The dark pass with its foil window, in every state.
  *
  * One skin now rather than three: the card was drawn in Figma and the foil is
  * that frame's blend stack rebuilt in CSS, so there is nothing left to choose
- * between. What is still worth looking at is whether the foil survives being
- * asked to be a 36-pixel row and a one-line bar, and whether black type holds
- * up wherever the dark bands of the sweep happen to fall.
+ * between. What is still worth looking at is whether the window survives being
+ * asked to be a 36-pixel row, whether black type holds up wherever the dark
+ * bands of the sweep happen to fall, and whether the bar — which has no key on
+ * it and so no foil at all — still reads as the same component.
  */
 const SKINS: { key: string; name: string; note: string; css: string }[] = [
   {
     key: 'foil',
     name: 'Holographic',
-    note: 'The drawn card, at phone scale: the frame divided by 2.1, so the proportions are the ones designed rather than fresh round numbers.',
+    note: 'The drawn card at phone scale: charcoal plate, foil only in the key window, and a white key on a short grey ledge.',
     css: '',
   },
 ];
@@ -120,7 +111,7 @@ stage.innerHTML = `
   </style>
   <div class="lab">
     <h1>Career key</h1>
-    <p class="intro">Three skins of the same component, every state, at the width a 390px phone
+    <p class="intro">Every state of the same component, at the width a 390px phone
       gives each one. The structure is identical down all three columns &mdash; only the fourteen
       colour variables differ. Words are placeholders chosen for length, so the layout is judged
       rather than the vocabulary.</p>

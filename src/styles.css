@@ -4052,108 +4052,62 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 
 /* ── The career key ───────────────────────────────────────────────────────
-   The holographic pass, off the Figma frame, at phone scale.
+   The dark pass with a foil window, off the Figma frame, at phone scale.
 
-   Everything here is the design divided by 2.1 — the frame is 765 across and
-   a phone gives the widget about 364 — so the proportions are the drawn ones
-   rather than a fresh set of round numbers that happen to look close.
+   Everything here is the design multiplied by 0.476 — the frame is 765 across
+   and a phone gives the widget about 364 — so the proportions are the drawn
+   ones rather than a fresh set of round numbers that happen to look close.
+   Body copy is the one exception: 20px on a 765 frame lands at 9.5, which is
+   below the size anything is read at, so the two prose sizes are set by what
+   is legible and the drawn ones stop at the headings.
 
-   The foil is three layers doing what Figma's blend stack does: a dark base,
-   an iridescent radial differenced against a light-dark sweep, and a second
-   sweep screened over the top. Difference is what turns a pretty rainbow into
-   foil — it inverts the spectrum wherever the sweep is light, so the colour
-   bands and the shine bands cross each other instead of sitting in layers. */
+   The foil is only in the window. That is the whole of this revision: a card
+   that was iridescent edge to edge asked for more of the screen than a thing
+   you are meant to notice once and then live with. Now the card is charcoal
+   and the key inside it is the only bright thing, which is also the right way
+   round — the foil is drawing the eye to the string that matters rather than
+   to the panel holding it. */
 .key-pass,.key-panel,.key-toast,.key-bar,.key-sheet{
-  --foil-base:linear-gradient(102.05deg,#371e1e -3.34%,#330909 104.52%);
-  --foil-sweep:linear-gradient(101.45deg,
-    #ffffff99 4.42%,#00000099 33.79%,#ffffff99 59.83%,#00000099 86.98%,#ffffff99 110.81%);
-  --foil-spectrum:radial-gradient(139.09% 181.03% at 98.11% 7.72%,
-    #2ad0ca 0%,#fffc2f 22.92%,#feb0fe 42.27%,#abb3fc 61.77%,#5df7a4 81.91%,#58c4f6 100%);
-  --foil-sheen:linear-gradient(101.45deg,
-    #fff 4.42%,#000 33.79%,#fff 59.83%,#000 86.98%,#fff 110.81%);
+  /* One dark plate for every placement. Declared here and nowhere else: the
+     moment a component redeclares it, an ancestor can no longer override it. */
+  --key-plate:linear-gradient(102.05deg,#141414 -3.34%,#464646 55.11%,#000 104.52%);
+  /* The stroke and the ledge under the white key, which are the same grey in
+     the frame — on charcoal a black ledge disappears and a coloured one
+     becomes a second accent competing with the foil. */
+  --key-ledge:#5b5b5b;
   position:relative;
   isolation:isolate;
-  background:var(--foil-base);
+  background:var(--key-plate);
+  color:#fff;
   font-family:var(--card)
 }
-/* The foil itself, under everything and clipped to the card's own corners.
-   Two stacked layers rather than one: the first differences the spectrum
-   against a sweep, the second screens a sweep over the result, and neither
-   can be folded into the other because they blend against different things. */
-.key-foil{
-  position:absolute;
-  inset:0;
-  z-index:0;
-  border-radius:inherit;
-  background:var(--foil-sweep),var(--foil-spectrum);
-  background-blend-mode:difference,normal;
-  pointer-events:none
-}
-.key-foil::after{
-  content:'';
-  position:absolute;
-  inset:0;
-  border-radius:inherit;
-  background:var(--foil-sheen);
-  mix-blend-mode:screen
-}
-/* Everything readable sits above the foil. */
+/* Everything readable sits on the plate; nothing is layered under it now. */
 .key-face{position:relative;z-index:1}
 
-.key-pass{
-  width:100%;
-  margin:0 0 12px;
-  border-radius:15px;
-  box-shadow:0 6px 18px #04091066
-}
-.key-pass .key-face{padding:13px 15px 14px}
-.key-stamp{display:flex;align-items:center;gap:8px;margin:0 0 9px}
-.key-mark{display:flex;color:#000}
-.key-mark svg{width:17px;height:17px}
-.key-mark.is-big svg{width:26px;height:26px}
-/* Jaro, tracked, black. The drawn title is the CTA face rather than the card
-   face — it is a stamp on a pass, not a heading on a panel. */
-.key-stamp h3{
-  flex:1;
-  margin:0;
-  font-family:var(--cta);
-  font-size:15px;
-  font-weight:400;
-  letter-spacing:.12em;
-  text-transform:uppercase;
-  color:#000
-}
-.key-info{
-  display:grid;
-  place-items:center;
-  width:20px;
-  height:20px;
-  padding:0;
-  border:1.5px solid #000;
-  border-radius:50%;
-  background:#0000;
-  color:#000;
-  font-family:var(--card);
-  font-size:11px;
-  font-weight:800;
-  font-style:italic;
-  line-height:1
-}
-.key-info:hover{background:#0000001f}
-/* The key in its window: a dark pane let into the foil, with the light caught
-   in the top-left corner the way it is on the frame. */
+/* The key in its window, and the only foil left.
+   Three layers doing what Figma's blend stack does: an iridescent radial over
+   a navy base differenced against a light-dark sweep, the same sweep screened
+   over the result, and a near-invisible pane carrying the inset shadow that
+   sinks the whole thing into the card. Difference is what turns a pretty
+   rainbow into foil — it inverts the spectrum wherever the sweep is light, so
+   the colour bands and the shine bands cross rather than stack. */
 .key-serial{
+  --foil-sweep:linear-gradient(101.45deg,
+    #fff 4.42%,#000 33.79%,#fff 59.83%,#000 86.98%,#fff 110.81%);
+  --foil-spectrum:radial-gradient(139.09% 181.03% at 98.11% 7.72%,
+    #2ad0ca 0%,#fffc2f 22.92%,#feb0fe 42.27%,#abb3fc 61.77%,#5df7a4 81.91%,#58c4f6 100%);
+  position:relative;
+  isolation:isolate;
   display:flex;
   align-items:center;
   justify-content:center;
   min-height:44px;
-  margin:0 0 5px;
+  margin:0 0 11px;
   padding:6px 10px;
-  border:2px solid #000;
-  border-radius:9px;
-  background:#000000b3;
-  box-shadow:inset 6px 5px 2px #00000040;
-  color:#fff;
+  border-radius:9.5px;
+  background:var(--foil-sweep),var(--foil-spectrum),#11345f;
+  background-blend-mode:difference,normal,normal;
+  color:#000;
   font-family:var(--cta);
   font-size:17px;
   font-weight:400;
@@ -4161,43 +4115,96 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   text-align:center;
   overflow-wrap:anywhere
 }
+.key-serial::before,.key-serial::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none
+}
+.key-serial::before{background:var(--foil-sweep);mix-blend-mode:screen}
+.key-serial::after{background:#ffffff03;box-shadow:inset 1px 1px 2px #00000099}
+.key-serial>span{position:relative;z-index:1}
 .key-serial.is-inline{
   min-height:0;
   margin:0;
   padding:4px 8px;
-  border-width:1.5px;
   border-radius:7px;
   font-size:13px;
   letter-spacing:.08em
 }
-.key-serial.is-big{min-height:50px;font-size:19px;margin-bottom:8px}
+.key-serial.is-big{min-height:50px;font-size:19px;margin-bottom:12px}
+
+.key-pass{
+  width:100%;
+  margin:0 0 12px;
+  border-radius:15px;
+  box-shadow:0 6px 18px #04091066
+}
+.key-pass .key-face{padding:19px 24px 16px}
+.key-stamp{display:flex;align-items:center;gap:7px;margin:0 0 11px}
+.key-mark{display:flex;color:inherit}
+.key-mark svg{width:14px;height:14px}
+.key-mark.is-big svg{width:24px;height:24px}
+/* Jaro, tracked, white. It is a label over the window rather than a heading
+   on a panel, so it is set to the frame's ratio — half again under the key
+   it introduces — instead of competing with it. */
+.key-stamp h3{
+  flex:1;
+  margin:0;
+  font-family:var(--cta);
+  font-size:11.5px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#fff
+}
+.key-info{
+  display:grid;
+  place-items:center;
+  width:19px;
+  height:19px;
+  padding:0;
+  border:1.5px solid #ffffff8f;
+  border-radius:50%;
+  background:#0000;
+  color:#fff;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:800;
+  font-style:italic;
+  line-height:1
+}
+.key-info:hover{background:#ffffff26}
 .key-line{
-  margin:0 0 22px;
+  margin:0 0 16px;
   font-family:var(--card);
   font-size:11.5px;
   font-weight:500;
   line-height:1.45;
-  color:#000
+  color:#fff
 }
-/* The drawn key: white, a dark stroke, and a black slab under it rather than
-   a tinted ledge. On foil a coloured ledge is one more colour competing with
-   the card; black is the only thing that reads as shadow against all of it. */
+/* The drawn key: white, a grey stroke, and a short grey ledge under it. The
+   ledge is four pixels rather than the seven it used to be — on a plate this
+   dark the key is already the brightest thing on the widget, and a tall slab
+   under it made a button that only needed to be found look like the one thing
+   on the screen worth pressing. */
 .key-save{
   display:block;
   width:100%;
   min-height:41px;
   padding:0 12px;
-  border:2px solid #333433;
+  border:2px solid var(--key-ledge);
   border-radius:11px;
   background:#fff;
-  box-shadow:0 7px 0 #000,0 10px 20px #0000005c;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
   color:#000;
   font-family:var(--cta);
   font-size:15px;
   font-weight:400;
   letter-spacing:.04em
 }
-.key-save:active:not(:disabled){transform:translateY(5px);box-shadow:0 2px 0 #000,0 4px 9px #00000047}
+.key-save:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge),0 4px 9px #00000047}
 .key-ghost{
   display:block;
   width:100%;
@@ -4205,7 +4212,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   padding:3px;
   border:0;
   background:none;
-  color:#000;
+  color:#fff;
   font-family:var(--card);
   font-size:12px;
   font-weight:600;
@@ -4232,31 +4239,34 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .key-panel-say{flex:1;min-width:0}
 .key-panel-say h3{
-  margin:0 0 3px;
+  margin:0 0 4px;
   font-family:var(--cta);
   font-size:10px;
   font-weight:400;
   letter-spacing:.12em;
   text-transform:uppercase;
-  color:#000
+  color:#fff
 }
 .key-panel-key{
   flex:none;
   min-height:36px;
   padding:0 15px;
-  border:2px solid #333433;
+  border:2px solid var(--key-ledge);
   border-radius:10px;
   background:#fff;
-  box-shadow:0 5px 0 #000,0 7px 14px #0000004d;
+  box-shadow:0 4px 0 var(--key-ledge),0 7px 14px #0000004d;
   color:#000;
   font-family:var(--cta);
   font-size:12px;
   letter-spacing:.04em
 }
-.key-panel-key:active{transform:translateY(4px);box-shadow:0 1px 0 #000}
+.key-panel-key:active{transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
 
 /* ── On the mode picker ──────────────────────────────────────────────────
-   One line, twice, and then never. */
+   One line, twice, and then never. No foil at all: there is no key on this
+   line to put a window round, and a bar that shimmered on the screen every
+   tap of Play comes through would be the first thing in the game to become
+   furniture. */
 .key-bar{
   display:flex;
   align-items:center;
@@ -4269,7 +4279,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   box-shadow:0 4px 12px #04091052;
   text-align:left
 }
-.key-bar>*:not(.key-foil){position:relative;z-index:1}
 .key-bar .key-mark svg{width:15px;height:15px}
 .key-bar-say{
   flex:1;
@@ -4277,15 +4286,15 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-family:var(--card);
   font-size:12.5px;
   font-weight:700;
-  color:#000
+  color:#fff
 }
 .key-bar-go{
   flex:none;
   padding:6px 12px;
-  border:2px solid #333433;
+  border:2px solid var(--key-ledge);
   border-radius:8px;
   background:#fff;
-  box-shadow:0 4px 0 #000;
+  box-shadow:0 3px 0 var(--key-ledge);
   color:#000;
   font-family:var(--cta);
   font-size:11px;
@@ -4302,7 +4311,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border-radius:15px;
   box-shadow:0 14px 34px #040910a3
 }
-.key-toast .key-face{padding:13px 15px 14px}
+.key-toast .key-face{padding:15px 16px 15px}
 .key-toast-close{
   position:absolute;
   top:2px;
@@ -4313,11 +4322,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:0;
   border-radius:50%;
   background:none;
-  color:#000;
+  color:#fff;
   font-size:20px;
   line-height:1
 }
-.key-toast-close:hover{background:#0000001f}
+.key-toast-close:hover{background:#ffffff26}
 
 /* ── The modal every one of them opens ───────────────────────────────────
    The only place a key is ever saved. */
@@ -4347,14 +4356,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-weight:400;
   letter-spacing:.06em;
   text-transform:uppercase;
-  color:#000
+  color:#fff
 }
 .key-sheet-say{
   margin:0 0 10px;
   font-size:12px;
   font-weight:500;
   line-height:1.55;
-  color:#000;
+  color:#fff;
   text-wrap:pretty
 }
 .key-sheet-key{
@@ -4369,26 +4378,26 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The one that finishes the job wears the drawn key. */
 .key-sheet-key.is-whatsapp{
-  border:2px solid #333433;
+  border:2px solid var(--key-ledge);
   background:#fff;
-  box-shadow:0 7px 0 #000,0 10px 20px #0000005c;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
   color:#000
 }
-.key-sheet-key.is-whatsapp:active{transform:translateY(5px);box-shadow:0 2px 0 #000}
+.key-sheet-key.is-whatsapp:active{transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
 /* Copy is the lesser save and reads as the lesser key: it lives in one slot
    that the next copy takes, and leaves the player something still to do. */
 .key-sheet-key.is-copy{
-  border:2px solid #000;
+  border:2px solid #ffffff8f;
   background:#0000;
-  color:#000
+  color:#fff
 }
-.key-sheet-key.is-copy:hover{background:#0000001f}
+.key-sheet-key.is-copy:hover{background:#ffffff1f}
 .key-fine{
   margin:0;
   font-size:10.5px;
   font-weight:500;
   line-height:1.5;
-  color:#000000b8;
+  color:#ffffffb8;
   text-wrap:pretty
 }
 

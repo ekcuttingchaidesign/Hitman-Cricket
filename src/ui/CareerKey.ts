@@ -62,7 +62,6 @@ export function keyCardMarkup(view: KeyView): string {
   const saved = view.state === 'saved';
   return `
     <section class="key-pass is-${view.state}" aria-labelledby="key-card-title">
-      <div class="key-foil" aria-hidden="true"></div>
       <div class="key-face">
         <div class="key-stamp">
           <span class="key-mark" aria-hidden="true">${MARK}</span>
@@ -71,7 +70,7 @@ export function keyCardMarkup(view: KeyView): string {
             <span aria-hidden="true">i</span>
           </button>
         </div>
-        ${lost ? '' : `<p class="key-serial">${escape(view.code ?? '')}</p>`}
+        ${lost ? '' : `<p class="key-serial"><span>${escape(view.code ?? '')}</span></p>`}
         <p class="key-line">${lost
           ? 'Not on this phone. A key is only ever shown once, so it cannot be shown again \u2014 but you can make another.'
           : 'The only way back to your record if this browser forgets you'}</p>
@@ -91,12 +90,11 @@ export function keyCardMarkup(view: KeyView): string {
 export function keyPanelMarkup(view: KeyView): string {
   return `
     <section class="key-panel" aria-labelledby="key-panel-title">
-      <div class="key-foil" aria-hidden="true"></div>
       <div class="key-panel-face">
         <span class="key-mark" aria-hidden="true">${MARK}</span>
         <div class="key-panel-say">
           <h3 id="key-panel-title">Your career key</h3>
-          <p class="key-serial is-inline">${escape(view.code ?? '')}</p>
+          <p class="key-serial is-inline"><span>${escape(view.code ?? '')}</span></p>
         </div>
         <button id="key-panel-save" class="key-panel-key" type="button">SAVE</button>
       </div>
@@ -114,7 +112,6 @@ export function keyPanelMarkup(view: KeyView): string {
 export function keyBarMarkup(): string {
   return `
     <button id="key-bar" class="key-bar" type="button">
-      <span class="key-foil" aria-hidden="true"></span>
       <span class="key-mark" aria-hidden="true">${MARK}</span>
       <span class="key-bar-say">Save your career key</span>
       <span class="key-bar-go">SAVE</span>
@@ -132,7 +129,6 @@ export function keyBarMarkup(): string {
 export function keyToastMarkup(view: KeyView): string {
   return `
     <div class="key-toast" role="status">
-      <div class="key-foil" aria-hidden="true"></div>
       <div class="key-face">
         <button id="key-toast-close" class="key-toast-close" type="button" aria-label="Close">
           <span aria-hidden="true">&times;</span>
@@ -141,7 +137,7 @@ export function keyToastMarkup(view: KeyView): string {
           <span class="key-mark" aria-hidden="true">${MARK}</span>
           <h3>Your career key</h3>
         </div>
-        <p class="key-serial">${escape(view.code ?? '')}</p>
+        <p class="key-serial"><span>${escape(view.code ?? '')}</span></p>
         <p class="key-line">Keep it somewhere. It is the only way back to your record if this browser forgets you.</p>
         <button id="key-toast-save" class="key-save" type="button">SAVE YOUR KEY</button>
       </div>
@@ -160,11 +156,10 @@ export function keyModalMarkup(view: KeyView): string {
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-modal-title">
       <div class="key-sheet">
-        <div class="key-foil" aria-hidden="true"></div>
         <div class="key-face">
         <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
         <h2 id="key-modal-title">Save your career key</h2>
-        <p class="key-serial is-big">${escape(view.code ?? '')}</p>
+        <p class="key-serial is-big"><span>${escape(view.code ?? '')}</span></p>
         <p class="key-sheet-say">This and your name bring your record back — every run, every
           innings, your tier and your place on the board. Without it, a new phone or a cleared
           browser starts you at nought.</p>
@@ -183,7 +178,6 @@ export function keyAboutMarkup(): string {
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-about-title">
       <div class="key-sheet">
-        <div class="key-foil" aria-hidden="true"></div>
         <div class="key-face">
         <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
         <h2 id="key-about-title">What is a career key?</h2>
