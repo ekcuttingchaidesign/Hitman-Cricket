@@ -56,9 +56,14 @@ await wait(2500);
 await page.locator('#board-tab-mine').click({ force: true });
 await wait(3000);
 
-// 1. the empty card offers the way back
+// 1. the empty card offers the way back, and offers no key with it
 const link = page.locator('#stats-restore');
 ok(await link.count() === 1, 'an empty card offers the way back');
+// A record is brought back with a name and a key together, so a key held by
+// nobody opens nothing. Four of the seven ways somebody reaches this screen
+// have no name yet, and every one of them was being handed a key.
+ok(await page.locator('.key-pass').count() === 0, 'and no key to somebody who has not claimed a name');
+ok(await page.locator('#mode-key .key-bar').count() === 0, 'nor one on the picker they came through');
 await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; });
 await wait(400);
 await link.click({ force: true });

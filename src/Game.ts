@@ -414,8 +414,17 @@ export class Game {
    * nothing and production is unchanged by any of this. The demo flag is the
    * one thing that hands one over, which is what makes the widget reviewable
    * on the screens it shares room with rather than only in its own lab.
+   *
+   * And only to somebody who has claimed a name. A record is brought back with
+   * a name and a key together, so a key held by nobody opens nothing — it is a
+   * lifeline with the far end tied to air. That rule is not the stub's: it is
+   * the shape of the thing, and it will hold when a store is issuing these for
+   * real. Four of the seven ways somebody can arrive at this screen have no
+   * name yet — first visit, played but not registered, a new phone before
+   * restoring, and a new phone with a few innings on it — and all four were
+   * being handed a key.
    */
-  private careerKeyHeld() { return this.demo ? demoKey() : null; }
+  private careerKeyHeld() { return this.demo && readPlayer() ? demoKey() : null; }
 
   /**
    * What this device has that no record has counted: the innings and the runs
