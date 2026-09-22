@@ -996,6 +996,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   closeBoard() {
     this.$('board-overlay').classList.add('hidden');
     this.$('board-overlay').innerHTML = '';
+    // The first key is laid over the board and belongs to it. Left behind it
+    // would stand on the cover with nothing underneath it to explain it.
+    this.keyToast(null);
     // The next open of the board starts at the front of the rail again.
     this.statsCards = [];
     this.statsAt = 0;
@@ -1603,6 +1606,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.add('modal-open');
     const shut = () => this.closeKeySheet();
     this.$(about ? 'key-about-close' : 'key-modal-close').onclick = shut;
+    // The ground around the sheet closes it, which is what every other modal
+    // on this game does and what a thumb reaches for first. Only the ground:
+    // the test is that the press landed on the scrim itself rather than
+    // bubbled up from something inside the sheet.
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) shut(); };
     if (about) return;
     this.$('key-whatsapp').onclick = () => { this.onKeySave?.('whatsapp'); shut(); };
     this.$('key-copy').onclick = () => { this.onKeySave?.('copy'); shut(); };

@@ -3461,6 +3461,11 @@ body.private-window{overflow:hidden}
 /* Which one, and the way through for a keyboard — a horizontal scroller is not
    something a Tab key can move. */
 .stats-dots{display:flex;justify-content:center;gap:7px;margin:0}
+/* Under the My Stats tab the pills sit between two columns with different
+   rhythms: the stack above gives them 12 and the sheet below gives them 14.
+   This is the two pixels, so the row has the same air on both sides. On the
+   page presentation both gaps are the sheet's own and already agree. */
+.stats-sheet-inner.is-sheet .stats-dots{margin-top:2px}
 .stats-dot{
   display:flex;
   align-items:center;

@@ -1371,7 +1371,8 @@ export class Game {
         this.surviveRows = (result.board as SurvivePayload).rows;
       }
       this.boardActions = true;
-      return this.openBoard('survive', 'best');
+      this.openBoard('survive', 'best');
+      return this.offerFirstKey();
     }
     if (result.board) {
       this.boardEpoch++;
@@ -1391,6 +1392,22 @@ export class Game {
     this.boardLadder = 'best';
     this.boardActions = true;
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
+    this.offerFirstKey();
+  }
+
+  /**
+   * The first key a player is ever handed, on the beat the board opens on the
+   * row they have just taken.
+   *
+   * Here rather than anywhere earlier because claiming a name is the moment a
+   * key starts being worth anything: restoring takes a name and a key
+   * together, so before there is a name there is nothing for a key to open.
+   * It is closed by hand and never on a clock — a message that takes itself
+   * away while somebody is looking at their own name was never read.
+   */
+  private offerFirstKey() {
+    const held = this.careerKeyHeld();
+    if (held) this.hud.keyToast(held);
   }
 
   /**
