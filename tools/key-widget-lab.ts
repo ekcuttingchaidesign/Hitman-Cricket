@@ -40,43 +40,34 @@ const LONG = keyText(['stamina', 'sessions', 'boundary'], 93);
  * `night` is the black the STAR card is made of, with the orange kept for the
  * key alone, for a widget that reads as the valuable thing on the screen.
  */
+/**
+ * Two ways to treat the one thing worth reading.
+ *
+ * Both are the same ground and the same key: a dark warm-lit panel that sits
+ * a shade below the card it lands on, one orange mark, and the game's own
+ * primary key — white, three-pixel orange stroke, orange ledge, the same one
+ * that says RESUME INNINGS. A white stroke on a white plate is not a stroke,
+ * which is what the last pass got wrong and what the game had already solved.
+ *
+ * They differ in one thing. `vault` sinks the key into a dark well ringed in
+ * orange; `stub` sits it on cream, like a ticket somebody keeps. Dark reads as
+ * part of the panel, cream reads as a thing lifted out of it.
+ */
 const SKINS: { key: string; name: string; note: string; css: string }[] = [
   {
-    key: 'card',
-    name: 'Card',
-    note: 'The game’s own scorecard navy, one orange mark, orange key. Furniture among furniture.',
+    key: 'vault',
+    name: 'Vault',
+    note: 'The key sunk into the panel, ringed in orange. One material, one accent, the game\u2019s own key.',
     css: '',
   },
   {
-    key: 'ticket',
-    name: 'Ticket',
-    note: 'The key on a cream stub. The one thing worth reading is the one thing that is not dark.',
+    key: 'stub',
+    name: 'Stub',
+    note: 'The same panel, the key on cream. The one thing worth reading is the one thing that is not dark.',
     css: `
-      --key-bg:linear-gradient(#14324a,#0e2536);
       --key-well:#f4ead9;
-      --key-well-edge:#00000029;
-      --key-code:#16303f;
-      --key-ink:#f7f0e5;
-      --key-title:#93aabb;`,
-  },
-  {
-    key: 'night',
-    name: 'Night',
-    note: 'The black the STAR card is made of. Orange spent on the key alone, nowhere else.',
-    css: `
-      --key-bg:linear-gradient(#191c20,#0d0f11);
-      --key-edge:#ffffff1a;
-      --key-ledge:#000;
-      --key-well:#08090a;
-      --key-well-edge:#e9582b4d;
-      --key-code:#ffb089;
-      --key-ink:#f4f6f8;
-      --key-title:#8e98a3;
-      --key-say:#98a3ad;
-      --key-cta:#f2f4f7;
-      --key-cta-edge:#fff;
-      --key-cta-ledge:#5d646c;
-      --key-cta-ink:#15181b;`,
+      --key-well-edge:#0000002e;
+      --key-code:#152b3c;`,
   },
 ];
 

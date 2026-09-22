@@ -4070,23 +4070,25 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    redeclared on `.key-card` is reset by `.key-card`, so an ancestor asking for
    a different palette is politely ignored and three skins render identical. */
 :root{
-  --key-bg:linear-gradient(#123049,#0d2233);
-  --key-edge:#ffffff1c;
-  --key-ledge:#060f18;
-  --key-title:#8fa6b6;
-  --key-say:#9fb2bd;
+  --key-bg:radial-gradient(125% 95% at 50% 0%,#1b2d3a,#0a141b);
+  --key-edge:#ffffff1f;
+  --key-ledge:#04090d;
+  --key-title:#8fa0ad;
+  --key-say:#97a7b3;
   --key-mark:var(--orange);
-  --key-well:#07161f;
-  --key-well-edge:#ffffff1f;
+  --key-well:#060d13;
+  /* The one place the orange is spent other than the key: it rings the thing
+     worth reading rather than sitting on something being pressed. */
+  --key-well-edge:#e9582b4d;
   /* On the well. A skin may make this dark, so nothing outside the well
      may use it. */
   --key-code:#f7f0e5;
   /* On the card, where the background is always dark. */
   --key-ink:#f7f0e5;
-  --key-cta:var(--cta-orange);
-  --key-cta-edge:#ffb089;
-  --key-cta-ledge:#8f2f12;
-  --key-cta-ink:#2a1006;
+  --key-cta:#fff;
+  --key-cta-edge:var(--cta-orange);
+  --key-cta-ledge:var(--cta-orange);
+  --key-cta-ink:var(--cta-ink);
   --key-quiet-key:#ffffff12
 }
 .key-card,.key-panel,.key-toast,.key-bar,.key-sheet{font-family:var(--card)}
@@ -4161,12 +4163,12 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .key-save{
   display:block;
   width:100%;
-  min-height:44px;
+  min-height:46px;
   padding:0 14px;
-  border:2px solid var(--key-cta-edge);
+  border:3px solid var(--key-cta-edge);
   border-radius:11px;
   background:var(--key-cta);
-  box-shadow:0 4px 0 var(--key-cta-ledge);
+  box-shadow:0 5px 0 var(--key-cta-ledge),0 9px 11px #7a4a1e2b;
   color:var(--key-cta-ink);
   font-family:var(--cta);
   font-size:13px;
@@ -4354,9 +4356,9 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The one that finishes the job, so it is the one that looks like a key. */
 .key-sheet-key.is-whatsapp{
-  border:2px solid var(--key-cta-edge);
+  border:3px solid var(--key-cta-edge);
   background:var(--key-cta);
-  box-shadow:0 4px 0 var(--key-cta-ledge);
+  box-shadow:0 5px 0 var(--key-cta-ledge),0 9px 11px #7a4a1e2b;
   color:var(--key-cta-ink)
 }
 .key-sheet-key.is-whatsapp:active{transform:translateY(3px);box-shadow:0 1px 0 var(--key-cta-ledge)}
