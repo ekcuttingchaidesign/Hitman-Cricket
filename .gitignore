@@ -22,6 +22,8 @@ scripts/.*
 # And what those scripts photograph, which lands beside them.
 /*.png
 artifact-out
+# Where the standalone tool pages build to, beside board-out above them.
+key-out
 dist-survive
 dist-spin
 dist-charge
