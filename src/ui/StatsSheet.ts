@@ -1,3 +1,4 @@
+import { keyCardMarkup, type KeyView } from './CareerKey';
 import { escape } from './Leaderboard';
 import { statsAlt, statsExplain, statsHitBoxes, type StatsFacts } from '../game/StatsCard';
 
@@ -53,6 +54,16 @@ export interface StatsSheetView {
   where?: StatsWhere;
   /** Whether this browser will hand a file to another app. */
   canShare?: boolean;
+  /**
+   * The career key, where this player has one.
+   *
+   * Absent until the store issues them, and absent for good for anybody who
+   * has not claimed a name: restoring is done with a name and a key together,
+   * so a key belonging to nobody opens nothing. The widget is left out
+   * entirely rather than shown empty — an empty one on the screen a new player
+   * opens first would be a warning about a record they have not started.
+   */
+  careerKey?: KeyView | null;
 }
 
 export function statsSheetMarkup(view: StatsSheetView): string {
@@ -67,7 +78,11 @@ export function statsSheetMarkup(view: StatsSheetView): string {
       <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${
   many ? ' role="group" aria-label="Your cards, one a game"' : ''}>${
   cards.map((card, i) => slideMarkup(card, many, i === at)).join('')}</div>${
-  many ? dotsMarkup(cards, at) : ''}
+  many ? dotsMarkup(cards, at) : ''}${
+  // Below the rail rather than inside it. There are two cards on this screen
+  // and one key, and a key that swiped away with the Blast card would read as
+  // the Blast's key with the Test match's somewhere behind it.
+  view.careerKey ? keyCardMarkup(view.careerKey) : ''}
       <div class="stats-ctas">
         <button id="stats-whatsapp" class="key-button stats-key is-whatsapp" type="button">
           ${whatsappMark()}<span>BRAG STATS ON WHATSAPP</span>

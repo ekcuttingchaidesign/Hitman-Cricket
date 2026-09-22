@@ -179,3 +179,19 @@ export function demoWanted(): boolean {
     return asked === '' || asked === '1';
   }
 }
+
+/**
+ * A career key for looking at, and for nothing else.
+ *
+ * The store does not issue keys yet, so every placement would draw nothing and
+ * the widget could only be reviewed in the lab, away from the screens it has
+ * to share room with. This hands one over under the same flag the made-up
+ * board rides on: it is built in the browser that asked, it opens nothing, and
+ * with the flag off none of it runs.
+ *
+ * It is deliberately the longest shape the wordlist will be allowed to
+ * produce. A key that fits is not news; a key that is about to wrap is.
+ */
+export function demoKey(): { state: 'unsaved'; code: string } {
+  return { state: 'unsaved', code: 'yorker-sprint-cover-47' };
+}

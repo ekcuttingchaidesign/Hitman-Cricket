@@ -34,7 +34,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
+import { demoBoard, demoCareers, demoKey, demoSurvive, demoWanted } from './game/demo-board';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
@@ -326,6 +326,12 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onStatsOpen = this.showStats;
+    // Either key in the sheet counts as saved. Which one was used is worth
+    // knowing — one of them finishes the job and the other leaves homework —
+    // so they are counted apart even though they retire the same prompts.
+    this.hud.onKeySave = how => {
+      this.mark(`key-saved-${how}`, how === 'whatsapp' ? 'Career key sent to WhatsApp' : 'Career key copied');
+    };
     // The three ways into the questionnaire. The cover offers it only to
     // somebody who has played before: a form is a strange thing to be handed by
     // a game you have not started.
@@ -387,7 +393,23 @@ export class Game {
    * the Test card it is the card's music handing over to the screen that has
    * just replaced the card.
    */
-  private modes = () => { this.audio.music('cover'); this.hud.modes(); };
+  private modes = () => {
+    this.audio.music('cover');
+    // The bar rides on the picker, capped at two showings. Nothing is issued
+    // yet, so it only appears where a key exists to be saved.
+    this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: true });
+    this.hud.modes();
+  };
+
+  /**
+   * The key this player holds, or null.
+   *
+   * Null everywhere today: the store issues no keys, so the placements draw
+   * nothing and production is unchanged by any of this. The demo flag is the
+   * one thing that hands one over, which is what makes the widget reviewable
+   * on the screens it shares room with rather than only in its own lab.
+   */
+  private careerKeyHeld() { return this.demo ? demoKey() : null; }
   /**
    * Out of the picker without picking. Opened from the cover that is the cover
    * again; opened from a paused innings it is the pause card again, silent the
@@ -1504,6 +1526,7 @@ export class Game {
       // has one now — and it opens the Test career, because `showStats` reads
       // the mode from the innings that has just ended.
       this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
+    this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
       this.offerSurvive();
       return;
     }

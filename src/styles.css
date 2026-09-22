@@ -4391,3 +4391,23 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   color:#000000b8;
   text-wrap:pretty
 }
+
+/* Where the key sits on the screens it shares. The widget brings its own
+   material; these only say where it goes and how much room it gets. */
+.card-key{margin:0 0 2.6cqw}
+.card-key .key-panel{margin:0}
+.mode-key{margin:0 0 14px}
+.mode-key .key-bar{margin:0}
+/* The first key, over the board the player has just landed on. Above the
+   sheet and clear of the bottom edge, and never over their own row: it
+   arrives on the same beat as the row being revealed, and a message standing
+   on the thing it is congratulating somebody for is a message in the way. */
+.key-toast-slot{
+  position:absolute;
+  right:var(--pad);
+  bottom:calc(var(--pad-bottom) + 10px);
+  left:var(--pad);
+  z-index:12;
+  pointer-events:none
+}
+.key-toast-slot .key-toast{pointer-events:auto}

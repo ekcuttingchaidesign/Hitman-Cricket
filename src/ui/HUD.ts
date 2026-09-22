@@ -27,6 +27,9 @@ import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsS
 import { storiesMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
+  keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup, type KeyView,
+} from './CareerKey';
+import {
   statsCardImage, statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
@@ -283,6 +286,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
+        <div id="key-overlay" class="hidden"></div>
+        <div id="key-toast-slot" class="key-toast-slot hidden"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
@@ -315,6 +320,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <span class="career-words">Career Stats<em id="career-new" class="career-new">NEW</em></span>
               <span class="career-go" aria-hidden="true">${icon('arrow')}</span>
             </button>
+            <div id="card-key" class="card-key hidden"></div>
             <div class="card-keys">
               <button id="again" class="key-button">PLAY AGAIN</button>
               <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
@@ -329,6 +335,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="modes-title" class="mode-heading">Select Mode</h2>
             </div>
+            <div id="mode-key" class="mode-key hidden"></div>
             <button id="mode-classic" class="mode-card">
               <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
               <span class="mode-body">
@@ -498,7 +505,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   statsTab(view: StatsSheetView) {
     this.holdStats(view);
-    this.sheet(statsSheetMarkup({ ...view, at: this.statsAt, where: 'sheet' }), 'mine', 'best');
+    this.sheet(statsSheetMarkup({ ...view, careerKey: this.keyView, at: this.statsAt, where: 'sheet' }), 'mine', 'best');
     this.wireStatsKeys();
   }
 
@@ -509,7 +516,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // pull it back off whichever key the player had already reached for.
     const opening = overlay.classList.contains('hidden');
     this.holdStats(view);
-    overlay.innerHTML = statsSheetMarkup({ ...view, at: this.statsAt, where: 'page' });
+    overlay.innerHTML = statsSheetMarkup({ ...view, careerKey: this.keyView, at: this.statsAt, where: 'page' });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     this.wireStatsKeys();
@@ -540,6 +547,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private wireStatsKeys() {
     this.$('stats-whatsapp').onclick = () => void this.shareStats('card');
     this.$('stats-story').onclick = () => void this.shareStats('story');
+    // The key card is only on the sheet where the player has one.
+    const save = document.getElementById('key-save');
+    if (save) save.onclick = () => this.openKeySheet();
+    const about = document.getElementById('key-info');
+    if (about) about.onclick = () => this.openKeySheet(true);
     this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
@@ -1295,8 +1307,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // it in the same place, under the board and above the keys. Moved rather
     // than duplicated, for the reason the strip is moved: the ids travel, so
     // everything that reaches for `card-career` goes on working without knowing
-    // which card it is standing in.
-    const moving = [this.$('card-board'), this.$('card-career')];
+    // which card it is standing in. The career key rides along for the same
+    // reason — it was left behind on the Blast card at first, so a Test innings
+    // ended on a card with no key on it and nothing said why.
+    const moving = [this.$('card-board'), this.$('card-career'), this.$('card-key')];
     if (surviving) this.$('survive-strip').append(...moving);
     else {
       const card = this.$('end').querySelector('.scorecard')!;
@@ -1550,6 +1564,69 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     (this.$('hurt-note-done') as HTMLButtonElement).focus();
   }
   get hurtNoteOpen() { return !this.$('hurt-note').classList.contains('hidden'); }
+
+  /**
+   * The career key, wherever it is being shown.
+   *
+   * One object drives four placements and the modal, because they are one
+   * message: a key copied from the card on the innings screen has to retire
+   * the line on the mode picker too, and a player asked twice concludes the
+   * first answer did not take.
+   */
+  private keyView: KeyView | null = null;
+  /** What the modal's two keys do. The game owns the saving. */
+  onKeySave: ((how: 'whatsapp' | 'copy') => void) | null = null;
+
+  careerKey(view: KeyView | null, where: { panel: boolean; bar: boolean }) {
+    this.keyView = view;
+    const panel = this.$('card-key');
+    const bar = this.$('mode-key');
+    const show = !!view && view.state !== 'lost';
+    panel.classList.toggle('hidden', !(show && where.panel));
+    bar.classList.toggle('hidden', !(show && where.bar));
+    if (show && where.panel) {
+      panel.innerHTML = keyPanelMarkup(view!);
+      this.$('key-panel-save').onclick = () => this.openKeySheet();
+    }
+    if (show && where.bar) {
+      bar.innerHTML = keyBarMarkup();
+      this.$('key-bar').onclick = () => this.openKeySheet();
+    }
+  }
+
+  /** The only place a key is saved, whichever of the four opened it. */
+  openKeySheet(about = false) {
+    if (!this.keyView) return;
+    const overlay = this.$('key-overlay');
+    overlay.innerHTML = about ? keyAboutMarkup() : keyModalMarkup(this.keyView);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const shut = () => this.closeKeySheet();
+    this.$(about ? 'key-about-close' : 'key-modal-close').onclick = shut;
+    if (about) return;
+    this.$('key-whatsapp').onclick = () => { this.onKeySave?.('whatsapp'); shut(); };
+    this.$('key-copy').onclick = () => { this.onKeySave?.('copy'); shut(); };
+  }
+
+  closeKeySheet() {
+    this.$('key-overlay').classList.add('hidden');
+    this.$('key-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  get keySheetOpen() { return !this.$('key-overlay').classList.contains('hidden'); }
+
+  /** The first key, the moment a name is claimed. Closed by hand, never a clock. */
+  keyToast(view: KeyView | null) {
+    const slot = this.$('key-toast-slot');
+    slot.classList.toggle('hidden', !view);
+    if (!view) { slot.innerHTML = ''; return; }
+    slot.innerHTML = keyToastMarkup(view);
+    this.$('key-toast-close').onclick = () => this.keyToast(null);
+    this.$('key-toast-save').onclick = () => this.openKeySheet();
+  }
 
   /** The mode picker. Skipped entirely when a link has already named the mode. */
   modes() {
