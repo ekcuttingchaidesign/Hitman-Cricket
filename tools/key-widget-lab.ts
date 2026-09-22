@@ -41,61 +41,20 @@ const LONG = keyText(['stamina', 'sessions', 'boundary'], 93);
  * key alone, for a widget that reads as the valuable thing on the screen.
  */
 /**
- * One form, three materials.
+ * The holographic pass, in every state.
  *
- * The form is the change. Three passes went into recolouring the same
- * rectangle-inside-a-rectangle, which is not iterating on a design — the key
- * itself, the only part anybody came to read, had the least drawn on it of
- * anything on the widget.
- *
- * This is a pass with a face and a stub, torn along a perforation cut out of
- * the card, with the stamp and the ribbon flash the game's own stats card
- * already uses. The key is printed rather than boxed: wide tracking and a
- * rule under it, because a bordered block of bold text is what a form field
- * looks like.
+ * One skin now rather than three: the card was drawn in Figma and the foil is
+ * that frame's blend stack rebuilt in CSS, so there is nothing left to choose
+ * between. What is still worth looking at is whether the foil survives being
+ * asked to be a 36-pixel row and a one-line bar, and whether black type holds
+ * up wherever the dark bands of the sweep happen to fall.
  */
 const SKINS: { key: string; name: string; note: string; css: string }[] = [
   {
-    key: 'paper',
-    name: 'Paper',
-    note: 'Warm cream, navy stub. The pass as a thing printed and handed over.',
+    key: 'foil',
+    name: 'Holographic',
+    note: 'The drawn card, at phone scale: the frame divided by 2.1, so the proportions are the ones designed rather than fresh round numbers.',
     css: '',
-  },
-  {
-    key: 'bronze',
-    name: 'Bronze',
-    note: 'The metal the second tier is made of, warm against a cool screen.',
-    css: `
-      --key-bg:linear-gradient(#d89a52,#b4772f);
-      --key-edge:#00000030;
-      --key-ledge:#6b3f12;
-      --key-title:#5b3410;
-      --key-say:#563210;
-      --key-mark:#3c2108;
-      --key-well-edge:#00000038;
-      --key-ink:#2c190a;
-      --key-soft:#00000016;
-      --key-cta:#25150a;
-      --key-cta-ledge:#140b04;
-      --key-cta-ink:#f6d9ae;
-      --key-sheet-bg:linear-gradient(#d89a52,#b4772f);`,
-  },
-  {
-    key: 'chalk',
-    name: 'Chalk',
-    note: 'Cool light. Quieter under a stats card already full of figures.',
-    css: `
-      --key-bg:linear-gradient(#e4eaee,#c7d2d9);
-      --key-edge:#0000001f;
-      --key-ledge:#4d5d68;
-      --key-title:#5c6d79;
-      --key-say:#4e5f6b;
-      --key-well-edge:#0000002b;
-      --key-ink:#152b3c;
-      --key-cta:#152b3c;
-      --key-cta-ledge:#0b1926;
-      --key-cta-ink:#f2f6f8;
-      --key-sheet-bg:linear-gradient(#e4eaee,#c7d2d9);`,
   },
 ];
 
@@ -119,6 +78,7 @@ function column(skin: typeof SKINS[number]): string {
         <h2>${skin.name}</h2>
         <p>${skin.note}</p>
       </header>
+      <div class="col">
       ${bench('My Stats · unsaved', 'The permanent home, before anything is saved.', keyCardMarkup({ state: 'unsaved', code: USUAL }))}
       ${bench('My Stats · saved', 'Stays put. A saved key still gets lost.', keyCardMarkup({ state: 'saved', code: USUAL }))}
       ${bench('My Stats · not on this phone', 'Shown once, so it cannot be shown again.', keyCardMarkup({ state: 'lost' }))}
@@ -140,9 +100,10 @@ stage.innerHTML = `
     .lab{padding:28px 20px 80px}
     .lab>h1{margin:0 0 4px;font-family:Display,Impact,sans-serif;font-size:30px;font-weight:400;color:#f7f0e5}
     .lab>p.intro{margin:0 0 26px;font-size:13px;line-height:1.6;color:#8ea6b6;max-width:64ch}
-    .skins{display:flex;gap:26px;align-items:flex-start}
-    .skin{flex:1;min-width:0;max-width:420px}
+    .skins{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+    .skin{flex:none;width:400px}
     .skin-head{margin:0 0 16px;padding:0 0 12px;border-bottom:1px solid #ffffff1a}
+    .col{display:block}
     .skin-head h2{margin:0 0 4px;font-family:Display,Impact,sans-serif;font-size:22px;font-weight:400;color:#f7f0e5}
     .skin-head p{margin:0;font-size:11.5px;line-height:1.55;color:#7e94a4}
     .bench{margin:0 0 20px}

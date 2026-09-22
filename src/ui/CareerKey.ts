@@ -62,10 +62,11 @@ export function keyCardMarkup(view: KeyView): string {
   const saved = view.state === 'saved';
   return `
     <section class="key-pass is-${view.state}" aria-labelledby="key-card-title">
+      <div class="key-foil" aria-hidden="true"></div>
       <div class="key-face">
         <div class="key-stamp">
-          <span class="key-flash" aria-hidden="true"></span>
-          <h3 id="key-card-title">Career key</h3>
+          <span class="key-mark" aria-hidden="true">${MARK}</span>
+          <h3 id="key-card-title">Your career key</h3>
           <button id="key-info" class="key-info" type="button" aria-label="What is a career key?">
             <span aria-hidden="true">i</span>
           </button>
@@ -73,9 +74,7 @@ export function keyCardMarkup(view: KeyView): string {
         ${lost ? '' : `<p class="key-serial">${escape(view.code ?? '')}</p>`}
         <p class="key-line">${lost
           ? 'Not on this phone. A key is only ever shown once, so it cannot be shown again \u2014 but you can make another.'
-          : 'Keep this somewhere. It is the only way back to your record if this browser forgets you.'}</p>
-      </div>
-      <div class="key-stub">
+          : 'The only way back to your record if this browser forgets you'}</p>
         <button id="key-save" class="key-save" type="button">${
           lost ? 'MAKE A NEW KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
         ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
@@ -92,12 +91,15 @@ export function keyCardMarkup(view: KeyView): string {
 export function keyPanelMarkup(view: KeyView): string {
   return `
     <section class="key-panel" aria-labelledby="key-panel-title">
-      <span class="key-flash" aria-hidden="true"></span>
-      <div class="key-panel-say">
-        <h3 id="key-panel-title">Career key</h3>
-        <p class="key-serial is-inline">${escape(view.code ?? '')}</p>
+      <div class="key-foil" aria-hidden="true"></div>
+      <div class="key-panel-face">
+        <span class="key-mark" aria-hidden="true">${MARK}</span>
+        <div class="key-panel-say">
+          <h3 id="key-panel-title">Your career key</h3>
+          <p class="key-serial is-inline">${escape(view.code ?? '')}</p>
+        </div>
+        <button id="key-panel-save" class="key-panel-key" type="button">SAVE</button>
       </div>
-      <button id="key-panel-save" class="key-panel-key" type="button">SAVE</button>
     </section>`;
 }
 
@@ -112,7 +114,8 @@ export function keyPanelMarkup(view: KeyView): string {
 export function keyBarMarkup(): string {
   return `
     <button id="key-bar" class="key-bar" type="button">
-      <span class="key-flash" aria-hidden="true"></span>
+      <span class="key-foil" aria-hidden="true"></span>
+      <span class="key-mark" aria-hidden="true">${MARK}</span>
       <span class="key-bar-say">Save your career key</span>
       <span class="key-bar-go">SAVE</span>
     </button>`;
@@ -129,13 +132,19 @@ export function keyBarMarkup(): string {
 export function keyToastMarkup(view: KeyView): string {
   return `
     <div class="key-toast" role="status">
-      <button id="key-toast-close" class="key-toast-close" type="button" aria-label="Close">
-        <span aria-hidden="true">&times;</span>
-      </button>
-      <div class="key-stamp"><span class="key-flash" aria-hidden="true"></span><h3>Career key</h3></div>
-      <p class="key-toast-say"><b>You have a career key.</b> It is the only way back to your record if this browser forgets you.</p>
-      <p class="key-serial is-small">${escape(view.code ?? '')}</p>
-      <button id="key-toast-save" class="key-save" type="button">SAVE YOUR KEY</button>
+      <div class="key-foil" aria-hidden="true"></div>
+      <div class="key-face">
+        <button id="key-toast-close" class="key-toast-close" type="button" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <div class="key-stamp">
+          <span class="key-mark" aria-hidden="true">${MARK}</span>
+          <h3>Your career key</h3>
+        </div>
+        <p class="key-serial">${escape(view.code ?? '')}</p>
+        <p class="key-line">Keep it somewhere. It is the only way back to your record if this browser forgets you.</p>
+        <button id="key-toast-save" class="key-save" type="button">SAVE YOUR KEY</button>
+      </div>
     </div>`;
 }
 
@@ -151,6 +160,8 @@ export function keyModalMarkup(view: KeyView): string {
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-modal-title">
       <div class="key-sheet">
+        <div class="key-foil" aria-hidden="true"></div>
+        <div class="key-face">
         <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
         <h2 id="key-modal-title">Save your career key</h2>
         <p class="key-serial is-big">${escape(view.code ?? '')}</p>
@@ -162,6 +173,7 @@ export function keyModalMarkup(view: KeyView): string {
         <p class="key-fine">Put it somewhere you will still have in a year. A copied key only
           lasts until the next thing you copy.</p>
         <button id="key-modal-close" class="key-ghost" type="button">Close</button>
+        </div>
       </div>
     </div>`;
 }
@@ -171,6 +183,8 @@ export function keyAboutMarkup(): string {
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-about-title">
       <div class="key-sheet">
+        <div class="key-foil" aria-hidden="true"></div>
+        <div class="key-face">
         <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
         <h2 id="key-about-title">What is a career key?</h2>
         <p class="key-sheet-say">This game has no accounts. Who you are is kept by your browser,
@@ -181,6 +195,7 @@ export function keyAboutMarkup(): string {
         <p class="key-fine">It only works with your name, so a key on its own is no use to
           anybody who finds it.</p>
         <button id="key-about-close" class="key-ghost" type="button">Close</button>
+        </div>
       </div>
     </div>`;
 }

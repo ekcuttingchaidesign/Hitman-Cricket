@@ -4052,216 +4052,208 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 
 /* ── The career key ───────────────────────────────────────────────────────
-   One component in five sizes: a card that lives on My Stats for good, a
-   panel on the innings-end card, a line on the mode picker, a toast the first
-   time a key is handed out, and the modal all four of them open.
+   The holographic pass, off the Figma frame, at phone scale.
 
-   Everything below is structure. Every colour is a token, including the ones
-   that look safely dark — the modal's ground, the bar's ink, the sheet's
-   heading. A token left hardcoded is a skin that cannot be light, and the
-   whole difficulty here has been that the game is navy and a navy widget on a
-   navy screen is furniture nobody sees. Highlighting it means leaving the
-   family, so the family has to be optional. */
-:root{
-  --key-bg:linear-gradient(#f7efe1,#ead9c0);
-  --key-edge:#00000021;
-  --key-ledge:#6c5539;
-  --key-glow:0 10px 26px #0409104a;
-  --key-title:#7b6851;
-  --key-say:#6b5a45;
-  --key-mark:var(--cta-orange);
-  --key-well:#152b3c;
-  --key-well-edge:#00000038;
-  /* On the well. A skin may make this dark, so nothing outside the well may
-     use it. */
-  --key-code:#f7f0e5;
-  /* On the card, whatever the card is made of. */
-  --key-ink:#152b3c;
-  --key-soft:#00000010;
-  --key-cta:#152b3c;
-  --key-cta-edge:#0b1926;
-  --key-cta-ledge:#0b1926;
-  --key-cta-ink:#f7f0e5;
-  --key-sheet-bg:#f7efe1;
-  --key-scrim:#06131de8
-}
-.key-card,.key-panel,.key-toast,.key-bar,.key-sheet{font-family:var(--card)}
-/* The pass. A face and a stub, torn along a perforation that is cut out of
-   the card rather than drawn on it — two circles taken out of the edges by a
-   mask, so the tear shows whatever is behind the widget and reads as a real
-   one on any screen it lands on.
+   Everything here is the design divided by 2.1 — the frame is 765 across and
+   a phone gives the widget about 364 — so the proportions are the drawn ones
+   rather than a fresh set of round numbers that happen to look close.
 
-   The anatomy is the game's own. The stats card opens with a letterspaced
-   stamp and closes a badge with a flash of colour at its left edge, "the way a
-   rosette has a ribbon"; both are here for the same reason they are there —
-   they are what makes a rectangle read as a thing rather than a container. */
-.key-pass{
-  --tear:calc(100% - var(--key-stub));
-  --key-stub:66px;
-  --notch:9px;
+   The foil is three layers doing what Figma's blend stack does: a dark base,
+   an iridescent radial differenced against a light-dark sweep, and a second
+   sweep screened over the top. Difference is what turns a pretty rainbow into
+   foil — it inverts the spectrum wherever the sweep is light, so the colour
+   bands and the shine bands cross each other instead of sitting in layers. */
+.key-pass,.key-panel,.key-toast,.key-bar,.key-sheet{
+  --foil-base:linear-gradient(102.05deg,#371e1e -3.34%,#330909 104.52%);
+  --foil-sweep:linear-gradient(101.45deg,
+    #ffffff99 4.42%,#00000099 33.79%,#ffffff99 59.83%,#00000099 86.98%,#ffffff99 110.81%);
+  --foil-spectrum:radial-gradient(139.09% 181.03% at 98.11% 7.72%,
+    #2ad0ca 0%,#fffc2f 22.92%,#feb0fe 42.27%,#abb3fc 61.77%,#5df7a4 81.91%,#58c4f6 100%);
+  --foil-sheen:linear-gradient(101.45deg,
+    #fff 4.42%,#000 33.79%,#fff 59.83%,#000 86.98%,#fff 110.81%);
   position:relative;
+  isolation:isolate;
+  background:var(--foil-base);
+  font-family:var(--card)
+}
+/* The foil itself, under everything and clipped to the card's own corners.
+   Two stacked layers rather than one: the first differences the spectrum
+   against a sweep, the second screens a sweep over the result, and neither
+   can be folded into the other because they blend against different things. */
+.key-foil{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  border-radius:inherit;
+  background:var(--foil-sweep),var(--foil-spectrum);
+  background-blend-mode:difference,normal;
+  pointer-events:none
+}
+.key-foil::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:var(--foil-sheen);
+  mix-blend-mode:screen
+}
+/* Everything readable sits above the foil. */
+.key-face{position:relative;z-index:1}
+
+.key-pass{
   width:100%;
   margin:0 0 12px;
-  border-radius:14px;
-  background:var(--key-bg);
-  box-shadow:0 5px 0 var(--key-ledge),var(--key-glow);
-  text-align:left;
-  -webkit-mask:
-    radial-gradient(circle var(--notch) at 0 var(--tear),#0000 98%,#000 100%),
-    radial-gradient(circle var(--notch) at 100% var(--tear),#0000 98%,#000 100%);
-  -webkit-mask-composite:source-in;
-  mask:
-    radial-gradient(circle var(--notch) at 0 var(--tear),#0000 98%,#000 100%),
-    radial-gradient(circle var(--notch) at 100% var(--tear),#0000 98%,#000 100%);
-  mask-composite:intersect
+  border-radius:15px;
+  box-shadow:0 6px 18px #04091066
 }
-.key-pass.is-saved{--key-stub:92px}
-.key-pass.is-lost{--key-stub:66px}
-.key-face{padding:14px 16px 16px}
-/* The tear. Dashed between the two notches and stopping short of both, so the
-   line ends where the cut begins rather than running into it. */
-.key-stub{
-  padding:14px 16px 16px;
-  border-top:2px dashed var(--key-well-edge);
-  margin:0 var(--notch)
-}
-.key-stamp{display:flex;align-items:center;gap:9px;margin:0 0 12px}
-/* The flash, which is the badge's ribbon at the size a heading needs. Solid
-   colour with nothing else near it: it is what makes the stamp read at a
-   glance, the same job it does on the card this borrows it from. */
-.key-flash{
-  flex:none;
-  width:4px;
-  height:15px;
-  border-radius:2px;
-  background:var(--key-mark)
-}
+.key-pass .key-face{padding:13px 15px 14px}
+.key-stamp{display:flex;align-items:center;gap:8px;margin:0 0 9px}
+.key-mark{display:flex;color:#000}
+.key-mark svg{width:17px;height:17px}
+.key-mark.is-big svg{width:26px;height:26px}
+/* Jaro, tracked, black. The drawn title is the CTA face rather than the card
+   face — it is a stamp on a pass, not a heading on a panel. */
 .key-stamp h3{
   flex:1;
   margin:0;
-  font-size:11.5px;
-  font-weight:800;
-  letter-spacing:2.1px;
+  font-family:var(--cta);
+  font-size:15px;
+  font-weight:400;
+  letter-spacing:.12em;
   text-transform:uppercase;
-  color:var(--key-title)
+  color:#000
 }
 .key-info{
   display:grid;
   place-items:center;
-  width:21px;
-  height:21px;
+  width:20px;
+  height:20px;
   padding:0;
-  border:1px solid var(--key-edge);
+  border:1.5px solid #000;
   border-radius:50%;
-  background:var(--key-soft);
-  color:var(--key-title);
+  background:#0000;
+  color:#000;
   font-family:var(--card);
   font-size:11px;
   font-weight:800;
   font-style:italic;
   line-height:1
 }
-.key-info:hover{color:var(--key-ink)}
-/* The serial, printed rather than boxed.
-   It had been a bordered block with bold text in it, which is what a form
-   field looks like — and this is the one thing on the widget anybody came to
-   read. Wide tracking, a rule under it and nothing around it: the type is the
-   treatment, and a box would only be something else to look at. */
+.key-info:hover{background:#0000001f}
+/* The key in its window: a dark pane let into the foil, with the light caught
+   in the top-left corner the way it is on the frame. */
 .key-serial{
-  margin:0 0 11px;
-  padding:0 0 11px;
-  border-bottom:1px solid var(--key-well-edge);
-  color:var(--key-ink);
-  font-size:20px;
-  font-weight:800;
-  letter-spacing:1.4px;
-  line-height:1.25;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  margin:0 0 5px;
+  padding:6px 10px;
+  border:2px solid #000;
+  border-radius:9px;
+  background:#000000b3;
+  box-shadow:inset 6px 5px 2px #00000040;
+  color:#fff;
+  font-family:var(--cta);
+  font-size:17px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-align:center;
   overflow-wrap:anywhere
 }
 .key-serial.is-inline{
+  min-height:0;
   margin:0;
-  padding:0;
-  border:0;
-  font-size:14.5px;
-  letter-spacing:.9px
+  padding:4px 8px;
+  border-width:1.5px;
+  border-radius:7px;
+  font-size:13px;
+  letter-spacing:.08em
 }
-.key-serial.is-small{margin:0 0 11px;padding:0 0 10px;font-size:16px}
-.key-serial.is-big{margin:0 0 14px;padding:0 0 13px;font-size:22px;text-align:center}
+.key-serial.is-big{min-height:50px;font-size:19px;margin-bottom:8px}
 .key-line{
-  margin:0;
+  margin:0 0 22px;
+  font-family:var(--card);
   font-size:11.5px;
-  line-height:1.55;
-  color:var(--key-say)
+  font-weight:500;
+  line-height:1.45;
+  color:#000
 }
+/* The drawn key: white, a dark stroke, and a black slab under it rather than
+   a tinted ledge. On foil a coloured ledge is one more colour competing with
+   the card; black is the only thing that reads as shadow against all of it. */
 .key-save{
   display:block;
   width:100%;
-  min-height:44px;
-  padding:0 14px;
-  border:0;
-  border-radius:10px;
-  background:var(--key-cta);
-  box-shadow:0 3px 0 var(--key-cta-ledge);
-  color:var(--key-cta-ink);
+  min-height:41px;
+  padding:0 12px;
+  border:2px solid #333433;
+  border-radius:11px;
+  background:#fff;
+  box-shadow:0 7px 0 #000,0 10px 20px #0000005c;
+  color:#000;
   font-family:var(--cta);
-  font-size:13px;
-  letter-spacing:1.3px
+  font-size:15px;
+  font-weight:400;
+  letter-spacing:.04em
 }
-.key-save:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 var(--key-cta-ledge)}
+.key-save:active:not(:disabled){transform:translateY(5px);box-shadow:0 2px 0 #000,0 4px 9px #00000047}
 .key-ghost{
   display:block;
   width:100%;
-  margin:8px 0 0;
+  margin:12px 0 0;
   padding:3px;
   border:0;
   background:none;
-  color:var(--key-say);
+  color:#000;
   font-family:var(--card);
   font-size:12px;
+  font-weight:600;
   text-decoration:underline;
   text-underline-offset:3px
 }
-.key-ghost:hover{color:var(--key-ink)}
 
 /* ── On the innings-end card ─────────────────────────────────────────────
    A row rather than a stack. The card under it is what the player came to
    look at, and this may not push the keys off the bottom of a short screen. */
 .key-panel{
-  display:flex;
-  align-items:center;
-  gap:11px;
   width:100%;
   margin:0 0 12px;
-  padding:11px 13px;
   border-radius:13px;
-  background:var(--key-bg);
-  box-shadow:0 4px 0 var(--key-ledge),var(--key-glow);
-  text-align:left
+  box-shadow:0 5px 14px #0409105c
 }
-.key-panel .key-flash{height:27px}
+.key-panel-face{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 11px
+}
 .key-panel-say{flex:1;min-width:0}
 .key-panel-say h3{
-  margin:0 0 2px;
-  font-size:9.5px;
-  font-weight:800;
-  letter-spacing:1.8px;
+  margin:0 0 3px;
+  font-family:var(--cta);
+  font-size:10px;
+  font-weight:400;
+  letter-spacing:.12em;
   text-transform:uppercase;
-  color:var(--key-title)
+  color:#000
 }
 .key-panel-key{
   flex:none;
-  min-height:38px;
-  padding:0 16px;
-  border:0;
-  border-radius:9px;
-  background:var(--key-cta);
-  box-shadow:0 3px 0 var(--key-cta-ledge);
-  color:var(--key-cta-ink);
+  min-height:36px;
+  padding:0 15px;
+  border:2px solid #333433;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 5px 0 #000,0 7px 14px #0000004d;
+  color:#000;
   font-family:var(--cta);
   font-size:12px;
-  letter-spacing:1.2px
+  letter-spacing:.04em
 }
-.key-panel-key:active{transform:translateY(2px);box-shadow:0 1px 0 var(--key-cta-ledge)}
+.key-panel-key:active{transform:translateY(4px);box-shadow:0 1px 0 #000}
 
 /* ── On the mode picker ──────────────────────────────────────────────────
    One line, twice, and then never. */
@@ -4271,25 +4263,33 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   gap:9px;
   width:min(392px,100%);
   margin:0 auto 12px;
-  padding:9px 10px 9px 12px;
-  border:1px solid var(--key-edge);
+  padding:8px 9px 8px 11px;
+  border:0;
   border-radius:11px;
-  background:var(--key-bg);
-  box-shadow:0 3px 0 var(--key-ledge);
-  font-family:var(--card);
+  box-shadow:0 4px 12px #04091052;
   text-align:left
 }
-.key-bar-say{flex:1;min-width:0;font-size:12.5px;font-weight:800;color:var(--key-ink)}
-.key-bar .key-flash{height:18px}
+.key-bar>*:not(.key-foil){position:relative;z-index:1}
+.key-bar .key-mark svg{width:15px;height:15px}
+.key-bar-say{
+  flex:1;
+  min-width:0;
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:700;
+  color:#000
+}
 .key-bar-go{
   flex:none;
   padding:6px 12px;
+  border:2px solid #333433;
   border-radius:8px;
-  background:var(--key-cta);
-  color:var(--key-cta-ink);
+  background:#fff;
+  box-shadow:0 4px 0 #000;
+  color:#000;
   font-family:var(--cta);
   font-size:11px;
-  letter-spacing:1.1px
+  letter-spacing:.04em
 }
 
 /* ── The first one, the moment a name is claimed ─────────────────────────
@@ -4297,38 +4297,27 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    they have just taken, and anything that takes itself away while somebody is
    looking at their own name was never read. */
 .key-toast{
-  position:relative;
   width:min(392px,100%);
   margin:0 auto;
-  padding:15px 16px 16px;
-  border:1px solid var(--key-edge);
-  border-radius:14px;
-  background:var(--key-bg);
-  box-shadow:0 5px 0 var(--key-ledge),0 14px 30px #04091066;
-  text-align:left
+  border-radius:15px;
+  box-shadow:0 14px 34px #040910a3
 }
+.key-toast .key-face{padding:13px 15px 14px}
 .key-toast-close{
   position:absolute;
-  top:6px;
-  right:6px;
+  top:2px;
+  right:0;
   width:28px;
   height:28px;
   padding:0;
   border:0;
   border-radius:50%;
   background:none;
-  color:var(--key-title);
-  font-size:19px;
+  color:#000;
+  font-size:20px;
   line-height:1
 }
-.key-toast-close:hover{background:var(--key-soft);color:var(--key-ink)}
-.key-toast-say{
-  margin:0 24px 10px 0;
-  font-size:12.5px;
-  line-height:1.5;
-  color:var(--key-say)
-}
-.key-toast-say b{color:var(--key-ink)}
+.key-toast-close:hover{background:#0000001f}
 
 /* ── The modal every one of them opens ───────────────────────────────────
    The only place a key is ever saved. */
@@ -4340,67 +4329,65 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   align-items:center;
   justify-content:center;
   padding:var(--pad-top) var(--pad);
-  background:var(--key-scrim);
+  background:#06131de8;
   overflow-y:auto
 }
 .key-sheet{
   width:min(392px,100%);
   margin:auto;
-  padding:22px 22px 18px;
-  border:1px solid var(--key-edge);
   border-radius:18px;
-  background:var(--key-sheet-bg);
-  box-shadow:0 6px 0 var(--key-ledge),0 20px 40px #0409107a;
-  font-family:var(--card);
-  text-align:center
+  box-shadow:0 20px 44px #0409107a
 }
-.key-sheet h2{
-  margin:9px 0 12px;
-  font-family:var(--display);
-  font-size:25px;
-  font-weight:400;
-  letter-spacing:0;
-  text-transform:none;
-  color:var(--key-ink)
-}
+.key-sheet .key-face{padding:20px 18px 16px;text-align:center}
 .key-sheet .key-mark{justify-content:center}
+.key-sheet h2{
+  margin:8px 0 11px;
+  font-family:var(--cta);
+  font-size:21px;
+  font-weight:400;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#000
+}
 .key-sheet-say{
-  margin:0 0 11px;
-  font-size:12.5px;
-  line-height:1.6;
-  color:var(--key-say);
+  margin:0 0 10px;
+  font-size:12px;
+  font-weight:500;
+  line-height:1.55;
+  color:#000;
   text-wrap:pretty
 }
 .key-sheet-key{
   display:block;
   width:100%;
-  min-height:48px;
-  margin:0 0 9px;
+  min-height:44px;
+  margin:0 0 11px;
   border-radius:11px;
   font-family:var(--cta);
-  font-size:13px;
-  letter-spacing:1.3px
+  font-size:14px;
+  letter-spacing:.04em
 }
-/* The one that finishes the job, so it is the one that looks like a key. */
+/* The one that finishes the job wears the drawn key. */
 .key-sheet-key.is-whatsapp{
-  border:0;
-  background:var(--key-cta);
-  box-shadow:0 4px 0 var(--key-cta-ledge);
-  color:var(--key-cta-ink)
+  border:2px solid #333433;
+  background:#fff;
+  box-shadow:0 7px 0 #000,0 10px 20px #0000005c;
+  color:#000
 }
-.key-sheet-key.is-whatsapp:active{transform:translateY(3px);box-shadow:0 1px 0 var(--key-cta-ledge)}
+.key-sheet-key.is-whatsapp:active{transform:translateY(5px);box-shadow:0 2px 0 #000}
 /* Copy is the lesser save and reads as the lesser key: it lives in one slot
    that the next copy takes, and leaves the player something still to do. */
 .key-sheet-key.is-copy{
-  border:1px solid var(--key-well-edge);
-  background:transparent;
-  color:var(--key-ink)
+  border:2px solid #000;
+  background:#0000;
+  color:#000
 }
-.key-sheet-key.is-copy:hover{background:var(--key-soft)}
+.key-sheet-key.is-copy:hover{background:#0000001f}
 .key-fine{
-  margin:2px 0 0;
-  font-size:11px;
+  margin:0;
+  font-size:10.5px;
+  font-weight:500;
   line-height:1.5;
-  color:var(--key-title);
+  color:#000000b8;
   text-wrap:pretty
 }
