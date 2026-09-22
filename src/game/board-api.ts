@@ -20,7 +20,7 @@ import type { SurviveInnings, SurviveRow } from './survive-board';
  * board is fetched across origins instead. The API's allowlist has to name that
  * origin for the browser to allow it.
  */
-const API = import.meta.env.VITE_BOARD_API ?? '';
+export const API = import.meta.env.VITE_BOARD_API ?? '';
 
 /** How long the board gets before the game stops waiting for it. */
 const TIMEOUT_MS = 4000;
@@ -62,6 +62,12 @@ export interface SubmitResult<P = BoardPayload> {
    * to be recognised from the sentence.
    */
   taken?: boolean;
+  /**
+   * The career key, where this claim is the one that minted it. Handed over
+   * once and kept nowhere on our side but a salted hash, so the browser that
+   * reads this answer is the only thing in the world holding it.
+   */
+  key?: string;
 }
 
 /**
@@ -132,7 +138,7 @@ async function offer(
 ): Promise<SubmitResult<BoardPayload | SurvivePayload>> {
   const answer = await ask<{
     improved: boolean; score: number; board: BoardPayload | SurvivePayload;
-    error?: string; retry?: boolean; status?: number;
+    error?: string; retry?: boolean; status?: number; key?: string;
   }>(
     `${API}/api/score`,
     {
@@ -155,7 +161,9 @@ async function offer(
     };
   }
   cached[mode] = { at: Date.now(), payload: answer.board };
-  return { ok: true, improved: answer.improved, score: answer.score, board: answer.board };
+  return {
+    ok: true, improved: answer.improved, score: answer.score, board: answer.board, key: answer.key,
+  };
 }
 
 /** Throws away the board held from last time, so the next open asks again. */

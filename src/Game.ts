@@ -35,7 +35,9 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoKey, demoRestore, demoSurvive, demoWanted } from './game/demo-board';
+import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
+import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
+import { newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
@@ -332,18 +334,18 @@ export class Game {
     // knowing — one of them finishes the job and the other leaves homework —
     // so they are counted apart even though they retire the same prompts.
     this.hud.onKeySave = how => {
+      markKeySaved();
       this.mark(`key-saved-${how}`, how === 'whatsapp' ? 'Career key sent to WhatsApp' : 'Career key copied');
     };
     this.hud.onRestore = entry => void this.sendRestore(entry);
     this.hud.onRestoreOpen = from => this.openRestore(from);
+    this.hud.onNewKey = () => void this.makeNewKey();
     this.hud.onRestoreShown = () => restoreOfferShown();
     this.hud.onRestoreDismiss = () => {
       restoreOfferDone();
       this.mark('restore-offer-dismissed', 'Restore offer waved away');
     };
-    // Offered only where it can be answered. Stubbed with the rest of the key,
-    // so production sees none of it.
-    this.hud.offerRestore = this.demo;
+    this.hud.offerRestore = true;
     // The three ways into the questionnaire. The cover offers it only to
     // somebody who has played before: a form is a strange thing to be handed by
     // a game you have not started.
@@ -417,10 +419,6 @@ export class Game {
    * The key this player holds, or null.
    *
    * Null everywhere today: the store issues no keys, so the placements draw
-   * nothing and production is unchanged by any of this. The demo flag is the
-   * one thing that hands one over, which is what makes the widget reviewable
-   * on the screens it shares room with rather than only in its own lab.
-   *
    * And only to somebody who has claimed a name. A record is brought back with
    * a name and a key together, so a key held by nobody opens nothing — it is a
    * lifeline with the far end tied to air. That rule is not the stub's: it is
@@ -430,7 +428,7 @@ export class Game {
    * restoring, and a new phone with a few innings on it — and all four were
    * being handed a key.
    */
-  private careerKeyHeld() { return this.demo && readPlayer() ? demoKey() : null; }
+  private careerKeyHeld() { return keyView(!!readPlayer()); }
 
   /**
    * Whether the end of this innings offers the way back instead of a key.
@@ -441,7 +439,7 @@ export class Game {
    * so the offer goes to all of them and the words carry the doubt.
    */
   private offerRestoreOnCard() {
-    return this.demo && !readPlayer() && offerRestoreHere();
+    return !readPlayer() && offerRestoreHere();
   }
 
   /**
@@ -468,25 +466,76 @@ export class Game {
   /**
    * A name and a key, offered to the store.
    *
-   * Stubbed while there is no store: under the demo flag alone, and answering
-   * from the browser, which is exactly what the real one must never do. What
-   * is kept on our side is a salted hash, so only the store can say whether a
-   * key is right — a check a browser could run is a check anybody can run
-   * offline as many times as they like.
+   * Only the store can answer this. What is kept on our side is a salted hash,
+   * so a check this browser could run is a check anybody could run offline as
+   * often as they liked — and the store is also the only thing that can count
+   * the attempts, which is most of what stands between a key and a keyspace.
    */
   private async sendRestore(entry: { name: string; key: string; merge: boolean }) {
-    if (!this.demo) return this.hud.restoreFailed('Bringing records back is not switched on yet.');
     this.hud.restoreSending(true);
-    await new Promise(done => setTimeout(done, 450));
+    const answer = await restoreRecord(entry.name, entry.key);
     if (this.disposed) return;
-    const answer = demoRestore(entry.name, entry.key);
-    if (!answer.ok) {
+    if (!answer.ok || !answer.playerId) {
       this.mark('restore-failed', 'Restore turned down');
       return this.hud.restoreFailed(answer.reason ?? 'That did not go through.');
     }
     this.mark(entry.merge ? 'restore-done-merged' : 'restore-done', 'Record brought back');
+    this.becomeRestored(answer.playerId, entry.name);
     this.hud.closeRestore();
     this.hud.restoreDone(entry.name, entry.merge);
+  }
+
+  /**
+   * A key to replace one this browser cannot produce.
+   *
+   * Proved by holding the player id, which is the same secret the board is
+   * written with — somebody who has it can already post innings under that
+   * name, so this hands them nothing new. Making it is what stops the old one
+   * working, which is the point: a key somebody has lost is a key somebody
+   * else may have found.
+   */
+  private async makeNewKey() {
+    const player = readPlayer();
+    if (!player || !this.player) return;
+    const made = await newCareerKey(player.name, this.player);
+    if (this.disposed) return;
+    if (!made.ok || !made.key) {
+      this.mark('key-new-failed', 'New career key refused');
+      return;
+    }
+    keepKey(made.key);
+    this.mark('key-new', 'New career key made');
+    this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: false });
+    this.hud.openKeySheet();
+  }
+
+  /**
+   * This browser is that player now.
+   *
+   * The id is the whole of who somebody is here, so adopting it is the entire
+   * act of restoring — the career, the board row and the card all key off it
+   * and arrive on the next fetch. Everything held from before is dropped: it
+   * describes whoever this browser used to be, and a card drawn from it over a
+   * record that has just come back would be the wrong figures under the right
+   * name.
+   *
+   * The key is forgotten rather than guessed at. The store has a hash and
+   * cannot produce the key that made it, so this browser holds none — which is
+   * what `lost` on the widget says, and it offers a new one.
+   */
+  private becomeRestored(playerId: string, name: string) {
+    this.player = playerId;
+    writePlayer({ name: name.trim(), avatar: readPlayer()?.avatar ?? 0 });
+    forgetKey();
+    forgetCareer();
+    this.careerBoards = {};
+    this.myCareer = {};
+    this.board = [];
+    this.surviveRows = [];
+    this.boardSeen = false;
+    this.surviveSeen = false;
+    this.boardEpoch++;
+    this.surviveEpoch++;
   }
   /**
    * Out of the picker without picking. Opened from the cover that is the cover
@@ -1430,6 +1479,13 @@ export class Game {
     }
     this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
+    // Handed over once and kept nowhere else. If this browser does not write
+    // it down now, nothing in the world can show it again — which is exactly
+    // what makes it worth asking the player to put it somewhere safe.
+    if (result.key) {
+      keepKey(result.key);
+      this.mark('key-issued', 'Career key issued');
+    }
     // Claiming a name is what puts a career already counted onto the career
     // boards, so the copies held from before it are wrong the moment this
     // returns — including the card's, which was drawn with no name on it.

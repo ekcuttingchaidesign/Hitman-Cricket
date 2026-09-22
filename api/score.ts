@@ -2,7 +2,11 @@ import {
   CLASSIC_LADDER, SURVIVE_LADDER, cleanName, refused, submitScore, type Submission,
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
-import { NoDatabase, redisFromEnv, upstashCareer, upstashStore } from '../src/server/upstash.js';
+import { foldName } from '../src/server/board-store.js';
+import { keyOnClaim } from '../src/server/recovery-store.js';
+import {
+  NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
+} from '../src/server/upstash.js';
 import {
   BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer,
 } from '../src/game/career.js';
@@ -68,9 +72,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     } catch (error) {
       console.error('The career boards did not take the name.', error);
     }
+    // The key that brings this record back, minted the first time the name is
+    // claimed and handed over once. Only once: registering happens on every
+    // innings that improves a score, not only the first, and minting again
+    // would quietly stop the key they wrote down from working.
+    //
+    // Like the career boards above, it must not be able to fail the claim. The
+    // place on the board is what they asked for and it is already written; a
+    // key that did not mint is offered again by the next innings they register,
+    // and by the key screen after that.
+    let key: string | null = null;
+    try {
+      key = await keyOnClaim(upstashRecovery(redisFromEnv()), foldName(cleanName(who.name)));
+    } catch (error) {
+      console.error('No career key was minted for the name.', error);
+    }
     // A submission is never cached, by anyone, ever.
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json(outcome);
+    res.status(200).json(key ? { ...outcome, key } : outcome);
   } catch (error) {
     if (error instanceof NoDatabase) return failed(res, 503, 'The board is not set up yet.', error);
     failed(res, 503, 'The board could not be reached.', error);

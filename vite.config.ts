@@ -8,6 +8,9 @@ import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
 } from './src/server/career-store';
 import { memoryCareer } from './src/server/memory-career';
+import { memoryRecovery } from './src/server/memory-recovery';
+import { foldName } from './src/server/board-store';
+import { keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
 import {
   BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
   type BlastCareer, type SurviveCareer,
@@ -48,13 +51,18 @@ function boardEndpoints(): Plugin {
     classic: memoryCareer<BlastCareer>(names),
     survive: memoryCareer<SurviveCareer>(names),
   };
+  // The career keys, sharing that same registry for the same reason: restoring
+  // asks who holds a name, and claiming is what wrote it. Two maps here would
+  // pass a test the deployed store fails, which is worse than no fake at all.
+  const recovery = memoryRecovery(names);
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
-        const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings'];
+        const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
+          '/api/restore'];
         if (!known.includes(path)) return next();
         const send = (status: number, body: unknown, cache = 'no-store') => {
           res.statusCode = status;
@@ -119,6 +127,24 @@ function boardEndpoints(): Plugin {
               : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: readBlastTally(sent.innings) });
             return refusedCareer(counted) ? send(counted.status, { error: counted.reason }) : send(200, counted);
           }
+          if (path === '/api/restore') {
+            if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
+            const asked = JSON.parse(await read(req)) as Record<string, unknown>;
+            if ((req.url ?? '').includes('new=')) {
+              const made = await newKey(recovery, { name: asked.name, playerId: asked.playerId });
+              return refusedRecovery(made)
+                ? send(made.status, { error: made.reason })
+                : send(200, { key: made.key });
+            }
+            // One address in development, the same way the board's is 'dev' —
+            // which means the rate limit is real here and shared by everybody
+            // testing. That is the honest version: a limit nobody can reach in
+            // development is a limit nobody has tried.
+            const brought = await restore(recovery, { name: asked.name, key: asked.key, address: 'dev' });
+            return refusedRecovery(brought)
+              ? send(brought.status, { error: brought.reason })
+              : send(200, { playerId: brought.playerId });
+          }
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
             if (survive) {
@@ -150,7 +176,10 @@ function boardEndpoints(): Plugin {
           await (asked
             ? nameCareer(careers.survive, SURVIVE_CAREER, who.playerId, cleanName(who.name), who.avatar)
             : nameCareer(careers.classic, BLAST_CAREER, who.playerId, cleanName(who.name), who.avatar));
-          return send(200, outcome);
+          // And the key, minted the first time this name is claimed and handed
+          // over once, exactly as the deployed endpoint does it.
+          const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+          return send(200, key ? { ...outcome, key } : outcome);
         } catch (error) {
           send(400, { error: error instanceof Error ? error.message : 'Bad request.' });
         }

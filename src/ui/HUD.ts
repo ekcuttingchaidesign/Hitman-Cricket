@@ -566,9 +566,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('stats-story').onclick = () => void this.shareStats('story');
     // The key card is only on the sheet where the player has one.
     const save = document.getElementById('key-save');
-    if (save) save.onclick = () => this.openKeySheet();
+    // On `lost` that one key asks for a new one instead of saving a key this
+    // browser does not hold — the card says so in the same breath, so the key
+    // under it has to mean what the card just said.
+    if (save) save.onclick = () => (this.keyView?.state === 'lost' ? this.onNewKey?.() : this.openKeySheet());
     const about = document.getElementById('key-info');
     if (about) about.onclick = () => this.openKeySheet(true);
+    const fresh = document.getElementById('key-new');
+    if (fresh) fresh.onclick = () => this.onNewKey?.();
     this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
@@ -1478,6 +1483,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /** What the game does with a name and a key. The store is the game's. */
   onRestore: ((entry: { name: string; key: string; merge: boolean }) => void) | null = null;
+
+  /**
+   * Asking for a key to replace the one this browser does not have.
+   *
+   * The only way out of `lost`. A key is shown once and kept nowhere but a
+   * salted hash, so the one that was issued cannot be produced again by
+   * anybody — a new one is the only thing that can be offered, and making it
+   * is what stops the old one working.
+   */
+  onNewKey: (() => void) | null = null;
 
   /**
    * It worked, said on the screen the player was already on.

@@ -18,10 +18,14 @@
  * needs a browser, so it is a unit test in `tests/stats-sheet.test.ts` where it
  * runs in milliseconds and cannot be flaky.
  *
- * It needs no database. The check behind it is stubbed under `?demo=1` and
- * answers in the browser, which is exactly what the real one must never do —
- * what is kept is a salted hash, so only the store can say whether a key is
- * right. What this covers is the screens, not the secret.
+ * It needs no database: the dev server keeps names and keys in memory, running
+ * the same `restore` and `keyOnClaim` the deployed endpoints run. So the key
+ * this uses is not a fixture — it is minted by claiming a name, exactly as a
+ * player's is, and carried back from the answer.
+ *
+ * One consequence worth knowing when a run fails oddly: the rate limit is real
+ * here and every request from a dev server counts as one address, so a check
+ * run over and over inside the hour will eventually be told to wait.
  */
 
 import { chromium } from '@playwright/test';
@@ -37,7 +41,7 @@ await page.addInitScript(() => {
   const day = new Date(Date.now() - 172800000).toISOString().slice(0, 10);
   try { localStorage.setItem('hitman-seen', day); } catch {}
 });
-await page.goto(`${base}/?demo=1&debug=1&seed=222`, { waitUntil: 'load' });
+await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
 await wait(3000);
 const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
 if (await anyway.count()) { await anyway.first().click(); await wait(1500); }
@@ -71,14 +75,30 @@ await wait(700);
 ok(await page.locator('#restore-form').count() === 1, 'which opens the restore screen');
 ok(await page.locator('#restore-merge').count() === 0, 'with no merge question, there being nothing to merge');
 
+// A real key, minted the way a player's is: claim a name against the same
+// store the browser is talking to and read the key out of the answer. A
+// fixture would prove the screens and nothing about the store behind them.
+const WHO = `Check${Math.floor(Math.random() * 9000) + 1000}`;
+const claimed = await fetch(`${base}/api/score`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    playerId: 'chk123-checkplayer01', name: WHO, avatar: 1, mode: 'classic',
+    innings: { runs: 70, sixes: 3, fours: 5, wickets: 1, dots: 9, balls: 30 },
+  }),
+}).then(r => r.json()).catch(() => null);
+ok(typeof claimed?.key === 'string', 'claiming a name mints a key', JSON.stringify(claimed));
+const MINE = claimed?.key ?? '';
+ok(/^[a-z]+-[a-z]+-[a-z]+-\d{2}$/.test(MINE), 'in the shape the wordlist makes', MINE);
+
 // 2. a key of the wrong shape is told apart from a wrong key
-await page.locator('#restore-name').fill('Rohit');
+await page.locator('#restore-name').fill(WHO);
 await page.locator('#restore-key').fill('not-a-key');
 await page.locator('#restore-send').click({ force: true });
 await wait(1200);
 const shape = await page.locator('#restore-error').textContent();
 ok(/three words and two numbers/.test(shape ?? ''), 'a half-typed key says what a key looks like', shape ?? '(none)');
-ok((await page.locator('#restore-name').inputValue()) === 'Rohit', 'and the name survives the refusal');
+ok((await page.locator('#restore-name').inputValue()) === WHO, 'and the name survives the refusal');
 
 // 3. the right shape, the wrong key
 await page.locator('#restore-key').fill('yorker-sprint-cover-48');
@@ -87,8 +107,8 @@ await wait(1200);
 const wrong = await page.locator('#restore-error').textContent();
 ok(/do not go together/.test(wrong ?? ''), 'a wrong key says so without saying which half was wrong', wrong ?? '(none)');
 
-// 4. the right key
-await page.locator('#restore-key').fill('yorker-sprint-cover-47');
+// 4. the key the store actually minted
+await page.locator('#restore-key').fill(MINE);
 await page.locator('#restore-send').click({ force: true });
 await wait(1400);
 ok(await page.locator('#restore-done').count() === 1, 'the right key brings the record back');
