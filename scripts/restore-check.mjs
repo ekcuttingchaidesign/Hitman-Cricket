@@ -119,23 +119,33 @@ await wait(1200);
 const wrong = await page.locator('#restore-error').textContent();
 ok(/do not go together/.test(wrong ?? ''), 'a wrong key says so without saying which half was wrong', wrong ?? '(none)');
 
-// 4. the key the store actually minted
+// 4. the ground around it closes it. Before the record comes back rather than
+// after: restoring answers the offer and takes the link away with it, which is
+// the next check down, so a screen opened from that link has to be opened
+// while the link is still there to open it.
+const modal = page.locator('#restore-overlay .key-modal');
+const bb = await modal.boundingBox();
+await page.mouse.click(bb.x + 8, bb.y + 8);
+await wait(600);
+ok(await page.locator('#restore-form').count() === 0, 'a press on the ground around it closes it');
+
+// 5. the key the store actually minted
+await page.locator('#stats-restore').click({ force: true });
+await wait(800);
+await page.locator('#restore-name').fill(WHO);
 await page.locator('#restore-key').fill(MINE);
 await page.locator('#restore-send').click({ force: true });
 await wait(1400);
 ok(await page.locator('#restore-done').count() === 1, 'the right key brings the record back');
 await page.locator('#restore-done').click({ force: true });
-await wait(600);
+await wait(1400);
 ok(await page.locator('#restore-form').count() === 0, 'and the way out leaves the screen');
 
-// 5. the ground around it closes it
-await page.locator('#stats-restore').click({ force: true });
-await wait(700);
-const modal = page.locator('#restore-overlay .key-modal');
-const bb = await modal.boundingBox();
-await page.mouse.click(bb.x + 8, bb.y + 8);
-await wait(500);
-ok(await page.locator('#restore-form').count() === 0, 'a press on the ground around it closes it');
+// The screen it was opened from, once the record is back. The welcome said so
+// and the screen behind it did not: the offer stayed exactly where it was,
+// inviting somebody to bring back the record they were already looking at.
+ok(await page.locator('#stats-restore').count() === 0,
+  'and the screen behind it stops offering what has just been done');
 
 console.log(errs.length ? `\nerrors:\n${errs.join('\n')}` : '\nnothing threw');
 console.log(bad ? `\n${bad} failed` : '\nall good');

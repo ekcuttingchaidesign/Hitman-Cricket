@@ -1547,11 +1547,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private restoreView: RestoreView | null = null;
 
   /**
-   * Whether the game wants the way back offered where it fits. Off until the
-   * store can answer, so the offer is never made to somebody it would only
-   * send round a loop.
+   * Whether the game wants the way back offered where it fits.
+   *
+   * Asked rather than remembered, for the reason `keyNow` is asked: the answer
+   * changes underneath this screen. Somebody claims a name; somebody brings a
+   * record back. Held as a field it was set true once at startup and stayed
+   * true — so the offer went on standing at the foot of My Stats for a player
+   * who had just used it, and for every registered player who never needed it.
    */
-  offerRestore = false;
+  restoreNow: (() => boolean) | null = null;
+  private get offerRestore() { return this.restoreNow?.() ?? false; }
 
   /** The link on an empty card, which is drawn with the card and so rewired with it. */
   private wireRestoreLink() {
@@ -1799,7 +1804,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   private get keyView(): KeyView | null { return this.keyNow?.() ?? null; }
   /** What the modal's two keys do. The game owns the saving. */
-  onKeySave: ((how: 'whatsapp' | 'copy') => void) | null = null;
+  /**
+   * What a save key does. Answering `false` means nothing was saved — the
+   * clipboard refused, or the browser blocked the window — and the sheet stays
+   * up saying so, because a sheet that closes on a save that did not happen is
+   * the lie this whole widget exists to avoid.
+   */
+  onKeySave: ((how: 'whatsapp' | 'copy') => Promise<boolean> | boolean) | null = null;
 
   careerKey(view: KeyView | null, where: { panel: boolean; bar: boolean }) {
     const panel = this.$('card-key');
@@ -1838,6 +1849,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
+   * Whether the end card's one slot is carrying anything at the moment.
+   *
+   * Asked before that slot is redrawn from outside the end card, because
+   * drawing the offer into it is what counts a showing against its cap — so a
+   * redraw aimed at a screen the player is not looking at would spend one of
+   * the two times they will ever be asked.
+   */
+  get keyPanelShowing() { return !this.$('card-key').classList.contains('hidden'); }
+
+  /**
    * Whether the end of an innings should carry the offer instead of a key.
    * The game decides — it knows whether a name is claimed, and it is the game
    * that remembers how often this has been asked.
@@ -1866,8 +1887,23 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const scrim = overlay.firstElementChild as HTMLElement | null;
     if (scrim) scrim.onclick = event => { if (event.target === scrim) shut(); };
     if (about) return;
-    this.$('key-whatsapp').onclick = () => { this.onKeySave?.('whatsapp'); shut(); };
-    this.$('key-copy').onclick = () => { this.onKeySave?.('copy'); shut(); };
+    const save = (how: 'whatsapp' | 'copy', trouble: string) => async () => {
+      const done = await this.onKeySave?.(how);
+      if (done === false) return this.keyTrouble(trouble);
+      shut();
+    };
+    this.$('key-whatsapp').onclick = save('whatsapp',
+      'Could not open WhatsApp. Screenshot this screen, or copy it instead.');
+    this.$('key-copy').onclick = save('copy',
+      'Could not copy. Screenshot this screen instead \u2014 the key is above.');
+  }
+
+  /** Said inside the sheet, because the sheet is what is on the screen. */
+  private keyTrouble(says: string) {
+    const line = document.getElementById('key-trouble');
+    if (!line) return;
+    line.textContent = says;
+    line.classList.remove('hidden');
   }
 
   closeKeySheet() {

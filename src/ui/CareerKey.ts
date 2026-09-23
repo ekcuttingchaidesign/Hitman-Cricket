@@ -170,8 +170,9 @@ export function keyModalMarkup(view: KeyView): string {
           browser starts you at nought.</p>
         <button id="key-whatsapp" class="key-sheet-key is-whatsapp" type="button">SEND IT TO MY WHATSAPP</button>
         <button id="key-copy" class="key-sheet-key is-copy" type="button">COPY</button>
-        <p class="key-fine">Put it somewhere you will still have in a year. A copied key only
-          lasts until the next thing you copy.</p>
+        <p id="key-trouble" class="key-trouble hidden" role="alert"></p>
+        <p class="key-fine">Or screenshot this screen \u2014 that keeps it too. Put it somewhere
+          you will still have in a year: a copied key only lasts until the next thing you copy.</p>
         <button id="key-modal-close" class="key-ghost" type="button">Close</button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import {
   RESTORE_TRIES_AT, RESTORE_TRIES_FROM, keyOnClaim, newKey, restore,
 } from '../src/server/recovery-store';
 import { KEY_WORDS } from '../src/game/key-words';
+import { keyShareText, keyWhatsappLink } from '../src/game/Share';
 
 const held = (names: [string, string][] = [['rohit', 'p-rohit']]) =>
   memoryRecovery(new Map(names));
@@ -185,5 +186,24 @@ describe('a key handed over, and a key replaced', () => {
     await keyOnClaim(store, 'rohit');
     await newKey(store, { name: 'Rohit', playerId: 'p-rohit' });
     expect(store.names.get('rohit')).toBe('p-rohit');
+  });
+});
+
+describe('the message a player sends themselves', () => {
+  it('carries both halves, because one of them opens nothing', () => {
+    const said = keyShareText('Rohit', 'yorker-sprint-cover-47', 'https://hitman-cricket.vercel.app/');
+    expect(said).toContain('Rohit');
+    expect(said).toContain('yorker-sprint-cover-47');
+  });
+
+  it('and the way back in, which is the point of saving it at all', () => {
+    expect(keyShareText('Rohit', 'yorker-sprint-cover-47', 'https://hitman-cricket.vercel.app/')).toContain('http');
+  });
+
+  it('survives the trip through a URL', () => {
+    const link = keyWhatsappLink('Rohit Ji', 'yorker-sprint-cover-47', 'https://hitman-cricket.vercel.app/');
+    expect(link.startsWith('https://wa.me/?text=')).toBe(true);
+    expect(decodeURIComponent(link.slice('https://wa.me/?text='.length)))
+      .toContain('yorker-sprint-cover-47');
   });
 });

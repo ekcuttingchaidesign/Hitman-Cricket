@@ -31,7 +31,7 @@ import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from './ui/CareerBoard';
 import { statsCardImage, statsFacts, type StatsFacts } from './game/StatsCard';
-import { gameLink } from './game/Share';
+import { gameLink, keyWhatsappLink } from './game/Share';
 import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
@@ -335,10 +335,7 @@ export class Game {
     // Either key in the sheet counts as saved. Which one was used is worth
     // knowing — one of them finishes the job and the other leaves homework —
     // so they are counted apart even though they retire the same prompts.
-    this.hud.onKeySave = how => {
-      markKeySaved();
-      this.mark(`key-saved-${how}`, how === 'whatsapp' ? 'Career key sent to WhatsApp' : 'Career key copied');
-    };
+    this.hud.onKeySave = how => this.saveKey(how);
     this.hud.onRestore = entry => void this.sendRestore(entry);
     this.hud.onRestoreOpen = from => this.openRestore(from);
     this.hud.keyNow = () => this.careerKeyHeld();
@@ -348,7 +345,9 @@ export class Game {
       restoreOfferDone();
       this.mark('restore-offer-dismissed', 'Restore offer waved away');
     };
-    this.hud.offerRestore = true;
+    // Only to somebody with no name. A record comes back as a name and a key
+    // together, so there is nothing to offer a player who already has one.
+    this.hud.restoreNow = () => !readPlayer();
     // The three ways into the questionnaire. The cover offers it only to
     // somebody who has played before: a form is a strange thing to be handed by
     // a game you have not started.
@@ -393,6 +392,14 @@ export class Game {
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
+      // Who this browser settled on being. Asked by `key-check.mjs`, which
+      // cannot know it any other way: the id is resolved from three stores
+      // against a one-second fuse, and a headless browser with a cold
+      // IndexedDB loses that race and plays as a freshly minted stranger. A
+      // check that plants an id and assumes it took is checking its own
+      // planting — and a new key is only ever given to the id that already
+      // holds the name, so it was asking as somebody else and being refused.
+      player: () => this.player,
       // Fills the meter so the charge can be driven straight from a test.
       fillConfidence: () => { this.confidence.value = CONFIDENCE_FULL; this.showConfidence(); },
       // Leaves him one blow from the floor, so the fall can be looked at without
@@ -501,6 +508,75 @@ export class Game {
   }
 
   /**
+   * Saving a key, which until now was a thing the sheet said and did not do.
+   *
+   * Both keys called through to a handler that recorded the save and retired
+   * the prompts, and neither ever opened WhatsApp or wrote to the clipboard.
+   * The player was told their key was safe and was holding nothing, which is
+   * the exact failure this file's own comment warns about — and the one the
+   * whole widget exists to prevent.
+   *
+   * The save is recorded only where something actually happened. A clipboard
+   * that refuses, or a window the browser blocks, leaves the prompt standing:
+   * a key that did not get out of here is a key still worth asking about.
+   */
+  private async saveKey(how: 'whatsapp' | 'copy'): Promise<boolean> {
+    const code = this.careerKeyHeld()?.code;
+    const name = readPlayer()?.name;
+    if (!code || !name) return false;
+    if (how === 'copy') {
+      // No clipboard at all, or permission refused. Either way nothing was
+      // saved, and the sheet stays up rather than closing on a promise it
+      // did not keep.
+      try { await navigator.clipboard.writeText(code); } catch { return false; }
+    } else if (!window.open(keyWhatsappLink(name, code, gameLink()), '_blank')) {
+      // Blocked as a popup. Opening inside the click that asked for it is what
+      // usually prevents that, and this is the case where it did not.
+      return false;
+    }
+    // Which one was used is worth knowing — one of them finishes the job and
+    // the other leaves homework — so they are counted apart even though they
+    // retire the same prompts.
+    markKeySaved();
+    this.mark(`key-saved-${how}`, how === 'whatsapp' ? 'Career key sent to WhatsApp' : 'Career key copied');
+    this.redrawKeyPlacements();
+    return true;
+  }
+
+  /**
+   * Every screen the key and the offer appear on, redrawn from what is true now.
+   *
+   * Making a key, saving one, and bringing a record back all change what these
+   * should say, and all three happen inside a modal standing over them. Closing
+   * that modal put the player back in front of the screen as it was before —
+   * still offering a new key they had just made, still offering to restore a
+   * record they had just restored.
+   */
+  private redrawKeyPlacements() {
+    // Only where that slot is already carrying something. Drawing the offer
+    // into it is what counts a showing against its cap, so a redraw aimed at a
+    // card nobody is looking at would spend one of the two.
+    if (this.hud.keyPanelShowing) {
+      this.hud.offerRestorePanel = this.offerRestoreOnCard();
+      this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+    }
+    this.redrawStats();
+  }
+
+  /** My Stats, in whichever of its two presentations is on the screen. */
+  private redrawStats() {
+    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    if (this.statsPage) {
+      this.railStats(mode, view => {
+        if (this.disposed || !this.statsPage) return;
+        this.hud.stats(view);
+      });
+    } else if (this.hud.boardOpen && this.sheetTab === 'mine') {
+      this.openMine();
+    }
+  }
+
+  /**
    * A key to replace one this browser cannot produce.
    *
    * Proved by holding the player id, which is the same secret the board is
@@ -520,7 +596,9 @@ export class Game {
     }
     keepKey(made.key);
     this.mark('key-new', 'New career key made');
-    this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: false });
+    // The card behind the sheet asked for this and has to stop asking: it still
+    // reads "make a new key" over a browser that now holds one.
+    this.redrawKeyPlacements();
     this.hud.openKeySheet();
   }
 
@@ -551,6 +629,10 @@ export class Game {
     this.surviveSeen = false;
     this.boardEpoch++;
     this.surviveEpoch++;
+    // The offer that brought them here is answered. Left alone it stays on the
+    // card under the career widget, inviting somebody to restore the record
+    // they are already looking at.
+    this.redrawKeyPlacements();
   }
   /**
    * Out of the picker without picking. Opened from the cover that is the cover

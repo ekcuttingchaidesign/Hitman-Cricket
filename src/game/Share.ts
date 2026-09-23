@@ -43,3 +43,19 @@ export const statsStoryText = (lead: { label: string; value: number }, innings: 
     photograph with type on it, so it travels as a JPEG. */
 export const statsFileName = (kind: 'card' | 'story') =>
   `hitman-cricket-career-${kind}.${kind === 'story' ? 'jpg' : 'png'}`;
+
+/**
+ * The message a player sends themselves to keep their key.
+ *
+ * Their name is in it because the key alone opens nothing — the pair is what
+ * brings a record back, and a key saved without the name it belongs to is half
+ * a lifeline. The link rides along so the message is also the way back in: a
+ * year from now, on a new phone, what they will find is this message, and it
+ * should carry everything needed rather than just the half that is secret.
+ */
+export const keyShareText = (name: string, code: string, url: string) =>
+  `My Hitman Cricket career key\n\nName: ${name}\nKey: ${code}\n\n`
+  + `Keep this message. The two together bring my record back on any phone. ${url}`;
+
+export const keyWhatsappLink = (name: string, code: string, url: string) =>
+  `https://wa.me/?text=${encodeURIComponent(keyShareText(name, code, url))}`;
