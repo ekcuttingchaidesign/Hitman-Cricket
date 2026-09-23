@@ -3647,30 +3647,24 @@ body.private-window{overflow:hidden}
 /* Each key wears the colour of where it is going, which is the fastest label
    there is: nobody reads the words on a green key with that mark on it. */
 /* Both keys are built the way every other key in the game is: a three-pixel
-   stroke and a six-pixel ledge, in the key's own colour. They had the ledge
-   and not the stroke, which left them looking like coloured labels beside the
-   keys on the innings card that have both. */
-.stats-key.is-whatsapp{
+   stroke and a six-pixel ledge, in the key's own colour. It had the ledge and
+   not the stroke, which left it looking like a coloured label beside the keys
+   on the innings card that have both.
+
+   Green because sending is green, and this green rather than WhatsApp's: there
+   is one key now and it goes wherever the share sheet is pointed, so wearing
+   any one app's colour would name a destination the player has not chosen yet.
+   Orange and white stay what they are — the key that starts an innings. */
+.stats-key.is-brag{
   border-width:3px;
-  border-color:#0f7a37;
-  background:#25d366;
+  border-color:#12764a;
+  background:#2fbf71;
   color:#04231a;
-  box-shadow:0 6px 0 #0f7a37,0 10px 14px #01180d4d
+  box-shadow:0 6px 0 #12764a,0 10px 14px #01180d4d
 }
-.stats-key.is-whatsapp:hover:not(:disabled){background:#31e074;box-shadow:0 7px 0 #0f7a37,0 12px 16px #01180d59}
-.stats-key.is-whatsapp:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #0f7a37,0 4px 8px #01180d3d}
-.stats-key.is-story{
-  /* One flat hue for the stroke and the ledge, taken from the deep end of the
-     key's own gradient — a gradient cannot run round a border and a ledge, and
-     two different ones would read as a mistake rather than a choice. */
-  border-width:3px;
-  border-color:#6b2a86;
-  background:linear-gradient(100deg,#f2814f,#d62976 55%,#8134af);
-  color:#fff;
-  box-shadow:0 6px 0 #6b2a86,0 10px 14px #2a0e364d
-}
-.stats-key.is-story:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 7px 0 #6b2a86,0 12px 16px #2a0e3659}
-.stats-key.is-story:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #6b2a86,0 4px 8px #2a0e363d}
+.stats-key.is-brag:hover:not(:disabled){background:#38cf7d;box-shadow:0 7px 0 #12764a,0 12px 16px #01180d59}
+.stats-key.is-brag:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #12764a,0 4px 8px #01180d3d}
+.stats-key.is-brag svg{width:20px;height:20px}
 
 .stats-status{
   margin:0;

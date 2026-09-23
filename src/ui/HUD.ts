@@ -1,7 +1,7 @@
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import {
-  gameLink, shareFileName, shareFileType, shareText, statsFileName, statsShareText,
+  gameLink, shareFileName, shareFileType, shareText, statsFileName,
   statsStoryText, statsWhatsappLink, whatsappLink,
 } from '../game/Share';
 import { track, trackOnce } from '../game/analytics';
@@ -34,7 +34,7 @@ import {
   type LocalCareer, type RestoreView,
 } from './Restore';
 import {
-  statsCardImage, statsExplain, statsStoryImage, type StatsFacts,
+  statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
@@ -582,8 +582,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * one place rather than each remembering to do it.
    */
   private wireStatsKeys() {
-    this.$('stats-whatsapp').onclick = () => void this.shareStats('card');
-    this.$('stats-story').onclick = () => void this.shareStats('story');
+    this.$('stats-brag').onclick = () => void this.shareStats();
     // The key card is only on the sheet where the player has one.
     const save = document.getElementById('key-save');
     // On `lost` that one key asks for a new one instead of saving a key this
@@ -857,31 +856,37 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * will not hand a file to another app, the wa.me link still opens WhatsApp
    * with that text, so the link survives even when the picture cannot.
    */
-  private async shareStats(kind: 'card' | 'story') {
+  /**
+   * One key, one picture, and the phone's own sheet to choose where it goes.
+   *
+   * It was two — one wearing WhatsApp's mark and one Instagram's — which named
+   * two destinations out of the dozen the share sheet offers and made the card
+   * look like it belonged to them. The sheet is already the chooser; a screen
+   * that chooses first is a screen doing the sheet's job worse.
+   *
+   * The tall picture rather than the square one, because one asset has to work
+   * in both places: nine by sixteen posts as a story untouched and still reads
+   * in a chat, where a square card posted as a story is a square card with grey
+   * above and below it.
+   */
+  private async shareStats() {
     const facts = this.statsShown;
     if (!facts) return;
-    track(kind === 'story' ? 'stats-share-story' : 'stats-share-whatsapp',
-      kind === 'story' ? 'Shared the career card to a story' : 'Shared the career card to WhatsApp');
+    track('stats-brag', 'Bragged about the career card');
     const url = gameLink();
     const lead = facts.hero[0] ?? { label: 'runs', value: 0 };
-    const caption = kind === 'story'
-      ? statsStoryText(lead, facts.innings, url)
-      : statsShareText(lead, facts.innings, url);
+    const caption = statsStoryText(lead, facts.innings, url);
     const status = this.$('stats-status');
     if (!canShareImage()) {
-      // No file can leave this browser. WhatsApp's own link still carries the
-      // text and the address; the story has no such fallback but a saved file.
-      if (kind === 'card') { window.open(statsWhatsappLink(lead, facts.innings, url), '_blank', 'noopener'); return; }
-      await this.saveStats(facts, url, caption);
+      // No file can leave this browser, so the picture cannot go anywhere the
+      // player chooses. WhatsApp's own link still carries the words and the
+      // address, which is more use than a file in a downloads folder.
+      window.open(statsWhatsappLink(lead, facts.innings, url), '_blank', 'noopener');
       return;
     }
     try {
-      const picture = kind === 'story'
-        ? await statsStoryImage(facts, url)
-        : await statsCardImage(facts, url);
-      const file = new File([picture], statsFileName(kind), {
-        type: kind === 'story' ? 'image/jpeg' : 'image/png',
-      });
+      const picture = await statsStoryImage(facts, url);
+      const file = new File([picture], statsFileName('story'), { type: 'image/jpeg' });
       await navigator.share({ files: [file], text: caption });
     } catch (error) {
       // A cancelled sheet is the player changing their mind, not a failure.

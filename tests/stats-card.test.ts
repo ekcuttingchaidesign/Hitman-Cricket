@@ -189,14 +189,25 @@ describe('the card\'s sheet', () => {
   const facts = statsFacts('classic', blast, { name: 'Rohit', avatar: 1 }, '4th on Boundaries');
   const surviveCard = statsFacts('survive', survive, { name: 'Rohit', avatar: 1 });
 
-  it('offers the two keys, whatever the picture is doing', () => {
+  /**
+   * One key, not two. It was one a destination — WhatsApp's mark and
+   * Instagram's — which named two of the dozen places the share sheet offers
+   * and made the card look like it belonged to them. The sheet is the chooser.
+   */
+  it('offers the one key, whatever the picture is doing', () => {
     for (const card of [{ facts }, { facts, picture: 'blob:x' }, { facts, failed: true }]) {
       const markup = statsSheetMarkup({ cards: [card] });
-      expect(markup).toContain('id="stats-whatsapp"');
-      expect(markup).toContain('id="stats-story"');
-      expect(markup).toContain('BRAG STATS ON WHATSAPP');
-      expect(markup).toContain('SHARE TO INSTA STORY');
+      expect(markup).toContain('id="stats-brag"');
+      expect(markup).toContain('BRAG ABOUT MY STATS');
+      expect(markup).not.toContain('id="stats-whatsapp"');
+      expect(markup).not.toContain('id="stats-story"');
     }
+  });
+
+  /** And names no destination in its words either. */
+  it('names no app on the key', () => {
+    const markup = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }] });
+    expect(markup).not.toMatch(/WHATSAPP|INSTA/i);
   });
 
   it('says it is drawing before there is a picture', () => {
@@ -228,7 +239,7 @@ describe('the card\'s sheet', () => {
   it('keeps the same card and the same keys wherever it is standing', () => {
     const page = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }], where: 'page' });
     const tab = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }], where: 'sheet' });
-    for (const mark of ['id="stats-whatsapp"', 'id="stats-story"', 'src="blob:x"']) {
+    for (const mark of ['id="stats-brag"', 'src="blob:x"']) {
       expect(page).toContain(mark);
       expect(tab).toContain(mark);
     }
