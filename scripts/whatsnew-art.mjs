@@ -39,12 +39,13 @@ const ME = 'artart-aaaabbbbcccc';
 /**
  * The key in the picture, which is nobody's.
  *
- * Invented from the wordlist rather than taken from a real one: a screenshot
- * of somebody's actual key is that key published, and the picture is shown to
- * everybody who opens the game. It is the same string the restore field uses
- * as its placeholder, for the same reason.
+ * Not a real one, and not a plausible one either. A screenshot of somebody's
+ * actual key is that key published; a screenshot of a key-shaped string is a
+ * player wondering why the one on their own card says something else. So it
+ * reads as the label it is, in the shape a key has — three words and two
+ * digits, lowercase, exactly as the card draws a real one.
  */
-const SHOWN_KEY = 'yorker-sprint-cover-47';
+const SHOWN_KEY = 'your-record-key-00';
 
 /** An innings board that looks like one people have been playing on. */
 const rows = NAMES.map((name, i) => ({
