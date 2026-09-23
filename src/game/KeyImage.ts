@@ -18,14 +18,28 @@
  */
 
 const FAMILY = "Satoshi, 'Segoe UI', Arial, sans-serif";
-const CTA = "Jaro, Display, 'Arial Narrow', Impact, sans-serif";
+/**
+ * The key is set in a monospace, and not in the display face it wears on the
+ * card.
+ *
+ * On screen the key is a thing to recognise, and the heavy condensed face is
+ * part of what makes the card look like an object worth keeping. In a picture
+ * its only job is to be read back a character at a time, months later, by
+ * somebody typing it into a field — and there the same face works against it:
+ * the hyphens close up against the letters beside them, and the crowded
+ * shapes make a poor job of telling one glyph from another.
+ *
+ * A monospace answers all of that. Even spacing, hyphens that stay hyphens,
+ * and the families below are the ones that draw a zero apart from an O. It is
+ * on the system, so there is no font to fetch and nothing to fall back from.
+ */
+const MONO = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace";
 
 /** The weights this asks for, loaded before a glyph is measured. */
 let ready: Promise<void> | null = null;
 export function prepareKeyAssets() {
   ready ??= (async () => {
     await Promise.all([
-      document.fonts.load(`700 34px ${CTA}`, 'abcdefghijklmnopqrstuvwxyz-0123456789'),
       document.fonts.load(`800 20px ${FAMILY}`, 'ABC'),
       document.fonts.load(`500 17px ${FAMILY}`, 'abc'),
     ]);
@@ -109,13 +123,17 @@ export async function keyImage(name: string, code: string): Promise<Blob> {
   ctx.fillStyle = foil;
   ctx.fill();
 
-  let size = 62;
+  let size = 52;
   ctx.fillStyle = '#101010';
+  // Tracked a little wider than the face sets it, because this is being read
+  // one character at a time rather than as a word.
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
   do {
-    ctx.font = `700 ${size}px ${CTA}`;
+    ctx.font = `700 ${size}px ${MONO}`;
     size -= 2;
-  } while (size > 22 && ctx.measureText(code).width > 720);
-  ctx.fillText(code, W / 2, 630);
+  } while (size > 18 && ctx.measureText(code).width > 700);
+  ctx.fillText(code, W / 2, 628);
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
 
   ctx.fillStyle = '#ffffffcc';
   ctx.font = `500 27px ${FAMILY}`;
