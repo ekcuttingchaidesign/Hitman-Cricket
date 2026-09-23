@@ -72,9 +72,17 @@ function innings(runs) {
   return { runs, sixes, fours: 0, wickets: 1, dots: 30 - sixes - singles - 1, balls: 30 };
 }
 
-/** A Test innings: four figures, and the hundred reached inside the ten overs. */
-function chase(runs, balls) {
-  return { runs, balls, wickets: 0, blows: 2 };
+/**
+ * A Test innings: five figures, and the hundred reached inside the ten overs.
+ *
+ * `health` is what was left on the meter, and it is not optional — the ladder
+ * ranks on it rather than on the blow count beside it. This built four figures
+ * for a while after the meter arrived, so every Test post here was turned down
+ * as an innings that could not have happened, and the four checks below it
+ * failed for a reason that had nothing to do with them.
+ */
+function chase(runs, balls, health = 64) {
+  return { runs, balls, wickets: 0, blows: 2, health };
 }
 
 console.log(`\nBoard check against ${base}\n`);
@@ -95,11 +103,16 @@ check(board.body !== null, 'GET /api/board answers JSON, not HTML',
     : board.text.slice(0, 120));
 check(Array.isArray(board.body?.rows), 'the answer carries rows', board.body);
 check('cutoff' in (board.body ?? {}), 'the answer names the cutoff', board.body);
-check(
-  /s-maxage/.test(board.headers.get('cache-control') ?? ''),
-  'the board is cacheable at the edge',
-  board.headers.get('cache-control'),
-);
+// Deployment Protection strips this down to `public` on its way out, because a
+// protected deployment's answer must not sit in a shared cache. So behind the
+// bypass the header says nothing about what the handler set, and asserting it
+// there reports a fault in Vercel's wrapper as a fault in this deployment.
+const cache = board.headers.get('cache-control') ?? '';
+if (Object.keys(BYPASS).length && !/s-maxage/.test(cache)) {
+  console.log(`  --   edge caching not checked: Deployment Protection rewrote it to "${cache}"`);
+} else {
+  check(/s-maxage/.test(cache), 'the board is cacheable at the edge', cache);
+}
 if (board.status !== 200 || board.body === null) {
   console.log('\nThe board does not read. Nothing below would mean anything.\n');
   process.exit(1);
@@ -121,7 +134,13 @@ check(
 );
 
 // ── It is really there ─────────────────────────────────────────────────────
-const after = await call('/api/board');
+// Asked for on a cache key of its own. `/api/board` is served with ten seconds
+// of edge cache, this run read it a second ago, and a row written in between is
+// not in the copy the edge is holding — so a plain re-read here tests the CDN
+// rather than the store, and fails in the one case it was written to prove.
+// The handler reads `mode` and nothing else, so the extra pair is ignored by
+// everything except the cache key it changes.
+const after = await call(`/api/board?fresh=${run}`);
 check(
   after.body?.rows?.some(r => r.playerId === me && r.name === name && r.avatar === 2),
   'the row survives a fresh read, with its name and kit',
