@@ -1501,11 +1501,28 @@ body.start-screen .hud-top{display:none}
    it, and two supporting columns wide enough for anything a career can reach,
    both fixed so that fifty rows read as columns rather than as fifty separate
    arrangements. */
-.board-row.is-career{gap:0 7px}
+.board-row.is-career{gap:0 6px}
 .board-row.is-career .board-runs{min-width:58px;font-size:18px}
 .board-row.is-career .board-hits{gap:6px;margin-left:0}
-.board-row.is-career .board-hits em{width:46px;font-size:12.5px}
-.board-row.is-career .board-hits small{font-size:8.5px}
+/* The label under the figure rather than beside it.
+   Beside it, a column had to be as wide as its number and its word together,
+   and a career that reaches four figures cannot be: `1,532` and `runs` want
+   fifty-seven pixels of the forty-six a column has, so the last one ran off
+   the card. Stacked, a column is only as wide as the wider of the two — and
+   the number, which is what fifty rows are compared on, keeps the whole of it.
+
+   Set in the row's own line-height rather than the document's, or two lines
+   where there was one would make every career row taller than an innings row
+   for the sake of a word. */
+.board-row.is-career .board-hits em{
+  flex-direction:column;
+  align-items:flex-end;
+  gap:0;
+  width:46px;
+  font-size:12.5px;
+  line-height:1.15
+}
+.board-row.is-career .board-hits small{font-size:8.5px;line-height:1.1}
 /* Below that, two career columns and a name cannot all have what they need,
    and the first thing to go is the last column rather than the name: a row
    that says who and how many is a row; a row of figures beside two initials
@@ -1541,13 +1558,18 @@ body.start-screen .hud-top{display:none}
      as filled in. */
   background:linear-gradient(90deg,#f2814f3d 0%,#f2814f1c 46%,#f2814f00 100%)
 }
-/* A small triangle pointing into the row, half off its left edge — the shape
-   a scoreboard uses to say "this one". A bar would have been a border, and a
-   border on one row of fifty reads as a divider that got thicker. */
+/* A small triangle pointing into the row — the shape a scoreboard uses to say
+   "this one". A bar would have been a border, and a border on one row of fifty
+   reads as a divider that got thicker.
+
+   Flush with the card's own edge rather than hanging four pixels outside it.
+   Out there it was pointing at the row from off the sheet, and it was spending
+   width the row could not spare: a career counts to four figures and the
+   columns that hold them had run out of room. */
 .board-row.is-you::before{
   content:'';
   position:absolute;
-  left:-4px;
+  left:0;
   top:50%;
   width:0;
   height:0;
