@@ -52,7 +52,7 @@ export interface RestoreView {
    * every other key shows its work immediately, and a form that simply closes
    * leaves somebody wondering whether their record came back or not.
    */
-  done?: { name: string; merged: boolean } | null;
+  done?: { name: string } | null;
 }
 
 export function restoreMarkup(view: RestoreView): string {
@@ -75,7 +75,7 @@ export function restoreMarkup(view: RestoreView): string {
               autocorrect="off" spellcheck="false" enterkeyhint="done"
               placeholder="yorker-sprint-cover-47" required>
           </label>
-          ${local ? mergeMarkup(local) : ''}
+          ${local ? losingMarkup(local) : ''}
           ${error ? `<p id="restore-error" class="claim-error" role="alert">${escape(error)}</p>` : ''}
           <button id="restore-send" type="submit" class="key-sheet-key is-whatsapp"${
   sending ? ' disabled' : ''}>${sending ? 'CHECKING…' : 'BRING IT BACK'}</button>
@@ -88,7 +88,7 @@ export function restoreMarkup(view: RestoreView): string {
 }
 
 /** Back, and with it. The key underneath goes where the record is. */
-function doneMarkup(done: { name: string; merged: boolean }): string {
+function doneMarkup(done: { name: string }): string {
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-done-title">
       <div class="key-sheet restore-sheet is-done">
@@ -96,9 +96,7 @@ function doneMarkup(done: { name: string; merged: boolean }): string {
           <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
           <h2 id="restore-done-title">Welcome back, ${escape(done.name)}</h2>
           <p class="key-sheet-say">Your record is yours again \u2014 every innings, every run, your
-            tier and your place on the board.${done.merged
-    ? ' The innings you played on this phone have been added to it.'
-    : ''}</p>
+            tier and your place on the board.</p>
           <button id="restore-done" class="key-sheet-key is-whatsapp" type="button">SEE MY RECORD</button>
         </div>
       </div>
@@ -106,24 +104,31 @@ function doneMarkup(done: { name: string; merged: boolean }): string {
 }
 
 /**
- * The question that only exists when there is something to ask about.
+ * What this phone is about to stop counting, said plainly.
  *
- * Somebody who played a few innings before realising they could restore has
- * earned those runs, and the whole point of this feature is that runs are not
- * lost. So it is ticked: the safe answer is the default, and the unsafe one
- * costs a deliberate press. It is still a question rather than a silent merge,
- * because on a borrowed phone the innings underneath belong to somebody else.
+ * It was a question — a ticked box offering to add these innings to the record
+ * coming back. It could not have kept that promise. Every figure on the board
+ * is counted by the store, one validated innings at a time; a career arrives
+ * here as totals and nothing else, so adding them would mean an endpoint that
+ * takes a career total the browser worked out for itself. That is the one
+ * shape this whole design avoids, and the limits discussed for it would have
+ * bounded the damage rather than stopped it — a cheat with a ceiling is still
+ * a cheat, sitting on the one endpoint where being wrong hands somebody else's
+ * record away.
+ *
+ * What is lost by saying no is an innings or two played in the minutes before
+ * somebody realised they could restore. What is kept is a board where every
+ * number was counted rather than claimed. So it is stated instead of offered,
+ * because a screen that surprises somebody is worse than one that warns them.
  */
-function mergeMarkup(local: LocalCareer): string {
-  const innings = `${local.innings} ${local.innings === 1 ? 'innings' : 'innings'}`;
+function losingMarkup(local: LocalCareer): string {
+  // "Innings" is already both, in cricket and in the rest of this game's copy.
+  const innings = `${local.innings} innings`;
+  const runs = `${local.runs} ${local.runs === 1 ? 'run' : 'runs'}`;
   return `
-          <div class="restore-merge">
-            <p class="restore-merge-say">This phone has <b>${innings}</b> and
-              <b>${local.runs} ${local.runs === 1 ? 'run' : 'runs'}</b> on it, counted nowhere yet.</p>
-            <label class="restore-check">
-              <input id="restore-merge" type="checkbox" checked>
-              <span>Add them to my career</span>
-            </label>
+          <div class="restore-losing">
+            <p class="restore-losing-say">This phone has <b>${innings}</b> and <b>${runs}</b> on it,
+              counted nowhere yet. Bringing your record back replaces them.</p>
           </div>`;
 }
 

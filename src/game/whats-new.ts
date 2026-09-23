@@ -5,11 +5,14 @@
  * ladders a game, every innings started counting towards something, and a card
  * appeared that is worth sending to people — and none of that is discoverable
  * by a player who opens the game, taps PLAY, and bats. So it is put in front of
- * them once, in the shape every phone already knows how to read: three cards,
- * a bar across the top, a tap to move on.
+ * them once, in the shape every phone already knows how to read: a handful of
+ * cards, a bar across the top, a tap to move on.
  *
- * Three, and not one more. A player came here to bat, and the only thing that
+ * Four, and not one more. A player came here to bat, and the only thing that
  * makes an interruption forgivable is that it is over before they resent it.
+ * Three of these say what the game now does; the fourth is the only one that
+ * asks the player to do something, and it earns the extra card by being the
+ * thing that makes the other three survive a new phone.
  *
  * The pictures are screenshots of the real screens, made by
  * `scripts/whatsnew-art.mjs`. Drawings of them would be a second design to keep
@@ -19,6 +22,7 @@
 const board = new URL('../assets/whatsnew/board.webp', import.meta.url).href;
 const ladders = new URL('../assets/whatsnew/ladders.webp', import.meta.url).href;
 const card = new URL('../assets/whatsnew/card.webp', import.meta.url).href;
+const key = new URL('../assets/whatsnew/key.webp', import.meta.url).href;
 
 export interface Story {
   key: string;
@@ -56,6 +60,14 @@ export const STORIES: readonly Story[] = [
     art: card,
     alt: 'A career stats card in the black and silver STAR theme, showing runs, highest, hundreds and best individual score.',
   },
+  {
+    key: 'key',
+    eyebrow: 'CAREER KEY',
+    title: 'Never lose your record',
+    body: 'Phones forget. Register a score and you get a career key \u2014 three words and two numbers. Save it somewhere that is not this browser, and your record comes back on any phone.',
+    art: key,
+    alt: 'The career key card on My Stats, with a key of three words and two numbers across it and a key marked SAVE YOUR KEY.',
+  },
 ];
 
 /**
@@ -66,7 +78,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'careers';
+export const UPDATE = 'career-key';
 
 /**
  * How many times one browser is shown it unasked.

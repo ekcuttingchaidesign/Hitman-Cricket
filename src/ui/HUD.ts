@@ -311,6 +311,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <p class="card-board-head" id="card-board-head"></p>
               <div id="card-peek"></div>
               <button id="claim" class="key-button claim-key">REGISTER SCORE ON LEADERBOARD</button>
+              <p id="claim-why" class="claim-why hidden">Registering is also how your career survives a new phone.</p>
               <form id="card-claim" class="card-claim hidden">
                 <div id="claim-picker"></div>
                 <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
@@ -1320,6 +1321,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Cleared up front, so the two "view leaderboard" states cannot inherit a
     // shimmer from an offer the player has already answered.
     key.classList.remove('is-offer');
+    // Only said where the key is asking. On "view leaderboard" the sentence
+    // would be describing a thing the player has already done.
+    this.askingToRegister = offer.kind !== 'private' && offer.kind !== 'standing';
+    this.$('claim-why').classList.toggle('hidden', !this.askingToRegister);
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
@@ -1352,6 +1357,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
     this.$('card-board').classList.remove('hidden');
   }
+
+  /**
+   * Whether the register key is an offer rather than a door.
+   *
+   * Kept because the footnote under it comes and goes with the form, and the
+   * form closing cannot tell on its own which of the three things the key is
+   * saying.
+   */
+  private askingToRegister = false;
 
   /** Which card the strip is living in at the moment. */
   private stripHost: 'end' | 'end-survive' = 'end';
@@ -1404,6 +1418,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   openClaim() {
     this.$('card-peek').classList.add('hidden');
     this.$('claim').classList.add('hidden');
+    this.$('claim-why').classList.add('hidden');
     this.$('card-claim').classList.remove('hidden');
     this.$(this.stripHost).classList.add('is-claiming');
     // A returning player's own kit, or the one this player was dealt. Never kit
@@ -1480,13 +1495,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.drawRestore();
   }
 
-  /** What the player is offering, and whether they want what is here kept. */
+  /** What the player is offering. */
   get restoreEntry() {
-    const merge = document.getElementById('restore-merge') as HTMLInputElement | null;
     return {
       name: (this.$('restore-name') as HTMLInputElement).value,
       key: (this.$('restore-key') as HTMLInputElement).value,
-      merge: merge ? merge.checked : false,
     };
   }
 
@@ -1516,7 +1529,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   get restoreOpen() { return !this.$('restore-overlay').classList.contains('hidden'); }
 
   /** What the game does with a name and a key. The store is the game's. */
-  onRestore: ((entry: { name: string; key: string; merge: boolean }) => void) | null = null;
+  onRestore: ((entry: { name: string; key: string }) => void) | null = null;
 
   /**
    * Asking for a key to replace the one this browser does not have.
@@ -1535,8 +1548,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * and the record is behind this — so the right thing to do is get out of the
    * way and let them see it, not stand in front of it with good news.
    */
-  restoreDone(name: string, merged: boolean) {
-    this.restoreView = { done: { name, merged } };
+  restoreDone(name: string) {
+    this.restoreView = { done: { name } };
     this.drawRestore();
   }
 
@@ -1611,6 +1624,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('card-claim').classList.add('hidden');
     this.$('card-peek').classList.remove('hidden');
     this.$('claim').classList.remove('hidden');
+    this.$('claim-why').classList.toggle('hidden', !this.askingToRegister);
     this.$(this.stripHost).classList.remove('is-claiming');
     this.claimSending(false);
   }

@@ -488,7 +488,7 @@ export class Game {
    * often as they liked — and the store is also the only thing that can count
    * the attempts, which is most of what stands between a key and a keyspace.
    */
-  private async sendRestore(entry: { name: string; key: string; merge: boolean }) {
+  private async sendRestore(entry: { name: string; key: string }) {
     this.hud.restoreSending(true);
     const answer = await restoreRecord(entry.name, entry.key);
     if (this.disposed) return;
@@ -496,10 +496,10 @@ export class Game {
       this.mark('restore-failed', 'Restore turned down');
       return this.hud.restoreFailed(answer.reason ?? 'That did not go through.');
     }
-    this.mark(entry.merge ? 'restore-done-merged' : 'restore-done', 'Record brought back');
+    this.mark('restore-done', 'Record brought back');
     this.becomeRestored(answer.playerId, entry.name);
     this.hud.closeRestore();
-    this.hud.restoreDone(entry.name, entry.merge);
+    this.hud.restoreDone(entry.name);
   }
 
   /**

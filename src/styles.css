@@ -1900,6 +1900,20 @@ body.start-screen .hud-top{display:none}
   box-shadow:0 7px 0 #5f6cc4,0 12px 14px #1d234f59
 }
 .card-board .claim-key:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #5f6cc4,0 4px 7px #1d234f3d}
+/* The second reason to press the key, under the key rather than in it.
+   Registering is what puts a name on the board, and a name is the half of a
+   career key that a player has to remember — so the one screen where somebody
+   is deciding whether to register is the one place worth saying it. Only on
+   the offer: on VIEW LEADERBOARD it would be describing something already
+   done. It rides the key's own bottom margin rather than adding to it, so a
+   card that already clears a short phone still does. */
+.claim-why{
+  margin:-9px 15px 13px;
+  font-size:11px;
+  line-height:1.35;
+  text-align:center;
+  color:#9fb6bb
+}
 /* The submit key inside the form is the same key doing the same job. */
 .card-claim .claim-key{
   border:0;
@@ -2214,6 +2228,7 @@ dialog .primary-button{margin-top:18px}
      card scrolls, the way out of the form does not move. */
   .card-claim .claim-key{position:sticky;bottom:0;z-index:1}
   .card-board .claim-key{margin:8px 13px 12px}
+  .claim-why{margin:-8px 13px 10px}
   .board-actions{padding:0 0 calc(var(--pad-bottom) - 14px)}
   .board-actions .key-button{min-height:42px;font-size:15px}
   /* Side by side once the card has to clear a landscape phone. The labels lose
@@ -4477,16 +4492,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .restore-field input::placeholder{color:#ffffff4d;font-weight:500}
 .restore-field input:focus-visible{outline:2px solid var(--cta-orange);outline-offset:2px;border-color:#0000}
 /* Only ever on the screen when there is something to lose. */
-.restore-merge{
+.restore-losing{
   margin:0 0 11px;
   padding:10px 11px;
   border:1.2px solid #ffffff2b;
   border-radius:10px;
   background:#ffffff0d
 }
-.restore-merge-say{margin:0 0 8px;font-size:11.5px;line-height:1.45;color:#fff}
-.restore-check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#fff}
-.restore-check input{width:17px;height:17px;accent-color:var(--cta-orange);flex:none}
+.restore-losing-say{margin:0;font-size:11.5px;line-height:1.45;color:#fff}
 .restore-sheet .claim-error{margin:0 0 10px;font-size:12px}
 .restore-sheet .key-fine{margin:0 0 2px;text-align:center}
 

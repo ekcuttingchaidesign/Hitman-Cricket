@@ -85,7 +85,7 @@ await wait(400);
 await link.click({ force: true });
 await wait(700);
 ok(await page.locator('#restore-form').count() === 1, 'which opens the restore screen');
-ok(await page.locator('#restore-merge').count() === 0, 'with no merge question, there being nothing to merge');
+ok(await page.locator('.restore-losing').count() === 0, 'with nothing said about losing, there being nothing on this phone to lose');
 
 // A real key, minted the way a player's is: claim a name against the same
 // store the browser is talking to and read the key out of the answer. A
