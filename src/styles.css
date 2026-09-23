@@ -1908,12 +1908,20 @@ body.start-screen .hud-top{display:none}
    done. It rides the key's own bottom margin rather than adding to it, so a
    card that already clears a short phone still does. */
 .claim-why{
+  display:none;
   margin:-9px 15px 13px;
   font-size:11px;
   line-height:1.35;
   text-align:center;
   color:#9fb6bb
 }
+/* Up only where the key above it is asking, and down again while the form that
+   key opens is standing in its place. The second selector carries the first's
+   classes as well as the host's, because it has to outrank it: a hide written
+   as `.is-claiming .claim-why` is a class short, and the footnote sat over the
+   form with both rules matching and the wrong one winning. */
+.card-board.is-asking .claim-why{display:block}
+.is-claiming .card-board.is-asking .claim-why{display:none}
 /* The submit key inside the form is the same key doing the same job. */
 .card-claim .claim-key{
   border:0;

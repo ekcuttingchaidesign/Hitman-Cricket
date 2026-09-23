@@ -421,15 +421,13 @@ export class Game {
   /**
    * The key this player holds, or null.
    *
-   * Null everywhere today: the store issues no keys, so the placements draw
-   * And only to somebody who has claimed a name. A record is brought back with
-   * a name and a key together, so a key held by nobody opens nothing — it is a
-   * lifeline with the far end tied to air. That rule is not the stub's: it is
-   * the shape of the thing, and it will hold when a store is issuing these for
-   * real. Four of the seven ways somebody can arrive at this screen have no
-   * name yet — first visit, played but not registered, a new phone before
-   * restoring, and a new phone with a few innings on it — and all four were
-   * being handed a key.
+   * Only ever offered to somebody who has claimed a name. A record is brought
+   * back with a name and a key together, so a key held by nobody opens nothing
+   * — it is a lifeline with the far end tied to air. Four of the seven ways
+   * somebody can arrive at this screen have no name yet: a first visit, a
+   * career built but never registered, a new phone before restoring, and a new
+   * phone with a few innings on it. All four were once handed a key, because
+   * the rule was written in a comment and nowhere else.
    */
   private careerKeyHeld() { return keyView(!!readPlayer()); }
 

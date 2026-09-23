@@ -311,7 +311,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <p class="card-board-head" id="card-board-head"></p>
               <div id="card-peek"></div>
               <button id="claim" class="key-button claim-key">REGISTER SCORE ON LEADERBOARD</button>
-              <p id="claim-why" class="claim-why hidden">Registering is also how your career survives a new phone.</p>
+              <p id="claim-why" class="claim-why">Registering is also how your career survives a new phone.</p>
               <form id="card-claim" class="card-claim hidden">
                 <div id="claim-picker"></div>
                 <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
@@ -1321,10 +1321,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Cleared up front, so the two "view leaderboard" states cannot inherit a
     // shimmer from an offer the player has already answered.
     key.classList.remove('is-offer');
-    // Only said where the key is asking. On "view leaderboard" the sentence
-    // would be describing a thing the player has already done.
-    this.askingToRegister = offer.kind !== 'private' && offer.kind !== 'standing';
-    this.$('claim-why').classList.toggle('hidden', !this.askingToRegister);
+    // Said where the key is asking, and nowhere else. One class on the strip
+    // rather than a toggle at each of the three places the form opens and
+    // closes: the footnote then cannot fall out of step with the key it is
+    // under, because the same state draws both.
+    this.$('card-board').classList.toggle('is-asking', offer.kind === 'claim');
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
@@ -1357,15 +1358,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
     this.$('card-board').classList.remove('hidden');
   }
-
-  /**
-   * Whether the register key is an offer rather than a door.
-   *
-   * Kept because the footnote under it comes and goes with the form, and the
-   * form closing cannot tell on its own which of the three things the key is
-   * saying.
-   */
-  private askingToRegister = false;
 
   /** Which card the strip is living in at the moment. */
   private stripHost: 'end' | 'end-survive' = 'end';
@@ -1418,7 +1410,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   openClaim() {
     this.$('card-peek').classList.add('hidden');
     this.$('claim').classList.add('hidden');
-    this.$('claim-why').classList.add('hidden');
     this.$('card-claim').classList.remove('hidden');
     this.$(this.stripHost).classList.add('is-claiming');
     // A returning player's own kit, or the one this player was dealt. Never kit
@@ -1624,7 +1615,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('card-claim').classList.add('hidden');
     this.$('card-peek').classList.remove('hidden');
     this.$('claim').classList.remove('hidden');
-    this.$('claim-why').classList.toggle('hidden', !this.askingToRegister);
     this.$(this.stripHost).classList.remove('is-claiming');
     this.claimSending(false);
   }
