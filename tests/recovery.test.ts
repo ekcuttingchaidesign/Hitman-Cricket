@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { foldKey, keepKey, keyMatches, keyShaped, mintKey } from '../src/server/career-key';
 import { memoryRecovery } from '../src/server/memory-recovery';
 import {
-  RESTORE_TRIES_AT, RESTORE_TRIES_FROM, keyOnClaim, newKey, restore,
+  RESTORE_TRIES_AT, RESTORE_TRIES_FROM, firstKey, keyOnClaim, newKey, refusedRecovery, restore,
 } from '../src/server/recovery-store';
 import { KEY_WORDS } from '../src/game/key-words';
 import { keyShareText, keyWhatsappLink } from '../src/game/Share';
+import { restoreFailure } from '../src/game/analytics';
 
 const held = (names: [string, string][] = [['rohit', 'p-rohit']]) =>
   memoryRecovery(new Map(names));
@@ -205,5 +206,115 @@ describe('the message a player sends themselves', () => {
     expect(link.startsWith('https://wa.me/?text=')).toBe(true);
     expect(decodeURIComponent(link.slice('https://wa.me/?text='.length)))
       .toContain('yorker-sprint-cover-47');
+  });
+});
+
+/**
+ * The banding is a regular expression over a message the store writes, which is
+ * a thread anybody can cut without noticing: reword a refusal and the band
+ * quietly becomes `busy`, and a dashboard goes on reporting rate limiting for
+ * something that is nothing of the sort. So these ask the store for the real
+ * answers rather than restating them here.
+ */
+describe('what a refused restore is counted as', () => {
+  const at = { address: '10.0.0.1' };
+
+  it('calls a half-typed key a shape problem', async () => {
+    const store = held();
+    await keyOnClaim(store, 'rohit');
+    const out = await restore(store, { name: 'Rohit', key: 'not-a-key', ...at });
+    expect(out.ok).toBe(false);
+    expect(restoreFailure(refusedRecovery(out) ? out.reason : null)).toBe('shape');
+  });
+
+  it('calls a key that does not open the name a mismatch', async () => {
+    const store = held();
+    await keyOnClaim(store, 'rohit');
+    const out = await restore(store, { name: 'Rohit', key: 'yorker-sprint-cover-47', ...at });
+    expect(out.ok).toBe(false);
+    expect(restoreFailure(refusedRecovery(out) ? out.reason : null)).toBe('mismatch');
+  });
+
+  it('and a name nobody claimed the same, since the screen will not say otherwise', async () => {
+    const store = held();
+    const out = await restore(store, { name: 'Nobody', key: 'yorker-sprint-cover-47', ...at });
+    expect(restoreFailure(refusedRecovery(out) ? out.reason : null)).toBe('mismatch');
+  });
+
+  it('calls the rate limiter busy, and nothing else does', async () => {
+    const store = held();
+    await keyOnClaim(store, 'rohit');
+    let last = null;
+    for (let i = 0; i <= RESTORE_TRIES_AT; i++) {
+      last = await restore(store, { name: 'Rohit', key: 'yorker-sprint-cover-47', ...at });
+    }
+    expect(last!.ok).toBe(false);
+    expect(restoreFailure(refusedRecovery(last!) ? last!.reason : null)).toBe('busy');
+  });
+
+  it('and anything it has never seen, rather than throwing on it', () => {
+    expect(restoreFailure(null)).toBe('busy');
+    expect(restoreFailure(undefined)).toBe('busy');
+    expect(restoreFailure('The board is down.')).toBe('busy');
+  });
+});
+
+describe('the key a name never had', () => {
+  it('mints one for the player who holds the name', async () => {
+    const store = held();
+    const out = await firstKey(store, { name: 'Rohit', playerId: 'p-rohit' });
+    expect(out.ok).toBe(true);
+    expect(keyShaped(foldKey((out as { key: string }).key))).toBe(true);
+  });
+
+  it('and the key it mints is the one that name now opens with', async () => {
+    const store = held();
+    const made = await firstKey(store, { name: 'Rohit', playerId: 'p-rohit' });
+    const key = (made as { key: string }).key;
+    expect(await restore(store, { name: 'Rohit', key, address: '10.0.0.1' }))
+      .toEqual({ ok: true, playerId: 'p-rohit' });
+  });
+
+  /**
+   * The whole reason this is safe to call unasked. Minting again would leave
+   * the key somebody had already written down opening nothing, which is worse
+   * than the state it was trying to fix.
+   */
+  it('never mints over a key that exists, and says so with null', async () => {
+    const store = held();
+    const first = await firstKey(store, { name: 'Rohit', playerId: 'p-rohit' });
+    const again = await firstKey(store, { name: 'Rohit', playerId: 'p-rohit' });
+    expect(again).toEqual({ ok: true, key: null });
+    // And the one it did not replace still works.
+    expect((await restore(store, {
+      name: 'Rohit', key: (first as { key: string }).key, address: '10.0.0.1',
+    })).ok).toBe(true);
+  });
+
+  it('leaves a key minted by a claim alone', async () => {
+    const store = held();
+    const onClaim = await keyOnClaim(store, 'rohit');
+    expect(await firstKey(store, { name: 'Rohit', playerId: 'p-rohit' })).toEqual({ ok: true, key: null });
+    expect((await restore(store, { name: 'Rohit', key: onClaim!, address: '10.0.0.1' })).ok).toBe(true);
+  });
+
+  it('refuses a name held by somebody else, which is the whole risk', async () => {
+    const store = held();
+    const out = await firstKey(store, { name: 'Rohit', playerId: 'p-somebody-else' });
+    expect(out).toEqual({ ok: false, status: 403, reason: 'That name is not yours.' });
+  });
+
+  it('and a name nobody holds, rather than minting one for it', async () => {
+    const store = held();
+    const out = await firstKey(store, { name: 'Nobody', playerId: 'p-nobody' });
+    expect(refusedRecovery(out) && out.status).toBe(403);
+    expect(await store.keyFor('nobody')).toBeFalsy();
+  });
+
+  it('and anything that is not a player', async () => {
+    const store = held();
+    expect(refusedRecovery(await firstKey(store, { name: 'Rohit', playerId: '' })) ).toBe(true);
+    expect(refusedRecovery(await firstKey(store, { name: '', playerId: 'p-rohit' })) ).toBe(true);
+    expect(refusedRecovery(await firstKey(store, { name: 'Rohit', playerId: 42 })) ).toBe(true);
   });
 });

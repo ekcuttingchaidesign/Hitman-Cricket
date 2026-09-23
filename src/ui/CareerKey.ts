@@ -72,10 +72,10 @@ export function keyCardMarkup(view: KeyView): string {
         </div>
         ${lost ? '' : `<p class="key-serial"><span>${escape(view.code ?? '')}</span></p>`}
         <p class="key-line">${lost
-          ? 'Not on this phone. A key is only ever shown once, so it cannot be shown again \u2014 but you can make another.'
+          ? 'There is no key on this phone. Make one now \u2014 it takes a second, and it is what brings this record back if this browser ever forgets you.'
           : 'The only way back to your record if this browser forgets you'}</p>
         <button id="key-save" class="key-save" type="button">${
-          lost ? 'MAKE A NEW KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
+          lost ? 'MAKE MY KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
         ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
       </div>
     </section>`;
@@ -97,6 +97,30 @@ export function keyPanelMarkup(view: KeyView): string {
           <p class="key-serial is-inline"><span>${escape(view.code ?? '')}</span></p>
         </div>
         <button id="key-panel-save" class="key-panel-key" type="button">SAVE</button>
+      </div>
+    </section>`;
+}
+
+/**
+ * The end card's version of the lost state: a name, and no key behind it.
+ *
+ * This slot used to show such a player nothing at all — the key panel was
+ * drawn only where a key existed, and the offer to restore only where no name
+ * did, so somebody holding a name without a key fell between the two. That is
+ * every player who was on the board before keys existed, which on the day this
+ * shipped was all of them, and the end of an innings is the one moment the
+ * game has their attention.
+ */
+export function keyMissingPanelMarkup(): string {
+  return `
+    <section class="key-panel is-missing" aria-labelledby="key-missing-title">
+      <div class="key-panel-face">
+        <span class="key-mark" aria-hidden="true">${MARK}</span>
+        <div class="key-panel-say">
+          <h3 id="key-missing-title">No career key yet</h3>
+          <p class="key-panel-line">It is what brings this record back on a new phone.</p>
+        </div>
+        <button id="key-missing-go" class="key-panel-key" type="button">MAKE IT</button>
       </div>
     </section>`;
 }

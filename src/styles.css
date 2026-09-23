@@ -4299,6 +4299,18 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   text-transform:uppercase;
   color:#fff
 }
+/* The line under the heading where there is no key to print instead. The panel
+   with a key in it fills this room with the key itself, which is the thing
+   worth looking at; with none, the room goes to saying why one is worth
+   making. */
+.key-panel-line{
+  margin:0;
+  font-size:11px;
+  font-weight:500;
+  line-height:1.4;
+  color:#ffffffb0;
+  text-wrap:pretty
+}
 .key-panel-key{
   flex:none;
   min-height:36px;

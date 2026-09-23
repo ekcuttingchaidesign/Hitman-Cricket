@@ -40,7 +40,7 @@ import {
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
-import { newCareerKey, restoreRecord } from './game/recovery-api';
+import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
@@ -54,7 +54,8 @@ import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
 import {
-  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, scoreBand, track, trackOnce,
+  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, restoreFailure, scoreBand,
+  track, trackOnce,
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
@@ -294,7 +295,7 @@ export class Game {
     // three stores, one of which can hang; the board is a network call that may
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
-    void playerId().then(id => { this.player = id; }).catch(() => {});
+    void playerId().then(id => { this.player = id; void this.catchUpOnKey(); }).catch(() => {});
     this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
@@ -344,10 +345,13 @@ export class Game {
     this.hud.onRestoreOpen = from => this.openRestore(from);
     this.hud.keyNow = () => this.careerKeyHeld();
     this.hud.onNewKey = () => void this.makeNewKey();
-    this.hud.onRestoreShown = () => restoreOfferShown();
+    this.hud.onRestoreShown = () => {
+      restoreOfferShown();
+      trackOnce('restore-offered-card', 'Offered the way back at the end of an innings');
+    };
     this.hud.onRestoreDismiss = () => {
       restoreOfferDone();
-      this.mark('restore-offer-dismissed', 'Restore offer waved away');
+      track('restore-offer-dismissed', 'Restore offer waved away');
     };
     // Only to somebody with no name. A record comes back as a name and a key
     // together, so there is nothing to offer a player who already has one.
@@ -485,7 +489,7 @@ export class Game {
 
   /** The way back, offered with whatever the screen already knows. */
   private openRestore(from: string, name = '') {
-    this.mark(`restore-open-${from}`, `Restore opened from the ${from}`);
+    track(`restore-open-${from}`, `Restore opened from the ${from}`);
     this.hud.openRestore(name, this.localCareer());
   }
 
@@ -498,14 +502,19 @@ export class Game {
    * the attempts, which is most of what stands between a key and a keyspace.
    */
   private async sendRestore(entry: { name: string; key: string }) {
+    // Opening the screen and filling it in are different acts, and the gap
+    // between them is its own answer: somebody who opened this and never
+    // pressed the key did not have one to try.
+    track('restore-sent', 'A name and key offered to the store');
     this.hud.restoreSending(true);
     const answer = await restoreRecord(entry.name, entry.key);
     if (this.disposed) return;
     if (!answer.ok || !answer.playerId) {
-      this.mark('restore-failed', 'Restore turned down');
+      const why = restoreFailure(answer.reason);
+      track(`restore-failed-${why}`, `Restore turned down: ${why}`);
       return this.hud.restoreFailed(answer.reason ?? 'That did not go through.');
     }
-    this.mark('restore-done', 'Record brought back');
+    track('restore-done', 'Record brought back');
     this.becomeRestored(answer.playerId, entry.name);
     this.hud.closeRestore();
     this.hud.restoreDone(entry.name);
@@ -528,24 +537,38 @@ export class Game {
     const code = this.careerKeyHeld()?.code;
     const name = readPlayer()?.name;
     if (!code || !name) return false;
+    // Counted, because a save that cannot happen is invisible from a dashboard
+    // otherwise: the player presses a key, nothing is recorded, and the figures
+    // read as somebody who never bothered. A browser that refuses one of these
+    // for everybody would show up here as a flat line against a busy sheet.
+    const refused = (why: 'blocked' | 'refused') => {
+      track(`key-save-failed-${how}`, `Career key could not be saved: ${how} ${why}`);
+      return false;
+    };
     if (how === 'image') {
-      if (!await this.saveKeyImage(name, code)) return false;
+      const went = await this.saveKeyImage(name, code);
+      // Dismissing the share sheet is somebody changing their mind, and it is
+      // not counted as a failure: a browser that cannot save is a bug worth
+      // seeing, and a player who thought better of it is not, and a figure
+      // holding both answers neither.
+      if (went === 'cancelled') return false;
+      if (!went) return refused('blocked');
     } else if (how === 'copy') {
       // No clipboard at all, or permission refused. Either way nothing was
       // saved, and the sheet stays up rather than closing on a promise it
       // did not keep.
-      try { await navigator.clipboard.writeText(code); } catch { return false; }
+      try { await navigator.clipboard.writeText(code); } catch { return refused('refused'); }
     } else if (!window.open(keyWhatsappLink(name, code, gameLink()), '_blank')) {
       // Blocked as a popup. Opening inside the click that asked for it is what
       // usually prevents that, and this is the case where it did not.
-      return false;
+      return refused('blocked');
     }
     // Which one was used is worth knowing — they do not all finish the job, and
     // the one that leaves the most homework is the one a player reaches for
     // first — so they are counted apart even though they retire the same
     // prompts.
     markKeySaved();
-    this.mark(`key-saved-${how}`, how === 'whatsapp'
+    track(`key-saved-${how}`, how === 'whatsapp'
       ? 'Career key sent to WhatsApp'
       : how === 'image' ? 'Career key saved as a picture' : 'Career key copied');
     this.redrawKeyPlacements();
@@ -564,7 +587,7 @@ export class Game {
    * it is somebody changing their mind. Reporting it as one would put a
    * "could not save" notice under a key that worked perfectly.
    */
-  private async saveKeyImage(name: string, code: string): Promise<boolean> {
+  private async saveKeyImage(name: string, code: string): Promise<boolean | 'cancelled'> {
     try {
       const picture = await keyImage(name, code);
       const file = new File([picture], keyImageName(name), { type: 'image/png' });
@@ -572,7 +595,7 @@ export class Game {
         try {
           await navigator.share({ files: [file] });
         } catch (error) {
-          if ((error as { name?: string })?.name === 'AbortError') return false;
+          if ((error as { name?: string })?.name === 'AbortError') return 'cancelled';
           throw error;
         }
         return true;
@@ -628,6 +651,39 @@ export class Game {
   }
 
   /**
+   * The key an existing player never got, fetched quietly on sight of the game.
+   *
+   * Every name on the board was claimed before keys existed, so none of them
+   * has one — and the path that mints a key is a *claim*, which happens when an
+   * innings beats the one already up there, not when an innings is played.
+   * Somebody sitting fourth with two thousand runs behind them could go weeks
+   * without registering anything, and all that time the thing built to save
+   * their record could not reach them. Waiting for them to find a button on My
+   * Stats is the same problem wearing a hat.
+   *
+   * So it is asked for rather than waited for. The store mints only where the
+   * name has none, which is what makes this safe to do unasked: a second
+   * browser gets nothing and goes on saying `lost`, rather than minting a
+   * replacement that would quietly stop the key on the first one working.
+   *
+   * Quietly, and once. No sheet is thrown in front of anybody on load — the
+   * card and the strip at the end of an innings are where the asking belongs,
+   * and they can only do it once there is a key for them to ask about.
+   */
+  private caughtUpOnKey = false;
+  private async catchUpOnKey() {
+    if (this.caughtUpOnKey) return;
+    const player = readPlayer();
+    if (!player || !this.player || this.careerKeyHeld()?.state !== 'lost') return;
+    this.caughtUpOnKey = true;
+    const made = await firstCareerKey(player.name, this.player);
+    if (this.disposed || !made) return;
+    keepKey(made);
+    track('key-caught-up', 'A key issued to a name that never had one');
+    this.redrawKeyPlacements();
+  }
+
+  /**
    * A key to replace one this browser cannot produce.
    *
    * Proved by holding the player id, which is the same secret the board is
@@ -642,11 +698,11 @@ export class Game {
     const made = await newCareerKey(player.name, this.player);
     if (this.disposed) return;
     if (!made.ok || !made.key) {
-      this.mark('key-new-failed', 'New career key refused');
+      track('key-new-failed', 'New career key refused');
       return;
     }
     keepKey(made.key);
-    this.mark('key-new', 'New career key made');
+    track('key-new', 'New career key made');
     // The card behind the sheet asked for this and has to stop asking: it still
     // reads "make a new key" over a browser that now holds one.
     this.redrawKeyPlacements();
@@ -1635,7 +1691,7 @@ export class Game {
     // what makes it worth asking the player to put it somewhere safe.
     if (result.key) {
       keepKey(result.key);
-      this.mark('key-issued', 'Career key issued');
+      track('key-issued', 'Career key issued');
     }
     // Claiming a name is what puts a career already counted onto the career
     // boards, so the copies held from before it are wrong the moment this

@@ -131,6 +131,45 @@ export async function newKey(
 }
 
 /**
+ * The key an existing player never got, minted the first time they ask.
+ *
+ * Every name claimed before keys existed has none behind it, and the only path
+ * that mints one is a successful claim — which happens when an innings beats
+ * the one on the board, not when an innings is played. A player sitting fourth
+ * with two thousand runs could go weeks without registering anything, and
+ * until they did, the feature that exists to save their record could not reach
+ * them. This is that path: asked on sight of the game rather than waited for.
+ *
+ * Proved the way `newKey` is proved, by holding the player id the name is
+ * written under, and refused the same way when it is somebody else's.
+ *
+ * What makes it safe to call unasked is that it will not mint over a key that
+ * exists. A player with two browsers gets a key on the first and `null` on the
+ * second, which reads as `lost` there — true, and better than the alternative,
+ * because minting again would quietly stop the key they had already written
+ * down from working. `null` is therefore an ordinary answer and not a refusal:
+ * there was nothing to hand over.
+ */
+export async function firstKey(
+  store: RecoveryStore,
+  input: { name: unknown; playerId: unknown },
+  now = Date.now(),
+): Promise<RecoveryOutcome<{ key: string | null }>> {
+  const folded = foldName(cleanName(input.name));
+  if (!folded || typeof input.playerId !== 'string' || !input.playerId) {
+    return { ok: false, status: 400, reason: 'That is not a player.' };
+  }
+  const holder = await store.holderOf(folded);
+  if (!holder || holder !== input.playerId) {
+    return { ok: false, status: 403, reason: 'That name is not yours.' };
+  }
+  if (await store.keyFor(folded)) return { ok: true, key: null };
+  const key = mintKey();
+  await store.putKey(folded, keepKey(key, now));
+  return { ok: true, key };
+}
+
+/**
  * The key handed over the moment a name is claimed.
  *
  * Only where there is none. Claiming happens on every innings a player

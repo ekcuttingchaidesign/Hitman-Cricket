@@ -27,7 +27,8 @@ import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsS
 import { storiesMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
-  keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup, type KeyView,
+  keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
+  type KeyView,
 } from './CareerKey';
 import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
@@ -589,7 +590,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // On `lost` that one key asks for a new one instead of saving a key this
     // browser does not hold — the card says so in the same breath, so the key
     // under it has to mean what the card just said.
-    if (save) save.onclick = () => (this.keyView?.state === 'lost' ? this.onNewKey?.() : this.openKeySheet());
+    if (save) save.onclick = () => (this.keyView?.state === 'lost' ? this.onNewKey?.() : this.openKeySheet(false, 'stats'));
     const about = document.getElementById('key-info');
     if (about) about.onclick = () => this.openKeySheet(true);
     const fresh = document.getElementById('key-new');
@@ -1006,7 +1007,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
     const keySave = document.getElementById('key-toast-save');
-    if (keySave) keySave.onclick = () => this.openKeySheet();
+    if (keySave) keySave.onclick = () => this.openKeySheet(false, 'toast');
     const keyShut = document.getElementById('key-toast-close');
     if (keyShut) keyShut.onclick = () => this.keyToast(null);
     const backGo = document.getElementById('board-restore-go');
@@ -1828,16 +1829,26 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const panel = this.$('card-key');
     const bar = this.$('mode-key');
     const show = !!view && view.state !== 'lost';
-    // One slot, two occupants, never both. A key needs a claimed name and the
-    // offer is only made where there is none, so they cannot collide — and the
-    // player sees one object on that strip of card that changes what it says,
-    // rather than two things arguing over the same room.
-    const offering = !show && where.panel && this.offerRestorePanel;
-    panel.classList.toggle('hidden', !((show && where.panel) || offering));
+    // One slot, three occupants, never two at once. A key for whoever holds
+    // one; the way to make one for whoever holds a name without one; and the
+    // way back for whoever holds neither. They are decided by the same two
+    // facts and cannot overlap, so the player sees one object on that strip of
+    // card that changes what it says, rather than three arguing over the room.
+    //
+    // The middle one was missing, and the hole it left was the whole board:
+    // every name claimed before keys existed has none, so every one of those
+    // players finished an innings and was shown nothing.
+    const missing = !!view && view.state === 'lost' && where.panel;
+    const offering = !show && !missing && where.panel && this.offerRestorePanel;
+    panel.classList.toggle('hidden', !((show && where.panel) || missing || offering));
     bar.classList.toggle('hidden', !(show && where.bar));
     if (show && where.panel) {
       panel.innerHTML = keyPanelMarkup(view!);
-      this.$('key-panel-save').onclick = () => this.openKeySheet();
+      this.$('key-panel-save').onclick = () => this.openKeySheet(false, 'card');
+    } else if (missing) {
+      panel.innerHTML = keyMissingPanelMarkup();
+      this.$('key-missing-go').onclick = () => this.onNewKey?.();
+      trackOnce('key-missing-card', 'Offered a key at the end of an innings');
     } else if (offering) {
       panel.innerHTML = restorePanelMarkup('restore-panel');
       this.$('restore-panel-go').onclick = () => this.onRestoreOpen?.('card');
@@ -1850,13 +1861,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
     if (show && where.bar) {
       bar.innerHTML = keyBarMarkup();
-      this.$('key-bar').onclick = () => this.openKeySheet();
+      this.$('key-bar').onclick = () => this.openKeySheet(false, 'bar');
     }
     // Emptied rather than only hidden. These nodes are shared between the two
     // end cards and moved between them, so a slot left holding what it held
     // last time is a widget waiting to reappear on a screen that never asked
     // for it — which is exactly how the key ended up on the Blast card.
-    if (!((show && where.panel) || offering)) panel.innerHTML = '';
+    if (!((show && where.panel) || missing || offering)) panel.innerHTML = '';
     if (!(show && where.bar)) bar.innerHTML = '';
   }
 
@@ -1884,8 +1895,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   onRestoreDismiss: (() => void) | null = null;
 
   /** The only place a key is saved, whichever of the four opened it. */
-  openKeySheet(about = false) {
+  openKeySheet(about = false, where: 'card' | 'stats' | 'bar' | 'toast' = 'card') {
     if (!this.keyView) return;
+    // Where the sheet was reached from, and that it was reached at all. This is
+    // the denominator every save figure needs: "how many copied" answers
+    // nothing without "how many were standing in front of the offer".
+    trackOnce(about ? 'key-about' : `key-sheet-${where}`,
+      about ? 'Asked what a career key is' : `Save sheet opened from the ${where}`);
+    this.keySheetKind = about ? 'about' : 'save';
+    this.keySheetSaved = false;
     const overlay = this.$('key-overlay');
     overlay.innerHTML = about ? keyAboutMarkup() : keyModalMarkup(this.keyView);
     overlay.classList.remove('hidden');
@@ -1910,6 +1928,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       key.disabled = true;
       key.textContent = 'SAVING…';
       const done = await this.onKeySave?.('image');
+      if (done !== false) this.keySheetSaved = true;
       key.disabled = false;
       key.textContent = was;
       if (done === false) {
@@ -1918,6 +1937,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     };
     this.$('key-whatsapp').onclick = async () => {
       const done = await this.onKeySave?.('whatsapp');
+      if (done !== false) this.keySheetSaved = true;
       if (done === false) {
         return this.keyTrouble('Could not open WhatsApp. Screenshot this screen, or copy it instead.');
       }
@@ -1928,6 +1948,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('key-copy').onclick = async () => {
       const key = this.$('key-copy');
       const done = await this.onKeySave?.('copy');
+      if (done !== false) this.keySheetSaved = true;
       if (done === false) {
         return this.keyTrouble('Could not copy. Screenshot this screen instead \u2014 the key is above.');
       }
@@ -1949,6 +1970,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   /** How long the copy key has left to say so. */
   private copySaid = 0;
 
+  /** Which sheet is up, and whether it has done anything for the player yet. */
+  private keySheetKind: 'save' | 'about' | null = null;
+  private keySheetSaved = false;
+
   /** Said inside the sheet, because the sheet is what is on the screen. */
   private keyTrouble(says: string) {
     const line = document.getElementById('key-trouble');
@@ -1958,6 +1983,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   closeKeySheet() {
+    // Left without saving anything through the game.
+    //
+    // As close as a browser gets to counting screenshots, which it cannot do at
+    // all: no platform tells a page one was taken. So this counts the people a
+    // screenshot would be hiding in — everybody who read the sheet, was told
+    // to screenshot it, and closed it without pressing a key. Some of them took
+    // the picture and some of them walked away, and the two cannot be told
+    // apart from here. Read beside the three save figures it is still the
+    // number worth having: if it dwarfs them, the sheet is being obeyed or
+    // ignored, and which of those it is wants asking a player rather than a
+    // counter.
+    if (this.keySheetKind === 'save' && !this.keySheetSaved) {
+      track('key-sheet-left', 'Left the save sheet without saving through the game');
+    }
+    this.keySheetKind = null;
     window.clearTimeout(this.copySaid);
     this.$('key-overlay').classList.add('hidden');
     this.$('key-overlay').innerHTML = '';
