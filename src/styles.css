@@ -4494,6 +4494,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    the same conversation from the other end — that one hands a key over so a
    record survives this, and this is the screen that makes it survive one. */
 .fresh-gate .key-sheet{max-width:min(392px,100%)}
+/* The one line on this screen that is a warning rather than a description.
+   The same lifted red the claim form's refusal uses, because it is the same
+   job: telling somebody something they have to act on before they go on. */
+.fresh-gate .fresh-warn{color:#ff8a7a;font-weight:700}
+.fresh-gate .key-serial{margin:0 0 12px}
 .fresh-gate .key-sheet-key{margin-bottom:10px}
 .fresh-gate .key-sheet-key:last-child{margin-bottom:0}
 

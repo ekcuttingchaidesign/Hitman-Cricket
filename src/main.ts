@@ -2,6 +2,8 @@ import './styles.css';
 import { feedbackRoute } from './game/feedback';
 import { markNoticeSeen, noticeSeen, privateWindow } from './game/private-mode';
 import { clearThisDevice, forgetFreshFlag, freshWanted } from './game/fresh-start';
+import { keyView } from './game/recovery';
+import { readPlayer } from './game/player';
 import { privateNotice } from './ui/PrivateNotice';
 import { freshNotice } from './ui/FreshNotice';
 const root = document.querySelector<HTMLDivElement>('#app')!;
@@ -34,7 +36,9 @@ void (async () => {
   // after that would be a slate the game had already seen the old version of.
   if (freshWanted()) {
     forgetFreshFlag();
-    if (await freshNotice(root)) await clearThisDevice();
+    // Read before anything clears it, so the screen can show what is about to
+    // stop existing.
+    if (await freshNotice(root, keyView(!!readPlayer()))) await clearThisDevice();
   }
   const hidden = await privateWindow();
   // Asked once a session: a player who has read the notice and chosen to bat on

@@ -1,4 +1,6 @@
 import { track } from '../game/analytics';
+import { escape } from './Leaderboard';
+import type { KeyView } from './CareerKey';
 
 /**
  * The question `?fresh=1` asks before it does anything.
@@ -18,8 +20,14 @@ import { track } from '../game/analytics';
  * it. Somebody who does this and regrets it walks the restore path — which is
  * the journey the flag exists to let you walk on purpose.
  */
-export function freshNotice(root: HTMLElement): Promise<boolean> {
-  track('fresh-asked', 'Asked to start as a new player');
+export function freshNotice(root: HTMLElement, held: KeyView | null = null): Promise<boolean> {
+  // A key this browser holds and has never saved is about to stop existing
+  // anywhere. Nothing can hand it back: the store keeps a hash, and the one
+  // way to ask for a replacement proves who you are with the player id this
+  // clear destroys. So it is shown, and shown before the keys rather than
+  // under them — it is the fact that decides the answer, not a footnote to it.
+  const losing = held?.state === 'unsaved' && !!held.code;
+  track(losing ? 'fresh-asked-unsaved' : 'fresh-asked', 'Asked to start as a new player');
   const gate = document.createElement('div');
   gate.className = 'key-modal fresh-gate';
   gate.setAttribute('role', 'dialog');
@@ -31,8 +39,12 @@ export function freshNotice(root: HTMLElement): Promise<boolean> {
         <h2 id="fresh-title">Start as a new player?</h2>
         <p class="key-sheet-say">This clears what this phone remembers — your name, your career
           and your career key. The game will open as though you had never played.</p>
+        ${losing ? `
+        <p class="key-sheet-say fresh-warn">You have not saved your career key. Write it down now
+          or this cannot be undone — nobody can show it to you again.</p>
+        <p class="key-serial"><span>${escape(held?.code ?? '')}</span></p>` : `
         <p class="key-sheet-say">Your place on the board is not touched. The name stays yours,
-          and a career key you have saved still brings all of it back.</p>
+          and your saved career key still brings all of it back.</p>`}
         <button id="fresh-keep" class="key-sheet-key is-whatsapp" type="button">KEEP MY RECORD</button>
         <button id="fresh-go" class="key-sheet-key is-copy" type="button">CLEAR THIS PHONE</button>
       </div>

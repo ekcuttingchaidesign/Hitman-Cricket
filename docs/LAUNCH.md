@@ -114,6 +114,27 @@ Every step is a dashboard step. Nothing here needs a terminal.
 
 Then open the site and check the board loads.
 
+## What the players already on the board get, and when
+
+Every name on the live board was claimed before career keys existed, so none
+of those names has a key behind it on the day this ships. They are not left
+out: a key is minted on any successful registration where the name has none,
+and somebody who already holds their name registers successfully every time
+they put a score up. So each existing player is handed their key the next time
+they register an innings, and the card asks them to save it.
+
+The gap is the interval. Between shipping and their next registered innings
+they hold no key, and a player who loses their device inside that window
+cannot be brought back — the name is held by an id their browser no longer
+has, so the claim is refused, so no key is ever minted for them. That is the
+state the key exists to prevent and the one group it cannot reach backwards.
+
+Nothing here can fix it safely. Handing a name back to whoever asks is exactly
+the thing the name registry exists to refuse, and a key minted for a name
+without proving who holds it would be a key posted to nobody. What is worth
+doing is making the window short: the What's New story tells everybody the key
+exists, and the card asks for it to be saved the first time it appears.
+
 ## Afterwards
 
 Nothing in this file needs doing twice. The seed is one-shot by design, and

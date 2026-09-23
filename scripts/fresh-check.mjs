@@ -65,6 +65,15 @@ ok(await page.evaluate(() => !!localStorage.getItem('hitman-batter')), 'a regist
 await page.goto(`${BASE}/?debug=1&seed=222&fresh=1`, { waitUntil: 'load' });
 await wait(2000);
 ok(await page.locator('#fresh-go').count() === 1, 'the flag asks before it does anything');
+// A key this browser has never saved is about to stop existing anywhere: the
+// store keeps a hash, and the one way to ask for a replacement proves who you
+// are with the player id this clear destroys. So it is shown before the keys.
+ok(await page.locator('.fresh-warn').count() === 1, 'and warns when the key has never been saved');
+ok((await page.locator('#fresh-go').locator('xpath=preceding::p[@class="key-serial"]').count()) > 0
+  || (await page.locator('.fresh-gate .key-serial').count()) === 1,
+  'showing the key it is about to destroy');
+const shown = await page.locator('.fresh-gate .key-serial').textContent().catch(() => '');
+ok((shown ?? '').includes(claimed.key), 'which is the key this browser actually holds', shown ?? '(none)');
 ok((await page.evaluate(() => location.search)).includes('fresh=1') === false, 'and takes itself off the address');
 await page.locator('#fresh-keep').click({ force: true });
 await wait(1500);
