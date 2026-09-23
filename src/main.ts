@@ -1,7 +1,9 @@
 import './styles.css';
 import { feedbackRoute } from './game/feedback';
 import { markNoticeSeen, noticeSeen, privateWindow } from './game/private-mode';
+import { clearThisDevice, forgetFreshFlag, freshWanted } from './game/fresh-start';
 import { privateNotice } from './ui/PrivateNotice';
+import { freshNotice } from './ui/FreshNotice';
 const root = document.querySelector<HTMLDivElement>('#app')!;
 /**
  * Nothing is built until it is known whether this is a private window: a game
@@ -26,6 +28,13 @@ void (async () => {
     const { feedbackPage } = await import('./ui/Feedback');
     feedbackPage(root);
     return;
+  }
+  // Before anything reads who is playing, because that is the point: `Game` is
+  // imported below and asks for the player id on the way up, so a slate cleared
+  // after that would be a slate the game had already seen the old version of.
+  if (freshWanted()) {
+    forgetFreshFlag();
+    if (await freshNotice(root)) await clearThisDevice();
   }
   const hidden = await privateWindow();
   // Asked once a session: a player who has read the notice and chosen to bat on

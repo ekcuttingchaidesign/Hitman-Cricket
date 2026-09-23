@@ -4474,6 +4474,13 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .restore-sheet .claim-error{margin:0 0 10px;font-size:12px}
 .restore-sheet .key-fine{margin:0 0 2px;text-align:center}
 
+/* The question `?fresh=1` asks. The save sheet's plate and keys, because it is
+   the same conversation from the other end — that one hands a key over so a
+   record survives this, and this is the screen that makes it survive one. */
+.fresh-gate .key-sheet{max-width:min(392px,100%)}
+.fresh-gate .key-sheet-key{margin-bottom:10px}
+.fresh-gate .key-sheet-key:last-child{margin-bottom:0}
+
 /* The offer at the end of an innings: the career key's row, wearing the same
    plate and the same stroke, because it stands in the same slot and only ever
    when the key cannot. The one line it has instead of a key window is set in

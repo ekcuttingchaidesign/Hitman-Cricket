@@ -77,6 +77,24 @@ innings — which is how most players get to that card in the first place.
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.
 
+## `?fresh=1`
+
+Clears what this browser remembers — the player id, the name, the career key,
+every `hitman-` key, the cookie and the IndexedDB copy — and it asks first.
+The question is the feature: a link is a thing people send each other, and one
+that wiped a career on sight would be a prank with a cost. Keeping is the drawn
+key and clearing the outlined one, which is the wrong way round for whoever
+typed the flag and the right way round for whoever was sent it.
+
+It exists because there was no honest way to test the thing the career key is
+for. Identity is kept in three places so that losing one does not cost a record,
+and the same belt and braces made "look at this as a new player" a trip through
+the browser's settings. A private window is no use either — the game refuses to
+count an innings in one, so the path being tested is shut before it starts.
+
+The board is untouched: the name stays claimed and a saved key still opens it.
+`scripts/fresh-check.mjs` walks both answers.
+
 ## `?demo=1`
 
 Fills the boards with fifty made-up players, in the browser that asked, saving

@@ -21,7 +21,7 @@
 
 /** Where the id lives in each of the three stores. */
 export const PLAYER_KEY = 'hitman-player';
-const DB_NAME = 'hitman-cricket';
+export const DB_NAME = 'hitman-cricket';
 const DB_STORE = 'player';
 /** Two years, which is the most a browser will keep a cookie anyway. */
 const COOKIE_MAX_AGE = 63_072_000;
