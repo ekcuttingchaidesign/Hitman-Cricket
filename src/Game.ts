@@ -40,7 +40,7 @@ import {
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
-import { newCareerKey, restoreRecord } from './game/recovery-api';
+import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
@@ -295,7 +295,7 @@ export class Game {
     // three stores, one of which can hang; the board is a network call that may
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
-    void playerId().then(id => { this.player = id; }).catch(() => {});
+    void playerId().then(id => { this.player = id; void this.catchUpOnKey(); }).catch(() => {});
     this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
@@ -648,6 +648,39 @@ export class Game {
     } else if (this.hud.boardOpen && this.sheetTab === 'mine') {
       this.openMine();
     }
+  }
+
+  /**
+   * The key an existing player never got, fetched quietly on sight of the game.
+   *
+   * Every name on the board was claimed before keys existed, so none of them
+   * has one — and the path that mints a key is a *claim*, which happens when an
+   * innings beats the one already up there, not when an innings is played.
+   * Somebody sitting fourth with two thousand runs behind them could go weeks
+   * without registering anything, and all that time the thing built to save
+   * their record could not reach them. Waiting for them to find a button on My
+   * Stats is the same problem wearing a hat.
+   *
+   * So it is asked for rather than waited for. The store mints only where the
+   * name has none, which is what makes this safe to do unasked: a second
+   * browser gets nothing and goes on saying `lost`, rather than minting a
+   * replacement that would quietly stop the key on the first one working.
+   *
+   * Quietly, and once. No sheet is thrown in front of anybody on load — the
+   * card and the strip at the end of an innings are where the asking belongs,
+   * and they can only do it once there is a key for them to ask about.
+   */
+  private caughtUpOnKey = false;
+  private async catchUpOnKey() {
+    if (this.caughtUpOnKey) return;
+    const player = readPlayer();
+    if (!player || !this.player || this.careerKeyHeld()?.state !== 'lost') return;
+    this.caughtUpOnKey = true;
+    const made = await firstCareerKey(player.name, this.player);
+    if (this.disposed || !made) return;
+    keepKey(made);
+    track('key-caught-up', 'A key issued to a name that never had one');
+    this.redrawKeyPlacements();
   }
 
   /**

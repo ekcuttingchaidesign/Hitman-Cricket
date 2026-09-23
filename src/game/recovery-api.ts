@@ -69,3 +69,18 @@ async function ask<T>(url: string, body: unknown): Promise<T | null> {
     clearTimeout(timer);
   }
 }
+
+/**
+ * The key a name never had, asked for on sight of the game.
+ *
+ * `ok` with no key is the ordinary answer and not a failure: it means the name
+ * already has one, which cannot be shown twice and must not be replaced. The
+ * caller does nothing in that case, and the widget goes on saying `lost` —
+ * which is true.
+ */
+export async function firstCareerKey(name: string, playerId: string): Promise<string | null> {
+  const answer = await ask<{ key?: string | null; error?: string }>(
+    `${API}/api/restore?first=1`, { name, playerId },
+  );
+  return answer && !answer.error && answer.key ? answer.key : null;
+}

@@ -27,7 +27,8 @@ import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsS
 import { storiesMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
-  keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup, type KeyView,
+  keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
+  type KeyView,
 } from './CareerKey';
 import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
@@ -1828,16 +1829,26 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const panel = this.$('card-key');
     const bar = this.$('mode-key');
     const show = !!view && view.state !== 'lost';
-    // One slot, two occupants, never both. A key needs a claimed name and the
-    // offer is only made where there is none, so they cannot collide — and the
-    // player sees one object on that strip of card that changes what it says,
-    // rather than two things arguing over the same room.
-    const offering = !show && where.panel && this.offerRestorePanel;
-    panel.classList.toggle('hidden', !((show && where.panel) || offering));
+    // One slot, three occupants, never two at once. A key for whoever holds
+    // one; the way to make one for whoever holds a name without one; and the
+    // way back for whoever holds neither. They are decided by the same two
+    // facts and cannot overlap, so the player sees one object on that strip of
+    // card that changes what it says, rather than three arguing over the room.
+    //
+    // The middle one was missing, and the hole it left was the whole board:
+    // every name claimed before keys existed has none, so every one of those
+    // players finished an innings and was shown nothing.
+    const missing = !!view && view.state === 'lost' && where.panel;
+    const offering = !show && !missing && where.panel && this.offerRestorePanel;
+    panel.classList.toggle('hidden', !((show && where.panel) || missing || offering));
     bar.classList.toggle('hidden', !(show && where.bar));
     if (show && where.panel) {
       panel.innerHTML = keyPanelMarkup(view!);
       this.$('key-panel-save').onclick = () => this.openKeySheet(false, 'card');
+    } else if (missing) {
+      panel.innerHTML = keyMissingPanelMarkup();
+      this.$('key-missing-go').onclick = () => this.onNewKey?.();
+      trackOnce('key-missing-card', 'Offered a key at the end of an innings');
     } else if (offering) {
       panel.innerHTML = restorePanelMarkup('restore-panel');
       this.$('restore-panel-go').onclick = () => this.onRestoreOpen?.('card');
@@ -1856,7 +1867,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // end cards and moved between them, so a slot left holding what it held
     // last time is a widget waiting to reappear on a screen that never asked
     // for it — which is exactly how the key ended up on the Blast card.
-    if (!((show && where.panel) || offering)) panel.innerHTML = '';
+    if (!((show && where.panel) || missing || offering)) panel.innerHTML = '';
     if (!(show && where.bar)) bar.innerHTML = '';
   }
 

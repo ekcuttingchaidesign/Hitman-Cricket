@@ -10,7 +10,7 @@ import {
 import { memoryCareer } from './src/server/memory-career';
 import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
-import { keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
+import { firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
 import {
   BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
   type BlastCareer, type SurviveCareer,
@@ -130,6 +130,18 @@ function boardEndpoints(): Plugin {
           if (path === '/api/restore') {
             if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
             const asked = JSON.parse(await read(req)) as Record<string, unknown>;
+            // Every branch `api/restore.ts` has, because this file is a second
+            // implementation of the same routing and a branch missing here does
+            // not fail — it falls through to the next one and answers something
+            // plausible. `?first=1` arrived in production and silently became a
+            // malformed-key complaint in development, which is a difference
+            // between the two that nothing was watching for.
+            if ((req.url ?? '').includes('first=')) {
+              const made = await firstKey(recovery, { name: asked.name, playerId: asked.playerId });
+              return refusedRecovery(made)
+                ? send(made.status, { error: made.reason })
+                : send(200, { key: made.key });
+            }
             if ((req.url ?? '').includes('new=')) {
               const made = await newKey(recovery, { name: asked.name, playerId: asked.playerId });
               return refusedRecovery(made)
