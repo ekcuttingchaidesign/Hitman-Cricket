@@ -1,26 +1,35 @@
-# Going live with the career boards
+# Going live with the career keys
 
-The order matters. Each step below depends on the one above it, and two of
-them are one-way doors: the seed writes founding tiers onto real players'
-cards, and rotating the database token breaks the live site until Vercel is
-redeployed with the new one.
+The order matters, and one step is a one-way door: rotating the database token
+breaks the live site until Vercel is redeployed with the new one.
 
 Written to be followed by a person at a terminal, not by a script.
 
+The career boards themselves are already live — that launch is done, and its
+seed with it. What ships here is the career key: the three words and two
+digits that let somebody whose browser has forgotten them get their record
+back. Step 1 below is kept as a record of what was run and why; it has nothing
+left to do.
+
 ## Before anything
 
-The whole career update lives on `claude/leaderboards-stats-card-ugrvex`.
+The whole career key update lives on `claude/leaderboards-stats-card-ugrvex`.
 Production serves the repository's default branch, `codex/cricket-batting-game`,
 so until the two are merged nothing here is visible on
 `hitman-cricket.vercel.app` — including `?demo=1`, which is why adding it to
 the live URL appears to do nothing.
 
 Check the preview build for the branch first: Vercel → Deployments → the
-branch → **Visit**. Play an innings, register a name, open My Stats, swipe to
-the Test card, tap a figure. That path is the one no automated check covers,
-because it needs a real database.
+branch → **Visit**. Play an innings, register a name, and watch for the key
+card it hands you; then open My Stats and check the key is there too. That
+path is the one no automated check covers, because it needs a real database.
 
-## 1. Seed the careers
+## 1. Seed the careers — done, kept for the record
+
+**This ran when the career boards shipped, and cannot usefully run again.** A
+player who already has a career is skipped, and on the live board every player
+now has one, so a run today reports `0 to seed` and writes nothing. Everything
+below describes what it did on the day.
 
 The career boards start empty. Everybody already on an innings board has
 played at least the innings that put them there, so the seed counts that as a
@@ -113,6 +122,27 @@ works.
 Every step is a dashboard step. Nothing here needs a terminal.
 
 Then open the site and check the board loads.
+
+## What the players already on the board get, and when
+
+Every name on the live board was claimed before career keys existed, so none
+of those names has a key behind it on the day this ships. They are not left
+out: a key is minted on any successful registration where the name has none,
+and somebody who already holds their name registers successfully every time
+they put a score up. So each existing player is handed their key the next time
+they register an innings, and the card asks them to save it.
+
+The gap is the interval. Between shipping and their next registered innings
+they hold no key, and a player who loses their device inside that window
+cannot be brought back — the name is held by an id their browser no longer
+has, so the claim is refused, so no key is ever minted for them. That is the
+state the key exists to prevent and the one group it cannot reach backwards.
+
+Nothing here can fix it safely. Handing a name back to whoever asks is exactly
+the thing the name registry exists to refuse, and a key minted for a name
+without proving who holds it would be a key posted to nobody. What is worth
+doing is making the window short: the What's New story tells everybody the key
+exists, and the card asks for it to be saved the first time it appears.
 
 ## Afterwards
 

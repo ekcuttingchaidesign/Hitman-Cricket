@@ -1,7 +1,7 @@
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import {
-  gameLink, shareFileName, shareFileType, shareText, statsFileName, statsShareText,
+  gameLink, shareFileName, shareFileType, shareText, statsFileName,
   statsStoryText, statsWhatsappLink, whatsappLink,
 } from '../game/Share';
 import { track, trackOnce } from '../game/analytics';
@@ -27,7 +27,14 @@ import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsS
 import { storiesMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
-  statsCardImage, statsExplain, statsStoryImage, type StatsFacts,
+  keyAboutMarkup, keyBarMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup, type KeyView,
+} from './CareerKey';
+import {
+  RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
+  type LocalCareer, type RestoreView,
+} from './Restore';
+import {
+  statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
@@ -283,6 +290,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
+        <div id="key-overlay" class="hidden"></div>
+        <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
@@ -302,10 +311,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <p class="card-board-head" id="card-board-head"></p>
               <div id="card-peek"></div>
               <button id="claim" class="key-button claim-key">REGISTER SCORE ON LEADERBOARD</button>
+              <p id="claim-why" class="claim-why">Registering is also how your career survives a new phone.</p>
               <form id="card-claim" class="card-claim hidden">
                 <div id="claim-picker"></div>
                 <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
                 <p id="claim-error" class="claim-error hidden" role="alert"></p>
+                <p id="claim-back" class="claim-back hidden"></p>
                 <button id="claim-send" type="submit" class="key-button claim-key">PUT ME ON THE BOARD</button>
                 <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
               </form>
@@ -315,6 +326,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <span class="career-words">Career Stats<em id="career-new" class="career-new">NEW</em></span>
               <span class="career-go" aria-hidden="true">${icon('arrow')}</span>
             </button>
+            <div id="card-key" class="card-key hidden"></div>
             <div class="card-keys">
               <button id="again" class="key-button">PLAY AGAIN</button>
               <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
@@ -329,6 +341,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="modes-title" class="mode-heading">Select Mode</h2>
             </div>
+            <div id="mode-key" class="key-slot hidden"></div>
             <button id="mode-classic" class="mode-card">
               <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
               <span class="mode-body">
@@ -406,7 +419,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * a fresh sheet is always the rows it was handed.
    */
   board(view: BoardView) {
-    this.sheet(boardMarkup(view), 'classic', 'best', view.actions ? this.actions('classic') : '');
+    this.sheet(boardMarkup(view), 'classic', 'best', this.actions('classic', !!view.actions));
   }
 
   /**
@@ -414,7 +427,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * ladder they are ordered by differ, and those are the markup's business.
    */
   surviveBoard(view: SurviveBoardView) {
-    this.sheet(surviveBoardMarkup(view), 'survive', 'best', view.actions ? this.actions('survive') : '');
+    this.sheet(surviveBoardMarkup(view), 'survive', 'best', this.actions('survive', !!view.actions));
   }
 
   /**
@@ -425,7 +438,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   careerBoard(view: CareerBoardView & { actions?: boolean }) {
     this.sheet(
       careerBoardMarkup(view), view.mode, view.board.key,
-      view.actions ? this.actions(view.mode) : '',
+      this.actions(view.mode, !!view.actions),
     );
   }
 
@@ -434,8 +447,35 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * The innings-end keys, under the sheet that is standing in for the card.
    * Each mode's own, because the Test card offers the mode picker where the
    * Blast's offers the way of sending an innings out.
+   *
+   * Called whether or not there are keys to draw, because the two rows that
+   * can ride above them do not depend on there being any. The board opened
+   * from the cover carries no PLAY AGAIN — and that is exactly the board a
+   * returning player opens first, so an offer that came only with the keys was
+   * an offer absent from the one screen it was added for.
    */
-  private actions(mode: BoardTab) { return mode === 'survive' ? surviveActions() : actionsMarkup(); }
+  private actions(mode: BoardTab, keyed: boolean) {
+    const keys = keyed ? (mode === 'survive' ? surviveActions() : actionsMarkup()) : '';
+    // The first key rides above them in the same column. Floating it over the
+    // foot of the board put it on top of these keys, which kept the focus they
+    // had — so the ring of a key nobody could see showed around the widget
+    // covering it, and a return press still reached it.
+    // A key just minted outranks an offer to bring one back: somebody holding
+    // a brand new key is plainly not the player who lost one.
+    if (this.keyPending) return `${keyToastMarkup(this.keyPending)}${keys}`;
+    // And the board is the other place worth asking. Somebody with no name is
+    // looking at a ladder they are not on — which is exactly the screen a
+    // returning player opens first to find out their record is gone.
+    return `${this.offerRestoreOnBoard ? restorePanelMarkup('board-restore') : ''}${keys}`;
+  }
+
+  /**
+   * Whether the board should carry the offer under its rows. The game decides:
+   * it knows whether a name is claimed and whether the offer has been waved
+   * away. Not counted against the innings-end cap — the board is a screen
+   * somebody chose to open, not a card pushed in front of them.
+   */
+  offerRestoreOnBoard = false;
 
   /** What the card key does. The game decides: the figures are the game's. */
   onStatsOpen: (() => void) | null = null;
@@ -498,7 +538,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   statsTab(view: StatsSheetView) {
     this.holdStats(view);
-    this.sheet(statsSheetMarkup({ ...view, at: this.statsAt, where: 'sheet' }), 'mine', 'best');
+    this.sheet(statsSheetMarkup({
+      ...view, careerKey: this.keyView, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
+    }), 'mine', 'best');
+    this.wireRestoreLink();
     this.wireStatsKeys();
   }
 
@@ -509,7 +552,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // pull it back off whichever key the player had already reached for.
     const opening = overlay.classList.contains('hidden');
     this.holdStats(view);
-    overlay.innerHTML = statsSheetMarkup({ ...view, at: this.statsAt, where: 'page' });
+    overlay.innerHTML = statsSheetMarkup({
+      ...view, careerKey: this.keyView, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
+    });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     this.wireStatsKeys();
@@ -538,8 +583,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * one place rather than each remembering to do it.
    */
   private wireStatsKeys() {
-    this.$('stats-whatsapp').onclick = () => void this.shareStats('card');
-    this.$('stats-story').onclick = () => void this.shareStats('story');
+    this.$('stats-brag').onclick = () => void this.shareStats();
+    // The key card is only on the sheet where the player has one.
+    const save = document.getElementById('key-save');
+    // On `lost` that one key asks for a new one instead of saving a key this
+    // browser does not hold — the card says so in the same breath, so the key
+    // under it has to mean what the card just said.
+    if (save) save.onclick = () => (this.keyView?.state === 'lost' ? this.onNewKey?.() : this.openKeySheet());
+    const about = document.getElementById('key-info');
+    if (about) about.onclick = () => this.openKeySheet(true);
+    const fresh = document.getElementById('key-new');
+    if (fresh) fresh.onclick = () => this.onNewKey?.();
     this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
@@ -803,31 +857,37 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * will not hand a file to another app, the wa.me link still opens WhatsApp
    * with that text, so the link survives even when the picture cannot.
    */
-  private async shareStats(kind: 'card' | 'story') {
+  /**
+   * One key, one picture, and the phone's own sheet to choose where it goes.
+   *
+   * It was two — one wearing WhatsApp's mark and one Instagram's — which named
+   * two destinations out of the dozen the share sheet offers and made the card
+   * look like it belonged to them. The sheet is already the chooser; a screen
+   * that chooses first is a screen doing the sheet's job worse.
+   *
+   * The tall picture rather than the square one, because one asset has to work
+   * in both places: nine by sixteen posts as a story untouched and still reads
+   * in a chat, where a square card posted as a story is a square card with grey
+   * above and below it.
+   */
+  private async shareStats() {
     const facts = this.statsShown;
     if (!facts) return;
-    track(kind === 'story' ? 'stats-share-story' : 'stats-share-whatsapp',
-      kind === 'story' ? 'Shared the career card to a story' : 'Shared the career card to WhatsApp');
+    track('stats-brag', 'Bragged about the career card');
     const url = gameLink();
     const lead = facts.hero[0] ?? { label: 'runs', value: 0 };
-    const caption = kind === 'story'
-      ? statsStoryText(lead, facts.innings, url)
-      : statsShareText(lead, facts.innings, url);
+    const caption = statsStoryText(lead, facts.innings, url);
     const status = this.$('stats-status');
     if (!canShareImage()) {
-      // No file can leave this browser. WhatsApp's own link still carries the
-      // text and the address; the story has no such fallback but a saved file.
-      if (kind === 'card') { window.open(statsWhatsappLink(lead, facts.innings, url), '_blank', 'noopener'); return; }
-      await this.saveStats(facts, url, caption);
+      // No file can leave this browser, so the picture cannot go anywhere the
+      // player chooses. WhatsApp's own link still carries the words and the
+      // address, which is more use than a file in a downloads folder.
+      window.open(statsWhatsappLink(lead, facts.innings, url), '_blank', 'noopener');
       return;
     }
     try {
-      const picture = kind === 'story'
-        ? await statsStoryImage(facts, url)
-        : await statsCardImage(facts, url);
-      const file = new File([picture], statsFileName(kind), {
-        type: kind === 'story' ? 'image/jpeg' : 'image/png',
-      });
+      const picture = await statsStoryImage(facts, url);
+      const file = new File([picture], statsFileName('story'), { type: 'image/jpeg' });
       await navigator.share({ files: [file], text: caption });
     } catch (error) {
       // A cancelled sheet is the player changing their mind, not a failure.
@@ -945,6 +1005,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (news) news.onclick = () => this.onBoardStories?.();
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
+    const keySave = document.getElementById('key-toast-save');
+    if (keySave) keySave.onclick = () => this.openKeySheet();
+    const keyShut = document.getElementById('key-toast-close');
+    if (keyShut) keyShut.onclick = () => this.keyToast(null);
+    const backGo = document.getElementById('board-restore-go');
+    if (backGo) backGo.onclick = () => this.onRestoreOpen?.('board');
+    const backShut = document.getElementById('board-restore-close');
+    if (backShut) {
+      backShut.onclick = () => {
+        document.getElementById('board-restore-go')?.closest('.restore-panel')?.remove();
+        this.onRestoreDismiss?.();
+      };
+    }
     const again = document.getElementById('board-again');
     if (!again) {
       // No keys on this sheet, so the focus goes to the way out — and the card's
@@ -984,6 +1057,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   closeBoard() {
     this.$('board-overlay').classList.add('hidden');
     this.$('board-overlay').innerHTML = '';
+    // The first key is laid over the board and belongs to it. Left behind it
+    // would stand on the cover with nothing underneath it to explain it.
+    this.keyToast(null);
     // The next open of the board starts at the front of the rail again.
     this.statsCards = [];
     this.statsAt = 0;
@@ -1245,6 +1321,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Cleared up front, so the two "view leaderboard" states cannot inherit a
     // shimmer from an offer the player has already answered.
     key.classList.remove('is-offer');
+    // Said where the key is asking, and nowhere else. One class on the strip
+    // rather than a toggle at each of the three places the form opens and
+    // closes: the footnote then cannot fall out of step with the key it is
+    // under, because the same state draws both.
+    this.$('card-board').classList.toggle('is-asking', offer.kind === 'claim');
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
@@ -1295,8 +1376,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // it in the same place, under the board and above the keys. Moved rather
     // than duplicated, for the reason the strip is moved: the ids travel, so
     // everything that reaches for `card-career` goes on working without knowing
-    // which card it is standing in.
-    const moving = [this.$('card-board'), this.$('card-career')];
+    // which card it is standing in. The career key rides along for the same
+    // reason — it was left behind on the Blast card at first, so a Test innings
+    // ended on a card with no key on it and nothing said why.
+    const moving = [this.$('card-board'), this.$('card-career'), this.$('card-key')];
     if (surviving) this.$('survive-strip').append(...moving);
     else {
       const card = this.$('end').querySelector('.scorecard')!;
@@ -1340,6 +1423,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const field = this.$('claim-name') as HTMLInputElement;
     field.value = this.claimed?.name ?? '';
     this.$('claim-error').classList.add('hidden');
+    this.$('claim-back').classList.add('hidden');
+    this.$('claim-back').innerHTML = '';
     this.claimSending(false);
     field.focus();
   }
@@ -1368,11 +1453,168 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
   }
 
-  /** The store turned it down, and the player can do something about it. */
-  claimFailed(reason: string) {
+  /**
+   * The store turned it down, and the player can do something about it.
+   *
+   * One refusal is not like the others. A name already held is the only moment
+   * in this game where a player who has lost their record gives us evidence of
+   * it: they typed the name they have always batted under, and it is taken,
+   * and the person holding it is almost always them. So that one comes with a
+   * way back rather than a wall — with the name they typed carried over, since
+   * retyping it ten seconds later would read as the screen not listening.
+   */
+  claimFailed(reason: string, taken = false) {
     this.claimSending(false);
     this.$('claim-error').textContent = reason;
     this.$('claim-error').classList.remove('hidden');
+    const back = this.$('claim-back');
+    back.classList.toggle('hidden', !taken);
+    back.innerHTML = taken ? restoreLinkMarkup('claim-restore', RESTORE_TAKEN) : '';
+    if (taken) this.$('claim-restore').onclick = () => this.openRestore(this.claimEntry.name);
+  }
+
+  /**
+   * The screen that takes a key back, wherever it was opened from.
+   *
+   * Held open while the store is asked rather than closed on submit: a wrong
+   * key is the likely outcome the first time somebody reads their own
+   * handwriting, and a screen that shuts on every try makes the second try a
+   * journey instead of a correction.
+   */
+  openRestore(name = '', local: LocalCareer | null = null) {
+    this.restoreView = { name, local, sending: false, error: null };
+    this.drawRestore();
+  }
+
+  /** What the player is offering. */
+  get restoreEntry() {
+    return {
+      name: (this.$('restore-name') as HTMLInputElement).value,
+      key: (this.$('restore-key') as HTMLInputElement).value,
+    };
+  }
+
+  /** The form, while the store is thinking about it. */
+  restoreSending(sending: boolean) {
+    if (!this.restoreView) return;
+    this.restoreView = { ...this.restoreView, sending, error: sending ? null : this.restoreView.error };
+    this.drawRestore();
+  }
+
+  /** Turned down, and the key field left holding what they typed to correct it. */
+  restoreFailed(reason: string) {
+    if (!this.restoreView) return;
+    this.restoreView = { ...this.restoreView, sending: false, error: reason };
+    this.drawRestore();
+  }
+
+  closeRestore() {
+    this.restoreView = null;
+    this.$('restore-overlay').classList.add('hidden');
+    this.$('restore-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  get restoreOpen() { return !this.$('restore-overlay').classList.contains('hidden'); }
+
+  /** What the game does with a name and a key. The store is the game's. */
+  onRestore: ((entry: { name: string; key: string }) => void) | null = null;
+
+  /**
+   * Asking for a key to replace the one this browser does not have.
+   *
+   * The only way out of `lost`. A key is shown once and kept nowhere but a
+   * salted hash, so the one that was issued cannot be produced again by
+   * anybody — a new one is the only thing that can be offered, and making it
+   * is what stops the old one working.
+   */
+  onNewKey: (() => void) | null = null;
+
+  /**
+   * It worked, said on the screen the player was already on.
+   *
+   * A toast rather than a screen of its own: what they wanted was their record,
+   * and the record is behind this — so the right thing to do is get out of the
+   * way and let them see it, not stand in front of it with good news.
+   */
+  restoreDone(name: string) {
+    this.restoreView = { done: { name } };
+    this.drawRestore();
+  }
+
+  private restoreView: RestoreView | null = null;
+
+  /**
+   * Whether the game wants the way back offered where it fits.
+   *
+   * Asked rather than remembered, for the reason `keyNow` is asked: the answer
+   * changes underneath this screen. Somebody claims a name; somebody brings a
+   * record back. Held as a field it was set true once at startup and stayed
+   * true — so the offer went on standing at the foot of My Stats for a player
+   * who had just used it, and for every registered player who never needed it.
+   */
+  restoreNow: (() => boolean) | null = null;
+  private get offerRestore() { return this.restoreNow?.() ?? false; }
+
+  /**
+   * Takes the board's offer off the screen it is already standing on.
+   *
+   * The flag beside it decides whether one is *drawn*, and the board is only
+   * drawn when it is opened — so a record brought back from the board itself
+   * left the offer sitting under it, asking a player who had just answered it.
+   * The node is removed the same way its own cross removes it.
+   */
+  dropBoardRestore() {
+    document.getElementById('board-restore-go')?.closest('.restore-panel')?.remove();
+  }
+
+  /** The link on an empty card, which is drawn with the card and so rewired with it. */
+  private wireRestoreLink() {
+    const link = document.getElementById('stats-restore');
+    if (link) link.onclick = () => this.onRestoreOpen?.('stats');
+  }
+
+  /** Where the offer was taken up, so the game can say which door was used. */
+  onRestoreOpen: ((from: string) => void) | null = null;
+
+  /**
+   * Drawn whole every time, so the three states it has — asking, checking,
+   * refused — cannot drift apart. What that costs is the caret: the fields are
+   * written back from what was in them, and focus is put where the player was.
+   */
+  private drawRestore() {
+    const overlay = this.$('restore-overlay');
+    if (!this.restoreView) return this.closeRestore();
+    const held = this.restoreOpen && document.getElementById('restore-name')
+      ? { name: (this.$('restore-name') as HTMLInputElement).value,
+        key: (this.$('restore-key') as HTMLInputElement).value }
+      : null;
+    overlay.innerHTML = restoreMarkup(this.restoreView);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) this.closeRestore(); };
+    if (this.restoreView.done) {
+      const away = this.$('restore-done');
+      away.onclick = () => this.closeRestore();
+      away.focus();
+      return;
+    }
+    const name = this.$('restore-name') as HTMLInputElement;
+    const key = this.$('restore-key') as HTMLInputElement;
+    if (held) { name.value = held.name; key.value = held.key; }
+    this.$('restore-close').onclick = () => this.closeRestore();
+    (this.$('restore-form') as HTMLFormElement).onsubmit = event => {
+      event.preventDefault();
+      if (this.restoreView?.sending) return;
+      this.onRestore?.(this.restoreEntry);
+    };
+    if (this.restoreView.sending) return;
+    // Back to whichever field still needs something: the name where it is
+    // empty, the key otherwise — which is also where a refused try belongs.
+    (name.value ? key : name).focus();
   }
 
   /**
@@ -1550,6 +1792,196 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     (this.$('hurt-note-done') as HTMLButtonElement).focus();
   }
   get hurtNoteOpen() { return !this.$('hurt-note').classList.contains('hidden'); }
+
+  /**
+   * The career key, wherever it is being shown.
+   *
+   * One object drives four placements and the modal, because they are one
+   * message: a key copied from the card on the innings screen has to retire
+   * the line on the mode picker too, and a player asked twice concludes the
+   * first answer did not take.
+   */
+  /**
+   * What the player's key is, asked for rather than remembered.
+   *
+   * It was a field, written only where a key was drawn — the picker and the
+   * end of an innings. Everywhere else read whatever those had last left
+   * behind, so a player who registered and went straight to the board found
+   * the field still holding the null from before they had a name, and My
+   * Stats left the card out. A key is a fact about storage that four screens
+   * ask about at four different moments; the only version that cannot go
+   * stale is the one read when the question is asked.
+   */
+  keyNow: (() => KeyView | null) | null = null;
+
+  private get keyView(): KeyView | null { return this.keyNow?.() ?? null; }
+  /** What the modal's two keys do. The game owns the saving. */
+  /**
+   * What a save key does. Answering `false` means nothing was saved — the
+   * clipboard refused, or the browser blocked the window — and the sheet stays
+   * up saying so, because a sheet that closes on a save that did not happen is
+   * the lie this whole widget exists to avoid.
+   */
+  onKeySave: ((how: 'whatsapp' | 'copy' | 'image') => Promise<boolean> | boolean) | null = null;
+
+  careerKey(view: KeyView | null, where: { panel: boolean; bar: boolean }) {
+    const panel = this.$('card-key');
+    const bar = this.$('mode-key');
+    const show = !!view && view.state !== 'lost';
+    // One slot, two occupants, never both. A key needs a claimed name and the
+    // offer is only made where there is none, so they cannot collide — and the
+    // player sees one object on that strip of card that changes what it says,
+    // rather than two things arguing over the same room.
+    const offering = !show && where.panel && this.offerRestorePanel;
+    panel.classList.toggle('hidden', !((show && where.panel) || offering));
+    bar.classList.toggle('hidden', !(show && where.bar));
+    if (show && where.panel) {
+      panel.innerHTML = keyPanelMarkup(view!);
+      this.$('key-panel-save').onclick = () => this.openKeySheet();
+    } else if (offering) {
+      panel.innerHTML = restorePanelMarkup('restore-panel');
+      this.$('restore-panel-go').onclick = () => this.onRestoreOpen?.('card');
+      this.$('restore-panel-close').onclick = () => {
+        panel.classList.add('hidden');
+        panel.innerHTML = '';
+        this.onRestoreDismiss?.();
+      };
+      this.onRestoreShown?.();
+    }
+    if (show && where.bar) {
+      bar.innerHTML = keyBarMarkup();
+      this.$('key-bar').onclick = () => this.openKeySheet();
+    }
+    // Emptied rather than only hidden. These nodes are shared between the two
+    // end cards and moved between them, so a slot left holding what it held
+    // last time is a widget waiting to reappear on a screen that never asked
+    // for it — which is exactly how the key ended up on the Blast card.
+    if (!((show && where.panel) || offering)) panel.innerHTML = '';
+    if (!(show && where.bar)) bar.innerHTML = '';
+  }
+
+  /**
+   * Whether the end card's one slot is carrying anything at the moment.
+   *
+   * Asked before that slot is redrawn from outside the end card, because
+   * drawing the offer into it is what counts a showing against its cap — so a
+   * redraw aimed at a screen the player is not looking at would spend one of
+   * the two times they will ever be asked.
+   */
+  get keyPanelShowing() { return !this.$('card-key').classList.contains('hidden'); }
+
+  /**
+   * Whether the end of an innings should carry the offer instead of a key.
+   * The game decides — it knows whether a name is claimed, and it is the game
+   * that remembers how often this has been asked.
+   */
+  offerRestorePanel = false;
+
+  /** Counted where it is drawn, so a card that never appeared is never counted. */
+  onRestoreShown: (() => void) | null = null;
+
+  /** Taken away by hand, which is for good. */
+  onRestoreDismiss: (() => void) | null = null;
+
+  /** The only place a key is saved, whichever of the four opened it. */
+  openKeySheet(about = false) {
+    if (!this.keyView) return;
+    const overlay = this.$('key-overlay');
+    overlay.innerHTML = about ? keyAboutMarkup() : keyModalMarkup(this.keyView);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const shut = () => this.closeKeySheet();
+    this.$(about ? 'key-about-close' : 'key-modal-close').onclick = shut;
+    // The ground around the sheet closes it, which is what every other modal
+    // on this game does and what a thumb reaches for first. Only the ground:
+    // the test is that the press landed on the scrim itself rather than
+    // bubbled up from something inside the sheet.
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) shut(); };
+    if (about) return;
+    // The picture is the screenshot made pressable, so it stands where the
+    // screenshot is recommended rather than among the two that send the key
+    // somewhere. It takes a moment to paint and a moment more for the phone to
+    // offer somewhere to put it, so the key says what it is doing.
+    this.$('key-image').onclick = async () => {
+      const key = this.$('key-image') as HTMLButtonElement;
+      if (key.disabled) return;
+      const was = key.textContent;
+      key.disabled = true;
+      key.textContent = 'SAVING…';
+      const done = await this.onKeySave?.('image');
+      key.disabled = false;
+      key.textContent = was;
+      if (done === false) {
+        this.keyTrouble('Could not save the picture. Screenshot this screen instead.');
+      }
+    };
+    this.$('key-whatsapp').onclick = async () => {
+      const done = await this.onKeySave?.('whatsapp');
+      if (done === false) {
+        return this.keyTrouble('Could not open WhatsApp. Screenshot this screen, or copy it instead.');
+      }
+      // WhatsApp is about to take the screen anyway, so there is nothing for
+      // this sheet to stay open for.
+      shut();
+    };
+    this.$('key-copy').onclick = async () => {
+      const key = this.$('key-copy');
+      const done = await this.onKeySave?.('copy');
+      if (done === false) {
+        return this.keyTrouble('Could not copy. Screenshot this screen instead \u2014 the key is above.');
+      }
+      // Said on the key that was pressed, and the sheet left standing. A copy
+      // is invisible: nothing moves, no app opens, and a sheet that simply
+      // closed was the only answer somebody got — indistinguishable from a key
+      // that did nothing, which is what the last one actually was. Standing
+      // also leaves the screen up for the screenshot recommended above it.
+      key.textContent = 'COPIED';
+      key.classList.add('is-done');
+      window.clearTimeout(this.copySaid);
+      this.copySaid = window.setTimeout(() => {
+        key.textContent = 'COPY';
+        key.classList.remove('is-done');
+      }, 2200);
+    };
+  }
+
+  /** How long the copy key has left to say so. */
+  private copySaid = 0;
+
+  /** Said inside the sheet, because the sheet is what is on the screen. */
+  private keyTrouble(says: string) {
+    const line = document.getElementById('key-trouble');
+    if (!line) return;
+    line.textContent = says;
+    line.classList.remove('hidden');
+  }
+
+  closeKeySheet() {
+    window.clearTimeout(this.copySaid);
+    this.$('key-overlay').classList.add('hidden');
+    this.$('key-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  get keySheetOpen() { return !this.$('key-overlay').classList.contains('hidden'); }
+
+  /**
+   * The first key, the moment a name is claimed. Closed by hand, never a clock.
+   *
+   * Set before the board is drawn: it is a row of the board's own column, so
+   * the sheet that follows carries it. Taken off by hand rather than by drawing
+   * the sheet again, because the sheet is drawn whole — redrawing it to remove
+   * one row would put the ladder strip and the scroll back where they started.
+   */
+  keyToast(view: KeyView | null) {
+    this.keyPending = view;
+    if (!view) this.viewport.querySelector('.board-stack .key-toast')?.remove();
+  }
+
+  private keyPending: KeyView | null = null;
 
   /** The mode picker. Skipped entirely when a link has already named the mode. */
   modes() {

@@ -1501,11 +1501,28 @@ body.start-screen .hud-top{display:none}
    it, and two supporting columns wide enough for anything a career can reach,
    both fixed so that fifty rows read as columns rather than as fifty separate
    arrangements. */
-.board-row.is-career{gap:0 7px}
+.board-row.is-career{gap:0 6px}
 .board-row.is-career .board-runs{min-width:58px;font-size:18px}
 .board-row.is-career .board-hits{gap:6px;margin-left:0}
-.board-row.is-career .board-hits em{width:46px;font-size:12.5px}
-.board-row.is-career .board-hits small{font-size:8.5px}
+/* The label under the figure rather than beside it.
+   Beside it, a column had to be as wide as its number and its word together,
+   and a career that reaches four figures cannot be: `1,532` and `runs` want
+   fifty-seven pixels of the forty-six a column has, so the last one ran off
+   the card. Stacked, a column is only as wide as the wider of the two — and
+   the number, which is what fifty rows are compared on, keeps the whole of it.
+
+   Set in the row's own line-height rather than the document's, or two lines
+   where there was one would make every career row taller than an innings row
+   for the sake of a word. */
+.board-row.is-career .board-hits em{
+  flex-direction:column;
+  align-items:flex-end;
+  gap:0;
+  width:46px;
+  font-size:12.5px;
+  line-height:1.15
+}
+.board-row.is-career .board-hits small{font-size:8.5px;line-height:1.1}
 /* Below that, two career columns and a name cannot all have what they need,
    and the first thing to go is the last column rather than the name: a row
    that says who and how many is a row; a row of figures beside two initials
@@ -1541,13 +1558,18 @@ body.start-screen .hud-top{display:none}
      as filled in. */
   background:linear-gradient(90deg,#f2814f3d 0%,#f2814f1c 46%,#f2814f00 100%)
 }
-/* A small triangle pointing into the row, half off its left edge — the shape
-   a scoreboard uses to say "this one". A bar would have been a border, and a
-   border on one row of fifty reads as a divider that got thicker. */
+/* A small triangle pointing into the row — the shape a scoreboard uses to say
+   "this one". A bar would have been a border, and a border on one row of fifty
+   reads as a divider that got thicker.
+
+   Flush with the card's own edge rather than hanging four pixels outside it.
+   Out there it was pointing at the row from off the sheet, and it was spending
+   width the row could not spare: a career counts to four figures and the
+   columns that hold them had run out of room. */
 .board-row.is-you::before{
   content:'';
   position:absolute;
-  left:-4px;
+  left:0;
   top:50%;
   width:0;
   height:0;
@@ -1878,6 +1900,28 @@ body.start-screen .hud-top{display:none}
   box-shadow:0 7px 0 #5f6cc4,0 12px 14px #1d234f59
 }
 .card-board .claim-key:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #5f6cc4,0 4px 7px #1d234f3d}
+/* The second reason to press the key, under the key rather than in it.
+   Registering is what puts a name on the board, and a name is the half of a
+   career key that a player has to remember — so the one screen where somebody
+   is deciding whether to register is the one place worth saying it. Only on
+   the offer: on VIEW LEADERBOARD it would be describing something already
+   done. It rides the key's own bottom margin rather than adding to it, so a
+   card that already clears a short phone still does. */
+.claim-why{
+  display:none;
+  margin:-9px 15px 13px;
+  font-size:11px;
+  line-height:1.35;
+  text-align:center;
+  color:#9fb6bb
+}
+/* Up only where the key above it is asking, and down again while the form that
+   key opens is standing in its place. The second selector carries the first's
+   classes as well as the host's, because it has to outrank it: a hide written
+   as `.is-claiming .claim-why` is a class short, and the footnote sat over the
+   form with both rules matching and the wrong one winning. */
+.card-board.is-asking .claim-why{display:block}
+.is-claiming .card-board.is-asking .claim-why{display:none}
 /* The submit key inside the form is the same key doing the same job. */
 .card-claim .claim-key{
   border:0;
@@ -2192,6 +2236,7 @@ dialog .primary-button{margin-top:18px}
      card scrolls, the way out of the form does not move. */
   .card-claim .claim-key{position:sticky;bottom:0;z-index:1}
   .card-board .claim-key{margin:8px 13px 12px}
+  .claim-why{margin:-8px 13px 10px}
   .board-actions{padding:0 0 calc(var(--pad-bottom) - 14px)}
   .board-actions .key-button{min-height:42px;font-size:15px}
   /* Side by side once the card has to clear a landscape phone. The labels lose
@@ -3405,6 +3450,7 @@ body.private-window{overflow:hidden}
   display:flex;
   align-items:center;
   justify-content:center;
+  flex:none;
   min-height:220px
 }
 /* ── Two cards, one rail ────────────────────────────────────────────────────
@@ -3459,7 +3505,12 @@ body.private-window{overflow:hidden}
 
 /* Which one, and the way through for a keyboard — a horizontal scroller is not
    something a Tab key can move. */
-.stats-dots{display:flex;justify-content:center;gap:7px;margin:-2px 0 -4px}
+.stats-dots{display:flex;justify-content:center;gap:7px;margin:0}
+/* Under the My Stats tab the pills sit between two columns with different
+   rhythms: the stack above gives them 12 and the sheet below gives them 14.
+   This is the two pixels, so the row has the same air on both sides. On the
+   page presentation both gaps are the sheet's own and already agree. */
+.stats-sheet-inner.is-sheet .stats-dots{margin-top:2px}
 .stats-dot{
   display:flex;
   align-items:center;
@@ -3619,30 +3670,24 @@ body.private-window{overflow:hidden}
 /* Each key wears the colour of where it is going, which is the fastest label
    there is: nobody reads the words on a green key with that mark on it. */
 /* Both keys are built the way every other key in the game is: a three-pixel
-   stroke and a six-pixel ledge, in the key's own colour. They had the ledge
-   and not the stroke, which left them looking like coloured labels beside the
-   keys on the innings card that have both. */
-.stats-key.is-whatsapp{
+   stroke and a six-pixel ledge, in the key's own colour. It had the ledge and
+   not the stroke, which left it looking like a coloured label beside the keys
+   on the innings card that have both.
+
+   Green because sending is green, and this green rather than WhatsApp's: there
+   is one key now and it goes wherever the share sheet is pointed, so wearing
+   any one app's colour would name a destination the player has not chosen yet.
+   Orange and white stay what they are — the key that starts an innings. */
+.stats-key.is-brag{
   border-width:3px;
-  border-color:#0f7a37;
-  background:#25d366;
+  border-color:#12764a;
+  background:#2fbf71;
   color:#04231a;
-  box-shadow:0 6px 0 #0f7a37,0 10px 14px #01180d4d
+  box-shadow:0 6px 0 #12764a,0 10px 14px #01180d4d
 }
-.stats-key.is-whatsapp:hover:not(:disabled){background:#31e074;box-shadow:0 7px 0 #0f7a37,0 12px 16px #01180d59}
-.stats-key.is-whatsapp:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #0f7a37,0 4px 8px #01180d3d}
-.stats-key.is-story{
-  /* One flat hue for the stroke and the ledge, taken from the deep end of the
-     key's own gradient — a gradient cannot run round a border and a ledge, and
-     two different ones would read as a mistake rather than a choice. */
-  border-width:3px;
-  border-color:#6b2a86;
-  background:linear-gradient(100deg,#f2814f,#d62976 55%,#8134af);
-  color:#fff;
-  box-shadow:0 6px 0 #6b2a86,0 10px 14px #2a0e364d
-}
-.stats-key.is-story:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 7px 0 #6b2a86,0 12px 16px #2a0e3659}
-.stats-key.is-story:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #6b2a86,0 4px 8px #2a0e363d}
+.stats-key.is-brag:hover:not(:disabled){background:#38cf7d;box-shadow:0 7px 0 #12764a,0 12px 16px #01180d59}
+.stats-key.is-brag:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #12764a,0 4px 8px #01180d3d}
+.stats-key.is-brag svg{width:20px;height:20px}
 
 .stats-status{
   margin:0;
@@ -4050,3 +4095,561 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .board-new::after{animation:none;display:none}
   .whatsnew-bar.is-live>i{animation:none;transform:scaleX(1)}
 }
+
+/* ── The career key ───────────────────────────────────────────────────────
+   The dark pass with a foil window, off the Figma frame, at phone scale.
+
+   Everything here is the design multiplied by 0.476 — the frame is 765 across
+   and a phone gives the widget about 364 — so the proportions are the drawn
+   ones rather than a fresh set of round numbers that happen to look close.
+   Body copy is the one exception: 20px on a 765 frame lands at 9.5, which is
+   below the size anything is read at, so the two prose sizes are set by what
+   is legible and the drawn ones stop at the headings.
+
+   The foil is only in the window. That is the whole of this revision: a card
+   that was iridescent edge to edge asked for more of the screen than a thing
+   you are meant to notice once and then live with. Now the card is charcoal
+   and the key inside it is the only bright thing, which is also the right way
+   round — the foil is drawing the eye to the string that matters rather than
+   to the panel holding it. */
+.key-pass,.key-panel,.key-toast,.key-bar,.key-sheet{
+  /* One dark plate for every placement. Declared here and nowhere else: the
+     moment a component redeclares it, an ancestor can no longer override it. */
+  --key-plate:linear-gradient(102.05deg,#141414 -3.34%,#464646 55.11%,#000 104.52%);
+  /* The stroke and the ledge under the white key, which are the same grey in
+     the frame — on charcoal a black ledge disappears and a coloured one
+     becomes a second accent competing with the foil. */
+  --key-ledge:#5b5b5b;
+  --key-stroke:linear-gradient(180deg,#707070 0%,#5e5e5e 100%);
+  position:relative;
+  isolation:isolate;
+  border:1.2px solid #0000;
+  background:var(--key-plate) padding-box,var(--key-stroke) border-box;
+  color:#fff;
+  font-family:var(--card)
+}
+/* Everything readable sits on the plate; nothing is layered under it now. */
+.key-face{position:relative;z-index:1}
+
+/* The key in its window, and the only foil left.
+   Three layers doing what Figma's blend stack does: an iridescent radial over
+   a navy base differenced against a light-dark sweep, the same sweep screened
+   over the result, and a near-invisible pane carrying the inset shadow that
+   sinks the whole thing into the card. Difference is what turns a pretty
+   rainbow into foil — it inverts the spectrum wherever the sweep is light, so
+   the colour bands and the shine bands cross rather than stack. */
+.key-serial{
+  --foil-sweep:linear-gradient(101.45deg,
+    #fff 4.42%,#000 33.79%,#fff 59.83%,#000 86.98%,#fff 110.81%);
+  --foil-spectrum:radial-gradient(139.09% 181.03% at 98.11% 7.72%,
+    #36fbf4 0%,#fffd6c 23%,#ffdeff 42%,#c0c6ff 62%,#91ffc4 82%,#99dfff 100%);
+  position:relative;
+  isolation:isolate;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  margin:0 0 6px;
+  padding:6px 10px;
+  border-radius:9.5px;
+  background:var(--foil-sweep),var(--foil-spectrum),#11345f;
+  background-blend-mode:difference,normal,normal;
+  color:#000;
+  font-family:var(--cta);
+  font-size:17px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-align:center;
+  overflow-wrap:anywhere
+}
+.key-serial::before,.key-serial::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none
+}
+.key-serial::before{background:var(--foil-sweep);mix-blend-mode:screen}
+.key-serial::after{background:#ffffff03;box-shadow:inset 1px 1px 2px #00000099}
+.key-serial>span{position:relative;z-index:1}
+.key-serial.is-inline{
+  min-height:0;
+  margin:0;
+  padding:4px 8px;
+  border-radius:7px;
+  font-size:13px;
+  letter-spacing:.08em
+}
+.key-serial.is-big{min-height:50px;font-size:19px;margin-bottom:12px}
+
+.key-pass{
+  width:100%;
+  margin:0 0 12px;
+  border-radius:15px;
+  box-shadow:0 6px 18px #04091066
+}
+.key-pass .key-face{padding:16px}
+.key-stamp{display:flex;align-items:center;gap:7px;margin:0 0 9px}
+.key-mark{display:flex;color:inherit}
+.key-mark svg{width:14px;height:14px}
+.key-mark.is-big svg{width:24px;height:24px}
+/* Jaro, tracked, white. It is a label over the window rather than a heading
+   on a panel, so it is set to the frame's ratio — half again under the key
+   it introduces — instead of competing with it. */
+.key-stamp h3{
+  flex:1;
+  margin:0;
+  font-family:var(--cta);
+  font-size:11.5px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#fff
+}
+.key-info{
+  display:grid;
+  place-items:center;
+  width:19px;
+  height:19px;
+  padding:0;
+  border:1.5px solid #ffffff8f;
+  border-radius:50%;
+  background:#0000;
+  color:#fff;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:800;
+  font-style:italic;
+  line-height:1
+}
+.key-info:hover{background:#ffffff26}
+/* One line, and sized by that rather than by taste. The sentence is the
+   widest thing on the card after the key, and a size that wraps it leaves a
+   single orphaned word standing under it — which costs a whole line of card
+   height to say nothing. Eleven and a half fitted on the lab's bench and
+   wrapped on My Stats, where the sheet is the narrower of the two. */
+.key-line{
+  margin:0 0 12px;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:500;
+  line-height:1.45;
+  color:#fff
+}
+/* The drawn key: white, a grey stroke, and a short grey ledge under it. The
+   ledge is four pixels rather than the seven it used to be — on a plate this
+   dark the key is already the brightest thing on the widget, and a tall slab
+   under it made a button that only needed to be found look like the one thing
+   on the screen worth pressing. */
+.key-save{
+  display:block;
+  width:100%;
+  min-height:41px;
+  padding:0 12px;
+  border:2px solid var(--key-ledge);
+  border-radius:11px;
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
+  color:#000;
+  font-family:var(--cta);
+  font-size:15px;
+  font-weight:400;
+  letter-spacing:.04em
+}
+.key-save:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge),0 4px 9px #00000047}
+.key-ghost{
+  display:block;
+  width:100%;
+  margin:12px 0 0;
+  padding:3px;
+  border:0;
+  background:none;
+  color:#fff;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:600;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+
+/* ── On the innings-end card ─────────────────────────────────────────────
+   A row rather than a stack. The card under it is what the player came to
+   look at, and this may not push the keys off the bottom of a short screen. */
+.key-panel{
+  width:100%;
+  margin:0 0 12px;
+  border-radius:13px;
+  box-shadow:0 5px 14px #0409105c
+}
+.key-panel-face{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 11px
+}
+.key-panel-say{flex:1;min-width:0}
+.key-panel-say h3{
+  margin:0 0 4px;
+  font-family:var(--cta);
+  font-size:10px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#fff
+}
+.key-panel-key{
+  flex:none;
+  min-height:36px;
+  padding:0 15px;
+  border:2px solid var(--key-ledge);
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 7px 14px #0000004d;
+  color:#000;
+  font-family:var(--cta);
+  font-size:12px;
+  letter-spacing:.04em
+}
+.key-panel-key:active{transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
+
+/* ── On the mode picker ──────────────────────────────────────────────────
+   One line, twice, and then never. No foil at all: there is no key on this
+   line to put a window round, and a bar that shimmered on the screen every
+   tap of Play comes through would be the first thing in the game to become
+   furniture. */
+.key-bar{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:min(392px,100%);
+  margin:0 auto 12px;
+  padding:8px 9px 8px 11px;
+  border-radius:11px;
+  box-shadow:0 4px 12px #04091052;
+  text-align:left
+}
+.key-bar .key-mark svg{width:15px;height:15px}
+.key-bar-say{
+  flex:1;
+  min-width:0;
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:700;
+  color:#fff
+}
+.key-bar-go{
+  flex:none;
+  padding:6px 12px;
+  border:2px solid var(--key-ledge);
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 3px 0 var(--key-ledge);
+  color:#000;
+  font-family:var(--cta);
+  font-size:11px;
+  letter-spacing:.04em
+}
+
+/* ── The first one, the moment a name is claimed ─────────────────────────
+   Dismissed by hand, never on a clock. It lands as the board opens on the row
+   they have just taken, and anything that takes itself away while somebody is
+   looking at their own name was never read. */
+.key-toast{
+  width:min(392px,100%);
+  margin:0 auto;
+  border-radius:13px;
+  /* The innings-end row's shadow, not a floating card's. It carried one thrown
+     fourteen pixels down and blurred thirty-four while it hung over the board;
+     in the column that lands on the key ten pixels under it, and a widget
+     casting a shadow onto the thing below it reads as a mistake rather than as
+     height. */
+  box-shadow:0 5px 14px #0409105c
+}
+/* The innings-end card's row, at the innings-end card's size. This one lands
+   on the board rather than on a card, and the board is the thing the player
+   has just earned a place on — so it is the one screen where the widget may
+   not stand on what is underneath it. */
+.key-toast .key-panel-face{padding:9px 10px;gap:9px}
+.key-toast .key-mark svg{width:15px;height:15px}
+.key-toast-close{
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:24px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:none;
+  color:#ffffffa8;
+  font-size:17px;
+  line-height:1
+}
+.key-toast-close:hover{background:#ffffff26;color:#fff}
+
+/* ── The modal every one of them opens ───────────────────────────────────
+   The only place a key is ever saved. */
+.key-modal{
+  position:absolute;
+  inset:0;
+  z-index:11;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:var(--pad-top) var(--pad);
+  background:#06131de8;
+  overflow-y:auto
+}
+.key-sheet{
+  width:min(392px,100%);
+  margin:auto;
+  border-radius:18px;
+  box-shadow:0 20px 44px #0409107a
+}
+.key-sheet .key-face{padding:18px;text-align:center}
+.key-sheet .key-mark{justify-content:center}
+.key-sheet h2{
+  margin:8px 0 11px;
+  font-family:var(--cta);
+  font-size:21px;
+  font-weight:400;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#fff
+}
+.key-sheet-say{
+  margin:0 0 10px;
+  font-size:12px;
+  font-weight:500;
+  line-height:1.55;
+  color:#fff;
+  text-wrap:pretty
+}
+.key-sheet-key{
+  display:block;
+  width:100%;
+  min-height:44px;
+  margin:0 0 11px;
+  border-radius:11px;
+  font-family:var(--cta);
+  font-size:14px;
+  letter-spacing:.04em
+}
+/* The one that finishes the job wears the drawn key. */
+.key-sheet-key.is-whatsapp{
+  border:2px solid var(--key-ledge);
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
+  color:#000
+}
+.key-sheet-key.is-whatsapp:active{transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
+/* Copy is the lesser save and reads as the lesser key: it lives in one slot
+   that the next copy takes, and leaves the player something still to do. */
+.key-sheet-key.is-copy{
+  border:2px solid #ffffff8f;
+  background:#0000;
+  color:#fff
+}
+.key-sheet-key.is-copy:hover{background:#ffffff1f}
+/* Copied, said on the key that was pressed. A copy is the one save with
+   nothing to show for itself — no app opens, nothing moves — so the key has to
+   be the thing that answers, and it goes green for the two seconds it takes to
+   read rather than changing for good: the next key still has to be copyable. */
+.key-sheet-key.is-copy.is-done{
+  border-color:#43b978;
+  background:#43b9782e;
+  color:#8ff0bb
+}
+/* The instruction, given the weight of a key without being one.
+   
+   It is the surest save of the three and the only one the game cannot perform
+   — no clipboard to refuse it, no app to be missing, nothing to overwrite it
+   afterwards — so it gets the room a key would get and the keys underneath are
+   offered as the alternative rather than the other way round. */
+.key-hero{
+  display:block;
+  margin:0 0 12px;
+  padding:13px 14px;
+  border:1.6px dashed #ffffff5c;
+  border-radius:13px;
+  background:#ffffff14;
+  text-wrap:pretty
+}
+.key-hero b{
+  display:block;
+  font-family:var(--cta);
+  font-size:19px;
+  font-weight:400;
+  letter-spacing:.02em;
+  color:#fff
+}
+.key-hero span{
+  display:block;
+  margin-top:4px;
+  font-size:11.5px;
+  font-weight:500;
+  line-height:1.45;
+  color:#ffffffb0
+}
+/* The hinge between the sure way and the three that need something to work. */
+.key-or{
+  margin:0 0 10px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#ffffff7a
+}
+/* The picture: the screenshot made pressable, so it wears the drawn key that
+   the sheet's first action deserves. */
+.key-sheet-key.is-image{
+  border:2px solid var(--key-ledge);
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
+  color:#000
+}
+.key-sheet-key.is-image:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
+.key-sheet-key.is-image:disabled{opacity:.6}
+/* Second of three, and outlined rather than drawn: two drawn keys one above
+   the other is two firsts, and the eye picks neither. Its own class rather
+   than a change to `is-whatsapp`, which is the drawn key that KEEP MY RECORD,
+   BRING IT BACK and SEE MY RECORD all wear on screens of their own. */
+.key-sheet-key.is-second{
+  border:2px solid #ffffffb8;
+  background:#0000;
+  color:#fff
+}
+.key-sheet-key.is-second:hover{background:#ffffff1f}
+.key-sheet-key.is-second:active{transform:translateY(2px)}
+.key-fine{
+  margin:0;
+  font-size:10.5px;
+  font-weight:500;
+  line-height:1.5;
+  color:#ffffffb8;
+  text-wrap:pretty
+}
+/* Only up where a save was asked for and did not happen. It sits between the
+   two keys and the fine print, which is where somebody's eye already is after
+   pressing one of them. */
+.key-trouble{
+  margin:-4px 0 10px;
+  padding:8px 10px;
+  border:1.2px solid #f0a02f4d;
+  border-radius:9px;
+  background:#f0a02f1f;
+  font-size:11.5px;
+  font-weight:600;
+  line-height:1.45;
+  color:#ffd79a;
+  text-wrap:pretty
+}
+
+/* ── Bringing a record back ──────────────────────────────────────────────
+   The key sheet's plate, because it is the same object seen from the other
+   side: that one hands a key over, this one takes it back. Left-aligned
+   though, where the sheet is centred — this is a form, and a label that is
+   not above the left edge of the box it names is a label being read twice. */
+.restore-sheet .key-face{text-align:left}
+.restore-sheet h2,.restore-sheet .key-mark{text-align:center;justify-content:center}
+.restore-field{display:block;margin:0 0 11px}
+.restore-field>span{
+  display:block;
+  margin:0 0 5px;
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.02em;
+  color:#ffffffc4
+}
+.restore-field input{
+  display:block;
+  width:100%;
+  min-height:44px;
+  padding:0 12px;
+  border:1.2px solid #ffffff42;
+  border-radius:10px;
+  background:#0000004d;
+  color:#fff;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:600
+}
+/* The key is typed in the face it was handed over in, so what is on the paper
+   and what is on the screen are the same shape. Tracked a little wider than
+   the card's, because here it is being checked character by character. */
+#restore-key{font-family:var(--cta);font-size:15px;font-weight:400;letter-spacing:.06em}
+#restore-key::placeholder{color:#ffffff4d;letter-spacing:.06em}
+.restore-field input::placeholder{color:#ffffff4d;font-weight:500}
+.restore-field input:focus-visible{outline:2px solid var(--cta-orange);outline-offset:2px;border-color:#0000}
+/* Only ever on the screen when there is something to lose. */
+.restore-losing{
+  margin:0 0 11px;
+  padding:10px 11px;
+  border:1.2px solid #ffffff2b;
+  border-radius:10px;
+  background:#ffffff0d
+}
+.restore-losing-say{margin:0;font-size:11.5px;line-height:1.45;color:#fff}
+.restore-sheet .claim-error{margin:0 0 10px;font-size:12px}
+.restore-sheet .key-fine{margin:0 0 2px;text-align:center}
+
+/* The question `?fresh=1` asks. The save sheet's plate and keys, because it is
+   the same conversation from the other end — that one hands a key over so a
+   record survives this, and this is the screen that makes it survive one. */
+.fresh-gate .key-sheet{max-width:min(392px,100%)}
+/* The one line on this screen that is a warning rather than a description.
+   The same lifted red the claim form's refusal uses, because it is the same
+   job: telling somebody something they have to act on before they go on. */
+.fresh-gate .fresh-warn{color:#ff8a7a;font-weight:700}
+.fresh-gate .key-serial{margin:0 0 12px}
+.fresh-gate .key-sheet-key{margin-bottom:10px}
+.fresh-gate .key-sheet-key:last-child{margin-bottom:0}
+
+/* The offer at the end of an innings: the career key's row, wearing the same
+   plate and the same stroke, because it stands in the same slot and only ever
+   when the key cannot. The one line it has instead of a key window is set in
+   the card face rather than the drawn one — it is a sentence to read, not a
+   string to copy. */
+.restore-panel-line{
+  margin:0;
+  font-family:var(--card);
+  font-size:11.5px;
+  font-weight:600;
+  line-height:1.35;
+  color:#ffffffd6
+}
+
+/* The way in, wherever the game has reason to think somebody has been here
+   before. A link rather than a key: it is an offer, and every screen it
+   appears on already has the thing the player came for on it. */
+.restore-link{
+  display:inline;
+  padding:0;
+  border:0;
+  background:none;
+  color:var(--cta-orange);
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+.restore-link:hover{color:#ff9c6e}
+/* On the claim form it sits under the refusal it answers, so the two read as
+   one thought: the name is taken, and here is what that probably means. */
+.claim-back{margin:-6px 0 11px}
+
+/* Where the key sits on the screens it shares. The widget brings its own
+   material; these only say where it goes and how much room it gets. */
+.card-key{margin:0 0 2.6cqw}
+.card-key .key-panel{margin:0}
+.key-slot{margin:0 0 14px}
+.key-slot .key-bar{margin:0}
+/* The first key, on the board the player has just landed on. A row of that
+   column rather than a thing floating over it: floated, it stood on the keys
+   underneath, and nothing standing on the way out of a screen is clear of it
+   at every height. Here it takes its own room and the keys keep theirs. */
+.board-stack>.key-toast{flex:none}

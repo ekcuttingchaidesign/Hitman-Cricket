@@ -36,6 +36,16 @@ const made = [];
 
 const NAMES = ['Rohit', 'Bumrah', 'Hardik', 'Ishan', 'Shreyas', 'Surya', 'Axar', 'Kuldeep'];
 const ME = 'artart-aaaabbbbcccc';
+/**
+ * The key in the picture, which is nobody's.
+ *
+ * Not a real one, and not a plausible one either. A screenshot of somebody's
+ * actual key is that key published; a screenshot of a key-shaped string is a
+ * player wondering why the one on their own card says something else. So it
+ * reads as the label it is, in the shape a key has — three words and two
+ * digits, lowercase, exactly as the card draws a real one.
+ */
+const SHOWN_KEY = 'your-record-key-00';
 
 /** An innings board that looks like one people have been playing on. */
 const rows = NAMES.map((name, i) => ({
@@ -83,13 +93,16 @@ await page.route('**/api/career**', route => {
       : { boards, size: 50 }),
   });
 });
-await page.addInitScript(id => {
+await page.addInitScript(([id, code]) => {
   // The id the stubbed rows put in third place, and the kit that row is wearing,
   // so the board lights the row the way it does for whoever is looking at it.
   localStorage.setItem('hitman-player', id);
   localStorage.setItem('hitman-batter', JSON.stringify({ name: 'Hardik', avatar: 2 }));
   localStorage.setItem('hitman-seen', '2020-01-01');
-}, ME);
+  // A key this browser holds and has not saved, which is the state the card is
+  // worth a picture in: the one where it is still asking for something.
+  localStorage.setItem('hitman-career-key', JSON.stringify({ code, saved: false }));
+}, [ME, SHOWN_KEY]);
 
 // Loaded twice on purpose. The game reads its player id from three stores and
 // mints a fresh one if they take longer than a second to answer, which on a
@@ -189,6 +202,20 @@ const drawn = await page.evaluate(async career => {
   });
 }, boards.runs[2].career);
 await keep('card', Buffer.from(String(drawn).split(',')[1], 'base64'));
+
+// The key card, on the screen it lives on. It needs a claimed name to appear
+// at all, which the planted batter above is, and a key this browser holds,
+// which the planted one is — so what is photographed is the real widget in the
+// real state rather than a mock-up of it.
+await page.click('#board-tab-mine');
+await page.waitForTimeout(2200);
+await page.evaluate(() => {
+  document.querySelector('.stats-sheet-inner')?.scrollTo({ top: 99_999 });
+});
+await page.waitForTimeout(500);
+const pass = await page.$('.key-pass');
+if (!pass) throw new Error('no key card on My Stats to photograph');
+await keep('key', await pass.screenshot());
 
 await browser.close();
 for (const name of made) await rename(`${staging}${name}.webp`, `${out}${name}.webp`);

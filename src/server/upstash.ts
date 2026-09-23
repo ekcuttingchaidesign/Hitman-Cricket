@@ -1,6 +1,8 @@
 import { Redis } from '@upstash/redis';
 import type { BoardStore, StoredRow } from './board-store.js';
 import type { CareerStore, StoredCareer } from './career-store.js';
+import type { StoredKey } from './career-key.js';
+import type { RecoveryStore } from './recovery-store.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 
 /**
@@ -81,6 +83,18 @@ function careerKeysFor(scope: string) {
 const RATE = `${SCOPE}rate:`;
 /** The questionnaire's own counter, kept apart from the board's. */
 const FEEDBACK_RATE = `${SCOPE}frate:`;
+/**
+ * Restoring counts twice, and both counters are its own.
+ *
+ * Its own, because an allowance shared with posting innings would let somebody
+ * lock a player out of their own record by playing: sixty innings from a
+ * household's address would spend the tries their returning player needs. And
+ * twice, because one address working through a name and a thousand addresses
+ * working through the same one are different attacks, and only the second
+ * counter sees the one this shape actually invites.
+ */
+const RESTORE_RATE = `${SCOPE}rrate:`;
+const RESTORE_NAME_RATE = `${SCOPE}nrate:`;
 
 /**
  * No database behind the board. This is a setup that was never finished, not an
@@ -256,6 +270,52 @@ export function upstashFeedback(redis: Redis): FeedbackStore {
       const count = await redis.incr(counter);
       if (count === 1) await redis.expire(counter, windowSeconds);
       return count;
+    },
+  };
+}
+
+/**
+ * The keys kept in Redis: one hash, keyed by the folded name.
+ *
+ * Keyed by the name rather than by the player id, because the name is what a
+ * player restoring can tell us — the id is the thing they have lost. The name
+ * registry is the same one the board claims into, deliberately: who holds a
+ * name is one fact, and a second copy of it here would be a second copy to
+ * disagree.
+ *
+ * Nothing here is scoped to a ladder. A key is a person's, like their name.
+ */
+export function upstashRecovery(redis: Redis): RecoveryStore {
+  const keys = `${SCOPE}keys`;
+  const names = `${SCOPE}names`;
+  const count = async (counter: string, windowSeconds: number) => {
+    const count = await redis.incr(counter);
+    // Only the first spends the clock, so the window rolls from the first try
+    // rather than from the latest — otherwise a steady drip never expires.
+    if (count === 1) await redis.expire(counter, windowSeconds);
+    return count;
+  };
+  return {
+    async keyFor(folded) {
+      const held = await redis.hget<StoredKey | string>(keys, folded);
+      if (!held) return null;
+      // Upstash parses a JSON-looking value on the way out, so a record can
+      // arrive already an object. One that will not parse is no key rather
+      // than a crash: the player is told no and can make another.
+      if (typeof held === 'object') return held as StoredKey;
+      try { return JSON.parse(String(held)) as StoredKey; } catch { return null; }
+    },
+    async putKey(folded, held) {
+      await redis.hset(keys, { [folded]: JSON.stringify(held) });
+    },
+    async holderOf(folded) {
+      return (await redis.hget<string>(names, folded)) ?? null;
+    },
+    async triesFrom(address, windowSeconds) {
+      return count(`${RESTORE_RATE}${address}`, windowSeconds);
+    },
+    async triesAt(folded, windowSeconds) {
+      return count(`${RESTORE_NAME_RATE}${folded}`, windowSeconds);
     },
   };
 }

@@ -63,6 +63,20 @@ await page.addInitScript(() => {
   try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
 });
 
+/**
+ * An empty board, so the strip on the end card is the one that asks.
+ *
+ * Reached and empty are different things, which is why this answers rather
+ * than being left to fail: a board nobody can fetch offers nothing, and a
+ * board nobody has batted on offers first place. The second is the state the
+ * register key and the footnote under it live in, and it has no other way of
+ * being reached without a database behind the server.
+ */
+await page.route('**/api/board**', route => route.fulfill({
+  status: 200, contentType: 'application/json',
+  body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),
+}));
+
 await page.clock.install();
 await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
 await advance(2500);
@@ -106,6 +120,30 @@ for (let i = 0; i < 40; i++) {
 }
 check((await snap()).phase === 'INNINGS_END', 'the innings ends', JSON.stringify(await snap()));
 check(await page.locator('#end-survive').isVisible(), 'on the Test card');
+
+// The strip that asks for a name, and the line under it saying what saying yes
+// is worth. Checked here because this is the only screen it exists on, and the
+// only way to it is the one a player takes: an innings that ended.
+const board = page.locator('#card-board');
+const why = page.locator('#claim-why');
+check(await board.isVisible(), 'carrying the strip that asks for a name');
+check(await page.locator('#claim').innerText() === 'REGISTER SCORE ON LEADERBOARD',
+  'with the key asking rather than pointing', await page.locator('#claim').innerText());
+check(await why.isVisible(), 'and the reason to say yes under it');
+check((await why.innerText()).includes('survives a new phone'),
+  'which is the one a career key is for', await why.innerText());
+
+// The form takes the key's place, and the footnote goes with the key: it is
+// the key's line, not the strip's, and a sentence about registering standing
+// over the field that does the registering is a sentence in the way.
+await page.locator('#claim').click({ force: true });
+await advance(400);
+await page.waitForTimeout(300);
+check(!(await why.isVisible()), 'which steps aside with the key when the form opens');
+await page.locator('#claim-cancel').click({ force: true });
+await advance(400);
+await page.waitForTimeout(300);
+check(await why.isVisible(), 'and comes back when the form is backed out of');
 
 // Two ways to the card, one of them a page rather than a tab. A player who can
 // swipe on one and not the other has found a bug, not a second design.

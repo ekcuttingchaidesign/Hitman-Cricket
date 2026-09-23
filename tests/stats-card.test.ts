@@ -189,14 +189,25 @@ describe('the card\'s sheet', () => {
   const facts = statsFacts('classic', blast, { name: 'Rohit', avatar: 1 }, '4th on Boundaries');
   const surviveCard = statsFacts('survive', survive, { name: 'Rohit', avatar: 1 });
 
-  it('offers the two keys, whatever the picture is doing', () => {
+  /**
+   * One key, not two. It was one a destination — WhatsApp's mark and
+   * Instagram's — which named two of the dozen places the share sheet offers
+   * and made the card look like it belonged to them. The sheet is the chooser.
+   */
+  it('offers the one key, whatever the picture is doing', () => {
     for (const card of [{ facts }, { facts, picture: 'blob:x' }, { facts, failed: true }]) {
       const markup = statsSheetMarkup({ cards: [card] });
-      expect(markup).toContain('id="stats-whatsapp"');
-      expect(markup).toContain('id="stats-story"');
-      expect(markup).toContain('BRAG STATS ON WHATSAPP');
-      expect(markup).toContain('SHARE TO INSTA STORY');
+      expect(markup).toContain('id="stats-brag"');
+      expect(markup).toContain('BRAG ABOUT MY STATS');
+      expect(markup).not.toContain('id="stats-whatsapp"');
+      expect(markup).not.toContain('id="stats-story"');
     }
+  });
+
+  /** And names no destination in its words either. */
+  it('names no app on the key', () => {
+    const markup = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }] });
+    expect(markup).not.toMatch(/WHATSAPP|INSTA/i);
   });
 
   it('says it is drawing before there is a picture', () => {
@@ -228,7 +239,7 @@ describe('the card\'s sheet', () => {
   it('keeps the same card and the same keys wherever it is standing', () => {
     const page = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }], where: 'page' });
     const tab = statsSheetMarkup({ cards: [{ facts, picture: 'blob:x' }], where: 'sheet' });
-    for (const mark of ['id="stats-whatsapp"', 'id="stats-story"', 'src="blob:x"']) {
+    for (const mark of ['id="stats-brag"', 'src="blob:x"']) {
       expect(page).toContain(mark);
       expect(tab).toContain(mark);
     }
@@ -597,5 +608,43 @@ describe('the head start the first players get', () => {
     const facts = statsFacts('classic', tiny, { name: 'R', avatar: 0, granted: null });
     expect(facts.tier.name).toBe('DEBUTANT');
     expect(facts.ladder.granted).toBeFalsy();
+  });
+});
+
+/**
+ * Where the way back is offered, which is a decision about a view object and
+ * so belongs here rather than in a browser.
+ *
+ * It was offered on an empty card alone, on the reasoning that figures mean
+ * the player is not lost. That is backwards for the first innings, and it was
+ * reported missing from a preview by somebody who hit it exactly: nobody whose
+ * phone has forgotten them opens this screen first. They play, because that is
+ * what the game is for, and only then go looking for the career that is gone —
+ * by which time the card has an innings on it and the offer had vanished.
+ */
+describe('the way back, under the figures', () => {
+  const card = (played: boolean) => ({
+    facts: statsFacts('classic', played ? blast : emptyBlast(), { name: 'Rohit', avatar: 0 }),
+  });
+
+  it('is offered on a card with nothing on it', () => {
+    expect(statsSheetMarkup({ cards: [card(false)], offerRestore: true })).toContain('stats-restore');
+  });
+
+  it('is offered just the same once there are figures', () => {
+    expect(statsSheetMarkup({ cards: [card(true)], offerRestore: true })).toContain('stats-restore');
+  });
+
+  it('is offered on neither where the game cannot answer it', () => {
+    expect(statsSheetMarkup({ cards: [card(false)] })).not.toContain('stats-restore');
+    expect(statsSheetMarkup({ cards: [card(true)] })).not.toContain('stats-restore');
+  });
+
+  /** The note it shares still says the thing the card came to say. */
+  it('leaves the note underneath saying what it said', () => {
+    expect(statsSheetMarkup({ cards: [card(true)], offerRestore: true }))
+      .toContain('Tap any figure to see what it counts');
+    expect(statsSheetMarkup({ cards: [card(false)], offerRestore: true }))
+      .toContain('these figures start filling up');
   });
 });

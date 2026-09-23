@@ -39,11 +39,19 @@ that touches real players should have to be asked twice.
 
 `npx vitest run` and `npx tsc --noEmit -p .` cover most of it, but the card is
 painted into a canvas and the sheets are wired by hand, so neither sees the
-screen. Four scripts drive a real browser against a dev server and are what
+screen. Five scripts drive a real browser against a dev server and are what
 catch those — `stats-check.mjs` for the card and its rail, `whatsnew-check.mjs`
 for the stories, `end-card-check.mjs` for the end of an innings and the keys
 that live only there, `career-count-check.mjs` for the rule that only a
-finished innings counts toward a career.
+finished innings counts toward a career, `restore-check.mjs` for what a player
+with no name is offered and the screen that takes a key back, `key-check.mjs`
+for what a player who has one is shown.
+
+Those last two are split by whose screen it is, and that is the point. A check
+that registers and then deletes its way back to nameless is testing its own
+teardown: the key card was missing from My Stats for every registered player
+and three browser checks walked past it, because all three reached that screen
+by finishing an innings and none by opening the board from the cover.
 
 That last one holds a rule about *when* something happens rather than what a
 function answers, so no unit test can reach it. A career is a sum, so an
@@ -68,6 +76,24 @@ innings — which is how most players get to that card in the first place.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.
+
+## `?fresh=1`
+
+Clears what this browser remembers — the player id, the name, the career key,
+every `hitman-` key, the cookie and the IndexedDB copy — and it asks first.
+The question is the feature: a link is a thing people send each other, and one
+that wiped a career on sight would be a prank with a cost. Keeping is the drawn
+key and clearing the outlined one, which is the wrong way round for whoever
+typed the flag and the right way round for whoever was sent it.
+
+It exists because there was no honest way to test the thing the career key is
+for. Identity is kept in three places so that losing one does not cost a record,
+and the same belt and braces made "look at this as a new player" a trip through
+the browser's settings. A private window is no use either — the game refuses to
+count an innings in one, so the path being tested is shut before it starts.
+
+The board is untouched: the name stays claimed and a saved key still opens it.
+`scripts/fresh-check.mjs` walks both answers.
 
 ## `?demo=1`
 

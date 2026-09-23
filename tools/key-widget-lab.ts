@@ -1,0 +1,119 @@
+/**
+ * The career key, in every state.
+ *
+ * The widget is wanted before it is wired: what it says and how it sits are
+ * decisions to settle by looking, and looking at it inside the game means
+ * playing an innings to reach each state and losing a browser to reach one.
+ * So it is built here against nothing, and the game calls it afterwards.
+ *
+ *   VITE_SHOW_SURVIVE=1 npx vite --port 5204 &
+ *   open http://127.0.0.1:5204/tools/key-widget-lab.html
+ *
+ * The three skins below are fourteen variables each and no structure at all.
+ * The first attempt was built in a blue nobody chose and came out monochrome;
+ * putting the palette behind variables is what makes a second opinion cost a
+ * block of colours rather than a pass over every rule.
+ *
+ * Words are the right shape and the wrong words: the list is written
+ * separately, so these vary in length instead — the shortest key the list can
+ * produce, the longest and an ordinary one — because that is what the layout
+ * has to survive and the vocabulary is not what is being decided here.
+ */
+
+import '../src/styles.css';
+import {
+  KEY_SUBTEXT, keyAboutMarkup, keyBarMarkup, keyCardMarkup, keyModalMarkup,
+  keyPanelMarkup, keyToastMarkup, keyText,
+} from '../src/ui/CareerKey';
+
+const SHORT = keyText(['bail', 'reps', 'oval'], 7);
+const USUAL = keyText(['yorker', 'sprint', 'cover'], 47);
+const LONG = keyText(['stamina', 'sessions', 'boundary'], 93);
+
+/**
+ * The dark pass with its foil window, in every state.
+ *
+ * One skin now rather than three: the card was drawn in Figma and the foil is
+ * that frame's blend stack rebuilt in CSS, so there is nothing left to choose
+ * between. What is still worth looking at is whether the window survives being
+ * asked to be a 36-pixel row, whether black type holds up wherever the dark
+ * bands of the sweep happen to fall, and whether the bar — which has no key on
+ * it and so no foil at all — still reads as the same component.
+ */
+const SKINS: { key: string; name: string; note: string; css: string }[] = [
+  {
+    key: 'foil',
+    name: 'Holographic',
+    note: 'The drawn card at phone scale: charcoal plate, foil only in the key window, and a white key on a short grey ledge.',
+    css: '',
+  },
+];
+
+const stage = document.getElementById('stage')!;
+
+/** One example, captioned, at the width a phone gives it. */
+function bench(title: string, note: string, markup: string, tall = false): string {
+  return `
+    <section class="bench">
+      <h2>${title}</h2>
+      <p>${note}</p>
+      <div class="bench-phone${tall ? ' is-tall' : ''}">${markup}</div>
+    </section>`;
+}
+
+/** Every state, inside one skin. */
+function column(skin: typeof SKINS[number]): string {
+  return `
+    <div class="skin key-skin" style="${skin.css}">
+      <header class="skin-head">
+        <h2>${skin.name}</h2>
+        <p>${skin.note}</p>
+      </header>
+      <div class="col">
+      ${bench('My Stats · unsaved', 'The permanent home, before anything is saved.', keyCardMarkup({ state: 'unsaved', code: USUAL }))}
+      ${bench('My Stats · saved', 'Stays put. A saved key still gets lost.', keyCardMarkup({ state: 'saved', code: USUAL }))}
+      ${bench('My Stats · not on this phone', 'Shown once, so it cannot be shown again.', keyCardMarkup({ state: 'lost' }))}
+      ${bench('Longest key', 'Three eight-letter words.', keyCardMarkup({ state: 'unsaved', code: LONG }))}
+      ${bench('Shortest key', 'Three four-letter words.', keyCardMarkup({ state: 'unsaved', code: SHORT }))}
+      ${bench('Innings-end card', 'A row, above the keys.', keyPanelMarkup({ state: 'unsaved', code: USUAL }))}
+      ${bench('Mode picker', 'One line, twice, then never.', keyBarMarkup())}
+      ${bench('First key · toast', 'Closed by hand, never on a timer.', keyToastMarkup({ state: 'unsaved', code: USUAL }))}
+      ${bench('Career Stats · after saving', 'What is left once the panel has gone.', `<div class="sub-demo"><h3>Career Stats</h3><p>${KEY_SUBTEXT}</p></div>`)}
+      ${bench('The modal · saving', 'The only place a key is saved.', keyModalMarkup({ state: 'unsaved', code: USUAL }), true)}
+      ${bench('The modal · explaining', 'The same sheet, opened by the i.', keyAboutMarkup(), true)}
+    </div>`;
+}
+
+stage.innerHTML = `
+  <style>
+    html,body{height:auto;overflow:auto;background:#07121a}
+    body{font-family:Satoshi,'Segoe UI',Arial,sans-serif}
+    .lab{padding:28px 20px 80px}
+    .lab>h1{margin:0 0 4px;font-family:Display,Impact,sans-serif;font-size:30px;font-weight:400;color:#f7f0e5}
+    .lab>p.intro{margin:0 0 26px;font-size:13px;line-height:1.6;color:#8ea6b6;max-width:64ch}
+    .skins{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+    .skin{flex:none;width:400px}
+    .skin-head{margin:0 0 16px;padding:0 0 12px;border-bottom:1px solid #ffffff1a}
+    .col{display:block}
+    .skin-head h2{margin:0 0 4px;font-family:Display,Impact,sans-serif;font-size:22px;font-weight:400;color:#f7f0e5}
+    .skin-head p{margin:0;font-size:11.5px;line-height:1.55;color:#7e94a4}
+    .bench{margin:0 0 20px}
+    .bench>h2{margin:0 0 2px;font-size:10.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#e9582b}
+    .bench>p{margin:0 0 8px;font-size:11px;line-height:1.45;color:#6f8797}
+    /* The navy the game draws these on, so nothing is judged against a
+       background the player never sees. */
+    .bench-phone{padding:13px;border-radius:15px;background:#0f2738;border:1px solid #ffffff14}
+    .bench-phone.is-tall{position:relative;height:560px;padding:0;overflow:hidden}
+    .bench-phone.is-tall .key-modal{position:absolute}
+    .sub-demo{padding:13px 15px;border-radius:13px;background:#122c3f;border:1px solid #ffffff14}
+    .sub-demo h3{margin:0;font-size:13px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#cfe3f1}
+    .sub-demo p{margin:3px 0 0;font-size:11.5px;color:#8ea6b6}
+  </style>
+  <div class="lab">
+    <h1>Career key</h1>
+    <p class="intro">Every state of the same component, at the width a 390px phone
+      gives each one. The structure is identical down all three columns &mdash; only the fourteen
+      colour variables differ. Words are placeholders chosen for length, so the layout is judged
+      rather than the vocabulary.</p>
+    <div class="skins">${SKINS.map(column).join('')}</div>
+  </div>`;

@@ -25,6 +25,9 @@
 
 import { chromium } from '@playwright/test';
 
+/** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
+const UPDATE = 'career-key';
+
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 
@@ -99,7 +102,7 @@ const picked = await page.$eval('#modes', node => !node.classList.contains('hidd
 const batting = await page.$eval('#start', node => !node.offsetParent).catch(() => true);
 check(says === 'SKIP TO MODE SELECTION' ? picked : batting,
   'and lands where it promised', JSON.stringify({ says, picked, batting }));
-check(await seen() === 'careers:1', 'the showing is counted', await seen());
+check(await seen() === `${UPDATE}:1`, 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────
 await page.reload({ waitUntil: 'load' });
@@ -114,7 +117,7 @@ await arrive();
 await page.click('#start');
 await tick(800);
 check(!(await page.$('.whatsnew-sheet')), 'and never again on its own');
-check(await seen() === 'careers:2', 'having been counted twice and no more', await seen());
+check(await seen() === `${UPDATE}:2`, 'having been counted twice and no more', await seen());
 
 // ── The way in for somebody who went looking ───────────────────────────────
 await page.reload({ waitUntil: 'load' });
@@ -134,7 +137,7 @@ if (key) {
   await tick(500);
   check(await page.$eval('#board-overlay', node => !node.classList.contains('hidden')),
     'putting the player back on the board they came from');
-  check(await seen() === 'careers:2', 'without spending one of the two', await seen());
+  check(await seen() === `${UPDATE}:2`, 'without spending one of the two', await seen());
 }
 
 check(errors.length === 0, 'nothing threw on the way', errors.join(' ;; '));

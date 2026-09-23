@@ -12,8 +12,18 @@ scripts/.*
 
 # Throwaway browser-check scripts, run from the project root so they can
 # resolve @playwright/test. Never part of the project.
+#
+# Two spellings because one rule only catches the name somebody remembers to
+# use: `cc-end.mjs` was none of these and shipped to production sitting in the
+# root, and the stop hook has since caught `shot-tmp.mjs` and `probe-tmp.mjs`.
+# Anything written to look at something and then thrown away belongs here.
 *-shot.mjs
+*-tmp.mjs
+# And what those scripts photograph, which lands beside them.
+/*.png
 artifact-out
+# Where the standalone tool pages build to, beside board-out above them.
+key-out
 dist-survive
 dist-spin
 dist-charge

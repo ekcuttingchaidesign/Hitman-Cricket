@@ -23,17 +23,27 @@ const request = (method: string, body?: unknown): ApiRequest =>
 
 const innings = { runs: 50, sixes: 2, fours: 3, wickets: 1, dots: 6, balls: GAME.totalBalls };
 
+/**
+ * The status travels in the body as well as in the response, which is not
+ * redundancy: `ask` in the browser reads the body and throws the response
+ * away, deliberately, so that a refusal and an outage are told apart by what
+ * the answer says rather than by a number the caller has to interpret. One
+ * refusal does need telling apart — a name already held, which is the only
+ * one this game can answer with a way back — and it is carried as a number
+ * rather than recognised from the sentence it is written in, because that
+ * sentence is copy and copy gets rewritten.
+ */
 describe('what a failure says over the wire', () => {
   it('marks the board’s own failures as nothing the player did', () => {
     const { res, said } = spy();
     failed(res, 503, 'The board could not be reached.');
-    expect(said.body).toEqual({ error: 'The board could not be reached.', retry: true });
+    expect(said.body).toEqual({ error: 'The board could not be reached.', retry: true, status: 503 });
   });
 
   it('leaves a refusal unmarked, because there is something to do differently', () => {
     const { res, said } = spy();
     failed(res, 409, 'That name is taken.');
-    expect(said.body).toEqual({ error: 'That name is taken.', retry: false });
+    expect(said.body).toEqual({ error: 'That name is taken.', retry: false, status: 409 });
   });
 });
 
@@ -85,12 +95,12 @@ describe('a board with no database behind it', () => {
     const reading = spy();
     await board(request('GET'), reading.res);
     expect(reading.said.status).toBe(503);
-    expect(reading.said.body).toEqual({ error: 'The board is not set up yet.', retry: true });
+    expect(reading.said.body).toEqual({ error: 'The board is not set up yet.', retry: true, status: 503 });
 
     const writing = spy();
     await score(request('POST', { playerId: 'p', name: 'Rohit', avatar: 0, innings }), writing.res);
     expect(writing.said.status).toBe(503);
-    expect(writing.said.body).toEqual({ error: 'The board is not set up yet.', retry: true });
+    expect(writing.said.body).toEqual({ error: 'The board is not set up yet.', retry: true, status: 503 });
   });
 
   it('never caches a board it could not read', async () => {
@@ -125,6 +135,24 @@ describe('what the player is told when the board will not take an innings', () =
   it('leaves a refusal alone, because the player can act on it', async () => {
     answer(409, { error: 'That name is taken. Try another.', retry: false });
     expect((await submitInnings('p', 'Rohit', 0, innings)).reason).toBe('That name is taken. Try another.');
+  });
+
+  /**
+   * The refusal the game can answer. A player typing the name they have always
+   * batted under and being told somebody has it is, almost always, that player
+   * on a device that has forgotten them — so it is the one wall this game turns
+   * into a door, and the fact has to survive the sentence being rewritten.
+   */
+  it('marks a name already held, so the way back can be offered', async () => {
+    answer(409, { error: 'Somebody already bats under that name.', retry: false, status: 409 });
+    expect((await submitInnings('p', 'Rohit', 0, innings)).taken).toBe(true);
+  });
+
+  it('marks nothing else, so the offer is never made where it would not help', async () => {
+    answer(400, { error: 'That innings could not have happened.', retry: false, status: 400 });
+    expect((await submitInnings('p', 'Rohit', 0, innings)).taken).toBe(false);
+    answer(503, { error: 'The board could not be reached.', retry: true, status: 503 });
+    expect((await submitInnings('p', 'Rohit', 0, innings)).taken).toBe(false);
   });
 
   it('falls back to its own words when nothing readable comes back', async () => {

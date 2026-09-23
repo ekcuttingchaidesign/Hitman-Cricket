@@ -17,8 +17,8 @@ function fakeStorage(seed: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('what the update says it did', () => {
-  it('says it in three, because a player came here to bat', () => {
-    expect(STORIES).toHaveLength(3);
+  it('says it in four, because a player came here to bat', () => {
+    expect(STORIES).toHaveLength(4);
   });
 
   it('gives every card something to show and something to say', () => {
@@ -31,16 +31,20 @@ describe('what the update says it did', () => {
     }
   });
 
-  it('covers the three things that actually changed', () => {
+  it('covers the things that actually changed', () => {
     const said = STORIES.map(one => `${one.title} ${one.body}`).join(' ').toLowerCase();
     expect(said).toContain('ladder');
     expect(said).toContain('every innings');
     expect(said).toContain('card');
+    // The one card that asks for something. A story set that describes the
+    // careers and never mentions the thing that saves them is the update
+    // announcing its own best feature to nobody.
+    expect(said).toContain('career key');
   });
 
   it('reads out as one sentence for somebody who cannot see the pictures', () => {
     const alt = storiesAlt();
-    expect(alt).toContain('3');
+    expect(alt).toContain(String(STORIES.length));
     for (const story of STORIES) expect(alt).toContain(story.title);
   });
 });
