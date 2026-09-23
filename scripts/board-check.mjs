@@ -13,6 +13,17 @@
  * throwaway player id and a name nobody would want, so point it at a preview
  * rather than at the board people are playing for — and note that a name it
  * claims is never released, which is the whole point of that rule.
+ *
+ * A preview behind Vercel's Deployment Protection answers a browser holding a
+ * Vercel cookie and answers everything else with its own login page, which
+ * arrives as HTML with a 200 on it. That is indistinguishable from an `api/`
+ * directory Vercel never made functions of, and it is the likelier of the two,
+ * so set the bypass secret and this sends it:
+ *
+ *   $env:VERCEL_AUTOMATION_BYPASS_SECRET="…"
+ *
+ * Vercel → the project → Settings → Deployment Protection → Protection Bypass
+ * for Automation makes one.
  */
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5173').replace(/\/$/, '');
@@ -28,9 +39,20 @@ const check = (ok, what, detail) => {
   if (!ok) failures++;
 };
 
+/**
+ * The header that gets past Deployment Protection, where there is one to get
+ * past. Absent without the secret, so an unprotected deployment is unaffected.
+ */
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+  ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+    'x-vercel-set-bypass-cookie': 'samesitenone' }
+  : {};
+
 async function call(path, init) {
   const started = Date.now();
-  const response = await fetch(`${base}${path}`, init);
+  const response = await fetch(`${base}${path}`, {
+    ...init, headers: { ...BYPASS, ...(init?.headers ?? {}) },
+  });
   const text = await response.text();
   let body = null;
   try { body = JSON.parse(text); } catch { /* not JSON, which is itself a finding */ }
@@ -54,7 +76,17 @@ console.log(`\nBoard check against ${base}\n`);
 // ── The board reads ────────────────────────────────────────────────────────
 const board = await call('/api/board');
 check(board.status === 200, `GET /api/board answers 200 (${board.status}, ${board.ms}ms)`, board.text.slice(0, 200));
-check(board.body !== null, 'GET /api/board answers JSON, not the game\'s HTML', board.text.slice(0, 120));
+// HTML here has two causes and they look identical from outside: Vercel never
+// made functions of `api/`, or Deployment Protection is answering instead of
+// the deployment. The second is far likelier on a preview and has a tell — its
+// page is not the game's, which opens `<html lang="en">` and carries no class.
+const guard = /data-dpl-id|_className/.test(board.text);
+check(board.body !== null, 'GET /api/board answers JSON, not HTML',
+  guard
+    ? 'That is Vercel\'s Deployment Protection page, not this deployment. Set '
+      + 'VERCEL_AUTOMATION_BYPASS_SECRET (Settings → Deployment Protection → '
+      + 'Protection Bypass for Automation) and run it again.'
+    : board.text.slice(0, 120));
 check(Array.isArray(board.body?.rows), 'the answer carries rows', board.body);
 check('cutoff' in (board.body ?? {}), 'the answer names the cutoff', board.body);
 check(
