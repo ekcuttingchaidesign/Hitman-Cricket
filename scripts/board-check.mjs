@@ -1,5 +1,6 @@
 /**
- * The board's endpoints, checked end to end against a running deployment.
+ * The board's and the rooms' endpoints, checked end to end against a running
+ * deployment.
  *
  *   node scripts/board-check.mjs                       # the dev server
  *   node scripts/board-check.mjs https://…vercel.app   # a real deployment
@@ -171,13 +172,85 @@ check(impossibleTest.status === 400, `a Test innings that could not have happene
 const crossName = await post({ playerId: other, name, avatar: 0, mode: 'survive', innings: chase(104, 44) });
 check(crossName.status === 409, `a name held on the five-over board is refused on the Test one (${crossName.status})`, crossName.body);
 
+// ── A room, made and played out ────────────────────────────────────────────
+// Safer to run against production than everything above it: a room expires in a
+// couple of hours and claims no permanent name, so a check leaves nothing behind
+// that anybody has to live with.
+const roomPost = (body) => call('/api/room', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+});
+const host = { playerId: me, name: 'Host', avatar: 0 };
+const guest = { playerId: other, name: 'Guest', avatar: 1 };
+
+const made = await roomPost({ action: 'create', ...host });
+check(made.status === 200, `POST /api/room makes a room (${made.status}, ${made.ms}ms)`, made.text.slice(0, 200));
+const code = made.body?.code;
+check(typeof code === 'string' && code.length === 4, 'the room answers with a code', made.body);
+
+if (code) {
+  const joined = await roomPost({ action: 'join', code, ...guest });
+  check(joined.body?.room?.players?.length === 2, 'a second player joins it', joined.body);
+
+  const notHost = await roomPost({ action: 'start', code, ...guest });
+  check(notHost.status === 403, `only the host can start it (${notHost.status})`, notHost.body);
+
+  const early = await roomPost({ action: 'score', code, ...host, innings: innings(24), done: false });
+  check(early.status === 409, `a score before the game starts is refused (${early.status})`, early.body);
+
+  const started = await roomPost({ action: 'start', code, ...host });
+  check(started.body?.room?.state === 'live', 'the host starts it', started.body);
+
+  const impossible = await roomPost({
+    action: 'score', code, ...host,
+    innings: { runs: 61, sixes: 10, fours: 0, wickets: 0, dots: 0, balls: 10 },
+    done: false,
+  });
+  check(impossible.status === 400, `a score that could not have happened is refused (${impossible.status})`, impossible.body);
+
+  const pushed = await roomPost({ action: 'score', code, ...host, innings: innings(102), done: true });
+  check(pushed.body?.room?.state === 'live', 'one innings in does not end the room', pushed.body);
+  const again = await roomPost({ action: 'score', code, ...host, innings: innings(180), done: true });
+  check(again.status === 409, `a second innings from the same player is refused (${again.status})`, again.body);
+
+  const last = await roomPost({ action: 'score', code, ...guest, innings: innings(120), done: true });
+  check(last.body?.room?.state === 'done', 'the last innings ends the room', last.body);
+  check(
+    last.body?.room?.players?.[0]?.name === 'Guest',
+    'and the ladder puts the higher score on top',
+    last.body?.room?.players?.map(one => [one.name, one.runs]),
+  );
+
+  // The read is the one that gets polled, so it is the one that has to be cheap.
+  const read = await call(`/api/room?code=${code}`);
+  check(read.status === 200, `GET /api/room reads it back (${read.status}, ${read.ms}ms)`, read.text.slice(0, 200));
+  check(read.body?.room?.players?.length === 2, 'the room survives a fresh read', read.body);
+  check(
+    /s-maxage/.test(read.headers.get('cache-control') ?? ''),
+    'a room read is cacheable at the edge',
+    read.headers.get('cache-control'),
+  );
+  check(
+    (read.headers.get('cache-control') ?? '').includes('no-store') === false
+      && (last.headers.get('cache-control') ?? '').includes('no-store'),
+    'and a room write is never cached',
+    last.headers.get('cache-control'),
+  );
+}
+
+const noRoom = await call('/api/room?code=ZZZZ');
+check(noRoom.status === 404, `a code that is not a room answers 404 (${noRoom.status})`, noRoom.body);
+const badCode = await call('/api/room?code=K7Q0');
+check(badCode.status === 400, `a code that is not a code answers 400 (${badCode.status})`, badCode.body);
+
 // ── Cross-origin, which matters if the game is not served from here ────────
 const preflight = await call('/api/score', { method: 'OPTIONS', headers: { Origin: 'https://ekcuttingchaidesign.github.io' } });
 check(preflight.status === 204 || preflight.status === 200, `a preflight is answered (${preflight.status})`);
+const roomPreflight = await call('/api/room', { method: 'OPTIONS', headers: { Origin: 'https://ekcuttingchaidesign.github.io' } });
+check(roomPreflight.status === 204 || roomPreflight.status === 200, `a room preflight is answered (${roomPreflight.status})`);
 
 console.log(
   failures
     ? `\n${failures} check${failures === 1 ? '' : 's'} failed.\n`
-    : `\nAll checks passed. Both boards are live.\n  Rows left behind: ${me}/"${name}" on the five-over board, ${test}/"${testName}" on the Test one.\n`,
+    : `\nAll checks passed. Both boards and rooms are live.\n  Rows left behind: ${me}/"${name}" on the five-over board, ${test}/"${testName}" on the Test one.\n`,
 );
 process.exit(failures ? 1 : 0);

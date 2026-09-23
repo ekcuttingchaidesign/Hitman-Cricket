@@ -224,12 +224,30 @@ export function maxRuns() {
  * runs have to fall inside what those leftover balls could have produced.
  */
 export function plausible(innings: Innings): boolean {
+  if (!underway(innings)) return false;
+  // The innings only ends two ways, so anything short of thirty balls is all out.
+  return innings.balls >= GAME.totalBalls || innings.wickets >= GAME.maxWickets;
+}
+
+/**
+ * The same arithmetic, asked of an innings that is still being played.
+ *
+ * Everything `plausible` checks holds from the first ball except the one rule
+ * about how an innings ends, and a room needs the rest of it long before that:
+ * a running score arrives every over, and a figure that could not have been
+ * made off eleven balls must be turned down on the eleventh rather than waited
+ * out to the thirtieth. So the arithmetic is written once here and `plausible`
+ * is that plus the ending, rather than a second copy of the sums drifting from
+ * this one a fix at a time.
+ *
+ * It is the same floor and not an inch more: a static page can post any figures
+ * that add up, and these only rule out the ones that do not.
+ */
+export function underway(innings: Innings): boolean {
   const { runs, sixes, fours, wickets, dots, balls } = innings;
   const whole = [runs, sixes, fours, wickets, dots, balls];
   if (whole.some(n => !Number.isInteger(n) || n < 0)) return false;
   if (balls > GAME.totalBalls || wickets > GAME.maxWickets) return false;
-  // The innings only ends two ways, so anything short of thirty balls is all out.
-  if (balls < GAME.totalBalls && wickets < GAME.maxWickets) return false;
   if (wickets > balls) return false;
 
   const scoring = sixes + fours;
