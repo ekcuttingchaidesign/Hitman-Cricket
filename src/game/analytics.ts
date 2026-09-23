@@ -166,3 +166,23 @@ export function scoreBand(runs: number) {
   if (runs < 100) return 'score-75-99';
   return 'score-100-plus';
 }
+
+/**
+ * Which of the three problems a refused restore was, for counting only.
+ *
+ * The screen says the same thing to a wrong key and a name nobody has claimed,
+ * and that rule is not negotiable: it is what stops the form being a way to ask
+ * which names are taken. This is a different question. What a stranger may
+ * learn from the screen and what the person who built it may count are not the
+ * same thing, and the answer the store sends back is already in this browser.
+ *
+ * Worth telling apart because they ask for different work. `shape` is a key
+ * typed badly or pasted half, and the fix is the field. `mismatch` is a key
+ * that should work and does not, and a run of those is the alarming one.
+ * `busy` is the rate limiter, which nobody honest meets twice in an hour.
+ */
+export function restoreFailure(reason: string | null | undefined): 'shape' | 'mismatch' | 'busy' {
+  if (/three words and two numbers/i.test(reason ?? '')) return 'shape';
+  if (/do not go together/i.test(reason ?? '')) return 'mismatch';
+  return 'busy';
+}

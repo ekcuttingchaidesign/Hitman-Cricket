@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { foldKey, keepKey, keyMatches, keyShaped, mintKey } from '../src/server/career-key';
 import { memoryRecovery } from '../src/server/memory-recovery';
 import {
-  RESTORE_TRIES_AT, RESTORE_TRIES_FROM, keyOnClaim, newKey, restore,
+  RESTORE_TRIES_AT, RESTORE_TRIES_FROM, keyOnClaim, newKey, refusedRecovery, restore,
 } from '../src/server/recovery-store';
 import { KEY_WORDS } from '../src/game/key-words';
 import { keyShareText, keyWhatsappLink } from '../src/game/Share';
+import { restoreFailure } from '../src/game/analytics';
 
 const held = (names: [string, string][] = [['rohit', 'p-rohit']]) =>
   memoryRecovery(new Map(names));
@@ -205,5 +206,55 @@ describe('the message a player sends themselves', () => {
     expect(link.startsWith('https://wa.me/?text=')).toBe(true);
     expect(decodeURIComponent(link.slice('https://wa.me/?text='.length)))
       .toContain('yorker-sprint-cover-47');
+  });
+});
+
+/**
+ * The banding is a regular expression over a message the store writes, which is
+ * a thread anybody can cut without noticing: reword a refusal and the band
+ * quietly becomes `busy`, and a dashboard goes on reporting rate limiting for
+ * something that is nothing of the sort. So these ask the store for the real
+ * answers rather than restating them here.
+ */
+describe('what a refused restore is counted as', () => {
+  const at = { address: '10.0.0.1' };
+
+  it('calls a half-typed key a shape problem', async () => {
+    const store = held();
+    await keyOnClaim(store, 'rohit');
+    const out = await restore(store, { name: 'Rohit', key: 'not-a-key', ...at });
+    expect(out.ok).toBe(false);
+    expect(restoreFailure(refusedRecovery(out) ? out.reason : null)).toBe('shape');
+  });
+
+  it('calls a key that does not open the name a mismatch', async () => {
+    const store = held();
+    await keyOnClaim(store, 'rohit');
+    const out = await restore(store, { name: 'Rohit', key: 'yorker-sprint-cover-47', ...at });
+    expect(out.ok).toBe(false);
+    expect(restoreFailure(refusedRecovery(out) ? out.reason : null)).toBe('mismatch');
+  });
+
+  it('and a name nobody claimed the same, since the screen will not say otherwise', async () => {
+    const store = held();
+    const out = await restore(store, { name: 'Nobody', key: 'yorker-sprint-cover-47', ...at });
+    expect(restoreFailure(refusedRecovery(out) ? out.reason : null)).toBe('mismatch');
+  });
+
+  it('calls the rate limiter busy, and nothing else does', async () => {
+    const store = held();
+    await keyOnClaim(store, 'rohit');
+    let last = null;
+    for (let i = 0; i <= RESTORE_TRIES_AT; i++) {
+      last = await restore(store, { name: 'Rohit', key: 'yorker-sprint-cover-47', ...at });
+    }
+    expect(last!.ok).toBe(false);
+    expect(restoreFailure(refusedRecovery(last!) ? last!.reason : null)).toBe('busy');
+  });
+
+  it('and anything it has never seen, rather than throwing on it', () => {
+    expect(restoreFailure(null)).toBe('busy');
+    expect(restoreFailure(undefined)).toBe('busy');
+    expect(restoreFailure('The board is down.')).toBe('busy');
   });
 });
