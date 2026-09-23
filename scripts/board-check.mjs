@@ -42,10 +42,16 @@ const check = (ok, what, detail) => {
 /**
  * The header that gets past Deployment Protection, where there is one to get
  * past. Absent without the secret, so an unprotected deployment is unaffected.
+ *
+ * This header and no other. Its companion, `x-vercel-set-bypass-cookie`, asks
+ * to be handed the bypass as a cookie instead, over a redirect — which a
+ * browser answers by storing the cookie and stopping, and which `fetch` keeps
+ * no jar for, so it asks again, is redirected again, and dies of `redirect
+ * count exceeded`. The header on its own is good for the one request, which is
+ * all any request here needs.
  */
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
-  ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
-    'x-vercel-set-bypass-cookie': 'samesitenone' }
+  ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
   : {};
 
 async function call(path, init) {
