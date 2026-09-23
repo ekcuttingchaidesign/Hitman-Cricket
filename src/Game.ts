@@ -32,6 +32,7 @@ import {
 } from './ui/CareerBoard';
 import { statsCardImage, statsFacts, type StatsFacts } from './game/StatsCard';
 import { gameLink, keyWhatsappLink } from './game/Share';
+import { keyImage, keyImageName, prepareKeyAssets } from './game/KeyImage';
 import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
@@ -336,6 +337,9 @@ export class Game {
     // knowing — one of them finishes the job and the other leaves homework —
     // so they are counted apart even though they retire the same prompts.
     this.hud.onKeySave = how => this.saveKey(how);
+    // Fetched while the sheet is still being read, so the first tap on SAVE AS
+    // IMAGE is not the thing that waits on a font.
+    void prepareKeyAssets();
     this.hud.onRestore = entry => void this.sendRestore(entry);
     this.hud.onRestoreOpen = from => this.openRestore(from);
     this.hud.keyNow = () => this.careerKeyHeld();
@@ -520,11 +524,13 @@ export class Game {
    * that refuses, or a window the browser blocks, leaves the prompt standing:
    * a key that did not get out of here is a key still worth asking about.
    */
-  private async saveKey(how: 'whatsapp' | 'copy'): Promise<boolean> {
+  private async saveKey(how: 'whatsapp' | 'copy' | 'image'): Promise<boolean> {
     const code = this.careerKeyHeld()?.code;
     const name = readPlayer()?.name;
     if (!code || !name) return false;
-    if (how === 'copy') {
+    if (how === 'image') {
+      if (!await this.saveKeyImage(name, code)) return false;
+    } else if (how === 'copy') {
       // No clipboard at all, or permission refused. Either way nothing was
       // saved, and the sheet stays up rather than closing on a promise it
       // did not keep.
@@ -534,13 +540,54 @@ export class Game {
       // usually prevents that, and this is the case where it did not.
       return false;
     }
-    // Which one was used is worth knowing — one of them finishes the job and
-    // the other leaves homework — so they are counted apart even though they
-    // retire the same prompts.
+    // Which one was used is worth knowing — they do not all finish the job, and
+    // the one that leaves the most homework is the one a player reaches for
+    // first — so they are counted apart even though they retire the same
+    // prompts.
     markKeySaved();
-    this.mark(`key-saved-${how}`, how === 'whatsapp' ? 'Career key sent to WhatsApp' : 'Career key copied');
+    this.mark(`key-saved-${how}`, how === 'whatsapp'
+      ? 'Career key sent to WhatsApp'
+      : how === 'image' ? 'Career key saved as a picture' : 'Career key copied');
     this.redrawKeyPlacements();
     return true;
+  }
+
+  /**
+   * The key as a picture, handed to the phone to put wherever it puts pictures.
+   *
+   * The share sheet first, because on a phone that is the road to the camera
+   * roll and it is also where "save to Files" and every messaging app live. A
+   * download is the desktop answer and the fallback for a browser that will not
+   * hand a file to anything.
+   *
+   * A dismissed share sheet throws `AbortError`, and that is not a failure —
+   * it is somebody changing their mind. Reporting it as one would put a
+   * "could not save" notice under a key that worked perfectly.
+   */
+  private async saveKeyImage(name: string, code: string): Promise<boolean> {
+    try {
+      const picture = await keyImage(name, code);
+      const file = new File([picture], keyImageName(name), { type: 'image/png' });
+      if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+        } catch (error) {
+          if ((error as { name?: string })?.name === 'AbortError') return false;
+          throw error;
+        }
+        return true;
+      }
+      const url = URL.createObjectURL(picture);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = keyImageName(name);
+      link.click();
+      // Given a moment to be read before the blob behind it is let go.
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**

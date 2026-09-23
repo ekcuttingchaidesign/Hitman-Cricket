@@ -103,9 +103,30 @@ if (onStats) {
   await wait(900);
   ok(!((await page.locator('#key-overlay').getAttribute('class')) ?? '').includes('hidden'),
     'and its key opens the save sheet');
-  ok(await page.locator('#key-whatsapp').count() === 1, 'carrying a key that sends it to WhatsApp');
-  ok((await page.locator('.key-do').innerText()).toLowerCase().startsWith('screenshot this screen'),
-    'and leading with the one thing every phone can do');
+  // The screenshot leads, and the three keys stand under it in the order they
+  // cost a player: a picture into the camera roll, a message to themselves, and
+  // a clipboard slot the next copy takes.
+  ok((await page.locator('.key-hero').innerText()).toLowerCase().startsWith('screenshot this screen'),
+    'leading with the one thing every phone can do');
+  const keys = await page.locator('.key-sheet .key-sheet-key').evaluateAll(
+    all => all.map(one => one.id));
+  ok(JSON.stringify(keys) === JSON.stringify(['key-image', 'key-whatsapp', 'key-copy']),
+    'and offering the three ways under it, in that order', JSON.stringify(keys));
+  ok((await page.locator('#key-whatsapp').innerText()).trim() === 'WHATSAPP TO SELF',
+    'the message being one a player sends themselves');
+
+  // The picture the save key hands over, painted here rather than trusted: a
+  // key that cannot be read back out of it is a key that was never saved, and
+  // three long words and two digits can outrun any fixed type size.
+  const drawn = await page.evaluate(async () => {
+    try {
+      const made = await import('/src/game/KeyImage.ts');
+      const blob = await made.keyImage('Somebody', 'yorker-sprint-cover-47');
+      return { type: blob.type, size: blob.size };
+    } catch (error) { return { error: String(error) }; }
+  });
+  ok(drawn.type === 'image/png' && drawn.size > 4000, 'and the picture it saves is a real one',
+    JSON.stringify(drawn));
   // A copy is the one save with nothing to show for itself, so the key it was
   // pressed on is what has to answer — and then go back to being a key, since
   // the next thing a player copies takes the slot and they may want it again.

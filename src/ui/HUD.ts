@@ -1822,7 +1822,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * up saying so, because a sheet that closes on a save that did not happen is
    * the lie this whole widget exists to avoid.
    */
-  onKeySave: ((how: 'whatsapp' | 'copy') => Promise<boolean> | boolean) | null = null;
+  onKeySave: ((how: 'whatsapp' | 'copy' | 'image') => Promise<boolean> | boolean) | null = null;
 
   careerKey(view: KeyView | null, where: { panel: boolean; bar: boolean }) {
     const panel = this.$('card-key');
@@ -1899,6 +1899,23 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const scrim = overlay.firstElementChild as HTMLElement | null;
     if (scrim) scrim.onclick = event => { if (event.target === scrim) shut(); };
     if (about) return;
+    // The picture is the screenshot made pressable, so it stands where the
+    // screenshot is recommended rather than among the two that send the key
+    // somewhere. It takes a moment to paint and a moment more for the phone to
+    // offer somewhere to put it, so the key says what it is doing.
+    this.$('key-image').onclick = async () => {
+      const key = this.$('key-image') as HTMLButtonElement;
+      if (key.disabled) return;
+      const was = key.textContent;
+      key.disabled = true;
+      key.textContent = 'SAVING…';
+      const done = await this.onKeySave?.('image');
+      key.disabled = false;
+      key.textContent = was;
+      if (done === false) {
+        this.keyTrouble('Could not save the picture. Screenshot this screen instead.');
+      }
+    };
     this.$('key-whatsapp').onclick = async () => {
       const done = await this.onKeySave?.('whatsapp');
       if (done === false) {

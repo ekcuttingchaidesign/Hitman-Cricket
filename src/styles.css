@@ -4462,18 +4462,67 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   background:#43b9782e;
   color:#8ff0bb
 }
-/* What to do with it, above the keys that do two of the three. The screenshot
-   leads because it is the one that cannot fail: no clipboard to refuse it, no
-   app to be missing, and nothing to overwrite it afterwards. */
-.key-do{
+/* The instruction, given the weight of a key without being one.
+   
+   It is the surest save of the three and the only one the game cannot perform
+   — no clipboard to refuse it, no app to be missing, nothing to overwrite it
+   afterwards — so it gets the room a key would get and the keys underneath are
+   offered as the alternative rather than the other way round. */
+.key-hero{
+  display:block;
   margin:0 0 12px;
-  font-size:12.5px;
-  font-weight:600;
-  line-height:1.5;
-  color:#ffffffde;
+  padding:13px 14px;
+  border:1.6px dashed #ffffff5c;
+  border-radius:13px;
+  background:#ffffff14;
   text-wrap:pretty
 }
-.key-do b{color:#fff;font-weight:800}
+.key-hero b{
+  display:block;
+  font-family:var(--cta);
+  font-size:19px;
+  font-weight:400;
+  letter-spacing:.02em;
+  color:#fff
+}
+.key-hero span{
+  display:block;
+  margin-top:4px;
+  font-size:11.5px;
+  font-weight:500;
+  line-height:1.45;
+  color:#ffffffb0
+}
+/* The hinge between the sure way and the three that need something to work. */
+.key-or{
+  margin:0 0 10px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#ffffff7a
+}
+/* The picture: the screenshot made pressable, so it wears the drawn key that
+   the sheet's first action deserves. */
+.key-sheet-key.is-image{
+  border:2px solid var(--key-ledge);
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
+  color:#000
+}
+.key-sheet-key.is-image:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
+.key-sheet-key.is-image:disabled{opacity:.6}
+/* Second of three, and outlined rather than drawn: two drawn keys one above
+   the other is two firsts, and the eye picks neither. Its own class rather
+   than a change to `is-whatsapp`, which is the drawn key that KEEP MY RECORD,
+   BRING IT BACK and SEE MY RECORD all wear on screens of their own. */
+.key-sheet-key.is-second{
+  border:2px solid #ffffffb8;
+  background:#0000;
+  color:#fff
+}
+.key-sheet-key.is-second:hover{background:#ffffff1f}
+.key-sheet-key.is-second:active{transform:translateY(2px)}
 .key-fine{
   margin:0;
   font-size:10.5px;
