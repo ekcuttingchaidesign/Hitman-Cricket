@@ -104,8 +104,19 @@ if (onStats) {
   ok(!((await page.locator('#key-overlay').getAttribute('class')) ?? '').includes('hidden'),
     'and its key opens the save sheet');
   ok(await page.locator('#key-whatsapp').count() === 1, 'carrying a key that sends it to WhatsApp');
-  ok((await page.locator('.key-fine').innerText()).toLowerCase().includes('screenshot'),
-    'and the one thing every phone can do, said in the sheet');
+  ok((await page.locator('.key-do').innerText()).toLowerCase().startsWith('screenshot this screen'),
+    'and leading with the one thing every phone can do');
+  // A copy is the one save with nothing to show for itself, so the key it was
+  // pressed on is what has to answer — and then go back to being a key, since
+  // the next thing a player copies takes the slot and they may want it again.
+  await page.locator('#key-copy').click({ force: true });
+  await wait(700);
+  ok((await page.locator('#key-copy').innerText()).trim() === 'COPIED',
+    'and a copy says so on the key that was pressed', await page.locator('#key-copy').innerText());
+  ok(await page.locator('#key-modal-close').count() === 1, 'without closing the screen out from under it');
+  await wait(2200);
+  ok((await page.locator('#key-copy').innerText()).trim() === 'COPY',
+    'and goes back to being a key that can be pressed again', await page.locator('#key-copy').innerText());
   await page.locator('#key-modal-close').click({ force: true });
   await wait(600);
 }

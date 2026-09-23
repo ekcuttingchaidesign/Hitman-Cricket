@@ -4453,6 +4453,27 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   color:#fff
 }
 .key-sheet-key.is-copy:hover{background:#ffffff1f}
+/* Copied, said on the key that was pressed. A copy is the one save with
+   nothing to show for itself — no app opens, nothing moves — so the key has to
+   be the thing that answers, and it goes green for the two seconds it takes to
+   read rather than changing for good: the next key still has to be copyable. */
+.key-sheet-key.is-copy.is-done{
+  border-color:#43b978;
+  background:#43b9782e;
+  color:#8ff0bb
+}
+/* What to do with it, above the keys that do two of the three. The screenshot
+   leads because it is the one that cannot fail: no clipboard to refuse it, no
+   app to be missing, and nothing to overwrite it afterwards. */
+.key-do{
+  margin:0 0 12px;
+  font-size:12.5px;
+  font-weight:600;
+  line-height:1.5;
+  color:#ffffffde;
+  text-wrap:pretty
+}
+.key-do b{color:#fff;font-weight:800}
 .key-fine{
   margin:0;
   font-size:10.5px;

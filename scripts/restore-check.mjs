@@ -129,7 +129,40 @@ await page.mouse.click(bb.x + 8, bb.y + 8);
 await wait(600);
 ok(await page.locator('#restore-form').count() === 0, 'a press on the ground around it closes it');
 
-// 5. the key the store actually minted
+// 5. the same thing on the board, which is the screen it was reported from.
+//
+// Driven from the board's own offer and checked without leaving it, because
+// leaving it is what hid the bug: every ladder tab is drawn on the way in, so
+// a tab switch recomputes the offer and takes it away whatever happened. The
+// board under a player who restored from it is never redrawn at all, and the
+// panel sat there asking whether they would like the record back.
+//
+// The cross above put the offer away for good, so the preference it wrote is
+// cleared here — that is a setting being reset, not the thing under test.
+await page.evaluate(() => { try { localStorage.removeItem('hitman-restore-offer'); } catch { /* then it stays dismissed */ } });
+await page.locator('#board-tab-mine').click({ force: true });
+await wait(1200);
+await page.locator('#board-tab-classic').click({ force: true });
+await wait(2000);
+ok(await page.locator('#board-restore-go').count() === 1, 'the board offers it again once un-dismissed');
+await page.locator('#board-restore-go').click({ force: true });
+await wait(800);
+await page.locator('#restore-name').fill(WHO);
+await page.locator('#restore-key').fill(MINE);
+await page.locator('#restore-send').click({ force: true });
+await wait(1600);
+ok(await page.locator('#restore-done').count() === 1, 'and the key works from there too');
+await page.locator('#restore-done').click({ force: true });
+await wait(1400);
+ok(await page.locator('#board-restore-go').count() === 0,
+  'and the offer comes off the board without it being left and come back to');
+
+// 6. the key the store actually minted, from My Stats
+await page.evaluate(() => { try { localStorage.removeItem('hitman-batter'); } catch { /* noop */ } });
+await page.locator('#board-tab-mine').click({ force: true });
+await wait(2000);
+await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; }).catch(() => {});
+await wait(400);
 await page.locator('#stats-restore').click({ force: true });
 await wait(800);
 await page.locator('#restore-name').fill(WHO);

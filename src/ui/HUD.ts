@@ -1558,6 +1558,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   restoreNow: (() => boolean) | null = null;
   private get offerRestore() { return this.restoreNow?.() ?? false; }
 
+  /**
+   * Takes the board's offer off the screen it is already standing on.
+   *
+   * The flag beside it decides whether one is *drawn*, and the board is only
+   * drawn when it is opened — so a record brought back from the board itself
+   * left the offer sitting under it, asking a player who had just answered it.
+   * The node is removed the same way its own cross removes it.
+   */
+  dropBoardRestore() {
+    document.getElementById('board-restore-go')?.closest('.restore-panel')?.remove();
+  }
+
   /** The link on an empty card, which is drawn with the card and so rewired with it. */
   private wireRestoreLink() {
     const link = document.getElementById('stats-restore');
@@ -1887,16 +1899,38 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const scrim = overlay.firstElementChild as HTMLElement | null;
     if (scrim) scrim.onclick = event => { if (event.target === scrim) shut(); };
     if (about) return;
-    const save = (how: 'whatsapp' | 'copy', trouble: string) => async () => {
-      const done = await this.onKeySave?.(how);
-      if (done === false) return this.keyTrouble(trouble);
+    this.$('key-whatsapp').onclick = async () => {
+      const done = await this.onKeySave?.('whatsapp');
+      if (done === false) {
+        return this.keyTrouble('Could not open WhatsApp. Screenshot this screen, or copy it instead.');
+      }
+      // WhatsApp is about to take the screen anyway, so there is nothing for
+      // this sheet to stay open for.
       shut();
     };
-    this.$('key-whatsapp').onclick = save('whatsapp',
-      'Could not open WhatsApp. Screenshot this screen, or copy it instead.');
-    this.$('key-copy').onclick = save('copy',
-      'Could not copy. Screenshot this screen instead \u2014 the key is above.');
+    this.$('key-copy').onclick = async () => {
+      const key = this.$('key-copy');
+      const done = await this.onKeySave?.('copy');
+      if (done === false) {
+        return this.keyTrouble('Could not copy. Screenshot this screen instead \u2014 the key is above.');
+      }
+      // Said on the key that was pressed, and the sheet left standing. A copy
+      // is invisible: nothing moves, no app opens, and a sheet that simply
+      // closed was the only answer somebody got — indistinguishable from a key
+      // that did nothing, which is what the last one actually was. Standing
+      // also leaves the screen up for the screenshot recommended above it.
+      key.textContent = 'COPIED';
+      key.classList.add('is-done');
+      window.clearTimeout(this.copySaid);
+      this.copySaid = window.setTimeout(() => {
+        key.textContent = 'COPY';
+        key.classList.remove('is-done');
+      }, 2200);
+    };
   }
+
+  /** How long the copy key has left to say so. */
+  private copySaid = 0;
 
   /** Said inside the sheet, because the sheet is what is on the screen. */
   private keyTrouble(says: string) {
@@ -1907,6 +1941,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   closeKeySheet() {
+    window.clearTimeout(this.copySaid);
     this.$('key-overlay').classList.add('hidden');
     this.$('key-overlay').innerHTML = '';
     const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']

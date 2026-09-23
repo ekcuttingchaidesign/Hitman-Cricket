@@ -560,6 +560,10 @@ export class Game {
       this.hud.offerRestorePanel = this.offerRestoreOnCard();
       this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
     }
+    // The board is drawn when it is opened and not again, so an offer already
+    // standing on it outlives the thing it was offering.
+    this.boardRestoreOffer();
+    if (!this.hud.offerRestoreOnBoard) this.hud.dropBoardRestore();
     this.redrawStats();
   }
 
