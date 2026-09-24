@@ -3,6 +3,7 @@ import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
 import { kitMarkup } from './Leaderboard';
 import type { ChallengeRow } from '../game/challenge-api';
+import type { Player } from '../game/player';
 import { decodeInnings } from '../game/ball-string';
 import { track } from '../game/analytics';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
@@ -304,10 +305,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         </div>
         <div id="challenge-join" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-join-title">
           <div class="panel challenge-panel">
-            <p class="challenge-from"><span id="challenge-from-kit" class="board-kit"></span><span class="challenge-from-who"><b id="challenge-from-name"></b><em id="challenge-from-closes"></em></span></p>
+            <p id="challenge-from" class="challenge-from"><span id="challenge-from-kit" class="board-kit"></span><span class="challenge-from-who"><b id="challenge-from-name"></b><em id="challenge-from-closes"></em></span></p>
             <h2 id="challenge-join-title">30 balls. Beat a score you can't see.</h2>
             <p id="challenge-join-copy"></p>
-            <label class="claim-field"><span>Your name</span><input id="challenge-name" name="challenge-name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="go" placeholder="Up to 14 characters"></label>
+            <p id="challenge-as" class="challenge-as hidden"><span id="challenge-as-kit" class="board-kit"></span><span class="challenge-as-who">Batting as <b id="challenge-as-name"></b></span><button id="challenge-rename" type="button" class="ghost-link">Not you?</button></p>
+            <label id="challenge-name-field" class="claim-field hidden"><span>Your name</span><input id="challenge-name" name="challenge-name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="go" placeholder="Up to 14 characters"></label>
             <p id="challenge-join-error" class="claim-error hidden" role="alert"></p>
             <button id="challenge-bat" class="key-button">BAT</button>
             <button id="challenge-solo" class="ghost-link">Bat solo instead</button>
@@ -1131,23 +1133,74 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * tutorial. They tapped something that said "play cricket with me", and every
    * screen between them and a bat is a screen that loses some of them.
    */
-  challengeFrom(from: ChallengeRow, closes: string, name: string) {
+  challengeFrom(from: ChallengeRow, closes: string, player: Player | null) {
     this.shut();
     // The cover goes, and stays gone. Somebody arriving on a link was told they
     // were about to play cricket with a friend; a title screen and a Top 50 key
     // behind the panel are two things they did not ask for and one of them is a
     // way out of the thing they came for.
     this.$('intro').classList.add('hidden');
+    this.$('challenge-from').classList.remove('hidden');
     this.$('challenge-from-kit').outerHTML = kitMarkup(from.avatar, from.name).replace('board-kit', 'board-kit" id="challenge-from-kit');
     this.$('challenge-from-name').textContent = `${from.name} challenged you`;
     this.$('challenge-from-closes').textContent = closes;
+    this.$('challenge-join-title').textContent = "30 balls. Beat a score you can't see.";
     this.$('challenge-join-copy').textContent =
       `${from.name}'s shots flash up as you bat. The total stays hidden till ball 30.`;
+    this.$('challenge-bat').textContent = 'BAT';
+    this.$('challenge-solo').classList.remove('hidden');
+    this.identify(player);
+  }
+
+  /**
+   * The same panel, asking the one question a challenge needs from somebody who
+   * has never given a name. It is only ever reached that way: a player the game
+   * already knows is never asked twice.
+   */
+  challengeWhoAreYou(player: Player | null) {
+    this.shut();
+    this.$('challenge-from').classList.add('hidden');
+    this.$('challenge-join-title').textContent = "Who's this from?";
+    this.$('challenge-join-copy').textContent = 'Your friend sees this name on the challenge.';
+    this.$('challenge-bat').textContent = 'MAKE THE LINK';
+    this.$('challenge-solo').classList.add('hidden');
+    this.identify(player);
+  }
+
+  /**
+   * Who this browser bats as, on either mode of the panel.
+   *
+   * A player the game already knows is shown rather than asked: the name and kit
+   * are the ones their id carries, and being made to type a name they have
+   * already given is the difference between a game and a form. `Not you?` is
+   * there for the shared phone, and is the only way the field appears.
+   */
+  private identify(player: Player | null) {
     const field = this.$('challenge-name') as HTMLInputElement;
-    field.value = name;
+    const wrap = this.$('challenge-name-field');
+    const known = this.$('challenge-as');
+    field.value = player?.name ?? '';
     this.$('challenge-join-error').classList.add('hidden');
+    if (player) {
+      this.$('challenge-as-kit').outerHTML = kitMarkup(player.avatar, player.name).replace('board-kit', 'board-kit" id="challenge-as-kit');
+      this.$('challenge-as-name').textContent = player.name;
+      known.classList.remove('hidden');
+      wrap.classList.add('hidden');
+    } else {
+      known.classList.add('hidden');
+      wrap.classList.remove('hidden');
+    }
     this.open('challenge-join');
-    (name ? this.$('challenge-bat') : field).focus();
+    (player ? this.$('challenge-bat') : field).focus();
+  }
+
+  /** The way to a different name, for the phone that gets handed round. */
+  challengeRename() {
+    this.$('challenge-as').classList.add('hidden');
+    this.$('challenge-name-field').classList.remove('hidden');
+    const field = this.$('challenge-name') as HTMLInputElement;
+    field.focus();
+    field.select();
   }
 
   /** What the joiner typed, for the caller to take or refuse. */

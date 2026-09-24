@@ -2812,6 +2812,43 @@ body.private-window{overflow:hidden}
   color:var(--ink,#fff)
 }
 .challenge-from-who em{font-style:normal;font-size:12px;color:var(--quiet)}
+/* Who this browser bats as: shown, not asked. A player the game already knows
+   gives their name once, on the board, and carries it into every challenge —
+   so this row is a statement with a way out of it rather than a field. */
+.challenge-as{
+  display:flex!important;
+  align-items:center;
+  gap:10px;
+  margin:0 0 16px!important;
+  padding:9px 12px;
+  border-radius:9px;
+  background:#ffffff0f
+}
+.challenge-as .board-kit{width:34px;height:34px;flex-shrink:0;font-size:13px}
+.challenge-as-who{
+  flex:1;
+  min-width:0;
+  font-family:var(--card);
+  font-size:13px;
+  color:var(--quiet);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.challenge-as-who b{
+  font-weight:800;
+  letter-spacing:.04em;
+  color:var(--ink,#fff)
+}
+/* Quiet, and beside the name rather than under it: changing who you are is a
+   correction, not a step. */
+.challenge-as .ghost-link{
+  flex-shrink:0;
+  margin:0;
+  padding:4px 2px;
+  font-size:12px
+}
+
 /* The key that turns an innings into a challenge. It carries a second line the
    way the mode cards do, because "with this innings" is what makes it a
    different offer from PLAY AGAIN directly under it. */

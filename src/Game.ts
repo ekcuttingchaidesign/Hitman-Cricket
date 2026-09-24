@@ -146,6 +146,8 @@ export class Game {
   private player: string | null = null;
   /** The challenge this innings is for, if it is for one. */
   private challenge = new ChallengeRun();
+  /** Which question the name panel is open for: chasing one, or setting one. */
+  private asking: 'chase' | 'set' = 'chase';
   /** Which ladder the sheet is showing, which is the tab drawn as the live one. */
   private boardTab: BoardTab = 'classic';
   /**
@@ -206,7 +208,8 @@ export class Game {
     this.hud.on('challenge-share-done', () => this.hud.closeChallenge());
     this.hud.on('challenge-copy', () => { void this.copyChallengeLink(); });
     this.hud.on('challenge-more', () => { void this.shareChallengeLink(); });
-    this.hud.on('challenge-bat', () => this.startChase());
+    this.hud.on('challenge-bat', () => { if (this.asking === 'set') void this.nameThenSet(); else this.startChase(); });
+    this.hud.on('challenge-rename', () => this.hud.challengeRename());
     this.hud.on('challenge-solo', () => { this.challenge.clear(); this.hud.closeChallenge(); this.hud.showCover(); this.modes(); });
     this.hud.on('challenge-rematch', () => { this.hud.closeChallenge(); this.challenge.beginSetting(); this.start(); });
     this.hud.on('challenge-waiting-rematch', () => { this.hud.closeChallenge(); this.challenge.beginSetting(); this.start(); });
@@ -882,14 +885,32 @@ export class Game {
 
   /** An innings offered as a challenge, from the card it just ended on. */
   private async setChallenge() {
-    const { name, avatar } = this.batter;
-    if (!this.player || !name) {
-      // No name yet means they have never claimed a place, so the claim form is
-      // the right thing to meet: it asks the two questions a challenge needs and
-      // is a screen they would have met anyway.
-      this.hud.openClaim();
+    const { name } = this.batter;
+    if (!this.player) return;
+    if (!name) {
+      // Never given a name, so the challenge asks for one in its own words. The
+      // board's claim form is a different offer — its key says PUT ME ON THE
+      // BOARD — and sending somebody there to send a friend a link is a
+      // non-sequitur they would have to read twice.
+      this.asking = 'set';
+      this.hud.challengeWhoAreYou(null);
       return;
     }
+    await this.createChallenge();
+  }
+
+  /** The name given, then the challenge it was given for. */
+  private async nameThenSet() {
+    const name = this.hud.challengeName.trim();
+    if (!name) { this.hud.challengeJoinError('A name, so they know who to beat.'); return; }
+    writePlayer({ name, avatar: this.batter.avatar });
+    this.hud.closeChallenge();
+    await this.createChallenge();
+  }
+
+  private async createChallenge() {
+    const { name, avatar } = this.batter;
+    if (!this.player) return;
     const answer = await this.challenge.set(this.player, name, avatar, this.score);
     if (!answer.ok || !answer.code) {
       this.hud.claimFailed(answer.reason ?? 'The challenge could not be set.');
@@ -912,9 +933,9 @@ export class Game {
 
   /** The chase, begun once the ghost is in memory and a name has been given. */
   private startChase() {
-    const name = this.hud.challengeName.trim();
+    const name = this.hud.challengeName.trim() || this.batter.name;
     if (!name) { this.hud.challengeJoinError('A name, so they know who beat them.'); return; }
-    writePlayer({ name, avatar: this.batter.avatar });
+    if (name !== readPlayer()?.name) writePlayer({ name, avatar: this.batter.avatar });
     this.hud.challengeJoinError(null);
     this.hud.closeChallenge();
     this.challenge.beginChase();
@@ -974,7 +995,8 @@ export class Game {
         // When it was set is already inside the packed score — the board's own
         // number carries the stamp it was ranked on — so it is read back from
         // there rather than sent a second time as a field of its own.
-        this.hud.challengeFrom(from, closesIn(unpackScore(from.score).atMs), this.batter.name);
+        this.asking = 'chase';
+        this.hud.challengeFrom(from, closesIn(unpackScore(from.score).atMs), readPlayer());
         return;
       }
     }
