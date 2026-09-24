@@ -153,13 +153,13 @@ describe('the sound switch and the tab', () => {
  * were struck on one, and whether it was let go of.
  */
 const contexts = () => {
-  const seen = { opened: 0, struck: 0, suspended: 0 };
+  const seen = { opened: 0, struck: 0, suspended: 0, resumed: 0, last: null as null | { state: string } };
   const node = () => ({ connect() {}, disconnect() {}, start() {}, stop() {}, onended: null,
     frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 1, setValueAtTime() {}, exponentialRampToValueAtTime() {} } });
   class FakeContext {
     state = 'running'; currentTime = 0; sampleRate = 44100; destination = {};
-    constructor() { seen.opened++; }
-    resume() { this.state = 'running'; return Promise.resolve(); }
+    constructor() { seen.opened++; seen.last = this; }
+    resume() { seen.resumed++; this.state = 'running'; return Promise.resolve(); }
     suspend() { seen.suspended++; this.state = 'suspended'; return Promise.resolve(); }
     close() { return Promise.resolve(); }
     createBuffer() { return {}; }
@@ -196,6 +196,22 @@ describe('a player with their own music on', () => {
     audio.play('hit');
     expect(seen.opened).toBe(1);
     expect(seen.struck).toBe(1);
+    audio.dispose();
+  });
+  it('asks for the sound back when a shot finds Safari holding it', () => {
+    const seen = contexts();
+    const audio = new GameAudio();
+    audio.set('effects');
+    audio.unlock();
+    // Music started from the control centre: Safari holds the page's sound.
+    seen.last!.state = 'interrupted';
+    const before = seen.resumed;
+    audio.play('hit');
+    expect(seen.resumed).toBe(before + 1);
+    expect(audio.describe()).toMatchObject({ sound: 'effects', struck: 1, lastStrike: 'hit@interrupted' });
+    // And a context that is running is left alone.
+    audio.play('hit');
+    expect(seen.resumed).toBe(before + 1);
     audio.dispose();
   });
   it('opens no audio context with everything off, and lets go of one already open', () => {

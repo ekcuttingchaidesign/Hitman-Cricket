@@ -239,9 +239,34 @@ export class GameAudio {
     this.gesture = null;
     GESTURES.forEach(type => window.removeEventListener(type, through));
   }
+  /** Every impact asked for, and the state the context was in when it was. */
+  private struck = 0;
+  private lastStrike = '—';
+  /**
+   * What the sound is doing, for `?debug=1`. On an iPhone the part that goes
+   * wrong is the part no desktop can show — Safari holding the page's sound
+   * after another app has taken the speaker — so the overlay says what Safari
+   * says, and a screenshot from the phone is the bug report.
+   */
+  describe() {
+    const session = (navigator as Navigator & { audioSession?: { type: string; state?: string } }).audioSession;
+    return {
+      sound: this.setting, context: this.context?.state ?? 'none', rate: this.context?.sampleRate ?? '—',
+      clips: this.buffers.size, struck: this.struck, lastStrike: this.lastStrike,
+      session: session ? `${session.type}/${session.state ?? '?'}` : 'none',
+    };
+  }
   play(kind: Sound) {
     if (!this.context || this.muted || this.disposed) return;
     const ctx = this.context, buffer = this.buffers.get(kind);
+    this.struck++; this.lastStrike = `${kind}@${ctx.state}`;
+    // Safari holds a page's sound when another app takes the speaker — music
+    // started from the control centre is enough — and leaves the context in
+    // 'interrupted' until something asks for it back. Asking is what lets go:
+    // a resume goes through the same admission a first play does, and that
+    // admission ends the interruption. So an impact that finds the context held
+    // asks, rather than striking into a context nobody will hear.
+    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
     if (buffer) {
       this.stop();
       const source = ctx.createBufferSource(); source.buffer = buffer;

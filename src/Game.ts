@@ -1488,7 +1488,8 @@ export class Game {
       this.update();
     }
     if (!document.hidden) this.scene.render(this.elapsed);
-    if (this.debug) this.hud.debug(this.snapshot());
+    // The sound first: on a phone the overlay is taller than the screen is.
+    if (this.debug) this.hud.debug({ ...this.audio.describe(), ...this.snapshot() });
     this.frameId = requestAnimationFrame(this.frame);
   };
   /**
