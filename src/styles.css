@@ -2314,6 +2314,22 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   line-height:1;
   color:#fff
 }
+/* The challenge plate is a two-shot rather than a portrait, and its subject is
+   the pair of helmets meeting just above centre — so it sits a touch higher than
+   the middle and keeps both batters' shoulders in frame at this crop. */
+.mode-challenge .mode-plate img{object-position:50% 42%}
+/* The count of challenges still waiting on an answer, worn where the NEW flag
+   goes. It replaces that flag rather than crowding beside it: a card carrying
+   both says neither. Wider than NEW because it holds two words. */
+.mode-challenge .mode-flag.is-open{
+  width:auto;
+  min-width:18.71cqw;
+  padding:0 2.92cqw;
+  font-style:normal;
+  font-size:4.1cqw;
+  letter-spacing:.1cqw;
+  background:linear-gradient(111.44deg,#12b45f 1.04%,#0a7a3f 106.3%)
+}
 /* The way back to the cover. Not on the board in Figma, but the screen has to
    have one: it is opened from Play, and without it Play is a one-way door. */
 .mode-screen .ghost-link{

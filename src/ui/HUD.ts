@@ -53,6 +53,11 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
    the same kit — and the Test match has its own, in whites with a red ball. */
 const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
+/* The challenge plate ships in `public/` rather than `src/assets/`, so it is a
+   bare relative path for the same reason the kits are: the browser resolves it
+   against the page, which is right under a GitHub Pages subdirectory and at a
+   domain root alike. A leading slash would look at the top of github.io. */
+const challengePlate = 'challenge_mode.png';
 /* The three plates the result card stands on. The loss is used twice: a man
    carried off and a man bowled twelve short are the same picture of the same
    over, and what separates them is the line above it, not the art. */
@@ -252,12 +257,20 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               </span>
             </button>
             <button id="mode-survive" class="mode-card mode-survive">
-              <span class="mode-flag">NEW</span>
               <span class="mode-plate"><img src="${survivePlate}" alt="" decoding="async" /></span>
               <span class="mode-body">
                 <span class="mode-name">Test Survival</span>
                 <span class="mode-copy">You are the last man standing. 60 balls to survive. Chase or Draw the match for the glory.</span>
                 <span class="mode-key">PLAY TEST SURVIVAL</span>
+              </span>
+            </button>
+            <button id="mode-challenge" class="mode-card mode-challenge">
+              <span id="mode-challenge-flag" class="mode-flag">NEW</span>
+              <span class="mode-plate"><img src="${challengePlate}" alt="" decoding="async" /></span>
+              <span class="mode-body">
+                <span class="mode-name">Challenge a Friend</span>
+                <span class="mode-copy">Bat 30 balls and send the link. They chase your score without ever seeing it — until their last ball.</span>
+                <span class="mode-key">CHALLENGE A FRIEND</span>
               </span>
             </button>
             <button id="modes-cancel" class="ghost-link">Back</button>
@@ -887,6 +900,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
   }
   get modesOpen() { return !this.$('modes').classList.contains('hidden'); }
+  /**
+   * Takes the Test card off the picker while that mode is behind its flag.
+   *
+   * Hidden rather than removed, and the picker still opens: challenging a
+   * friend is the second thing to choose between now, so the screen has a job
+   * whether or not the Test match is on offer.
+   */
+  hideSurviveCard() { this.$('mode-survive').classList.add('hidden'); }
   /**
    * Hide the way back to the picker. A link that names one mode is a link to
    * that mode, and offering to leave it is how a playtester ends up filing

@@ -216,13 +216,13 @@ export class Game {
       this.mode = named as GameMode;
       this.locked = true;
       this.hud.lockMode(SURVIVE_ONLY);
-    } else if (!SHOW_SURVIVE) {
-      // Nothing to pick between, so Play is the classic innings and the picker
-      // never opens. The same lock a named mode uses, arrived at from the build
-      // rather than from the link.
-      this.mode = 'CLASSIC';
-      this.locked = true;
-      this.hud.lockMode(false);
+    } else {
+      // The picker opens whenever there is something to pick. Challenging a
+      // friend is always on offer, so from here that is always — where before,
+      // with the Test match behind a flag, Play went straight to the innings and
+      // the screen was never seen. The Test card is hidden rather than removed
+      // when its flag is off, so the picker still reads as two choices.
+      if (!SHOW_SURVIVE) this.hud.hideSurviveCard();
     }
     // The cover has music of its own. It is asked for rather than waited on:
     // a browser that will not play it yet is not a failure, it is a browser
