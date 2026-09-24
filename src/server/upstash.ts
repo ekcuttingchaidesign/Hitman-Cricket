@@ -1,6 +1,6 @@
 import { Redis } from '@upstash/redis';
 import type { BoardStore, StoredRow } from './board-store.js';
-import type { RoomStore, StoredPlayer, StoredRoom } from './room-store.js';
+import type { ChallengeStore, StoredPlayer } from './challenge-store.js';
 
 /**
  * The board kept in Redis.
@@ -138,66 +138,59 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
 }
 
 /**
- * The rooms kept in Redis.
+ * The challenges kept in Redis.
  *
- * One hash per room, which is the whole reason a room is cheap: reading a room
- * is a single `HGETALL` however many people are in it, and writing one player's
- * over is a single `HSET` that cannot touch anybody else's field. `state`, `at`
- * and `host` are the room's own fields and every other field is a player id.
- * They cannot collide — a player id always carries a dash and none of the three
- * reserved names does.
+ * One hash per challenge, which is the whole reason a challenge is cheap:
+ * reading one is a single `HGETALL` and writing an answer is a single `HSET`
+ * that cannot touch the other innings. `at` and `host` are the challenge's own
+ * fields and every other field is a player id. They cannot collide — a player id
+ * always carries a dash and neither reserved name does.
  *
- * A room's key carries a TTL and every write pushes it out. Reads deliberately
- * do not, which is what keeps a read at exactly one command: a room nobody has
- * written to for two hours is a lobby that was abandoned or a game that finished,
- * and both should go. The counters are separate from the board's so that a busy
- * afternoon of rooms cannot spend the budget that puts people on the fifty.
+ * A challenge's key carries a week-long TTL and every write pushes it out.
+ * Reads deliberately do not, which is what keeps a read at exactly one command:
+ * a challenge nobody has written to for a week was never answered, and it should
+ * go. The counters are separate from the board's so that a busy week of
+ * challenges cannot spend the budget that puts people on the fifty.
  */
-export function upstashRooms(redis: Redis): RoomStore {
-  const key = (code: string) => `${SCOPE}room:${code}`;
-  const rate = (kind: string, address: string) => `${SCOPE}roomrate:${kind}:${address}`;
+export function upstashChallenges(redis: Redis): ChallengeStore {
+  const key = (code: string) => `${SCOPE}ch:${code}`;
+  const rate = (kind: string, address: string) => `${SCOPE}chrate:${kind}:${address}`;
   return {
-    async claim(code, room, ttlSeconds) {
-      // Set-if-absent on one field, so two rooms drawn onto the same code in the
-      // same second cannot both be told it was free.
-      const claimed = await redis.hsetnx(key(code), 'state', room.state);
+    async claim(code, challenge, ttlSeconds) {
+      // Set-if-absent on one field, so two challenges drawn onto the same code
+      // in the same second cannot both be told it was free.
+      const claimed = await redis.hsetnx(key(code), 'host', challenge.host);
       if (!claimed) return false;
-      // The expiry goes on before the rest of the room does, and not after. A
-      // process that died between the two would otherwise leave a key holding a
-      // single field, with no TTL and no way for anybody to use or clear it —
-      // a code burnt for good. This way the worst case expires like any room.
+      // The expiry goes on before the rest does, and not after. A process that
+      // died between the two would otherwise leave a key holding one field, with
+      // no TTL and no way for anybody to use or clear it — a code burnt for
+      // good. This way the worst case expires like any challenge.
       await redis.expire(key(code), ttlSeconds);
-      await redis.hset(key(code), { at: room.at, host: room.host, ...room.players });
+      await redis.hset(key(code), { at: challenge.at, ...challenge.players });
       return true;
     },
 
     async read(code) {
-      // One command for the whole room, whoever is in it.
+      // One command for the whole challenge, both innings included.
       const held = await redis.hgetall<Record<string, unknown>>(key(code));
-      if (!held || !held.state) return null;
+      if (!held || !held.host) return null;
       const players: Record<string, StoredPlayer> = {};
       for (const [field, value] of Object.entries(held)) {
-        // Anything that is not one of the room's own three fields is a player,
-        // and anything that is not an object is not a player at all.
-        if (field === 'state' || field === 'at' || field === 'host') continue;
+        // Anything that is not one of the challenge's own two fields is an
+        // innings, and anything that is not an object is not an innings at all.
+        if (field === 'at' || field === 'host') continue;
         if (value && typeof value === 'object') players[field] = value as StoredPlayer;
       }
-      return {
-        state: held.state as StoredRoom['state'],
-        at: Number(held.at) || 0,
-        host: String(held.host ?? ''),
-        players,
-      };
+      return { at: Number(held.at) || 0, host: String(held.host), players };
     },
 
     async write(code, change, ttlSeconds) {
       const fields: Record<string, unknown> = { ...change.players };
-      if (change.state) fields.state = change.state;
       // Nothing to say is nothing to send: a write with no fields is an error
       // from Redis rather than a no-op, and would cost a command to be told so.
       if (!Object.keys(fields).length) return;
       await redis.hset(key(code), fields);
-      // The room is being played, so it is not going anywhere yet.
+      // Answered today, so it is not going anywhere for another week.
       await redis.expire(key(code), ttlSeconds);
     },
 

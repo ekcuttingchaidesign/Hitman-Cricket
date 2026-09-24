@@ -1,6 +1,6 @@
 import type { Innings } from '../game/leaderboard.js';
 import type { BoardStore, StoredRow } from './board-store.js';
-import type { RoomStore, StoredRoom } from './room-store.js';
+import type { ChallengeStore, StoredChallenge } from './challenge-store.js';
 
 /**
  * The board, in memory.
@@ -61,51 +61,49 @@ export function memoryStore<I = Innings>(
 }
 
 /**
- * Rooms, in memory. The same two jobs the board's fake has: it backs
- * `POST /api/room` while `npm run dev` is running, so a room can be made,
- * joined from a second tab and played out with no credentials and no network,
- * and it is what the room tests run the rules against.
+ * Challenges, in memory. The same two jobs the board's fake has: it backs
+ * `POST /api/challenge` while `npm run dev` is running, so a challenge can be
+ * made in one tab and answered in another with no credentials and no network,
+ * and it is what the challenge tests run the rules against.
  *
  * It keeps the semantics the Redis adapter leans on rather than the convenient
  * ones. `claim` refuses a code somebody already holds, because that is what
- * makes two rooms drawn in the same second safe. `write` merges the fields it is
- * given and leaves the rest alone, because two players finishing an over at the
- * same moment each name only themselves and must not flatten each other. And a
- * room really does expire, so the rule that a stale code reads as no room at all
- * is something a test can prove rather than something we hope Redis does.
+ * makes two challenges drawn in the same second safe. `write` merges the fields
+ * it is given and leaves the rest alone. And a challenge really does expire, so
+ * the rule that a stale code reads as nothing at all is something a test can
+ * prove rather than something we hope Redis does.
  */
-export function memoryRooms(): RoomStore & { clear(): void; expire(code: string): void } {
-  const rooms = new Map<string, { room: StoredRoom; until: number }>();
+export function memoryChallenges(): ChallengeStore & { clear(): void; expire(code: string): void } {
+  const challenges = new Map<string, { challenge: StoredChallenge; until: number }>();
   const rate = new Map<string, { count: number; until: number }>();
-  /** Drops the room if its time is up, which is what the TTL buys in Redis. */
+  /** Drops the challenge if its time is up, which is what the TTL buys in Redis. */
   const live = (code: string, now: number) => {
-    const held = rooms.get(code);
+    const held = challenges.get(code);
     if (!held) return null;
-    if (held.until <= now) { rooms.delete(code); return null; }
+    if (held.until <= now) { challenges.delete(code); return null; }
     return held;
   };
   return {
-    async claim(code, room, ttlSeconds) {
+    async claim(code, challenge, ttlSeconds) {
       const now = Date.now();
       // HSETNX: whoever asks first holds the code.
       if (live(code, now)) return false;
-      rooms.set(code, { room: structuredClone(room), until: now + ttlSeconds * 1000 });
+      challenges.set(code, { challenge: structuredClone(challenge), until: now + ttlSeconds * 1000 });
       return true;
     },
     async read(code) {
       const held = live(code, Date.now());
       // Cloned on the way out, or a caller holding the answer could edit the
       // store by editing what it read — which Redis would never allow.
-      return held ? structuredClone(held.room) : null;
+      return held ? structuredClone(held.challenge) : null;
     },
     async write(code, change, ttlSeconds) {
       const now = Date.now();
       const held = live(code, now);
       if (!held) return;
-      if (change.state) held.room.state = change.state;
-      // Field by field, never wholesale: the fields not named stay as they were.
+      // Field by field, never wholesale: the innings not named stays as it was.
       for (const [id, player] of Object.entries(change.players ?? {})) {
-        held.room.players[id] = structuredClone(player);
+        held.challenge.players[id] = structuredClone(player);
       }
       held.until = now + ttlSeconds * 1000;
     },
@@ -120,10 +118,10 @@ export function memoryRooms(): RoomStore & { clear(): void; expire(code: string)
       held.count++;
       return held.count;
     },
-    clear() { rooms.clear(); rate.clear(); },
-    /** Ages a room out on the spot, so a test does not have to wait two hours. */
+    clear() { challenges.clear(); rate.clear(); },
+    /** Ages a challenge out on the spot, so a test does not wait a week. */
     expire(code: string) {
-      const held = rooms.get(code);
+      const held = challenges.get(code);
       if (held) held.until = 0;
     },
   };

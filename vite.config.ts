@@ -1,18 +1,18 @@
 import { defineConfig, type Plugin } from 'vite';
-import { memoryRooms, memoryStore } from './src/server/memory-store';
+import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
 import { CLASSIC_LADDER, SURVIVE_LADDER, readBoard, refused, submitScore } from './src/server/board-store';
 import {
-  createRoom, joinRoom, pushInnings, readRoom, roomRefused, startRoom,
-  type RoomCaller, type RoomStore,
-} from './src/server/room-store';
+  answerChallenge, challengeRefused, createChallenge, readChallenge,
+  type Batter, type ChallengeStore,
+} from './src/server/challenge-store';
 
 /**
- * The board's and the rooms' endpoints, served by the dev server.
+ * The board's and the challenges' endpoints, served by the dev server.
  *
  * `npm run dev` gives you the whole game — the board, claiming a place, a name
- * being refused because somebody already has it, a room made in one tab and
- * joined in another — with no Vercel CLI, no credentials and no database. That
+ * being refused because somebody already has it, a challenge set in one tab and
+ * answered in another — with no Vercel CLI, no credentials and no database. That
  * matters because the alternative is that the only way to see the feature
  * working is to deploy it.
  *
@@ -31,11 +31,11 @@ function boardEndpoints(): Plugin {
   // carries theirs from one board to the other and nobody else can bat under it.
   const names = new Map<string, string>();
   const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names) };
-  // Rooms are forgotten with the server too, and they expire on their own while
-  // it runs, so a code left over from an hour of poking about stops working the
-  // same way it would in production.
-  const rooms = memoryRooms();
-  const ENDPOINTS = ['/api/board', '/api/score', '/api/room'];
+  // Challenges are forgotten with the server too, and they expire on their own
+  // while it runs, so a code left over from an hour of poking about stops
+  // working the same way it would in production.
+  const challenges = memoryChallenges();
+  const ENDPOINTS = ['/api/board', '/api/score', '/api/challenge'];
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
@@ -52,10 +52,10 @@ function boardEndpoints(): Plugin {
         try {
           if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
           const query = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
-          if (path === '/api/room') {
-            const outcome = await roomCall(rooms, req, query);
-            if (roomRefused(outcome)) return send(outcome.status, { error: outcome.reason });
-            // The same header the deployed endpoint sends on a read, so a poll
+          if (path === '/api/challenge') {
+            const outcome = await challengeCall(challenges, req, query);
+            if (challengeRefused(outcome)) return send(outcome.status, { error: outcome.reason });
+            // The same header the deployed endpoint sends on a read, so a check
             // behaves here the way it will behind the edge cache.
             return send(200, outcome, req.method === 'GET' ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
           }
@@ -94,32 +94,30 @@ function boardEndpoints(): Plugin {
 }
 
 /**
- * One of the room calls, picked apart from the request the same way `api/room.ts`
- * picks it apart — the rules underneath are the identical import, so only where
- * the rooms are kept stands in.
+ * One of the challenge calls, picked apart from the request the same way
+ * `api/challenge.ts` picks it apart — the rules underneath are the identical
+ * import, so only where the challenges are kept stands in.
  */
-async function roomCall(
-  rooms: RoomStore,
+async function challengeCall(
+  challenges: ChallengeStore,
   req: { method?: string; on(event: string, fn: (chunk?: unknown) => void): void },
   query: URLSearchParams,
 ) {
-  if (req.method === 'GET') return readRoom(rooms, query.get('code') ?? '');
+  if (req.method === 'GET') return readChallenge(challenges, query.get('code') ?? '');
   if (req.method !== 'POST') return { ok: false as const, status: 405, reason: 'Use GET or POST.' };
   const body = JSON.parse(await read(req)) as Record<string, unknown>;
-  const code = String(body.code ?? '');
-  const who: RoomCaller = {
+  const who: Batter = {
     playerId: String(body.playerId ?? ''),
     name: String(body.name ?? ''),
     avatar: Number(body.avatar),
     // One address in development: whatever the dev server sees.
     address: 'dev',
+    card: body.card,
   };
   switch (String(body.action ?? '')) {
-    case 'create': return createRoom(rooms, who);
-    case 'join': return joinRoom(rooms, code, who);
-    case 'start': return startRoom(rooms, code, who.playerId, who.address);
-    case 'score': return pushInnings(rooms, code, { ...who, innings: figures(body.innings), done: body.done === true });
-    default: return { ok: false as const, status: 400, reason: 'Say what to do with the room.' };
+    case 'create': return createChallenge(challenges, who);
+    case 'answer': return answerChallenge(challenges, String(body.code ?? ''), who);
+    default: return { ok: false as const, status: 400, reason: 'Say what to do with the challenge.' };
   }
 }
 
