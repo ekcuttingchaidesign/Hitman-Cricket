@@ -51,7 +51,15 @@ beforeEach(() => {
   };
   Object.assign(globalThis, { Audio: FakeAudio, window: fakeWindow, clearTimeout: () => { timers = []; } });
 });
-afterEach(() => { delete (globalThis as Record<string, unknown>).Audio; delete (globalThis as Record<string, unknown>).window; });
+afterEach(() => { for (const name of ['Audio', 'window', 'localStorage']) delete (globalThis as Record<string, unknown>)[name]; });
+
+/** A browser's storage, so the switch can be carried from one visit to the next. */
+const storage = () => {
+  const held = new Map<string, string>();
+  const store = { getItem: (key: string) => held.get(key) ?? null, setItem: (key: string, value: string) => { held.set(key, value); }, removeItem: (key: string) => { held.delete(key); } };
+  Object.assign(globalThis, { localStorage: store });
+  return held;
+};
 
 describe('the music a screen owns', () => {
   it('plays the cover track, looped, the moment the cover asks for it', () => {
@@ -136,6 +144,43 @@ describe('the sound switch and the tab', () => {
     expect(cover()!.calls).toEqual(['play', 'pause']);
     audio.background(false);
     expect(cover()!.calls).toEqual(['play', 'pause', 'play']);
+    audio.dispose();
+  });
+});
+
+describe('a player with their own music on', () => {
+  it('remembers the switch, so the next visit never takes the speaker', () => {
+    const held = storage();
+    new GameAudio().setMuted(true);
+    expect(held.get('hitman-muted')).toBe('1');
+    // The next visit: the cover asks for its music and nothing is so much as
+    // built, so there is nothing to take the phone's audio away from theirs.
+    const next = new GameAudio();
+    expect(next.muted).toBe(true);
+    next.music('cover');
+    expect(FakeAudio.made).toHaveLength(0);
+    next.setMuted(false);
+    expect(held.has('hitman-muted')).toBe(false);
+    expect(cover()!.calls).toEqual(['play']);
+    next.dispose();
+  });
+  it('opens no audio context while the sound is off', () => {
+    storage().set('hitman-muted', '1');
+    let opened = 0;
+    Object.assign(globalThis, { AudioContext: class { constructor() { opened++; } } });
+    try {
+      const audio = new GameAudio();
+      audio.unlock();
+      expect(opened).toBe(0);
+      audio.dispose();
+    } finally { delete (globalThis as Record<string, unknown>).AudioContext; }
+  });
+  it('plays as before in a browser that keeps nothing', () => {
+    Object.assign(globalThis, { localStorage: { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); }, removeItem: () => { throw new Error('denied'); } } });
+    const audio = new GameAudio();
+    expect(audio.muted).toBe(false);
+    audio.setMuted(true);
+    expect(audio.muted).toBe(true);
     audio.dispose();
   });
 });

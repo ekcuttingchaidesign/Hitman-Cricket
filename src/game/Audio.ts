@@ -32,6 +32,20 @@ const MUSIC_GAIN = .5;
 const FADE_IN_MS = 220;
 /** What counts as the tap that lets a refused track through. */
 const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
+/**
+ * The sound switch, kept between visits.
+ *
+ * A phone has one speaker and gives it to whichever app last asked, so the
+ * cover's music starting is a player's own music stopping — and Android does
+ * not hand it back when the page goes quiet again. Somebody who plays with
+ * their own songs on has already told us once that ours are not wanted; asking
+ * them to say it again at every visit, after the first tap has already taken
+ * the speaker, is how a game ends up closed so the playlist can carry on.
+ */
+const MUTED_KEY = 'hitman-muted';
+function mutedBefore() {
+  try { return localStorage.getItem(MUTED_KEY) === '1'; } catch { return false; }
+}
 export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'> & { edged?: boolean }): Sound | null {
   // An edge has its own sound, and it is the sound of the wicket: the thin
   // noise off the face is the whole story of the dismissal, so it is read
@@ -47,7 +61,7 @@ export class GameAudio {
   private sources = new Set<AudioBufferSourceNode>();
   private loading: Promise<void> | null = null;
   private disposed = false;
-  muted = false;
+  muted = mutedBefore();
   /** One element per track, built the first time that track is asked for. */
   private elements = new Map<Track, HTMLAudioElement>();
   /** The track the screen the player is on wants. Null while they are batting. */
@@ -69,7 +83,10 @@ export class GameAudio {
     catch { return null; }
   });
   unlock() {
-    if (this.disposed) return;
+    // Nothing is opened while the sound is off. An audio context holds an
+    // output stream whether or not it is making a noise, and that is enough for
+    // some phones to count the page as something playing.
+    if (this.disposed || this.muted) return;
     try {
       this.context ??= new AudioContext();
       if (this.context.state !== 'running') void this.context.resume().catch(() => {});
@@ -90,10 +107,15 @@ export class GameAudio {
   stop() { this.sources.forEach(source => { try { source.stop(); } catch { /* Already ended. */ } }); this.sources.clear(); }
   setMuted(muted: boolean) {
     this.muted = muted;
+    try { if (muted) localStorage.setItem(MUTED_KEY, '1'); else localStorage.removeItem(MUTED_KEY); } catch { /* Asked again next visit, then. */ }
     // The switch silences the music too, and hands it back where it left off
     // rather than at the top: a player who muted to take a call and unmuted
     // afterwards has not asked to hear the opening bar again.
-    if (muted) { this.stop(); this.hush(false); } else this.resume();
+    if (muted) {
+      this.stop(); this.hush(false);
+      // And lets go of the speaker, which `unlock` takes back when it is on.
+      try { void this.context?.suspend().catch(() => {}); } catch { /* Already closed. */ }
+    } else this.resume();
   }
   /**
    * The music for the screen the player is on, or nothing at all while they are

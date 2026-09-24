@@ -704,10 +704,16 @@ kbd{
 .cover-best>svg{width:17px;height:17px;color:#c2762c}
 .cover-best strong{font-family:var(--display);font-size:20px;letter-spacing:.5px}
 .cover-best small{font-size:9px;letter-spacing:1.4px;font-weight:650}
-/* Nothing else on the cover: the board and the buttons return with the innings. */
+/* Nothing else on the cover: the board and the buttons return with the innings.
+   The sound key is the exception, for the reason the picker and the card keep
+   it: the cover has music, and on a phone it is the only screen where the first
+   tap starts it. Somebody listening to their own songs has to be able to say no
+   before they have lost them. */
 body.start-screen .score-stack,
-body.start-screen .arena-bottom,
-body.start-screen .hud-top{display:none}
+body.start-screen .arena-bottom{display:none}
+body.start-screen .hud-top{pointer-events:none}
+body.start-screen .hud-actions>:not(#sound){display:none}
+body.start-screen #sound{pointer-events:auto}
 
 .intro-panel{
   position:absolute;
