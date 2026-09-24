@@ -119,19 +119,19 @@ describe('the sound switch and the tab', () => {
     const audio = new GameAudio();
     audio.music('cover');
     cover()!.currentTime = 42;
-    audio.setMuted(true);
+    audio.set('off');
     expect(cover()!.calls).toEqual(['play', 'pause']);
     expect(cover()!.currentTime).toBe(42);
-    audio.setMuted(false);
+    audio.set('on');
     expect(cover()!.calls).toEqual(['play', 'pause', 'play']);
     audio.dispose();
   });
   it('does not so much as fetch a track while the sound is off', () => {
     const audio = new GameAudio();
-    audio.setMuted(true);
+    audio.set('off');
     audio.music('result');
     expect(FakeAudio.made).toHaveLength(0);
-    audio.setMuted(false);
+    audio.set('on');
     expect(result()!.calls).toEqual(['play']);
     audio.dispose();
   });
@@ -148,38 +148,108 @@ describe('the sound switch and the tab', () => {
   });
 });
 
+/**
+ * An audio context that only counts: how many were opened, how many impacts
+ * were struck on one, and whether it was let go of.
+ */
+const contexts = () => {
+  const seen = { opened: 0, struck: 0, suspended: 0 };
+  const node = () => ({ connect() {}, disconnect() {}, start() {}, stop() {}, onended: null,
+    frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 1, setValueAtTime() {}, exponentialRampToValueAtTime() {} } });
+  class FakeContext {
+    state = 'running'; currentTime = 0; sampleRate = 44100; destination = {};
+    constructor() { seen.opened++; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    suspend() { seen.suspended++; this.state = 'suspended'; return Promise.resolve(); }
+    close() { return Promise.resolve(); }
+    createBuffer() { return {}; }
+    createBufferSource() { return node(); }
+    createGain() { return node(); }
+    createOscillator() { seen.struck++; return node(); }
+    decodeAudioData() { return Promise.reject(new Error('no decoder here')); }
+  }
+  Object.assign(globalThis, { AudioContext: FakeContext });
+  return seen;
+};
+
 describe('a player with their own music on', () => {
-  it('remembers the switch, so the next visit never takes the speaker', () => {
+  afterEach(() => { delete (globalThis as Record<string, unknown>).AudioContext; });
+  it('steps the key from everything on, to the music off, to nothing at all, and round', () => {
+    const audio = new GameAudio();
+    expect(audio.setting).toBe('on');
+    audio.step(); expect(audio.setting).toBe('effects');
+    audio.step(); expect(audio.setting).toBe('off');
+    audio.step(); expect(audio.setting).toBe('on');
+    audio.dispose();
+  });
+  it('keeps the bat on the ball with the music off', () => {
+    const seen = contexts();
+    const audio = new GameAudio();
+    audio.music('cover');
+    audio.set('effects');
+    // The music stops, and stays stopped when the next screen asks for its own.
+    expect(cover()!.calls).toEqual(['play', 'pause']);
+    audio.music('result');
+    expect(result()?.calls ?? []).toEqual([]);
+    // The impacts are still let through.
+    audio.unlock();
+    audio.play('hit');
+    expect(seen.opened).toBe(1);
+    expect(seen.struck).toBe(1);
+    audio.dispose();
+  });
+  it('opens no audio context with everything off, and lets go of one already open', () => {
+    const seen = contexts();
+    const audio = new GameAudio();
+    audio.unlock();
+    audio.set('off');
+    expect(seen.suspended).toBe(1);
+    audio.play('hit');
+    expect(seen.struck).toBe(0);
+    const next = new GameAudio();
+    next.set('off'); next.unlock();
+    expect(seen.opened).toBe(1);
+    audio.dispose(); next.dispose();
+  });
+  it('remembers the setting, so the next visit never takes the speaker', () => {
     const held = storage();
-    new GameAudio().setMuted(true);
-    expect(held.get('hitman-muted')).toBe('1');
+    new GameAudio().set('effects');
+    expect(held.get('hitman-sound')).toBe('effects');
     // The next visit: the cover asks for its music and nothing is so much as
     // built, so there is nothing to take the phone's audio away from theirs.
     const next = new GameAudio();
-    expect(next.muted).toBe(true);
+    expect(next.setting).toBe('effects');
     next.music('cover');
     expect(FakeAudio.made).toHaveLength(0);
-    next.setMuted(false);
-    expect(held.has('hitman-muted')).toBe(false);
+    next.set('on');
+    expect(held.has('hitman-sound')).toBe(false);
     expect(cover()!.calls).toEqual(['play']);
     next.dispose();
   });
-  it('opens no audio context while the sound is off', () => {
-    storage().set('hitman-muted', '1');
-    let opened = 0;
-    Object.assign(globalThis, { AudioContext: class { constructor() { opened++; } } });
+  it('reads anything it does not recognise as everything on', () => {
+    storage().set('hitman-sound', 'loud');
+    expect(new GameAudio().setting).toBe('on');
+  });
+  it('asks an iPhone to mix the impacts in with the music while ours is off', () => {
+    const session = { type: 'auto' };
+    Object.defineProperty(globalThis.navigator, 'audioSession', { value: session, configurable: true });
     try {
       const audio = new GameAudio();
-      audio.unlock();
-      expect(opened).toBe(0);
+      audio.set('effects'); expect(session.type).toBe('ambient');
+      audio.set('off'); expect(session.type).toBe('ambient');
+      audio.set('on'); expect(session.type).toBe('auto');
+      // A returning player's setting is applied before anything plays.
+      storage().set('hitman-sound', 'effects');
+      new GameAudio();
+      expect(session.type).toBe('ambient');
       audio.dispose();
-    } finally { delete (globalThis as Record<string, unknown>).AudioContext; }
+    } finally { delete (globalThis.navigator as unknown as Record<string, unknown>).audioSession; }
   });
   it('plays as before in a browser that keeps nothing', () => {
     Object.assign(globalThis, { localStorage: { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); }, removeItem: () => { throw new Error('denied'); } } });
     const audio = new GameAudio();
-    expect(audio.muted).toBe(false);
-    audio.setMuted(true);
+    expect(audio.setting).toBe('on');
+    audio.set('off');
     expect(audio.muted).toBe(true);
     audio.dispose();
   });

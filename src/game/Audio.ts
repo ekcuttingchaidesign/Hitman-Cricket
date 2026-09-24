@@ -33,18 +33,26 @@ const FADE_IN_MS = 220;
 /** What counts as the tap that lets a refused track through. */
 const GESTURES = ['pointerdown', 'keydown', 'touchend'] as const;
 /**
- * The sound switch, kept between visits.
+ * The sound key's three settings, in the order it steps through them.
  *
  * A phone has one speaker and gives it to whichever app last asked, so the
  * cover's music starting is a player's own music stopping — and Android does
- * not hand it back when the page goes quiet again. Somebody who plays with
- * their own songs on has already told us once that ours are not wanted; asking
- * them to say it again at every visit, after the first tap has already taken
- * the speaker, is how a game ends up closed so the playlist can carry on.
+ * not hand it back when the page goes quiet again. The middle setting is for
+ * the player with their own songs on: the game's music is the part that takes
+ * the speaker, and the bat on the ball is the part they still want to hear.
+ * The impacts come from an audio context rather than an audio element, and a
+ * context is not something the phone counts as a player to pause for.
  */
-const MUTED_KEY = 'hitman-muted';
-function mutedBefore() {
-  try { return localStorage.getItem(MUTED_KEY) === '1'; } catch { return false; }
+export type SoundSetting = 'on' | 'effects' | 'off';
+const SETTINGS: readonly SoundSetting[] = ['on', 'effects', 'off'];
+/**
+ * Kept between visits. A player who has told us once that our music is not
+ * wanted should not have to say it again at every visit, after the first tap
+ * has already taken the speaker.
+ */
+const SOUND_KEY = 'hitman-sound';
+function settingBefore(): SoundSetting {
+  try { const held = localStorage.getItem(SOUND_KEY); return held === 'effects' || held === 'off' ? held : 'on'; } catch { return 'on'; }
 }
 export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'> & { edged?: boolean }): Sound | null {
   // An edge has its own sound, and it is the sound of the wicket: the thin
@@ -61,7 +69,11 @@ export class GameAudio {
   private sources = new Set<AudioBufferSourceNode>();
   private loading: Promise<void> | null = null;
   private disposed = false;
-  muted = mutedBefore();
+  setting = settingBefore();
+  /** Whether the game's music is off. Everything else is still allowed a noise. */
+  get musicOff() { return this.setting !== 'on'; }
+  /** Whether nothing at all is to be heard. */
+  get muted() { return this.setting === 'off'; }
   /** One element per track, built the first time that track is asked for. */
   private elements = new Map<Track, HTMLAudioElement>();
   /** The track the screen the player is on wants. Null while they are batting. */
@@ -77,6 +89,8 @@ export class GameAudio {
     ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
     ['edge', new URL('../assets/bat-edge.mp3', import.meta.url)],
   ] as const;
+  // The setting a returning player left behind applies before anything plays.
+  constructor() { this.share(); }
   // Fetch before the innings; decoding and playback are unlocked by Start's tap.
   private downloads = this.files.map(async ([kind, url]) => {
     try { const response = await fetch(url); if (!response.ok) return null; return { kind, data: await response.arrayBuffer() }; }
@@ -105,17 +119,34 @@ export class GameAudio {
     }
   }
   stop() { this.sources.forEach(source => { try { source.stop(); } catch { /* Already ended. */ } }); this.sources.clear(); }
-  setMuted(muted: boolean) {
-    this.muted = muted;
-    try { if (muted) localStorage.setItem(MUTED_KEY, '1'); else localStorage.removeItem(MUTED_KEY); } catch { /* Asked again next visit, then. */ }
-    // The switch silences the music too, and hands it back where it left off
-    // rather than at the top: a player who muted to take a call and unmuted
-    // afterwards has not asked to hear the opening bar again.
-    if (muted) {
-      this.stop(); this.hush(false);
+  /** The key's next setting: on, then the music off, then everything off. */
+  step() { this.set(SETTINGS[(SETTINGS.indexOf(this.setting) + 1) % SETTINGS.length]); }
+  set(setting: SoundSetting) {
+    this.setting = setting;
+    try { if (setting === 'on') localStorage.removeItem(SOUND_KEY); else localStorage.setItem(SOUND_KEY, setting); } catch { /* Asked again next visit, then. */ }
+    this.share();
+    // Switching the music off stops it where it stands rather than rewinding
+    // it: a player who muted to take a call and unmuted afterwards has not
+    // asked to hear the opening bar again.
+    if (this.musicOff) this.hush(false); else this.resume();
+    if (this.muted) {
+      this.stop();
       // And lets go of the speaker, which `unlock` takes back when it is on.
       try { void this.context?.suspend().catch(() => {}); } catch { /* Already closed. */ }
-    } else this.resume();
+    }
+  }
+  /**
+   * Tells an iPhone the impacts are to be mixed in with whatever else is
+   * playing rather than stop it. Only Safari has the switch, and it is only
+   * thrown while the music is off: the price of mixing is that the ring switch
+   * silences the page, which is right for a noise laid over somebody's own
+   * songs and wrong for a game that has music of its own to offer.
+   */
+  private share() {
+    try {
+      const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+      if (session) session.type = this.musicOff ? 'ambient' : 'auto';
+    } catch { /* A browser without it plays as it always has. */ }
   }
   /**
    * The music for the screen the player is on, or nothing at all while they are
@@ -157,7 +188,7 @@ export class GameAudio {
    */
   private resume(afterGesture = false) {
     const track = this.wanted;
-    if (!track || this.muted || this.backgrounded || this.disposed || this.broken.has(track)) return;
+    if (!track || this.musicOff || this.backgrounded || this.disposed || this.broken.has(track)) return;
     const element = this.element(track);
     element.muted = afterGesture;
     try {

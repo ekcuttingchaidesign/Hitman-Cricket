@@ -77,7 +77,7 @@ Use the on-screen Pause button to resume, restart, or change mode. Change Mode o
 | Esc | Pause / resume |
 | R | Restart innings |
 | B | Open the board (Esc or B closes it) |
-| M | Mute / unmute sound |
+| M | Step the sound: on → music off (game sounds on) → all off |
 
 The arrow keys are read as the same three shots before anything else looks at them, so combos, the one-shot gate and the timing bands work identically whichever pair a player reaches for — and a mixed pair such as `A` + `↑` is still a combo. Arrow keys are also swallowed during a delivery so the page cannot scroll out from under the innings.
 
@@ -247,7 +247,9 @@ Any upward drive charges it: straight, long-on or cover. The gesture asked for i
 
 The length and pace windows exclude every special without naming one: a yorker pitches at your toes, a bouncer over your head, and neither a slower ball nor an express one leaves you time to walk at it.
 
-The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), `boundary-hit.mp3` plays for both fours and sixes, `bat-edge.mp3` is the thin knick off the face when a cut is edged behind, and `sledge.mp3` comes back from the field after three balls the batter has not scored off. The synthesized fallback is an impact rather than a voice, so a sledge without its clip simply stays silent. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
+The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), `boundary-hit.mp3` plays for both fours and sixes, `bat-edge.mp3` is the thin knick off the face when a cut is edged behind, and `sledge.mp3` comes back from the field after three balls the batter has not scored off. The synthesized fallback is an impact rather than a voice, so a sledge without its clip simply stays silent. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip.
+
+The sound key has three settings, stepped through in turn and remembered between visits: everything on, the game's music off with the shot sounds still on, and everything off. The middle one is for playing over your own music. On a phone the game's music takes the speaker from whatever else is playing and does not give it back, while the shot sounds come from an audio context and leave it alone; on an iPhone the game also asks Safari to mix them in. The key shows on the phone cover too, so the music can be turned off before it has started. A small synthesized fallback keeps play functional if audio loading is unavailable.
 
 ## The injury meter, and the short-pitched plan
 

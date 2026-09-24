@@ -321,7 +321,7 @@ export class Game {
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
     // The switch as it was left last visit.
-    this.hud.sound(this.audio.muted);
+    this.hud.sound(this.audio.setting);
     this.hud.on('restart', this.start);
     // Out of a paused innings and back to the picker. The picker is a screen
     // rather than a card, so it covers the pause card rather than replacing
@@ -962,7 +962,7 @@ export class Game {
     if (this.surviving) return this.hud.injury(this.health.injury, this.health.critical);
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
-  private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };
+  private toggleSound = () => { this.audio.step(); this.audio.unlock(); this.hud.sound(this.audio.setting, true); };
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
