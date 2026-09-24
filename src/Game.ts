@@ -27,9 +27,12 @@ import { asSurvive, surviveOffer } from './ui/SurviveBoard';
 import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
-import type { BoardRow } from './game/leaderboard';
+import { unpackScore, type BoardRow } from './game/leaderboard';
 import { ballsBand, counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from './game/analytics';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
+import { ChallengeRun, closesIn, resultView } from './game/Challenge';
+import { challengeLink } from './game/challenge-api';
+import { kitDeal } from './config/board';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
 /** Which innings is being played. The two share a loop and almost nothing else. */
@@ -55,6 +58,19 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
  * testing it. It is hidden, not removed.
  */
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
+
+/**
+ * When the ghost's ball appears, and how long it holds.
+ *
+ * There are 2,440ms between one ball resolving and the next being released —
+ * `resultMs` 1050, `readyMs` 550, `runupMs` 840. The player's own result owns
+ * the first beat; the ghost takes the second and is gone before the bowler
+ * lets go. Neither number is guessed: they are read off `GAME`, so a change to
+ * the innings' pacing carries the flash with it rather than leaving it stranded
+ * over a delivery.
+ */
+const GHOST_AFTER_MS = 900;
+const GHOST_FOR_MS = 1200;
 
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
@@ -128,6 +144,8 @@ export class Game {
   private surviveRows: SurviveRow[] = [];
   private surviveSeen = false;
   private player: string | null = null;
+  /** The challenge this innings is for, if it is for one. */
+  private challenge = new ChallengeRun();
   /** Which ladder the sheet is showing, which is the tab drawn as the live one. */
   private boardTab: BoardTab = 'classic';
   /**
@@ -167,7 +185,7 @@ export class Game {
     // three stores, one of which can hang; the board is a network call that may
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
-    void playerId().then(id => { this.player = id; }).catch(() => {});
+    void playerId().then(id => { this.player = id; return this.openChallenges(); }).catch(() => {});
     this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
@@ -182,7 +200,18 @@ export class Game {
     this.hud.on('start', () => (this.locked ? this.start() : this.modes()));
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
+    this.hud.on('mode-challenge', () => { this.hud.closeModes(); this.challenge.beginSetting(); this.choose('CLASSIC'); });
     this.hud.on('modes-cancel', () => this.hud.closeModes());
+    this.hud.on('challenge-set', () => { void this.setChallenge(); });
+    this.hud.on('challenge-share-done', () => this.hud.closeChallenge());
+    this.hud.on('challenge-copy', () => { void this.copyChallengeLink(); });
+    this.hud.on('challenge-more', () => { void this.shareChallengeLink(); });
+    this.hud.on('challenge-bat', () => this.startChase());
+    this.hud.on('challenge-solo', () => { this.challenge.clear(); this.hud.closeChallenge(); this.hud.showCover(); this.modes(); });
+    this.hud.on('challenge-rematch', () => { this.hud.closeChallenge(); this.challenge.beginSetting(); this.start(); });
+    this.hud.on('challenge-waiting-rematch', () => { this.hud.closeChallenge(); this.challenge.beginSetting(); this.start(); });
+    this.hud.on('challenge-result-done', () => { this.hud.closeChallenge(); this.challenge.clear(); this.modes(); });
+    this.hud.on('challenge-waiting-done', () => this.hud.closeChallenge());
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
@@ -628,6 +657,10 @@ export class Game {
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
+      // The other innings, one ball behind the player's own. It goes up after
+      // their own result has had the screen to itself, and it is down again
+      // before the next ball is bowled — see `flashGhost`.
+      if (this.challenge.role === 'chasing') this.flashGhost(this.score.balls - 1);
       if (this.surviving) {
         this.health.record(this.outcome);
         // Read in the order cricket reads it: the target first, then the last
@@ -789,9 +822,172 @@ export class Game {
     track(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
       this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
+    // A chase answers itself the moment it ends, and the reveal replaces the
+    // ordinary card: the scoreline is what the player has been waiting thirty
+    // balls for, and the card behind it would be the wrong first thing to see.
+    if (this.challenge.role === 'chasing') { void this.finishChase(); return; }
     this.hud.end(this.score, this.best, record);
     this.offerBoard();
   }
+  /* ── The challenge ─────────────────────────────────────────────────── */
+
+  /**
+   * Who this browser bats as.
+   *
+   * The name and kit are the ones the board already knows — a player who has
+   * claimed a place keeps both, and one who has not gets the kit their own id
+   * deals them. A challenge never asks for a kit: it is the same person, and
+   * being asked to pick a colour twice is the kind of thing that makes a game
+   * feel like a form.
+   */
+  private get batter() {
+    const held = readPlayer();
+    return {
+      name: held?.name ?? '',
+      avatar: held?.avatar ?? kitDeal(this.player).opening,
+    };
+  }
+
+  /**
+   * The ghost's ball, flashed in the gap after the player's own result.
+   *
+   * There are 2,440ms between one ball resolving and the next leaving the
+   * bowler's hand. The player's own result owns the first beat of that; this
+   * takes the second, and is gone before the run-up finishes. Nothing about the
+   * other innings ever appears while a ball is in the air.
+   */
+  private flashGhost(index: number) {
+    const from = this.challenge.opponent;
+    if (!from) return;
+    const ball = this.challenge.ballAt(index);
+    const ended = this.challenge.ghostEndedAt;
+    // Past the end of their innings there is nothing to show but the fact of
+    // it, said once, on the ball it happened: silence after that reads as the
+    // feature being broken, and the moment is worth more than the secrecy.
+    if (!ball) {
+      if (ended === null || index !== ended) return;
+      window.setTimeout(() => {
+        this.hud.ghost(from.name, from.avatar, 'ALL OUT', 'out');
+        window.setTimeout(() => this.hud.ghostAway(), 2000);
+      }, GHOST_AFTER_MS);
+      return;
+    }
+    const result = ball.isWicket ? 'OUT' : ball.runs === 0 ? 'DOT' : String(ball.runs);
+    const kind = ball.isWicket ? 'out' : ball.runs >= 4 ? 'big' : 'runs';
+    window.setTimeout(() => {
+      this.hud.ghost(from.name, from.avatar, result, kind);
+      window.setTimeout(() => this.hud.ghostAway(), GHOST_FOR_MS);
+    }, GHOST_AFTER_MS);
+  }
+
+  /** An innings offered as a challenge, from the card it just ended on. */
+  private async setChallenge() {
+    const { name, avatar } = this.batter;
+    if (!this.player || !name) {
+      // No name yet means they have never claimed a place, so the claim form is
+      // the right thing to meet: it asks the two questions a challenge needs and
+      // is a screen they would have met anyway.
+      this.hud.openClaim();
+      return;
+    }
+    const answer = await this.challenge.set(this.player, name, avatar, this.score);
+    if (!answer.ok || !answer.code) {
+      this.hud.claimFailed(answer.reason ?? 'The challenge could not be set.');
+      return;
+    }
+    track('challenge-set', 'Challenge set');
+    this.hud.challengeReady(answer.code, this.score.runs, this.challenge.share(answer.code, this.score.runs));
+  }
+
+  private async copyChallengeLink() {
+    if (!this.challenge.code) return;
+    try { await navigator.clipboard.writeText(challengeLink(this.challenge.code)); } catch { /* Then the key does nothing. */ }
+  }
+
+  private async shareChallengeLink() {
+    if (!this.challenge.code) return;
+    const url = challengeLink(this.challenge.code);
+    try { await navigator.share?.({ url }); } catch { /* Dismissed, which is not a failure. */ }
+  }
+
+  /** The chase, begun once the ghost is in memory and a name has been given. */
+  private startChase() {
+    const name = this.hud.challengeName.trim();
+    if (!name) { this.hud.challengeJoinError('A name, so they know who beat them.'); return; }
+    writePlayer({ name, avatar: this.batter.avatar });
+    this.hud.challengeJoinError(null);
+    this.hud.closeChallenge();
+    this.challenge.beginChase();
+    track('challenge-accepted', 'Challenge accepted');
+    this.mode = 'CLASSIC';
+    this.start();
+  }
+
+  /**
+   * The chase, answered.
+   *
+   * The reveal never waits on the network: a player who has just batted thirty
+   * balls should not meet a spinner. The innings is held on the device the
+   * moment it ends, so a failure here costs a delay and never the innings.
+   */
+  private async finishChase() {
+    const { name, avatar } = this.batter;
+    if (!this.player) return;
+    const answer = await this.challenge.finish(this.player, name, avatar, this.score);
+    if (!answer.ok || !answer.challenge) {
+      this.hud.end(this.score, this.best, false);
+      this.hud.claimFailed(answer.reason ?? 'Your innings is saved and will be sent.');
+      return;
+    }
+    track('challenge-answered', 'Challenge answered');
+    const view = resultView(answer.challenge, this.player, challengeLink(answer.challenge.code));
+    this.challenge.clear();
+    this.hud.challengeResult(view);
+  }
+
+  /**
+   * What was waiting when the game was opened.
+   *
+   * Three things, in the order they matter: an innings that never reached the
+   * server, a link that was tapped, and a challenge of this browser's that
+   * somebody has since answered. None of them costs a call unless there is
+   * something to ask about.
+   */
+  private async openChallenges() {
+    if (!this.player) return;
+    void ChallengeRun.retryUnsent(this.player);
+    this.hud.challengesOpen(0);
+
+    const opened = await this.challenge.fromLink();
+    if (opened && 'challenge' in opened) {
+      const from = this.challenge.opponent;
+      // The two ways a link cannot be batted: it is yours, or you have already
+      // answered it. Both show the scoreline rather than a dead end.
+      const already = this.challenge.answeredBy(this.player);
+      if (already || this.challenge.isMine(this.player)) {
+        if (opened.challenge.state === 'answered') {
+          this.hud.challengeResult(resultView(opened.challenge, this.player, challengeLink(opened.challenge.code)));
+        }
+        return;
+      }
+      if (from) {
+        // When it was set is already inside the packed score — the board's own
+        // number carries the stamp it was ranked on — so it is read back from
+        // there rather than sent a second time as a field of its own.
+        this.hud.challengeFrom(from, closesIn(unpackScore(from.score).atMs), this.batter.name);
+        return;
+      }
+    }
+
+    const answered = await ChallengeRun.answered(this.player);
+    if (answered.length) {
+      const latest = answered[0];
+      const view = resultView(latest, this.player, challengeLink(latest.code));
+      this.hud.challengeWaiting(view);
+    }
+    this.hud.challengesOpen(0);
+  }
+
   private snapshot() {
     return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed), balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',

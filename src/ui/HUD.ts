@@ -1,6 +1,9 @@
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
+import { kitMarkup } from './Leaderboard';
+import type { ChallengeRow } from '../game/challenge-api';
+import { decodeInnings } from '../game/ball-string';
 import { track } from '../game/analytics';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
@@ -236,6 +239,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               </form>
             </div>
             <div class="card-keys">
+              <button id="challenge-set" class="key-button challenge-key">CHALLENGE A FRIEND<em>with this innings</em></button>
               <button id="again" class="key-button">PLAY AGAIN</button>
               <div class="card-shares">
                 <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span>SHARE</span></a>
@@ -276,6 +280,60 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <button id="modes-cancel" class="ghost-link">Back</button>
           </div>
         </div>
+        <div id="challenge-share" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-share-title">
+          <div class="panel challenge-panel">
+            <span class="challenge-tag">CHALLENGE SET</span>
+            <h2 id="challenge-share-title">Now make someone regret opening WhatsApp.</h2>
+            <p id="challenge-code" class="challenge-code" role="img"></p>
+            <div class="challenge-message">
+              <span class="challenge-message-label">MESSAGE</span>
+              <p id="challenge-preview"></p>
+            </div>
+            <label class="challenge-toggle">
+              <input id="challenge-show-score" type="checkbox">
+              <span>Show my score in the message</span>
+            </label>
+            <p class="challenge-note">One friend can answer &middot; closes in 7 days</p>
+            <a id="challenge-whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span>SEND ON WHATSAPP</span></a>
+            <div class="challenge-alt">
+              <button id="challenge-copy" class="quiet-key">COPY LINK</button>
+              <button id="challenge-more" class="quiet-key">MORE APPS</button>
+            </div>
+            <button id="challenge-share-done" class="ghost-link">Back to the card</button>
+          </div>
+        </div>
+        <div id="challenge-join" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-join-title">
+          <div class="panel challenge-panel">
+            <p class="challenge-from"><span id="challenge-from-kit" class="board-kit"></span><span class="challenge-from-who"><b id="challenge-from-name"></b><em id="challenge-from-closes"></em></span></p>
+            <h2 id="challenge-join-title">30 balls. Beat a score you can't see.</h2>
+            <p id="challenge-join-copy"></p>
+            <label class="claim-field"><span>Your name</span><input id="challenge-name" name="challenge-name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="go" placeholder="Up to 14 characters"></label>
+            <p id="challenge-join-error" class="claim-error hidden" role="alert"></p>
+            <button id="challenge-bat" class="key-button">BAT</button>
+            <button id="challenge-solo" class="ghost-link">Bat solo instead</button>
+          </div>
+        </div>
+        <div id="challenge-result" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-result-title">
+          <div class="panel challenge-panel">
+            <span id="challenge-result-tag" class="challenge-tag"></span>
+            <h2 id="challenge-result-title"></h2>
+            <p id="challenge-result-sub"></p>
+            <div id="challenge-scoreline" class="challenge-scoreline"></div>
+            <a id="challenge-tell" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span>TELL THEM</span></a>
+            <button id="challenge-rematch" class="key-button">REMATCH</button>
+            <button id="challenge-result-done" class="ghost-link">Back to the menu</button>
+          </div>
+        </div>
+        <div id="challenge-waiting" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-waiting-title">
+          <div class="panel challenge-panel">
+            <span class="challenge-tag">WHILE YOU WERE AWAY</span>
+            <h2 id="challenge-waiting-title"></h2>
+            <p id="challenge-waiting-sub"></p>
+            <div id="challenge-waiting-scoreline" class="challenge-scoreline"></div>
+            <button id="challenge-waiting-rematch" class="key-button">REMATCH</button>
+            <button id="challenge-waiting-done" class="ghost-link">Close</button>
+          </div>
+        </div>
         <div id="end-survive" class="modal-overlay result-screen hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
           <div class="result-card">
             <span class="result-plate"><img id="survive-plate" src="" alt="" decoding="async" /></span>
@@ -304,6 +362,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             </div>
           </div>
         </div>
+        <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"><span id="ghost-who" class="ghost-who"></span><span id="ghost-result" class="ghost-result"></span></div>
         <div id="share-status" class="share-status hidden" role="status"></div>
         <pre id="debug" class="debug hidden"></pre>
       </div>
@@ -1036,6 +1095,149 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }).join('');
   }
 
+  /* ── The challenge ─────────────────────────────────────────────────── */
+
+  /**
+   * The share screen, once an innings has become a challenge.
+   *
+   * The message is shown as it will land, because the hook is the whole job of
+   * this screen and nobody should have to send it to find out what it says. The
+   * score toggle starts off: the number is the one thing the mode hides for five
+   * overs, so putting it in a notification has to be a decision rather than a
+   * default.
+   */
+  challengeReady(code: string, runs: number, link: (withScore: boolean) => { text: string; whatsapp: string }) {
+    this.shut();
+    this.$('challenge-code').innerHTML = [...code].map(char => `<span>${char}</span>`).join('');
+    this.$('challenge-code').setAttribute('aria-label', `Challenge code ${[...code].join(' ')}`);
+    const toggle = this.$('challenge-show-score') as HTMLInputElement;
+    toggle.checked = false;
+    const draw = () => {
+      const { text, whatsapp } = link(toggle.checked);
+      this.$('challenge-preview').textContent = text;
+      (this.$('challenge-whatsapp') as HTMLAnchorElement).href = whatsapp;
+    };
+    toggle.onchange = draw;
+    draw();
+    this.open('challenge-share');
+    this.$('challenge-whatsapp').focus();
+    void runs;
+  }
+
+  /**
+   * The screen a link lands on.
+   *
+   * A first-timer meets this and nothing else — no cover, no picker, no
+   * tutorial. They tapped something that said "play cricket with me", and every
+   * screen between them and a bat is a screen that loses some of them.
+   */
+  challengeFrom(from: ChallengeRow, closes: string, name: string) {
+    this.shut();
+    // The cover goes, and stays gone. Somebody arriving on a link was told they
+    // were about to play cricket with a friend; a title screen and a Top 50 key
+    // behind the panel are two things they did not ask for and one of them is a
+    // way out of the thing they came for.
+    this.$('intro').classList.add('hidden');
+    this.$('challenge-from-kit').outerHTML = kitMarkup(from.avatar, from.name).replace('board-kit', 'board-kit" id="challenge-from-kit');
+    this.$('challenge-from-name').textContent = `${from.name} challenged you`;
+    this.$('challenge-from-closes').textContent = closes;
+    this.$('challenge-join-copy').textContent =
+      `${from.name}'s shots flash up as you bat. The total stays hidden till ball 30.`;
+    const field = this.$('challenge-name') as HTMLInputElement;
+    field.value = name;
+    this.$('challenge-join-error').classList.add('hidden');
+    this.open('challenge-join');
+    (name ? this.$('challenge-bat') : field).focus();
+  }
+
+  /** What the joiner typed, for the caller to take or refuse. */
+  get challengeName() { return (this.$('challenge-name') as HTMLInputElement).value; }
+
+  challengeJoinError(reason: string | null) {
+    const line = this.$('challenge-join-error');
+    line.textContent = reason ?? '';
+    line.classList.toggle('hidden', !reason);
+  }
+
+  /**
+   * One ball of the other innings, flashed between deliveries.
+   *
+   * Never during one: the ball is in the air for the best part of a second and a
+   * number moving beside it is a number that costs somebody their wicket. The
+   * caller owns the timing; this only puts it up and takes it down.
+   */
+  ghost(who: string, avatar: number, result: string, kind: 'runs' | 'out' | 'big') {
+    const flash = this.$('ghost-flash');
+    this.$('ghost-who').innerHTML = `${kitMarkup(avatar, who)}<span>${who}</span>`;
+    this.$('ghost-result').textContent = result;
+    flash.classList.toggle('is-out', kind === 'out');
+    flash.classList.toggle('is-big', kind === 'big');
+    flash.classList.remove('hidden');
+    // Two frames, so the browser has laid the element out before the class that
+    // animates it arrives — otherwise it appears already finished.
+    requestAnimationFrame(() => requestAnimationFrame(() => flash.classList.add('is-up')));
+  }
+
+  ghostAway() {
+    const flash = this.$('ghost-flash');
+    flash.classList.remove('is-up');
+    setTimeout(() => flash.classList.add('hidden'), 240);
+  }
+
+  /** The reveal, after the thirtieth ball and not a moment before it. */
+  challengeResult(view: ChallengeResultView) {
+    this.shut();
+    this.$('challenge-result-tag').textContent = view.tag;
+    this.$('challenge-result-title').textContent = view.title;
+    this.$('challenge-result-sub').textContent = view.sub;
+    this.$('challenge-scoreline').innerHTML = view.players.map(row => scoreline(row, view.you)).join('');
+    const tell = this.$('challenge-tell') as HTMLAnchorElement;
+    tell.href = view.whatsapp;
+    tell.querySelector('span')!.textContent = view.tell;
+    this.open('challenge-result');
+    this.$('challenge-rematch').focus();
+  }
+
+  /** The card a challenger meets on the open after somebody answered them. */
+  challengeWaiting(view: ChallengeResultView) {
+    this.shut();
+    this.$('challenge-waiting-title').textContent = view.title;
+    this.$('challenge-waiting-sub').textContent = view.sub;
+    this.$('challenge-waiting-scoreline').innerHTML = view.players.map(row => scoreline(row, view.you)).join('');
+    this.open('challenge-waiting');
+    this.$('challenge-waiting-done').focus();
+  }
+
+  /** How many challenges of this browser's are still unanswered, worn on the card. */
+  challengesOpen(count: number) {
+    const flag = this.$('mode-challenge-flag');
+    flag.textContent = count > 0 ? `${count} OPEN` : 'NEW';
+    flag.classList.toggle('is-open', count > 0);
+  }
+
+  /** Puts one of the challenge screens up, and the overlay state with it. */
+  private open(id: string) {
+    this.viewport.classList.add('modal-open');
+    this.$(id).classList.remove('hidden');
+  }
+
+  /** Puts the cover back, for a joiner who chose to bat alone instead. */
+  showCover() { this.$('intro').classList.remove('hidden'); }
+
+  /** Takes every challenge screen down. Called before putting one up. */
+  shut() {
+    for (const id of ['challenge-share', 'challenge-join', 'challenge-result', 'challenge-waiting']) {
+      this.$(id).classList.add('hidden');
+    }
+  }
+
+  /** And the overlay with them, when nothing else is holding it. */
+  closeChallenge() {
+    this.shut();
+    const held = ['end', 'end-survive', 'modes'].some(id => !this.$(id).classList.contains('hidden'));
+    if (!held) this.viewport.classList.remove('modal-open');
+  }
+
   sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }
   debug(data: object) { this.$('debug').classList.remove('hidden'); this.$('debug').textContent = Object.entries(data).map(([k, v]) => `${k}: ${v}`).join('\n'); }
   async share() {
@@ -1052,4 +1254,48 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('share-status').classList.remove('hidden');
   }
   error() { document.body.classList.remove('start-screen'); this.$('intro').className = 'panel intro-panel'; this.$('intro').innerHTML = '<span class="challenge-tag">WEBGL UNAVAILABLE</span><h2>The ground couldn’t load.</h2><p>Enable hardware acceleration in your browser, then reload to play.</p><button class="primary-button" onclick="location.reload()">RELOAD GAME</button>'; }
+}
+
+
+/** What the two reveal screens are handed. */
+export interface ChallengeResultView {
+  tag: string;
+  title: string;
+  sub: string;
+  /** Best first. */
+  players: readonly ChallengeRow[];
+  /** Which row is the reader's, so it can be marked. */
+  you: string;
+  whatsapp: string;
+  tell: string;
+}
+
+/**
+ * One innings on the scoreline: who, what they made, and the same ball-by-ball
+ * track the end card draws — so the two screens are plainly the same game.
+ *
+ * The balls nobody faced stay on the track as gaps, which is what makes an
+ * innings that ended in two overs *look* like one that ended in two overs.
+ */
+function scoreline(row: ChallengeRow, you: string): string {
+  const balls = decodeInnings(row.card);
+  const track = Array.from({ length: GAME.totalBalls }, (_, i) => {
+    const ball = balls[i];
+    if (!ball) return '<i class="is-unfaced"></i>';
+    return `<i class="${ball.isWicket ? 'is-out' : ''}" style="--r:${Math.min(6, ball.runs)}"></i>`;
+  }).join('');
+  const mine = row.playerId === you;
+  return `<div class="challenge-innings${mine ? ' is-you' : ''}">
+    <div class="challenge-innings-head">
+      <span class="challenge-innings-name">${mine ? 'You' : escapeName(row.name)}${row.challenger ? ' <em>&middot; set it</em>' : ''}</span>
+      <span class="challenge-innings-runs">${row.runs}<em>/${row.wickets}</em></span>
+    </div>
+    <div class="challenge-track" aria-hidden="true">${track}</div>
+  </div>`;
+}
+
+/** A name is somebody else's text, so it never reaches innerHTML as it stands. */
+function escapeName(name: string): string {
+  return name.replace(/[&<>"']/g, char =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
 }
