@@ -1344,9 +1344,12 @@ export class Batter {
       const pad = new THREE.Group(); this.root.add(pad);
       // One clean shell with a knee roll sitting flush on top of it. The
       // vertical rolls that used to stand proud of the face read as clutter.
-      this.mesh(pad, this.palette.legPad, [.19, .40, .16], 'soft');
-      const kneeRoll = this.mesh(pad, this.palette.legPad, [.17, .085, .13], 'soft'); kneeRoll.position.set(0, .215, .02);
-      for (const y of [-.11, .05]) this.mesh(pad, this.palette.accent, [.176, .022, .155], 'soft').position.set(0, y, -.006);
+      // The pad sits in front of the shin rather than around it, so the
+      // leg never shows through its face, and its straps are white so its
+      // edge reads against trousers of nearly the same blue.
+      this.mesh(pad, this.palette.legPad, [.20, .40, .17], 'soft').position.z = .05;
+      const kneeRoll = this.mesh(pad, this.palette.legPad, [.18, .085, .14], 'soft'); kneeRoll.position.set(0, .215, .07);
+      for (const y of [-.11, .05]) this.mesh(pad, this.palette.pad, [.186, .022, .16], 'soft').position.set(0, y, .046);
       const shoe = new THREE.Group(); this.root.add(shoe);
       this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
       this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);

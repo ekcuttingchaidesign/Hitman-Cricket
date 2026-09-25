@@ -9,29 +9,17 @@ import { WHITES } from '../config/survive';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { flightOf } from './flight';
 import { contactTexture, outfieldTexture, pitchTexture, skyDome } from './surfaces';
+import { createVenue } from './venue';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
 const BEATEN_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
 const colors = { grass: 0x668b49, grassLight: 0x70974e, pitch: 0xcbb283, navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
 const materials = new Map<number, THREE.MeshStandardMaterial>();
-// Scenery keeps its faceted, low-poly look; anything sculpted asks for `soft`.
-function mat(color: number) {
-  if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true }));
-  return materials.get(color)!;
-}
 function soft(color: number, roughness = 0.72) {
   const key = color + 0x1000000;
   if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness }));
   return materials.get(key)!;
-}
-function box(parent: THREE.Object3D, w: number, h: number, d: number, color: number, x = 0, y = 0, z = 0) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
-  mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
-}
-function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x: number, y: number, z: number, sides = 8) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sides), sides > 8 ? soft(color, 0.8) : mat(color));
-  mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
 // The ball and its trail are the only things left that want a bare sphere;
 // every figure on the field is a Cricketer, which carries its own primitives.
@@ -116,11 +104,11 @@ export class GameScene {
     // so it costs the renderer nothing.
     this.vignette = document.createElement('div');
     this.vignette.setAttribute('aria-hidden', 'true');
-    this.vignette.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 68% at 50% 46%, rgba(8,16,30,0) 58%, rgba(8,16,30,.30) 100%)';
+    this.vignette.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 68% at 50% 46%, rgba(20,14,6,0) 58%, rgba(20,14,6,.30) 100%)';
     this.renderer.domElement.after(this.vignette);
     // The fog is the horizon's colour and starts beyond the stands, so the
     // outfield keeps its green and only the far trees go hazy.
-    this.scene.fog = new THREE.Fog(0xc9e6f4, 95, 210);
+    this.scene.fog = new THREE.Fog(0xd2e4ec, 95, 210);
     this.scene.add(skyDome(160));
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
@@ -138,10 +126,10 @@ export class GameScene {
     pmrem.dispose(); floor.geometry.dispose(); (floor.material as THREE.Material).dispose();
     this.scene.environment = this.environment.texture;
     this.scene.environmentIntensity = 0.6;
-    this.scene.add(new THREE.HemisphereLight(0xbcdcff, 0x5f7a44, 1.15));
+    this.scene.add(new THREE.HemisphereLight(0xcfe0f5, 0x6f7f40, 1.15));
     // A warm sun high in front and to the off side, so the shadows fall
     // towards the camera and the batter's back is lit, as on the cover.
-    const sun = new THREE.DirectionalLight(0xffe9c6, 3.9); sun.position.set(-13, 30, 11); sun.castShadow = true;
+    const sun = new THREE.DirectionalLight(0xffd9a3, 3.9); sun.position.set(-13, 30, 11); sun.castShadow = true;
     sun.target.position.set(0, 0, 6); this.scene.add(sun.target);
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025; sun.shadow.radius = 1.6;
@@ -149,7 +137,7 @@ export class GameScene {
     // A soft fill from behind the camera. With the sun in front, the side of
     // every figure the camera sees is the shaded one, and without this the
     // bowler is a silhouette against the boards.
-    const fill = new THREE.DirectionalLight(0xd6e6ff, 0.7); fill.position.set(6, 14, -24); this.scene.add(fill);
+    const fill = new THREE.DirectionalLight(0xf2e6d2, 0.7); fill.position.set(6, 14, -24); this.scene.add(fill);
     this.createGround();
     this.placeClouds();
     this.wicket(0); this.wicket(18.7);
@@ -192,8 +180,6 @@ export class GameScene {
     this.painted.push(strip);
     const pitch = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 32), new THREE.MeshStandardMaterial({ map: strip, roughness: 0.98 }));
     pitch.rotation.x = -Math.PI / 2; pitch.position.set(0, 0.012, 4.3); pitch.receiveShadow = true; this.world.add(pitch);
-    const boundary = new THREE.Mesh(new THREE.TorusGeometry(GAME.boundaryRadius, 0.055, 5, 128), mat(colors.white));
-    boundary.rotation.x = Math.PI / 2; boundary.position.set(0, 0.06, 10); this.world.add(boundary);
     this.createStadium();
     // Feet want shade under them or a figure floats on the grass. A soft disc
     // under every figure does most of what an occlusion pass would, for one
@@ -239,7 +225,7 @@ export class GameScene {
         // Spread across the half of the sky the camera can see, none of them
         // straight down the pitch where the pavilion and the flags already are.
         const angle = (-0.66 + (i + 0.5) / clusters * 1.32 + (rng() - 0.5) * 0.06) * Math.PI;
-        const radius = 112 + rng() * 32, height = 5 + rng() * 11, width = 9 + rng() * 11;
+        const radius = 115 + rng() * 30, height = 17 + rng() * 14, width = 9 + rng() * 11;
         const centre = new THREE.Vector3(Math.sin(angle) * radius, height, 10 + Math.cos(angle) * radius);
         for (let j = 0; j < perCluster; j++) {
           const part = width * (j === 0 ? 1 : 0.55 + rng() * 0.4);
@@ -252,45 +238,7 @@ export class GameScene {
       this.scene.add(clouds);
     }, undefined, () => { /* A clear sky. */ });
   }
-  private createStadium() {
-    const seatGeometry = new THREE.BoxGeometry(0.6, 0.55, 0.55);
-    const crowd = new THREE.InstancedMesh(seatGeometry, mat(0xffffff), 1344);
-    const dummy = new THREE.Object3D(); let index = 0;
-    const seatColors = [0x22465a, 0xf5bf71, 0xc8dbce, 0xf4794c, 0xe9e0c9, 0x467787];
-    for (let section = 0; section < 28; section++) {
-      const a = section / 28 * Math.PI * 2;
-      const group = new THREE.Group(); group.position.set(Math.sin(a) * 39, 0, 10 + Math.cos(a) * 39); group.rotation.y = a; this.world.add(group);
-      box(group, 8.7, 1.5, 1.2, section % 3 ? colors.navy : colors.orange, 0, 0.75, -3.3);
-      for (let row = 0; row < 4; row++) {
-        box(group, 8.5, 0.7 + row * 0.7, 1.4, 0x7d9397, 0, (0.7 + row * 0.7) / 2, -1.7 + row * 1.4);
-        for (let col = 0; col < 12; col++) {
-          dummy.position.set(-3.9 + col * 0.71, 1 + row * 0.7, -1.7 + row * 1.4);
-          dummy.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), a).add(group.position);
-          dummy.rotation.y = a; dummy.updateMatrix(); crowd.setMatrixAt(index, dummy.matrix);
-          crowd.setColorAt(index, new THREE.Color(seatColors[(section * 13 + row * 7 + col * 3 + col % 2) % seatColors.length])); index++;
-        }
-      }
-      if (section % 4 !== 0) {
-        box(group, 9.1, 0.25, 7.5, 0xc7d3cd, 0, 5.3, 0.4).rotation.x = -0.07;
-        [-3.9, 3.9].forEach(x => cylinder(group, 0.075, 5.2, 0x627d83, x, 2.6, 3.3));
-      }
-    }
-    crowd.instanceMatrix.needsUpdate = true; this.world.add(crowd);
-    for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
-      cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
-      box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
-      for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(this.world, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
-    }
-    // Clubhouse pavilion at the bowler's end.
-    box(this.world, 13, 7, 5, 0xe0d7bc, 0, 3.5, 53);
-    box(this.world, 15, 0.45, 6, colors.navy, 0, 7, 53);
-    box(this.world, 9, 2, 0.08, colors.navy, 0, 4.1, 50.46);
-    for (let i = -2; i <= 2; i++) box(this.world, 1.3, 1.6, 0.1, 0x406876, i * 2.4, 1.8, 50.45);
-    for (let i = -1; i <= 1; i++) {
-      cylinder(this.world, 0.05, 3, 0xe9e3cb, i * 4, 8.6, 53);
-      box(this.world, 1.15, 0.65, 0.04, i === 0 ? colors.orange : colors.navy, i * 4 + 0.56, 9.5, 53);
-    }
-  }
+  private createStadium() { this.world.add(createVenue(colors, GAME.boundaryRadius)); }
   private wicket(z: number) {
     // Stumps taper a little towards a domed top, in an ivory rather than a
     // paper white; the bails are the barrel shape of the real thing, in wood.
