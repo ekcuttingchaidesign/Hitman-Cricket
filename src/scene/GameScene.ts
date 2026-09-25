@@ -107,7 +107,7 @@ export class GameScene {
     // of a figure bloom against its shaded side, which is most of what reads
     // as a photograph rather than a diagram.
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1.2;
     this.renderer.setClearColor(0xc9e6f4);
     container.prepend(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
@@ -116,11 +116,11 @@ export class GameScene {
     // so it costs the renderer nothing.
     this.vignette = document.createElement('div');
     this.vignette.setAttribute('aria-hidden', 'true');
-    this.vignette.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 68% at 50% 46%, rgba(8,16,30,0) 55%, rgba(8,16,30,.38) 100%)';
+    this.vignette.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 68% at 50% 46%, rgba(8,16,30,0) 58%, rgba(8,16,30,.30) 100%)';
     this.renderer.domElement.after(this.vignette);
     // The fog is the horizon's colour and starts beyond the stands, so the
     // outfield keeps its green and only the far trees go hazy.
-    this.scene.fog = new THREE.Fog(0xc9e6f4, 70, 170);
+    this.scene.fog = new THREE.Fog(0xc9e6f4, 95, 210);
     this.scene.add(skyDome(160));
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
@@ -138,10 +138,10 @@ export class GameScene {
     pmrem.dispose(); floor.geometry.dispose(); (floor.material as THREE.Material).dispose();
     this.scene.environment = this.environment.texture;
     this.scene.environmentIntensity = 0.6;
-    this.scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x5f7a44, 1.0));
+    this.scene.add(new THREE.HemisphereLight(0xbcdcff, 0x5f7a44, 1.15));
     // A warm sun high in front and to the off side, so the shadows fall
     // towards the camera and the batter's back is lit, as on the cover.
-    const sun = new THREE.DirectionalLight(0xffe6bf, 3.6); sun.position.set(-13, 30, 11); sun.castShadow = true;
+    const sun = new THREE.DirectionalLight(0xffe9c6, 3.9); sun.position.set(-13, 30, 11); sun.castShadow = true;
     sun.target.position.set(0, 0, 6); this.scene.add(sun.target);
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025; sun.shadow.radius = 1.6;
@@ -149,7 +149,7 @@ export class GameScene {
     // A soft fill from behind the camera. With the sun in front, the side of
     // every figure the camera sees is the shaded one, and without this the
     // bowler is a silhouette against the boards.
-    const fill = new THREE.DirectionalLight(0xd6e6ff, 0.55); fill.position.set(6, 14, -24); this.scene.add(fill);
+    const fill = new THREE.DirectionalLight(0xd6e6ff, 0.7); fill.position.set(6, 14, -24); this.scene.add(fill);
     this.createGround();
     this.placeClouds();
     this.wicket(0); this.wicket(18.7);
@@ -239,7 +239,7 @@ export class GameScene {
         // Spread across the half of the sky the camera can see, none of them
         // straight down the pitch where the pavilion and the flags already are.
         const angle = (-0.66 + (i + 0.5) / clusters * 1.32 + (rng() - 0.5) * 0.06) * Math.PI;
-        const radius = 105 + rng() * 35, height = 9 + rng() * 22, width = 9 + rng() * 11;
+        const radius = 112 + rng() * 32, height = 5 + rng() * 11, width = 9 + rng() * 11;
         const centre = new THREE.Vector3(Math.sin(angle) * radius, height, 10 + Math.cos(angle) * radius);
         for (let j = 0; j < perCluster; j++) {
           const part = width * (j === 0 ? 1 : 0.55 + rng() * 0.4);
@@ -292,9 +292,21 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    for (const x of [-0.145, 0, 0.145]) cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
+    // Stumps taper a little towards a domed top, in an ivory rather than a
+    // paper white; the bails are the barrel shape of the real thing, in wood.
+    // Both lie along their axes in the geometry, so a bail can be flung about
+    // by `breakBails` with plain rotations.
+    const ivory = soft(0xf6f1e4, 0.55);
+    for (const x of [-0.145, 0, 0.145]) {
+      const stump = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, GAME.stumpHeight, 20), ivory);
+      stump.position.set(x, GAME.stumpHeight / 2, z); stump.castShadow = true; this.world.add(stump);
+      const top = new THREE.Mesh(SHAPES.ball, ivory); top.scale.set(0.018, 0.012, 0.018); top.position.set(x, GAME.stumpHeight, z); this.world.add(top);
+    }
+    const barrel = new THREE.LatheGeometry([[0.0055, 0], [0.0095, 0.012], [0.0135, 0.028], [0.0135, 0.082], [0.0095, 0.098], [0.0055, 0.11]].map(([r, y]) => new THREE.Vector2(r, y - 0.055)), 14);
+    barrel.rotateZ(Math.PI / 2);
     for (const x of [-0.073, 0.073]) {
-      const bail = box(this.world, 0.16, 0.035, 0.045, colors.orange, x, GAME.stumpHeight + 0.02, z);
+      const bail = new THREE.Mesh(barrel, soft(0xd9a548, 0.6));
+      bail.position.set(x, GAME.stumpHeight + 0.02, z); bail.castShadow = true; this.world.add(bail);
       if (z === 0) this.bails.push(bail);
     }
   }

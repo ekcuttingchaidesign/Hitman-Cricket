@@ -69,7 +69,7 @@ function texture(el: HTMLCanvasElement, anisotropy: number) {
  */
 export function outfieldTexture(radius: number, anisotropy: number, size = 1536) {
   const { el, ctx } = canvas(size, size), px = size / (radius * 2);
-  ctx.fillStyle = '#3c9a2c'; ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#33a028'; ctx.fillRect(0, 0, size, size);
   // The mower's bands, along the pitch, about five metres wide.
   const band = 5 * px;
   for (let x = 0, i = 0; x < size; x += band, i++) {
@@ -165,8 +165,8 @@ export function skyDome(radius: number) {
   const material = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false,
     uniforms: {
-      zenith: { value: new THREE.Color('#2f7ed4') },
-      middle: { value: new THREE.Color('#63a9e8') },
+      zenith: { value: new THREE.Color('#1f6fd4') },
+      middle: { value: new THREE.Color('#4a9ce6') },
       horizon: { value: new THREE.Color('#c9e6f4') },
     },
     vertexShader: `varying vec3 dir; void main() { dir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,

@@ -1342,10 +1342,11 @@ export class Batter {
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
-      this.mesh(pad, this.palette.legPad, [.20, .38, .175], 'soft');
-      for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.legPad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
-      for (const y of [-.10, .06]) this.mesh(pad, this.palette.accent, [.185, .026, .17], 'soft').position.set(0, y, -.008);
-      this.mesh(pad, this.palette.legPad, [.115, .07, .10], 'ball').position.set(0, .21, .03);
+      // One clean shell with a knee roll sitting flush on top of it. The
+      // vertical rolls that used to stand proud of the face read as clutter.
+      this.mesh(pad, this.palette.legPad, [.19, .40, .16], 'soft');
+      const kneeRoll = this.mesh(pad, this.palette.legPad, [.17, .085, .13], 'soft'); kneeRoll.position.set(0, .215, .02);
+      for (const y of [-.11, .05]) this.mesh(pad, this.palette.accent, [.176, .022, .155], 'soft').position.set(0, y, -.006);
       const shoe = new THREE.Group(); this.root.add(shoe);
       this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
       this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);
