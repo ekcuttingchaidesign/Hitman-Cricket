@@ -156,10 +156,10 @@ export function contactTexture() {
 
 /**
  * The sky: a dome the camera sits inside, coloured by the direction it is
- * looked at. Deep blue overhead easing to a pale horizon, with soft cumulus
- * drawn from layered noise, brightest on top and a little grey underneath.
- * It is not tone mapped and takes no fog, because it is the colour the fog
- * fades everything else towards.
+ * looked at, deep blue overhead easing to a pale horizon. The clouds are
+ * modelled and placed in front of it by the scene. It is not tone mapped and
+ * takes no fog, because it is the colour the fog fades everything else
+ * towards.
  */
 export function skyDome(radius: number) {
   const material = new THREE.ShaderMaterial({
@@ -168,35 +168,16 @@ export function skyDome(radius: number) {
       zenith: { value: new THREE.Color('#2f7ed4') },
       middle: { value: new THREE.Color('#63a9e8') },
       horizon: { value: new THREE.Color('#c9e6f4') },
-      cloudTop: { value: new THREE.Color('#ffffff') },
-      cloudBase: { value: new THREE.Color('#b9cbde') },
     },
     vertexShader: `varying vec3 dir; void main() { dir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `
       varying vec3 dir;
-      uniform vec3 zenith, middle, horizon, cloudTop, cloudBase;
-      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p) {
-        vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + 1.0), f.x), f.y);
-      }
-      float fbm(vec2 p) { return noise(p) * .55 + noise(p * 2.03 + 1.7) * .27 + noise(p * 4.1 + 3.1) * .18; }
+      uniform vec3 zenith, middle, horizon;
       void main() {
         vec3 d = normalize(dir);
         float h = max(d.y, 0.0);
         vec3 color = mix(horizon, middle, smoothstep(0.0, .22, h));
         color = mix(color, zenith, smoothstep(.18, .75, h));
-        // Clouds live on a flat layer above the ground, so they flatten and
-        // crowd together towards the horizon the way real ones do.
-        vec2 p = d.xz / (h + .30) * .75 + vec2(3.0, 1.0);
-        float n = fbm(p);
-        // Rounded tops: the body threshold is soft and the lit face is the same
-        // noise read a little higher, so every cloud is bright above and grey below.
-        float body = smoothstep(.50, .61, n);
-        float lit = smoothstep(.53, .74, n + noise(p * 3.7 + 9.0) * .10);
-        vec3 cloud = mix(cloudBase, cloudTop, lit);
-        float fade = smoothstep(.03, .16, h) * (1.0 - smoothstep(.50, .92, h));
-        color = mix(color, cloud, body * fade * .97);
         gl_FragColor = vec4(color, 1.0);
         #include <colorspace_fragment>
       }`,

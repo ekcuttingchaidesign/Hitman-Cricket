@@ -101,7 +101,9 @@ export interface Kit {
   cap: number;
   shoe: number;
 }
-export const KIT: Kit = { shirt: 0xe4703a, trousers: 0xf4f0e4, skin: 0xb77950, trim: 0xfbf7ec, cap: 0xe4703a, shoe: 0xfbf7ec };
+// The fielding side is in the yellow and green of an Australian one-day kit,
+// which also keeps them legible against the orange boards behind them.
+export const KIT: Kit = { shirt: 0xf2dd1c, trousers: 0xeed42a, skin: 0xb77950, trim: 0x1f5a34, cap: 0x1f5a34, shoe: 0xfbf7ec };
 /**
  * The parts of a kit a figure can be re-dressed in. `flash` is the strip of
  * shirt colour across the toe of the boot — it is the one place a kit colour is

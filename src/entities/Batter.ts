@@ -1247,12 +1247,12 @@ export class Batter {
     blade: bladeGeometry(),
   };
   private palette = {
-    shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
+    shirt: new THREE.MeshStandardMaterial({ color: 0x1f7fd2, roughness: .88 }),
     // The helmet is its own material rather than the shirt's, because it is navy
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
     helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
-    trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
+    trousers: new THREE.MeshStandardMaterial({ color: 0x1b6fc0, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
@@ -1270,8 +1270,8 @@ export class Batter {
    * its mind without the scene being torn down and rebuilt around it.
    */
   dress(whites: boolean) {
-    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x19334a);
-    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0xe7e2d3);
+    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x1f7fd2);
+    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0x1b6fc0);
     this.palette.accent.color.setHex(whites ? 0xd9d3c3 : 0xed7044);
   }
 

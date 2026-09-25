@@ -6,6 +6,7 @@ import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { flightOf } from './flight';
 import { contactTexture, outfieldTexture, pitchTexture, skyDome } from './surfaces';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
@@ -88,6 +89,7 @@ export class GameScene {
   private footShade: THREE.Mesh[] = [];
   private figureShade: { mesh: THREE.Mesh; of: THREE.Object3D }[] = [];
   private footPoints = [new THREE.Vector3(), new THREE.Vector3()];
+  private disposed = false;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -133,7 +135,12 @@ export class GameScene {
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025; sun.shadow.radius = 3;
     this.scene.add(sun);
+    // A soft fill from behind the camera. With the sun in front, the side of
+    // every figure the camera sees is the shaded one, and without this the
+    // bowler is a silhouette against the boards.
+    const fill = new THREE.DirectionalLight(0xfff4e6, 1.0); fill.position.set(6, 14, -24); this.scene.add(fill);
     this.createGround();
+    this.placeClouds();
     this.wicket(0); this.wicket(18.7);
     this.catcher.root.position.set(12, 0, 20);
     this.world.add(this.batter.root, this.bowler.root, this.catcher.root);
@@ -194,6 +201,38 @@ export class GameScene {
       this.fielders.push(fielder);
       this.figureShade.push({ mesh: shade(1.2, 0.9), of: fielder.root });
     });
+  }
+  /**
+   * The clouds are a modelled shape, placed round the sky in front of the
+   * dome and behind the stands. It arrives as a file, so it is asked for and
+   * placed when it lands; a sky with no clouds is the fallback, not an error.
+   */
+  private placeClouds() {
+    new GLTFLoader().load('models/cloud.glb', gltf => {
+      if (this.disposed) return;
+      let shape: THREE.BufferGeometry | undefined;
+      gltf.scene.traverse(object => { if (object instanceof THREE.Mesh && !shape) shape = object.geometry; });
+      if (!shape) return;
+      const count = 12;
+      const clouds = new THREE.InstancedMesh(shape, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xb8c8d8, emissiveIntensity: 0.32, fog: false }), count);
+      clouds.name = 'Clouds';
+      // Low over the stands, as the cover has them, and never culled as a group.
+      clouds.frustumCulled = false;
+      const dummy = new THREE.Object3D();
+      let seed = 11;
+      const rng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+      for (let i = 0; i < count; i++) {
+        // Spread across the half of the sky the camera can see, none of them
+        // straight down the pitch where the pavilion and the flags already are.
+        const angle = (-0.62 + (i + 0.5) / count * 1.24 + (rng() - 0.5) * 0.08) * Math.PI;
+        const radius = 108 + rng() * 30, height = 12 + rng() * 16, width = 26 + rng() * 20;
+        dummy.position.set(Math.sin(angle) * radius, height, 10 + Math.cos(angle) * radius);
+        dummy.rotation.set(0, rng() * Math.PI * 2, 0);
+        dummy.scale.set(width, width * (0.85 + rng() * 0.3), width);
+        dummy.updateMatrix(); clouds.setMatrixAt(i, dummy.matrix);
+      }
+      this.scene.add(clouds);
+    }, undefined, () => { /* A clear sky. */ });
   }
   private createStadium() {
     const seatGeometry = new THREE.BoxGeometry(0.6, 0.55, 0.55);
@@ -541,6 +580,7 @@ export class GameScene {
     return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1] };
   }
   dispose() {
+    this.disposed = true;
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });
