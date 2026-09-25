@@ -37,7 +37,7 @@ export function terrainMaterials(anisotropy: number) {
   };
   const grass = texture(512, 512, (x, y, n) => {
     const detail = noise(x,y,grids[0])*5 + noise(x,y,grids[1])*8 + noise(x,y,grids[2])*6 + (n-.5)*2;
-    return [73 + detail * .65, 116 + detail, 65 + detail * .55];
+    return [78 + detail * .65, 125 + detail, 40 + detail * .45];
   });
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
   grass.repeat.set(64, 64);
@@ -49,16 +49,16 @@ export function terrainMaterials(anisotropy: number) {
     shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       float ring = length(turfWorld.xz - vec2(0.0, 10.0));
       float stripe = smoothstep(-0.20, 0.20, sin(ring * 0.77));
-      diffuseColor.rgb *= mix(0.94, 1.07, stripe);
+      diffuseColor.rgb *= mix(0.92, 1.07, stripe);
     `);
   };
-  turf.customProgramCacheKey = () => 'oval-turf-v2';
+  turf.customProgramCacheKey = () => 'oval-turf-v3';
   const pitchMap = texture(512, 2048, (x, y, n) => {
     const u = x / 512;
     const lane = Math.exp(-Math.pow((u - .5) / .33, 8));
     const grain = (n - .5) * 10 + noise(x,y % 512,grids[1])*3;
     const edge = (1 - lane) * 9;
-    return [185 + grain + edge, 169 + grain + edge, 135 + grain * .7 + edge];
+    return [198 + grain + edge, 176 + grain + edge, 125 + grain * .7 + edge];
   });
   const pitchData = pitchMap.image.data as Uint8Array;
   for(let j = 0; j < 22; j++) {
@@ -76,7 +76,7 @@ export function terrainMaterials(anisotropy: number) {
 export function daylightSky() {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(150, 32, 16), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, toneMapped: false,
-    uniforms: { zenith: { value: new THREE.Color(0x70afd2) }, horizon: { value: new THREE.Color(0xcce6ef) } },
+    uniforms: { zenith: { value: new THREE.Color(0x55b4d7) }, horizon: { value: new THREE.Color(0xb9e1e9) } },
     vertexShader: 'varying vec3 ray; void main(){ ray=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
     fragmentShader: `varying vec3 ray; uniform vec3 zenith; uniform vec3 horizon;
       float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}

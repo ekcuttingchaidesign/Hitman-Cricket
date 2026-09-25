@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { terrainMaterials, daylightSky, contactTexture } from './visuals/surfaces';
 import { createVenue } from './visuals/venue';
+import { renderPixelRatio } from './visuals/renderResolution';
 import { Batter, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
@@ -86,33 +87,36 @@ export class GameScene {
   private bowling = false;
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private touchDisplay = window.matchMedia('(pointer: coarse)').matches;
+  private maxRenderDimension = 4096;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    const mobile = window.matchMedia('(pointer: coarse)').matches;
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
+    const gl = this.renderer.getContext();
+    const viewportLimit = gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array;
+    this.maxRenderDimension = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number, viewportLimit[0], viewportLimit[1]);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.04;
+    this.renderer.toneMappingExposure = 1.08;
     this.renderer.setClearColor(0x8ac6e4);
     container.prepend(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
-    this.scene.fog = new THREE.Fog(0xc4dce6, 75, 175);
+    this.scene.fog = new THREE.Fog(0xb9dce5, 90, 190);
     this.scene.add(daylightSky());
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
     this.camera.fov = 50;
     this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
-    // Bright open-sky fill and a neutral sun: pleasant daylight without a yellow wash.
-    this.scene.add(new THREE.HemisphereLight(0xdcebf5, 0x788579, 2.15));
-    const sun = new THREE.DirectionalLight(0xfffdf8, 1.85); sun.position.set(-9, 16, -8); sun.castShadow = true;
+    // Keep colour in the materials, with a clear key/fill separation for rounded forms.
+    this.scene.add(new THREE.HemisphereLight(0xd8edf9, 0x71806b, 1.55));
+    const sun = new THREE.DirectionalLight(0xfffaf0, 2.3); sun.position.set(-9, 16, -8); sun.castShadow = true;
     sun.target.position.set(0, 0, 8);
     sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
     sun.shadow.camera.top = 22; sun.shadow.camera.bottom = -12; sun.shadow.camera.near = .5; sun.shadow.camera.far = 65;
     sun.shadow.normalBias = .012; sun.shadow.bias = -.00008; sun.shadow.radius = 2;
     this.scene.add(sun, sun.target);
-    const fill = new THREE.DirectionalLight(0xdbe9f3, .5); fill.position.set(12, 8, 5); this.scene.add(fill);
+    const fill = new THREE.DirectionalLight(0xcbe5f3, .38); fill.position.set(12, 8, 5); this.scene.add(fill);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
     this.catcher.root.position.set(12, 0, 20);
@@ -197,7 +201,12 @@ export class GameScene {
     // Measuring its transformed rectangle would shrink the canvas a second time.
     const width = this.container.clientWidth, height = this.container.clientHeight;
     if (!width || !height) return; // A hidden comparison tab has no layout size.
+    const ratio = renderPixelRatio(width, height, window.devicePixelRatio, this.touchDisplay, this.maxRenderDimension);
+    // Resize at the old ratio first; never briefly allocate a huge new viewport
+    // at the previous phone's DPR while switching size/orientation.
+    if (ratio < this.renderer.getPixelRatio()) this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(width, height);
+    if (ratio !== this.renderer.getPixelRatio()) this.renderer.setPixelRatio(ratio);
     this.camera.aspect = width / height;
     // Below 16:9 the view widens towards a constant horizontal field of view, so
     // a tall phone sees the whole pitch rather than the batter's shoulders. The

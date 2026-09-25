@@ -154,13 +154,13 @@ export function createVenue() {
   root.add(lamps);
   // Smooth, irregular crowns built from overlapping lobes around a branching trunk.
   // Normals come from the curved surface, not independent icosahedron faces.
-  const sphere = new THREE.SphereGeometry(1, 20, 14);
+  const sphere = new THREE.SphereGeometry(1, 24, 16);
   sphere.deleteAttribute('normal'); sphere.deleteAttribute('uv');
   const crown = mergeVertices(sphere); sphere.dispose();
   const vertices = crown.attributes.position;
   for(let i = 0; i < vertices.count; i++) {
     const x = vertices.getX(i), y = vertices.getY(i), z = vertices.getZ(i);
-    const r = 1 + .06 * Math.sin(x * 5 + y * 2) * Math.cos(z * 4 - y * 3);
+    const r = 1 + .025 * Math.sin(x * 5 + y * 2) * Math.cos(z * 4 - y * 3);
     vertices.setXYZ(i, x * r, y * r, z * r);
   }
   crown.computeVertexNormals();
@@ -181,7 +181,7 @@ export function createVenue() {
       dummy.rotation.set(.08 * j, a + f * 3, .07 * j);
       dummy.scale.set(radius * scale, radius * scale * (.88 + .08 * (j % 3)), radius * scale);
       dummy.updateMatrix(); leaves.setMatrixAt(i * lobes.length + j, dummy.matrix);
-      leaves.setColorAt(i * lobes.length + j, col.setHSL(.32 + .035 * f, .23 + .05 * (j % 2), .235 + .06 * f + .018 * (j % 3)));
+      leaves.setColorAt(i * lobes.length + j, col.setHSL(.27 + .035 * f, .38 + .05 * (j % 2), .225 + .06 * f + .018 * (j % 3)));
     }
     for(let j = 0; j < 3; j++) {
       dummy.position.copy(center); dummy.position.y = j === 0 ? height * .38 : height * .69;

@@ -1248,7 +1248,7 @@ export class Batter {
   // Clothing owns the continuous garment surfaces and their skinning.
   private shapes = {
     soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
-    ball: new THREE.SphereGeometry(1, 20, 14),
+    ball: new THREE.SphereGeometry(1, 32, 20),
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
     exposedUpper: new THREE.CylinderGeometry(.49, .41, .72, 20, 1).translate(0, .14, 0),
     flat: new THREE.BoxGeometry(1, 1, 1),

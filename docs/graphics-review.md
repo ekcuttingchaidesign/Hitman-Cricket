@@ -1,6 +1,6 @@
 # Graphics review screen
 
-The review environment now runs graphics pass 03 in the actual game scene: neutral daylight, cooler field colours, refined fielding characters, rounded broadleaf trees and a deeper pavilion facade. See [pass 03 notes](graphics-pass-03.md) for changes and validation limits. The supplied reference remains the acceptance target.
+The review environment now runs graphics pass 04: richer field colours, clearer light/shadow separation and phone rendering up to native 3× resolution within a bounded drawing-buffer budget. See [pass 04 notes](graphics-pass-04.md). The supplied reference remains the acceptance target.
 
 The unchanged baseline remains at commit `c980d9e4f1bd61cf915eff6c7103c492ef882df6` and its immutable preview: https://hitman-cricket-3161k5nth-ek-cutting-chai-design.vercel.app/graphics-review.html.
 

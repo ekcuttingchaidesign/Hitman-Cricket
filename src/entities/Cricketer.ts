@@ -67,8 +67,8 @@ function lathe(profile: [number, number][], depth: number, segments = 32) {
 }
 
 const SHAPES = {
-  ball: new THREE.SphereGeometry(1, 20, 14),
-  capDome: new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+  ball: new THREE.SphereGeometry(1, 24, 16),
+  capDome: new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
   /**
    * A limb, tapering towards the joint it points at. `segment` puts the top of
    * this at the far end, so the top is the narrow one: an arm is thickest at
