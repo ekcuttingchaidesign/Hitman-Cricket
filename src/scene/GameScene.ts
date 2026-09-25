@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Batter, CHARGE_MEETS_AT } from '../entities/Batter';
+import { BatterModel } from '../entities/BatterModel';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
@@ -140,6 +141,9 @@ export class GameScene {
     const fill = new THREE.DirectionalLight(0xf2e6d2, 0.7); fill.position.set(6, 14, -24); this.scene.add(fill);
     this.createGround();
     this.placeClouds();
+    // The modelled batter arrives as a file and takes over from the primitives
+    // when it lands; until then, and if it never does, the code-built one bats.
+    BatterModel.load('models/batter.glb').then(model => { if (!this.disposed) this.batter.attachModel(model); }).catch(error => console.warn('batter model', error));
     this.wicket(0); this.wicket(18.7);
     this.catcher.root.position.set(12, 0, 20);
     this.world.add(this.batter.root, this.bowler.root, this.catcher.root);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ADVANCE, CUT, GAME, SQUARE_DRIVE as SQUARE_DRIVE_BALL } from '../config/gameplay';
 import { solveJoint } from './rig';
+import type { BatterJoints, BatterModel } from './BatterModel';
 import { bladeGeometry, gripGeometry } from './batGeometry';
 import type { ShotType } from '../game/types';
 
@@ -1210,6 +1211,8 @@ export class Batter {
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
+  /** The modelled figure, when one has loaded; the primitives then only measure. */
+  private model: BatterModel | null = null;
   private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; palm: THREE.Mesh[]; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
   private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
@@ -1271,7 +1274,33 @@ export class Batter {
    * and it can be called at any time, which is what lets the mode screen change
    * its mind without the scene being torn down and rebuilt around it.
    */
+  /**
+   * Put the modelled figure on in place of the primitives. The solver keeps
+   * running exactly as before — every test reads it — and each frame's
+   * solved joints are handed to the model to wear.
+   */
+  attachModel(model: BatterModel) {
+    this.model = model;
+    this.root.traverse(o => { if (o instanceof THREE.Mesh) o.visible = false; });
+    this.root.add(model.root);
+    this.dress(this.whites);
+    model.pose(this.joints());
+  }
+  /** This frame's solved skeleton, in the root's space, for the model to follow. */
+  joints(): BatterJoints {
+    return {
+      hip: this.hips.position, hipQuaternion: this.hips.quaternion,
+      torsoQuaternion: this.torso.quaternion, headQuaternion: this.head.quaternion,
+      bat: this.bat.position, batQuaternion: this.bat.quaternion,
+      elbows: this.arms.map(arm => arm.elbow.position),
+      knees: this.legs.map(leg => leg.knee.position),
+      feet: this.legs.map(leg => leg.shoe.position),
+    };
+  }
+  private whites = false;
   dress(whites: boolean) {
+    this.whites = whites;
+    this.model?.dress(whites ? { shirt: 0xf2ece0, trousers: 0xf4f0e4, pads: 0xfdfcf4 } : { shirt: 0x2593e8, trousers: 0x2593e8, pads: 0x1a5db8 });
     this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x2593e8);
     this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0x2593e8);
     this.palette.legPad.color.setHex(whites ? 0xfdfcf4 : 0x1a5db8);
@@ -2210,6 +2239,7 @@ export class Batter {
       leg.shoe.quaternion.setFromAxisAngle(UP, shoeYaw)
         .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), footPitch));
     }
+    this.model?.pose(this.joints());
   }
   /** How far a point sits from the handle, and so from inside the bat. */
   private offHandle(point: THREE.Vector3) {
