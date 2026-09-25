@@ -90,6 +90,7 @@ export class GameScene {
   private figureShade: { mesh: THREE.Mesh; of: THREE.Object3D }[] = [];
   private footPoints = [new THREE.Vector3(), new THREE.Vector3()];
   private disposed = false;
+  private vignette: HTMLDivElement;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -102,11 +103,21 @@ export class GameScene {
     // Neutral rather than filmic: it rolls the highlights off without pulling
     // the navy, the orange and the green towards grey, which is what a
     // stylised ground is made of.
-    this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1.22;
+    // Filmic: it adds contrast through the midtones and lets the sun's side
+    // of a figure bloom against its shaded side, which is most of what reads
+    // as a photograph rather than a diagram.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
     this.renderer.setClearColor(0xc9e6f4);
     container.prepend(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
+    // A vignette over the canvas and under the HUD: the edges of the frame
+    // fall off a little, the way a lens does. It is a gradient in the page,
+    // so it costs the renderer nothing.
+    this.vignette = document.createElement('div');
+    this.vignette.setAttribute('aria-hidden', 'true');
+    this.vignette.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 78% 68% at 50% 46%, rgba(8,16,30,0) 55%, rgba(8,16,30,.38) 100%)';
+    this.renderer.domElement.after(this.vignette);
     // The fog is the horizon's colour and starts beyond the stands, so the
     // outfield keeps its green and only the far trees go hazy.
     this.scene.fog = new THREE.Fog(0xc9e6f4, 70, 170);
@@ -126,19 +137,19 @@ export class GameScene {
     this.environment = pmrem.fromScene(envScene, 0.04);
     pmrem.dispose(); floor.geometry.dispose(); (floor.material as THREE.Material).dispose();
     this.scene.environment = this.environment.texture;
-    this.scene.environmentIntensity = 0.7;
-    this.scene.add(new THREE.HemisphereLight(0xdcecff, 0x6f8c4d, 1.4));
+    this.scene.environmentIntensity = 0.6;
+    this.scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x5f7a44, 1.0));
     // A warm sun high in front and to the off side, so the shadows fall
     // towards the camera and the batter's back is lit, as on the cover.
-    const sun = new THREE.DirectionalLight(0xfff1d6, 3.0); sun.position.set(-13, 30, 11); sun.castShadow = true;
+    const sun = new THREE.DirectionalLight(0xffe6bf, 3.6); sun.position.set(-13, 30, 11); sun.castShadow = true;
     sun.target.position.set(0, 0, 6); this.scene.add(sun.target);
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
-    sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025; sun.shadow.radius = 3;
+    sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025; sun.shadow.radius = 1.6;
     this.scene.add(sun);
     // A soft fill from behind the camera. With the sun in front, the side of
     // every figure the camera sees is the shaded one, and without this the
     // bowler is a silhouette against the boards.
-    const fill = new THREE.DirectionalLight(0xfff4e6, 1.0); fill.position.set(6, 14, -24); this.scene.add(fill);
+    const fill = new THREE.DirectionalLight(0xd6e6ff, 0.55); fill.position.set(6, 14, -24); this.scene.add(fill);
     this.createGround();
     this.placeClouds();
     this.wicket(0); this.wicket(18.7);
@@ -213,23 +224,30 @@ export class GameScene {
       let shape: THREE.BufferGeometry | undefined;
       gltf.scene.traverse(object => { if (object instanceof THREE.Mesh && !shape) shape = object.geometry; });
       if (!shape) return;
-      const count = 12;
+      // One shape, many clouds: each is two or three copies of it at different
+      // sizes and turns, sitting into one another, so no two read
+      // as the same cloud. Smaller and more of them than one big one, at a
+      // spread of heights so a phone's narrow band of sky always holds a few.
+      const clusters = 18, perCluster = 3, count = clusters * perCluster;
       const clouds = new THREE.InstancedMesh(shape, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xb8c8d8, emissiveIntensity: 0.32, fog: false }), count);
       clouds.name = 'Clouds';
-      // Low over the stands, as the cover has them, and never culled as a group.
       clouds.frustumCulled = false;
       const dummy = new THREE.Object3D();
       let seed = 11;
       const rng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < clusters; i++) {
         // Spread across the half of the sky the camera can see, none of them
         // straight down the pitch where the pavilion and the flags already are.
-        const angle = (-0.62 + (i + 0.5) / count * 1.24 + (rng() - 0.5) * 0.08) * Math.PI;
-        const radius = 108 + rng() * 30, height = 12 + rng() * 16, width = 26 + rng() * 20;
-        dummy.position.set(Math.sin(angle) * radius, height, 10 + Math.cos(angle) * radius);
-        dummy.rotation.set(0, rng() * Math.PI * 2, 0);
-        dummy.scale.set(width, width * (0.85 + rng() * 0.3), width);
-        dummy.updateMatrix(); clouds.setMatrixAt(i, dummy.matrix);
+        const angle = (-0.66 + (i + 0.5) / clusters * 1.32 + (rng() - 0.5) * 0.06) * Math.PI;
+        const radius = 105 + rng() * 35, height = 9 + rng() * 22, width = 9 + rng() * 11;
+        const centre = new THREE.Vector3(Math.sin(angle) * radius, height, 10 + Math.cos(angle) * radius);
+        for (let j = 0; j < perCluster; j++) {
+          const part = width * (j === 0 ? 1 : 0.55 + rng() * 0.4);
+          dummy.position.copy(centre).add(new THREE.Vector3((rng() - 0.5) * width * 0.9, (rng() - 0.3) * width * 0.25, (rng() - 0.5) * width * 0.6));
+          dummy.rotation.set(0, rng() * Math.PI * 2, 0);
+          dummy.scale.set(part, part * (0.7 + rng() * 0.5), part * (0.8 + rng() * 0.4));
+          dummy.updateMatrix(); clouds.setMatrixAt(i * perCluster + j, dummy.matrix);
+        }
       }
       this.scene.add(clouds);
     }, undefined, () => { /* A clear sky. */ });
@@ -581,6 +599,7 @@ export class GameScene {
   }
   dispose() {
     this.disposed = true;
+    this.vignette.remove();
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });

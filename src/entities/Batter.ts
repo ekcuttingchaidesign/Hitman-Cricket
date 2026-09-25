@@ -1247,13 +1247,15 @@ export class Batter {
     blade: bladeGeometry(),
   };
   private palette = {
-    shirt: new THREE.MeshStandardMaterial({ color: 0x1f7fd2, roughness: .88 }),
+    shirt: new THREE.MeshStandardMaterial({ color: 0x2593e8, roughness: .88 }),
     // The helmet is its own material rather than the shirt's, because it is navy
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
     helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
-    trousers: new THREE.MeshStandardMaterial({ color: 0x1b6fc0, roughness: .82 }),
+    trousers: new THREE.MeshStandardMaterial({ color: 0x2593e8, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
+    /** The leg pads alone: a darker blue than the shirt, where the gloves and boots stay white. */
+    legPad: new THREE.MeshStandardMaterial({ color: 0x1a5db8, roughness: .72 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
     bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .83 }),
@@ -1270,8 +1272,9 @@ export class Batter {
    * its mind without the scene being torn down and rebuilt around it.
    */
   dress(whites: boolean) {
-    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x1f7fd2);
-    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0x1b6fc0);
+    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x2593e8);
+    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0x2593e8);
+    this.palette.legPad.color.setHex(whites ? 0xfdfcf4 : 0x1a5db8);
     this.palette.accent.color.setHex(whites ? 0xd9d3c3 : 0xed7044);
   }
 
@@ -1339,10 +1342,10 @@ export class Batter {
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
-      this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
-      for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.pad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
+      this.mesh(pad, this.palette.legPad, [.20, .38, .175], 'soft');
+      for (let roll = 0; roll < 3; roll++) this.mesh(pad, this.palette.legPad, [.045, .34, .045], 'tube').position.set(-.048 + roll * .048, 0, .082);
       for (const y of [-.10, .06]) this.mesh(pad, this.palette.accent, [.185, .026, .17], 'soft').position.set(0, y, -.008);
-      this.mesh(pad, this.palette.pad, [.115, .07, .10], 'ball').position.set(0, .21, .03);
+      this.mesh(pad, this.palette.legPad, [.115, .07, .10], 'ball').position.set(0, .21, .03);
       const shoe = new THREE.Group(); this.root.add(shoe);
       this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
       this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);

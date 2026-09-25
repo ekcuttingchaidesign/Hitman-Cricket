@@ -69,7 +69,7 @@ function texture(el: HTMLCanvasElement, anisotropy: number) {
  */
 export function outfieldTexture(radius: number, anisotropy: number, size = 1536) {
   const { el, ctx } = canvas(size, size), px = size / (radius * 2);
-  ctx.fillStyle = '#4f9438'; ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#3c9a2c'; ctx.fillRect(0, 0, size, size);
   // The mower's bands, along the pitch, about five metres wide.
   const band = 5 * px;
   for (let x = 0, i = 0; x < size; x += band, i++) {
@@ -100,7 +100,7 @@ export function pitchTexture(width: number, length: number, creases: { fromBatte
   const height = Math.round(size * length / width);
   const { el, ctx } = canvas(size, height), px = size / width;
   const zToY = (fromBatterEnd: number) => fromBatterEnd * px;
-  ctx.fillStyle = '#d2b47c'; ctx.fillRect(0, 0, size, height);
+  ctx.fillStyle = '#d4b172'; ctx.fillRect(0, 0, size, height);
   // Softer, paler edges where the strip meets the grass.
   const rim = ctx.createLinearGradient(0, 0, size, 0);
   rim.addColorStop(0, 'rgba(255,250,225,.30)'); rim.addColorStop(.09, 'rgba(255,250,225,0)');
