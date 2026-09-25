@@ -31,7 +31,8 @@ export interface ApiResponse {
   status(code: number): ApiResponse;
   json(body: unknown): void;
   setHeader(name: string, value: string): void;
-  end(): void;
+  /** A body where there is one: the questionnaire's read answers with CSV. */
+  end(body?: string): void;
 }
 
 /** Origins the board may be fetched from. Add one here, not a wildcard. */
@@ -84,5 +85,5 @@ export function addressOf(req: ApiRequest): string {
  */
 export function failed(res: ApiResponse, status: number, reason: string, detail?: unknown) {
   if (detail) console.error(reason, detail);
-  res.status(status).json({ error: reason, retry: status >= 500 });
+  res.status(status).json({ error: reason, retry: status >= 500, status });
 }

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hitman · Batting rig preview</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101a19;color:#eef6f0;font:15px/1.45 system-ui,sans-serif}
+canvas{display:block;width:100%;height:100%}
+#stage{height:64dvh;min-height:300px;background:#16211f}
+main{max-width:820px;margin:auto;padding:18px 20px 40px}
+h1{font-size:20px;margin:0 0 4px}
+p.hint{color:#9fb6ab;margin:4px 0 16px;font-size:14px}
+section{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+button,select{font:inherit;padding:9px 12px;border:1px solid #4f6a5c;border-radius:8px;background:#22362e;color:#eef6f0;cursor:pointer}
+button:hover,select:hover{background:#2c453a}
+button.phase{background:#1a2b24;font-size:14px;padding:7px 11px}
+button.phase.on{background:#3d6b4f;border-color:#6fae83}
+input[type=range]{width:100%;margin:14px 0 6px}
+output{font-variant-numeric:tabular-nums;color:#a8e2b0;font-weight:600}
+.tag{font-size:13px;color:#9fb6ab}
+.tag b{color:#ffe9a8;font-weight:600}
+a{color:#a8e2b0}
+</style></head>
+<body>
+<div id="stage"></div>
+<main>
+  <h1>Batting rig preview</h1>
+  <p class="hint">Drag to orbit · scroll or pinch to zoom · scrub to step through the stroke. The red marker is where the ball is met.</p>
+  <section>
+    <select id="shot" aria-label="Stroke"></select>
+    <select id="view" aria-label="Camera"></select>
+    <button id="play">Pause</button>
+    <select id="speed" aria-label="Speed">
+      <option value="0.25">Quarter speed</option>
+      <option value="0.5" selected>Half speed</option>
+      <option value="1">Match speed</option>
+    </select>
+    <output id="time">0 ms</output>
+  </section>
+  <section id="phases"></section>
+  <input id="scrub" aria-label="Time" type="range" min="0" max="940" step="1" value="0">
+  <p class="tag" id="note"></p>
+  <a href="./index.html">← Play this branch's game</a>
+</main>
+<script type="module" src="/src/shot-preview.ts"></script>
+</body></html>

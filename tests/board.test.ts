@@ -524,9 +524,15 @@ describe('the two ladders, as tabs over the sheet', () => {
     expect(test).toContain('aria-selected="false">The Blast');
   });
 
-  it('names both ladders the way the mode screen names them', () => {
-    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival']);
-    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive']);
+  it('names both ladders the way the mode screen names them, and the card after them', () => {
+    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival', 'My Stats']);
+    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive', 'board-tab-mine']);
+  });
+
+  it('puts the card last, after the games it is a record of', () => {
+    // It is not a third game and it does not rank anybody, so it sits at the
+    // end of the row rather than between the two things it summarises.
+    expect(BOARD_TABS.at(-1)?.tab).toBe('mine');
   });
 
   it('leaves both keys reachable from a keyboard', () => {

@@ -114,11 +114,13 @@ export const COMPATIBILITY: Record<BallLine, Record<ShotType, number>> = {
   // The cut is the off side's square stroke, and it is at its best with width:
   // a ball he can free his arms at goes away behind point. On the stumps there
   // is no room to swing square, and down the leg side nothing at all.
-  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1 },
-  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, SQUARE_CUT: 0.1, DEFEND: 1 },
-  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, SQUARE_CUT: 0.4, DEFEND: 1 },
-  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, SQUARE_CUT: 0.85, DEFEND: 1 },
-  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, SQUARE_CUT: 1, DEFEND: 1 },
+  // The scoops are resolved on their own terms too, by `SCOOP.lines`, and
+  // these columns only restate that rule so the table is keyed by every shot.
+  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 0 },
+  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, SQUARE_CUT: 0.1, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0 },
+  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, SQUARE_CUT: 0.4, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0 },
+  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, SQUARE_CUT: 0.85, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1 },
+  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, SQUARE_CUT: 1, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1 },
 };
 export const TIMING_SCORE: Record<TimingGrade, number> = { PERFECT: 1, GOOD: 0.82, OK: 0.58, POOR: 0.25, MISS: 0 };
 // A shot at least this compatible with the line counts as middled; below it the
@@ -129,7 +131,51 @@ export const SOLID_SHOT = 0.55;
 export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 // The cut is the only stroke that scores behind square: past ninety degrees the
 // ball runs away behind point rather than in front of it.
-export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0 };
+// The scoops are the two that go behind the wicket: over fine leg and the
+// keeper's leg side, and over the slips.
+export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0, SCOOP: -150, REVERSE_SCOOP: 150 };
+/**
+ * The scoop and the reverse scoop: the third pair of special strokes, and the
+ * first that go behind the wicket. A full meter buys one, the same as the
+ * charge and the slog sweep, and playing it spends the meter whatever it was
+ * worth — it is a stroke a batter commits to, not one he can check.
+ *
+ * Each has its ball. The scoop is played from in front of the stumps at a
+ * ball on middle or leg, so the blade can get under it and ramp it over the
+ * keeper's shoulder; the reverse wants width, off stump or outside, to get
+ * the reversed face under. Neither is offered at a bouncer, which is over the
+ * top of the whole idea. Wrong line and he is playing at air.
+ *
+ * Timing names the rest. Middled it clears the keeper for six; a shade under
+ * and it beats the field on the bounce for four; held back it is paddled away
+ * for ones, twos and threes. Poor timing is the top edge, and a top edge with
+ * the keeper standing behind is a catch. Miss it altogether and the stroke has
+ * left nothing but the pads between the ball and the stumps.
+ */
+export const SCOOP = {
+  shots: ['SCOOP', 'REVERSE_SCOOP'] as readonly ShotType[],
+  /** Which lines each answers, read off where the ball finishes. */
+  lines: { SCOOP: ['LEG', 'MIDDLE'], REVERSE_SCOOP: ['OFF', 'OUTSIDE_OFF'] } as Record<'SCOOP' | 'REVERSE_SCOOP', readonly BallLine[]>,
+  /**
+   * The swipe: down and to one side. Measured off vertical, either side, so
+   * a block is still a block for twenty degrees around straight down and the
+   * leg-side and cut swipes keep everything above this.
+   */
+  sector: { from: 110, to: 160 },
+  /**
+   * A scooped-at ball that beats the bat has him crouched right in front of
+   * the stumps with the bat out of the way, so it is given LBW about as often
+   * as bowled.
+   */
+  lbwChance: 0.5,
+  feedback: {
+    SCOOP: { six: 'SCOOPED OVER THE KEEPER!', four: 'SCOOPED AWAY — FOUR!' },
+    REVERSE_SCOOP: { six: 'REVERSED OVER THE SLIPS!', four: 'REVERSE SCOOP — FOUR!' },
+  },
+  topEdge: 'TOP-EDGED — CAUGHT BEHIND!',
+  /** Played at the wrong ball. Said so, so the rule teaches itself. */
+  wrongLine: { SCOOP: 'TOO WIDE TO SCOOP', REVERSE_SCOOP: 'TOO STRAIGHT TO REVERSE' },
+} as const;
 /**
  * The square cut. It is the one stroke that answers a bouncer outside off: the
  * ball sits up at chest height with width on it, and a batter who rocks back
@@ -155,6 +201,58 @@ export const CUT = {
   timing: { six: 'PERFECT', four: 'GOOD' } as const,
   edged: 'EDGED — CAUGHT BEHIND!',
 } as const;
+/**
+ * When the off-side drive is played square rather than through cover.
+ *
+ * This is a variation on one input, the way the pull is a variation on the
+ * leg-side drive and the standing cut is a variation on the cut: the player
+ * swipes for the off-side drive and the stroke he gets depends on the ball. A
+ * ball wide of off and full enough to drive is driven square of the wicket; the
+ * same swipe at anything straighter or shorter is still the cover drive.
+ *
+ * It changes no scoring. Where the ball goes is the cover drive's business, and
+ * `SHOT_ANGLES` is unchanged: this is how the stroke is played, not where it
+ * is hit. Widening those two things at once is how a rig change turns into a
+ * balance change nobody asked for.
+ */
+export const SQUARE_DRIVE = {
+  /**
+   * How far outside off the ball has to finish before there is room to free the
+   * arms and hit it square. This is roughly the inside edge of the OUTSIDE_OFF
+   * line once movement is accounted for: the wide one is driven square, the one
+   * on off stump is driven through cover, which is what the two strokes are for.
+   */
+  minWidth: 0.30,
+  /**
+   * Above this the ball is up off a length or higher and there is no driving it
+   * off the front foot — that ball is the cut's. A length ball arrives at .54
+   * and a yorker at .19; back of a length is .81 and a bouncer 1.13, so this
+   * takes the two a batter can get under and leaves the two he cannot.
+   */
+  maxBallY: 0.70,
+  /**
+   * Judged on timing alone, the way the cut is, because it is the same bargain:
+   * a ball wide enough to free the arms at is a ball there is no excuse for.
+   * Middled it goes square for six, a shade under for four, worked away along
+   * the ground below that — and driven at and missed by more than that, it
+   * takes the edge.
+   *
+   * That last part is the point of the pairing. Chasing a wide half-volley and
+   * nicking it behind is the most common way a batter gets out to a good
+   * bowler, and until this the drive had no edge in it at all: a mistimed one
+   * could only balloon up and be caught in the field. Width now pays the best
+   * and punishes the worst, which is what makes taking it a decision.
+   */
+  timing: { six: 'PERFECT', four: 'GOOD' } as const,
+  edged: 'DROVE AT IT — CAUGHT BEHIND!',
+  /**
+   * Square of the wicket on the off side, between the cover drive's 24 and the
+   * cut's 100. A stroke called the square drive that went to extra cover was
+   * always going to read oddly; it only did because until now the stroke was an
+   * animation with no say in where the ball went.
+   */
+  angle: 62,
+} as const;
 // A defensive shot: timed this well or better it is dead at his feet, and
 // nothing can be caught off it. Worse, and the ball goes on past the bat — at
 // the stumps, that is the end of it.
@@ -174,6 +272,102 @@ export const CONFIDENCE_FULL = 100;
  * of five, a chargeable ball came round barely twice an innings and the meter
  * filled with nothing to spend it on.
  */
+/**
+ * The slog sweep: the second special stroke, and the spinner's answer to the
+ * charge. A full meter buys one, the same as the charge does, and spending it
+ * empties it the same way — a run of form, not a bank balance.
+ *
+ * It is a Blast stroke only, and only against spin. There is no sweeping a
+ * quick: the whole shot is built on getting down early to a ball that is slow
+ * enough to wait for, and a batter who kneels to a seamer is a batter who has
+ * been hit. That restriction is also what keeps it from ever colliding with
+ * the charge, which needs a bowler's pace and so can never be offered on the
+ * same ball.
+ *
+ * Middled it clears midwicket. Timed a shade under, it still beats the field
+ * but along the ground and over the rope on the bounce — four either way to the
+ * scorer, and two plainly different balls to watch.
+ */
+export const SWEEP = {
+  /** Only the turning ball. The arm ball goes on with the arm and is not one. */
+  styles: ['OFF_SPIN', 'LEG_SPIN'] as readonly DeliveryStyle[],
+  /** The leg-side inputs. Sweeping is a leg-side stroke and asks for a leg-side swipe. */
+  shots: ['LEG', 'LONG_ON'] as readonly ShotType[],
+  /** Middled is six, a shade under is four. Worse than that and it is just the shot he played. */
+  timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
+  /**
+   * How full the ball has to pitch. Getting down to a ball dropped short is how
+   * a sweep becomes a top edge, so the stroke is only offered at one he can get
+   * under — and `bounceZ` is metres from the bowler, so further is fuller.
+   */
+  minBounceZ: 7.6,
+  /**
+   * Where it goes. Midwicket is between square leg and mid-on, so the sector
+   * sits between `SHOT_ANGLES.LEG` and `SHOT_ANGLES.LONG_ON` — not outside the
+   * pair of them. Wider than square leg is fine leg, which is a different shot
+   * and a much worse one to be given for middling a slog.
+   */
+  angle: -38,
+  feedback: { six: 'INTO THE CROWD!', four: 'SWEPT AWAY!' },
+} as const;
+/**
+ * The orthodox sweep: the same stroke as the slog, played by anybody.
+ *
+ * It shares the slog's ball — only a spinner, only one pitched up far enough to
+ * get under — and the whole of its body. What it does not share is the meter or
+ * the arc. The blade is held level all the way round instead of climbing, and a
+ * level blade cannot lift a ball over anybody, so this stroke never goes for
+ * six and never goes in the air at all. It is the stroke a batter plays to keep
+ * the score moving against spin, and it is paid that way: four for the one he
+ * middles, down to a single for the one he does not.
+ *
+ * The risk is the one the shot has in cricket. Playing across the line with the
+ * bat travelling horizontally leaves nothing behind it but the pads, so a ball
+ * he misses is a ball with his stumps at the end of it.
+ */
+export const FLAT_SWEEP = {
+  /** The slog's ball exactly: see `SWEEP` above, and `sweepable` reads both. */
+  styles: SWEEP.styles,
+  /**
+   * The square leg-side input only. The slog also takes `LONG_ON` because it is
+   * hit in front of square; this one goes square, and asks for the swipe that
+   * points there.
+   */
+  shots: ['LEG'] as readonly ShotType[],
+  /** Timing alone decides it. There is no grade here that is worth nothing. */
+  runs: { PERFECT: 4, GOOD: 3, OK: 2, POOR: 1 } as Record<Exclude<TimingGrade, 'MISS'>, 1 | 2 | 3 | 4>,
+  /**
+   * Square leg: squarer than the slog's midwicket and squarer than the leg-side
+   * swipe that plays it, because the blade is level and travelling across the
+   * line rather than through it.
+   */
+  angle: -80,
+  /**
+   * Pitched wider of leg stump than this and he cannot be LBW however plumb it
+   * looks — the one law in cricket written for the man sweeping. It reads the
+   * line the ball was bowled on rather than where it finished, because pitching
+   * is what the law is about and a ball that turns back in has still pitched
+   * outside leg.
+   */
+  outsideLegX: -0.20,
+  /**
+   * Higher than `GAME.lbwChance`. Missing a sweep is the classic way to be
+   * given out: the bat is over his shoulder, he is down on one knee, and the
+   * pad is the next thing the ball meets.
+   */
+  lbwChance: 0.7,
+  /**
+   * What he gets for sweeping at one going the other way.
+   *
+   * The stroke is offered at the ball turning *into* him, where the turn brings
+   * the ball onto a face that is travelling to meet it. Turning away it does
+   * the opposite: the face goes one way, the ball the other, and what the two
+   * of them meet on is the top edge. That is the real dismissal for the real
+   * mistake, so it is the one the game gives — and it is certain rather than
+   * rolled for, because a rule a player meets once should teach him the rule.
+   */
+  topEdge: 'TOP-EDGED \u2014 CAUGHT!',
+} as const;
 export const ADVANCE = {
   minKph: 108, maxKph: 134, minBounceZ: 7.4, maxBounceZ: 9.4,
   // Any upward drive charges it. The gesture asked for is "swipe up", and a
@@ -183,6 +377,25 @@ export const ADVANCE = {
   shots: ['STRAIGHT', 'LONG_ON', 'COVER_LONG_OFF'] as readonly ShotType[],
   timing: ['PERFECT', 'GOOD'] as readonly TimingGrade[],
   feedback: 'OUT OF THE STADIUM!',
+  /**
+   * The cover input plays the charge inside out, over extra cover: its own
+   * stroke and its own call, and the ball leaves squarer than long-off.
+   */
+  coverFeedback: 'INSIDE OUT — OVER COVER!',
+  coverAngle: 38,
+  /**
+   * How many degrees closer to vertical the cover swipe reaches while the
+   * charge is on. A little: the straight charge keeps 14.5 degrees on that
+   * side and all of the other, so an honest swipe up still walks straight.
+   */
+  coverLean: 8,
+  /**
+   * And the long-on input, mirrored: the charge over long-on, hit a little
+   * squarer than the long-on sector, with its own call. The swipe leans the
+   * same eight degrees towards vertical on that side.
+   */
+  onFeedback: 'LAUNCHED OVER LONG-ON!',
+  onAngle: -34,
   /** How far down the pitch the charge carries him, and how long the walk back is. */
-  stride: 1.75, walkBackMs: 1300,
+  stride: 1.15, walkBackMs: 1300,
 } as const;

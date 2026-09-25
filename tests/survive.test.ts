@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, STYLES as CLASSIC_STYLES } from '../src/config/gameplay';
 import {
-  BANDS, CLOSE, DAMAGE, HEALTH, SIX, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES, SURVIVE, damageFor,
+  BANDS, BOUNCERS, CLOSE, DAMAGE, HEALTH, SIX, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES, SURVIVE, damageFor,
 } from '../src/config/survive';
 import { ballPosition, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { Health } from '../src/game/Health';
 import {
   atTheBody, blowSpot, contactOf, endingOf, inTheSlot, outsideOff, resolveSurvive, resultOf, sledgeDue,
-  spun, teamScore, timingSide,
+  spun, surviveBall, teamScore, timingSide,
 } from '../src/game/Survive';
-import { DeliveryGenerator, SPIN_STYLES, spinOvers } from '../src/game/DeliveryGenerator';
+import { DeliveryGenerator, SPIN_STYLES, SURVIVE_PLAN, spinOvers } from '../src/game/DeliveryGenerator';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { PACE_RUN, SPIN_RUN } from '../src/entities/Bowler';
 import type { Delivery, DeliveryStyle, ShotOutcome } from '../src/game/types';
@@ -501,10 +501,96 @@ describe('what the scorecard says he cost the side', () => {
 });
 
 
-/** The Survive attack, exactly as Game builds it. */
+/**
+ * The Survive attack, which is the one the game bowls rather than one written
+ * out again here. It used to be restated, and a restated plan is a plan that
+ * goes stale: the short ball moved out of the weight table and into a plan of
+ * its own, and every copy went on testing a mode with no bouncers in it.
+ */
 const SPELL = { ...SPIN, ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver, ballsPerOver: SURVIVE.ballsPerOver };
-const attack = (seed: number) => new DeliveryGenerator(new SeededRandom(seed), {
-  styles: STYLES, specials: SURVIVE_SPECIALS, travelScale: SURVIVE.travelScale, aimed: true, spin: SPELL,
+const OVERS = SURVIVE.totalBalls / SURVIVE.ballsPerOver;
+const attack = (seed: number) => new DeliveryGenerator(new SeededRandom(seed), SURVIVE_PLAN);
+/** Every delivery of a full innings, with the over it was bowled in. */
+const innings = (seed: number) => {
+  const generator = attack(seed);
+  return Array.from({ length: SURVIVE.totalBalls }, (_, ball) => ({
+    over: Math.floor(ball / SURVIVE.ballsPerOver),
+    inOver: ball % SURVIVE.ballsPerOver,
+    style: generator.next(0).style,
+  }));
+};
+
+describe('the warning the player actually sees', () => {
+  it('keeps the critical band wider than a typical blow, so it is not stepped over', () => {
+    // The band is presentation — `spent` ends the innings — but a band narrower
+    // than the blows that cross it is a warning nobody ever sees. It was 25
+    // against a helmet blow worth up to 81, and half of all retirements skipped
+    // it entirely. Anything short of the biggest blow will be skipped sometimes;
+    // what this holds is that the common ones land inside it.
+    const typical = Math.max(damageFor('RIBS', 160), damageFor('GLOVES', 172), damageFor('THIGH', 172));
+    expect(HEALTH.critical).toBeGreaterThan(typical);
+  });
+
+  it('leaves the critical state meaning he is most of the way gone', () => {
+    // Wide is not the same as early. Half the meter would make it the innings
+    // rather than its last act.
+    expect(HEALTH.critical).toBeLessThan(HEALTH.full / 2);
+  });
+});
+
+describe('the short ball is planned, not rolled for', () => {
+  it('puts one in every over of pace, and never misses an over', () => {
+    // Rolled for, thirty-eight per cent of innings met no bouncer at all. The
+    // whole point of placing it is that the over always has its quota.
+    for (let seed = 0; seed < 120; seed++) {
+      const spell = new Set(attack(seed).spell);
+      const balls = innings(seed);
+      for (let over = 0; over < OVERS; over++) {
+        if (spell.has(over)) continue;
+        const short = balls.filter(b => b.over === over && b.style === 'SHORT').length;
+        const wanted = over >= OVERS - BOUNCERS.deathOvers ? BOUNCERS.atTheDeath : BOUNCERS.perOver;
+        expect(short, `seed ${seed}, over ${over}`).toBe(wanted);
+      }
+    }
+  });
+
+  it('gives the last two overs to the quick bowlers, so the plan has somewhere to land', () => {
+    for (let seed = 0; seed < 200; seed++) {
+      for (const over of attack(seed).spell) {
+        expect(over, `seed ${seed}`).toBeLessThan(OVERS - BOUNCERS.deathOvers);
+      }
+    }
+  });
+
+  it('still gives the spinner his three overs out of a smaller pool', () => {
+    for (let seed = 0; seed < 200; seed++) expect(attack(seed).spell).toHaveLength(SPIN.overs);
+  });
+
+  it('never bowls it from the same place in the over twice running', () => {
+    // Placed at a position drawn fresh, the way the arm ball already is. A fixed
+    // slot would be a timetable and the batter would simply wait for it.
+    const seen = new Set<number>();
+    for (let seed = 0; seed < 120; seed++) {
+      for (const b of innings(seed)) if (b.style === 'SHORT') seen.add(b.inOver);
+    }
+    expect(seen.size).toBe(SURVIVE.ballsPerOver);
+  });
+
+  it('bowls none at all off the spinner', () => {
+    for (let seed = 0; seed < 120; seed++) {
+      const spell = new Set(attack(seed).spell);
+      for (const b of innings(seed)) {
+        if (spell.has(b.over)) expect(b.style, `seed ${seed}`).not.toBe('SHORT');
+      }
+    }
+  });
+
+  it('is the only thing bowling it, so the two cannot stack', () => {
+    // The weight table gave it thirteen per cent. Left there alongside the plan,
+    // an over could carry three and the measured rates would all have been wrong.
+    expect(STYLES.SHORT.weight).toBe(0);
+    expect(SURVIVE_SPECIALS.shortChance).toBe(0);
+  });
 });
 
 describe('the spinner gets overs, not deliveries', () => {
@@ -855,5 +941,74 @@ describe('which card the innings earns', () => {
       resultOf('BOWLED_OUT', 90, 20), resultOf('BOWLED_OUT', 2, 2),
     ]);
     expect(seen).toEqual(new Set(['WON', 'DRAWN', 'HURT', 'ALMOST', 'LOST']));
+  });
+});
+
+describe('the square drive in Survive', () => {
+  // The rig animates the square drive off ball position alone, with no mode in
+  // the question — so the stroke is played in this mode as well as the classic
+  // innings. What follows is the other half of that: the ball has to leave on
+  // the sector the stroke sends it, and it has to do so without this mode's
+  // runs being touched.
+  const wideFull = ball('NORMAL', { line: 'OUTSIDE_OFF', finalTargetX: 0.5, bounceZ: 12 });
+  const drive = at(0, 'COVER_LONG_OFF');
+
+  it('is tagged, so the ball goes square rather than through cover', () => {
+    expect(resolveSurvive(wideFull, drive, rolls(.5)).squared).toBe(true);
+  });
+
+  it('is still paid at this mode’s rates, not the classic innings’', () => {
+    // Four, not the classic innings' six: `inTheSlot` denies a tailender the
+    // maximum off a ball he cannot get to the pitch of. The tag must not have
+    // quietly promoted him.
+    const outcome = resolveSurvive(wideFull, drive, rolls(.5));
+    expect(outcome.runs).toBe(4);
+    expect(outcome.madeBatContact).toBe(true);
+  });
+
+  it('is never tagged on a ball the bat did not touch', () => {
+    // A sector is only meaningful for a ball that was hit. Everything else is
+    // placed by `GameScene.hit` regardless, and a tag here would be a lie.
+    for (const delta of [0, 60, 140, 260, 400, -60, -140, -260, -400]) {
+      const outcome = resolveSurvive(wideFull, at(delta, 'COVER_LONG_OFF'), rolls(.5));
+      if (!outcome.madeBatContact) expect(outcome.squared).toBeUndefined();
+    }
+    expect(resolveSurvive(wideFull, null, rolls(.5)).squared).toBeUndefined();
+  });
+
+  it('is not tagged on a ball too straight or too high to drive square', () => {
+    expect(resolveSurvive(ball('NORMAL', { line: 'MIDDLE', finalTargetX: 0, bounceZ: 12 }), drive, rolls(.5)).squared).toBeUndefined();
+    expect(resolveSurvive(ball('SHORT', { line: 'OUTSIDE_OFF', finalTargetX: 0.5 }), drive, rolls(.5)).squared).toBeUndefined();
+  });
+
+  it('is not tagged off any other stroke', () => {
+    for (const shot of ['STRAIGHT', 'LEG', 'SQUARE_CUT', 'DEFEND'] as const) {
+      expect(resolveSurvive(wideFull, at(0, shot), rolls(.5)).squared).toBeUndefined();
+    }
+  });
+
+  it('leaves every run, wicket and blow in the mode exactly as they were', () => {
+    // The tags are additive and nothing else. Stripping them back off has to give
+    // the mode its old answer on every ball it can bowl — which is what makes
+    // this safe to put in front of a ladder tuned over twelve thousand innings.
+    const seeds = [.05, .3, .5, .8, .97];
+    let tagged = 0, balls = 0;
+    for (const style of Object.keys(STYLES) as DeliveryStyle[])
+      for (const line of ['OUTSIDE_LEG', 'LEG', 'MIDDLE', 'OFF', 'OUTSIDE_OFF'] as const)
+        for (const finalTargetX of [-0.5, -0.2, 0, 0.2, 0.5])
+          for (const shot of ['STRAIGHT', 'LEG', 'SQUARE_CUT', 'COVER_LONG_OFF', 'DEFEND'] as const)
+            for (const delta of [0, 50, 120, 220, 400, -50, -120, -220, -400])
+              for (const seed of seeds) {
+                const delivery = ball(style, { line, finalTargetX });
+                const outcome = resolveSurvive(delivery, at(delta, shot), rolls(seed));
+                balls++;
+                if (outcome.squared) tagged++;
+                // Everything the mode is scored and judged on, untouched.
+                const { squared, sweptFlat, ...rest } = outcome;
+                expect(rest).toEqual(surviveBall(delivery, at(delta, shot), rolls(seed)));
+              }
+    // The sweep is meter-gated and this mode has no meter, so it never appears.
+    expect(balls).toBeGreaterThan(20000);
+    expect(tagged).toBeGreaterThan(0);
   });
 });

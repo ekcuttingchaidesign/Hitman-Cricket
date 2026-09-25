@@ -1,43 +1,76 @@
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
-import { gameLink, shareFileName, shareFileType, shareText, storyText, whatsappLink } from '../game/Share';
-import { kitMarkup } from './Leaderboard';
+import {
+  gameLink, shareFileName, shareFileType, shareText, statsFileName,
+  statsStoryText, statsWhatsappLink, whatsappLink,
+} from '../game/Share';
+import { track, trackOnce } from '../game/analytics';
+import { feedbackGiven } from '../game/feedback';
+import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
 import type { ChallengeRow } from '../game/challenge-api';
 import type { Player } from '../game/player';
 import { decodeInnings } from '../game/ball-string';
-import { track } from '../game/analytics';
-import { canShareImage, cardFacts, prepareShareAssets, scorecardImage, storyImage } from '../game/ShareCard';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  boardMarkup, boardTabsMarkup, peekMarkup, pickerMarkup, standingPeek,
-  type BoardTab, type BoardView, type CardOffer,
+  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, kitMarkup, peekMarkup, pickerMarkup,
+  standingPeek,
+  type BoardTab, type BoardView, type CardOffer, type SheetTab,
 } from './Leaderboard';
 import {
-  surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
+  surviveActions, surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
   type SurviveBoardView,
 } from './SurviveBoard';
 import type { BoardRow, Innings } from '../game/leaderboard';
 import type { SurviveInnings, SurviveRow } from '../game/survive-board';
+import {
+  careerBoardMarkup, ladderTabsMarkup, laddersOf,
+  type CareerBoardView, type LadderTab,
+} from './CareerBoard';
+import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
+import { storiesMarkup, type StoriesWhere } from './WhatsNew';
+import { STORIES } from '../game/whats-new';
+import {
+  keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
+  type KeyView,
+} from './CareerKey';
+import {
+  RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
+  type LocalCareer, type RestoreView,
+} from './Restore';
+import {
+  statsExplain, statsStoryImage, type StatsFacts,
+} from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
+import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
 import { resultOf, type Result } from '../game/Survive';
+import type { SoundSetting } from '../game/Audio';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
   return `${n}${suffix}`;
 };
+/** Each setting of the sound key: its picture, what it is, and what a press does. */
+const SOUND_SETTINGS: Record<SoundSetting, [string, string, string]> = {
+  on: ['sound', 'Sound on', 'Turn the music off'],
+  effects: ['effects', 'Music off · game sounds on', 'Turn all sound off'],
+  off: ['muted', 'All sound off', 'Turn sound on'],
+};
 const icon = (name: string) => {
   const paths: Record<string, string> = {
     sound: '<path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
     muted: '<path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="m16 9 5 6m0-6-5 6"/>',
+    // A note struck through: the game's music off, its sounds still on.
+    effects: '<path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/><path d="m3 3 18 18"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01"/>',
     expand: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
+    back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
     share: '<path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8"/>',
     story: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 8v6m-3-3 3-3 3 3"/>',
     trophy: '<path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4"/>',
@@ -71,7 +104,7 @@ const challengePlate = 'challenge_mode.png';
 const resultPlates: Record<Result, string> = {
   WON: new URL('../assets/result-won.webp', import.meta.url).href,
   DRAWN: new URL('../assets/result-drawn.webp', import.meta.url).href,
-  HURT: new URL('../assets/result-lost.webp', import.meta.url).href,
+  HURT: new URL('../assets/result-hurt.webp', import.meta.url).href,
   ALMOST: new URL('../assets/result-lost.webp', import.meta.url).href,
   LOST: new URL('../assets/result-lost.webp', import.meta.url).href,
 };
@@ -109,6 +142,7 @@ const coverIntro = (best: number, top: number) => `
             <button id="cover-board" class="cover-best">${icon('trophy')}${trophyFigure(best, top)}</button>
             <button id="start" class="play-button">PLAY</button>
             <button id="tutorial" class="learn-button">HOW TO PLAY</button>
+            <button id="feedback-open" class="cover-feedback hidden" type="button">WHAT DO YOU THINK?</button>
           </div>
         </div>`;
 const panelIntro = (best: number, top: number) => `
@@ -124,7 +158,51 @@ const panelIntro = (best: number, top: number) => `
           <span class="start-hint keyboard-only">or play the same shots on the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> arrow keys</span>
           <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat. Swipe down to block.<b class="swipe-symbols">← ↖ ↑ ↗ → ↓</b></span>
           <button id="panel-board" class="personal-best">${icon('trophy')}<div>${trophyFigure(best, top)}</div>${icon('arrow')}</button>
+          <button id="feedback-open" class="ghost-link hidden" type="button">Tell me what you think</button>
         </div>`;
+/** Which special stroke the ball on its way is for, when the meter is full to play it. */
+export type Primed = 'CHARGE' | 'SWEEP' | 'SCOOP' | 'REVERSE' | null;
+/** The call for each, over the meter and down the pitch. */
+const CUES: Record<NonNullable<Primed>, string> = {
+  CHARGE: 'CHARGE IT — SWIPE UP', SWEEP: 'SWEEP IT — SWIPE TO LEG',
+  SCOOP: 'SCOOP IT — SWIPE DOWN-LEFT', REVERSE: 'REVERSE IT — SWIPE DOWN-RIGHT',
+};
+/**
+ * The swipe guide: the eight directions a thumb can go, as faint spokes over
+ * the pitch in front of the crease, shown only while there is a meter to spend
+ * and a ball on its way. Which spokes light up is the ball's business — the
+ * charge's three drives, the sweep's two leg-side swipes, a scoop's diagonal —
+ * and the rest stay dim, so the guide says where the special strokes are
+ * without shouting about the ordinary ones. Degrees clockwise from straight up.
+ */
+const SWIPE_SPOKES: readonly { dir: string; angle: number }[] = [
+  { dir: 'STRAIGHT', angle: 0 }, { dir: 'COVER', angle: 45 }, { dir: 'CUT', angle: 90 }, { dir: 'REVERSE', angle: 135 },
+  { dir: 'DEFEND', angle: 180 }, { dir: 'SCOOP', angle: 225 }, { dir: 'LEG', angle: 270 }, { dir: 'LONG_ON', angle: 315 },
+];
+/** Which spokes each special stroke is played off. */
+const SPECIAL_SPOKES: Record<NonNullable<Primed>, readonly string[]> = {
+  CHARGE: ['STRAIGHT', 'LONG_ON', 'COVER'], SWEEP: ['LEG', 'LONG_ON'], SCOOP: ['SCOOP'], REVERSE: ['REVERSE'],
+};
+function swipeGuide() {
+  const from = 22, to = 84;
+  const gradients: string[] = [], spokes: string[] = [];
+  for (const { dir, angle } of SWIPE_SPOKES) {
+    const a = angle * Math.PI / 180, sin = Math.sin(a), cos = -Math.cos(a);
+    const x1 = (sin * from).toFixed(1), y1 = (cos * from).toFixed(1), x2 = (sin * to).toFixed(1), y2 = (cos * to).toFixed(1);
+    // A streak: nothing at the hub, brightest a third of the way out, gone by
+    // the tip — light leaving the thumb, not a pointer. Two colours per
+    // spoke, cream and gold, and the class picks which shows.
+    for (const [tone, colour] of [['plain', '#ffffff'], ['gold', '#ffc766']] as const)
+      gradients.push(`<linearGradient id="sg-${tone}-${dir}" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">`
+        + `<stop offset="0" stop-color="${colour}" stop-opacity="0"/><stop offset=".32" stop-color="${colour}" stop-opacity="1"/><stop offset="1" stop-color="${colour}" stop-opacity="0"/></linearGradient>`);
+    const line = (cls: string, tone: string) => `<line class="${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="url(#sg-${tone}-${dir})"/>`;
+    spokes.push(`<g class="spoke" data-dir="${dir}">${line('glow plain', 'plain')}${line('core plain', 'plain')}${line('glow gold', 'gold')}${line('core gold', 'gold')}`
+      + `<line class="run" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/></g>`);
+  }
+  return `<svg id="swipe-guide" class="swipe-guide" viewBox="-100 -100 200 200" aria-hidden="true"><defs>`
+    + `<filter id="sg-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.8"/></filter>${gradients.join('')}</defs>`
+    + `<circle class="hub" r="2.6"/>${spokes.join('')}</svg>`;
+}
 export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
@@ -160,12 +238,28 @@ export class HUD {
       <div id="viewport" class="stage">
         <div class="hud-top">
           <div class="hud-actions">
-            <button id="sound" class="hud-button" aria-label="Mute sound" title="Sound (M)">${icon('sound')}</button>
-            <button id="help" class="hud-button" aria-label="How to play" title="How to play">${icon('help')}</button>
-            <button id="board" class="hud-button" aria-label="Top 50 board" title="Top 50 (B)">${icon('trophy')}</button>
-            <button id="share" class="hud-button" aria-label="Share game" title="Share game">${icon('share')}</button>
-            <button id="pause" class="hud-button" aria-label="Pause innings" title="Pause (Esc)" disabled>${icon('pause')}</button>
-            <button id="fullscreen" class="hud-button" aria-label="Enter fullscreen" title="Fullscreen">${icon('expand')}</button>
+            <button id="sound" class="hud-button" aria-label="Sound on. Turn the music off" title="Sound (M)">${icon('sound')}</button>
+            <span id="sound-note" class="sound-note" role="status"></span>
+            <!--
+              The row used to carry six, which over the top of the ground read
+              as a menu bar rather than a game. Three of them were ways to a
+              screen reachable from the cover or the innings card — the
+              instructions, a share, fullscreen — and those are gone.
+
+              The board and the pause stay, but only while a ball is actually
+              being bowled: they are the two things a player wants *mid*-over
+              and the two that have no other door on a phone, where there is no
+              Escape key. The is-playing class is what decides, in styles.css.
+
+              The three retired keys are hidden rather than deleted, because
+              the game drives them by id from a dozen places and a hidden key
+              answers a click exactly the way a visible one does.
+            -->
+            <button id="board" class="hud-button is-playing" aria-label="Top 50 board" title="Top 50 (B)">${icon('trophy')}</button>
+            <button id="pause" class="hud-button is-playing" aria-label="Pause innings" title="Pause (Esc)" disabled>${icon('pause')}</button>
+            <button id="help" class="hud-button is-retired" aria-label="How to play" title="How to play" tabindex="-1" aria-hidden="true">${icon('help')}</button>
+            <button id="share" class="hud-button is-retired" aria-label="Share game" title="Share game" tabindex="-1" aria-hidden="true">${icon('share')}</button>
+            <button id="fullscreen" class="hud-button is-retired" aria-label="Enter fullscreen" title="Fullscreen" tabindex="-1" aria-hidden="true">${icon('expand')}</button>
           </div>
         </div>
         <div class="score-stack">
@@ -182,7 +276,7 @@ export class HUD {
           <span class="confidence-inner">
             <span class="confidence-head">
               <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
-              <span class="injury-cap" id="injury-cap" hidden>RETIRE HURT</span>
+              <span class="injury-cap" id="injury-cap" hidden></span>
             </span>
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
@@ -200,6 +294,7 @@ export class HUD {
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
+        ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
@@ -215,7 +310,11 @@ export class HUD {
         <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
 ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><button id="restart" class="story-key">RESTART INNINGS</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div></div>
+        <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
+        <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
+        <div id="key-overlay" class="hidden"></div>
+        <div id="restore-overlay" class="hidden"></div>
+        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -234,28 +333,38 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <p class="card-board-head" id="card-board-head"></p>
               <div id="card-peek"></div>
               <button id="claim" class="key-button claim-key">REGISTER SCORE ON LEADERBOARD</button>
+              <p id="claim-why" class="claim-why">Registering is also how your career survives a new phone.</p>
               <form id="card-claim" class="card-claim hidden">
                 <div id="claim-picker"></div>
                 <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
                 <p id="claim-error" class="claim-error hidden" role="alert"></p>
+                <p id="claim-back" class="claim-back hidden"></p>
                 <button id="claim-send" type="submit" class="key-button claim-key">PUT ME ON THE BOARD</button>
                 <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
               </form>
             </div>
+            <button id="card-career" class="career-widget hidden" type="button">
+              <span id="career-kit" class="career-kit"></span>
+              <span class="career-words">Career Stats<em id="career-new" class="career-new">NEW</em></span>
+              <span class="career-go" aria-hidden="true">${icon('arrow')}</span>
+            </button>
+            <div id="card-key" class="card-key hidden"></div>
             <div class="card-keys">
               <button id="challenge-set" class="key-button challenge-key">CHALLENGE A FRIEND<em>with this innings</em></button>
               <button id="again" class="key-button">PLAY AGAIN</button>
-              <div class="card-shares">
-                <a id="whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span>SHARE</span></a>
-                <button id="story" class="story-key">${icon('story')}<span>INSTA STORY</span></button>
-              </div>
+              <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
+            <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
         <div id="modes" class="modal-overlay mode-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
           <div class="mode-sheet">
-            <h2 id="modes-title" class="mode-heading">Select Mode</h2>
+            <div class="mode-top">
+              <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
+              <h2 id="modes-title" class="mode-heading">Select Mode</h2>
+            </div>
+            <div id="mode-key" class="key-slot hidden"></div>
             <button id="mode-classic" class="mode-card">
               <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
               <span class="mode-body">
@@ -355,36 +464,44 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <h2 id="survive-title" class="result-headline"></h2>
               <p id="survive-message" class="result-sub"></p>
               <hr class="result-rule" />
-              <p class="result-stamp" id="survive-stamp"></p>
-              <div class="result-figures">
-                <p class="result-score" id="survive-score" role="img"></p>
-                <p class="result-balls" id="survive-overs"></p>
+              <div class="result-band">
+                <div class="result-figures">
+                  <p class="result-stamp" id="survive-stamp"></p>
+                  <p class="result-score" id="survive-score" role="img"></p>
+                  <p class="result-balls" id="survive-overs"></p>
+                </div>
+                <dl class="result-stats">
+                  <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
+                  <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
+                  <div><dt>Injury</dt><dd id="survive-health"></dd></div>
+                </dl>
               </div>
-              <div class="card-balls" id="survive-track" aria-hidden="true"></div>
-              <hr class="result-rule" />
-              <dl class="result-stats">
-                <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
-                <div><dt>Blows Taken</dt><dd id="survive-blows"></dd></div>
-                <div><dt>Injury</dt><dd id="survive-health"></dd></div>
-              </dl>
               <div id="survive-strip" class="survive-strip"></div>
               <div class="result-keys">
                 <button id="survive-again" class="play-button">PLAY AGAIN</button>
-                <button id="survive-modes" class="learn-button">MODE SELECTION</button>
+                <button id="survive-modes" class="learn-button change-key">CHANGE MODE</button>
               </div>
               <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
             </div>
           </div>
         </div>
         <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"><span id="ghost-who" class="ghost-who"></span><span id="ghost-result" class="ghost-result"></span></div>
+        <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
+          <div class="hurt-note-card">
+            <p class="hurt-note-eyebrow">PHYSIO ON</p>
+            <h2 id="hurt-note-title">He's not going to take much more.</h2>
+            <p class="hurt-note-line">Block and the ball keeps hitting you. Play at it and you risk the edge. There's no safe option left &mdash; pick which way you'd rather go out.</p>
+            <button id="hurt-note-done" class="key-button">BAT ON</button>
+          </div>
+        </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
         <pre id="debug" class="debug hidden"></pre>
       </div>
-      <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
+      <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
-    this.$('whatsapp').addEventListener('click', event => this.shareScore(event, 'card'));
-    this.$('story').addEventListener('click', event => this.shareScore(event, 'story'));
+    this.$('card-share').addEventListener('click', () => void this.shareScore());
+    this.$('card-career').addEventListener('click', () => { this.markCareerSeen(); this.onStatsOpen?.(); });
     const dialog = this.$('help-dialog') as HTMLDialogElement;
     this.$('help-done').onclick = () => dialog.close();
     dialog.querySelector<HTMLButtonElement>('.close-help')!.onclick = () => dialog.close();
@@ -398,46 +515,617 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * there is nothing to be gained by keeping them around and patching them:
    * a fresh sheet is always the rows it was handed.
    */
-  board(view: BoardView) { this.sheet(boardMarkup(view), false); }
+  board(view: BoardView) {
+    this.sheet(boardMarkup(view), 'classic', 'best', this.actions('classic', !!view.actions));
+  }
 
   /**
    * The Test board. The same overlay and the same keys — only the rows and the
    * ladder they are ordered by differ, and those are the markup's business.
    */
-  surviveBoard(view: SurviveBoardView) { this.sheet(surviveBoardMarkup(view), true); }
+  surviveBoard(view: SurviveBoardView) {
+    this.sheet(surviveBoardMarkup(view), 'survive', 'best', this.actions('survive', !!view.actions));
+  }
 
   /**
-   * Whether the sheet carries the two ladders' tabs. A build that plays one
-   * mode has one board, and tabs over it would be two names for one thing.
+   * A career board. The same overlay, the same keys and the same rows — what
+   * differs is that it is ranking a total rather than an innings, and which
+   * total is the board's own business rather than this method's.
    */
-  private tabbed = false;
-  showBoardTabs(on: boolean) { this.tabbed = on; }
-  /** What a tab does. The game decides, because the rows are the game's. */
-  onBoardTab: ((mode: BoardTab) => void) | null = null;
+  careerBoard(view: CareerBoardView & { actions?: boolean }) {
+    this.sheet(
+      careerBoardMarkup(view), view.mode, view.board.key,
+      this.actions(view.mode, !!view.actions),
+    );
+  }
 
-  private sheet(markup: string, surviving: boolean) {
+
+  /**
+   * The innings-end keys, under the sheet that is standing in for the card.
+   * Each mode's own, because the Test card offers the mode picker where the
+   * Blast's offers the way of sending an innings out.
+   *
+   * Called whether or not there are keys to draw, because the two rows that
+   * can ride above them do not depend on there being any. The board opened
+   * from the cover carries no PLAY AGAIN — and that is exactly the board a
+   * returning player opens first, so an offer that came only with the keys was
+   * an offer absent from the one screen it was added for.
+   */
+  private actions(mode: BoardTab, keyed: boolean) {
+    const keys = keyed ? (mode === 'survive' ? surviveActions() : actionsMarkup()) : '';
+    // The first key rides above them in the same column. Floating it over the
+    // foot of the board put it on top of these keys, which kept the focus they
+    // had — so the ring of a key nobody could see showed around the widget
+    // covering it, and a return press still reached it.
+    // A key just minted outranks an offer to bring one back: somebody holding
+    // a brand new key is plainly not the player who lost one.
+    if (this.keyPending) return `${keyToastMarkup(this.keyPending)}${keys}`;
+    // And the board is the other place worth asking. Somebody with no name is
+    // looking at a ladder they are not on — which is exactly the screen a
+    // returning player opens first to find out their record is gone.
+    return `${this.offerRestoreOnBoard ? restorePanelMarkup('board-restore') : ''}${keys}`;
+  }
+
+  /**
+   * Whether the board should carry the offer under its rows. The game decides:
+   * it knows whether a name is claimed and whether the offer has been waved
+   * away. Not counted against the innings-end cap — the board is a screen
+   * somebody chose to open, not a card pushed in front of them.
+   */
+  offerRestoreOnBoard = false;
+
+  /** What the card key does. The game decides: the figures are the game's. */
+  onStatsOpen: (() => void) | null = null;
+
+  /**
+   * The Career Stats widget under the innings card: whose career it is, and
+   * whether it is still news.
+   *
+   * The NEW pill comes off the moment it is opened, once, for good. A badge
+   * that says NEW on the fortieth innings is a badge nobody reads any more,
+   * and worse, it teaches the player that the flags on this screen mean
+   * nothing.
+   */
+  career(show: boolean, kit: number | null) {
+    const widget = this.$('card-career');
+    widget.classList.toggle('hidden', !show);
+    if (!show) return;
+    this.$('career-kit').innerHTML = kit === null ? '' : kitMarkup(kit, '');
+    this.$('career-new').classList.toggle('hidden', careerSeen());
+  }
+
+  private markCareerSeen() {
+    this.$('career-new').classList.add('hidden');
+    rememberCareerSeen();
+  }
+  /** The facts the card on screen was drawn from, held for the share keys. */
+  private statsShown: StatsFacts | null = null;
+  /** The object URLs of the drawn cards, revoked when the sheet is put away. */
+  private statsPictures = new Set<string>();
+
+  /**
+   * The career card, over everything else.
+   *
+   * Drawn whole each time it is opened, the same way the board is, and for a
+   * better reason: the picture in it *is* the picture that gets shared, so
+   * there is nothing to keep around and patch — either the card is current or
+   * it is the wrong card to be sending anybody.
+   */
+  /**
+   * The card, under the My Stats tab of the board sheet. Same markup and same
+   * keys as the page below; what differs is that a tab has no way out of its
+   * own — the row above it is the way out.
+   */
+  /**
+   * Which card of the rail is in front.
+   *
+   * Held on the HUD rather than read off the rail, because the rail is rebuilt
+   * every time either card finishes painting — and a player who has already
+   * swiped to their Test figures must not be carried back to the Blast because
+   * a picture landed. It is the screen's memory of where they are, and the
+   * scroll is put back to match it after every redraw.
+   */
+  private statsAt = 0;
+  private statsCards: StatsSlide[] = [];
+
+  /**
+   * The card, under the My Stats tab of the board sheet. Same markup and same
+   * keys as the page below; what differs is that a tab has no way out of its
+   * own — the row above it is the way out.
+   */
+  statsTab(view: StatsSheetView) {
+    this.holdStats(view);
+    this.sheet(statsSheetMarkup({
+      ...view, careerKey: this.keyView, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
+    }), 'mine', 'best');
+    this.wireRestoreLink();
+    this.wireStatsKeys();
+  }
+
+  stats(view: StatsSheetView) {
+    const overlay = this.$('stats-overlay');
+    // The page goes up before the picture exists and is drawn again when it
+    // lands, so only the first of those may take the focus — the second would
+    // pull it back off whichever key the player had already reached for.
+    const opening = overlay.classList.contains('hidden');
+    this.holdStats(view);
+    overlay.innerHTML = statsSheetMarkup({
+      ...view, careerKey: this.keyView, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
+    });
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    this.wireStatsKeys();
+    const back = this.$('stats-back');
+    back.onclick = () => this.closeStats();
+    if (opening) back.focus();
+  }
+
+  /**
+   * Takes the cards in, and keeps the player where they were standing.
+   *
+   * A rail that has changed length — a second card arriving, or a build that
+   * only plays one game — starts again at the front. A rail of the same cards
+   * being redrawn does not.
+   */
+  private holdStats(view: StatsSheetView) {
+    if (view.cards.length !== this.statsCards.length) this.statsAt = view.at ?? 0;
+    this.statsAt = Math.min(Math.max(0, this.statsAt), Math.max(0, view.cards.length - 1));
+    this.statsCards = view.cards;
+    this.statsShown = view.cards[this.statsAt]?.facts ?? null;
+  }
+
+  /**
+   * The two share keys, wired the same wherever the card is standing. Both
+   * presentations draw the same markup, so both get the same behaviour from
+   * one place rather than each remembering to do it.
+   */
+  private wireStatsKeys() {
+    this.$('stats-brag').onclick = () => void this.shareStats();
+    // The key card is only on the sheet where the player has one.
+    const save = document.getElementById('key-save');
+    // On `lost` that one key asks for a new one instead of saving a key this
+    // browser does not hold — the card says so in the same breath, so the key
+    // under it has to mean what the card just said.
+    if (save) save.onclick = () => (this.keyView?.state === 'lost' ? this.onNewKey?.() : this.openKeySheet(false, 'stats'));
+    const about = document.getElementById('key-info');
+    if (about) about.onclick = () => this.openKeySheet(true);
+    const fresh = document.getElementById('key-new');
+    if (fresh) fresh.onclick = () => this.onNewKey?.();
+    this.wireStatsRail();
+    // Every figure on the card, and every figure in the text fallback under it.
+    // One selector for both, because what a tap does is the same either way and
+    // the fallback is the presentation least likely to be tried by hand.
+    for (const tap of document.querySelectorAll<HTMLElement>('[data-stat]')) {
+      const label = tap.dataset.stat ?? '';
+      tap.onclick = () => this.explainStat(label);
+      // The fallback's cells are not buttons, so they need the keys spelled out.
+      if (tap.tagName !== 'BUTTON') {
+        tap.onkeydown = event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          this.explainStat(label);
+        };
+      }
+    }
+  }
+
+  /** The toast under the card, and the handle that takes it away again. */
+  private statsToast = 0;
+
+  /**
+   * What a figure counts, said from the bottom of the screen.
+   *
+   * A career card is a dozen numbers and about half of them are counting
+   * something with a rule inside it — a hundred needs the wicket still
+   * standing, a draw is not a loss, the highest score and the best unbeaten one
+   * are different figures. None of that fits on the card, and a player who
+   * cannot find out is left to infer it from a number that will not move.
+   *
+   * It goes away on its own because it is an aside, not a dialogue: nothing is
+   * being asked, so nothing should have to be dismissed.
+   */
+  private explainStat(label: string) {
+    const says = statsExplain(label);
+    const toast = document.getElementById('stats-toast');
+    if (!says || !toast) return;
+    // Once per label per session. Counted per tap, one player prodding the same
+    // figure six times would read as six players not understanding it; what is
+    // worth knowing is how many sessions reached for an explanation at all, and
+    // which figure they reached for. A label everybody taps is a label that is
+    // not doing its job.
+    trackOnce(`stats-tap-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+      `Asked what ${label} counts`);
+    toast.innerHTML = `<b>${escape(label)}</b><span>${escape(says)}</span>`;
+    // Off and on again, so a second tap while the first is still up replays the
+    // rise rather than swapping the words inside a toast that is already there.
+    toast.classList.remove('is-up');
+    void toast.offsetWidth;
+    toast.classList.add('is-up');
+    window.clearTimeout(this.statsToast);
+    this.statsToast = window.setTimeout(() => toast.classList.remove('is-up'), 4600);
+  }
+
+  /**
+   * The rail: where it is put back to, what a swipe changes, and the dots.
+   *
+   * The keys under the cards send whichever card is in front, so what "in
+   * front" means has to be a fact the screen keeps rather than something the
+   * share key works out at the moment it is pressed — by then the rail may
+   * have been redrawn twice.
+   */
+  private wireStatsRail() {
+    const rail = document.getElementById('stats-rail');
+    if (!rail || !rail.classList.contains('is-rail')) return;
+    // No animation on the way back: this is not the player moving, it is the
+    // screen being rebuilt underneath them, and it should look like nothing
+    // happened at all.
+    this.railTo(rail, this.statsAt, 'auto');
+    rail.onscroll = () => {
+      // Whichever card's middle is nearest the rail's middle. Dividing the
+      // scroll by the rail's width would be the same thing only if a card were
+      // as wide as the rail — and a card exactly as wide as the rail is a card
+      // with nothing peeking past it, which is the one thing this must not be.
+      const at = this.railAt(rail);
+      if (at === this.statsAt || at < 0 || at >= this.statsCards.length) return;
+      // The rail was built so the card behind peeks past the edge, on the
+      // argument that a player who can see there is something there will go and
+      // look. That is a claim about behaviour and this is the only thing that
+      // can say whether it was true.
+      trackOnce('stats-swipe', 'Swiped to the other card');
+      this.statsAt = at;
+      this.statsShown = this.statsCards[at]?.facts ?? this.statsShown;
+      for (const dot of document.querySelectorAll<HTMLElement>('.stats-dot')) {
+        const on = Number(dot.dataset.slide) === at;
+        dot.classList.toggle('is-on', on);
+        dot.setAttribute('aria-selected', String(on));
+      }
+    };
+    for (const dot of document.querySelectorAll<HTMLButtonElement>('.stats-dot')) {
+      dot.onclick = () => this.railTo(rail, Number(dot.dataset.slide), 'smooth');
+    }
+  }
+
+  /** Which card is in front of the rail right now. */
+  private railAt(rail: HTMLElement) {
+    const middle = rail.scrollLeft + rail.clientWidth / 2;
+    const slides = [...rail.querySelectorAll<HTMLElement>('.stats-slide')];
+    let at = 0;
+    let nearest = Infinity;
+    slides.forEach((slide, i) => {
+      const gap = Math.abs(slide.offsetLeft - rail.offsetLeft + slide.offsetWidth / 2 - middle);
+      if (gap < nearest) { nearest = gap; at = i; }
+    });
+    return at;
+  }
+
+  /**
+   * Puts a card in front. The scroll listener above does the rest.
+   *
+   * The last card is scrolled to its right edge rather than its left, because
+   * that is where its snap point is: a rail only as long as its cards cannot
+   * bring the last one's left edge to the left of the screen.
+   */
+  private railTo(rail: HTMLElement, at: number, behavior: ScrollBehavior) {
+    const slides = [...rail.querySelectorAll<HTMLElement>('.stats-slide')];
+    const slide = slides[at];
+    if (!slide) return;
+    const left = slide.offsetLeft - rail.offsetLeft;
+    const end = at === slides.length - 1;
+    rail.scrollTo({ left: end ? left + slide.offsetWidth - rail.clientWidth : left, behavior });
+  }
+
+  /** Hands the drawn picture to the sheet once it has been painted. */
+  holdStatsPicture(url: string | null) {
+    if (url) this.statsPictures.add(url);
+  }
+
+  /**
+   * Lets go of every picture the cards minted — once nothing is still showing
+   * one.
+   *
+   * The card has two homes and they can both be up at once: the page opened
+   * from the innings card, with the board's own My Stats tab underneath it. A
+   * picture revoked while the tab behind is still pointing at it leaves that
+   * tab holding a broken image the moment the page comes down, so whichever of
+   * the two closes second is the one that clears up.
+   */
+  private dropStatsPictures() {
+    const showing = !this.$('stats-overlay').classList.contains('hidden')
+      || !this.$('board-overlay').classList.contains('hidden');
+    if (showing) return;
+    for (const url of this.statsPictures) URL.revokeObjectURL(url);
+    this.statsPictures.clear();
+  }
+
+  /**
+   * What's new, over everything.
+   *
+   * The whole screen is redrawn on every card rather than the contents being
+   * swapped, which is what restarts the bar's animation without a second
+   * mechanism for restarting it: the bar is a CSS animation on an element that
+   * did not exist a moment ago, so it always runs from the start.
+   */
+  private storyAt = 0;
+  private storyWhere: StoriesWhere = 'intro';
+  private storyHold = 0;
+  /** What to do when the stories are finished with. The game decides. */
+  onStoriesDone: (() => void) | null = null;
+
+  /** How long one card holds before it moves on by itself. */
+  static readonly STORY_MS = 7000;
+
+  private storyLocked = false;
+
+  stories(where: StoriesWhere, locked = false) {
+    this.storyWhere = where;
+    this.storyLocked = locked;
+    this.storyAt = 0;
+    this.drawStory();
+  }
+
+  private drawStory() {
+    const overlay = this.$('whatsnew-overlay');
+    overlay.innerHTML = storiesMarkup({
+      at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
+    });
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    this.$('whatsnew-next').onclick = () => this.stepStory(1);
+    this.$('whatsnew-back').onclick = () => this.stepStory(-1);
+    this.$('whatsnew-done').onclick = () => this.closeStories();
+    this.$('whatsnew-done').focus();
+    window.clearTimeout(this.storyHold);
+    this.storyHold = window.setTimeout(() => this.stepStory(1), HUD.STORY_MS);
+  }
+
+  /** Forward off the last card is the way out, the same as the key under it. */
+  private stepStory(by: number) {
+    const next = this.storyAt + by;
+    if (next >= STORIES.length) return this.closeStories();
+    this.storyAt = Math.max(0, next);
+    this.drawStory();
+  }
+
+  get storiesOpen() { return !this.$('whatsnew-overlay').classList.contains('hidden'); }
+
+  closeStories() {
+    window.clearTimeout(this.storyHold);
+    // Which card they were standing on when they left. Opening was already
+    // counted and answers nothing on its own: three cards read to the end and
+    // three cards abandoned on the first look identical from the other side,
+    // and they mean opposite things about whether the update introduced itself.
+    // `is-last` rather than a number, because the count will change and a
+    // dashboard comparing "left on 3" across two updates would be comparing
+    // the middle of one with the end of the other.
+    track(this.storyAt >= STORIES.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
+      'How far the What\u2019s new stories were read');
+    this.$('whatsnew-overlay').classList.add('hidden');
+    this.$('whatsnew-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+    const done = this.onStoriesDone;
+    this.onStoriesDone = null;
+    done?.();
+  }
+
+  get statsOpen() { return !this.$('stats-overlay').classList.contains('hidden'); }
+
+  /** What the page's back key does. The game decides where back is. */
+  onStatsBack: (() => void) | null = null;
+
+  closeStats() {
+    if (this.onStatsBack) return this.onStatsBack();
+    this.dropStats();
+  }
+
+  /** Puts the page away and hands the screen back to whatever was under it. */
+  dropStats() {
+    window.clearTimeout(this.statsToast);
+    this.$('stats-overlay').classList.add('hidden');
+    this.$('stats-overlay').innerHTML = '';
+    this.statsShown = null;
+    this.statsCards = [];
+    this.statsAt = 0;
+    // The pictures were minted for this sheet and nothing else is holding them.
+    this.dropStatsPictures();
+    // The board is usually still underneath, and the darkened ground only lifts
+    // when nothing is left standing on it.
+    const stacked = ['board-overlay', 'end', 'end-survive', 'modes', 'pause-overlay', 'tutorial-done']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+    if (!this.$('board-overlay').classList.contains('hidden')) {
+      document.getElementById('board-tab-mine')?.focus();
+    } else if (this.$('end-survive').classList.contains('hidden')) {
+      this.$('board').focus();
+    }
+  }
+
+  /**
+   * Sends the career out as a picture.
+   *
+   * Both keys draw the same card; the story one stands it on the cover art in a
+   * 9:16 frame with the address painted on, because a picture in a story is a
+   * picture and no text travels with it.
+   *
+   * The WhatsApp caption carries the playable link, which is the whole
+   * difference between a brag and an invitation — a thread full of somebody's
+   * numbers is a thread where nobody can go and beat them. Where the browser
+   * will not hand a file to another app, the wa.me link still opens WhatsApp
+   * with that text, so the link survives even when the picture cannot.
+   */
+  /**
+   * One key, one picture, and the phone's own sheet to choose where it goes.
+   *
+   * It was two — one wearing WhatsApp's mark and one Instagram's — which named
+   * two destinations out of the dozen the share sheet offers and made the card
+   * look like it belonged to them. The sheet is already the chooser; a screen
+   * that chooses first is a screen doing the sheet's job worse.
+   *
+   * The tall picture rather than the square one, because one asset has to work
+   * in both places: nine by sixteen posts as a story untouched and still reads
+   * in a chat, where a square card posted as a story is a square card with grey
+   * above and below it.
+   */
+  private async shareStats() {
+    const facts = this.statsShown;
+    if (!facts) return;
+    track('stats-brag', 'Bragged about the career card');
+    const url = gameLink();
+    const lead = facts.hero[0] ?? { label: 'runs', value: 0 };
+    const caption = statsStoryText(lead, facts.innings, url);
+    const status = this.$('stats-status');
+    if (!canShareImage()) {
+      // No file can leave this browser, so the picture cannot go anywhere the
+      // player chooses. WhatsApp's own link still carries the words and the
+      // address, which is more use than a file in a downloads folder.
+      window.open(statsWhatsappLink(lead, facts.innings, url), '_blank', 'noopener');
+      return;
+    }
+    try {
+      const picture = await statsStoryImage(facts, url);
+      const file = new File([picture], statsFileName('story'), { type: 'image/jpeg' });
+      await navigator.share({ files: [file], text: caption });
+    } catch (error) {
+      // A cancelled sheet is the player changing their mind, not a failure.
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      status.textContent = 'Could not open the share sheet. Saving the picture instead.';
+      status.classList.remove('hidden');
+      await this.saveStats(facts, url, caption);
+    }
+  }
+
+  /** No share sheet: put the picture in the downloads folder and say so. */
+  private async saveStats(facts: StatsFacts, url: string, caption: string) {
+    const status = this.$('stats-status');
+    try {
+      const picture = await statsStoryImage(facts, url);
+      const href = URL.createObjectURL(picture);
+      const link = document.createElement('a');
+      link.href = href; link.download = statsFileName('story');
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 10_000);
+      status.textContent = `Card saved. Post it with: ${caption}`;
+    } catch {
+      status.textContent = 'Could not build the picture on this browser.';
+    }
+    status.classList.remove('hidden');
+  }
+
+  /**
+   * Whether this build plays both modes.
+   *
+   * It used to decide whether the tab row was drawn at all — one mode, one
+   * board, and a row of tabs over it would be two names for one thing. The row
+   * now carries the player's own card as well, which exists in every build, so
+   * it is always drawn and this only decides whether the *other* game is on it.
+   */
+  private bothModes = false;
+  showBoardTabs(on: boolean) { this.bothModes = on; }
+  /** What a tab does. The game decides, because the rows are the game's. */
+  onBoardTab: ((tab: SheetTab) => void) | null = null;
+  /** What the sheet's What's New key does. */
+  onBoardStories: (() => void) | null = null;
+  /** The same, for the row of ladders inside one mode. */
+  onLadderTab: ((ladder: LadderTab) => void) | null = null;
+
+  /**
+   * The game whose board the card was reached from.
+   *
+   * A build that plays one mode takes the other mode's tab off the row, and on
+   * the card's own tab that used to take both of them off — leaving My Stats
+   * standing alone with no way back to the board it was opened from. The row is
+   * the only way between these screens, so the one game this build has stays on
+   * it wherever the player is standing.
+   */
+  private lastGame: BoardTab = 'classic';
+
+  private sheet(markup: string, tab: SheetTab, ladder: LadderTab, actions = '') {
     const overlay = this.$('board-overlay');
-    const tab: BoardTab = surviving ? 'survive' : 'classic';
+    const surviving = tab === 'survive';
+    // The card's tab has no ladders under it: a career is one thing and there
+    // is nothing to re-sort. The row is dropped rather than drawn empty, or the
+    // sheet would keep a gap where the player's eye expects a control.
+    const mine = tab === 'mine';
+    if (!mine) this.lastGame = tab;
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
-    overlay.innerHTML = this.tabbed
-      ? `<div class="board-stack">${boardTabsMarkup(tab)}${markup}</div>`
-      : markup;
-    if (this.tabbed) {
-      for (const other of ['classic', 'survive'] as const) {
-        this.$(`board-tab-${other}`).onclick = () => { if (other !== tab) this.onBoardTab?.(other); };
+    //
+    // Two rows of them, and the second exists whether or not the first does:
+    // the ladders inside a mode are this mode's ladders, so a build that plays
+    // one mode still has a career and still has a card, while a build that
+    // plays both needs the row above to get between them.
+    const tabs = `${boardTabsMarkup(tab)}${mine ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
+    // The keys stand under the sheet rather than inside it. They are what to do
+    // next, which is not a fact about a leaderboard — sealed into its foot they
+    // read as part of the board, and a board with a PLAY AGAIN in it is a board
+    // nobody can tell where it ends.
+    overlay.innerHTML = `<div class="board-stack${mine ? ' is-mine' : ''}">${tabs}${markup}${actions}</div>`;
+    for (const other of BOARD_TABS) {
+      const key = document.getElementById(other.id);
+      if (!key) continue;
+      // A build that plays one mode still has a card, so the row is always
+      // drawn — the other game's tab is simply taken off it.
+      const here = mine ? this.lastGame : tab;
+      if (!this.bothModes && other.tab !== 'mine' && other.tab !== here) { key.remove(); continue; }
+      key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
+    }
+    if (!mine) {
+      for (const other of laddersOf(tab as BoardTab)) {
+        this.$(`board-ladder-${other.key}`).onclick = () => {
+          if (other.key !== ladder) this.onLadderTab?.(other.key);
+        };
       }
+    }
+    // The ladder strip scrolls sideways where the tabs do not fit, and the
+    // sheet is drawn whole every time — so without this, opening the card on a
+    // narrow phone puts the tab you are standing on off the right-hand edge and
+    // the strip looks like it has forgotten which one is live. Its own
+    // `scrollLeft` rather than `scrollIntoView`, which would move the page too.
+    if (!mine) {
+      const live = this.$(`board-ladder-${ladder}`);
+      const strip = live.parentElement;
+      if (strip) strip.scrollLeft = live.offsetLeft - (strip.clientWidth - live.clientWidth) / 2;
     }
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     // The backdrop is the whole overlay, so a click that lands on the sheet is
     // not a click on the way out.
     overlay.onclick = event => { if (event.target === overlay) this.closeBoard(); };
-    this.$('board-close').onclick = () => this.closeBoard();
+    // The card's tab has no X: the row of tabs above it is the way out, and a
+    // cross inside a tab would be a way out of the tab to the same tab.
+    const close = document.getElementById('board-close');
+    if (close) close.onclick = () => this.closeBoard();
+    // The way into the stories for somebody who never saw them, or who saw them
+    // and wants another look. It sits beside the close key on every sheet.
+    const news = document.getElementById('board-new');
+    if (news) news.onclick = () => this.onBoardStories?.();
     // The sheet's own keys, when it is carrying them. They are the card's keys
     // under different ids, so they do the same things.
+    const keySave = document.getElementById('key-toast-save');
+    if (keySave) keySave.onclick = () => this.openKeySheet(false, 'toast');
+    const keyShut = document.getElementById('key-toast-close');
+    if (keyShut) keyShut.onclick = () => this.keyToast(null);
+    const backGo = document.getElementById('board-restore-go');
+    if (backGo) backGo.onclick = () => this.onRestoreOpen?.('board');
+    const backShut = document.getElementById('board-restore-close');
+    if (backShut) {
+      backShut.onclick = () => {
+        document.getElementById('board-restore-go')?.closest('.restore-panel')?.remove();
+        this.onRestoreDismiss?.();
+      };
+    }
     const again = document.getElementById('board-again');
-    if (!again) return this.$('board-close').focus();
+    if (!again) {
+      // No keys on this sheet, so the focus goes to the way out — and the card's
+      // tab has no X, which is why this is looked up rather than assumed. It was
+      // assumed, and the throw took the rest of this method with it: the picture
+      // was painted by a call that never came back, so the card's own tab sat on
+      // "Drawing your card…" for good.
+      const way = document.getElementById('board-close') ?? document.getElementById(`board-tab-${tab}`);
+      way?.focus();
+      return;
+    }
     again.onclick = () => { this.closeBoard(); this.$(surviving ? 'survive-again' : 'again').click(); };
     if (surviving) {
       // The Test card offers the picker rather than the share keys, so the
@@ -447,9 +1135,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       if (this.$('survive-modes').classList.contains('hidden')) modes.remove();
       else modes.onclick = () => { this.closeBoard(); this.$('survive-modes').click(); };
     } else {
-      (this.$('board-whatsapp') as HTMLAnchorElement).href = (this.$('whatsapp') as HTMLAnchorElement).href;
-      this.$('board-whatsapp').addEventListener('click', event => this.shareScore(event, 'card'));
-      this.$('board-story').addEventListener('click', event => this.shareScore(event, 'story'));
+      this.$('board-share').addEventListener('click', () => void this.shareScore());
     }
     again.focus();
   }
@@ -468,6 +1154,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   closeBoard() {
     this.$('board-overlay').classList.add('hidden');
     this.$('board-overlay').innerHTML = '';
+    // The first key is laid over the board and belongs to it. Left behind it
+    // would stand on the cover with nothing underneath it to explain it.
+    this.keyToast(null);
+    // The next open of the board starts at the front of the rail again.
+    this.statsCards = [];
+    this.statsAt = 0;
+    this.dropStatsPictures();
     // The pause card and the innings card are both modals in their own right, so
     // the darkened ground only lifts if the board was the last thing on it.
     const stacked = ['end', 'end-survive', 'modes', 'pause-overlay', 'tutorial-done']
@@ -506,12 +1199,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
   }
-  phase(phase: GamePhase, primed = false) {
+  /**
+   * `specials` is every special stroke this ball is for, `primed` the one the
+   * call names. The guide lights a spoke for each of them.
+   */
+  phase(phase: GamePhase, primed: Primed = null, specials: readonly NonNullable<Primed>[] = primed ? [primed] : []) {
     const label = this.$('phase-label');
-    // The charge call goes where the player is already looking — down the pitch —
-    // not in the corner with the meter.
-    const on = primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
-    label.textContent = on ? 'CHARGE IT · SWIPE UP'
+    // The call goes where the player is already looking — down the pitch —
+    // not in the corner with the meter, and it names the stroke this ball is
+    // for, because each of the four is swiped for differently.
+    const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
+    this.guide(on, specials);
+    label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
       : phase === 'READY' ? 'TAKE YOUR GUARD' : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
     // The edge of the field lights up too: a line of text at the bottom is easy
@@ -519,8 +1218,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.toggle('charge-on', on);
     if (phase === 'READY') this.$('result').classList.add('hidden');
   }
+  /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
+  private guide(on: boolean, specials: readonly NonNullable<Primed>[]) {
+    const guide = this.$('swipe-guide');
+    guide.classList.toggle('is-on', on);
+    const lit = new Set(specials.flatMap(special => SPECIAL_SPOKES[special]));
+    guide.querySelectorAll<SVGGElement>('.spoke').forEach(spoke => spoke.classList.toggle('is-special', lit.has(spoke.dataset.dir!)));
+  }
   select(_shot: ShotType, charging = false) {
     this.$('phase-label').classList.remove('is-primed'); this.viewport.classList.remove('charge-on');
+    this.$('swipe-guide').classList.remove('is-on');
     this.$('phase-label').textContent = charging ? 'DOWN THE PITCH!' : 'SHOT COMMITTED';
   }
   /** A skied shot: say nothing about the outcome until the ball comes down. */
@@ -629,7 +1336,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The href is the floor, not the plan: a wa.me link carries text and nothing
     // else, so it is what a browser that cannot hand a file to another app falls
     // back to. Where one can, the click below sends the picture instead.
-    (this.$('whatsapp') as HTMLAnchorElement).href = whatsappLink(score.runs, gameLink());
     this.shared = cardFacts(score, best, isRecord);
     // Fonts and cover art, fetched while the player is still reading the card,
     // so the first tap on a share button does not wait on the network.
@@ -709,6 +1415,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.hostStrip(surviving);
     this.onBoard = offer.kind === 'standing';
     const key = this.$('claim');
+    // Cleared up front, so the two "view leaderboard" states cannot inherit a
+    // shimmer from an offer the player has already answered.
+    key.classList.remove('is-offer');
+    // Said where the key is asking, and nowhere else. One class on the strip
+    // rather than a toggle at each of the three places the form opens and
+    // closes: the footnote then cannot fall out of step with the key it is
+    // under, because the same state draws both.
+    this.$('card-board').classList.toggle('is-asking', offer.kind === 'claim');
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
@@ -726,12 +1440,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       key.textContent = 'VIEW LEADERBOARD';
     } else {
       this.$('card-board-head').innerHTML = offer.place
-        ? `${icon('trophy')}<span>You're <b>${ordinal(offer.place)}</b> on the board</span>`
+        ? `${icon('trophy')}<span>Congrats! You secured <b>${ordinal(offer.place)}</b> position on leaderboard</span>`
         : `${icon('trophy')}<span>Put this innings on the board</span>`;
       // With no board fetched there is nothing to sit between, so the strip is
       // the banner and the key alone rather than three empty rows.
       this.$('card-peek').innerHTML = offer.place ? say.peek(offer.place) : '';
       key.textContent = 'REGISTER SCORE ON LEADERBOARD';
+      // The shimmer belongs to the offer, not to the key. This is the one
+      // state where the key is asking for something rather than going
+      // somewhere, and a light running across it is what makes a player look
+      // at it twice. On "view leaderboard" the same light would be a door
+      // waving at somebody who has already decided.
+      key.classList.add('is-offer');
     }
     this.$('card-board').classList.remove('hidden');
   }
@@ -748,9 +1468,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private hostStrip(surviving: boolean) {
     const host = surviving ? 'end-survive' : 'end';
     if (this.stripHost === host) return;
-    const strip = this.$('card-board');
-    if (surviving) this.$('survive-strip').append(strip);
-    else this.$('end').querySelector('.scorecard')!.insertBefore(strip, this.$('end').querySelector('.card-keys'));
+    // The career widget goes with it. It is the same one thing — a way to your
+    // own figures from the card you have just finished on — and both modes want
+    // it in the same place, under the board and above the keys. Moved rather
+    // than duplicated, for the reason the strip is moved: the ids travel, so
+    // everything that reaches for `card-career` goes on working without knowing
+    // which card it is standing in. The career key rides along for the same
+    // reason — it was left behind on the Blast card at first, so a Test innings
+    // ended on a card with no key on it and nothing said why.
+    const moving = [this.$('card-board'), this.$('card-career'), this.$('card-key')];
+    if (surviving) this.$('survive-strip').append(...moving);
+    else {
+      const card = this.$('end').querySelector('.scorecard')!;
+      const keys = this.$('end').querySelector('.card-keys');
+      for (const one of moving) card.insertBefore(one, keys);
+    }
     this.stripHost = host;
   }
 
@@ -788,6 +1520,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const field = this.$('claim-name') as HTMLInputElement;
     field.value = this.claimed?.name ?? '';
     this.$('claim-error').classList.add('hidden');
+    this.$('claim-back').classList.add('hidden');
+    this.$('claim-back').innerHTML = '';
     this.claimSending(false);
     field.focus();
   }
@@ -816,11 +1550,168 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
   }
 
-  /** The store turned it down, and the player can do something about it. */
-  claimFailed(reason: string) {
+  /**
+   * The store turned it down, and the player can do something about it.
+   *
+   * One refusal is not like the others. A name already held is the only moment
+   * in this game where a player who has lost their record gives us evidence of
+   * it: they typed the name they have always batted under, and it is taken,
+   * and the person holding it is almost always them. So that one comes with a
+   * way back rather than a wall — with the name they typed carried over, since
+   * retyping it ten seconds later would read as the screen not listening.
+   */
+  claimFailed(reason: string, taken = false) {
     this.claimSending(false);
     this.$('claim-error').textContent = reason;
     this.$('claim-error').classList.remove('hidden');
+    const back = this.$('claim-back');
+    back.classList.toggle('hidden', !taken);
+    back.innerHTML = taken ? restoreLinkMarkup('claim-restore', RESTORE_TAKEN) : '';
+    if (taken) this.$('claim-restore').onclick = () => this.openRestore(this.claimEntry.name);
+  }
+
+  /**
+   * The screen that takes a key back, wherever it was opened from.
+   *
+   * Held open while the store is asked rather than closed on submit: a wrong
+   * key is the likely outcome the first time somebody reads their own
+   * handwriting, and a screen that shuts on every try makes the second try a
+   * journey instead of a correction.
+   */
+  openRestore(name = '', local: LocalCareer | null = null) {
+    this.restoreView = { name, local, sending: false, error: null };
+    this.drawRestore();
+  }
+
+  /** What the player is offering. */
+  get restoreEntry() {
+    return {
+      name: (this.$('restore-name') as HTMLInputElement).value,
+      key: (this.$('restore-key') as HTMLInputElement).value,
+    };
+  }
+
+  /** The form, while the store is thinking about it. */
+  restoreSending(sending: boolean) {
+    if (!this.restoreView) return;
+    this.restoreView = { ...this.restoreView, sending, error: sending ? null : this.restoreView.error };
+    this.drawRestore();
+  }
+
+  /** Turned down, and the key field left holding what they typed to correct it. */
+  restoreFailed(reason: string) {
+    if (!this.restoreView) return;
+    this.restoreView = { ...this.restoreView, sending: false, error: reason };
+    this.drawRestore();
+  }
+
+  closeRestore() {
+    this.restoreView = null;
+    this.$('restore-overlay').classList.add('hidden');
+    this.$('restore-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  get restoreOpen() { return !this.$('restore-overlay').classList.contains('hidden'); }
+
+  /** What the game does with a name and a key. The store is the game's. */
+  onRestore: ((entry: { name: string; key: string }) => void) | null = null;
+
+  /**
+   * Asking for a key to replace the one this browser does not have.
+   *
+   * The only way out of `lost`. A key is shown once and kept nowhere but a
+   * salted hash, so the one that was issued cannot be produced again by
+   * anybody — a new one is the only thing that can be offered, and making it
+   * is what stops the old one working.
+   */
+  onNewKey: (() => void) | null = null;
+
+  /**
+   * It worked, said on the screen the player was already on.
+   *
+   * A toast rather than a screen of its own: what they wanted was their record,
+   * and the record is behind this — so the right thing to do is get out of the
+   * way and let them see it, not stand in front of it with good news.
+   */
+  restoreDone(name: string) {
+    this.restoreView = { done: { name } };
+    this.drawRestore();
+  }
+
+  private restoreView: RestoreView | null = null;
+
+  /**
+   * Whether the game wants the way back offered where it fits.
+   *
+   * Asked rather than remembered, for the reason `keyNow` is asked: the answer
+   * changes underneath this screen. Somebody claims a name; somebody brings a
+   * record back. Held as a field it was set true once at startup and stayed
+   * true — so the offer went on standing at the foot of My Stats for a player
+   * who had just used it, and for every registered player who never needed it.
+   */
+  restoreNow: (() => boolean) | null = null;
+  private get offerRestore() { return this.restoreNow?.() ?? false; }
+
+  /**
+   * Takes the board's offer off the screen it is already standing on.
+   *
+   * The flag beside it decides whether one is *drawn*, and the board is only
+   * drawn when it is opened — so a record brought back from the board itself
+   * left the offer sitting under it, asking a player who had just answered it.
+   * The node is removed the same way its own cross removes it.
+   */
+  dropBoardRestore() {
+    document.getElementById('board-restore-go')?.closest('.restore-panel')?.remove();
+  }
+
+  /** The link on an empty card, which is drawn with the card and so rewired with it. */
+  private wireRestoreLink() {
+    const link = document.getElementById('stats-restore');
+    if (link) link.onclick = () => this.onRestoreOpen?.('stats');
+  }
+
+  /** Where the offer was taken up, so the game can say which door was used. */
+  onRestoreOpen: ((from: string) => void) | null = null;
+
+  /**
+   * Drawn whole every time, so the three states it has — asking, checking,
+   * refused — cannot drift apart. What that costs is the caret: the fields are
+   * written back from what was in them, and focus is put where the player was.
+   */
+  private drawRestore() {
+    const overlay = this.$('restore-overlay');
+    if (!this.restoreView) return this.closeRestore();
+    const held = this.restoreOpen && document.getElementById('restore-name')
+      ? { name: (this.$('restore-name') as HTMLInputElement).value,
+        key: (this.$('restore-key') as HTMLInputElement).value }
+      : null;
+    overlay.innerHTML = restoreMarkup(this.restoreView);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) this.closeRestore(); };
+    if (this.restoreView.done) {
+      const away = this.$('restore-done');
+      away.onclick = () => this.closeRestore();
+      away.focus();
+      return;
+    }
+    const name = this.$('restore-name') as HTMLInputElement;
+    const key = this.$('restore-key') as HTMLInputElement;
+    if (held) { name.value = held.name; key.value = held.key; }
+    this.$('restore-close').onclick = () => this.closeRestore();
+    (this.$('restore-form') as HTMLFormElement).onsubmit = event => {
+      event.preventDefault();
+      if (this.restoreView?.sending) return;
+      this.onRestore?.(this.restoreEntry);
+    };
+    if (this.restoreView.sending) return;
+    // Back to whichever field still needs something: the name where it is
+    // empty, the key otherwise — which is also where a refused try belongs.
+    (name.value ? key : name).focus();
   }
 
   /**
@@ -843,37 +1734,36 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
-   * Sends the innings out as a picture. Both buttons draw the same card; the
-   * story one stands it on the cover art in a 9:16 frame with the address
-   * painted on, because a picture in a story is a picture. Link stickers get
-   * added inside Instagram or WhatsApp, not by whoever sent the image, so the
-   * only link that survives the trip is one a person can read and type.
+   * Sends the innings out, as one key rather than two.
    *
-   * A wa.me link cannot carry a file, so where the browser can hand a file to
-   * another app this takes over the click and goes through the share sheet
-   * instead. Where it cannot, the anchor's own href still opens WhatsApp with
-   * the text, and the story button offers the picture as a download.
+   * It used to be a WhatsApp anchor beside an Instagram button, which was two
+   * keys asking the same question and getting the same answer: on a phone both
+   * ended in the system share sheet, and choosing between them before seeing
+   * it was a decision nobody had the information to make. So this opens the
+   * sheet with the card in it and lets the phone offer everywhere it can go —
+   * WhatsApp and Instagram included.
+   *
+   * The caption carries the playable link, which is the whole difference
+   * between a score and an invitation. Where the browser will not hand a file
+   * to another app at all, WhatsApp's own link still opens with that text, so
+   * the link travels even when the picture cannot.
    */
-  private async shareScore(event: Event, kind: 'card' | 'story') {
+  private async shareScore() {
     const facts = this.shared;
     if (!facts) return;
     // The tap, not the delivery: whether the sheet was then sent or dismissed
     // is between the player and their phone, and no browser tells us.
-    track(kind === 'story' ? 'share-story' : 'share-whatsapp', kind === 'story' ? 'Shared a story' : 'Shared the card');
+    track('share-innings', 'Shared the innings');
     const url = gameLink();
-    const caption = kind === 'story' ? storyText(facts.runs, url) : shareText(facts.runs, url);
-    if (kind === 'story') event.preventDefault();
+    const caption = shareText(facts.runs, url);
     if (!canShareImage()) {
-      // WhatsApp's own link still works for the text; the story has no such
-      // fallback but a saved file, so say which one happened.
-      if (kind === 'story') await this.saveShare(facts, caption);
+      window.open(whatsappLink(facts.runs, url), '_blank', 'noopener');
       return;
     }
-    event.preventDefault();
     const status = this.$('share-status');
     try {
-      const picture = kind === 'story' ? await storyImage(facts, url) : await scorecardImage(facts);
-      const file = new File([picture], shareFileName(facts.runs, kind), { type: shareFileType(kind) });
+      const picture = await scorecardImage(facts);
+      const file = new File([picture], shareFileName(facts.runs, 'card'), { type: shareFileType('card') });
       await navigator.share({ files: [file], text: caption });
     } catch (error) {
       // A cancelled sheet is the player changing their mind, not a failure.
@@ -884,18 +1774,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
   }
 
-  /** No share sheet: put the picture in the downloads folder and say so. */
+  /**
+   * No share sheet: put the picture in the downloads folder and say so, with
+   * the caption printed out so the link is still there to copy. The card
+   * rather than the story frame, because the card is what the key offered.
+   */
   private async saveShare(facts: CardFacts, caption: string) {
     const status = this.$('share-status');
     try {
-      const kind = 'story';
-      const picture = await storyImage(facts, gameLink());
+      const picture = await scorecardImage(facts);
       const href = URL.createObjectURL(picture);
       const link = document.createElement('a');
-      link.href = href; link.download = shareFileName(facts.runs, kind);
+      link.href = href; link.download = shareFileName(facts.runs, 'card');
       link.click();
       setTimeout(() => URL.revokeObjectURL(href), 10_000);
-      status.textContent = 'Story picture saved. Post it with: ' + caption;
+      status.textContent = `Picture saved. Post it with: ${caption}`;
     } catch {
       status.textContent = 'Could not build the picture on this browser.';
     }
@@ -904,15 +1797,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /**
    * The meter reads full at 100 and pulses there. When the ball on its way is one
-   * he can charge, it says so — the shot is worth knowing about, and the timing
-   * is still the hard part.
+   * he can charge or sweep, it says which — the shot is worth knowing about, and
+   * the timing is still the hard part.
    */
-  confidence(fraction: number, primed: boolean) {
+  confidence(fraction: number, primed: Primed) {
     const full = fraction >= 1;
     const meter = this.$('confidence');
     meter.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
     meter.classList.toggle('is-full', full);
-    meter.classList.toggle('is-primed', primed);
+    meter.classList.toggle('is-primed', !!primed);
     // The housing is shared and a player can come back here straight from a
     // Test match, so this undoes Survive rather than assuming a fresh meter:
     // without it the classic innings inherited a red, pulsing, inverted bar.
@@ -921,7 +1814,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('injury-cap').hidden = true;
     this.viewport.classList.remove('hurt-on');
     this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
-    this.$('confidence-label').textContent = primed ? 'CHARGE IT — SWIPE UP' : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
+    // Four special strokes now, and they are swiped for differently. Saying
+    // "charge it" over a ball that wants a sweep is worse than saying nothing.
+    this.$('confidence-label').textContent = primed ? CUES[primed]
+      : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
   /**
    * The batter's injury, in the housing the confidence meter uses in the other
@@ -934,6 +1830,23 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * two hertz for ninety seconds is a headache rather than a warning. The hold
    * says the same thing and goes on saying it.
    */
+  /**
+   * The injury meter.
+   *
+   * Two things are deliberately fixed here. The label stays the single word
+   * INJURY whatever state he is in — it used to become ONE MORE AND HE IS OFF,
+   * which is twenty-two characters where six had been, and the meter visibly
+   * grew to hold them. A gauge that changes size when the news gets bad draws
+   * the eye to the movement rather than to the reading, and it shoved the
+   * scoreboard beside it about mid-innings.
+   *
+   * And the right-hand slot carries the figure rather than a caption. A
+   * percentage is the same width at every value, says more than the word
+   * RETIRE HURT did, and leaves the critical state to be told the way it should
+   * be told: in colour, by the meter's own pulse and the red edge on the field.
+   * The overlay names it once, the first time it happens, and after that the
+   * player knows.
+   */
   injury(fraction: number, critical: boolean) {
     const meter = this.$('confidence');
     const percent = Math.round(Math.max(0, Math.min(1, fraction)) * 100);
@@ -943,12 +1856,268 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     meter.classList.add('is-injury');
     meter.classList.toggle('is-hurt', critical);
     this.$('confidence-fill').style.width = `${percent}%`;
-    // The caption names what the far end of the track means, and it is up from
-    // the first ball rather than appearing at the moment it stops being news.
     this.$('injury-cap').hidden = false;
-    this.$('confidence-label').textContent = critical ? 'ONE MORE AND HE IS OFF' : 'INJURY';
+    this.$('injury-cap').textContent = `${percent}%`;
+    this.$('confidence-label').textContent = 'INJURY';
     this.viewport.classList.toggle('hurt-on', critical);
   }
+
+  /**
+   * The one time the mode explains the injury meter.
+   *
+   * Shown the first ball the batter is critical and never again on this device,
+   * because it is a lesson rather than a warning: after it the meter's own
+   * colour and the red edge on the field say the same thing without a panel.
+   *
+   * What it says is a trade rather than advice, and that is deliberate. The
+   * obvious counsel — get behind it, defend — is the one thing the numbers say
+   * not to do: blocking is what lets the ball through to the body, and a batter
+   * who defends his way out of a critical meter retires hurt about six times
+   * more often than one who keeps playing. So it names both costs and leaves
+   * the choice where it belongs.
+   */
+  hurtNote(onClose: () => void) {
+    const note = this.$('hurt-note');
+    note.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const done = () => {
+      note.classList.add('hidden');
+      this.viewport.classList.remove('modal-open');
+      onClose();
+    };
+    (this.$('hurt-note-done') as HTMLButtonElement).onclick = done;
+    (this.$('hurt-note-done') as HTMLButtonElement).focus();
+  }
+  get hurtNoteOpen() { return !this.$('hurt-note').classList.contains('hidden'); }
+
+  /**
+   * The career key, wherever it is being shown.
+   *
+   * One object drives four placements and the modal, because they are one
+   * message: a key copied from the card on the innings screen has to retire
+   * the line on the mode picker too, and a player asked twice concludes the
+   * first answer did not take.
+   */
+  /**
+   * What the player's key is, asked for rather than remembered.
+   *
+   * It was a field, written only where a key was drawn — the picker and the
+   * end of an innings. Everywhere else read whatever those had last left
+   * behind, so a player who registered and went straight to the board found
+   * the field still holding the null from before they had a name, and My
+   * Stats left the card out. A key is a fact about storage that four screens
+   * ask about at four different moments; the only version that cannot go
+   * stale is the one read when the question is asked.
+   */
+  keyNow: (() => KeyView | null) | null = null;
+
+  private get keyView(): KeyView | null { return this.keyNow?.() ?? null; }
+  /** What the modal's two keys do. The game owns the saving. */
+  /**
+   * What a save key does. Answering `false` means nothing was saved — the
+   * clipboard refused, or the browser blocked the window — and the sheet stays
+   * up saying so, because a sheet that closes on a save that did not happen is
+   * the lie this whole widget exists to avoid.
+   */
+  onKeySave: ((how: 'whatsapp' | 'copy' | 'image') => Promise<boolean> | boolean) | null = null;
+
+  careerKey(view: KeyView | null, where: { panel: boolean; bar: boolean }) {
+    const panel = this.$('card-key');
+    const bar = this.$('mode-key');
+    const show = !!view && view.state !== 'lost';
+    // One slot, three occupants, never two at once. A key for whoever holds
+    // one; the way to make one for whoever holds a name without one; and the
+    // way back for whoever holds neither. They are decided by the same two
+    // facts and cannot overlap, so the player sees one object on that strip of
+    // card that changes what it says, rather than three arguing over the room.
+    //
+    // The middle one was missing, and the hole it left was the whole board:
+    // every name claimed before keys existed has none, so every one of those
+    // players finished an innings and was shown nothing.
+    const missing = !!view && view.state === 'lost' && where.panel;
+    const offering = !show && !missing && where.panel && this.offerRestorePanel;
+    panel.classList.toggle('hidden', !((show && where.panel) || missing || offering));
+    bar.classList.toggle('hidden', !(show && where.bar));
+    if (show && where.panel) {
+      panel.innerHTML = keyPanelMarkup(view!);
+      this.$('key-panel-save').onclick = () => this.openKeySheet(false, 'card');
+    } else if (missing) {
+      panel.innerHTML = keyMissingPanelMarkup();
+      this.$('key-missing-go').onclick = () => this.onNewKey?.();
+      trackOnce('key-missing-card', 'Offered a key at the end of an innings');
+    } else if (offering) {
+      panel.innerHTML = restorePanelMarkup('restore-panel');
+      this.$('restore-panel-go').onclick = () => this.onRestoreOpen?.('card');
+      this.$('restore-panel-close').onclick = () => {
+        panel.classList.add('hidden');
+        panel.innerHTML = '';
+        this.onRestoreDismiss?.();
+      };
+      this.onRestoreShown?.();
+    }
+    if (show && where.bar) {
+      bar.innerHTML = keyBarMarkup();
+      this.$('key-bar').onclick = () => this.openKeySheet(false, 'bar');
+    }
+    // Emptied rather than only hidden. These nodes are shared between the two
+    // end cards and moved between them, so a slot left holding what it held
+    // last time is a widget waiting to reappear on a screen that never asked
+    // for it — which is exactly how the key ended up on the Blast card.
+    if (!((show && where.panel) || missing || offering)) panel.innerHTML = '';
+    if (!(show && where.bar)) bar.innerHTML = '';
+  }
+
+  /**
+   * Whether the end card's one slot is carrying anything at the moment.
+   *
+   * Asked before that slot is redrawn from outside the end card, because
+   * drawing the offer into it is what counts a showing against its cap — so a
+   * redraw aimed at a screen the player is not looking at would spend one of
+   * the two times they will ever be asked.
+   */
+  get keyPanelShowing() { return !this.$('card-key').classList.contains('hidden'); }
+
+  /**
+   * Whether the end of an innings should carry the offer instead of a key.
+   * The game decides — it knows whether a name is claimed, and it is the game
+   * that remembers how often this has been asked.
+   */
+  offerRestorePanel = false;
+
+  /** Counted where it is drawn, so a card that never appeared is never counted. */
+  onRestoreShown: (() => void) | null = null;
+
+  /** Taken away by hand, which is for good. */
+  onRestoreDismiss: (() => void) | null = null;
+
+  /** The only place a key is saved, whichever of the four opened it. */
+  openKeySheet(about = false, where: 'card' | 'stats' | 'bar' | 'toast' = 'card') {
+    if (!this.keyView) return;
+    // Where the sheet was reached from, and that it was reached at all. This is
+    // the denominator every save figure needs: "how many copied" answers
+    // nothing without "how many were standing in front of the offer".
+    trackOnce(about ? 'key-about' : `key-sheet-${where}`,
+      about ? 'Asked what a career key is' : `Save sheet opened from the ${where}`);
+    this.keySheetKind = about ? 'about' : 'save';
+    this.keySheetSaved = false;
+    const overlay = this.$('key-overlay');
+    overlay.innerHTML = about ? keyAboutMarkup() : keyModalMarkup(this.keyView);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const shut = () => this.closeKeySheet();
+    this.$(about ? 'key-about-close' : 'key-modal-close').onclick = shut;
+    // The ground around the sheet closes it, which is what every other modal
+    // on this game does and what a thumb reaches for first. Only the ground:
+    // the test is that the press landed on the scrim itself rather than
+    // bubbled up from something inside the sheet.
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) shut(); };
+    if (about) return;
+    // The picture is the screenshot made pressable, so it stands where the
+    // screenshot is recommended rather than among the two that send the key
+    // somewhere. It takes a moment to paint and a moment more for the phone to
+    // offer somewhere to put it, so the key says what it is doing.
+    this.$('key-image').onclick = async () => {
+      const key = this.$('key-image') as HTMLButtonElement;
+      if (key.disabled) return;
+      const was = key.textContent;
+      key.disabled = true;
+      key.textContent = 'SAVING…';
+      const done = await this.onKeySave?.('image');
+      if (done !== false) this.keySheetSaved = true;
+      key.disabled = false;
+      key.textContent = was;
+      if (done === false) {
+        this.keyTrouble('Could not save the picture. Screenshot this screen instead.');
+      }
+    };
+    this.$('key-whatsapp').onclick = async () => {
+      const done = await this.onKeySave?.('whatsapp');
+      if (done !== false) this.keySheetSaved = true;
+      if (done === false) {
+        return this.keyTrouble('Could not open WhatsApp. Screenshot this screen, or copy it instead.');
+      }
+      // WhatsApp is about to take the screen anyway, so there is nothing for
+      // this sheet to stay open for.
+      shut();
+    };
+    this.$('key-copy').onclick = async () => {
+      const key = this.$('key-copy');
+      const done = await this.onKeySave?.('copy');
+      if (done !== false) this.keySheetSaved = true;
+      if (done === false) {
+        return this.keyTrouble('Could not copy. Screenshot this screen instead \u2014 the key is above.');
+      }
+      // Said on the key that was pressed, and the sheet left standing. A copy
+      // is invisible: nothing moves, no app opens, and a sheet that simply
+      // closed was the only answer somebody got — indistinguishable from a key
+      // that did nothing, which is what the last one actually was. Standing
+      // also leaves the screen up for the screenshot recommended above it.
+      key.textContent = 'COPIED';
+      key.classList.add('is-done');
+      window.clearTimeout(this.copySaid);
+      this.copySaid = window.setTimeout(() => {
+        key.textContent = 'COPY';
+        key.classList.remove('is-done');
+      }, 2200);
+    };
+  }
+
+  /** How long the copy key has left to say so. */
+  private copySaid = 0;
+
+  /** Which sheet is up, and whether it has done anything for the player yet. */
+  private keySheetKind: 'save' | 'about' | null = null;
+  private keySheetSaved = false;
+
+  /** Said inside the sheet, because the sheet is what is on the screen. */
+  private keyTrouble(says: string) {
+    const line = document.getElementById('key-trouble');
+    if (!line) return;
+    line.textContent = says;
+    line.classList.remove('hidden');
+  }
+
+  closeKeySheet() {
+    // Left without saving anything through the game.
+    //
+    // As close as a browser gets to counting screenshots, which it cannot do at
+    // all: no platform tells a page one was taken. So this counts the people a
+    // screenshot would be hiding in — everybody who read the sheet, was told
+    // to screenshot it, and closed it without pressing a key. Some of them took
+    // the picture and some of them walked away, and the two cannot be told
+    // apart from here. Read beside the three save figures it is still the
+    // number worth having: if it dwarfs them, the sheet is being obeyed or
+    // ignored, and which of those it is wants asking a player rather than a
+    // counter.
+    if (this.keySheetKind === 'save' && !this.keySheetSaved) {
+      track('key-sheet-left', 'Left the save sheet without saving through the game');
+    }
+    this.keySheetKind = null;
+    window.clearTimeout(this.copySaid);
+    this.$('key-overlay').classList.add('hidden');
+    this.$('key-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  get keySheetOpen() { return !this.$('key-overlay').classList.contains('hidden'); }
+
+  /**
+   * The first key, the moment a name is claimed. Closed by hand, never a clock.
+   *
+   * Set before the board is drawn: it is a row of the board's own column, so
+   * the sheet that follows carries it. Taken off by hand rather than by drawing
+   * the sheet again, because the sheet is drawn whole — redrawing it to remove
+   * one row would put the ladder strip and the scroll back where they started.
+   */
+  keyToast(view: KeyView | null) {
+    this.keyPending = view;
+    if (!view) this.viewport.querySelector('.board-stack .key-toast')?.remove();
+  }
+
+  private keyPending: KeyView | null = null;
 
   /** The mode picker. Skipped entirely when a link has already named the mode. */
   modes() {
@@ -981,6 +2150,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * whether or not the Test match is on offer.
    */
   hideSurviveCard() { this.$('mode-survive').classList.add('hidden'); }
+
+  /**
+   * The end card the picker was opened from, put back the way it was.
+   *
+   * `modes` takes both cards off the screen, because the picker is a screen
+   * rather than something that stands over one. That is right on the way in
+   * and has to be undone on the way out: backing out of the picker with the
+   * card still hidden leaves the ground on its own, with the final score on it
+   * and every key dead, because the innings is over and nothing is listening.
+   */
+  showResult(surviving: boolean) {
+    this.$(surviving ? 'end-survive' : 'end').classList.remove('hidden');
+    this.viewport.classList.add('modal-open', 'result-open');
+    this.$(surviving ? 'survive-again' : 'again').focus();
+  }
   /**
    * Hide the way back to the picker. A link that names one mode is a link to
    * that mode, and offering to leave it is how a playtester ends up filing
@@ -988,6 +2172,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   lockMode(surviveOnly = false) {
     this.$('survive-modes').classList.add('hidden');
+    // Including the way out of the pause card. A link that names one mode is a
+    // link to that mode wherever the player is standing when they ask.
+    this.$('change-mode').classList.add('hidden');
     // A build with no board behind it should not offer a way to one. The key is
     // on the cover under two different ids depending on whether the screen got
     // the phone layout or the desktop one.
@@ -1085,7 +2272,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // read as 100% however much punishment the meter is set to hold.
     const injury = Math.round((1 - Math.max(0, health.value) / HEALTH.full) * 100);
     this.$('survive-health').textContent = `${injury}%`;
-    this.ballTrack('survive-track', score, SURVIVE.totalBalls);
     this.$('end-survive').className = `modal-overlay result-screen result-${result.toLowerCase()}`;
     this.viewport.classList.add('modal-open', 'result-open');
     this.viewport.classList.remove('hurt-on');
@@ -1093,20 +2279,26 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
-   * The innings as a row of bars, one per ball, in the order they were bowled.
-   * Lifted out of the classic card so both modes draw it the same way — the
-   * balls he never faced stay on it as gaps, which is what makes a short innings
-   * look short rather than merely end early.
+   * The quiet lines that open the questionnaire.
+   *
+   * Three of them — the cover, the innings-end card and the pause card — and
+   * every one is a ghost link rather than a key, because none of them is ever
+   * the thing the player came to that screen to do. The button row is
+   * deliberately not a fourth: it is six keys already, it sits over a live ball,
+   * and a form is not something to reach for mid-over.
+   *
+   * Once the form has been answered every one of them goes for good. A link
+   * that keeps asking after it has been answered is not an invitation any more.
    */
-  private ballTrack(id: string, score: ScoreManager, balls: number) {
-    const track = this.$(id);
-    track.style.setProperty('--balls', String(balls));
-    track.innerHTML = Array.from({ length: balls }, (_, i) => {
-      const ball = score.history[i];
-      if (!ball) return `<i class="ball-unfaced" style="--i:${i}"></i>`;
-      const mark = ball.isWicket ? 'ball-out' : ball.hit ? 'ball-hit' : '';
-      return `<i class="${mark}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
-    }).join('');
+  offerFeedback(where: { cover?: boolean; card?: boolean; pause?: boolean }) {
+    const given = feedbackGiven();
+    const offer = (id: string, on: boolean | undefined) => {
+      const key = document.getElementById(id);
+      if (key && on !== undefined) key.classList.toggle('hidden', given || !on);
+    };
+    offer('feedback-open', where.cover);
+    offer('feedback-card', where.card);
+    offer('feedback-pause', where.pause);
   }
 
   /* ── The challenge ─────────────────────────────────────────────────── */
@@ -1329,7 +2521,23 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (!held) this.viewport.classList.remove('modal-open');
   }
 
-  sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }
+  /**
+   * The sound key, drawn as the setting it is on. Three settings on one key
+   * means a press has to say where it landed, or the middle one is a mystery
+   * icon: the note under the key does that, and only when the key is pressed.
+   */
+  sound(setting: SoundSetting, pressed = false) {
+    const [art, says, next] = SOUND_SETTINGS[setting];
+    this.$('sound').innerHTML = icon(art);
+    this.$('sound').setAttribute('aria-label', `${says}. ${next}`);
+    if (!pressed) return;
+    const note = this.$('sound-note');
+    note.textContent = says;
+    note.classList.remove('is-up'); void note.offsetWidth; note.classList.add('is-up');
+    clearTimeout(this.soundNote);
+    this.soundNote = window.setTimeout(() => note.classList.remove('is-up'), 1600);
+  }
+  private soundNote = 0;
   debug(data: object) { this.$('debug').classList.remove('hidden'); this.$('debug').textContent = Object.entries(data).map(([k, v]) => `${k}: ${v}`).join('\n'); }
   async share() {
     track('share-link', 'Shared the game link');

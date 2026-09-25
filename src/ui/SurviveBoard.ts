@@ -4,7 +4,7 @@ import {
   SURVIVE_BOARD_SIZE, packSurvive, standingOf, surviveDecidedBy, surviveImprovesOn,
   surviveQualifies, type Standing, type SurviveInnings, type SurviveRow,
 } from '../game/survive-board';
-import { escape, kitMarkup, type CardOffer } from './Leaderboard';
+import { escape, kitMarkup, sheetKeys, type CardOffer } from './Leaderboard';
 
 /**
  * The Test board, as a screen.
@@ -164,16 +164,18 @@ export function surviveCutLabel(edge: SurviveRow): string {
 
 /** The whole screen, header to footer. */
 export function surviveBoardMarkup(view: SurviveBoardView): string {
-  const { rows, youId = null, yours = null, state = 'ready', actions = false, atMs = Date.now() } = view;
+  const { rows, youId = null, yours = null, state = 'ready', atMs = Date.now() } = view;
   const edge = surviveCutoff(rows);
   const yourPlace = rows.findIndex(row => row.playerId === youId);
   const waiting = yourPlace < 0 && yours ? surviveQualifies(yours, atMs, rows) : false;
   return `
     <div class="board-sheet survive-sheet" role="document">
       <div class="sheet-head">
-        <p class="board-eyebrow">HITMAN OVAL &middot; TEST SURVIVAL</p>
-        <h2 id="board-title">Top ${SURVIVE_BOARD_SIZE}</h2>
-        <button id="board-close" class="board-close" aria-label="Close the board">×</button>
+        <div class="sheet-title">
+          <p class="board-eyebrow">TEST SURVIVAL</p>
+          <h2 id="board-title">Top ${SURVIVE_BOARD_SIZE}</h2>
+        </div>
+        ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
         state === 'loading' ? 'Fetching the board…'
@@ -194,8 +196,7 @@ export function surviveBoardMarkup(view: SurviveBoardView): string {
             : surviveMine(yours, '&mdash;', 'not good enough yet')
           : ''}
       </div>
-      <p class="board-foot">A win beats a draw beats a loss. Wins are ranked on balls used &mdash; a chase is a race &mdash; draws on the runs made while surviving, and losses on how long the last man kept them out. Level innings are split on runs, then on who took the lesser battering, and if that ties too, whoever got there first stays above.</p>
-      ${actions ? surviveActions() : ''}
+      <p class="board-foot">Wins rank by fewest balls, draws by most runs, losses by longest survival. Ties go to runs, then less battering, then earliest finish.</p>
     </div>`;
 }
 
@@ -228,11 +229,11 @@ export function surviveRowMarkup(
           </li>`;
 }
 
-function surviveActions(): string {
+export function surviveActions(): string {
   return `
-      <div class="board-actions">
+      <div class="board-actions" role="group" aria-label="What now">
         <button id="board-again" class="key-button">PLAY AGAIN</button>
-        <button id="board-modes" class="ghost-link">Mode selection</button>
+        <button id="board-modes" class="ghost-link">Change mode</button>
       </div>`;
 }
 

@@ -142,21 +142,78 @@ export const BANDS = { clean: 86, beaten: 190 } as const;
  */
 export const HEALTH = {
   full: 100,
-  /** At or below this the screen keeps a red edge: one more blow and he is off. */
-  critical: 25,
+  /**
+   * At or below this the screen keeps a red edge and the mode says so once.
+   *
+   * Nearly half the meter, which looks generous and is not. The biggest blow in
+   * the game is an express bouncer on the helmet at eighty-one of the hundred —
+   * more than three times the twenty-five this used to be — so a batter
+   * regularly went from unmarked to carried off without ever passing through
+   * the warning. Measured: at twenty-five, **half of all retirements skipped
+   * the critical state entirely** and the red edge never appeared at all.
+   *
+   * At forty-six that falls to one in seven, and a quarter of chasing innings
+   * reach it rather than one in nine. It is presentation only — `spent` is what
+   * ends an innings — so widening it changes what the player is told and
+   * nothing about what happens to him.
+   */
+  critical: 46,
   nominalKph: 140,
 } as const;
 
+/**
+ * The short-pitched plan, and it is a plan rather than a probability.
+ *
+ * The bouncer used to be rolled for off the weight table, which meant thirty-
+ * eight per cent of innings never met one at all — the mode's signature ball,
+ * absent from four innings in ten. So it is *placed* now, the way the spinner's
+ * arm ball already is: a fixed count per over, at positions drawn fresh each
+ * over so it is never the same ball twice and never missing from the over.
+ *
+ * And the count rises at the death. The last two overs are kept for the quick
+ * bowlers and get two apiece — the full allowance the laws permit — because a
+ * side nine wickets down with two overs left has stopped trying to bowl him out
+ * and started trying to get him off. That shape is worth more than a flat rate:
+ * it taxes *surviving* rather than taxing every ball, so a batter chasing the
+ * hundred is barely troubled by it while a batter blocking for the draw walks
+ * into a barrage. Measured, it holds a good player's win rate within two points
+ * of where it was while quadrupling what the death overs cost him.
+ */
+export const BOUNCERS = {
+  /** Placed in every over of pace, whenever it is bowled. */
+  perOver: 1,
+  /** And in the last two, which is the most the laws allow. */
+  atTheDeath: 2,
+  /** How many overs at the end are the quick bowlers', and out of the spinner's reach. */
+  deathOvers: 2,
+} as const;
+
+/**
+ * What a blow costs at `nominalKph`, before the square-of-pace scaling.
+ *
+ * These were raised by about half after sixty-two live innings said the meter
+ * was not part of the game: one player in sixty-two retired hurt, and the
+ * average innings finished having used nineteen points of the hundred. The
+ * ratios between the four are unchanged — the helmet is still most of an
+ * innings and the pad is still a nuisance — because the shape was right and
+ * only the scale was wrong.
+ *
+ * Raised here rather than by lowering `HEALTH.full`, which would have been the
+ * same arithmetic and would have broken the board: rows carry the meter as a
+ * number out of a hundred and the Test ladder ranks on it, so a smaller ceiling
+ * would have left every innings played before the change permanently above
+ * every innings played after it.
+ */
 export const DAMAGE: Record<BodyPart, number> = {
-  HELMET: 30,
-  RIBS: 18,
-  THIGH: 8,
+  HELMET: 46,
+  RIBS: 28,
+  THIGH: 12,
   /**
    * The cheapest blow, and the most important number in the mode. See the note
    * at the top: this is what a batter pays for the safe mistake, so it decides
    * how long he can go on making it.
    */
-  GLOVES: 11,
+  GLOVES: 17,
 };
 
 /** What a blow costs, by where it lands and how fast it arrived. */
@@ -179,22 +236,29 @@ export function damageFor(where: BodyPart, speedKph: number): number {
  * the stumps and is a bouncer; below about 1.8 it is a length ball. The window
  * is narrow and these numbers sit in the middle of it.
  */
+/*
+ * The weights carry the bouncer's old thirteen per cent, shared out in
+ * proportion — it is placed by `BOUNCERS` now, and a table that summed to .87
+ * would have dropped that thirteen into the loop's fallback and quietly bowled
+ * seam with it.
+ */
 export const STYLES: Record<DeliveryStyle, StyleShape> = {
-  NORMAL: { weight: 0.17, min: 138, max: 150, label: 'SEAM', rush: 0.86 },
-  FAST: { weight: 0.18, min: 152, max: 166, label: 'FAST', rush: 0.76, tight: true, aimWide: 0.4 },
+  NORMAL: { weight: 0.195, min: 138, max: 150, label: 'SEAM', rush: 0.86 },
+  FAST: { weight: 0.207, min: 152, max: 166, label: 'FAST', rush: 0.76, tight: true, aimWide: 0.4 },
   // Barely reactable, and meant to be: about 340ms from hand to bat, which is
   // inside the time it takes to choose a stroke. It is bowled at fifth stump
   // four times in five, because the punishment for an express ball is supposed
   // to be the drive you should not have played at it.
-  EXPRESS: { weight: 0.09, min: 172, max: 186, label: 'EXPRESS', rush: 0.62, tight: true, aimWide: 0.8 },
+  EXPRESS: { weight: 0.103, min: 172, max: 186, label: 'EXPRESS', rush: 0.62, tight: true, aimWide: 0.8 },
   // Into the ribs, and aimed there. Dealt from the bag it came down the off side
   // as often as not, which is a ball nobody has to think about.
-  RIB: { weight: 0.18, min: 142, max: 160, label: 'BACK OF A LENGTH', rush: 0.82, bounce: 9.6, rise: 2.0, aimBody: 0.75 },
+  RIB: { weight: 0.207, min: 142, max: 160, label: 'BACK OF A LENGTH', rush: 0.82, bounce: 9.6, rise: 2.0, aimBody: 0.75 },
   // A bouncer at fifth stump is a wide. This one is at his head.
-  SHORT: { weight: 0.13, min: 158, max: 172, label: 'BOUNCER', rush: 0.72, tight: true, bounce: 10.4, rise: 2.9, aimBody: 0.8 },
-  SLOWER: { weight: 0.05, min: 82, max: 100, label: 'SLOWER BALL', rush: 1.15 },
-  SWING_IN: { weight: 0.10, min: 138, max: 152, label: 'INSWINGER', rush: 0.86, aimBody: 0.3 },
-  SWING_OUT: { weight: 0.10, min: 138, max: 152, label: 'OUTSWINGER', rush: 0.86, aimWide: 0.45 },
+  // Weightless: the bouncer is placed by `BOUNCERS` rather than rolled for here.
+  SHORT: { weight: 0, min: 158, max: 172, label: 'BOUNCER', rush: 0.72, tight: true, bounce: 10.4, rise: 2.9, aimBody: 0.8 },
+  SLOWER: { weight: 0.058, min: 82, max: 100, label: 'SLOWER BALL', rush: 1.15 },
+  SWING_IN: { weight: 0.115, min: 138, max: 152, label: 'INSWINGER', rush: 0.86, aimBody: 0.3 },
+  SWING_OUT: { weight: 0.115, min: 138, max: 152, label: 'OUTSWINGER', rush: 0.86, aimWide: 0.45 },
   // The spinner's three balls. All three carry a zero weight because they are
   // never rolled for: the spell is given whole overs by SPIN below, and inside
   // one of those overs these are the only deliveries bowled.

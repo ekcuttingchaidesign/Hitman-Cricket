@@ -116,6 +116,35 @@ export function marksPassed(playedMs: number) {
  * mode's own furniture is — the spinner arrives at three, the change-up is owed
  * by five — so the bands answer questions about the bowling as well.
  */
+/**
+ * Where the injury meter finished, in the same five bands the simulator reports
+ * so the live spread can be set against the modelled one without arithmetic.
+ * `100` is its own band rather than the top of the last: reaching the end of
+ * the meter is a different event from nearly reaching it, and it is the one the
+ * mode is tuned on.
+ */
+export function injuryBand(injury: number) {
+  const pct = Math.round(Math.max(0, Math.min(1, injury)) * 100);
+  if (pct >= 100) return 'injury-retired';
+  if (pct >= 75) return 'injury-75-99';
+  if (pct >= 50) return 'injury-50-74';
+  if (pct >= 25) return 'injury-25-49';
+  return 'injury-0-24';
+}
+
+/**
+ * How many blows he took. Counted beside the meter rather than instead of it,
+ * because one on the helmet costs more than two on the pad and the pair of
+ * figures together say which kind of innings it was.
+ */
+export function blowsBand(blows: number) {
+  if (blows <= 0) return 'blows-0';
+  if (blows === 1) return 'blows-1';
+  if (blows === 2) return 'blows-2';
+  if (blows <= 4) return 'blows-3-4';
+  return 'blows-5-plus';
+}
+
 export function ballsBand(balls: number) {
   if (balls < 6) return 'balls-under-1-over';
   if (balls < 18) return 'balls-1-3-overs';
@@ -136,4 +165,24 @@ export function scoreBand(runs: number) {
   if (runs < 75) return 'score-50-74';
   if (runs < 100) return 'score-75-99';
   return 'score-100-plus';
+}
+
+/**
+ * Which of the three problems a refused restore was, for counting only.
+ *
+ * The screen says the same thing to a wrong key and a name nobody has claimed,
+ * and that rule is not negotiable: it is what stops the form being a way to ask
+ * which names are taken. This is a different question. What a stranger may
+ * learn from the screen and what the person who built it may count are not the
+ * same thing, and the answer the store sends back is already in this browser.
+ *
+ * Worth telling apart because they ask for different work. `shape` is a key
+ * typed badly or pasted half, and the fix is the field. `mismatch` is a key
+ * that should work and does not, and a run of those is the alarming one.
+ * `busy` is the rate limiter, which nobody honest meets twice in an hour.
+ */
+export function restoreFailure(reason: string | null | undefined): 'shape' | 'mismatch' | 'busy' {
+  if (/three words and two numbers/i.test(reason ?? '')) return 'shape';
+  if (/do not go together/i.test(reason ?? '')) return 'mismatch';
+  return 'busy';
 }

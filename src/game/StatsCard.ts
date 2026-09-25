@@ -1,0 +1,841 @@
+import { kitColour, avatarSrc } from '../config/board';
+import { HUNDRED, survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
+import { nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
+
+/**
+ * The career card, painted so it can leave the page as a picture.
+ *
+ * The innings card in `ShareCard.ts` is the same idea and the same house: a
+ * dozen rectangles and a handful of strings on a canvas, rather than a
+ * screenshot of live DOM, because nothing in a browser turns one into the other
+ * without a library and painting it gives back exact control of what the shared
+ * version says.
+ *
+ * What is different is what it is *for*. An innings card is a result — it
+ * exists for an hour and is about one thirty-ball story. This is a record of
+ * everything somebody has done, and the whole reason the boards count every
+ * innings is so that it accumulates into something worth showing people. So it
+ * is drawn to be looked at rather than merely read: the two figures the mode is
+ * actually about are given the room, the rest sit under them in a grid, and the
+ * mark is on it because the picture is about to travel without the game around
+ * it.
+ *
+ * The overlay shows this very image rather than a DOM copy of it, which is the
+ * one thing that guarantees the card somebody shares is the card they were
+ * looking at when they decided to.
+ */
+
+const titleArt = new URL('../assets/title.webp', import.meta.url).href;
+const coverArt = new URL('../assets/cover.webp', import.meta.url).href;
+
+export const STATS_CARD = {
+  // Wider than the innings card, and wider than it was. Two things wanted it:
+  // the hero numbers get to be numbers rather than digits crowding a tile, and
+  // the picture now sits flush with the two keys under it — a card narrower
+  // than its own buttons reads as a thumbnail of something else.
+  width: 440,
+  radius: 20,
+  padX: 26,
+  padTop: 26,
+  padBottom: 22,
+} as const;
+
+/**
+ * The three results a Test innings ends in, in the colours the Test board bands
+ * its rows with. The card is the one place all three figures sit side by side,
+ * and a row of three identical numbers says nothing about which of them a
+ * player would rather have more of — the colours are what make it a record
+ * rather than a tally.
+ *
+ * These are the one set of colours on the card the theme does not own. A draw
+ * has to look like a draw on every material, or the three columns stop meaning
+ * anything the moment somebody changes tier.
+ */
+const RESULT_INK: Record<string, string> = {
+  Won: '#7de3ad', Drawn: '#f0c65c', Lost: '#f09a8c',
+};
+
+/** The story frame every phone expects: a full-bleed portrait 9:16. */
+export const STORY = { width: 1080, height: 1920 } as const;
+
+const FAMILY = "Satoshi, 'Segoe UI', Arial, sans-serif";
+const font = (weight: number, size: number) => `${weight} ${size}px ${FAMILY}`;
+
+/** The weights the card asks for, loaded before a single glyph is measured. */
+const WEIGHTS: [number, number][] = [[500, 13], [600, 10], [700, 11], [800, 22], [900, 44]];
+
+let ready: Promise<void> | null = null;
+/** Fonts and artwork, fetched once and reused for every share of the session. */
+export function prepareStatsAssets() {
+  ready ??= (async () => {
+    await Promise.all(WEIGHTS.map(([weight, size]) => document.fonts.load(font(weight, size), '0123456789')));
+    await Promise.all([titleArt, coverArt].map(load));
+  })().catch(() => { /* A share still draws, in whatever face the canvas falls back to. */ });
+  return ready;
+}
+
+const cache = new Map<string, Promise<HTMLImageElement>>();
+function load(src: string) {
+  const found = cache.get(src);
+  if (found) return found;
+  const image = new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error(`Could not load ${src}`));
+    element.src = src;
+  });
+  cache.set(src, image);
+  return image;
+}
+
+/** One figure on the card: what it is called, and what it comes to. */
+export interface StatsFigure {
+  label: string;
+  value: number;
+}
+
+/**
+ * What the card says, kept apart from the drawing so that a test can read it
+ * and so the overlay's own text — which is what a screen reader gets, since a
+ * canvas has nothing to say to one — is built from the same figures.
+ */
+export interface StatsFacts {
+  mode: CareerMode;
+  /** The ladder this career was made in, as the eyebrow prints it. */
+  modeName: string;
+  name: string;
+  avatar: number;
+  innings: number;
+  /** The two figures the mode is actually about. They get the room. */
+  hero: StatsFigure[];
+  /** Everything else, in the grid underneath. */
+  figures: StatsFigure[];
+  /** The best place this career holds on any ladder, where it holds one. */
+  standing: string | null;
+  /** Whether anything has been counted at all. */
+  played: boolean;
+  /** What this player *is*, which is the one thing on the card worth bragging. */
+  tier: Tier;
+  /** How far along the ladder they are, for the bar under the hero row. */
+  ladder: Standing;
+  /** What the bar's line says. */
+  nextLine: string;
+}
+
+/** A Blast career, as the card reads it. */
+export function blastFacts(career: BlastCareer): Pick<StatsFacts, 'hero' | 'figures'> {
+  return {
+    hero: [
+      { label: 'Runs', value: career.runs },
+      { label: 'Highest', value: career.highest },
+    ],
+    figures: [
+      // First of the small figures, because it is the rarest thing on the card:
+      // a hundred off thirty balls is a season's work for most players, and a
+      // nought here is a target rather than an absence.
+      { label: 'Hundreds', value: career.hundreds ?? 0 },
+      { label: 'Sixes', value: career.sixes },
+      { label: 'Fours', value: career.fours },
+      // What one batsman made, which is not what the innings made: a wicket
+      // brings a new batsman in and the runs start again, so 130 for two can be
+      // a best of 110.
+      { label: 'Best ind.', value: career.individual ?? career.notOut },
+      { label: 'Balls', value: career.balls },
+    ],
+  };
+}
+
+/** A Test career, with the three results it can end in. */
+export function surviveFacts(career: SurviveCareer): Pick<StatsFacts, 'hero' | 'figures'> {
+  return {
+    hero: [
+      { label: 'Balls faced', value: career.balls },
+      { label: 'Survived', value: survivals(career) },
+    ],
+    figures: [
+      { label: 'Runs', value: career.runs },
+      { label: 'Blows', value: career.blows },
+      { label: 'Sixes', value: career.sixes },
+      { label: 'Fours', value: career.fours },
+      { label: 'Won', value: career.wins },
+      { label: 'Drawn', value: career.draws },
+      { label: 'Lost', value: career.losses },
+    ],
+  };
+}
+
+export function statsFacts(
+  mode: CareerMode,
+  career: BlastCareer | SurviveCareer,
+  who: { name: string; avatar: number; granted?: Granted | null },
+  standing: string | null = null,
+): StatsFacts {
+  const split = mode === 'survive'
+    ? surviveFacts(career as SurviveCareer)
+    : blastFacts(career as BlastCareer);
+  const ladder = standingOf(mode, career, who.granted ?? null);
+  return {
+    tier: ladder.tier,
+    ladder,
+    nextLine: nextLine(mode, ladder),
+    mode,
+    modeName: mode === 'survive' ? 'Test Survival' : 'The Blast',
+    // A player who has not registered still has a card; it is their figures,
+    // and the only thing a name would add is a name. "You" is what the game
+    // calls them everywhere else on the board, so it is what the card calls
+    // them too rather than leaving the biggest line on it blank.
+    name: who.name || 'You',
+    avatar: who.avatar,
+    innings: career.innings,
+    standing,
+    played: career.innings > 0,
+    ...split,
+  };
+}
+
+/**
+ * The card as a sentence, for the overlay's screen readers and for the caption
+ * that rides along with the picture. A canvas is a rectangle to a screen
+ * reader, so without this the card would be nothing at all to one.
+ */
+export function statsAlt(facts: StatsFacts): string {
+  const figures = [...facts.hero, ...facts.figures].map(one => `${one.label} ${one.value}`).join(', ');
+  return `${facts.name}, ${facts.tier.name}, on ${facts.modeName}: ${facts.innings} innings. ${figures}. ${facts.nextLine}.`;
+}
+
+/** How many of the small figures sit on one row. */
+const PER_ROW = 4;
+
+const EYEBROW_H = 13;
+/** Where the eyebrow's baseline sits inside that band. */
+const EYEBROW_BASE = 10;
+const IDENTITY_TOP = 22;
+const IDENTITY_H = 56;
+const BADGE_TOP = 18;
+const BADGE_H = 34;
+const HERO_TOP = 18;
+const HERO_H = 84;
+const HERO_GAP = 12;
+const BAR_TOP = 16;
+const BAR_H = 22;
+const GRID_TOP = 18;
+const GRID_ROW_H = 46;
+const FOOT_TOP = 18;
+const FOOT_H = 13;
+
+function gridRows(facts: StatsFacts) {
+  return Math.ceil(facts.figures.length / PER_ROW);
+}
+
+/**
+ * How many columns the grid actually uses.
+ *
+ * Four is the most it will fit, but four is not always the right number. Five
+ * figures at four to a row leave one cell stranded under a full row; spread
+ * over the rows it takes, the same five come out three and two and the card
+ * looks laid out rather than overflowed. Seven still comes to four and three,
+ * which is what the Test card already did.
+ */
+function gridCols(facts: StatsFacts) {
+  return Math.max(1, Math.ceil(facts.figures.length / gridRows(facts)));
+}
+
+/**
+ * Whether the card shows the climb to the next rung.
+ *
+ * A granted tier does not. The bar would sit at nothing — the figures behind
+ * it are a long way below the rung the player was handed — and the line under
+ * it would repeat what the badge has already said. An empty bar and the same
+ * sentence twice is a worse card than no bar at all, so the badge carries the
+ * reason and the row comes out.
+ */
+function showsLadder(facts: StatsFacts) {
+  return !facts.ladder.granted;
+}
+
+/**
+ * Where each figure sits on the card, in card units from its top-left corner.
+ *
+ * This exists because the card on screen is the painted picture itself and not
+ * a DOM copy of it — which is what guarantees the card somebody shares is the
+ * card they were looking at, and also means there is no element to tap. The
+ * overlay lays an invisible key over each of these boxes, so a player can press
+ * a number and be told what it counts.
+ *
+ * The drawing places its tiles and its grid from this list rather than from its
+ * own sums, so the two cannot drift: move a figure and its tap target moves
+ * with it, because they are the same rectangle read twice.
+ */
+export interface StatsSpot extends StatsFigure {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export function statsCardSpots(facts: StatsFacts): StatsSpot[] {
+  const { padX, padTop, width } = STATS_CARD;
+  const contentW = width - padX * 2;
+  const tileW = (contentW - HERO_GAP) / 2;
+  const heroY = padTop + EYEBROW_BASE + IDENTITY_TOP + IDENTITY_H + BADGE_TOP + BADGE_H + HERO_TOP;
+  const spots: StatsSpot[] = facts.hero.map((one, i) => ({
+    ...one, x: padX + i * (tileW + HERO_GAP), y: heroY, w: tileW, h: HERO_H,
+  }));
+  const gridY = heroY + HERO_H + (showsLadder(facts) ? BAR_TOP + BAR_H : 0) + GRID_TOP;
+  const cols = gridCols(facts);
+  const colW = contentW / cols;
+  facts.figures.forEach((one, i) => {
+    spots.push({
+      ...one,
+      x: padX + (i % cols) * colW,
+      y: gridY + Math.floor(i / cols) * (GRID_ROW_H + 6),
+      w: colW,
+      h: GRID_ROW_H,
+    });
+  });
+  return spots;
+}
+
+/**
+ * The mat painted round the card in the shared picture. Just enough to hold the
+ * card's own ledge and the glow coming off its edge.
+ */
+export const STATS_MAT = 10;
+
+/** The whole picture `statsCardImage` gives back, card and mat together. */
+export function statsCardFrame(facts: StatsFacts) {
+  return {
+    width: STATS_CARD.width + STATS_MAT * 2,
+    height: statsCardHeight(facts) + STATS_MAT * 2 + 10,
+  };
+}
+
+/**
+ * The same boxes as fractions of the picture, which is what the overlay needs:
+ * the image is shown at whatever width the screen gives it, so the only
+ * placement that survives every phone is a percentage one.
+ */
+export function statsHitBoxes(facts: StatsFacts) {
+  const frame = statsCardFrame(facts);
+  return statsCardSpots(facts).map(spot => ({
+    label: spot.label,
+    value: spot.value,
+    left: ((STATS_MAT + spot.x) / frame.width) * 100,
+    top: ((STATS_MAT + spot.y) / frame.height) * 100,
+    width: (spot.w / frame.width) * 100,
+    height: (spot.h / frame.height) * 100,
+  }));
+}
+
+/**
+ * What each figure actually counts, in the words a player would use.
+ *
+ * Every one of these is a rule somebody could otherwise only learn by watching
+ * a number fail to move — why a 140 for one does not count as a hundred, what
+ * separates a draw from a win, why balls faced is the figure the Test card
+ * leads on. Keyed by the label the figure already carries, so a figure added to
+ * a card above arrives here rather than in a second list of names to keep in
+ * step; a label with nothing to say simply has nothing to say, and its box is
+ * not made tappable.
+ */
+const EXPLAINS: Record<string, string> = {
+  // Shared. Both cards carry a Runs figure, and since they sit side by side on
+  // one rail the sentence cannot name a game — it would be wrong on whichever
+  // card the player swiped to.
+  'Runs': 'Every run you have scored, added up across all your innings.',
+  // The Blast.
+  'Highest': 'Your biggest innings total, whatever it cost in wickets. 130 for two counts as 130.',
+  'Hundreds': `Times a batsman of yours got to ${HUNDRED}. A wicket brings a new batsman in and the runs start again, so two down for twenty and 130 all told is a hundred — that batsman made 110.`,
+  'Sixes': 'Every six you have hit, added up across all your innings.',
+  'Fours': 'Every four you have hit, added up across all your innings.',
+  'Best ind.': 'The most one batsman made, counted from the wicket before him rather than from the start of the innings.',
+  'Balls': 'Every ball you have faced, added up across all your innings.',
+  // Test Survival.
+  'Balls faced': 'Every ball you have faced out there, added up across all your innings.',
+  'Survived': 'Innings you came through: the ones you won, plus the ones you drew.',
+  'Blows': 'Bouncers that hit you. You take the blow and keep batting, and every one of them is counted.',
+  'Won': 'Innings where you chased the hundred down before the overs ran out.',
+  'Drawn': 'Innings where you batted out all ten overs without getting to a hundred. You survived, you just did not win.',
+  'Lost': 'Innings where you lost your wicket before either of those happened.',
+};
+
+/** What tapping a figure says, or nothing where the figure speaks for itself. */
+export function statsExplain(label: string): string | null {
+  return EXPLAINS[label] ?? null;
+}
+
+/** The card's height for a given career, so callers can place it before drawing. */
+export function statsCardHeight(facts: StatsFacts) {
+  const rows = gridRows(facts);
+  return STATS_CARD.padTop + EYEBROW_H
+    + IDENTITY_TOP + IDENTITY_H
+    + BADGE_TOP + BADGE_H
+    + HERO_TOP + HERO_H
+    + (showsLadder(facts) ? BAR_TOP + BAR_H : 0)
+    + GRID_TOP + rows * GRID_ROW_H + (rows - 1) * 6
+    + FOOT_TOP + FOOT_H
+    + STATS_CARD.padBottom;
+}
+
+/**
+ * A hex colour at an alpha. The tier's ink is written once in `tier.ts` and
+ * spent all over the card at a dozen different strengths, and a second list of
+ * pre-mixed values would be a second list to keep in step with the first.
+ */
+function at(hex: string, alpha: number) {
+  return `${hex}${Math.round(Math.min(1, Math.max(0, alpha)) * 255).toString(16).padStart(2, '0')}`;
+}
+
+function panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+  else {
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+}
+
+/**
+ * Letter-spaced text, drawn a glyph at a time. `ctx.letterSpacing` only landed
+ * in Safari 17.4, and the card's tracked lines are the first things read on it.
+ */
+function tracked(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
+  let cursor = x;
+  for (const character of text) {
+    ctx.fillText(character, cursor, y);
+    cursor += ctx.measureText(character).width + spacing;
+  }
+  return cursor - x - spacing;
+}
+
+/**
+ * A figure as the card prints it. Grouped, always — a career runs into five
+ * digits and `11400` is a number somebody has to count, where `11,400` is one
+ * they read. The locale is pinned rather than the browser's, because a card
+ * shared out of one country and read in another must not say two things.
+ */
+function figure(value: number) {
+  return value.toLocaleString('en-US');
+}
+
+/** Cuts text to what will fit, with an ellipsis where it had to be cut. */
+function clipped(ctx: CanvasRenderingContext2D, text: string, max: number) {
+  if (ctx.measureText(text).width <= max) return text;
+  let cut = text;
+  while (cut.length > 1 && ctx.measureText(`${cut}…`).width > max) cut = cut.slice(0, -1);
+  return `${cut}…`;
+}
+
+/**
+ * The kit, as a disc with the player's picture in it — and the coloured disc
+ * alone where the picture will not load, which is the same fallback the board's
+ * rows have and reads as the kit either way rather than as a hole.
+ */
+async function paintKit(ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, size: number) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fillStyle = kitColour(facts.avatar);
+  ctx.fill();
+  ctx.clip();
+  const kit = await load(avatarSrc(facts.avatar)).catch(() => null);
+  if (kit) ctx.drawImage(kit, x, y, size, size);
+  ctx.restore();
+  // A ring round it in the tier's colour, with the tier's glow behind — so the
+  // one thing a player looks at first on their own card is also the thing that
+  // says how far up the ladder they are. A plain white hairline said nothing
+  // and was doing the same job.
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2 - 1, 0, Math.PI * 2);
+  ctx.strokeStyle = at(facts.tier.theme.accent, 0.9);
+  ctx.lineWidth = 2;
+  ctx.shadowColor = at(facts.tier.theme.accent, 0.55);
+  ctx.shadowBlur = 10;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * The badge: a tier-coloured bar with the word in it, and the rung's own line
+ * beside it. Full width rather than a pill beside the name, because at pill
+ * size the one word that carries the card would be the smallest thing on it.
+ */
+function paintBadge(
+  ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, w: number,
+) {
+  const tier = facts.tier;
+  const theme = tier.theme;
+  const fill = ctx.createLinearGradient(x, y, x + w, y);
+  fill.addColorStop(0, at(theme.accent, 0.3));
+  fill.addColorStop(1, at(theme.accent, 0.05));
+  ctx.fillStyle = fill;
+  panel(ctx, x, y, w, BADGE_H, 9); ctx.fill();
+  ctx.strokeStyle = at(theme.accent, 0.5);
+  ctx.lineWidth = 1;
+  panel(ctx, x + 0.5, y + 0.5, w - 1, BADGE_H - 1, 9); ctx.stroke();
+  // A solid flash of the tier's colour at the left edge, the way a rosette has
+  // a ribbon. It is what makes the badge read at a glance in a thumbnail,
+  // where the word itself is too small to read at all.
+  ctx.fillStyle = theme.accent;
+  panel(ctx, x, y + 6, 4, BADGE_H - 12, 2); ctx.fill();
+
+  ctx.font = font(900, 15);
+  // Brushed, on a tier whose accent is a metal: light at the top edge, the
+  // colour through the middle, dark underneath. It is one gradient and it is
+  // the difference between gold-coloured type and type that looks like gold.
+  ctx.fillStyle = theme.metal ? metal(ctx, theme, y + 8, 18) : theme.accent;
+  const used = tracked(ctx, tier.name, x + 16, y + BADGE_H / 2 + 5.5, 2.4);
+  ctx.fillStyle = theme.quiet;
+  ctx.font = font(500, 11.5);
+  // A granted tier says what it was for. "People turn up to watch" under a
+  // badge somebody was handed for being third on the board is the one line on
+  // the card that would be making something up.
+  const said = facts.ladder.granted ? facts.ladder.granted.reason : tier.blurb;
+  ctx.fillText(clipped(ctx, said, w - used - 44), x + 16 + used + 14, y + BADGE_H / 2 + 4.5);
+}
+
+/**
+ * A brushed-metal fill for a band of the card, light to colour to dark. Handed
+ * back as a fill style rather than applied, so a caller can set it on whatever
+ * it is about to draw and nothing here has to know what that is.
+ */
+function metal(ctx: CanvasRenderingContext2D, theme: Theme, y: number, h: number) {
+  const brush = ctx.createLinearGradient(0, y, 0, y + h);
+  brush.addColorStop(0, theme.sheen);
+  brush.addColorStop(0.45, theme.accent);
+  brush.addColorStop(1, at(theme.accent, 0.72));
+  return brush;
+}
+
+/**
+ * The bar under the hero row: how far into this rung, and what the next one
+ * wants. Measured across the gap between two rungs rather than from nought,
+ * which is the difference between a bar that creeps for a week and one that
+ * visibly moves every time somebody plays.
+ */
+function paintLadder(
+  ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, w: number,
+) {
+  const theme = facts.tier.theme;
+  const trackH = 6;
+  const trackY = y + 2;
+  ctx.fillStyle = '#ffffff12';
+  panel(ctx, x, trackY, w, trackH, 3); ctx.fill();
+  const filled = Math.max(trackH, w * facts.ladder.progress);
+  ctx.fillStyle = theme.metal
+    ? metal(ctx, theme, trackY, trackH)
+    : (() => {
+      const run = ctx.createLinearGradient(x, trackY, x + filled, trackY);
+      run.addColorStop(0, at(theme.accent, 0.5));
+      run.addColorStop(1, theme.accent);
+      return run;
+    })();
+  panel(ctx, x, trackY, filled, trackH, 3); ctx.fill();
+
+  // The rung above goes down first, because it is the fixed one: it sits at the
+  // end of its own bar, and the line on the left gets whatever room is left
+  // over. The other way round, "160 runs to EMERGING PLAYER" and the words
+  // EMERGING PLAYER met in the middle and printed on top of each other.
+  //
+  // It wears the *next* tier's colour, which is the only place on the card that
+  // colour appears — a small preview of what the thing is about to be made of.
+  let room = w;
+  if (facts.ladder.next) {
+    ctx.fillStyle = at(facts.ladder.next.theme.accent, 0.8);
+    ctx.font = font(700, 10.5);
+    // Measured and placed by hand rather than right-aligned: `tracked` draws a
+    // glyph at a time, and under `textAlign = 'right'` every one of them would
+    // be right-aligned against its own cursor and the word would come out
+    // backwards on top of itself.
+    const name = facts.ladder.next.name;
+    const used = measureTracked(ctx, name, 1.2);
+    tracked(ctx, name, x + w - used, trackY + trackH + 13, 1.2);
+    room = w - used - 14;
+  }
+  ctx.fillStyle = theme.quiet;
+  ctx.font = font(600, 10.5);
+  ctx.fillText(clipped(ctx, facts.nextLine, room), x, trackY + trackH + 13);
+}
+
+/** How wide a tracked string will be, so it can be right-aligned by hand. */
+function measureTracked(ctx: CanvasRenderingContext2D, text: string, spacing: number) {
+  return [...text].reduce((w, c) => w + ctx.measureText(c).width + spacing, 0) - spacing;
+}
+
+/**
+ * Paints the card at (x, y) in card units. The caller sets any scale it wants
+ * on the context first, which is how the story gets the same card at two and a
+ * half times the size with no second copy of the layout.
+ */
+export async function paintStatsCard(
+  ctx: CanvasRenderingContext2D, facts: StatsFacts, x: number, y: number, link = '',
+) {
+  const { width, padX, padTop } = STATS_CARD;
+  const theme = facts.tier.theme;
+  const { ink, quiet, rule, accent } = theme;
+  const height = statsCardHeight(facts);
+  const left = x + padX, contentW = width - padX * 2;
+  // Where every figure sits. The tiles and the grid are placed from this rather
+  // than from a second copy of the same sums, because the tap targets the
+  // overlay lays over the picture are placed from it too — and a hit box that
+  // has drifted from the number under it is worse than no hit box at all.
+  const spots = statsCardSpots(facts);
+
+  ctx.save();
+  ctx.translate(x, y);
+  // The ledge first, then the card on it: the same solid shadow the live cards
+  // stand on, and the reason this reads as an object in a photo roll.
+  ctx.fillStyle = theme.ledge;
+  panel(ctx, 0, 10, width, height, STATS_CARD.radius); ctx.fill();
+  // The ground is the tier's, and it is the whole of what makes two players'
+  // cards different objects rather than the same card with a different word on
+  // it. Navy, bronze, black and silver, black and gold — recognisable across a
+  // room at thumbnail size, where a badge is not.
+  const wash = ctx.createLinearGradient(0, 0, 0, height);
+  wash.addColorStop(0, theme.top);
+  wash.addColorStop(0.55, theme.mid);
+  wash.addColorStop(1, theme.bottom);
+  ctx.fillStyle = wash;
+  panel(ctx, 0, 0, width, height, STATS_CARD.radius); ctx.fill();
+  ctx.save();
+  panel(ctx, 0, 0, width, height, STATS_CARD.radius); ctx.clip();
+  // The bloom behind the hero row, in the tier's own colour. A DEBUTANT's is
+  // cool and quiet; a HITMAN's is lit gold from the middle.
+  const bloomY = padTop + EYEBROW_H + IDENTITY_TOP + IDENTITY_H + BADGE_TOP + BADGE_H + HERO_TOP + HERO_H / 2;
+  const bloom = ctx.createRadialGradient(width / 2, bloomY, 0, width / 2, bloomY, width * 0.78);
+  bloom.addColorStop(0, at(theme.accent, theme.bloom));
+  bloom.addColorStop(0.62, at(theme.accent, theme.bloom * 0.3));
+  bloom.addColorStop(1, at(theme.accent, 0));
+  ctx.fillStyle = bloom;
+  ctx.fillRect(0, 0, width, height);
+  // A foil sweep across the corner, the way light sits on a printed card. It
+  // is the one thing here that is pure decoration, and on the metal tiers it
+  // is doing the work the weave used to: giving the surface somewhere to
+  // catch, without ruling lines across the figures.
+  const foil = ctx.createLinearGradient(0, height * 0.75, width, -height * 0.1);
+  foil.addColorStop(0, '#ffffff00');
+  foil.addColorStop(0.4, '#ffffff00');
+  foil.addColorStop(0.52, theme.metal ? '#ffffff16' : '#ffffff0e');
+  foil.addColorStop(0.64, '#ffffff00');
+  foil.addColorStop(1, '#ffffff00');
+  ctx.fillStyle = foil;
+  ctx.fillRect(0, 0, width, height);
+  // The lit top edge, clipped to the card so it follows the corners.
+  ctx.fillStyle = theme.metal ? at(theme.sheen, 0.3) : '#ffffff2b';
+  ctx.fillRect(0, 0, width, 1);
+  ctx.restore();
+  // The edge. WhatsApp puts this on a dark thread and Instagram on whatever the
+  // story is standing on; without one of its own the card dissolves into the
+  // first and floats on the second. A metal tier gets a second hairline inset
+  // inside the first, which is the oldest trick there is for making a printed
+  // thing look like it was worth printing.
+  ctx.strokeStyle = at(theme.accent, theme.metal ? 0.5 : 0.28);
+  ctx.lineWidth = 1;
+  panel(ctx, 0.5, 0.5, width - 1, height - 1, STATS_CARD.radius); ctx.stroke();
+  if (theme.metal) {
+    ctx.strokeStyle = at(theme.accent, 0.16);
+    panel(ctx, 4.5, 4.5, width - 9, height - 9, STATS_CARD.radius - 4); ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.textBaseline = 'alphabetic';
+
+  // The stamp, and the mark opposite it. The mark goes on because the card is
+  // about to travel without the game around it, and a brag with no name on it
+  // is a brag nobody can act on.
+  let cursor = y + padTop + EYEBROW_BASE;
+  ctx.fillStyle = at(accent, 0.95);
+  ctx.font = font(700, 10.5);
+  tracked(ctx, `${facts.modeName.toUpperCase()} · CAREER`, left, cursor, 2.1);
+
+  const title = await load(titleArt).catch(() => null);
+  if (title) {
+    const w = 78, h = w * (title.height / title.width);
+    ctx.drawImage(title, x + width - padX - w, y + padTop - 4, w, h);
+  }
+
+  // Who it belongs to: the kit, the name, and how many innings are behind it.
+  cursor += IDENTITY_TOP;
+  await paintKit(ctx, facts, left, cursor, IDENTITY_H);
+  const nameX = left + IDENTITY_H + 15;
+  ctx.fillStyle = ink;
+  ctx.font = font(800, 27);
+  ctx.fillText(clipped(ctx, facts.name, contentW - IDENTITY_H - 15), nameX, cursor + 26);
+  ctx.fillStyle = quiet;
+  ctx.font = font(600, 12.5);
+  const behind = `${facts.innings} ${facts.innings === 1 ? 'innings' : 'innings'} played`;
+  ctx.fillText(facts.standing ? `${behind} · ${facts.standing}` : behind, nameX, cursor + 46);
+
+  // The badge. It is the answer to the only question anybody actually asks
+  // about a row of numbers — whether they are any good — and it is the reason
+  // the card is worth sending: "900 runs" means nothing to a friend who has
+  // never played this, and "STAR" means something immediately.
+  cursor += IDENTITY_H + BADGE_TOP;
+  paintBadge(ctx, facts, left, cursor, contentW);
+
+  // The two figures the mode is about, each in its own tile. Two tiles rather
+  // than one big number because both modes have two things worth bragging
+  // about, and picking one of them would be picking wrong half the time.
+  cursor += BADGE_H + HERO_TOP;
+  const tileW = (contentW - HERO_GAP) / 2;
+  facts.hero.forEach((one, i) => {
+    const tx = x + spots[i].x;
+    // Glass rather than tint. Orange at a low alpha over navy is brown — the
+    // tiles came out the colour of wet cardboard however the gradient was
+    // arranged, because that is simply what those two colours make. So the
+    // tile is lit white and falling away, the accent is spent on the hairline
+    // and the label, and the warmth behind it all is the bloom's job.
+    const glass = ctx.createLinearGradient(0, cursor, 0, cursor + HERO_H);
+    glass.addColorStop(0, theme.tileTop);
+    glass.addColorStop(1, theme.tileBottom);
+    ctx.fillStyle = glass;
+    panel(ctx, tx, cursor, tileW, HERO_H, 14); ctx.fill();
+    ctx.strokeStyle = at(theme.accent, 0.5);
+    ctx.lineWidth = 1;
+    panel(ctx, tx + 0.5, cursor + 0.5, tileW - 1, HERO_H - 1, 14); ctx.stroke();
+    ctx.fillStyle = at(theme.accent, 0.95);
+    ctx.font = font(700, 10);
+    tracked(ctx, one.label.toUpperCase(), tx + 16, cursor + 25, 1.4);
+    ctx.fillStyle = ink;
+    ctx.font = font(900, 44);
+    ctx.fillText(clipped(ctx, figure(one.value), tileW - 32), tx + 16, cursor + 69);
+  });
+
+  // The rung, and how far along it. A card that only says where somebody is
+  // says nothing about where they are going, and the figure a player comes
+  // back for is the one that is nearly there. A granted tier has no climb to
+  // show, so the row comes out rather than standing empty.
+  if (showsLadder(facts)) {
+    cursor += HERO_H + BAR_TOP;
+    paintLadder(ctx, facts, left, cursor, contentW);
+    cursor += BAR_H + GRID_TOP;
+  } else {
+    cursor += HERO_H + GRID_TOP;
+  }
+
+  // Everything else, four to a row, each column the same width so the numbers
+  // line up down the card rather than wandering with the labels above them.
+  facts.figures.forEach((one, i) => {
+    const spot = spots[facts.hero.length + i];
+    const fx = x + spot.x;
+    const fy = y + spot.y;
+    ctx.fillStyle = quiet;
+    ctx.font = font(600, 9.5);
+    tracked(ctx, one.label.toUpperCase(), fx, fy + 10, 1);
+    ctx.fillStyle = RESULT_INK[one.label] ?? ink;
+    ctx.font = font(800, 23);
+    ctx.fillText(clipped(ctx, figure(one.value), spot.w - 8), fx, fy + 36);
+  });
+
+  // One hairline and the address, because the whole point of the picture is
+  // that somebody reading it can go and have a go themselves.
+  cursor += gridRows(facts) * GRID_ROW_H + (gridRows(facts) - 1) * 6 + FOOT_TOP;
+  ctx.fillStyle = rule;
+  ctx.fillRect(left, Math.round(cursor - 12), contentW, 1);
+  ctx.fillStyle = quiet;
+  ctx.font = font(600, 11.5);
+  ctx.fillText(link ? link.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Hitman Cricket', left, cursor + FOOT_H);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = theme.metal ? metal(ctx, theme, cursor + 2, 13) : accent;
+  ctx.font = font(700, 11.5);
+  ctx.fillText('BEAT MY NUMBERS', x + width - padX, cursor + FOOT_H);
+  ctx.textAlign = 'left';
+
+  ctx.restore();
+  return height;
+}
+
+const blob = (canvas: HTMLCanvasElement, type = 'image/png', quality?: number) =>
+  new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(result => result ? resolve(result) : reject(new Error('Canvas gave back no image')), type, quality));
+
+function surface(width: number, height: number, scale: number) {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(width * scale); canvas.height = Math.round(height * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('No 2D canvas context');
+  ctx.scale(scale, scale);
+  return { canvas, ctx };
+}
+
+/** The card on its own, on the ground it was won on, ready to go in a chat. */
+export async function statsCardImage(facts: StatsFacts, link: string, scale = 3) {
+  await prepareStatsAssets();
+  // Just enough mat to hold the card's own ledge and the glow off its edge, and
+  // no more. It used to be twenty-two, which looked considered on its own and
+  // wrong in the sheet: the picture is shown at the width of the two keys under
+  // it, so every pixel of mat made the card itself narrower than its own
+  // buttons — which reads as a thumbnail of something rather than the thing.
+  const margin = STATS_MAT;
+  const { width: frameW, height } = statsCardFrame(facts);
+  const { canvas, ctx } = surface(frameW, height, scale);
+  // The mat is the tier's too. A black-and-gold card on the navy mat looked
+  // like a card sitting on a different card.
+  ctx.fillStyle = facts.tier.theme.mat;
+  ctx.fillRect(0, 0, frameW, height);
+  await paintStatsCard(ctx, facts, margin, margin, link);
+  return blob(canvas);
+}
+
+/**
+ * The story: the cover art the game opens on, the card standing on it, and the
+ * address underneath in type big enough to read off a phone screen.
+ *
+ * The address has to be painted on, because a picture handed to Instagram is a
+ * picture. Link stickers are added inside those apps, not by whoever sent the
+ * image, so the only link that survives the trip is one you can read.
+ */
+export async function statsStoryImage(facts: StatsFacts, link: string, scale = 1) {
+  await prepareStatsAssets();
+  const { width, height } = STORY;
+  const { canvas, ctx } = surface(width, height, scale);
+
+  ctx.fillStyle = facts.tier.theme.mat;
+  ctx.fillRect(0, 0, width, height);
+  const cover = await load(coverArt).catch(() => null);
+  if (cover) {
+    const fit = Math.max(width / cover.width, height / cover.height);
+    const w = cover.width * fit, h = cover.height * fit;
+    ctx.drawImage(cover, (width - w) / 2, (height - h) / 2, w, h);
+  }
+  const wash = ctx.createLinearGradient(0, 0, 0, height);
+  wash.addColorStop(0, '#07121970');
+  wash.addColorStop(0.45, '#071219ad');
+  wash.addColorStop(1, '#071219e8');
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, width, height);
+
+  // Card and address are one block, centred together. Story apps put their own
+  // chrome across the top and bottom of the frame, so what matters is that the
+  // whole thing sits in the middle where nothing of theirs lands on it.
+  const cardScale = (width * 0.84) / STATS_CARD.width;
+  const drawnH = statsCardHeight(facts) * cardScale;
+  const footer = 150;
+  const top = Math.round((height - (drawnH + footer)) / 2);
+  ctx.save();
+  ctx.translate((width - STATS_CARD.width * cardScale) / 2, top);
+  ctx.scale(cardScale, cardScale);
+  await paintStatsCard(ctx, facts, 0, 0, link);
+  ctx.restore();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f7f0e5';
+  ctx.font = font(700, 34);
+  ctx.globalAlpha = 0.92;
+  ctx.fillText(link.replace(/^https?:\/\//, '').replace(/\/$/, ''), width / 2, top + drawnH + 86);
+  ctx.globalAlpha = 0.66;
+  ctx.font = font(500, 26);
+  ctx.fillText(
+    facts.mode === 'survive' ? 'Ten overs. One wicket. Last longer than me.' : 'Five overs. Three wickets. Beat my numbers.',
+    width / 2, top + drawnH + 128,
+  );
+  ctx.globalAlpha = 1;
+  // A photograph with type on it: JPEG at this quality is a fifth of the PNG
+  // and the apps it is going to will re-encode it anyway.
+  return blob(canvas, 'image/jpeg', 0.92);
+}

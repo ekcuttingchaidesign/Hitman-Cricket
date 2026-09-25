@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8">
+<!-- The kit pictures are asked for by a path relative to the page. In the game
+     that page is the deployment root; here it is whatever the preview is served
+     from, so the base is set to the page's own folder. -->
+<base href="./"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hitman Cricket Board</title>
+<meta name="description" content="The leaderboard, its ladders and the career cards, filled with fifty made-up players.">
+<style>
+  html,body{height:100%;margin:0;overflow:hidden;background:#07121a}
+  #stage{height:100%}
+  /* The board normally darkens a game behind it. There is no game here, so the
+     ground is the cover art's colour rather than a black hole. */
+  #stage .stage{background:radial-gradient(circle at 50% 30%,#12354e,#07121a 76%)}
+  /* Out of the way at the top: the bottom of this screen is where the keys
+     the review is about actually live. */
+  #strip{
+    position:fixed;left:8px;top:calc(6px + env(safe-area-inset-top,0px));z-index:99;
+    display:flex;gap:5px;padding:4px;border-radius:10px;background:#0c1f2ecc;
+    border:1px solid #ffffff1f;font:10px/1 system-ui;backdrop-filter:blur(6px)
+  }
+  #strip button{
+    border:1px solid #ffffff2e;background:#ffffff0f;color:#cfe0ea;
+    border-radius:7px;padding:6px 8px;cursor:pointer;font:inherit;font-weight:600;
+    white-space:nowrap
+  }
+  #strip button[aria-pressed=true]{border-color:#f2814f;background:#f2814f29;color:#fff}
+</style></head>
+<body>
+<div id="stage"></div>
+<div id="strip">
+  <button id="keys" aria-pressed="false">Innings-end keys</button>
+  <button id="reopen">Reopen</button>
+</div>
+<script type="module" src="./board-preview.ts"></script>
+</body></html>

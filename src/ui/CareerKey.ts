@@ -1,0 +1,238 @@
+/**
+ * The career key, everywhere it is shown.
+ *
+ * A player is a random id kept in their browser, and browsers throw those
+ * away — Safari clears script storage after seven idle days, and a new phone
+ * or a cleared browser does it outright. Before careers that cost one best
+ * score. Now it costs everything somebody has accumulated, and the longer
+ * they play the more it costs them, which is the wrong way round.
+ *
+ * The key is three words and two digits they can keep. Paired with the name
+ * they bat under, it brings the record back. Two things rather than one
+ * because names are public on the board: anybody can type `Rohit`, so the
+ * name alone can never be enough, and the key alone points at nothing.
+ *
+ * Every placement below is the same component wearing a different size. They
+ * all end at one modal, and the modal is the only place a key is ever saved —
+ * which is the whole reason it exists. A one-tap copy on the widget looked
+ * kinder and was worse: people tap it by reflex, the clipboard is a single
+ * slot and gets overwritten by the next thing they copy, and we would have
+ * recorded a save and retired every prompt for somebody holding nothing.
+ */
+
+import { escape } from './Leaderboard';
+
+/** What this browser can say about the player's key. */
+export type KeyState =
+  /** Held, and never yet saved anywhere. The state that does the persuading. */
+  | 'unsaved'
+  /** Saved once. The widget stays, quietly, because a saved key still gets lost. */
+  | 'saved'
+  /**
+   * There is a key, but not on this device.
+   *
+   * Only a scrambled copy is kept on our side, so a key that was shown once
+   * and not written down cannot be shown again by anybody. Saying so is the
+   * only honest state: a key nobody can produce is worse offered than refused.
+   */
+  | 'lost';
+
+export interface KeyView {
+  state: KeyState;
+  /** The key itself, absent where this device does not hold it. */
+  code?: string | null;
+}
+
+/** Three words and two digits, as it is written everywhere it appears. */
+export function keyText(words: readonly string[], digits: number): string {
+  return `${words.join('-')}-${String(digits).padStart(2, '0')}`;
+}
+
+const MARK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 7.5a4.5 4.5 0 1 0-4.24 4.49L9.5 13.25v2h-2v2h-2v2.5H2v-3.29l6.51-6.5A4.5 4.5 0 0 1 15 7.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="16.4" cy="7.1" r="1.35" fill="currentColor"/></svg>`;
+
+/**
+ * The permanent one, under the cards on My Stats.
+ *
+ * It sits below the rail rather than inside it. There are two cards on that
+ * screen and one key — a key that swiped away with the Blast card would read
+ * as the Blast's key, with the Test match's somewhere behind it.
+ */
+export function keyCardMarkup(view: KeyView): string {
+  const lost = view.state === 'lost';
+  const saved = view.state === 'saved';
+  return `
+    <section class="key-pass is-${view.state}" aria-labelledby="key-card-title">
+      <div class="key-face">
+        <div class="key-stamp">
+          <span class="key-mark" aria-hidden="true">${MARK}</span>
+          <h3 id="key-card-title">Your career key</h3>
+          <button id="key-info" class="key-info" type="button" aria-label="What is a career key?">
+            <span aria-hidden="true">i</span>
+          </button>
+        </div>
+        ${lost ? '' : `<p class="key-serial"><span>${escape(view.code ?? '')}</span></p>`}
+        <p class="key-line">${lost
+          ? 'There is no key on this phone. Make one now \u2014 it takes a second, and it is what brings this record back if this browser ever forgets you.'
+          : 'The only way back to your record if this browser forgets you'}</p>
+        <button id="key-save" class="key-save" type="button">${
+          lost ? 'MAKE MY KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
+        ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
+      </div>
+    </section>`;
+}
+
+/**
+ * The one on the innings-end card, above the keys and under Career Stats.
+ *
+ * The same words in less room: the card underneath it is the thing the player
+ * came to look at, and this is not allowed to push the keys off the bottom.
+ */
+export function keyPanelMarkup(view: KeyView): string {
+  return `
+    <section class="key-panel" aria-labelledby="key-panel-title">
+      <div class="key-panel-face">
+        <span class="key-mark" aria-hidden="true">${MARK}</span>
+        <div class="key-panel-say">
+          <h3 id="key-panel-title">Your career key</h3>
+          <p class="key-serial is-inline"><span>${escape(view.code ?? '')}</span></p>
+        </div>
+        <button id="key-panel-save" class="key-panel-key" type="button">SAVE</button>
+      </div>
+    </section>`;
+}
+
+/**
+ * The end card's version of the lost state: a name, and no key behind it.
+ *
+ * This slot used to show such a player nothing at all — the key panel was
+ * drawn only where a key existed, and the offer to restore only where no name
+ * did, so somebody holding a name without a key fell between the two. That is
+ * every player who was on the board before keys existed, which on the day this
+ * shipped was all of them, and the end of an innings is the one moment the
+ * game has their attention.
+ */
+export function keyMissingPanelMarkup(): string {
+  return `
+    <section class="key-panel is-missing" aria-labelledby="key-missing-title">
+      <div class="key-panel-face">
+        <span class="key-mark" aria-hidden="true">${MARK}</span>
+        <div class="key-panel-say">
+          <h3 id="key-missing-title">No career key yet</h3>
+          <p class="key-panel-line">It is what brings this record back on a new phone.</p>
+        </div>
+        <button id="key-missing-go" class="key-panel-key" type="button">MAKE IT</button>
+      </div>
+    </section>`;
+}
+
+/**
+ * The line on the mode picker, which is the busiest screen in the game.
+ *
+ * One line rather than a panel, and capped at two showings: every tap of Play
+ * comes through here, and anything standing over those two cards for long
+ * becomes furniture — at which point it stops being read, and takes the other
+ * placements' credibility with it.
+ */
+export function keyBarMarkup(): string {
+  return `
+    <button id="key-bar" class="key-bar" type="button">
+      <span class="key-mark" aria-hidden="true">${MARK}</span>
+      <span class="key-bar-say">Save your career key</span>
+      <span class="key-bar-go">SAVE</span>
+    </button>`;
+}
+
+/**
+ * The first key a player is ever handed, the moment they claim a name.
+ *
+ * Dismissed by hand and never on a timer. It arrives on the same beat as the
+ * board opening on the row they have just taken, and a message that takes
+ * itself away while somebody is looking at their own name is a message that
+ * was never read.
+ *
+ * The innings-end card's row rather than a card of its own. A card here stood
+ * on two rows of the board and the whole of the widget under it — on the one
+ * screen where what is underneath is the thing the player came to see. The row
+ * says the same in one line, and the sentence it drops is the sentence the
+ * save sheet opens with, one press away.
+ */
+export function keyToastMarkup(view: KeyView): string {
+  return `
+    <div class="key-toast" role="status">
+      <div class="key-panel-face">
+        <span class="key-mark" aria-hidden="true">${MARK}</span>
+        <div class="key-panel-say">
+          <h3>Your career key</h3>
+          <p class="key-serial is-inline"><span>${escape(view.code ?? '')}</span></p>
+        </div>
+        <button id="key-toast-save" class="key-panel-key" type="button">SAVE</button>
+        <button id="key-toast-close" class="key-toast-close" type="button" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    </div>`;
+}
+
+/**
+ * Where a key is actually saved, and the only place it is.
+ *
+ * WhatsApp first and heavier because it is the one that finishes the job:
+ * a copy lives in a single slot that the next copy overwrites, and leaves the
+ * player homework. Sending it to themselves lands it somewhere they can paste
+ * from on a phone they do not own yet.
+ */
+export function keyModalMarkup(view: KeyView): string {
+  return `
+    <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-modal-title">
+      <div class="key-sheet">
+        <div class="key-face">
+        <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
+        <h2 id="key-modal-title">Save your career key</h2>
+        <p class="key-serial is-big"><span>${escape(view.code ?? '')}</span></p>
+        <p class="key-sheet-say">This and your name bring your record back — every run, every
+          innings, your tier and your place on the board. Without it, a new phone or a cleared
+          browser starts you at nought.</p>
+        <p class="key-hero"><b>Screenshot this screen.</b><span>The surest way to keep it, and
+          your phone already knows how.</span></p>
+        <p class="key-or">or</p>
+        <button id="key-image" class="key-sheet-key is-image" type="button">SAVE AS IMAGE</button>
+        <button id="key-whatsapp" class="key-sheet-key is-second" type="button">WHATSAPP TO SELF</button>
+        <button id="key-copy" class="key-sheet-key is-copy" type="button">COPY</button>
+        <p id="key-trouble" class="key-trouble hidden" role="alert"></p>
+        <p class="key-fine">Put it somewhere you will still have in a year. A copied key only
+          lasts until the next thing you copy, and a picture outlives both.</p>
+        <button id="key-modal-close" class="key-ghost" type="button">Close</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/** What the modal explains when it is opened to explain rather than to save. */
+export function keyAboutMarkup(): string {
+  return `
+    <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-about-title">
+      <div class="key-sheet">
+        <div class="key-face">
+        <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
+        <h2 id="key-about-title">What is a career key?</h2>
+        <p class="key-sheet-say">This game has no accounts. Who you are is kept by your browser,
+          and browsers forget — after a week away, on a new phone, or the moment somebody
+          clears their history.</p>
+        <p class="key-sheet-say">Your career key is three words and two numbers that survive that.
+          Type it with the name you bat under and your whole record comes back.</p>
+        <p class="key-fine">It only works with your name, so a key on its own is no use to
+          anybody who finds it.</p>
+        <button id="key-about-close" class="key-ghost" type="button">Close</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/**
+ * What is left under Career Stats once the panel has done its job.
+ *
+ * The panel goes the moment a key is saved, and something has to say where the
+ * key went — a way in that disappears the first time it is used teaches people
+ * the screen is not stable.
+ */
+export const KEY_SUBTEXT = 'See your stats, save your key';

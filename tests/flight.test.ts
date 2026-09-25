@@ -130,6 +130,42 @@ describe('the strokes that are placed rather than struck', () => {
     expect(flight.height).toBeGreaterThan(30);
   });
 
+  it('ramps a scoop over the keeper, and lands the four before the rope', () => {
+    const six = flightOf(outcome({ scooped: true, runs: 6, madeBatContact: true }));
+    expect(six.distance).toBeGreaterThan(52); expect(six.height).toBeGreaterThan(15); expect(six.bounceAt).toBe(0);
+    const four = flightOf(outcome({ scooped: true, runs: 4, madeBatContact: true }));
+    expect(four.bounceAt).toBeGreaterThan(0); expect(four.distance).toBe(44);
+    // Held back it runs away along the turf like any other single.
+    expect(flightOf(outcome({ scooped: true, runs: 2, madeBatContact: true })).height).toBeLessThan(1);
+    // Top-edged to the keeper it is the edge's short drop, not a stroke.
+    expect(flightOf(outcome({ scooped: true, runs: 0, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT' })).distance).toBeLessThan(2);
+  });
+  it('sends a middled slog sweep flat into the crowd', () => {
+    const flight = flightOf(outcome({ swept: true, runs: 6 }));
+    expect(flight.distance).toBeGreaterThan(70);
+    // Flatter and faster than the charge's towering hit, which is the whole
+    // difference between the two special strokes to watch.
+    expect(flight.height).toBeLessThan(flightOf(outcome({ advance: true, runs: 6 })).height);
+    expect(flight.bounceAt).toBe(0);
+  });
+
+  it('bounces a swept four in before the rope', () => {
+    const flight = flightOf(outcome({ swept: true, runs: 4 }));
+    // It pitches once, three-quarters of the way out, and skids over: a four on
+    // the scoreboard and a different ball to watch.
+    expect(flight.bounceAt).toBeGreaterThan(0.5);
+    expect(flight.bounceAt).toBeLessThan(1);
+    // In the air long enough to clear the infield first.
+    expect(flight.height).toBeGreaterThan(5);
+    expect(flight.distance).toBeGreaterThan(40);
+  });
+
+  it('leaves every other ball with one arc and no pitch', () => {
+    for (const shape of [outcome({ runs: 4 }), outcome({ runs: 6 }), outcome({ advance: true, runs: 6 }),
+      outcome({ defended: true, runs: 0 }), outcome({ edged: true, runs: 1 }), out('CAUGHT')])
+      expect(flightOf(shape).bounceAt, JSON.stringify(shape)).toBe(0);
+  });
+
   it('has an edge reach the keeper before the stroke is finished', () => {
     const flight = flightOf(out('CAUGHT', { edged: true }));
     expect(flight.flightMs).toBeLessThan(600);

@@ -1,5 +1,9 @@
 import { Redis } from '@upstash/redis';
 import type { BoardStore, StoredRow } from './board-store.js';
+import type { CareerStore, StoredCareer } from './career-store.js';
+import type { StoredKey } from './career-key.js';
+import type { RecoveryStore } from './recovery-store.js';
+import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 import type { ChallengeStore, StoredPlayer } from './challenge-store.js';
 
 /**
@@ -53,7 +57,45 @@ function keysFor(scope: string) {
     names: `${SCOPE}names`,
   };
 }
+
+/**
+ * The keys one mode's careers use.
+ *
+ * A separate hash and a separate sorted set per board, and deliberately not the
+ * innings board's keys. The two records answer different questions and are
+ * written on different paths — a career counts every innings, an innings board
+ * keeps only the best one — so sharing a key would mean one of the two writes
+ * clobbering the other's row the first time somebody had a bad day.
+ *
+ * The name registry is shared, because a name is a person. A career is ranked
+ * under the name its owner claimed on one of the innings boards, and this
+ * adapter only ever reads it: claiming is a write with a rule attached, and
+ * that rule lives in one place.
+ */
+function careerKeysFor(scope: string) {
+  return {
+    /** Player id to their whole career, as JSON. */
+    records: `${SCOPE}${scope}careers`,
+    /** One ranking a board, named by the board's own key. */
+    ranking: (board: string) => `${SCOPE}${scope}career:${board}`,
+    names: `${SCOPE}names`,
+  };
+}
 const RATE = `${SCOPE}rate:`;
+/** The questionnaire's own counter, kept apart from the board's. */
+const FEEDBACK_RATE = `${SCOPE}frate:`;
+/**
+ * Restoring counts twice, and both counters are its own.
+ *
+ * Its own, because an allowance shared with posting innings would let somebody
+ * lock a player out of their own record by playing: sixty innings from a
+ * household's address would spend the tries their returning player needs. And
+ * twice, because one address working through a name and a thousand addresses
+ * working through the same one are different attacks, and only the second
+ * counter sees the one this shape actually invites.
+ */
+const RESTORE_RATE = `${SCOPE}rrate:`;
+const RESTORE_NAME_RATE = `${SCOPE}nrate:`;
 
 /**
  * No database behind the board. This is a setup that was never finished, not an
@@ -133,6 +175,148 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
       // forward from the first submission rather than from the latest.
       if (count === 1) await redis.expire(key, windowSeconds);
       return count;
+    },
+  };
+}
+
+/**
+ * Careers in Redis, written to cost as little as the board does.
+ *
+ * Counting an innings is two commands against the hash plus one `ZADD` a
+ * board, and reading a whole mode's boards is one `ZRANGE` each and a single
+ * `HMGET` for everybody who appears on any of them. Nothing walks a key space
+ * and nothing reads a row at a time.
+ *
+ * `rank` uses `GT` rather than a plain write. A career total only ever rises,
+ * so a lower score arriving is a request that overtook a newer one, and taking
+ * it would move a player down a board they had already climbed.
+ */
+export function upstashCareer<C>(redis: Redis, scope: string): CareerStore<C> {
+  const KEY = careerKeysFor(scope);
+  return {
+    async read(id) {
+      const found = await redis.hget<StoredCareer<C>>(KEY.records, id);
+      return found ?? null;
+    },
+
+    async write(id, held) {
+      await redis.hset(KEY.records, { [id]: held });
+    },
+
+    async rank(board, id, score) {
+      await redis.zadd(KEY.ranking(board), { gt: true }, { score, member: id });
+    },
+
+    async top(board, n) {
+      // Flat pairs come back: member, score, member, score.
+      const flat = await redis.zrange<(string | number)[]>(KEY.ranking(board), 0, n - 1, { rev: true, withScores: true });
+      const ranked: { id: string; score: number }[] = [];
+      for (let i = 0; i + 1 < flat.length; i += 2) ranked.push({ id: String(flat[i]), score: Number(flat[i + 1]) });
+      return ranked;
+    },
+
+    async many(ids) {
+      if (!ids.length) return [];
+      const found = await redis.hmget<Record<string, StoredCareer<C>>>(KEY.records, ...ids);
+      return ids.map(id => found?.[id] ?? null);
+    },
+
+    async nameHolder(folded) {
+      return (await redis.hget<string>(KEY.names, folded)) ?? null;
+    },
+
+    async hits(address, windowSeconds) {
+      const key = RATE + address;
+      const count = await redis.incr(key);
+      if (count === 1) await redis.expire(key, windowSeconds);
+      return count;
+    },
+  };
+}
+
+/**
+ * The questionnaire, in the same database.
+ *
+ * A list rather than a sorted set or a hash, because what is wanted of it is
+ * never anything but "the most recent few hundred, newest first": nothing ranks
+ * a form, nothing looks one up by id, and the only read is the one that hands
+ * the lot to a spreadsheet. `LPUSH` then `LTRIM` is two commands a form and
+ * keeps the list from growing past `FEEDBACK_KEPT` without anything having to
+ * come along later and tidy it.
+ *
+ * The rate counter is deliberately not the board's. They are separate
+ * allowances over separate things — somebody who has posted forty innings has
+ * not filled in forty questionnaires — and sharing one key would let an evening
+ * of play use up the right to say what they thought of it.
+ */
+export function upstashFeedback(redis: Redis): FeedbackStore {
+  const key = `${SCOPE}feedback`;
+  return {
+    async save(entry) {
+      await redis.lpush(key, JSON.stringify(entry));
+      await redis.ltrim(key, 0, FEEDBACK_KEPT - 1);
+    },
+    async read(limit) {
+      const held = await redis.lrange<StoredFeedback | string>(key, 0, limit - 1);
+      // Upstash parses a JSON-looking value on the way out, so an entry can
+      // arrive already an object. A row that will not parse is dropped rather
+      // than repaired: one unreadable form must not cost the other thousand.
+      return held.flatMap(one => {
+        if (one && typeof one === 'object') return [one as StoredFeedback];
+        try { return [JSON.parse(String(one)) as StoredFeedback]; } catch { return []; }
+      });
+    },
+    async hits(address, windowSeconds) {
+      const counter = `${FEEDBACK_RATE}${address}`;
+      const count = await redis.incr(counter);
+      if (count === 1) await redis.expire(counter, windowSeconds);
+      return count;
+    },
+  };
+}
+
+/**
+ * The keys kept in Redis: one hash, keyed by the folded name.
+ *
+ * Keyed by the name rather than by the player id, because the name is what a
+ * player restoring can tell us — the id is the thing they have lost. The name
+ * registry is the same one the board claims into, deliberately: who holds a
+ * name is one fact, and a second copy of it here would be a second copy to
+ * disagree.
+ *
+ * Nothing here is scoped to a ladder. A key is a person's, like their name.
+ */
+export function upstashRecovery(redis: Redis): RecoveryStore {
+  const keys = `${SCOPE}keys`;
+  const names = `${SCOPE}names`;
+  const count = async (counter: string, windowSeconds: number) => {
+    const count = await redis.incr(counter);
+    // Only the first spends the clock, so the window rolls from the first try
+    // rather than from the latest — otherwise a steady drip never expires.
+    if (count === 1) await redis.expire(counter, windowSeconds);
+    return count;
+  };
+  return {
+    async keyFor(folded) {
+      const held = await redis.hget<StoredKey | string>(keys, folded);
+      if (!held) return null;
+      // Upstash parses a JSON-looking value on the way out, so a record can
+      // arrive already an object. One that will not parse is no key rather
+      // than a crash: the player is told no and can make another.
+      if (typeof held === 'object') return held as StoredKey;
+      try { return JSON.parse(String(held)) as StoredKey; } catch { return null; }
+    },
+    async putKey(folded, held) {
+      await redis.hset(keys, { [folded]: JSON.stringify(held) });
+    },
+    async holderOf(folded) {
+      return (await redis.hget<string>(names, folded)) ?? null;
+    },
+    async triesFrom(address, windowSeconds) {
+      return count(`${RESTORE_RATE}${address}`, windowSeconds);
+    },
+    async triesAt(folded, windowSeconds) {
+      return count(`${RESTORE_NAME_RATE}${folded}`, windowSeconds);
     },
   };
 }

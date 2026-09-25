@@ -57,9 +57,11 @@ An edge is not a skier. It comes off the face at gloves height and dies behind t
 
 ## Mobile controls
 
-Swipe **left**, **up-left**, **up**, **up-right**, or **right** for leg side, long on, straight, cover, or the square cut, and **down** to block, on a 90-degree fan so a hurried drag still finds it. The slivers either side of that fan stay dead, so a sideways drag is still no shot. A short 24-pixel swipe commits the shot immediately when its direction becomes clear. Timing is measured at that moment, not at finger-down or release, and uses the same timing bands, compatibility, scoring, and wickets as keyboard play. One shot per ball is shared across input methods. Taps, second fingers, and cancelled gestures do not trigger a shot. A gesture cannot carry into the next ball.
+Swipe **left**, **up-left**, **up**, **up-right**, or **right** for leg side, long on, straight, cover, or the square cut, and **down** to block, on a 90-degree fan so a hurried drag still finds it. With the confidence meter full, **down-left** is the scoop and **down-right** the reverse scoop — the two downward diagonals, between 110 and 160 degrees off vertical, with straight down still the block for twenty degrees either side; without the meter those gestures are what they always were. The slivers either side of that fan stay dead, so a sideways drag is still no shot. A short 24-pixel swipe commits the shot immediately when its direction becomes clear. Timing is measured at that moment, not at finger-down or release, and uses the same timing bands, compatibility, scoring, and wickets as keyboard play. One shot per ball is shared across input methods. Taps, second fingers, and cancelled gestures do not trigger a shot. A gesture cannot carry into the next ball.
 
-Use the on-screen Pause button to resume or restart. Page scrolling is suppressed on the field during play; dialogs can still scroll on small screens.
+While the meter is full and a ball is on its way, a swipe guide fades in over the pitch in front of the crease: eight soft streaks of light, one per direction, each a blurred glow with a faint core that fades out along its length — light leaving the thumb, not arrows. The streaks that would spend the meter on this ball — the charge's three drives, the sweep's two leg-side swipes, a scoop's diagonal — are gold, breathe with the edge of the field, and carry a small pulse of light running outward; the rest stay a dim white. Only the strokes the ball in the air is actually for light up: a ball on middle stump lights the charge and the scoop, and the reverse scoop's streak waits for one on or outside off. It is a thumb's map, not a menu, and it goes with the shot the moment one is played. Touch devices only: a keyboard has nothing to swipe.
+
+Use the on-screen Pause button to resume, restart, or change mode. Change Mode opens the mode picker over the pause card. The picker carries a back key beside its heading, across from the sound key: it goes back to whatever opened the picker, which from here is the pause card with the innings still paused behind it, ready to resume. Picking a mode instead starts a fresh innings in it, and is counted as an innings walked out on the way a restart is. A link that names a mode (`?mode=`) hides the key, since there is nothing to change to. Page scrolling is suppressed on the field during play; dialogs can still scroll on small screens.
 
 ## Keyboard controls
 
@@ -75,7 +77,7 @@ Use the on-screen Pause button to resume or restart. Page scrolling is suppresse
 | Esc | Pause / resume |
 | R | Restart innings |
 | B | Open the board (Esc or B closes it) |
-| M | Mute / unmute sound |
+| M | Step the sound: on → music off (game sounds on) → all off |
 
 The arrow keys are read as the same three shots before anything else looks at them, so combos, the one-shot gate and the timing bands work identically whichever pair a player reaches for — and a mixed pair such as `A` + `↑` is still a combo. Arrow keys are also swallowed during a delivery so the page cannot scroll out from under the innings.
 
@@ -199,6 +201,8 @@ The bowler is not a random number generator — he watches the innings and answe
 | **Bouncer** | Occasionally, any line | Lands short and rears to chest height. It is over the stumps, so you can never be bowled or caught off it — but it can only be **pulled**, and only if you middle it. Perfect timing on a leg-side swipe is six; anything else goes through to the keeper. |
 | **Slower ball** | Once four quick balls have gone by | 78–98 kph and floated in at nearly a second and a half, straight after a burst of pace — and out of the same arm at the same speed, leaving the hand at nearly the pace of a length ball and dying late. |
 
+The on drive has a six of its own too, from a broadcast recording: swipe to long-on and time it perfectly on a line that suits the stroke, and the arms open out towards long-on with the blade climbing, the hands keep going up and across, and the finish is both arms straight above the helmet with the bat to the sky over the front shoulder, back foot on its toe. Anything short of perfect is the on drive along the ground, unchanged — four, three, two or one. It is a regular stroke, so no slow motion.
+
 The pull is not a separate control: swipe leg side (or press `A`) at a ball up around your chest and the batter plays it off the back foot with a horizontal bat, finishing high with the hands in front of the chest, instead of the front-foot flick he uses at a normal-height ball. Only the pull follows a ball up there — every other stroke swings at its own height and a bouncer passes over the bat.
 
 A four runs to the rope along the ground; only a six leaves it, and only a mishit hangs in the air.
@@ -217,13 +221,63 @@ Confidence is earned by scoring and lost by not scoring. A six adds 28, a four 2
 
 Full, the meter pulses. When a ball you can walk at is coming — on the stumps, on a length, at a bowler's pace — the edge of the field lights up gold and the call goes out from the bowler's run-up, a full delivery before it arrives. Drive it and time it perfectly or well, and the batter charges down the wicket and hits it out of the ground for six, and the meter is spent.
 
+The charge is built from two recordings of the real stroke. The back foot skips up to the front one, the front foot strides out a stride and a half past the crease while the bat goes up to the sky over the back shoulder, and from there it is a lofted straight drive on the move: the ball met on the full a stride and a half short of the crease, the arms opening out straight up the ground, and the blade climbing over the front shoulder into a wrap with the hands high beside the helmet and the toe hanging down behind his back. He stands square to the bowler and watches it go, then brings the bat home back over the top, on the arc it went over on, and down in front of him into the pick-up. Because he goes down the pitch *before* he hits it, the charge is resolved the moment you swipe and the ball is drawn to where he meets it; the slow motion runs from the swipe, through the run and the hit, to a beat off the bat.
+
+Swipe to **cover** instead, with the same full meter and the same timing, and it is the charge over cover: the same walk at the ball, then the face opened to extra cover with the body still closed, the arms extended out that way with the blade climbing, and a finish held with the hands together above the helmet and the bat pointing to the sky over the off shoulder — six over extra cover, and its own call. Built from a second pair of recordings.
+
+Swipe to **long-on** and it is the mirror: the charge over long-on, from a third recording. The face is closed towards mid-on at contact, the arms extend out that way with the blade climbing, and it finishes the way the straight charge does — over the top and wrapped over the front shoulder, the left one for a right-hander, facing mid-on — six a little squarer than long-on, with its own call. It comes home the same way, back up over the top and down in front. While the charge is on, the cover and long-on swipes each reach eight degrees closer to vertical than usual, because a thumb that starts straight up and curls was committing as a straight swipe before it got there; the straight charge keeps the fourteen and a half degrees either side.
+
+## The scoops
+
+The third pair of special strokes, and the first that go behind the wicket. With the meter full, swipe **down and to the left** (or press `S` + `A`) and he plays the scoop; swipe **down and to the right** (`S` + `D`) and he plays the reverse scoop. Each has its ball: the scoop wants one on middle or leg, so the blade can get under it from in front of the stumps, and the reverse wants width — off stump or outside. Neither is offered at a bouncer, and a yorker, a slower ball or a quick one are all scooped the same way. Playing one at the wrong line is playing at air: a play and miss if it was missing the stumps, and if it was not, Bowled or LBW. Either way the meter is spent — it is a stroke a batter commits to.
+
+Timing names the rest. Perfect is six over the keeper, good is four that clears him and runs away to the rope, and OK is paddled away for ones, twos and threes. Poor timing is a top edge, and with the keeper standing behind, a top edge is a catch. Miss it altogether and there is nothing but the pads between the ball and the stumps. Both are regular-speed strokes: no slow motion.
+
+The scoop is built from a broadcast recording taken from the bowler's end. He is already down before the ball — a wide base, both knees bent, square to the bowler — with the bat brought down early and held out in front of the front hip, the toe angled down and forward to the off side and the face turned up at the bowler. It is a ramp, not a swing: the ball is met at knee height in front of the pads and ridden off the face up over the keeper's shoulder. Then the bat follows the ball without turning in the hands — it lifts face first, the toe swinging up in front of him through level with the off side, on up past the head, and curling back over the front shoulder at the top — to finish high beside that shoulder with the back of the bat to the sky, and he watches it go from there, coming up a little onto the back foot. The reverse is from a second recording, taken from behind the bowler. He goes down the way the sweep does, onto the back knee, and the bat comes down beside the front pad and out under the ball on the off side with the face turned up, met beside the pad at waist height with the blade level and pointing at point. The arms extend out to the off, and the bat keeps going: up past the ear, across in front of the face with the blade laid back over the top of the helmet, and down the leg side, the shoulders turning with it until he is looking back over them at the ball going over the slips, still on the knee.
+
+The cue over the meter names whichever special stroke the ball on its way is for. A ball on the stumps at a bowler's pace is the charge's first and the scoop's second, so it is called as the charge; the scoops are called for the balls only they answer — the yorker, the slower ball, the quick one, the wide one — and both are still there to be played on a chargeable ball if you would rather.
+
+`VITE_CHARGE_ONLY=meter` (or `?charge=meter`) is the playtest for them: the meter full every ball and the ball left to the bowler, so every line comes round.
+
 He walks back to his crease on his feet: each one plants and stays where it was put while the body moves over it, then swings back a stride and plants again. Translating the whole batter instead freezes his feet to him and skates him up the pitch.
+
+`VITE_CHARGE_ONLY` (or `?charge=1` on a dev server) is a playtest build for it: the meter is full every ball and every ball is one he can walk at.
 
 Any upward drive charges it: straight, long-on or cover. The gesture asked for is "swipe up", and a thumb flick that drifts twenty degrees is still a swipe up — but the swipe sectors are 45 degrees wide, so pinning the charge to the straight drive alone threw it away on a gesture the player had no way of seeing was off. Miss it anyway and the call says which half went wrong — `CHARGE MISTIMED` or `THE CHARGE WANTED A DRIVE` — with the meter still charged for the next one.
 
 The length and pace windows exclude every special without naming one: a yorker pitches at your toes, a bouncer over your head, and neither a slower ball nor an express one leaves you time to walk at it.
 
-The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), `boundary-hit.mp3` plays for both fours and sixes, `bat-edge.mp3` is the thin knick off the face when a cut is edged behind, and `sledge.mp3` comes back from the field after three balls the batter has not scored off. The synthesized fallback is an impact rather than a voice, so a sledge without its clip simply stays silent. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip. A small synthesized fallback keeps play functional if audio loading is unavailable.
+The game automatically pauses when its tab is hidden or its window loses focus. Resume explicitly to continue. Your personal best is saved locally when browser storage is available. The supplied `normal-hit.mp3` plays for ordinary bat contact (including a contacted dot), `boundary-hit.mp3` plays for both fours and sixes, `bat-edge.mp3` is the thin knick off the face when a cut is edged behind, and `sledge.mp3` comes back from the field after three balls the batter has not scored off. The synthesized fallback is an impact rather than a voice, so a sledge without its clip simply stays silent. These MP3s are bundled locally and decoded after the first Start tap for mobile audio unlocking. Bounce/wicket effects remain synthesized. Mute and pause stop any playing hit clip.
+
+The sound key has three settings, stepped through in turn and remembered between visits: everything on, the game's music off with the shot sounds still on, and everything off. The middle one is for playing over your own music. All of the game's sound, music included, plays through a Web Audio context rather than an audio element: on Android an element that plays is a player the phone pauses every other app for, even muted, and a context is not, so the game plays over a player's own music rather than stopping it. On an iPhone a page with only a context playing mixes with other audio too, and in the middle setting the game also asks Safari to (`navigator.audioSession`); the price there is that the ring switch silences the game. A browser that cannot decode the AAC tracks falls back to an element for the music. The key shows on the phone cover too, so the music can be turned off before it has started. A small synthesized fallback keeps play functional if audio loading is unavailable.
+
+## The injury meter, and the short-pitched plan
+
+Survive replaces the confidence meter with an injury meter, and it is its opposite in the way that matters: confidence is earned and spent and earned again, this only ever goes down. Nothing heals it. A blow costs `DAMAGE[where] × (kph/140)²` out of a hundred — helmet 46, ribs 28, gloves 17, pad 12 — so an express bouncer on the helmet is most of an innings and the same blow off a slower ball is a nuisance. At nought he is carried off, which ends the innings **without a wicket falling**: the scorecard reads 9 down, not 10, and that difference is the whole of what the meter is for.
+
+Sixty-two live innings said it was not working. **One of the sixty-two retired hurt**, and the average innings finished having used nineteen of the hundred. The cause was not the damage numbers — it was that nobody met the mechanic. An attacking innings lasted thirteen balls and took a blow once every thirty-five, and **thirty-eight per cent of innings faced no bouncer at all**, because the short ball was rolled for off the weight table and a roll can simply not come up.
+
+Three things changed, and only after each was measured against the simulator:
+
+**The bouncer is placed, not rolled for.** One in every over of pace, at a position drawn fresh each over — the idiom the spinner's arm ball already used: never the same ball twice, never absent from the over. The plan is asked *before* the two owed deliveries, because asked after, a yorker earned by four sixes displaced the bouncer and the over finished without one, which is the exact failure placing it was meant to end. Neither debt is cleared by standing aside, so the yorker simply arrives next ball.
+
+**The last two overs belong to the quick bowlers, and get two apiece** — the most the laws allow. The spinner is kept out of them. A side nine wickets down with two overs left has stopped trying to bowl him out and started trying to get him off. This shape is worth more than a flat rate because it **taxes surviving rather than taxing every ball**: a batter chasing the hundred is barely troubled, and a batter blocking for the draw walks into a barrage. Measured, it holds a good player's win rate within two points of where it was while roughly quadrupling what the death overs cost him. A flat rate at the same retirement figure cost fifteen points of win rate.
+
+**The damage table went up by about half**, ratios untouched. Raised there rather than by lowering `HEALTH.full`, which is the same arithmetic and would have broken the board: rows carry the meter as a number out of a hundred and the Test ladder ranks on it, so a smaller ceiling would have left every innings played before the change permanently above every innings played after it.
+
+Measured across 20,000 innings a profile, against the live distribution's closest match:
+
+| | retired before | retired after | win rate before → after |
+| --- | --- | --- | --- |
+| competent, chasing | 2.4% | **8.7%** | 2.0% → 0.9% |
+| expert, chasing | 1.4% | **6.4%** | 34.2% → 32.5% |
+| expert, blocking | 28.2% | **64.4%** | draws 57.9% → 25.0% |
+
+Two things were tried and rejected on the numbers. **Injury degrading the timing window** — shrinking the 86ms clean band as the meter fills — moved retirement by nothing and cost an eighth of a good player's wins, because worse timing produces more wickets as fast as it produces more blows; it is also invisible, and invisible difficulty reads as bad luck rather than as injury. And **raising damage alone** bought retirement only by shortening innings, converting bowled-outs into retirements one for one without making the meter any more present.
+
+The meter says its own name and a percentage, and nothing else. It used to relabel itself `ONE MORE AND HE IS OFF` on turning critical — twenty-two characters where six had been — and visibly grew to hold them, shoving the scoreboard beside it about mid-innings. A gauge that changes size when the news gets bad draws the eye to the movement rather than to the reading. Critical is told in colour instead: the meter's own pulse, and the red edge on the field.
+
+The mode explains it **once per device** (`HUD.hurtNote`, remembered in `localStorage` by `private-mode.ts`), the first ball a batter is one blow from being carried off, and never again — a lesson rather than a warning. What it says is a trade, not advice, and deliberately so: the obvious counsel is to get behind it and defend, and that is the one thing the numbers say not to do. Blocking is what lets the ball through to the body, and a batter who defends his way out of a critical meter retires hurt about six times more often than one who keeps playing.
 
 ## The board
 
@@ -409,6 +463,213 @@ Rate limiting is by address and the address is **never** used as identity, becau
 
 `plausible()` is not an anti-cheat measure and should not be mistaken for one. The game is a static page, so a determined person can post any innings that passes it. It turns down the ones that could not have happened, which is the floor. Replay verification is the ceiling, and nothing built here is thrown away by it.
 
+## The career boards, and the card
+
+The board above answers one question — what is the best innings anybody has played — and answers it by keeping exactly one row per player and only writing when it improves. Seven more ladders answer a different one: what has a player done over *every* innings. A maximum and a sum are not the same arithmetic, so none of that shape could be reused, and this is a second record rather than a second column.
+
+| The Blast | ranked on | tie split on |
+| --- | --- | --- |
+| Runs | career runs | fewer innings to get there |
+| Boundaries | sixes | fours |
+| Highest | biggest single innings | best unbeaten innings |
+
+| Test Survival | ranked on | tie split on |
+| --- | --- | --- |
+| Balls | balls faced, all innings | fewer innings |
+| Blows | blows taken | balls faced |
+| Runs | career runs | balls faced |
+| Boundaries | sixes | fours |
+
+**Highest is the innings total, wickets and all.** 132 without losing one and 140 for one are 132 and 140; the bigger score is the higher score. *Best unbeaten* is the separate figure — the biggest total made without a wicket falling at all — which is why 140/1 wins the first and 132\* wins the second.
+
+Every career board packs the same way, and deliberately more plainly than the two innings ladders do:
+
+```
+score = (primary * 2**14 + secondary) * 2**14 + (MAX_DAYS - daysSinceLaunch)
+```
+
+Twenty bits of total over fourteen of tiebreak over fourteen of clock is **48**, comfortably inside a double's 53, and the room left over is the point: a career board added later is packed with the same function rather than by finding two spare bits. The clock is in *days* rather than seconds because a career total that is level today was level yesterday too — and dropping the stamp from twenty-eight bits to fourteen is exactly what pays for a twenty-bit total. `LAUNCH_MS` is shared with the innings boards so the two stamps mean one thing.
+
+### Every innings counts, which is the whole point
+
+`POST /api/innings` goes out after **every** innings anybody finishes, with nothing asked of the player and nothing waiting on the answer. That is not a convenience: "most runs, all time" assembled only out of the innings somebody chose to register would be a total of their good days. `POST /api/score` stays what it always was — the *claim*, which wants a name and refuses anything that would not improve the player's row.
+
+A player who has never registered is counted from their first innings and kept off the boards until they claim a name, because the name registry is what makes a name one person's. The moment they claim one, their whole career appears on the ladder rather than only what came after it.
+
+### A sum needs guards a maximum did not
+
+An innings board is self-limiting: the worst a forged submission can do is claim one innings of 180, and the mode's own ceiling caps it. A career adds up every submission, so the same request sent a thousand times is a thousand times the damage. Three rules answer that, and all three are free because the record is being read and written anyway:
+
+- **the nonce** — an innings carries an id minted by the browser, resent unchanged on a retry, and counted once however many times it arrives. The browser deliberately sends it twice: a reply lost on the way back is indistinguishable from a request that never arrived.
+- **the gap** — no two counted innings closer together than ten seconds, which is far below the shortest innings the game can produce and turns a tight submission loop into something that has to wait.
+- **the day** — 120 counted innings per player per day. A bound on one *player*, where the rate limit is a bound on one *address*, which a school, an office and everyone behind CGNAT arrive as.
+
+None of them is an anti-cheat measure and none should be mistaken for one — the game is a static page. They bound what a script can accumulate to roughly what a person could play, which is the floor.
+
+### The card
+
+`MY CAREER CARD`, under the sheet rather than among the pills above it. Every pill re-sorts what is already on screen; this one is a destination, and it leaves — so it is shaped like a key, not like a seventh ladder.
+
+### The tier
+
+A row of numbers is inert on its own: nine figures and no answer to the only question anybody actually asks about them, which is whether they are any good. The badge answers it in one word, and that word is what makes the card worth sending — *900 runs* means nothing to a friend who has never played this, and *STAR* means something immediately.
+
+| Tier | Blast (runs) | Test (balls) | Made of | |
+| --- | --- | --- | --- | --- |
+| DEBUTANT | 0 | 0 | Navy | First time out there. |
+| EMERGING PLAYER | 350 | 100 | Bronze | Making a name out there. |
+| STAR | 3,600 | 1,000 | Black and silver | People turn up to watch. |
+| HITMAN | 15,000 | 4,250 | Black and gold | The one the game is named for. |
+
+**The thresholds are measured, not guessed.** Five days of GoatCounter puts a Blast innings at about **54 runs** and a Test innings at about **17 balls**, and a player at about **2.5 innings** on a day they play at all — so roughly **140 runs a day** in the Blast against **39 balls a day** in the Test match. On those rates, EMERGING PLAYER is six or seven innings (the second or third sitting), STAR is a few committed weeks, and HITMAN is upwards of a month of heavy play and out of reach of everybody else. The top rung is the one figure that is chosen rather than measured: the rates put it anywhere across a wide band, so where in that band it lands says how far away the last rung should feel rather than what the data found.
+
+One caveat worth recording, because it will matter the next time these are revisited: GoatCounter's export counts **unique visitor-days, not raw events**. That is provable from the export itself — mutually exclusive families disagree with their parent in a way only deduplication explains (the Blast's six score bands sum to 304 against 136 `innings-end`, and the five duration bands independently sum to 293). So innings-per-day is *modelled* from how many distinct bands a player hits, not counted. The band shares are reliable; the volumes are an estimate.
+
+**The two modes carry different numbers, on purpose.** They were shared to begin with, on the assumption that sixty balls and sixty-odd runs an innings put the two measures in the same range. The data says otherwise: Test innings end early where Blast innings mostly run their course, and the gap is about three and a half to one. Shared thresholds would have had Test players climbing three and a half times slower for identical time at the crease, so the two ladders are set to cost the same *effort* instead — about six or seven innings to the second rung in either mode.
+
+**Four rungs, and deliberately not more.** A longer ladder flatters the arithmetic and nobody else: each step means less, and a player two thirds of the way up still cannot say in one syllable what they are. Adding a rung later is one entry in `TIERS` — everything the card paints reads whatever is in that list, and nothing else needs touching.
+
+It is read off the figure the mode already leads on — **career runs** in the Blast, **balls faced** in the Test match — rather than off a score of its own. That keeps one number in charge of the headline tile, the badge under it and the progress bar under that, so a card cannot say a player is climbing on one line and stalled on the next. It also means the Test ladder rewards the thing that mode is about: a blocker with two thousand balls and forty runs is a STAR, where a tier read off runs would have called him a debutant.
+
+### A head start for the people who built the board
+
+The board existed before careers did, so everybody already on it would otherwise open their first card and find themselves a DEBUTANT beside somebody who arrived that morning. Being early should count. So the seed hands the **top five STAR** and the **next eleven EMERGING PLAYER** — the shape of a side, and meant to be.
+
+**What it grants is the tier, not the runs.** Their figures stay the one real innings the seed filed: a player who scored 148 has a card that says 148, in silver, with the STAR badge on it. This card is built to be sent to other people, and one claiming three thousand runs for somebody who scored a hundred and forty-eight is a claim about *them* that is not true — which is a different thing from a number being approximate.
+
+Three rules fall out of that and are held by tests:
+
+- The badge prints **what the tier was for** — `Founding place · 3rd on the board` — in place of the usual line. "People turn up to watch" under a handed badge would be the one sentence on the card making something up.
+- The climb comes **off** the card entirely. The bar would sit at nothing, since the figures are far below the rung, and the line under it would repeat the badge word for word. An empty bar and the same sentence twice is a worse card than no bar.
+- A grant is **a floor and never a ceiling**. Play past it and the earned tier takes over, the grant stops being mentioned, and the card goes back to talking about the climb.
+
+It is written once, by the seed, and the counting path only ever carries it forward — so an innings can raise a player above it and nothing can take it away.
+
+### The tier is the whole card, not a badge on it
+
+Each rung carries a **`Theme`**: the ground it is painted on, the shadow it stands on, the mat behind it, its ink, its quiet, its accent, its sheen, its tiles, and how strongly it blooms. Nothing else on that card decides a colour, so a new tier is a palette rather than an edit to the painter.
+
+**On the two black tiers, the black is the card and the metal is the accent.** The ground is a near-black — neutral for silver, the faintest warmth for gold, because gold on gold has nowhere to shine from — and the metal is spent on the badge, the ring round the kit, the bar and the two hairlines, and nowhere else. `bloom` is the figure that decides whether that holds: at the strength the navy card wants, the same accent wash lifts the middle of a near-black ground into grey or brown haze, and the tier stops being black and silver and becomes silver-grey with silver on it. So it is per theme — 0.15 on navy, 0.05 to 0.08 on the metals, enough that the ground is not flat and not a pixel more. Bronze sits darker than it first did for the same reason in reverse: on a milky brown ground, cream figures stop being cream and start being beige.
+
+That is the difference between a screen somebody reads and a thing somebody collects. A card used to be one navy object with a coloured word on it, which made every player's card the same card; a bronze one and a black-and-gold one are recognisable across a room at thumbnail size, where a badge is not. The first rung is deliberately the plainest and the only one that is not a metal — a first-innings card that arrived in gold would leave the top of the ladder nothing to be.
+
+The three metal tiers get two things the navy one does not: a **brushed gradient** on the badge, the bar and the footer's call — light at the top edge, the colour through the middle, dark underneath, which is what separates gold-coloured type from type that looks like gold — and a **second hairline inset inside the first**, which is the oldest trick there is for making a printed thing look like it was worth printing.
+
+Under the hero row is a bar showing how far into the rung a player is, measured *across the gap between two rungs* rather than from nought — the difference between a bar that creeps for a week and one that visibly moves every time somebody plays. The rung above is named at the end of it, in **its own** colour, which is the only place that colour appears on the card: a preview of what the thing is about to be made of.
+
+### What else is on it
+
+It shows innings, runs, highest, best unbeaten, sixes, fours and balls in the Blast; balls faced, innings survived, runs, blows, boundaries and the three results in the Test match, where won, drawn and lost carry the Test board's own tier colours. *Survived* is wins and draws added together — the innings he came through — and is derived rather than counted, because a third counter beside the two is a third counter to keep in step.
+
+**The card on screen is a painted picture, not a DOM copy of one.** `game/StatsCard.ts` draws it to a canvas the way `ShareCard.ts` draws the innings card, and the overlay shows that very image. That is the one arrangement which guarantees the card somebody shares is the card they were looking at when they decided to — a second rendering would drift from the first the day one of them gained a figure. The cost is that a canvas is a rectangle to a screen reader, which is what the alt text and the text fallback are for.
+
+### Getting to it, and getting it out
+
+There are two ways in, because there are two moments somebody wants it. **My Stats** is the third tab on the board, beside the two games — it drops the ladder pills while it is lit, since a career is one thing and there is nothing under it to re-sort, and it shows the career for whichever game the player was last looking at rather than whichever is first in the row. And the **Career Stats widget** under the innings card opens it as a page of its own, with a way back to the card rather than a modal over it, because at that moment the player has travelled somewhere rather than switched tabs. The widget's `NEW` flag comes off the first time it is opened, once and for good: a flag that still says new on the fortieth innings is one nobody reads, and it teaches the player that the flags on that screen mean nothing.
+
+The innings card's own share is now **one key, not two**. It was a WhatsApp anchor beside an Instagram button, which is two keys asking the same question and getting the same answer — on a phone both ended in the system share sheet, and choosing between them before seeing it is a decision nobody has the information to make. One key opens the sheet with the card in it and lets the phone offer everywhere it can go. Where a browser will not hand a file to another app at all, WhatsApp's own link still opens with the caption, so the playable link travels even when the picture cannot.
+
+The career card keeps both of its keys, because there the two really are different pictures: a card sized for a chat thread, and a 9:16 frame with the address painted on.
+
+Two keys sit under it, stacked and equal, each wearing the colour of where it is going:
+
+- **Brag stats on WhatsApp** — the card as a PNG, with a caption that carries the playable link. That link is the whole difference between a brag and an invitation: a thread full of somebody's numbers is a thread where nobody can go and beat them. Where the browser will not hand a file to another app, the `wa.me` link still opens WhatsApp with that text, so the link survives even when the picture cannot.
+- **Share to Insta story** — the card standing on the cover art in a 9:16 frame, as a JPEG, with the address painted on. It has to be painted: a picture handed to Instagram is a picture, link stickers are added inside the app by whoever posts it, and nothing else survives the trip.
+
+The figures are mirrored into `localStorage`, so the sheet opens with the player's own numbers rather than a spinner and the card is painted from those; the store's answer replaces them a moment later, and only repaints where it actually disagreed. The foot of the card says out loud what the whole thing is for: **these figures belong to this browser.** Clear its storage or play somewhere else and a second career starts from nought. That is the honest version of the nudge — the card does not merge devices, it makes keeping to one worth something.
+
+### Reading them costs almost nothing
+
+`GET /api/career` answers with **every ladder of a mode at once**, because the sheet draws them as tabs over one screen and a round trip per tab would make switching feel broken. One `ZRANGE` per board and a single `HMGET` for the union of everybody who appears on any of them — four boards cost five commands, not eight, and a player standing on three of them is fetched once. It carries nothing personal, so it sits in the edge cache for five minutes; an all-time total five minutes old is not wrong.
+
+`GET /api/career?player=…` is the same endpoint answering with one player's own figures, never cached by anyone.
+
+| Key | Type | Holds |
+| --- | --- | --- |
+| `blast:careers` | hash | player id → the whole career as JSON, with the name, the last innings' id and the day's count. Two commands to count an innings. |
+| `blast:career:runs`, `…:boundaries`, `…:highest` | sorted sets | player id → packed score, one per ladder. `ZADD GT`, because a career total only ever rises and a lower score arriving is a request that overtook a newer one. |
+| `survivecareer:careers`, `survivecareer:career:*` | as above | The Test career, on its own keys. |
+| `names` | hash | shared with the innings boards, and only ever read here. Claiming is a write with a rule attached, and that rule lives in one place. |
+
+### Seeding day one
+
+The careers start empty, and seven empty boards on the morning a feature ships is the worst possible time for them to be empty. `scripts/career-seed.ts` walks the existing innings boards and files everybody already on one as a career of exactly one innings — the one that put them there, which is a real innings, stamped with the day it was actually played rather than the day of the migration.
+
+```
+npx vite-node scripts/career-seed.ts            # say what it would do
+VERCEL_ENV=production npx vite-node scripts/career-seed.ts --write
+```
+
+What it seeds is **true and incomplete**, which is the trade and worth saying out loud: a player with four hundred innings behind them starts on the runs of their best. Every innings after it is counted in full, so the boards converge on the truth rather than away from it, and nothing is ever invented — a Test row's sixes and fours start at nought, because the Test board never carried them and there is no honest way to guess. It is a one-shot: a record that already exists is left exactly as it is, so running it twice cannot count anybody's best innings twice.
+
+
+## Feedback
+
+A questionnaire, in the game and on a link of its own, answered entirely by tapping. **[hitman-cricket.vercel.app/feedback](https://hitman-cricket.vercel.app/feedback)** is the link to hand round; inside the game it is a quiet line on the cover, the pause card and the innings-end card.
+
+Every question is a tap and there is exactly one box anybody types in, at the end, optional. That rule decides most of the design: a form that asks somebody to type is a form they fill in on a laptop later, which is to say never, and the people worth hearing from are on a phone with one thumb free and an innings they have just lost. Ten taps, forty seconds.
+
+Nothing is asked that the page already knows. The mode played, the runs, the balls faced, the personal best, how many separate days this browser has come back and whether it is a thumb or a keyboard all ride along as context rather than costing a screen — a question whose answer is already on the machine only buys a worse answer. What goes with the answers is said on the form itself, above the send key, rather than in a policy nobody opens: *sent with your device type and this innings' figures. No name, no email.*
+
+### The questions
+
+| Asked | Answers |
+| --- | --- |
+| *Have you played it yet?* | Played a full innings · Opened it, didn't finish · Not yet. **Link only** — in the game the answer is that they are mid-innings. |
+| *Where did you come from?* | A friend sent it · Social post · Search · I built it · Somewhere else. Link only. |
+| *Honestly, how much fun was that?* | Not really · It's okay · Good fun · Loved it · Couldn't stop |
+| *How hard did it feel?* | Too easy · About right · Tough but fair · Too hard · Couldn't middle a thing |
+| *Did the keys play the shot you meant?* | Every time · Mostly · About half · Rarely. Asked about **swipes** on a phone: asking a phone player about the keys is asking about a game they did not play. |
+| *What let you down most?* | Timing the swing · Reading the line · Seeing the pitch · Loading or stutter · Sound · Nothing really |
+| *Which shot felt best to play?* | Straight drive · Cover drive · Leg side · Square cut · The block · None of them |
+| *Would you come back tomorrow?* | Definitely · Maybe · Probably not |
+| *Would you send it to a friend?* | Already did · Yes · Maybe · No |
+| *What would you want next?* | More overs · Bowl as well as bat · Head-to-head with a friend · More shots · A season or career · Better looks · Keep it simple. **Two picks**, and the only question that takes more than one. |
+| *What would get you to have a go?* | Asked instead of all of the above where the gate says they have never played. |
+| *Anything you'd change?* | The one box. 280 characters, optional. |
+
+The one multi-answer question is multi-answer on purpose: what somebody wants next is a shortlist rather than a winner, and forcing it to one turns every answer into whatever was nearest the thumb. At the limit, a third tap pushes the oldest pick out rather than doing nothing — a key that refuses to go down reads as broken.
+
+The branch is the whole reason the link has a gate on it. Somebody who followed it from a friend and has never faced a ball cannot say which shot felt best, and asking them anyway fills the answers with noise; they get one question about what would get them to play, the box, and a key into the game.
+
+### The screen
+
+One question at a time, filling the card, with the answers as keys at a thumb's size. A single-answer question records the tap and moves on by itself, so ten questions are ten taps and there is no Next key to find between them. The alternative — every question on one scrolling sheet — is a wall of them, a thumb on the scrollbar and a decision about whether to start at all. The pips along the top are what promise it will be over shortly; they are marks rather than "4 of 11", which is a quantity to dread.
+
+It is built out of the innings-end card's own parts: the same navy slab, the same lit top rule and cut ledge, the same two radii. A form in a different material would read as a survey bolted onto a game.
+
+Nothing is sent until the last screen, and a form left half-done is left rather than sent: an opinion somebody stopped giving halfway through is not an opinion they gave. What was tapped on the way is held in `sessionStorage`, so a mis-hit on the back gesture costs nobody their answers, and a send that fails says so and keeps them.
+
+Once it has been answered, every link into it goes for good. A link that keeps asking after it has been answered is not an invitation.
+
+### Where the game offers it
+
+- **The innings-end card**, from the second innings on. The first card is about the score and the board; a questionnaire under it would be asking what somebody thought of a game they have played once, in the same breath as telling them how they did.
+- **The pause card.** The one moment in the game where nothing is waiting on the player.
+- **The cover**, for somebody who has played before — a form is a strange thing to be handed by a game you have not started.
+
+The button row is deliberately not a fourth. It is six keys already, it sits over a live ball, and a form is not something to reach for mid-over.
+
+### The link, and why it is two spellings
+
+`/feedback` is the link to send people, and it works because `vercel.json` rewrites it to the same page. Everywhere without that rewrite — the dev server, a Pages build, the one-file preview — the query does the same job: `?feedback=1`. `feedbackRoute()` reads both, before anything else on the page runs.
+
+That route is settled in `main.ts` **before the game is imported**, which is the reason `Game` sits behind a dynamic import. A friend who tapped a link to answer ten questions about a cricket game should not have to download three.js, the ground, the crowd and the cover art to do it: the form is about 19 kB of the bundle, the game is 665 kB, and only one of them is fetched. The private-window check is skipped on that page too — it exists to protect a place on the board, and there is no board on it.
+
+### Where the answers go
+
+`POST /api/feedback` on the same Upstash database the board uses, as one list: `LPUSH` then `LTRIM` is two commands a form and keeps it to the most recent `FEEDBACK_KEPT` without anything having to tidy up later. The rate counter is deliberately not the board's — somebody who has posted forty innings has not filled in forty questionnaires, and one shared key would let an evening of play use up the right to say what they thought of it. Ten forms an hour from an address, against the board's hundred and twenty innings.
+
+The rules live in `src/server/feedback-store.ts` and the questions in `src/game/feedback.ts`, which is what the form is drawn from **and** what the endpoint validates against. One list, so an answer that arrived by any route other than tapping a chip is dropped rather than stored, and a question id can be a column heading without anybody wondering what is underneath it. A form is never turned down for being incomplete: somebody who tapped once and left has told you something.
+
+Reading them back is `GET /api/feedback?key=…`, gated on `FEEDBACK_KEY` in the environment and answering anything without it the way it answers a request for a page that is not there. A 401 would confirm there is something here worth a key. It returns CSV — one row per form, one column per question, the shortlist joined by a space — because what actually happens to it is a paste into a spreadsheet and a sort. `?format=json` is there for anything reading it by machine.
+
+The suggestion is the only field anybody typed, and it is handled as such. Control characters and the invisible formatting marks go on the way in, the same set a board name is stripped of and for the same reason: a directional override turns the rest of a spreadsheet row around. A cell opening with `=` is a formula to Excel and Sheets, so it is prefixed with a quote on the way out. And it is never rendered into a page by this game — write-only, read as a spreadsheet — which is what removes the question of escaping it rather than answering it.
+
+`npm run dev` serves all of this from memory, the way it serves the board: the form can be opened, filled in, sent, and read back at `http://127.0.0.1:5173/api/feedback` with no credentials and no database. The dev read has no key on it — it is answering whoever is running the dev server, and they wrote the answers.
+
+**On a Pages build there is no endpoint behind the form.** That deployment is survive-only and deliberately has no functions; a form opened there will say it could not be sent. Set `VITE_BOARD_API` to the Vercel origin on that workflow if playtest feedback should reach you — the allowlist in `src/server/http.ts` already names the Pages origin.
+
 ## Architecture and tuning
 
 - `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds/lengths, the compatibility matrix and the threshold that separates a middled shot from a skied one, the triggers for each special delivery, wicket probabilities, and innings pacing.
@@ -492,12 +753,23 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `innings-all-out`, `innings-overs-up` | Which way it ended: three wickets, or thirty balls. The difficulty dial. |
 | `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
 | `board-open` | Whether the fifty is looked at. |
+| `board-tab-classic`, `board-tab-survive` | Whether the other mode's ladder is reached from the tab over the sheet. |
+| `board-ladder-runs`, `…-boundaries`, `…-highest`, `…-balls`, `…-blows` | Which career ladder is opened. The one measure of whether the career boards are worth the tabs they cost. |
+| `stats-open` | Whether the career card is looked at at all. |
+| `stats-share-whatsapp`, `stats-share-story` | Whether it is then sent anywhere, which is the whole point of drawing it. The tap, not the delivery — whether the sheet was sent or dismissed is between the player and their phone. |
 | `claim-open`, `claim-done`, `claim-failed` | The registration funnel: offered, taken, and refused by the store. |
 | `survive-…` | The same events again, for a Test innings. GoatCounter has no custom properties, so the mode is in the name or it is nowhere — everything about an *innings* is prefixed, and everything about a *session* (the first shot, the help screen, the minutes played) is not, because those are the same fact whichever innings they happened in. |
 | `survive-result-won` … `survive-result-lost` | Which of the five result cards the Test innings earned. |
+| `survive-critical-reached` | Whether the batter ever got one blow from being carried off. The direct measure of how many players meet the injury meter at all — the result events cannot answer it, because an innings that goes critical and is then bowled out reports only the bowling. |
+| `survive-injury-0-24` … `survive-injury-retired` | Where the meter finished, in the bands the simulator reports, so the live spread sets against the modelled one without arithmetic. |
+| `survive-blows-0` … `survive-blows-5-plus` | How many blows he took. Read beside the meter rather than instead of it: one on the helmet costs more than two on the pad. |
 | `survive-balls-under-1-over` … `survive-balls-8-10-overs` | How long the last man lasted, in overs rather than balls, because that is how a Test innings is read. |
 | `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
 | `help-open` | The controls did not explain themselves. |
+| `feedback-open`, `feedback-open-link` | The questionnaire opened, and whether from inside the game or from the shared link. |
+| `feedback-cover`, `feedback-card`, `feedback-pause` | Which of the three lines into it is the one people actually use. |
+| `feedback-sent`, `feedback-failed` | Forms finished, and forms the endpoint could not take. |
+| `feedback-left-0` … | Which screen a form was abandoned on. A questionnaire everybody leaves on the same screen has a bad question on it. |
 | `webgl-fail` | The ground could not load, and nothing that follows was ever possible. |
 | `visitor-new`, `visitor-returning` | Whether this browser has played here before. |
 | `back-same-day` … `back-over-30-days` | How long a returning player was away. |
@@ -533,9 +805,12 @@ Two things GoatCounter cannot do, and where to go instead. It cannot cross-tabul
 
 The game is published at **https://hitman-cricket.vercel.app/**, from `codex/cricket-batting-game`, and Vercel is the only host of the three this repository has used that can serve the board: `GET /api/board` and `POST /api/score` are functions, and GitHub Pages and Sites both publish files and nothing else. That is why it is the address.
 
+`vercel.json` carries one rewrite, `/feedback` to the page, which is what makes the questionnaire a link worth sending rather than a query string. Everywhere without it, `?feedback=1` opens the same form.
+
 Two consequences worth knowing:
 
 - **Share the short alias, never a deployment URL.** `hitman-cricket.vercel.app` follows the latest production deployment. The long per-deployment URLs — `hitman-cricket-1qc721gwe-…` and friends — are nailed to one commit each, deliberately, so they never update. A link shared from the deployments list will never show anything you ship afterwards.
+- **`FEEDBACK_KEY` is what makes the answers readable.** Set it in the Vercel environment and `GET /api/feedback?key=…` hands back every questionnaire as CSV. Until it is set there is nothing to read and the endpoint says so as a 404.
 - **Put the functions in the database's region.** Both live in Mumbai (`ap-south-1` / `bom1`). Functions default to Washington DC, which makes every Redis command cross the planet twice on a screen that should open instantly.
 
 `.github/workflows/deploy.yml` is gone: it published to GitHub Pages on every push, and a second copy of the game with no board behind it is worse than no second copy. Whatever Pages last built stays up until Pages is switched off in the repository's settings. `.openai/hosting.json` still describes a Sites deployment and has been left alone.

@@ -1,10 +1,10 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
-import { SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE } from './config/survive';
+import { SURVIVE } from './config/survive';
 import { Confidence } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, spun, type BowlingPlan } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, SURVIVE_PLAN, spun } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -12,9 +12,10 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
-import { advanceShot, chargeable, resolveShot } from './game/ShotResolver';
+import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
+import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { HUD } from './ui/HUD';
 import {
@@ -22,13 +23,41 @@ import {
   type BoardPayload, type SurvivePayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
-import { cardOffer, type BoardTab, type CardOffer } from './ui/Leaderboard';
+import {
+  offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
+} from './game/restore-offer';
+import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Leaderboard';
+import {
+  bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
+} from './ui/CareerBoard';
+import { statsCardImage, statsFacts, type StatsFacts } from './game/StatsCard';
+import { gameLink, keyWhatsappLink } from './game/Share';
+import { keyImage, keyImageName, prepareKeyAssets } from './game/KeyImage';
+import {
+  countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
+  type CareerBoards, type CareerRow,
+} from './game/career-api';
+import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
+import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
+import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
+import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
+import type { LocalCareer } from './ui/Restore';
+import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
+import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import type { StoriesWhere } from './ui/WhatsNew';
+import { climbedTo, type Granted } from './game/tier';
+import { openFeedback } from './ui/Feedback';
+import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
 import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import { unpackScore, type BoardRow } from './game/leaderboard';
-import { ballsBand, counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from './game/analytics';
+import {
+  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, restoreFailure, scoreBand,
+  track, trackOnce,
+} from './game/analytics';
+import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { ChallengeRun, closesIn, resultView } from './game/Challenge';
 import type { Challenge, Kept } from './game/challenge-api';
@@ -37,6 +66,9 @@ import { CHALLENGE_LIFE_MS, challengeLink, closed, forgetChallenge, openChalleng
 import { kitDeal } from './config/board';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
+
+/** How long a counted innings waits before its second and final attempt. */
+const RETRY_MS = 4000;
 /** Which innings is being played. The two share a loop and almost nothing else. */
 export type GameMode = 'CLASSIC' | 'SURVIVE';
 
@@ -74,22 +106,36 @@ const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
 const GHOST_AFTER_MS = 900;
 const GHOST_FOR_MS = 1200;
 
+/**
+ * Whether the spinner bowls the whole innings.
+ *
+ * A playtest build, and it exists because of what this branch added: the flat
+ * sweep, the slog sweep and the leg-side flick are now three different answers
+ * to the same swipe, and which one is right depends on which way the ball is
+ * turning. All three live in one over out of five, so looking at them meant
+ * batting out two overs of seam first, every time. This hands him the lot.
+ *
+ * Nothing else changes — the same lines, the same turn, the same arm balls,
+ * the same scoring. It is only ever the spinner at the other end.
+ */
+const SPIN_ONLY = !!import.meta.env.VITE_SPIN_ONLY;
+/**
+ * A playtest build for the charge: the meter is full every ball and every ball
+ * can be walked at, so the stroke can be looked at without batting for it.
+ * Set to `ball`, it is only the ball — on the stumps, on a length, at a medium
+ * pacer's pace — with the meter left to the innings, for looking at the
+ * strokes a perfect drive plays when there is no charge to play instead.
+ */
+const CHARGE_ONLY = import.meta.env.VITE_CHARGE_ONLY ?? '';
+/**
+ * How slowly the clock runs through the charge, for comparing playtest
+ * builds against each other. Half speed unless a build says otherwise; 1 is
+ * no slow motion at all.
+ */
+const CHARGE_SLOWMO = Number(import.meta.env.VITE_CHARGE_SLOWMO) || 0.65;
+
 const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
-};
-const SURVIVE_PLAN: BowlingPlan = {
-  styles: SURVIVE_STYLES, specials: SURVIVE_SPECIALS, travelScale: SURVIVE.travelScale,
-  // This bowler is aiming: the bouncer goes at the head and the express ball at
-  // fifth stump, rather than both being dealt whatever line comes next.
-  aimed: true,
-  // The spell, composed from the two halves that know about it: SPIN says how
-  // the spinner bowls, SURVIVE says how long the innings is, and neither has
-  // any business importing the other.
-  spin: {
-    ...SPIN,
-    ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver,
-    ballsPerOver: SURVIVE.ballsPerOver,
-  },
 };
 
 export class Game {
@@ -142,9 +188,47 @@ export class Game {
    * allowed to be first on it.
    */
   private boardSeen = false;
+  /**
+   * How many times each board has been written by something other than a fetch.
+   *
+   * A board's rows arrive from a request made some time ago, and by the time
+   * they do the player may have claimed a place — which is answered with the
+   * board the claim was written to, newer than anything already in flight. Each
+   * fetch notes the number on the way out and drops what it brought back if the
+   * number has moved since; otherwise a picture of the board from before the
+   * claim lands on top of it and takes the row the player just took off the
+   * screen they took it on.
+   *
+   * Only a claim moves the number. Two fetches racing each other are two reads
+   * of the same store seconds apart, so either may write and the later one
+   * simply wins — cancelling one for the other would throw away rows that a
+   * failed fetch then has nothing to replace, and an innings-end strip reads
+   * these rows to decide whether there is a place worth offering.
+   */
+  private boardEpoch = 0;
+  private surviveEpoch = 0;
   /** The Test fifty, and whether that board has ever answered. Its own ladder. */
   private surviveRows: SurviveRow[] = [];
   private surviveSeen = false;
+  /**
+   * Whether the batter has been critical yet this innings, so the meter's own
+   * lesson is shown once and the analytics count the innings rather than the
+   * balls. The "once ever" half of it lives in `localStorage`; this is only the
+   * "once this innings" half.
+   */
+  private wasCritical = false;
+  /**
+   * The injury notice, waiting for a gap to appear in.
+   *
+   * It cannot be shown the moment the blow lands: that happens inside the
+   * shot-resolution block, and `setPhase('SHOT_RESOLVE')` runs immediately
+   * after it — so a pause taken there was overwritten a line later and the
+   * panel sat over a game that was still bowling. Dismissing it then *paused*
+   * the innings instead of resuming it, which is the exact opposite of the
+   * button's label. So it waits for the ball to finish and goes up in the gap
+   * before the next one.
+   */
+  private noticeDue = false;
   private player: string | null = null;
   /** The challenge this innings is for, if it is for one. */
   private challenge = new ChallengeRun();
@@ -152,6 +236,35 @@ export class Game {
   private asking: 'chase' | 'set' = 'chase';
   /** Which ladder the sheet is showing, which is the tab drawn as the live one. */
   private boardTab: BoardTab = 'classic';
+  /** Which ladder of that mode the sheet is on. The innings board, always, to open. */
+  private boardLadder: LadderTab = 'best';
+  /**
+   * Which of the three tabs is lit. Held apart from `boardTab`, which stays on
+   * the last *game* looked at — the card under My Stats belongs to a mode, and
+   * tabbing away and back has to land where the player was rather than on
+   * whichever game the build opens with.
+   */
+  private sheetTab: SheetTab = 'classic';
+  /** Each mode's career boards, held from the last fetch. */
+  private careerBoards: Partial<Record<BoardTab, CareerBoards<AnyCareer>>> = {};
+  /** This player's own figures, as the store last reported them. */
+  private myCareer: Partial<Record<BoardTab, {
+    career: AnyCareer; name: string; avatar: number; granted?: Granted | null;
+  }>> = {};
+  /** The facts the card on screen was drawn from, so a late paint can be dropped. */
+  /**
+   * The figures each mode's card was last painted for, so a picture arriving
+   * late can tell whether it still belongs on the screen.
+   *
+   * Kept per mode rather than as one, because the My Stats rail paints both
+   * games at once: with a single slot the second card to start painting took
+   * the slot from the first, and the first card's picture was thrown away when
+   * it landed — leaving the Blast for ever "Drawing your card…" beside a
+   * finished Test one.
+   */
+  private statsDrawn: Partial<Record<BoardTab, StatsFacts>> = {};
+  /** Whether the career page is wanted. Set before it exists, cleared on the way back. */
+  private statsPage = false;
   /**
    * Whether this opening of the sheet is the one that follows a claim, and so
    * carries the card's keys at its foot. Held across a tab rather than passed
@@ -169,6 +282,17 @@ export class Game {
   private audio = new GameAudio();
   private debug = new URLSearchParams(location.search).get('debug') === '1';
   /**
+   * `?demo=1`: fifty made-up rows on every ladder, and nothing written.
+   *
+   * A leaderboard is a screen you cannot judge empty — the scroll, the cut-off
+   * line, the lit row with rows above and below it. The only other way to see
+   * one full is to write fifty real rows to a real board, and a name claimed on
+   * a board is never released. So this fills the screen and touches nothing:
+   * the rows are made in this browser, live as long as the sheet is open, and
+   * the fetches that would have overwritten them are not made.
+   */
+  private demo = demoWanted();
+  /**
    * A link that names its mode. `?mode=survive` is how the Test match is handed
    * to playtesters on its own: the picker never opens, Play Again replays the
    * same innings, and there is no key out of it.
@@ -183,6 +307,10 @@ export class Game {
   private canRegister: boolean;
   constructor(root: HTMLElement, options: { canRegister?: boolean } = {}) {
     this.canRegister = options.canRegister !== false;
+    // Said out loud on the screen. A made-up board that looks exactly like a
+    // real one is a good way to look at a screen and a very bad way to read a
+    // number, so while it is on, the board says so above the tabs.
+    if (this.demo) document.documentElement.setAttribute('data-demo', '1');
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best);
     // Neither of these is allowed to hold up an innings. Settling the id touches
@@ -192,8 +320,11 @@ export class Game {
     // Swallowed in production, because none of this is worth an innings — but
     // never swallowed in development, where a silent catch here hid a real
     // failure for an afternoon.
-    void playerId().then(id => { this.player = id; return this.openChallenges(); })
-      .catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
+    void playerId().then(id => {
+      this.player = id;
+      void this.catchUpOnKey();
+      return this.openChallenges();
+    }).catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
     this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
@@ -202,14 +333,17 @@ export class Game {
     // who was handed the link to give an opinion on the batting.
     if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
-    this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport);
+    this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport,
+      () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0,
+      // The downward diagonals are the scoops whenever there is a meter to
+      // spend on them. Which ball they get is settled in `playedAs`.
+      () => this.charged);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
-    this.hud.on('start', () => (this.locked ? this.start() : this.modes()));
+    this.hud.on('start', this.play);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('mode-challenge', () => { this.hud.closeModes(); this.challenge.beginSetting(); this.choose('CLASSIC'); });
-    this.hud.on('modes-cancel', () => this.hud.closeModes());
     this.hud.on('challenge-set', () => { void this.setChallenge(); });
     this.hud.on('challenge-share-done', () => this.hud.closeChallenge());
     this.hud.on('challenge-copy', () => { void this.copyChallengeLink(); });
@@ -232,17 +366,57 @@ export class Game {
       forgetChallenge(key.dataset.code!);
       void this.showChallenges();
     });
+    this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
+    // The switch as it was left last visit.
+    this.hud.sound(this.audio.setting);
     this.hud.on('restart', this.start);
+    // Out of a paused innings and back to the picker. The picker is a screen
+    // rather than a card, so it covers the pause card rather than replacing
+    // it: pick a mode and the innings is walked out on, back out of it and the
+    // card is exactly where it was.
+    this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.modes(); });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
     this.hud.onBoardTab = this.tabBoard;
+    this.hud.onBoardStories = () => this.showStories('board');
+    this.hud.onLadderTab = this.tabLadder;
+    this.hud.onStatsOpen = this.showStats;
+    // Either key in the sheet counts as saved. Which one was used is worth
+    // knowing — one of them finishes the job and the other leaves homework —
+    // so they are counted apart even though they retire the same prompts.
+    this.hud.onKeySave = how => this.saveKey(how);
+    // Fetched while the sheet is still being read, so the first tap on SAVE AS
+    // IMAGE is not the thing that waits on a font.
+    void prepareKeyAssets();
+    this.hud.onRestore = entry => void this.sendRestore(entry);
+    this.hud.onRestoreOpen = from => this.openRestore(from);
+    this.hud.keyNow = () => this.careerKeyHeld();
+    this.hud.onNewKey = () => void this.makeNewKey();
+    this.hud.onRestoreShown = () => {
+      restoreOfferShown();
+      trackOnce('restore-offered-card', 'Offered the way back at the end of an innings');
+    };
+    this.hud.onRestoreDismiss = () => {
+      restoreOfferDone();
+      track('restore-offer-dismissed', 'Restore offer waved away');
+    };
+    // Only to somebody with no name. A record comes back as a name and a key
+    // together, so there is nothing to offer a player who already has one.
+    this.hud.restoreNow = () => !readPlayer();
+    // The three ways into the questionnaire. The cover offers it only to
+    // somebody who has played before: a form is a strange thing to be handed by
+    // a game you have not started.
+    this.hud.on('feedback-open', () => this.openFeedback('cover'));
+    this.hud.on('feedback-card', () => this.openFeedback('card'));
+    this.hud.on('feedback-pause', () => this.openFeedback('pause'));
+    this.hud.offerFeedback({ cover: this.best > 0, card: false, pause: false });
     this.hud.on('claim', this.startClaim);
     this.hud.on('claim-cancel', () => this.hud.closeClaim());
     (this.hud.viewport.querySelector('#card-claim') as HTMLFormElement).addEventListener('submit', event => {
@@ -280,6 +454,14 @@ export class Game {
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
+      // Who this browser settled on being. Asked by `key-check.mjs`, which
+      // cannot know it any other way: the id is resolved from three stores
+      // against a one-second fuse, and a headless browser with a cold
+      // IndexedDB loses that race and plays as a freshly minted stranger. A
+      // check that plants an id and assumes it took is checking its own
+      // planting — and a new key is only ever given to the id that already
+      // holds the name, so it was asking as somebody else and being refused.
+      player: () => this.player,
       // Fills the meter so the charge can be driven straight from a test.
       fillConfidence: () => { this.confidence.value = CONFIDENCE_FULL; this.showConfidence(); },
       // Leaves him one blow from the floor, so the fall can be looked at without
@@ -299,12 +481,350 @@ export class Game {
    */
   private modes = () => {
     this.audio.music('cover');
+    // The bar rides on the picker, capped at two showings. Nothing is issued
+    // yet, so it only appears where a key exists to be saved.
+    this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: true });
     this.hud.modes();
     // The way to the list is offered only to somebody who has set a challenge.
     // An empty list is a screen about nothing, and a key to it is a key that
     // teaches the player it was not worth pressing.
     this.hud.challengesLink(openChallenges().length);
     this.hud.challengesOpen(waitingCount());
+  };
+
+  /**
+   * The key this player holds, or null.
+   *
+   * Only ever offered to somebody who has claimed a name. A record is brought
+   * back with a name and a key together, so a key held by nobody opens nothing
+   * — it is a lifeline with the far end tied to air. Four of the seven ways
+   * somebody can arrive at this screen have no name yet: a first visit, a
+   * career built but never registered, a new phone before restoring, and a new
+   * phone with a few innings on it. All four were once handed a key, because
+   * the rule was written in a comment and nowhere else.
+   */
+  private careerKeyHeld() { return keyView(!!readPlayer()); }
+
+  /**
+   * Whether the end of this innings offers the way back instead of a key.
+   *
+   * Only where there is no name, which is the same four arrivals that get no
+   * key: a first innings, a career built but never registered, and either of
+   * those on a phone that has forgotten somebody. We cannot tell them apart,
+   * so the offer goes to all of them and the words carry the doubt.
+   */
+  private offerRestoreOnCard() {
+    return !readPlayer() && offerRestoreHere();
+  }
+
+  /**
+   * And at the foot of the board, for the same four arrivals.
+   *
+   * A ladder somebody is not on is the screen a returning player opens first
+   * to find out their record is gone, so it is worth asking there — but not
+   * against the innings-end cap. That cap is there because a card pushed in
+   * front of somebody after every innings becomes scenery; the board is a
+   * screen they chose to open, and a line at the foot of it is not in the way.
+   * Waving it away anywhere still ends it everywhere.
+   */
+  private boardRestoreOffer() {
+    this.hud.offerRestoreOnBoard = !readPlayer() && !restoreOfferDismissed();
+  }
+
+  /**
+   * What this device has that no record has counted: the innings and the runs
+   * a player put together before realising they could bring their own back.
+   *
+   * Null where there is nothing, which is the ordinary case — a genuinely
+   * wiped phone is empty, so the restore screen never asks the question and
+   * stays two fields and a key.
+   */
+  private localCareer(): LocalCareer | null {
+    const held = Object.values(this.myCareer).map(one => one.career);
+    const innings = held.reduce((sum, one) => sum + one.innings, 0);
+    if (!innings) return null;
+    return { innings, runs: held.reduce((sum, one) => sum + one.runs, 0) };
+  }
+
+  /** The way back, offered with whatever the screen already knows. */
+  private openRestore(from: string, name = '') {
+    track(`restore-open-${from}`, `Restore opened from the ${from}`);
+    this.hud.openRestore(name, this.localCareer());
+  }
+
+  /**
+   * A name and a key, offered to the store.
+   *
+   * Only the store can answer this. What is kept on our side is a salted hash,
+   * so a check this browser could run is a check anybody could run offline as
+   * often as they liked — and the store is also the only thing that can count
+   * the attempts, which is most of what stands between a key and a keyspace.
+   */
+  private async sendRestore(entry: { name: string; key: string }) {
+    // Opening the screen and filling it in are different acts, and the gap
+    // between them is its own answer: somebody who opened this and never
+    // pressed the key did not have one to try.
+    track('restore-sent', 'A name and key offered to the store');
+    this.hud.restoreSending(true);
+    const answer = await restoreRecord(entry.name, entry.key);
+    if (this.disposed) return;
+    if (!answer.ok || !answer.playerId) {
+      const why = restoreFailure(answer.reason);
+      track(`restore-failed-${why}`, `Restore turned down: ${why}`);
+      return this.hud.restoreFailed(answer.reason ?? 'That did not go through.');
+    }
+    track('restore-done', 'Record brought back');
+    this.becomeRestored(answer.playerId, entry.name);
+    this.hud.closeRestore();
+    this.hud.restoreDone(entry.name);
+  }
+
+  /**
+   * Saving a key, which until now was a thing the sheet said and did not do.
+   *
+   * Both keys called through to a handler that recorded the save and retired
+   * the prompts, and neither ever opened WhatsApp or wrote to the clipboard.
+   * The player was told their key was safe and was holding nothing, which is
+   * the exact failure this file's own comment warns about — and the one the
+   * whole widget exists to prevent.
+   *
+   * The save is recorded only where something actually happened. A clipboard
+   * that refuses, or a window the browser blocks, leaves the prompt standing:
+   * a key that did not get out of here is a key still worth asking about.
+   */
+  private async saveKey(how: 'whatsapp' | 'copy' | 'image'): Promise<boolean> {
+    const code = this.careerKeyHeld()?.code;
+    const name = readPlayer()?.name;
+    if (!code || !name) return false;
+    // Counted, because a save that cannot happen is invisible from a dashboard
+    // otherwise: the player presses a key, nothing is recorded, and the figures
+    // read as somebody who never bothered. A browser that refuses one of these
+    // for everybody would show up here as a flat line against a busy sheet.
+    const refused = (why: 'blocked' | 'refused') => {
+      track(`key-save-failed-${how}`, `Career key could not be saved: ${how} ${why}`);
+      return false;
+    };
+    if (how === 'image') {
+      const went = await this.saveKeyImage(name, code);
+      // Dismissing the share sheet is somebody changing their mind, and it is
+      // not counted as a failure: a browser that cannot save is a bug worth
+      // seeing, and a player who thought better of it is not, and a figure
+      // holding both answers neither.
+      if (went === 'cancelled') return false;
+      if (!went) return refused('blocked');
+    } else if (how === 'copy') {
+      // No clipboard at all, or permission refused. Either way nothing was
+      // saved, and the sheet stays up rather than closing on a promise it
+      // did not keep.
+      try { await navigator.clipboard.writeText(code); } catch { return refused('refused'); }
+    } else if (!window.open(keyWhatsappLink(name, code, gameLink()), '_blank')) {
+      // Blocked as a popup. Opening inside the click that asked for it is what
+      // usually prevents that, and this is the case where it did not.
+      return refused('blocked');
+    }
+    // Which one was used is worth knowing — they do not all finish the job, and
+    // the one that leaves the most homework is the one a player reaches for
+    // first — so they are counted apart even though they retire the same
+    // prompts.
+    markKeySaved();
+    track(`key-saved-${how}`, how === 'whatsapp'
+      ? 'Career key sent to WhatsApp'
+      : how === 'image' ? 'Career key saved as a picture' : 'Career key copied');
+    this.redrawKeyPlacements();
+    return true;
+  }
+
+  /**
+   * The key as a picture, handed to the phone to put wherever it puts pictures.
+   *
+   * The share sheet first, because on a phone that is the road to the camera
+   * roll and it is also where "save to Files" and every messaging app live. A
+   * download is the desktop answer and the fallback for a browser that will not
+   * hand a file to anything.
+   *
+   * A dismissed share sheet throws `AbortError`, and that is not a failure —
+   * it is somebody changing their mind. Reporting it as one would put a
+   * "could not save" notice under a key that worked perfectly.
+   */
+  private async saveKeyImage(name: string, code: string): Promise<boolean | 'cancelled'> {
+    try {
+      const picture = await keyImage(name, code);
+      const file = new File([picture], keyImageName(name), { type: 'image/png' });
+      if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+        } catch (error) {
+          if ((error as { name?: string })?.name === 'AbortError') return 'cancelled';
+          throw error;
+        }
+        return true;
+      }
+      const url = URL.createObjectURL(picture);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = keyImageName(name);
+      link.click();
+      // Given a moment to be read before the blob behind it is let go.
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Every screen the key and the offer appear on, redrawn from what is true now.
+   *
+   * Making a key, saving one, and bringing a record back all change what these
+   * should say, and all three happen inside a modal standing over them. Closing
+   * that modal put the player back in front of the screen as it was before —
+   * still offering a new key they had just made, still offering to restore a
+   * record they had just restored.
+   */
+  private redrawKeyPlacements() {
+    // Only where that slot is already carrying something. Drawing the offer
+    // into it is what counts a showing against its cap, so a redraw aimed at a
+    // card nobody is looking at would spend one of the two.
+    if (this.hud.keyPanelShowing) {
+      this.hud.offerRestorePanel = this.offerRestoreOnCard();
+      this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+    }
+    // The board is drawn when it is opened and not again, so an offer already
+    // standing on it outlives the thing it was offering.
+    this.boardRestoreOffer();
+    if (!this.hud.offerRestoreOnBoard) this.hud.dropBoardRestore();
+    this.redrawStats();
+  }
+
+  /** My Stats, in whichever of its two presentations is on the screen. */
+  private redrawStats() {
+    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    if (this.statsPage) {
+      this.railStats(mode, view => {
+        if (this.disposed || !this.statsPage) return;
+        this.hud.stats(view);
+      });
+    } else if (this.hud.boardOpen && this.sheetTab === 'mine') {
+      this.openMine();
+    }
+  }
+
+  /**
+   * The key an existing player never got, fetched quietly on sight of the game.
+   *
+   * Every name on the board was claimed before keys existed, so none of them
+   * has one — and the path that mints a key is a *claim*, which happens when an
+   * innings beats the one already up there, not when an innings is played.
+   * Somebody sitting fourth with two thousand runs behind them could go weeks
+   * without registering anything, and all that time the thing built to save
+   * their record could not reach them. Waiting for them to find a button on My
+   * Stats is the same problem wearing a hat.
+   *
+   * So it is asked for rather than waited for. The store mints only where the
+   * name has none, which is what makes this safe to do unasked: a second
+   * browser gets nothing and goes on saying `lost`, rather than minting a
+   * replacement that would quietly stop the key on the first one working.
+   *
+   * Quietly, and once. No sheet is thrown in front of anybody on load — the
+   * card and the strip at the end of an innings are where the asking belongs,
+   * and they can only do it once there is a key for them to ask about.
+   */
+  private caughtUpOnKey = false;
+  private async catchUpOnKey() {
+    if (this.caughtUpOnKey) return;
+    const player = readPlayer();
+    if (!player || !this.player || this.careerKeyHeld()?.state !== 'lost') return;
+    this.caughtUpOnKey = true;
+    const made = await firstCareerKey(player.name, this.player);
+    if (this.disposed || !made) return;
+    keepKey(made);
+    track('key-caught-up', 'A key issued to a name that never had one');
+    this.redrawKeyPlacements();
+  }
+
+  /**
+   * A key to replace one this browser cannot produce.
+   *
+   * Proved by holding the player id, which is the same secret the board is
+   * written with — somebody who has it can already post innings under that
+   * name, so this hands them nothing new. Making it is what stops the old one
+   * working, which is the point: a key somebody has lost is a key somebody
+   * else may have found.
+   */
+  private async makeNewKey() {
+    const player = readPlayer();
+    if (!player || !this.player) return;
+    const made = await newCareerKey(player.name, this.player);
+    if (this.disposed) return;
+    if (!made.ok || !made.key) {
+      track('key-new-failed', 'New career key refused');
+      return;
+    }
+    keepKey(made.key);
+    track('key-new', 'New career key made');
+    // The card behind the sheet asked for this and has to stop asking: it still
+    // reads "make a new key" over a browser that now holds one.
+    this.redrawKeyPlacements();
+    this.hud.openKeySheet();
+  }
+
+  /**
+   * This browser is that player now.
+   *
+   * The id is the whole of who somebody is here, so adopting it is the entire
+   * act of restoring — the career, the board row and the card all key off it
+   * and arrive on the next fetch. Everything held from before is dropped: it
+   * describes whoever this browser used to be, and a card drawn from it over a
+   * record that has just come back would be the wrong figures under the right
+   * name.
+   *
+   * The key is forgotten rather than guessed at. The store has a hash and
+   * cannot produce the key that made it, so this browser holds none — which is
+   * what `lost` on the widget says, and it offers a new one.
+   */
+  private becomeRestored(playerId: string, name: string) {
+    this.player = playerId;
+    writePlayer({ name: name.trim(), avatar: readPlayer()?.avatar ?? 0 });
+    forgetKey();
+    forgetCareer();
+    this.careerBoards = {};
+    this.myCareer = {};
+    this.board = [];
+    this.surviveRows = [];
+    this.boardSeen = false;
+    this.surviveSeen = false;
+    this.boardEpoch++;
+    this.surviveEpoch++;
+    // The offer that brought them here is answered. Left alone it stays on the
+    // card under the career widget, inviting somebody to restore the record
+    // they are already looking at.
+    this.redrawKeyPlacements();
+  }
+  /**
+   * Out of the picker without picking. Opened from the cover that is the cover
+   * again; opened from a paused innings it is the pause card again, silent the
+   * way a paused innings is, with the focus back on the key that resumes it.
+   */
+  private closePicker = () => {
+    this.hud.closeModes();
+    // Opened from an end card, which the picker put away to make room for
+    // itself. Backing out has to put it back: the innings is over, so there is
+    // nothing under the picker but the ground, holding the score it finished on
+    // and refusing every key because the phase says the innings is done.
+    if (this.phase === 'INNINGS_END') {
+      this.hud.showResult(this.surviving);
+      // The card's own music again, in place of the cover's that the picker
+      // brought with it. `modes` hands one to the other on the way in and this
+      // is the same handover run backwards.
+      this.audio.music('result');
+      return;
+    }
+    if (this.phase !== 'PAUSED') return;
+    // Back to the card, and back to silence with it. `stop` is the one-shot
+    // clips; the picker's own music is a track, and a track left wanted goes
+    // on playing over a card whose whole point is that nothing is happening.
+    this.audio.music(null); this.audio.stop();
+    this.hud.pause(true);
   };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
   choose = (mode: GameMode) => { this.mode = mode; this.start(); };
@@ -323,6 +843,7 @@ export class Game {
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
+    this.wasCritical = false; this.noticeDue = false;
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed);
@@ -331,7 +852,7 @@ export class Game {
     // clock would have made a share card a lie the moment it was reloaded.
     this.chasing = this.surviving ? teamScore(this.rng) : 0;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
-    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = false;
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
     this.hud.start(this.surviving);
     // The Test board is fetched when a Test innings starts rather than on every
@@ -349,7 +870,7 @@ export class Game {
     this.mode = 'CLASSIC';
     this.scene.whites(false);
     this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
-    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = false; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
+    this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
     (document.activeElement as HTMLElement | null)?.blur();
@@ -371,7 +892,37 @@ export class Game {
 
   private get surviving() { return this.mode === 'SURVIVE'; }
   private get limits() { return this.surviving ? SURVIVE_LIMITS : CLASSIC_LIMITS; }
-  private get plan() { return this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN; }
+  /** `?spin=1` is the same thing as the build flag, for a dev server. */
+  private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
+  /** `?slowmo=0.65` tries a clock speed for the charge on a dev server. */
+  private chargeSlowmo = Number(new URLSearchParams(location.search).get('slowmo')) || CHARGE_SLOWMO;
+  /** `?charge=1` likewise, and `?charge=ball` for the ball alone. Only the classic innings has a meter to fill. */
+  private chargeOnly = CHARGE_ONLY || new URLSearchParams(location.search).get('charge') || '';
+  /**
+   * The ball the charge is for, in place of whatever was drawn: on the stumps,
+   * on a length, at a medium pacer's speed, and the meter filled to walk at it.
+   * Nothing else about the innings changes — the same scoring, the same
+   * wickets — so a mistimed charge is still a mistimed charge.
+   */
+  private chargeable(delivery: Delivery): Delivery {
+    if (!this.chargeOnly || this.surviving || this.lesson >= 0) return delivery;
+    if (this.chargeOnly !== 'ball') this.confidence.value = CONFIDENCE_FULL;
+    // `meter`: the meter alone, the ball left to the innings, for the
+    // strokes that want a ball the charge does not — the scoops.
+    if (this.chargeOnly === 'meter') return delivery;
+    const speedKph = Math.round((ADVANCE.minKph + ADVANCE.maxKph) / 2);
+    return { ...delivery, line: 'MIDDLE', style: 'NORMAL', speedKph, baseTargetX: 0, finalTargetX: 0,
+      bounceZ: GAME.bounceZ, rise: GAME.rise,
+      durationMs: (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale };
+  }
+  private get plan() {
+    const plan = this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN;
+    if (!this.spinOnly || !plan.spin) return plan;
+    // Every over his, from the first: `spinOvers` always gives him `notBefore`
+    // and draws the rest from what follows, so asking for all of them from
+    // nought is how you get all of them rather than a coincidence.
+    return { ...plan, spin: { ...plan.spin, overs: plan.spin.ofOvers, notBefore: 0 } };
+  }
   private get readyMs() { return this.surviving ? SURVIVE.readyMs : GAME.readyMs; }
   private get resultMs() {
     const base = this.surviving ? SURVIVE.resultMs : GAME.resultMs;
@@ -394,18 +945,38 @@ export class Game {
   private mark(name: string, title: string) {
     track(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
   }
-  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed); }
-  private shoot = (shotType: ShotType, inputTimeMs: number) => {
+  /** The same, for the moments that must not be counted twice in one session. */
+  private markOnce(name: string, title: string) {
+    trackOnce(this.surviving ? `survive-${name}` : name, this.surviving ? `Test match: ${title}` : title);
+  }
+  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials); }
+  private shoot = (shot: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
     // one did not understand the controls, and that is a different problem from
     // a player who played and lost.
     trackOnce('first-shot', 'First shot played');
-    this.attempt = { shotType, inputTimeMs };
+    // A scoop with nothing to spend on it, or at a bouncer, is the block: the
+    // rig and the score read the same answer.
+    this.attempt = playedAs(this.delivery!, { shotType: shot, inputTimeMs }, this.charged);
+    const shotType = this.attempt.shotType;
     const charging = advanceShot(this.delivery!, this.attempt, this.charged);
-    this.primed = false;
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging);
+    const lofted = !charging && loftedDrive(this.delivery!, this.attempt);
+    const sweeping = !charging && slogSweep(this.delivery!, this.attempt, this.charged);
+    // The orthodox sweep is what the same swipe at the same ball becomes when
+    // the meter is empty or the timing is not good enough for the slog. It
+    // costs nothing, so unlike the two special strokes it needs no meter read.
+    const levelled = !charging && !sweeping
+      && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt));
+    this.primed = null;
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled);
     this.hud.select(shotType, charging);
+    // The charge is judged now rather than when the ball arrives, because the
+    // ball is not going to arrive: he is going down the pitch to meet it, and
+    // the scene needs to know that from the first frame of his run so the ball
+    // can be drawn to where he meets it rather than carrying on to the crease
+    // and turning round.
+    if (charging) this.resolve();
   };
   /**
    * Confidence is only a shot outside the tutorial, where nothing is scored —
@@ -413,15 +984,26 @@ export class Game {
    * at a man bowling at 170 is not a shot, it is a decision to be hit.
    */
   private get charged() { return this.lesson < 0 && !this.surviving && this.confidence.full; }
-  /** This ball can be charged, and the meter is full to do it. */
-  private set primed(value: boolean) {
-    if (value) this.chargeBall = true;
+  /**
+   * This ball is one of the two special strokes, and the meter is full to play
+   * it. Which one matters to the player and not to the meter: the charge is a
+   * swipe up and the sweep is a swipe to leg, so the cue has to name it.
+   */
+  private set primed(value: Primed) {
+    if (value === 'CHARGE') this.chargeBall = true;
     if (value === this.isPrimed) return;
     this.isPrimed = value; this.showConfidence();
-    this.hud.phase(this.phase, value);
+    this.hud.phase(this.phase, value, this.specials);
   }
   private get primed() { return this.isPrimed; }
-  private isPrimed = false;
+  private isPrimed: Primed = null;
+  /**
+   * Every special stroke this ball is for, in the order the cue prefers them.
+   * The cue names the first; the swipe guide lights all of them, because a
+   * ball on the stumps at pace can be charged or scooped and the player may
+   * want the scoop.
+   */
+  private specials: NonNullable<Primed>[] = [];
   /** This ball was a charge and the meter was full, whatever came of it. */
   private chargeBall = false;
   /**
@@ -437,11 +1019,16 @@ export class Game {
     if (this.surviving) return this.hud.injury(this.health.injury, this.health.critical);
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
-  private toggleSound = () => { this.audio.setMuted(!this.audio.muted); this.audio.unlock(); this.hud.sound(this.audio.muted); };
+  private toggleSound = () => { this.audio.step(); this.audio.unlock(); this.hud.sound(this.audio.setting, true); };
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
-    else { this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true); }
+    else {
+      this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
+      // A paused innings is the one moment in the game where nothing is waiting
+      // on the player, which is the only kind of moment worth asking in.
+      this.hud.offerFeedback({ pause: true });
+    }
   };
   /**
    * The board, with the innings just played measured against it when there is
@@ -453,17 +1040,24 @@ export class Game {
    * cover simply goes on showing whatever it was showing.
    */
   private async loadBoard() {
+    const epoch = this.boardEpoch;
     const payload = await fetchBoard();
     if (this.disposed || !payload) return;
+    // The cover's figure is the top row of whichever board answered, so it is
+    // written either way. The held rows are not: a later fetch, or the rows a
+    // claim answered with, are the newer truth and this one must not land on
+    // top of them.
+    this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
+    if (epoch !== this.boardEpoch) return;
     this.boardSeen = true;
     this.board = payload.rows;
-    this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
   }
 
   /** The Test fifty, the same way. The cover quotes the other one, not this. */
   private async loadSurviveBoard() {
+    const epoch = this.surviveEpoch;
     const payload = await fetchSurviveBoard();
-    if (this.disposed || !payload) return;
+    if (this.disposed || !payload || epoch !== this.surviveEpoch) return;
     this.surviveSeen = true;
     this.surviveRows = payload.rows;
   }
@@ -474,6 +1068,32 @@ export class Game {
    * appearing — and if the fetch fails it says so instead of showing an empty
    * fifty or, worse, fifty invented names.
    */
+  /**
+   * The play key.
+   *
+   * What it does is start the game, except on the first two visits after the
+   * update, where it stops for the three cards explaining what changed. The
+   * stories are counted here rather than when they are closed, because a player
+   * who skips on the first card has still been shown them — counting on the way
+   * out would show the same three cards to the same person for ever.
+   *
+   * The board's own What's New key does not count against it: somebody who went
+   * looking has not used up one of the two they are given.
+   */
+  private play = () => {
+    const go = () => (this.locked ? this.start() : this.modes());
+    if (!whatsNewDue()) return go();
+    markWhatsNewShown();
+    this.showStories('intro', go);
+  };
+
+  /** The update's stories, and whatever happens when they are done with. */
+  private showStories(where: StoriesWhere, then: (() => void) | null = null) {
+    this.mark(`whatsnew-${where}`, 'What\'s new opened');
+    this.hud.onStoriesDone = then;
+    this.hud.stories(where, where === 'intro' && this.locked);
+  }
+
   private showBoard = () => {
     this.mark('board-open', 'Board opened');
     // Mid-innings the board is a distraction with a ball on its way, so it
@@ -483,19 +1103,295 @@ export class Game {
     // The board a player asks for is the board for the innings they are in. The
     // other one is a tab away, and never the one they land on.
     this.boardActions = false;
-    this.openBoard(this.surviving ? 'survive' : 'classic');
+    this.openBoard(this.surviving ? 'survive' : 'classic', 'best');
   };
 
-  /** The other ladder, from the tab over the sheet. */
-  private tabBoard = (mode: BoardTab) => {
-    if (mode === this.boardTab) return;
-    this.mark(`board-tab-${mode}`, 'The other board opened from a tab');
-    this.openBoard(mode);
+  /**
+   * The questionnaire, opened.
+   *
+   * Mid-innings it pauses first, the same way the board and the instructions do:
+   * a ball is on its way, and a screen that goes up in front of one is a wicket
+   * nobody played a shot at. The pause card is still behind it when the form is
+   * put away, which is the point.
+   *
+   * What the answers carry with them is assembled here rather than in the form,
+   * because this is the object that knows it: which innings was played, what it
+   * came to, what the best is, and how many days this browser has been coming
+   * back. None of it is asked as a question — a question whose answer is already
+   * on the machine is a screen somebody has to tap through for nothing.
+   */
+  private openFeedback = (from: 'cover' | 'card' | 'pause') => {
+    this.mark(`feedback-${from}`, `Feedback opened from the ${from}`);
+    if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause();
+    openFeedback({
+      root: this.hud.viewport,
+      playerId: this.player,
+      context: this.feedbackContext(),
+      onDone: () => {
+        // Answered, and the links go; waved away, and they stay where they were.
+        if (feedbackGiven()) this.hud.offerFeedback({ cover: false, card: false, pause: false });
+      },
+    });
   };
 
-  private openBoard(mode: BoardTab) {
+  /** What rides along with the answers, none of it asked. */
+  private feedbackContext(): FeedbackContext {
+    const { held } = readVisits();
+    return {
+      mode: this.surviving ? 'survive' : 'classic',
+      // The innings just played, where one has been. Nought off nought balls
+      // before the first ball is a fact about nobody, so it is left out.
+      runs: this.score.balls ? this.score.runs : undefined,
+      balls: this.score.balls || undefined,
+      best: this.best,
+      innings: this.innings,
+      days: held?.days,
+      device: document.documentElement.classList.contains('touch-device') ? 'touch' : 'keyboard',
+    };
+  }
+
+  /** Another tab over the sheet: the other game, or the player's own card. */
+  private tabBoard = (tab: SheetTab) => {
+    if (tab === this.sheetTab) return;
+    this.mark(`board-tab-${tab}`, 'Another tab opened over the sheet');
+    if (tab === 'mine') return this.openMine();
+    this.openBoard(tab, 'best');
+  };
+
+  /**
+   * The card, under its own tab on the sheet.
+   *
+   * It shows the career for the game the player was last looking at, which is
+   * why the mode is remembered apart from the tab: a player who came to the
+   * board from a Test innings and tapped My Stats wants their Test figures,
+   * not the Blast's because the Blast is first in the row.
+   */
+  /** The cards on the tab's rail, by mode, as each of them is painted. */
+  private mineSlides: Partial<Record<BoardTab, StatsSlide>> = {};
+
+  /**
+   * Both cards, painted as they arrive, handed to whoever is drawing them.
+   *
+   * The Blast first and the Test match behind it, which is the order of the
+   * tabs above and the order somebody swipes. A build that plays one game has
+   * one card, and one card is not a rail.
+   *
+   * There is one of these rather than one per screen because there are two
+   * ways to the card — the tab on the board, and the end card's career widget,
+   * which is a page of its own — and a player who swipes on one of them and
+   * not the other has found a bug rather than a second design.
+   *
+   * `open` is the card the rail opens on: the game whose figures the player
+   * asked for. Landing on the Blast after a Test innings is landing on
+   * somebody else's card.
+   */
+  private railStats(open: BoardTab, draw: (view: StatsSheetView) => void) {
+    const modes: BoardTab[] = SHOW_SURVIVE && !SURVIVE_ONLY ? ['classic', 'survive'] : [this.boardTab];
+    const at = Math.max(0, modes.indexOf(open));
+    this.mineSlides = {};
+    for (const mode of modes) {
+      this.loadStats(mode, (facts, picture, failed) => {
+        if (this.disposed) return;
+        this.mineSlides[mode] = { facts, picture, failed };
+        // The whole rail is redrawn whenever either card finishes painting.
+        // Anything short of that would mean two ways of putting a card on the
+        // screen, and the second one only ever runs a beat after the first.
+        // The card still being painted stands in as the one beside it so the
+        // rail is its full length from the first draw, which is what keeps the
+        // player's place when the second one lands.
+        draw({
+          cards: modes.map(one => this.mineSlides[one] ?? { facts, picture: null, failed: false }),
+          at,
+        });
+      });
+    }
+  }
+
+  private openMine() {
+    this.sheetTab = 'mine';
+    // The game they were last looking at, which is why the mode is remembered
+    // apart from the tab.
+    this.railStats(this.boardTab, view => {
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
+      this.hud.statsTab(view);
+    });
+  }
+
+  /** Another ladder of the same mode, from the row of tabs under the first. */
+  private tabLadder = (ladder: LadderTab) => {
+    if (ladder === this.boardLadder) return;
+    this.mark(`board-ladder-${ladder}`, 'A career ladder opened from a tab');
+    this.openBoard(this.boardTab, ladder);
+  };
+
+  private openBoard(mode: BoardTab, ladder: LadderTab): void {
+    // Every view of the board comes through here, so the offer is decided once
+    // rather than at each of the four places that draw one.
+    this.boardRestoreOffer();
+    this.boardTab = mode;
+    this.sheetTab = mode;
+    this.boardLadder = ladder;
+    if (ladder !== 'best') return this.showCareerBoard(mode, ladder);
     if (mode === 'survive') this.showSurviveBoard();
     else this.showClassicBoard();
+  }
+
+  /**
+   * A career board. Whatever was held from the last fetch goes up straight
+   * away, and the fetch corrects it — which matters more here than on the
+   * innings board, because every career board of a mode arrives in one call, so
+   * moving between three tabs after the first is instant rather than three
+   * round trips.
+   */
+  private showCareerBoard(mode: BoardTab, key: string): void {
+    const board = careerBoardOf(mode, key);
+    if (!board) return this.openBoard(mode, 'best');
+    const held = this.careerBoards[mode];
+    const draw = (payload: CareerBoards<AnyCareer> | undefined, state: 'ready' | 'loading' | 'offline') => {
+      if (this.sheetTab !== mode || this.boardTab !== mode || this.boardLadder !== key) return;
+      this.hud.careerBoard({
+        mode, board, youId: this.player, state,
+        rows: (payload?.boards?.[key] ?? []) as readonly CareerRow<AnyCareer>[],
+        size: payload?.size ?? 50,
+        actions: this.boardActions && this.atEndOf(mode),
+      });
+    };
+    if (this.demo) return draw(demoCareers(mode, this.player) as CareerBoards<AnyCareer>, 'ready');
+    draw(held, held ? 'ready' : 'loading');
+    void fetchCareerBoards<AnyCareer>(mode).then(payload => {
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (payload) this.careerBoards[mode] = payload;
+      draw(this.careerBoards[mode], payload ? 'ready' : 'offline');
+    });
+  }
+
+  /**
+   * The card, over everything else.
+   *
+   * Three things happen at once, in the order they can be done. The mirror in
+   * this browser answers immediately, so the sheet is up with the player's own
+   * figures rather than a spinner. The card is painted from those figures. And
+   * the store is asked for the truth — which is what carries a career across
+   * from another browser once the ids agree — and where it differs, the card is
+   * painted again.
+   *
+   * Painting twice is deliberate. The alternative is waiting on the network
+   * before drawing anything, and the figures almost never change between the
+   * two: the mirror was written by the last innings this browser played.
+   */
+  /**
+   * The card, as a page of its own — where the innings-end card's Career Stats
+   * widget leads. A place the player travelled to rather than a tab they
+   * switched to, so it carries a way back and the board is not underneath it.
+   */
+  private showStats = () => {
+    this.mark('stats-open', 'Career card opened');
+    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    // Wanted, rather than open. The first draw is the one that opens the page,
+    // so it cannot be the one that checks whether the page is open — guarding
+    // on that left the widget doing nothing at all.
+    this.statsPage = true;
+    // The same rail the tab draws, opened on the game just played. This page
+    // used to be handed a single card, so the swipe the tab offers was missing
+    // from the one screen most players reach first.
+    this.railStats(mode, view => {
+      if (this.disposed || !this.statsPage) return;
+      this.hud.stats(view);
+    });
+    this.hud.onStatsBack = () => {
+      this.statsPage = false;
+      this.hud.onStatsBack = null;
+      this.hud.dropStats();
+    };
+  };
+
+  /**
+   * One player's card, assembled and then painted, handed to whoever is
+   * drawing it.
+   *
+   * Three things happen at once, in the order they can be done. The mirror in
+   * this browser answers immediately, so the screen is up with the player's own
+   * figures rather than a spinner. The card is painted from those figures. And
+   * the store is asked for the truth — which is what carries a career across
+   * from another browser once the ids agree — and where it differs, the card is
+   * painted again.
+   *
+   * Painting twice is deliberate. The alternative is waiting on the network
+   * before drawing anything, and the figures almost never change between the
+   * two: the mirror was written by the last innings this browser played.
+   *
+   * The `draw` it is handed is what makes one path serve both the tab on the
+   * board and the page off the innings card. Neither of them knows any of the
+   * above, and neither of them has a copy of it.
+   */
+  private loadStats(
+    mode: BoardTab,
+    draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
+  ) {
+    const batting = readPlayer();
+    const held = this.myCareer[mode] ?? {
+      career: heldCareer(mode), name: batting?.name ?? '', avatar: batting?.avatar ?? 0, granted: null,
+    };
+    this.paintStats(mode, held, draw);
+    if (this.player) {
+      void fetchMyCareer<AnyCareer>(this.player, mode).then(mine => {
+        if (this.disposed || !mine?.career) return;
+        const fresh = {
+          career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
+        };
+        this.myCareer[mode] = fresh;
+        // Only redrawn where the store actually disagreed, or every open would
+        // repaint the card a beat after the player started looking at it.
+        if (JSON.stringify(fresh) !== JSON.stringify(held)) this.paintStats(mode, fresh, draw);
+      });
+    }
+    // The card names a place, which only the boards know. One call, and it is
+    // the same one the career ladders would have made.
+    if (!this.careerBoards[mode]) {
+      void fetchCareerBoards<AnyCareer>(mode).then(payload => {
+        if (this.disposed || !payload) return;
+        this.careerBoards[mode] = payload;
+        this.paintStats(mode, this.myCareer[mode] ?? held, draw);
+      });
+    }
+  }
+
+  /**
+   * The figures, then the picture for them.
+   *
+   * The screen goes up first with the keys already on it, because painting
+   * takes a moment on a cold font cache and a screen that appears only once the
+   * picture is ready is a key that does nothing for half a second. A card that
+   * cannot be painted at all falls back to the figures as text, which is the
+   * thing the player came for either way.
+   */
+  private paintStats(
+    mode: BoardTab,
+    mine: { career: AnyCareer; name: string; avatar: number; granted?: Granted | null },
+    draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
+  ) {
+    const standing = bestStanding(mode, placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
+    const facts = statsFacts(
+      mode, mine.career, { name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null }, standing,
+    );
+    this.statsDrawn[mode] = facts;
+    draw(facts, null, false);
+    void statsCardImage(facts, gameLink()).then(picture => {
+      // A card painted for figures the player has already moved past belongs to
+      // a screen that is no longer the one they are looking at.
+      if (this.disposed || this.statsDrawn[mode] !== facts) return;
+      const url = URL.createObjectURL(picture);
+      this.hud.holdStatsPicture(url);
+      draw(facts, url, false);
+    }).catch(() => {
+      if (this.disposed || this.statsDrawn[mode] !== facts) return;
+      draw(facts, null, true);
+    });
+  }
+
+  /** Whether the innings just played was this mode's, which is what the keys are for. */
+  private atEndOf(mode: BoardTab) {
+    return this.phase === 'INNINGS_END' && this.surviving === (mode === 'survive');
   }
 
   /**
@@ -508,13 +1404,27 @@ export class Game {
    */
   private showClassicBoard() {
     this.boardTab = 'classic';
+    this.boardLadder = 'best';
     const mine = this.phase === 'INNINGS_END' && !this.surviving;
     const view = { youId: this.player, yours: mine ? asInnings(this.score) : null, actions: this.boardActions && mine };
+    if (this.demo) return this.hud.board({ ...view, rows: demoBoard(this.player), state: 'ready' });
     if (this.board.length) this.hud.board({ ...view, rows: this.board, state: 'ready' as const });
     else this.hud.board({ ...view, rows: [], state: 'loading' as const });
+    const epoch = this.boardEpoch;
     void fetchBoard().then(payload => {
-      if (this.disposed || !this.hud.boardOpen || this.boardTab !== 'classic') return;
+      if (this.disposed || epoch !== this.boardEpoch) return;
+      // Kept first and drawn second. What came back is the board whether or not
+      // anybody is still looking at it, and the innings-end strip reads these
+      // rows to decide whether there is a place worth claiming — so throwing
+      // the payload away because the player had moved on left them with no way
+      // to register at all.
       if (payload) { this.boardSeen = true; this.board = payload.rows; }
+      // Drawn only onto the sheet it belongs to — the tab and the ladder,
+      // rather than the mode. A fetch in flight lands a moment after the
+      // player has moved and the mode is still exactly what it was, so
+      // guarding on the mode alone let fifty innings rows draw straight over
+      // the top of a career ladder or of the player's own card.
+      if (!this.hud.boardOpen || this.sheetTab !== 'classic' || this.boardLadder !== 'best') return;
       this.hud.board({ ...view, rows: this.board, state: payload ? 'ready' : 'offline' });
     });
   }
@@ -522,19 +1432,23 @@ export class Game {
   /** The same opening, over the Test ladder. */
   private showSurviveBoard() {
     this.boardTab = 'survive';
+    this.boardLadder = 'best';
     const mine = this.phase === 'INNINGS_END' && this.surviving;
     const view = { youId: this.player, yours: mine ? this.survived() : null, actions: this.boardActions && mine };
+    if (this.demo) return this.hud.surviveBoard({ ...view, rows: demoSurvive(this.player), state: 'ready' });
     this.hud.surviveBoard({
       ...view,
       rows: this.surviveRows,
       state: this.surviveRows.length ? 'ready' as const : 'loading' as const,
     });
+    const epoch = this.surviveEpoch;
     void fetchSurviveBoard().then(payload => {
+      if (this.disposed || epoch !== this.surviveEpoch) return;
+      if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
       // A fetch that lands after the player has tabbed away belongs to a sheet
       // that is no longer on screen, and drawing it would put the other ladder
       // back under the tab they just chose.
-      if (this.disposed || !this.hud.boardOpen || this.boardTab !== 'survive') return;
-      if (payload) { this.surviveSeen = true; this.surviveRows = payload.rows; }
+      if (!this.hud.boardOpen || this.sheetTab !== 'survive' || this.boardLadder !== 'best') return;
       this.hud.surviveBoard({ ...view, rows: this.surviveRows, state: payload ? 'ready' : 'offline' });
     });
   }
@@ -552,6 +1466,21 @@ export class Game {
       && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable);
     if (typing && event.key !== 'Escape') return;
     const key = event.key.toUpperCase();
+    // The stories sit over everything, including the board that may have opened
+    // them, so they answer first. Without this Enter started an innings behind
+    // them — and then started it again on the way out — 'B' opened the board
+    // underneath, and Esc closed the board the player had come from.
+    if (this.hud.storiesOpen) {
+      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeStories(); }
+      return;
+    }
+    // The card sits over the board, so it answers before the board does. Esc
+    // puts it away and hands the board back, rather than closing both or
+    // pausing whatever is under the two of them.
+    if (this.hud.statsOpen) {
+      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeStats(); }
+      return;
+    }
     // The board is the thing on top while it is open, so it answers first: Esc
     // puts it away rather than pausing whatever is behind it, and the keys that
     // start an innings would otherwise start one under a sheet nobody closed.
@@ -566,7 +1495,7 @@ export class Game {
     // The picker is the thing on top while it is open, so it answers first —
     // otherwise Enter starts an innings underneath a sheet nobody closed.
     if (this.hud.modesOpen) {
-      if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeModes(); }
+      if (key === 'ESCAPE') { event.preventDefault(); this.closePicker(); }
       return;
     }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {
@@ -616,30 +1545,47 @@ export class Game {
       this.update();
     }
     if (!document.hidden) this.scene.render(this.elapsed);
-    if (this.debug) this.hud.debug(this.snapshot());
+    // The sound first: on a phone the overlay is taller than the screen is.
+    if (this.debug) this.hud.debug({ ...this.audio.describe(), ...this.snapshot() });
     this.frameId = requestAnimationFrame(this.frame);
   };
   /**
-   * The charge, and only the charge, gets a beat of slow motion off the bat. The
-   * ball is already resolved by then, so nothing the player can still affect is
-   * running slowly — the clock only stretches the replay of a shot he has won.
+   * The charge, and only the charge, gets slow motion: from the swipe that
+   * played it, through the run down the pitch and the hit, to a beat off the
+   * bat. The ball is already resolved at the swipe, so nothing the player can
+   * still affect is running slowly — the clock only stretches the replay of a
+   * shot he has won.
    */
   private get timeScale() {
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
-    return since >= 0 && since < 340 ? 0.38 : 1;
+    // Two thirds speed, chosen from three playtest builds side by side. It
+    // ran at a third, and with the run down the pitch now inside the window
+    // as well as the hit, a third of that read as a replay rather than a
+    // beat: over a second and a half of him walking at the ball. Half was
+    // still slow; two thirds keeps the run readable and the hit still lands.
+    return since < 340 ? this.chargeSlowmo : 1;
   }
   private update() {
     const age = this.elapsed - this.phaseStart;
     if (this.phase === 'READY' && age >= this.readyMs) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
-        : this.generator.next(this.elapsed + GAME.runupMs);
-      this.attempt = null; this.outcome = null; this.bounced = false; this.primed = false; this.chargeBall = false;
+        : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
+      this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false;
       // The ball is settled before the bowler moves, so the call goes out with
       // him. Held to the flight it gave the player under a second to see the
       // cue, change the shot he had in mind and time it — and that was most of
       // why a full meter kept going unspent.
-      this.primed = this.charged && chargeable(this.delivery);
+      // The cue names one stroke. A ball on the stumps at a bowler's pace is
+      // the charge's first and the scoop's second, so it is called as the
+      // charge; the scoops are named for the balls only they answer — the
+      // yorker, the slower ball, the quick one, the wide one.
+      this.specials = !this.charged ? [] : ([
+        chargeable(this.delivery) && 'CHARGE', sweepable(this.delivery) && 'SWEEP',
+        scoopable(this.delivery) && scoopLine(this.delivery, 'SCOOP') && 'SCOOP',
+        scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') && 'REVERSE',
+      ] as const).filter((special): special is NonNullable<Primed> => !!special);
+      this.primed = this.specials[0] ?? null;
       this.scene.reset(); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
@@ -674,7 +1620,9 @@ export class Game {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
-      } else if (this.surviving ? this.ending : this.score.ended) this.end(); else this.setPhase('READY');
+      } else if (this.surviving ? this.ending : this.score.ended) this.end();
+      else if (this.noticeDue) { this.noticeDue = false; this.showHurtNote(); }
+      else this.setPhase('READY');
     }
   }
   private resolve() {
@@ -701,6 +1649,7 @@ export class Game {
         this.confidence.record(this.outcome);
       }
       this.showConfidence();
+      if (this.surviving && this.health.critical && !this.wasCritical) this.turnedCritical();
       // The Test match needles a batter who is stuck rather than one who has
       // simply played a few balls — see `sledgeDue`.
       if (this.surviving) {
@@ -794,9 +1743,27 @@ export class Game {
       ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
       : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
-    if (!result.ok) { this.mark('claim-failed', 'Claim rejected'); return this.hud.claimFailed(result.reason ?? 'That did not go through.'); }
+    if (!result.ok) {
+      this.mark(result.taken ? 'claim-name-taken' : 'claim-failed',
+        result.taken ? 'Name already held' : 'Claim rejected');
+      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true);
+    }
     this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
+    // Handed over once and kept nowhere else. If this browser does not write
+    // it down now, nothing in the world can show it again — which is exactly
+    // what makes it worth asking the player to put it somewhere safe.
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    // Claiming a name is what puts a career already counted onto the career
+    // boards, so the copies held from before it are wrong the moment this
+    // returns — including the card's, which was drawn with no name on it.
+    const claimed: BoardTab = this.surviving ? 'survive' : 'classic';
+    delete this.careerBoards[claimed];
+    delete this.myCareer[claimed];
+    forgetCareer();
     // The board is where the place the player just took is written, so that is
     // where they are taken — with the keys carried onto it, since it is now the
     // screen they are on.
@@ -804,21 +1771,158 @@ export class Game {
     // Each call answers with its own ladder's board; which one came back is
     // decided by which one was asked, so the mode is what reads it.
     if (this.surviving) {
-      if (result.board) this.surviveRows = (result.board as SurvivePayload).rows;
+      if (result.board) {
+        // The rows the claim answered with are newer than anything a fetch
+        // started before it can bring back, so that fetch is retired here
+        // rather than left to land on top of the place just taken.
+        this.surviveEpoch++;
+        this.surviveSeen = true;
+        this.surviveRows = (result.board as SurvivePayload).rows;
+      }
       this.boardActions = true;
-      return this.openBoard('survive');
+      this.offerFirstKey();
+      return this.openBoard('survive', 'best');
     }
-    if (result.board) this.board = (result.board as BoardPayload).rows;
+    if (result.board) {
+      this.boardEpoch++;
+      this.boardSeen = true;
+      this.board = (result.board as BoardPayload).rows;
+    }
     // Drawn from what the store just handed back rather than fetched again, so
     // the place the player took is on screen and not a cached fifty from before
     // they took it. The tab is set by hand for the same reason.
     this.boardTab = 'classic';
+    // The tab the sheet is showing, as well as the mode it is of. This draws
+    // the board by hand rather than through `openBoard`, which is what sets
+    // both — and a player who had been looking at My Stats when they
+    // registered came back to a sheet whose own tab did nothing, because the
+    // row still thought that was where they were.
+    this.sheetTab = 'classic';
+    this.boardLadder = 'best';
     this.boardActions = true;
+    this.offerFirstKey();
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
+  }
+
+  /**
+   * The first key a player is ever handed, on the beat the board opens on the
+   * row they have just taken.
+   *
+   * Here rather than anywhere earlier because claiming a name is the moment a
+   * key starts being worth anything: restoring takes a name and a key
+   * together, so before there is a name there is nothing for a key to open.
+   * It is closed by hand and never on a clock — a message that takes itself
+   * away while somebody is looking at their own name was never read.
+   */
+  private offerFirstKey() {
+    const held = this.careerKeyHeld();
+    if (held) this.hud.keyToast(held);
+  }
+
+  /**
+   * The first ball he is one blow from being carried off.
+   *
+   * Counted every innings it happens, because "how many players ever meet the
+   * injury meter at all" is the question the whole mode turns on and the result
+   * events cannot answer it — an innings that goes critical and is then bowled
+   * out reports only the bowling.
+   *
+   * The panel is shown once per device and never again. It pauses first: the
+   * gap between deliveries is four hundred milliseconds and a card that arrives
+   * inside it would eat a ball the player never saw.
+   */
+  private turnedCritical() {
+    this.wasCritical = true;
+    this.mark('critical-reached', 'Batter one blow from being carried off');
+    if (SURVIVE_ONLY || hurtNoteSeen()) return;
+    this.noticeDue = true;
+  }
+
+  /**
+   * The notice itself, in the gap between deliveries. It takes the guard phase
+   * first and then pauses over it, so dismissing it hands back an innings
+   * waiting to bowl rather than one mid-ball.
+   */
+  private showHurtNote() {
+    markHurtNoteSeen();
+    this.setPhase('READY');
+    this.togglePause();
+    this.hud.hurtNote(() => { if (this.phase === 'PAUSED') this.togglePause(); });
+  }
+
+  /**
+   * The innings, counted toward this player's career.
+   *
+   * Sent after every innings that finishes, with nothing asked of the player
+   * and nothing waiting on the answer — the card is already on screen by the
+   * time this lands. That is the whole point of it: the career boards say
+   * "all time", and an all-time total assembled only out of the innings
+   * somebody chose to register would be a total of their good days.
+   *
+   * A private window is left out, the same way it is left out of claiming a
+   * place. Its id does not survive the session, so every innings played in one
+   * would open a career that is never added to again.
+   *
+   * The innings carries an id of its own so it can be sent twice safely, and it
+   * is sent twice on purpose: a reply lost on the way back is indistinguishable
+   * from a request that never arrived, so the second attempt is the only way to
+   * be sure a counted innings was counted — and the store throws away the one
+   * it has already seen.
+   */
+  private countThisInnings() {
+    if (!this.player || !this.canRegister) return;
+    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    // The career's own tally, not the board's row: it carries what each batsman
+    // made, which the six totals on a row cannot say.
+    const tally: BlastTally | SurviveTally = this.surviving
+      ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
+      : blastTally(this.score);
+    const nonce = mintNonce();
+    const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
+      if (this.disposed) return true;
+      if (!mine?.career) return false;
+      // Read before the held record is replaced, because the climb is the
+      // difference between the two and there is nowhere else it is written
+      // down. The mirror stands in on the first innings of a session, when
+      // nothing has been fetched yet: it is this browser's own last word on
+      // the career and it is what the card would have drawn.
+      this.markClimb(mode, this.myCareer[mode]?.career ?? heldCareer(mode), mine.career, mine.granted ?? null);
+      this.myCareer[mode] = {
+        career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
+      };
+      // The boards held from before this innings no longer have it on them, so
+      // the next open asks again rather than drawing a career one innings old.
+      delete this.careerBoards[mode];
+      return true;
+    });
+    void send().then(landed => {
+      if (landed || this.disposed) return;
+      setTimeout(() => { if (!this.disposed) void send(); }, RETRY_MS);
+    });
+  }
+
+  /**
+   * A rung climbed, counted once.
+   *
+   * The ladder is the whole argument for a career board — an all-time total
+   * nobody is climbing is a list — and until now nothing said whether anybody
+   * was climbing it. It is the rarest event the game sends and the one that
+   * says most: a rung nobody reaches is the same as no rung at all, and that is
+   * a sentence about thresholds that only this can settle.
+   *
+   * Once per rung per session, because the innings that carries a player over
+   * is deliberately sent twice — a reply lost on the way back is
+   * indistinguishable from a request that never arrived — and a promotion
+   * counted twice is a promotion that did not happen.
+   */
+  private markClimb(mode: CareerMode, was: AnyCareer | null, now: AnyCareer, granted: Granted | null) {
+    const climbed = climbedTo(mode, was, now, granted);
+    if (climbed) this.markOnce(`tier-${climbed.key}`, `Reached ${climbed.name}`);
   }
 
   private end() {
     this.setPhase('INNINGS_END');
+    this.countThisInnings();
     // Both cards get it, and it is asked for before the modes part company
     // below: the innings that just ended is a different innings in each of
     // them, but the screen it ends on is the same screen.
@@ -839,7 +1943,17 @@ export class Game {
         `Test match ended: ${ending}`);
       track(`survive-${scoreBand(this.score.runs)}`, 'Test match runs');
       track(`survive-${ballsBand(this.score.balls)}`, 'Test match balls faced');
+      // What the meter finished on, in bands, so the live spread can be read
+      // against the simulator's — the tuning is done in those terms.
+      track(`survive-${injuryBand(this.health.injury)}`, 'Test match injury');
+      track(`survive-${blowsBand(this.health.blows.length)}`, 'Test match blows taken');
       this.hud.endSurvive(this.score, this.health, ending, this.chasing);
+      // The widget follows the strip onto whichever card is up, so this card
+      // has one now — and it opens the Test career, because `showStats` reads
+      // the mode from the innings that has just ended.
+      this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
+      this.hud.offerRestorePanel = this.offerRestoreOnCard();
+      this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
       this.offerSurvive();
       return;
     }
@@ -855,6 +1969,21 @@ export class Game {
     // balls for, and the card behind it would be the wrong first thing to see.
     if (this.challenge.role === 'chasing') { void this.finishChase(); return; }
     this.hud.end(this.score, this.best, record);
+    // The way to the career card from the innings card. Offered only where a
+    // career is actually being kept: a private window counts nothing, so a
+    // widget there would lead to a card of noughts that never fills.
+    this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
+    // The same strip as the Test card's, and it was missing here. Both cards
+    // share these nodes — `hostStrip` moves them rather than drawing a second
+    // set — so a slot the Blast path never fills is not empty, it is holding
+    // whatever the Test path last put in it.
+    this.hud.offerRestorePanel = this.offerRestoreOnCard();
+    this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+    // On every card, first innings included. It was held back for a second
+    // innings on the theory that the first card belongs to the score and the
+    // board — but a line nobody ever sees asks nothing at all, and most people
+    // who play once play once.
+    this.hud.offerFeedback({ card: true, cover: this.best > 0 });
     this.offerBoard();
   }
   /* ── The challenge ─────────────────────────────────────────────────── */

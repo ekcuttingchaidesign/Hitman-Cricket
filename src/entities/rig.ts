@@ -18,7 +18,7 @@ export const span = (t: number, from: number, to: number) => THREE.MathUtils.cla
 /** Two-bone joint with a stable bend plane and fixed segment lengths. */
 export function solveJoint(start: THREE.Vector3, end: THREE.Vector3, upper: number, lower: number, pole: THREE.Vector3) {
   const axis = end.clone().sub(start);
-  const distance = THREE.MathUtils.clamp(axis.length(), .001, upper + lower - .001);
+  const distance = THREE.MathUtils.clamp(axis.length(), Math.abs(upper - lower) + .001, upper + lower - .001);
   axis.normalize();
   const along = (upper * upper - lower * lower + distance * distance) / (2 * distance);
   const height = Math.sqrt(Math.max(0, upper * upper - along * along));

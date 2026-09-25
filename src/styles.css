@@ -97,7 +97,29 @@ kbd{
   gap:12px;
   z-index:9
 }
-.hud-actions{display:flex;gap:8px}
+.hud-actions{display:flex;gap:8px;position:relative}
+/* What a press of the sound key landed on. Three settings share one key, and
+   the middle one — the game's music off, its sounds on — is not a picture
+   anybody knows, so the key says it in words for a moment after each press.
+   Hung from the row's right edge so it can never run off the screen. */
+.sound-note{
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  white-space:nowrap;
+  padding:6px 10px;
+  border-radius:8px;
+  background:#14313ee6;
+  color:#f3f7ec;
+  font-size:12px;
+  font-weight:650;
+  letter-spacing:.3px;
+  opacity:0;
+  transform:translateY(-4px);
+  transition:opacity .18s,transform .18s;
+  pointer-events:none
+}
+.sound-note.is-up{opacity:1;transform:none}
 .hud-button{
   display:flex;
   align-items:center;
@@ -381,6 +403,51 @@ kbd{
   50%{opacity:1}
 }
 
+/* The swipe guide: eight soft streaks of light over the pitch in front of the
+   crease, only while there is a meter to spend and a ball on its way — the
+   directions a thumb can go, as light leaving it rather than arrows. Each is a
+   blurred glow with a faint sharp core, fading out along its length. The ones
+   that would spend the meter are gold, breathe with the edge of the field,
+   and carry a small pulse of light running outward; the rest stay dim cream. */
+.swipe-guide{
+  display:none;
+  position:absolute;
+  left:50%;
+  bottom:calc(var(--pad-bottom) + 46px);
+  width:176px;
+  height:176px;
+  margin-left:-88px;
+  pointer-events:none;
+  z-index:2;
+  opacity:0;
+  transition:opacity .45s ease
+}
+.touch-device .swipe-guide{display:block}
+.swipe-guide.is-on{opacity:1}
+.swipe-guide .hub{fill:#eef6df;fill-opacity:.45}
+.swipe-guide line{stroke-linecap:round;transition:opacity .35s ease}
+.swipe-guide .glow{stroke-width:6.5;filter:url(#sg-blur);opacity:.7}
+.swipe-guide .core{stroke-width:1.4;opacity:.7}
+.swipe-guide .gold,.swipe-guide .run{opacity:0}
+.swipe-guide .is-special .plain{opacity:0}
+.swipe-guide .is-special .glow.gold{stroke-width:8.5;opacity:1;animation:guide-breathe .62s ease-in-out infinite}
+.swipe-guide .is-special .core.gold{stroke-width:1.8;opacity:.9}
+.swipe-guide .is-special .run{
+  opacity:.85;
+  stroke:#fff3d0;
+  stroke-width:2;
+  stroke-dasharray:9 70;
+  stroke-dashoffset:79;
+  animation:guide-run 1.15s linear infinite
+}
+@keyframes guide-breathe{
+  0%,100%{opacity:.7}
+  50%{opacity:1}
+}
+@keyframes guide-run{
+  to{stroke-dashoffset:0}
+}
+
 /* The one ball he can charge, called where the player is already looking. */
 .phase-label.is-primed{
   font-size:15px;
@@ -659,10 +726,16 @@ kbd{
 .cover-best>svg{width:17px;height:17px;color:#c2762c}
 .cover-best strong{font-family:var(--display);font-size:20px;letter-spacing:.5px}
 .cover-best small{font-size:9px;letter-spacing:1.4px;font-weight:650}
-/* Nothing else on the cover: the board and the buttons return with the innings. */
+/* Nothing else on the cover: the board and the buttons return with the innings.
+   The sound key is the exception, for the reason the picker and the card keep
+   it: the cover has music, and on a phone it is the only screen where the first
+   tap starts it. Somebody listening to their own songs has to be able to say no
+   before they have lost them. */
 body.start-screen .score-stack,
-body.start-screen .arena-bottom,
-body.start-screen .hud-top{display:none}
+body.start-screen .arena-bottom{display:none}
+body.start-screen .hud-top{pointer-events:none}
+body.start-screen .hud-actions>:not(#sound):not(#sound-note){display:none}
+body.start-screen #sound{pointer-events:auto}
 
 .intro-panel{
   position:absolute;
@@ -1085,8 +1158,23 @@ body.start-screen .hud-top{display:none}
   max-height:100%;
   margin:auto;
   padding:20px 0 0;
-  border-radius:18px;
-  background:#0f2738;
+  border-radius:20px;
+  /* Not a flat navy. Two soft blooms sitting on the ground colour — one high
+     on the left where the title is, one lower and to the right — each fading
+     to nothing well inside the card's own edge so that no ring shows where it
+     stops. A hard-edged glow reads as a shape sitting on the card; one that
+     runs out before the border reads as light in the card.
+
+     `transparent` is deliberately not used as the far stop: in most engines it
+     means transparent *black*, and a navy fading through it picks up a dirty
+     grey band on the way. Fading to the same colour at zero alpha keeps the
+     falloff clean. */
+  background:
+    radial-gradient(118% 76% at 16% 4%, #2b6d9e52 0%, #2b6d9e1f 38%, #2b6d9e00 66%),
+    radial-gradient(86% 58% at 92% 52%, #1d5580 0%, #1d558000 64%),
+    linear-gradient(176deg, #123350 0%, #0d2439 46%, #091c2c 100%);
+  border:1px solid #ffffff14;
+  box-shadow:0 22px 50px #00000059;
   font-family:var(--card);
   color:var(--ink);
   text-align:left;
@@ -1099,6 +1187,23 @@ body.start-screen .hud-top{display:none}
 #board-overlay{background:#071219f2;z-index:10}
 /* The tabs and the sheet are one column, so the sheet keeps the rest of the
    screen and scrolls inside it rather than pushing the tabs off the top. */
+/* The made-up board says what it is, first thing on the screen. */
+[data-demo] .board-stack::before{
+  content:'DEMO BOARD — these rows are made up and nothing is saved';
+  flex:none;
+  align-self:center;
+  width:min(440px,100%);
+  padding:7px 12px;
+  border:1px solid #f2814f5c;
+  border-radius:10px;
+  background:#f2814f1f;
+  font-family:var(--card);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:1.1px;
+  text-align:center;
+  color:#f5c0a4
+}
 .board-stack{
   display:flex;
   flex-direction:column;
@@ -1115,29 +1220,40 @@ body.start-screen .hud-top{display:none}
 /* Which ladder, in the dark above the sheet — the one piece of space on this
    screen that was carrying nothing. A segmented key rather than two buttons:
    the two are one choice, and the choice always has an answer. */
+/* Three tabs now, not two, so the track is wider and the type comes down a
+   touch — "Test Survival" is the long one and it may not wrap. */
 .board-tabs{
   display:flex;
+  flex:none;
   gap:3px;
   align-self:center;
-  width:min(320px,100%);
-  padding:3px;
-  border-radius:999px;
+  width:min(440px,100%);
+  padding:5px;
+  /* Rounded rectangles, not pills. A pill is a shape on its own; the sheet
+     under it is a rounded rectangle, and three pills over one made the row
+     read as a separate control that had floated in from another screen. The
+     track's corner is a little softer than the sheet's, and the key's a little
+     softer again, so the three nest rather than repeat. */
+  border-radius:16px;
   /* Opaque, and the sheet's own surface. A translucent track let the cover's
      headline through the middle of the control, which read as two words of the
      screen behind sitting inside a key. */
-  background:#0f2738;
+  background:#0c2135;
+  border:1px solid #ffffff14;
   box-shadow:0 6px 18px #00000038
 }
 .board-tab{
   flex:1;
-  min-height:34px;
+  min-height:36px;
+  padding:0 6px;
   border:0;
-  border-radius:999px;
+  border-radius:12px;
   background:none;
   font-family:var(--card);
-  font-size:11.5px;
+  font-size:11px;
   font-weight:750;
-  letter-spacing:.8px;
+  letter-spacing:.4px;
+  white-space:nowrap;
   color:#9fb2bd
 }
 .board-tab:hover:not(.is-on){color:#dce8ee}
@@ -1152,11 +1268,22 @@ body.start-screen .hud-top{display:none}
 }
 /* Ground, then title, then the way out. The stamp is the one place on this
    sheet that is set in tracked caps; everything else is sentence case. */
+/* Title on the left, keys on the right, as a row.
+   The keys used to be placed absolutely over a block of text, which works
+   exactly as long as nothing on the left is long — and then one day the head
+   said HITMAN OVAL · TEST SURVIVAL and the words ran clean under the What's
+   new key. Laid out as a row, the text simply stops where the keys start, and
+   no length of title can reach them again. */
 .sheet-head{
   position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
   padding:0 22px 2px;
   flex:none
 }
+.sheet-title{min-width:0}
 .board-eyebrow{
   margin:0;
   font-size:10.5px;
@@ -1186,6 +1313,57 @@ body.start-screen .hud-top{display:none}
   line-height:1
 }
 .board-close:hover{background:#ffffff20}
+/* The corner of the sheet: the way into the update's stories, and the way out.
+   The pair is placed here so the close key can keep its old position without
+   knowing anything has been put beside it. */
+.sheet-keys{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:none;
+  /* Pulled up level with the title's cap height rather than its line box, and
+     out to the sheet's own edge, so moving the pair into the flow did not move
+     them on screen. */
+  margin:-4px -8px 0 0
+}
+.sheet-keys .board-close{position:static;top:auto;right:auto;flex:none}
+/* Left of the cross, and the only thing on the sheet asking to be noticed.
+   A stroke and a word rather than a fill: it sits beside a control nobody
+   needs prompting to find, and a second solid key there would read as the
+   more important of the two. */
+.board-new{
+  position:relative;
+  overflow:hidden;
+  height:38px;
+  padding:0 12px;
+  border:1px solid #ffffff2e;
+  border-radius:10px;
+  background:#ffffff0f;
+  color:var(--ink);
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.2px;
+  white-space:nowrap
+}
+.board-new:hover{background:#ffffff1c}
+.board-new::after{
+  content:'';
+  position:absolute;
+  top:-60%;
+  left:-80%;
+  width:62%;
+  height:220%;
+  pointer-events:none;
+  background:linear-gradient(90deg,
+    #ffffff00 0%,#ffffff12 22%,#ffffff30 40%,#ffffff4d 50%,#ffffff30 60%,#ffffff12 78%,#ffffff00 100%);
+  filter:blur(7px);
+  transform:rotate(16deg);
+  /* Its own period and its own delay, so it never crosses in step with the
+     keys under the innings card. */
+  animation:cta-shimmer 9.2s cubic-bezier(.45,0,.4,1) 2.2s infinite
+}
+
 /* The one question the sheet was opened to ask, answered above the fifty rows
    rather than left to be found among them. */
 .board-line{
@@ -1218,15 +1396,25 @@ body.start-screen .hud-top{display:none}
   margin:0;
   padding:0
 }
+/* A rule between rows, but only just.
+   At the weight it had, fifty hairlines turned a list of people into a
+   spreadsheet and made the one row that matters fight its own borders. Taken
+   out altogether the names ran together at a glance. So it stays, at about a
+   third of what it was: enough to separate two lines, not enough to draw. It
+   is also inset past the place number, so the column of numbers down the left
+   reads as a column rather than as rows of a table. */
 .board-row{
   display:grid;
-  grid-template-columns:22px 28px minmax(0,1fr) auto auto;
+  grid-template-columns:20px 34px minmax(0,1fr) auto auto;
   align-items:center;
-  gap:0 10px;
-  padding:8px 0;
-  border-top:1px solid var(--rule)
+  gap:0 11px;
+  padding:7px 0;
+  box-shadow:inset 0 1px 0 #ffffff0d
 }
-.board-list li:first-child{border-top:0}
+.board-list li:first-child{box-shadow:none}
+/* The lit row carries its own ground, so a rule across the top of it would be
+   a line drawn over a colour that is already saying the same thing. */
+.board-row.is-you,.board-row.is-you+.board-row{box-shadow:none}
 .board-place{
   font-size:12px;
   font-weight:700;
@@ -1242,8 +1430,8 @@ body.start-screen .hud-top{display:none}
   position:relative;
   display:grid;
   place-items:center;
-  width:28px;
-  height:28px;
+  width:34px;
+  height:34px;
   border-radius:50%;
   background:var(--kit,#9fb2bd);
   color:#0f2738;
@@ -1266,8 +1454,8 @@ body.start-screen .hud-top{display:none}
 .board-who{min-width:0}
 .board-who b{
   display:block;
-  font-size:14.5px;
-  font-weight:700;
+  font-size:15.5px;
+  font-weight:600;
   letter-spacing:-.2px;
   white-space:nowrap;
   overflow:hidden;
@@ -1292,7 +1480,7 @@ body.start-screen .hud-top{display:none}
 .survive-list .board-who small>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .survive-list .board-who small>i{flex:none;font-style:normal}
 .board-runs{
-  font-size:19px;
+  font-size:21px;
   font-weight:800;
   letter-spacing:-.7px;
   font-variant-numeric:tabular-nums;
@@ -1317,14 +1505,61 @@ body.start-screen .hud-top{display:none}
   /* Wide enough for a two-figure count, so a fourteen-six innings does not push
      its own column out past the fifty rows that are lined up under it. */
   width:31px;
+  white-space:nowrap;
   font-style:normal;
-  font-size:13px;
+  font-size:14px;
   font-weight:700;
   font-variant-numeric:tabular-nums;
   justify-content:flex-end;
-  color:var(--quiet)
+  /* The count is a figure and reads as one; only its unit is a label. Both in
+     grey made the two columns look like a footnote to the score, when they are
+     the two things anybody actually compares after it. */
+  color:var(--ink)
 }
-.board-hits small{font-size:8.5px;font-weight:600}
+.board-hits small{font-size:9px;font-weight:600;color:var(--quiet)}
+/* ── A career row's own measurements ───────────────────────────────────────
+   An innings board counts to three digits at the very most — fourteen sixes,
+   a hundred and forty-eight runs — and its columns are cut to fit that. A
+   career counts to five: four thousand runs, two hundred and ten sixes, sixty
+   innings. Given the innings board's thirty-one pixels those figures simply
+   overflowed their own boxes, so "121" sat on top of the big number to its
+   left and no two rows lined up with each other.
+
+   So the career row gets columns of its own: a lead figure with a floor under
+   it, and two supporting columns wide enough for anything a career can reach,
+   both fixed so that fifty rows read as columns rather than as fifty separate
+   arrangements. */
+.board-row.is-career{gap:0 6px}
+.board-row.is-career .board-runs{min-width:58px;font-size:18px}
+.board-row.is-career .board-hits{gap:6px;margin-left:0}
+/* The label under the figure rather than beside it.
+   Beside it, a column had to be as wide as its number and its word together,
+   and a career that reaches four figures cannot be: `1,532` and `runs` want
+   fifty-seven pixels of the forty-six a column has, so the last one ran off
+   the card. Stacked, a column is only as wide as the wider of the two — and
+   the number, which is what fifty rows are compared on, keeps the whole of it.
+
+   Set in the row's own line-height rather than the document's, or two lines
+   where there was one would make every career row taller than an innings row
+   for the sake of a word. */
+.board-row.is-career .board-hits em{
+  flex-direction:column;
+  align-items:flex-end;
+  gap:0;
+  width:46px;
+  font-size:12.5px;
+  line-height:1.15
+}
+.board-row.is-career .board-hits small{font-size:8.5px;line-height:1.1}
+/* Below that, two career columns and a name cannot all have what they need,
+   and the first thing to go is the last column rather than the name: a row
+   that says who and how many is a row; a row of figures beside two initials
+   and a full stop is not. The board's blurb splits ties on the figure that
+   stays. */
+@media (max-width:379px){
+  .board-row.is-career .board-hits em:last-child{display:none}
+}
+
 /* The figure that actually split a tie, lit where the eye already is. Colour is
    not carrying this on its own: the note under the name says the same thing in
    words, so a player who cannot tell the two apart still gets the reason. */
@@ -1332,15 +1567,49 @@ body.start-screen .hud-top{display:none}
 .board-row.is-level .board-place{color:#ffffff5c}
 /* Your row: the sheet's accent down its edge and its own tint behind it, so it
    is findable in a scroll of fifty without being louder than the leader. */
+/* Your own row, lit. It used to be a flat white wash with an accent edge,
+   which reads as "selected" rather than as "this one is yours" — on a list of
+   fifty near-identical rows the difference matters, because the player is
+   scanning for themselves rather than choosing. A warm gradient fading out to
+   the right, the accent on the name and the figures, and a tab standing proud
+   of the left edge: found at a glance, from any scroll position. */
 .board-row.is-you{
+  position:relative;
   margin:0 -10px;
   padding:8px 10px;
   border-top-color:transparent;
   border-radius:9px;
-  background:#ffffff0f;
-  box-shadow:inset 3px 0 0 var(--accent)
+  /* A warm wash rather than a band of brown. At full strength the row went
+     darker than the sheet it sits on, which made the one line a player is
+     looking for the one line that looks switched off. Translucent, so the
+     sheet's own bloom carries through it and the row reads as lit rather than
+     as filled in. */
+  background:linear-gradient(90deg,#f2814f3d 0%,#f2814f1c 46%,#f2814f00 100%)
 }
-.board-row.is-you .board-who b{color:var(--accent)}
+/* A small triangle pointing into the row — the shape a scoreboard uses to say
+   "this one". A bar would have been a border, and a border on one row of fifty
+   reads as a divider that got thicker.
+
+   Flush with the card's own edge rather than hanging four pixels outside it.
+   Out there it was pointing at the row from off the sheet, and it was spending
+   width the row could not spare: a career counts to four figures and the
+   columns that hold them had run out of room. */
+.board-row.is-you::before{
+  content:'';
+  position:absolute;
+  left:0;
+  top:50%;
+  width:0;
+  height:0;
+  border-top:7px solid transparent;
+  border-bottom:7px solid transparent;
+  border-left:9px solid var(--accent);
+  transform:translateY(-50%)
+}
+.board-row.is-you .board-who b,
+.board-row.is-you .board-runs,
+.board-row.is-you .board-hits em{color:var(--accent)}
+.board-row.is-you .board-place{color:var(--accent)}
 /* The line under the fiftieth row. Everything above it is on the board and
    everything below it is not, so it is the only rule on the sheet with a colour
    and the only one with words on it. */
@@ -1468,7 +1737,19 @@ body.start-screen .hud-top{display:none}
    the picker and the field take exactly their place, and everything the player
    is actually looking at — the score, the ball track, the stats — does not move
    a pixel. */
-.card-keys{display:flex;flex-direction:column}
+/* Side by side, now that the share is one key rather than two. Stacked, they
+   read as a queue of things to do; in a row they read as the choice they are —
+   go again, or send it to somebody. PLAY AGAIN takes the larger share because
+   it is what most people do next. */
+.card-keys{display:flex;gap:10px;align-items:stretch}
+.card-keys .key-button{flex:1.15 1 0;margin:0;min-width:0}
+.card-keys .share-key{flex:1 1 0;min-width:0;padding:0 14px;font-size:16px}
+/* At the narrowest phone widths the two words stop fitting beside each other,
+   and a key with its label cut in half is worse than a key on its own line. */
+@media (max-width:340px){
+  .card-keys{flex-direction:column}
+  .card-keys .key-button,.card-keys .share-key{flex:none}
+}
 .claim-key{
   border-color:#e5473a;
   box-shadow:0 6px 0 #e5473a,0 10px 12px #7a1e1e2e
@@ -1622,23 +1903,53 @@ body.start-screen .hud-top{display:none}
    the card's key size does not.
    `width:auto` is load-bearing: `.key-button` is `width:100%`, and 100% plus
    side margins is wider than the strip it sits in. */
+/* Mint into lavender, left to right. The key used to be a flat cyan, which
+   sat in the same family as the banner above it and read as more of the same
+   panel; running it across two hues makes it the one thing on the strip that
+   is obviously a key. */
 .card-board .claim-key{
   width:auto;
   margin:11px 15px 15px;
   min-height:50px;
-  border:0;
-  background:linear-gradient(180deg,#A8ECFF,#4FCFF2);
+  /* The stroke and the ledge are the deep end of the key's own gradient, not
+     the game's orange — the same construction PLAY AGAIN has, in this key's
+     colour. One flat hue for both, because a gradient cannot run round a
+     border and a ledge, and two different ones would read as a mistake. */
+  border:3px solid #5f6cc4;
+  background:linear-gradient(100deg,#6FE3A8,#A9A2F4);
   color:var(--cta-ink);
   font-size:14px;
   letter-spacing:1.2px;
   text-indent:1.2px;
-  box-shadow:0 4px 0 #1C95B7,0 8px 12px #0a3a4a4d
+  box-shadow:0 6px 0 #5f6cc4,0 10px 12px #1d234f4d
 }
 .card-board .claim-key:hover:not(:disabled){
-  background:linear-gradient(180deg,#bdf2ff,#62d6f5);
-  box-shadow:0 5px 0 #1C95B7,0 10px 14px #0a3a4a59
+  background:linear-gradient(100deg,#84eab7,#b9b3f7);
+  box-shadow:0 7px 0 #5f6cc4,0 12px 14px #1d234f59
 }
-.card-board .claim-key:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #1C95B7,0 4px 7px #0a3a4a3d}
+.card-board .claim-key:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #5f6cc4,0 4px 7px #1d234f3d}
+/* The second reason to press the key, under the key rather than in it.
+   Registering is what puts a name on the board, and a name is the half of a
+   career key that a player has to remember — so the one screen where somebody
+   is deciding whether to register is the one place worth saying it. Only on
+   the offer: on VIEW LEADERBOARD it would be describing something already
+   done. It rides the key's own bottom margin rather than adding to it, so a
+   card that already clears a short phone still does. */
+.claim-why{
+  display:none;
+  margin:-9px 15px 13px;
+  font-size:11px;
+  line-height:1.35;
+  text-align:center;
+  color:#9fb6bb
+}
+/* Up only where the key above it is asking, and down again while the form that
+   key opens is standing in its place. The second selector carries the first's
+   classes as well as the host's, because it has to outrank it: a hide written
+   as `.is-claiming .claim-why` is a class short, and the footnote sat over the
+   form with both rules matching and the wrong one winning. */
+.card-board.is-asking .claim-why{display:block}
+.is-claiming .card-board.is-asking .claim-why{display:none}
 /* The submit key inside the form is the same key doing the same job. */
 .card-claim .claim-key{
   border:0;
@@ -1662,6 +1973,25 @@ body.start-screen .hud-top{display:none}
    The ground behind it is lighter than the one behind the innings card, on
    purpose: an innings is over and the field can go dark, but a pause is a game
    still standing there waiting, and it should look like one. */
+/* The card and its footnote, stacked. The note is not part of the card: it is
+   about leaving the innings rather than about the card's contents, and inside
+   the card it would sit under two keys as though it belonged to the second
+   one. Below it, in the room the card does not use, it reads as a note on the
+   screen — which is what it is. */
+#pause-overlay{flex-direction:column;justify-content:center}
+#pause-overlay>.pause-card{margin:0}
+.pause-foot{
+  width:min(392px,100%);
+  /* Far enough to be a footnote rather than a third line of the card, close
+     enough to still be about the keys above it. */
+  margin:16px auto 0;
+  text-align:center;
+  font-family:var(--card);
+  font-size:11.5px;
+  line-height:1.55;
+  color:#9fb2bdcc;
+  text-wrap:pretty
+}
 .pause-card{
   padding:22px 26px 20px;
   /* The scorecard is a left-hand column of figures. This is two keys and a
@@ -1696,40 +2026,46 @@ body.start-screen .hud-top{display:none}
   line-height:1.5;
   color:var(--quiet)
 }
-/* The second key is the card's quieter one: the navy the innings card gives its
-   story key, on its own dark ledge. Subordinate to the white key above it by
-   tone and height rather than by being a line of text — restarting is a real
-   decision, and it should be as easy to hit as resuming. */
+/* The two ways out are the card's quieter pair: the navy the innings card gives
+   its story key, on its own dark ledge, side by side at half the width each the
+   way the end card sets its share keys. Subordinate to the white key above them
+   by tone and height rather than by being lines of text — leaving an innings is
+   a real decision either way, and both should be as easy to hit as resuming.
+   Narrower than the end card's pair, so the type comes down a step to sit in
+   them without breaking. */
+.pause-card .card-shares{margin-top:11px}
+.pause-card .card-shares .story-key{margin-top:0;font-size:12.5px;letter-spacing:.6px}
 .pause-card .story-key{margin-top:11px}
 .pause-card .start-hint{margin-top:10px;color:var(--quiet)}
 
-/* ── The board's own keys ──────────────────────────────────────────────── */
-/* Pinned to the foot of the sheet, with the fifty rows running under them.
-   Fifty rows is a long scroll, and a player who has just been put on the board
-   should not have to reach the bottom of it to leave. */
+/* ── What to do next ───────────────────────────────────────────────────── */
+/* Under the sheet, not inside it.
+   They used to be a bar sealed into the foot of the card, with the fifty rows
+   fading under them — which made a way to play again look like part of the
+   leaderboard, and left nobody able to say where the board actually ended. A
+   board is a board and these are what happens after it, so they stand on the
+   ground beneath it the way the card's keys stand under the card. */
 .board-actions{
   flex:none;
-  position:relative;
-  padding:12px 22px calc(14px + var(--pad-bottom) - 14px);
-  background:#0f2738;
-  border-top:1px solid var(--rule)
-}
-/* The rows do not end at the bar, they fade into it. */
-.board-actions::before{
-  content:'';
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:100%;
-  height:22px;
-  background:linear-gradient(transparent,#0f2738);
-  pointer-events:none
+  width:100%;
+  /* Only whatever the home bar needs beyond the fourteen pixels the overlay
+     already puts under everything. On a phone without one this is nought. */
+  padding:0 0 calc(var(--pad-bottom) - 14px)
 }
 .board-actions .key-button{min-height:48px;font-size:16px}
+/* The pair sits side by side here exactly as it does on the innings card. It
+   used to be a full-width PLAY AGAIN with SHARE loose underneath it, which is
+   what a key built as a flex box does when nothing lays it out: it shrank to
+   the width of its own word and sat there looking like a label that had come
+   off something. */
+.board-actions .card-keys .share-key{min-height:48px;font-size:15px;padding:0 12px}
 /* The Test sheet's second key is the picker rather than the share pair, so it
    is the quiet twin of the one above it and wants the same full width. */
 .board-actions .ghost-link{display:block;width:100%;text-align:center}
-.board-sheet:has(.board-actions) .board-foot{display:none}
+/* With the keys under it the sheet does not also need its footnote: the two
+   together push the rows off a short screen, and the keys are what the player
+   is there for at that moment. */
+.board-stack:has(.board-actions) .board-foot{display:none}
 /* The board being down is a sentence, not an empty table. It reads on the sheet
    the rows would have filled, so the screen still has a shape. */
 .board-offline{
@@ -1928,7 +2264,8 @@ dialog .primary-button{margin-top:18px}
      card scrolls, the way out of the form does not move. */
   .card-claim .claim-key{position:sticky;bottom:0;z-index:1}
   .card-board .claim-key{margin:8px 13px 12px}
-  .board-actions{padding:9px 22px 11px}
+  .claim-why{margin:-8px 13px 10px}
+  .board-actions{padding:0 0 calc(var(--pad-bottom) - 14px)}
   .board-actions .key-button{min-height:42px;font-size:15px}
   /* Side by side once the card has to clear a landscape phone. The labels lose
      their tail rather than the buttons losing their tap target. */
@@ -1984,15 +2321,31 @@ dialog .primary-button{margin-top:18px}
   width:1px;
   background:#ffffff4d
 }
+/* The reading, in the slot that used to hold a caption.
+   A percentage is the same width at 7% as at 97%, which is the whole point: the
+   caption it replaces grew from INJURY to ONE MORE AND HE IS OFF and took the
+   meter — and the scoreboard beside it — with it. Tabular figures so the digits
+   do not shuffle as it climbs, and a fixed minimum so 9% and 99% occupy one
+   width. */
 .injury-cap{
-  font-size:7px;
-  font-weight:700;
-  letter-spacing:1.2px;
-  color:#c9736b;
+  min-width:30px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.02em;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+  color:#e8a49c;
   white-space:nowrap;
   transition:color .3s
 }
 .confidence.is-hurt .injury-cap{color:#ff9d93}
+/* The label is the one word now, so it can afford to be read rather than
+   squinted at. */
+.confidence.is-injury .confidence-label{letter-spacing:.14em}
+/* A thicker track than the confidence meter's: this is the gauge the mode is
+   about, and seven pixels of it read as a detail rather than as an instrument. */
+.confidence.is-injury .confidence-track{height:9px;border-radius:5px;background:#00000038}
+.confidence.is-injury .confidence-track>i{border-radius:5px}
 
 .confidence.is-hurt{border-left-color:#d8443a;animation:hurt-meter 1.1s ease-in-out infinite}
 .confidence.is-hurt .confidence-label{color:#ffb4ab}
@@ -2069,9 +2422,32 @@ body.survive-mode #scoreboard{display:none}
   background:#12293c;
   white-space:nowrap
 }
-.survive-card .sc-label{font-size:7.5px;letter-spacing:.13em;color:#7fa6c0}
-.survive-card .sc-feet b{font-size:15px;line-height:1;color:#f4efe2;font-variant-numeric:tabular-nums}
+.survive-card .sc-label{
+  font-size:8px;
+  font-weight:700;
+  letter-spacing:.14em;
+  color:#8fb0c7
+}
+.survive-card .sc-feet b{font-size:17px;line-height:1;color:#f4efe2;font-variant-numeric:tabular-nums}
 .survive-card.is-close .sc-feet b{color:#ffce7a}
+/* ── The scorecard, tidied ─────────────────────────────────────────────────
+   It was three panels in three shades of the same navy with a hairline between
+   them by accident of background rather than by intent. The figures are what
+   this thing is for, so they get the size and the rules get drawn on purpose:
+   one line under the head, one between the two feet, both in the same white the
+   rest of the interface uses for a rule. */
+.survive-card .sc-head{border-bottom:1px solid #ffffff14}
+.survive-card .sc-cell+.sc-cell{box-shadow:inset 1px 0 0 #ffffff14}
+.survive-card .sc-feet{gap:0}
+.survive-card .sc-cell{background:#102636}
+/* The two feet stack label over figure rather than sitting on one line: at
+   these widths BALLS LEFT and its number were competing for the same row and
+   the number — the thing being read every ball — lost. */
+.survive-card .sc-cell{flex-direction:column;align-items:flex-start;gap:2px;padding:6px 11px 7px}
+.survive-card .sc-chase{gap:6px}
+.survive-card .sc-chase b{font-size:16px}
+/* Close, the whole card leans in rather than only the digits changing colour. */
+.survive-card.is-close{box-shadow:0 8px 22px #06121b66,0 1px 0 #ffffff1f inset,0 0 0 1px #ffce7a4d}
 /* Survive carries its own board plus the meter, so the stack is tighter — and
    the situation goes above the meter, because it is the thing being read every
    ball and the meter is the thing being watched out of the corner of an eye. */
@@ -2173,8 +2549,8 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
    hidden. */
 .stage.picking-mode .score-stack,.stage.result-open .score-stack{display:none}
 .stage.picking-mode .hud-top,.stage.result-open .hud-top{pointer-events:none}
-.stage.picking-mode .hud-actions>:not(#sound),
-.stage.result-open .hud-actions>:not(#sound){display:none}
+.stage.picking-mode .hud-actions>:not(#sound):not(#sound-note),
+.stage.result-open .hud-actions>:not(#sound):not(#sound-note){display:none}
 .stage.picking-mode #sound,.stage.result-open #sound{pointer-events:auto}
 .mode-screen{
   /* The screen the cards stand on, and it is the one place this differs from
@@ -2188,21 +2564,66 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   width:100%;
   max-width:520px;
   margin:0 auto;
-  padding:calc(var(--pad-top) + 10px) var(--pad) calc(28px + env(safe-area-inset-bottom)) var(--pad);
+  /* Top padding is the hud row's own inset with nothing added: the key at the
+     head of the sheet sits on the same line as the sound key across from it,
+     and ten more pixels here is ten pixels of it not doing so. */
+  padding:var(--pad-top) var(--pad) calc(28px + env(safe-area-inset-bottom)) var(--pad);
   display:flex;
   flex-direction:column;
   /* 20 at 804, so 10 between the cards. */
   gap:10px
 }
+/* The way back, beside the heading rather than under the cards. Not on the
+   board in Figma, but the screen has to have one — it is opened from Play, and
+   from a paused innings, and without it either is a one-way door. It sat at the
+   foot of the sheet, which on a phone is below two full-height cards and a
+   scroll away from a player who has just walked in: a way out nobody can see is
+   not one. Up here it is across from the sound key and never leaves the screen.
+
+   The row is the key's own height rather than the heading's, so the key's top
+   lands on `--pad-top` — where the sound key's is — whatever the display type
+   beside it does inside the row. */
+.mode-top{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  height:38px;
+  margin:0 0 22px
+}
+.touch-device .mode-top{height:44px}
+/* A key, not a hud control: it is a decision on a screen of decisions, so it
+   is built the way the key on the card below it is — a face that falls off
+   towards the bottom, a solid ledge under that, and the ground shadow beneath
+   both. Dark grey because it is the one that goes nowhere: the orange is the
+   innings and the blue is the shot, and neither of those is what this does.
+   The ledge stays well clear of the screen's black, because an extrusion drawn
+   in the background colour is not an extrusion. */
+.mode-back{
+  flex:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:38px;
+  height:38px;
+  border:0;
+  border-radius:10px;
+  background:linear-gradient(180deg,#333b43 0%,#232931 100%);
+  color:#fff;
+  box-shadow:0 5px 0 #171c22,0 9px 9px #00000066,inset 0 1px 0 #ffffff1c
+}
+.touch-device .mode-back{width:44px;height:44px}
+.mode-back svg{width:19px;height:19px}
+.mode-back:hover{background:linear-gradient(180deg,#3d454e 0%,#2b323a 100%)}
+.mode-back:active{transform:translateY(3px);box-shadow:0 2px 0 #171c22,0 4px 6px #0000005c,inset 0 1px 0 #ffffff1c}
 /* 64 at 804 is 32 on the phone this was drawn for, and it holds that share of
    the screen on anything narrower. */
 .mode-heading{
-  margin:0 0 14px;
+  margin:0;
   font-family:var(--cta);
   font-size:clamp(25px,8vw,40px);
   font-weight:400;
   letter-spacing:0;
-  line-height:1.1;
+  line-height:1;
   text-transform:none;
   color:#fff
 }
@@ -2359,10 +2780,11 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   display:flex;
   flex-direction:column
 }
-/* Two by one rather than sixteen by nine. The plate is the tallest thing on the
-   card and the only one whose height buys nothing but itself, so it gives up a
-   little crop to bring the board up the screen. */
-.result-plate{display:block;position:relative;aspect-ratio:2/1;overflow:hidden}
+/* Wider than two by one, let alone the sixteen by nine the art arrives in. The
+   plate is the tallest thing on the card and the only one whose height buys
+   nothing but itself, so it goes on giving up crop to bring the board up the
+   screen. */
+.result-plate{display:block;position:relative;aspect-ratio:2.3/1;overflow:hidden}
 /* Out of flow, or the picture's own sixteen-by-nine wins and the ratio above
    does nothing: a box grows to fit its content whatever ratio it asks for. */
 .result-plate img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -2377,59 +2799,73 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .result-body{
   position:relative;
   display:block;
-  padding:.6cqw 7.3cqw calc(4cqw + env(safe-area-inset-bottom))
+  padding:.6cqw 7.3cqw calc(3cqw + env(safe-area-inset-bottom))
 }
 .result-headline{
   margin:0;
   font-family:var(--card);
   font-weight:900;
   font-size:4.97cqw;
-  line-height:1.2;
+  line-height:1.12;
   letter-spacing:-.01em;
   text-transform:none;
   text-align:center;
   color:#ff5a5a
 }
 .result-sub{
-  margin:.9cqw 0 0;
+  margin:.5cqw 0 0;
   font-family:var(--card);
   font-size:2.92cqw;
-  line-height:1.35;
+  line-height:1.3;
   text-align:center;
   color:#e6eef4
 }
 /* A hairline with room around it, and the room is the point — but the room was
    measured off the card's *width*, and on a phone the card is as wide as the
    screen and nowhere near as tall. Two of these were costing seventy pixels of
-   a six-hundred-and-eighty-pixel screen for two pixels of line. */
+   a six-hundred-and-eighty-pixel screen for two pixels of line, and there is
+   only one of them now: the row of balls already divides the score from the
+   figures under it, so the second line was drawing a division that was there. */
 .result-rule{
   height:0;
-  margin:2.6cqw 0;
+  margin:1.5cqw 0;
   border:0;
   border-top:1px solid #ffffff1f
 }
 .result-stamp{
-  margin:0;
+  margin:0 0 .2cqw;
   font-family:var(--card);
   font-weight:700;
   font-size:2.63cqw;
   letter-spacing:.18em;
   color:#cbd8e2
 }
-/* The number and what it cost, on one baseline. */
+/* ── The result, as one band ───────────────────────────────────────────────
+   What the match came to on the left, what the innings cost on the right, in
+   a well sunk into the card. Before this they were two loose rows floating on
+   the card's own ground with nothing holding either of them — a stamp, a big
+   number and three columns, all at different widths, reading as three things
+   that happened to be stacked rather than as one result. */
+.result-band{
+  display:flex;
+  align-items:stretch;
+  gap:3.4cqw;
+  margin-top:1cqw
+}
 .result-figures{
   display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:3cqw;
-  margin-top:.6cqw
+  flex-direction:column;
+  justify-content:center;
+  gap:.4cqw;
+  flex:1 1 auto;
+  min-width:0
 }
 .result-score{
   margin:0;
   font-family:var(--card);
   font-weight:900;
   font-size:7.6cqw;
-  line-height:1.05;
+  line-height:1;
   color:#ff5a5a;
   font-variant-numeric:tabular-nums
 }
@@ -2441,45 +2877,87 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   color:#b9c9d6;
   white-space:nowrap
 }
-/* The innings as a row of bars. The shared rule paints them in `--ink`, which
-   is the light scorecard's dark type — on this card that is a row of bars the
-   same colour as the card, which is to say no row at all. */
-.result-screen .card-balls{
-  height:5.8cqw;
-  gap:0 .45cqw;
-  margin-top:2.4cqw
-}
-.result-screen .card-balls i{
-  height:calc(1cqw + var(--r,0) * 1cqw);
-  border-radius:.25cqw;
-  background:#efe7d8;
-  opacity:calc(.32 + var(--r,0) * .12)
-}
-.result-screen .card-balls .ball-unfaced{opacity:.13}
-.result-screen .card-balls .ball-out,.result-screen .card-balls .ball-hit{background:#e0483c;opacity:1}
+/* The row of balls is not on this card.
+   Ten overs is sixty of them, and an innings that ends on the third ball draws
+   two marks and fifty-eight gaps — which says nothing the line above it has not
+   already said in words, and says it in thirty pixels of a screen that has a
+   result, a board and a career to fit. The Blast keeps its own: thirty balls
+   mostly faced is a shape worth seeing. */
+/* Sunk into the card rather than sitting on it: a well two steps darker than
+   the ground, which is what makes three small figures read as a set of extras
+   beside the score instead of a third row of loose type. */
 .result-stats{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:2cqw;
-  margin:0
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  flex:0 0 46%;
+  margin:0;
+  padding:2cqw 3cqw;
+  border-radius:2.6cqw;
+  border:1px solid #ffffff12;
+  background:#061422;
+  box-shadow:inset 0 1px 0 #ffffff0a
 }
+.result-stats>div{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:2cqw;
+  padding:1.1cqw 0
+}
+.result-stats>div+div{border-top:1px solid #ffffff12}
 .result-stats dt{
   font-family:var(--card);
-  font-size:2.34cqw;
-  color:#b9c9d6;
-  margin-bottom:.8cqw
+  font-size:2.4cqw;
+  line-height:1;
+  color:#8ea6b8;
+  white-space:nowrap
 }
 .result-stats dd{
   margin:0;
   font-family:var(--card);
   font-weight:800;
-  font-size:4.39cqw;
+  font-size:3.5cqw;
   line-height:1;
   color:#fff;
   font-variant-numeric:tabular-nums
 }
-.result-keys{display:flex;flex-direction:column;gap:3.4cqw;margin-top:4.2cqw}
-.result-keys .play-button,.result-keys .learn-button{width:100%;margin:0}
+/* Side by side, the way the Blast's card pairs PLAY AGAIN with SHARE. Stacked,
+   the two of them cost a hundred and thirty pixels of a screen whose whole job
+   at that moment is to show a result and a board. */
+.result-keys{display:flex;gap:2.6cqw;margin-top:3cqw;align-items:stretch}
+.result-keys .play-button,.result-keys .learn-button{
+  flex:1 1 0;
+  width:auto;
+  min-width:0;
+  min-height:56px;
+  margin:0;
+  /* Half the width takes a size down, or CHANGE MODE runs out of key. */
+  font-size:4.1cqw;
+  letter-spacing:1.4px;
+  text-indent:1.4px
+}
+/* The second key, built the way every key in this game is built: a lit plate, a
+   three-pixel stroke and a ledge under it, all three in the key's own colour.
+   What it had was navy on navy — and an extrusion is only ever visible against
+   the thing it stands on, so a dark blue ledge on a dark blue card was a key
+   with no relief at all beside PLAY AGAIN's. The colour has to differ in hue
+   from the card, not merely in lightness: that is why the green key on the
+   other card reads, on a ground exactly as dark as this one. */
+.change-key{
+  border:3px solid #17527d;
+  background:#2b80b8;
+  color:#f2fbff;
+  box-shadow:0 6px 0 #17527d,0 10px 14px #04192b4d
+}
+.change-key:hover:not(:disabled){
+  background:#3492cf;
+  box-shadow:0 7px 0 #17527d,0 12px 16px #04192b59
+}
+.change-key:active:not(:disabled){
+  transform:translateY(4px);
+  box-shadow:0 2px 0 #17527d,0 4px 8px #04192b3d
+}
 /* Won: gold over the words, green on the number — the only card in the mode
    that gets to be green. */
 .result-won .result-headline{color:#ffd24a}
@@ -2529,11 +3007,70 @@ body.survive-mode #share{opacity:.3;pointer-events:none}
   --accent:#f2814f
 }
 .survive-strip:empty{display:none}
-.survive-strip .card-board{margin:2.6cqw 0 0}
+/* Room under the board, and the same room under the widget below it.
+   The strip's own bottom margin is overridden here to change its side margins,
+   and it was overridden to nothing — so the widget sat four pixels under the
+   leaderboard and fourteen above the keys, which read as the two of them
+   belonging to the board rather than standing between it and the keys.
+   In pixels rather than cqw because the widget's own margins are in pixels:
+   one of each would have the two gaps drifting apart at every other width. */
+.survive-strip .card-board{margin:2.6cqw 0 18px}
+.survive-strip .career-widget{margin-bottom:18px}
 /* Claiming is the one thing on the card worth reading, so the stats above it
    step aside on a short screen rather than pushing the form off the bottom. */
 #end-survive.is-claiming .result-stats,
 #end-survive.is-claiming .card-balls{display:none}
+/* ── The injury notice ────────────────────────────────────────────────────
+   Shown once, the first ball a batter is one blow from being carried off, and
+   never again on that device. It is the mode explaining its own meter, so it
+   sits over the ground like the pause card rather than replacing the screen —
+   the field stays visible behind it, because what it is talking about is out
+   there. */
+.hurt-note{
+  position:absolute;
+  inset:0;
+  z-index:8;
+  display:grid;
+  place-items:center;
+  padding:22px;
+  background:#06121bb8;
+  backdrop-filter:blur(2px)
+}
+.hurt-note.hidden{display:none}
+.hurt-note-card{
+  width:min(360px,100%);
+  padding:20px 22px 18px;
+  border-radius:16px;
+  border-left:3px solid #d8443a;
+  background:#132b3ef7;
+  box-shadow:0 18px 44px #04101999
+}
+.hurt-note-eyebrow{
+  margin:0 0 7px;
+  font-size:9.5px;
+  font-weight:800;
+  letter-spacing:.2em;
+  color:#ff9d93
+}
+.hurt-note-card h2{
+  margin:0 0 9px;
+  font-family:var(--card);
+  font-size:20px;
+  font-weight:800;
+  line-height:1.2;
+  color:#f7f0e5
+}
+.hurt-note-line{
+  margin:0 0 16px;
+  font-size:13.5px;
+  line-height:1.5;
+  color:#b9cede
+}
+.hurt-note .key-button{width:100%}
+@media (prefers-reduced-motion:no-preference){
+  .hurt-note:not(.hidden) .hurt-note-card{animation:card-down .3s cubic-bezier(.18,.9,.25,1.06) backwards}
+}
+
 /* A build published somewhere that cannot serve the board hides the way to it
    entirely, rather than offering a key that can only ever say it is unreachable. */
 body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only #board{display:none}
@@ -2678,6 +3215,1507 @@ body.private-window{overflow:hidden}
   .private-keys .play-button{min-height:46px;font-size:16px}
   .private-keys .learn-button{min-height:38px;font-size:13px}
 }
+
+/* ── The questionnaire ─────────────────────────────────────────────────── */
+/* Built out of the innings-end card's own parts: the same navy slab, the same
+   lit top rule and cut ledge, the same two radii. A form that arrived in a
+   different material would read as a survey somebody bolted onto a game, which
+   is exactly what it must not read as.
+   One question fills it. The answers are keys at a thumb's size rather than a
+   list of radio buttons, because the whole promise of the thing is that it is
+   ten taps and no typing. */
+.feedback-sheet{
+  --ink:#f7f0e5;
+  --quiet:#9fb2bd;
+  width:min(392px,100%);
+  margin:auto;
+  padding:20px 22px 18px;
+  border-radius:18px;
+  background:#0f2738;
+  font-family:var(--card);
+  color:var(--ink);
+  text-align:left;
+  box-shadow:0 9px 0 #040e15,0 26px 46px #010609b3,inset 0 1px 0 #ffffff1f
+}
+.feedback-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.feedback-eyebrow{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--quiet)
+}
+/* The promise that this is nearly over, and the only reason a one-question
+   screen is not alarming. Done, here, and still to come — three states, no
+   numbers: "4 of 11" is a quantity to dread and eleven small marks is not. */
+.feedback-pips{display:flex;gap:4px;margin:12px 0 2px}
+.feedback-pips>i{
+  flex:1;
+  height:3px;
+  border-radius:2px;
+  background:#ffffff1f;
+  transition:background .2s
+}
+.feedback-pips>i.is-done{background:#ffffff4d}
+.feedback-pips>i.is-on{background:var(--orange)}
+.feedback-ask{
+  font-size:21px;
+  font-weight:800;
+  letter-spacing:-.4px;
+  line-height:1.2;
+  margin:14px 0 0;
+  color:var(--ink)
+}
+.feedback-note{margin:6px 0 0;font-size:12.5px;font-weight:600;color:var(--quiet)}
+.feedback-choices{display:flex;flex-direction:column;gap:8px;margin:16px 0 0}
+.feedback-choice{
+  width:100%;
+  min-height:46px;
+  padding:11px 14px;
+  border:1px solid #ffffff24;
+  border-radius:10px;
+  background:#ffffff0a;
+  color:var(--ink);
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:600;
+  text-align:left
+}
+.feedback-choice:hover:not(:disabled){background:#ffffff16}
+/* The one state that matters: a key that has been chosen, and on the two-answer
+   question a key that is still chosen while the next one is picked. */
+.feedback-choice.is-on{
+  border-color:var(--orange);
+  background:#ed704426;
+  color:#ffd9c4
+}
+.feedback-sheet .key-button{margin-top:14px}
+/* The last screen, and the only one with a keyboard on it. */
+.feedback-field{display:block;position:relative;margin:14px 0 0}
+.feedback-field textarea{
+  width:100%;
+  padding:12px 13px;
+  border:1px solid #ffffff24;
+  border-radius:10px;
+  background:#08202f;
+  color:var(--ink);
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:600;
+  line-height:1.45;
+  resize:none
+}
+.feedback-field textarea::placeholder{color:#7e919d;font-weight:500}
+.feedback-field textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-color:transparent}
+.feedback-count{
+  display:block;
+  margin-top:5px;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.6px;
+  color:var(--quiet);
+  text-align:right
+}
+/* What goes with the answers, said plainly and where it is read rather than in
+   a policy nobody opens. */
+.feedback-fine{margin:10px 0 0;font-size:11px;line-height:1.5;color:#7e919d}
+.feedback-thanks h2{font-size:21px;font-weight:800;letter-spacing:-.4px;line-height:1.25;margin:12px 0 0}
+.feedback-thanks p{margin:8px 0 0;font-size:13.5px;font-weight:600;color:var(--quiet)}
+.feedback-thanks .key-button{display:flex;align-items:center;justify-content:center;text-decoration:none}
+.feedback-sheet .ghost-link{display:block;width:100%;text-align:center}
+/* The shared link is a page rather than a screen over an innings, so there is
+   no ground behind it to darken — the sheet stands on the game's own navy. */
+.feedback-page{background:#0c1e2a}
+.feedback-screen.is-standalone{background:#0c1e2a}
+/* The quiet way in, on the cover. Deliberately the smallest thing on a screen
+   whose whole job is the Play key. */
+.cover-feedback{
+  margin-top:10px;
+  padding:6px;
+  border:0;
+  background:none;
+  /* The ink the PLAY key is set in, and for the same reason: what the cover
+     puts this line on is the pitch — cream, and lit — so white type lies on it
+     almost invisibly. Dark on light, the way everything else on the artwork is. */
+  color:var(--cta-ink);
+  font-family:var(--cta);
+  font-size:12.5px;
+  letter-spacing:1.2px;
+  text-decoration:underline;
+  text-underline-offset:4px
+}
+.cover-feedback:hover{color:#000}
+/* The board's close key is placed against the board sheet, which is a
+   full-height screen with its own header rail. Here it sits in a row with the
+   eyebrow, so it takes the same shape back out of the flow it was pulled from. */
+.feedback-head .board-close{position:static;width:32px;height:32px;margin:-4px -6px 0 0;font-size:19px;flex:none}
+
+/* ---------------------------------------------------------------------------
+   The career ladders, and the card.
+
+   A second row of tabs under the first, and deliberately a different shape from
+   it. The row above is one question with two answers and is drawn as a
+   segmented key, because a segmented key says "one of these, always". This row
+   is four or five answers and it scrolls sideways on a phone, so it is drawn as
+   a strip of chips instead: chips can run off the edge and still read as a
+   list, where a segment that runs off the edge reads as a broken control.
+--------------------------------------------------------------------------- */
+.ladder-tabs{
+  position:sticky;
+  top:0;
+  z-index:2;
+  /* Never squashed. The stack is a flex column with the sheet taking whatever
+     room it can get, and a row that has not said it is fixed gets shrunk to
+     make that room — this one went to fifteen pixels the moment the board had
+     fifty rows in it, with the pills sliced off halfway down. It only ever
+     happened on a full board, which is why `?demo=1` found it and nothing
+     else had. */
+  flex:none;
+  display:flex;
+  gap:5px;
+  align-self:center;
+  width:min(440px,100%);
+  padding:2px 2px 4px;
+  overflow-x:auto;
+  scrollbar-width:none
+}
+.ladder-tabs::-webkit-scrollbar{display:none}
+/* The same key, in two states, which is what the card rail's own pills settled
+   on and what this row now wears.
+   A solid orange fill was the loudest thing on a screen whose job is fifty
+   rows of other people's scores, and it made the row of ladders shout over the
+   board it was sorting. Lit is enough: the live one keeps the accent on its
+   edge and a wash of it behind the word, the rest are the same shape with the
+   colour taken out. Nothing in the row changes size or weight between the two,
+   so the eye reads one control rather than a chosen thing and four leftovers. */
+.ladder-tab{
+  flex:0 0 auto;
+  min-height:32px;
+  padding:0 12px;
+  border:1px solid #ffffff1f;
+  /* A rounded rectangle, not a pill: the same family as the tabs above it and
+     as the rail's own keys, one step softer again so the rows read as a stack. */
+  border-radius:10px;
+  background:#ffffff0a;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.4px;
+  color:#93a8b4;
+  white-space:nowrap
+}
+.ladder-tab:hover:not(.is-on){color:#dae5ec;border-color:#ffffff3d;background:#ffffff14}
+.ladder-tab.is-on{
+  border-color:var(--cta-orange);
+  background:#f2814f24;
+  color:#f7f0e5
+}
+
+
+
+/* ---------------------------------------------------------------------------
+   The career card, and the key that opens it.
+
+   The key sits under the sheet rather than in the strip of pills above it: the
+   pills re-sort what is already on screen, and this one leaves for somewhere
+   else. Shaping them alike would have been the wrong kind of tidy.
+--------------------------------------------------------------------------- */
+
+/* The card's own sheet. It sits over the board — literally, since the board is
+   usually still open behind it — so it takes a rung above the board's own
+   z-index rather than trusting document order, which the board already beats
+   with a rule of its own.
+
+   Darker behind, too: two stacked scrims of the same weight read as one
+   surface, and the board underneath stops looking like somewhere to go back to. */
+.stats-overlay{background:#040c12ef;z-index:11}
+.stats-sheet-inner{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  width:min(480px,100%);
+  max-height:100%;
+  margin:auto;
+  overflow-y:auto;
+  padding:4px
+}
+/* Under the My Stats tab the card is not a screen of its own — the tabs above
+   it are the way out, and it has to sit in the column they are in rather than
+   centring itself in the viewport behind them. */
+.board-stack.is-mine{gap:12px}
+.stats-sheet-inner.is-sheet{width:100%;margin:0;padding:0}
+
+/* The page's own head: the way back, and what the player travelled to. */
+.stats-head{display:flex;align-items:center;gap:10px;padding:0 2px 2px}
+.stats-back{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  min-height:36px;
+  padding:0 12px 0 8px;
+  border:1px solid #ffffff24;
+  border-radius:999px;
+  background:#0f2738;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.6px;
+  color:#f4f8fa
+}
+.stats-back:hover{background:#1b3d54}
+.stats-back svg{width:16px;height:16px;flex:none}
+.stats-head-title{
+  margin:0;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
+/* The way out sits above the picture rather than on it. On it, the × lands in
+   whatever the card's top-right corner happens to be — here that is the mark —
+   and a close key you have to hunt for on a screen whose whole job is to be
+   left again is the wrong key to hide. */
+/* On the card's own tab the sheet has no header to hang the X on, so it sits
+   above the picture on its own line rather than over the card's top corner —
+   which on this card is where the mark is. */
+/* Kept for the page presentation, which does have a way out of its own. */
+.stats-close{
+  position:static;
+  align-self:flex-end;
+  flex:none;
+  margin:0 2px -4px 0;
+  background:#0f2738;
+  border:1px solid #ffffff33;
+  color:#f4f8fa;
+  box-shadow:0 4px 12px #00000059
+}
+.stats-close:hover{background:#1b3d54}
+
+/* The stage holds the painted picture at its own aspect, so the card is never
+   stretched and never cropped — it is a photograph of an object, and an object
+   with a squashed corner stops reading as one. */
+.stats-stage{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  min-height:220px
+}
+/* ── Two cards, one rail ────────────────────────────────────────────────────
+   A player has a career in each game and the tab used to show whichever one
+   they came in from, which is a screen that hides half of what it is about.
+   Both are here now, swiped between.
+
+   The peek is the whole mechanism: a card is inset by exactly the width of the
+   edge of the next one, so what says "there is another" is the other one,
+   rather than a hint that has to be read. That costs the card the flush edge
+   it had with the keys underneath — deliberately. Flush with its buttons is
+   what a single card wants; a deck wants to look like a deck. */
+.stats-stage.is-rail{
+  display:flex;
+  align-items:center;
+  /* Not centred. A centred flex container whose content overflows shifts that
+     content left by half the overflow and puts the front of it somewhere no
+     scroll position can reach — so the first card sat permanently cut off at
+     the left edge, which is the one card this rail opens on. */
+  justify-content:flex-start;
+  gap:12px;
+  /* A scroller inside a flex column is sized by its content unless it is told
+     it may be smaller, and a rail two cards wide pushed the whole sheet off
+     the side of the screen. */
+  width:100%;
+  min-width:0;
+  /* No padding on the rail. A percentage width inside a padded scroller is a
+     percentage of what the padding left behind, which took thirty pixels off
+     the card twice over and made it a thumbnail. */
+  padding:0;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none
+}
+.stats-stage.is-rail::-webkit-scrollbar{display:none}
+.stats-slide{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 calc(100% - 44px);
+  scroll-snap-align:start;
+  scroll-snap-stop:always
+}
+/* The last card lands against the right edge rather than the left, which is
+   the only way both ends of a two-card rail are reachable without hanging an
+   empty spacer off the end of it. It also reverses the peek: on the first card
+   the second one shows at the right, and on the second the first shows at the
+   left, so there is always exactly one edge saying which way back. */
+.stats-slide:last-child{scroll-snap-align:end}
+
+/* Which one, and the way through for a keyboard — a horizontal scroller is not
+   something a Tab key can move. */
+.stats-dots{display:flex;justify-content:center;gap:7px;margin:0}
+/* Under the My Stats tab the pills sit between two columns with different
+   rhythms: the stack above gives them 12 and the sheet below gives them 14.
+   This is the two pixels, so the row has the same air on both sides. On the
+   page presentation both gaps are the sheet's own and already agree. */
+.stats-sheet-inner.is-sheet .stats-dots{margin-top:2px}
+.stats-dot{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-height:28px;
+  padding:0 11px;
+  border:1px solid #ffffff1f;
+  /* Square-cornered to the same degree as every other key on this screen. It
+     was a true pill, which was the one shape the board had decided against. */
+  border-radius:10px;
+  background:#ffffff0a;
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.2px;
+  color:#93a8b4
+}
+.stats-dot.is-on{
+  border-color:var(--cta-orange);
+  background:#f2814f24;
+  color:#f7f0e5
+}
+/* Full width, so the card and the two keys under it share one edge. The mat
+   painted into the picture is only wide enough to hold the card's own ledge,
+   which is what lets this line up rather than sitting inside them. */
+.stats-shot{
+  display:block;
+  width:100%;
+  height:auto;
+  border-radius:16px;
+  /* The picture already carries the card's own ledge; this is the glow that
+     lifts the whole photograph off the scrim behind it. */
+  box-shadow:0 18px 44px #00000066
+}
+/* The picture and the keys over it are one box, so "the whole of the image"
+   and "the whole of the tap layer" are the same rectangle. Laying the keys over
+   the stage instead would put them wrong the moment the stage was taller than
+   the card standing in it. */
+.stats-frame{position:relative;width:100%}
+.stats-taps{position:absolute;inset:0}
+/* Invisible until pressed. The card is the design; a grid of boxes ruled over
+   it would be a second design arguing with the first. What a press gets is a
+   soft panel behind the figure for as long as the finger is down, which is
+   enough to say "that one" and not enough to be furniture. */
+.stats-tap{
+  position:absolute;
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:10px;
+  background:#ffffff00;
+  -webkit-tap-highlight-color:transparent;
+  cursor:pointer;
+  transition:background 140ms ease,box-shadow 140ms ease
+}
+.stats-tap:active{background:#ffffff1f;box-shadow:inset 0 0 0 1px #ffffff2e}
+.stats-tap:focus-visible{
+  outline:none;
+  background:#ffffff16;
+  box-shadow:inset 0 0 0 2px var(--cta-orange)
+}
+/* What the key says to a screen reader, which is the only thing that reads it:
+   the figure is painted into a picture, so without this the key is a rectangle
+   with nothing in it. */
+.stats-tap-say{
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip-path:inset(50%);
+  white-space:nowrap
+}
+
+/* The answer, from the bottom of the screen.
+   Fixed rather than placed in the column: the card scrolls and the toast is
+   about the tap, not about where the page happens to be. It sits above the
+   card's own sheet and clears the home bar on a phone. */
+.stats-toast{
+  position:fixed;
+  left:50%;
+  bottom:calc(18px + env(safe-area-inset-bottom,0px));
+  z-index:14;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  width:min(420px,calc(100vw - 32px));
+  padding:12px 16px 13px;
+  border:1px solid #ffffff1f;
+  border-radius:14px;
+  background:linear-gradient(180deg,#14303f 0%,#0d2130 100%);
+  box-shadow:0 16px 40px #00000070;
+  /* Off the bottom and out of the way of taps until it is asked for. */
+  opacity:0;
+  transform:translate(-50%,18px);
+  pointer-events:none;
+  transition:opacity 220ms ease,transform 260ms cubic-bezier(.2,.9,.25,1)
+}
+.stats-toast.is-up{opacity:1;transform:translate(-50%,0)}
+.stats-toast b{
+  font-family:var(--card);
+  font-size:10.5px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--cta-orange)
+}
+.stats-toast span{font-size:12.5px;line-height:1.5;color:#dbe7ee}
+@media (prefers-reduced-motion:reduce){
+  .stats-toast{transition:opacity 220ms ease}
+  .stats-toast.is-up{transform:translate(-50%,0)}
+}
+
+/* The text fallback's cells answer the same tap, so they have to look like they
+   would. */
+.stats-cell[data-stat]{cursor:pointer}
+.stats-cell[data-stat]:active{background:#ffffff14}
+
+.stats-drawing{
+  display:grid;
+  place-items:center;
+  width:100%;
+  min-height:300px;
+  border-radius:14px;
+  background:linear-gradient(180deg,#16354a,#0b1f2e);
+  border:1px solid #ffffff14;
+  font-family:var(--card);
+  font-size:12px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
+
+/* Two keys, stacked, because both are a destination and neither is the lesser
+   of the two — a primary and a ghost link would have said the story was an
+   afterthought, and on a card built to be shared it is half the point.
+
+   `border:0` is load-bearing: `.key-button` is the game's white key with an
+   orange rim, and these two wear the colour of where they are going instead.
+   Left alone, that rim drew an orange outline round a green WhatsApp key. */
+.stats-ctas{display:flex;flex-direction:column;gap:14px}
+.stats-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  width:100%;
+  min-height:52px;
+  margin:0;
+  /* The stroke is set per key below, in that key's own colour. It is `0` here
+     only so the orange rim `.key-button` gives every key in the game does not
+     come through on the two that are wearing WhatsApp's green and Instagram's
+     gradient. */
+  border:0 solid transparent;
+  font-size:13.5px;
+  letter-spacing:1.4px
+}
+.stats-key svg{width:20px;height:20px;flex:none}
+/* Each key wears the colour of where it is going, which is the fastest label
+   there is: nobody reads the words on a green key with that mark on it. */
+/* Both keys are built the way every other key in the game is: a three-pixel
+   stroke and a six-pixel ledge, in the key's own colour. It had the ledge and
+   not the stroke, which left it looking like a coloured label beside the keys
+   on the innings card that have both.
+
+   Green because sending is green, and this green rather than WhatsApp's: there
+   is one key now and it goes wherever the share sheet is pointed, so wearing
+   any one app's colour would name a destination the player has not chosen yet.
+   Orange and white stay what they are — the key that starts an innings. */
+.stats-key.is-brag{
+  border-width:3px;
+  border-color:#12764a;
+  background:#2fbf71;
+  color:#04231a;
+  box-shadow:0 6px 0 #12764a,0 10px 14px #01180d4d
+}
+.stats-key.is-brag:hover:not(:disabled){background:#38cf7d;box-shadow:0 7px 0 #12764a,0 12px 16px #01180d59}
+.stats-key.is-brag:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #12764a,0 4px 8px #01180d3d}
+.stats-key.is-brag svg{width:20px;height:20px}
+
+.stats-status{
+  margin:0;
+  font-size:12px;
+  line-height:1.45;
+  color:#f2a97f
+}
+.stats-note{
+  margin:0 0 4px;
+  font-size:11.5px;
+  line-height:1.5;
+  text-align:center;
+  color:#9fb2bd
+}
+
+/* The figures as text, for a browser that would not paint the picture. It is
+   the same grid the sheet used to draw inline, kept because the numbers are
+   what the player came for and an apology is not. */
+.stats-plain{
+  width:100%;
+  padding:20px;
+  border-radius:16px;
+  background:linear-gradient(180deg,#16354a,#0b1f2e);
+  border:1px solid #ffffff14
+}
+.stats-plain h2{margin:2px 0 4px;font-size:26px}
+.stats-plain-line{margin:0 0 14px;font-size:12.5px;color:#9fb2bd}
+.stats-plain-note{margin:14px 0 0;font-size:11.5px;color:#9fb2bd}
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+  margin:0
+}
+@media (min-width:380px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
+.stats-cell{
+  padding:10px 12px;
+  border-radius:12px;
+  background:#ffffff0d;
+  border:1px solid #ffffff12
+}
+.stats-cell dt{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
+.stats-cell dd{
+  margin:2px 0 0;
+  font-family:var(--card);
+  font-size:22px;
+  font-weight:800;
+  line-height:1.1;
+  color:#f4f8fa;
+  font-variant-numeric:tabular-nums
+}
+.stats-cell.is-lead{background:#f2814f1a;border-color:#f2814f4d}
+.stats-cell.is-lead dd{color:#f2a97f}
+
+/* The tier, in the text fallback. The painted card carries it as a full-width
+   bar; here it is a pill, because the fallback is a list of figures and a bar
+   across the top of one would be a heading rather than a badge. */
+.stats-badge{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  margin:0 0 14px;
+  padding:8px 12px;
+  border-radius:9px;
+  background:color-mix(in srgb,var(--tier) 16%,transparent);
+  border:1px solid color-mix(in srgb,var(--tier) 45%,transparent);
+  border-left:4px solid var(--tier)
+}
+.stats-badge b{
+  font-family:var(--card);
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:2px;
+  color:var(--tier)
+}
+.stats-badge small{font-size:11px;color:#9fb2bd}
+
+/* ---------------------------------------------------------------------------
+   The Career Stats widget under the innings card.
+
+   Its own block rather than a line inside the card: the card is about the
+   thirty balls just played and this is about every ball ever, and putting the
+   second inside the first would read as a footnote to the innings.
+--------------------------------------------------------------------------- */
+.career-widget{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  /* The keys below stand on a six-pixel ledge, which is drawn outside the box
+     and lands on whatever is above them. Without room of its own the widget
+     had PLAY AGAIN's orange rim sitting across its bottom edge. */
+  margin:4px 0 14px;
+  padding:10px 12px;
+  border:1px solid #2f6f9e;
+  border-radius:14px;
+  background:linear-gradient(100deg,#123049,#0d2135);
+  text-align:left;
+  color:#f4f8fa
+}
+.career-widget:hover{border-color:#4a92c6;background:linear-gradient(100deg,#163b59,#102840)}
+.career-kit{display:flex;flex:none}
+.career-kit .board-kit{width:40px;height:40px}
+.career-words{
+  flex:1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.4px
+}
+/* The flag comes off for good the first time this is opened. A badge that
+   still says NEW on the fortieth innings teaches the player that the flags on
+   this screen mean nothing. */
+.career-new{
+  padding:2px 7px;
+  border-radius:5px;
+  background:#e5473a;
+  font-size:9.5px;
+  font-weight:800;
+  font-style:normal;
+  letter-spacing:1px;
+  color:#fff
+}
+.career-go{
+  display:grid;
+  place-items:center;
+  flex:none;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  background:#f2814f;
+  color:#17222b
+}
+.career-go svg{width:17px;height:17px}
+
+/* One share key where there were two. On a phone both ended in the same system
+   sheet, so choosing between them before seeing it was a decision nobody had
+   the information to make. */
+/* Built the way PLAY AGAIN is: a three-pixel stroke and a six-pixel ledge, in
+   the key's own colour rather than the game's orange. That construction is
+   what makes a key on this screen look pressable, and a key that skips it
+   reads as a coloured label beside one that does. */
+.share-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:54px;
+  padding:0 20px;
+  border:3px solid #0a6a37;
+  border-radius:10px;
+  background:#12874c;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:1.6px;
+  color:#fff;
+  box-shadow:0 6px 0 #0a6a37,0 10px 12px #04331c4d
+}
+.share-key:hover:not(:disabled){background:#159c58;box-shadow:0 7px 0 #0a6a37,0 12px 14px #04331c59}
+.share-key:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #0a6a37,0 4px 7px #04331c3d}
+.share-key svg{width:19px;height:19px;flex:none}
+
+/* The three keys the top row no longer carries. Hidden rather than deleted:
+   the game drives them by id from a dozen places, and a hidden key answers a
+   click exactly the way a visible one does. */
+.hud-button.is-retired{display:none}
+
+/* The board and the pause, which show only while a ball is actually being
+   bowled. They are the two a player wants mid-over and the two with no other
+   door on a phone, where there is no Escape key — but over a sheet or a card
+   they are three grey squares on a screen that already offers both, so they
+   come off the moment anything is standing in front of the ground. */
+.hud-button.is-playing{display:none}
+body.innings-active .hud-button.is-playing{display:flex}
+body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
+
+/* ---------------------------------------------------------------------------
+   The offer's shimmer.
+
+   A light running across the key, once every few seconds. It is on the key
+   only while it reads REGISTER SCORE ON LEADERBOARD — the one state where the
+   key is asking for something rather than going somewhere. On VIEW LEADERBOARD
+   the same light would be a door waving at somebody who has already decided.
+
+   It is a moving highlight rather than a pulse or a glow, because the key
+   already has a colour and a ledge doing the work of saying "press me"; this
+   only has to catch an eye that has moved on to the score.
+--------------------------------------------------------------------------- */
+.card-board .claim-key{
+  position:relative;
+  /* The sweep is a child running past the edges, so the key has to clip it —
+     and clipping has to respect the corner, or the light squares off. */
+  overflow:hidden;
+  font-size:15.5px;
+  letter-spacing:1.4px
+}
+.claim-key.is-offer::after{
+  content:'';
+  position:absolute;
+  top:-60%;
+  left:-80%;
+  /* Wide, and blurred on top of that. A narrow band with stops close together
+     is a lit *edge* travelling across the key — a hard line, however low its
+     alpha. What reads as light is a broad falloff with no edge anywhere in it,
+     which takes both: stops spread the full width, and a blur to take the last
+     of the seams out. */
+  width:62%;
+  height:220%;
+  pointer-events:none;
+  /* Judged against the key's own text rather than against the key. The sweep
+     crosses dark type on a light ground, so anything strong enough to read
+     clearly as a highlight also takes the contrast out of the word underneath
+     — at near-opaque white, LEADERBOARD greyed out as the light went over it. */
+  background:linear-gradient(90deg,
+    #ffffff00 0%,#ffffff12 22%,#ffffff33 40%,#ffffff54 50%,#ffffff33 60%,#ffffff12 78%,#ffffff00 100%);
+  filter:blur(7px);
+  transform:rotate(16deg);
+  animation:cta-shimmer 7.4s cubic-bezier(.45,0,.4,1) 1.6s infinite
+}
+@keyframes cta-shimmer{
+  0%{left:-80%}
+  /* Slow: a little over two seconds to cross, then five in the dark. A sweep
+     that is quick reads as a glint or a glitch; one that takes its time reads
+     as light moving over a surface. And one that never stops is not an event
+     at all, it is a texture — which is exactly what a key does not want. */
+  30%,100%{left:150%}
+}
+
+/* One key, the game's own face. It was set in Satoshi while every other key on
+   the card is Jaro, which at a glance read as a control borrowed from
+   somewhere else. */
+.share-key{font-family:var(--cta);letter-spacing:2px;font-size:16px}
+
+/* The career widget, lit rather than outlined. It was a stroke around a fill
+   barely above the card behind it, which is the description of a ghost button
+   — and a ghost is what a screen uses for the choice it would rather you did
+   not make. This is the one genuinely new thing on the card, so it gets a
+   ground of its own and the same sweep the offer key has. */
+.career-widget{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(103deg,#1d4f7d 0%,#153c60 42%,#102c46 100%);
+  border-color:#4b93c9;
+  box-shadow:0 4px 14px #061a2b66,inset 0 1px 0 #ffffff1f
+}
+.career-widget:hover{
+  background:linear-gradient(103deg,#26639a 0%,#1a4a74 42%,#143552 100%);
+  border-color:#6fb2e2
+}
+.career-widget::after{
+  content:'';
+  position:absolute;
+  top:-60%;
+  left:-80%;
+  width:58%;
+  height:220%;
+  pointer-events:none;
+  background:linear-gradient(90deg,
+    #ffffff00 0%,#ffffff0f 22%,#ffffff2b 40%,#ffffff42 50%,#ffffff2b 60%,#ffffff0f 78%,#ffffff00 100%);
+  filter:blur(7px);
+  transform:rotate(16deg);
+  /* Offset from the key's, so the two never cross together and start reading
+     as one animation over the whole card. */
+  animation:cta-shimmer 8.6s cubic-bezier(.45,0,.4,1) 3.4s infinite
+}
+.career-widget>*{position:relative;z-index:1}
+
+/* Nothing on this screen moves for somebody who has asked for less of it. The
+   keys still say what they say and still press the same way. */
+@media (prefers-reduced-motion:reduce){
+  .claim-key.is-offer::after,.career-widget::after{animation:none;display:none}
+}
+
+/* ── What's new ─────────────────────────────────────────────────────────────
+   Three cards, the shape every phone already knows: a segmented bar across the
+   top, the page itself as the control, and a key on the bottom edge that is
+   there the whole time. Nothing here is a dialogue — there is nothing to
+   answer — so the only thing it asks of a player is that they can leave. */
+.whatsnew-overlay{z-index:12;padding:0}
+.whatsnew-sheet{
+  /* Its own palette, the way every other sheet in this game declares one. The
+     tokens are set per surface rather than on the root, so a screen that does
+     not say what its ink is inherits whatever the page happens to be using —
+     which on this ground was near enough the ground itself. */
+  --ink:#f7f0e5;
+  --quiet:#c2d2dc;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  width:min(440px,100%);
+  height:100%;
+  max-height:100%;
+  margin:auto;
+  padding:calc(12px + env(safe-area-inset-top,0px)) 18px calc(16px + env(safe-area-inset-bottom,0px));
+  overflow:hidden;
+  background:
+    radial-gradient(120% 70% at 50% 0%,#1b4a72 0%,#0d2739 46%,#07121a 100%)
+}
+.whatsnew-bars{display:flex;gap:5px;flex:none}
+.whatsnew-bar{
+  position:relative;
+  flex:1 1 0;
+  height:3px;
+  border-radius:2px;
+  background:#ffffff26;
+  overflow:hidden
+}
+.whatsnew-bar>i{display:block;height:100%;width:0;border-radius:2px;background:var(--cta-orange)}
+.whatsnew-bar.is-done>i{width:100%}
+/* The bar runs for exactly as long as the card holds, because the same number
+   is handed to both — the markup writes the hold onto the live segment. */
+.whatsnew-bar.is-live>i{width:100%;transform-origin:left;animation:whatsnew-fill var(--hold,7000ms) linear forwards}
+@keyframes whatsnew-fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* The page as the control. Back on the left third, on the right the rest of
+   it — which is the division every story app uses and nobody has to be told.
+   They sit under the text and under the key, so neither is ever swallowed. */
+.whatsnew-half{
+  position:absolute;
+  top:0;
+  bottom:96px;
+  z-index:0;
+  border:0;
+  background:transparent;
+  -webkit-tap-highlight-color:transparent
+}
+.whatsnew-half.is-back{left:0;width:32%}
+.whatsnew-half.is-next{right:0;width:68%}
+
+.whatsnew-body{
+  position:relative;
+  z-index:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  flex:1 1 auto;
+  min-height:0;
+  padding-top:16px;
+  color:var(--ink);
+  text-align:center;
+  pointer-events:none
+}
+.whatsnew-eyebrow{
+  margin:0;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:2.2px;
+  color:var(--cta-orange)
+}
+.whatsnew-title{
+  margin:0;
+  /* Said outright. The heading takes its colour from whatever rule reaches it
+     otherwise, and on this ground that was near enough the ground itself. */
+  color:var(--ink);
+  font-size:26px;
+  font-weight:900;
+  letter-spacing:-.8px;
+  line-height:1.15;
+  text-wrap:balance
+}
+/* The picture is the point, and it shrinks rather than pushing the key off the
+   bottom of the screen — but it does not *grow* into the leftover room, or the
+   card ends up marooned in the middle of the screen with a gap above it and a
+   gap below. The whole block is centred instead, as one thing. */
+.whatsnew-art{
+  flex:0 1 auto;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%
+}
+.whatsnew-art img{
+  max-width:min(330px,86%);
+  max-height:min(100%,54vh);
+  width:auto;
+  height:auto;
+  border-radius:16px;
+  border:1px solid #ffffff1f;
+  box-shadow:0 22px 50px #00000073
+}
+.whatsnew-say{
+  margin:0;
+  max-width:34ch;
+  font-size:13.5px;
+  line-height:1.55;
+  color:var(--quiet)
+}
+.whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
+.whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
+
+@media (prefers-reduced-motion:reduce){
+  .board-new::after{animation:none;display:none}
+  .whatsnew-bar.is-live>i{animation:none;transform:scaleX(1)}
+}
+
+/* ── The career key ───────────────────────────────────────────────────────
+   The dark pass with a foil window, off the Figma frame, at phone scale.
+
+   Everything here is the design multiplied by 0.476 — the frame is 765 across
+   and a phone gives the widget about 364 — so the proportions are the drawn
+   ones rather than a fresh set of round numbers that happen to look close.
+   Body copy is the one exception: 20px on a 765 frame lands at 9.5, which is
+   below the size anything is read at, so the two prose sizes are set by what
+   is legible and the drawn ones stop at the headings.
+
+   The foil is only in the window. That is the whole of this revision: a card
+   that was iridescent edge to edge asked for more of the screen than a thing
+   you are meant to notice once and then live with. Now the card is charcoal
+   and the key inside it is the only bright thing, which is also the right way
+   round — the foil is drawing the eye to the string that matters rather than
+   to the panel holding it. */
+.key-pass,.key-panel,.key-toast,.key-bar,.key-sheet{
+  /* One dark plate for every placement. Declared here and nowhere else: the
+     moment a component redeclares it, an ancestor can no longer override it. */
+  --key-plate:linear-gradient(102.05deg,#141414 -3.34%,#464646 55.11%,#000 104.52%);
+  /* The stroke and the ledge under the white key, which are the same grey in
+     the frame — on charcoal a black ledge disappears and a coloured one
+     becomes a second accent competing with the foil. */
+  --key-ledge:#5b5b5b;
+  --key-stroke:linear-gradient(180deg,#707070 0%,#5e5e5e 100%);
+  position:relative;
+  isolation:isolate;
+  border:1.2px solid #0000;
+  background:var(--key-plate) padding-box,var(--key-stroke) border-box;
+  color:#fff;
+  font-family:var(--card)
+}
+/* Everything readable sits on the plate; nothing is layered under it now. */
+.key-face{position:relative;z-index:1}
+
+/* The key in its window, and the only foil left.
+   Three layers doing what Figma's blend stack does: an iridescent radial over
+   a navy base differenced against a light-dark sweep, the same sweep screened
+   over the result, and a near-invisible pane carrying the inset shadow that
+   sinks the whole thing into the card. Difference is what turns a pretty
+   rainbow into foil — it inverts the spectrum wherever the sweep is light, so
+   the colour bands and the shine bands cross rather than stack. */
+.key-serial{
+  --foil-sweep:linear-gradient(101.45deg,
+    #fff 4.42%,#000 33.79%,#fff 59.83%,#000 86.98%,#fff 110.81%);
+  --foil-spectrum:radial-gradient(139.09% 181.03% at 98.11% 7.72%,
+    #36fbf4 0%,#fffd6c 23%,#ffdeff 42%,#c0c6ff 62%,#91ffc4 82%,#99dfff 100%);
+  position:relative;
+  isolation:isolate;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  margin:0 0 6px;
+  padding:6px 10px;
+  border-radius:9.5px;
+  background:var(--foil-sweep),var(--foil-spectrum),#11345f;
+  background-blend-mode:difference,normal,normal;
+  color:#000;
+  font-family:var(--cta);
+  font-size:17px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-align:center;
+  overflow-wrap:anywhere
+}
+.key-serial::before,.key-serial::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none
+}
+.key-serial::before{background:var(--foil-sweep);mix-blend-mode:screen}
+.key-serial::after{background:#ffffff03;box-shadow:inset 1px 1px 2px #00000099}
+.key-serial>span{position:relative;z-index:1}
+.key-serial.is-inline{
+  min-height:0;
+  margin:0;
+  padding:4px 8px;
+  border-radius:7px;
+  font-size:13px;
+  letter-spacing:.08em
+}
+.key-serial.is-big{min-height:50px;font-size:19px;margin-bottom:12px}
+
+.key-pass{
+  width:100%;
+  margin:0 0 12px;
+  border-radius:15px;
+  box-shadow:0 6px 18px #04091066
+}
+.key-pass .key-face{padding:16px}
+.key-stamp{display:flex;align-items:center;gap:7px;margin:0 0 9px}
+.key-mark{display:flex;color:inherit}
+.key-mark svg{width:14px;height:14px}
+.key-mark.is-big svg{width:24px;height:24px}
+/* Jaro, tracked, white. It is a label over the window rather than a heading
+   on a panel, so it is set to the frame's ratio — half again under the key
+   it introduces — instead of competing with it. */
+.key-stamp h3{
+  flex:1;
+  margin:0;
+  font-family:var(--cta);
+  font-size:11.5px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#fff
+}
+.key-info{
+  display:grid;
+  place-items:center;
+  width:19px;
+  height:19px;
+  padding:0;
+  border:1.5px solid #ffffff8f;
+  border-radius:50%;
+  background:#0000;
+  color:#fff;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:800;
+  font-style:italic;
+  line-height:1
+}
+.key-info:hover{background:#ffffff26}
+/* One line, and sized by that rather than by taste. The sentence is the
+   widest thing on the card after the key, and a size that wraps it leaves a
+   single orphaned word standing under it — which costs a whole line of card
+   height to say nothing. Eleven and a half fitted on the lab's bench and
+   wrapped on My Stats, where the sheet is the narrower of the two. */
+.key-line{
+  margin:0 0 12px;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:500;
+  line-height:1.45;
+  color:#fff
+}
+/* The drawn key: white, a grey stroke, and a short grey ledge under it. The
+   ledge is four pixels rather than the seven it used to be — on a plate this
+   dark the key is already the brightest thing on the widget, and a tall slab
+   under it made a button that only needed to be found look like the one thing
+   on the screen worth pressing. */
+.key-save{
+  display:block;
+  width:100%;
+  min-height:41px;
+  padding:0 12px;
+  border:2px solid var(--key-ledge);
+  border-radius:11px;
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
+  color:#000;
+  font-family:var(--cta);
+  font-size:15px;
+  font-weight:400;
+  letter-spacing:.04em
+}
+.key-save:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge),0 4px 9px #00000047}
+.key-ghost{
+  display:block;
+  width:100%;
+  margin:12px 0 0;
+  padding:3px;
+  border:0;
+  background:none;
+  color:#fff;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:600;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+
+/* ── On the innings-end card ─────────────────────────────────────────────
+   A row rather than a stack. The card under it is what the player came to
+   look at, and this may not push the keys off the bottom of a short screen. */
+.key-panel{
+  width:100%;
+  margin:0 0 12px;
+  border-radius:13px;
+  box-shadow:0 5px 14px #0409105c
+}
+.key-panel-face{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 11px
+}
+.key-panel-say{flex:1;min-width:0}
+.key-panel-say h3{
+  margin:0 0 4px;
+  font-family:var(--cta);
+  font-size:10px;
+  font-weight:400;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#fff
+}
+/* The line under the heading where there is no key to print instead. The panel
+   with a key in it fills this room with the key itself, which is the thing
+   worth looking at; with none, the room goes to saying why one is worth
+   making. */
+.key-panel-line{
+  margin:0;
+  font-size:11px;
+  font-weight:500;
+  line-height:1.4;
+  color:#ffffffb0;
+  text-wrap:pretty
+}
+.key-panel-key{
+  flex:none;
+  min-height:36px;
+  padding:0 15px;
+  border:2px solid var(--key-ledge);
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 7px 14px #0000004d;
+  color:#000;
+  font-family:var(--cta);
+  font-size:12px;
+  letter-spacing:.04em
+}
+.key-panel-key:active{transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
+
+/* ── On the mode picker ──────────────────────────────────────────────────
+   One line, twice, and then never. No foil at all: there is no key on this
+   line to put a window round, and a bar that shimmered on the screen every
+   tap of Play comes through would be the first thing in the game to become
+   furniture. */
+.key-bar{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:min(392px,100%);
+  margin:0 auto 12px;
+  padding:8px 9px 8px 11px;
+  border-radius:11px;
+  box-shadow:0 4px 12px #04091052;
+  text-align:left
+}
+.key-bar .key-mark svg{width:15px;height:15px}
+.key-bar-say{
+  flex:1;
+  min-width:0;
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:700;
+  color:#fff
+}
+.key-bar-go{
+  flex:none;
+  padding:6px 12px;
+  border:2px solid var(--key-ledge);
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 3px 0 var(--key-ledge);
+  color:#000;
+  font-family:var(--cta);
+  font-size:11px;
+  letter-spacing:.04em
+}
+
+/* ── The first one, the moment a name is claimed ─────────────────────────
+   Dismissed by hand, never on a clock. It lands as the board opens on the row
+   they have just taken, and anything that takes itself away while somebody is
+   looking at their own name was never read. */
+.key-toast{
+  width:min(392px,100%);
+  margin:0 auto;
+  border-radius:13px;
+  /* The innings-end row's shadow, not a floating card's. It carried one thrown
+     fourteen pixels down and blurred thirty-four while it hung over the board;
+     in the column that lands on the key ten pixels under it, and a widget
+     casting a shadow onto the thing below it reads as a mistake rather than as
+     height. */
+  box-shadow:0 5px 14px #0409105c
+}
+/* The innings-end card's row, at the innings-end card's size. This one lands
+   on the board rather than on a card, and the board is the thing the player
+   has just earned a place on — so it is the one screen where the widget may
+   not stand on what is underneath it. */
+.key-toast .key-panel-face{padding:9px 10px;gap:9px}
+.key-toast .key-mark svg{width:15px;height:15px}
+.key-toast-close{
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:24px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:none;
+  color:#ffffffa8;
+  font-size:17px;
+  line-height:1
+}
+.key-toast-close:hover{background:#ffffff26;color:#fff}
+
+/* ── The modal every one of them opens ───────────────────────────────────
+   The only place a key is ever saved. */
+.key-modal{
+  position:absolute;
+  inset:0;
+  z-index:11;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:var(--pad-top) var(--pad);
+  background:#06131de8;
+  overflow-y:auto
+}
+.key-sheet{
+  width:min(392px,100%);
+  margin:auto;
+  border-radius:18px;
+  box-shadow:0 20px 44px #0409107a
+}
+.key-sheet .key-face{padding:18px;text-align:center}
+.key-sheet .key-mark{justify-content:center}
+.key-sheet h2{
+  margin:8px 0 11px;
+  font-family:var(--cta);
+  font-size:21px;
+  font-weight:400;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#fff
+}
+.key-sheet-say{
+  margin:0 0 10px;
+  font-size:12px;
+  font-weight:500;
+  line-height:1.55;
+  color:#fff;
+  text-wrap:pretty
+}
+.key-sheet-key{
+  display:block;
+  width:100%;
+  min-height:44px;
+  margin:0 0 11px;
+  border-radius:11px;
+  font-family:var(--cta);
+  font-size:14px;
+  letter-spacing:.04em
+}
+/* The one that finishes the job wears the drawn key. */
+.key-sheet-key.is-whatsapp{
+  border:2px solid var(--key-ledge);
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
+  color:#000
+}
+.key-sheet-key.is-whatsapp:active{transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
+/* Copy is the lesser save and reads as the lesser key: it lives in one slot
+   that the next copy takes, and leaves the player something still to do. */
+.key-sheet-key.is-copy{
+  border:2px solid #ffffff8f;
+  background:#0000;
+  color:#fff
+}
+.key-sheet-key.is-copy:hover{background:#ffffff1f}
+/* Copied, said on the key that was pressed. A copy is the one save with
+   nothing to show for itself — no app opens, nothing moves — so the key has to
+   be the thing that answers, and it goes green for the two seconds it takes to
+   read rather than changing for good: the next key still has to be copyable. */
+.key-sheet-key.is-copy.is-done{
+  border-color:#43b978;
+  background:#43b9782e;
+  color:#8ff0bb
+}
+/* The instruction, given the weight of a key without being one.
+   
+   It is the surest save of the three and the only one the game cannot perform
+   — no clipboard to refuse it, no app to be missing, nothing to overwrite it
+   afterwards — so it gets the room a key would get and the keys underneath are
+   offered as the alternative rather than the other way round. */
+.key-hero{
+  display:block;
+  margin:0 0 12px;
+  padding:13px 14px;
+  border:1.6px dashed #ffffff5c;
+  border-radius:13px;
+  background:#ffffff14;
+  text-wrap:pretty
+}
+.key-hero b{
+  display:block;
+  font-family:var(--cta);
+  font-size:19px;
+  font-weight:400;
+  letter-spacing:.02em;
+  color:#fff
+}
+.key-hero span{
+  display:block;
+  margin-top:4px;
+  font-size:11.5px;
+  font-weight:500;
+  line-height:1.45;
+  color:#ffffffb0
+}
+/* The hinge between the sure way and the three that need something to work. */
+.key-or{
+  margin:0 0 10px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:#ffffff7a
+}
+/* The picture: the screenshot made pressable, so it wears the drawn key that
+   the sheet's first action deserves. */
+.key-sheet-key.is-image{
+  border:2px solid var(--key-ledge);
+  background:#fff;
+  box-shadow:0 4px 0 var(--key-ledge),0 10px 21px #0000005c;
+  color:#000
+}
+.key-sheet-key.is-image:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge)}
+.key-sheet-key.is-image:disabled{opacity:.6}
+/* Second of three, and outlined rather than drawn: two drawn keys one above
+   the other is two firsts, and the eye picks neither. Its own class rather
+   than a change to `is-whatsapp`, which is the drawn key that KEEP MY RECORD,
+   BRING IT BACK and SEE MY RECORD all wear on screens of their own. */
+.key-sheet-key.is-second{
+  border:2px solid #ffffffb8;
+  background:#0000;
+  color:#fff
+}
+.key-sheet-key.is-second:hover{background:#ffffff1f}
+.key-sheet-key.is-second:active{transform:translateY(2px)}
+.key-fine{
+  margin:0;
+  font-size:10.5px;
+  font-weight:500;
+  line-height:1.5;
+  color:#ffffffb8;
+  text-wrap:pretty
+}
+/* Only up where a save was asked for and did not happen. It sits between the
+   two keys and the fine print, which is where somebody's eye already is after
+   pressing one of them. */
+.key-trouble{
+  margin:-4px 0 10px;
+  padding:8px 10px;
+  border:1.2px solid #f0a02f4d;
+  border-radius:9px;
+  background:#f0a02f1f;
+  font-size:11.5px;
+  font-weight:600;
+  line-height:1.45;
+  color:#ffd79a;
+  text-wrap:pretty
+}
+
+/* ── Bringing a record back ──────────────────────────────────────────────
+   The key sheet's plate, because it is the same object seen from the other
+   side: that one hands a key over, this one takes it back. Left-aligned
+   though, where the sheet is centred — this is a form, and a label that is
+   not above the left edge of the box it names is a label being read twice. */
+.restore-sheet .key-face{text-align:left}
+.restore-sheet h2,.restore-sheet .key-mark{text-align:center;justify-content:center}
+.restore-field{display:block;margin:0 0 11px}
+.restore-field>span{
+  display:block;
+  margin:0 0 5px;
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.02em;
+  color:#ffffffc4
+}
+.restore-field input{
+  display:block;
+  width:100%;
+  min-height:44px;
+  padding:0 12px;
+  border:1.2px solid #ffffff42;
+  border-radius:10px;
+  background:#0000004d;
+  color:#fff;
+  font-family:var(--card);
+  font-size:15px;
+  font-weight:600
+}
+/* The key is typed in the face it was handed over in, so what is on the paper
+   and what is on the screen are the same shape. Tracked a little wider than
+   the card's, because here it is being checked character by character. */
+#restore-key{font-family:var(--cta);font-size:15px;font-weight:400;letter-spacing:.06em}
+#restore-key::placeholder{color:#ffffff4d;letter-spacing:.06em}
+.restore-field input::placeholder{color:#ffffff4d;font-weight:500}
+.restore-field input:focus-visible{outline:2px solid var(--cta-orange);outline-offset:2px;border-color:#0000}
+/* Only ever on the screen when there is something to lose. */
+.restore-losing{
+  margin:0 0 11px;
+  padding:10px 11px;
+  border:1.2px solid #ffffff2b;
+  border-radius:10px;
+  background:#ffffff0d
+}
+.restore-losing-say{margin:0;font-size:11.5px;line-height:1.45;color:#fff}
+.restore-sheet .claim-error{margin:0 0 10px;font-size:12px}
+.restore-sheet .key-fine{margin:0 0 2px;text-align:center}
+
+/* The question `?fresh=1` asks. The save sheet's plate and keys, because it is
+   the same conversation from the other end — that one hands a key over so a
+   record survives this, and this is the screen that makes it survive one. */
+.fresh-gate .key-sheet{max-width:min(392px,100%)}
+/* The one line on this screen that is a warning rather than a description.
+   The same lifted red the claim form's refusal uses, because it is the same
+   job: telling somebody something they have to act on before they go on. */
+.fresh-gate .fresh-warn{color:#ff8a7a;font-weight:700}
+.fresh-gate .key-serial{margin:0 0 12px}
+.fresh-gate .key-sheet-key{margin-bottom:10px}
+.fresh-gate .key-sheet-key:last-child{margin-bottom:0}
+
+/* The offer at the end of an innings: the career key's row, wearing the same
+   plate and the same stroke, because it stands in the same slot and only ever
+   when the key cannot. The one line it has instead of a key window is set in
+   the card face rather than the drawn one — it is a sentence to read, not a
+   string to copy. */
+.restore-panel-line{
+  margin:0;
+  font-family:var(--card);
+  font-size:11.5px;
+  font-weight:600;
+  line-height:1.35;
+  color:#ffffffd6
+}
+
+/* The way in, wherever the game has reason to think somebody has been here
+   before. A link rather than a key: it is an offer, and every screen it
+   appears on already has the thing the player came for on it. */
+.restore-link{
+  display:inline;
+  padding:0;
+  border:0;
+  background:none;
+  color:var(--cta-orange);
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+.restore-link:hover{color:#ff9c6e}
+/* On the claim form it sits under the refusal it answers, so the two read as
+   one thought: the name is taken, and here is what that probably means. */
+.claim-back{margin:-6px 0 11px}
+
+/* Where the key sits on the screens it shares. The widget brings its own
+   material; these only say where it goes and how much room it gets. */
+.card-key{margin:0 0 2.6cqw}
+.card-key .key-panel{margin:0}
+.key-slot{margin:0 0 14px}
+.key-slot .key-bar{margin:0}
+/* The first key, on the board the player has just landed on. A row of that
+   column rather than a thing floating over it: floated, it stood on the keys
+   underneath, and nothing standing on the way out of a screen is clear of it
+   at every height. Here it takes its own room and the keys keep theirs. */
+.board-stack>.key-toast{flex:none}
 
 /* ── The challenge ─────────────────────────────────────────────────────────
    Four screens and one flash, all cut from material already on the page: the

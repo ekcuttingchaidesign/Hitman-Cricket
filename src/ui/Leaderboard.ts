@@ -46,6 +46,15 @@ export interface BoardView {
    * opened straight after claiming a place, because at that moment the board is
    * the screen the player is on and playing again has to be reachable from it.
    */
+  /**
+   * Whether the innings-end keys stand under the sheet.
+   *
+   * Read by the screen rather than by this markup: the keys are not part of the
+   * board any more. They belong to the stack the board is standing in, under
+   * the card rather than sealed into its foot — a way to play again is not a
+   * fact about a leaderboard, and inside it that is exactly what it looked
+   * like.
+   */
   actions?: boolean;
 }
 
@@ -97,22 +106,36 @@ export function decider(above: Innings | null, row: Innings): LadderKey | null {
  * one board, and a row of tabs over it would be two names for one thing.
  */
 export const BOARD_TABS = [
-  { mode: 'classic', id: 'board-tab-classic', name: 'The Blast' },
-  { mode: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
+  { tab: 'classic', id: 'board-tab-classic', name: 'The Blast' },
+  { tab: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
+  { tab: 'mine', id: 'board-tab-mine', name: 'My Stats' },
 ] as const;
 
-export type BoardTab = (typeof BOARD_TABS)[number]['mode'];
+/** One of the two games. Everything that reads a career is keyed on this. */
+export type BoardTab = 'classic' | 'survive';
 
-export function boardTabsMarkup(active: BoardTab): string {
+/**
+ * What the sheet is showing at the top level: one of the two games, or the
+ * player's own card.
+ *
+ * `mine` is a tab rather than a mode, and the distinction is load-bearing
+ * everywhere below: a career belongs to a mode, so the card under this tab is
+ * still the card *for the game the player was last looking at*. Tabbing to it
+ * and back must land where they were, which is why the mode is remembered
+ * separately from which tab is lit.
+ */
+export type SheetTab = BoardTab | 'mine';
+
+export function boardTabsMarkup(active: SheetTab): string {
   return `
-    <div class="board-tabs" role="tablist" aria-label="Which leaderboard">${BOARD_TABS.map(tab => {
-      const on = tab.mode === active;
-      // Both stay tabbable. A tablist usually moves one tab stop between its
-      // tabs and drives the rest from the arrow keys; two keys that are also
-      // the only way to the other ladder are better off reachable the ordinary
-      // way than correct about a convention nothing here implements.
+    <div class="board-tabs" role="tablist" aria-label="Which leaderboard">${BOARD_TABS.map(one => {
+      const on = one.tab === active;
+      // All three stay tabbable. A tablist usually moves one tab stop between
+      // its tabs and drives the rest from the arrow keys; three keys that are
+      // also the only way between the screens are better off reachable the
+      // ordinary way than correct about a convention nothing here implements.
       return `
-      <button id="${tab.id}" class="board-tab${on ? ' is-on' : ''}" role="tab" type="button" aria-selected="${on}">${tab.name}</button>`;
+      <button id="${one.id}" class="board-tab${on ? ' is-on' : ''}" role="tab" type="button" aria-selected="${on}">${one.name}</button>`;
     }).join('')}
     </div>`;
 }
@@ -172,8 +195,27 @@ function peekRow(place: number, name: string, kit: number | null, figures: Innin
 }
 
 /** The whole screen, header to footer. */
+/**
+ * The two keys on the corner of every sheet: the way into the update's stories,
+ * and the way out of the board.
+ *
+ * Written once and used by all three sheets, because they are the same pair of
+ * keys doing the same two jobs — three copies would have grown apart the first
+ * time either of them was touched, and the What's New key is new enough that
+ * one of the copies would simply have been forgotten.
+ *
+ * It shimmers, and it is the only thing on the sheet that does. Nothing else
+ * here is asking to be noticed; this is, for about a fortnight.
+ */
+export function sheetKeys(): string {
+  return `<div class="sheet-keys">
+          <button id="board-new" class="board-new" type="button">What&rsquo;s new</button>
+          <button id="board-close" class="board-close" aria-label="Close the board">&times;</button>
+        </div>`;
+}
+
 export function boardMarkup(view: BoardView): string {
-  const { rows, youId = null, yours = null, state = 'ready', actions = false, atMs = Date.now() } = view;
+  const { rows, youId = null, yours = null, state = 'ready', atMs = Date.now() } = view;
   const edge = cutoff(rows);
   const yourPlace = rows.findIndex(row => row.playerId === youId);
   // An innings that is not a row yet is one of two things, and they are not the
@@ -184,9 +226,10 @@ export function boardMarkup(view: BoardView): string {
   return `
     <div class="board-sheet" role="document">
       <div class="sheet-head">
-        <p class="board-eyebrow">HITMAN OVAL</p>
-        <h2 id="board-title">Top ${BOARD_SIZE}</h2>
-        <button id="board-close" class="board-close" aria-label="Close the board">×</button>
+        <div class="sheet-title">
+          <h2 id="board-title">Top ${BOARD_SIZE}</h2>
+        </div>
+        ${sheetKeys()}
       </div>
       <p class="board-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
         state === 'loading' ? 'Fetching the board…'
@@ -200,8 +243,7 @@ export function boardMarkup(view: BoardView): string {
           ? waiting ? waitingMarkup(yours, placeOf(rows, yours, atMs)) : missedMarkup(yours, edge)
           : ''}
       </div>
-      <p class="board-foot">One innings a player, best only. Level scores are split on sixes, then fours, then wickets, then dot balls &mdash; and if all of that ties, whoever got there first stays above.</p>
-      ${actions ? actionsMarkup() : ''}
+      <p class="board-foot">Only each player's best innings counts. Ties are broken by 6s, then 4s, then wickets, then dot balls. If everything is tied, whoever got there first stays ahead.</p>
     </div>`;
 }
 
@@ -232,13 +274,12 @@ export function rowMarkup(row: BoardRow, index: number, above: BoardRow | null, 
  * Their ids are the card's own with a prefix, because the same two keys exist on
  * the card and one document cannot hold two of an id.
  */
-function actionsMarkup(): string {
+export function actionsMarkup(): string {
   return `
-      <div class="board-actions">
-        <button id="board-again" class="key-button">PLAY AGAIN</button>
-        <div class="card-shares">
-          <a id="board-whatsapp" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">SHARE</a>
-          <button id="board-story" class="story-key">INSTA STORY</button>
+      <div class="board-actions" role="group" aria-label="What now">
+        <div class="card-keys">
+          <button id="board-again" class="key-button">PLAY AGAIN</button>
+          <button id="board-share" class="share-key" type="button">SHARE</button>
         </div>
       </div>`;
 }

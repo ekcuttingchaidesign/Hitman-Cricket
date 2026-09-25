@@ -1,7 +1,11 @@
 export type BallLine = 'OUTSIDE_LEG' | 'LEG' | 'MIDDLE' | 'OFF' | 'OUTSIDE_OFF';
 export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' | 'RIB' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'OFF_SPIN' | 'LEG_SPIN' | 'ARM_BALL';
-/** The five scoring strokes, plus the forward defensive. */
-export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'SQUARE_CUT' | 'DEFEND';
+/**
+ * The five scoring strokes, plus the forward defensive, plus the two scoops —
+ * special strokes that only a full meter buys, played off the two downward
+ * diagonals and never chosen for you.
+ */
+export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'SQUARE_CUT' | 'DEFEND' | 'SCOOP' | 'REVERSE_SCOOP';
 export type TimingGrade = 'PERFECT' | 'GOOD' | 'OK' | 'POOR' | 'MISS';
 export type WicketType = 'BOWLED' | 'LBW' | 'CAUGHT' | 'STUMPED';
 /**
@@ -36,6 +40,14 @@ export interface ShotOutcome {
   aerial: boolean;
   /** Charged down the pitch and hit out of the ground. */
   advance?: boolean;
+  /** Slog-swept off the knee, over midwicket. Six middled, four on the bounce. */
+  swept?: boolean;
+  /** Scooped or reverse-scooped behind the wicket, whatever came of it. Spends the meter. */
+  scooped?: boolean;
+  /** Driven square of the wicket off the front foot, rather than through cover. */
+  squared?: boolean;
+  /** Swept along the ground, square of the wicket: the orthodox sweep. */
+  sweptFlat?: boolean;
   /** Killed under the eyes: it goes nowhere, and it cannot be caught. */
   defended?: boolean;
   /** Feathered off the face of the bat and taken by the keeper. */

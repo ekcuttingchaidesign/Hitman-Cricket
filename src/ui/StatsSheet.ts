@@ -1,0 +1,234 @@
+import { keyCardMarkup, type KeyView } from './CareerKey';
+import { restoreLinkMarkup } from './Restore';
+import { escape } from './Leaderboard';
+import { statsAlt, statsExplain, statsHitBoxes, type StatsFacts } from '../game/StatsCard';
+
+/**
+ * The career card, as a screen of its own.
+ *
+ * It is a sheet over the board rather than another tab inside it, and the
+ * difference is what the thing is for. Every tab on that sheet answers "where
+ * do I stand" and is read against the rows around it; this answers "what have I
+ * done", belongs to one person, and its whole point is that it leaves — so it
+ * is a destination you go to and come back from, with two keys under it, rather
+ * than one more pill in a strip of ladders.
+ *
+ * What it shows is the painted picture itself, not a DOM copy of it. That is
+ * deliberate and it is the only arrangement that guarantees the card somebody
+ * shares is the card they were looking at when they decided to: a second
+ * rendering would drift from the first the day one of them gained a figure.
+ * The cost is that a canvas has nothing to say to a screen reader, which is
+ * what the alt text and the figure list below the keys are for.
+ */
+
+/**
+ * Where the card is being shown.
+ *
+ * `sheet` is the My Stats tab on the leaderboard — it sits under the tab row,
+ * so it has no way out of its own and no heading; the tabs are the way out.
+ * `page` is the screen the innings-end card's Career Stats widget opens, which
+ * is a place the player has travelled *to* rather than a tab they switched to,
+ * so it carries a back key and stands alone.
+ *
+ * One markup function for both, because it is one card with one pair of keys
+ * under it — two would drift the first time either was touched.
+ */
+export type StatsWhere = 'sheet' | 'page';
+
+/** One card on the rail: the figures, and the picture of them once it exists. */
+export interface StatsSlide {
+  facts: StatsFacts;
+  /** The drawn card, once it has been painted. Null while it is being drawn. */
+  picture?: string | null;
+  /** Set where the picture could not be drawn at all. */
+  failed?: boolean;
+}
+
+export interface StatsSheetView {
+  /**
+   * The cards, in the order they are swiped through. One card is not a rail —
+   * it is drawn full width, exactly as it was before there were two.
+   */
+  cards: StatsSlide[];
+  /** Which one the sheet opens on. */
+  at?: number;
+  where?: StatsWhere;
+  /** Whether this browser will hand a file to another app. */
+  canShare?: boolean;
+  /**
+   * The career key, where this player has one.
+   *
+   * Absent until the store issues them, and absent for good for anybody who
+   * has not claimed a name: restoring is done with a name and a key together,
+   * so a key belonging to nobody opens nothing. The widget is left out
+   * entirely rather than shown empty — an empty one on the screen a new player
+   * opens first would be a warning about a record they have not started.
+   */
+  careerKey?: KeyView | null;
+  /**
+   * Whether to offer the way back under the figures.
+   *
+   * On every card, not only an empty one. It was only on an empty one, on the
+   * reasoning that figures mean the player is not lost — which is exactly
+   * backwards for the first innings. Somebody whose phone has forgotten them
+   * does not come here first; they play, because that is what the game is for,
+   * and only then go looking for the career that is missing. By the time they
+   * look, the card has an innings on it and the way back had just gone.
+   *
+   * It stays a quiet line at the foot rather than anything louder, because on
+   * a card with forty innings on it there is nothing to bring back and the
+   * line is simply never read.
+   */
+  offerRestore?: boolean;
+}
+
+export function statsSheetMarkup(view: StatsSheetView): string {
+  const { cards, at = 0, where = 'page' } = view;
+  const many = cards.length > 1;
+  return `
+    <div class="stats-sheet-inner is-${where}" role="document">${where === 'page' ? `
+      <div class="stats-head">
+        <button id="stats-back" class="stats-back" type="button">${backMark()}<span>Back</span></button>
+        <p class="stats-head-title">Career stats</p>
+      </div>` : ''}
+${many ? dotsMarkup(cards, at) : ''}
+      <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${
+  many ? ' role="group" aria-label="Your cards, one a game"' : ''}>${
+  cards.map((card, i) => slideMarkup(card, many, i === at)).join('')}</div>${
+  // Below the rail rather than inside it. There are two cards on this screen
+  // and one key, and a key that swiped away with the Blast card would read as
+  // the Blast's key with the Test match's somewhere behind it.
+  view.careerKey ? keyCardMarkup(view.careerKey) : ''}
+      <div class="stats-ctas">
+        <button id="stats-brag" class="key-button stats-key is-brag" type="button">
+          ${shareMark()}<span>BRAG ABOUT MY STATS</span>
+        </button>
+      </div>
+      <p id="stats-status" class="stats-status hidden" role="status" aria-live="polite"></p>
+      <p class="stats-note">${cards.some(card => card.facts.played)
+        ? 'Tap any figure to see what it counts. The link to play rides along with the card.'
+        : 'Play an innings and these figures start filling up.'}${view.offerRestore
+  ? `<br>Played before? ${restoreLinkMarkup('stats-restore', 'Bring your record back')}`
+  : ''}</p>
+      <div id="stats-toast" class="stats-toast" role="status" aria-live="polite"></div>
+    </div>`;
+}
+
+/**
+ * One card, and whatever it can show of itself yet.
+ *
+ * Each card on the rail is drawn from its own figures and painted on its own
+ * clock, so one of them can still be a picture while the other is a sentence
+ * saying it is being drawn. Swapping the whole rail every time one of them
+ * lands is what keeps that honest — and the scroll position is put back by the
+ * screen that owns the rail, so a player who has already swiped stays where
+ * they swiped to.
+ */
+function slideMarkup(card: StatsSlide, many: boolean, live: boolean): string {
+  const { facts, picture = null, failed = false } = card;
+  const inner = picture
+    ? `<div class="stats-frame">
+          <img class="stats-shot" src="${picture}" alt="${escape(statsAlt(facts))}">
+          ${tapsMarkup(facts)}
+        </div>`
+    : failed
+      ? fallbackMarkup(facts)
+      : `<div class="stats-drawing" role="status" aria-live="polite">Drawing your card…</div>`;
+  if (!many) return inner;
+  return `
+      <div class="stats-slide" data-mode="${escape(facts.mode)}" role="group"
+        aria-label="${escape(facts.modeName)}"${live ? ' data-live="1"' : ''}>${inner}
+      </div>`;
+}
+
+/**
+ * Which card of how many, and a way to get to the other one without swiping.
+ *
+ * The peek at the card's edge is what says there is another one; this is what
+ * says how many and which, and it is the only way through for a keyboard —
+ * a horizontal scroller is not something a Tab key can move.
+ *
+ * Above the rail rather than below it. They are tabs, and tabs belong before
+ * the thing they switch: under the cards they read as a caption on what is
+ * already showing, and on a screen that already has a tab row at the top,
+ * a second row of them beneath the content is a second grammar.
+ */
+function dotsMarkup(cards: StatsSlide[], at: number): string {
+  return `
+      <div class="stats-dots" role="tablist" aria-label="Which card">${cards.map((card, i) => `
+        <button class="stats-dot${i === at ? ' is-on' : ''}" type="button" role="tab"
+          data-slide="${i}" aria-selected="${i === at}"
+          ><span>${escape(card.facts.modeName)}</span></button>`).join('')}
+      </div>`;
+}
+
+/**
+ * An invisible key over every figure on the painted card.
+ *
+ * The card is a picture, which is what makes it shareable and also what leaves
+ * it with nothing to press. These are the presses: one transparent button laid
+ * over each number, placed in percentages of the picture so they stay on their
+ * figures at every width, and carrying the figure's name for the toast to look
+ * up. A figure with no explanation gets no button rather than a dead one.
+ *
+ * They are real buttons rather than a click handler doing arithmetic on the
+ * pointer position, so a keyboard can walk them and a screen reader announces
+ * the figure and the fact that there is something behind it.
+ */
+function tapsMarkup(facts: StatsFacts): string {
+  const keys = statsHitBoxes(facts).filter(box => statsExplain(box.label)).map(box => {
+    const place = `left:${box.left.toFixed(3)}%;top:${box.top.toFixed(3)}%`
+      + `;width:${box.width.toFixed(3)}%;height:${box.height.toFixed(3)}%`;
+    const said = `${escape(box.label)}, ${box.value}. What this counts`;
+    return `<button class="stats-tap" type="button" data-stat="${escape(box.label)}" style="${place}"`
+      + `><span class="stats-tap-say">${said}</span></button>`;
+  });
+  return `<div class="stats-taps">${keys.join('')}</div>`;
+}
+
+/**
+ * What the sheet shows where the card could not be painted — an old browser, a
+ * canvas that would not give back an image, a font that never arrived. The
+ * figures are the thing, so they are shown as figures rather than the screen
+ * apologising and offering nothing.
+ */
+function fallbackMarkup(facts: StatsFacts): string {
+  return `
+        <div class="stats-plain">
+          <p class="board-eyebrow">${escape(facts.modeName.toUpperCase())} &middot; CAREER</p>
+          <h2 id="stats-title">${escape(facts.name)}</h2>
+          <p class="stats-plain-line">${facts.innings} innings played${
+            facts.standing ? ` &middot; ${escape(facts.standing)}` : ''}</p>
+          <p class="stats-badge" style="--tier:${escape(facts.tier.theme.accent)}">
+            <b>${escape(facts.tier.name)}</b><small>${escape(facts.nextLine)}</small>
+          </p>
+          <dl class="stats-grid">${[...facts.hero, ...facts.figures].map((figure, i) => `
+            <div class="stats-cell${i < facts.hero.length ? ' is-lead' : ''}"${
+  statsExplain(figure.label) ? ` data-stat="${escape(figure.label)}" role="button" tabindex="0"` : ''}>
+              <dt>${escape(figure.label)}</dt>
+              <dd>${figure.value}</dd>
+            </div>`).join('')}
+          </dl>
+          <p class="stats-plain-note">The picture could not be drawn on this browser, so here are the figures.</p>
+        </div>`;
+}
+
+/**
+ * The mark, inline rather than fetched. It is eighteen pixels of path and the
+ * key it sits on is the most-pressed thing on this screen; a request for it
+ * would leave that key wordless for the moment that matters.
+ *
+ * Not a logo. It was two keys wearing WhatsApp's and Instagram's, which named
+ * two destinations out of the dozen the share sheet actually offers — and made
+ * the card look like it belonged to them rather than to the game.
+ */
+function shareMark(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3.5v11M12 3.5 8 7.5M12 3.5l4 4M5 13v6.5h14V13"/></svg>`;
+}
+
+
+
+/** The way back, on the page presentation. A chevron and the word. */
+function backMark(): string {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M14.5 5.5 8 12l6.5 6.5"/></svg>`;
+}

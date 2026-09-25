@@ -169,8 +169,15 @@ export interface SubmitRefusal {
  */
 export type SubmitOutcome<I = Innings> = SubmitAccepted<I> | SubmitRefusal;
 
-/** Whether the board turned this innings down. */
-export function refused<I>(outcome: SubmitOutcome<I>): outcome is SubmitRefusal {
+/**
+ * Whether the board turned this innings down.
+ *
+ * Takes the outcome at its widest, the way `refusedCareer` does. Written
+ * generically it forced callers to have picked a ladder already — and the two
+ * endpoints have not: they hand it whichever of the two outcomes the mode
+ * chose, and inference settled on one of them and then rejected the other.
+ */
+export function refused(outcome: SubmitOutcome<unknown>): outcome is SubmitRefusal {
   return !outcome.ok;
 }
 

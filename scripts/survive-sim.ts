@@ -28,17 +28,19 @@
  *   npx vite-node scripts/survive-sim.ts [innings]
  */
 import { COMPATIBILITY, SHOTS } from '../src/config/gameplay.js';
-import { HEALTH, SPECIALS, SPIN, STYLES, SURVIVE } from '../src/config/survive.js';
-import { DeliveryGenerator } from '../src/game/DeliveryGenerator.js';
+import { HEALTH, SURVIVE } from '../src/config/survive.js';
+import { DeliveryGenerator, SURVIVE_PLAN } from '../src/game/DeliveryGenerator.js';
 import { effectiveLine } from '../src/game/DeliveryTrajectory.js';
 import { SeededRandom } from '../src/game/SeededRandom.js';
 import { endingOf, resolveSurvive } from '../src/game/Survive.js';
 import type { Delivery, Ending, ShotType } from '../src/game/types.js';
 
-const PLAN = {
-  styles: STYLES, specials: SPECIALS, travelScale: SURVIVE.travelScale, aimed: true,
-  spin: { ...SPIN, ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver, ballsPerOver: SURVIVE.ballsPerOver },
-};
+/**
+ * The plan the game bowls, imported rather than restated. It used to be written
+ * out again here, and the copy went stale the moment the short ball moved into
+ * a plan of its own — this file then reported a mode with no bouncers in it.
+ */
+const PLAN = SURVIVE_PLAN;
 
 /** A player, as two numbers and an intention. */
 interface Player {
