@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Clothing } from './Clothing';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
 
@@ -65,16 +66,16 @@ function lathe(profile: [number, number][], depth: number, segments = 32) {
 }
 
 const SHAPES = {
-  ball: new THREE.SphereGeometry(1, 28, 20),
+  ball: new THREE.SphereGeometry(1, 14, 10),
   /**
    * A limb, tapering towards the joint it points at. `segment` puts the top of
    * this at the far end, so the top is the narrow one: an arm is thickest at
    * the shoulder and thinnest at the wrist, and getting that the wrong way
    * round is most of why a limb reads as a stack of parts rather than an arm.
    */
-  limb: new THREE.CylinderGeometry(.5, .62, 1, 24, 1),
+  limb: new THREE.CylinderGeometry(.5, .62, 1, 12, 1),
   tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
-  soft: new RoundedBoxGeometry(1, 1, 1, 5, .3),
+  soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
   /** Shoulders down to the waist, and up into the neck, in one piece. */
   trunk: lathe([
     [-.34, .02], [-.325, .112], [-.27, .142], [-.17, .163], [-.05, .190],
@@ -130,6 +131,7 @@ interface Limb { upper: THREE.Mesh; lower: THREE.Mesh; joint: THREE.Mesh; cap: T
 
 export class Cricketer {
   readonly root = new THREE.Group();
+  private clothing!: Clothing;
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
@@ -218,6 +220,10 @@ export class Cricketer {
         end: foot,
       });
     }
+    this.hips.children[0].visible=false;this.torso.children[0].visible=false;
+    for(const arm of this.arms){arm.upper.material=skin;arm.upper.userData.role='skin';arm.cap.visible=false;arm.upper.children.forEach(child=>child.visible=false);}
+    for(const leg of this.legs)for(const mesh of [leg.upper,leg.lower,leg.joint,leg.cap])mesh.visible=false;
+    this.clothing=new Clothing(this.root,shirt,trousers,true);
     this.pose = this.stand();
     this.apply(this.pose);
   }
@@ -246,6 +252,7 @@ export class Cricketer {
    * handful of assignments.
    */
   dress(kit: Kit) {
+    this.clothing.dress(new THREE.Color(kit.shirt),new THREE.Color(kit.trousers));
     const swatch: Record<DressRole, THREE.Material> = {
       skin: material(kit.skin, .86), shirt: material(kit.shirt, .82), trousers: material(kit.trousers, .8),
       trim: material(kit.trim, .78), shoe: material(kit.shoe, .7), cap: material(kit.cap, .74),
@@ -340,6 +347,7 @@ export class Cricketer {
     this.hips.quaternion.copy(yaw).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pose.lean * .5));
     this.torso.position.copy(chest);
     this.torso.quaternion.copy(trunk);
+    this.clothing.body(this.torso,this.hips);
     this.head.position.copy(chest).addScaledVector(spine.clone().applyQuaternion(roll), .33);
     this.head.quaternion.copy(trunk).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(pose.headPitch, pose.headYaw, 0)));
 
@@ -382,6 +390,7 @@ export class Cricketer {
       segment(leg.lower, knee, foot, LEG_LOWER, LEG_LOWER * 1.04);
       leg.joint.position.copy(knee);
       leg.cap.position.copy(hipJoint);
+      this.clothing.limb(i,shoulder,elbow,hipJoint,knee,foot);
       leg.end.position.copy(foot);
       // The foot points along the shin's own fall, so a lifted leg shows a
       // pointed toe and a planted one sits flat.

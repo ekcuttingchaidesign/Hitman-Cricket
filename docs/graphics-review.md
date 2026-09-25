@@ -1,6 +1,8 @@
 # Graphics review screen
 
-The first graphics-upgrade milestone: a repeatable review environment. It deliberately retains the current graphics as the baseline; no new body, lighting or turf has been introduced yet.
+The review environment now runs graphics pass 01 in the actual game scene. The first pass adds continuous skinned clothing, turf/pitch materials, daylight, sky/clouds, a tree line, seated spectators and pavilion detail. It is a work in progress against the supplied reference, not a claim that the target has been met.
+
+The unchanged baseline remains at commit `c980d9e4f1bd61cf915eff6c7103c492ef882df6` and its immutable preview: https://hitman-cricket-3161k5nth-ek-cutting-chai-design.vercel.app/graphics-review.html.
 
 ## Open it
 
@@ -36,7 +38,7 @@ Vercel builds include the page only on `codex/graphics-upgrade`. Ordinary `npm r
 
 ## Implementation boundaries
 
-The page instantiates `GameScene`, not `Game`: no innings, leaderboard calls, music, analytics, identity storage or scoring are started. It uses the same renderer, field, characters, materials, mirrored world and responsive camera as gameplay. The only shared scene API change exposes the existing `batter` as a readonly reference so the review controller can pose it. No stroke keys, grip logic, contact coordinates or charge animation were edited.
+The page instantiates `GameScene`, not `Game`: no innings, leaderboard calls, music, analytics, identity storage or scoring are started. It uses the same renderer, field, characters, materials, mirrored world and responsive camera as gameplay. The shared scene exposes the existing `batter` as a readonly reference so the review controller can pose it. The graphics pass is also active in normal gameplay on this feature branch. No stroke keys, grip logic, contact coordinates or charge animation were edited.
 
 Every seek reconstructs from guard, then evaluates the requested timestamp. This avoids inheriting root travel or grip state when scrubbing backwards. The resting bowler and fielders are held fixed. The frame counters include shadow rendering but are not an fps benchmark. A paused scene renders on changes/resizes rather than running a continuous draw loop.
 
