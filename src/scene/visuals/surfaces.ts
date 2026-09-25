@@ -37,7 +37,7 @@ export function terrainMaterials(anisotropy: number) {
   };
   const grass = texture(512, 512, (x, y, n) => {
     const detail = noise(x,y,grids[0])*5 + noise(x,y,grids[1])*8 + noise(x,y,grids[2])*6 + (n-.5)*2;
-    return [88 + detail * .65, 130 + detail, 45 + detail * .45];
+    return [73 + detail * .65, 116 + detail, 65 + detail * .55];
   });
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
   grass.repeat.set(64, 64);
@@ -58,7 +58,7 @@ export function terrainMaterials(anisotropy: number) {
     const lane = Math.exp(-Math.pow((u - .5) / .33, 8));
     const grain = (n - .5) * 10 + noise(x,y % 512,grids[1])*3;
     const edge = (1 - lane) * 9;
-    return [194 + grain + edge, 157 + grain + edge, 100 + grain * .7 + edge];
+    return [185 + grain + edge, 169 + grain + edge, 135 + grain * .7 + edge];
   });
   const pitchData = pitchMap.image.data as Uint8Array;
   for(let j = 0; j < 22; j++) {
@@ -76,7 +76,7 @@ export function terrainMaterials(anisotropy: number) {
 export function daylightSky() {
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(150, 32, 16), new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, toneMapped: false,
-    uniforms: { zenith: { value: new THREE.Color(0x438fc5) }, horizon: { value: new THREE.Color(0xbde1ee) } },
+    uniforms: { zenith: { value: new THREE.Color(0x70afd2) }, horizon: { value: new THREE.Color(0xcce6ef) } },
     vertexShader: 'varying vec3 ray; void main(){ ray=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
     fragmentShader: `varying vec3 ray; uniform vec3 zenith; uniform vec3 horizon;
       float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -84,7 +84,7 @@ export function daylightSky() {
       void main(){vec3 d=normalize(ray);float h=max(d.y,0.0);vec3 color=mix(horizon,zenith,smoothstep(0.0,.38,h));
         vec2 p=d.xz/(h+.18)*2.1;float n=noise(p)*.58+noise(p*2.03)*.28+noise(p*4.07)*.14;
         float clouds=smoothstep(.53,.72,n)*smoothstep(.015,.17,h)*(1.0-smoothstep(.7,.95,h));
-        color=mix(color,vec3(1.0,.97,.89),clouds*.94);gl_FragColor=vec4(color,1.0);
+        color=mix(color,vec3(.97,.985,1.0),clouds*.94);gl_FragColor=vec4(color,1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,

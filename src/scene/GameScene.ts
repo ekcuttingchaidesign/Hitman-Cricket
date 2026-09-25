@@ -94,24 +94,25 @@ export class GameScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.04;
     this.renderer.setClearColor(0x8ac6e4);
     container.prepend(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
-    this.scene.fog = new THREE.Fog(0xb7d5d9, 65, 160);
+    this.scene.fog = new THREE.Fog(0xc4dce6, 75, 175);
     this.scene.add(daylightSky());
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
     this.camera.fov = 50;
     this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
-    this.scene.add(new THREE.HemisphereLight(0xc4e6ff, 0x6f774b, 1.65));
-    const sun = new THREE.DirectionalLight(0xffe4b8, 3.1); sun.position.set(-9, 16, -8); sun.castShadow = true;
+    // Bright open-sky fill and a neutral sun: pleasant daylight without a yellow wash.
+    this.scene.add(new THREE.HemisphereLight(0xdcebf5, 0x788579, 2.15));
+    const sun = new THREE.DirectionalLight(0xfffdf8, 1.85); sun.position.set(-9, 16, -8); sun.castShadow = true;
     sun.target.position.set(0, 0, 8);
     sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
     sun.shadow.camera.top = 22; sun.shadow.camera.bottom = -12; sun.shadow.camera.near = .5; sun.shadow.camera.far = 65;
     sun.shadow.normalBias = .012; sun.shadow.bias = -.00008; sun.shadow.radius = 2;
     this.scene.add(sun, sun.target);
-    const fill = new THREE.DirectionalLight(0xc3e5ff, .35); fill.position.set(12, 8, 5); this.scene.add(fill);
+    const fill = new THREE.DirectionalLight(0xdbe9f3, .5); fill.position.set(12, 8, 5); this.scene.add(fill);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
     this.catcher.root.position.set(12, 0, 20);
@@ -150,7 +151,7 @@ export class GameScene {
     const dummy = new THREE.Object3D(), color = new THREE.Color();
     const contact = contactTexture(); this.visualTextures.push(contact);
     for(let i=0;i<2;i++) {
-      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(.52,.70),new THREE.MeshBasicMaterial({map:contact,color:0x292416,transparent:true,opacity:.4,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));
+      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(.52,.70),new THREE.MeshBasicMaterial({map:contact,color:0x293c3c,transparent:true,opacity:.28,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));
       shadow.rotation.x=-Math.PI/2;shadow.position.y=.035;this.world.add(shadow);this.footShadows.push(shadow);
     }
     // Popping creases, 1.2m in front of each wicket, with return creases running
@@ -168,12 +169,20 @@ export class GameScene {
     }
     cushions.receiveShadow=true;this.world.add(cushions);
     this.createStadium();
-    // Fielders are scenery except the one scripted catcher.
-    [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]].forEach(([x, z]) => {
+    // Static fielders sit outside the near-play shadow map; soft contact decals
+    // keep their feet grounded without another stadium-sized shadow map.
+    const fielderPositions = [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]];
+    const fielderContacts = new THREE.InstancedMesh(new THREE.PlaneGeometry(.65, .48),
+      new THREE.MeshBasicMaterial({ map: contact, color: 0x293c3c, transparent: true, opacity: .26, depthWrite: false }), fielderPositions.length);
+    fielderContacts.name = 'Fielder contact shadows';
+    fielderPositions.forEach(([x, z], i) => {
+      dummy.position.set(x, -.03, z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.setScalar(1);
+      dummy.updateMatrix(); fielderContacts.setMatrixAt(i, dummy.matrix);
       const fielder = new Cricketer(); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
       fielder.root.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = false; });
       this.fielders.push(fielder);
     });
+    this.world.add(fielderContacts);
   }
   private createStadium() { this.world.add(createVenue()); }
   private wicket(z: number) {

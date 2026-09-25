@@ -130,6 +130,6 @@ describe('rendered graphics surfaces', () => {
     });
     expect(errors).toEqual([]);
     expect(meshes).toBeLessThan(240);
-    expect(venue.children.filter(object => object instanceof THREE.InstancedMesh).length).toBe(5);
+    expect(venue.children.filter(object => object instanceof THREE.InstancedMesh).length).toBe(6);
   });
 });
