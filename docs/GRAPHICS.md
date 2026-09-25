@@ -5,6 +5,7 @@ the batter, the bowler and fielders, the ball, and the 2D layer on top. Part 2
 is a costed list of improvements, ordered by how much they would change the
 picture for how much work they take. Part 3 is about the players alone: how
 their shapes differ from a real body, and how to make them look more human.
+Part 4 sets a target image and maps out how to reach it.
 
 The short version: **every 3D object in the game is built from code.** There
 are no model files, no textures and no image maps anywhere in the 3D scene.
@@ -459,12 +460,12 @@ averages for an adult man about 1.80 m tall:
 | Wrist thickness | 0.11 m | about 0.06 m |
 | Ankle thickness as a share of knee thickness | about 80% | about 50% |
 
-Some of this is deliberate. A big head and thick limbs stay readable when a
-fielder is 40 pixels tall and the batter is seen from behind, and that "clay
-figure" style suits the rest of the game. But the gap is far past what the
-camera needs. The head is nearly twice life size, the batter's helmet is
-about 1.7× life size, and the shoulders are narrower than the head makes them
-look. Those three numbers are most of why the figures look like toys.
+The big head is a style choice, not a defect. The target look in Part 4 is a
+stylised figure with a large head and helmet, and that reads well when a
+fielder is 40 pixels tall and the batter is seen from behind. So the head
+stays as it is. What makes the figures look like toys rather than stylised
+people is everything else: narrow shoulders under a big head, and the shapes
+below.
 
 The shapes add to it:
 
@@ -491,16 +492,14 @@ The shapes add to it:
 
 ### How to close the gap, step by step
 
-**Step 1 — Fix the proportions (1–2 days).**
-Shrink the fielders' head profile and cap by about a quarter, and the batter's
-face and helmet by about 30%. Widen the shoulders slightly (`BUILD.shoulderX`
-from .175 to about .19), and bring wrist and ankle radii down. This is mostly
-editing numbers that already exist, and it is the biggest improvement for the
-least work. *Watch for:* some stroke keys were tuned around the current head.
-The charge finish, for example, was moved out wide so the bat stopped crossing
-the grille. Re-check every stroke on the rig sheets. The `inspect()` tests
-measure joints, not the head, so they won't catch a bat now passing through
-a smaller helmet.
+**Step 1 — Fix the body proportions (1 day).**
+Keep the head and helmet at their current size; that is the style Part 4
+aims for. Widen the shoulders (`BUILD.shoulderX` from .175 to about .19) so
+the body carries the big head, and bring wrist and ankle radii down so arms and
+legs taper as they do on a person. This is editing numbers that already exist.
+*Watch for:* check every stroke on the rig sheets afterwards. The `inspect()`
+tests measure joints, so they catch a limb out of reach but not a wider
+shoulder clipping the bat.
 
 **Step 2 — Give the limbs muscle shapes (2–3 days).**
 Replace the single `limb` cone with four lathed profiles, one each for the
@@ -582,9 +581,101 @@ whenever a step touches that part of the body.
 ### Recommended order
 
 Do **steps 1 and 2 first**: under a week together, and the biggest improvement
-in how human the players look for the time. Then **step 3**, so the batter
+in how human the players look for the time. Part 4 explains when to use a
+modelled batter instead of building him in code. Then **step 3**, so the batter
 matches everyone else, then **step 5**, which is the one that removes the doll
 look completely. Steps 4 and 6–8 can be done in any order after that.
+
+---
+
+## Part 4 — The target look
+
+![The look the game is aiming for: the same ground, camera and HUD, rendered
+with warm light, a cloudy sky, trees, a crowd of people, a striped outfield
+and a smooth stylised batter](images/target-look.webp)
+
+This is the look the game is aiming for. **It is achievable in the browser,
+on phones, with three.js.** It is also closer to the current game than it
+first looks. The camera, the ground's layout, the pavilion, flags, stands, the
+navy and orange colours, the scoreboard and the whole HUD are already the
+same. The difference is how the scene is rendered, not what is in it, which
+makes this an upgrade to the renderer rather than a redesign.
+
+### Element by element
+
+| Element | Now | In the target | How (item numbers from Part 2 or Part 3) | Rough effort |
+|---|---|---|---|---|
+| Light and colour | Flat, even lighting, no tone mapping | Warm sun, rich colour, soft shading where surfaces meet | Tone mapping (1), environment light (2), a warmer sun, ambient occlusion (13) | 2–3 days |
+| Sky | Flat pale teal | Blue gradient with soft clouds | Sky dome plus a few cloud billboards (3) | 1 day |
+| Behind the stands | Nothing | A line of trees | A ring of instanced tree clumps or billboards between the stands and the fog | 1 day |
+| Outfield | Ten flat rings | Straight mowing bands, the circles, and grass grain | One painted `CanvasTexture` combining both patterns with fine noise (4) | 1–2 days |
+| Pitch | A box with 95 wear boxes | Soft-edged strip, darker worn centre, footmarks | One painted `CanvasTexture` (5) | 1–2 days |
+| Boundary | Thin white rope | Navy and white striped boundary boards | A striped band of cushions or hoardings (11) | 1 day |
+| Crowd | 1,344 coloured boxes | Seated people with heads and coloured shirts | Instanced little people, still one draw call (10) | 3–5 days |
+| Floodlights | Panel of pale boxes | Towers topped with clusters of round lamps | Instanced round emissive lamp heads | 1 day |
+| Stands | Faceted boxes | The same shapes, softly lit, with a roof on every stand | Mostly the lighting above, plus smooth materials and a roof on each section | 2–3 days |
+| Bowler and fielders | Primitive figures | Small but clearly human | Part 3 steps 1–5, at their scale | 1–2 weeks |
+| Batter | Primitive figure, plain shirt | Smooth stylised figure, shirt number 11, sculpted helmet and grille, branded bat, striped shoes | See below | 3–6 weeks |
+
+### How close a real-time game can get
+
+The image looks like a pre-rendered picture: light bounces softly everywhere,
+every crease is shaded, and each surface is hand-finished. A game that has to
+draw 60 frames a second on a phone can't do all of that live, but the usual
+tricks get most of the way:
+
+- tone mapping and environment light for the overall mood;
+- **baked** occlusion for anything that never moves (the stadium, the pitch,
+  the trees), worked out once rather than every frame;
+- soft contact shadows under the figures;
+- an extra occlusion pass on desktops only.
+
+Expect roughly 80–90% of the image on a phone. The hardest part to match is
+the soft shading inside the batter's folds and under his arms, and that comes
+with a modelled character, below.
+
+### The players: two routes
+
+**A. Keep building them in code.** Part 3 steps 1–5, with the big head kept,
+plus painted textures for the shirt number, the bat sticker and the stripes on
+the boots. The result is a clean, smooth toy-figure look: a silhouette close
+to the image, with plainer surfaces (no shirt folds, a simpler face). No art
+files.
+
+**B. A modelled stylised batter.** Made in Blender, by you or a commissioned 3D
+artist, in the image's style and proportions: big helmet, stocky body, jersey
+number. Export it as a skinned glTF and drive it with the game's existing poses
+(item 17), so every stroke that exists today is kept exactly. This is the only
+route to the image's detail on the batter.
+
+**Recommended: route B for the batter and route A for the bowler and
+fielders.** The batter fills about a third of a phone screen and is on it for
+every ball, so he is where the detail shows. The fielders are 40 pixels tall,
+and route A is more than enough there. The bowler can move to the modelled
+figure later if the batter works out.
+
+Route B changes two things: the README's "no external art" line, and the
+download. A compressed glTF character with textures is roughly 0.5–1.5 MB,
+against the game's current 665 kB. Those are the owner's calls, not technical
+blockers.
+
+### A plan to get there
+
+1. **The world (about 2 weeks).** Merge static scenery first (7, 8) to make
+   room. Then tone mapping, environment light, sky and clouds, trees, the
+   striped outfield, the painted pitch, boundary boards and floodlight lamps.
+   After this the background matches the image closely, and nothing about
+   gameplay has changed.
+2. **Crowd and finish (about 1 week).** Crowd of people, contact shadows,
+   baked occlusion on the stadium.
+3. **The players (3–6 weeks).** Route A for the fielders and bowler, route B
+   for the batter. Most of the uncertainty in the whole plan is here: it depends
+   on who models the batter, and how much tuning the strokes need on a new
+   body.
+
+That is about **6–9 weeks for one developer** in total. Phase 1 alone takes the
+game a long way toward the picture, so it is worth doing and shipping on its
+own before committing to phase 3.
 
 ---
 
