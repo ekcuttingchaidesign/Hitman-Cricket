@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Clothing } from './Clothing';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
 
@@ -58,23 +59,26 @@ const REST_HIP = .9525;
  * a seam at every join and reads as exactly what it is.
  */
 function lathe(profile: [number, number][], depth: number, segments = 32) {
-  const geometry = new THREE.LatheGeometry(profile.map(([y, r]) => new THREE.Vector2(Math.max(r, .002), y)), segments);
+  const curve = new THREE.SplineCurve(profile.map(([y, r]) => new THREE.Vector2(Math.max(r, .002), y)));
+  const geometry = new THREE.LatheGeometry(curve.getPoints(40).map(p => new THREE.Vector2(Math.max(.002, p.x), p.y)), segments);
   geometry.scale(1, 1, depth);
   geometry.computeVertexNormals();
   return geometry;
 }
 
 const SHAPES = {
-  ball: new THREE.SphereGeometry(1, 28, 20),
+  ball: new THREE.SphereGeometry(1, 24, 16),
+  capDome: new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
   /**
    * A limb, tapering towards the joint it points at. `segment` puts the top of
    * this at the far end, so the top is the narrow one: an arm is thickest at
    * the shoulder and thinnest at the wrist, and getting that the wrong way
    * round is most of why a limb reads as a stack of parts rather than an arm.
    */
-  limb: new THREE.CylinderGeometry(.5, .62, 1, 24, 1),
+  limb: new THREE.CylinderGeometry(.5, .62, 1, 20, 1),
   tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
-  soft: new RoundedBoxGeometry(1, 1, 1, 5, .3),
+  exposedUpper: new THREE.CylinderGeometry(.49, .43, .72, 20, 1).translate(0, .14, 0),
+  soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
   /** Shoulders down to the waist, and up into the neck, in one piece. */
   trunk: lathe([
     [-.34, .02], [-.325, .112], [-.27, .142], [-.17, .163], [-.05, .190],
@@ -130,6 +134,7 @@ interface Limb { upper: THREE.Mesh; lower: THREE.Mesh; joint: THREE.Mesh; cap: T
 
 export class Cricketer {
   readonly root = new THREE.Group();
+  private clothing!: Clothing;
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
@@ -170,21 +175,31 @@ export class Cricketer {
     this.mesh(this.torso, shirt, [1, 1, 1], 'trunk');
     this.mesh(this.hips, trousers, [1, 1, 1], 'pelvis');
     // Collar and placket, so a turning body reads as turning.
-    this.mesh(this.torso, trim, [.172, .036, .166], 'tube').position.y = .196;
-    this.mesh(this.torso, trim, [.034, .26, .012], 'soft').position.set(0, .01, .142);
-    this.mesh(this.torso, skin, [.128, .10, .118], 'tube').position.y = .27;
+    this.mesh(this.torso, trim, [.172, .030, .166], 'tube').position.y = .165;
+    this.mesh(this.torso, trim, [.026, .16, .012], 'soft').position.set(0, .055, .142);
+    this.mesh(this.torso, skin, [.128, .19, .118], 'tube').position.y = .22;
 
     // Head: one shape, with the cap sitting on it.
-    this.mesh(this.head, skin, [1, 1, 1], 'head');
+    this.mesh(this.head, skin, [1.06, 1.04, 1.04], 'head');
+    // Restrained facial forms keep the face legible when the bowler approaches.
+    this.mesh(this.head, skin, [.024, .030, .032], 'ball').position.set(0, -.024, .129);
+    const ink = material(0x263b43, .9);
+    for (const side of [-1, 1]) {
+      this.mesh(this.head, ink, [.010, .012, .006], 'ball').position.set(side * .050, .015, .129);
+      const brow = this.mesh(this.head, ink, [.036, .009, .008], 'soft');
+      brow.position.set(side * .050, .040, .125); brow.rotation.z = side * .09;
+    }
     for (const x of [-.127, .127]) this.mesh(this.head, skin, [.024, .044, .034], 'ball').position.set(x, -.005, -.012);
     const cap = material(kit.cap, .74);
     this.palette.push({ role: 'cap', mat: cap });
-    this.mesh(this.head, cap, [.144, .128, .152], 'ball').position.set(0, .050, -.004);
+    this.mesh(this.head, cap, [.154, .128, .162], 'capDome').position.set(0, .060, -.004);
     // The peak: a flattened lobe out over the brow, its back half buried in the
     // dome. A band round a sphere would ring the whole head like a crest.
-    const peak = this.mesh(this.head, cap, [.152, .030, .150], 'ball');
-    peak.position.set(0, .046, .072); peak.rotation.x = -.18;
-    this.mesh(this.head, cap, [.027, .027, .027], 'ball').position.set(0, .164, -.004);
+    const peak = this.mesh(this.head, cap, [.155, .020, .145], 'ball');
+    peak.position.set(0, .054, .095); peak.rotation.x = -.18;
+    this.mesh(this.head, cap, [.020, .016, .020], 'ball').position.set(0, .190, -.004);
+    this.mesh(this.head, trim, [.031, .030, .008], 'soft').position.set(0, .113, .144);
+    this.mesh(this.torso, trim, [.038, .044, .009], 'soft').position.set(-.080, .035, .141);
 
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? -1 : 1;
@@ -196,7 +211,7 @@ export class Cricketer {
       // the sphere and the taper meet flush instead of stepping. A joint wider
       // than the limbs inside it is a bead on a string; one narrower is a gap.
       this.arms.push({
-        upper: this.mesh(this.root, shirt, [1, 1, 1], 'limb'),
+        upper: this.mesh(this.root, shirt, [1, 1, 1], 'exposedUpper'),
         lower: this.mesh(this.root, skin, [1, 1, 1], 'limb'),
         joint: this.mesh(this.root, skin, [ELBOW, ELBOW, ELBOW], 'ball'),
         cap: this.mesh(this.root, shirt, [.086, .082, .086], 'ball'),
@@ -206,10 +221,12 @@ export class Cricketer {
       this.mesh(this.arms[i].upper, trim, [1.04, .075, 1.04], 'tube').position.y = -.30;
 
       const foot = new THREE.Group(); this.root.add(foot);
-      this.mesh(foot, shoe, [.09, .062, .165], 'soft').position.z = .042;
-      this.mesh(foot, shoe, [.046, .034, .036], 'ball').position.set(0, -.012, .128);
-      this.mesh(foot, sole, [.092, .024, .167], 'soft').position.set(0, -.038, .042);
-      this.mesh(foot, flash, [.094, .016, .05], 'soft').position.set(0, .014, 0);
+      this.mesh(foot, shoe, [.145, .092, .29], 'soft').position.z = .042;
+      this.mesh(foot, shoe, [.057, .030, .048], 'ball').position.set(0, -.012, .128);
+      this.mesh(foot, sole, [.15, .024, .30], 'soft').position.set(0, -.038, .042);
+      this.mesh(foot, flash, [.148, .016, .065], 'soft').position.set(0, .014, 0);
+      for (const z of [.030, .062, .094])
+        this.mesh(foot, trim, [.075, .009, .009], 'soft').position.set(0, .047, z);
       this.legs.push({
         upper: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),
         lower: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),
@@ -218,6 +235,10 @@ export class Cricketer {
         end: foot,
       });
     }
+    this.hips.children[0].visible=false;this.torso.children[0].visible=false;
+    for(const arm of this.arms){arm.upper.material=skin;arm.upper.userData.role='skin';arm.cap.visible=false;arm.upper.children.forEach(child=>child.visible=false);}
+    for(const leg of this.legs)for(const mesh of [leg.upper,leg.lower,leg.joint,leg.cap])mesh.visible=false;
+    this.clothing=new Clothing(this.root,shirt,trousers,true);
     this.pose = this.stand();
     this.apply(this.pose);
   }
@@ -246,6 +267,7 @@ export class Cricketer {
    * handful of assignments.
    */
   dress(kit: Kit) {
+    this.clothing.dress(new THREE.Color(kit.shirt),new THREE.Color(kit.trousers));
     const swatch: Record<DressRole, THREE.Material> = {
       skin: material(kit.skin, .86), shirt: material(kit.shirt, .82), trousers: material(kit.trousers, .8),
       trim: material(kit.trim, .78), shoe: material(kit.shoe, .7), cap: material(kit.cap, .74),
@@ -340,6 +362,7 @@ export class Cricketer {
     this.hips.quaternion.copy(yaw).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pose.lean * .5));
     this.torso.position.copy(chest);
     this.torso.quaternion.copy(trunk);
+    this.clothing.body(this.torso,this.hips);
     this.head.position.copy(chest).addScaledVector(spine.clone().applyQuaternion(roll), .33);
     this.head.quaternion.copy(trunk).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(pose.headPitch, pose.headYaw, 0)));
 
@@ -382,6 +405,7 @@ export class Cricketer {
       segment(leg.lower, knee, foot, LEG_LOWER, LEG_LOWER * 1.04);
       leg.joint.position.copy(knee);
       leg.cap.position.copy(hipJoint);
+      this.clothing.limb(i,shoulder,elbow,hipJoint,knee,foot);
       leg.end.position.copy(foot);
       // The foot points along the shin's own fall, so a lifted leg shows a
       // pointed toe and a planted one sits flat.
