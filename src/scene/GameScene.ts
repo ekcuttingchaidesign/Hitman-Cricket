@@ -205,7 +205,10 @@ export class GameScene {
     }
   }
   private resize = () => {
-    const { width, height } = this.container.getBoundingClientRect();
+    // Use layout dimensions: a review viewport can be visually scaled with CSS.
+    // Measuring its transformed rectangle would shrink the canvas a second time.
+    const width = this.container.clientWidth, height = this.container.clientHeight;
+    if (!width || !height) return; // A hidden comparison tab has no layout size.
     this.renderer.setSize(width, height);
     this.camera.aspect = width / height;
     // Below 16:9 the view widens towards a constant horizontal field of view, so

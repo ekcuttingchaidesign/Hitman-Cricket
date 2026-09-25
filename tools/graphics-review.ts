@@ -106,6 +106,7 @@ function startReview() {
     document.querySelectorAll<HTMLButtonElement>('[data-action]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.action === state.action)));
   }
   function fit() {
+    if (!holder.clientWidth) return; // Reference-only mobile tab: keep the last valid viewport.
     const [w, h] = FRAMES[state.frame];
     stage.style.width = `${w}px`; stage.style.height = `${h}px`;
     // Scale the presentation, not the simulated viewport or camera aspect.
@@ -126,6 +127,14 @@ function startReview() {
     document.querySelector('.gallery')!.classList.toggle('solo', !state.reference);
     fit(); updateUrl();
   }
+  document.querySelectorAll<HTMLButtonElement>('.mobile-views [data-view]').forEach(button => {
+    button.onclick = () => {
+      document.querySelector<HTMLElement>('.gallery')!.dataset.mobileView = button.dataset.view;
+      document.querySelectorAll('.mobile-views [data-view]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      if (button.dataset.view !== 'scene') { state.reference = true; showReference.checked = true; }
+      compare();
+    };
+  });
   function frame(now: number) {
     if (!playing) return;
     if (previous) playbackTime += Math.min(now - previous, 100) * Number(el<HTMLSelectElement>('speed').value);
