@@ -1,6 +1,6 @@
 # Graphics review screen
 
-The review environment now runs graphics pass 01 in the actual game scene. The first pass adds continuous skinned clothing, turf/pitch materials, daylight, sky/clouds, a tree line, seated spectators and pavilion detail. It is a work in progress against the supplied reference, not a claim that the target has been met.
+The review environment now runs graphics pass 02 in the actual game scene. This repair rebuilds clothing topology and sleeve deformation, corrects long-on follow-through clearance, and removes noisy grass geometry and bump detail. See [repair notes](graphics-pass-02.md) for changes and validation limits. The supplied reference remains the acceptance target.
 
 The unchanged baseline remains at commit `c980d9e4f1bd61cf915eff6c7103c492ef882df6` and its immutable preview: https://hitman-cricket-3161k5nth-ek-cutting-chai-design.vercel.app/graphics-review.html.
 

@@ -1,5 +1,7 @@
 # Graphics pass 01
 
+Historical implementation notes. The clothing and terrain details below are superseded by [graphics pass 02](graphics-pass-02.md), following visible defects found during user gameplay.
+
 Implemented on `codex/graphics-upgrade`, based on the production snapshot already pulled into that branch. No production ref, deployment setting, database, gameplay rules, shot keyframes, grip solver or camera coordinates are changed by this pass.
 
 ## Visible changes

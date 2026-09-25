@@ -25,29 +25,38 @@ export function terrainMaterials(anisotropy: number) {
     textures.push(t);
     return t;
   }
+  // Seamless isotropic detail: no directional sine waves or pixel-noise bump map.
+  const rng = random(917);
+  const grids = [16, 64, 256].map(size => ({ size, values: Float32Array.from({ length: size * size }, () => rng()) }));
+  const noise = (x: number, y: number, grid: typeof grids[number]) => {
+    const u = x / 512 * grid.size, v = y / 512 * grid.size;
+    const ix = Math.floor(u), iy = Math.floor(v), fx = u - ix, fy = v - iy;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const at = (dx: number, dy: number) => grid.values[((iy + dy) % grid.size) * grid.size + (ix + dx) % grid.size];
+    return THREE.MathUtils.lerp(THREE.MathUtils.lerp(at(0,0), at(1,0), sx), THREE.MathUtils.lerp(at(0,1), at(1,1), sx), sy) - .5;
+  };
   const grass = texture(512, 512, (x, y, n) => {
-    const blades = Math.sin(x * 2.1 + Math.sin(y * .09) * 2) * Math.sin(y * .3);
-    const v = (n - .5) * 26 + blades * 7 + Math.sin(x * .055 + y * .029) * 4;
-    return [79 + v * .7, 123 + v, 39 + v * .5];
+    const detail = noise(x,y,grids[0])*5 + noise(x,y,grids[1])*8 + noise(x,y,grids[2])*6 + (n-.5)*2;
+    return [88 + detail * .65, 130 + detail, 45 + detail * .45];
   });
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
-  grass.repeat.set(75, 75);
-  const turf = new THREE.MeshStandardMaterial({ map: grass, roughness: .96, bumpMap: grass, bumpScale: .012 });
+  grass.repeat.set(64, 64);
+  const turf = new THREE.MeshStandardMaterial({ map: grass, roughness: 1 });
   turf.onBeforeCompile = shader => {
     shader.vertexShader = 'varying vec3 turfWorld;\n' + shader.vertexShader;
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nturfWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = 'varying vec3 turfWorld;\n' + shader.fragmentShader;
     shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       float ring = length(turfWorld.xz - vec2(0.0, 10.0));
-      float stripe = smoothstep(-0.14, 0.14, sin(ring * 0.77));
-      diffuseColor.rgb *= mix(0.89, 1.12, stripe);
+      float stripe = smoothstep(-0.20, 0.20, sin(ring * 0.77));
+      diffuseColor.rgb *= mix(0.94, 1.07, stripe);
     `);
   };
-  turf.customProgramCacheKey = () => 'oval-turf-v1';
+  turf.customProgramCacheKey = () => 'oval-turf-v2';
   const pitchMap = texture(512, 2048, (x, y, n) => {
     const u = x / 512;
     const lane = Math.exp(-Math.pow((u - .5) / .33, 8));
-    const grain = (n - .5) * 22 + Math.sin(x * .074 + Math.sin(y * .015) * 3) * 3;
+    const grain = (n - .5) * 10 + noise(x,y % 512,grids[1])*3;
     const edge = (1 - lane) * 9;
     return [194 + grain + edge, 157 + grain + edge, 100 + grain * .7 + edge];
   });
@@ -61,7 +70,7 @@ export function terrainMaterials(anisotropy: number) {
           pitchData[i + c] = Math.max(0, pitchData[i + c] - wear);
       }
   }
-  const pitch = new THREE.MeshStandardMaterial({ map: pitchMap, bumpMap: pitchMap, bumpScale: .018, roughness: .97 });
+  const pitch = new THREE.MeshStandardMaterial({ map: pitchMap, roughness: .97 });
   return { turf, pitch, textures };
 }
 export function daylightSky() {

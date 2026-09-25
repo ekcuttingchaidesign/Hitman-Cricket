@@ -146,16 +146,8 @@ export class GameScene {
     ground.position.set(0, -.035, 10); ground.receiveShadow = true; this.world.add(ground);
     const pitch = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 32), surface.pitch);
     pitch.rotation.x = -Math.PI / 2; pitch.position.set(0, .015, 4.3); pitch.receiveShadow = true; this.world.add(pitch);
-    // Short, sparse turf at the wicket edge adds a silhouette without a field of overdraw.
-    const blade = new THREE.BufferGeometry();
-    blade.setAttribute('position', new THREE.Float32BufferAttribute([-.01,0,0, .01,0,0, .008,.055,.012],3));blade.computeVertexNormals();
-    const tufts = new THREE.InstancedMesh(blade, new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,side:THREE.DoubleSide}),1800);
+    // Fine turf is material detail. Sparse oversized blades read as spikes at phone scale.
     const dummy = new THREE.Object3D(), color = new THREE.Color();
-    for(let i=0;i<1800;i++) {
-      const n=(Math.sin(i*72.41)*43758.5453)%1, f=Math.abs(n);
-      dummy.position.set((i%2?-1:1)*(1.405+f*f*.65),-.021,-8+(i/1800)*31);dummy.rotation.y=i*2.4;dummy.scale.setScalar(.55+f);dummy.updateMatrix();tufts.setMatrixAt(i,dummy.matrix);tufts.setColorAt(i,color.setHex([0x6c963f,0x83a946,0x729638][i%3]));
-    }
-    tufts.receiveShadow=true;this.world.add(tufts);
     const contact = contactTexture(); this.visualTextures.push(contact);
     for(let i=0;i<2;i++) {
       const shadow = new THREE.Mesh(new THREE.PlaneGeometry(.52,.70),new THREE.MeshBasicMaterial({map:contact,color:0x292416,transparent:true,opacity:.4,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));

@@ -162,7 +162,7 @@ function startReview() {
   const stopWhenHidden = () => { if (document.hidden) pause(); };
   document.addEventListener('visibilitychange', stopWhenHidden);
 
-  function filename(extension: string) { return `hitman-pass01-${state.action}-${state.time}ms-${state.kit}-${state.frame}.${extension}`; }
+  function filename(extension: string) { return `hitman-pass02-${state.action}-${state.time}ms-${state.kit}-${state.frame}.${extension}`; }
   function download(blob: Blob, name: string) {
     const url = URL.createObjectURL(blob), anchor = document.createElement('a');
     anchor.href = url; anchor.download = name; document.body.append(anchor); anchor.click(); anchor.remove();
@@ -217,7 +217,7 @@ function startReview() {
   el('save-settings').onclick = () => {
     pause(); draw();
     const camera = gameScene.camera, renderer = gameScene.renderer;
-    download(new Blob([JSON.stringify({ baselineCommit: 'd630eb4', graphicsPass: '01', state, viewport: FRAMES[state.frame],
+    download(new Blob([JSON.stringify({ baselineCommit: 'd630eb4', graphicsPass: '02', state, viewport: FRAMES[state.frame],
       camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov, aspect: camera.aspect },
       render: { ...renderer.info.render, pixelRatio: renderer.getPixelRatio(), drawingBuffer: [renderer.domElement.width, renderer.domElement.height], shadowType: renderer.shadowMap.type },
       batter: gameScene.inspectBatter(), note: 'Frozen review frame; render counts are not a device frame-rate benchmark.',

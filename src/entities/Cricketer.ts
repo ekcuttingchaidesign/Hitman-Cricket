@@ -75,6 +75,7 @@ const SHAPES = {
    */
   limb: new THREE.CylinderGeometry(.5, .62, 1, 12, 1),
   tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
+  exposedUpper: new THREE.CylinderGeometry(.49, .43, .72, 12, 1).translate(0, .14, 0),
   soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
   /** Shoulders down to the waist, and up into the neck, in one piece. */
   trunk: lathe([
@@ -198,7 +199,7 @@ export class Cricketer {
       // the sphere and the taper meet flush instead of stepping. A joint wider
       // than the limbs inside it is a bead on a string; one narrower is a gap.
       this.arms.push({
-        upper: this.mesh(this.root, shirt, [1, 1, 1], 'limb'),
+        upper: this.mesh(this.root, shirt, [1, 1, 1], 'exposedUpper'),
         lower: this.mesh(this.root, skin, [1, 1, 1], 'limb'),
         joint: this.mesh(this.root, skin, [ELBOW, ELBOW, ELBOW], 'ball'),
         cap: this.mesh(this.root, shirt, [.086, .082, .086], 'ball'),

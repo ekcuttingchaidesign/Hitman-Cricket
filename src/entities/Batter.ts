@@ -254,6 +254,11 @@ const STROKES: Record<ShotType, Stroke> = {
     // through him.
     contact: { ...GUARD, hip: [-.16, .82, .13], chest: [-.035, 1.16, .21], frontFoot: [-.34, .08, .58],
       grip: [.15, .98, .35], batUp: [.10, .975, -.14], batFace: [-.42, .10, .90], yaw: 1.04, face: -.25, heel: .08, leadElbow: .10 },
+    // Carry the blade out in front before lifting it. A direct rotation from
+    // contact to the high finish swept the toe through the front thigh.
+    through: { ...GUARD, hip: [-.17, .86, .16], chest: [-.08, 1.22, .25], frontFoot: [-.34, .08, .58],
+      grip: [.08, 1.20, .72], batUp: [.15, .40, -.90], batFace: [-.42, .10, .90], yaw: .75, face: -.30, heel: .12,
+      armHinge: .90, armDrive: .5, leadElbow: .16 },
     finish: { ...GUARD, hip: [-.19, .9, .20], chest: [-.17, 1.28, .29], frontFoot: [-.34, .08, .58],
       grip: [-.28, 1.54, .70], batUp: [.49, -.61, -.62], batFace: [-.42, .10, .90], yaw: .33, face: -.38, heel: .15 },
     // High over the leg-side shoulder is the far side of him from the guard, so
@@ -1245,6 +1250,7 @@ export class Batter {
     soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
     ball: new THREE.SphereGeometry(1, 20, 14),
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
+    exposedUpper: new THREE.CylinderGeometry(.49, .41, .72, 20, 1).translate(0, .14, 0),
     flat: new THREE.BoxGeometry(1, 1, 1),
     blade: bladeGeometry(),
   };
@@ -1296,7 +1302,9 @@ export class Batter {
     this.mesh(this.torso, this.palette.shirt, [.205, .275, .145], 'ball').position.y = -.075;
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
     // Jersey seam, collar, and back number make rotation legible from the camera.
-    this.mesh(this.hips, this.palette.accent, [.34, .015, .25], 'soft').position.y = .045;
+    const waistband = new THREE.Mesh(new THREE.TorusGeometry(1, .025, 8, 48), this.palette.accent);
+    waistband.scale.set(.174, .13, .17); waistband.rotation.x = Math.PI / 2;
+    waistband.position.y = .082; waistband.castShadow = true; waistband.receiveShadow = true; this.hips.add(waistband);
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
@@ -1345,7 +1353,7 @@ export class Batter {
       const cuff = new THREE.Group(); this.root.add(cuff);
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
-      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
+      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'exposedUpper'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
