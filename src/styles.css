@@ -2497,20 +2497,33 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   30%{transform:translate(-50%,-12px) scale(1)}
   100%{opacity:0;transform:translate(-50%,-62px) scale(.96)}
 }
-/* The whole field takes the impact — the flash and the kick are one event. */
+/* The whole field takes the impact — the flash and the kick are one event.
+   The colour drains out of the ground and a red edge beats round it: the field
+   goes black and white so the red is the only colour on the screen, which is
+   what makes a border enough without washing the whole field red. */
+.stage.struck>canvas{animation:hit-drain .9s ease-out forwards}
+@keyframes hit-drain{
+  0%{filter:grayscale(0) contrast(1)}
+  8%,62%{filter:grayscale(1) contrast(1.12)}
+  100%{filter:grayscale(0) contrast(1)}
+}
 .stage.struck::after{
   content:'';
   position:absolute;
   inset:0;
   pointer-events:none;
   z-index:5;
-  /* Red across the whole field, heaviest at the edges. The first version was a
-     vignette that only reddened the far corners, which at a glance was no flash
-     at all — the point of this is that it is impossible to miss. */
-  background:radial-gradient(ellipse at 50% 48%,#ff3a2a4d 0%,#b81f14e6 100%);
-  animation:hit-flash .46s cubic-bezier(.2,.7,.4,1) forwards
+  box-shadow:inset 0 0 0 4px #ff3a2a,inset 0 0 90px 24px #b81f14cc;
+  animation:hit-flash .9s ease-in-out forwards
 }
-@keyframes hit-flash{0%{opacity:0}9%{opacity:1}100%{opacity:0}}
+/* Two beats, then it lets go with the colour. */
+@keyframes hit-flash{
+  0%{opacity:0}
+  8%{opacity:1;box-shadow:inset 0 0 0 8px #ff3a2a,inset 0 0 120px 36px #b81f14e6}
+  30%{opacity:.55;box-shadow:inset 0 0 0 4px #ff3a2a,inset 0 0 80px 20px #b81f14aa}
+  48%{opacity:1;box-shadow:inset 0 0 0 8px #ff3a2a,inset 0 0 120px 36px #b81f14e6}
+  100%{opacity:0}
+}
 .stage.struck{animation:hit-kick .34s cubic-bezier(.36,.07,.19,.97)}
 @keyframes hit-kick{
   0%,100%{transform:translate3d(0,0,0)}
@@ -2523,6 +2536,8 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 /* Motion sensitivity: the blow still reads, it just does not move the screen. */
 @media (prefers-reduced-motion:reduce){
   .stage.struck{animation:none}
+  .stage.struck::after{animation:hit-hold-edge .9s ease-out forwards}
+  @keyframes hit-hold-edge{0%,62%{opacity:1}100%{opacity:0}}
   .hit-burst.is-on{animation:hit-hold .78s ease-out forwards}
   @keyframes hit-hold{0%,72%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,0)}}
 }

@@ -2113,7 +2113,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * Nothing said anything when the batter was hit until he was already critical,
    * so the meter moved in silence and the first a player knew of it was
    * the red border — by which point the information was too late to bat on. This
-   * is the hit itself: the screen takes the impact, the damage flies off him,
+   * is the hit itself: the screen takes the impact and drains to black and
+   * white under a beating red edge, the damage flies off him,
    * and the body part is named. It lasts about half a second and then the game
    * carries on, which is the difference between feedback and an interruption.
    */
@@ -2126,7 +2127,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     void burst.offsetWidth;
     burst.classList.add('is-on');
     this.viewport.classList.add('struck');
-    window.setTimeout(() => this.viewport.classList.remove('struck'), 520);
+    window.setTimeout(() => this.viewport.classList.remove('struck'), 920);
   }
 
   /**
