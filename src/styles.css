@@ -2921,6 +2921,92 @@ body.private-window{overflow:hidden}
 .challenge-track i.is-out{background:var(--cta-orange);height:100%}
 .challenge-track i.is-unfaced{background:#ffffff1f;height:8%}
 
+/* The list of challenges this browser has set. A row per innings, led by the
+   score, because that is what its owner remembers it by — "my 102" — rather
+   than the code, which they have never read and never need to. */
+.challenge-rows{
+  list-style:none;
+  margin:0 0 16px;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:46vh;
+  overflow-y:auto;
+  /* The scrollbar is a surface the design has to own too: a default one on a
+     dark panel is a grey bar from no design system at all. */
+  scrollbar-width:thin;
+  scrollbar-color:#ffffff33 transparent
+}
+.challenge-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 8px 10px 12px;
+  border-radius:9px;
+  background:#ffffff0f
+}
+.challenge-row.is-empty{
+  display:block;
+  padding:16px 14px;
+  font-family:var(--card);
+  font-size:13px;
+  line-height:1.55;
+  color:var(--quiet)
+}
+/* A settled row steps back: it is a record rather than something waiting on
+   anybody, and the ones still live should read first. */
+.challenge-row.is-closed{opacity:.55}
+.challenge-row-score{
+  flex-shrink:0;
+  min-width:44px;
+  font-family:var(--cta);
+  font-size:23px;
+  line-height:1;
+  color:var(--ink,#fff)
+}
+.challenge-row.is-answered .challenge-row-score{color:var(--cta-orange)}
+.challenge-row-what{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-family:var(--card);
+  overflow:hidden
+}
+.challenge-row-what b{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink,#fff)
+}
+.challenge-row-what em{
+  font-style:normal;
+  font-size:12px;
+  color:var(--quiet);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+/* Big enough for a thumb, quiet enough not to look like the point of the row. */
+.challenge-row-drop{
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:44px;
+  height:44px;
+  padding:0;
+  border:0;
+  border-radius:9px;
+  background:none;
+  color:var(--quiet)
+}
+.challenge-row-drop:hover{background:#ffffff14;color:var(--ink,#fff)}
+.challenge-row-drop svg{width:17px;height:17px}
+
 /* ── The ghost ─────────────────────────────────────────────────────────────
    One flash, between deliveries and never during one. It sits low and to the
    side of the pitch so it is never over the ball, and it is the only thing on

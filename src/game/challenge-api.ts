@@ -29,6 +29,10 @@ export const CODE_PARAM = 'c';
 const OPEN_KEY = 'hitman-challenges';
 /** An innings that finished and could not be sent. Retried on the next open. */
 const UNSENT_KEY = 'hitman-unsent';
+/** How many the list holds. Past this, the oldest fall off on their own. */
+const KEPT_MAX = 20;
+/** The week a challenge lives, mirrored from the store so a row can count down. */
+export const CHALLENGE_LIFE_MS = 7 * 24 * 3600_000;
 
 /** One innings on a scoreline, as the endpoint sends it. */
 export interface ChallengeRow extends Innings {
@@ -59,6 +63,27 @@ export interface ChallengeResult {
   reason?: string;
   /** Whether waiting and trying again could fix it. A refusal never can. */
   retry?: boolean;
+}
+
+/**
+ * A challenge this browser set, as it is remembered here.
+ *
+ * Enough to draw a row without asking the network: what was scored, when it was
+ * set, and whether the last look found it answered. The state is a note rather
+ * than a truth — the server is the record — so the list refreshes it on open and
+ * the row says "nobody yet" rather than "nobody has answered", which would be a
+ * claim this browser is in no position to make.
+ */
+export interface Kept {
+  code: string;
+  /** What was scored setting it, so a row reads without a fetch. */
+  runs: number;
+  /** When it was set, for the time left. */
+  at: number;
+  /** Whether the last look found an answer. Refreshed when the list opens. */
+  answered?: boolean;
+  /** Who answered and what they made, so a settled row reads with no network. */
+  beat?: { name: string; runs: number; won: boolean };
 }
 
 /** An innings that finished while the network was not listening. */
@@ -168,22 +193,53 @@ export function resultText(mine: number, theirs: number, theirName: string, url:
  * challenge lives, so the link in their own sent messages stays the durable copy
  * and the screens say "share again" rather than pretending this is a database.
  */
-export function openChallenges(): string[] {
+export function openChallenges(): Kept[] {
   try {
     const held = JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]') as unknown;
-    return Array.isArray(held) ? held.filter((code): code is string => typeof code === 'string').slice(0, 20) : [];
+    if (!Array.isArray(held)) return [];
+    return held.flatMap(one => {
+      // The first version of this list held bare codes. A browser that still
+      // has one is not made to throw its challenges away for the upgrade: the
+      // code is all that was kept, so the row it draws is the thinner one until
+      // the next refresh fills the rest in.
+      if (typeof one === 'string') return [{ code: one, runs: 0, at: 0 }];
+      const kept = one as Partial<Kept>;
+      if (typeof kept.code !== 'string') return [];
+      return [{
+        code: kept.code,
+        runs: Number(kept.runs) || 0,
+        at: Number(kept.at) || 0,
+        answered: kept.answered === true,
+        beat: kept.beat,
+      }];
+    }).slice(0, KEPT_MAX);
   } catch { return []; }
 }
 
-/** Remembers a code, newest first, so the next app open knows to ask about it. */
-export function rememberChallenge(code: string) {
-  const held = openChallenges().filter(one => one !== code);
-  write(OPEN_KEY, [code, ...held].slice(0, 20));
+/** Remembers a challenge, newest first, so the list and the badge can read it. */
+export function rememberChallenge(kept: Kept) {
+  const held = openChallenges().filter(one => one.code !== kept.code);
+  write(OPEN_KEY, [kept, ...held].slice(0, KEPT_MAX));
 }
 
-/** Drops a code once its result has been seen, so it is not asked about again. */
+/** Drops one, whether because its result has been seen or its owner removed it. */
 export function forgetChallenge(code: string) {
-  write(OPEN_KEY, openChallenges().filter(one => one !== code));
+  write(OPEN_KEY, openChallenges().filter(one => one.code !== code));
+}
+
+/** Notes what a refresh found, so the list and the badge agree without asking again. */
+export function markChallenge(code: string, fields: Partial<Kept>) {
+  write(OPEN_KEY, openChallenges().map(one => (one.code === code ? { ...one, ...fields } : one)));
+}
+
+/** How many are still out there waiting on somebody. What the card's badge counts. */
+export function waitingCount(now = Date.now()): number {
+  return openChallenges().filter(one => !one.answered && !closed(one, now)).length;
+}
+
+/** Whether a challenge's week is up. A stamp of nought is one we never knew. */
+export function closed(kept: Kept, now = Date.now()): boolean {
+  return kept.at > 0 && now - kept.at >= CHALLENGE_LIFE_MS;
 }
 
 /**

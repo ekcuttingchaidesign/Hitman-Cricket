@@ -42,6 +42,9 @@ const icon = (name: string) => {
     story: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 8v6m-3-3 3-3 3 3"/>',
     trophy: '<path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4"/>',
     whatsapp: '<path d="M3.5 20.5 5 16a8 8 0 1 1 3 3l-4.5 1.5Z"/><path d="M9 9c0 3 3 6 6 6 1 0 1.5-1 1.5-1L15 13l-1.5 1S12 13.5 11 12t.5-2L10 8.5S9 9 9 9Z"/>',
+    /* Drawn at the same stroke as the rest, so the list's remove key belongs to
+       the same set as the sound and share keys rather than being a stray glyph. */
+    close: '<path d="m7 7 10 10M17 7 7 17"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
@@ -278,6 +281,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <span class="mode-key">CHALLENGE A FRIEND</span>
               </span>
             </button>
+            <button id="modes-challenges" class="ghost-link hidden">Your challenges</button>
             <button id="modes-cancel" class="ghost-link">Back</button>
           </div>
         </div>
@@ -324,6 +328,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <a id="challenge-tell" class="whatsapp-key" href="https://wa.me/" target="_blank" rel="noopener noreferrer">${icon('whatsapp')}<span>TELL THEM</span></a>
             <button id="challenge-rematch" class="key-button">REMATCH</button>
             <button id="challenge-result-done" class="ghost-link">Back to the menu</button>
+          </div>
+        </div>
+        <div id="challenge-list" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-list-title">
+          <div class="panel challenge-panel">
+            <h2 id="challenge-list-title">Your challenges</h2>
+            <p id="challenge-list-copy" class="challenge-note"></p>
+            <ul id="challenge-rows" class="challenge-rows"></ul>
+            <button id="challenge-list-done" class="key-button">DONE</button>
           </div>
         </div>
         <div id="challenge-waiting" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-waiting-title">
@@ -1261,6 +1273,32 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('challenge-waiting-done').focus();
   }
 
+  /**
+   * Every challenge this browser has set, newest first.
+   *
+   * The list is the browser's own note rather than the server's record, which
+   * is why a row can be removed from it: removing is tidying a list, not
+   * cancelling a challenge, and the row says so rather than letting somebody
+   * believe they have pulled a link back that is still perfectly live.
+   */
+  challengeList(rows: readonly ChallengeListRow[]) {
+    this.shut();
+    this.$('challenge-list-copy').textContent = rows.length
+      ? 'Removing one clears it from this list. The link keeps working until it closes.'
+      : '';
+    this.$('challenge-rows').innerHTML = rows.length
+      ? rows.map(listRow).join('')
+      : `<li class="challenge-row is-empty">Nothing out there yet. Bat an innings and send it to someone.</li>`;
+    this.open('challenge-list');
+    this.$('challenge-list-done').focus();
+  }
+
+  /** Offers the way to the list, to somebody who has something in it. */
+  challengesLink(count: number) {
+    this.$('modes-challenges').classList.toggle('hidden', count <= 0);
+    this.$('modes-challenges').textContent = count === 1 ? 'Your challenge' : `Your challenges (${count})`;
+  }
+
   /** How many challenges of this browser's are still unanswered, worn on the card. */
   challengesOpen(count: number) {
     const flag = this.$('mode-challenge-flag');
@@ -1279,7 +1317,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /** Takes every challenge screen down. Called before putting one up. */
   shut() {
-    for (const id of ['challenge-share', 'challenge-join', 'challenge-result', 'challenge-waiting']) {
+    for (const id of ['challenge-share', 'challenge-join', 'challenge-result', 'challenge-waiting', 'challenge-list']) {
       this.$(id).classList.add('hidden');
     }
   }
@@ -1345,6 +1383,35 @@ function scoreline(row: ChallengeRow, you: string): string {
     </div>
     <div class="challenge-track" aria-hidden="true">${track}</div>
   </div>`;
+}
+
+/** One row of the challenges list. */
+export interface ChallengeListRow {
+  code: string;
+  runs: number;
+  /** 'waiting' · 'answered' · 'closed'. What the row says, and how it reads. */
+  state: 'waiting' | 'answered' | 'closed';
+  /** The time left, or how it ended. */
+  note: string;
+  /** Who answered and what they made, once somebody has. */
+  beat?: { name: string; runs: number; won: boolean };
+}
+
+/**
+ * A row: what you scored, what became of it, and a way to be rid of it.
+ *
+ * The score leads because it is the thing its owner remembers the challenge by —
+ * "my 102" — rather than the code, which they have never read and never need to.
+ */
+function listRow(row: ChallengeListRow): string {
+  const verdict = row.beat
+    ? `${escapeName(row.beat.name)} made ${row.beat.runs} \u00b7 ${row.beat.won ? 'you lost' : 'you held on'}`
+    : row.note;
+  return `<li class="challenge-row is-${row.state}">
+    <span class="challenge-row-score">${row.runs || '\u2014'}</span>
+    <span class="challenge-row-what"><b>${row.state === 'answered' ? 'Answered' : row.state === 'closed' ? 'Closed' : 'Waiting'}</b><em>${verdict}</em></span>
+    <button class="challenge-row-drop" type="button" data-code="${row.code}" aria-label="Remove this challenge from the list">${icon('close')}</button>
+  </li>`;
 }
 
 /** A name is somebody else's text, so it never reaches innerHTML as it stands. */

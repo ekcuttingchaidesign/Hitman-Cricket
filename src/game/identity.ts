@@ -71,6 +71,12 @@ export function pickPlayerId(found: readonly (string | null | undefined)[]): str
 export interface IdStore {
   read(): string | null | Promise<string | null>;
   write(id: string): void | Promise<void>;
+  /**
+   * Whether this store answers without ever being able to hang. The two
+   * synchronous ones say so; IndexedDB does not, and is the only one the
+   * timeout in `playerId` is there for.
+   */
+  instant?: boolean;
 }
 
 /**
@@ -98,6 +104,7 @@ export function browserStores(): IdStore[] {
 
 export function localStore(key = PLAYER_KEY): IdStore {
   return {
+    instant: true,
     read: () => localStorage.getItem(key),
     write: id => localStorage.setItem(key, id),
   };
@@ -111,6 +118,7 @@ export function localStore(key = PLAYER_KEY): IdStore {
  */
 export function cookieStore(key = PLAYER_KEY): IdStore {
   return {
+    instant: true,
     read: () => {
       const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${key}=([^;]*)`));
       return match ? decodeURIComponent(match[1]) : null;
@@ -152,13 +160,43 @@ export function indexedDbStore(key = PLAYER_KEY): IdStore {
 }
 
 /**
- * The id for this browser, settled before the board is asked anything. A store
- * that hangs is given a second and then left behind, so a wedged IndexedDB
- * costs the player a second rather than the game.
+ * The id for this browser, settled before the board is asked anything.
+ *
+ * The instant stores are read first, and on their own. localStorage and the
+ * cookie are synchronous — neither can hang — so a browser that has been here
+ * before is recognised without waiting for anything at all, and the timeout
+ * below never comes near the common case.
+ *
+ * That ordering is the whole point, and it was learnt the hard way. This used to
+ * race *all three* stores against one second and mint a fresh id when the second
+ * ran out — and the minted id was returned without ever being written down. So
+ * a slow first paint, a cold IndexedDB or a busy phone did not cost a player a
+ * second; it cost them their identity, quietly, on every load. Their board row
+ * became somebody else's, and a challenge they set was one they could no longer
+ * prove was theirs.
+ *
+ * IndexedDB is still worth a second when the quick pair have nothing, because it
+ * is the store that survives a localStorage sweep — and it is the only one that
+ * can hang, which is what the second is for. Whatever wins, every store is
+ * written, so the next load is the fast path.
  */
 export async function playerId(stores = browserStores(), timeoutMs = 1000): Promise<string> {
-  const fallback = new Promise<string>(resolve => setTimeout(() => resolve(mintPlayerId()), timeoutMs));
-  return Promise.race([resolvePlayerId(stores), fallback]);
+  const instant = pickPlayerId(await Promise.all(
+    stores.filter(store => store.instant).map(store => settle(() => store.read())),
+  ));
+  if (instant) {
+    // Written back even though they already agreed: a localStorage write is what
+    // pushes Safari's seven-day eviction clock back.
+    void Promise.all(stores.map(store => settle(() => store.write(instant))));
+    return instant;
+  }
+  // Nothing quick to go on. The slow store gets its second, and whatever comes
+  // out of it — found or minted — is written everywhere before it is handed on.
+  const minted = mintPlayerId();
+  const waited = new Promise<string>(resolve => setTimeout(() => resolve(minted), timeoutMs));
+  const id = await Promise.race([resolvePlayerId(stores, () => minted), waited]);
+  void Promise.all(stores.map(store => settle(() => store.write(id))));
+  return id;
 }
 
 /**

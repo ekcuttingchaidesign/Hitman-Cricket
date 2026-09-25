@@ -31,7 +31,9 @@ import { unpackScore, type BoardRow } from './game/leaderboard';
 import { ballsBand, counting, inningsBand, marksPassed, scoreBand, track, trackOnce } from './game/analytics';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { ChallengeRun, closesIn, resultView } from './game/Challenge';
-import { challengeLink } from './game/challenge-api';
+import type { Challenge, Kept } from './game/challenge-api';
+import type { ChallengeListRow } from './ui/HUD';
+import { CHALLENGE_LIFE_MS, challengeLink, closed, forgetChallenge, openChallenges, waitingCount } from './game/challenge-api';
 import { kitDeal } from './config/board';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
@@ -187,7 +189,11 @@ export class Game {
     // three stores, one of which can hang; the board is a network call that may
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
-    void playerId().then(id => { this.player = id; return this.openChallenges(); }).catch(() => {});
+    // Swallowed in production, because none of this is worth an innings — but
+    // never swallowed in development, where a silent catch here hid a real
+    // failure for an afternoon.
+    void playerId().then(id => { this.player = id; return this.openChallenges(); })
+      .catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
     this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
@@ -215,6 +221,17 @@ export class Game {
     this.hud.on('challenge-waiting-rematch', () => { this.hud.closeChallenge(); this.challenge.beginSetting(); this.start(); });
     this.hud.on('challenge-result-done', () => { this.hud.closeChallenge(); this.challenge.clear(); this.modes(); });
     this.hud.on('challenge-waiting-done', () => this.hud.closeChallenge());
+    this.hud.on('modes-challenges', () => { void this.showChallenges(); });
+    this.hud.on('challenge-list-done', () => { this.hud.closeChallenge(); this.modes(); });
+    // The rows are drawn fresh each time the list opens, so the remove keys are
+    // listened for on the list itself rather than bound to buttons that will not
+    // exist by the time anybody presses one.
+    this.hud.viewport.querySelector('#challenge-rows')!.addEventListener('click', event => {
+      const key = (event.target as HTMLElement).closest('[data-code]') as HTMLElement | null;
+      if (!key) return;
+      forgetChallenge(key.dataset.code!);
+      void this.showChallenges();
+    });
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
@@ -280,7 +297,15 @@ export class Game {
    * the Test card it is the card's music handing over to the screen that has
    * just replaced the card.
    */
-  private modes = () => { this.audio.music('cover'); this.hud.modes(); };
+  private modes = () => {
+    this.audio.music('cover');
+    this.hud.modes();
+    // The way to the list is offered only to somebody who has set a challenge.
+    // An empty list is a screen about nothing, and a key to it is a key that
+    // teaches the player it was not worth pressing.
+    this.hud.challengesLink(openChallenges().length);
+    this.hud.challengesOpen(waitingCount());
+  };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
   choose = (mode: GameMode) => { this.mode = mode; this.start(); };
   start = () => {
@@ -977,7 +1002,9 @@ export class Game {
   private async openChallenges() {
     if (!this.player) return;
     void ChallengeRun.retryUnsent(this.player);
-    this.hud.challengesOpen(0);
+    // Read off the browser's own list rather than the network: the count is a
+    // nudge, and a nudge is not worth a round trip on every app open.
+    this.hud.challengesOpen(waitingCount());
 
     const opened = await this.challenge.fromLink();
     if (opened && 'challenge' in opened) {
@@ -1004,10 +1031,23 @@ export class Game {
     const answered = await ChallengeRun.answered(this.player);
     if (answered.length) {
       const latest = answered[0];
-      const view = resultView(latest, this.player, challengeLink(latest.code));
-      this.hud.challengeWaiting(view);
+      this.hud.challengeWaiting(resultView(latest, this.player, challengeLink(latest.code)));
     }
-    this.hud.challengesOpen(0);
+    this.hud.challengesOpen(waitingCount());
+  }
+
+  /**
+   * The list of challenges this browser has set.
+   *
+   * Opened from the mode screen, and refreshed on the way in so that a
+   * challenge answered since the last look says so. Only the rows that could
+   * have changed are asked about — a settled one is settled — so opening it
+   * twice in a row costs one set of reads and then nothing.
+   */
+  private async showChallenges() {
+    this.hud.closeModes();
+    this.hud.challengeList(challengeRows(await ChallengeRun.list()));
+    this.hud.challengesOpen(waitingCount());
   }
 
   private snapshot() {
@@ -1022,4 +1062,49 @@ export class Game {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
     window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
   }
+}
+
+
+/**
+ * What each row of the list says.
+ *
+ * A challenge is one of three things and the row reads as whichever it is: still
+ * out there with a week running down, answered and settled, or closed with
+ * nobody having taken it on. The last of those is the only one that needs a
+ * kind word, which is why it gets one.
+ */
+function challengeRows(
+  rows: readonly { kept: Kept; challenge: Challenge | null }[],
+): ChallengeListRow[] {
+  return rows.map(({ kept, challenge }) => {
+    const mine = challenge?.players.find(row => row.challenger);
+    const runs = mine?.runs ?? kept.runs;
+    if (kept.answered && challenge) {
+      const them = challenge.players.find(row => !row.challenger);
+      const won = challenge.players[0]?.challenger === true;
+      return {
+        code: kept.code, runs, state: 'answered' as const, note: '',
+        beat: them ? { name: them.name, runs: them.runs, won: !won } : undefined,
+      };
+    }
+    if (kept.answered) {
+      return {
+        code: kept.code, runs, state: 'answered' as const,
+        note: kept.beat ? '' : 'Somebody took it on.',
+        beat: kept.beat,
+      };
+    }
+    if (closed(kept)) {
+      return { code: kept.code, runs, state: 'closed' as const, note: 'Nobody took you on.' };
+    }
+    const left = kept.at > 0 ? kept.at + CHALLENGE_LIFE_MS - Date.now() : 0;
+    const days = Math.floor(left / (24 * 3600_000));
+    const hours = Math.floor((left % (24 * 3600_000)) / 3600_000);
+    return {
+      code: kept.code,
+      runs,
+      state: 'waiting' as const,
+      note: left <= 0 ? 'Still open.' : days > 0 ? `${days}d ${hours}h left` : `${hours}h left`,
+    };
+  });
 }
