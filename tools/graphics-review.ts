@@ -2,6 +2,7 @@ import './graphics-review.css';
 import { GameScene } from '../src/scene/GameScene';
 import { FRAMES, PLAYS, prepareReviewPose, readState, stateQuery } from './graphics-review-poses';
 import type { ReviewAction, ReviewFrame, ReviewKit } from './graphics-review-poses';
+import { atExportResolution, exportDimensions } from './graphics-review-export';
 
 // This entry deliberately never imports Game, HUD, audio, analytics or stores.
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -40,6 +41,21 @@ el<HTMLInputElement>('reference-file').onchange = event => {
 
 function startReview() {
   let playing = false, animationId = 0, previous = 0, playbackTime = state.time;
+  let exportUrl: string | null = null;
+  const exportSize = el<HTMLSelectElement>('export-size');
+  const exportButton = el<HTMLButtonElement>('save-frame');
+  const exportReady = el<HTMLDivElement>('export-ready');
+  const exportLink = el<HTMLAnchorElement>('export-download');
+  const openImage = el<HTMLAnchorElement>('export-open');
+  function imageSize() {
+    const [w, h] = FRAMES[state.frame];
+    return exportDimensions(w, h, Number(exportSize.value));
+  }
+  function describeExport() {
+    const size = imageSize();
+    el('export-dimensions').textContent = `${size.width} × ${size.height} pixels · lossless PNG`;
+  }
+  exportSize.onchange = describeExport;
   const [width, height] = FRAMES[state.frame];
   stage.style.width = `${width}px`; stage.style.height = `${height}px`;
   const gameScene = new GameScene(stage);
@@ -96,6 +112,7 @@ function startReview() {
     const scale = holder.clientWidth / w;
     stage.style.transform = `scale(${scale})`; holder.style.height = `${h * scale}px`;
     el('viewport-readout').textContent = `${w} × ${h}`;
+    describeExport();
     el('comparison-note').textContent = state.frame === 'reference'
       ? 'Matched reference aspect ratio. Compare the 3D scene; the target’s HUD is part of its image.'
       : 'The game adapts to this viewport. The target keeps its original aspect ratio; compare materials and poses, not framing.';
@@ -142,18 +159,46 @@ function startReview() {
     anchor.href = url; anchor.download = name; document.body.append(anchor); anchor.click(); anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
-  el('save-frame').onclick = () => {
-    pause(); draw();
-    // Copy immediately after render; no preserveDrawingBuffer tax on gameplay.
-    const source = gameScene.renderer.domElement, canvas = document.createElement('canvas');
-    canvas.width = source.width; canvas.height = source.height;
-    const context = canvas.getContext('2d');
-    if (!context) { status('Image export is unavailable in this browser.'); return; }
-    context.drawImage(source, 0, 0);
-    canvas.toBlob(blob => {
-      if (!blob) { status('Could not export this frame. Please try again.'); return; }
-      download(blob, filename('png')); status('Scene PNG downloaded. The image contains only the game scene.');
-    }, 'image/png');
+  exportButton.onclick = async () => {
+    pause();
+    const size = imageSize();
+    const name = filename(`${size.width}x${size.height}.png`);
+    exportButton.disabled = true; exportButton.textContent = 'Rendering PNG…'; exportReady.hidden = true;
+    status(`Rendering ${size.width} × ${size.height} pixels…`);
+    let canvas: HTMLCanvasElement | null = null;
+    try {
+      canvas = atExportResolution(gameScene.renderer, size, () => {
+        prepareReviewPose(gameScene.batter, state.action);
+        gameScene.render(state.time);
+        if (gameScene.renderer.getContext().isContextLost()) throw new Error('Export exceeded available graphics memory. Reload and choose a smaller size.');
+        const copy = document.createElement('canvas'); copy.width = size.width; copy.height = size.height;
+        const context = copy.getContext('2d');
+        if (!context) throw new Error('Image export is unavailable in this browser.');
+        // Copy immediately at 1:1, before WebGL clears the buffer. These are
+        // freshly rendered pixels, not an enlargement of the phone preview.
+        context.drawImage(gameScene.renderer.domElement, 0, 0);
+        return copy;
+      });
+      draw();
+      const blob = await new Promise<Blob>((resolve, reject) => canvas!.toBlob(
+        result => result ? resolve(result) : reject(new Error('Could not encode the PNG. Try a smaller export size.')), 'image/png'));
+      if (exportUrl) URL.revokeObjectURL(exportUrl);
+      exportUrl = URL.createObjectURL(blob);
+      exportLink.href = openImage.href = exportUrl;
+      exportLink.download = name;
+      exportLink.textContent = `Save PNG · ${size.width} × ${size.height}`;
+      exportReady.hidden = false;
+      // Keep direct tap targets available: a phone browser may decline an
+      // asynchronous automatic download, or the user may prefer Save Image.
+      exportLink.click();
+      status(`${size.width} × ${size.height} PNG ready. If it did not save, tap Save PNG or open the full-resolution image below.`);
+    } catch (error) {
+      status(error instanceof Error ? error.message : 'Could not export the frame. Try a smaller size.');
+    } finally {
+      if (canvas) { canvas.width = 0; canvas.height = 0; }
+      exportButton.disabled = false; exportButton.textContent = 'Download high-res PNG';
+      draw();
+    }
   };
   el('copy-link').onclick = async () => {
     pause(); updateUrl();
@@ -175,6 +220,7 @@ function startReview() {
     cancelAnimationFrame(animationId); cancelAnimationFrame(resizeFrame); sizeObserver.disconnect();
     document.removeEventListener('visibilitychange', stopWhenHidden); gameScene.dispose();
     if (referenceObjectUrl) URL.revokeObjectURL(referenceObjectUrl);
+    if (exportUrl) URL.revokeObjectURL(exportUrl);
   };
   window.addEventListener('pagehide', event => { if (event.persisted) pause(); else dispose(); });
 }

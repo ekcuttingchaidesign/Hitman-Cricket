@@ -66,7 +66,14 @@
           <label class="check"><input type="checkbox" id="show-reference" checked> Show target alongside</label>
           <p class="help">Camera position and responsive framing come directly from gameplay. There is no orbit or camera shake.</p>
         </section>
-        <section class="exports"><button id="save-frame">Download scene PNG</button><button id="copy-link">Copy this review link</button><button id="save-settings" class="text-button">Download frame details</button><p id="status" role="status" aria-live="polite"></p></section>
+        <section class="exports">
+          <label for="export-size">Export resolution</label>
+          <select id="export-size"><option value="3840" selected>4K · 3840 px long edge</option><option value="2560">2K · 2560 px long edge</option><option value="1920">1920 px long edge</option></select>
+          <p class="help" id="export-dimensions">2269 × 3840 pixels · lossless PNG</p>
+          <button id="save-frame">Download high-res PNG</button>
+          <div id="export-ready" hidden><a id="export-download" download>Save PNG</a><a id="export-open" target="_blank" rel="noopener">Open full-resolution image</a><p class="help">On your phone, open the image, then touch and hold to save it. The file keeps its full resolution.</p></div>
+          <button id="copy-link">Copy this review link</button><button id="save-settings" class="text-button">Download frame details</button><p id="status" role="status" aria-live="polite"></p>
+        </section>
       </aside>
     </div>
     <footer>POSES & LIGHTING FROM THE GAME <span>•</span> No scores, audio or player records are started here.</footer>
