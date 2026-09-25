@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { Clothing } from './Clothing';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ADVANCE, CUT, GAME, SQUARE_DRIVE as SQUARE_DRIVE_BALL } from '../config/gameplay';
 import { solveJoint } from './rig';
@@ -254,11 +253,6 @@ const STROKES: Record<ShotType, Stroke> = {
     // through him.
     contact: { ...GUARD, hip: [-.16, .82, .13], chest: [-.035, 1.16, .21], frontFoot: [-.34, .08, .58],
       grip: [.15, .98, .35], batUp: [.10, .975, -.14], batFace: [-.42, .10, .90], yaw: 1.04, face: -.25, heel: .08, leadElbow: .10 },
-    // Carry the blade out in front before lifting it. A direct rotation from
-    // contact to the high finish swept the toe through the front thigh.
-    through: { ...GUARD, hip: [-.17, .86, .16], chest: [-.08, 1.22, .25], frontFoot: [-.34, .08, .58],
-      grip: [.08, 1.20, .72], batUp: [.15, .40, -.90], batFace: [-.42, .10, .90], yaw: .75, face: -.30, heel: .12,
-      armHinge: .90, armDrive: .5, leadElbow: .16 },
     finish: { ...GUARD, hip: [-.19, .9, .20], chest: [-.17, 1.28, .29], frontFoot: [-.34, .08, .58],
       grip: [-.28, 1.54, .70], batUp: [.49, -.61, -.62], batFace: [-.42, .10, .90], yaw: .33, face: -.38, heel: .15 },
     // High over the leg-side shoulder is the far side of him from the guard, so
@@ -1213,7 +1207,6 @@ export class Batter {
   private poseAge = 0;
   readonly root = new THREE.Group();
   readonly bat = new THREE.Group();
-  private clothing!: Clothing;
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
@@ -1244,13 +1237,12 @@ export class Batter {
   private ballX = 0;
   private ballY = .54;
   private ballZ: number = GAME.contactZ;
-  // Equipment and retained rig diagnostics use shared smooth primitives.
-  // Clothing owns the continuous garment surfaces and their skinning.
+  // Every part is modelled from one of four smooth unit primitives, scaled into
+  // place. Nothing is a bare cube, so the figure reads as sculpted clay.
   private shapes = {
-    soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
-    ball: new THREE.SphereGeometry(1, 32, 20),
+    soft: new RoundedBoxGeometry(1, 1, 1, 4, .3),
+    ball: new THREE.SphereGeometry(1, 26, 18),
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
-    exposedUpper: new THREE.CylinderGeometry(.49, .41, .72, 20, 1).translate(0, .14, 0),
     flat: new THREE.BoxGeometry(1, 1, 1),
     blade: bladeGeometry(),
   };
@@ -1281,17 +1273,9 @@ export class Batter {
     this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x19334a);
     this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0xe7e2d3);
     this.palette.accent.color.setHex(whites ? 0xd9d3c3 : 0xed7044);
-    this.clothing.dress(this.palette.shirt.color, this.palette.trousers.color);
   }
 
   constructor() {
-    this.palette.bat.onBeforeCompile = shader => {
-      shader.vertexShader = 'varying vec3 willow;\n' + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nwillow=position;');
-      shader.fragmentShader = 'varying vec3 willow;\n' + shader.fragmentShader;
-      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= .97 + .03*sin(willow.x*470.0 + sin(willow.y*13.0)*.8);');
-    };
-    this.palette.bat.customProgramCacheKey = () => 'willow-grain-v1';
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
     // Torso: a single trunk on the spine. A second, wider ellipsoid up at the
@@ -1302,9 +1286,7 @@ export class Batter {
     this.mesh(this.torso, this.palette.shirt, [.205, .275, .145], 'ball').position.y = -.075;
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
     // Jersey seam, collar, and back number make rotation legible from the camera.
-    const waistband = new THREE.Mesh(new THREE.TorusGeometry(1, .025, 8, 48), this.palette.accent);
-    waistband.scale.set(.174, .13, .17); waistband.rotation.x = Math.PI / 2;
-    waistband.position.y = .082; waistband.castShadow = true; waistband.receiveShadow = true; this.hips.add(waistband);
+    this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.33;
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
@@ -1353,7 +1335,7 @@ export class Batter {
       const cuff = new THREE.Group(); this.root.add(cuff);
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
-      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'exposedUpper'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
+      this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .083, .09], 'ball'),
         glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
@@ -1370,21 +1352,6 @@ export class Batter {
         knee: this.mesh(this.root, this.palette.trousers, [.078, .078, .078], 'ball'), cap: this.mesh(this.root, this.palette.trousers, [.115, .115, .115], 'ball'),
         pad, shoe });
     }
-    // Keep solver anchors available to diagnostics; render the connected garments.
-    this.hips.children[0].visible = false; this.torso.children[0].visible = false;
-    for (const arm of this.arms) { arm.upper.material = this.palette.skin; arm.elbow.material = this.palette.skin; arm.cap.visible = false; }
-    for (const leg of this.legs) for (const mesh of [leg.thigh,leg.shin,leg.knee,leg.cap]) mesh.visible = false;
-    this.clothing = new Clothing(this.root, this.palette.shirt, this.palette.trousers);
-    // Helmet ear guards and vents, bat decals, and restrained boot laces.
-    for(const side of [-1,1]) {
-      this.mesh(this.head,this.palette.helmet,[.043,.135,.095],'soft').position.set(side*.173,-.035,.015);
-      for(let j=0;j<3;j++) this.mesh(this.head,this.palette.handle,[.008,.012,.035],'soft').position.set(side*.181,.081,.008-j*.045);
-    }
-    for(const face of [1]) {
-      const decal=this.mesh(this.bat,this.palette.accent,[.061,.19,.003],'soft');decal.position.set(-.015,-.40,face*.0255);
-      const stripe=this.mesh(this.bat,this.palette.shirt,[.017,.15,.003],'soft');stripe.position.set(.032,-.40,face*.026);
-    }
-    for(const leg of this.legs) for(let lace=0;lace<3;lace++) this.mesh(leg.shoe,this.palette.pad,[.10,.013,.015],'soft').position.set(0,.065,.025+lace*.028);
     this.reset();
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
@@ -1781,7 +1748,6 @@ export class Batter {
     this.hips.position.copy(hip); this.hips.quaternion.copy(yaw);
     this.torso.position.copy(chest);
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
-    this.clothing.body(this.torso, this.hips);
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
     this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
     this.bat.position.set(...pose.grip);
@@ -2200,7 +2166,6 @@ export class Batter {
       this.segment(leg.thigh, hipJoint, knee, .175, .19);
       this.segment(leg.shin, knee, foot, .145, .16);
       leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);
-      this.clothing.limb(i, arm.shoulder, elbow, hipJoint, knee, foot);
       const lowerAxis = knee.clone().sub(foot).normalize();
       const shoeYaw = i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);
       /**
@@ -2250,9 +2215,7 @@ export class Batter {
     const along = THREE.MathUtils.clamp(point.clone().sub(hip).dot(spine), 0, chest.distanceTo(hip));
     return point.distanceTo(hip.clone().addScaledVector(spine, along));
   }
-  /** World-space shoe positions for the contact shadows. */
-  contactFeet(into: THREE.Vector3[]) { this.legs.forEach((leg,i) => leg.shoe.getWorldPosition(into[i])); }
-  /** Rig measurements; rendered garment clearance has separate surface tests. */
+  /** Read-only measurements used to catch detached grips and pose regressions. */
   inspect() {
     this.root.updateMatrixWorld(true);
     return {

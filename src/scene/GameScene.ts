@@ -1,7 +1,4 @@
 import * as THREE from 'three';
-import { terrainMaterials, daylightSky, contactTexture } from './visuals/surfaces';
-import { createVenue } from './visuals/venue';
-import { renderPixelRatio } from './visuals/renderResolution';
 import { Batter, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
@@ -43,15 +40,11 @@ export class GameScene {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   private world = new THREE.Group();
-  /** Review tools pose this same actor without starting the gameplay controller. */
-  readonly batter = new Batter();
+  private batter = new Batter();
   private bowler = new Bowler();
   private catcher = new Cricketer();
   /** Scenery, but they are on the same field and wear the same kit as everyone else. */
   private fielders: Cricketer[] = [];
-  private visualTextures: THREE.Texture[] = [];
-  private footShadows: THREE.Mesh[] = [];
-  private footPoints = [new THREE.Vector3(), new THREE.Vector3()];
   private ball: THREE.Mesh;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
@@ -87,36 +80,26 @@ export class GameScene {
   private bowling = false;
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  private touchDisplay = window.matchMedia('(pointer: coarse)').matches;
-  private maxRenderDimension = 4096;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    const gl = this.renderer.getContext();
-    const viewportLimit = gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array;
-    this.maxRenderDimension = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number, viewportLimit[0], viewportLimit[1]);
+    const mobile = window.matchMedia('(pointer: coarse)').matches;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.08;
-    this.renderer.setClearColor(0x8ac6e4);
+    this.renderer.setClearColor(0xa9cbd0);
     container.prepend(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
-    this.scene.fog = new THREE.Fog(0xb9dce5, 90, 190);
-    this.scene.add(daylightSky());
+    this.scene.fog = new THREE.Fog(0xb4ced0, 48, 125);
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
     this.camera.fov = 50;
     this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
-    // Keep colour in the materials, with a clear key/fill separation for rounded forms.
-    this.scene.add(new THREE.HemisphereLight(0xd8edf9, 0x71806b, 1.55));
-    const sun = new THREE.DirectionalLight(0xfffaf0, 2.3); sun.position.set(-9, 16, -8); sun.castShadow = true;
-    sun.target.position.set(0, 0, 8);
-    sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -14; sun.shadow.camera.right = 14;
-    sun.shadow.camera.top = 22; sun.shadow.camera.bottom = -12; sun.shadow.camera.near = .5; sun.shadow.camera.far = 65;
-    sun.shadow.normalBias = .012; sun.shadow.bias = -.00008; sun.shadow.radius = 2;
-    this.scene.add(sun, sun.target);
-    const fill = new THREE.DirectionalLight(0xcbe5f3, .38); fill.position.set(12, 8, 5); this.scene.add(fill);
+    this.scene.add(new THREE.HemisphereLight(0xe9f6ff, 0x66744a, 2.5));
+    const sun = new THREE.DirectionalLight(0xffedce, 3.2); sun.position.set(-15, 30, -8); sun.castShadow = true;
+    sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
+    sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025;
+    this.scene.add(sun);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
     this.catcher.root.position.set(12, 0, 20);
@@ -134,6 +117,9 @@ export class GameScene {
     this.bounceRing.rotation.x = -Math.PI / 2; this.world.add(this.bounceRing);
     this.catchRing = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.66, 32), ringMat.clone());
     this.catchRing.rotation.x = -Math.PI / 2; this.catchRing.visible = false; this.world.add(this.catchRing);
+    // The shockwave that goes out from under a charged hit.
+    this.chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.60, 48), new THREE.MeshBasicMaterial({ color: 0xffdb96, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+    this.chargeRing.rotation.x = -Math.PI / 2; this.chargeRing.visible = false; this.world.add(this.chargeRing);
     // The shockwave under a charged hit.
     this.chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.62, 48), new THREE.MeshBasicMaterial({ color: 0xffdb96, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
     this.chargeRing.rotation.x = -Math.PI / 2; this.chargeRing.visible = false; this.world.add(this.chargeRing);
@@ -145,19 +131,16 @@ export class GameScene {
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
   }
   private createGround() {
-    const surface = terrainMaterials(this.renderer.capabilities.getMaxAnisotropy());
-    this.visualTextures.push(...surface.textures);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), surface.turf); ground.rotation.x = -Math.PI / 2;
-    ground.position.set(0, -.035, 10); ground.receiveShadow = true; this.world.add(ground);
-    const pitch = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 32), surface.pitch);
-    pitch.rotation.x = -Math.PI / 2; pitch.position.set(0, .015, 4.3); pitch.receiveShadow = true; this.world.add(pitch);
-    // Fine turf is material detail. Sparse oversized blades read as spikes at phone scale.
-    const dummy = new THREE.Object3D(), color = new THREE.Color();
-    const contact = contactTexture(); this.visualTextures.push(contact);
-    for(let i=0;i<2;i++) {
-      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(.52,.70),new THREE.MeshBasicMaterial({map:contact,color:0x293c3c,transparent:true,opacity:.28,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));
-      shadow.rotation.x=-Math.PI/2;shadow.position.y=.035;this.world.add(shadow);this.footShadows.push(shadow);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), mat(colors.grass)); ground.rotation.x = -Math.PI / 2;
+    ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
+    for (let i = 0; i < 10; i++) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(i * 6 + 2, i * 6 + 5, 96), mat(colors.grassLight));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(0, -0.025, 10); ring.receiveShadow = true; this.world.add(ring);
     }
+    box(this.world, 2.8, 0.025, 32, colors.pitch, 0, 0, 4.3);
+    box(this.world, 2.0, 0.029, 30, 0xc4ac80, 0, 0, 4.6);
+    // Fine deterministic wear marks on the wicket; all created once.
+    for (let i = 0; i < 95; i++) box(this.world, 0.015 + (i % 5) * 0.018, 0.003, 0.08 + (i % 4) * 0.1, i % 2 ? 0xb49d73 : 0xd4be94, Math.sin(i * 72.4) * 0.92, 0.018, 0.5 + (i * 1.73) % 18);
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {
@@ -167,28 +150,52 @@ export class GameScene {
     });
     const boundary = new THREE.Mesh(new THREE.TorusGeometry(GAME.boundaryRadius, 0.055, 5, 128), mat(colors.white));
     boundary.rotation.x = Math.PI / 2; boundary.position.set(0, 0.06, 10); this.world.add(boundary);
-    const cushions = new THREE.InstancedMesh(new THREE.BoxGeometry(1.84,.16,.28),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.86}),104);
-    for(let i=0;i<104;i++) {
-      const angle=i/104*Math.PI*2;dummy.position.set(Math.sin(angle)*30.8,.08,10+Math.cos(angle)*30.8);dummy.rotation.set(0,angle,0);dummy.scale.setScalar(1);dummy.updateMatrix();cushions.setMatrixAt(i,dummy.matrix);cushions.setColorAt(i,color.setHex(i%2?colors.navy:colors.white));
-    }
-    cushions.receiveShadow=true;this.world.add(cushions);
     this.createStadium();
-    // Static fielders sit outside the near-play shadow map; soft contact decals
-    // keep their feet grounded without another stadium-sized shadow map.
-    const fielderPositions = [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]];
-    const fielderContacts = new THREE.InstancedMesh(new THREE.PlaneGeometry(.65, .48),
-      new THREE.MeshBasicMaterial({ map: contact, color: 0x293c3c, transparent: true, opacity: .26, depthWrite: false }), fielderPositions.length);
-    fielderContacts.name = 'Fielder contact shadows';
-    fielderPositions.forEach(([x, z], i) => {
-      dummy.position.set(x, -.03, z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.setScalar(1);
-      dummy.updateMatrix(); fielderContacts.setMatrixAt(i, dummy.matrix);
+    // Fielders are scenery except the one scripted catcher.
+    [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]].forEach(([x, z]) => {
       const fielder = new Cricketer(); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
-      fielder.root.traverse(object => { if (object instanceof THREE.Mesh) object.castShadow = false; });
       this.fielders.push(fielder);
     });
-    this.world.add(fielderContacts);
   }
-  private createStadium() { this.world.add(createVenue()); }
+  private createStadium() {
+    const seatGeometry = new THREE.BoxGeometry(0.6, 0.55, 0.55);
+    const crowd = new THREE.InstancedMesh(seatGeometry, mat(0xffffff), 1344);
+    const dummy = new THREE.Object3D(); let index = 0;
+    const seatColors = [0x22465a, 0xf5bf71, 0xc8dbce, 0xf4794c, 0xe9e0c9, 0x467787];
+    for (let section = 0; section < 28; section++) {
+      const a = section / 28 * Math.PI * 2;
+      const group = new THREE.Group(); group.position.set(Math.sin(a) * 39, 0, 10 + Math.cos(a) * 39); group.rotation.y = a; this.world.add(group);
+      box(group, 8.7, 1.5, 1.2, section % 3 ? colors.navy : colors.orange, 0, 0.75, -3.3);
+      for (let row = 0; row < 4; row++) {
+        box(group, 8.5, 0.7 + row * 0.7, 1.4, 0x7d9397, 0, (0.7 + row * 0.7) / 2, -1.7 + row * 1.4);
+        for (let col = 0; col < 12; col++) {
+          dummy.position.set(-3.9 + col * 0.71, 1 + row * 0.7, -1.7 + row * 1.4);
+          dummy.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), a).add(group.position);
+          dummy.rotation.y = a; dummy.updateMatrix(); crowd.setMatrixAt(index, dummy.matrix);
+          crowd.setColorAt(index, new THREE.Color(seatColors[(section * 13 + row * 7 + col * 3 + col % 2) % seatColors.length])); index++;
+        }
+      }
+      if (section % 4 !== 0) {
+        box(group, 9.1, 0.25, 7.5, 0xc7d3cd, 0, 5.3, 0.4).rotation.x = -0.07;
+        [-3.9, 3.9].forEach(x => cylinder(group, 0.075, 5.2, 0x627d83, x, 2.6, 3.3));
+      }
+    }
+    crowd.instanceMatrix.needsUpdate = true; this.world.add(crowd);
+    for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
+      cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
+      box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
+      for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(this.world, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
+    }
+    // Clubhouse pavilion at the bowler's end.
+    box(this.world, 13, 7, 5, 0xe0d7bc, 0, 3.5, 53);
+    box(this.world, 15, 0.45, 6, colors.navy, 0, 7, 53);
+    box(this.world, 9, 2, 0.08, colors.navy, 0, 4.1, 50.46);
+    for (let i = -2; i <= 2; i++) box(this.world, 1.3, 1.6, 0.1, 0x406876, i * 2.4, 1.8, 50.45);
+    for (let i = -1; i <= 1; i++) {
+      cylinder(this.world, 0.05, 3, 0xe9e3cb, i * 4, 8.6, 53);
+      box(this.world, 1.15, 0.65, 0.04, i === 0 ? colors.orange : colors.navy, i * 4 + 0.56, 9.5, 53);
+    }
+  }
   private wicket(z: number) {
     for (const x of [-0.145, 0, 0.145]) cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
     for (const x of [-0.073, 0.073]) {
@@ -197,16 +204,8 @@ export class GameScene {
     }
   }
   private resize = () => {
-    // Use layout dimensions: a review viewport can be visually scaled with CSS.
-    // Measuring its transformed rectangle would shrink the canvas a second time.
-    const width = this.container.clientWidth, height = this.container.clientHeight;
-    if (!width || !height) return; // A hidden comparison tab has no layout size.
-    const ratio = renderPixelRatio(width, height, window.devicePixelRatio, this.touchDisplay, this.maxRenderDimension);
-    // Resize at the old ratio first; never briefly allocate a huge new viewport
-    // at the previous phone's DPR while switching size/orientation.
-    if (ratio < this.renderer.getPixelRatio()) this.renderer.setPixelRatio(ratio);
+    const { width, height } = this.container.getBoundingClientRect();
     this.renderer.setSize(width, height);
-    if (ratio !== this.renderer.getPixelRatio()) this.renderer.setPixelRatio(ratio);
     this.camera.aspect = width / height;
     // Below 16:9 the view widens towards a constant horizontal field of view, so
     // a tall phone sees the whole pitch rather than the batter's shoulders. The
@@ -471,11 +470,6 @@ export class GameScene {
   }
   render(now: number) {
     this.batter.update(now);
-    this.batter.contactFeet(this.footPoints);
-    this.footPoints.forEach((point,i)=>{
-      this.world.worldToLocal(point);const shadow=this.footShadows[i];shadow.position.set(point.x,.035,point.z);
-      (shadow.material as THREE.MeshBasicMaterial).opacity=.48*Math.max(0,1-Math.max(0,point.y-.08)*3);
-    });
     if (this.bowling) {
       // Anchor the action's clock to how far into the run-up the game already
       // is, rather than to the frame this happened to be noticed on: started a
@@ -510,8 +504,6 @@ export class GameScene {
     Object.values(SHAPES).forEach(shape => geometries.delete(shape));
     FIGURE_ASSETS.shapes.forEach(shape => geometries.delete(shape));
     FIGURE_ASSETS.materials.forEach(material => mats.delete(material));
-    this.scene.traverse(object => { if (object instanceof THREE.SkinnedMesh) object.skeleton.dispose(); });
-    this.visualTextures.forEach(texture => texture.dispose());
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); materials.clear(); this.renderer.dispose();
   }
 }

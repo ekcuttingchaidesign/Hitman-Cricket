@@ -51,21 +51,8 @@ beforeEach(() => {
   };
   Object.assign(globalThis, { Audio: FakeAudio, window: fakeWindow, clearTimeout: () => { timers = []; } });
 });
-afterEach(() => { for (const name of ['Audio', 'window', 'localStorage']) delete (globalThis as Record<string, unknown>)[name]; });
+afterEach(() => { delete (globalThis as Record<string, unknown>).Audio; delete (globalThis as Record<string, unknown>).window; });
 
-/** A browser's storage, so the switch can be carried from one visit to the next. */
-const storage = () => {
-  const held = new Map<string, string>();
-  const store = { getItem: (key: string) => held.get(key) ?? null, setItem: (key: string, value: string) => { held.set(key, value); }, removeItem: (key: string) => { held.delete(key); } };
-  Object.assign(globalThis, { localStorage: store });
-  return held;
-};
-
-/**
- * The blocks down to the context's own are the fallback: no `AudioContext` is
- * defined, which is a browser the music has to be an element in. What they say
- * about which screen owns the sound holds for both.
- */
 describe('the music a screen owns', () => {
   it('plays the cover track, looped, the moment the cover asks for it', () => {
     const audio = new GameAudio();
@@ -124,19 +111,19 @@ describe('the sound switch and the tab', () => {
     const audio = new GameAudio();
     audio.music('cover');
     cover()!.currentTime = 42;
-    audio.set('off');
+    audio.setMuted(true);
     expect(cover()!.calls).toEqual(['play', 'pause']);
     expect(cover()!.currentTime).toBe(42);
-    audio.set('on');
+    audio.setMuted(false);
     expect(cover()!.calls).toEqual(['play', 'pause', 'play']);
     audio.dispose();
   });
   it('does not so much as fetch a track while the sound is off', () => {
     const audio = new GameAudio();
-    audio.set('off');
+    audio.setMuted(true);
     audio.music('result');
     expect(FakeAudio.made).toHaveLength(0);
-    audio.set('on');
+    audio.setMuted(false);
     expect(result()!.calls).toEqual(['play']);
     audio.dispose();
   });
@@ -149,130 +136,6 @@ describe('the sound switch and the tab', () => {
     expect(cover()!.calls).toEqual(['play', 'pause']);
     audio.background(false);
     expect(cover()!.calls).toEqual(['play', 'pause', 'play']);
-    audio.dispose();
-  });
-});
-
-/**
- * An audio context that only counts: how many were opened, how many impacts
- * were struck on one, and whether it was let go of.
- */
-const contexts = () => {
-  const seen = { opened: 0, struck: 0, suspended: 0, resumed: 0, last: null as null | { state: string } };
-  const node = () => ({ connect() {}, disconnect() {}, start() {}, stop() {}, onended: null,
-    frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, gain: { value: 1, setValueAtTime() {}, exponentialRampToValueAtTime() {} } });
-  class FakeContext {
-    state = 'running'; currentTime = 0; sampleRate = 44100; destination = {};
-    constructor() { seen.opened++; seen.last = this; }
-    resume() { seen.resumed++; this.state = 'running'; return Promise.resolve(); }
-    suspend() { seen.suspended++; this.state = 'suspended'; return Promise.resolve(); }
-    close() { return Promise.resolve(); }
-    createBuffer() { return {}; }
-    createBufferSource() { return node(); }
-    createGain() { return node(); }
-    createOscillator() { seen.struck++; return node(); }
-    decodeAudioData() { return Promise.reject(new Error('no decoder here')); }
-  }
-  Object.assign(globalThis, { AudioContext: FakeContext });
-  return seen;
-};
-
-describe('a player with their own music on', () => {
-  afterEach(() => { delete (globalThis as Record<string, unknown>).AudioContext; });
-  it('steps the key from everything on, to the music off, to nothing at all, and round', () => {
-    const audio = new GameAudio();
-    expect(audio.setting).toBe('on');
-    audio.step(); expect(audio.setting).toBe('effects');
-    audio.step(); expect(audio.setting).toBe('off');
-    audio.step(); expect(audio.setting).toBe('on');
-    audio.dispose();
-  });
-  it('keeps the bat on the ball with the music off', () => {
-    const audio = new GameAudio();
-    // No context in this browser yet, so the music is the fallback element.
-    audio.music('cover');
-    const seen = contexts();
-    audio.set('effects');
-    // The music stops, and stays stopped when the next screen asks for its own.
-    expect(cover()!.calls).toEqual(['play', 'pause']);
-    audio.music('result');
-    expect(result()?.calls ?? []).toEqual([]);
-    // The impacts are still let through.
-    audio.unlock();
-    audio.play('hit');
-    expect(seen.opened).toBe(1);
-    expect(seen.struck).toBe(1);
-    audio.dispose();
-  });
-  it('asks for the sound back when a shot finds Safari holding it', () => {
-    const seen = contexts();
-    const audio = new GameAudio();
-    audio.set('effects');
-    audio.unlock();
-    // Music started from the control centre: Safari holds the page's sound.
-    seen.last!.state = 'interrupted';
-    const before = seen.resumed;
-    audio.play('hit');
-    expect(seen.resumed).toBe(before + 1);
-    expect(audio.describe()).toMatchObject({ sound: 'effects', struck: 1, lastStrike: 'hit@interrupted' });
-    // And a context that is running is left alone.
-    audio.play('hit');
-    expect(seen.resumed).toBe(before + 1);
-    audio.dispose();
-  });
-  it('opens no audio context with everything off, and lets go of one already open', () => {
-    const seen = contexts();
-    const audio = new GameAudio();
-    audio.unlock();
-    audio.set('off');
-    expect(seen.suspended).toBe(1);
-    audio.play('hit');
-    expect(seen.struck).toBe(0);
-    const next = new GameAudio();
-    next.set('off'); next.unlock();
-    expect(seen.opened).toBe(1);
-    audio.dispose(); next.dispose();
-  });
-  it('remembers the setting, so the next visit never takes the speaker', () => {
-    const held = storage();
-    new GameAudio().set('effects');
-    expect(held.get('hitman-sound')).toBe('effects');
-    // The next visit: the cover asks for its music and nothing is so much as
-    // built, so there is nothing to take the phone's audio away from theirs.
-    const next = new GameAudio();
-    expect(next.setting).toBe('effects');
-    next.music('cover');
-    expect(FakeAudio.made).toHaveLength(0);
-    next.set('on');
-    expect(held.has('hitman-sound')).toBe(false);
-    expect(cover()!.calls).toEqual(['play']);
-    next.dispose();
-  });
-  it('reads anything it does not recognise as everything on', () => {
-    storage().set('hitman-sound', 'loud');
-    expect(new GameAudio().setting).toBe('on');
-  });
-  it('asks an iPhone to mix the impacts in with the music while ours is off', () => {
-    const session = { type: 'auto' };
-    Object.defineProperty(globalThis.navigator, 'audioSession', { value: session, configurable: true });
-    try {
-      const audio = new GameAudio();
-      audio.set('effects'); expect(session.type).toBe('ambient');
-      audio.set('off'); expect(session.type).toBe('ambient');
-      audio.set('on'); expect(session.type).toBe('auto');
-      // A returning player's setting is applied before anything plays.
-      storage().set('hitman-sound', 'effects');
-      new GameAudio();
-      expect(session.type).toBe('ambient');
-      audio.dispose();
-    } finally { delete (globalThis.navigator as unknown as Record<string, unknown>).audioSession; }
-  });
-  it('plays as before in a browser that keeps nothing', () => {
-    Object.assign(globalThis, { localStorage: { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); }, removeItem: () => { throw new Error('denied'); } } });
-    const audio = new GameAudio();
-    expect(audio.setting).toBe('on');
-    audio.set('off');
-    expect(audio.muted).toBe(true);
     audio.dispose();
   });
 });
@@ -321,153 +184,3 @@ describe('a browser that will not play it yet', () => {
     audio.dispose();
   });
 });
-
-/**
- * The music through the context, which is where it plays wherever there is
- * one. An element that plays is a player Android pauses everything else for,
- * muted or not; a context is not, so this is the path that lets a player's own
- * music survive the game's.
- */
-describe('the music through the context', () => {
-  type Ramp = [string, number, number];
-  const made: { source: { loop: boolean; started: [number, number] | null; stopped: boolean; buffer: { duration: number } | null }; ramps: Ramp[]; gain: { value: number } }[] = [];
-  let fetched: string[] = [];
-  let decodable = true;
-  let clock: { state: string; currentTime: number; allow: boolean } | null = null;
-  beforeEach(() => {
-    made.length = 0; fetched = []; decodable = true; clock = null;
-    class Context {
-      state = 'suspended'; currentTime = 0; sampleRate = 48000; destination = {};
-      /** Whether a resume is honoured: false until the page has been touched. */
-      allow = false;
-      constructor() { clock = this; }
-      resume() { if (this.allow) this.state = 'running'; return Promise.resolve(); }
-      suspend() { this.state = 'suspended'; return Promise.resolve(); }
-      close() { return Promise.resolve(); }
-      createBuffer() { return {}; }
-      decodeAudioData() { return decodable ? Promise.resolve({ duration: 30 }) : Promise.reject(new Error('no')); }
-      createBufferSource() {
-        const source = { loop: false, buffer: null, started: null as [number, number] | null, stopped: false, onended: null,
-          connect() {}, disconnect() {}, start(when = 0, offset = 0) { source.started = [when, offset]; }, stop() { source.stopped = true; } };
-        const entry = { source, ramps: [] as Ramp[], gain: { value: 1 } };
-        made.push(entry as never);
-        return source;
-      }
-      createGain() {
-        const entry = made[made.length - 1];
-        const gain = { value: 1,
-          setValueAtTime: (v: number, t: number) => { entry.ramps.push(['set', v, t]); },
-          linearRampToValueAtTime: (v: number, t: number) => { entry.ramps.push(['ramp', v, t]); } };
-        entry.gain = gain;
-        return { gain, connect() {}, disconnect() {} };
-      }
-    }
-    Object.assign(globalThis, {
-      AudioContext: Context,
-      fetch: (url: string) => { fetched.push(String(url)); return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }); },
-    });
-  });
-  afterEach(() => { delete (globalThis as Record<string, unknown>).AudioContext; });
-  const land = () => new Promise(resolve => setTimeout(resolve, 0));
-  /** The sources that are music: looped, which an impact never is. */
-  const music = () => made.filter(entry => entry.source.loop);
-
-  it('plays the cover looped through the context, and builds no element', async () => {
-    const audio = new GameAudio();
-    clock = null; audio.music('cover'); clock!.allow = true; clock!.state = 'running';
-    await land();
-    expect(fetched.filter(url => url.includes('start_screen'))).toHaveLength(1);
-    expect(music()).toHaveLength(1);
-    expect(music()[0].source.started).toEqual([0, 0]);
-    expect(music()[0].gain.value).toBe(.5);
-    expect(FakeAudio.made).toHaveLength(0);
-    audio.dispose();
-  });
-  it('waits for the touch, and comes up silent for a beat when it arrives', async () => {
-    const audio = new GameAudio();
-    audio.music('cover');
-    await land();
-    // Nobody has touched the page: the context will not start, so nothing plays.
-    expect(music()).toHaveLength(0);
-    clock!.allow = true;
-    tap();
-    await land();
-    expect(music()).toHaveLength(1);
-    // Silent for the fade, then brought up to the music's level.
-    expect(music()[0].ramps).toEqual([['set', 0, 0], ['set', 0, .22], ['ramp', .5, .47]]);
-    audio.dispose();
-  });
-  it('stays armed through a touch the browser does not count', async () => {
-    const audio = new GameAudio();
-    audio.music('cover');
-    await land();
-    // A pointerdown that the phone does not treat as permission to play.
-    tap('pointerdown');
-    await land();
-    expect(music()).toHaveLength(0);
-    // The touchend after it is the one it does.
-    clock!.allow = true;
-    tap('touchend');
-    await land();
-    expect(music()).toHaveLength(1);
-    audio.dispose();
-  });
-  it('never starts when the touch was the sound key turning the music off', async () => {
-    const audio = new GameAudio();
-    audio.music('cover');
-    await land();
-    clock!.allow = true;
-    tap('touchend');
-    // The click that follows the touch lands before the context says it is running.
-    audio.set('effects');
-    await land();
-    expect(music()).toHaveLength(0);
-    audio.dispose();
-  });
-  it('hands a switched-off track back where it stood, and rewinds a finished one', async () => {
-    const audio = new GameAudio();
-    audio.music('cover'); clock!.allow = true; clock!.state = 'running';
-    await land();
-    clock!.currentTime = 12;
-    audio.set('effects');
-    expect(music()[0].source.stopped).toBe(true);
-    audio.set('on');
-    expect(music()[1].source.started).toEqual([0, 12]);
-    // Leaving the screen rewinds it: the next visit hears it from the top.
-    clock!.currentTime = 20;
-    audio.music(null); audio.music('cover');
-    expect(music()[2].source.started).toEqual([0, 0]);
-    audio.dispose();
-  });
-  it('starts again as soon as the sound comes back on, without waiting for another touch', async () => {
-    const audio = new GameAudio();
-    audio.music('cover'); clock!.allow = true; clock!.state = 'running';
-    await land();
-    audio.set('off');
-    expect(clock!.state).toBe('suspended');
-    // The key's own press is the touch: the context runs again, and so does the music.
-    audio.set('on'); audio.unlock();
-    await land();
-    expect(music().filter(entry => !entry.source.stopped)).toHaveLength(1);
-    audio.dispose();
-  });
-  it('does not fetch a track while the music is off, even to warm it', async () => {
-    const audio = new GameAudio();
-    audio.set('effects');
-    audio.warm('result'); audio.music('result');
-    await land();
-    expect(fetched.filter(url => url.endsWith('.aac'))).toEqual([]);
-    audio.dispose();
-  });
-  it('falls back to an element for a track the context will not decode', async () => {
-    decodable = false;
-    const audio = new GameAudio();
-    audio.music('cover');
-    await land();
-    expect(music()).toHaveLength(0);
-    expect(cover()!.calls).toEqual(['play']);
-    expect(audio.describe().fallback).toBe('cover');
-    audio.dispose();
-  });
-});
-

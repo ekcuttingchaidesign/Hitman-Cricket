@@ -44,25 +44,16 @@ import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
 import { resultOf, type Result } from '../game/Survive';
-import type { SoundSetting } from '../game/Audio';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
   return `${n}${suffix}`;
 };
-/** Each setting of the sound key: its picture, what it is, and what a press does. */
-const SOUND_SETTINGS: Record<SoundSetting, [string, string, string]> = {
-  on: ['sound', 'Sound on', 'Turn the music off'],
-  effects: ['effects', 'Music off · game sounds on', 'Turn all sound off'],
-  off: ['muted', 'All sound off', 'Turn sound on'],
-};
 const icon = (name: string) => {
   const paths: Record<string, string> = {
     sound: '<path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
     muted: '<path d="m11 5-6 4H2v6h3l6 4V5Z"/><path d="m16 9 5 6m0-6-5 6"/>',
-    // A note struck through: the game's music off, its sounds still on.
-    effects: '<path d="M9 17V5l10-2v12"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15" r="2.5"/><path d="m3 3 18 18"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01"/>',
     expand: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
@@ -227,8 +218,7 @@ export class HUD {
       <div id="viewport" class="stage">
         <div class="hud-top">
           <div class="hud-actions">
-            <button id="sound" class="hud-button" aria-label="Sound on. Turn the music off" title="Sound (M)">${icon('sound')}</button>
-            <span id="sound-note" class="sound-note" role="status"></span>
+            <button id="sound" class="hud-button" aria-label="Mute sound" title="Sound (M)">${icon('sound')}</button>
             <!--
               The row used to carry six, which over the top of the ground read
               as a menu bar rather than a game. Three of them were ways to a
@@ -2206,23 +2196,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     offer('feedback-pause', where.pause);
   }
 
-  /**
-   * The sound key, drawn as the setting it is on. Three settings on one key
-   * means a press has to say where it landed, or the middle one is a mystery
-   * icon: the note under the key does that, and only when the key is pressed.
-   */
-  sound(setting: SoundSetting, pressed = false) {
-    const [art, says, next] = SOUND_SETTINGS[setting];
-    this.$('sound').innerHTML = icon(art);
-    this.$('sound').setAttribute('aria-label', `${says}. ${next}`);
-    if (!pressed) return;
-    const note = this.$('sound-note');
-    note.textContent = says;
-    note.classList.remove('is-up'); void note.offsetWidth; note.classList.add('is-up');
-    clearTimeout(this.soundNote);
-    this.soundNote = window.setTimeout(() => note.classList.remove('is-up'), 1600);
-  }
-  private soundNote = 0;
+  sound(muted: boolean) { this.$('sound').innerHTML = icon(muted ? 'muted' : 'sound'); this.$('sound').setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); }
   debug(data: object) { this.$('debug').classList.remove('hidden'); this.$('debug').textContent = Object.entries(data).map(([k, v]) => `${k}: ${v}`).join('\n'); }
   async share() {
     track('share-link', 'Shared the game link');

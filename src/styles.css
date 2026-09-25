@@ -97,29 +97,7 @@ kbd{
   gap:12px;
   z-index:9
 }
-.hud-actions{display:flex;gap:8px;position:relative}
-/* What a press of the sound key landed on. Three settings share one key, and
-   the middle one — the game's music off, its sounds on — is not a picture
-   anybody knows, so the key says it in words for a moment after each press.
-   Hung from the row's right edge so it can never run off the screen. */
-.sound-note{
-  position:absolute;
-  top:calc(100% + 8px);
-  right:0;
-  white-space:nowrap;
-  padding:6px 10px;
-  border-radius:8px;
-  background:#14313ee6;
-  color:#f3f7ec;
-  font-size:12px;
-  font-weight:650;
-  letter-spacing:.3px;
-  opacity:0;
-  transform:translateY(-4px);
-  transition:opacity .18s,transform .18s;
-  pointer-events:none
-}
-.sound-note.is-up{opacity:1;transform:none}
+.hud-actions{display:flex;gap:8px}
 .hud-button{
   display:flex;
   align-items:center;
@@ -726,16 +704,10 @@ kbd{
 .cover-best>svg{width:17px;height:17px;color:#c2762c}
 .cover-best strong{font-family:var(--display);font-size:20px;letter-spacing:.5px}
 .cover-best small{font-size:9px;letter-spacing:1.4px;font-weight:650}
-/* Nothing else on the cover: the board and the buttons return with the innings.
-   The sound key is the exception, for the reason the picker and the card keep
-   it: the cover has music, and on a phone it is the only screen where the first
-   tap starts it. Somebody listening to their own songs has to be able to say no
-   before they have lost them. */
+/* Nothing else on the cover: the board and the buttons return with the innings. */
 body.start-screen .score-stack,
-body.start-screen .arena-bottom{display:none}
-body.start-screen .hud-top{pointer-events:none}
-body.start-screen .hud-actions>:not(#sound):not(#sound-note){display:none}
-body.start-screen #sound{pointer-events:auto}
+body.start-screen .arena-bottom,
+body.start-screen .hud-top{display:none}
 
 .intro-panel{
   position:absolute;
@@ -2549,8 +2521,8 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
    hidden. */
 .stage.picking-mode .score-stack,.stage.result-open .score-stack{display:none}
 .stage.picking-mode .hud-top,.stage.result-open .hud-top{pointer-events:none}
-.stage.picking-mode .hud-actions>:not(#sound):not(#sound-note),
-.stage.result-open .hud-actions>:not(#sound):not(#sound-note){display:none}
+.stage.picking-mode .hud-actions>:not(#sound),
+.stage.result-open .hud-actions>:not(#sound){display:none}
 .stage.picking-mode #sound,.stage.result-open #sound{pointer-events:auto}
 .mode-screen{
   /* The screen the cards stand on, and it is the one place this differs from
