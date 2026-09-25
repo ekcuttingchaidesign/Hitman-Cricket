@@ -1,9 +1,10 @@
 # How the game is drawn — and where it could look better
 
 This covers everything you see on screen: the ground, the stadium, the pitch,
-the batter, the bowler and fielders, the ball, and the 2D layer on top. The
-second half is a costed list of improvements, ordered by how much they would
-change the picture for how much work they take.
+the batter, the bowler and fielders, the ball, and the 2D layer on top. Part 2
+is a costed list of improvements, ordered by how much they would change the
+picture for how much work they take. Part 3 is about the players alone: how
+their shapes differ from a real body, and how to make them look more human.
 
 The short version: **every 3D object in the game is built from code.** There
 are no model files, no textures and no image maps anywhere in the 3D scene.
@@ -414,6 +415,8 @@ improvement short of skinned models. *Watch for:* the batting rig is heavily
 tuned and tested; check every stroke in `pose-lab` and on the rig sheets
 before and after.
 
+Part 3 breaks both of these down into smaller steps.
+
 ### Suggested order
 
 If you only do one round, do this:
@@ -425,10 +428,167 @@ If you only do one round, do this:
 3. **Striped outfield** (4) and **painted pitch** (5), which also cut meshes.
 4. **Living crowd** (10) and **sightscreens and hoardings** (11). The ground
    starts to feel like a venue.
-5. Then choose between the **night match** (15) and **skinned figures** (17),
-   depending on whether the priority is a new mode or better-looking players.
+5. Then choose between the **night match** (15) and **more human players**
+   (Part 3), depending on whether the priority is a new mode or better-looking
+   players.
 
-### Checking a graphics change
+---
+
+## Part 3 — Making the players look more human
+
+Items 17 and 18 touch on this. This part goes further: what, measured, makes
+the batter, bowler and fielders read as figures rather than people, and how to
+close that gap step by step. Everything up to step 8 can be done in code, with
+no model files, so the README's "no external art" rule still holds.
+
+### Where they differ from a real body
+
+Measured from the figures themselves (bounding boxes of the built meshes, and
+the geometry and `BUILD` numbers in `Cricketer.ts`), against approximate
+averages for an adult man about 1.80 m tall:
+
+| Measure | In the game | A real person |
+|---|---|---|
+| Height, standing (fielder) | 1.94 m | 1.75–1.85 m |
+| Head, chin to crown (fielder) | 0.32 m | about 0.23 m |
+| Head width (fielder, without cap) | 0.28 m | about 0.155 m |
+| Height in head-lengths | about 6 | about 7.5 |
+| Batter's helmet, width × height | 0.39 × 0.46 m | about 0.23 × 0.25 m |
+| Shoulder width, joint to joint | 0.35 m | about 0.38–0.40 m |
+| Upper arm thickness at the shoulder | 0.16 m | about 0.11 m, sleeve included |
+| Wrist thickness | 0.11 m | about 0.06 m |
+| Ankle thickness as a share of knee thickness | about 80% | about 50% |
+
+Some of this is deliberate. A big head and thick limbs stay readable when a
+fielder is 40 pixels tall and the batter is seen from behind, and that "clay
+figure" style suits the rest of the game. But the gap is far past what the
+camera needs. The head is nearly twice life size, the batter's helmet is
+about 1.7× life size, and the shoulders are narrower than the head makes them
+look. Those three numbers are most of why the figures look like toys.
+
+The shapes add to it:
+
+1. **Limbs are straight cones.** Every arm and leg segment is one tapered
+   cylinder: no calf, no curve of the thigh, no forearm swelling near the
+   elbow. Wrists and ankles are nearly as thick as elbows and knees.
+2. **Joints are balls.** A sphere sits in every elbow and knee to hide the
+   seam. At a sharp bend (a crouching fielder, the batter's front knee) the
+   ball shows, and the figure looks like a jointed doll.
+3. **The trunk is two rigid pieces.** Chest and pelvis can turn against each
+   other, but neither can bend. A batter leaning into a drive tilts like a
+   plank instead of curving through the spine, and shoulders don't rise when
+   the arms go up.
+4. **The batter uses the older build** (item 18): an egg-shaped torso and
+   straight tubes of the same width at both ends.
+5. **Hands are mittens.** On the fielders a hand is an ellipsoid with a thumb
+   blob, so there is no open hand for a catch and no fingers round the ball in
+   the bowler's grip.
+6. **No faces.** Ears and a cap, but no nose, brow or eyes, and no hair below
+   the cap or helmet.
+7. **Everyone is the same person.** `BUILD` and `SPINE` are shared constants,
+   so all seven figures have the same height, build and skin tone. A real
+   side never looks like that.
+
+### How to close the gap, step by step
+
+**Step 1 — Fix the proportions (1–2 days).**
+Shrink the fielders' head profile and cap by about a quarter, and the batter's
+face and helmet by about 30%. Widen the shoulders slightly (`BUILD.shoulderX`
+from .175 to about .19), and bring wrist and ankle radii down. This is mostly
+editing numbers that already exist, and it is the biggest improvement for the
+least work. *Watch for:* some stroke keys were tuned around the current head.
+The charge finish, for example, was moved out wide so the bat stopped crossing
+the grille. Re-check every stroke on the rig sheets. The `inspect()` tests
+measure joints, not the head, so they won't catch a bat now passing through
+a smaller helmet.
+
+**Step 2 — Give the limbs muscle shapes (2–3 days).**
+Replace the single `limb` cone with four lathed profiles, one each for the
+upper arm, forearm, thigh and shin, built the same way as the trunk. Nothing
+else changes: `segment()` still places and stretches each one between two
+joints, and only the shape inside it is new. A sketch of a shin:
+
+```ts
+// Unit-tall, knee at y = -0.5 and ankle at +0.5 (segment() points +Y at the
+// far joint). Radii are fractions of the limb width.
+shin: lathe([
+  [-.50, .50], [-.40, .58], [-.22, .60],   // the calf, high on the leg
+  [-.02, .48], [.22, .36], [.42, .28], [.50, .27], // down to a narrow ankle
+], .88, 24),
+```
+
+Similar profiles give the thigh its sweep from hip to knee, and the forearm its
+swell below the elbow and narrow wrist. The triangle count is about the same
+as the cones, so this costs nothing to draw.
+
+**Step 3 — Put the batter on the same body (about a week).**
+This is item 18: the lathed trunk and pelvis, and the step 2 limbs, in place
+of the ellipsoid torso and plain tubes. He is the figure on screen the most
+and the largest, so this is where the gain shows most. Keep his pads, gloves,
+helmet and bat exactly as they are: they are the most detailed parts of the
+game.
+
+**Step 4 — Bend the spine, lift the shoulders (3–4 days).**
+Split the trunk into an abdomen and a chest (or skin it over two or three
+spine bones), so bending forward curves the back instead of tilting it whole.
+Let the shoulder joint rise and come forward when the arm goes above the
+shoulder, as the collarbone does. The batter already has a `shoulderLift`
+setting in his poses; the shared figure needs the same. The bowler's
+delivery, with the arm straight up over the head, is where this is most
+visible.
+
+**Step 5 — Replace the joint balls with bending limbs (1–2 weeks).**
+Make each arm and each leg a single continuous mesh that bends, instead of two
+segments and a ball: one lathed tube from shoulder to wrist (or hip to ankle),
+turned into a `SkinnedMesh` with two bones. Vertices near the elbow or knee
+are shared between both bones, so the joint folds smoothly. The bones are
+placed from the same solved joint positions `apply()` computes today, so no
+pose or animation changes. This is also the natural time to blend the upper
+arm into the shoulder and the thigh into the hip. It is built entirely in code
+and removes the jointed-doll look for good.
+
+**Step 6 — Hands (2–3 days).**
+A palm block, a four-finger block that can curl, and a thumb, with three poses:
+relaxed, open to take a catch, and closed round the ball for the bowler. The
+catcher's hands closing on a skied ball is one of the moments the camera
+dwells on.
+
+**Step 7 — Faces and hair (2–3 days).**
+A nose and brow ridge sculpted into the head profile, small dark eyes, and hair
+showing at the back of the neck and over the ears. This is low priority,
+because the batter faces away and the bowler's face is about 20 pixels tall.
+Do it after the proportions are right, or it will only draw attention to how
+large the heads are.
+
+**Step 8 — Make them different people (2–3 days).**
+Give each figure its own build: height ±6%, a shoulder and limb width factor,
+and a skin tone from a small palette. `solveJoint` already takes bone lengths
+as arguments, so the change is making `BUILD` per figure instead of a module
+constant. *Watch for:* the bowler's release point is tuned to his arm length
+(`RELEASE_HIP_Z` in `Bowler.ts`: the hand has to arrive where the ball
+trajectory starts). Keep the two bowlers' builds fixed, or recompute that
+figure from the build.
+
+**Step 9 — Real modelled players (multi-week).**
+Item 17: modelled glTF cricketers driven by the existing pose system. After
+steps 1–8 this is a much smaller jump, and some teams might decide the
+procedural figures are good enough by then.
+
+Throughout, clothing shape carries a lot of what reads as "person" at a
+distance. A trouser hem that flares over the boot, a shirt that hangs loose at
+the waist, and a sleeve end cost a few meshes each and are worth adding
+whenever a step touches that part of the body.
+
+### Recommended order
+
+Do **steps 1 and 2 first**: under a week together, and the biggest improvement
+in how human the players look for the time. Then **step 3**, so the batter
+matches everyone else, then **step 5**, which is the one that removes the doll
+look completely. Steps 4 and 6–8 can be done in any order after that.
+
+---
+
+## Checking a graphics change
 
 - `npx vitest run` and `npx tsc --noEmit -p .` must stay green. Figure changes
   are caught by the `inspect()`-based tests.
