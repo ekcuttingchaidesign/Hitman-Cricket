@@ -101,7 +101,7 @@ export class GameScene {
     // the navy, the orange and the green towards grey, which is what a
     // stylised ground is made of.
     this.renderer.toneMapping = THREE.NeutralToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = 1.22;
     this.renderer.setClearColor(0xc9e6f4);
     container.prepend(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
@@ -124,11 +124,11 @@ export class GameScene {
     this.environment = pmrem.fromScene(envScene, 0.04);
     pmrem.dispose(); floor.geometry.dispose(); (floor.material as THREE.Material).dispose();
     this.scene.environment = this.environment.texture;
-    this.scene.environmentIntensity = 0.55;
-    this.scene.add(new THREE.HemisphereLight(0xdcecff, 0x6f8c4d, 0.9));
+    this.scene.environmentIntensity = 0.7;
+    this.scene.add(new THREE.HemisphereLight(0xdcecff, 0x6f8c4d, 1.4));
     // A warm sun high in front and to the off side, so the shadows fall
     // towards the camera and the batter's back is lit, as on the cover.
-    const sun = new THREE.DirectionalLight(0xfff1d6, 2.6); sun.position.set(-13, 30, 11); sun.castShadow = true;
+    const sun = new THREE.DirectionalLight(0xfff1d6, 3.0); sun.position.set(-13, 30, 11); sun.castShadow = true;
     sun.target.position.set(0, 0, 6); this.scene.add(sun.target);
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025; sun.shadow.radius = 3;
