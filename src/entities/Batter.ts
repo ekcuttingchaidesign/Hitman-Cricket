@@ -2215,6 +2215,8 @@ export class Batter {
     const along = THREE.MathUtils.clamp(point.clone().sub(hip).dot(spine), 0, chest.distanceTo(hip));
     return point.distanceTo(hip.clone().addScaledVector(spine, along));
   }
+  /** Where each shoe is, in scene space, for the shade painted under it. */
+  contactFeet(into: THREE.Vector3[]) { this.legs.forEach((leg, i) => leg.shoe.getWorldPosition(into[i])); }
   /** Read-only measurements used to catch detached grips and pose regressions. */
   inspect() {
     this.root.updateMatrixWorld(true);
