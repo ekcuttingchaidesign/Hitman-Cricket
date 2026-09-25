@@ -228,6 +228,11 @@ function surviveFigures(raw: unknown): SurviveInnings {
   };
 }
 
+// This review screen belongs to the graphics branch, not the production build.
+// An explicit local build flag also makes the built page testable before push.
+const graphicsReview = process.env.GRAPHICS_REVIEW === '1'
+  || process.env.VERCEL_GIT_COMMIT_REF === 'codex/graphics-upgrade';
+
 export default defineConfig({
   base: './',
   plugins: [boardEndpoints()],
@@ -242,5 +247,8 @@ export default defineConfig({
   // /shot-preview.html. It is unlinked from the game and pulls in nothing the
   // game does not already ship; drop this entry before a production release if
   // you would rather it were not reachable.
-  build: { rollupOptions: { input: { game: 'index.html', preview: 'shot-preview.html' }, output: { manualChunks: { three: ['three'] } } } },
+  build: { rollupOptions: { input: {
+    game: 'index.html', preview: 'shot-preview.html',
+    ...(graphicsReview ? { graphics: 'graphics-review.html' } : {}),
+  }, output: { manualChunks: { three: ['three'] } } } },
 });

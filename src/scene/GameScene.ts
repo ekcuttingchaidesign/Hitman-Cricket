@@ -40,7 +40,8 @@ export class GameScene {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   private world = new THREE.Group();
-  private batter = new Batter();
+  /** Review tools pose this same actor without starting the gameplay controller. */
+  readonly batter = new Batter();
   private bowler = new Bowler();
   private catcher = new Cricketer();
   /** Scenery, but they are on the same field and wear the same kit as everyone else. */
