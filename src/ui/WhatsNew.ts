@@ -34,8 +34,7 @@ export interface StoriesView {
   locked?: boolean;
   /**
    * The player's key, for a story that carries one. Null for a player with no
-   * name, who has no key to save — and is offered the way back instead, since
-   * somebody reading about keys with none on this phone may well own one.
+   * name, who has no key to save and is shown no card.
    */
   careerKey?: KeyView | null;
 }
@@ -71,28 +70,20 @@ export function storiesMarkup(view: StoriesView): string {
 }
 
 /**
- * The key under the picture: the save card from My Stats, in whichever of its
- * three states this player is in.
+ * The key under the picture: the save card from My Stats.
  *
- * It says "Save your key" in all three, because that is what the picture above
- * it is asking. What differs is only what the press can honestly do:
- *
- *  - a key held: it is printed, and the press opens the save sheet;
- *  - a name without a key: the press makes one, and the save sheet follows;
- *  - no name at all: there is no key to save yet, so there is no save key —
- *    a button that did nothing would be the one lie on the screen. It says
- *    where a key comes from, and offers the way back to anybody who has one.
+ * A key held is printed, and the press opens the save sheet. A name without a
+ * key gets the same card without the print, and the press makes one and opens
+ * the sheet on it. A player with no name has no key to save, so is shown no
+ * card at all — a save key with nothing behind it would be the one lie on the
+ * screen, and the picture above says the rest.
  *
  * Its own ids rather than the card's, because My Stats can be standing under
  * this story when it is opened from the board.
  */
 export function storyKeyMarkup(view: KeyView | null): string {
-  const held = !!view && view.state !== 'lost';
-  const line = held
-    ? 'The only way back to your record if this browser forgets you.'
-    : view
-      ? 'There is no key on this phone yet. Make one now, save it, and your record comes back on any phone.'
-      : 'Put a score on the board and your key is made for you. Save it the moment you get it.';
+  if (!view) return '';
+  const held = view.state !== 'lost';
   return `
     <section class="key-pass whatsnew-keypass" aria-labelledby="whatsnew-key-title">
       <div class="key-face">
@@ -100,11 +91,9 @@ export function storyKeyMarkup(view: KeyView | null): string {
           <span class="key-mark" aria-hidden="true">${MARK}</span>
           <h3 id="whatsnew-key-title">Save your key</h3>
         </div>
-        ${held ? `<p class="key-serial"><span>${escape(view!.code ?? '')}</span></p>` : ''}
-        <p class="key-line">${line}</p>
-        ${held ? '<button id="whatsnew-key-save" class="key-save" type="button">SAVE YOUR KEY</button>'
-    : view ? '<button id="whatsnew-key-make" class="key-save" type="button">SAVE YOUR KEY</button>'
-      : '<button id="whatsnew-key-restore" class="key-ghost" type="button">Already have a key? Bring your record back</button>'}
+        ${held ? `<p class="key-serial"><span>${escape(view.code ?? '')}</span></p>` : ''}
+        <p class="key-line">The only way back to your record if this browser forgets you.</p>
+        <button id="${held ? 'whatsnew-key-save' : 'whatsnew-key-make'}" class="key-save" type="button">SAVE YOUR KEY</button>
       </div>
     </section>`;
 }

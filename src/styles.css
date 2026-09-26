@@ -4151,10 +4151,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The key under the picture. The body is not a control — taps go through it to
    the halves underneath — so the one thing in it that is has to say so. */
+.whatsnew-keyslot:empty{display:none}
 .whatsnew-keyslot{width:min(330px,100%);flex:none;pointer-events:auto;text-align:left}
 .whatsnew-keyslot .key-pass{margin:0}
 .whatsnew-keyslot .key-line{margin-bottom:10px}
-.whatsnew-keyslot .key-ghost{margin:0}
 .whatsnew-bar.is-held>i{animation:none;transform:none}
 /* The sheets the key opens stand over the story it was opened from. */
 .whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,

@@ -803,8 +803,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (save) save.onclick = () => this.openKeySheet(false, 'story');
     const make = document.getElementById('whatsnew-key-make');
     if (make) make.onclick = () => this.onNewKey?.();
-    const restore = document.getElementById('whatsnew-key-restore');
-    if (restore) restore.onclick = () => this.onRestoreOpen?.('story');
   }
 
   /**

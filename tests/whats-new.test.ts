@@ -61,7 +61,7 @@ describe('the story screen', () => {
     expect(markup.indexOf('whatsnew-keyslot')).toBeLessThan(markup.indexOf('whatsnew-done'));
   });
 
-  it('asks every player to save their key, and only offers a save that can happen', () => {
+  it('asks a player with a name to save their key, and shows nobody else a card', () => {
     const held = storiesMarkup({ at: 0, where: 'intro', holdMs: 1,
       careerKey: { state: 'unsaved', code: 'brave-otter-lamp-07' } });
     expect(held).toContain('Save your key');
@@ -72,11 +72,8 @@ describe('the story screen', () => {
     const lost = storyKeyMarkup({ state: 'lost' });
     expect(lost).toContain('Save your key');
     expect(lost).toMatch(/id="whatsnew-key-make"[^>]*>SAVE YOUR KEY</);
-    // No name at all: nothing to save, so no save key — the way back instead.
-    const nameless = storyKeyMarkup(null);
-    expect(nameless).toContain('Save your key');
-    expect(nameless).toContain('id="whatsnew-key-restore"');
-    expect(nameless).not.toContain('SAVE YOUR KEY');
+    // No name at all: nothing to save, so no card.
+    expect(storyKeyMarkup(null)).toBe('');
   });
 
   it('draws no frame round a picture that brings its own corners', () => {

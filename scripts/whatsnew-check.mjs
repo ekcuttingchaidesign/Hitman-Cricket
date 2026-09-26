@@ -75,28 +75,9 @@ check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
 // The one story is the meme, with the key under it.
 check(await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0),
   'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
-check(!!(await page.$('#whatsnew-keyslot .key-pass')), 'and the key widget under it');
-const order = await page.evaluate(() => {
-  const top = sel => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
-  return [top('.whatsnew-art img'), top('#whatsnew-keyslot'), top('#whatsnew-done')];
-});
-check(order[0] < order[1] && order[1] < order[2], 'meme, then key, then the way out', order.join(' < '));
-// A nameless first visit holds no key, so it is offered the way back.
-const offered = await page.$('#whatsnew-key-restore');
-check(!!offered, 'a player with no name is offered the way back rather than a key');
-if (offered) {
-  await offered.click();
-  await tick(500);
-  const over = await page.evaluate(() => {
-    const sheet = document.querySelector('#restore-overlay .key-modal');
-    if (!sheet) return false;
-    const box = sheet.getBoundingClientRect();
-    return document.elementFromPoint(box.left + box.width / 2, box.top + 40)?.closest('.key-modal') === sheet;
-  });
-  check(over, 'which opens over the story rather than under it');
-  await page.evaluate(() => document.querySelector('#restore-overlay .key-modal')?.click());
-  await tick(400);
-}
+// A nameless first visit holds no key, so there is no card to save one.
+check(!(await page.$('#whatsnew-keyslot .key-pass')), 'a player with no name is shown no key card');
+check(!(await page.$('#whatsnew-key-restore')), 'and no way back either');
 
 // Carrying the key, the story holds still: one that moved itself on would
 // take the key away from under a thumb on its way to it.
@@ -147,6 +128,41 @@ if (key) {
   check(await page.$eval('#board-overlay', node => !node.classList.contains('hidden')),
     'putting the player back on the board they came from');
   check(await seen() === `${UPDATE}:2`, 'without spending one of the two', await seen());
+}
+
+// ── A player holding a key ─────────────────────────────────────────────────
+// Made up and kept in this throwaway browser only; nothing is sent anywhere.
+await page.evaluate(() => {
+  localStorage.setItem('hitman-batter', JSON.stringify({ name: 'Story Check', avatar: 0 }));
+  localStorage.setItem('hitman-career-key', JSON.stringify({ code: 'brave-otter-lamp-07', saved: false }));
+  localStorage.removeItem('hitman-whatsnew');
+});
+await page.reload({ waitUntil: 'load' });
+await arrive();
+await page.click('#start');
+await tick(800);
+check(await page.$eval('#whatsnew-keyslot', slot => slot.textContent.includes('brave-otter-lamp-07')).catch(() => false),
+  'a player with a key is shown it under the meme');
+const order = await page.evaluate(() => {
+  const top = sel => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
+  return [top('.whatsnew-art img'), top('#whatsnew-keyslot .key-pass'), top('#whatsnew-done')];
+});
+check(order[0] < order[1] && order[1] < order[2], 'meme, then the key card, then the way out', order.join(' < '));
+const save = await page.$('#whatsnew-key-save');
+check(!!save && (await save.textContent()).trim() === 'SAVE YOUR KEY', 'with a key that says SAVE YOUR KEY');
+if (save) {
+  await save.click();
+  await tick(500);
+  const over = await page.evaluate(() => {
+    const sheet = document.querySelector('#key-overlay .key-modal');
+    if (!sheet) return false;
+    const box = sheet.getBoundingClientRect();
+    return document.elementFromPoint(box.left + box.width / 2, box.top + 40)?.closest('.key-modal') === sheet;
+  });
+  check(over, 'which opens the save sheet over the story rather than under it');
+  await page.click('#key-modal-close');
+  await tick(400);
+  check(!!(await page.$('.whatsnew-sheet')), 'and closing it leaves the story where it was');
 }
 
 check(errors.length === 0, 'nothing threw on the way', errors.join(' ;; '));
