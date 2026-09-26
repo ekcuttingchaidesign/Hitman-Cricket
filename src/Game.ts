@@ -636,6 +636,7 @@ export class Game {
     // standing on it outlives the thing it was offering.
     this.boardRestoreOffer();
     if (!this.hud.offerRestoreOnBoard) this.hud.dropBoardRestore();
+    this.hud.redrawStoryKey();
     this.redrawStats();
   }
 
@@ -1015,10 +1016,10 @@ export class Game {
    * The play key.
    *
    * What it does is start the game, except on the first two visits after the
-   * update, where it stops for the three cards explaining what changed. The
-   * stories are counted here rather than when they are closed, because a player
-   * who skips on the first card has still been shown them — counting on the way
-   * out would show the same three cards to the same person for ever.
+   * update, where it stops for the story. The stories are counted here rather
+   * than when they are closed, because a player who skips on the first card has
+   * still been shown them — counting on the way out would show the same cards
+   * to the same person for ever.
    *
    * The board's own What's New key does not count against it: somebody who went
    * looking has not used up one of the two they are given.

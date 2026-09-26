@@ -1,72 +1,64 @@
 /**
  * What changed, told the way a story is told.
  *
- * An update this size is invisible if nobody is shown it. The board grew four
- * ladders a game, every innings started counting towards something, and a card
- * appeared that is worth sending to people — and none of that is discoverable
- * by a player who opens the game, taps PLAY, and bats. So it is put in front of
- * them once, in the shape every phone already knows how to read: a handful of
- * cards, a bar across the top, a tap to move on.
+ * An update is invisible if nobody is shown it, so it is put in front of a
+ * player once, in the shape every phone already knows how to read: a card, a
+ * bar across the top, a tap to move on.
  *
- * Four, and not one more. A player came here to bat, and the only thing that
- * makes an interruption forgivable is that it is over before they resent it.
- * Three of these say what the game now does; the fourth is the only one that
- * asks the player to do something, and it earns the extra card by being the
- * thing that makes the other three survive a new phone.
- *
- * The pictures are screenshots of the real screens, made by
- * `scripts/whatsnew-art.mjs`. Drawings of them would be a second design to keep
- * in step with the first, and would be wrong the first time either moved.
+ * The four cards that announced the new board, the all-time ladders, the
+ * career card and the key have had their days and are gone. What is left is
+ * the one thing still worth interrupting an innings for — the key — said once,
+ * as a joke, with the key itself under it so the ask and the means of doing it
+ * are on the same screen.
  */
 
-const board = new URL('../assets/whatsnew/board.webp', import.meta.url).href;
-const ladders = new URL('../assets/whatsnew/ladders.webp', import.meta.url).href;
-const card = new URL('../assets/whatsnew/card.webp', import.meta.url).href;
-const key = new URL('../assets/whatsnew/key.webp', import.meta.url).href;
+/**
+ * Served from `public/` as the file was uploaded, space and all, so the name
+ * is written encoded. Relative, because the build is served from `./`.
+ */
+const meme = 'save%20key%20meme.png';
 
 export interface Story {
   key: string;
-  /** The small line above the heading. */
+  /** The small line above the picture. */
   eyebrow: string;
+  /**
+   * What the story is called. Read out rather than shown where the picture
+   * already says it in bigger letters than a heading could.
+   */
   title: string;
-  body: string;
+  /** The line under the picture, where the picture needs one. */
+  body?: string;
   art: string;
   /** What the picture shows, for whoever cannot see it. */
   alt: string;
+  /** The picture's own width, so it is laid out before it has loaded. */
+  width: number;
+  /**
+   * The picture brings its own rounded corners, cut into it as transparency.
+   * A frame drawn round it as well has corners of a different radius, and the
+   * gap between the two curves shows as a thin outline at each corner.
+   */
+  cut?: boolean;
+  /**
+   * Whether the career key is drawn under the picture.
+   *
+   * A story that asks for something holds still: one that moved itself on
+   * would take the key away from under a thumb on its way to it.
+   */
+  withKey?: boolean;
 }
 
 export const STORIES: readonly Story[] = [
   {
-    key: 'board',
-    eyebrow: 'LEADERBOARD',
-    title: 'A new-look leaderboard',
-    body: 'Tap to switch between The Blast, Test Survival and your own stats. Wherever you sit on the board, your row is the highlighted one.',
-    art: board,
-    alt: 'The leaderboard, with tabs for The Blast, Test Survival and My Stats, and one row lit as yours.',
-  },
-  {
-    key: 'counts',
-    eyebrow: 'ALL TIME',
-    title: 'Every innings counts now',
-    body: 'Not only your best one. Runs, boundaries, hundreds and your best individual score now add up over every innings you play — four all-time ladders under each game.',
-    art: ladders,
-    alt: 'The all-time runs ladder, with career totals and innings played beside each name.',
-  },
-  {
-    key: 'card',
-    eyebrow: 'MY STATS',
-    title: 'And a card to prove it',
-    body: 'Your figures, the tier you have climbed to, and the mark on it. Tap any number to see what it counts, then send the card to a group chat with the link to play riding along.',
-    art: card,
-    alt: 'A career stats card in the black and silver STAR theme, showing runs, highest, hundreds and best individual score.',
-  },
-  {
-    key: 'key',
+    key: 'save-key',
     eyebrow: 'CAREER KEY',
-    title: 'Never lose your record',
-    body: 'Phones forget. Register a score and you get a career key \u2014 three words and two numbers. Save it somewhere that is not this browser, and your record comes back on any phone.',
-    art: key,
-    alt: 'The career key card on My Stats, with a key of three words and two numbers across it and a key marked SAVE YOUR KEY.',
+    title: 'Save your career key',
+    art: meme,
+    alt: 'Bernie Sanders in a winter coat, captioned: I am once again asking you to save your career key.',
+    width: 370,
+    cut: true,
+    withKey: true,
   },
 ];
 
@@ -78,15 +70,15 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'career-key';
+export const UPDATE = 'save-key-meme';
 
 /**
  * How many times one browser is shown it unasked.
  *
  * Twice, because once is missed. The first is taken as an obstacle between the
  * player and the innings they came for, and skipped without a word of it being
- * read; the second lands on somebody who has already played and has a reason to
- * care what a ladder is. Three would be nagging.
+ * read; the second lands on somebody who has already played and has a record
+ * worth keeping. Three would be nagging.
  */
 export const TIMES = 2;
 

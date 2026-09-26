@@ -4015,7 +4015,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 
 /* ── What's new ─────────────────────────────────────────────────────────────
-   Three cards, the shape every phone already knows: a segmented bar across the
+   A card or a few, the shape every phone already knows: a segmented bar across the
    top, the page itself as the control, and a key on the bottom edge that is
    there the whole time. Nothing here is a dialogue — there is nothing to
    answer — so the only thing it asks of a player is that they can leave. */
@@ -4124,6 +4124,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid #ffffff1f;
   box-shadow:0 22px 50px #00000073
 }
+/* A picture with its corners already cut: no frame of our own, and a shadow
+   that follows its outline rather than a square box's. */
+.whatsnew-art img.is-cut{
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  filter:drop-shadow(0 18px 34px #00000073)
+}
 .whatsnew-say{
   margin:0;
   max-width:34ch;
@@ -4131,6 +4139,26 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   line-height:1.55;
   color:var(--quiet)
 }
+/* Said by the picture, in bigger letters than a heading could manage, and
+   kept for whoever is listening rather than looking. */
+.whatsnew-title.is-unseen{
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
+  white-space:nowrap
+}
+/* The key under the picture. The body is not a control — taps go through it to
+   the halves underneath — so the one thing in it that is has to say so. */
+.whatsnew-keyslot:empty{display:none}
+.whatsnew-keyslot{width:min(330px,100%);flex:none;pointer-events:auto;text-align:left}
+.whatsnew-keyslot .key-pass{margin:0}
+.whatsnew-keyslot .key-line{margin-bottom:10px}
+.whatsnew-bar.is-held>i{animation:none;transform:none}
+/* The sheets the key opens stand over the story it was opened from. */
+.whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,
+.whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal{z-index:13}
 .whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
 .whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
 
