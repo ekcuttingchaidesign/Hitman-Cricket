@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown,
 } from '../src/game/whats-new';
-import { storiesAlt, storiesMarkup } from '../src/ui/WhatsNew';
+import { storiesAlt, storiesMarkup, storyKeyMarkup } from '../src/ui/WhatsNew';
 
 /** localStorage, as a map, so the counting can be tested without a browser. */
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -17,29 +17,23 @@ function fakeStorage(seed: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('what the update says it did', () => {
-  it('says it in four, because a player came here to bat', () => {
-    expect(STORIES).toHaveLength(4);
+  it('says it in one, because a player came here to bat', () => {
+    expect(STORIES).toHaveLength(1);
   });
 
-  it('gives every card something to show and something to say', () => {
+  it('gives every card something to show, and a name for it', () => {
     for (const story of STORIES) {
       expect(story.title.length, story.key).toBeGreaterThan(8);
-      expect(story.body.length, story.key).toBeGreaterThan(40);
-      expect(story.art, story.key).toMatch(/whatsnew/);
-      // A canvas says nothing to a screen reader and neither does a screenshot.
+      expect(story.art, story.key).toMatch(/\.(png|webp)$/);
+      // A picture says nothing to a screen reader on its own.
       expect(story.alt.length, story.key).toBeGreaterThan(20);
     }
   });
 
-  it('covers the things that actually changed', () => {
-    const said = STORIES.map(one => `${one.title} ${one.body}`).join(' ').toLowerCase();
-    expect(said).toContain('ladder');
-    expect(said).toContain('every innings');
-    expect(said).toContain('card');
-    // The one card that asks for something. A story set that describes the
-    // careers and never mentions the thing that saves them is the update
-    // announcing its own best feature to nobody.
+  it('asks for the key, and carries it', () => {
+    const said = STORIES.map(one => `${one.title} ${one.alt}`).join(' ').toLowerCase();
     expect(said).toContain('career key');
+    expect(STORIES.some(one => one.withKey)).toBe(true);
   });
 
   it('reads out as one sentence for somebody who cannot see the pictures', () => {
@@ -50,13 +44,39 @@ describe('what the update says it did', () => {
 });
 
 describe('the story screen', () => {
-  it('draws a bar a story, and runs only the live one', () => {
-    const markup = storiesMarkup({ at: 1, where: 'intro', holdMs: 7000 });
-    expect(markup.match(/class="whatsnew-bar(?: is-\w+)?"/g)).toHaveLength(STORIES.length);
-    expect(markup.match(/is-done/g)).toHaveLength(1);
+  it('draws a bar a story, and holds still on one carrying the key', () => {
+    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
+    expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(STORIES.length);
     expect(markup.match(/is-live/g)).toHaveLength(1);
-    // The bar runs for exactly as long as the card holds, from one number.
-    expect(markup).toContain('--hold:7000ms');
+    // A card that moved on by itself would take the key from under a thumb.
+    expect(markup).toContain('is-held');
+    expect(markup).not.toContain('--hold:');
+  });
+
+  it('puts the meme on the screen, and the key under it', () => {
+    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 1 });
+    expect(markup).toContain('src="save%20key%20meme.png"');
+    expect(markup.indexOf('whatsnew-art')).toBeLessThan(markup.indexOf('whatsnew-keyslot'));
+    // The way out stays at the foot, under both.
+    expect(markup.indexOf('whatsnew-keyslot')).toBeLessThan(markup.indexOf('whatsnew-done'));
+  });
+
+  it('offers the key a player holds, and the right thing to one who holds none', () => {
+    const held = storiesMarkup({ at: 0, where: 'intro', holdMs: 1,
+      careerKey: { state: 'unsaved', code: 'brave-otter-lamp-07' } });
+    expect(held).toContain('brave-otter-lamp-07');
+    expect(held).toContain('id="whatsnew-key-save"');
+    expect(storyKeyMarkup({ state: 'saved', code: 'a-b-c-01' })).toContain('id="whatsnew-key-save"');
+    // A name with no key behind it is offered one.
+    expect(storyKeyMarkup({ state: 'lost' })).toContain('id="whatsnew-key-make"');
+    // No name at all: there is nothing to save, so the way back instead.
+    const nameless = storyKeyMarkup(null);
+    expect(nameless).toContain('id="whatsnew-key-restore"');
+    expect(nameless).not.toContain('whatsnew-key-save');
+  });
+
+  it('never prints a key it was not handed', () => {
+    expect(storyKeyMarkup({ state: 'unsaved', code: '<b>x</b>' })).not.toContain('<b>x</b>');
   });
 
   it('names the way out for where it was opened from, and where that goes', () => {
@@ -75,8 +95,7 @@ describe('the story screen', () => {
     expect(markup).toContain('id="whatsnew-done"');
   });
 
-  it('shows the card it was asked for, and the first one for a card that is not there', () => {
-    expect(storiesMarkup({ at: 2, where: 'intro', holdMs: 1 })).toContain(STORIES[2].title);
+  it('shows the first card for a card that is not there', () => {
     expect(storiesMarkup({ at: 9, where: 'intro', holdMs: 1 })).toContain(STORIES[0].title);
   });
 });

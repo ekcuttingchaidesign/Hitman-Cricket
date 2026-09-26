@@ -24,7 +24,7 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
-import { storiesMarkup, type StoriesWhere } from './WhatsNew';
+import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
   keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
@@ -781,6 +781,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const overlay = this.$('whatsnew-overlay');
     overlay.innerHTML = storiesMarkup({
       at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
+      careerKey: this.keyView,
     });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -788,8 +789,36 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('whatsnew-back').onclick = () => this.stepStory(-1);
     this.$('whatsnew-done').onclick = () => this.closeStories();
     this.$('whatsnew-done').focus();
+    this.wireStoryKey();
     window.clearTimeout(this.storyHold);
+    // A story carrying the key holds until it is left: one that moved itself
+    // on would take the key away from under a thumb on its way to it.
+    if (STORIES[this.storyAt]?.withKey) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), HUD.STORY_MS);
+  }
+
+  /** The key under the picture, which ends where every other one does. */
+  private wireStoryKey() {
+    const save = document.getElementById('whatsnew-key-save');
+    if (save) save.onclick = () => this.openKeySheet(false, 'story');
+    const make = document.getElementById('whatsnew-key-make');
+    if (make) make.onclick = () => this.onNewKey?.();
+    const restore = document.getElementById('whatsnew-key-restore');
+    if (restore) restore.onclick = () => this.onRestoreOpen?.('story');
+  }
+
+  /**
+   * The key under the picture, redrawn from what is true now.
+   *
+   * Making a key or bringing a record back happens in a sheet standing over
+   * the story, and the story underneath would otherwise still be offering to
+   * make the key that was just made.
+   */
+  redrawStoryKey() {
+    const slot = document.getElementById('whatsnew-keyslot');
+    if (!slot || !this.storiesOpen) return;
+    slot.innerHTML = storyKeyMarkup(this.keyView);
+    this.wireStoryKey();
   }
 
   /** Forward off the last card is the way out, the same as the key under it. */
@@ -1523,7 +1552,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.restoreView = null;
     this.$('restore-overlay').classList.add('hidden');
     this.$('restore-overlay').innerHTML = '';
-    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+    // The story can be under it now, since the story carries the key.
+    const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
       .some(id => !this.$(id).classList.contains('hidden'));
     this.viewport.classList.toggle('modal-open', stacked);
   }
@@ -1905,7 +1935,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   onRestoreDismiss: (() => void) | null = null;
 
   /** The only place a key is saved, whichever of the four opened it. */
-  openKeySheet(about = false, where: 'card' | 'stats' | 'bar' | 'toast' = 'card') {
+  openKeySheet(about = false, where: 'card' | 'stats' | 'bar' | 'toast' | 'story' = 'card') {
     if (!this.keyView) return;
     // Where the sheet was reached from, and that it was reached at all. This is
     // the denominator every save figure needs: "how many copied" answers
@@ -2011,7 +2041,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     window.clearTimeout(this.copySaid);
     this.$('key-overlay').classList.add('hidden');
     this.$('key-overlay').innerHTML = '';
-    const stacked = ['board-overlay', 'stats-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+    const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
       .some(id => !this.$(id).classList.contains('hidden'));
     this.viewport.classList.toggle('modal-open', stacked);
   }

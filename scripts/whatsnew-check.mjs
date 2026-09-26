@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'career-key';
+const UPDATE = 'save-key-meme';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -72,27 +72,36 @@ const first = await title();
 const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
-await page.click('#whatsnew-next');
-await page.waitForTimeout(200);
-const second = await title();
-await page.click('#whatsnew-next');
-await page.waitForTimeout(200);
-const third = await title();
-check(new Set([first, second, third]).size === 3, 'a tap on the right moves it on', [first, second, third].join(' | '));
-await page.click('#whatsnew-back');
-await page.waitForTimeout(200);
-check(await title() === second, 'and a tap on the left goes back');
+// The one story is the meme, with the key under it.
+check(await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0),
+  'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+check(!!(await page.$('#whatsnew-keyslot .key-panel')), 'and the key widget under it');
+const order = await page.evaluate(() => {
+  const top = sel => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
+  return [top('.whatsnew-art img'), top('#whatsnew-keyslot'), top('#whatsnew-done')];
+});
+check(order[0] < order[1] && order[1] < order[2], 'meme, then key, then the way out', order.join(' < '));
+// A nameless first visit holds no key, so it is offered the way back.
+const offered = await page.$('#whatsnew-key-restore');
+check(!!offered, 'a player with no name is offered the way back rather than a key');
+if (offered) {
+  await offered.click();
+  await tick(500);
+  const over = await page.evaluate(() => {
+    const sheet = document.querySelector('#restore-overlay .key-modal');
+    if (!sheet) return false;
+    const box = sheet.getBoundingClientRect();
+    return document.elementFromPoint(box.left + box.width / 2, box.top + 40)?.closest('.key-modal') === sheet;
+  });
+  check(over, 'which opens over the story rather than under it');
+  await page.evaluate(() => document.querySelector('#restore-overlay .key-modal')?.click());
+  await tick(400);
+}
 
-// Left alone, a card moves on by itself. Nothing else in the game waits on a
-// clock like this, and a story that stuck would strand a player on card one
-// with no hint that tapping is what moves it.
-await page.click('#whatsnew-back');
-await page.waitForTimeout(200);
-check(await title() === first, 'and back again to the first');
-await tick(7400);
-check(await title() === second, 'a card left alone moves on by itself', await title());
-await page.click('#whatsnew-back');
-await page.waitForTimeout(200);
+// Carrying the key, the story holds still: one that moved itself on would
+// take the key away from under a thumb on its way to it.
+await tick(9000);
+check(!!(await page.$('.whatsnew-sheet')) && await title() === first, 'the story carrying the key holds still', first);
 
 await page.click('#whatsnew-done');
 await tick(700);
