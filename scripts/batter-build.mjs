@@ -121,6 +121,17 @@ for (const mesh of meshes) {
     }
   } }
 }
+/** Every triangle into four, flat: midpoints only, no smoothing. */
+function split(geometry) {
+  const src = geometry.index ? geometry.toNonIndexed() : geometry, p = src.attributes.position, out = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let i = 0; i < p.count; i += 3) {
+    a.fromBufferAttribute(p, i); b.fromBufferAttribute(p, i + 1); c.fromBufferAttribute(p, i + 2);
+    const ab = a.clone().lerp(b, .5), bc = b.clone().lerp(c, .5), ca = c.clone().lerp(a, .5);
+    for (const t of [[a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]]) for (const v of t) out.push(v.x, v.y, v.z);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(out, 3)); return g;
+}
 // The digits ride on the chest bone, but the shirt's back is a blend of
 // pelvis, spine and chest, so on any lean the two part company. Give the
 // digits the skin weights of the nearest shirt vertices and merge them into
@@ -132,8 +143,13 @@ const digitsSkinned = [];
     const jp = jersey.geometry.attributes.position, ji = jersey.geometry.attributes.skinIndex, jw = jersey.geometry.attributes.skinWeight;
     const jv = new THREE.Vector3(), v = new THREE.Vector3();
     for (const number of meshes.filter(isDigit)) {
-      let g = mergeVertices(number.geometry.clone().applyMatrix4(number.matrixWorld), 1e-6);
-      g.deleteAttribute('uv'); g.deleteAttribute('normal'); g.computeVertexNormals();
+      let g = number.geometry.clone().applyMatrix4(number.matrixWorld);
+      g.deleteAttribute('uv'); g.deleteAttribute('normal');
+      // The digits are a handful of long triangles; wrapped onto a curved
+      // back as they are, the shirt pokes through their middles. Split every
+      // triangle into sixteen first, so the wrap follows the cloth.
+      for (let pass = 0; pass < 2; pass++) g = split(g);
+      g = mergeVertices(g, 1e-6);
       const n = g.attributes.position.count, index = new Uint16Array(n * 4), weight = new Float32Array(n * 4);
       // A flat decal on a curved back stands off it at the sides, and from
       // side-on that shows as a stroke floating beside the torso. So each
@@ -148,7 +164,7 @@ const digitsSkinned = [];
           if (jp.getZ(k) > centreZ) continue; // the back half only
           const dx = jp.getX(k) - v.x, dy = jp.getY(k) - v.y, d = dx * dx + dy * dy; if (d < bestD) { bestD = d; best = k; }
         }
-        v.z = jp.getZ(best) - 0.006;
+        v.z = jp.getZ(best) - 0.008;
         g.attributes.position.setXYZ(i, ...v.applyMatrix4(fromJersey).toArray());
         for (let c = 0; c < 4; c++) { index[i * 4 + c] = ji.getComponent(best, c); weight[i * 4 + c] = jw.getComponent(best, c); }
       }

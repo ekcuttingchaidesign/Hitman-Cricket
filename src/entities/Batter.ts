@@ -1295,12 +1295,15 @@ export class Batter {
       elbows: this.arms.map(arm => arm.elbow.position),
       knees: this.legs.map(leg => leg.knee.position),
       feet: this.legs.map(leg => leg.shoe.position),
+      feetQuaternion: this.legs.map(leg => leg.shoe.quaternion),
+      kneeling: this.kneeling,
     };
   }
   private whites = false;
   dress(whites: boolean) {
     this.whites = whites;
-    this.model?.dress(whites ? { shirt: 0xf2ece0, trousers: 0xf4f0e4, pads: 0xfdfcf4 } : { shirt: 0x2593e8, trousers: 0x2593e8, pads: 0x1a5db8 });
+    // The modelled batter wears the kit it was drawn in; only whites repaint it.
+    this.model?.dress(whites ? { shirt: 0xf2ece0, trousers: 0xf4f0e4, pads: 0xfdfcf4 } : undefined);
     this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x2593e8);
     this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0x2593e8);
     this.palette.legPad.color.setHex(whites ? 0xfdfcf4 : 0x1a5db8);

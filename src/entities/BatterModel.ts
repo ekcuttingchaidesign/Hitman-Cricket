@@ -32,14 +32,24 @@ export interface BatterJoints {
   elbows: THREE.Vector3[];
   knees: THREE.Vector3[];
   feet: THREE.Vector3[];
+  /** Each shoe's turn: which way the toes point, and any lift of the heel. */
+  feetQuaternion: THREE.Quaternion[];
+  /** On one knee (sweeps, scoops): the game's knees are then the only guide to where they go. */
+  kneeling: boolean;
 }
 
 interface Rest { world: THREE.Quaternion; local: THREE.Quaternion; position: THREE.Vector3; scale: THREE.Vector3 }
-interface Limb { upper: THREE.Bone; lower: THREE.Bone; end: THREE.Bone; upperLength: number; lowerLength: number; restNormal: THREE.Vector3; restUpper: THREE.Vector3; restLower: THREE.Vector3; normal: THREE.Vector3 }
+interface Limb { upper: THREE.Bone; lower: THREE.Bone; end: THREE.Bone; upperLength: number; lowerLength: number; restNormal: THREE.Vector3; restUpper: THREE.Vector3; restLower: THREE.Vector3; normal: THREE.Vector3; lowerRest: THREE.Vector3; endRest: THREE.Vector3 }
 
 const Y = new THREE.Vector3(0, 1, 0);
-/** How far the arms may stretch past the model's own reach before the gloves leave the handle. */
+/**
+ * How far a limb may lengthen past the model's own before the gloves leave
+ * the handle. The model's arms are about two thirds of the game's, so at full
+ * reach they have to give; they lengthen along the bone only, never thicken.
+ */
 const MAX_STRETCH = 1.35;
+/** The game's ankle sits this far above the sole, and its hip joints this far below the hip. */
+const GAME_ANKLE = 0.0725, GAME_HIP_DROP = 0.045;
 
 export class BatterModel {
   readonly root = new THREE.Group();
@@ -54,6 +64,13 @@ export class BatterModel {
   /** The model's bat frame expressed in the game's: blade down -Y, face +Z, origin between the hands. */
   private batFrame = new THREE.Matrix4();
   private materials = new Map<string, THREE.MeshStandardMaterial>();
+  /** The authored colour of every material, so the kit can always go back to it. */
+  private authored = new Map<THREE.MeshStandardMaterial, number>();
+  /** Per bone, how much longer than modelled it is this frame, applied along the bone only. */
+  private lengthen = new Map<THREE.Bone, number>();
+  /** How far the model's ankle stands above the game's, in model units. */
+  private ankleLift = 0;
+  private riders: [THREE.Bone, THREE.Mesh][] = [];
   /** The loaded scene; every bone is measured relative to it, never to the world. */
   private scene: THREE.Group;
   private sceneInverse = new THREE.Matrix4();
@@ -73,6 +90,7 @@ export class BatterModel {
         o.castShadow = o.receiveShadow = true; o.frustumCulled = false;
         const material = o.material as THREE.MeshStandardMaterial;
         if (material.name) this.materials.set(material.name, material);
+        this.authored.set(material, material.color.getHex());
       }
       this.rest.set(o, { world: o.getWorldQuaternion(new THREE.Quaternion()), local: o.quaternion.clone(), position: o.position.clone(), scale: o.scale.clone() });
     });
@@ -88,10 +106,27 @@ export class BatterModel {
       const pu = at(u), pl = at(l), pe = at(e);
       const restUpper = pl.clone().sub(pu).normalize(), restLower = pe.clone().sub(pl).normalize();
       const restNormal = new THREE.Vector3().crossVectors(restUpper, restLower).normalize();
-      return { upper: u, lower: l, end: e, upperLength: pu.distanceTo(pl), lowerLength: pl.distanceTo(pe), restUpper, restLower, restNormal, normal: restNormal.clone() };
+      return { upper: u, lower: l, end: e, upperLength: pu.distanceTo(pl), lowerLength: pl.distanceTo(pe), restUpper, restLower, restNormal, normal: restNormal.clone(), lowerRest: l.position.clone(), endRest: e.position.clone() };
     };
     this.arms = [limb('DEF_upper_armL', 'DEF_forearmL', 'DEF_handL'), limb('DEF_upper_armR', 'DEF_forearmR', 'DEF_handR')];
     this.legs = [limb('DEF_thighL', 'DEF_shinL', 'DEF_footL'), limb('DEF_thighR', 'DEF_shinR', 'DEF_footR')];
+    // A limb bone that has to be longer is scaled along its own length after
+    // its children have been placed, so the skin lengthens without the
+    // sleeve or the trouser leg swelling, and nothing hanging off it (a
+    // glove, a pad) is scaled at all.
+    const along = new THREE.Matrix4();
+    for (const limb of [...this.arms, ...this.legs]) for (const b of [limb.upper, limb.lower]) {
+      const base = b.updateMatrixWorld.bind(b);
+      b.updateMatrixWorld = (force?: boolean) => {
+        b.matrixWorldNeedsUpdate = true; base(force);
+        const k = this.lengthen.get(b) ?? 1;
+        if (k !== 1) b.matrixWorld.multiply(along.makeScale(1, k, 1));
+      };
+      // What is baked onto the bone (a wristband, a pad) rides out with it.
+      for (const child of b.children) if (child instanceof THREE.Mesh) this.riders.push([b, child]);
+    }
+    // The model's ankle is high off its sole (big boots); the game's is low.
+    this.ankleLift = at(bone('DEF_footL')).y - GAME_ANKLE / this.scale;
 
     // The bat: find which way its blade runs and which way its face looks
     // from the geometry hanging off the bat bone, then build the frame that
@@ -126,9 +161,18 @@ export class BatterModel {
     this.root.add(scene);
   }
 
-  /** The kit's colours, by material: the model carries its own, these override them. */
-  dress(colors: { shirt: number; trousers: number; pads: number }) {
+  /** How far each limb had to stretch on the last pose: top arm, bottom arm, front leg, back leg. */
+  readonly stretch = [1, 1, 1, 1];
+  diagnostics() { return this.stretch.map(s => s.toFixed(2)).join(' '); }
+
+  /**
+   * The kit. Without colours the model wears exactly what it was authored
+   * in; with them, the shirt, trousers and pads are repainted by material.
+   */
+  dress(colors?: { shirt: number; trousers: number; pads: number }) {
     for (const [name, material] of this.materials) {
+      material.color.setHex(this.authored.get(material)!);
+      if (!colors) continue;
       if (/Midnight navy woven/.test(name)) material.color.setHex(colors.shirt);
       else if (/Warm white cloth/.test(name)) material.color.setHex(colors.trousers);
       else if (/Warm white moulded/.test(name)) material.color.setHex(colors.pads);
@@ -164,19 +208,33 @@ export class BatterModel {
     bone.updateMatrixWorld(true);
   }
 
-  /** Solve a limb from where its top now is to `end`, bending towards `pole`, stretching if it must. */
-  private reach(limb: Limb, end: THREE.Vector3, pole: THREE.Vector3, endQuaternion?: THREE.Quaternion) {
-    const top = this.relPosition(limb.upper, this.v).clone();
+  /**
+   * Solve a limb from where its top now is to `end`, bending towards `pole`.
+   * If it cannot reach it lengthens, along the bones only. `forward` is the
+   * way the knee should face when the leg is too straight for its bend to say.
+   */
+  private reach(limb: Limb, end: THREE.Vector3, pole: THREE.Vector3, endQuaternion?: THREE.Quaternion, forward?: THREE.Vector3) {
+    const top = this.relPosition(limb.upper, new THREE.Vector3());
     const distance = top.distanceTo(end);
-    const stretch = THREE.MathUtils.clamp(distance / (limb.upperLength + limb.lowerLength), 1, MAX_STRETCH);
+    const need = distance / (limb.upperLength + limb.lowerLength);
+    this.stretch[[...this.arms, ...this.legs].indexOf(limb)] = need;
+    const stretch = THREE.MathUtils.clamp(need, 1, MAX_STRETCH);
     const joint = solveJoint(top, end, limb.upperLength * stretch, limb.lowerLength * stretch, pole);
     const upper = new THREE.Vector3().subVectors(joint, top).normalize();
     const lower = new THREE.Vector3().subVectors(end, joint).normalize();
-    const normal = new THREE.Vector3().crossVectors(upper, lower);
-    if (normal.lengthSq() > 1e-6) limb.normal.copy(normal.normalize());
-    else { limb.normal.addScaledVector(upper, -limb.normal.dot(upper)).normalize(); }
-    // Uniform stretch on the upper bone, inherited by the lower, undone at the end.
-    limb.upper.scale.setScalar(stretch); limb.end.scale.setScalar(1 / stretch);
+    const bend = new THREE.Vector3().crossVectors(upper, lower);
+    // A straight limb has no bend plane of its own; lean on the given
+    // forward, or on the pole, rather than on whatever last frame left.
+    const axis = new THREE.Vector3().subVectors(end, top).normalize();
+    const hint = (forward ?? new THREE.Vector3().subVectors(pole, top)).clone();
+    hint.addScaledVector(axis, -hint.dot(axis));
+    const fallback = hint.lengthSq() > 1e-8 ? new THREE.Vector3().crossVectors(axis, hint.normalize()).multiplyScalar(-1) : limb.normal.clone();
+    const w = THREE.MathUtils.smoothstep(bend.length(), 0.04, 0.18);
+    limb.normal.copy(fallback.lerp(bend.lengthSq() > 1e-10 ? bend.normalize() : fallback, w)).normalize();
+    this.lengthen.set(limb.upper, stretch); this.lengthen.set(limb.lower, stretch);
+    for (const [bone, mesh] of this.riders) if (bone === limb.upper || bone === limb.lower) mesh.scale.set(1, stretch, 1);
+    limb.lower.position.copy(limb.lowerRest).multiplyScalar(stretch);
+    limb.end.position.copy(limb.endRest).multiplyScalar(stretch);
     this.aim(limb.upper, upper, limb.normal, limb.restUpper, limb.restNormal);
     this.aim(limb.lower, lower, limb.normal, limb.restLower, limb.restNormal);
     if (endQuaternion) {
@@ -194,8 +252,25 @@ export class BatterModel {
     const s = 1 / this.scale;
     const toModel = (p: THREE.Vector3) => p.clone().multiplyScalar(s);
     const pelvis = this.bones.get('CTRL_pelvis')!, spine = this.bones.get('CTRL_spine')!, chest = this.bones.get('CTRL_chest')!, head = this.bones.get('CTRL_head')!, bat = this.bones.get('CTRL_bat')!;
-    pelvis.position.copy(toModel(j.hip));
+    // The model's hip joints sit level with its pelvis bone; the game's a
+    // little below its hip. Put the joints where the game's are.
+    pelvis.position.copy(toModel(new THREE.Vector3(0, -GAME_HIP_DROP, 0).applyQuaternion(j.hipQuaternion).add(j.hip)));
     this.orient(pelvis, j.hipQuaternion);
+    // The ankle each foot is aimed at: the game's, raised to where the
+    // model's own ankle stands above its sole.
+    const feet = j.feet.map(f => toModel(f).add(new THREE.Vector3(0, this.ankleLift, 0)));
+    // A leg that cannot reach its foot drops the hips rather than stretching
+    // the leg: the batter bends his knees a touch more, which he would.
+    pelvis.updateMatrixWorld(true);
+    for (let pass = 0; pass < 3; pass++) {
+      let over = 0;
+      this.legs.forEach((leg, i) => {
+        const top = this.relPosition(leg.upper, new THREE.Vector3());
+        over = Math.max(over, top.distanceTo(feet[i]) - (leg.upperLength + leg.lowerLength) * 0.995);
+      });
+      if (over <= 0) break;
+      pelvis.position.y -= over; pelvis.updateMatrixWorld(true);
+    }
     this.orient(spine, j.torsoQuaternion);
     this.orient(chest, j.torsoQuaternion);
     this.orient(head, j.headQuaternion);
@@ -207,7 +282,16 @@ export class BatterModel {
       const handPosition = new THREE.Vector3().setFromMatrixPosition(hand);
       const handQuaternion = new THREE.Quaternion().setFromRotationMatrix(hand);
       this.reach(this.arms[i], handPosition, toModel(j.elbows[i]), handQuaternion);
-      this.reach(this.legs[i], toModel(j.feet[i]), toModel(j.knees[i]));
+      const toes = new THREE.Vector3(0, 0, 1).applyQuaternion(j.feetQuaternion[i]);
+      const foot = this.q.copy(j.feetQuaternion[i]).multiply(this.rest.get(this.legs[i].end)!.world).clone();
+      // The knee tracks between the toes and the hips. The model has no
+      // twist bones, so a thigh turned far from its hips folds the seat of
+      // the trousers; this keeps the turn shared. On one knee the game's
+      // own knees say where they go.
+      const top = this.relPosition(this.legs[i].upper, new THREE.Vector3());
+      const hips = new THREE.Vector3(0, 0, 1).applyQuaternion(j.hipQuaternion);
+      const pole = j.kneeling ? toModel(j.knees[i]).add(new THREE.Vector3(0, this.ankleLift, 0)) : top.clone().add(toes.clone().add(hips).normalize()).add(feet[i]).multiplyScalar(0.5);
+      this.reach(this.legs[i], feet[i], pole, foot, j.kneeling ? toes : toes.clone().add(hips));
     }
   }
 }
