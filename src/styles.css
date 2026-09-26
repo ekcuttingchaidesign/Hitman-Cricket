@@ -2569,50 +2569,42 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .stage.picking-mode #sound,.stage.result-open #sound{pointer-events:auto}
 .mode-screen{
   /* The screen the cards stand on, and it is the one place this differs from
-     the other overlays: they sit over the pitch, this one replaces it. */
-  background:linear-gradient(180deg,#000 0%,#0b0c19 100%);
+     the other overlays: they sit over the pitch, this one replaces it. It
+     wears the board's ground — the same two blooms on the same navy — so the
+     picker, the room and the Top 50 read as rooms of one house. */
+  background:
+    radial-gradient(118% 60% at 16% 0%, #2b6d9e52 0%, #2b6d9e1f 38%, #2b6d9e00 66%),
+    radial-gradient(86% 46% at 92% 44%, #1d5580 0%, #1d558000 64%),
+    linear-gradient(176deg, #123350 0%, #0d2439 46%, #07131c 100%);
   align-items:flex-start;
   padding:0
 }
-.mode-sheet{
+.mode-sheet,.room-sheet{
   position:relative;
   width:100%;
   max-width:520px;
   margin:0 auto;
   /* Top padding is the hud row's own inset with nothing added: the key at the
-     head of the sheet sits on the same line as the sound key across from it,
-     and ten more pixels here is ten pixels of it not doing so. */
+     head of the sheet sits on the same line as the sound key across from it. */
   padding:var(--pad-top) var(--pad) calc(28px + env(safe-area-inset-bottom)) var(--pad);
   display:flex;
   flex-direction:column;
-  /* 20 at 804, so 10 between the cards. */
-  gap:10px
+  gap:12px
 }
-/* The way back, beside the heading rather than under the cards. Not on the
-   board in Figma, but the screen has to have one — it is opened from Play, and
-   from a paused innings, and without it either is a one-way door. It sat at the
-   foot of the sheet, which on a phone is below two full-height cards and a
-   scroll away from a player who has just walked in: a way out nobody can see is
-   not one. Up here it is across from the sound key and never leaves the screen.
-
-   The row is the key's own height rather than the heading's, so the key's top
-   lands on `--pad-top` — where the sound key's is — whatever the display type
-   beside it does inside the row. */
+/* The way back, beside the heading rather than under the cards: a way out
+   nobody can see is not one. The row is the key's own height, so the key's top
+   lands on `--pad-top` — where the sound key's is. */
 .mode-top{
   display:flex;
   align-items:center;
   gap:12px;
   height:38px;
-  margin:0 0 22px
+  margin:0 0 14px
 }
 .touch-device .mode-top{height:44px}
-/* A key, not a hud control: it is a decision on a screen of decisions, so it
-   is built the way the key on the card below it is — a face that falls off
-   towards the bottom, a solid ledge under that, and the ground shadow beneath
-   both. Dark grey because it is the one that goes nowhere: the orange is the
-   innings and the blue is the shot, and neither of those is what this does.
-   The ledge stays well clear of the screen's black, because an extrusion drawn
-   in the background colour is not an extrusion. */
+/* A key, not a hud control: a face that falls off towards the bottom, a solid
+   ledge under that, and the ground shadow beneath both. Dark grey because it
+   is the one that goes nowhere. */
 .mode-back{
   flex:none;
   display:flex;
@@ -2630,9 +2622,9 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .mode-back svg{width:19px;height:19px}
 .mode-back:hover{background:linear-gradient(180deg,#3d454e 0%,#2b323a 100%)}
 .mode-back:active{transform:translateY(3px);box-shadow:0 2px 0 #171c22,0 4px 6px #0000005c,inset 0 1px 0 #ffffff1c}
-/* 64 at 804 is 32 on the phone this was drawn for, and it holds that share of
-   the screen on anything narrower. */
 .mode-heading{
+  flex:1;
+  min-width:0;
   margin:0;
   font-family:var(--cta);
   font-size:clamp(25px,8vw,40px);
@@ -2642,82 +2634,187 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   text-transform:none;
   color:#fff
 }
+
+/* ── The hero: one against one ─────────────────────────────────────────────
+   The card that leads the screen. Words on the left, the two batters on the
+   right, and the plate fades into the card's own colour so the two halves are
+   one object rather than a picture beside a caption. Sized in `cqw` off its
+   own width, so it is one drawing at any screen size. */
+.mode-hero{
+  container-type:inline-size;
+  position:relative;
+  display:block;
+  width:100%;
+  aspect-ratio:358/146;
+  padding:0;
+  border:0;
+  text-align:left;
+  background:#0f2738;
+  border-radius:5.6cqw;
+  color:inherit;
+  cursor:pointer;
+  overflow:hidden;
+  box-shadow:0 12px 30px #00000059,inset 0 1px 0 #ffffff14;
+  transition:transform .16s ease,box-shadow .16s ease
+}
+.mode-hero:hover,.mode-hero:focus-visible{transform:translateY(-2px);box-shadow:0 16px 34px #0006,inset 0 1px 0 #ffffff14}
+.mode-hero:active{transform:translateY(0)}
+.mode-hero-plate{
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  width:64%;
+  overflow:hidden
+}
+.mode-hero-plate img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  /* The pair of helmets meeting just above centre is the subject, so the crop
+     sits a touch higher than the middle and keeps both batters' shoulders. */
+  object-position:50% 38%
+}
+.mode-hero-plate::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg,#0f2738 0%,#0f2738d9 18%,#0f273800 52%)
+}
+.mode-hero-body{
+  position:relative;
+  z-index:1;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  height:100%;
+  padding:0 0 0 6.7cqw;
+  width:56%
+}
+.mode-hero-name{
+  font-family:var(--card);
+  font-weight:900;
+  font-size:8.4cqw;
+  line-height:1.05;
+  color:#fff;
+  text-shadow:0 2px 12px #0009
+}
+.mode-hero-sub{
+  margin-top:.8cqw;
+  font-family:var(--card);
+  font-weight:500;
+  font-size:6.4cqw;
+  line-height:1.15;
+  color:#e6eef2;
+  text-shadow:0 2px 12px #0009
+}
+.mode-hero .mode-key{
+  width:auto;
+  min-width:26cqw;
+  height:10.4cqw;
+  margin-top:4.6cqw;
+  padding:0 7cqw;
+  border-radius:2cqw;
+  font-size:4.2cqw;
+  letter-spacing:.3cqw
+}
+/* The hero's flag: NEW until there is a match, then what the matches need. */
+.mode-hero .mode-flag{
+  top:3cqw;
+  right:3.4cqw;
+  width:auto;
+  min-width:15cqw;
+  height:7.4cqw;
+  padding:0 3cqw;
+  border-radius:3.7cqw;
+  font-size:4.4cqw
+}
+
+/* ── The two solo modes, side by side ───────────────────────────────────── */
+.mode-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px
+}
+/* A build with one solo mode gives the card the whole row. */
+.mode-grid:has(.mode-survive.hidden){grid-template-columns:minmax(0,1fr)}
+.mode-grid:has(.mode-survive.hidden) .mode-card{aspect-ratio:358/196}
+.mode-grid:has(.mode-survive.hidden) .mode-name{font-size:5.6cqw}
+.mode-grid:has(.mode-survive.hidden) .mode-copy{font-size:3.4cqw;max-width:70%}
 .mode-card{
   container-type:inline-size;
   position:relative;
   display:block;
   width:100%;
+  aspect-ratio:173/192;
   padding:0;
   border:0;
   text-align:left;
   background:#0f2738;
-  border-radius:6.14cqw;
+  border-radius:11cqw;
   color:inherit;
   cursor:pointer;
   overflow:hidden;
+  box-shadow:0 10px 26px #0000004d,inset 0 1px 0 #ffffff14;
   transition:transform .16s ease,box-shadow .16s ease
 }
-.mode-card:hover,.mode-card:focus-visible{transform:translateY(-2px);box-shadow:0 10px 26px #0006}
+.mode-card:hover,.mode-card:focus-visible{transform:translateY(-2px);box-shadow:0 14px 30px #0006,inset 0 1px 0 #ffffff14}
 .mode-card:active{transform:translateY(0)}
-/* The plate, and the scrim that carries it down into the card so the name can
-   sit over the foot of the picture rather than under a hard edge. */
+/* The plate fills the card; the scrim carries it down into the card's colour
+   so the name sits over the foot of the picture rather than under a hard edge. */
 .mode-plate{
-  display:block;
-  position:relative;
-  aspect-ratio:684/486
+  position:absolute;
+  inset:0
 }
 .mode-plate img{
   display:block;
   width:100%;
   height:100%;
   object-fit:cover;
-  /* The Blast borrows the cover's portrait drive, so the band is placed rather
-     than centred: at the middle it is all torso. This puts the ball in the
-     top corner with the bat under it, which is the shot the card is about.
-     The design's own plate is a wider crop that carries the stumps as well —
-     that is not reachable from a 9:16 source at this ratio, and chasing it
-     would mean losing the ball off the top. */
-  object-position:50% 26%
+  /* The Blast borrows the cover's portrait drive: the ball in the top corner
+     with the bat under it is the shot the card is about. */
+  object-position:50% 20%
 }
-.mode-survive .mode-plate img{object-position:50% 54%}
+.mode-survive .mode-plate img{object-position:50% 40%}
 .mode-plate::after{
   content:'';
   position:absolute;
   inset:0;
-  background:linear-gradient(180deg,#0f273800 0%,#0f2738 100%)
+  background:linear-gradient(180deg,#0f273800 34%,#0f2738d9 78%,#0f2738 100%)
 }
-/* Pulled up over the foot of the plate: the name sits 49 above the picture's
-   bottom edge in the design, which the scrim has already faded to the card. */
 .mode-body{
-  position:relative;
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
   display:block;
-  margin-top:-7.16cqw;
-  padding:0 6.58cqw 5.41cqw
+  padding:0 8cqw 8cqw
 }
 .mode-name{
   display:block;
   font-family:var(--card);
   font-weight:900;
-  font-size:5.85cqw;
-  line-height:1.302;
+  font-size:11cqw;
+  line-height:1.15;
   color:#fff
 }
 .mode-copy{
   display:block;
-  margin-top:1.16cqw;
+  margin-top:2cqw;
   font-family:var(--card);
   font-weight:400;
-  font-size:3.51cqw;
-  line-height:1.302;
+  font-size:6.3cqw;
+  line-height:1.3;
   color:#dcdcdc
 }
-/* The key: a face with a darker slab under it, which is the design's two
-   stacked rectangles said as one shadow. */
+/* The key: a face with a darker slab under it. On this screen only the hero
+   wears one; the two solo cards are the key. */
 .mode-key{
   display:flex;
   align-items:center;
   justify-content:center;
-  margin-top:5.78cqw;
   width:100%;
   height:10.23cqw;
   border-radius:1.64cqw;
@@ -2729,10 +2826,9 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   color:#000;
   white-space:nowrap
 }
-/* The flag, which only the new mode wears. */
 .mode-flag{
   position:absolute;
-  z-index:1;
+  z-index:2;
   top:2.49cqw;
   right:2.92cqw;
   display:flex;
@@ -2750,6 +2846,225 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   line-height:1;
   color:#fff
 }
+/* Matches waiting: the flag stops shouting NEW and says what is going on. */
+.mode-flag.is-open{
+  font-style:normal;
+  letter-spacing:.1cqw;
+  background:linear-gradient(111.44deg,#12b45f 1.04%,#0a7a3f 106.3%)
+}
+.mode-flag.is-move{background:linear-gradient(111.44deg,#ff8a3d 1.04%,#e9582b 106.3%)}
+
+/* ── The row under the cards: the way to the list ──────────────────────── */
+.mode-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  min-height:60px;
+  padding:10px 12px 10px 12px;
+  border:1px solid #ffffff14;
+  border-radius:14px;
+  background:#ffffff0f;
+  color:#fff;
+  text-align:left;
+  box-shadow:inset 0 1px 0 #ffffff12
+}
+.mode-row:hover{background:#ffffff17}
+.mode-row-mark{
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  background:#0f2738;
+  color:#7fdcf5
+}
+.mode-row-mark svg{width:20px;height:20px}
+.mode-row-say{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-family:var(--card)}
+.mode-row-say b{font-size:14.5px;font-weight:800;letter-spacing:.02em}
+.mode-row-say em{
+  font-style:normal;
+  font-size:12px;
+  color:#9fb2bd;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.mode-row-count{
+  flex:none;
+  min-width:26px;
+  height:26px;
+  padding:0 8px;
+  border-radius:13px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(111.44deg,#ff8a3d 1.04%,#e9582b 106.3%);
+  font-family:var(--card);
+  font-size:13px;
+  font-weight:900;
+  color:#fff
+}
+.mode-row-go{flex:none;display:flex;color:#9fb2bd}
+.mode-row-go svg{width:18px;height:18px}
+.mode-screen .key-slot{margin:2px 0 0}
+
+/* ── The match room ────────────────────────────────────────────────────────
+   The same ground as the picker, because it is the next room along. One
+   screen for the lobby, the live scores and the result: what changes is the
+   line at the top, which rows carry a score, and which keys stand at the foot. */
+.room-screen{
+  background:
+    radial-gradient(118% 60% at 16% 0%, #2b6d9e52 0%, #2b6d9e1f 38%, #2b6d9e00 66%),
+    radial-gradient(86% 46% at 92% 44%, #1d5580 0%, #1d558000 64%),
+    linear-gradient(176deg, #123350 0%, #0d2439 46%, #07131c 100%);
+  align-items:flex-start;
+  padding:0;
+  z-index:9
+}
+.room-sheet{gap:0}
+.room-top{margin-bottom:18px}
+.room-closes{
+  flex:none;
+  padding:6px 10px;
+  border-radius:20px;
+  background:#ffffff12;
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#9fb2bd;
+  white-space:nowrap
+}
+.room-closes:empty{display:none}
+.room-screen .challenge-tag{align-self:flex-start;margin-bottom:12px}
+.room-lead{
+  margin:0 0 8px;
+  font-family:var(--card);
+  font-size:clamp(23px,6.6vw,30px);
+  font-weight:900;
+  line-height:1.12;
+  letter-spacing:-.01em;
+  color:#fff;
+  text-wrap:balance
+}
+.room-sub{
+  margin:0 0 20px;
+  font-family:var(--card);
+  font-size:13.5px;
+  line-height:1.6;
+  color:#c3d3d6
+}
+.room-sub:empty{display:none}
+/* One row a person: their kit, their name, where they are, and — for anyone
+   allowed to see it — what they have made. */
+.room-players{
+  list-style:none;
+  margin:0 0 16px;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px
+}
+.room-player{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-height:64px;
+  padding:11px 14px;
+  border-radius:14px;
+  background:#ffffff0f;
+  border:1px solid #ffffff10;
+  animation:room-row-in .42s cubic-bezier(.16,1,.3,1) both
+}
+@keyframes room-row-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.room-player.is-you{background:#ffffff1a;border-color:#ffffff24}
+.room-player .board-kit{width:40px;height:40px;font-size:14px}
+.room-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;font-family:var(--card)}
+.room-who b{
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.02em;
+  color:#fff;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.room-who b i{
+  margin-left:6px;
+  padding:1px 6px;
+  border-radius:8px;
+  background:#ffffff14;
+  font-style:normal;
+  font-size:9.5px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:#9fb2bd;
+  vertical-align:2px
+}
+.room-who small{font-size:12px;color:#9fb2bd;letter-spacing:.01em}
+.room-player.is-batting .room-who small{color:#7fdcf5}
+.room-player.is-forfeit .room-who small,.room-player.is-forfeit .board-kit{opacity:.6}
+/* How far along a live innings is. */
+.room-bar{display:block;height:4px;margin-top:5px;border-radius:2px;background:#ffffff1a;overflow:hidden}
+.room-bar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#4fcff2,#a8ecff);transition:width .6s cubic-bezier(.16,1,.3,1)}
+.room-score{
+  flex:none;
+  font-family:var(--cta);
+  font-size:26px;
+  line-height:1;
+  color:#fff
+}
+.room-score em{font-style:normal;font-size:14px;color:#9fb2bd}
+/* The score somebody is not allowed to see yet. Two marks, the colour of the
+   quiet text, so the row says "there is a number here" and nothing more. */
+.room-score.is-hidden{
+  font-family:var(--card);
+  font-weight:900;
+  font-size:22px;
+  letter-spacing:.06em;
+  color:#9fb2bd
+}
+.room-player.is-empty{
+  border-style:dashed;
+  border-color:#ffffff24;
+  background:#ffffff08;
+  min-height:72px
+}
+.room-player.is-empty .room-who b{color:#dce8ee;font-weight:700;white-space:normal}
+.room-wait{flex:none;width:52px;height:52px;margin:-4px -2px}
+.room-wait svg{display:block}
+.room-note{
+  margin:0 0 16px;
+  font-family:var(--card);
+  font-size:12px;
+  line-height:1.5;
+  color:#9fb2bd
+}
+.room-note.hidden{display:none}
+.room-keys{display:flex;flex-direction:column;gap:10px}
+.room-keys .key-button,.room-keys .whatsapp-key,.room-keys .quiet-key{width:100%}
+.room-keys .whatsapp-key{min-height:52px;font-size:15px}
+.room-keys .quiet-key{min-height:46px;flex:none}
+.room-keys .ghost-link{align-self:center;padding:10px 16px}
+/* The film over a result: the trophy, the bails, the crossed bats. It sits
+   where the rows would, at a height a phone can spare. */
+.room-anim{
+  width:min(220px,58vw);
+  height:min(190px,48vw);
+  margin:-6px auto 6px;
+  display:grid;
+  place-items:center
+}
+.room-anim svg{width:100%;height:100%}
+.room-anim.hidden{display:none}
+.stage.result-room .room-lead{text-align:center}
+.stage.result-room .room-sub{text-align:center}
+.stage.result-room .challenge-tag{align-self:center}
+.room-scoreline{margin-bottom:16px}
+.room-scoreline.hidden{display:none}
 
 /* ── The result card ───────────────────────────────────────────────────────
    Five cards off one layout. The plate and three colours are all that change:
@@ -4736,3 +5051,503 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    underneath, and nothing standing on the way out of a screen is clear of it
    at every height. Here it takes its own room and the keys keep theirs. */
 .board-stack>.key-toast{flex:none}
+
+/* ── The challenge ─────────────────────────────────────────────────────────
+   Four screens and one flash, all cut from material already on the page: the
+   panel the cover and the private notice use, the key the card hands you, the
+   kit discs the board draws. Nothing new is invented here — a challenge is the
+   same game with one more person in it, and it should look like it. */
+.challenge-panel{
+  width:min(420px,100%);
+  margin:auto;
+  text-align:left
+}
+.challenge-panel h2{margin-bottom:10px}
+.challenge-panel .key-button,.challenge-panel .whatsapp-key{width:100%}
+/* The code, said aloud as much as tapped. One character per cell, spaced so a
+   six-character code reads as six things rather than as a word — which is what
+   stops `K7QPX2` being read back as a syllable and mistyped. */
+.challenge-code{
+  display:flex;
+  gap:6px;
+  margin:0 0 16px;
+  font-family:var(--card);
+  font-weight:900;
+  font-size:clamp(20px,6.4vw,27px);
+  letter-spacing:.06em;
+  font-variant-numeric:tabular-nums;
+  color:var(--ink,#fff)
+}
+.challenge-code span{
+  flex:1;
+  padding:9px 0;
+  border-radius:7px;
+  background:#ffffff14;
+  text-align:center;
+  line-height:1
+}
+/* The message as it will land, because the hook is the whole job of this screen
+   and nobody should have to send it to find out what it says. */
+.challenge-message{
+  padding:11px 13px;
+  border-radius:9px;
+  background:#ffffff0f
+}
+.challenge-message-label{
+  display:block;
+  margin-bottom:5px;
+  font-family:var(--card);
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.14em;
+  color:var(--quiet)
+}
+.challenge-message p{
+  margin:0;
+  font-family:var(--card);
+  font-size:13px;
+  line-height:1.55;
+  color:var(--ink,#e8eef0)
+}
+/* Off by default, and that is the point: the number is the one thing the mode
+   hides for five overs, so putting it in a notification has to be a decision. */
+.challenge-toggle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:12px 0 4px;
+  font-family:var(--card);
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink,#e8eef0);
+  cursor:pointer
+}
+.challenge-toggle input{
+  flex-shrink:0;
+  width:44px;
+  height:26px;
+  margin:0;
+  appearance:none;
+  border-radius:13px;
+  background:#ffffff26;
+  transition:background .16s;
+  cursor:pointer
+}
+.challenge-toggle input::after{
+  content:'';
+  display:block;
+  width:20px;
+  height:20px;
+  margin:3px;
+  border-radius:50%;
+  background:#fff;
+  transition:transform .16s
+}
+.challenge-toggle input:checked{background:var(--cta-orange)}
+.challenge-toggle input:checked::after{transform:translateX(18px)}
+.challenge-note{
+  margin:0 0 14px!important;
+  font-size:12px!important;
+  color:var(--quiet)!important
+}
+.challenge-alt{display:flex;gap:8px;margin-top:9px}
+/* Not keys. Copying a link and opening a share sheet are both the same decision
+   as the green key above them, taken a different way — so they read as quieter
+   twins of it rather than as two more things to weigh up. */
+.quiet-key{
+  flex:1;
+  padding:11px 8px;
+  border:1.5px solid #ffffff2e;
+  border-radius:9px;
+  background:none;
+  font-family:var(--cta);
+  font-size:13px;
+  letter-spacing:.04em;
+  color:var(--ink,#fff)
+}
+.quiet-key:hover{background:#ffffff12;border-color:#ffffff4d}
+/* Who set it, above the headline: a challenge arrives from a person, and the
+   screen should say so before it says anything else. */
+.challenge-from{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0 0 14px!important
+}
+.challenge-from.hidden{display:none}
+.challenge-from .board-kit{width:38px;height:38px;flex-shrink:0;font-size:14px}
+.challenge-from-who{display:flex;flex-direction:column;line-height:1.35}
+.challenge-from-who b{
+  font-family:var(--card);
+  font-size:13.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--ink,#fff)
+}
+.challenge-from-who em{font-style:normal;font-size:12px;color:var(--quiet)}
+/* Who this browser bats as: shown, not asked. A player the game already knows
+   gives their name once, on the board, and carries it into every challenge —
+   so this row is a statement with a way out of it rather than a field. */
+.challenge-as{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0 0 16px!important;
+  padding:9px 12px;
+  border-radius:9px;
+  background:#ffffff0f
+}
+.challenge-as.hidden{display:none}
+.challenge-as .board-kit{width:34px;height:34px;flex-shrink:0;font-size:13px}
+.challenge-as-who{
+  flex:1;
+  min-width:0;
+  font-family:var(--card);
+  font-size:13px;
+  color:var(--quiet);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.challenge-as-who b{
+  font-weight:800;
+  letter-spacing:.04em;
+  color:var(--ink,#fff)
+}
+/* Quiet, and beside the name rather than under it: changing who you are is a
+   correction, not a step. */
+.challenge-as .ghost-link{
+  flex-shrink:0;
+  margin:0;
+  padding:4px 2px;
+  font-size:12px
+}
+
+/* The key that turns an innings into a challenge. It carries a second line the
+   way the mode cards do, because "with this innings" is what makes it a
+   different offer from PLAY AGAIN directly under it. */
+.challenge-key{flex-direction:column;gap:0;padding:8px 12px;line-height:1.15}
+.challenge-key em{
+  display:block;
+  margin-top:1px;
+  font-family:var(--card);
+  font-size:11px;
+  font-style:normal;
+  font-weight:600;
+  letter-spacing:0;
+  text-transform:none;
+  opacity:.72
+}
+/* The scoreline: two innings, the winner first, each with the bar chart the end
+   card already draws so the two screens are plainly the same game. */
+.challenge-scoreline{display:flex;flex-direction:column;gap:10px;margin:2px 0 16px}
+.challenge-innings{
+  padding:11px 13px;
+  border-radius:9px;
+  background:#ffffff0f
+}
+.challenge-innings.is-you{background:#ffffff1c;box-shadow:inset 0 0 0 1.5px #ffffff2e}
+.challenge-innings-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px
+}
+.challenge-innings-name{
+  font-family:var(--card);
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  color:var(--ink,#fff);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.challenge-innings-name em{
+  font-style:normal;
+  font-weight:600;
+  font-size:11.5px;
+  letter-spacing:.04em;
+  /* Not uppercase. Under the row's own transform it read as part of the name —
+     "VK SET IT" — which is a different player from the one who set it. */
+  text-transform:none;
+  color:var(--quiet)
+}
+.challenge-innings-runs{
+  flex-shrink:0;
+  font-family:var(--cta);
+  font-size:26px;
+  line-height:1;
+  color:var(--ink,#fff)
+}
+.challenge-innings-runs em{font-style:normal;font-size:14px;color:var(--quiet)}
+/* The same track the end card draws, at the height a row can carry. */
+.challenge-track{display:flex;align-items:flex-end;gap:2px;height:26px}
+.challenge-track i{
+  flex:1;
+  min-width:0;
+  border-radius:1px;
+  background:#ffffff8f;
+  height:calc(8% + var(--r,0) * 15%)
+}
+.challenge-track i.is-out{background:var(--cta-orange);height:100%}
+.challenge-track i.is-unfaced{background:#ffffff1f;height:8%}
+
+/* The list of challenges this browser has set. A row per innings, led by the
+   score, because that is what its owner remembers it by — "my 102" — rather
+   than the code, which they have never read and never need to. */
+.challenge-rows{
+  list-style:none;
+  margin:0 0 16px;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:46vh;
+  overflow-y:auto;
+  /* The scrollbar is a surface the design has to own too: a default one on a
+     dark panel is a grey bar from no design system at all. */
+  scrollbar-width:thin;
+  scrollbar-color:#ffffff33 transparent
+}
+.challenge-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 8px 10px 12px;
+  border-radius:9px;
+  background:#ffffff0f
+}
+.challenge-row.is-empty{
+  display:block;
+  padding:16px 14px;
+  font-family:var(--card);
+  font-size:13px;
+  line-height:1.55;
+  color:var(--quiet)
+}
+/* A settled row steps back: it is a record rather than something waiting on
+   anybody, and the ones still live should read first. */
+.challenge-row.is-closed{opacity:.55}
+.challenge-row-score{
+  flex-shrink:0;
+  min-width:44px;
+  font-family:var(--cta);
+  font-size:23px;
+  line-height:1;
+  color:var(--ink,#fff)
+}
+.challenge-row.is-answered .challenge-row-score{color:var(--cta-orange)}
+.challenge-row-what{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-family:var(--card);
+  overflow:hidden
+}
+.challenge-row-what b{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--ink,#fff)
+}
+.challenge-row-what em{
+  font-style:normal;
+  font-size:12px;
+  color:var(--quiet);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+/* Big enough for a thumb, quiet enough not to look like the point of the row. */
+.challenge-row-drop{
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:44px;
+  height:44px;
+  padding:0;
+  border:0;
+  border-radius:9px;
+  background:none;
+  color:var(--quiet)
+}
+.challenge-row-drop:hover{background:#ffffff14;color:var(--ink,#fff)}
+.challenge-row-drop svg{width:17px;height:17px}
+
+/* The sheets that stand over the room. */
+.challenge-panel-top{display:flex;align-items:center;gap:10px;margin:0 0 6px}
+.challenge-panel-top h2{flex:1;min-width:0;margin:0}
+.challenge-panel-top .board-close{position:static;flex:none;display:grid;place-items:center}
+.challenge-panel-top .board-close svg{width:18px;height:18px}
+.challenge-innings-name{display:flex;align-items:center;gap:8px;min-width:0}
+.challenge-innings-name .board-kit{width:26px;height:26px;font-size:10px}
+.challenge-innings-name>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.challenge-innings-figures{display:flex;align-items:baseline;gap:10px;flex-shrink:0}
+.challenge-innings-figures small{
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.04em;
+  color:var(--quiet,#9fb2bd)
+}
+.challenge-innings-figures small i{font-style:normal;font-weight:600;font-size:9px;margin:0 3px 0 1px;opacity:.8}
+/* The list, in sections. */
+.challenge-sections{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto;margin:0 -4px 16px;padding:0 4px;scrollbar-width:thin;scrollbar-color:#ffffff33 transparent}
+.challenge-section-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:8px 0 6px;
+  font-family:var(--card);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--quiet,#9fb2bd)
+}
+.challenge-section-head:first-child{margin-top:0}
+.challenge-section-head em{
+  font-style:normal;
+  min-width:20px;
+  padding:1px 6px;
+  border-radius:10px;
+  background:#ffffff14;
+  text-align:center;
+  color:#fff
+}
+.challenge-sections .challenge-rows{max-height:none;overflow:visible;margin:0 0 4px}
+.challenge-row{padding:0;gap:0}
+.challenge-row-open{
+  flex:1;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 6px 9px 10px;
+  border:0;
+  background:none;
+  color:inherit;
+  text-align:left;
+  border-radius:9px
+}
+.challenge-row-open:hover{background:#ffffff0a}
+.challenge-row-who{
+  flex:none;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  max-width:44%;
+  padding:4px 8px 4px 4px;
+  border:0;
+  border-radius:20px;
+  background:#ffffff10;
+  color:#fff;
+  font-family:var(--card);
+  font-size:12.5px;
+  font-weight:800
+}
+button.challenge-row-who:hover{background:#ffffff22}
+.challenge-row-who>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.challenge-row-who i{font-style:normal;font-weight:700;color:var(--quiet,#9fb2bd)}
+.challenge-row-who .board-kit{width:26px;height:26px;font-size:10px}
+.challenge-row-who.is-nobody{color:var(--quiet,#9fb2bd);font-weight:600}
+.board-kit.is-empty{background:none;border:1.5px dashed #ffffff3d;color:#9fb2bd;font-weight:800}
+.challenge-row-outcome{
+  flex:none;
+  min-width:30px;
+  height:30px;
+  padding:0 8px;
+  border-radius:8px;
+  display:grid;
+  place-items:center;
+  font-family:var(--card);
+  font-size:13px;
+  font-weight:900;
+  color:#fff
+}
+.challenge-row-outcome.is-W{background:linear-gradient(111.44deg,#12b45f 1.04%,#0a7a3f 106.3%)}
+.challenge-row-outcome.is-L{background:linear-gradient(111.44deg,#ff8a3d 1.04%,#e9582b 106.3%)}
+.challenge-row-outcome.is-D{background:#ffffff26}
+.challenge-row-outcome.is-none{background:none;color:var(--quiet,#9fb2bd)}
+/* The head-to-head. */
+#rivalry-tally{font-size:56px;letter-spacing:-2px;margin-bottom:6px}
+.rivalry-form{display:flex;align-items:center;gap:6px;margin:0 0 16px}
+.rivalry-form-label{margin-right:4px;font-family:var(--card);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--quiet,#9fb2bd)}
+.rivalry-form i{
+  width:28px;
+  height:28px;
+  border-radius:7px;
+  display:grid;
+  place-items:center;
+  font-family:var(--card);
+  font-style:normal;
+  font-size:12px;
+  font-weight:900;
+  color:#fff
+}
+.rivalry-form i.is-W{background:linear-gradient(111.44deg,#12b45f 1.04%,#0a7a3f 106.3%)}
+.rivalry-form i.is-L{background:linear-gradient(111.44deg,#ff8a3d 1.04%,#e9582b 106.3%)}
+.rivalry-form i.is-D{background:#ffffff26}
+.rivalry-facts{margin:0 0 18px;display:flex;flex-direction:column;gap:8px}
+.rivalry-facts div{display:flex;justify-content:space-between;gap:12px;padding:10px 13px;border-radius:9px;background:#ffffff0f;font-family:var(--card);font-size:13px}
+.rivalry-facts dt{color:var(--quiet,#9fb2bd);font-weight:600}
+.rivalry-facts dd{margin:0;color:#fff;font-weight:800}
+.rivalry-facts:empty{display:none}
+
+/* ── The ghost ─────────────────────────────────────────────────────────────
+   One flash, between deliveries and never during one. It sits low and to the
+   side of the pitch so it is never over the ball, and it is the only thing on
+   screen that speaks for the other player. */
+.ghost-flash{
+  position:absolute;
+  left:50%;
+  bottom:calc(var(--pad-bottom) + 92px);
+  z-index:6;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 14px 9px 10px;
+  border-radius:11px;
+  background:#0c1e2aef;
+  box-shadow:0 8px 22px #00000059;
+  pointer-events:none;
+  transform:translate(-50%,10px);
+  opacity:0;
+  transition:opacity .22s ease,transform .22s cubic-bezier(.16,1,.3,1)
+}
+.ghost-flash.is-up{opacity:1;transform:translate(-50%,0)}
+.ghost-who{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-family:var(--card);
+  font-size:11.5px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:#9fb2bb;
+  white-space:nowrap
+}
+.ghost-who .board-kit{width:24px;height:24px;font-size:10px}
+.ghost-result{
+  font-family:var(--cta);
+  font-size:19px;
+  line-height:1;
+  color:#fff;
+  white-space:nowrap
+}
+/* Out is the one that earns the colour. Everything else is a number. */
+.ghost-flash.is-out .ghost-result{color:var(--cta-orange)}
+.ghost-flash.is-big .ghost-result{font-size:23px}
+@media (prefers-reduced-motion:reduce){
+  .ghost-flash{transition:opacity .01ms}
+  .ghost-flash.is-up{transform:translate(-50%,0)}
+}

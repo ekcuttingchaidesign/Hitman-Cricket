@@ -4,6 +4,7 @@ import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
 import type { RecoveryStore } from './recovery-store.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
+import type { ChallengeStore, StoredPlayer } from './challenge-store.js';
 
 /**
  * The board kept in Redis.
@@ -316,6 +317,102 @@ export function upstashRecovery(redis: Redis): RecoveryStore {
     },
     async triesAt(folded, windowSeconds) {
       return count(`${RESTORE_NAME_RATE}${folded}`, windowSeconds);
+    },
+  };
+}
+
+/**
+ * The challenges kept in Redis.
+ *
+ * One hash per challenge, which is the whole reason a challenge is cheap:
+ * reading one is a single `HGETALL` and writing an answer is a single `HSET`
+ * that cannot touch the other innings. `at` and `host` are the challenge's own
+ * fields and every other field is a player id. They cannot collide — a player id
+ * always carries a dash and neither reserved name does.
+ *
+ * A challenge's key carries a week-long TTL and every write pushes it out.
+ * Reads deliberately do not, which is what keeps a read at exactly one command:
+ * a challenge nobody has written to for a week was never answered, and it should
+ * go. The counters are separate from the board's so that a busy week of
+ * challenges cannot spend the budget that puts people on the fifty.
+ */
+export function upstashChallenges(redis: Redis): ChallengeStore {
+  const key = (code: string) => `${SCOPE}ch:${code}`;
+  const rate = (kind: string, address: string) => `${SCOPE}chrate:${kind}:${address}`;
+  const list = (playerId: string) => `${SCOPE}chu:${playerId}`;
+  return {
+    async claim(code, challenge, ttlSeconds) {
+      // Set-if-absent on one field, so two challenges drawn onto the same code
+      // in the same second cannot both be told it was free.
+      const claimed = await redis.hsetnx(key(code), 'host', challenge.host);
+      if (!claimed) return false;
+      // The expiry goes on before the rest does, and not after. A process that
+      // died between the two would otherwise leave a key holding one field, with
+      // no TTL and no way for anybody to use or clear it — a code burnt for
+      // good. This way the worst case expires like any challenge.
+      await redis.expire(key(code), ttlSeconds);
+      await redis.hset(key(code), {
+        at: challenge.at, v: challenge.v,
+        // Left off rather than written as null: a null field reads back as the
+        // string "null", and a room is not a rematch of a room called that.
+        ...(challenge.rematchOf ? { rematchOf: challenge.rematchOf } : {}),
+        ...challenge.players,
+      });
+      return true;
+    },
+
+    async read(code) {
+      // One command for the whole challenge, both innings included.
+      const held = await redis.hgetall<Record<string, unknown>>(key(code));
+      if (!held || !held.host) return null;
+      const players: Record<string, StoredPlayer> = {};
+      for (const [field, value] of Object.entries(held)) {
+        // Anything that is not one of the room's own fields is an innings, and
+        // anything that is not an object is not an innings at all.
+        if (field === 'at' || field === 'host' || field === 'v' || field === 'rematchOf') continue;
+        if (value && typeof value === 'object') players[field] = value as StoredPlayer;
+      }
+      return {
+        at: Number(held.at) || 0,
+        host: String(held.host),
+        v: Number(held.v) || 0,
+        rematchOf: typeof held.rematchOf === 'string' && held.rematchOf ? held.rematchOf : null,
+        players,
+      };
+    },
+
+    async write(code, change, ttlSeconds) {
+      const fields: Record<string, unknown> = { ...change.players };
+      // Nothing to say is nothing to send: a write with no fields is an error
+      // from Redis rather than a no-op, and would cost a command to be told so.
+      if (!Object.keys(fields).length) return;
+      await redis.hset(key(code), fields);
+      // Answered today, so it is not going anywhere for another week.
+      await redis.expire(key(code), ttlSeconds);
+    },
+
+    async hits(kind, address, windowSeconds) {
+      const counter = rate(kind, address);
+      const count = await redis.incr(counter);
+      // Only the first hit in a window sets the clock, so the window rolls
+      // forward from the first call rather than from the latest.
+      if (count === 1) await redis.expire(counter, windowSeconds);
+      return count;
+    },
+
+    // One set per player of the rooms they are in. It is what makes the list
+    // and the result-on-open work from any phone that holds the same id —
+    // which, through the career key, is any phone of theirs. It lives as long
+    // as the longest-lived room in it and every join pushes that out.
+    async index(playerId, code, ttlSeconds) {
+      await redis.sadd(list(playerId), code);
+      await redis.expire(list(playerId), ttlSeconds);
+    },
+    async indexed(playerId) {
+      return (await redis.smembers(list(playerId))) ?? [];
+    },
+    async unindex(playerId, code) {
+      await redis.srem(list(playerId), code);
     },
   };
 }

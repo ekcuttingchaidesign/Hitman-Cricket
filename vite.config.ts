@@ -1,9 +1,11 @@
 import { defineConfig, type Plugin } from 'vite';
-import { memoryStore } from './src/server/memory-store';
+import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
 import { CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, refused, submitScore } from './src/server/board-store';
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
 import { memoryFeedback } from './src/server/memory-feedback';
+import { challengeRefused } from './src/server/challenge-store';
+import { cacheable, challengeRequest } from './src/server/challenge-endpoint';
 import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
 } from './src/server/career-store';
@@ -55,6 +57,10 @@ function boardEndpoints(): Plugin {
   // asks who holds a name, and claiming is what wrote it. Two maps here would
   // pass a test the deployed store fails, which is worse than no fake at all.
   const recovery = memoryRecovery(names);
+  // Challenges are forgotten with the server too, and they expire on their own
+  // while it runs, so a code left over from an hour of poking about stops
+  // working the same way it would in production.
+  const challenges = memoryChallenges();
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
@@ -62,7 +68,7 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore'];
+          '/api/restore', '/api/challenge'];
         if (!known.includes(path)) return next();
         const send = (status: number, body: unknown, cache = 'no-store') => {
           res.statusCode = status;
@@ -72,6 +78,20 @@ function boardEndpoints(): Plugin {
         };
         try {
           if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
+          if (path === '/api/challenge') {
+            const request = {
+              method: req.method,
+              query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),
+              body: req.method === 'POST' ? await read(req) : undefined,
+              // One address in development: whatever the dev server sees.
+              address: 'dev',
+            };
+            const outcome = await challengeRequest(challenges, request);
+            if (challengeRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
+            // The same header the deployed endpoint sends on a read, so a check
+            // behaves here the way it will behind the edge cache.
+            return send(200, outcome, cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+          }
           if (path === '/api/feedback') {
             // No key on the read here. The deployed endpoint holds one because
             // it is answering the internet; this one is answering whoever is
@@ -200,6 +220,11 @@ function boardEndpoints(): Plugin {
   };
 }
 
+/**
+ * One of the challenge calls, picked apart from the request the same way
+ * `api/challenge.ts` picks it apart — the rules underneath are the identical
+ * import, so only where the challenges are kept stands in.
+ */
 function read(req: { on(event: string, fn: (chunk?: unknown) => void): void }): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = '';
