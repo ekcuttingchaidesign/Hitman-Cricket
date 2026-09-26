@@ -35,6 +35,12 @@ export interface Story {
   /** The picture's own width, so it is laid out before it has loaded. */
   width: number;
   /**
+   * The picture brings its own rounded corners, cut into it as transparency.
+   * A frame drawn round it as well has corners of a different radius, and the
+   * gap between the two curves shows as a thin outline at each corner.
+   */
+  cut?: boolean;
+  /**
    * Whether the career key is drawn under the picture.
    *
    * A story that asks for something holds still: one that moved itself on
@@ -51,6 +57,7 @@ export const STORIES: readonly Story[] = [
     art: meme,
     alt: 'Bernie Sanders in a winter coat, captioned: I am once again asking you to save your career key.',
     width: 370,
+    cut: true,
     withKey: true,
   },
 ];

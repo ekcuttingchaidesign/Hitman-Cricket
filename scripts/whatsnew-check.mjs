@@ -75,7 +75,7 @@ check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
 // The one story is the meme, with the key under it.
 check(await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0),
   'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
-check(!!(await page.$('#whatsnew-keyslot .key-panel')), 'and the key widget under it');
+check(!!(await page.$('#whatsnew-keyslot .key-pass')), 'and the key widget under it');
 const order = await page.evaluate(() => {
   const top = sel => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
   return [top('.whatsnew-art img'), top('#whatsnew-keyslot'), top('#whatsnew-done')];

@@ -4124,6 +4124,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid #ffffff1f;
   box-shadow:0 22px 50px #00000073
 }
+/* A picture with its corners already cut: no frame of our own, and a shadow
+   that follows its outline rather than a square box's. */
+.whatsnew-art img.is-cut{
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  filter:drop-shadow(0 18px 34px #00000073)
+}
 .whatsnew-say{
   margin:0;
   max-width:34ch;
@@ -4144,7 +4152,9 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* The key under the picture. The body is not a control — taps go through it to
    the halves underneath — so the one thing in it that is has to say so. */
 .whatsnew-keyslot{width:min(330px,100%);flex:none;pointer-events:auto;text-align:left}
-.whatsnew-keyslot .key-panel{margin:0}
+.whatsnew-keyslot .key-pass{margin:0}
+.whatsnew-keyslot .key-line{margin-bottom:10px}
+.whatsnew-keyslot .key-ghost{margin:0}
 .whatsnew-bar.is-held>i{animation:none;transform:none}
 /* The sheets the key opens stand over the story it was opened from. */
 .whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,

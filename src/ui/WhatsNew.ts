@@ -56,7 +56,7 @@ export function storiesMarkup(view: StoriesView): string {
         <p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>
         <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>
         <div class="whatsnew-art">
-          <img src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
+          <img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
   story.width}" draggable="false">
         </div>
         ${story.body ? `<p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>` : ''}
@@ -71,38 +71,40 @@ export function storiesMarkup(view: StoriesView): string {
 }
 
 /**
- * The key under the picture, in whichever of its three states this player is.
+ * The key under the picture: the save card from My Stats, in whichever of its
+ * three states this player is in.
  *
- * The end card's panel, borrowed whole: it is the shape a player has already
- * been shown their key in, and every one of its buttons ends at the same save
- * sheet as everywhere else, which is the only place a key is ever saved.
+ * It says "Save your key" in all three, because that is what the picture above
+ * it is asking. What differs is only what the press can honestly do:
+ *
+ *  - a key held: it is printed, and the press opens the save sheet;
+ *  - a name without a key: the press makes one, and the save sheet follows;
+ *  - no name at all: there is no key to save yet, so there is no save key —
+ *    a button that did nothing would be the one lie on the screen. It says
+ *    where a key comes from, and offers the way back to anybody who has one.
+ *
+ * Its own ids rather than the card's, because My Stats can be standing under
+ * this story when it is opened from the board.
  */
 export function storyKeyMarkup(view: KeyView | null): string {
-  if (view && view.state !== 'lost') {
-    return panel('Your career key',
-      `<p class="key-serial is-inline"><span>${escape(view.code ?? '')}</span></p>`,
-      'whatsnew-key-save', view.state === 'saved' ? 'AGAIN' : 'SAVE');
-  }
-  if (view) {
-    return panel('No career key yet',
-      '<p class="key-panel-line">Make one now. It brings your record back on a new phone.</p>',
-      'whatsnew-key-make', 'MAKE IT');
-  }
-  return panel('No career key yet',
-    '<p class="key-panel-line">Get on the board and one is made for you.</p>',
-    'whatsnew-key-restore', 'I HAVE ONE');
-}
-
-function panel(heading: string, line: string, id: string, action: string): string {
+  const held = !!view && view.state !== 'lost';
+  const line = held
+    ? 'The only way back to your record if this browser forgets you.'
+    : view
+      ? 'There is no key on this phone yet. Make one now, save it, and your record comes back on any phone.'
+      : 'Put a score on the board and your key is made for you. Save it the moment you get it.';
   return `
-    <section class="key-panel whatsnew-keypanel" aria-labelledby="whatsnew-key-title">
-      <div class="key-panel-face">
-        <span class="key-mark" aria-hidden="true">${MARK}</span>
-        <div class="key-panel-say">
-          <h3 id="whatsnew-key-title">${escape(heading)}</h3>
-          ${line}
+    <section class="key-pass whatsnew-keypass" aria-labelledby="whatsnew-key-title">
+      <div class="key-face">
+        <div class="key-stamp">
+          <span class="key-mark" aria-hidden="true">${MARK}</span>
+          <h3 id="whatsnew-key-title">Save your key</h3>
         </div>
-        <button id="${id}" class="key-panel-key" type="button">${escape(action)}</button>
+        ${held ? `<p class="key-serial"><span>${escape(view!.code ?? '')}</span></p>` : ''}
+        <p class="key-line">${line}</p>
+        ${held ? '<button id="whatsnew-key-save" class="key-save" type="button">SAVE YOUR KEY</button>'
+    : view ? '<button id="whatsnew-key-make" class="key-save" type="button">SAVE YOUR KEY</button>'
+      : '<button id="whatsnew-key-restore" class="key-ghost" type="button">Already have a key? Bring your record back</button>'}
       </div>
     </section>`;
 }
