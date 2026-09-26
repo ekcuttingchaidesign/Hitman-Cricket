@@ -1,23 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
-import { packScore } from '../src/game/leaderboard';
-import { figuresOf } from '../src/game/ball-string';
 import {
-  CHALLENGE_TTL_SECONDS, CODE_ALPHABET, CODE_LENGTH, CREATE_LIMIT, OPPONENTS, WRITE_LIMIT,
-  answerChallenge, challengeRefused, cleanCode, createChallenge, newCode, readChallenge,
-  stateOf, type Batter, type ChallengeOutcome, type ChallengeStore,
+  CHALLENGE_LIFE_MS, CODE_ALPHABET, CODE_LENGTH, CREATE_LIMIT, FORFEIT_AFTER_MS, PLAYERS_MAX, SCORING_VERSION,
+  challengeRefused, cleanCard, cleanCode, createChallenge, joinChallenge, markSeen, newCode, readChallenge,
+  readMine, recordBalls, stateOf, statusOf,
+  type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeRefusal, type ChallengeStore,
+  type StoredChallenge,
 } from '../src/server/challenge-store';
+import { challengeRequest } from '../src/server/challenge-endpoint';
 import { memoryChallenges } from '../src/server/memory-store';
+import { nameBlocked } from '../src/server/name-filter';
 
 /**
- * A challenge's rules, run against the same in-memory store the dev server uses.
- * One fake rather than two: a second copy written for the tests would drift from
- * the one the endpoint is developed against, and the drift would be invisible.
+ * A match room's rules, run against the same in-memory store the dev server
+ * uses. One fake rather than two: a second copy written for the tests would
+ * drift from the one the endpoint is developed against, and the drift would be
+ * invisible.
  */
 
 const HOST = 'abcdef-abcdefghijkl';
 const FRIEND = 'abcdeg-mnopqrstuvwx';
 const THIRD = 'abcdeh-bcdefghijklm';
+const T0 = Date.UTC(2026, 8, 1, 12, 0, 0);
 
 /** An innings of `runs`, made of sixes and singles over the full thirty balls. */
 const card = (runs: number): string => {
@@ -29,24 +33,34 @@ const card = (runs: number): string => {
 };
 
 /** An innings that ended early, because the wickets ran out. */
-const allOut = (runs: number): string => {
-  const sixes = Math.floor(runs / 6);
-  const singles = runs % 6;
-  return '6'.repeat(sixes) + '1'.repeat(singles) + 'WWW';
-};
+const allOut = (runs: number): string => '6'.repeat(Math.floor(runs / 6)) + '1'.repeat(runs % 6) + 'WWW';
 
-const batter = (over: Partial<Batter> = {}): Batter =>
-  ({ playerId: HOST, name: 'VK', avatar: 0, address: '1.2.3.4', card: card(102), ...over });
+const who = (over: Partial<Batter> = {}): Batter =>
+  ({ playerId: HOST, name: 'VK', avatar: 0, address: '1.2.3.4', ...over });
+const friend = (over: Partial<Batter> = {}): Batter => who({ playerId: FRIEND, name: 'Rahul', avatar: 1, ...over });
 
-/** The challenge out of an outcome, or a failure naming what was refused instead. */
-function took(outcome: ChallengeOutcome) {
+/** The room out of an outcome, or a failure naming what was refused instead. */
+function took<T extends ChallengeOutcome | ChallengeListOutcome>(outcome: T): Exclude<T, ChallengeRefusal> {
   if (challengeRefused(outcome)) throw new Error(`refused: ${outcome.status} ${outcome.reason}`);
-  return outcome;
+  return outcome as Exclude<T, ChallengeRefusal>;
+}
+function refused(outcome: ChallengeOutcome | ChallengeListOutcome): number {
+  if (!challengeRefused(outcome)) throw new Error('was taken');
+  return outcome.status;
 }
 
-/** A challenge, set and ready to be answered. */
-async function set(store: ChallengeStore, runs = 102) {
-  return took(await createChallenge(store, batter({ card: card(runs) }))).code;
+/** An empty room, made by the host. */
+async function room(store: ChallengeStore, now = T0) {
+  return took(await createChallenge(store, who(), now)).code;
+}
+
+/** A whole innings, sent the way the game sends it: the card so far, ball by ball. */
+async function bat(store: ChallengeStore, code: string, batter: Batter, innings: string, from = T0) {
+  let last: ChallengeOutcome | null = null;
+  for (let i = 1; i <= innings.length; i++) {
+    last = await recordBalls(store, code, { ...batter, card: innings.slice(0, i) }, from + i * 5000);
+  }
+  return took(last!);
 }
 
 describe('codes', () => {
@@ -55,8 +69,6 @@ describe('codes', () => {
     const code = newCode(() => 0.5);
     expect(code).toHaveLength(6);
     for (const char of code) expect(CODE_ALPHABET).toContain(char);
-    // A challenge lives a week with reads uncounted, so the keyspace has to be
-    // too big to walk. Six of thirty-two is over a billion.
     expect(CODE_ALPHABET.length ** CODE_LENGTH).toBeGreaterThan(1e9);
     for (const char of '01OI') expect(CODE_ALPHABET).not.toContain(char);
   });
@@ -70,233 +82,299 @@ describe('codes', () => {
   });
 });
 
-describe('setting a challenge', () => {
-  it('holds one innings, open, with the setter as challenger', async () => {
+describe('cards', () => {
+  it('take an empty one, a partial one and a whole one', () => {
+    expect(cleanCard('')).toBe('');
+    expect(cleanCard('6041W')).toBe('6041W');
+    expect(cleanCard(card(102))).toBe(card(102));
+    expect(cleanCard(allOut(30))).toBe(allOut(30));
+  });
+  it('refuse balls after the innings had ended, and anything that is not balls', () => {
+    expect(cleanCard(allOut(30) + '4')).toBeNull();
+    expect(cleanCard('6'.repeat(31))).toBeNull();
+    expect(cleanCard('5')).toBeNull();
+    expect(cleanCard(7)).toBeNull();
+  });
+});
+
+describe('making a room', () => {
+  it('is empty, open, with the host joined and not yet batting', async () => {
     const store = memoryChallenges();
-    const made = took(await createChallenge(store, batter()));
+    const made = took(await createChallenge(store, who(), T0));
     expect(made.challenge.state).toBe('open');
     expect(made.challenge.host).toBe(HOST);
-    expect(made.challenge.size).toBe(OPPONENTS + 1);
+    expect(made.challenge.size).toBe(PLAYERS_MAX);
+    expect(made.challenge.expiresAt).toBe(T0 + CHALLENGE_LIFE_MS);
+    expect(made.challenge.v).toBe(SCORING_VERSION);
+    expect(made.challenge.rematchOf).toBeNull();
     expect(made.challenge.players).toHaveLength(1);
-    expect(made.challenge.players[0]).toMatchObject({ playerId: HOST, name: 'VK', runs: 102, challenger: true });
+    expect(made.challenge.players[0]).toMatchObject({ playerId: HOST, name: 'VK', host: true, status: 'joined', card: '' });
   });
 
-  it('works the score out from the balls rather than being told it', async () => {
+  it('can be made from an innings that has just ended, with the score worked out from the balls', async () => {
     const store = memoryChallenges();
-    const made = took(await createChallenge(store, batter({ card: '6'.repeat(30) })));
-    expect(made.challenge.players[0]).toMatchObject({ runs: 180, sixes: 30, balls: 30, wickets: 0 });
+    const made = took(await createChallenge(store, { ...who(), card: '6'.repeat(30) }, T0));
+    expect(made.challenge.state).toBe('live');
+    expect(made.challenge.players[0]).toMatchObject({ runs: 180, sixes: 30, balls: 30, wickets: 0, status: 'done' });
   });
 
-  it('refuses an innings that never ended', async () => {
+  it('refuses an innings that never ended, and anything that is not one', async () => {
     const store = memoryChallenges();
-    // Twelve balls with wickets in hand adds up fine and is not a result.
-    const outcome = await createChallenge(store, batter({ card: '664466446644' }));
-    expect(challengeRefused(outcome) && outcome.status).toBe(400);
-  });
-
-  it('refuses anything that is not an innings', async () => {
-    const store = memoryChallenges();
-    for (const bad of ['', 'not an innings', '6'.repeat(31), 55, null]) {
-      const outcome = await createChallenge(store, batter({ card: bad }));
-      expect(challengeRefused(outcome) && outcome.status, String(bad)).toBe(400);
+    for (const bad of ['664466446644', 'not an innings', '6'.repeat(31), 55]) {
+      expect(refused(await createChallenge(store, { ...who(), card: bad }, T0)), String(bad)).toBe(400);
     }
   });
 
-  it('refuses a caller who is not a player, or a kit that does not exist', async () => {
+  it('remembers what it is a rematch of', async () => {
     const store = memoryChallenges();
-    for (const over of [{ playerId: 'nope' }, { avatar: 99 }, { name: '   ' }]) {
-      const outcome = await createChallenge(store, batter(over));
-      expect(challengeRefused(outcome) && outcome.status).toBe(400);
+    const first = await room(store);
+    const again = took(await createChallenge(store, { ...who(), rematchOf: first }, T0));
+    expect(again.challenge.rematchOf).toBe(first);
+    const junk = took(await createChallenge(store, { ...who(), rematchOf: 'nope' }, T0));
+    expect(junk.challenge.rematchOf).toBeNull();
+  });
+
+  it('refuses a caller who is not a player, a kit that does not exist, or a name nobody should be sent', async () => {
+    const store = memoryChallenges();
+    for (const over of [{ playerId: 'nope' }, { avatar: 99 }, { name: '   ' }, { name: 'F.u.c.k' }]) {
+      expect(refused(await createChallenge(store, who(over), T0)), JSON.stringify(over)).toBe(400);
     }
+  });
+
+  it('holds creation down to a number an hour', async () => {
+    const store = memoryChallenges();
+    for (let i = 0; i < CREATE_LIMIT; i++) took(await createChallenge(store, who(), T0));
+    expect(refused(await createChallenge(store, who(), T0))).toBe(429);
+    took(await createChallenge(store, who({ address: '5.6.7.8' }), T0));
   });
 
   it('redraws a code somebody already holds, and says so rather than looping', async () => {
     const store = memoryChallenges();
-    const first = took(await createChallenge(store, batter(), Date.now(), () => 0));
+    const first = took(await createChallenge(store, who(), T0, () => 0));
     const draws = [0, 0, 0.5];
     let drawn = 0;
-    const second = took(await createChallenge(
-      store, batter({ playerId: FRIEND }), Date.now(), () => draws[Math.min(drawn++, 2)]));
+    const second = took(await createChallenge(store, friend(), T0, () => draws[Math.min(drawn++, 2)]));
     expect(second.code).not.toBe(first.code);
-
-    const stuck = await createChallenge(store, batter({ playerId: THIRD }), Date.now(), () => 0);
-    expect(challengeRefused(stuck) && stuck.status).toBe(503);
+    expect(refused(await createChallenge(store, who({ playerId: THIRD }), T0, () => 0))).toBe(503);
   });
 });
 
-describe('answering a challenge', () => {
-  it('puts both innings on one scoreline, best first', async () => {
+describe('joining', () => {
+  it('adds a row, once, however many times the link is opened', async () => {
     const store = memoryChallenges();
-    const code = await set(store, 102);
-    const done = took(await answerChallenge(store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(114) })));
-    expect(done.challenge.state).toBe('answered');
-    expect(done.challenge.players.map(one => [one.name, one.runs])).toEqual([['Rahul', 114], ['VK', 102]]);
+    const code = await room(store);
+    const joined = took(await joinChallenge(store, code, friend(), T0 + 1000));
+    expect(joined.challenge.players.map(row => row.playerId)).toEqual([HOST, FRIEND]);
+    const again = took(await joinChallenge(store, code, friend(), T0 + 2000));
+    expect(again.challenge.players).toHaveLength(2);
+    expect(again.challenge.players[1].joined).toBe(T0 + 1000);
   });
 
-  it('hands a dead-level challenge to the challenger', async () => {
+  it('is what puts the room on the player\'s own list', async () => {
     const store = memoryChallenges();
-    const early = Date.UTC(2026, 5, 1, 12, 0, 0);
-    const code = took(await createChallenge(store, batter({ card: card(102) }), early)).code;
-    const done = took(await answerChallenge(
-      store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(102) }), early + 60_000));
-    // The chaser had to beat it, not match it — and that falls out of the
-    // board's own tiebreak, where the earlier stamp wins.
-    expect(done.challenge.players.map(one => one.name)).toEqual(['VK', 'Rahul']);
+    const code = await room(store);
+    took(await joinChallenge(store, code, friend(), T0));
+    const mine = took(await readMine(store, FRIEND, T0));
+    expect(mine.challenges.map(one => one.code)).toEqual([code]);
+    const hosts = took(await readMine(store, HOST, T0));
+    expect(hosts.challenges.map(one => one.code)).toEqual([code]);
   });
 
-  it('is refused for the challenger: you cannot chase yourself', async () => {
+  it('turns away a full room, and a room that has closed', async () => {
     const store = memoryChallenges();
-    const code = await set(store);
-    const outcome = await answerChallenge(store, code, batter({ card: card(150) }));
-    expect(challengeRefused(outcome) && outcome.status).toBe(409);
-  });
-
-  it('is idempotent, so a lost response never costs an innings', async () => {
-    const store = memoryChallenges();
-    const code = await set(store, 102);
-    const first = took(await answerChallenge(store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(114) })));
-    // The same browser retrying after a dropped response, with anything at all
-    // in the body: it gets the result it already has, never a second innings.
-    const retry = took(await answerChallenge(store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(180) })));
-    expect(retry.challenge.players).toEqual(first.challenge.players);
-    expect(retry.challenge.players.find(one => one.playerId === FRIEND)?.runs).toBe(114);
-  });
-
-  it('is refused once somebody else has answered', async () => {
-    const store = memoryChallenges();
-    const code = await set(store);
-    took(await answerChallenge(store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(114) })));
-    const late = await answerChallenge(store, code, batter({ playerId: THIRD, name: 'Priya', card: card(120) }));
-    expect(challengeRefused(late) && late.status).toBe(409);
-    expect(took(await readChallenge(store, code)).challenge.players).toHaveLength(2);
-  });
-
-  it('takes an innings that ended because the wickets ran out', async () => {
-    const store = memoryChallenges();
-    const code = await set(store, 102);
-    const done = took(await answerChallenge(
-      store, code, batter({ playerId: FRIEND, name: 'Rahul', card: allOut(40) })));
-    const chaser = done.challenge.players.find(one => one.playerId === FRIEND);
-    expect(chaser).toMatchObject({ runs: 40, wickets: 3 });
-    // All out on the thirteenth ball is a result, and a losing one.
-    expect(done.challenge.players[0].name).toBe('VK');
-  });
-
-  it('refuses an innings that never ended', async () => {
-    const store = memoryChallenges();
-    const code = await set(store);
-    const outcome = await answerChallenge(store, code, batter({ playerId: FRIEND, card: '664466446644' }));
-    expect(challengeRefused(outcome) && outcome.status).toBe(400);
-  });
-
-  it('is refused under a code that is not one, or a challenge that has closed', async () => {
-    const store = memoryChallenges();
-    const code = await set(store);
-    const missing = await answerChallenge(store, 'ZZZZZZ', batter({ playerId: FRIEND }));
-    expect(challengeRefused(missing) && missing.status).toBe(404);
-    const mangled = await answerChallenge(store, 'nope', batter({ playerId: FRIEND }));
-    expect(challengeRefused(mangled) && mangled.status).toBe(400);
-
-    store.expire(code);
-    const gone = await answerChallenge(store, code, batter({ playerId: FRIEND }));
-    expect(challengeRefused(gone) && gone.status).toBe(404);
-  });
-
-  it('lasts a week, not an afternoon', async () => {
-    // The premise is that the friend was busy and played in the evening — or on
-    // Wednesday. Two hours would break it outright.
-    expect(CHALLENGE_TTL_SECONDS).toBe(7 * 24 * 60 * 60);
-  });
-});
-
-describe('reading a challenge', () => {
-  it('carries the challenger\'s innings, which is the ghost', async () => {
-    const store = memoryChallenges();
-    const code = await set(store, 102);
-    const read = took(await readChallenge(store, code));
-    const setter = read.challenge.players.find(one => one.challenger);
-    expect(setter?.card).toBe(card(102));
-    expect(figuresOf(setter!.card).runs).toBe(102);
-  });
-
-  it('is the same answer for everybody, so it can sit in the cache', async () => {
-    const store = memoryChallenges();
-    const code = await set(store);
-    const a = took(await readChallenge(store, code));
-    const b = took(await readChallenge(store, code));
-    expect(a).toEqual(b);
-  });
-
-  it('says open until it is answered, and never stores that', async () => {
-    const store = memoryChallenges();
-    const code = await set(store);
-    expect(took(await readChallenge(store, code)).challenge.state).toBe('open');
-    took(await answerChallenge(store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(50) })));
-    expect(took(await readChallenge(store, code)).challenge.state).toBe('answered');
-  });
-});
-
-describe('what a challenge costs', () => {
-  it('holds down the making of challenges hardest, because that makes keys', async () => {
-    const store = memoryChallenges();
-    for (let i = 0; i < CREATE_LIMIT; i++) took(await createChallenge(store, batter()));
-    const over = await createChallenge(store, batter());
-    expect(challengeRefused(over) && over.status).toBe(429);
-  });
-
-  it('counts answers separately, so making challenges cannot lock a game up', async () => {
-    const store = memoryChallenges();
-    const code = await set(store);
-    for (let i = 0; i <= CREATE_LIMIT; i++) await createChallenge(store, batter());
-    expect(challengeRefused(await createChallenge(store, batter()))).toBe(true);
-    // The same address, out of challenges it may make, can still answer the one
-    // it was sent. Stranding a player mid-game over a create budget would be
-    // collateral nobody asked for.
-    const done = took(await answerChallenge(store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(60) })));
-    expect(done.challenge.state).toBe('answered');
-    expect(WRITE_LIMIT).toBeGreaterThan(CREATE_LIMIT);
-  });
-
-  it('does not count reads at all, so checking costs nothing to police', async () => {
-    const store = memoryChallenges();
-    const code = await set(store);
-    for (let i = 0; i < WRITE_LIMIT + 10; i++) {
-      expect(challengeRefused(await readChallenge(store, code))).toBe(false);
+    const code = await room(store);
+    for (let i = 1; i < PLAYERS_MAX; i++) {
+      took(await joinChallenge(store, code, friend({ playerId: `abcdef-${String(i).padStart(12, 'x')}` }), T0));
     }
+    expect(refused(await joinChallenge(store, code, friend({ playerId: THIRD }), T0))).toBe(409);
+    const stale = await room(store);
+    expect(refused(await joinChallenge(store, stale, friend(), T0 + CHALLENGE_LIFE_MS))).toBe(410);
+  });
+
+  it('still takes a third friend after two have finished — a forwarded link is a leaderboard', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    await bat(store, code, who(), card(102));
+    took(await joinChallenge(store, code, friend(), T0));
+    await bat(store, code, friend(), card(90));
+    expect(took(await readChallenge(store, code, T0 + 3600_000)).challenge.state).toBe('done');
+    const third = took(await joinChallenge(store, code, friend({ playerId: THIRD, name: 'Amit' }), T0 + 3600_000));
+    expect(third.challenge.state).toBe('live');
+    expect(third.challenge.players).toHaveLength(3);
   });
 });
 
-describe('the scoreline', () => {
-  it('is ranked on the board\'s own number, not a second comparator', async () => {
+describe('batting', () => {
+  it('takes the innings a ball at a time and works the figures out as it goes', async () => {
     const store = memoryChallenges();
-    const at = Date.UTC(2026, 5, 1, 12, 0, 0);
-    const code = took(await createChallenge(store, batter({ card: card(102) }), at)).code;
-    const done = took(await answerChallenge(
-      store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(114) }), at));
-    expect(done.challenge.players.map(one => one.score))
-      .toEqual([packScore(figuresOf(card(114)), at), packScore(figuresOf(card(102)), at)]);
+    const code = await room(store);
+    const after = took(await recordBalls(store, code, { ...who(), card: '64' }, T0 + 1));
+    expect(after.challenge.players[0]).toMatchObject({ status: 'batting', runs: 10, balls: 2, sixes: 1, fours: 1 });
+    expect(after.challenge.state).toBe('live');
+    const end = await bat(store, code, who(), '64' + card(96).slice(2));
+    expect(end.challenge.players[0]).toMatchObject({ status: 'done', balls: 30 });
+    expect(end.challenge.players[0].runs).toBe(10 + 96 - 12);
   });
 
-  it('marks which innings set the challenge', async () => {
+  it('hands back the room for the same balls again, or fewer — the retry is never refused', async () => {
     const store = memoryChallenges();
-    const code = await set(store, 60);
-    const done = took(await answerChallenge(store, code, batter({ playerId: FRIEND, name: 'Rahul', card: card(114) })));
-    expect(done.challenge.players.find(one => one.challenger)?.name).toBe('VK');
-    expect(done.challenge.players.filter(one => one.challenger)).toHaveLength(1);
+    const code = await room(store);
+    took(await recordBalls(store, code, { ...who(), card: '6041' }, T0));
+    expect(took(await recordBalls(store, code, { ...who(), card: '6041' }, T0)).challenge.players[0].balls).toBe(4);
+    expect(took(await recordBalls(store, code, { ...who(), card: '60' }, T0)).challenge.players[0].balls).toBe(4);
   });
 
-  it('reads the state off the innings themselves', async () => {
-    expect(stateOf({ at: 0, host: HOST, players: {} })).toBe('open');
-    expect(stateOf({
-      at: 0, host: HOST,
-      players: { [HOST]: { name: 'VK', avatar: 0, card: card(10), at: 0 } },
-    })).toBe('open');
-    expect(stateOf({
-      at: 0, host: HOST,
-      players: {
-        [HOST]: { name: 'VK', avatar: 0, card: card(10), at: 0 },
-        [FRIEND]: { name: 'Rahul', avatar: 1, card: card(20), at: 1 },
-      },
-    })).toBe('answered');
+  it('refuses an innings that disagrees with the one already in — no replaying a bad over', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    took(await recordBalls(store, code, { ...who(), card: '60W1' }, T0));
+    expect(refused(await recordBalls(store, code, { ...who(), card: '6066' }, T0))).toBe(409);
+    expect(refused(await recordBalls(store, code, { ...who(), card: '61' }, T0))).toBe(409);
+  });
+
+  it('refuses balls from somebody who has not joined, and more balls after the innings ended', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    expect(refused(await recordBalls(store, code, { ...friend(), card: '6' }, T0))).toBe(409);
+    await bat(store, code, who(), allOut(30));
+    expect(refused(await recordBalls(store, code, { ...who(), card: allOut(30) + '6' }, T0))).toBe(400);
+  });
+
+  it('gives up an innings left for a day, and ranks it under every finished one', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    took(await joinChallenge(store, code, friend(), T0));
+    took(await recordBalls(store, code, { ...who(), card: '666666' }, T0));
+    await bat(store, code, friend(), card(20), T0);
+    const soon = took(await readChallenge(store, code, T0 + 3600_000)).challenge;
+    expect(soon.players.find(row => row.playerId === HOST)?.status).toBe('batting');
+    expect(soon.state).toBe('live');
+    const later = took(await readChallenge(store, code, T0 + FORFEIT_AFTER_MS + 1)).challenge;
+    expect(later.players.map(row => [row.playerId, row.status])).toEqual([[FRIEND, 'done'], [HOST, 'forfeit']]);
+    expect(later.state).toBe('done');
+    expect(refused(await recordBalls(store, code, { ...who(), card: '6666666' }, T0 + FORFEIT_AFTER_MS + 1))).toBe(409);
+  });
+});
+
+describe('the result', () => {
+  it('puts the finished innings first, best first, on runs then sixes then fours', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    took(await joinChallenge(store, code, friend(), T0));
+    took(await joinChallenge(store, code, friend({ playerId: THIRD, name: 'Amit', avatar: 2 }), T0));
+    await bat(store, code, who(), '6'.repeat(4) + '1'.repeat(6) + '0'.repeat(20));        // 30, four sixes
+    await bat(store, code, friend(), '4'.repeat(6) + '1'.repeat(6) + '0'.repeat(18));      // 30, no sixes
+    const read = took(await readChallenge(store, code, T0 + 60_000)).challenge;
+    expect(read.players.map(row => [row.name, row.runs, row.status])).toEqual([
+      ['VK', 30, 'done'], ['Rahul', 30, 'done'], ['Amit', 0, 'joined'],
+    ]);
+    expect(read.state).toBe('live');
+  });
+
+  it('leaves two innings level on all three keys level — that is a draw, whoever batted first', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    took(await joinChallenge(store, code, friend(), T0));
+    await bat(store, code, who(), card(47));
+    await bat(store, code, friend(), card(47), T0 + 3600_000);
+    const read = took(await readChallenge(store, code, T0 + 7200_000)).challenge;
+    expect(read.players[0].score).toBe(read.players[1].score);
+    expect(read.state).toBe('done');
+  });
+
+  it('is done for good — a week later it is still the result, not an expiry', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    took(await joinChallenge(store, code, friend(), T0));
+    await bat(store, code, who(), card(47));
+    await bat(store, code, friend(), card(40));
+    expect(took(await readChallenge(store, code, T0 + CHALLENGE_LIFE_MS + 1)).challenge.state).toBe('done');
+  });
+
+  it('expires when nobody answered in the week, keeping the innings that was played', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    await bat(store, code, who(), card(47));
+    const late = took(await readChallenge(store, code, T0 + CHALLENGE_LIFE_MS + 1)).challenge;
+    expect(late.state).toBe('expired');
+    expect(late.players[0]).toMatchObject({ runs: 47, status: 'done' });
+    expect(refused(await recordBalls(store, code, { ...friend(), card: '6' }, T0 + CHALLENGE_LIFE_MS + 1))).toBe(409);
+  });
+
+  it('is void under an older scoring version', () => {
+    const stale: StoredChallenge = { at: T0, host: HOST, v: SCORING_VERSION - 1, rematchOf: null, players: {} };
+    expect(stateOf(stale, T0)).toBe('void');
+  });
+
+  it('notes who has seen it', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    took(await joinChallenge(store, code, friend(), T0));
+    await bat(store, code, who(), card(47));
+    await bat(store, code, friend(), card(40));
+    const seen = took(await markSeen(store, code, friend(), T0)).challenge;
+    expect(seen.players.map(row => [row.playerId, row.seen])).toEqual([[HOST, false], [FRIEND, true]]);
+  });
+});
+
+describe('a player\'s list', () => {
+  it('is every room they are in, newest first, and forgets rooms that have gone', async () => {
+    const store = memoryChallenges();
+    const first = await room(store, T0);
+    const second = await room(store, T0 + 1000);
+    took(await joinChallenge(store, first, friend(), T0));
+    took(await joinChallenge(store, second, friend(), T0));
+    const mine = took(await readMine(store, FRIEND, T0));
+    expect(mine.challenges.map(one => one.code)).toEqual([second, first]);
+    store.expire(first);
+    const after = took(await readMine(store, FRIEND, T0));
+    expect(after.challenges.map(one => one.code)).toEqual([second]);
+    expect(await store.indexed(FRIEND)).toEqual([second]);
+  });
+
+  it('is nothing for a stranger, and refused for a non-player', async () => {
+    const store = memoryChallenges();
+    expect((took(await readMine(store, THIRD, T0)) as ChallengeListOutcome).challenges).toEqual([]);
+    expect(refused(await readMine(store, 'nope', T0))).toBe(400);
+  });
+});
+
+describe('the endpoint', () => {
+  it('routes the four writes and the two reads', async () => {
+    const store = memoryChallenges();
+    const post = (body: Record<string, unknown>) =>
+      challengeRequest(store, { method: 'POST', query: {}, body: JSON.stringify(body), address: 'test' });
+    const made = took(await post({ action: 'create', ...who() }));
+    if (!('code' in made)) throw new Error('no code');
+    took(await post({ action: 'join', code: made.code, ...friend() }));
+    took(await post({ action: 'ball', code: made.code, ...friend(), card: '6' }));
+    took(await post({ action: 'seen', code: made.code, ...friend() }));
+    const read = took(await challengeRequest(store, { method: 'GET', query: { code: made.code }, body: undefined, address: 'test' }));
+    expect('challenge' in read && read.challenge.players).toHaveLength(2);
+    const mine = took(await challengeRequest(store, { method: 'GET', query: { player: FRIEND }, body: undefined, address: 'test' }));
+    expect('challenges' in mine && mine.challenges).toHaveLength(1);
+    expect(refused(await post({ action: 'dance' }))).toBe(400);
+    expect(refused(await challengeRequest(store, { method: 'PUT', query: {}, body: undefined, address: 'test' }))).toBe(405);
+  });
+});
+
+describe('statuses', () => {
+  it('read off the balls and the clock', () => {
+    const base = { name: 'x', avatar: 0, joined: T0, at: T0 };
+    expect(statusOf({ ...base, card: '' }, T0)).toBe('joined');
+    expect(statusOf({ ...base, card: '64' }, T0 + 1000)).toBe('batting');
+    expect(statusOf({ ...base, card: '64' }, T0 + FORFEIT_AFTER_MS + 1)).toBe('forfeit');
+    expect(statusOf({ ...base, card: card(10) }, T0 + FORFEIT_AFTER_MS + 1)).toBe('done');
+    expect(statusOf({ ...base, card: 'WWW' }, T0)).toBe('done');
+  });
+});
+
+describe('the name filter', () => {
+  it('catches the obvious, through spacing and dots, and lets ordinary names by', () => {
+    expect(nameBlocked('Rahul')).toBe(false);
+    expect(nameBlocked('Big Show')).toBe(false);
+    expect(nameBlocked('sh it')).toBe(true);
+    expect(nameBlocked('Chutiya')).toBe(true);
+    expect(nameBlocked('B.h.e.n.c.h.o.d')).toBe(true);
   });
 });

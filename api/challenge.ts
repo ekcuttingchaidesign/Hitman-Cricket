@@ -3,84 +3,42 @@
 // Node resolves these as ESM, and ESM requires an explicit extension on a
 // relative import. Written extensionless, the function crashes on load with
 // ERR_MODULE_NOT_FOUND before any handler runs — a 500 with no log of its own.
-import {
-  answerChallenge, challengeRefused, createChallenge, readChallenge,
-  type Batter, type ChallengeOutcome,
-} from '../src/server/challenge-store.js';
+import { challengeRefused } from '../src/server/challenge-store.js';
+import { cacheable, challengeRequest } from '../src/server/challenge-endpoint.js';
 import { NoDatabase, redisFromEnv, upstashChallenges } from '../src/server/upstash.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
- * `/api/challenge` — one recorded innings, and the one that answers it.
+ * `/api/challenge` — a match room: one link, and everybody who bats under it.
  *
- * `GET ?code=K7QPX2` is the challenge as it stands, and it is **the same answer
- * for everybody who holds the link**, deliberately. That is what lets it sit in
- * the edge cache: a challenger checking for an answer and the friend about to
- * chase it read the same bytes, and each finds their own row by player id.
+ * `GET ?code=K7QPX2` is the room as it stands, and it is **the same answer for
+ * everybody who holds the link**, deliberately. That is what lets it sit in the
+ * edge cache: two friends batting at once poll the same bytes, and each finds
+ * their own row by player id. `GET ?player=…` is one player's list of rooms,
+ * and is never cached, because it is one player's.
  *
- * `POST` is the two things that change a challenge: setting one, and answering
- * it. Every rule about either lives in `challenge-store.ts`, next to the
- * board's, and this file only turns a request into that call and the answer back
- * into a response. The body is read as data and nothing in it is trusted — least
- * of all a score, which is never sent at all: a client sends the thirty balls it
- * played and the store works out what they were worth.
+ * `POST` is the four things that change a room: making one, joining it, a ball,
+ * and having seen the result. Every rule about them lives in
+ * `challenge-store.ts`; the dispatch is `challenge-endpoint.ts`, shared with the
+ * dev server so the two cannot drift.
  */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   try {
-    if (req.method === 'GET') return await answer(res, await get(req), true);
-    if (req.method === 'POST') return await answer(res, await post(req));
-    return failed(res, 405, 'Use GET or POST.');
+    const request = { method: req.method, query: req.query ?? {}, body: req.body, address: addressOf(req) };
+    // Reads use the read-only token: they cannot write, whatever they are sent.
+    const store = upstashChallenges(redisFromEnv(req.method === 'GET'));
+    const outcome = await challengeRequest(store, request);
+    if (challengeRefused(outcome)) return failed(res, outcome.status, outcome.reason);
+    // Two seconds of edge cache on a room read, then a moment where a stale
+    // answer is served while a fresh one is fetched behind it. A room two
+    // seconds out of date is not wrong — a ball lands, and the next poll has it.
+    res.setHeader('Cache-Control', cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+    res.status(200).json(outcome);
   } catch (error) {
-    // A challenge with no database behind it was never set up; one that is down
+    // A room with no database behind it was never set up; one that is down
     // was. Saying which saves reading the logs to find out.
-    if (error instanceof NoDatabase) return failed(res, 503, 'Challenges are not set up yet.', error);
-    failed(res, 503, 'The challenge could not be reached.', error);
+    if (error instanceof NoDatabase) return failed(res, 503, 'Matches are not set up yet.', error);
+    failed(res, 503, 'The match could not be reached.', error);
   }
-}
-
-/** The challenge as it stands. Reads with the read-only token: it cannot write. */
-async function get(req: ApiRequest): Promise<ChallengeOutcome> {
-  const code = req.query?.code;
-  return readChallenge(upstashChallenges(redisFromEnv(true)), typeof code === 'string' ? code : '');
-}
-
-/** Setting a challenge, or answering one. */
-async function post(req: ApiRequest): Promise<ChallengeOutcome> {
-  const body = parse(req.body);
-  if (!body) return { ok: false, status: 400, reason: 'Send the challenge as JSON.' };
-  const store = upstashChallenges(redisFromEnv());
-  const who: Batter = {
-    playerId: String(body.playerId ?? ''),
-    name: String(body.name ?? ''),
-    avatar: Number(body.avatar),
-    address: addressOf(req),
-    // Read as data and checked in the store. Never coerced here: a string is
-    // the only shape an innings can arrive in, and anything else is not one.
-    card: body.card,
-  };
-  switch (String(body.action ?? '')) {
-    case 'create': return createChallenge(store, who);
-    case 'answer': return answerChallenge(store, String(body.code ?? ''), who);
-    default: return { ok: false, status: 400, reason: 'Say what to do with the challenge.' };
-  }
-}
-
-/** The outcome as a response. A refusal is the player's to act on; the rest is a challenge. */
-async function answer(res: ApiResponse, outcome: ChallengeOutcome, cache = false) {
-  if (challengeRefused(outcome)) return failed(res, outcome.status, outcome.reason);
-  // Two seconds of edge cache on a read, then a moment where a stale answer is
-  // served while a fresh one is fetched behind it. A challenge two seconds out
-  // of date is not wrong — but never word an unanswered one as final, because
-  // those two seconds are exactly when an answer lands. A write is never cached.
-  res.setHeader('Cache-Control', cache ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
-  res.status(200).json(outcome);
-}
-
-/** Vercel parses a JSON body itself, but a string still arrives on some paths. */
-function parse(body: unknown): Record<string, unknown> | null {
-  if (typeof body === 'string') {
-    try { return parse(JSON.parse(body)); } catch { return null; }
-  }
-  return body && typeof body === 'object' && !Array.isArray(body) ? body as Record<string, unknown> : null;
 }

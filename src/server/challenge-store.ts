@@ -1,42 +1,66 @@
-import { packScore, type Innings } from '../game/leaderboard.js';
-import { completedInnings } from '../game/ball-string.js';
+import type { Innings } from '../game/leaderboard.js';
+import { BALL_CHARS, MAX_BALLS, ended, figuresOf } from '../game/ball-string.js';
 import { AVATARS, NAME_MAX, cleanName } from './board-store.js';
+import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 
 /**
- * A challenge: one finished innings, shared as a link, answered by one friend.
+ * A match room: one link, and everybody who bats under it.
  *
- * It is not a room and nobody waits. The challenger bats their thirty balls,
- * the innings becomes a code, and whoever opens the link bats their own thirty
- * whenever they get round to it — tonight, or on Thursday. The result exists the
- * moment the second innings ends.
+ * The same code is the lobby, the live scores and the result, depending on
+ * where the match is — there is no separate "challenge" and "answer". Whoever
+ * opens the link joins the room; whoever taps Play bats; every ball is written
+ * here as it happens, so a friend batting at the same time sees it land and a
+ * friend batting on Thursday sees the same thing replayed. Nobody waits on
+ * anybody: the room reads whatever has happened so far and says so.
  *
- * Two players, deliberately. Four made sense while everyone was batting at once;
- * once they are not, a third and fourth person are each just another private
- * duel against the same recorded innings, and a table of four people who never
- * met is a worse thing to look at than a scoreline between two who did.
+ * Roles are symmetric. The person who made the room is the host, and that buys
+ * them nothing but the first row; whoever bats first is the ghost for whoever
+ * bats second, and the host can send the link and never bat at all.
  *
- * What the challenger sent is stored as thirty characters and nothing else —
- * see `ball-string.ts`. The figures are worked out from those characters here,
- * on the way in, so a client never states its own score: it states what happened
- * ball by ball and is told what that was worth.
+ * What a player sends is thirty characters at most and nothing else — see
+ * `ball-string.ts`. Each ball is the whole innings so far, and the store only
+ * ever accepts a longer string that begins with the one it holds. That is what
+ * makes a dropped connection cost a retry rather than an innings, and what
+ * makes "bat it again for a better score" impossible: the balls already in
+ * cannot be taken back. Scores are worked out from the characters, here, so a
+ * client never states its own.
  *
- * Two things are borrowed from the board rather than restated, because a second
- * copy would drift: `packScore` puts the two innings in order, so a challenge is
- * decided on the same ladder the fifty are ranked on, and `cleanName` is the
- * same name cleaning. What is deliberately *not* borrowed is the permanent name
- * registry — a challenge lasts a week, and burning a forever-name on one would
- * cost the board a name every time two friends played.
+ * Two things are borrowed from the board rather than restated: `cleanName` is
+ * the same name cleaning, and the kits are the same five kits. What is not
+ * borrowed is the permanent name registry — a room lasts a week, and burning a
+ * forever-name on one would cost the board a name every time two friends
+ * played.
  */
-
-/** How many innings one challenge holds: the challenger's, and one answer. */
-export const OPPONENTS = 1;
 
 /**
- * How long a challenge lives. The whole premise is that the friend was busy and
- * played in the evening — or on Wednesday — so this is a week rather than the
- * couple of hours a play-together room wanted.
+ * How many people one link can carry. Two is the match; the rest is a group
+ * chat forwarding one link, and twenty rows is where a room stops being
+ * readable on a phone.
  */
-export const CHALLENGE_TTL_SECONDS = 7 * 24 * 60 * 60;
+export const PLAYERS_MAX = 20;
+
+/** How long a room takes innings for. A week, because the friend was busy. */
+export const CHALLENGE_LIFE_MS = 7 * 24 * 3600_000;
+
+/**
+ * How long the record is kept: the week it is open, and a week after that so
+ * a link opened late still says what happened rather than nothing at all.
+ */
+export const CHALLENGE_TTL_SECONDS = 14 * 24 * 3600;
+
+/**
+ * An innings started and then left for a day is given up, not paused. Without
+ * this, walking out on a bad over would leave the other player waiting forever
+ * with no result; with it, the walk-out is a loss and the wait is a day.
+ */
+export const FORFEIT_AFTER_MS = 24 * 3600_000;
+
+/**
+ * Bumped when the scoring changes enough that two innings played either side
+ * of the change are not comparable. A room made under an older number is void
+ * rather than decided — a result nobody can trust is worse than none.
+ */
+export const SCORING_VERSION = 1;
 
 /**
  * The alphabet a code is drawn from: digits and capitals, less the four that get
@@ -45,13 +69,8 @@ export const CHALLENGE_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 /**
- * Six characters, not four.
- *
- * Four would be a million codes, and a challenge now lives for a week rather
- * than two hours, with reads deliberately uncounted so that polling stays free.
- * A million live-for-a-week codes and no read limit is a keyspace somebody can
- * simply walk, and what they would find is other people's names. Six is a
- * billion, which is not walkable, and still reads aloud in one breath.
+ * Six characters: a billion codes, which is not a keyspace anybody can walk in
+ * the fortnight one lives, and it still reads aloud in one breath.
  */
 export const CODE_LENGTH = 6;
 
@@ -59,83 +78,104 @@ export const CODE_LENGTH = 6;
 const CODE_TRIES = 5;
 
 /**
- * Challenges made from one address an hour, and writes from one an hour.
+ * Rooms made from one address an hour, and writes from one an hour.
  *
- * Reads are not counted at all, deliberately: a challenge read is the same
- * answer for everybody who holds the link and is served from the edge cache, so
- * counting them would spend a database command per read to police the very thing
- * the cache exists to make free. Creating is what makes keys, so it is the one
- * held down hard.
+ * Reads are not counted at all, deliberately: a room read is the same answer for
+ * everybody who holds the link and is served from the edge cache, so counting
+ * them would spend a database command per read to police the very thing the
+ * cache exists to make free. A write is a ball, a join or a dismissal — thirty
+ * balls an innings — so the ceiling is high enough for an evening of rematches
+ * and low enough that a script gets bored.
  */
 export const CREATE_LIMIT = 30;
-export const WRITE_LIMIT = 600;
+export const WRITE_LIMIT = 1500;
 export const RATE_WINDOW_SECONDS = 3600;
 
-/** Where a challenge is in its life. Derived, never stored — see `stateOf`. */
-export type ChallengeState = 'open' | 'answered';
+/** Where a room is in its life. Derived, never stored — see `stateOf`. */
+export type ChallengeState = 'open' | 'live' | 'done' | 'expired' | 'void';
+
+/** Where one player is in theirs. Derived from their balls and their clock. */
+export type PlayerStatus = 'joined' | 'batting' | 'done' | 'forfeit';
 
 /**
- * One innings as it is kept: who batted it, and the thirty characters.
+ * One player as they are kept: who they are, the balls so far, and two clocks.
  *
- * The figures are not here. They are worked out from `balls` every time they are
+ * The figures are not here. They are worked out from `card` every time they are
  * needed, which is what stops a stored score and a stored innings ever being two
  * different things.
  */
 export interface StoredPlayer {
   name: string;
   avatar: number;
-  /** The innings, one character per ball. See `ball-string.ts`. */
+  /** The innings so far, one character per ball. Empty until the first ball. */
   card: string;
-  /** When the store stamped it. Never a browser's clock: it settles ties. */
+  /** When they opened the room. */
+  joined: number;
+  /** When they last wrote — a join, a ball. What forfeit is judged on. */
   at: number;
+  /** Whether they have been shown the result. */
+  seen?: boolean;
 }
 
 /**
- * A challenge as it is kept.
+ * A room as it is kept.
  *
- * In Redis this is one hash, which is what makes a whole challenge one command
- * to read and one to write. `at` and `host` are its own fields and every other
+ * In Redis this is one hash, which is what makes a whole room one command to
+ * read. `at`, `host`, `v` and `rematchOf` are its own fields and every other
  * field is a player id holding that player's innings. The two cannot collide: a
- * player id always carries a dash and neither reserved name does.
+ * player id always carries a dash and none of the reserved names does.
  */
 export interface StoredChallenge {
   at: number;
-  /** Whoever set it. They cannot answer their own. */
   host: string;
+  /** The scoring version it was made under. */
+  v: number;
+  /** The room this one is a rematch of, if it is one. */
+  rematchOf: string | null;
   players: Record<string, StoredPlayer>;
 }
 
-/** The fields of a challenge a write may change. Only ever one player's innings. */
+/** The fields of a room a write may change. Only ever some players' rows. */
 export interface ChallengeChange {
   players?: Record<string, StoredPlayer>;
 }
 
-/** Everything a challenge needs from whatever is keeping it. */
+/** Everything a room needs from whatever is keeping it. */
 export interface ChallengeStore {
   /**
    * Takes this code if nobody holds it, and says whether it did. One call rather
-   * than a read then a write, or two challenges made in the same second would
-   * both be told the code was free and the second would flatten the first.
+   * than a read then a write, or two rooms made in the same second would both be
+   * told the code was free and the second would flatten the first.
    */
   claim(code: string, challenge: StoredChallenge, ttlSeconds: number): Promise<boolean>;
-  /** The whole challenge in one read, or null if there is none under that code. */
+  /** The whole room in one read, or null if there is none under that code. */
   read(code: string): Promise<StoredChallenge | null>;
-  /** Writes these fields and pushes the expiry out. Fields left out are left alone. */
+  /** Writes these fields. Fields left out are left alone. */
   write(code: string, change: ChallengeChange, ttlSeconds: number): Promise<void>;
   /** How many of this kind of call this address has made in the window, counting this one. */
   hits(kind: 'create' | 'write', address: string, windowSeconds: number): Promise<number>;
+  /** Notes that this player is in this room, so their list can find it. */
+  index(playerId: string, code: string, ttlSeconds: number): Promise<void>;
+  /** The codes this player is in. Order is not promised. */
+  indexed(playerId: string): Promise<string[]>;
+  /** Forgets a code that no longer opens anything. */
+  unindex(playerId: string, code: string): Promise<void>;
 }
 
-/** One innings on the scoreline. */
+/** One innings in the room, as the endpoint sends it. */
 export interface ChallengeRow extends Innings {
   playerId: string;
   name: string;
   avatar: number;
-  /** The innings itself, ball by ball. The opponent's copy of this is the ghost. */
+  /** The innings so far, ball by ball. Another player's copy of this is the ghost. */
   card: string;
-  /** Whether this is the innings the challenge was built from. */
-  challenger: boolean;
-  /** The packed number the row is sorted on — the board's own. */
+  /** Whether this is the player who made the room. */
+  host: boolean;
+  status: PlayerStatus;
+  joined: number;
+  at: number;
+  seen: boolean;
+  /** The number the room is ordered on. Higher first; equal is a draw. */
   score: number;
 }
 
@@ -143,25 +183,27 @@ export interface ChallengeRow extends Innings {
  * What the endpoint answers with, and it carries nothing about who is asking.
  *
  * That is what lets it sit in the edge cache: everyone holding the link gets the
- * same bytes, and each client finds its own row by player id. It does carry the
- * challenger's `balls`, because that string *is* the ghost the opponent bats
- * against — so the score is in the response from the first ball, and keeping it
- * off the screen until the thirtieth is the client's job, not the wire's. That
- * is a deliberate trade and not an oversight: a per-ball reveal leaks the total
- * to anyone counting anyway.
+ * same bytes, and each client finds its own row by player id. It does carry
+ * every innings ball by ball, because those strings *are* the ghost the next
+ * batter plays against — so a total is in the response from the first ball, and
+ * keeping it off the screen until the thirtieth is the client's job, not the
+ * wire's.
  */
 export interface ChallengePayload {
   code: string;
   state: ChallengeState;
-  /** The challenger's player id, so a client knows which row set it. */
   host: string;
-  /** How many innings this challenge holds in total, the challenger's included. */
+  at: number;
+  /** When the room stops taking innings. */
+  expiresAt: number;
+  v: number;
+  rematchOf: string | null;
   size: number;
-  /** Best first. Two rows once answered, one before that. */
+  /** Finished innings first, best first; then the ones still going; then the rest. */
   players: ChallengeRow[];
 }
 
-/** A call the challenge took. */
+/** A call the room took. */
 export interface ChallengeAccepted {
   ok: true;
   code: string;
@@ -185,20 +227,24 @@ export interface ChallengeRefusal {
  */
 export type ChallengeOutcome = ChallengeAccepted | ChallengeRefusal;
 
-/** Whether the challenge turned this call down. */
-export function challengeRefused(outcome: ChallengeOutcome): outcome is ChallengeRefusal {
+/** The list a player asks for on open: every room they are in. */
+export interface ChallengeListOutcome {
+  ok: true;
+  challenges: ChallengePayload[];
+}
+
+/** Whether the room turned this call down. */
+export function challengeRefused(outcome: ChallengeOutcome | ChallengeListOutcome): outcome is ChallengeRefusal {
   return !outcome.ok;
 }
 
-/** Who is calling, and the innings they bring. */
+/** Who is calling. */
 export interface Batter {
   playerId: string;
   name: string;
   avatar: number;
   /** Whoever the edge says is asking. Used to rate limit, never as identity. */
   address: string;
-  /** The innings, one character per ball, as it arrived. Checked in the store. */
-  card: unknown;
 }
 
 /** A fresh code. Random is injected so a test can make it collide on purpose. */
@@ -216,7 +262,7 @@ export function newCode(random: () => number = Math.random): string {
  * Lower case is raised, because somebody reading a code off a phone types it in
  * lower case. Nothing else is repaired: a character outside the alphabet means
  * the code was misheard or the link was mangled, and which character was meant
- * is a guess. A challenge opened by a guess is somebody else's challenge.
+ * is a guess. A room opened by a guess is somebody else's room.
  */
 export function cleanCode(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
@@ -225,9 +271,31 @@ export function cleanCode(raw: unknown): string | null {
   return [...code].every(char => CODE_ALPHABET.includes(char)) ? code : null;
 }
 
-/** Whether anybody has answered. Derived from the innings themselves, never stored. */
-export function stateOf(challenge: StoredChallenge): ChallengeState {
-  return Object.keys(challenge.players).some(id => id !== challenge.host) ? 'answered' : 'open';
+/** Where one player is. Read off their balls and their last write, never stored. */
+export function statusOf(player: StoredPlayer, now = Date.now()): PlayerStatus {
+  if (!player.card) return 'joined';
+  if (ended(figuresOf(player.card))) return 'done';
+  return now - player.at > FORFEIT_AFTER_MS ? 'forfeit' : 'batting';
+}
+
+/**
+ * Where the room is.
+ *
+ * Void beats everything: a result under the wrong rules is not a result.
+ * Done beats expired, because a match that finished on Tuesday is still a
+ * match on Friday week. Done means at least two innings are settled and
+ * nobody who joined is still to bat — a third friend who has opened the link
+ * and not yet played keeps the room live for them.
+ */
+export function stateOf(challenge: StoredChallenge, now = Date.now()): ChallengeState {
+  if (challenge.v !== SCORING_VERSION) return 'void';
+  const statuses = Object.values(challenge.players).map(player => statusOf(player, now));
+  const settled = statuses.filter(status => status === 'done' || status === 'forfeit').length;
+  const batting = statuses.some(status => status === 'batting');
+  const waiting = statuses.some(status => status === 'joined');
+  if (settled >= 2 && !batting && !waiting) return 'done';
+  if (now >= challenge.at + CHALLENGE_LIFE_MS) return 'expired';
+  return settled > 0 || batting ? 'live' : 'open';
 }
 
 /** The checks every call shares: a real player, a kit that exists, a usable name. */
@@ -238,6 +306,7 @@ function batter(input: Batter): { name: string } | ChallengeRefusal {
   }
   const name = cleanName(input.name);
   if (!name) return { ok: false, status: 400, reason: `A name, up to ${NAME_MAX} characters.` };
+  if (nameBlocked(name)) return { ok: false, status: 400, reason: NAME_BLOCKED_REASON };
   return { name };
 }
 
@@ -246,43 +315,58 @@ function isRefusal(value: unknown): value is ChallengeRefusal {
 }
 
 /**
- * A challenge, made from a finished innings.
+ * A room, made.
  *
- * There is no such thing as a half-made one: the innings has to be over before a
- * code exists, which is what removes every "waiting for the other player" state
- * this feature could otherwise have had.
+ * Usually empty: the host has a link before anybody has batted, which is what
+ * lets two friends bat at once. It can also be made from an innings that has
+ * just ended — the end card offers that — in which case the host's innings is
+ * in from the start and the friend bats second whenever they open it.
  */
 export async function createChallenge(
-  store: ChallengeStore, input: Batter, now = Date.now(), random: () => number = Math.random,
+  store: ChallengeStore,
+  input: Batter & { card?: unknown; rematchOf?: unknown },
+  now = Date.now(),
+  random: () => number = Math.random,
 ): Promise<ChallengeOutcome> {
   if (await store.hits('create', input.address, RATE_WINDOW_SECONDS) > CREATE_LIMIT) {
-    return { ok: false, status: 429, reason: 'Too many challenges from here. Try again in an hour.' };
+    return { ok: false, status: 429, reason: 'Too many matches from here. Try again in an hour.' };
   }
   const who = batter(input);
   if (isRefusal(who)) return who;
-  const innings = completedInnings(input.card);
-  if (!innings) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
 
-  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card: innings.balls, at: now };
+  let card = '';
+  if (input.card !== undefined && input.card !== '') {
+    const innings = cleanCard(input.card);
+    if (!innings || !ended(figuresOf(innings))) {
+      return { ok: false, status: 400, reason: 'That innings could not have happened.' };
+    }
+    card = innings;
+  }
+  const rematchOf = cleanCode(input.rematchOf);
+
+  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card, joined: now, at: now };
   for (let attempt = 0; attempt < CODE_TRIES; attempt++) {
     const code = newCode(random);
-    const challenge: StoredChallenge = { at: now, host: input.playerId, players: { [input.playerId]: player } };
+    const challenge: StoredChallenge = {
+      at: now, host: input.playerId, v: SCORING_VERSION, rematchOf, players: { [input.playerId]: player },
+    };
     if (await store.claim(code, challenge, CHALLENGE_TTL_SECONDS)) {
-      return { ok: true, code, challenge: challengePayload(code, challenge) };
+      await store.index(input.playerId, code, CHALLENGE_TTL_SECONDS);
+      return { ok: true, code, challenge: challengePayload(code, challenge, now) };
     }
   }
-  return { ok: false, status: 503, reason: 'Could not make a challenge just now. Try again.' };
+  return { ok: false, status: 503, reason: 'Could not make a match just now. Try again.' };
 }
 
 /**
- * An answer to a challenge.
+ * Somebody opening the link.
  *
- * Idempotent, and it has to be: a submission whose response was lost is retried
- * by a browser that has just finished thirty balls, and the one thing that must
- * never happen is that the retry is refused and the innings is gone. A player
- * who has already answered is handed the result they already have.
+ * Idempotent: the same person opening it twice is in the room once. A room
+ * takes joiners until it closes or fills, and a finished match still takes one
+ * — a third friend forwarded the link can bat against both, which is how a
+ * group chat turns one link into a leaderboard.
  */
-export async function answerChallenge(
+export async function joinChallenge(
   store: ChallengeStore, code: string, input: Batter, now = Date.now(),
 ): Promise<ChallengeOutcome> {
   if (await store.hits('write', input.address, RATE_WINDOW_SECONDS) > WRITE_LIMIT) {
@@ -294,86 +378,200 @@ export async function answerChallenge(
   const who = batter(input);
   if (isRefusal(who)) return who;
 
-  // Answering your own challenge is the one thing a challenger cannot do. It is
-  // not a failure worth a scary message — the screen makes a joke of it — but it
-  // is a refusal, because a scoreline against yourself is not a result.
-  if (challenge.host === input.playerId) {
-    return { ok: false, status: 409, reason: 'You cannot chase yourself.' };
-  }
-
-  // Already answered by this player: hand back what they already have. This is
-  // the retry path and the reopened-link path at once, and both want the result
-  // rather than an error.
   if (challenge.players[input.playerId]) {
-    return { ok: true, code: key, challenge: challengePayload(key, challenge) };
+    return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+  }
+  const state = stateOf(challenge, now);
+  if (state === 'void') return { ok: false, status: 409, reason: 'This match was made on an older version of the game.' };
+  if (state === 'expired') return { ok: false, status: 410, reason: 'This match has closed. Start a fresh one.' };
+  if (Object.keys(challenge.players).length >= PLAYERS_MAX) {
+    return { ok: false, status: 409, reason: 'This room is full.' };
   }
 
-  // Answered by somebody else. Two innings is the whole challenge, so a second
-  // friend opening the same link has arrived too late.
-  if (stateOf(challenge) === 'answered') {
-    return { ok: false, status: 409, reason: 'Somebody has already answered this one.' };
-  }
-
-  const innings = completedInnings(input.card);
-  if (!innings) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
-
-  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card: innings.balls, at: now };
+  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card: '', joined: now, at: now };
   await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
+  await store.index(input.playerId, key, CHALLENGE_TTL_SECONDS);
   challenge.players[input.playerId] = player;
-  return { ok: true, code: key, challenge: challengePayload(key, challenge) };
+  return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
 }
 
-/** A challenge, read. The same answer for everybody, which is why it caches. */
-export async function readChallenge(store: ChallengeStore, code: string): Promise<ChallengeOutcome> {
+/**
+ * A ball, or several. The client sends its whole innings so far every time.
+ *
+ * The store takes a longer string that begins with the one it holds, and hands
+ * back the room unchanged for anything shorter or equal — which is the retry
+ * path and the reopened-tab path at once, and both want the room rather than an
+ * error. What it refuses is a string that *disagrees* with the one it holds:
+ * that is an innings being replayed for a better score, and it is the one cheat
+ * worth blocking.
+ */
+export async function recordBalls(
+  store: ChallengeStore, code: string, input: Batter & { card: unknown }, now = Date.now(),
+): Promise<ChallengeOutcome> {
+  if (await store.hits('write', input.address, RATE_WINDOW_SECONDS) > WRITE_LIMIT) {
+    return { ok: false, status: 429, reason: 'Too many requests from here. Try again in an hour.' };
+  }
   const found = await load(store, code);
   if (isRefusal(found)) return found;
-  return { ok: true, code: found.code, challenge: challengePayload(found.code, found.challenge) };
+  const { code: key, challenge } = found;
+  if (!isPlayerId(input.playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
+  const held = challenge.players[input.playerId];
+  if (!held) return { ok: false, status: 409, reason: 'Join the match before batting in it.' };
+
+  const card = cleanCard(input.card);
+  if (card === null) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
+
+  // Nothing new: the same balls again, or fewer. The room as it stands.
+  if (card.length <= held.card.length) {
+    if (held.card.startsWith(card)) return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+    return { ok: false, status: 409, reason: 'That innings does not match the one already in.' };
+  }
+  if (!card.startsWith(held.card)) {
+    return { ok: false, status: 409, reason: 'That innings does not match the one already in.' };
+  }
+  const status = statusOf(held, now);
+  if (status === 'done') return { ok: false, status: 409, reason: 'That innings is already over.' };
+  if (status === 'forfeit') return { ok: false, status: 409, reason: 'That innings was given up a day ago.' };
+  const state = stateOf(challenge, now);
+  if (state === 'void') return { ok: false, status: 409, reason: 'This match was made on an older version of the game.' };
+  if (state === 'expired') return { ok: false, status: 410, reason: 'This match has closed.' };
+
+  const player: StoredPlayer = { ...held, card, at: now };
+  await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
+  challenge.players[input.playerId] = player;
+  return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
 }
 
-/** The code checked and the challenge behind it, or the refusal to hand back. */
+/** The result has been looked at, so the next open need not show it again. */
+export async function markSeen(
+  store: ChallengeStore, code: string, input: Batter, now = Date.now(),
+): Promise<ChallengeOutcome> {
+  if (await store.hits('write', input.address, RATE_WINDOW_SECONDS) > WRITE_LIMIT) {
+    return { ok: false, status: 429, reason: 'Too many requests from here. Try again in an hour.' };
+  }
+  const found = await load(store, code);
+  if (isRefusal(found)) return found;
+  const { code: key, challenge } = found;
+  const held = challenge.players[input.playerId];
+  if (held && !held.seen) {
+    const player: StoredPlayer = { ...held, seen: true };
+    await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
+    challenge.players[input.playerId] = player;
+  }
+  return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+}
+
+/** A room, read. The same answer for everybody, which is why it caches. */
+export async function readChallenge(store: ChallengeStore, code: string, now = Date.now()): Promise<ChallengeOutcome> {
+  const found = await load(store, code);
+  if (isRefusal(found)) return found;
+  return { ok: true, code: found.code, challenge: challengePayload(found.code, found.challenge, now) };
+}
+
+/**
+ * Every room this player is in, newest first.
+ *
+ * One read per room, and a code that no longer opens anything is dropped from
+ * the index as it is found, so a busy player's list does not grow forever.
+ */
+export async function readMine(
+  store: ChallengeStore, playerId: string, now = Date.now(),
+): Promise<ChallengeListOutcome | ChallengeRefusal> {
+  if (!isPlayerId(playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
+  const codes = (await store.indexed(playerId)).slice(0, PLAYERS_MAX * 2);
+  const rooms = await Promise.all(codes.map(async code => {
+    const challenge = await store.read(code);
+    if (!challenge) { await store.unindex(playerId, code); return null; }
+    return challengePayload(code, challenge, now);
+  }));
+  const challenges = rooms
+    .filter((room): room is ChallengePayload => room !== null)
+    .sort((a, b) => b.at - a.at)
+    .slice(0, PLAYERS_MAX);
+  return { ok: true, challenges };
+}
+
+/** The code checked and the room behind it, or the refusal to hand back. */
 async function load(
   store: ChallengeStore, raw: string,
 ): Promise<{ code: string; challenge: StoredChallenge } | ChallengeRefusal> {
   const code = cleanCode(raw);
-  if (!code) return { ok: false, status: 400, reason: 'That is not a challenge code.' };
+  if (!code) return { ok: false, status: 400, reason: 'That is not a match code.' };
   const challenge = await store.read(code);
-  // A challenge that has expired and a code that was never one are the same
-  // thing from here, and are told the same way: there is nothing to chase.
-  if (!challenge) return { ok: false, status: 404, reason: 'No challenge under that code. It may have closed.' };
+  // A room that has gone and a code that was never one are the same thing from
+  // here, and are told the same way: there is nothing to open.
+  if (!challenge) return { ok: false, status: 404, reason: 'No match under that code. It may have closed.' };
   return { code, challenge };
 }
 
 /**
- * The scoreline, best first.
+ * The room as the endpoint sends it.
  *
- * `packScore` is the board's own, so a challenge is decided the way the fifty
- * are ranked — runs, then sixes, then fours, then wickets, then dots, then whose
- * stamp is earlier. That last step is what hands a dead-level challenge to the
- * challenger: they batted first, so their stamp is earlier, so the chaser had to
- * beat the score rather than match it. It costs no code and it is the right rule.
+ * Finished innings first, best first. The order inside "best" is runs, then
+ * sixes, then fours — and nothing after that, so two innings level on all
+ * three sit level, and the client calls it a draw. Wickets deliberately do not
+ * count: a reckless forty-seven is the same forty-seven. A forfeited innings
+ * ranks under every finished one whatever it made, because walking out is the
+ * loss. Then whoever is still batting, then whoever has only opened the link.
  */
-export function challengePayload(code: string, challenge: StoredChallenge): ChallengePayload {
+export function challengePayload(code: string, challenge: StoredChallenge, now = Date.now()): ChallengePayload {
   const players = Object.entries(challenge.players)
-    .map(([playerId, player]) => ({
-      ...completedFigures(player.card),
-      playerId,
-      name: player.name,
-      avatar: player.avatar,
-      card: player.card,
-      challenger: playerId === challenge.host,
-      score: packScore(completedFigures(player.card), player.at),
-    }))
-    .sort((a, b) => b.score - a.score);
-  return { code, state: stateOf(challenge), host: challenge.host, size: OPPONENTS + 1, players };
+    .map(([playerId, player]) => {
+      const figures = figuresOf(player.card);
+      const status = statusOf(player, now);
+      return {
+        ...figures,
+        playerId,
+        name: player.name,
+        avatar: player.avatar,
+        card: player.card,
+        host: playerId === challenge.host,
+        status,
+        joined: player.joined,
+        at: player.at,
+        seen: player.seen === true,
+        score: rankOf(status, figures),
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.joined - b.joined);
+  return {
+    code,
+    state: stateOf(challenge, now),
+    host: challenge.host,
+    at: challenge.at,
+    expiresAt: challenge.at + CHALLENGE_LIFE_MS,
+    v: challenge.v,
+    rematchOf: challenge.rematchOf,
+    size: PLAYERS_MAX,
+    players,
+  };
 }
 
-/** The six figures of a stored innings. Worked out, never read off a field. */
-function completedFigures(card: string): Innings {
-  return completedInnings(card)?.figures
-    // A stored innings was checked on the way in, so this cannot happen — but a
-    // row that somehow held junk should read as a duck rather than throw and
-    // take the whole scoreline down with it.
-    ?? { runs: 0, sixes: 0, fours: 0, wickets: 0, dots: 0, balls: 0 };
+/** The room's order, as one number. See `challengePayload`. */
+export function rankOf(status: PlayerStatus, figures: Innings): number {
+  const played = figures.runs * 10_000 + figures.sixes * 100 + figures.fours;
+  switch (status) {
+    case 'done': return 2_000_000_000 + played;
+    case 'forfeit': return 1_000_000_000 + played;
+    case 'batting': return 500_000_000 + figures.balls;
+    default: return 0;
+  }
+}
+
+/**
+ * A card as sent, or null if it is not one.
+ *
+ * Empty is a card — a player who has joined and not batted — and so is any run
+ * of the seven ball characters up to thirty long, provided the innings had not
+ * already ended before the last one: three wickets by ball nine and a tenth
+ * ball is not an innings this game can bowl.
+ */
+export function cleanCard(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  if (raw.length > MAX_BALLS) return null;
+  if (![...raw].every(char => BALL_CHARS.includes(char))) return null;
+  if (raw.length > 1 && ended(figuresOf(raw.slice(0, -1)))) return null;
+  return raw;
 }
 
 /** The ids this game mints: a base-36 stamp, a dash, and a random tail. */

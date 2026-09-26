@@ -339,6 +339,7 @@ export function upstashRecovery(redis: Redis): RecoveryStore {
 export function upstashChallenges(redis: Redis): ChallengeStore {
   const key = (code: string) => `${SCOPE}ch:${code}`;
   const rate = (kind: string, address: string) => `${SCOPE}chrate:${kind}:${address}`;
+  const list = (playerId: string) => `${SCOPE}chu:${playerId}`;
   return {
     async claim(code, challenge, ttlSeconds) {
       // Set-if-absent on one field, so two challenges drawn onto the same code
@@ -350,7 +351,13 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
       // no TTL and no way for anybody to use or clear it — a code burnt for
       // good. This way the worst case expires like any challenge.
       await redis.expire(key(code), ttlSeconds);
-      await redis.hset(key(code), { at: challenge.at, ...challenge.players });
+      await redis.hset(key(code), {
+        at: challenge.at, v: challenge.v,
+        // Left off rather than written as null: a null field reads back as the
+        // string "null", and a room is not a rematch of a room called that.
+        ...(challenge.rematchOf ? { rematchOf: challenge.rematchOf } : {}),
+        ...challenge.players,
+      });
       return true;
     },
 
@@ -360,12 +367,18 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
       if (!held || !held.host) return null;
       const players: Record<string, StoredPlayer> = {};
       for (const [field, value] of Object.entries(held)) {
-        // Anything that is not one of the challenge's own two fields is an
-        // innings, and anything that is not an object is not an innings at all.
-        if (field === 'at' || field === 'host') continue;
+        // Anything that is not one of the room's own fields is an innings, and
+        // anything that is not an object is not an innings at all.
+        if (field === 'at' || field === 'host' || field === 'v' || field === 'rematchOf') continue;
         if (value && typeof value === 'object') players[field] = value as StoredPlayer;
       }
-      return { at: Number(held.at) || 0, host: String(held.host), players };
+      return {
+        at: Number(held.at) || 0,
+        host: String(held.host),
+        v: Number(held.v) || 0,
+        rematchOf: typeof held.rematchOf === 'string' && held.rematchOf ? held.rematchOf : null,
+        players,
+      };
     },
 
     async write(code, change, ttlSeconds) {
@@ -385,6 +398,21 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
       // forward from the first call rather than from the latest.
       if (count === 1) await redis.expire(counter, windowSeconds);
       return count;
+    },
+
+    // One set per player of the rooms they are in. It is what makes the list
+    // and the result-on-open work from any phone that holds the same id —
+    // which, through the career key, is any phone of theirs. It lives as long
+    // as the longest-lived room in it and every join pushes that out.
+    async index(playerId, code, ttlSeconds) {
+      await redis.sadd(list(playerId), code);
+      await redis.expire(list(playerId), ttlSeconds);
+    },
+    async indexed(playerId) {
+      return (await redis.smembers(list(playerId))) ?? [];
+    },
+    async unindex(playerId, code) {
+      await redis.srem(list(playerId), code);
     },
   };
 }

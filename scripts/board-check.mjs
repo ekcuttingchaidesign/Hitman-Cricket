@@ -229,9 +229,9 @@ check(impossibleTest.status === 400, `a Test innings that could not have happene
 const crossName = await post({ playerId: other, name, avatar: 0, mode: 'survive', innings: chase(104, 44) });
 check(crossName.status === 409, `a name held on the five-over board is refused on the Test one (${crossName.status})`, crossName.body);
 
-// ── A challenge, set and answered ──────────────────────────────────────────
-// Safer to run against production than everything above it: a challenge expires
-// on its own and claims no permanent name, so a check leaves nothing behind that
+// ── A match room, made, joined and batted ──────────────────────────────────
+// Safer to run against production than everything above it: a room expires on
+// its own and claims no permanent name, so a check leaves nothing behind that
 // anybody has to live with.
 const challengePost = (body) => call('/api/challenge', {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -241,72 +241,58 @@ const card = (runs) => {
   const sixes = Math.floor(runs / 6);
   return ('6'.repeat(sixes) + '1'.repeat(runs % 6)).padEnd(30, '0');
 };
-const setter = { playerId: me, name: 'Setter', avatar: 0 };
-const chaser = { playerId: other, name: 'Chaser', avatar: 1 };
+const host = { playerId: me, name: 'Host', avatar: 0 };
+const friend = { playerId: other, name: 'Friend', avatar: 1 };
 
-const made = await challengePost({ action: 'create', ...setter, card: card(102) });
-check(made.status === 200, `POST /api/challenge sets one (${made.status}, ${made.ms}ms)`, made.text.slice(0, 200));
+const made = await challengePost({ action: 'create', ...host });
+check(made.status === 200, `POST /api/challenge makes a room (${made.status}, ${made.ms}ms)`, made.text.slice(0, 200));
 const code = made.body?.code;
 check(typeof code === 'string' && code.length === 6, 'it answers with a six-character code', made.body);
-check(
-  made.body?.challenge?.players?.[0]?.runs === 102,
-  'and works the score out from the balls, not from a number we sent',
-  made.body?.challenge?.players?.[0],
-);
+check(made.body?.challenge?.state === 'open' && made.body?.challenge?.players?.[0]?.status === 'joined',
+  'an empty room reads as open, with the host joined and not batting', made.body?.challenge);
 
 if (code) {
   const read = await call(`/api/challenge?code=${code}`);
   check(read.status === 200, `GET /api/challenge reads it back (${read.status}, ${read.ms}ms)`, read.text.slice(0, 200));
-  check(read.body?.challenge?.state === 'open', 'unanswered reads as open', read.body?.challenge);
-  check(
-    read.body?.challenge?.players?.[0]?.card === card(102),
-    'the challenger\'s innings comes back whole — that string is the ghost',
-    read.body?.challenge?.players?.[0]?.card,
-  );
-  check(
-    /s-maxage/.test(read.headers.get('cache-control') ?? ''),
-    'a challenge read is cacheable at the edge',
-    read.headers.get('cache-control'),
-  );
+  check(/s-maxage/.test(read.headers.get('cache-control') ?? ''), 'a room read is cacheable at the edge', read.headers.get('cache-control'));
 
-  const self = await challengePost({ action: 'answer', code, ...setter, card: card(150) });
-  check(self.status === 409, `the challenger cannot chase themselves (${self.status})`, self.body);
+  const joined = await challengePost({ action: 'join', code, ...friend });
+  check(joined.status === 200 && joined.body?.challenge?.players?.length === 2, `a friend joins (${joined.status})`, joined.body);
+  const again = await challengePost({ action: 'join', code, ...friend });
+  check(again.status === 200 && again.body?.challenge?.players?.length === 2, 'and opening the link twice joins once', again.body);
 
-  const unfinished = await challengePost({ action: 'answer', code, ...chaser, card: '664466446644' });
-  check(unfinished.status === 400, `an innings that never ended is refused (${unfinished.status})`, unfinished.body);
+  const six = await challengePost({ action: 'ball', code, ...host, card: '6' });
+  check(six.status === 200 && six.body?.challenge?.players?.find(p => p.playerId === me)?.status === 'batting',
+    'a ball puts the host in to bat', six.body?.challenge?.players);
+  const replay = await challengePost({ action: 'ball', code, ...host, card: '4' });
+  check(replay.status === 409, `an innings that disagrees with the balls already in is refused (${replay.status})`, replay.body);
+  const done = await challengePost({ action: 'ball', code, ...host, card: card(102) });
+  check(done.status === 200 && done.body?.challenge?.players?.find(p => p.playerId === me)?.runs === 102,
+    'the whole innings lands, and the score is worked out from the balls, not from a number we sent',
+    done.body?.challenge?.players?.map(p => [p.name, p.runs, p.status]));
+  const noStranger = await challengePost({ action: 'ball', code, playerId: `${Date.now().toString(36)}-zzzzzzzzzzzz`, name: 'Late', avatar: 2, card: '6' });
+  check(noStranger.status === 409, `a stranger cannot bat without joining (${noStranger.status})`, noStranger.body);
 
-  const answered = await challengePost({ action: 'answer', code, ...chaser, card: card(114) });
-  check(answered.status === 200, `the friend answers it (${answered.status})`, answered.text.slice(0, 200));
-  check(answered.body?.challenge?.state === 'answered', 'which closes it', answered.body?.challenge);
-  check(
-    answered.body?.challenge?.players?.[0]?.name === 'Chaser',
-    'and the higher score takes the top of the scoreline',
-    answered.body?.challenge?.players?.map(one => [one.name, one.runs]),
-  );
-  check(
-    (answered.headers.get('cache-control') ?? '').includes('no-store'),
-    'an answer is never cached',
-    answered.headers.get('cache-control'),
-  );
+  const answered = await challengePost({ action: 'ball', code, ...friend, card: card(114) });
+  check(answered.status === 200 && answered.body?.challenge?.state === 'done', `the friend bats and the room is done (${answered.status})`, answered.body?.challenge?.state);
+  check(answered.body?.challenge?.players?.[0]?.name === 'Friend', 'the higher score takes the top of the room',
+    answered.body?.challenge?.players?.map(one => [one.name, one.runs]));
+  check((answered.headers.get('cache-control') ?? '').includes('no-store'), 'a write is never cached', answered.headers.get('cache-control'));
 
-  // The retry path: a browser that has just batted thirty balls and lost its
-  // response must never be told no.
-  const retry = await challengePost({ action: 'answer', code, ...chaser, card: card(180) });
-  check(retry.status === 200, `a retried answer is idempotent, not refused (${retry.status})`, retry.body);
-  check(
-    retry.body?.challenge?.players?.find(one => one.playerId === other)?.runs === 114,
-    'and it does not overwrite the innings already in',
-    retry.body?.challenge?.players?.map(one => [one.name, one.runs]),
-  );
+  const retry = await challengePost({ action: 'ball', code, ...friend, card: card(114) });
+  check(retry.status === 200, `the same innings sent again is taken, not refused (${retry.status})`, retry.body);
 
-  const late = await challengePost({
-    action: 'answer', code, playerId: `${Date.now().toString(36)}-zzzzzzzzzzzz`, name: 'Late', avatar: 2, card: card(120),
-  });
-  check(late.status === 409, `a second friend is too late (${late.status})`, late.body);
+  const seen = await challengePost({ action: 'seen', code, ...friend });
+  check(seen.body?.challenge?.players?.find(p => p.playerId === other)?.seen === true, 'seeing the result is noted', seen.body);
+
+  const mine = await call(`/api/challenge?player=${other}`);
+  check(mine.status === 200 && Array.isArray(mine.body?.challenges) && mine.body.challenges.some(one => one.code === code),
+    `a player's list carries the room (${mine.status})`, mine.text.slice(0, 200));
+  check((mine.headers.get('cache-control') ?? '').includes('no-store'), 'and is never cached', mine.headers.get('cache-control'));
 }
 
 const noChallenge = await call('/api/challenge?code=ZZZZZZ');
-check(noChallenge.status === 404, `a code that is not a challenge answers 404 (${noChallenge.status})`, noChallenge.body);
+check(noChallenge.status === 404, `a code that is not a room answers 404 (${noChallenge.status})`, noChallenge.body);
 const badChallenge = await call('/api/challenge?code=K7Q0');
 check(badChallenge.status === 400, `a code that is not a code answers 400 (${badChallenge.status})`, badChallenge.body);
 
@@ -319,6 +305,6 @@ check(challengePreflight.status === 204 || challengePreflight.status === 200, `a
 console.log(
   failures
     ? `\n${failures} check${failures === 1 ? '' : 's'} failed.\n`
-    : `\nAll checks passed. Both boards and challenges are live.\n  Rows left behind: ${me}/"${name}" on the five-over board, ${test}/"${testName}" on the Test one.\n`,
+    : `\nAll checks passed. Both boards and match rooms are live.\n  Rows left behind: ${me}/"${name}" on the five-over board, ${test}/"${testName}" on the Test one.\n`,
 );
 process.exit(failures ? 1 : 0);

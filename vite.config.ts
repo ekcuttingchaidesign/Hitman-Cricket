@@ -4,10 +4,8 @@ import type { SurviveInnings } from './src/game/survive-board';
 import { CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, refused, submitScore } from './src/server/board-store';
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
 import { memoryFeedback } from './src/server/memory-feedback';
-import {
-  answerChallenge, challengeRefused, createChallenge, readChallenge,
-  type Batter, type ChallengeStore,
-} from './src/server/challenge-store';
+import { challengeRefused } from './src/server/challenge-store';
+import { cacheable, challengeRequest } from './src/server/challenge-endpoint';
 import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
 } from './src/server/career-store';
@@ -80,13 +78,19 @@ function boardEndpoints(): Plugin {
         };
         try {
           if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
-          const challengeQuery = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
           if (path === '/api/challenge') {
-            const outcome = await challengeCall(challenges, req, challengeQuery);
-            if (challengeRefused(outcome)) return send(outcome.status, { error: outcome.reason });
+            const request = {
+              method: req.method,
+              query: Object.fromEntries(new URLSearchParams((req.url ?? '').split('?')[1] ?? '')),
+              body: req.method === 'POST' ? await read(req) : undefined,
+              // One address in development: whatever the dev server sees.
+              address: 'dev',
+            };
+            const outcome = await challengeRequest(challenges, request);
+            if (challengeRefused(outcome)) return send(outcome.status, { error: outcome.reason, status: outcome.status, retry: outcome.status >= 500 });
             // The same header the deployed endpoint sends on a read, so a check
             // behaves here the way it will behind the edge cache.
-            return send(200, outcome, req.method === 'GET' ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+            return send(200, outcome, cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
           }
           if (path === '/api/feedback') {
             // No key on the read here. The deployed endpoint holds one because
@@ -221,29 +225,6 @@ function boardEndpoints(): Plugin {
  * `api/challenge.ts` picks it apart — the rules underneath are the identical
  * import, so only where the challenges are kept stands in.
  */
-async function challengeCall(
-  challenges: ChallengeStore,
-  req: { method?: string; on(event: string, fn: (chunk?: unknown) => void): void },
-  query: URLSearchParams,
-) {
-  if (req.method === 'GET') return readChallenge(challenges, query.get('code') ?? '');
-  if (req.method !== 'POST') return { ok: false as const, status: 405, reason: 'Use GET or POST.' };
-  const body = JSON.parse(await read(req)) as Record<string, unknown>;
-  const who: Batter = {
-    playerId: String(body.playerId ?? ''),
-    name: String(body.name ?? ''),
-    avatar: Number(body.avatar),
-    // One address in development: whatever the dev server sees.
-    address: 'dev',
-    card: body.card,
-  };
-  switch (String(body.action ?? '')) {
-    case 'create': return createChallenge(challenges, who);
-    case 'answer': return answerChallenge(challenges, String(body.code ?? ''), who);
-    default: return { ok: false as const, status: 400, reason: 'Say what to do with the challenge.' };
-  }
-}
-
 function read(req: { on(event: string, fn: (chunk?: unknown) => void): void }): Promise<string> {
   return new Promise((resolve, reject) => {
     let body = '';
