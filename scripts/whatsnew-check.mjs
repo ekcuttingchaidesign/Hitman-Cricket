@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'save-key-meme';
+const UPDATE = 'rivals-launch';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -72,9 +72,26 @@ const first = await title();
 const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
-// The one story is the meme, with the key under it.
-check(await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0),
-  'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+// Rivals first, a screenshot of the room, loaded.
+const loaded = () => page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0);
+check(first === 'Bat against your friends', 'it opens on Rivals', first);
+check(await loaded(), 'with the match room on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks for nothing');
+
+// A card that asks for nothing moves on by itself after its seven seconds.
+// Wound in half-second steps until it does: the installed clock also runs on
+// by itself in real time, and one long wind on a slow machine carries a card
+// past its own hold and the next one's too.
+for (let wound = 0; wound < 9000 && await title() === first; wound += 500) await tick(500, 150);
+check(await title() === 'Winner gets the fire', 'which moves on by itself to the result', await title());
+check(await loaded(), 'with the fire on the screen, loaded');
+
+// A tap on the right half goes on, to the meme, last.
+await page.click('#whatsnew-next');
+await tick(400);
+const meme = await title();
+check(meme === 'Save your career key', 'a tap on goes to the meme, last', meme);
+check(await loaded(), 'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
 // A nameless first visit holds no key, so there is no card to save one.
 check(!(await page.$('#whatsnew-keyslot .key-pass')), 'a player with no name is shown no key card');
 check(!(await page.$('#whatsnew-key-restore')), 'and no way back either');
@@ -82,7 +99,12 @@ check(!(await page.$('#whatsnew-key-restore')), 'and no way back either');
 // Carrying the key, the story holds still: one that moved itself on would
 // take the key away from under a thumb on its way to it.
 await tick(9000);
-check(!!(await page.$('.whatsnew-sheet')) && await title() === first, 'the story carrying the key holds still', first);
+check(!!(await page.$('.whatsnew-sheet')) && await title() === meme, 'the story carrying the key holds still', meme);
+
+// And a tap on the left half goes back.
+await page.click('#whatsnew-back');
+await tick(400);
+check(await title() === 'Winner gets the fire', 'a tap back goes back a card', await title());
 
 await page.click('#whatsnew-done');
 await tick(700);
@@ -141,6 +163,10 @@ await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
 await tick(800);
+// On to the card that carries the key, a tap at a time: the cards before it
+// also move on by themselves, so a fixed count of taps can overshoot.
+for (let i = 0; i < 3 && !(await page.$('#whatsnew-keyslot')); i++) { await page.click('#whatsnew-next'); await tick(400); }
+check(!!(await page.$('#whatsnew-keyslot .key-pass')), 'tapping on reaches the key card', await title());
 check(await page.$eval('#whatsnew-keyslot', slot => slot.textContent.includes('brave-otter-lamp-07')).catch(() => false),
   'a player with a key is shown it under the meme');
 const order = await page.evaluate(() => {

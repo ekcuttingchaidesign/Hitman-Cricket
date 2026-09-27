@@ -56,7 +56,7 @@ export function storiesMarkup(view: StoriesView): string {
         <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>
         <div class="whatsnew-art">
           <img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
-  story.width}" draggable="false">
+  story.height ?? story.width}" draggable="false">
         </div>
         ${story.body ? `<p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>` : ''}
         ${story.withKey ? `<div id="whatsnew-keyslot" class="whatsnew-keyslot">${
