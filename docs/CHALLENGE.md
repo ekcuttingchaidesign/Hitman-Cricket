@@ -16,13 +16,31 @@ until their own last ball.
 | Somebody is batting | A ring round their face fills ball by ball, "batting ball 15 of 30". |
 | Both batting at once | Each gets the other's ball flashed between their own, one ball behind. In a group, every rival who has got that far, stacked. |
 | One done, one batting | The finished one watches the ring fill and reads "needs 7 off 4 balls". |
-| Both done | The result: fire round the winner, WINNER and LOSER rows with sixes, fours and balls. In a group, not until the last innings is in: the fire goes round whoever finished top. |
+| Both done | The result: fire round the winner, WINNER and LOSER rows with sixes, fours and balls. In a group, not until the last innings is in: the fire goes round whoever finished top. The match goes on both records. |
 | Declined | "Decline & accept defeat" on the challenge received, or on a row of Rival Matches. Goes down as a loss. |
 | A week with no second innings | "This one closed." Innings kept for the career, no result. |
 | Started, then left for a day | Forfeit. The one who stayed wins. |
 | A third friend on a forwarded link | Joins, bats, and the room becomes a leaderboard. |
 
 Ties break on runs, then sixes, then fours. Level on all three is a draw.
+
+## The record
+
+Rival Matches opens on a row of three figures: matches won, lost and drawn,
+and the same row sits under the cards on My Stats. It is kept on the server
+against the player id, so it follows the career key to a new phone, and it
+never expires: rooms go after a month, the record does not.
+
+A match is added when it is over and not before: every innings settled, or
+the week gone with at least two in. Top of the room is a win, a shared top a
+draw, everything else a loss — walking out and declining included. A group is
+one match and one line, not a win over each person under you. A week that ran
+out on one innings adds nothing to anybody.
+
+Nothing on the server fires when a match ends, so the adding is done on the
+read every phone makes when it opens Rivals, and each room is marked as
+counted for that player first, once. `tallyIfOver` in `challenge-store.ts`
+is the whole rule; `the record` in `tests/challenge-store.test.ts` walks it.
 
 ## Testing it
 
@@ -92,13 +110,14 @@ per-player list.
 
 | File | What it holds |
 | --- | --- |
-| `src/server/challenge-store.ts` | Every rule: create, join, ball, seen; states; forfeit; expiry; ranking. |
+| `src/server/challenge-store.ts` | Every rule: create, join, ball, seen, decline; states; forfeit; expiry; ranking; the record. |
 | `src/server/challenge-endpoint.ts` | The dispatch, shared by `api/challenge.ts` and the dev server. |
 | `src/server/name-filter.ts` | The short list of names a friend should not be sent. |
 | `src/game/challenge-api.ts` | The calls, the messages, and what the browser keeps. |
 | `src/game/Challenge.ts` | The room as one person sees it, the ghosts, polling, the result's words. |
 | `src/game/room-demo.ts` | The `?room=` fixtures. |
 | `src/ui/HUD.ts` | The picker, the room, the sheets. Search for "The match room". |
+| `src/ui/Record.ts` | The won, lost, drawn row, drawn once for Rival Matches and My Stats. |
 | `src/ui/Lottie.ts` | The player for the films, fetched the first time one is needed. |
 | `scripts/lottie-art.mjs` | Draws the films into `public/lotties/`, the looping winner's fire among them. |
 

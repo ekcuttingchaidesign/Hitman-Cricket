@@ -4,7 +4,7 @@ import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
 import type { RecoveryStore } from './recovery-store.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
-import type { ChallengeStore, StoredPlayer } from './challenge-store.js';
+import type { ChallengeStore, RivalsRecord, StoredPlayer } from './challenge-store.js';
 
 /**
  * The board kept in Redis.
@@ -340,6 +340,7 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
   const key = (code: string) => `${SCOPE}ch:${code}`;
   const rate = (kind: string, address: string) => `${SCOPE}chrate:${kind}:${address}`;
   const list = (playerId: string) => `${SCOPE}chu:${playerId}`;
+  const record = (playerId: string) => `${SCOPE}chr:${playerId}`;
   return {
     async claim(code, challenge, ttlSeconds) {
       // Set-if-absent on one field, so two challenges drawn onto the same code
@@ -413,6 +414,20 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
     },
     async unindex(playerId, code) {
       await redis.srem(list(playerId), code);
+    },
+
+    // The record is the one thing here with no expiry. Rooms go after a month;
+    // what they added up to is a career figure and stays as long as the career.
+    async tally(playerId, outcome) {
+      await redis.hincrby(record(playerId), outcome, 1);
+    },
+    async record(playerId) {
+      const held = await redis.hgetall<Record<string, unknown>>(record(playerId));
+      return {
+        won: Number(held?.won) || 0,
+        lost: Number(held?.lost) || 0,
+        drawn: Number(held?.drawn) || 0,
+      } satisfies RivalsRecord;
     },
   };
 }

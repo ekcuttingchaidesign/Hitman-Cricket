@@ -5353,6 +5353,37 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   color:#93a9c0
 }
 .rival-section-head:first-child{margin-top:16px}
+/* The record: three figures in one row, drawn like the rows under it. */
+.rival-record{display:block}
+.rival-record .rival-section-head{display:flex;justify-content:space-between;align-items:baseline}
+.rival-record .rival-section-head small{font-size:11px;letter-spacing:.08em;color:#8fa6bd;text-transform:none}
+.rival-record-row{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  border-radius:16px;
+  background:#264f7ab3;
+  border:1px solid #5f80a5;
+  overflow:hidden
+}
+.rival-record-cell{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:2px;
+  padding:12px 6px 11px;
+  text-align:center
+}
+.rival-record-cell+.rival-record-cell{border-left:1px solid #5f80a566}
+.rival-record-cell b{font-family:var(--cta);font-weight:400;font-size:30px;line-height:1;color:#fff}
+.rival-record-cell.is-won b{color:#50ff8a}
+.rival-record-cell.is-lost b{color:#ff505c}
+.rival-record-cell.is-drawn b{color:#dfe8f0}
+.rival-record-cell i{font-family:var(--card);font-style:normal;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9fb2bb}
+/* Under the cards on My Stats, in that screen's darker room. */
+.rival-record.is-stats{margin:4px 0 2px}
+.rival-record.is-stats .rival-section-head{margin-top:0}
+.rival-record.is-stats .rival-record-row{background:#0d2438;border-color:#1f3d55}
+.rival-record.is-stats .rival-record-cell+.rival-record-cell{border-left-color:#1f3d55}
 .rival-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
 .rival-row{
   display:flex;

@@ -1,5 +1,6 @@
 import { GAME } from '../config/gameplay';
 import { decodeInnings, encodeInnings, ended, figuresOf, type Ball } from './ball-string';
+import type { RivalsRecord } from './challenge-api';
 import {
   POLL_MS, challengeLink, clearUnsent, codeFromLocation, copy, createRoom, fetchChallenge, fetchMine,
   hiddenChallenges, holdUnsent, joinRoom, markSeenHere, readUnsent, recordResult, rivalryWith, seenHere,
@@ -323,7 +324,7 @@ export class ChallengeRun {
   static async mine(me: string): Promise<ListView | null> {
     const answer = await fetchMine(me);
     if (!answer.ok || !answer.challenges) return null;
-    return sortList(answer.challenges, me);
+    return { ...sortList(answer.challenges, me), record: answer.record ?? noRecord() };
   }
 }
 
@@ -334,11 +335,17 @@ export interface ListView {
   done: Challenge[];
   /** Results this person has not been shown. Oldest first, so they stack in order. */
   unseen: Challenge[];
+  /** Matches won, lost and drawn, over every room there has ever been. */
+  record: RivalsRecord;
 }
+
+export const noRecord = (): RivalsRecord => ({ won: 0, lost: 0, drawn: 0 });
+/** A list with nothing on it, for before the first answer arrives. */
+export const emptyList = (): ListView => ({ yourMove: [], waitingOnThem: [], done: [], unseen: [], record: noRecord() });
 
 export function sortList(rooms: readonly Challenge[], me: string, now = Date.now()): ListView {
   const hidden = new Set(hiddenChallenges());
-  const list: ListView = { yourMove: [], waitingOnThem: [], done: [], unseen: [] };
+  const list: ListView = emptyList();
   for (const room of rooms) {
     const view = roomView(room, me, false, now);
     const settled = view.mine && view.mine.status !== 'joined' && view.mine.status !== 'batting';

@@ -59,7 +59,7 @@ import {
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
-import { ChallengeRun, noteResult, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
+import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
 import { CODE_PARAM, challengeLink, copy, hideChallenge, seenHere, whatsapp, type Challenge } from './game/challenge-api';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
@@ -1224,7 +1224,19 @@ export class Game {
         draw({
           cards: modes.map(one => this.mineSlides[one] ?? { facts, picture: null, failed: false }),
           at,
+          rivals: this.rooms?.record ?? null,
         });
+      });
+    }
+    // The Rivals record rides on the same answer as the list. A screen opened
+    // before that answer has arrived is drawn again when it does, with every
+    // card already painted standing where it was.
+    if (!this.rooms && this.player) {
+      void ChallengeRun.mine(this.player).then(list => {
+        if (this.disposed || !list) return;
+        this.rooms = list;
+        const cards = modes.map(one => this.mineSlides[one]).filter((one): one is StatsSlide => !!one);
+        if (cards.length === modes.length) draw({ cards, at, rivals: list.record });
       });
     }
   }
@@ -2504,9 +2516,9 @@ export class Game {
     this.hud.closeModes();
     const list = await ChallengeRun.mine(this.player);
     if (list) this.rooms = list;
-    const shown = this.rooms ?? { yourMove: [], waitingOnThem: [], done: [], unseen: [] };
+    const shown = this.rooms ?? emptyList();
     this.hud.challengesOpen(shown.yourMove.length, shown.waitingOnThem.length);
-    this.hud.challengeList(listSections(shown, this.player));
+    this.hud.challengeList(listSections(shown, this.player), shown.record);
   }
 
   /** What a row of the list does. */
@@ -2515,10 +2527,10 @@ export class Game {
     if (act === 'decline') { await this.declineMatch(code); return; }
     if (act === 'drop') {
       hideChallenge(code);
-      const shown = this.rooms ?? { yourMove: [], waitingOnThem: [], done: [], unseen: [] };
+      const shown = this.rooms ?? emptyList();
       const rest = (rows: Challenge[]) => rows.filter(room => room.code !== code);
-      this.rooms = { yourMove: rest(shown.yourMove), waitingOnThem: rest(shown.waitingOnThem), done: rest(shown.done), unseen: shown.unseen };
-      this.hud.challengeList(listSections(this.rooms, this.player));
+      this.rooms = { yourMove: rest(shown.yourMove), waitingOnThem: rest(shown.waitingOnThem), done: rest(shown.done), unseen: shown.unseen, record: shown.record };
+      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record);
       return;
     }
     const room = [...(this.rooms?.yourMove ?? []), ...(this.rooms?.waitingOnThem ?? []), ...(this.rooms?.done ?? [])]

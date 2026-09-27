@@ -77,6 +77,7 @@ export function memoryChallenges(): ChallengeStore & { clear(): void; expire(cod
   const challenges = new Map<string, { challenge: StoredChallenge; until: number }>();
   const rate = new Map<string, { count: number; until: number }>();
   const mine = new Map<string, Set<string>>();
+  const records = new Map<string, { won: number; lost: number; drawn: number }>();
   /** Drops the room if its time is up, which is what the TTL buys in Redis. */
   const live = (code: string, now: number) => {
     const held = challenges.get(code);
@@ -126,7 +127,13 @@ export function memoryChallenges(): ChallengeStore & { clear(): void; expire(cod
     },
     async indexed(playerId) { return [...(mine.get(playerId) ?? [])]; },
     async unindex(playerId, code) { mine.get(playerId)?.delete(code); },
-    clear() { challenges.clear(); rate.clear(); mine.clear(); },
+    async tally(playerId, outcome) {
+      const held = records.get(playerId) ?? { won: 0, lost: 0, drawn: 0 };
+      held[outcome]++;
+      records.set(playerId, held);
+    },
+    async record(playerId) { return { ...(records.get(playerId) ?? { won: 0, lost: 0, drawn: 0 }) }; },
+    clear() { challenges.clear(); rate.clear(); mine.clear(); records.clear(); },
     /** Ages a room out on the spot, so a test does not wait a week. */
     expire(code: string) {
       const held = challenges.get(code);

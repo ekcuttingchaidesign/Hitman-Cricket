@@ -1,5 +1,7 @@
 import type { Innings } from './leaderboard';
-import type { ChallengeState, PlayerStatus } from '../server/challenge-store';
+import type { ChallengeState, PlayerStatus, RivalsRecord } from '../server/challenge-store';
+
+export type { RivalsRecord } from '../server/challenge-store';
 
 /**
  * The match room, from the browser's side.
@@ -81,6 +83,8 @@ export interface ChallengeResult {
 export interface ChallengeListResult {
   ok: boolean;
   challenges?: Challenge[];
+  /** Matches won, lost and drawn, for good. Comes with the list. */
+  record?: RivalsRecord;
   retry?: boolean;
 }
 
@@ -141,12 +145,13 @@ export async function fetchChallenge(code: string): Promise<ChallengeResult> {
 
 /** Every room this player is in. One call on open. */
 export async function fetchMine(playerId: string): Promise<ChallengeListResult> {
-  const answer = await ask<{ challenges?: Challenge[]; error?: string; retry?: boolean }>(
+  const answer = await ask<{ challenges?: Challenge[]; record?: Partial<RivalsRecord>; error?: string; retry?: boolean }>(
     `${API}/api/challenge?player=${encodeURIComponent(playerId)}`,
   );
   if (!answer) return { ok: false, retry: true };
   if (answer.error || !Array.isArray(answer.challenges)) return { ok: false, retry: answer.retry === true };
-  return { ok: true, challenges: answer.challenges };
+  const record = { won: answer.record?.won ?? 0, lost: answer.record?.lost ?? 0, drawn: answer.record?.drawn ?? 0 };
+  return { ok: true, challenges: answer.challenges, record };
 }
 
 async function post(body: Record<string, unknown>): Promise<ChallengeResult> {

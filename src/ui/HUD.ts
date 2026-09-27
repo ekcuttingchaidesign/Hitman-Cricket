@@ -29,6 +29,7 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
+import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
@@ -2636,7 +2637,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * Rival Matches: what has come in, what is waiting on somebody, and how the
    * last ten went. A row opens its room; accept and decline act on the spot.
    */
-  challengeList(sections: ListSections) {
+  challengeList(sections: ListSections, record?: RivalsRecord) {
     this.shutSheets();
     if (this.roomOpen) this.closeRoom();
     this.$('intro').classList.add('hidden');
@@ -2644,9 +2645,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const section = (title: string, rows: ListRowView[]) => rows.length
       ? `<h3 class="rival-section-head">${title}</h3><ul class="rival-rows">${rows.map(listRow).join('')}</ul>`
       : '';
-    this.$('challenge-sections').innerHTML = total
+    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
       ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
-      : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`;
+      : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
     this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a name for the head-to-head.' : '';
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');

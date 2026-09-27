@@ -3,7 +3,7 @@ import { GAME } from '../src/config/gameplay';
 import {
   CHALLENGE_LIFE_MS, CODE_ALPHABET, CODE_LENGTH, CREATE_LIMIT, FORFEIT_AFTER_MS, PLAYERS_MAX, SCORING_VERSION,
   challengeRefused, cleanCard, cleanCode, createChallenge, declineChallenge, joinChallenge, markSeen, newCode, readChallenge,
-  readMine, recordBalls, stateOf, statusOf,
+  readMine, recordBalls, stateOf, statusOf, tallyIfOver,
   type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeRefusal, type ChallengeStore,
   type StoredChallenge,
 } from '../src/server/challenge-store';
@@ -360,6 +360,60 @@ describe('a player\'s list', () => {
     const store = memoryChallenges();
     expect((took(await readMine(store, THIRD, T0)) as ChallengeListOutcome).challenges).toEqual([]);
     expect(refused(await readMine(store, 'nope', T0))).toBe(400);
+  });
+});
+
+describe('the record', () => {
+  const settle = async (store: ReturnType<typeof memoryChallenges>, hostRuns: number, friendRuns: number, at = T0) => {
+    const code = await room(store, at);
+    took(await recordBalls(store, code, { ...who(), card: card(hostRuns) }, at + 1000));
+    took(await joinChallenge(store, code, friend(), at + 2000));
+    took(await recordBalls(store, code, { ...friend(), card: card(friendRuns) }, at + 3000));
+    return code;
+  };
+
+  it('adds a finished match once, however many times the list is read', async () => {
+    const store = memoryChallenges();
+    await settle(store, 40, 24);
+    await settle(store, 12, 36, T0 + 10_000);
+    expect(took(await readMine(store, HOST, T0 + 20_000)).record).toEqual({ won: 1, lost: 1, drawn: 0 });
+    expect(took(await readMine(store, HOST, T0 + 30_000)).record).toEqual({ won: 1, lost: 1, drawn: 0 });
+    expect(took(await readMine(store, FRIEND, T0 + 30_000)).record).toEqual({ won: 1, lost: 1, drawn: 0 });
+  });
+
+  it('counts nothing while an innings is still to come, and a draw as a draw', async () => {
+    const store = memoryChallenges();
+    const code = await room(store, T0);
+    took(await recordBalls(store, code, { ...who(), card: card(30) }, T0 + 1000));
+    took(await joinChallenge(store, code, friend(), T0 + 2000));
+    expect(took(await readMine(store, HOST, T0 + 3000)).record).toEqual({ won: 0, lost: 0, drawn: 0 });
+    took(await recordBalls(store, code, { ...friend(), card: card(30) }, T0 + 4000));
+    expect(took(await readMine(store, HOST, T0 + 5000)).record).toEqual({ won: 0, lost: 0, drawn: 1 });
+    expect(took(await readMine(store, FRIEND, T0 + 5000)).record).toEqual({ won: 0, lost: 0, drawn: 1 });
+  });
+
+  it('is one line for a group, top wins, and a decline goes down as a loss', async () => {
+    const store = memoryChallenges();
+    const code = await room(store, T0);
+    took(await recordBalls(store, code, { ...who(), card: card(40) }, T0 + 1000));
+    took(await joinChallenge(store, code, friend(), T0 + 2000));
+    took(await recordBalls(store, code, { ...friend(), card: card(52) }, T0 + 3000));
+    took(await declineChallenge(store, code, who({ playerId: THIRD, name: 'Priya', avatar: 2 }), T0 + 4000));
+    expect(took(await readMine(store, FRIEND, T0 + 5000)).record).toEqual({ won: 1, lost: 0, drawn: 0 });
+    expect(took(await readMine(store, HOST, T0 + 5000)).record).toEqual({ won: 0, lost: 1, drawn: 0 });
+    expect(took(await readMine(store, THIRD, T0 + 5000)).record).toEqual({ won: 0, lost: 1, drawn: 0 });
+  });
+
+  it('adds nothing for a week that ran out on one innings', async () => {
+    const store = memoryChallenges();
+    const code = await room(store, T0);
+    took(await recordBalls(store, code, { ...who(), card: card(40) }, T0 + 1000));
+    took(await joinChallenge(store, code, friend(), T0 + 2000));
+    const later = T0 + 8 * 24 * 3600_000;
+    const held = (await store.read(code))!;
+    expect(stateOf(held, later)).toBe('expired');
+    expect(await tallyIfOver(store, code, held, HOST, later)).toBeNull();
+    expect(took(await readMine(store, HOST, later)).record).toEqual({ won: 0, lost: 0, drawn: 0 });
   });
 });
 

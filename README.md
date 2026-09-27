@@ -825,6 +825,8 @@ same time and see each other's balls land between their own, or bat days apart
 and get the same thing replayed. Nobody sees a score until their own last ball.
 Ties break on runs, sixes, fours; level on all three is a draw. A room lives a
 week; an innings left for a day is a forfeit; a challenge declined is a defeat.
+Every finished match goes on a record — won, lost, drawn — kept on the server
+for good and shown at the top of Rival Matches and under the cards on My Stats.
 
 `docs/CHALLENGE.md` has every state, where each piece lives, and how to test it
 — including `?room=<state>`, which draws any face of the room on one phone,

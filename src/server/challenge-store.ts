@@ -118,7 +118,17 @@ export interface StoredPlayer {
   seen?: boolean;
   /** Whether they turned the match down. A defeat, taken on the chin. */
   declined?: boolean;
+  /** Whether this room has been added to their record. Written once. */
+  tallied?: boolean;
 }
+
+/** A player's Rivals record: matches, not innings. Kept for good. */
+export interface RivalsRecord {
+  won: number;
+  lost: number;
+  drawn: number;
+}
+export type RivalsOutcome = keyof RivalsRecord;
 
 /**
  * A room as it is kept.
@@ -163,6 +173,10 @@ export interface ChallengeStore {
   indexed(playerId: string): Promise<string[]>;
   /** Forgets a code that no longer opens anything. */
   unindex(playerId: string, code: string): Promise<void>;
+  /** Adds one match to this player's record. */
+  tally(playerId: string, outcome: RivalsOutcome): Promise<void>;
+  /** This player's record: zeros where they have never finished a match. */
+  record(playerId: string): Promise<RivalsRecord>;
 }
 
 /** One innings in the room, as the endpoint sends it. */
@@ -234,6 +248,7 @@ export type ChallengeOutcome = ChallengeAccepted | ChallengeRefusal;
 export interface ChallengeListOutcome {
   ok: true;
   challenges: ChallengePayload[];
+  record: RivalsRecord;
 }
 
 /** Whether the room turned this call down. */
@@ -523,13 +538,55 @@ export async function readMine(
   const rooms = await Promise.all(codes.map(async code => {
     const challenge = await store.read(code);
     if (!challenge) { await store.unindex(playerId, code); return null; }
+    await tallyIfOver(store, code, challenge, playerId, now);
     return challengePayload(code, challenge, now);
   }));
   const challenges = rooms
     .filter((room): room is ChallengePayload => room !== null)
     .sort((a, b) => b.at - a.at)
     .slice(0, PLAYERS_MAX);
-  return { ok: true, challenges };
+  return { ok: true, challenges, record: await store.record(playerId) };
+}
+
+/**
+ * A finished match, added to this player's record — once.
+ *
+ * Nothing on the server fires when a match ends: a forfeit is a clock that ran
+ * out, an expiry is a week that passed, and neither happens while anybody is
+ * looking. So the record is kept up here instead, on the read every phone makes
+ * when it opens Rivals, and a room is marked as counted for this player before
+ * their record moves. The mark is written first: the failure that leaves a
+ * match uncounted is the one to have, since the other one counts it twice.
+ *
+ * What counts is what the result screen shows, and no sooner. `done` is every
+ * innings settled. `expired` is a week gone with at least two settled, this
+ * player's among them — the room says "closed" with one innings in, and that
+ * is nothing to add to anybody's record. Top of the settled order is a win, a
+ * shared top a draw, and everything else, walking out and declining included,
+ * a loss; a group is one match and one line on the record, not a win over each
+ * person under you.
+ */
+export async function tallyIfOver(
+  store: ChallengeStore, code: string, challenge: StoredChallenge, playerId: string, now = Date.now(),
+): Promise<RivalsOutcome | null> {
+  const mine = challenge.players[playerId];
+  if (!mine || mine.tallied) return null;
+  const state = stateOf(challenge, now);
+  if (state !== 'done' && state !== 'expired') return null;
+  const settled = Object.entries(challenge.players)
+    .map(([id, player]) => ({ id, status: statusOf(player, now), score: 0 }))
+    .filter(row => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined')
+    .map(row => ({ ...row, score: rankOf(row.status, figuresOf(challenge.players[row.id].card)) }))
+    .sort((a, b) => b.score - a.score);
+  const me = settled.find(row => row.id === playerId);
+  if (!me || settled.length < 2) return null;
+  const top = settled[0].score;
+  const level = settled.filter(row => row.score === top).length;
+  const outcome: RivalsOutcome = me.score < top ? 'lost' : level > 1 ? 'drawn' : 'won';
+  await store.write(code, { players: { [playerId]: { ...mine, tallied: true } } }, CHALLENGE_TTL_SECONDS);
+  mine.tallied = true;
+  await store.tally(playerId, outcome);
+  return outcome;
 }
 
 /** The code checked and the room behind it, or the refusal to hand back. */
