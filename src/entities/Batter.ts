@@ -1203,6 +1203,24 @@ function shoulderDriven(keys: readonly {time: number; pose: Pose}[], age: number
 
 export { solveJoint } from './rig';
 
+/** The kits the batter can be dressed in. */
+export type BatterKit = 'home' | 'whites' | 'red' | 'purple' | 'blue';
+
+/**
+ * Shirt and helmet, trousers, and the accent that does the seam, the collar,
+ * the number, the pad straps and the shoe flashes. Home is the navy and orange
+ * the game has always worn; whites are the Test match; red, purple and blue
+ * are the second, third and fourth seats in a Rivals room, so four friends in
+ * one match are four different batters and not the same man four times.
+ */
+export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number }> = {
+  home: { shirt: 0x19334a, helmet: 0x18314a, trousers: 0xe7e2d3, accent: 0xed7044 },
+  whites: { shirt: 0xf2ece0, helmet: 0x18314a, trousers: 0xf4f0e4, accent: 0xd9d3c3 },
+  red: { shirt: 0xc8282c, helmet: 0xb8232a, trousers: 0xeadfc4, accent: 0x8e1f22 },
+  purple: { shirt: 0x5a2fb4, helmet: 0x4d27a3, trousers: 0xf1eee6, accent: 0x3f1e86 },
+  blue: { shirt: 0x1f6fd6, helmet: 0x1a5fbd, trousers: 0xf1eee6, accent: 0x1657ad },
+};
+
 export class Batter {
   private poseAge = 0;
   readonly root = new THREE.Group();
@@ -1262,17 +1280,20 @@ export class Batter {
     handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
   };
   /**
-   * Whites, for the Test match, or back into coloured clothing.
+   * What he bats in: the home kit, whites for the Test match, or one of the
+   * three away kits a Rivals room hands out by seat.
    *
    * The batter owns his materials outright rather than sharing the cached ones
-   * the other figures use, so this is three colours rather than a re-dress —
+   * the other figures use, so this is four colours rather than a re-dress —
    * and it can be called at any time, which is what lets the mode screen change
    * its mind without the scene being torn down and rebuilt around it.
    */
-  dress(whites: boolean) {
-    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x19334a);
-    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0xe7e2d3);
-    this.palette.accent.color.setHex(whites ? 0xd9d3c3 : 0xed7044);
+  dress(kit: BatterKit) {
+    const colours = BATTER_KITS[kit];
+    this.palette.shirt.color.setHex(colours.shirt);
+    this.palette.helmet.color.setHex(colours.helmet);
+    this.palette.trousers.color.setHex(colours.trousers);
+    this.palette.accent.color.setHex(colours.accent);
   }
 
   constructor() {

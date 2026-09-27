@@ -340,6 +340,24 @@ export interface ListView {
 }
 
 export const noRecord = (): RivalsRecord => ({ won: 0, lost: 0, drawn: 0 });
+
+/** The kits a room hands out, by seat: whoever made it bats in the home kit. */
+export const SEAT_KITS = ['home', 'red', 'purple', 'blue'] as const;
+export type SeatKit = (typeof SEAT_KITS)[number];
+
+/**
+ * Which kit this person bats in: by the order people opened the room, so the
+ * host is in navy and the friends who followed are in red, purple and blue.
+ * The order is fixed at the moment of joining and never moves, which is what
+ * lets two phones agree on it without asking. A fifth starts again at red;
+ * somebody not in the room at all bats at home.
+ */
+export function seatKit(room: Challenge | null, me: string): SeatKit {
+  const seats = [...(room?.players ?? [])].sort((a, b) => a.joined - b.joined || a.playerId.localeCompare(b.playerId));
+  const seat = seats.findIndex(row => row.playerId === me);
+  if (seat <= 0) return 'home';
+  return SEAT_KITS[1 + ((seat - 1) % (SEAT_KITS.length - 1))];
+}
 /** A list with nothing on it, for before the first answer arrives. */
 export const emptyList = (): ListView => ({ yourMove: [], waitingOnThem: [], done: [], unseen: [], record: noRecord() });
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batter, CHARGE_MEETS_AT } from '../entities/Batter';
+import { Batter, type BatterKit, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
@@ -227,13 +227,16 @@ export class GameScene {
 
   whites(on: boolean) {
     const kit = on ? WHITES : KIT;
-    this.batter.dress(on);
+    this.batter.dress(on ? 'whites' : 'home');
     this.bowler.figure.dress(kit);
     // The fielding side too. Leaving them in coloured clothing while the two
     // men in the middle wore whites read as a bug rather than as a mode.
     this.catcher.dress(kit);
     for (const fielder of this.fielders) fielder.dress(kit);
   }
+
+  /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
+  kit(kit: BatterKit) { this.batter.dress(kit); }
 
   reset() {
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;

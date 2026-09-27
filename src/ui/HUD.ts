@@ -424,7 +424,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
           </div>
         </div>
         <div id="challenge-share" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-share-title">
-          <div class="rival-sheet is-invite" style="--ball:url(${fireball})">
+          <div class="rival-sheet is-invite"><img class="rival-sheet-ball" src="${fireball}" alt="" decoding="async" />
             <h2 id="challenge-share-title" class="rival-sheet-title">Challenge<br>your friend</h2>
             <p class="rival-sheet-label">HOW IT WORKS</p>
             <ol class="rival-steps">
@@ -441,7 +441,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
           <button id="challenge-share-done" class="sheet-close" type="button" aria-label="Close">${icon('close')}</button>
         </div>
         <div id="challenge-join" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-join-title">
-          <div class="rival-sheet is-received" style="--ball:url(${fireball})">
+          <div class="rival-sheet is-received"><img class="rival-sheet-ball" src="${fireball}" alt="" decoding="async" />
             <span id="challenge-from-kit" class="rival-sheet-kit hidden"></span>
             <h2 id="challenge-join-title" class="rival-sheet-title is-centred"><b id="challenge-from-name"></b><span id="challenge-join-verb">challenged you</span></h2>
             <p id="challenge-join-copy" class="rival-sheet-sub"></p>
@@ -2437,7 +2437,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-room').classList.remove('hidden');
     if (!wasOpen) {
-      this.viewport.querySelector<HTMLElement>('#room-keys .key-button, #room-keys .rival-key')?.focus();
+      this.settle('challenge-room');
       if (view.result) this.enterResult();
     }
   }
@@ -2484,7 +2484,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('challenge-offline-copy').textContent = reason
       ?? 'A match needs a connection to swap scores with your friend. A solo innings works anywhere.';
     this.open('challenge-offline');
-    this.$('challenge-offline-retry').focus();
+    this.settle('challenge-offline');
   }
 
   closeRoom() {
@@ -2509,7 +2509,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.shutSheets();
     this.$('challenge-preview').textContent = '';
     this.open('challenge-share');
-    this.$('challenge-more').focus();
+    this.settle('challenge-share');
   }
 
   /** A word under the keys, for a copy that worked or did not. */
@@ -2585,7 +2585,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       wrap.classList.remove('hidden');
     }
     this.open('challenge-join');
-    (player ? this.$('challenge-bat') : field).focus();
+    if (player) this.settle('challenge-join'); else field.focus();
   }
 
   /** The way to a different name, for the phone that gets handed round. */
@@ -2652,7 +2652,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
-    this.$('challenge-list-done').focus();
+    this.settle('challenge-list');
+  }
+
+  /**
+   * Puts focus on a screen rather than on its first key. A key focused by
+   * script gets the keyboard ring on WebKit, and a ring round LET'S GO that
+   * nobody tabbed to reads as a state; the screen itself takes focus without
+   * one, and a screen reader still lands inside the dialog.
+   */
+  private settle(id: string) {
+    const box = this.$(id);
+    box.tabIndex = -1;
+    box.focus({ preventScroll: true });
   }
 
   closeList() {
@@ -2678,7 +2690,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     ].map(([what, said]) => `<div><dt>${what}</dt><dd>${said}</dd></div>`).join('');
     this.$('rivalry-again').textContent = `CHALLENGE ${view.them.name.toUpperCase()} AGAIN`;
     this.open('challenge-rivalry');
-    this.$('rivalry-again').focus();
+    this.settle('challenge-rivalry');
   }
 
   /** What the hero card and the Rival Matches widget say about the matches waiting. */

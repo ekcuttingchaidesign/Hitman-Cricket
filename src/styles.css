@@ -3064,6 +3064,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .rival-key.is-play:active{box-shadow:0 2px 0 var(--cta-orange)}
 .rival-key.is-steel:active,.rival-key.is-white:active{box-shadow:0 2px 0 #000}
 .rival-key:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.room-screen:focus,.sheet-overlay:focus{outline:none}
 
 /* The result: black, warm behind the winner's face, the fire round it. */
 .stage.result-room .room-screen{
@@ -5140,14 +5141,21 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   margin:0 auto;
   padding:28px 20px 20px;
   border-radius:20px;
-  background:var(--ball,none) no-repeat,linear-gradient(180deg,#0a80ff 0%,#066edf 62%,#0560c8 100%);
+  background:linear-gradient(180deg,#0a80ff 0%,#066edf 62%,#0560c8 100%);
   box-shadow:0 24px 60px #00000080,inset 0 1px 0 #ffffff33;
   color:#fff;
   text-align:left
 }
 /* The ball on fire, clipped by the sheet's own corner. */
-.rival-sheet.is-invite{background-position:right -18px top -22px,0 0;background-size:150px auto,100% 100%}
-.rival-sheet.is-received{margin-top:44px;padding-top:56px;background-position:left -4px top 6px,0 0;background-size:96px auto,100% 100%}
+/* The ball with the fire trail, an element rather than a background: a
+   relative url() inside a custom property resolves against the stylesheet on
+   WebKit, which in a build is /assets/, and the picture went missing on the
+   phone while showing in dev. */
+.rival-sheet-ball{position:absolute;pointer-events:none;user-select:none;-webkit-user-select:none}
+.rival-sheet.is-invite{overflow:hidden}
+.rival-sheet.is-invite .rival-sheet-ball{right:-18px;top:-22px;width:150px;height:auto}
+.rival-sheet.is-received .rival-sheet-ball{left:0;top:6px;width:96px;height:auto}
+.rival-sheet.is-received{margin-top:44px;padding-top:56px}
 .rival-sheet-title{
   margin:0;
   font-family:var(--cta);
@@ -5385,6 +5393,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rival-record.is-stats .rival-record-row{background:#0d2438;border-color:#1f3d55}
 .rival-record.is-stats .rival-record-cell+.rival-record-cell{border-left-color:#1f3d55}
 .rival-rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.rival-record+.rival-rows{margin-top:22px}
 .rival-row{
   display:flex;
   align-items:center;

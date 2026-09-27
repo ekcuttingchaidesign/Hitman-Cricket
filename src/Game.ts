@@ -43,6 +43,7 @@ import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
+import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, type Granted } from './game/tier';
@@ -59,7 +60,7 @@ import {
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
-import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
+import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
 import { CODE_PARAM, challengeLink, copy, hideChallenge, seenHere, whatsapp, type Challenge } from './game/challenge-api';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
@@ -481,6 +482,9 @@ export class Game {
       // Leaves him one blow from the floor, so the fall can be looked at without
       // waiting for an innings that retires hurt to come round on its own.
       hurt: () => { this.health.value = 1; this.showConfidence(); },
+      // Dresses him in a Rivals kit on the spot, so the four can be looked at
+      // without four friends.
+      kit: (kit: BatterKit) => this.scene.kit(kit),
     } });
   }
   /**
@@ -2365,6 +2369,9 @@ export class Game {
     track(resume ? 'challenge-resumed' : 'challenge-accepted', resume ? 'Match innings resumed' : 'Match innings started');
     this.mode = 'CLASSIC';
     this.start();
+    // After `start`, which dresses him for the mode: the room then hands him
+    // the kit for his seat, so four friends in one match are four batters.
+    this.scene.kit(seatKit(this.challenge.room, this.player));
     if (resume) {
       for (const ball of this.challenge.resumeFrom(this.player)) {
         const outcome: ShotOutcome = {
