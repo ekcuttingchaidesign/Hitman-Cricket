@@ -2497,20 +2497,33 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   30%{transform:translate(-50%,-12px) scale(1)}
   100%{opacity:0;transform:translate(-50%,-62px) scale(.96)}
 }
-/* The whole field takes the impact — the flash and the kick are one event. */
+/* The whole field takes the impact — the flash and the kick are one event.
+   The colour drains out of the ground and a red edge beats round it: the field
+   goes black and white so the red is the only colour on the screen, which is
+   what makes a border enough without washing the whole field red. */
+.stage.struck>canvas{animation:hit-drain .9s ease-out forwards}
+@keyframes hit-drain{
+  0%{filter:grayscale(0) contrast(1)}
+  8%,62%{filter:grayscale(1) contrast(1.12)}
+  100%{filter:grayscale(0) contrast(1)}
+}
 .stage.struck::after{
   content:'';
   position:absolute;
   inset:0;
   pointer-events:none;
   z-index:5;
-  /* Red across the whole field, heaviest at the edges. The first version was a
-     vignette that only reddened the far corners, which at a glance was no flash
-     at all — the point of this is that it is impossible to miss. */
-  background:radial-gradient(ellipse at 50% 48%,#ff3a2a4d 0%,#b81f14e6 100%);
-  animation:hit-flash .46s cubic-bezier(.2,.7,.4,1) forwards
+  box-shadow:inset 0 0 0 4px #ff3a2a,inset 0 0 90px 24px #b81f14cc;
+  animation:hit-flash .9s ease-in-out forwards
 }
-@keyframes hit-flash{0%{opacity:0}9%{opacity:1}100%{opacity:0}}
+/* Two beats, then it lets go with the colour. */
+@keyframes hit-flash{
+  0%{opacity:0}
+  8%{opacity:1;box-shadow:inset 0 0 0 8px #ff3a2a,inset 0 0 120px 36px #b81f14e6}
+  30%{opacity:.55;box-shadow:inset 0 0 0 4px #ff3a2a,inset 0 0 80px 20px #b81f14aa}
+  48%{opacity:1;box-shadow:inset 0 0 0 8px #ff3a2a,inset 0 0 120px 36px #b81f14e6}
+  100%{opacity:0}
+}
 .stage.struck{animation:hit-kick .34s cubic-bezier(.36,.07,.19,.97)}
 @keyframes hit-kick{
   0%,100%{transform:translate3d(0,0,0)}
@@ -2523,6 +2536,8 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 /* Motion sensitivity: the blow still reads, it just does not move the screen. */
 @media (prefers-reduced-motion:reduce){
   .stage.struck{animation:none}
+  .stage.struck::after{animation:hit-hold-edge .9s ease-out forwards}
+  @keyframes hit-hold-edge{0%,62%{opacity:1}100%{opacity:0}}
   .hit-burst.is-on{animation:hit-hold .78s ease-out forwards}
   @keyframes hit-hold{0%,72%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,0)}}
 }
@@ -4439,7 +4454,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 
 /* ── What's new ─────────────────────────────────────────────────────────────
-   Three cards, the shape every phone already knows: a segmented bar across the
+   A card or a few, the shape every phone already knows: a segmented bar across the
    top, the page itself as the control, and a key on the bottom edge that is
    there the whole time. Nothing here is a dialogue — there is nothing to
    answer — so the only thing it asks of a player is that they can leave. */
@@ -4548,6 +4563,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid #ffffff1f;
   box-shadow:0 22px 50px #00000073
 }
+/* A picture with its corners already cut: no frame of our own, and a shadow
+   that follows its outline rather than a square box's. */
+.whatsnew-art img.is-cut{
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  filter:drop-shadow(0 18px 34px #00000073)
+}
 .whatsnew-say{
   margin:0;
   max-width:34ch;
@@ -4555,6 +4578,26 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   line-height:1.55;
   color:var(--quiet)
 }
+/* Said by the picture, in bigger letters than a heading could manage, and
+   kept for whoever is listening rather than looking. */
+.whatsnew-title.is-unseen{
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip:rect(0 0 0 0);
+  white-space:nowrap
+}
+/* The key under the picture. The body is not a control — taps go through it to
+   the halves underneath — so the one thing in it that is has to say so. */
+.whatsnew-keyslot:empty{display:none}
+.whatsnew-keyslot{width:min(330px,100%);flex:none;pointer-events:auto;text-align:left}
+.whatsnew-keyslot .key-pass{margin:0}
+.whatsnew-keyslot .key-line{margin-bottom:10px}
+.whatsnew-bar.is-held>i{animation:none;transform:none}
+/* The sheets the key opens stand over the story it was opened from. */
+.whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,
+.whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal{z-index:13}
 .whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
 .whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
 

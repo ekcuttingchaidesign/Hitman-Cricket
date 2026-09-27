@@ -1,5 +1,6 @@
 import { escape } from './Leaderboard';
 import { STORIES, type Story } from '../game/whats-new';
+import { MARK, type KeyView } from './CareerKey';
 
 /**
  * The stories, as a screen.
@@ -31,32 +32,70 @@ export interface StoriesView {
    * promising one would be the only thing on the screen that lies.
    */
   locked?: boolean;
+  /**
+   * The player's key, for a story that carries one. Null for a player with no
+   * name, who has no key to save and is shown no card.
+   */
+  careerKey?: KeyView | null;
 }
 
 export function storiesMarkup(view: StoriesView): string {
-  const { at, where, holdMs, locked = false } = view;
+  const { at, where, holdMs, locked = false, careerKey = null } = view;
   const story = STORIES[at] ?? STORIES[0];
+  const live = (i: number) => i !== at ? '' : story.withKey ? ' is-live is-held' : ' is-live';
   return `
     <div class="whatsnew-sheet" role="document" aria-roledescription="story">
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
-        <span class="whatsnew-bar${i < at ? ' is-done' : i === at ? ' is-live' : ''}"${
-  i === at ? ` style="--hold:${holdMs}ms"` : ''}><i></i></span>`).join('')}
+        <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
+  i === at && !story.withKey ? ` style="--hold:${holdMs}ms"` : ''}><i></i></span>`).join('')}
       </div>
       <button id="whatsnew-back" class="whatsnew-half is-back" type="button" aria-label="Previous"></button>
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">
         <p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>
-        <h2 class="whatsnew-title">${escape(story.title)}</h2>
+        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>
         <div class="whatsnew-art">
-          <img src="${story.art}" alt="${escape(story.alt)}" width="620" draggable="false">
+          <img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
+  story.width}" draggable="false">
         </div>
-        <p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>
+        ${story.body ? `<p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>` : ''}
+        ${story.withKey ? `<div id="whatsnew-keyslot" class="whatsnew-keyslot">${
+  storyKeyMarkup(careerKey)}</div>` : ''}
       </div>
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${
   wayOut(where, locked)}</button>
       </div>
     </div>`;
+}
+
+/**
+ * The key under the picture: the save card from My Stats.
+ *
+ * A key held is printed, and the press opens the save sheet. A name without a
+ * key gets the same card without the print, and the press makes one and opens
+ * the sheet on it. A player with no name has no key to save, so is shown no
+ * card at all — a save key with nothing behind it would be the one lie on the
+ * screen, and the picture above says the rest.
+ *
+ * Its own ids rather than the card's, because My Stats can be standing under
+ * this story when it is opened from the board.
+ */
+export function storyKeyMarkup(view: KeyView | null): string {
+  if (!view) return '';
+  const held = view.state !== 'lost';
+  return `
+    <section class="key-pass whatsnew-keypass" aria-labelledby="whatsnew-key-title">
+      <div class="key-face">
+        <div class="key-stamp">
+          <span class="key-mark" aria-hidden="true">${MARK}</span>
+          <h3 id="whatsnew-key-title">Save your key</h3>
+        </div>
+        ${held ? `<p class="key-serial"><span>${escape(view.code ?? '')}</span></p>` : ''}
+        <p class="key-line">The only way back to your record if this browser forgets you.</p>
+        <button id="${held ? 'whatsnew-key-save' : 'whatsnew-key-make'}" class="key-save" type="button">SAVE YOUR KEY</button>
+      </div>
+    </section>`;
 }
 
 /** What the key says, which is wherever pressing it actually lands. */
