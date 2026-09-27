@@ -12,7 +12,7 @@
  * what happened, it just does not move to say it.
  */
 
-export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined';
+export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame';
 
 export interface Playing {
   /** Takes the film down and frees what it was holding. */

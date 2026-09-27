@@ -115,7 +115,7 @@ for (let i = 0; i < 8; i++) {
 }
 check(await a.page.locator('#modes').isVisible(), 'the play key opens the picker');
 check(await a.page.locator('#mode-challenge').isVisible(), 'which leads with the one-against-one card');
-check(await a.page.locator('#modes-challenges').isVisible(), 'and carries the way to My challenges under it');
+check(await a.page.locator('#modes-challenges').isVisible(), 'and carries the way to Rival Matches under it');
 await a.shot('01-modes');
 
 await a.page.locator('#mode-challenge').click({ force: true });
@@ -129,17 +129,18 @@ const link = await a.page.evaluate(() => location.href);
 const code = new URL(link).searchParams.get('c');
 check(typeof code === 'string' && code.length === 6, 'the room\'s code is on the address bar', link);
 check((await a.page.locator('#room-keys [data-act="invite"]').count()) === 1, 'invite leads while nobody has joined');
-check(await a.page.locator('#room-wait svg').count() > 0, 'and the empty seat has the ball bouncing in it');
+check(await a.page.locator('.room-face.is-empty').count() === 1, 'and the rival\'s seat stands empty, marked waiting');
 await a.shot('03-lobby');
 
 await a.act('invite');
-check(await a.page.locator('#challenge-share').isVisible(), 'the invite opens the link sheet');
-const preview = await a.page.locator('#challenge-preview').innerText();
-check(preview.includes(code) && /last ball/.test(preview), 'with the taunt and the link in it', preview);
+check(await a.appears('#challenge-share', 4000), 'the invite opens the link sheet');
+check((await a.page.locator('.rival-steps li').count()) === 3, 'with how it works in three lines');
+check((await a.page.locator('#challenge-more').count()) === 1 && (await a.page.locator('#challenge-copy').count()) === 1, 'and share and copy under them');
 await a.shot('04-invite');
 await a.page.locator('#challenge-share-done').click({ force: true });
 await a.settle();
-check((await a.page.locator('#room-keys .key-button[data-act="play"]').count()) === 1, 'back in the room, play now leads once the link has gone');
+check(await a.page.locator('#challenge-room').isVisible() && await a.page.locator('#challenge-share').isHidden(), 'the cross puts the sheet away');
+check((await a.page.locator('#room-keys .rival-key.is-play[data-act="play"]').count()) === 1, 'back in the room, play now stands beside share');
 await a.shot('05-lobby-sent');
 
 // ── Rahul opens the link ────────────────────────────────────────────────────
@@ -157,7 +158,7 @@ check(await b.page.locator('#challenge-join-error').isVisible(), 'a name nobody 
 await b.page.locator('#challenge-name').fill('Rahul');
 await b.page.locator('#challenge-bat').click({ force: true });
 check(await b.appears('#challenge-room'), 'a good one joins the room');
-check((await b.page.locator('#room-players .room-player').count()) === 2, 'which now lists both of them');
+check((await b.page.locator('#room-players .room-seat:not(.is-empty)').count()) === 2, 'which now shows both faces');
 await b.shot('07-room-joined');
 
 await a.settle(4500);
@@ -178,7 +179,7 @@ check(shashank && shashank.balls >= 2 && shashank.card.length === shashank.balls
 // Rahul, still in the room, sees an innings under way and cannot see the score.
 await b.settle(3000);
 const live = await b.page.locator('#room-players').innerText();
-check(/batting|done|all out/.test(live) && /\?\?/.test(live), 'Rahul sees him batting and no score', live);
+check(/batting|batted/.test(live) && !/\d+\/\d/.test(live), 'Rahul sees him batting and no score', live);
 await b.shot('09-room-live-blind');
 
 // Shashank finishes — thirty balls, or three wickets, whichever the headless bat manages.
@@ -218,14 +219,14 @@ await b.appears('#challenge-room', 15_000);
 await b.settle(2500);
 check(await b.page.locator('#challenge-room').isVisible(), 'Rahul\'s innings over, the room shows the result');
 const result = await b.page.locator('#room-lead').innerText();
-check(/wins|Dead heat/.test(result), 'with a winner named', result);
-check(await b.page.locator('#room-anim svg').count() > 0, 'and a film playing over it');
-check((await b.page.locator('#room-scoreline .challenge-innings').count()) === 2, 'and both innings on the scoreline');
+check(/wins|dead heat/i.test(result), 'with a winner named', result);
+check(/dead heat/i.test(result) || await b.page.locator('#room-anim svg').count() > 0, 'and the fire burning round the winner');
+check((await b.page.locator('#room-scoreline .verdict-row').count()) === 2, 'and both innings as rows');
 await b.shot('11-result');
 
 await a.settle(5000);
 const aResult = await a.page.locator('#room-lead').innerText();
-check(/wins|Dead heat/.test(aResult), 'Shashank\'s room turns into the result on its own', aResult);
+check(/wins|dead heat/i.test(aResult), 'Shashank\'s room turns into the result on its own', aResult);
 await a.shot('12-result-live');
 
 const final = await fetch(`${base}/api/challenge?code=${code}`).then(r => r.json());
@@ -236,12 +237,13 @@ const bSnap = await b.snap();
 check(bRuns === bSnap.runs, 'and Rahul\'s server score is the score he made', `${bRuns} vs ${bSnap.runs}`);
 
 // ── The list, the head-to-head, the rematch ─────────────────────────────────
-await b.act('home');
-check(await b.page.locator('#modes').isVisible(), 'back to the menu from the result');
+await b.page.locator('#room-back').click({ force: true });
+await b.settle();
+check(await b.page.locator('#modes').isVisible(), 'the back key leaves the result for the menu');
 await b.page.locator('#modes-challenges').click({ force: true });
-check(await b.appears('#challenge-list'), 'My challenges opens');
+check(await b.appears('#challenge-list'), 'Rival Matches opens');
 const list = await b.page.locator('#challenge-sections').innerText();
-check(/done/i.test(list) && /Shashank/.test(list), 'with the match under Done, against Shashank', list);
+check(/past challenges/i.test(list) && /Shashank/.test(list), 'with the match under Past challenges, against Shashank', list);
 await b.shot('13-list');
 await b.page.locator('[data-rival]').first().click({ force: true });
 await b.settle();
@@ -265,7 +267,7 @@ await c.page.locator('#challenge-bat').click({ force: true });
 await c.appears('#challenge-room');
 await c.settle(500);
 const third = await c.page.locator('#room-players').innerText();
-check(/Shashank/.test(third) && /Rahul/.test(third) && /\?\?/.test(third), 'and sees both innings with the scores hidden', third);
+check(/Shashank/.test(third) && /Rahul/.test(third) && /batted/.test(third) && !/\d+\/\d/.test(third), 'and sees both have batted, with no scores', third);
 await c.shot('16-third');
 
 if (errors.length) check(false, 'no page errors', errors.join('\n        '));

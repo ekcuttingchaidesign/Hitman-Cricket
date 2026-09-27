@@ -43,10 +43,11 @@ export const PLAYERS_MAX = 20;
 export const CHALLENGE_LIFE_MS = 7 * 24 * 3600_000;
 
 /**
- * How long the record is kept: the week it is open, and a week after that so
- * a link opened late still says what happened rather than nothing at all.
+ * How long the record is kept: the week it is open, and three more so the
+ * list of past matches has something in it and a link opened late still says
+ * what happened rather than nothing at all.
  */
-export const CHALLENGE_TTL_SECONDS = 14 * 24 * 3600;
+export const CHALLENGE_TTL_SECONDS = 30 * 24 * 3600;
 
 /**
  * An innings started and then left for a day is given up, not paused. Without
@@ -95,7 +96,7 @@ export const RATE_WINDOW_SECONDS = 3600;
 export type ChallengeState = 'open' | 'live' | 'done' | 'expired' | 'void';
 
 /** Where one player is in theirs. Derived from their balls and their clock. */
-export type PlayerStatus = 'joined' | 'batting' | 'done' | 'forfeit';
+export type PlayerStatus = 'joined' | 'batting' | 'done' | 'forfeit' | 'declined';
 
 /**
  * One player as they are kept: who they are, the balls so far, and two clocks.
@@ -115,6 +116,8 @@ export interface StoredPlayer {
   at: number;
   /** Whether they have been shown the result. */
   seen?: boolean;
+  /** Whether they turned the match down. A defeat, taken on the chin. */
+  declined?: boolean;
 }
 
 /**
@@ -273,6 +276,7 @@ export function cleanCode(raw: unknown): string | null {
 
 /** Where one player is. Read off their balls and their last write, never stored. */
 export function statusOf(player: StoredPlayer, now = Date.now()): PlayerStatus {
+  if (player.declined) return 'declined';
   if (!player.card) return 'joined';
   if (ended(figuresOf(player.card))) return 'done';
   return now - player.at > FORFEIT_AFTER_MS ? 'forfeit' : 'batting';
@@ -290,7 +294,7 @@ export function statusOf(player: StoredPlayer, now = Date.now()): PlayerStatus {
 export function stateOf(challenge: StoredChallenge, now = Date.now()): ChallengeState {
   if (challenge.v !== SCORING_VERSION) return 'void';
   const statuses = Object.values(challenge.players).map(player => statusOf(player, now));
-  const settled = statuses.filter(status => status === 'done' || status === 'forfeit').length;
+  const settled = statuses.filter(status => status === 'done' || status === 'forfeit' || status === 'declined').length;
   const batting = statuses.some(status => status === 'batting');
   const waiting = statuses.some(status => status === 'joined');
   if (settled >= 2 && !batting && !waiting) return 'done';
@@ -432,6 +436,7 @@ export async function recordBalls(
   const status = statusOf(held, now);
   if (status === 'done') return { ok: false, status: 409, reason: 'That innings is already over.' };
   if (status === 'forfeit') return { ok: false, status: 409, reason: 'That innings was given up a day ago.' };
+  if (status === 'declined') return { ok: false, status: 409, reason: 'You declined this one.' };
   const state = stateOf(challenge, now);
   if (state === 'void') return { ok: false, status: 409, reason: 'This match was made on an older version of the game.' };
   if (state === 'expired') return { ok: false, status: 410, reason: 'This match has closed.' };
@@ -458,6 +463,42 @@ export async function markSeen(
     await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
     challenge.players[input.playerId] = player;
   }
+  return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+}
+
+/**
+ * The match turned down.
+ *
+ * "Decline and accept defeat", the key says, and it means it: a declined
+ * match settles against the decliner the way a forfeit does, so a friend who
+ * sent the link gets a result rather than a week of silence. Only somebody who
+ * has not batted can decline — once there is a ball in, the innings speaks.
+ */
+export async function declineChallenge(
+  store: ChallengeStore, code: string, input: Batter, now = Date.now(),
+): Promise<ChallengeOutcome> {
+  if (await store.hits('write', input.address, RATE_WINDOW_SECONDS) > WRITE_LIMIT) {
+    return { ok: false, status: 429, reason: 'Too many requests from here. Try again in an hour.' };
+  }
+  const found = await load(store, code);
+  if (isRefusal(found)) return found;
+  const { code: key, challenge } = found;
+  const who = batter(input);
+  if (isRefusal(who)) return who;
+  const held = challenge.players[input.playerId];
+  if (held?.declined) return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+  if (held?.card) return { ok: false, status: 409, reason: 'You have already started batting in this one.' };
+  const state = stateOf(challenge, now);
+  if (state === 'void' || state === 'expired') return { ok: false, status: 410, reason: 'This match has closed.' };
+  if (!held && Object.keys(challenge.players).length >= PLAYERS_MAX) {
+    return { ok: false, status: 409, reason: 'This room is full.' };
+  }
+  const player: StoredPlayer = held
+    ? { ...held, declined: true, at: now }
+    : { name: who.name, avatar: input.avatar, card: '', joined: now, at: now, declined: true };
+  await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
+  if (!held) await store.index(input.playerId, key, CHALLENGE_TTL_SECONDS);
+  challenge.players[input.playerId] = player;
   return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
 }
 
@@ -553,6 +594,7 @@ export function rankOf(status: PlayerStatus, figures: Innings): number {
   switch (status) {
     case 'done': return 2_000_000_000 + played;
     case 'forfeit': return 1_000_000_000 + played;
+    case 'declined': return 900_000_000;
     case 'batting': return 500_000_000 + figures.balls;
     default: return 0;
   }

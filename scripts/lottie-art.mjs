@@ -3,9 +3,10 @@
  *
  *   node scripts/lottie-art.mjs        # writes public/lotties/*.json
  *
- * Five of them: a trophy going up under confetti for a win, the bails coming
+ * Six of them: a trophy going up under confetti for a win, the bails coming
  * off for a loss, two bats crossed for a dead heat, a ball bouncing while
- * somebody waits, and a tick for somebody arriving. They are written here
+ * somebody waits, a tick for somebody arriving, and the fire that burns round
+ * the winner's face on the result. They are written here
  * rather than downloaded because they have to be in the game's own colours —
  * the cyan of the keys, the orange of the ledge, the red of the ball, the
  * cream of the ink — and a film borrowed from a library is somebody else's
@@ -74,6 +75,32 @@ const path = (points, closed = true) => ({
   }),
 });
 const fill = (c, o = 100) => ({ ty: 'fl', c: still([...c, 1]), o: still(o), r: 1 });
+/** A linear gradient fill from one point to another, through two or three colours. */
+const gradient = (from, to, stops, o = 100) => ({
+  ty: 'gf', o: still(o), r: 1, t: 1, s: still(from), e: still(to),
+  g: { p: stops.length, k: still(stops.flatMap(([at, c]) => [at, ...c])) },
+});
+/**
+ * A path that changes shape. Each frame is `[t, points]` with the same number
+ * of points, and the first and last frames should be the same points when the
+ * film loops, or the loop will jump.
+ */
+const shapeOf = points => ({
+  c: true,
+  v: points.map(p => [p[0], p[1]]),
+  i: points.map(p => [p[2] ?? 0, p[3] ?? 0]),
+  o: points.map(p => [p[4] ?? 0, p[5] ?? 0]),
+});
+const morph = frames => ({
+  ty: 'sh', d: 1,
+  ks: {
+    a: 1,
+    k: frames.map(([t, points], i) => ({
+      t, s: [shapeOf(points)],
+      ...(i < frames.length - 1 ? { i: { x: [0.42], y: [1] }, o: { x: [0.58], y: [0] } } : {}),
+    })),
+  },
+});
 const stroke = (c, w, o = 100) => ({ ty: 'st', c: still([...c, 1]), o: still(o), w: still(w), lc: 2, lj: 2 });
 const trim = (start, end) => ({ ty: 'tm', s: start, e: end, o: still(0), m: 1 });
 const transform = (over = {}) => ({
@@ -349,10 +376,82 @@ function joined() {
   return film('joined', OP, layers);
 }
 
+/* ── Flame: the fire round the winner ───────────────────────────────────── */
+
+/**
+ * Loops without a seam. Every animated value is a function of a phase that
+ * runs from nought to two pi over the film, so the last frame is the first
+ * frame to the pixel — that, and not luck, is what stops it jerking when it
+ * comes round. Three tongues at three sizes, each breathing on its own
+ * timing, and a handful of embers that rise twice a loop.
+ */
+function flame() {
+  const OP = 150;
+  const STEPS = 10;
+  const layers = [];
+
+  // The base shape, tip up, drawn round a face that sits in its lower half.
+  // Handles are relative to the vertex, as Lottie wants.
+  const base = [
+    [136, 372, 0, 0, -30, -34],
+    [72, 246, 4, 36, -6, -30],
+    [98, 142, -10, 26, 12, -30],
+    [140, 78, -12, 14, 12, -12],
+    [176, 128, -14, 4, 8, -10],
+    [212, 10, -18, 26, 10, 20],
+    [252, 118, -8, -8, 12, 8],
+    [304, 84, -10, 8, 8, 14],
+    [326, 214, -6, -40, 2, 34],
+    [264, 372, 28, -28, 0, 0],
+  ];
+  /** How much each vertex moves: the tips wander, the roots stay put. */
+  const amp = [0, 6, 10, 16, 12, 22, 12, 16, 8, 0];
+  const wobble = (phase, seed, scale) => base.map(([x, y, ix, iy, ox, oy], k) => {
+    const dx = amp[k] * Math.sin(phase + k * 1.7 + seed) * scale;
+    const dy = amp[k] * 0.9 * Math.cos(phase * 2 + k * 1.1 + seed) * scale;
+    return [x + dx, y + dy, ix, iy, ox, oy];
+  });
+  const frames = (seed, scale) => Array.from({ length: STEPS + 1 }, (_, i) => {
+    const phase = (i / STEPS) * Math.PI * 2;
+    return [Math.round((i / STEPS) * OP), wobble(phase, seed, scale)];
+  });
+  const tongue = (nm, seed, size, colours, y, o = 100) => layer(nm, [group([
+    morph(frames(seed, 1)),
+    gradient([200, 372], [200, 20], colours),
+  ])], {
+    p: [W / 2, y],
+    a: [200, 372],
+    s: [size, size],
+    o,
+  });
+  layers.push(tongue('flame back', 0.0, 100, [[0, rgb('#c8261a')], [0.55, rgb('#f0511f')], [1, rgb('#ff8a2a')]], 392));
+  layers.push(tongue('flame mid', 2.1, 74, [[0, rgb('#f0511f')], [0.5, rgb('#ff8a2a')], [1, rgb('#ffbe3a')]], 392));
+  layers.push(tongue('flame front', 4.2, 46, [[0, rgb('#ff9a2a')], [0.5, rgb('#ffcf4a')], [1, rgb('#fff2b0')]], 386, 92));
+
+  // Embers: each rises twice a loop, and each starts and ends invisible at the
+  // frames where its cycle wraps, so the wrap is a jump nobody can see.
+  const HALF = OP / 2;
+  const SAMPLE = 15;
+  [[0, 178], [15, 226], [30, 198], [45, 160], [60, 244]].forEach(([offset, x0], i) => {
+    const keys = [];
+    for (let t = 0; t <= OP; t += SAMPLE) {
+      const u = ((t + offset) % HALF) / HALF;
+      const y = 250 - 230 * u;
+      const x = x0 + 14 * Math.sin(u * Math.PI * 3 + i);
+      keys.push([t, [x, y], Math.round(Math.sin(u * Math.PI) * 85)]);
+    }
+    layers.push(layer(`ember ${i}`, [group([ellipse(7 - (i % 3), 7 - (i % 3)), fill(i % 2 ? C.goldLight : C.orangeLight)])], {
+      p: move3(keys.map(([t, at]) => [t, at]), [1, 1]),
+      o: move(keys.map(([t, , alpha]) => [t, alpha]), [1, 1]),
+    }));
+  });
+  return film('flame', OP, layers);
+}
+
 /* ── Out they go ────────────────────────────────────────────────────────── */
 
 mkdirSync('public/lotties', { recursive: true });
-for (const [name, make] of Object.entries({ win, lose, draw, waiting, joined })) {
+for (const [name, make] of Object.entries({ win, lose, draw, waiting, joined, flame })) {
   const json = JSON.stringify(make());
   writeFileSync(`public/lotties/${name}.json`, json);
   console.log(`  ${name.padEnd(8)} ${(json.length / 1024).toFixed(1)} KB`);

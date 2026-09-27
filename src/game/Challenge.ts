@@ -3,7 +3,7 @@ import { decodeInnings, encodeInnings, ended, figuresOf, type Ball } from './bal
 import {
   POLL_MS, challengeLink, clearUnsent, codeFromLocation, copy, createRoom, fetchChallenge, fetchMine,
   hiddenChallenges, holdUnsent, joinRoom, markSeenHere, readUnsent, recordResult, rivalryWith, seenHere,
-  sendBalls, sendSeen, whatsapp,
+  sendBalls, sendDecline, sendSeen, whatsapp,
   type Challenge, type ChallengeResult, type ChallengeRow, type RivalryEntry,
 } from './challenge-api';
 
@@ -46,7 +46,9 @@ export type RoomKind =
   /** Made under an older scoring. Nothing to decide. */
   | 'void'
   /** This person is not in the room and never batted; the room is over. */
-  | 'spectator';
+  | 'spectator'
+  /** This person turned the match down, and took the defeat that came with it. */
+  | 'declined';
 
 export interface RoomView {
   code: string;
@@ -140,6 +142,15 @@ export class ChallengeRun {
     const code = this.code;
     if (!code) return { ok: false, reason: 'There is no match to join.' };
     const answer = await joinRoom(code, me.playerId, me.name, me.avatar);
+    if (answer.ok && answer.challenge) this.take(answer.challenge);
+    return answer;
+  }
+
+  /** The match turned down, defeat and all. */
+  async decline(me: Me): Promise<ChallengeResult> {
+    const code = this.code;
+    if (!code) return { ok: false, reason: 'There is no match to decline.' };
+    const answer = await sendDecline(code, me.playerId, me.name, me.avatar);
     if (answer.ok && answer.challenge) this.take(answer.challenge);
     return answer;
   }
@@ -324,9 +335,10 @@ export function sortList(rooms: readonly Challenge[], me: string, now = Date.now
   const list: ListView = { yourMove: [], waitingOnThem: [], done: [], unseen: [] };
   for (const room of rooms) {
     const view = roomView(room, me, false, now);
-    const settled = view.mine && (view.mine.status === 'done' || view.mine.status === 'forfeit');
+    const settled = view.mine && view.mine.status !== 'joined' && view.mine.status !== 'batting';
     if (view.result && view.mine && !view.mine.seen && !seenHere(room.code)) list.unseen.push(room);
     if (hidden.has(room.code)) continue;
+    if (view.kind === 'declined') { list.done.push(room); continue; }
     if (view.kind === 'chase' || view.kind === 'resume' || (view.kind === 'lobby' && !settled)) list.yourMove.push(room);
     else if (view.kind === 'waiting' || view.kind === 'spectate') list.waitingOnThem.push(room);
     else list.done.push(room);
@@ -348,7 +360,7 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
   void sent;
   const mine = room.players.find(row => row.playerId === me) ?? null;
   const others = room.players.filter(row => row.playerId !== me);
-  const settled = (row: ChallengeRow) => row.status === 'done' || row.status === 'forfeit';
+  const settled = (row: ChallengeRow) => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined';
   const iAmSettled = !!mine && settled(mine);
   const othersSettled = others.filter(settled);
   const battingNow = others.find(row => row.status === 'batting') ?? null;
@@ -357,6 +369,7 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
   let kind: RoomKind;
   if (room.state === 'void') kind = 'void';
   else if (result) kind = 'result';
+  else if (mine?.status === 'declined') kind = 'declined';
   else if (!mine && (room.state === 'expired' || room.state === 'done')) kind = 'spectator';
   else if (room.state === 'expired') kind = 'expired';
   else if (mine?.status === 'batting') kind = 'resume';
@@ -406,7 +419,7 @@ function needsLine(done: ChallengeRow, batting: ChallengeRow): string {
  * or the person who beat you — and the scoreline lists everybody who finished.
  */
 export function resultView(room: Challenge, me: string): ResultView | null {
-  const settled = room.players.filter(row => row.status === 'done' || row.status === 'forfeit');
+  const settled = room.players.filter(row => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined');
   const mine = settled.find(row => row.playerId === me) ?? null;
   const others = settled.filter(row => row.playerId !== me);
   if (!mine || !others.length) return null;
@@ -416,7 +429,7 @@ export function resultView(room: Challenge, me: string): ResultView | null {
   // The nearest rival: the lowest of those above, else a level one, else the highest below.
   const them = above.length ? above[above.length - 1] : level[0] ?? below[0];
   const outcome: ResultView['outcome'] = above.length ? 'L' : level.length ? 'D' : 'W';
-  const forfeit = mine.status === 'forfeit' || them.status === 'forfeit';
+  const forfeit = mine.status === 'forfeit' || them.status === 'forfeit' || mine.status === 'declined' || them.status === 'declined';
 
   const myRuns = mine.runs;
   const theirRuns = them.runs;
@@ -434,10 +447,14 @@ export function resultView(room: Challenge, me: string): ResultView | null {
     : allOut(mine) ? `ALL OUT · BALL ${mine.balls}`
       : room.rematchOf ? 'REMATCH'
         : iBattedFirst ? 'YOU SET IT' : `${name.toUpperCase()} SET IT`;
-  const title = outcome === 'W' ? 'You win' : outcome === 'D' ? 'Dead heat' : `${name} wins`;
+  const title = outcome === 'W' ? 'You Win' : outcome === 'D' ? 'Dead Heat' : `${name} Wins`;
 
   let sub: string;
-  if (forfeit && outcome === 'W') {
+  if (them.status === 'declined') {
+    sub = `${name} looked at the challenge and declined. That counts. Rub it in gently.`;
+  } else if (mine.status === 'declined') {
+    sub = `You declined and took the defeat. ${name} keeps the points. Rematch when you’re ready.`;
+  } else if (forfeit && outcome === 'W') {
     sub = `${name} walked out on ball ${them.balls} and never came back. A win is a win.`;
   } else if (forfeit) {
     sub = `You left it on ball ${mine.balls}. A day passed. ${name} keeps the points.`;

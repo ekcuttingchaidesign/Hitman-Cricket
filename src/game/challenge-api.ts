@@ -122,6 +122,11 @@ export function sendBalls(code: string, playerId: string, name: string, avatar: 
   return post({ action: 'ball', code, playerId, name, avatar, card });
 }
 
+/** The match turned down. Settles against the decliner, like a forfeit. */
+export function sendDecline(code: string, playerId: string, name: string, avatar: number): Promise<ChallengeResult> {
+  return post({ action: 'decline', code, playerId, name, avatar });
+}
+
 /** The result has been looked at. */
 export function sendSeen(code: string, playerId: string, name: string, avatar: number): Promise<ChallengeResult> {
   return post({ action: 'seen', code, playerId, name, avatar });

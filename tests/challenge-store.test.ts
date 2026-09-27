@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import {
   CHALLENGE_LIFE_MS, CODE_ALPHABET, CODE_LENGTH, CREATE_LIMIT, FORFEIT_AFTER_MS, PLAYERS_MAX, SCORING_VERSION,
-  challengeRefused, cleanCard, cleanCode, createChallenge, joinChallenge, markSeen, newCode, readChallenge,
+  challengeRefused, cleanCard, cleanCode, createChallenge, declineChallenge, joinChallenge, markSeen, newCode, readChallenge,
   readMine, recordBalls, stateOf, statusOf,
   type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeRefusal, type ChallengeStore,
   type StoredChallenge,
@@ -314,6 +314,30 @@ describe('the result', () => {
     await bat(store, code, friend(), card(40));
     const seen = took(await markSeen(store, code, friend(), T0)).challenge;
     expect(seen.players.map(row => [row.playerId, row.seen])).toEqual([[HOST, false], [FRIEND, true]]);
+  });
+});
+
+describe('declining', () => {
+  it('settles the match against the decliner, under a forfeit, and stops them batting', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    await bat(store, code, who(), card(47));
+    const turned = took(await declineChallenge(store, code, friend(), T0 + 1000)).challenge;
+    expect(turned.state).toBe('done');
+    expect(turned.players.map(row => [row.name, row.status])).toEqual([['VK', 'done'], ['Rahul', 'declined']]);
+    expect(turned.players[1].score).toBeLessThan(1_000_000_000);
+    expect(refused(await recordBalls(store, code, { ...friend(), card: '6' }, T0 + 2000))).toBe(409);
+    expect(took(await declineChallenge(store, code, friend(), T0 + 3000)).challenge.players).toHaveLength(2);
+  });
+
+  it('is refused once a ball is in, and puts a stranger who declines on the list', async () => {
+    const store = memoryChallenges();
+    const code = await room(store);
+    took(await joinChallenge(store, code, friend(), T0));
+    took(await recordBalls(store, code, { ...friend(), card: '4' }, T0));
+    expect(refused(await declineChallenge(store, code, friend(), T0))).toBe(409);
+    took(await declineChallenge(store, code, friend({ playerId: THIRD, name: 'Amit' }), T0));
+    expect(await store.indexed(THIRD)).toEqual([code]);
   });
 });
 

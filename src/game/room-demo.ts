@@ -16,7 +16,7 @@ import { figuresOf } from './ball-string';
  *   ?room=spectate   your innings is in, theirs is under way
  *   ?room=won ?room=lost ?room=draw ?room=forfeit   the four results
  *   ?room=away       a result found on open, one of two
- *   ?room=expired ?room=void ?room=spectator ?room=group
+ *   ?room=expired ?room=void ?room=spectator ?room=group ?room=declined
  *
  * It exists because the room has fourteen faces and two phones can show one
  * at a time. Nothing here touches the server or the browser's own records: it
@@ -29,7 +29,7 @@ export const DEMO_PARAM = 'room';
 
 export const DEMO_KINDS = [
   'lobby', 'sent', 'both', 'chase', 'live', 'resume', 'waiting', 'spectate',
-  'won', 'lost', 'draw', 'forfeit', 'away', 'expired', 'void', 'spectator', 'group',
+  'won', 'lost', 'draw', 'forfeit', 'away', 'expired', 'void', 'spectator', 'group', 'declined',
 ] as const;
 export type DemoKind = (typeof DEMO_KINDS)[number];
 
@@ -56,7 +56,7 @@ function row(
 ): ChallengeRow {
   const figures = figuresOf(card);
   const played = figures.runs * 10_000 + figures.sixes * 100 + figures.fours;
-  const score = status === 'done' ? 2_000_000_000 + played : status === 'forfeit' ? 1_000_000_000 + played : status === 'batting' ? 500_000_000 + figures.balls : 0;
+  const score = status === 'done' ? 2_000_000_000 + played : status === 'forfeit' ? 1_000_000_000 + played : status === 'declined' ? 900_000_000 : status === 'batting' ? 500_000_000 + figures.balls : 0;
   return {
     ...figures, playerId, name, avatar, card, host: false, status,
     joined: now - 2 * HOUR, at: now - HOUR, seen: false, score, ...over,
@@ -91,6 +91,7 @@ export function demoRoom(kind: DemoKind, me: string, now = Date.now()): { room: 
     case 'expired': return { room: base([you(CARDS.fortySeven, 'done', { at: now - 7 * DAY }), rahul('', 'joined', { at: now - 7 * DAY })], 'expired', { at: now - 8 * DAY, expiresAt: now - DAY }) };
     case 'void': return { room: base([you(CARDS.fortySeven, 'done'), rahul(CARDS.fortyTwo, 'done')], 'void', { v: 0 }) };
     case 'spectator': return { room: base([rahul(CARDS.fortySeven, 'done', { host: true, at: now - 2 * DAY }), priya(CARDS.fortyTwo, 'done', { at: now - DAY })], 'expired', { at: now - 8 * DAY, expiresAt: now - DAY }) };
+    case 'declined': return { room: base([you('', 'declined', { host: false }), rahul(CARDS.fortySeven, 'done', { host: true, at: now - DAY })], 'done') };
     case 'group': return {
       room: base([
         amit(CARDS.fiftyOne, 'done', { at: now - 3 * HOUR }), you(CARDS.fortySeven, 'done', { at: now - 2 * HOUR }),

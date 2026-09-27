@@ -1,5 +1,5 @@
 import {
-  createChallenge, joinChallenge, markSeen, readChallenge, readMine, recordBalls,
+  createChallenge, declineChallenge, joinChallenge, markSeen, readChallenge, readMine, recordBalls,
   type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeStore,
 } from './challenge-store.js';
 
@@ -14,7 +14,7 @@ import {
  *
  *   GET ?code=K7QPX2      the room as it stands — the same bytes for everybody
  *   GET ?player=…         every room this player is in, newest first
- *   POST {action: …}      create · join · ball · seen
+ *   POST {action: …}      create · join · ball · seen · decline
  */
 export interface ChallengeRequest {
   method?: string;
@@ -47,6 +47,7 @@ export async function challengeRequest(
     case 'join': return joinChallenge(store, code, who);
     case 'ball': return recordBalls(store, code, { ...who, card: body.card });
     case 'seen': return markSeen(store, code, who);
+    case 'decline': return declineChallenge(store, code, who);
     default: return { ok: false, status: 400, reason: 'Say what to do with the match.' };
   }
 }

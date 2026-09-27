@@ -347,12 +347,12 @@ export class Game {
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('mode-challenge', () => { void this.openMatch(); });
     this.hud.on('challenge-set', () => { void this.openMatch({ card: encodeInnings(this.score.history) }); });
-    this.hud.on('challenge-share-done', () => this.showRoom());
-    this.hud.on('challenge-copy', () => { void this.copyChallengeLink(); });
-    this.hud.on('challenge-more', () => { void this.shareChallengeLink(); });
+    this.hud.on('challenge-share-done', () => { this.hud.closeSheets(); this.showRoom(); });
+    this.hud.on('challenge-copy', () => { void this.copyInvite(); });
+    this.hud.on('challenge-more', () => { void this.shareInvite(); });
     this.hud.on('challenge-bat', () => { if (this.asking === 'create') void this.nameThenCreate(); else void this.nameThenJoin(); });
     this.hud.on('challenge-rename', () => this.hud.challengeRename());
-    this.hud.on('challenge-solo', () => { this.challenge.clear(); this.pinRoom(null); this.hud.closeChallenge(); this.hud.showCover(); this.modes(); });
+    this.hud.on('challenge-solo', () => { void this.declineMatch(); });
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
@@ -366,10 +366,12 @@ export class Game {
     // listened for on the list itself rather than bound to buttons that will
     // not exist by the time anybody presses one. The room's keys likewise.
     this.hud.viewport.querySelector('#challenge-sections')!.addEventListener('click', event => {
-      const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop]') as HTMLElement | null;
+      const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline]') as HTMLElement | null;
       if (!key) return;
       event.stopPropagation();
       if (key.dataset.drop) void this.listAct('drop', key.dataset.drop);
+      else if (key.dataset.accept) void this.listAct('accept', key.dataset.accept);
+      else if (key.dataset.decline) void this.listAct('decline', key.dataset.decline);
       else if (key.dataset.rival) void this.listAct('rival', key.dataset.code ?? '', key.dataset.rival);
       else if (key.dataset.open) void this.listAct('open', key.dataset.open);
     });
@@ -2125,7 +2127,6 @@ export class Game {
       return;
     }
     track(extra.rematchOf ? 'challenge-rematch' : 'challenge-set', extra.rematchOf ? 'Rematch made' : 'Match room made');
-    this.cameFromLink = false;
     this.pinRoom(answer.challenge.code);
     this.showRoom();
   }
@@ -2189,7 +2190,9 @@ export class Game {
       this.demoing = false;
       try { const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(history.state, '', url); } catch { /* fine */ }
     }
-    if (this.cameFromLink) { this.hud.showCover(); this.cameFromLink = false; }
+    // The room hid the cover on the way in; the picker stands over the cover,
+    // so it has to be back before the picker's own way out lands on nothing.
+    if (this.phase === 'START') this.hud.showCover();
     this.challenge.clear();
     this.modes();
   }
@@ -2199,7 +2202,6 @@ export class Game {
    * is where the Top 50 is claimed, so the room keeps a way to it.
    */
   private matchCard: boolean | null = null;
-  private cameFromLink = false;
   /** Whether the room on screen is a fixture. Nothing is written while it is. */
   private demoing = false;
 
@@ -2211,20 +2213,10 @@ export class Game {
     const view = this.challenge.view(me.playerId);
     switch (act) {
       case 'invite':
-      case 'share': {
+      case 'share':
         this.challenge.sent = true;
-        const link = challengeLink(code);
-        const mine = view?.mine;
-        const batted = !!mine && (mine.status === 'done' || mine.status === 'forfeit');
-        const rematch = this.rematchLine;
-        const message = (withScore: boolean) => {
-          const text = rematch ? copy.rematch(link, rematch.them, rematch.tally)
-            : batted ? copy.set(link, withScore ? mine!.runs : undefined) : copy.invite(link);
-          return { text, whatsapp: whatsapp(text) };
-        };
-        this.hud.inviteSheet(code, message, batted && !rematch, view?.closes ?? '');
+        this.hud.inviteSheet();
         return;
-      }
       case 'nudge':
         window.open(whatsapp(copy.nudge(challengeLink(code))), '_blank', 'noopener');
         return;
@@ -2266,6 +2258,9 @@ export class Game {
         this.showBlastCard(record);
         return;
       }
+      case 'decline':
+        await this.declineMatch();
+        return;
       case 'home':
       case 'solo':
       case 'retry':
@@ -2273,6 +2268,68 @@ export class Game {
         this.leaveRoom();
         return;
     }
+  }
+
+  /** The message the invite goes out with: the taunt, and the link. */
+  private inviteText(): string {
+    const code = this.challenge.code;
+    if (!code) return '';
+    const link = challengeLink(code);
+    const mine = this.player ? this.challenge.row(this.player) : null;
+    const batted = !!mine && (mine.status === 'done' || mine.status === 'forfeit');
+    return this.rematchLine ? copy.rematch(link, this.rematchLine.them, this.rematchLine.tally) : batted ? copy.set(link) : copy.invite(link);
+  }
+
+  /** SHARE on the invite: the phone's own sheet where there is one, WhatsApp where there is not. */
+  private async shareInvite() {
+    const text = this.inviteText();
+    if (!text) return;
+    track('challenge-shared', 'Match link shared');
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch { /* Dismissed, which is not a failure. */ }
+      return;
+    }
+    window.open(whatsapp(text), '_blank', 'noopener');
+  }
+
+  /** COPY LINK on the invite. The taunt goes with it, so a paste is a message. */
+  private async copyInvite() {
+    const text = this.inviteText();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      this.hud.inviteNote('Copied. Now go and paste it somewhere they\u2019ll see it.');
+    } catch {
+      this.hud.inviteNote(challengeLink(this.challenge.code ?? ''));
+    }
+  }
+
+  /**
+   * The match turned down, defeat and all. From the sheet a link lands on, or
+   * from a row of Rival Matches. A name is needed to be recorded against, so
+   * somebody who has never given one is written down as the stranger they are.
+   */
+  private async declineMatch(code?: string) {
+    if (!this.player) return;
+    if (code && code !== this.challenge.code) {
+      const opened = await this.challenge.open(code);
+      if (!opened.ok) { this.hud.offline(opened.reason ?? null); return; }
+    }
+    const me = this.me;
+    if (!me) return;
+    const name = me.name || this.hud.challengeName.trim() || 'Someone';
+    const answer = await this.challenge.decline({ ...me, name });
+    if (!answer.ok) {
+      if (answer.retry) { this.hud.offline(null); return; }
+      this.hud.challengeJoinError(answer.reason ?? 'Could not decline the match.');
+      return;
+    }
+    track('challenge-declined', 'Match declined');
+    this.hud.closeChallenge();
+    this.pinRoom(null);
+    this.challenge.clear();
+    if (this.phase === 'START') this.hud.showCover();
+    await this.showChallenges();
   }
   private rematchLine: { them: string; tally: string } | null = null;
 
@@ -2362,7 +2419,6 @@ export class Game {
 
     const opened = await this.challenge.fromLink();
     if (opened) {
-      this.cameFromLink = true;
       if (!opened.ok || !opened.challenge) {
         this.hud.offline(opened.retry ? null : opened.reason ?? null);
         return;
@@ -2453,8 +2509,9 @@ export class Game {
   }
 
   /** What a row of the list does. */
-  private async listAct(act: 'open' | 'rival' | 'drop', code: string, playerId?: string) {
+  private async listAct(act: 'open' | 'rival' | 'drop' | 'accept' | 'decline', code: string, playerId?: string) {
     if (!this.player) return;
+    if (act === 'decline') { await this.declineMatch(code); return; }
     if (act === 'drop') {
       hideChallenge(code);
       const shown = this.rooms ?? { yourMove: [], waitingOnThem: [], done: [], unseen: [] };
@@ -2476,7 +2533,6 @@ export class Game {
     if (room) this.challenge.room = room;
     const answer = await this.challenge.open(code);
     if (!answer.ok && !room) { this.hud.offline(answer.reason ?? null); return; }
-    this.cameFromLink = false;
     this.pinRoom(code);
     this.showRoom();
   }
@@ -2489,17 +2545,6 @@ export class Game {
     const tally = rivalryView(them.playerId, them)?.tally ?? 'Fresh start';
     this.rematchLine = { them: them.name, tally };
     await this.createRoom();
-  }
-
-  private async copyChallengeLink() {
-    if (!this.challenge.code) return;
-    try { await navigator.clipboard.writeText(challengeLink(this.challenge.code)); } catch { /* Then the key does nothing. */ }
-  }
-
-  private async shareChallengeLink() {
-    if (!this.challenge.code) return;
-    const url = challengeLink(this.challenge.code);
-    try { await navigator.share?.({ url }); } catch { /* Dismissed, which is not a failure. */ }
   }
 
   private snapshot() {
@@ -2531,32 +2576,37 @@ function listSections(list: ListView, me: string): ListSections {
     const lead = view.result?.them ?? others.find(one => one.status === 'done' || one.status === 'batting') ?? others[0] ?? null;
     const them = lead ? { playerId: lead.playerId, name: lead.name, avatar: lead.avatar } : null;
     const base = { code: room.code, them, others: others.length };
+    const host = room.players.find(one => one.host);
+    const fromThem = !!host && host.playerId !== me;
     switch (view.kind) {
       case 'chase': {
         const batting = others.find(one => one.status === 'batting');
-        return { ...base, head: 'Your move', note: batting ? `${batting.name} is batting now` : `${lead?.name ?? 'They'} batted · beat it blind` };
+        return { ...base, actionable: true, note: batting ? `batting now \u00b7 ball ${batting.balls}` : fromThem ? 'challenged you' : 'batted \u00b7 your move' };
       }
-      case 'resume': return { ...base, head: 'Your move', note: `You were on ball ${view.mine?.balls ?? 0} · resume` };
-      case 'lobby': return { ...base, head: 'Your move', note: others.length ? `${others.length === 1 ? lead?.name : `${others.length} in`} · nobody has batted` : 'Nobody has joined yet · send the link' };
-      case 'waiting': return { ...base, head: 'Waiting', note: `You made ${view.mine?.runs ?? 0} · ${view.closes}` };
-      case 'spectate': return { ...base, head: 'Live', note: `${view.live?.row.name} ${view.live?.needs}` };
+      case 'lobby':
+        return others.length
+          ? { ...base, actionable: fromThem, note: fromThem ? 'challenged you' : 'in the room \u00b7 not batted' }
+          : { ...base, note: 'nobody has joined yet' };
+      case 'resume': return { ...base, note: `you were on ball ${view.mine?.balls ?? 0} \u00b7 resume` };
+      case 'waiting': return { ...base, note: `you made ${view.mine?.runs ?? 0} \u00b7 ${view.closes}` };
+      case 'spectate': return { ...base, note: `${view.live?.row.name} ${view.live?.needs}` };
       case 'result': {
         const result = view.result!;
         const margin = Math.abs((view.mine?.runs ?? 0) - (result.them?.runs ?? 0));
-        return {
-          ...base, outcome: result.outcome,
-          head: result.outcome === 'W' ? 'Won' : result.outcome === 'D' ? 'Drawn' : 'Lost',
-          note: result.forfeit ? 'by forfeit' : result.outcome === 'D' ? `${view.mine?.runs} each` : `${view.mine?.runs} vs ${result.them?.runs} · by ${margin}`,
-        };
+        const verdict = result.forfeit
+          ? (result.outcome === 'W' ? 'Won by forfeit' : 'Lost by forfeit')
+          : result.outcome === 'D' ? `Drawn \u00b7 ${view.mine?.runs} each` : `${result.outcome === 'W' ? 'Won' : 'Lost'} by ${margin} run${margin === 1 ? '' : 's'}`;
+        return { ...base, outcome: result.outcome, verdict, note: fromThem ? 'challenged you' : 'you challenged' };
       }
-      case 'expired': return { ...base, outcome: '—', head: 'Closed', note: view.mine && view.mine.status === 'done' ? `${lead?.name ?? 'Nobody'} never batted` : 'Nobody batted in the week' };
-      case 'void': return { ...base, outcome: '—', head: 'Void', note: 'Made on an older version' };
-      default: return { ...base, outcome: '—', head: 'Over', note: 'You were not in this one' };
+      case 'expired': return { ...base, outcome: '\u2014', verdict: 'Closed', note: view.mine && view.mine.status === 'done' ? `${lead?.name ?? 'nobody'} never batted` : 'nobody batted in the week' };
+      case 'void': return { ...base, outcome: '\u2014', verdict: 'Void', note: 'made on an older version' };
+      case 'declined': return { ...base, outcome: 'L', verdict: 'Declined', note: fromThem ? 'challenged you' : 'you challenged' };
+      default: return { ...base, outcome: '\u2014', verdict: 'Over', note: 'you were not in this one' };
     }
   };
   return {
-    yourMove: list.yourMove.map(row),
-    waitingOnThem: list.waitingOnThem.map(row),
-    done: list.done.map(row),
+    received: list.yourMove.map(row),
+    waiting: list.waitingOnThem.map(row),
+    past: list.done.slice(0, 10).map(row),
   };
 }

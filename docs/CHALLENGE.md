@@ -1,4 +1,4 @@
-# Play 1 vs 1: how it works and how to test it
+# Rivals: how it works and how to test it
 
 One link is one match room. Whoever opens it joins; whoever taps Play bats;
 every ball is written to the room as it happens. Two friends can bat at the
@@ -10,13 +10,14 @@ until their own last ball.
 
 | Moment | What the room shows |
 | --- | --- |
-| Made, link not sent | "Now make someone regret opening WhatsApp." Invite leads, Play second. |
-| Link sent, nobody in | Play leads. A bouncing ball sits in the empty seat. |
-| A friend joins | Their row appears without a tap. Either can Play. |
-| One has batted, one hasn't | The other sees "batted · 30 balls" and `??` where the score goes. |
+| Made, nobody in | You and a dashed "?" seat marked WAITING. SHARE and PLAY NOW. |
+| A friend joins | Their face appears beside yours without a tap, JOINED. Either can Play. |
+| One has batted, one hasn't | The other sees "batted · 30 balls" and no score. |
+| Somebody is batting | A ring round their face fills ball by ball, "batting ball 15 of 30". |
 | Both batting at once | Each gets the other's ball flashed between their own, one ball behind. |
-| One done, one batting | The finished one watches the score climb and reads "needs 7 off 4 balls". |
-| Both done | The result, with the trophy, the bails or the crossed bats. |
+| One done, one batting | The finished one watches the ring fill and reads "needs 7 off 4 balls". |
+| Both done | The result: fire round the winner, WINNER and LOSER rows with sixes, fours and balls. |
+| Declined | "Decline & accept defeat" on the challenge received, or on a row of Rival Matches. Goes down as a loss. |
 | A week with no second innings | "This one closed." Innings kept for the career, no result. |
 | Started, then left for a day | Forfeit. The one who stayed wins. |
 | A third friend on a forwarded link | Joins, bats, and the room becomes a leaderboard. |
@@ -59,7 +60,7 @@ person.
 ?room=spectate   your innings in, theirs under way
 ?room=won        ?room=lost   ?room=draw   ?room=forfeit
 ?room=away       a result found on open, one of two
-?room=expired    ?room=void   ?room=spectator   ?room=group
+?room=expired    ?room=void   ?room=spectator   ?room=group   ?room=declined
 ```
 
 The keys on a fixture room do what they always do, which mostly means they
@@ -74,9 +75,9 @@ SHOTS=/tmp/shots node scripts/challenge-check.mjs   # and a screenshot of every 
 ```
 
 Two headless browsers: one makes a room and sends the link, the other opens
-it, both bat, one watches the other finish, both land on the result. Then the
-list, the head-to-head and a rematch, and a third browser opening the finished
-room. It runs on the real clock and takes a few minutes.
+it, both bat, one watches the other finish, both land on the result. Then
+Rival Matches, the head-to-head and a rematch, and a third browser opening the
+finished room. It runs on the real clock and takes a few minutes.
 
 ### Unit tests
 
@@ -97,7 +98,7 @@ per-player list.
 | `src/game/room-demo.ts` | The `?room=` fixtures. |
 | `src/ui/HUD.ts` | The picker, the room, the sheets. Search for "The match room". |
 | `src/ui/Lottie.ts` | The player for the films, fetched the first time one is needed. |
-| `scripts/lottie-art.mjs` | Draws the films into `public/lotties/`. |
+| `scripts/lottie-art.mjs` | Draws the films into `public/lotties/`, the looping winner's fire among them. |
 
 ## What it costs
 

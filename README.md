@@ -817,14 +817,14 @@ Two consequences worth knowing:
 
 Source remains in the Hitman-Cricket GitHub repository. No account, download, or local server is required to play the published link. A personal best stays on each player's device; a place on the board is kept by the store. Both provided sound clips are included in the public game.
 
-## Play 1 vs 1
+## Rivals
 
 One link is one match room. Whoever opens it joins; whoever taps Play bats;
 every ball is written to the room as it happens, so two friends can bat at the
 same time and see each other's balls land between their own, or bat days apart
 and get the same thing replayed. Nobody sees a score until their own last ball.
 Ties break on runs, sixes, fours; level on all three is a draw. A room lives a
-week; an innings left for a day is a forfeit.
+week; an innings left for a day is a forfeit; a challenge declined is a defeat.
 
 `docs/CHALLENGE.md` has every state, where each piece lives, and how to test it
 — including `?room=<state>`, which draws any face of the room on one phone,
