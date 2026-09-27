@@ -81,16 +81,16 @@ describe('the room while a third person is still batting', () => {
 });
 
 describe('the kit by seat', () => {
-  it('is home for the host, then red, purple and blue by the order people came in', () => {
+  it('is home for the host, then green, purple and blue by the order people came in', () => {
     const players = [p3(), p1(), p2()]; // joined 3, 1, 2
     const fourth = row('p40000-p4p4p4p4p4p4p4', 'Priya', '', 'joined', 4);
     const fifth = row('p50000-p5p5p5p5p5p5p5', 'Amit', '', 'joined', 5);
     const r = room([...players, fourth, fifth], 'open');
     expect(seatKit(r, p1().playerId)).toBe('home');
-    expect(seatKit(r, me)).toBe('red');
+    expect(seatKit(r, me)).toBe('green');
     expect(seatKit(r, p3().playerId)).toBe('purple');
     expect(seatKit(r, fourth.playerId)).toBe('blue');
-    expect(seatKit(r, fifth.playerId)).toBe('red');
+    expect(seatKit(r, fifth.playerId)).toBe('green');
     expect(seatKit(r, 'nobody-nobodynobodyx')).toBe('home');
     expect(seatKit(null, me)).toBe('home');
   });

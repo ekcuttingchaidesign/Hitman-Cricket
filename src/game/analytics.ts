@@ -90,6 +90,13 @@ export function inningsBand(ms: number) {
   return 'innings-over-5m';
 }
 
+/** How many were in a Rivals room when its result was read: two, three, or a crowd. */
+export function roomBand(players: number) {
+  if (players <= 2) return '2';
+  if (players === 3) return '3';
+  return '4-plus';
+}
+
 /**
  * The marks a session is counted past, in minutes.
  *

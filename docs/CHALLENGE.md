@@ -25,11 +25,11 @@ until their own last ball.
 Ties break on runs, then sixes, then fours. Level on all three is a draw.
 
 Each seat bats in its own kit: whoever made the room in the home navy, then
-red, purple and blue in the order the others opened the link, and round again
-from red for a fifth. The order is fixed when somebody joins, so every phone
+green, purple and blue in the order the others opened the link, and round again
+from green for a fifth. The order is fixed when somebody joins, so every phone
 agrees on it. `seatKit` in `Challenge.ts` is the rule; the colours are
 `BATTER_KITS` in `entities/Batter.ts`, and `?debug=1` exposes
-`__cricket.kit('red')` to try one on without a second phone.
+`__cricket.kit('green')` to try one on without a second phone.
 
 ## The record
 

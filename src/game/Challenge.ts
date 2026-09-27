@@ -342,14 +342,14 @@ export interface ListView {
 export const noRecord = (): RivalsRecord => ({ won: 0, lost: 0, drawn: 0 });
 
 /** The kits a room hands out, by seat: whoever made it bats in the home kit. */
-export const SEAT_KITS = ['home', 'red', 'purple', 'blue'] as const;
+export const SEAT_KITS = ['home', 'green', 'purple', 'blue'] as const;
 export type SeatKit = (typeof SEAT_KITS)[number];
 
 /**
  * Which kit this person bats in: by the order people opened the room, so the
- * host is in navy and the friends who followed are in red, purple and blue.
+ * host is in navy and the friends who followed are in green, purple and blue.
  * The order is fixed at the moment of joining and never moves, which is what
- * lets two phones agree on it without asking. A fifth starts again at red;
+ * lets two phones agree on it without asking. A fifth starts again at green;
  * somebody not in the room at all bats at home.
  */
 export function seatKit(room: Challenge | null, me: string): SeatKit {

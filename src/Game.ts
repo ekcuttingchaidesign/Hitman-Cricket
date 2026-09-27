@@ -55,7 +55,7 @@ import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
 import {
-  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, restoreFailure, scoreBand,
+  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, restoreFailure, roomBand, scoreBand,
   track, trackOnce,
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
@@ -2196,6 +2196,8 @@ export class Game {
     noteResult(view.result);
     if (!view.mine?.seen && !seenHere(view.code)) {
       track(`challenge-${view.result.outcome === 'W' ? 'won' : view.result.outcome === 'D' ? 'drew' : 'lost'}`, 'Match result seen');
+      if (view.result.forfeit) track('challenge-by-forfeit', 'Match decided by a walkout or a decline');
+      track(`challenge-players-${roomBand(view.result.players.length)}`, 'Match size at the result');
       void this.challenge.seen(me);
     }
   }
@@ -2315,6 +2317,7 @@ export class Game {
   private async copyInvite() {
     const text = this.inviteText();
     if (!text) return;
+    track('challenge-copied', 'Match link copied');
     try {
       await navigator.clipboard.writeText(text);
       this.hud.inviteNote('Copied. Now go and paste it somewhere they\u2019ll see it.');
@@ -2368,6 +2371,10 @@ export class Game {
     this.challenge.beginInnings(this.player);
     this.rematchLine = null;
     track(resume ? 'challenge-resumed' : 'challenge-accepted', resume ? 'Match innings resumed' : 'Match innings started');
+    // Whether the friend is batting at the same time — the live match the
+    // polling exists for — or this is the innings that answers one played
+    // earlier. The pair is what says which of the two ways people use it.
+    if (!resume) track(this.challenge.ghostBatting ? 'challenge-live' : 'challenge-apart', this.challenge.ghostBatting ? 'Match batted together' : 'Match batted apart');
     this.mode = 'CLASSIC';
     this.start();
     // After `start`, which dresses him for the mode: the room then hands him
@@ -2456,6 +2463,7 @@ export class Game {
       const batted = rows.find(row => row.status === 'done' || row.status === 'batting') ?? null;
       const from = batted ?? rows.find(row => row.host) ?? rows[0] ?? null;
       this.asking = 'join';
+      track('challenge-opened', 'Match link opened');
       this.hud.challengeFrom(from, view?.closes ?? '', readPlayer(), !!batted);
       return;
     }
@@ -2521,6 +2529,7 @@ export class Game {
    */
   private async showChallenges() {
     if (!this.player) return;
+    track('rivals-list', 'Rival Matches opened');
     this.hud.closeModes();
     const list = await ChallengeRun.mine(this.player);
     if (list) this.rooms = list;
@@ -2548,6 +2557,7 @@ export class Game {
       const view = rivalryView(playerId, row ? { name: row.name, avatar: row.avatar } : undefined);
       if (!view) return;
       this.rival = view.them;
+      track('rivals-head-to-head', 'Head-to-head opened');
       this.hud.rivalry(view);
       return;
     }

@@ -1204,19 +1204,19 @@ function shoulderDriven(keys: readonly {time: number; pose: Pose}[], age: number
 export { solveJoint } from './rig';
 
 /** The kits the batter can be dressed in. */
-export type BatterKit = 'home' | 'whites' | 'red' | 'purple' | 'blue';
+export type BatterKit = 'home' | 'whites' | 'green' | 'purple' | 'blue';
 
 /**
  * Shirt and helmet, trousers, and the accent that does the seam, the collar,
  * the number, the pad straps and the shoe flashes. Home is the navy and orange
- * the game has always worn; whites are the Test match; red, purple and blue
+ * the game has always worn; whites are the Test match; green, purple and blue
  * are the second, third and fourth seats in a Rivals room, so four friends in
  * one match are four different batters and not the same man four times.
  */
 export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number; number: number }> = {
   home: { shirt: 0x19334a, helmet: 0x18314a, trousers: 0xe7e2d3, accent: 0xed7044, number: 0xed7044 },
   whites: { shirt: 0xf2ece0, helmet: 0x18314a, trousers: 0xf4f0e4, accent: 0xd9d3c3, number: 0xd9d3c3 },
-  red: { shirt: 0xa61c22, helmet: 0x97181e, trousers: 0xeadfc4, accent: 0x6e1216, number: 0xffffff },
+  green: { shirt: 0x0a2f24, helmet: 0x09291f, trousers: 0xf1eee6, accent: 0x061c15, number: 0xffffff },
   purple: { shirt: 0x5a2fb4, helmet: 0x4d27a3, trousers: 0xf1eee6, accent: 0x3f1e86, number: 0xffffff },
   blue: { shirt: 0x1f6fd6, helmet: 0x1a5fbd, trousers: 0xf1eee6, accent: 0x1657ad, number: 0xffffff },
 };
