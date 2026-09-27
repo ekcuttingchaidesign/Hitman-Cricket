@@ -81,7 +81,10 @@ export interface ResultView {
   sub: string;
   /** Settled innings, best first. */
   players: ChallengeRow[];
+  /** Who finished top, or null when the top is shared and nobody gets the fire. */
+  winner: ChallengeRow | null;
   you: string;
+  /** The rival the words are about. */
   them: ChallengeRow | null;
   whatsapp: string;
   tell: string;
@@ -107,8 +110,8 @@ export class ChallengeRun {
   room: Challenge | null = null;
   /** Whether the innings being played is for this room. */
   playing = false;
-  /** Whose innings flashes up between balls. Picked when the innings starts. */
-  private ghostId: string | null = null;
+  /** Whose innings this is, while one is being played. The ghosts are everybody else. */
+  private batting: string | null = null;
   private timer = 0;
   private onUpdate: ((room: Challenge) => void) | null = null;
   /** Whether the link has gone out from this browser. Changes which key is primary. */
@@ -163,7 +166,7 @@ export class ChallengeRun {
   }
 
   /** Lets go of the room. */
-  clear() { this.stopWatching(); this.room = null; this.playing = false; this.ghostId = null; this.sent = false; }
+  clear() { this.stopWatching(); this.room = null; this.playing = false; this.batting = null; this.sent = false; }
 
   private take(room: Challenge) {
     this.room = room;
@@ -204,41 +207,44 @@ export class ChallengeRun {
   /* ── Batting ─────────────────────────────────────────────────────────── */
 
   /**
-   * The innings begins. The ghost is whoever is furthest along among the
-   * others — the finished innings in a two-player room, the leader in a group
-   * — and their card is read live, so a friend batting at the same time
-   * arrives ball by ball.
+   * The innings begins. Every other innings in the room is a ghost: a
+   * finished one is read from its card, and a friend batting at the same time
+   * arrives ball by ball off the polls. Nothing is picked here — the room is
+   * read fresh for each ball, so a friend who starts after this innings began
+   * shows up too.
    */
   beginInnings(me: string) {
     this.playing = true;
-    const others = (this.room?.players ?? []).filter(row => row.playerId !== me && row.card);
-    others.sort((a, b) => b.card.length - a.card.length || a.joined - b.joined);
-    this.ghostId = others[0]?.playerId ?? null;
+    this.batting = me;
   }
 
-  /** Who the ghost is, for the flash. */
-  get ghost(): ChallengeRow | null {
-    return this.ghostId ? this.row(this.ghostId) : null;
+  /** The other innings, furthest along first, for the flash between balls. */
+  get ghosts(): ChallengeRow[] {
+    const others = (this.room?.players ?? []).filter(row => row.playerId !== this.batting && row.card);
+    return others.sort((a, b) => b.card.length - a.card.length || a.joined - b.joined);
+  }
+
+  /** Whether anybody else is batting right now, which is what keeps the polls going. */
+  get ghostBatting(): boolean {
+    return this.ghosts.some(row => row.status === 'batting');
   }
 
   /**
-   * The ghost's ball at this point of the innings, or null.
+   * One ghost's ball at this point of the innings, or null.
    *
-   * Null inside a finished ghost innings cannot happen; null past its end means
+   * Null inside a finished innings cannot happen; null past its end means
    * they were all out — see `ghostEndedAt`. Null against a ghost who is still
    * batting means they have not got this far yet, and the gap stays empty:
    * nothing on the batting screen ever says how far along anybody is.
    */
-  ghostBall(index: number): Ball | null {
-    const card = this.ghost?.card ?? '';
-    return decodeInnings(card)[index] ?? null;
+  ghostBall(ghost: ChallengeRow, index: number): Ball | null {
+    return decodeInnings(ghost.card)[index] ?? null;
   }
 
-  /** Which ball the ghost was out on, or null if they batted the full thirty or are still going. */
-  get ghostEndedAt(): number | null {
-    const row = this.ghost;
-    if (!row || row.status !== 'done') return null;
-    return row.card.length < GAME.totalBalls ? row.card.length : null;
+  /** Which ball a ghost was out on, or null if they batted the full thirty or are still going. */
+  ghostEndedAt(ghost: ChallengeRow): number | null {
+    if (ghost.status !== 'done') return null;
+    return ghost.card.length < GAME.totalBalls ? ghost.card.length : null;
   }
 
   /**
@@ -364,7 +370,9 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
   const iAmSettled = !!mine && settled(mine);
   const othersSettled = others.filter(settled);
   const battingNow = others.find(row => row.status === 'batting') ?? null;
-  const result = iAmSettled && othersSettled.length ? resultView(room, me) : null;
+  // No verdict while anybody is still batting: a winner named on the second
+  // innings and unnamed on the third is the one thing a result must not do.
+  const result = iAmSettled && othersSettled.length && !battingNow ? resultView(room, me) : null;
 
   let kind: RoomKind;
   if (room.state === 'void') kind = 'void';
@@ -379,8 +387,12 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
   else kind = 'lobby';
 
   const blind = !iAmSettled && kind !== 'spectator' && kind !== 'void';
-  const live = kind === 'spectate' && battingNow && mine
-    ? { row: battingNow, needs: needsLine(mine, battingNow) }
+  // What they need is measured off the top score in, which is this person's
+  // in a two-player room and the leader's in a group.
+  const top = [mine, ...othersSettled].filter((row): row is ChallengeRow => !!row && settled(row))
+    .sort((a, b) => b.score - a.score)[0] ?? mine;
+  const live = kind === 'spectate' && battingNow && top
+    ? { row: battingNow, needs: needsLine(top, battingNow) }
     : null;
 
   return {
@@ -415,19 +427,24 @@ function needsLine(done: ChallengeRow, batting: ChallengeRow): string {
  * winner was bowled out it is the manner — being three down in two overs and
  * still winning is a flex, not an apology, and the screen should say so.
  *
- * In a group the headline is against whoever came nearest — the person you beat
- * or the person who beat you — and the scoreline lists everybody who finished.
+ * In a group the headline names whoever finished top — the fire goes round
+ * one face and it is theirs — and the line under it is written against that
+ * person: the one who beat you, or when it is you, the one who came nearest.
+ * The scoreline lists everybody who finished, best first.
  */
 export function resultView(room: Challenge, me: string): ResultView | null {
-  const settled = room.players.filter(row => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined');
+  const settled = room.players
+    .filter(row => row.status === 'done' || row.status === 'forfeit' || row.status === 'declined')
+    .sort((a, b) => b.score - a.score || a.joined - b.joined);
   const mine = settled.find(row => row.playerId === me) ?? null;
   const others = settled.filter(row => row.playerId !== me);
   if (!mine || !others.length) return null;
   const above = others.filter(row => row.score > mine.score);
   const level = others.filter(row => row.score === mine.score);
   const below = others.filter(row => row.score < mine.score);
-  // The nearest rival: the lowest of those above, else a level one, else the highest below.
-  const them = above.length ? above[above.length - 1] : level[0] ?? below[0];
+  // The rival the words are about: the winner when there is one above, else a
+  // level one, else the runner-up.
+  const them = above[0] ?? level[0] ?? below[0];
   const outcome: ResultView['outcome'] = above.length ? 'L' : level.length ? 'D' : 'W';
   const forfeit = mine.status === 'forfeit' || them.status === 'forfeit' || mine.status === 'declined' || them.status === 'declined';
 
@@ -447,7 +464,8 @@ export function resultView(room: Challenge, me: string): ResultView | null {
     : allOut(mine) ? `ALL OUT · BALL ${mine.balls}`
       : room.rematchOf ? 'REMATCH'
         : iBattedFirst ? 'YOU SET IT' : `${name.toUpperCase()} SET IT`;
-  const title = outcome === 'W' ? 'You Win' : outcome === 'D' ? 'Dead Heat' : `${name} Wins`;
+  const winner = settled.length > 1 && settled[0].score === settled[1].score ? null : settled[0];
+  const title = !winner ? 'Dead Heat' : winner.playerId === me ? 'You Win' : `${winner.name} Wins`;
 
   let sub: string;
   if (them.status === 'declined') {
@@ -484,6 +502,7 @@ export function resultView(room: Challenge, me: string): ResultView | null {
     title,
     sub,
     players: settled,
+    winner,
     you: me,
     them,
     whatsapp: whatsapp(copy.result(myRuns, theirRuns, name, challengeLink(room.code))),

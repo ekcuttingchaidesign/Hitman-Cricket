@@ -61,7 +61,7 @@ import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { ChallengeRun, noteResult, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
 import { CODE_PARAM, challengeLink, copy, hideChallenge, seenHere, whatsapp, type Challenge } from './game/challenge-api';
-import type { ListRowView, ListSections, RoomAct } from './ui/HUD';
+import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
 import { kitDeal } from './config/board';
 import { encodeInnings } from './game/ball-string';
@@ -2055,26 +2055,28 @@ export class Game {
    * says how far along they are.
    */
   private flashGhost(index: number) {
-    const from = this.challenge.ghost;
-    if (!from) return;
-    const ball = this.challenge.ghostBall(index);
-    const ended = this.challenge.ghostEndedAt;
-    // Past the end of their innings there is nothing to show but the fact of
-    // it, said once, on the ball it happened: silence after that reads as the
-    // feature being broken, and the moment is worth more than the secrecy.
-    if (!ball) {
-      if (ended === null || index !== ended) return;
-      window.setTimeout(() => {
-        this.hud.ghost(from.name, from.avatar, 'ALL OUT', 'out');
-        window.setTimeout(() => this.hud.ghostAway(), 2000);
-      }, GHOST_AFTER_MS);
-      return;
+    const balls: GhostBall[] = [];
+    for (const ghost of this.challenge.ghosts) {
+      const ball = this.challenge.ghostBall(ghost, index);
+      if (ball) {
+        balls.push({
+          who: ghost.name, avatar: ghost.avatar,
+          result: ball.isWicket ? 'OUT' : ball.runs === 0 ? 'DOT' : String(ball.runs),
+          kind: ball.isWicket ? 'out' : ball.runs >= 4 ? 'big' : 'runs',
+        });
+      } else if (this.challenge.ghostEndedAt(ghost) === index) {
+        // Past the end of their innings there is nothing to show but the fact
+        // of it, said once, on the ball it happened: silence after that reads
+        // as the feature being broken, and the moment is worth more than the
+        // secrecy.
+        balls.push({ who: ghost.name, avatar: ghost.avatar, result: 'ALL OUT', kind: 'out' });
+      }
     }
-    const result = ball.isWicket ? 'OUT' : ball.runs === 0 ? 'DOT' : String(ball.runs);
-    const kind = ball.isWicket ? 'out' : ball.runs >= 4 ? 'big' : 'runs';
+    if (!balls.length) return;
     window.setTimeout(() => {
-      this.hud.ghost(from.name, from.avatar, result, kind);
-      window.setTimeout(() => this.hud.ghostAway(), GHOST_FOR_MS);
+      this.hud.ghost(balls);
+      // A little longer for a stack, but never into the next run-up.
+      window.setTimeout(() => this.hud.ghostAway(), GHOST_FOR_MS + Math.min(300, (balls.length - 1) * 150));
     }, GHOST_AFTER_MS);
   }
 
@@ -2361,14 +2363,13 @@ export class Game {
       }
       this.hud.score(this.score); this.showConfidence();
     }
-    // Kept fresh while the ghost is still batting, so their balls arrive in
-    // time to flash. Once they are done, or if they never started, there is
+    // Kept fresh while anybody else is still batting, so their balls arrive in
+    // time to flash. Once they are all done, or nobody started, there is
     // nothing a poll could bring and it stops on its own.
     this.challenge.watch(() => {
-      const ghost = this.challenge.ghost;
-      if (!ghost || ghost.status !== 'batting') this.challenge.stopWatching();
+      if (!this.challenge.ghostBatting) this.challenge.stopWatching();
     });
-    if (this.challenge.ghost?.status !== 'batting') this.challenge.stopWatching();
+    if (!this.challenge.ghostBatting) this.challenge.stopWatching();
   }
 
   /**

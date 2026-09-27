@@ -2928,7 +2928,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   color:transparent;
   filter:drop-shadow(0 2px 4px #00000059)
 }
-.room-seats.is-many .room-vs{top:50%}
+.room-seats.is-many .room-vs{top:calc(50% - 20px)}
 .room-seat{
   display:flex;
   flex-direction:column;
@@ -2957,15 +2957,18 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 /* The ring round a face that is batting, drawn to the ball they are on. */
 .room-ring{
   position:absolute;
-  inset:-10px;
-  width:118px;
-  height:118px;
+  inset:-12px;
+  width:122px;
+  height:122px;
   transform:rotate(-90deg);
-  pointer-events:none
+  overflow:visible;
+  pointer-events:none;
+  filter:drop-shadow(0 0 6px #ff9a3d8c)
 }
-.room-ring circle{fill:none;stroke-width:4}
-.room-ring-track{stroke:#ffffff1c}
-.room-ring-arc{stroke-linecap:round;transition:none}
+.room-ring circle{fill:none;stroke-width:6}
+.room-ring-track{stroke:#ffffff30}
+.room-ring-arc{stroke-linecap:round;transition:none;animation:room-ring-pulse 1.6s ease-in-out infinite}
+@keyframes room-ring-pulse{0%,100%{opacity:1}50%{opacity:.78}}
 .room-name{
   display:block;
   margin-top:14px;
@@ -3051,10 +3054,10 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   white-space:nowrap;
   color:#fff
 }
-.rival-key.is-green{background:#0a914b;box-shadow:0 7px 0 #00411f,0 12px 14px #00000040}
+.rival-key.is-green{background:#0a914b;border:2px solid #00411f;box-shadow:0 7px 0 #00411f,0 12px 14px #00000040}
 .rival-key.is-green:hover{background:#0c9f53}
 .rival-key.is-play{background:#fff;color:#000;border:3px solid var(--cta-orange);box-shadow:0 6px 0 var(--cta-orange),0 12px 14px #00000040}
-.rival-key.is-steel{background:#386fa0;box-shadow:0 6px 0 #000,0 12px 14px #00000040}
+.rival-key.is-steel{background:#386fa0;border:2px solid #000;box-shadow:0 6px 0 #000,0 12px 14px #00000040}
 .rival-key.is-white{background:#fff;color:#000;border:2px solid #000;box-shadow:0 6px 0 #000}
 .rival-key:active{transform:translateY(4px)}
 .rival-key.is-green:active{box-shadow:0 3px 0 #00411f}
@@ -3074,8 +3077,8 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .room-hero{
   position:relative;
   width:132px;
-  height:132px;
-  margin:-8px auto 2px
+  height:152px;
+  margin:-14px auto 0
 }
 .room-hero.hidden{display:none}
 .room-anim{
@@ -3083,7 +3086,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
   left:50%;
   top:50%;
   width:132px;
-  height:132px;
+  height:152px;
   transform:translate(-50%,-50%);
   filter:drop-shadow(0 0 16px #ff6a2a80);
   animation:room-glow 2.4s ease-in-out infinite
@@ -3093,7 +3096,7 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .room-hero-kit .board-kit{
   position:absolute;
   left:50%;
-  top:66%;
+  top:65.2%;
   width:77px;
   height:77px;
   transform:translate(-50%,-50%);
@@ -5200,7 +5203,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   background:#ffea30
 }
 .rival-sheet-keys{display:flex;flex-direction:column;gap:12px;margin-top:30px}
-.rival-sheet .rival-key.is-green{border:2px solid #000;box-shadow:0 6px 0 #00411f}
+.rival-sheet .rival-key.is-green{box-shadow:0 6px 0 #00411f}
 .rival-sheet .rival-key.is-green:active{box-shadow:0 2px 0 #00411f}
 .rival-sheet-copied{
   min-height:18px;
@@ -5393,9 +5396,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rival-act{
   height:32px;
   padding:0 12px;
-  border:0;
+  border:1.5px solid #2b4157;
   border-radius:8px;
   background:#4b627a99;
+  box-shadow:0 3px 0 #2b4157;
   font-family:var(--card);
   font-size:12px;
   font-weight:700;
@@ -5404,6 +5408,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rival-act.is-accept{color:#4de3c4}
 .rival-act.is-decline{color:#ff6b6b}
 .rival-act:hover{background:#4b627acc}
+.rival-act:active{transform:translateY(2px);box-shadow:0 1px 0 #2b4157}
 .rival-row-verdict{flex:none;font-family:var(--card);font-size:12px;font-weight:500;color:#dfe8f0;text-align:right;max-width:96px;line-height:1.2}
 .rival-row-verdict.is-W{color:#43eeaa}
 .rival-row-verdict.is-L{color:#ff6b6b}
@@ -5461,8 +5466,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   bottom:calc(var(--pad-bottom) + 92px);
   z-index:6;
   display:flex;
-  align-items:center;
-  gap:10px;
+  flex-direction:column;
+  gap:6px;
   padding:9px 14px 9px 10px;
   border-radius:11px;
   background:#0c1e2aef;
@@ -5473,6 +5478,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   transition:opacity .22s ease,transform .22s cubic-bezier(.16,1,.3,1)
 }
 .ghost-flash.is-up{opacity:1;transform:translate(-50%,0)}
+.ghost-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ghost-flash.is-many .ghost-row+.ghost-row{padding-top:6px;border-top:1px solid #ffffff14}
 .ghost-who{
   display:flex;
   align-items:center;
@@ -5494,8 +5501,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   white-space:nowrap
 }
 /* Out is the one that earns the colour. Everything else is a number. */
-.ghost-flash.is-out .ghost-result{color:var(--cta-orange)}
-.ghost-flash.is-big .ghost-result{font-size:23px}
+.ghost-row.is-out .ghost-result{color:var(--cta-orange)}
+.ghost-row.is-big .ghost-result{font-size:23px}
 @media (prefers-reduced-motion:reduce){
   .ghost-flash{transition:opacity .01ms}
   .ghost-flash.is-up{transform:translate(-50%,0)}

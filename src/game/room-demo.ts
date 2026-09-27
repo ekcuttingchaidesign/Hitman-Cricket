@@ -17,6 +17,8 @@ import { figuresOf } from './ball-string';
  *   ?room=won ?room=lost ?room=draw ?room=forfeit   the four results
  *   ?room=away       a result found on open, one of two
  *   ?room=expired ?room=void ?room=spectator ?room=group ?room=declined
+ *   ?room=trio       three in, nobody has batted
+ *   ?room=podium     a group result you did not win
  *
  * It exists because the room has fourteen faces and two phones can show one
  * at a time. Nothing here touches the server or the browser's own records: it
@@ -29,7 +31,7 @@ export const DEMO_PARAM = 'room';
 
 export const DEMO_KINDS = [
   'lobby', 'sent', 'both', 'chase', 'live', 'resume', 'waiting', 'spectate',
-  'won', 'lost', 'draw', 'forfeit', 'away', 'expired', 'void', 'spectator', 'group', 'declined',
+  'won', 'lost', 'draw', 'forfeit', 'away', 'expired', 'void', 'spectator', 'group', 'declined', 'trio', 'podium',
 ] as const;
 export type DemoKind = (typeof DEMO_KINDS)[number];
 
@@ -92,6 +94,13 @@ export function demoRoom(kind: DemoKind, me: string, now = Date.now()): { room: 
     case 'void': return { room: base([you(CARDS.fortySeven, 'done'), rahul(CARDS.fortyTwo, 'done')], 'void', { v: 0 }) };
     case 'spectator': return { room: base([rahul(CARDS.fortySeven, 'done', { host: true, at: now - 2 * DAY }), priya(CARDS.fortyTwo, 'done', { at: now - DAY })], 'expired', { at: now - 8 * DAY, expiresAt: now - DAY }) };
     case 'declined': return { room: base([you('', 'declined', { host: false }), rahul(CARDS.fortySeven, 'done', { host: true, at: now - DAY })], 'done') };
+    case 'trio': return { room: base([you('', 'joined'), rahul('', 'joined', { at: now - 20_000 }), priya('', 'joined', { at: now - 5_000 })], 'open'), sent: true };
+    case 'podium': return {
+      room: base([
+        amit(CARDS.fiftyOne, 'done', { at: now - 3 * HOUR }), rahul(CARDS.fortySeven, 'done', { at: now - 2 * HOUR }),
+        you(CARDS.fortyTwo, 'done', { at: now - HOUR }), priya(CARDS.duck, 'done', { at: now - 30 * 60_000 }),
+      ], 'done'),
+    };
     case 'group': return {
       room: base([
         amit(CARDS.fiftyOne, 'done', { at: now - 3 * HOUR }), you(CARDS.fortySeven, 'done', { at: now - 2 * HOUR }),

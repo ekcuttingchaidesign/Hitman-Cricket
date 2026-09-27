@@ -516,7 +516,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             </div>
           </div>
         </div>
-        <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"><span id="ghost-who" class="ghost-who"></span><span id="ghost-result" class="ghost-result"></span></div>
+        <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"></div>
         <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
           <div class="hurt-note-card">
             <p class="hurt-note-eyebrow">PHYSIO ON</p>
@@ -2372,7 +2372,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const lead = this.$('room-lead');
     lead.textContent = said.lead;
     lead.classList.toggle('is-result', !!view.result);
-    lead.classList.toggle('is-draw', view.result?.outcome === 'D');
+    lead.classList.toggle('is-draw', !!view.result && !view.result.winner);
     this.$('room-sub').textContent = said.sub;
     const note = this.$('room-note');
     note.textContent = said.note ?? '';
@@ -2382,8 +2382,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const results = this.$('room-scoreline');
     const hero = this.$('room-hero');
     if (view.result) {
-      const winner = view.result.outcome === 'D' ? null : view.result.players[0];
-      const html = view.result.players.map((row, i) => resultRow(row, view.result!, i)).join('');
+      const winner = view.result.winner;
+      const html = view.result.players.map(row => resultRow(row, view.result!)).join('');
       if (drawn.scoreline !== html) {
         results.innerHTML = html;
         drawn.scoreline = html;
@@ -2417,7 +2417,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The film: the fire round the winner. Started once per result, never per
     // poll, and a draw has no winner to burn for.
     const anim = this.$('room-anim');
-    const which: Film | '' = view.result && view.result.outcome !== 'D' ? 'flame' : '';
+    const which: Film | '' = view.result?.winner ? 'flame' : '';
     if (drawn.film !== which) {
       this.film?.destroy();
       this.film = null;
@@ -2606,18 +2606,20 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
-   * One ball of the other innings, flashed between deliveries.
+   * One ball of the other innings, flashed between deliveries — one row per
+   * rival who has got that far, the furthest along on top.
    *
    * Never during one: the ball is in the air for the best part of a second and a
    * number moving beside it is a number that costs somebody their wicket. The
    * caller owns the timing; this only puts it up and takes it down.
    */
-  ghost(who: string, avatar: number, result: string, kind: 'runs' | 'out' | 'big') {
+  ghost(balls: GhostBall[]) {
     const flash = this.$('ghost-flash');
-    this.$('ghost-who').innerHTML = `${kitMarkup(avatar, who)}<span>${escapeName(who)}</span>`;
-    this.$('ghost-result').textContent = result;
-    flash.classList.toggle('is-out', kind === 'out');
-    flash.classList.toggle('is-big', kind === 'big');
+    flash.innerHTML = balls.map(ball => `<span class="ghost-row${ball.kind === 'out' ? ' is-out' : ball.kind === 'big' ? ' is-big' : ''}">
+      <span class="ghost-who">${kitMarkup(ball.avatar, ball.who)}<span>${escapeName(ball.who)}</span></span>
+      <span class="ghost-result">${ball.result}</span>
+    </span>`).join('');
+    flash.classList.toggle('is-many', balls.length > 1);
     flash.classList.remove('hidden');
     // Two frames, so the browser has laid the element out before the class that
     // animates it arrives — otherwise it appears already finished.
@@ -2978,7 +2980,7 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
         : `<span class="room-score">${row.runs}<em>/${row.wickets}</em></span>`;
   }
   const ring = row.status === 'batting'
-    ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.playerId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4fa0ff"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.playerId})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
+    ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.playerId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd3ff"/><stop offset=".55" stop-color="#ffb347"/><stop offset="1" stop-color="#ff7a2a"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.playerId})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
     : '';
   return `<div class="room-seat is-${row.status}${you ? ' is-you' : ''}" data-player="${row.playerId}"${progress ? ` data-progress="${progress}"` : ''}>
     <span class="room-face">${kitMarkup(row.avatar, row.name)}${ring}</span>
@@ -2992,10 +2994,11 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
  * sixes and fours and balls, and the score in the colour of how it went. No
  * tracks: the result is a verdict, not a scorecard.
  */
-function resultRow(row: ChallengeRow, result: ResultView, index: number): string {
+function resultRow(row: ChallengeRow, result: ResultView): string {
   const mine = row.playerId === result.you;
-  const draw = result.outcome === 'D';
-  const won = !draw && index === 0;
+  const top = result.players[0]?.score ?? 0;
+  const draw = !result.winner && row.score === top;
+  const won = !!result.winner && row.playerId === result.winner.playerId;
   const tone = draw ? 'is-draw' : won ? 'is-won' : 'is-lost';
   const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : 'LOSER';
   return `<div class="verdict-row ${tone}${mine ? ' is-you' : ''}">
@@ -3006,6 +3009,14 @@ function resultRow(row: ChallengeRow, result: ResultView, index: number): string
     </span>
     <span class="verdict-score">${row.runs}<em>/${row.wickets}</em></span>
   </div>`;
+}
+
+/** One rival's ball, for the flash between deliveries. */
+export interface GhostBall {
+  who: string;
+  avatar: number;
+  result: string;
+  kind: 'runs' | 'out' | 'big';
 }
 
 /** The three sections of Rival Matches. */

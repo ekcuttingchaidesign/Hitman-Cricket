@@ -14,9 +14,9 @@ until their own last ball.
 | A friend joins | Their face appears beside yours without a tap, JOINED. Either can Play. |
 | One has batted, one hasn't | The other sees "batted · 30 balls" and no score. |
 | Somebody is batting | A ring round their face fills ball by ball, "batting ball 15 of 30". |
-| Both batting at once | Each gets the other's ball flashed between their own, one ball behind. |
+| Both batting at once | Each gets the other's ball flashed between their own, one ball behind. In a group, every rival who has got that far, stacked. |
 | One done, one batting | The finished one watches the ring fill and reads "needs 7 off 4 balls". |
-| Both done | The result: fire round the winner, WINNER and LOSER rows with sixes, fours and balls. |
+| Both done | The result: fire round the winner, WINNER and LOSER rows with sixes, fours and balls. In a group, not until the last innings is in: the fire goes round whoever finished top. |
 | Declined | "Decline & accept defeat" on the challenge received, or on a row of Rival Matches. Goes down as a loss. |
 | A week with no second innings | "This one closed." Innings kept for the career, no result. |
 | Started, then left for a day | Forfeit. The one who stayed wins. |
@@ -61,6 +61,8 @@ person.
 ?room=won        ?room=lost   ?room=draw   ?room=forfeit
 ?room=away       a result found on open, one of two
 ?room=expired    ?room=void   ?room=spectator   ?room=group   ?room=declined
+?room=trio       three in, nobody has batted
+?room=podium     a group result somebody else won
 ```
 
 The keys on a fixture room do what they always do, which mostly means they
@@ -94,7 +96,7 @@ per-player list.
 | `src/server/challenge-endpoint.ts` | The dispatch, shared by `api/challenge.ts` and the dev server. |
 | `src/server/name-filter.ts` | The short list of names a friend should not be sent. |
 | `src/game/challenge-api.ts` | The calls, the messages, and what the browser keeps. |
-| `src/game/Challenge.ts` | The room as one person sees it, the ghost, polling, the result's words. |
+| `src/game/Challenge.ts` | The room as one person sees it, the ghosts, polling, the result's words. |
 | `src/game/room-demo.ts` | The `?room=` fixtures. |
 | `src/ui/HUD.ts` | The picker, the room, the sheets. Search for "The match room". |
 | `src/ui/Lottie.ts` | The player for the films, fetched the first time one is needed. |

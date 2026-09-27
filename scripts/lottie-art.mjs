@@ -80,6 +80,11 @@ const gradient = (from, to, stops, o = 100) => ({
   ty: 'gf', o: still(o), r: 1, t: 1, s: still(from), e: still(to),
   g: { p: stops.length, k: still(stops.flatMap(([at, c]) => [at, ...c])) },
 });
+/** A radial gradient fill from a centre out to a radius, through two or more colours. */
+const radial = (centre, radius, stops, o = 100) => ({
+  ty: 'gf', o: still(o), r: 1, t: 2, s: still(centre), e: still([centre[0] + radius, centre[1]]), h: still(0), a: still(0),
+  g: { p: stops.length, k: still(stops.flatMap(([at, c]) => [at, ...c])) },
+});
 /**
  * A path that changes shape. Each frame is `[t, points]` with the same number
  * of points, and the first and last frames should be the same points when the
@@ -91,13 +96,15 @@ const shapeOf = points => ({
   i: points.map(p => [p[2] ?? 0, p[3] ?? 0]),
   o: points.map(p => [p[4] ?? 0, p[5] ?? 0]),
 });
-const morph = frames => ({
+const morph = (frames, linear = false) => ({
   ty: 'sh', d: 1,
   ks: {
     a: 1,
     k: frames.map(([t, points], i) => ({
       t, s: [shapeOf(points)],
-      ...(i < frames.length - 1 ? { i: { x: [0.42], y: [1] }, o: { x: [0.58], y: [0] } } : {}),
+      ...(i < frames.length - 1
+        ? linear ? { i: { x: [1], y: [1] }, o: { x: [0], y: [0] } } : { i: { x: [0.42], y: [1] }, o: { x: [0.58], y: [0] } }
+        : {}),
     })),
   },
 });
@@ -122,9 +129,9 @@ const layer = (nm, shapes, { p = [W / 2, H / 2], a = [0, 0], s = [100, 100], r =
   },
   ao: 0, shapes, ip, op, st: 0, bm: 0,
 });
-const film = (nm, op, layers) => {
+const film = (nm, op, layers, size = [W, H]) => {
   ind = 0;
-  return { v: '5.7.4', fr: FR, ip: 0, op, w: W, h: H, nm, ddd: 0, assets: [], layers: layers.reverse() };
+  return { v: '5.7.4', fr: FR, ip: 0, op, w: size[0], h: size[1], nm, ddd: 0, assets: [], layers: layers.reverse() };
 };
 /** Three-dimensional keyframes for position and scale. */
 const move3 = (frames, ease) => move(frames.map(([t, v]) => [t, [...v, v.length === 2 ? 0 : 100]]), ease);
@@ -382,70 +389,101 @@ function joined() {
  * Loops without a seam. Every animated value is a function of a phase that
  * runs from nought to two pi over the film, so the last frame is the first
  * frame to the pixel — that, and not luck, is what stops it jerking when it
- * comes round. Three tongues at three sizes, each breathing on its own
- * timing, and a handful of embers that rise twice a loop.
+ * comes round.
+ *
+ * Each tongue is one closed outline: a half circle that sits behind the
+ * winner's face, and above it the flame, drawn from a handful of points that
+ * sway on their own timings. The half circle is what keeps the fire from
+ * having a bottom edge — the face covers it, and the flame comes out from
+ * behind the face rather than standing on a line under it. The curve through
+ * the points is recomputed on every frame (a Catmull-Rom spline), so the
+ * outline stays smooth however far the points have moved; and the frames are
+ * dense and linearly joined, so the motion is the sway itself and not a
+ * slide from pose to pose.
  */
 function flame() {
   const OP = 150;
-  const STEPS = 10;
+  const STEPS = 30;
+  // A taller canvas than the others: the face sits at (200, 300) with a radius
+  // of 117, the fire rises 150 above it and shows a rim of a few units round
+  // the rest of it. `.room-hero` in styles.css is this canvas in pixels.
+  const FH = 460;
+  const CX = 200;
+  const CY = 300;
+  const FACE = 117;
   const layers = [];
 
-  // The base shape, tip up, drawn round a face that sits in its lower half.
-  // Handles are relative to the vertex, as Lottie wants.
-  const base = [
-    [136, 372, 0, 0, -30, -34],
-    [72, 246, 4, 36, -6, -30],
-    [98, 142, -10, 26, 12, -30],
-    [140, 78, -12, 14, 12, -12],
-    [176, 128, -14, 4, 8, -10],
-    [212, 10, -18, 26, 10, 20],
-    [252, 118, -8, -8, 12, 8],
-    [304, 84, -10, 8, 8, 14],
-    [326, 214, -6, -40, 2, 34],
-    [264, 372, 28, -28, 0, 0],
+  // The upper outline, left join to right join, as fractions of the tongue's
+  // half width and height. The tip is off centre; flames lean.
+  const outline = [
+    [-1.00, 0.00], [-0.98, 0.28], [-0.80, 0.46], [-0.58, 0.60], [-0.30, 0.56],
+    [0.02, 0.80], [0.20, 1.00], [0.40, 0.76], [0.58, 0.60], [0.92, 0.50], [1.04, 0.26], [1.00, 0.00],
   ];
-  /** How much each vertex moves: the tips wander, the roots stay put. */
-  const amp = [0, 6, 10, 16, 12, 22, 12, 16, 8, 0];
-  const wobble = (phase, seed, scale) => base.map(([x, y, ix, iy, ox, oy], k) => {
-    const dx = amp[k] * Math.sin(phase + k * 1.7 + seed) * scale;
-    const dy = amp[k] * 0.9 * Math.cos(phase * 2 + k * 1.1 + seed) * scale;
-    return [x + dx, y + dy, ix, iy, ox, oy];
-  });
-  const frames = (seed, scale) => Array.from({ length: STEPS + 1 }, (_, i) => {
-    const phase = (i / STEPS) * Math.PI * 2;
-    return [Math.round((i / STEPS) * OP), wobble(phase, seed, scale)];
-  });
-  const tongue = (nm, seed, size, colours, y, o = 100) => layer(nm, [group([
-    morph(frames(seed, 1)),
-    gradient([200, 372], [200, 20], colours),
-  ])], {
-    p: [W / 2, y],
-    a: [200, 372],
-    s: [size, size],
-    o,
-  });
-  layers.push(tongue('flame back', 0.0, 100, [[0, rgb('#c8261a')], [0.55, rgb('#f0511f')], [1, rgb('#ff8a2a')]], 392));
-  layers.push(tongue('flame mid', 2.1, 74, [[0, rgb('#f0511f')], [0.5, rgb('#ff8a2a')], [1, rgb('#ffbe3a')]], 392));
-  layers.push(tongue('flame front', 4.2, 46, [[0, rgb('#ff9a2a')], [0.5, rgb('#ffcf4a')], [1, rgb('#fff2b0')]], 386, 92));
+  const ARC = 6;
 
-  // Embers: each rises twice a loop, and each starts and ends invisible at the
-  // frames where its cycle wraps, so the wrap is a jump nobody can see.
+  /** The outline at one phase: the arc, then the flame, as `[x, y]` points. */
+  const points = (phase, seed, width, height, sway) => {
+    const pts = [];
+    // The half circle, right join round the bottom to the left join, which is
+    // the first point of the outline, so it is left out here.
+    for (let k = 0; k < ARC; k++) {
+      const angle = (k / ARC) * Math.PI;
+      pts.push([CX + Math.cos(angle) * width, CY + Math.sin(angle) * width]);
+    }
+    outline.forEach(([fx, fy], k) => {
+      // The higher the point, the further it wanders: the root stays put.
+      const reach = fy ** 1.4 * sway;
+      const dx = reach * (Math.sin(phase + k * 1.9 + seed) * 0.7 + Math.sin(phase * 2 + k * 0.8 + seed * 1.3) * 0.3);
+      const dy = reach * 0.8 * Math.cos(phase * 2 + k * 1.3 + seed) + (fy > 0.9 ? Math.sin(phase * 3 + seed) * 0.05 * height : 0);
+      pts.push([CX + fx * width + dx, CY - fy * height + dy]);
+    });
+    // The last outline point is the right join, where the arc began.
+    pts.pop();
+    return pts;
+  };
+  /** Handles through the points so the curve is smooth everywhere. */
+  const smooth = pts => pts.map((point, k) => {
+    const prev = pts[(k - 1 + pts.length) % pts.length];
+    const next = pts[(k + 1) % pts.length];
+    const tx = (next[0] - prev[0]) / 6;
+    const ty = (next[1] - prev[1]) / 6;
+    const r = n => Math.round(n * 10) / 10;
+    return [r(point[0]), r(point[1]), r(-tx), r(-ty), r(tx), r(ty)];
+  });
+  const frames = (seed, width, height, sway) => Array.from({ length: STEPS + 1 }, (_, i) => {
+    const phase = (i / STEPS) * Math.PI * 2;
+    return [Math.round((i / STEPS) * OP), smooth(points(phase, seed, width, height, sway))];
+  });
+  // Lit from the face: the colour runs out from its centre, so the rim round
+  // the face is the hot end and the tips are the cool one.
+  const tongue = (nm, seed, width, height, sway, colours, o = 100) => layer(nm, [group([
+    morph(frames(seed, width, height, sway), true),
+    radial([CX, CY], height, colours.map(([at, c]) => [FACE / height + at * (1 - FACE / height), c])),
+  ])], { p: [CX, CY], a: [CX, CY], o });
+
+  layers.push(tongue('flame back', 0.0, 128, 268, 22, [[0, rgb('#ffcf3a')], [0.32, rgb('#ff8a2a')], [0.7, rgb('#f2451c')], [1, rgb('#d8261a')]]));
+  layers.push(tongue('flame mid', 2.1, 104, 212, 17, [[0, rgb('#ffe27a')], [0.4, rgb('#ffb03a')], [1, rgb('#ff6a22')]]));
+  layers.push(tongue('flame front', 4.2, 78, 158, 12, [[0, rgb('#fff6c8')], [0.5, rgb('#ffd85a')], [1, rgb('#ffa030')]], 96));
+
+  // Embers: each rises twice a loop, from behind the face, and each starts and
+  // ends invisible at the frames where its cycle wraps, so the wrap is a jump
+  // nobody can see.
   const HALF = OP / 2;
-  const SAMPLE = 15;
+  const SAMPLE = 5;
   [[0, 178], [15, 226], [30, 198], [45, 160], [60, 244]].forEach(([offset, x0], i) => {
     const keys = [];
     for (let t = 0; t <= OP; t += SAMPLE) {
       const u = ((t + offset) % HALF) / HALF;
-      const y = 250 - 230 * u;
+      const y = CY - 60 - 220 * u;
       const x = x0 + 14 * Math.sin(u * Math.PI * 3 + i);
-      keys.push([t, [x, y], Math.round(Math.sin(u * Math.PI) * 85)]);
+      keys.push([t, [Math.round(x * 10) / 10, Math.round(y * 10) / 10], Math.round(Math.sin(u * Math.PI) * 85)]);
     }
     layers.push(layer(`ember ${i}`, [group([ellipse(7 - (i % 3), 7 - (i % 3)), fill(i % 2 ? C.goldLight : C.orangeLight)])], {
       p: move3(keys.map(([t, at]) => [t, at]), [1, 1]),
       o: move(keys.map(([t, , alpha]) => [t, alpha]), [1, 1]),
     }));
   });
-  return film('flame', OP, layers);
+  return film('flame', OP, layers, [W, FH]);
 }
 
 /* ── Out they go ────────────────────────────────────────────────────────── */
