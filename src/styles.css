@@ -3035,6 +3035,9 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .room-keys.is-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
 .room-keys.is-pair .ghost-link{grid-column:1/-1}
 .room-keys .ghost-link{justify-self:center;align-self:center;padding:8px 14px;margin:0 auto}
+/* On the room's blue the quiet grey of the card disappears; these read in white. */
+.room-screen .ghost-link{color:#e4edf5;text-decoration:underline;text-underline-offset:3px;text-decoration-color:#e4edf580}
+.room-screen .ghost-link:hover{color:#fff}
 /* The three keys of this mode. Green for sending, white on orange for playing,
    steel for backing out. All Jaro, all on a ledge. */
 .rival-key{
@@ -5154,7 +5157,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rival-sheet-ball{position:absolute;pointer-events:none;user-select:none;-webkit-user-select:none}
 .rival-sheet.is-invite{overflow:hidden}
 .rival-sheet.is-invite .rival-sheet-ball{right:-18px;top:-22px;width:150px;height:auto}
-.rival-sheet.is-received .rival-sheet-ball{left:0;top:6px;width:96px;height:auto}
+/* Flipped, so the trail points into the card's top left corner. */
+.rival-sheet.is-received .rival-sheet-ball{left:0;top:6px;width:96px;height:auto;transform:scaleX(-1)}
 .rival-sheet.is-received{margin-top:44px;padding-top:56px}
 .rival-sheet-title{
   margin:0;
@@ -5244,6 +5248,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rival-sheet-kit .board-kit{width:74px;height:74px;font-size:24px;box-shadow:0 0 0 3px #5bbcdc,0 8px 20px #00000059}
 .rival-sheet-kit.hidden{display:none}
 .rival-sheet-sub{
+  text-wrap:balance;
   position:relative;
   margin:18px 0 0;
   padding:18px 6px;
