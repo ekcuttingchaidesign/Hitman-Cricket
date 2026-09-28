@@ -837,6 +837,11 @@ export class Game {
    */
   private closePicker = () => {
     this.hud.closeModes();
+    // Before any innings, back from the picker is back to the cover. The cover
+    // is not always still under it: Rival Matches, the room and the sheets all
+    // take it down to stand in its place, and a picker reopened from one of
+    // them closed onto the bare ground, frozen, with nothing to press.
+    if (this.phase === 'START') { this.hud.showCover(); return; }
     // Opened from an end card, which the picker put away to make room for
     // itself. Backing out has to put it back: the innings is over, so there is
     // nothing under the picker but the ground, holding the score it finished on
