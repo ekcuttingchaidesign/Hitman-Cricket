@@ -226,7 +226,7 @@ await b.shot('11-result');
 
 // The scorecard off the result: a way back to it, and none of the keys that
 // only belong at the end of a Blast innings.
-const cardLink = b.page.locator('#room-keys [data-act="card"]');
+const cardLink = b.page.locator('#room-card:not(.hidden)');
 check(await cardLink.count() > 0, 'the result offers the innings scorecard');
 if (await cardLink.count()) {
   await cardLink.first().click();

@@ -412,6 +412,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <div class="mode-top room-top">
               <button id="room-back" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="room-title" class="mode-heading">Match Room</h2>
+              <button id="room-card" class="room-card-link hidden" type="button">Your scorecard</button>
             </div>
             <div class="room-stage">
               <div id="room-hero" class="room-hero hidden" aria-hidden="true"><div id="room-anim" class="room-anim"></div><span id="room-hero-kit" class="room-hero-kit"></span></div>
@@ -2458,11 +2459,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       drawn.film = which;
     }
 
+    // The innings that just ended has a card, and the card is where the Top 50
+    // is claimed, so the room keeps a way to it: top right, out of the keys'
+    // row, which is pinned and has no room to spare.
+    this.$('room-card').classList.toggle('hidden', !(extra.card && (view.kind === 'waiting' || view.kind === 'spectate' || view.kind === 'result')));
     const keys = said.keys.map(roomKey).join('');
     if (drawn.keys !== keys) {
       this.$('room-keys').innerHTML = keys;
-      // Side by side for a short pair; stacked where the labels are too long to share a row.
-      this.$('room-keys').classList.toggle('is-pair', !view.result && view.kind !== 'full' && said.keys.filter(key => key.kind !== 'ghost').length === 2);
+      // Side by side for a pair, the result's included, so the foot of the
+      // screen stays one row high; stacked where the labels are too long to
+      // share one.
+      this.$('room-keys').classList.toggle('is-pair', view.kind !== 'full' && said.keys.filter(key => key.kind !== 'ghost').length === 2);
       drawn.keys = keys;
     }
     this.viewport.classList.toggle('result-room', !!view.result);
@@ -2852,11 +2859,6 @@ function roomCopy(
   const said = roomWords(view, extra);
   // A full room has nobody left to send the link to.
   if (view.full) said.keys = said.keys.filter(key => key.act !== 'invite' && key.act !== 'share');
-  // The innings that just ended has a card, and the card is where the Top 50
-  // is claimed — so the room keeps a way to it, under the keys that matter.
-  if (extra.card && (view.kind === 'waiting' || view.kind === 'spectate' || view.kind === 'result')) {
-    said.keys.push({ kind: 'ghost', act: 'card', label: 'Your scorecard' });
-  }
   return said;
 }
 

@@ -381,6 +381,7 @@ export class Game {
       if (!key || key.tagName === 'A') return;
       this.hud.onRoomAct?.(key.dataset.act as RoomAct);
     });
+    this.hud.on('room-card', () => this.hud.onRoomAct?.('card'));
     this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);

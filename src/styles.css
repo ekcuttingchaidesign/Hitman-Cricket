@@ -3194,6 +3194,36 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .verdict-row.is-lost .verdict-score{color:#ff505c}
 .verdict-score em{font-style:normal;font-size:15px}
 .stage.result-room .room-keys{gap:14px}
+/* A pair of keys at half width each: the long labels (SEND AN EXCUSE, DEMAND
+   A REMATCH) get a size and spacing that fit half a phone, and wrap to a
+   second line rather than run off the key where they still do not. */
+.room-keys.is-pair .rival-key{
+  min-height:52px;
+  padding:6px 10px;
+  font-size:17px;
+  letter-spacing:.05em;
+  line-height:1.1;
+  white-space:normal;
+  text-align:center
+}
+/* The way to the innings card: top right, level with the back key. */
+.room-card-link{
+  margin-left:auto;
+  padding:8px 4px;
+  border:0;
+  background:none;
+  font-family:var(--card);
+  font-size:14px;
+  font-weight:600;
+  color:#e4edf5;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  text-decoration-color:#e4edf580;
+  white-space:nowrap;
+  cursor:pointer
+}
+.room-card-link:hover{color:#fff}
+.room-card-link.hidden{display:none}
 .stage.result-room .room-keys .rival-key{min-height:48px}
 
 /* ── The result card ───────────────────────────────────────────────────────
