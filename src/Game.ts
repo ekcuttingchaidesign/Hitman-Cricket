@@ -368,7 +368,14 @@ export class Game {
     // not exist by the time anybody presses one. The room's keys likewise.
     this.hud.viewport.querySelector('#challenge-sections')!.addEventListener('click', event => {
       const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline]') as HTMLElement | null;
-      if (!key) return;
+      if (!key) {
+        // Anywhere else on a card opens its match: the verdict, the badge, the
+        // padding. Only the face and the accept and decline keys mean something
+        // else, and they are caught above.
+        const card = (event.target as HTMLElement).closest('.rival-row[data-code]') as HTMLElement | null;
+        if (card?.dataset.code) { event.stopPropagation(); void this.listAct('open', card.dataset.code); }
+        return;
+      }
       event.stopPropagation();
       if (key.dataset.drop) void this.listAct('drop', key.dataset.drop);
       else if (key.dataset.accept) void this.listAct('accept', key.dataset.accept);
