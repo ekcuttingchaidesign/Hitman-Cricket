@@ -3,7 +3,7 @@ import { GAME } from '../src/config/gameplay';
 import {
   CHALLENGE_LIFE_MS, CODE_ALPHABET, CODE_LENGTH, CREATE_LIMIT, FORFEIT_AFTER_MS, PLAYERS_MAX, SCORING_VERSION,
   challengeRefused, cleanCard, cleanCode, createChallenge, declineChallenge, joinChallenge, markSeen, newCode, readChallenge,
-  readMine, recordBalls, stateOf, statusOf, tallyIfOver,
+  readMine, recordBalls, stateOf, statusOf, outcomeOf,
   type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeRefusal, type ChallengeStore,
   type StoredChallenge,
 } from '../src/server/challenge-store';
@@ -411,15 +411,33 @@ describe('the record', () => {
     await settle(store, 40, 24);
     const refuses = {
       ...store,
-      write: async () => { throw new Error('NOPERM this user has no permissions to run the hset command'); },
-      tally: async () => { throw new Error('NOPERM'); },
-      record: async () => { throw new Error('NOPERM'); },
+      outcomes: async () => { throw new Error('NOPERM this user has no permissions to run the hgetall command'); },
+      setOutcome: async () => { throw new Error('NOPERM this user has no permissions to run the hset command'); },
     };
     const mine = took(await readMine(refuses, HOST, T0 + 20_000));
     expect(mine.challenges).toHaveLength(1);
-    expect(mine.record).toEqual({ won: 0, lost: 0, drawn: 0 });
+    // Worked out on the read even where it cannot be kept.
+    expect(mine.record).toEqual({ won: 1, lost: 0, drawn: 0 });
     // And the room is counted on the next read that can write.
     expect(took(await readMine(store, HOST, T0 + 30_000)).record).toEqual({ won: 1, lost: 0, drawn: 0 });
+  });
+
+  it('follows a finished room that a third friend joins and wins', async () => {
+    // The match as played on launch day: the host sets 132, a friend falls
+    // short and the host is shown a win; then a third friend opens the link,
+    // makes 146, and the host has lost after all. The record said W and the
+    // list said L, because the win had been counted and was never looked at
+    // again.
+    const store = memoryChallenges();
+    const code = await settle(store, 132, 120);
+    expect(took(await readMine(store, HOST, T0 + 10_000)).record).toEqual({ won: 1, lost: 0, drawn: 0 });
+    took(await joinChallenge(store, code, who({ playerId: THIRD, name: 'Ayush', avatar: 2 }), T0 + 20_000));
+    took(await recordBalls(store, code, { ...who({ playerId: THIRD, name: 'Ayush', avatar: 2 }), card: card(146) }, T0 + 30_000));
+    expect(took(await readMine(store, HOST, T0 + 40_000)).record).toEqual({ won: 0, lost: 1, drawn: 0 });
+    expect(took(await readMine(store, FRIEND, T0 + 40_000)).record).toEqual({ won: 0, lost: 1, drawn: 0 });
+    expect(took(await readMine(store, THIRD, T0 + 40_000)).record).toEqual({ won: 1, lost: 0, drawn: 0 });
+    // Read again: still one match each, not two.
+    expect(took(await readMine(store, HOST, T0 + 50_000)).record).toEqual({ won: 0, lost: 1, drawn: 0 });
   });
 
   it('adds nothing for a week that ran out on one innings', async () => {
@@ -430,7 +448,7 @@ describe('the record', () => {
     const later = T0 + 8 * 24 * 3600_000;
     const held = (await store.read(code))!;
     expect(stateOf(held, later)).toBe('expired');
-    expect(await tallyIfOver(store, code, held, HOST, later)).toBeNull();
+    expect(outcomeOf(held, HOST, later)).toBeNull();
     expect(took(await readMine(store, HOST, later)).record).toEqual({ won: 0, lost: 0, drawn: 0 });
   });
 });
