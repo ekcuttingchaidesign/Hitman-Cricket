@@ -2287,7 +2287,9 @@ export class Game {
       case 'new':
         this.rematchLine = null;
         this.challenge.stopWatching();
-        await this.createRoom();
+        // Through the door the Rivals card uses, which asks a first-timer for
+        // a name: straight to the room, a player with none made nothing.
+        await this.openMatch();
         return;
       case 'join': {
         const answer = await this.challenge.join(me);
@@ -2487,7 +2489,7 @@ export class Game {
       // A room that is over for good is shown as it stands. One that is
       // finished but still open takes a third batter — that is how a forwarded
       // link becomes a leaderboard — so it is offered like any other.
-      if (view && (view.state === 'expired' || view.kind === 'void')) { this.showRoom(); return; }
+      if (view && (view.state === 'expired' || view.kind === 'void' || view.kind === 'full')) { this.showRoom(); return; }
       // Not in it yet: who it is from, and a way in. The host, unless somebody
       // else has already batted — then the innings to beat is the one to name.
       const rows = opened.challenge.players;

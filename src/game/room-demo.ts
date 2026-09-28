@@ -19,6 +19,7 @@ import { figuresOf } from './ball-string';
  *   ?room=expired ?room=void ?room=spectator ?room=group ?room=declined
  *   ?room=trio       three in, nobody has batted
  *   ?room=podium     a group result you did not win
+ *   ?room=full       a link opened after every seat was taken
  *
  * It exists because the room has fourteen faces and two phones can show one
  * at a time. Nothing here touches the server or the browser's own records: it
@@ -31,7 +32,7 @@ export const DEMO_PARAM = 'room';
 
 export const DEMO_KINDS = [
   'lobby', 'sent', 'both', 'chase', 'live', 'resume', 'waiting', 'spectate',
-  'won', 'lost', 'draw', 'forfeit', 'away', 'expired', 'void', 'spectator', 'group', 'declined', 'trio', 'podium',
+  'won', 'lost', 'draw', 'forfeit', 'away', 'expired', 'void', 'spectator', 'group', 'declined', 'trio', 'podium', 'full',
 ] as const;
 export type DemoKind = (typeof DEMO_KINDS)[number];
 
@@ -73,7 +74,7 @@ export function demoRoom(kind: DemoKind, me: string, now = Date.now()): { room: 
   const amit = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo03-amitamitamitam', 'Amit', 4, card, status, over, now);
   const base = (players: ChallengeRow[], state: Challenge['state'], over: Partial<Challenge> = {}): Challenge => ({
     code: 'DEMO42', state, host: players.find(one => one.host)?.playerId ?? me,
-    at: now - 6 * HOUR, expiresAt: now + 7 * DAY - 6 * HOUR, v: 1, rematchOf: null, size: 20,
+    at: now - 6 * HOUR, expiresAt: now + 7 * DAY - 6 * HOUR, v: 1, rematchOf: null, size: 4,
     players: [...players].sort((a, b) => b.score - a.score || a.joined - b.joined), ...over,
   });
   switch (kind) {
@@ -100,6 +101,12 @@ export function demoRoom(kind: DemoKind, me: string, now = Date.now()): { room: 
         amit(CARDS.fiftyOne, 'done', { at: now - 3 * HOUR }), rahul(CARDS.fortySeven, 'done', { at: now - 2 * HOUR }),
         you(CARDS.fortyTwo, 'done', { at: now - HOUR }), priya(CARDS.duck, 'done', { at: now - 30 * 60_000 }),
       ], 'done'),
+    };
+    case 'full': return {
+      room: base([
+        rahul(CARDS.fortySeven, 'done', { host: true, at: now - 3 * HOUR }), amit(CARDS.fiftyOne, 'done', { at: now - 2 * HOUR }),
+        priya(CARDS.duck, 'done', { at: now - HOUR }), row('demo04-nehanehanehane', 'Neha', 2, CARDS.fortyTwo.slice(0, 9), 'batting', { at: now - 5000 }, now),
+      ], 'live'),
     };
     case 'group': return {
       room: base([

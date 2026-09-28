@@ -127,6 +127,10 @@ export function memoryChallenges(): ChallengeStore & { clear(): void; expire(cod
     },
     async indexed(playerId) { return [...(mine.get(playerId) ?? [])]; },
     async unindex(playerId, code) { mine.get(playerId)?.delete(code); },
+    async unseat(code, playerId) {
+      const held = live(code, Date.now());
+      if (held) delete held.challenge.players[playerId];
+    },
     async outcomes(playerId) { return { ...(results.get(playerId) ?? {}) }; },
     async setOutcome(playerId, code, outcome) {
       results.set(playerId, { ...(results.get(playerId) ?? {}), [code]: outcome });

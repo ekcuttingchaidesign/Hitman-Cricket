@@ -2461,7 +2461,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const keys = said.keys.map(roomKey).join('');
     if (drawn.keys !== keys) {
       this.$('room-keys').innerHTML = keys;
-      this.$('room-keys').classList.toggle('is-pair', !view.result && said.keys.filter(key => key.kind !== 'ghost').length === 2);
+      // Side by side for a short pair; stacked where the labels are too long to share a row.
+      this.$('room-keys').classList.toggle('is-pair', !view.result && view.kind !== 'full' && said.keys.filter(key => key.kind !== 'ghost').length === 2);
       drawn.keys = keys;
     }
     this.viewport.classList.toggle('result-room', !!view.result);
@@ -2849,6 +2850,8 @@ function roomCopy(
   view: RoomView, extra: { interstitial?: { index: number; total: number }; sent?: boolean; card?: boolean },
 ): { title: string; tag: string | null; lead: string; sub: string; note: string | null; keys: RoomKey[] } {
   const said = roomWords(view, extra);
+  // A full room has nobody left to send the link to.
+  if (view.full) said.keys = said.keys.filter(key => key.act !== 'invite' && key.act !== 'share');
   // The innings that just ended has a card, and the card is where the Top 50
   // is claimed — so the room keeps a way to it, under the keys that matter.
   if (extra.card && (view.kind === 'waiting' || view.kind === 'spectate' || view.kind === 'result')) {
@@ -2966,6 +2969,14 @@ function roomWords(
         sub: `It went down as a defeat. ${first(other)} keeps the points \u2014 a rematch is how you get them back.`,
         note: null,
         keys: [key('play', 'new', other ? 'CHALLENGE AGAIN' : 'START A NEW MATCH'), back],
+      };
+    case 'full':
+      return {
+        title: 'Match Room', tag: 'ROOM FULL',
+        lead: 'Uh oh, late to the party',
+        sub: 'Four have already taken the seats in this one. Start your own and send the link before anybody else gets there first.',
+        note: null,
+        keys: [key('play', 'new', 'START A NEW CHALLENGE'), key('steel', 'home', 'MODE SELECTION')],
       };
     case 'spectator': {
       const settled = view.players.filter(row => row.status === 'done' || row.status === 'forfeit');

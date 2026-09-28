@@ -5525,6 +5525,18 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rival-row-badge.is-none{background:#ffffff26;color:#dfe8f0}
 .rival-row-go{flex:none;display:flex;color:#c9d6dd}
 .rival-row-go svg{width:18px;height:18px}
+/* The room's own keys stay on the screen the same way, however many faces or
+   rows are above them: PLAY and SHARE never scroll away under four players.
+   The result's darker room gets a darker fade. */
+#challenge-room .room-keys{
+  position:sticky;
+  bottom:0;
+  z-index:2;
+  margin:auto calc(var(--pad) * -1) calc(-20px - env(safe-area-inset-bottom));
+  padding:32px var(--pad) calc(20px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,#03254600 0%,#032546d9 42%,#032546f2 100%)
+}
+.stage.result-room #challenge-room .room-keys{background:linear-gradient(180deg,#09192600 0%,#091926e6 40%,#091926 100%)}
 /* START A NEW MATCH stays on the screen however long the list gets: pinned to
    the foot, over a fade the rows scroll away under, and out to the screen's
    edges so the fade has no seam at the sheet's padding. */

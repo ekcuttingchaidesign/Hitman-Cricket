@@ -33,11 +33,15 @@ import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
  */
 
 /**
- * How many people one link can carry. Two is the match; the rest is a group
- * chat forwarding one link, and twenty rows is where a room stops being
- * readable on a phone.
+ * How many people one link can carry. Two is the match, and a link forwarded
+ * round a group chat fills the rest; past four the room stops being a match
+ * between friends and turns into a queue. Whoever opens it after that is
+ * told they are late, and pointed at a room of their own.
  */
-export const PLAYERS_MAX = 20;
+export const PLAYERS_MAX = 4;
+
+/** How many rooms one player's list carries. Nothing to do with the above. */
+export const LIST_MAX = 20;
 
 /** How long a room takes innings for. A week, because the friend was busy. */
 export const CHALLENGE_LIFE_MS = 7 * 24 * 3600_000;
@@ -183,6 +187,8 @@ export interface ChallengeStore {
   outcomes(playerId: string): Promise<Record<string, RivalsOutcome>>;
   /** Writes how one match went for this player, over whatever was there. */
   setOutcome(playerId: string, code: string, outcome: RivalsOutcome): Promise<void>;
+  /** Takes one player back out of a room: the seat they took was not free. */
+  unseat(code: string, playerId: string): Promise<void>;
 }
 
 /** One innings in the room, as the endpoint sends it. */
@@ -410,14 +416,23 @@ export async function joinChallenge(
   if (state === 'void') return { ok: false, status: 409, reason: 'This match was made on an older version of the game.' };
   if (state === 'expired') return { ok: false, status: 410, reason: 'This match has closed. Start a fresh one.' };
   if (Object.keys(challenge.players).length >= PLAYERS_MAX) {
-    return { ok: false, status: 409, reason: 'This room is full.' };
+    return { ok: false, status: 409, reason: FULL_REASON };
   }
 
   const player: StoredPlayer = { name: who.name, avatar: input.avatar, card: '', joined: now, at: now };
   await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
+  // Two taps on the same forwarded link in the same moment both find a seat
+  // free, and both take it. Read back, and whoever came in past the fourth —
+  // by the order they joined, the same order the kits are handed out in —
+  // gives the seat back.
+  const after = await store.read(key);
+  if (after && !seated(after, input.playerId)) {
+    await store.unseat(key, input.playerId);
+    return { ok: false, status: 409, reason: FULL_REASON };
+  }
   await store.index(input.playerId, key, CHALLENGE_TTL_SECONDS);
   challenge.players[input.playerId] = player;
-  return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
+  return { ok: true, code: key, challenge: challengePayload(key, after ?? challenge, now) };
 }
 
 /**
@@ -540,7 +555,7 @@ export async function readMine(
   store: ChallengeStore, playerId: string, now = Date.now(),
 ): Promise<ChallengeListOutcome | ChallengeRefusal> {
   if (!isPlayerId(playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
-  const codes = (await store.indexed(playerId)).slice(0, PLAYERS_MAX * 2);
+  const codes = (await store.indexed(playerId)).slice(0, LIST_MAX * 2);
   // The record is a side effect of the read, and never the reason it fails.
   // A write refused here once took the whole list down with it: every player
   // with a finished match was shown an empty Rival Matches and a zero record.
@@ -563,8 +578,20 @@ export async function readMine(
   const challenges = rooms
     .filter((room): room is ChallengePayload => room !== null)
     .sort((a, b) => b.at - a.at)
-    .slice(0, PLAYERS_MAX);
+    .slice(0, LIST_MAX);
   return { ok: true, challenges, record: recordOf(outcomes) };
+}
+
+/** What a player is told when the room has no seat left for them. */
+export const FULL_REASON = 'This room is full.';
+
+/** Whether this player holds one of the room's seats, by the order people joined. */
+function seated(challenge: StoredChallenge, playerId: string): boolean {
+  const order = Object.entries(challenge.players)
+    .sort(([a, one], [b, two]) => one.joined - two.joined || a.localeCompare(b))
+    .map(([id]) => id);
+  const at = order.indexOf(playerId);
+  return at >= 0 && at < PLAYERS_MAX;
 }
 
 /** Matches won, lost and drawn, counted from how each one went. */

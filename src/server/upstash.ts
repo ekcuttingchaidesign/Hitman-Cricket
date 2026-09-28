@@ -431,5 +431,8 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
     async setOutcome(playerId, code, outcome) {
       await redis.hset(outcomes(playerId), { [code]: outcome });
     },
+    async unseat(code, playerId) {
+      await redis.hdel(key(code), playerId);
+    },
   };
 }

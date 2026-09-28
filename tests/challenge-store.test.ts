@@ -180,6 +180,23 @@ describe('joining', () => {
     expect(hosts.challenges.map(one => one.code)).toEqual([code]);
   });
 
+  it('seats four and no more, even when two take the last seat at once', async () => {
+    const store = memoryChallenges();
+    const code = await room(store, T0);
+    took(await joinChallenge(store, code, friend(), T0 + 1000));
+    took(await joinChallenge(store, code, who({ playerId: THIRD, name: 'Third', avatar: 2 }), T0 + 2000));
+    // The fourth seat, asked for by two people in the same moment.
+    const late = ['abcdei-cdefghijklmn', 'abcdej-defghijklmno'];
+    const answers = await Promise.all(late.map(playerId => joinChallenge(store, code, who({ playerId, name: 'Late', avatar: 3 }), T0 + 3000)));
+    expect(answers.filter(one => one.ok)).toHaveLength(1);
+    expect(answers.map(one => (one.ok ? null : one.status)).filter(Boolean)).toEqual([409]);
+    const held = (await store.read(code))!;
+    expect(Object.keys(held.players)).toHaveLength(PLAYERS_MAX);
+    // And the one turned away is not left thinking the room is theirs.
+    const loser = late.find((_, i) => !answers[i].ok)!;
+    expect(await store.indexed(loser)).not.toContain(code);
+  });
+
   it('turns away a full room, and a room that has closed', async () => {
     const store = memoryChallenges();
     const code = await room(store);
