@@ -1,0 +1,19 @@
+Satoshi, by Deni Anggara, published by the Indian Type Foundry.
+
+Satoshi Variable, version 2.000. The file beside this notice
+(satoshi-latin.woff2) is a Latin subset of that release, cut with
+fontTools; no outline, metric or axis was altered.
+
+The font is licensed under the ITF Free Font License and is used here under
+its web-embedding terms. The licence text carried in the font's own name
+table reads:
+
+  This Font Software is protected under domestic and international
+  trademark and copyright law. You agree to identify the ITF fonts by name
+  and credit the ITF's ownership of the trademarks and copyrights in any
+  design or production credits.
+
+  https://fontshare.com/terms
+
+Accordingly: the typeface is Satoshi, and the trademarks and copyrights in
+it belong to the Indian Type Foundry (https://indiantypefoundry.com).

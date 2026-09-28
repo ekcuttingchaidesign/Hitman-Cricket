@@ -1,0 +1,4 @@
+node_modules/
+out/check/
+# made by `npm run sfx`
+public/sfx/
