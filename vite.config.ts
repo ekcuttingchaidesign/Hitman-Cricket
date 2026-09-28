@@ -60,7 +60,7 @@ function boardEndpoints(): Plugin {
   // Challenges are forgotten with the server too, and they expire on their own
   // while it runs, so a code left over from an hour of poking about stops
   // working the same way it would in production.
-  const challenges = memoryChallenges();
+  const challenges = memoryChallenges(names);
   return {
     name: 'hitman-board-dev',
     apply: 'serve',

@@ -45,15 +45,45 @@ draw, everything else a loss — walking out and declining included. A group is
 one match and one line, not a win over each person under you. A week that ran
 out on one innings adds nothing to anybody.
 
-Nothing on the server fires when a match ends, so the record is worked out on
-the read every phone makes when it opens Rivals: one outcome a room, stored
-against the player (`chro:{playerId}`, room code to won, lost or drawn) and
-overwritten whenever the room says something different. The record is a count
+A match that ends on a ball or a decline is counted there and then, for
+everybody in it. One that ends on a clock — a forfeit, an expiry — ends while
+nobody is looking, so it is caught on the read every phone makes when it opens
+Rivals, and settled for everybody in it from there. Either way it is one result
+a room, stored against the player (`chro:{playerId}`, room code to a short
+string such as `won:47:r` — the result, the runs, and whether it counts on the
+board) and overwritten whenever the room says something different. A bare
+`won` from before the board existed still reads, as no runs and not counted,
+and is written out in full on the next read. The record is a count
 of those. It is kept that way rather than as running totals because a finished
 room can reopen: a third friend who joins and beats everybody turns a win into
 a loss, and a total counted when the room first finished can never be put
 right. `outcomeOf` in `challenge-store.ts` is the whole rule; `the record` in
 `tests/challenge-store.test.ts` walks it, launch-day case included.
+
+## The Rivals board
+
+A tab on the leaderboard, between Test Survival and My Stats: matches won,
+matches lost, and runs made in them, top fifty. Ranked on wins, then fewest
+losses, then runs. It moves the moment a match's last innings lands; nobody
+has to open anything.
+
+Two rules keep it honest, and both lean on the board's name registry:
+
+- **A match counts only when somebody else in it has a registered name.** A
+  name made up for a room is free, so two phones with made-up names could play
+  each other all night; a registered name is one per person, for good. The
+  record on Rival Matches still counts every match — only the board is choosy.
+- **Only a registered name appears.** A player who batted in the room under a
+  name that is not theirs on the registry is counted but not shown. A player
+  who registers after their matches reaches the board the next time they open
+  Rival Matches.
+
+Runs are the runs made in the matches that count, a walk-out's included and a
+decline's none. Kept as a sorted set (`rvboard`) and a hash of rows
+(`rvplayers`), the same two keys every other board is, so the top fifty is two
+commands. `GET /api/challenge?board=rivals` reads it, cached at the edge for
+thirty seconds. `?demo=1` fills it with fifty made-up records.
+`the Rivals board` in `tests/challenge-store.test.ts` walks every rule above.
 
 ## Testing it
 
@@ -124,7 +154,7 @@ per-player list.
 
 | File | What it holds |
 | --- | --- |
-| `src/server/challenge-store.ts` | Every rule: create, join, ball, seen, decline; states; forfeit; expiry; ranking; the record. |
+| `src/server/challenge-store.ts` | Every rule: create, join, ball, seen, decline; states; forfeit; expiry; ranking; the record; the Rivals board. |
 | `src/server/challenge-endpoint.ts` | The dispatch, shared by `api/challenge.ts` and the dev server. |
 | `src/server/name-filter.ts` | The short list of names a friend should not be sent. |
 | `src/game/challenge-api.ts` | The calls, the messages, and what the browser keeps. |
@@ -132,6 +162,7 @@ per-player list.
 | `src/game/room-demo.ts` | The `?room=` fixtures. |
 | `src/ui/HUD.ts` | The picker, the room, the sheets. Search for "The match room". |
 | `src/ui/Record.ts` | The won, lost, drawn row, drawn once for Rival Matches and My Stats. |
+| `src/ui/RivalsBoard.ts` | The Rivals board, under its tab on the leaderboard. |
 | `src/ui/Lottie.ts` | The player for the films, fetched the first time one is needed. |
 | `scripts/lottie-art.mjs` | Draws the films into `public/lotties/`, the looping winner's fire among them. |
 
@@ -141,4 +172,6 @@ Upstash's free tier is half a million commands a month. A match is about
 seventy commands with two people batting at once — thirty balls each, a few
 joins, and the polls that miss the edge cache — and fewer when they bat apart.
 Room reads are the same bytes for everybody and sit in Vercel's edge cache for
-two seconds, which is what makes polling affordable.
+two seconds, which is what makes polling affordable. Settling a finished match
+onto the board is about five commands a player, once; opening Rival Matches
+adds three for a player on the board.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEMO_ROWS, demoBoard, demoCareers, demoSurvive } from '../src/game/demo-board';
+import { DEMO_ROWS, demoBoard, demoCareers, demoRivals, demoSurvive } from '../src/game/demo-board';
+import { rivalsScore } from '../src/server/challenge-store';
 import { BLAST_BOARDS, SURVIVE_BOARDS, blastTallyPlausible } from '../src/game/career';
 import { survivePlausible } from '../src/game/survive-board';
 import { AVATARS } from '../src/config/board';
@@ -54,5 +55,15 @@ describe('a board with fifty made-up people on it', () => {
         expect(rows.some(row => row.playerId === ME), board.key).toBe(true);
       }
     }
+  });
+});
+
+describe('a made-up Rivals board', () => {
+  it('is fifty rows in the order the server would rank them, one of them yours', () => {
+    const rows = demoRivals(ME);
+    expect(rows).toHaveLength(DEMO_ROWS);
+    expect(falling(rows.map(row => rivalsScore(row)))).toBe(true);
+    expect(rows.filter(row => row.playerId === ME)).toHaveLength(1);
+    expect(demoRivals(null).some(row => row.playerId === ME)).toBe(false);
   });
 });

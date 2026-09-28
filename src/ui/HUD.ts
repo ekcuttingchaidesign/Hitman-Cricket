@@ -14,7 +14,7 @@ import { playFilm, type Film, type Playing } from './Lottie';
 import type { Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, kitMarkup, peekMarkup, pickerMarkup,
+  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, flatTab, kitMarkup, peekMarkup, pickerMarkup,
   standingPeek,
   type BoardTab, type BoardView, type CardOffer, type SheetTab,
 } from './Leaderboard';
@@ -29,6 +29,7 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
+import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
@@ -574,6 +575,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     );
   }
 
+  /** The Rivals board, under its own tab. No ladders and no innings-end keys: it is not a mode. */
+  rivalsBoard(view: RivalsBoardView) {
+    this.sheet(rivalsBoardMarkup(view), 'rivals', 'best');
+  }
+
 
   /**
    * The innings-end keys, under the sheet that is standing in for the card.
@@ -1108,8 +1114,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The card's tab has no ladders under it: a career is one thing and there
     // is nothing to re-sort. The row is dropped rather than drawn empty, or the
     // sheet would keep a gap where the player's eye expects a control.
+    // Rivals is the same: one board, not a mode, so no ladders either.
     const mine = tab === 'mine';
-    if (!mine) this.lastGame = tab;
+    const flat = flatTab(tab);
+    if (!flat) this.lastGame = tab;
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
     //
@@ -1117,7 +1125,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // the ladders inside a mode are this mode's ladders, so a build that plays
     // one mode still has a career and still has a card, while a build that
     // plays both needs the row above to get between them.
-    const tabs = `${boardTabsMarkup(tab)}${mine ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
+    const tabs = `${boardTabsMarkup(tab)}${flat ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
     // The keys stand under the sheet rather than inside it. They are what to do
     // next, which is not a fact about a leaderboard — sealed into its foot they
     // read as part of the board, and a board with a PLAY AGAIN in it is a board
@@ -1128,11 +1136,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       if (!key) continue;
       // A build that plays one mode still has a card, so the row is always
       // drawn — the other game's tab is simply taken off it.
-      const here = mine ? this.lastGame : tab;
-      if (!this.bothModes && other.tab !== 'mine' && other.tab !== here) { key.remove(); continue; }
+      const here = flat ? this.lastGame : tab;
+      if (!this.bothModes && !flatTab(other.tab) && other.tab !== here) { key.remove(); continue; }
       key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }
-    if (!mine) {
+    if (!flat) {
       for (const other of laddersOf(tab as BoardTab)) {
         this.$(`board-ladder-${other.key}`).onclick = () => {
           if (other.key !== ladder) this.onLadderTab?.(other.key);
@@ -1144,7 +1152,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // narrow phone puts the tab you are standing on off the right-hand edge and
     // the strip looks like it has forgotten which one is live. Its own
     // `scrollLeft` rather than `scrollIntoView`, which would move the page too.
-    if (!mine) {
+    if (!flat) {
       const live = this.$(`board-ladder-${ladder}`);
       const strip = live.parentElement;
       if (strip) strip.scrollLeft = live.offsetLeft - (strip.clientWidth - live.clientWidth) / 2;

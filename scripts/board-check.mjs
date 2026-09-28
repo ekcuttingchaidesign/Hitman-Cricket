@@ -291,6 +291,17 @@ if (code) {
   check((mine.headers.get('cache-control') ?? '').includes('no-store'), 'and is never cached', mine.headers.get('cache-control'));
 }
 
+// The Rivals board is a read like any other board: the same for everybody, and
+// cached at the edge. Neither player above has a registered name in the room,
+// so nothing they did is on it — which is the rule, not a fault.
+const rivals = await call('/api/challenge?board=rivals');
+check(rivals.status === 200 && Array.isArray(rivals.body?.rows), `GET ?board=rivals answers the Rivals board (${rivals.status}, ${rivals.ms}ms)`, rivals.text.slice(0, 200));
+if (!Object.keys(BYPASS).length) {
+  check(/s-maxage/.test(rivals.headers.get('cache-control') ?? ''), 'and it is cacheable at the edge', rivals.headers.get('cache-control'));
+}
+check(!(rivals.body?.rows ?? []).some(row => row.name === 'Host' || row.name === 'Friend'),
+  'and a room played under made-up names is not on it', rivals.body?.rows?.slice(0, 3));
+
 const noChallenge = await call('/api/challenge?code=ZZZZZZ');
 check(noChallenge.status === 404, `a code that is not a room answers 404 (${noChallenge.status})`, noChallenge.body);
 const badChallenge = await call('/api/challenge?code=K7Q0');

@@ -1559,6 +1559,16 @@ body.start-screen #sound{pointer-events:auto}
 @media (max-width:379px){
   .board-row.is-career .board-hits em:last-child{display:none}
 }
+/* The Rivals row is three figures and all three are the point — won, lost,
+   runs, in the order the board is ranked on — so none of them is the one that
+   goes on a narrow phone. There is no lead figure to make room for, so they
+   fit: the wins a size up, because they are what the place is decided on. */
+.board-row.is-rivals .board-hits{margin-left:auto}
+.board-row.is-rivals .board-hits em{width:44px}
+.board-row.is-rivals .board-hits em:first-child{font-size:15px}
+@media (max-width:379px){
+  .board-row.is-rivals .board-hits em:last-child{display:flex}
+}
 
 /* The figure that actually split a tie, lit where the eye already is. Colour is
    not carrying this on its own: the note under the name says the same thing in

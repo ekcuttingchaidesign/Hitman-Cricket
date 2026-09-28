@@ -1,6 +1,6 @@
 import {
-  createChallenge, declineChallenge, joinChallenge, markSeen, readChallenge, readMine, recordBalls,
-  type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeStore,
+  createChallenge, declineChallenge, joinChallenge, markSeen, readChallenge, readMine, readRivalsBoard, recordBalls,
+  type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeStore, type RivalsBoardOutcome,
 } from './challenge-store.js';
 
 /**
@@ -14,6 +14,7 @@ import {
  *
  *   GET ?code=K7QPX2      the room as it stands — the same bytes for everybody
  *   GET ?player=…         every room this player is in, newest first
+ *   GET ?board=rivals     the Rivals board, top fifty — the same for everybody
  *   POST {action: …}      create · join · ball · seen · decline
  */
 export interface ChallengeRequest {
@@ -26,8 +27,9 @@ export interface ChallengeRequest {
 
 export async function challengeRequest(
   store: ChallengeStore, req: ChallengeRequest,
-): Promise<ChallengeOutcome | ChallengeListOutcome> {
+): Promise<ChallengeOutcome | ChallengeListOutcome | RivalsBoardOutcome> {
   if (req.method === 'GET') {
+    if (one(req.query.board) === 'rivals') return readRivalsBoard(store);
     const player = one(req.query.player);
     if (player) return readMine(store, player);
     return readChallenge(store, one(req.query.code));
@@ -52,7 +54,7 @@ export async function challengeRequest(
   }
 }
 
-/** Whether a read may sit in the edge cache: only the room itself, never a player's list or a write. */
+/** Whether a read may sit in the edge cache: a room or the board, never a player's list or a write. */
 export function cacheable(req: ChallengeRequest): boolean {
   return req.method === 'GET' && !one(req.query.player);
 }

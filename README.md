@@ -754,6 +754,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
 | `board-open` | Whether the fifty is looked at. |
 | `board-tab-classic`, `board-tab-survive` | Whether the other mode's ladder is reached from the tab over the sheet. |
+| `board-tab-rivals`, `board-tab-mine` | Whether the Rivals board and the player's own card are opened from the tabs. |
 | `board-ladder-runs`, `…-boundaries`, `…-highest`, `…-balls`, `…-blows` | Which career ladder is opened. The one measure of whether the career boards are worth the tabs they cost. |
 | `stats-open` | Whether the career card is looked at at all. |
 | `stats-share-whatsapp`, `stats-share-story` | Whether it is then sent anywhere, which is the whole point of drawing it. The tap, not the delivery — whether the sheet was sent or dismissed is between the player and their phone. |
@@ -836,6 +837,9 @@ Ties break on runs, sixes, fours; level on all three is a draw. A room lives a
 week; an innings left for a day is a forfeit; a challenge declined is a defeat.
 Every finished match goes on a record — won, lost, drawn — kept on the server
 for good and shown at the top of Rival Matches and under the cards on My Stats.
+The Rivals tab on the leaderboard ranks registered names on wins, then fewest
+losses, then runs; a match counts there only when somebody else in it has a
+registered name.
 The host bats in the home kit; the friends who follow bat in green, purple and
 blue, in the order they came in.
 

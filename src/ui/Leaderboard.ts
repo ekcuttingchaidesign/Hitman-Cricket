@@ -108,6 +108,7 @@ export function decider(above: Innings | null, row: Innings): LadderKey | null {
 export const BOARD_TABS = [
   { tab: 'classic', id: 'board-tab-classic', name: 'The Blast' },
   { tab: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
+  { tab: 'rivals', id: 'board-tab-rivals', name: 'Rivals' },
   { tab: 'mine', id: 'board-tab-mine', name: 'My Stats' },
 ] as const;
 
@@ -124,13 +125,22 @@ export type BoardTab = 'classic' | 'survive';
  * and back must land where they were, which is why the mode is remembered
  * separately from which tab is lit.
  */
-export type SheetTab = BoardTab | 'mine';
+export type SheetTab = BoardTab | 'rivals' | 'mine';
+
+/**
+ * Whether a tab stands on its own, with no ladders under it. The card is one
+ * record and Rivals is one board; neither is a mode, so neither has a row of
+ * ladders to re-sort, and a build that plays one game keeps both.
+ */
+export function flatTab(tab: SheetTab): tab is 'rivals' | 'mine' {
+  return tab === 'rivals' || tab === 'mine';
+}
 
 export function boardTabsMarkup(active: SheetTab): string {
   return `
     <div class="board-tabs" role="tablist" aria-label="Which leaderboard">${BOARD_TABS.map(one => {
       const on = one.tab === active;
-      // All three stay tabbable. A tablist usually moves one tab stop between
+      // All of them stay tabbable. A tablist usually moves one tab stop between
       // its tabs and drives the rest from the arrow keys; three keys that are
       // also the only way between the screens are better off reachable the
       // ordinary way than correct about a convention nothing here implements.

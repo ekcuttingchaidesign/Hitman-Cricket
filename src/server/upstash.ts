@@ -4,7 +4,10 @@ import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
 import type { RecoveryStore } from './recovery-store.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
-import type { ChallengeStore, RivalsOutcome, StoredPlayer } from './challenge-store.js';
+import {
+  packResult, unpackResult,
+  type ChallengeStore, type RivalsResult, type StoredPlayer, type StoredRivalsRow,
+} from './challenge-store.js';
 
 /**
  * The board kept in Redis.
@@ -343,6 +346,12 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
   // One field a match, the room's code, holding how it went. `chr:` held the
   // running totals of an earlier build and is no longer read.
   const outcomes = (playerId: string) => `${SCOPE}chro:${playerId}`;
+  // The Rivals board: a sorted set for the order and one hash of rows, the
+  // same two keys every other board is, so the top fifty is two commands.
+  const ranking = `${SCOPE}rvboard`;
+  const rows = `${SCOPE}rvplayers`;
+  // The board's name registry, read and never written from here.
+  const names = `${SCOPE}names`;
   return {
     async claim(code, challenge, ttlSeconds) {
       // Set-if-absent on one field, so two challenges drawn onto the same code
@@ -422,17 +431,35 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
     // what they came to is a career figure and stays as long as the career.
     async outcomes(playerId) {
       const held = await redis.hgetall<Record<string, unknown>>(outcomes(playerId));
-      const kept: Record<string, RivalsOutcome> = {};
+      const kept: Record<string, RivalsResult> = {};
       for (const [code, value] of Object.entries(held ?? {})) {
-        if (value === 'won' || value === 'lost' || value === 'drawn') kept[code] = value;
+        const result = unpackResult(value);
+        if (result) kept[code] = result;
       }
       return kept;
     },
-    async setOutcome(playerId, code, outcome) {
-      await redis.hset(outcomes(playerId), { [code]: outcome });
+    async setOutcome(playerId, code, result) {
+      await redis.hset(outcomes(playerId), { [code]: packResult(result) });
     },
     async unseat(code, playerId) {
       await redis.hdel(key(code), playerId);
+    },
+    async nameHolders(folded) {
+      if (!folded.length) return [];
+      const found = await redis.hmget<Record<string, string>>(names, ...folded);
+      return folded.map(name => (found?.[name] != null ? String(found[name]) : null));
+    },
+    async rank(playerId, score, row) {
+      // A plain write, not GT: a room that finished twice can turn a win into
+      // a loss, and the board has to be able to follow it down.
+      await redis.zadd(ranking, { score, member: playerId });
+      await redis.hset(rows, { [playerId]: row });
+    },
+    async topRivals(n) {
+      const ids = (await redis.zrange<string[]>(ranking, 0, n - 1, { rev: true })).map(String);
+      if (!ids.length) return [];
+      const found = await redis.hmget<Record<string, StoredRivalsRow>>(rows, ...ids);
+      return ids.flatMap(id => (found?.[id] ? [{ playerId: id, ...found[id] }] : []));
     },
   };
 }
