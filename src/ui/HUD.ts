@@ -2738,7 +2738,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       ['Best score', `You ${view.bestMine} · ${escapeName(view.them.name)} ${view.bestTheirs}`],
       ['Sixes', `You ${view.sixesMine} · ${escapeName(view.them.name)} ${view.sixesTheirs}`],
     ].map(([what, said]) => `<div><dt>${what}</dt><dd>${said}</dd></div>`).join('');
-    this.$('rivalry-again').textContent = `CHALLENGE ${view.them.name.toUpperCase()} AGAIN`;
+    // No name on the key: a long one ran it off both edges. The name is in
+    // the heading above, where there is room for it.
+    this.$('rivalry-again').textContent = 'CHALLENGE AGAIN';
     this.open('challenge-rivalry');
     this.settle('challenge-rivalry');
   }
@@ -2946,7 +2948,7 @@ function roomWords(
           ? `${other ? first(other) : 'Nobody'} didn’t bat within the week. Your ${you!.runs} stays in your career; no result goes down against anybody.`
           : 'Nobody batted within the week, so there is nothing to decide.',
         note: null,
-        keys: [key('play', 'new', other ? `CHALLENGE ${other.name.toUpperCase()} AGAIN` : 'START A NEW MATCH'), back],
+        keys: [key('play', 'new', other ? 'CHALLENGE AGAIN' : 'START A NEW MATCH'), back],
       };
     }
     case 'void':
@@ -2963,7 +2965,7 @@ function roomWords(
         lead: 'You declined this one',
         sub: `It went down as a defeat. ${first(other)} keeps the points \u2014 a rematch is how you get them back.`,
         note: null,
-        keys: [key('play', 'new', other ? `CHALLENGE ${other.name.toUpperCase()} AGAIN` : 'START A NEW MATCH'), back],
+        keys: [key('play', 'new', other ? 'CHALLENGE AGAIN' : 'START A NEW MATCH'), back],
       };
     case 'spectator': {
       const settled = view.players.filter(row => row.status === 'done' || row.status === 'forfeit');
