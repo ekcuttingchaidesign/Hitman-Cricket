@@ -27,7 +27,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const request = { method: req.method, query: req.query ?? {}, body: req.body, address: addressOf(req) };
     // Reads use the read-only token: they cannot write, whatever they are sent.
-    const store = upstashChallenges(redisFromEnv(req.method === 'GET'));
+    // All but one: a player's list is where a finished match is added to their
+    // record, because nothing on the server fires when a match ends, so that
+    // read has to be able to write. It is never cached and it is one player's.
+    const writes = req.method !== 'GET' || !!request.query.player;
+    const store = upstashChallenges(redisFromEnv(!writes));
     const outcome = await challengeRequest(store, request);
     if (challengeRefused(outcome)) return failed(res, outcome.status, outcome.reason);
     // Two seconds of edge cache on a room read, then a moment where a stale

@@ -224,6 +224,24 @@ check(/dead heat/i.test(result) || await b.page.locator('#room-anim svg').count(
 check((await b.page.locator('#room-scoreline .verdict-row').count()) === 2, 'and both innings as rows');
 await b.shot('11-result');
 
+// The scorecard off the result: a way back to it, and none of the keys that
+// only belong at the end of a Blast innings.
+const cardLink = b.page.locator('#room-keys [data-act="card"]');
+check(await cardLink.count() > 0, 'the result offers the innings scorecard');
+if (await cardLink.count()) {
+  await cardLink.first().click();
+  await b.settle(900);
+  const shows = async sel => b.page.locator(sel).isVisible().catch(() => false);
+  check(await shows('#end') && await shows('#card-result') && await shows('#card-modes'),
+    'which carries BACK TO RESULT and a way to mode selection');
+  check(!(await shows('#again')) && !(await shows('#challenge-set')),
+    'and no PLAY AGAIN or CHALLENGE A FRIEND, which belong to a Blast innings');
+  await b.page.locator('#card-result').click();
+  await b.settle(900);
+  check(await shows('#challenge-room') && !(await shows('#end')) && /wins|dead heat/i.test(await b.page.locator('#room-lead').innerText()),
+    'BACK TO RESULT goes back to the result');
+}
+
 await a.settle(5000);
 const aResult = await a.page.locator('#room-lead').innerText();
 check(/wins|dead heat/i.test(aResult), 'Shashank\'s room turns into the result on its own', aResult);

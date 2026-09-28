@@ -1742,6 +1742,12 @@ body.start-screen #sound{pointer-events:auto}
    go again, or send it to somebody. PLAY AGAIN takes the larger share because
    it is what most people do next. */
 .card-keys{display:flex;gap:10px;align-items:stretch}
+/* Opened from a match result: the way back and the way out, in place of the
+   keys that only make sense at the end of a Blast innings. */
+.card-match-key{display:none}
+#end.is-match #card-result{display:flex}
+#end.is-match #card-modes{display:block;margin:12px auto 0}
+#end.is-match #again,#end.is-match #challenge-set,#end.is-match .start-hint{display:none}
 .card-keys .key-button{flex:1.15 1 0;margin:0;min-width:0}
 .card-keys .share-key{flex:1 1 0;min-width:0;padding:0 14px;font-size:16px}
 /* At the narrowest phone widths the two words stop fitting beside each other,

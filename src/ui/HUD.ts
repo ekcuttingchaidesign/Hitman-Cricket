@@ -359,8 +359,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <div class="card-keys">
               <button id="challenge-set" class="key-button challenge-key">CHALLENGE A FRIEND<em>with this innings</em></button>
               <button id="again" class="key-button">PLAY AGAIN</button>
+              <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
+            <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
             <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
@@ -2529,6 +2531,24 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   get roomOpen() { return !this.$('challenge-room').classList.contains('hidden'); }
   get listOpen() { return !this.$('challenge-list').classList.contains('hidden'); }
+
+  /**
+   * The innings card, as opened from a match result rather than at the end of
+   * a Blast innings. PLAY AGAIN would start a Blast innings nobody asked for
+   * and CHALLENGE A FRIEND would make a room out of an innings that already
+   * belongs to one, so both give way to the way back to the result and a way
+   * on to the mode screen.
+   */
+  matchScorecard(on: boolean) { this.$('end').classList.toggle('is-match', on); }
+  get matchScorecardOpen() {
+    const end = this.$('end');
+    return !end.classList.contains('hidden') && end.classList.contains('is-match');
+  }
+  /** The innings card put away, for the screen that replaces it. */
+  hideScorecard() {
+    this.$('end').classList.add('hidden');
+    this.$('end').classList.remove('is-match');
+  }
 
   /**
    * The link, ready to go: what happens, and two ways to send it. The message

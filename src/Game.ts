@@ -384,6 +384,8 @@ export class Game {
     this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);
+    this.hud.on('card-result', () => this.backToResult());
+    this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
@@ -1537,6 +1539,13 @@ export class Game {
       if (key === 'ESCAPE') { event.preventDefault(); this.closePicker(); }
       return;
     }
+    // The card opened from a match result goes back to it, rather than
+    // starting a Blast innings on a key meant for the card at an innings' end.
+    if (this.hud.matchScorecardOpen && (key === 'ENTER' || key === 'R' || key === 'ESCAPE')) {
+      event.preventDefault();
+      this.backToResult();
+      return;
+    }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {
       event.preventDefault();
       if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.modes();
@@ -2015,8 +2024,9 @@ export class Game {
   }
 
   /** The five-over card, with the strip, the key and the board under it. */
-  private showBlastCard(record: boolean) {
+  private showBlastCard(record: boolean, fromMatch = false) {
     this.hud.end(this.score, this.best, record);
+    this.hud.matchScorecard(fromMatch);
     // The way to the career card from the innings card. Offered only where a
     // career is actually being kept: a private window counts nothing, so a
     // widget there would lead to a card of noughts that never fills.
@@ -2203,6 +2213,12 @@ export class Game {
   }
 
   /** Out of the room. Back to wherever makes sense, which is always the picker. */
+  /** From the innings card back to the match result it was opened from. */
+  private backToResult() {
+    this.hud.hideScorecard();
+    this.showRoom();
+  }
+
   private leaveRoom() {
     this.challenge.stopWatching();
     this.hud.closeRoom();
@@ -2276,7 +2292,7 @@ export class Game {
         this.challenge.stopWatching();
         this.hud.closeRoom();
         this.audio.music('result');
-        this.showBlastCard(record);
+        this.showBlastCard(record, true);
         return;
       }
       case 'decline':

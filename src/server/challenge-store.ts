@@ -538,14 +538,19 @@ export async function readMine(
   const rooms = await Promise.all(codes.map(async code => {
     const challenge = await store.read(code);
     if (!challenge) { await store.unindex(playerId, code); return null; }
-    await tallyIfOver(store, code, challenge, playerId, now);
+    // The record is a side effect of the read, and never the reason it fails.
+    // A write refused here once took the whole list down with it: every player
+    // with a finished match was shown an empty Rival Matches and a zero record.
+    // Untallied, the room is simply counted on the next read that can.
+    await tallyIfOver(store, code, challenge, playerId, now).catch(() => null);
     return challengePayload(code, challenge, now);
   }));
   const challenges = rooms
     .filter((room): room is ChallengePayload => room !== null)
     .sort((a, b) => b.at - a.at)
     .slice(0, PLAYERS_MAX);
-  return { ok: true, challenges, record: await store.record(playerId) };
+  const record = await store.record(playerId).catch(() => ({ won: 0, lost: 0, drawn: 0 }));
+  return { ok: true, challenges, record };
 }
 
 /**

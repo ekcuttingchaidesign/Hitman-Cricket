@@ -404,6 +404,24 @@ describe('the record', () => {
     expect(took(await readMine(store, THIRD, T0 + 5000)).record).toEqual({ won: 0, lost: 1, drawn: 0 });
   });
 
+  it('never costs anybody their list when the record cannot be written', async () => {
+    // Production reads with a read-only token. A list read that tried to tally
+    // on one threw, and every player with a finished match got an empty list.
+    const store = memoryChallenges();
+    await settle(store, 40, 24);
+    const refuses = {
+      ...store,
+      write: async () => { throw new Error('NOPERM this user has no permissions to run the hset command'); },
+      tally: async () => { throw new Error('NOPERM'); },
+      record: async () => { throw new Error('NOPERM'); },
+    };
+    const mine = took(await readMine(refuses, HOST, T0 + 20_000));
+    expect(mine.challenges).toHaveLength(1);
+    expect(mine.record).toEqual({ won: 0, lost: 0, drawn: 0 });
+    // And the room is counted on the next read that can write.
+    expect(took(await readMine(store, HOST, T0 + 30_000)).record).toEqual({ won: 1, lost: 0, drawn: 0 });
+  });
+
   it('adds nothing for a week that ran out on one innings', async () => {
     const store = memoryChallenges();
     const code = await room(store, T0);
