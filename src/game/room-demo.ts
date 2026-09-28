@@ -68,8 +68,8 @@ function row(
 /** The room for one state, seen by `me`. */
 export function demoRoom(kind: DemoKind, me: string, now = Date.now()): { room: Challenge; interstitial?: { index: number; total: number }; sent?: boolean } {
   const you = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row(me, 'You', 3, card, status, { host: true, ...over }, now);
-  const rahul = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo01-rahulrahulrahul', 'Rahul', 1, card, status, over, now);
-  const priya = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo02-priyapriyapriya', 'Priya', 0, card, status, over, now);
+  const rahul = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo01-rahulrahulrahul', 'Virat', 1, card, status, over, now);
+  const priya = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo02-priyapriyapriya', 'Rohit', 0, card, status, over, now);
   const amit = (card: string, status: PlayerStatus, over: Partial<ChallengeRow> = {}) => row('demo03-amitamitamitam', 'Amit', 4, card, status, over, now);
   const base = (players: ChallengeRow[], state: Challenge['state'], over: Partial<Challenge> = {}): Challenge => ({
     code: 'DEMO42', state, host: players.find(one => one.host)?.playerId ?? me,

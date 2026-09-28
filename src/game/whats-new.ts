@@ -67,7 +67,7 @@ export const STORIES: readonly Story[] = [
     title: 'Bat against your friends',
     body: 'Make a room, send the link, and everyone who opens it bats the same thirty balls \u2014 together right now, or days apart. Their runs flash up ball by ball. The score stays hidden till your last.',
     art: rivalsRoom,
-    alt: 'The Rivals match room: You, Rahul and Priya seated round a VS, each marked JOINED.',
+    alt: 'The Rivals match room: You, Virat and Rohit seated round a VS, each marked JOINED.',
     width: 720,
     height: 709,
   },
