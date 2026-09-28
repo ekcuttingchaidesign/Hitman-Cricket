@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { Challenge, ChallengeRow } from '../src/game/challenge-api';
 import type { PlayerStatus } from '../src/server/challenge-store';
 import { figuresOf } from '../src/game/ball-string';
-import { resultView, roomView, seatKit } from '../src/game/Challenge';
+import { resultView, roomView, seatKit, sortList } from '../src/game/Challenge';
 
 /**
  * The room as one person reads it, in a group. Two people is easy: whoever
@@ -93,5 +93,20 @@ describe('the kit by seat', () => {
     expect(seatKit(r, fifth.playerId)).toBe('green');
     expect(seatKit(r, 'nobody-nobodynobodyx')).toBe('home');
     expect(seatKit(null, me)).toBe('home');
+  });
+});
+
+describe('the list', () => {
+  const room2 = (code: string, players: ChallengeRow[], state: Challenge['state']) => ({ ...room(players, state), code, host: players[0].playerId });
+
+  it('leaves off a room nobody joined and this person never batted in', () => {
+    const empty = room2('EMPTY1', [row(me, 'Me', '', 'joined', 1)], 'open');
+    const batted = room2('SOLO01', [row(me, 'Me', thirty('444'), 'done', 1)], 'live');
+    const fromThem = room2('THEIRS', [row('p10000-p1p1p1p1p1p1p1', 'Shashank', thirty('6'), 'done', 1), row(me, 'Me', '', 'joined', 2)], 'live');
+    const list = sortList([empty, batted, fromThem], me);
+    expect(list.yourMove.map(one => one.code)).toEqual(['THEIRS']);
+    // Batted alone, still waiting for somebody to come: that one stays.
+    expect(list.waitingOnThem.map(one => one.code)).toEqual(['SOLO01']);
+    expect([...list.yourMove, ...list.waitingOnThem, ...list.done].map(one => one.code)).not.toContain('EMPTY1');
   });
 });

@@ -2664,9 +2664,14 @@ function listSections(list: ListView, me: string): ListSections {
       case 'result': {
         const result = view.result!;
         const margin = Math.abs((view.mine?.runs ?? 0) - (result.them?.runs ?? 0));
+        const won = result.outcome === 'W' ? 'Won' : 'Lost';
+        // Level on runs and still decided: the tiebreak did it, and says so
+        // rather than claiming a margin of nothing.
+        const tiebreak = (view.mine?.sixes ?? 0) !== (result.them?.sixes ?? 0) ? 'sixes' : 'fours';
         const verdict = result.forfeit
-          ? (result.outcome === 'W' ? 'Won by forfeit' : 'Lost by forfeit')
-          : result.outcome === 'D' ? `Drawn \u00b7 ${view.mine?.runs} each` : `${result.outcome === 'W' ? 'Won' : 'Lost'} by ${margin} run${margin === 1 ? '' : 's'}`;
+          ? `${won} by forfeit`
+          : result.outcome === 'D' ? `Drawn \u00b7 ${view.mine?.runs} each`
+            : margin === 0 ? `${won} on ${tiebreak}` : `${won} by ${margin} run${margin === 1 ? '' : 's'}`;
         return { ...base, outcome: result.outcome, verdict, note: fromThem ? 'challenged you' : 'you challenged' };
       }
       case 'expired': return { ...base, outcome: '\u2014', verdict: 'Closed', note: view.mine && view.mine.status === 'done' ? `${lead?.name ?? 'nobody'} never batted` : 'nobody batted in the week' };

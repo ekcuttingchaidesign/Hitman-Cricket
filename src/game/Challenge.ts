@@ -369,6 +369,11 @@ export function sortList(rooms: readonly Challenge[], me: string, now = Date.now
     const settled = view.mine && view.mine.status !== 'joined' && view.mine.status !== 'batting';
     if (view.result && view.mine && !view.mine.seen && !seenHere(room.code)) list.unseen.push(room);
     if (hidden.has(room.code)) continue;
+    // A room with nobody in it but this person, who has not batted in it
+    // either, is a tap on PLAY that went nowhere: every tap makes a room on
+    // the spot. It is not a challenge received and there is nothing in it to
+    // show, so it is left off until somebody joins it or they bat.
+    if (!room.players.some(one => one.playerId !== me) && view.mine?.status === 'joined') continue;
     if (view.kind === 'declined') { list.done.push(room); continue; }
     if (view.kind === 'chase' || view.kind === 'resume' || (view.kind === 'lobby' && !settled)) list.yourMove.push(room);
     else if (view.kind === 'waiting' || view.kind === 'spectate') list.waitingOnThem.push(room);
