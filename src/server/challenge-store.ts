@@ -2,6 +2,7 @@ import type { Innings } from '../game/leaderboard.js';
 import { BALL_CHARS, MAX_BALLS, ended, figuresOf } from '../game/ball-string.js';
 import { AVATARS, NAME_MAX, cleanName, foldName } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
+import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals.js';
 
 /**
  * A match room: one link, and everybody who bats under it.
@@ -141,10 +142,10 @@ export type RivalsOutcome = keyof RivalsRecord;
  * How one finished match went for one player: the result, what they made in
  * it, and whether it counts on the Rivals board.
  *
- * It counts when somebody else who settled in the room had a registered name.
- * That is the whole of the rule against farming: two phones with made-up names
- * can play each other all night and change nothing on the board, because a
- * made-up name is free and a registered one is not.
+ * Every finished match counts, unless `RIVALS_NEED_REGISTERED_RIVAL` is on —
+ * then it counts only when somebody else who settled in the room had a
+ * registered name, which is the rule against farming: two phones with made-up
+ * names could play each other all night and change nothing on the board.
  */
 export interface RivalsResult {
   outcome: RivalsOutcome;
@@ -233,6 +234,8 @@ export interface ChallengeStore {
   nameHolders(folded: string[]): Promise<(string | null)[]>;
   /** Puts this player on the Rivals board at this score, with this row. */
   rank(playerId: string, score: number, row: StoredRivalsRow): Promise<void>;
+  /** Takes this player off the Rivals board. Nothing happens if they were not on it. */
+  unrank(playerId: string): Promise<void>;
   /** The top of the Rivals board, best first. */
   topRivals(n: number): Promise<RivalsRow[]>;
 }
@@ -718,7 +721,9 @@ async function place(
   store: ChallengeStore, playerId: string, who: StoredPlayer, results: Record<string, RivalsResult>,
 ): Promise<void> {
   const counted = Object.values(results).filter(result => result.ranked).length;
-  if (!counted) return;
+  // Nothing that counts, and so no row — taken off rather than left alone, or
+  // a player whose matches stopped counting would keep the row they had.
+  if (!counted) return store.unrank(playerId);
   const line = lineOf(results);
   await store.rank(playerId, rivalsScore(line), { name: who.name, avatar: who.avatar, ...line });
 }
@@ -751,7 +756,7 @@ export function resultOf(
   const outcome = outcomeOf(challenge, playerId, now);
   if (!outcome) return null;
   const runs = figuresOf(challenge.players[playerId].card).runs;
-  const ranked = Object.entries(challenge.players).some(([id, player]) => {
+  const ranked = !RIVALS_NEED_REGISTERED_RIVAL || Object.entries(challenge.players).some(([id, player]) => {
     if (id === playerId) return false;
     const status = statusOf(player, now);
     return (status === 'done' || status === 'forfeit' || status === 'declined') && registered(holders, id, player);

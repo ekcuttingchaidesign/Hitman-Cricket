@@ -839,8 +839,9 @@ week; an innings left for a day is a forfeit; a challenge declined is a defeat.
 Every finished match goes on a record — won, lost, drawn — kept on the server
 for good and shown at the top of Rival Matches and under the cards on My Stats.
 The Rivals tab on the leaderboard ranks registered names on wins, then fewest
-losses, then runs; a match counts there only when somebody else in it has a
-registered name.
+losses, then runs, over every finished match. A stricter rule — a match counts
+only against a registered name — is written and switched off for now; see
+`src/config/rivals.ts`.
 The host bats in the home kit; the friends who follow bat in green, purple and
 blue, in the order they came in.
 

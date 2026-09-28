@@ -160,6 +160,10 @@ export function memoryChallenges(
       ranking.set(playerId, score);
       rows.set(playerId, structuredClone(row));
     },
+    async unrank(playerId) {
+      ranking.delete(playerId);
+      rows.delete(playerId);
+    },
     async topRivals(n) {
       return [...ranking.entries()]
         .sort(([a, one], [b, two]) => two - one || b.localeCompare(a))

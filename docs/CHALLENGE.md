@@ -67,16 +67,22 @@ matches lost, and runs made in them, top fifty. Ranked on wins, then fewest
 losses, then runs. It moves the moment a match's last innings lands; nobody
 has to open anything.
 
-Two rules keep it honest, and both lean on the board's name registry:
+Every finished match counts, and only a registered name appears — a name
+nobody has claimed can be typed by anybody, so a board that showed them would
+let two people be the same Rohit. A player who registers after their matches
+reaches the board the next time they open Rival Matches, with all of them.
 
-- **A match counts only when somebody else in it has a registered name.** A
-  name made up for a room is free, so two phones with made-up names could play
-  each other all night; a registered name is one per person, for good. The
-  record on Rival Matches still counts every match — only the board is choosy.
-- **Only a registered name appears.** A player who batted in the room under a
-  name that is not theirs on the registry is counted but not shown. A player
-  who registers after their matches reaches the board the next time they open
-  Rival Matches.
+There is a stricter rule, switched off for now: **a match counts only when
+somebody else in it has a registered name.** It is what stops a player
+climbing the board by playing themselves on a second phone under a made-up
+name. It was on at launch, and players whose friends had never registered saw
+their wins go on the record and not on the board. It comes back on when there
+are enough players for farming to be worth guarding against:
+`RIVALS_NEED_REGISTERED_RIVAL` in `src/config/rivals.ts`, one line. Nothing
+needs rewriting when it changes — each result is worked out again the next
+time anybody in the room opens Rival Matches, and a player left with nothing
+that counts is taken off the board. `tests/rivals-rule.test.ts` runs the board
+with it on.
 
 Runs are the runs made in the matches that count, a walk-out's included and a
 decline's none. Kept as a sorted set (`rvboard`) and a hash of rows
