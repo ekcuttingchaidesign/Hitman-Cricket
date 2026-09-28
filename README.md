@@ -753,6 +753,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `innings-all-out`, `innings-overs-up` | Which way it ended: three wickets, or thirty balls. The difficulty dial. |
 | `score-0-9` … `score-100-plus` | Where the scores actually fall, claimed or not. |
 | `board-open` | Whether the fifty is looked at. |
+| `modes-board` | The boards opened from the Leaderboards card on the mode screen, rather than from the cover's trophy. |
 | `board-tab-classic`, `board-tab-survive` | Whether the other mode's ladder is reached from the tab over the sheet. |
 | `board-tab-rivals`, `board-tab-mine` | Whether the Rivals board and the player's own card are opened from the tabs. |
 | `board-ladder-runs`, `…-boundaries`, `…-highest`, `…-balls`, `…-blows` | Which career ladder is opened. The one measure of whether the career boards are worth the tabs they cost. |

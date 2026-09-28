@@ -106,6 +106,8 @@ const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).hr
 const challengePlate = 'challenge_mode.png';
 const fireball = 'fireball.webp';
 const rivalsCover = 'rivals_cover.webp';
+/** The podium on the mode screen's way to the boards. Drawn by `scripts/leaderboard-art.mjs`. */
+const leadersCover = 'leaderboard_cover.webp';
 /* The three plates the result card stands on. The loss is used twice: a man
    carried off and a man bowled twelve short are the same picture of the same
    over, and what separates them is the line above it, not the art. */
@@ -404,6 +406,11 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <span class="mode-rivals-art" aria-hidden="true"><img src="${rivalsCover}" alt="" decoding="async" /></span>
               <span class="mode-rivals-say"><b>Your Rivals Matches</b><em id="modes-challenges-note">See who you've played</em></span>
               <span id="modes-challenges-count" class="hidden"></span>
+              <span class="mode-rivals-go" aria-hidden="true">${icon('arrow')}</span>
+            </button>
+            <button id="modes-board" class="mode-rivals mode-leaders" type="button">
+              <span class="mode-rivals-art" aria-hidden="true"><img src="${leadersCover}" alt="" decoding="async" /></span>
+              <span class="mode-rivals-say"><b>Leaderboards</b><em>See where you rank</em></span>
               <span class="mode-rivals-go" aria-hidden="true">${icon('arrow')}</span>
             </button>
           </div>

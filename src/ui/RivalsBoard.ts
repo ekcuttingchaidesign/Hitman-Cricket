@@ -58,8 +58,8 @@ export function rivalsRowMarkup(row: RivalsRow, index: number, you: boolean): st
 }
 
 /** A figure with its label under it. Grouped, because runs reach four digits. */
-function column(value: number, label: string): string {
-  return `<em>${value.toLocaleString('en-US')}<small>${label}</small></em>`;
+function column(value: number, label: 'won' | 'lost' | 'runs'): string {
+  return `<em class="is-${label}">${value.toLocaleString('en-US')}<small>${label}</small></em>`;
 }
 
 /** The line under the title: where the player stands, or who leads. */

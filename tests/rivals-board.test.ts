@@ -9,8 +9,11 @@ const row = (over: Partial<RivalsRow> = {}): RivalsRow =>
 describe('the Rivals board', () => {
   it('shows three figures a row, in the order the board ranks on', () => {
     const html = rivalsRowMarkup(row(), 0, false);
-    const figures = [...html.matchAll(/<em>([\d,]+)<small>(\w+)<\/small><\/em>/g)].map(m => [m[1], m[2]]);
-    expect(figures).toEqual([['3', 'won'], ['1', 'lost'], ['1,204', 'runs']]);
+    const figures = [...html.matchAll(/<em class="is-(\w+)">([\d,]+)<small>(\w+)<\/small><\/em>/g)]
+      .map(m => [m[2], m[3], m[1]]);
+    // Each column carries its own class, which is what colours wins green and
+    // losses red.
+    expect(figures).toEqual([['3', 'won', 'won'], ['1', 'lost', 'lost'], ['1,204', 'runs', 'runs']]);
   });
 
   it('lights your row and says where you stand', () => {
