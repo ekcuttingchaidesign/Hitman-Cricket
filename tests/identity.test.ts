@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  isPlayerId, mintPlayerId, mintedAt, pickPlayerId, resolvePlayerId, type IdStore,
+  isPlayerId, mintPlayerId, mintedAt, pickPlayerId, playerId, resolvePlayerId, type IdStore,
 } from '../src/game/identity';
 
 /** A store that holds what it is given, and can be told to break or to hang. */
@@ -125,5 +125,70 @@ describe('settling the id across three stores', () => {
     void resolvePlayerId([store(null, 'hangs')]).then(() => { settled = true; });
     await new Promise(resolve => setTimeout(resolve, 10));
     expect(settled).toBe(false);
+  });
+});
+
+/**
+ * The bug this guards against cost a player their identity rather than a
+ * second of their time.
+ *
+ * `playerId` used to race all three stores against one clock and mint a fresh
+ * id when the clock won — and hand that id back without writing it anywhere. On
+ * a slow first paint or a cold IndexedDB, a returning player became a stranger
+ * on every load: their board row was somebody else's, and a challenge they set
+ * was one they could not prove was theirs. The instant stores are now read on
+ * their own first, so the clock never comes near a browser that has been here.
+ */
+describe('settling on an id without losing one', () => {
+  /** A store that cannot hang, which is what localStorage and the cookie are. */
+  const instant = (held: string | null = null): IdStore & { held: string | null } => ({
+    held,
+    instant: true,
+    read() { return this.held; },
+    write(id: string) { this.held = id; },
+  });
+
+  it('takes the id an instant store holds, however long the slow one takes', async () => {
+    const kept = at(1_500_000_000_000);
+    const quick = instant(kept);
+    // The kind of IndexedDB that caused this: it never answers at all.
+    const id = await playerId([quick, store(null, 'hangs')], 40);
+    expect(id).toBe(kept);
+  });
+
+  it('does it without waiting for the clock', async () => {
+    const kept = at(1_500_000_000_000);
+    const began = Date.now();
+    await playerId([instant(kept), store(null, 'hangs')], 400);
+    // Recognising a returning browser is a synchronous read, so it cannot have
+    // spent anything like the timeout doing it.
+    expect(Date.now() - began).toBeLessThan(200);
+  });
+
+  it('writes the minted id down when there was nothing to find', async () => {
+    const local = instant(null);
+    const cookie = instant(null);
+    const id = await playerId([local, cookie, store(null, 'hangs')], 20);
+    expect(isPlayerId(id)).toBe(true);
+    // The whole failure was that this never happened, so the next load minted
+    // another one.
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(local.held).toBe(id);
+    expect(cookie.held).toBe(id);
+  });
+
+  it('gives the same browser the same id twice running', async () => {
+    const local = instant(null);
+    const cookie = instant(null);
+    const stores = [local, cookie, store(null, 'hangs')];
+    const first = await playerId(stores, 20);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(await playerId(stores, 20)).toBe(first);
+  });
+
+  it('still reaches the slow store when the quick pair are empty', async () => {
+    const kept = at(1_400_000_000_000);
+    const slow: IdStore = { read: () => new Promise(resolve => setTimeout(() => resolve(kept), 5)), write: () => {} };
+    expect(await playerId([instant(null), slow], 200)).toBe(kept);
   });
 });

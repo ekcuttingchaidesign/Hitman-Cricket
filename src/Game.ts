@@ -43,6 +43,7 @@ import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
+import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, type Granted } from './game/tier';
@@ -54,11 +55,18 @@ import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
 import {
-  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, restoreFailure, scoreBand,
+  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, restoreFailure, roomBand, scoreBand,
   track, trackOnce,
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
+import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
+import { CODE_PARAM, challengeLink, copy, hideChallenge, seenHere, whatsapp, type Challenge } from './game/challenge-api';
+import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
+import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
+import { kitDeal } from './config/board';
+import { encodeInnings } from './game/ball-string';
+import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
 
@@ -87,6 +95,19 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
  * testing it. It is hidden, not removed.
  */
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
+
+/**
+ * When the ghost's ball appears, and how long it holds.
+ *
+ * There are 2,440ms between one ball resolving and the next being released —
+ * `resultMs` 1050, `readyMs` 550, `runupMs` 840. The player's own result owns
+ * the first beat; the ghost takes the second and is gone before the bowler
+ * lets go. Neither number is guessed: they are read off `GAME`, so a change to
+ * the innings' pacing carries the flash with it rather than leaving it stranded
+ * over a delivery.
+ */
+const GHOST_AFTER_MS = 900;
+const GHOST_FOR_MS = 1200;
 
 /**
  * Whether the spinner bowls the whole innings.
@@ -212,6 +233,10 @@ export class Game {
    */
   private noticeDue = false;
   private player: string | null = null;
+  /** The match room this browser has open, and the innings it is batting in it. */
+  private challenge = new ChallengeRun();
+  /** Which question the name panel is open for: joining a room, or making one. */
+  private asking: 'join' | 'create' = 'join';
   /** Which ladder the sheet is showing, which is the tab drawn as the live one. */
   private boardTab: BoardTab = 'classic';
   /** Which ladder of that mode the sheet is on. The innings board, always, to open. */
@@ -295,7 +320,14 @@ export class Game {
     // three stores, one of which can hang; the board is a network call that may
     // never answer. Both run alongside the game, and the cover's trophy line
     // picks up the board's leader if and when one arrives.
-    void playerId().then(id => { this.player = id; void this.catchUpOnKey(); }).catch(() => {});
+    // Swallowed in production, because none of this is worth an innings — but
+    // never swallowed in development, where a silent catch here hid a real
+    // failure for an afternoon.
+    void playerId().then(id => {
+      this.player = id;
+      void this.catchUpOnKey();
+      return this.openChallenges();
+    }).catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
     this.countVisit();
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
@@ -314,9 +346,46 @@ export class Game {
     this.hud.on('start', this.play);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
+    this.hud.on('mode-challenge', () => { void this.openMatch(); });
+    this.hud.on('challenge-set', () => { void this.openMatch({ card: encodeInnings(this.score.history) }); });
+    this.hud.on('challenge-share-done', () => { this.hud.closeSheets(); this.showRoom(); });
+    this.hud.on('challenge-copy', () => { void this.copyInvite(); });
+    this.hud.on('challenge-more', () => { void this.shareInvite(); });
+    this.hud.on('challenge-bat', () => { if (this.asking === 'create') void this.nameThenCreate(); else void this.nameThenJoin(); });
+    this.hud.on('challenge-rename', () => this.hud.challengeRename());
+    this.hud.on('challenge-solo', () => { void this.declineMatch(); });
+    this.hud.on('room-back', () => this.leaveRoom());
+    this.hud.onRoomAct = act => { void this.roomAct(act); };
+    this.hud.on('modes-challenges', () => { void this.showChallenges(); });
+    this.hud.on('challenge-list-done', () => { this.hud.closeChallenge(); this.modes(); });
+    this.hud.on('challenge-list-new', () => { this.hud.closeChallenge(); void this.openMatch(); });
+    this.hud.on('rivalry-again', () => { this.hud.closeChallenge(); void this.challengeRival(); });
+    this.hud.on('rivalry-back', () => { void this.showChallenges(); });
+    this.hud.on('challenge-offline-retry', () => { this.hud.closeChallenge(); void this.openChallenges(); });
+    this.hud.on('challenge-offline-solo', () => { this.challenge.clear(); this.pinRoom(null); this.hud.closeChallenge(); this.hud.showCover(); this.modes(); });
+    // The rows are drawn fresh each time the list opens, so their keys are
+    // listened for on the list itself rather than bound to buttons that will
+    // not exist by the time anybody presses one. The room's keys likewise.
+    this.hud.viewport.querySelector('#challenge-sections')!.addEventListener('click', event => {
+      const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline]') as HTMLElement | null;
+      if (!key) return;
+      event.stopPropagation();
+      if (key.dataset.drop) void this.listAct('drop', key.dataset.drop);
+      else if (key.dataset.accept) void this.listAct('accept', key.dataset.accept);
+      else if (key.dataset.decline) void this.listAct('decline', key.dataset.decline);
+      else if (key.dataset.rival) void this.listAct('rival', key.dataset.code ?? '', key.dataset.rival);
+      else if (key.dataset.open) void this.listAct('open', key.dataset.open);
+    });
+    this.hud.viewport.querySelector('#room-keys')!.addEventListener('click', event => {
+      const key = (event.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
+      if (!key || key.tagName === 'A') return;
+      this.hud.onRoomAct?.(key.dataset.act as RoomAct);
+    });
     this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);
+    this.hud.on('card-result', () => this.backToResult());
+    this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
     this.hud.on('sound', this.toggleSound);
@@ -387,13 +456,13 @@ export class Game {
       this.mode = named as GameMode;
       this.locked = true;
       this.hud.lockMode(SURVIVE_ONLY);
-    } else if (!SHOW_SURVIVE) {
-      // Nothing to pick between, so Play is the classic innings and the picker
-      // never opens. The same lock a named mode uses, arrived at from the build
-      // rather than from the link.
-      this.mode = 'CLASSIC';
-      this.locked = true;
-      this.hud.lockMode(false);
+    } else {
+      // The picker opens whenever there is something to pick. Challenging a
+      // friend is always on offer, so from here that is always — where before,
+      // with the Test match behind a flag, Play went straight to the innings and
+      // the screen was never seen. The Test card is hidden rather than removed
+      // when its flag is off, so the picker still reads as two choices.
+      if (!SHOW_SURVIVE) this.hud.hideSurviveCard();
     }
     // The cover has music of its own. It is asked for rather than waited on:
     // a browser that will not play it yet is not a failure, it is a browser
@@ -415,6 +484,9 @@ export class Game {
       // Leaves him one blow from the floor, so the fall can be looked at without
       // waiting for an innings that retires hurt to come round on its own.
       hurt: () => { this.health.value = 1; this.showConfidence(); },
+      // Dresses him in a Rivals kit on the spot, so the four can be looked at
+      // without four friends.
+      kit: (kit: BatterKit) => this.scene.kit(kit),
     } });
   }
   /**
@@ -433,7 +505,20 @@ export class Game {
     // yet, so it only appears where a key exists to be saved.
     this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: true });
     this.hud.modes();
+    // What the hero card wears is the last sync's word, and a sync is asked
+    // for behind it so the next look is fresher.
+    if (this.rooms) this.hud.challengesOpen(this.rooms.yourMove.length, this.rooms.waitingOnThem.length);
+    void this.refreshCount();
   };
+
+  /** The count on the hero card, refreshed without putting anything up. */
+  private async refreshCount() {
+    if (!this.player) return;
+    const list = await ChallengeRun.mine(this.player);
+    if (!list) return;
+    this.rooms = list;
+    this.hud.challengesOpen(list.yourMove.length, list.waitingOnThem.length);
+  }
 
   /**
    * The key this player holds, or null.
@@ -1146,7 +1231,19 @@ export class Game {
         draw({
           cards: modes.map(one => this.mineSlides[one] ?? { facts, picture: null, failed: false }),
           at,
+          rivals: this.rooms?.record ?? null,
         });
+      });
+    }
+    // The Rivals record rides on the same answer as the list. A screen opened
+    // before that answer has arrived is drawn again when it does, with every
+    // card already painted standing where it was.
+    if (!this.rooms && this.player) {
+      void ChallengeRun.mine(this.player).then(list => {
+        if (this.disposed || !list) return;
+        this.rooms = list;
+        const cards = modes.map(one => this.mineSlides[one]).filter((one): one is StatsSlide => !!one);
+        if (cards.length === modes.length) draw({ cards, at, rivals: list.record });
       });
     }
   }
@@ -1442,6 +1539,13 @@ export class Game {
       if (key === 'ESCAPE') { event.preventDefault(); this.closePicker(); }
       return;
     }
+    // The card opened from a match result goes back to it, rather than
+    // starting a Blast innings on a key meant for the card at an innings' end.
+    if (this.hud.matchScorecardOpen && (key === 'ENTER' || key === 'R' || key === 'ESCAPE')) {
+      event.preventDefault();
+      this.backToResult();
+      return;
+    }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {
       event.preventDefault();
       if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.modes();
@@ -1577,6 +1681,14 @@ export class Game {
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
+      // The other innings, one ball behind the player's own. It goes up after
+      // their own result has had the screen to itself, and it is down again
+      // before the next ball is bowled — see `flashGhost`.
+      if (this.challenge.playing) {
+        const me = this.me;
+        if (me && !this.demoing) void this.challenge.ballPlayed(me, this.score.history);
+        this.flashGhost(this.score.balls - 1);
+      }
       if (this.surviving) {
         this.health.record(this.outcome);
         // Read in the order cricket reads it: the target first, then the last
@@ -1904,7 +2016,17 @@ export class Game {
     track(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
       this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
     track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
+    // A chase answers itself the moment it ends, and the reveal replaces the
+    // ordinary card: the scoreline is what the player has been waiting thirty
+    // balls for, and the card behind it would be the wrong first thing to see.
+    if (this.challenge.playing) { this.matchCard = record; void this.finishMatch(); return; }
+    this.showBlastCard(record);
+  }
+
+  /** The five-over card, with the strip, the key and the board under it. */
+  private showBlastCard(record: boolean, fromMatch = false) {
     this.hud.end(this.score, this.best, record);
+    this.hud.matchScorecard(fromMatch);
     // The way to the career card from the innings card. Offered only where a
     // career is actually being kept: a private window counts nothing, so a
     // widget there would lead to a card of noughts that never fills.
@@ -1922,6 +2044,595 @@ export class Game {
     this.hud.offerFeedback({ card: true, cover: this.best > 0 });
     this.offerBoard();
   }
+  /* ── The match room ────────────────────────────────────────────────── */
+
+  /**
+   * Who this browser bats as.
+   *
+   * The name and kit are the ones the board already knows — a player who has
+   * claimed a place keeps both, and one who has not gets the kit their own id
+   * deals them. A match never asks for a kit: it is the same person, and being
+   * asked to pick a colour twice is the kind of thing that makes a game feel
+   * like a form.
+   */
+  private get batter() {
+    const held = readPlayer();
+    return {
+      name: held?.name ?? '',
+      avatar: held?.avatar ?? kitDeal(this.player).opening,
+    };
+  }
+
+  /** The same, with the id, for anything that writes to a room. */
+  private get me(): Me | null {
+    if (!this.player) return null;
+    const { name, avatar } = this.batter;
+    return { playerId: this.player, name, avatar };
+  }
+
+  /**
+   * The ghost's ball, flashed in the gap after the player's own result.
+   *
+   * There are 2,440ms between one ball resolving and the next leaving the
+   * bowler's hand. The player's own result owns the first beat of that; this
+   * takes the second, and is gone before the run-up finishes. Nothing about the
+   * other innings ever appears while a ball is in the air. Against a friend
+   * batting at the same time the card is whatever the last poll brought, so a
+   * friend who is behind shows nothing yet — and nothing on this screen ever
+   * says how far along they are.
+   */
+  private flashGhost(index: number) {
+    const balls: GhostBall[] = [];
+    for (const ghost of this.challenge.ghosts) {
+      const ball = this.challenge.ghostBall(ghost, index);
+      if (ball) {
+        balls.push({
+          who: ghost.name, avatar: ghost.avatar,
+          result: ball.isWicket ? 'OUT' : ball.runs === 0 ? 'DOT' : String(ball.runs),
+          kind: ball.isWicket ? 'out' : ball.runs >= 4 ? 'big' : 'runs',
+        });
+      } else if (this.challenge.ghostEndedAt(ghost) === index) {
+        // Past the end of their innings there is nothing to show but the fact
+        // of it, said once, on the ball it happened: silence after that reads
+        // as the feature being broken, and the moment is worth more than the
+        // secrecy.
+        balls.push({ who: ghost.name, avatar: ghost.avatar, result: 'ALL OUT', kind: 'out' });
+      }
+    }
+    if (!balls.length) return;
+    window.setTimeout(() => {
+      this.hud.ghost(balls);
+      // A little longer for a stack, but never into the next run-up.
+      window.setTimeout(() => this.hud.ghostAway(), GHOST_FOR_MS + Math.min(300, (balls.length - 1) * 150));
+    }, GHOST_AFTER_MS);
+  }
+
+  /**
+   * The hero card on the picker. A room is made on the spot — there is nothing
+   * to bat first — and the only thing that can stand in the way is a player
+   * the game has never had a name for.
+   */
+  private async openMatch(extra: { card?: string; rematchOf?: string } = {}) {
+    if (!this.player) return;
+    if (!this.batter.name) {
+      // Never given a name, so the room asks for one in its own words. The
+      // board's claim form is a different offer — its key says PUT ME ON THE
+      // BOARD — and sending somebody there to send a friend a link is a
+      // non-sequitur they would have to read twice.
+      this.asking = 'create';
+      this.roomExtra = extra;
+      this.hud.closeModes();
+      this.hud.challengeWhoAreYou(null);
+      return;
+    }
+    await this.createRoom(extra);
+  }
+  private roomExtra: { card?: string; rematchOf?: string } = {};
+
+  /** A name typed on the panel, taken or refused. */
+  private takeName(): string | null {
+    const name = this.hud.challengeName.trim() || this.batter.name;
+    if (!name) { this.hud.challengeJoinError('A name, so they know who to be scared of.'); return null; }
+    if (nameBlocked(name)) { this.hud.challengeJoinError(NAME_BLOCKED_REASON); return null; }
+    if (name !== readPlayer()?.name) writePlayer({ name, avatar: this.batter.avatar });
+    this.hud.challengeJoinError(null);
+    return name;
+  }
+
+  private async nameThenCreate() {
+    if (!this.takeName()) return;
+    this.hud.closeChallenge();
+    await this.createRoom(this.roomExtra);
+    this.roomExtra = {};
+  }
+
+  /**
+   * A room made, and opened.
+   *
+   * Whatever the tap came from stays on the screen while the room is made,
+   * and gives way to the room in the same moment it is drawn: taking the
+   * picker down first left the start screen showing through for as long as
+   * the server took. A second tap while the first is still out is ignored,
+   * or an impatient thumb makes two rooms.
+   */
+  private async createRoom(extra: { card?: string; rematchOf?: string } = {}) {
+    const me = this.me;
+    if (!me || this.creatingRoom) return;
+    this.creatingRoom = true;
+    try {
+      const answer = await this.challenge.create(me, extra);
+      if (!answer.ok || !answer.challenge) {
+        this.hud.offline(answer.reason ?? null);
+        return;
+      }
+      track(extra.rematchOf ? 'challenge-rematch' : 'challenge-set', extra.rematchOf ? 'Rematch made' : 'Match room made');
+      this.pinRoom(answer.challenge.code);
+      this.hud.closeModes();
+      this.showRoom();
+    } finally {
+      this.creatingRoom = false;
+    }
+  }
+  private creatingRoom = false;
+
+  /** The room's code on the address bar, so a reload lands back in it. */
+  private pinRoom(code: string | null) {
+    try {
+      const url = new URL(location.href);
+      if (code) url.searchParams.set(CODE_PARAM, code); else url.searchParams.delete(CODE_PARAM);
+      history.replaceState(history.state, '', url);
+    } catch { /* Then the link in their messages is the way back. */ }
+  }
+
+  /**
+   * The room, drawn for this person and kept fresh.
+   *
+   * The screen is redrawn from every poll, so a friend joining, a ball
+   * landing and a result arriving all appear without anybody pressing
+   * anything. The one thing a redraw must not do is take a key out from under
+   * a thumb mid-press, which is why the keys are the same keys in the same
+   * order for as long as the room is in the same state.
+   */
+  private showRoom(interstitial?: { index: number; total: number }) {
+    if (!this.player) return;
+    const view = this.challenge.view(this.player);
+    if (!view) return;
+    this.audio.music('cover');
+    const card = this.matchCard !== null && this.phase === 'INNINGS_END';
+    this.hud.room(view, { sent: this.challenge.sent, interstitial, card });
+    if (this.demoing) return;
+    if (view.result) this.settle(view);
+    let last = view.kind;
+    this.challenge.watch(() => {
+      if (!this.hud.roomOpen || !this.player) return;
+      const fresh = this.challenge.view(this.player);
+      if (!fresh) return;
+      this.hud.room(fresh, { sent: this.challenge.sent, interstitial, card });
+      if (fresh.result && last !== 'result') this.settle(fresh);
+      last = fresh.kind;
+    });
+  }
+
+  /** A result this person has just seen: noted against the friend, and marked seen. */
+  private settle(view: RoomView) {
+    if (!view.result) return;
+    const me = this.me;
+    if (!me) return;
+    noteResult(view.result);
+    if (!view.mine?.seen && !seenHere(view.code)) {
+      track(`challenge-${view.result.outcome === 'W' ? 'won' : view.result.outcome === 'D' ? 'drew' : 'lost'}`, 'Match result seen');
+      if (view.result.forfeit) track('challenge-by-forfeit', 'Match decided by a walkout or a decline');
+      track(`challenge-players-${roomBand(view.result.players.length)}`, 'Match size at the result');
+      void this.challenge.seen(me);
+    }
+  }
+
+  /** Out of the room. Back to wherever makes sense, which is always the picker. */
+  /** From the innings card back to the match result it was opened from. */
+  private backToResult() {
+    this.hud.hideScorecard();
+    this.showRoom();
+  }
+
+  private leaveRoom() {
+    this.challenge.stopWatching();
+    this.hud.closeRoom();
+    this.pinRoom(null);
+    if (this.demoing) {
+      this.demoing = false;
+      try { const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(history.state, '', url); } catch { /* fine */ }
+    }
+    // The room hid the cover on the way in; the picker stands over the cover,
+    // so it has to be back before the picker's own way out lands on nothing.
+    if (this.phase === 'START') this.hud.showCover();
+    this.challenge.clear();
+    this.modes();
+  }
+  /**
+   * Whether the innings that just ended has a card to show, and whether it
+   * was a record. A match ends on the room rather than the card, but the card
+   * is where the Top 50 is claimed, so the room keeps a way to it.
+   */
+  private matchCard: boolean | null = null;
+  /** Whether the room on screen is a fixture. Nothing is written while it is. */
+  private demoing = false;
+
+  /** What the room's keys do. */
+  private async roomAct(act: RoomAct) {
+    const me = this.me;
+    const code = this.challenge.code;
+    if (!me || !code) return;
+    const view = this.challenge.view(me.playerId);
+    switch (act) {
+      case 'invite':
+      case 'share':
+        this.challenge.sent = true;
+        this.hud.inviteSheet();
+        return;
+      case 'nudge':
+        window.open(whatsapp(copy.nudge(challengeLink(code))), '_blank', 'noopener');
+        return;
+      case 'play':
+      case 'resume':
+        this.startMatchInnings(act === 'resume');
+        return;
+      case 'rematch': {
+        const them = view?.result?.them;
+        const tally = them ? rivalryView(them.playerId, them)?.tally ?? null : null;
+        this.rematchLine = them && tally ? { them: them.name, tally } : null;
+        this.challenge.stopWatching();
+        await this.createRoom({ rematchOf: code });
+        return;
+      }
+      case 'new':
+        this.rematchLine = null;
+        this.challenge.stopWatching();
+        await this.createRoom();
+        return;
+      case 'join': {
+        const answer = await this.challenge.join(me);
+        if (!answer.ok) { this.hud.offline(answer.reason ?? null); return; }
+        this.showRoom();
+        return;
+      }
+      case 'next':
+        this.nextResult();
+        return;
+      case 'list':
+        await this.showChallenges();
+        return;
+      case 'card': {
+        const record = this.matchCard;
+        if (record === null) return;
+        this.challenge.stopWatching();
+        this.hud.closeRoom();
+        this.audio.music('result');
+        this.showBlastCard(record, true);
+        return;
+      }
+      case 'decline':
+        await this.declineMatch();
+        return;
+      case 'home':
+      case 'solo':
+      case 'retry':
+        if (this.pending.length) { this.nextResult(); return; }
+        this.leaveRoom();
+        return;
+    }
+  }
+
+  /** The message the invite goes out with: the taunt, and the link. */
+  private inviteText(): string {
+    const code = this.challenge.code;
+    if (!code) return '';
+    const link = challengeLink(code);
+    const mine = this.player ? this.challenge.row(this.player) : null;
+    const batted = !!mine && (mine.status === 'done' || mine.status === 'forfeit');
+    return this.rematchLine ? copy.rematch(link, this.rematchLine.them, this.rematchLine.tally) : batted ? copy.set(link) : copy.invite(link);
+  }
+
+  /** SHARE on the invite: the phone's own sheet where there is one, WhatsApp where there is not. */
+  private async shareInvite() {
+    const text = this.inviteText();
+    if (!text) return;
+    track('challenge-shared', 'Match link shared');
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch { /* Dismissed, which is not a failure. */ }
+      return;
+    }
+    window.open(whatsapp(text), '_blank', 'noopener');
+  }
+
+  /** COPY LINK on the invite. The taunt goes with it, so a paste is a message. */
+  private async copyInvite() {
+    const text = this.inviteText();
+    if (!text) return;
+    track('challenge-copied', 'Match link copied');
+    try {
+      await navigator.clipboard.writeText(text);
+      this.hud.inviteNote('Copied. Now go and paste it somewhere they\u2019ll see it.');
+    } catch {
+      this.hud.inviteNote(challengeLink(this.challenge.code ?? ''));
+    }
+  }
+
+  /**
+   * The match turned down, defeat and all. From the sheet a link lands on, or
+   * from a row of Rival Matches. A name is needed to be recorded against, so
+   * somebody who has never given one is written down as the stranger they are.
+   */
+  private async declineMatch(code?: string) {
+    if (!this.player) return;
+    if (code && code !== this.challenge.code) {
+      const opened = await this.challenge.open(code);
+      if (!opened.ok) { this.hud.offline(opened.reason ?? null); return; }
+    }
+    const me = this.me;
+    if (!me) return;
+    const name = me.name || this.hud.challengeName.trim() || 'Someone';
+    const answer = await this.challenge.decline({ ...me, name });
+    if (!answer.ok) {
+      if (answer.retry) { this.hud.offline(null); return; }
+      this.hud.challengeJoinError(answer.reason ?? 'Could not decline the match.');
+      return;
+    }
+    track('challenge-declined', 'Match declined');
+    this.hud.closeChallenge();
+    this.pinRoom(null);
+    this.challenge.clear();
+    if (this.phase === 'START') this.hud.showCover();
+    await this.showChallenges();
+  }
+  private rematchLine: { them: string; tally: string } | null = null;
+
+  /**
+   * The innings, in the room's colours.
+   *
+   * The same thirty balls, the same bowler, the same resolver. What changes is
+   * that every ball is written to the room as it happens, the ghost flashes in
+   * the gaps, and the end of the innings goes back to the room rather than to
+   * the card. Picking up an innings left mid-way replays the balls already
+   * faced into a fresh scoreboard, and the bowler carries on from there.
+   */
+  private startMatchInnings(resume: boolean) {
+    if (!this.player) return;
+    this.matchCard = null;
+    this.hud.closeRoom();
+    this.challenge.beginInnings(this.player);
+    this.rematchLine = null;
+    track(resume ? 'challenge-resumed' : 'challenge-accepted', resume ? 'Match innings resumed' : 'Match innings started');
+    // Whether the friend is batting at the same time — the live match the
+    // polling exists for — or this is the innings that answers one played
+    // earlier. The pair is what says which of the two ways people use it.
+    if (!resume) track(this.challenge.ghostBatting ? 'challenge-live' : 'challenge-apart', this.challenge.ghostBatting ? 'Match batted together' : 'Match batted apart');
+    this.mode = 'CLASSIC';
+    this.start();
+    // After `start`, which dresses him for the mode: the room then hands him
+    // the kit for his seat, so four friends in one match are four batters.
+    this.scene.kit(seatKit(this.challenge.room, this.player));
+    if (resume) {
+      for (const ball of this.challenge.resumeFrom(this.player)) {
+        const outcome: ShotOutcome = {
+          runs: ball.runs as ShotOutcome['runs'], isWicket: ball.isWicket, quality: 0.5, feedback: '',
+          timingGrade: 'OK', timingDeltaMs: null, compatibility: 0, madeBatContact: !ball.isWicket, aerial: false,
+        };
+        this.score.record(outcome); this.generator.record(outcome); this.confidence.record(outcome);
+      }
+      this.hud.score(this.score); this.showConfidence();
+    }
+    // Kept fresh while anybody else is still batting, so their balls arrive in
+    // time to flash. Once they are all done, or nobody started, there is
+    // nothing a poll could bring and it stops on its own.
+    this.challenge.watch(() => {
+      if (!this.challenge.ghostBatting) this.challenge.stopWatching();
+    });
+    if (!this.challenge.ghostBatting) this.challenge.stopWatching();
+  }
+
+  /**
+   * The innings, over. The last card has to land before the room can say
+   * anything — the reveal is what the player waited five overs for — and if it
+   * will not, the ordinary card goes up with a word, and the innings is sent on
+   * the next open.
+   */
+  private async finishMatch() {
+    const me = this.me;
+    if (!me) return;
+    if (this.demoing) { this.hud.end(this.score, this.best, false); this.challenge.playing = false; return; }
+    const answer = await this.challenge.finishInnings(me, this.score.history);
+    if (!answer.ok || !answer.challenge) {
+      this.hud.end(this.score, this.best, false);
+      this.hud.claimFailed(answer.reason ?? 'Your innings is saved and will be sent when you are back online.');
+      return;
+    }
+    track('challenge-answered', 'Match innings sent');
+    this.showRoom();
+  }
+
+  /**
+   * What was waiting when the game was opened.
+   *
+   * Three things, in the order they matter: an innings that never reached the
+   * server, a link that was tapped, and results this person has not yet seen.
+   * None of them costs a call unless there is something to ask about — except
+   * the last, which is one call on every open, because there is no push
+   * notification on the web worth having and this is how somebody finds out
+   * they were beaten on Thursday.
+   */
+  private async openChallenges() {
+    if (!this.player) return;
+    // `?room=won` and its siblings: one face of the room, drawn from a fixture
+    // and saving nothing, so every state can be looked at on one phone. The
+    // room is not watched, because there is nothing behind it to watch.
+    const demo = roomDemoWanted();
+    if (demo) {
+      const { room, interstitial, sent } = demoRoom(demo, this.player);
+      this.challenge.room = room;
+      this.challenge.sent = sent ?? false;
+      this.demoing = true;
+      this.hud.room(this.challenge.view(this.player)!, { sent: sent ?? false, interstitial });
+      return;
+    }
+    void ChallengeRun.retryUnsent(this.player);
+
+    const opened = await this.challenge.fromLink();
+    if (opened) {
+      if (!opened.ok || !opened.challenge) {
+        this.hud.offline(opened.retry ? null : opened.reason ?? null);
+        return;
+      }
+      if (this.challenge.isIn(this.player)) { this.showRoom(); return; }
+      const view = this.challenge.view(this.player);
+      // A room that is over for good is shown as it stands. One that is
+      // finished but still open takes a third batter — that is how a forwarded
+      // link becomes a leaderboard — so it is offered like any other.
+      if (view && (view.state === 'expired' || view.kind === 'void')) { this.showRoom(); return; }
+      // Not in it yet: who it is from, and a way in. The host, unless somebody
+      // else has already batted — then the innings to beat is the one to name.
+      const rows = opened.challenge.players;
+      const batted = rows.find(row => row.status === 'done' || row.status === 'batting') ?? null;
+      const from = batted ?? rows.find(row => row.host) ?? rows[0] ?? null;
+      this.asking = 'join';
+      track('challenge-opened', 'Match link opened');
+      this.hud.challengeFrom(from, view?.closes ?? '', readPlayer(), !!batted);
+      return;
+    }
+
+    await this.syncChallenges();
+  }
+
+  /** The name given, then the room joined under it. */
+  private async nameThenJoin() {
+    const me = this.me;
+    if (!this.takeName() || !me) return;
+    const answer = await this.challenge.join({ ...me, name: this.batter.name });
+    if (!answer.ok) {
+      if (answer.retry) { this.hud.offline(null); return; }
+      this.hud.challengeJoinError(answer.reason ?? 'Could not join the match.');
+      return;
+    }
+    track('challenge-joined', 'Match room joined');
+    this.hud.closeChallenge();
+    this.pinRoom(answer.challenge?.code ?? null);
+    this.showRoom();
+  }
+
+  /**
+   * One call on open: every room this person is in. It wears the count on the
+   * picker's hero card, and it puts up any result they have not seen — one at
+   * a time, oldest first, before anything else.
+   */
+  private async syncChallenges() {
+    if (!this.player) return;
+    const list = await ChallengeRun.mine(this.player);
+    if (!list) return;
+    this.rooms = list;
+    this.hud.challengesOpen(list.yourMove.length, list.waitingOnThem.length);
+    if (list.unseen.length && !this.hud.modesOpen && this.phase === 'START') {
+      this.pending = [...list.unseen];
+      this.pendingTotal = this.pending.length;
+      this.nextResult();
+    }
+  }
+  private rooms: ListView | null = null;
+  private pending: Challenge[] = [];
+  private pendingTotal = 0;
+
+  /** The next unseen result, or the way out once they are all seen. */
+  private nextResult() {
+    const next = this.pending.shift();
+    if (!next) {
+      this.challenge.stopWatching();
+      this.hud.closeRoom();
+      this.pinRoom(null);
+      this.challenge.clear();
+      this.hud.showCover();
+      return;
+    }
+    this.challenge.room = next;
+    this.showRoom({ index: this.pendingTotal - this.pending.length, total: this.pendingTotal });
+  }
+
+  /**
+   * The list of matches this person is in, refreshed on the way in so that a
+   * ball landed since the last look says so.
+   */
+  /**
+   * Rival Matches, opened.
+   *
+   * Drawn at once from the list the mode screen already fetched, and the
+   * picker taken down in the same moment, so there is never a frame with
+   * neither on the screen — waiting on the network first left the ground
+   * showing through for as long as the answer took. The fresh answer is drawn
+   * over it when it lands, and only if it says something different and the
+   * list is still the screen being looked at. With nothing held yet, the
+   * picker stays up until there is a list to replace it with.
+   */
+  private async showChallenges() {
+    if (!this.player) return;
+    const me = this.player;
+    track('rivals-list', 'Rival Matches opened');
+    const fromPicker = this.hud.modesOpen;
+    let drawn = '';
+    const draw = (shown: ListView) => {
+      const sections = listSections(shown, me);
+      const said = JSON.stringify([sections, shown.record]);
+      if (said === drawn) return;
+      drawn = said;
+      this.hud.challengesOpen(shown.yourMove.length, shown.waitingOnThem.length);
+      this.hud.closeModes();
+      this.hud.challengeList(sections, shown.record);
+    };
+    if (this.rooms) draw(this.rooms);
+    const wasShowing = !!drawn;
+    const list = await ChallengeRun.mine(me);
+    if (list) this.rooms = list;
+    // Somebody who left while it was fetching is not dragged back to it.
+    if (wasShowing ? !this.hud.listOpen : fromPicker && !this.hud.modesOpen) return;
+    draw(this.rooms ?? emptyList());
+  }
+
+  /** What a row of the list does. */
+  private async listAct(act: 'open' | 'rival' | 'drop' | 'accept' | 'decline', code: string, playerId?: string) {
+    if (!this.player) return;
+    if (act === 'decline') { await this.declineMatch(code); return; }
+    if (act === 'drop') {
+      hideChallenge(code);
+      const shown = this.rooms ?? emptyList();
+      const rest = (rows: Challenge[]) => rows.filter(room => room.code !== code);
+      this.rooms = { yourMove: rest(shown.yourMove), waitingOnThem: rest(shown.waitingOnThem), done: rest(shown.done), unseen: shown.unseen, record: shown.record };
+      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record);
+      return;
+    }
+    const room = [...(this.rooms?.yourMove ?? []), ...(this.rooms?.waitingOnThem ?? []), ...(this.rooms?.done ?? [])]
+      .find(one => one.code === code) ?? null;
+    if (act === 'rival' && playerId) {
+      const row = room?.players.find(one => one.playerId === playerId) ?? null;
+      const view = rivalryView(playerId, row ? { name: row.name, avatar: row.avatar } : undefined);
+      if (!view) return;
+      this.rival = view.them;
+      track('rivals-head-to-head', 'Head-to-head opened');
+      this.hud.rivalry(view);
+      return;
+    }
+    if (room) this.challenge.room = room;
+    const answer = await this.challenge.open(code);
+    if (!answer.ok && !room) { this.hud.offline(answer.reason ?? null); return; }
+    this.pinRoom(code);
+    this.showRoom();
+  }
+  private rival: { playerId: string; name: string; avatar: number } | null = null;
+
+  /** A fresh room aimed at the same person, with the message pre-addressed. */
+  private async challengeRival() {
+    const them = this.rival;
+    if (!them) return;
+    const tally = rivalryView(them.playerId, them)?.tally ?? 'Fresh start';
+    this.rematchLine = { them: them.name, tally };
+    await this.createRoom();
+  }
+
   private snapshot() {
     return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed), balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
@@ -1934,4 +2645,59 @@ export class Game {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
     window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
   }
+}
+
+
+/**
+ * What each row of the list says.
+ *
+ * A match is against a person, so the row leads with them — the other player,
+ * or the leader of a group, or nobody yet — and says what it needs in a word:
+ * your move, waiting, and how it went.
+ */
+function listSections(list: ListView, me: string): ListSections {
+  const row = (room: Challenge): ListRowView => {
+    const view = roomView(room, me, false);
+    const others = room.players.filter(one => one.playerId !== me);
+    const lead = view.result?.them ?? others.find(one => one.status === 'done' || one.status === 'batting') ?? others[0] ?? null;
+    const them = lead ? { playerId: lead.playerId, name: lead.name, avatar: lead.avatar } : null;
+    const base = { code: room.code, them, others: others.length };
+    const host = room.players.find(one => one.host);
+    const fromThem = !!host && host.playerId !== me;
+    switch (view.kind) {
+      case 'chase': {
+        const batting = others.find(one => one.status === 'batting');
+        return { ...base, actionable: true, note: batting ? `batting now \u00b7 ball ${batting.balls}` : fromThem ? 'challenged you' : 'batted \u00b7 your move' };
+      }
+      case 'lobby':
+        return others.length
+          ? { ...base, actionable: fromThem, note: fromThem ? 'challenged you' : 'in the room \u00b7 not batted' }
+          : { ...base, note: 'nobody has joined yet' };
+      case 'resume': return { ...base, note: `you were on ball ${view.mine?.balls ?? 0} \u00b7 resume` };
+      case 'waiting': return { ...base, note: `you made ${view.mine?.runs ?? 0} \u00b7 ${view.closes}` };
+      case 'spectate': return { ...base, note: `${view.live?.row.name} ${view.live?.needs}` };
+      case 'result': {
+        const result = view.result!;
+        const margin = Math.abs((view.mine?.runs ?? 0) - (result.them?.runs ?? 0));
+        const won = result.outcome === 'W' ? 'Won' : 'Lost';
+        // Level on runs and still decided: the tiebreak did it, and says so
+        // rather than claiming a margin of nothing.
+        const tiebreak = (view.mine?.sixes ?? 0) !== (result.them?.sixes ?? 0) ? 'sixes' : 'fours';
+        const verdict = result.forfeit
+          ? `${won} by forfeit`
+          : result.outcome === 'D' ? `Drawn \u00b7 ${view.mine?.runs} each`
+            : margin === 0 ? `${won} on ${tiebreak}` : `${won} by ${margin} run${margin === 1 ? '' : 's'}`;
+        return { ...base, outcome: result.outcome, verdict, note: fromThem ? 'challenged you' : 'you challenged' };
+      }
+      case 'expired': return { ...base, outcome: '\u2014', verdict: 'Closed', note: view.mine && view.mine.status === 'done' ? `${lead?.name ?? 'nobody'} never batted` : 'nobody batted in the week' };
+      case 'void': return { ...base, outcome: '\u2014', verdict: 'Void', note: 'made on an older version' };
+      case 'declined': return { ...base, outcome: 'L', verdict: 'Declined', note: fromThem ? 'challenged you' : 'you challenged' };
+      default: return { ...base, outcome: '\u2014', verdict: 'Over', note: 'you were not in this one' };
+    }
+  };
+  return {
+    received: list.yourMove.map(row),
+    waiting: list.waitingOnThem.map(row),
+    past: list.done.slice(0, 10).map(row),
+  };
 }

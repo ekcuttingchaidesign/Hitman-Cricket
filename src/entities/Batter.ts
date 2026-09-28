@@ -1203,6 +1203,24 @@ function shoulderDriven(keys: readonly {time: number; pose: Pose}[], age: number
 
 export { solveJoint } from './rig';
 
+/** The kits the batter can be dressed in. */
+export type BatterKit = 'home' | 'whites' | 'green' | 'purple' | 'blue';
+
+/**
+ * Shirt and helmet, trousers, and the accent that does the seam, the collar,
+ * the number, the pad straps and the shoe flashes. Home is the navy and orange
+ * the game has always worn; whites are the Test match; green, purple and blue
+ * are the second, third and fourth seats in a Rivals room, so four friends in
+ * one match are four different batters and not the same man four times.
+ */
+export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number; number: number }> = {
+  home: { shirt: 0x19334a, helmet: 0x18314a, trousers: 0xe7e2d3, accent: 0xed7044, number: 0xed7044 },
+  whites: { shirt: 0xf2ece0, helmet: 0x18314a, trousers: 0xf4f0e4, accent: 0xd9d3c3, number: 0xd9d3c3 },
+  green: { shirt: 0x0a2f24, helmet: 0x09291f, trousers: 0xf1eee6, accent: 0x061c15, number: 0xffffff },
+  purple: { shirt: 0x5a2fb4, helmet: 0x4d27a3, trousers: 0xf1eee6, accent: 0x3f1e86, number: 0xffffff },
+  blue: { shirt: 0x1f6fd6, helmet: 0x1a5fbd, trousers: 0xf1eee6, accent: 0x1657ad, number: 0xffffff },
+};
+
 export class Batter {
   private poseAge = 0;
   readonly root = new THREE.Group();
@@ -1258,21 +1276,28 @@ export class Batter {
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
     bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .83 }),
     accent: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
+    // The number on his back is its own colour: white on an away kit, where the
+    // accent that does the straps would vanish into the shirt.
+    number: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
     grille: new THREE.MeshStandardMaterial({ color: 0x8c9da0, metalness: .6, roughness: .4 }),
     handle: new THREE.MeshStandardMaterial({ color: 0x2a3238, roughness: .95 }),
   };
   /**
-   * Whites, for the Test match, or back into coloured clothing.
+   * What he bats in: the home kit, whites for the Test match, or one of the
+   * three away kits a Rivals room hands out by seat.
    *
    * The batter owns his materials outright rather than sharing the cached ones
-   * the other figures use, so this is three colours rather than a re-dress —
+   * the other figures use, so this is four colours rather than a re-dress —
    * and it can be called at any time, which is what lets the mode screen change
    * its mind without the scene being torn down and rebuilt around it.
    */
-  dress(whites: boolean) {
-    this.palette.shirt.color.setHex(whites ? 0xf2ece0 : 0x19334a);
-    this.palette.trousers.color.setHex(whites ? 0xf4f0e4 : 0xe7e2d3);
-    this.palette.accent.color.setHex(whites ? 0xd9d3c3 : 0xed7044);
+  dress(kit: BatterKit) {
+    const colours = BATTER_KITS[kit];
+    this.palette.shirt.color.setHex(colours.shirt);
+    this.palette.helmet.color.setHex(colours.helmet);
+    this.palette.trousers.color.setHex(colours.trousers);
+    this.palette.accent.color.setHex(colours.accent);
+    this.palette.number.color.setHex(colours.number);
   }
 
   constructor() {
@@ -1287,7 +1312,7 @@ export class Batter {
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
     // Jersey seam, collar, and back number make rotation legible from the camera.
     this.mesh(this.torso, this.palette.accent, [.37, .026, .27], 'soft').position.y = -.33;
-    for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.accent, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
+    for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.number, [.035, .14, .012], 'soft').position.set(x, -.03, -.135);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
     const helmet = this.mesh(this.head, this.palette.helmet, [.188, .175, .195], 'ball'); helmet.position.set(0, .045, -.018);

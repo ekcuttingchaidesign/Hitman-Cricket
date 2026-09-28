@@ -16,9 +16,20 @@ function fakeStorage(seed: Record<string, string> = {}) {
 
 afterEach(() => vi.unstubAllGlobals());
 
+/** The card carrying the key, wherever it stands in the set. */
+const MEME = STORIES.findIndex(one => one.withKey);
+
 describe('what the update says it did', () => {
-  it('says it in one, because a player came here to bat', () => {
-    expect(STORIES).toHaveLength(1);
+  it('says it in three, because a player came here to bat', () => {
+    expect(STORIES).toHaveLength(3);
+  });
+
+  it('announces Rivals first and asks for the key last', () => {
+    expect(STORIES.slice(0, 2).map(one => one.key)).toEqual(['rivals', 'rivals-result']);
+    expect(STORIES.slice(0, 2).every(one => one.body && !one.withKey)).toBe(true);
+    // The key goes last: it is the one card that holds still, so tapping
+    // through lands on it rather than past it.
+    expect(MEME).toBe(STORIES.length - 1);
   });
 
   it('gives every card something to show, and a name for it', () => {
@@ -45,7 +56,7 @@ describe('what the update says it did', () => {
 
 describe('the story screen', () => {
   it('draws a bar a story, and holds still on one carrying the key', () => {
-    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
+    const markup = storiesMarkup({ at: MEME, where: 'intro', holdMs: 7000 });
     expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(STORIES.length);
     expect(markup.match(/is-live/g)).toHaveLength(1);
     // A card that moved on by itself would take the key from under a thumb.
@@ -53,8 +64,17 @@ describe('the story screen', () => {
     expect(markup).not.toContain('--hold:');
   });
 
+  it('moves on by itself from a card that asks for nothing', () => {
+    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
+    expect(markup).toContain('--hold:7000ms');
+    expect(markup).not.toContain('is-held');
+    expect(markup).not.toContain('whatsnew-keyslot');
+    // A screenshot is not square; laid out at its own shape before it loads.
+    expect(markup).toMatch(/width="720" height="709"/);
+  });
+
   it('puts the meme on the screen, and the key under it', () => {
-    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 1 });
+    const markup = storiesMarkup({ at: MEME, where: 'intro', holdMs: 1 });
     expect(markup).toContain('src="save%20key%20meme.png"');
     expect(markup.indexOf('whatsnew-art')).toBeLessThan(markup.indexOf('whatsnew-keyslot'));
     // The way out stays at the foot, under both.
@@ -62,7 +82,7 @@ describe('the story screen', () => {
   });
 
   it('asks a player with a name to save their key, and shows nobody else a card', () => {
-    const held = storiesMarkup({ at: 0, where: 'intro', holdMs: 1,
+    const held = storiesMarkup({ at: MEME, where: 'intro', holdMs: 1,
       careerKey: { state: 'unsaved', code: 'brave-otter-lamp-07' } });
     expect(held).toContain('Save your key');
     expect(held).toContain('brave-otter-lamp-07');
@@ -76,8 +96,9 @@ describe('the story screen', () => {
     expect(storyKeyMarkup(null)).toBe('');
   });
 
-  it('draws no frame round a picture that brings its own corners', () => {
-    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).toContain('class="is-cut"');
+  it('draws no frame round a picture that brings its own corners, and one round a screenshot', () => {
+    expect(storiesMarkup({ at: MEME, where: 'intro', holdMs: 1 })).toContain('class="is-cut"');
+    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).not.toContain('class="is-cut"');
   });
 
   it('never prints a key it was not handed', () => {

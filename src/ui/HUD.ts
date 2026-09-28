@@ -7,6 +7,11 @@ import {
 import { track, trackOnce } from '../game/analytics';
 import { feedbackGiven } from '../game/feedback';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
+import type { ChallengeRow } from '../game/challenge-api';
+import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
+import { animate, stagger } from 'animejs';
+import { playFilm, type Film, type Playing } from './Lottie';
+import type { Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
   BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, kitMarkup, peekMarkup, pickerMarkup,
@@ -24,6 +29,7 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
+import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { STORIES } from '../game/whats-new';
 import {
@@ -72,6 +78,11 @@ const icon = (name: string) => {
     story: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 8v6m-3-3 3-3 3 3"/>',
     trophy: '<path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4"/>',
     whatsapp: '<path d="M3.5 20.5 5 16a8 8 0 1 1 3 3l-4.5 1.5Z"/><path d="M9 9c0 3 3 6 6 6 1 0 1.5-1 1.5-1L15 13l-1.5 1S12 13.5 11 12t.5-2L10 8.5S9 9 9 9Z"/>',
+    /* Drawn at the same stroke as the rest, so the list's remove key belongs to
+       the same set as the sound and share keys rather than being a stray glyph. */
+    close: '<path d="m7 7 10 10M17 7 7 17"/>',
+    /* Two bats crossed: the mark of a match against somebody. */
+    versus: '<path d="m5 19 5-5m-5 0 5 5M5 5l14 14M19 5 5 19"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
@@ -87,6 +98,13 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
    the same kit — and the Test match has its own, in whites with a red ball. */
 const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
+/* The challenge plate ships in `public/` rather than `src/assets/`, so it is a
+   bare relative path for the same reason the kits are: the browser resolves it
+   against the page, which is right under a GitHub Pages subdirectory and at a
+   domain root alike. A leading slash would look at the top of github.io. */
+const challengePlate = 'challenge_mode.png';
+const fireball = 'fireball.webp';
+const rivalsCover = 'rivals_cover.webp';
 /* The three plates the result card stands on. The loss is used twice: a man
    carried off and a man bowled twelve short are the same picture of the same
    over, and what separates them is the line above it, not the art. */
@@ -339,9 +357,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             </button>
             <div id="card-key" class="card-key hidden"></div>
             <div class="card-keys">
+              <button id="challenge-set" class="key-button challenge-key">CHALLENGE A FRIEND<em>with this innings</em></button>
               <button id="again" class="key-button">PLAY AGAIN</button>
+              <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
+            <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
             <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
@@ -352,24 +373,122 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="modes-title" class="mode-heading">Select Mode</h2>
             </div>
+            <button id="mode-challenge" class="mode-hero" type="button">
+              <span class="mode-hero-plate"><img src="${challengePlate}" alt="" decoding="async" /></span>
+              <span class="mode-hero-body">
+                <span id="mode-challenge-flag" class="mode-flag">NEW</span>
+                <span class="mode-hero-name">Rivals</span>
+                <span class="mode-hero-sub">Play with friends</span>
+                <span class="mode-key">PLAY</span>
+              </span>
+            </button>
+            <div class="mode-grid">
+              <button id="mode-classic" class="mode-card" type="button">
+                <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
+                <span class="mode-body">
+                  <span class="mode-name">The Blast</span>
+                  <span class="mode-copy">5 overs. 3 wickets. Find the gaps, clear the ropes, set the record.</span>
+                </span>
+              </button>
+              <button id="mode-survive" class="mode-card mode-survive" type="button">
+                <span class="mode-plate"><img src="${survivePlate}" alt="" decoding="async" /></span>
+                <span class="mode-body">
+                  <span class="mode-name">Test Survival</span>
+                  <span class="mode-copy">Last man standing. Survive 60 balls. Chase the target or hold out for the draw.</span>
+                </span>
+              </button>
+            </div>
             <div id="mode-key" class="key-slot hidden"></div>
-            <button id="mode-classic" class="mode-card">
-              <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
-              <span class="mode-body">
-                <span class="mode-name">The Blast</span>
-                <span class="mode-copy">Five overs, three wickets, nothing to lose. Find the gaps, clear the ropes, and put a record on the board.</span>
-                <span class="mode-key">PLAY THE BLAST</span>
-              </span>
+            <button id="modes-challenges" class="mode-rivals" type="button">
+              <span class="mode-rivals-art" aria-hidden="true"><img src="${rivalsCover}" alt="" decoding="async" /></span>
+              <span class="mode-rivals-say"><b>Your Rivals Matches</b><em id="modes-challenges-note">See who you've played</em></span>
+              <span id="modes-challenges-count" class="hidden"></span>
+              <span class="mode-rivals-go" aria-hidden="true">${icon('arrow')}</span>
             </button>
-            <button id="mode-survive" class="mode-card mode-survive">
-              <span class="mode-flag">NEW</span>
-              <span class="mode-plate"><img src="${survivePlate}" alt="" decoding="async" /></span>
-              <span class="mode-body">
-                <span class="mode-name">Test Survival</span>
-                <span class="mode-copy">You are the last man standing. 60 balls to survive. Chase or Draw the match for the glory.</span>
-                <span class="mode-key">PLAY TEST SURVIVAL</span>
-              </span>
-            </button>
+          </div>
+        </div>
+        <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
+          <div class="room-sheet">
+            <div class="mode-top room-top">
+              <button id="room-back" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
+              <h2 id="room-title" class="mode-heading">Match Room</h2>
+            </div>
+            <div class="room-stage">
+              <div id="room-hero" class="room-hero hidden" aria-hidden="true"><div id="room-anim" class="room-anim"></div><span id="room-hero-kit" class="room-hero-kit"></span></div>
+              <span id="room-tag" class="challenge-tag hidden"></span>
+              <h3 id="room-lead" class="room-lead"></h3>
+              <p id="room-sub" class="room-sub"></p>
+              <div id="room-players" class="room-grid"></div>
+              <div id="room-scoreline" class="room-results hidden"></div>
+              <p id="room-note" class="room-note"></p>
+            </div>
+            <div id="room-keys" class="room-keys"></div>
+          </div>
+        </div>
+        <div id="challenge-share" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-share-title">
+          <div class="rival-sheet is-invite"><img class="rival-sheet-ball" src="${fireball}" alt="" decoding="async" />
+            <h2 id="challenge-share-title" class="rival-sheet-title">Challenge<br>your friend</h2>
+            <p class="rival-sheet-label">HOW IT WORKS</p>
+            <ol class="rival-steps">
+              <li>Share the link with a friend</li>
+              <li>Play now or later: you'll see their runs on every ball</li>
+              <li>Most runs wins. Tied? Most sixes, then most fours</li>
+            </ol>
+            <div class="rival-sheet-keys">
+              <button id="challenge-more" class="rival-key is-green" type="button">SHARE</button>
+              <button id="challenge-copy" class="rival-key is-white" type="button">COPY LINK</button>
+            </div>
+            <p id="challenge-preview" class="rival-sheet-copied" aria-live="polite"></p>
+          </div>
+          <button id="challenge-share-done" class="sheet-close" type="button" aria-label="Close">${icon('close')}</button>
+        </div>
+        <div id="challenge-join" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-join-title">
+          <div class="rival-sheet is-received"><img class="rival-sheet-ball" src="${fireball}" alt="" decoding="async" />
+            <span id="challenge-from-kit" class="rival-sheet-kit hidden"></span>
+            <h2 id="challenge-join-title" class="rival-sheet-title is-centred"><b id="challenge-from-name"></b><span id="challenge-join-verb">challenged you</span></h2>
+            <p id="challenge-join-copy" class="rival-sheet-sub"></p>
+            <p id="challenge-as" class="challenge-as hidden"><span id="challenge-as-kit" class="board-kit"></span><span class="challenge-as-who">Batting as <b id="challenge-as-name"></b></span><button id="challenge-rename" type="button" class="ghost-link">Not you?</button></p>
+            <label id="challenge-name-field" class="rival-field hidden"><span>YOUR NAME</span><input id="challenge-name" name="challenge-name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="go" placeholder=""></label>
+            <p id="challenge-join-error" class="claim-error hidden" role="alert"></p>
+            <div class="rival-sheet-keys">
+              <button id="challenge-bat" class="rival-key is-play" type="button">LET'S GO</button>
+              <button id="challenge-solo" class="rival-key is-steel" type="button">DECLINE &amp; ACCEPT DEFEAT</button>
+            </div>
+          </div>
+        </div>
+        <div id="challenge-list" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-list-title">
+          <div class="room-sheet">
+            <div class="mode-top room-top">
+              <button id="challenge-list-done" class="mode-back" type="button" aria-label="Back" title="Back">${icon('back')}</button>
+              <h2 id="challenge-list-title" class="mode-heading">Rival Matches</h2>
+            </div>
+            <div id="challenge-sections" class="rival-sections"></div>
+            <p id="challenge-list-copy" class="room-note"></p>
+            <div class="room-keys"><button id="challenge-list-new" class="key-button" type="button">START A NEW MATCH</button></div>
+          </div>
+        </div>
+        <div id="challenge-rivalry" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivalry-tally">
+          <div class="rival-sheet">
+            <p id="rivalry-who" class="challenge-from"></p>
+            <h2 id="rivalry-tally" class="rival-sheet-title"></h2>
+            <p id="rivalry-sub" class="rival-sheet-sub is-left"></p>
+            <div id="rivalry-form" class="rivalry-form" aria-label="Last five"></div>
+            <dl id="rivalry-facts" class="rivalry-facts"></dl>
+            <div class="rival-sheet-keys">
+              <button id="rivalry-again" class="rival-key is-play" type="button">CHALLENGE AGAIN</button>
+            </div>
+          </div>
+          <button id="rivalry-back" class="sheet-close" type="button" aria-label="Close">${icon('close')}</button>
+        </div>
+        <div id="challenge-offline" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-offline-title">
+          <div class="rival-sheet">
+            <p class="rival-sheet-label">NO SIGNAL</p>
+            <h2 id="challenge-offline-title" class="rival-sheet-title">Can't reach<br>the match.</h2>
+            <p id="challenge-offline-copy" class="rival-sheet-sub is-left">A match needs a connection to swap scores with your friend. A solo innings works anywhere.</p>
+            <div class="rival-sheet-keys">
+              <button id="challenge-offline-retry" class="rival-key is-play" type="button">TRY AGAIN</button>
+              <button id="challenge-offline-solo" class="rival-key is-steel" type="button">BAT SOLO INSTEAD</button>
+            </div>
           </div>
         </div>
         <div id="end-survive" class="modal-overlay result-screen hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
@@ -400,6 +519,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             </div>
           </div>
         </div>
+        <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"></div>
         <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
           <div class="hurt-note-card">
             <p class="hurt-note-eyebrow">PHYSIO ON</p>
@@ -2074,7 +2194,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // hud keys goes with it. They sit above the overlay and were being drawn
     // straight across the title.
     this.viewport.classList.add('picking-mode');
-    (this.$('mode-classic') as HTMLButtonElement).focus();
+    (this.$('mode-challenge') as HTMLButtonElement).focus();
   }
   closeModes() {
     this.$('modes').classList.add('hidden');
@@ -2084,6 +2204,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
   }
   get modesOpen() { return !this.$('modes').classList.contains('hidden'); }
+  /**
+   * Takes the Test card off the picker while that mode is behind its flag.
+   *
+   * Hidden rather than removed, and the picker still opens: challenging a
+   * friend is the second thing to choose between now, so the screen has a job
+   * whether or not the Test match is on offer.
+   */
+  hideSurviveCard() { this.$('mode-survive').classList.add('hidden'); }
+
   /**
    * The end card the picker was opened from, put back the way it was.
    *
@@ -2235,6 +2364,431 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     offer('feedback-pause', where.pause);
   }
 
+  /* ── The match room ────────────────────────────────────────────────── */
+
+  /** What the room's keys do. The game decides; this only says which was pressed. */
+  onRoomAct: ((act: RoomAct) => void) | null = null;
+  /** What a row of Rival Matches does. */
+  onListAct: ((act: 'open' | 'rival' | 'drop' | 'accept' | 'decline', code: string, playerId?: string) => void) | null = null;
+  private film: Playing | null = null;
+  private rings = new Map<string, number>();
+
+  /**
+   * The match room, as one person sees it.
+   *
+   * One screen for the lobby, the live scores and the result, because it is one
+   * link: the same room opened on Tuesday and on Thursday is the same place
+   * with more in it. What changes is the line at the top, which faces carry a
+   * score, and which keys stand at the foot. Everything is drawn from the room
+   * and nothing else, so a poll that finds a new ball redraws the screen and
+   * the screen is right — and only the parts that changed are touched, so a
+   * poll never restarts the film or pulls a key out from under a thumb.
+   */
+  room(view: RoomView, extra: { interstitial?: { index: number; total: number }; sent?: boolean; card?: boolean } = {}) {
+    // Opening the room puts the sheets and the list away. A redraw from a poll
+    // does not: the invite is a sheet over the room, and a room that shut it
+    // every two seconds would be a room nobody could send a link from.
+    const wasOpen = this.roomOpen;
+    if (!wasOpen) {
+      this.shutSheets();
+      if (!this.$('challenge-list').classList.contains('hidden')) this.closeList();
+    }
+    this.$('intro').classList.add('hidden');
+    const said = roomCopy(view, extra);
+    const drawn = this.roomDrawn;
+
+    this.$('room-title').textContent = said.title;
+    const tag = this.$('room-tag');
+    tag.textContent = said.tag ?? '';
+    tag.classList.toggle('hidden', !said.tag);
+    const lead = this.$('room-lead');
+    lead.textContent = said.lead;
+    lead.classList.toggle('is-result', !!view.result);
+    lead.classList.toggle('is-draw', !!view.result && !view.result.winner);
+    this.$('room-sub').textContent = said.sub;
+    const note = this.$('room-note');
+    note.textContent = said.note ?? '';
+    note.classList.toggle('hidden', !said.note);
+
+    const players = this.$('room-players');
+    const results = this.$('room-scoreline');
+    const hero = this.$('room-hero');
+    if (view.result) {
+      const winner = view.result.winner;
+      const html = view.result.players.map(row => resultRow(row, view.result!)).join('');
+      if (drawn.scoreline !== html) {
+        results.innerHTML = html;
+        drawn.scoreline = html;
+        this.enter(results.querySelectorAll('.verdict-row'), 12);
+      }
+      results.classList.remove('hidden');
+      players.classList.add('hidden');
+      const heroHtml = winner ? kitMarkup(winner.avatar, winner.name) : '';
+      if (drawn.hero !== heroHtml) {
+        this.$('room-hero-kit').innerHTML = heroHtml;
+        drawn.hero = heroHtml;
+      }
+      hero.classList.toggle('hidden', !winner);
+    } else {
+      const html = roomGrid(view);
+      if (drawn.players !== html) {
+        players.innerHTML = html;
+        drawn.players = html;
+        drawn.film = '';
+        this.enter(players.querySelectorAll('.room-seat'), 70);
+      }
+      players.classList.remove('hidden');
+      results.classList.add('hidden');
+      hero.classList.add('hidden');
+      this.rings.clear();
+    }
+    for (const seat of players.querySelectorAll<HTMLElement>('.room-seat[data-progress]')) {
+      this.ring(seat, Number(seat.dataset.progress));
+    }
+
+    // The film: the fire round the winner. Started once per result, never per
+    // poll, and a draw has no winner to burn for.
+    const anim = this.$('room-anim');
+    const which: Film | '' = view.result?.winner ? 'flame' : '';
+    if (drawn.film !== which) {
+      this.film?.destroy();
+      this.film = null;
+      if (which) this.film = playFilm(anim, which, { loop: true });
+      else anim.innerHTML = '';
+      drawn.film = which;
+    }
+
+    const keys = said.keys.map(roomKey).join('');
+    if (drawn.keys !== keys) {
+      this.$('room-keys').innerHTML = keys;
+      this.$('room-keys').classList.toggle('is-pair', !view.result && said.keys.filter(key => key.kind !== 'ghost').length === 2);
+      drawn.keys = keys;
+    }
+    this.viewport.classList.toggle('result-room', !!view.result);
+    this.viewport.classList.add('modal-open', 'picking-mode');
+    this.$('challenge-room').classList.remove('hidden');
+    if (!wasOpen) {
+      this.settle('challenge-room');
+      if (view.result) this.enterResult();
+    }
+  }
+  private roomDrawn = { players: '', scoreline: '', keys: '', hero: '', film: '' as Film | '' };
+
+  /** Things arriving: a short rise and fade, staggered, and nothing under reduced motion. */
+  private enter(nodes: NodeListOf<Element>, gap: number) {
+    if (!nodes.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    animate(nodes, { opacity: [0, 1], translateY: [10, 0], duration: 420, delay: stagger(gap), ease: 'outCubic' });
+  }
+
+  /** The result's headline comes up under the fire. */
+  private enterResult() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    animate(this.$('room-hero'), { scale: [0.7, 1], opacity: [0, 1], duration: 620, ease: 'outBack(1.4)' });
+    animate([this.$('room-lead'), this.$('room-sub')], { opacity: [0, 1], translateY: [8, 0], duration: 460, delay: stagger(90, { start: 220 }), ease: 'outCubic' });
+  }
+
+  /**
+   * The ring round a face that is batting. A circle drawn to the fraction of
+   * the innings faced, moved to a new fraction rather than redrawn at it, so a
+   * ball landing reads as the ring growing.
+   */
+  private ring(seat: HTMLElement, progress: number) {
+    const arc = seat.querySelector<SVGCircleElement>('.room-ring-arc');
+    if (!arc) return;
+    const length = Number(arc.getAttribute('data-length'));
+    const id = seat.dataset.player ?? '';
+    const from = this.rings.get(id) ?? 0;
+    this.rings.set(id, progress);
+    const dash = (p: number) => String(length * (1 - p));
+    if (from === progress || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      arc.setAttribute('stroke-dashoffset', dash(progress));
+      return;
+    }
+    const state = { p: from };
+    animate(state, { p: progress, duration: 700, ease: 'outCubic', onUpdate: () => arc.setAttribute('stroke-dashoffset', dash(state.p)) });
+  }
+
+  /** A room that could not be reached, with the two ways on. */
+  offline(reason: string | null = null) {
+    this.shut();
+    this.$('intro').classList.add('hidden');
+    this.$('challenge-offline-copy').textContent = reason
+      ?? 'A match needs a connection to swap scores with your friend. A solo innings works anywhere.';
+    this.open('challenge-offline');
+    this.settle('challenge-offline');
+  }
+
+  closeRoom() {
+    this.film?.destroy();
+    this.film = null;
+    this.roomDrawn = { players: '', scoreline: '', keys: '', hero: '', film: '' };
+    this.rings.clear();
+    this.$('challenge-room').classList.add('hidden');
+    this.viewport.classList.remove('result-room');
+    const held = ['end', 'end-survive', 'modes', 'challenge-list'].some(id => !this.$(id).classList.contains('hidden'));
+    if (!held) this.viewport.classList.remove('modal-open', 'picking-mode');
+  }
+
+  get roomOpen() { return !this.$('challenge-room').classList.contains('hidden'); }
+  get listOpen() { return !this.$('challenge-list').classList.contains('hidden'); }
+
+  /**
+   * The innings card, as opened from a match result rather than at the end of
+   * a Blast innings. PLAY AGAIN would start a Blast innings nobody asked for
+   * and CHALLENGE A FRIEND would make a room out of an innings that already
+   * belongs to one, so both give way to the way back to the result and a way
+   * on to the mode screen.
+   */
+  matchScorecard(on: boolean) { this.$('end').classList.toggle('is-match', on); }
+  get matchScorecardOpen() {
+    const end = this.$('end');
+    return !end.classList.contains('hidden') && end.classList.contains('is-match');
+  }
+  /** The innings card put away, for the screen that replaces it. */
+  hideScorecard() {
+    this.$('end').classList.add('hidden');
+    this.$('end').classList.remove('is-match');
+  }
+
+  /**
+   * The link, ready to go: what happens, and two ways to send it. The message
+   * itself is the taunt and it is not previewed here — the sheet says how the
+   * match works, and the key says share.
+   */
+  inviteSheet() {
+    this.shutSheets();
+    this.$('challenge-preview').textContent = '';
+    this.open('challenge-share');
+    this.settle('challenge-share');
+  }
+
+  /** A word under the keys, for a copy that worked or did not. */
+  inviteNote(text: string) {
+    const note = this.$('challenge-preview');
+    note.textContent = text;
+    note.classList.remove('is-up'); void note.offsetWidth; note.classList.add('is-up');
+  }
+
+  /**
+   * The screen a link lands on.
+   *
+   * A first-timer meets this and nothing else — no cover, no picker, no
+   * tutorial. They tapped something that said "play cricket with me", and every
+   * screen between them and a bat is a screen that loses some of them.
+   */
+  challengeFrom(from: ChallengeRow | null, closes: string, player: Player | null, batted: boolean) {
+    this.shut();
+    this.$('intro').classList.add('hidden');
+    const kit = this.$('challenge-from-kit');
+    kit.classList.toggle('hidden', !from);
+    kit.innerHTML = from ? kitMarkup(from.avatar, from.name) : '';
+    this.$('challenge-from-name').textContent = from?.name ?? 'A friend';
+    this.$('challenge-join-verb').textContent = 'challenged you';
+    this.$('challenge-join-copy').textContent = batted
+      ? `30 balls each. ${from?.name ?? 'They'} already batted — you’ll see it ball by ball, and the score on your last.`
+      : '30 balls each. Winner takes the bragging rights';
+    this.$('challenge-bat').textContent = "LET'S GO";
+    this.$('challenge-solo').textContent = 'DECLINE & ACCEPT DEFEAT';
+    this.$('challenge-solo').classList.remove('hidden');
+    void closes;
+    this.identify(player);
+  }
+
+  /**
+   * The same sheet, asking the one question a match needs from somebody who
+   * has never given a name. It is only ever reached that way: a player the game
+   * already knows is never asked twice.
+   */
+  challengeWhoAreYou(player: Player | null) {
+    this.shut();
+    this.$('intro').classList.add('hidden');
+    this.$('challenge-from-kit').classList.add('hidden');
+    this.$('challenge-from-name').textContent = 'Who should';
+    this.$('challenge-join-verb').textContent = 'they be scared of?';
+    this.$('challenge-join-copy').textContent = 'Your friend sees this name on the match. No sign-up, no password.';
+    this.$('challenge-bat').textContent = 'OPEN THE ROOM';
+    this.$('challenge-solo').classList.add('hidden');
+    this.identify(player);
+  }
+
+  /**
+   * Who this browser bats as, on either mode of the sheet.
+   *
+   * A player the game already knows is shown rather than asked: the name and kit
+   * are the ones their id carries, and being made to type a name they have
+   * already given is the difference between a game and a form. `Not you?` is
+   * there for the shared phone, and is the only way the field appears.
+   */
+  private identify(player: Player | null) {
+    const field = this.$('challenge-name') as HTMLInputElement;
+    const wrap = this.$('challenge-name-field');
+    const known = this.$('challenge-as');
+    field.value = player?.name ?? '';
+    this.$('challenge-join-error').classList.add('hidden');
+    if (player) {
+      this.$('challenge-as-kit').outerHTML = kitMarkup(player.avatar, player.name).replace('board-kit', 'board-kit" id="challenge-as-kit');
+      this.$('challenge-as-name').textContent = player.name;
+      known.classList.remove('hidden');
+      wrap.classList.add('hidden');
+    } else {
+      known.classList.add('hidden');
+      wrap.classList.remove('hidden');
+    }
+    this.open('challenge-join');
+    if (player) this.settle('challenge-join'); else field.focus();
+  }
+
+  /** The way to a different name, for the phone that gets handed round. */
+  challengeRename() {
+    this.$('challenge-as').classList.add('hidden');
+    this.$('challenge-name-field').classList.remove('hidden');
+    const field = this.$('challenge-name') as HTMLInputElement;
+    field.focus();
+    field.select();
+  }
+
+  /** What the joiner typed, for the caller to take or refuse. */
+  get challengeName() { return (this.$('challenge-name') as HTMLInputElement).value; }
+
+  challengeJoinError(reason: string | null) {
+    const line = this.$('challenge-join-error');
+    line.textContent = reason ?? '';
+    line.classList.toggle('hidden', !reason);
+  }
+
+  /**
+   * One ball of the other innings, flashed between deliveries — one row per
+   * rival who has got that far, the furthest along on top.
+   *
+   * Never during one: the ball is in the air for the best part of a second and a
+   * number moving beside it is a number that costs somebody their wicket. The
+   * caller owns the timing; this only puts it up and takes it down.
+   */
+  ghost(balls: GhostBall[]) {
+    const flash = this.$('ghost-flash');
+    flash.innerHTML = balls.map(ball => `<span class="ghost-row${ball.kind === 'out' ? ' is-out' : ball.kind === 'big' ? ' is-big' : ''}">
+      <span class="ghost-who">${kitMarkup(ball.avatar, ball.who)}<span>${escapeName(ball.who)}</span></span>
+      <span class="ghost-result">${ball.result}</span>
+    </span>`).join('');
+    flash.classList.toggle('is-many', balls.length > 1);
+    flash.classList.remove('hidden');
+    // Two frames, so the browser has laid the element out before the class that
+    // animates it arrives — otherwise it appears already finished.
+    requestAnimationFrame(() => requestAnimationFrame(() => flash.classList.add('is-up')));
+  }
+
+  ghostAway() {
+    const flash = this.$('ghost-flash');
+    flash.classList.remove('is-up');
+    setTimeout(() => flash.classList.add('hidden'), 240);
+  }
+
+  /**
+   * Rival Matches: what has come in, what is waiting on somebody, and how the
+   * last ten went. A row opens its room; accept and decline act on the spot.
+   */
+  challengeList(sections: ListSections, record?: RivalsRecord) {
+    this.shutSheets();
+    if (this.roomOpen) this.closeRoom();
+    this.$('intro').classList.add('hidden');
+    const total = sections.received.length + sections.waiting.length + sections.past.length;
+    const section = (title: string, rows: ListRowView[]) => rows.length
+      ? `<h3 class="rival-section-head">${title}</h3><ul class="rival-rows">${rows.map(listRow).join('')}</ul>`
+      : '';
+    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
+      ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
+      : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
+    this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a name for the head-to-head.' : '';
+    this.viewport.classList.add('modal-open', 'picking-mode');
+    this.$('challenge-list').classList.remove('hidden');
+    this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
+    this.settle('challenge-list');
+  }
+
+  /**
+   * Puts focus on a screen rather than on its first key. A key focused by
+   * script gets the keyboard ring on WebKit, and a ring round LET'S GO that
+   * nobody tabbed to reads as a state; the screen itself takes focus without
+   * one, and a screen reader still lands inside the dialog.
+   */
+  private settle(id: string) {
+    const box = this.$(id);
+    box.tabIndex = -1;
+    box.focus({ preventScroll: true });
+  }
+
+  closeList() {
+    this.$('challenge-list').classList.add('hidden');
+    const held = ['end', 'end-survive', 'modes', 'challenge-room'].some(id => !this.$(id).classList.contains('hidden'));
+    if (!held) this.viewport.classList.remove('modal-open', 'picking-mode');
+  }
+
+  /** The head-to-head against one person. */
+  rivalry(view: RivalryView) {
+    this.shutSheets();
+    this.$('rivalry-who').innerHTML = `${kitMarkup(view.them.avatar, view.them.name)}<span class="challenge-from-who"><b>You vs ${escapeName(view.them.name)}</b><em>${view.wins + view.losses + view.draws} match${view.wins + view.losses + view.draws === 1 ? '' : 'es'}${view.draws ? ` · ${view.draws} drawn` : ''}</em></span>`;
+    this.$('rivalry-tally').textContent = `${view.wins} – ${view.losses}`;
+    this.$('rivalry-sub').textContent = view.wins === view.losses
+      ? 'All square. Somebody has to blink.'
+      : view.wins > view.losses ? `${view.tally}. Keep it that way.` : `${view.tally}. Time to do something about it.`;
+    this.$('rivalry-form').innerHTML = view.form.length
+      ? `<span class="rivalry-form-label">Last ${view.form.length}</span>${view.form.map(one => `<i class="is-${one}">${one}</i>`).join('')}`
+      : '';
+    this.$('rivalry-facts').innerHTML = [
+      ['Best score', `You ${view.bestMine} · ${escapeName(view.them.name)} ${view.bestTheirs}`],
+      ['Sixes', `You ${view.sixesMine} · ${escapeName(view.them.name)} ${view.sixesTheirs}`],
+    ].map(([what, said]) => `<div><dt>${what}</dt><dd>${said}</dd></div>`).join('');
+    // No name on the key: a long one ran it off both edges. The name is in
+    // the heading above, where there is room for it.
+    this.$('rivalry-again').textContent = 'CHALLENGE AGAIN';
+    this.open('challenge-rivalry');
+    this.settle('challenge-rivalry');
+  }
+
+  /** What the hero card and the Rival Matches widget say about the matches waiting. */
+  challengesOpen(received: number, waiting: number) {
+    const flag = this.$('mode-challenge-flag');
+    flag.textContent = received > 0 ? 'YOUR MOVE' : waiting > 0 ? `${waiting} LIVE` : 'NEW';
+    flag.classList.toggle('is-open', received > 0 || waiting > 0);
+    flag.classList.toggle('is-move', received > 0);
+    const note = this.$('modes-challenges-note');
+    note.textContent = received > 0
+      ? `${received} Challenge${received === 1 ? '' : 's'} Received`
+      : waiting > 0 ? `${waiting} waiting on them` : "See who you've played";
+    note.classList.toggle('is-hot', received > 0);
+  }
+
+  /** Puts one of the challenge sheets up, and the overlay state with it. */
+  private open(id: string) {
+    this.viewport.classList.add('modal-open');
+    this.$(id).classList.remove('hidden');
+  }
+
+  /** Puts the cover back, for a joiner who chose to bat alone instead. */
+  showCover() { this.$('intro').classList.remove('hidden'); }
+
+  /** Takes every challenge screen down. Called before putting one up. */
+  shut() {
+    this.shutSheets();
+    if (this.roomOpen) this.closeRoom();
+    if (!this.$('challenge-list').classList.contains('hidden')) this.closeList();
+  }
+
+  /** The sheets that stand over the room, and not the room. */
+  closeSheets() { this.shutSheets(); }
+  private shutSheets() {
+    for (const id of ['challenge-share', 'challenge-join', 'challenge-rivalry', 'challenge-offline']) {
+      this.$(id).classList.add('hidden');
+    }
+  }
+
+  /** And the overlay with them, when nothing else is holding it. */
+  closeChallenge() {
+    this.shut();
+    const held = ['end', 'end-survive', 'modes'].some(id => !this.$(id).classList.contains('hidden'));
+    if (!held) this.viewport.classList.remove('modal-open');
+  }
+
   /**
    * The sound key, drawn as the setting it is on. Three settings on one key
    * means a press has to say where it landed, or the middle one is a mystery
@@ -2269,3 +2823,314 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   error() { document.body.classList.remove('start-screen'); this.$('intro').className = 'panel intro-panel'; this.$('intro').innerHTML = '<span class="challenge-tag">WEBGL UNAVAILABLE</span><h2>The ground couldn’t load.</h2><p>Enable hardware acceleration in your browser, then reload to play.</p><button class="primary-button" onclick="location.reload()">RELOAD GAME</button>'; }
 }
 
+
+/** What the room's keys can ask for. */
+export type RoomAct =
+  | 'invite' | 'share' | 'play' | 'resume' | 'nudge' | 'rematch' | 'home' | 'join' | 'new' | 'next' | 'retry' | 'solo' | 'list' | 'card' | 'decline';
+
+/** One key at the foot of the room. */
+interface RoomKey {
+  act: RoomAct | 'tell';
+  label: string;
+  kind: 'green' | 'play' | 'steel' | 'ghost';
+  /** A link rather than a key, for the ones that open WhatsApp. */
+  href?: string;
+}
+
+/**
+ * What the room says to this person, and which keys it offers.
+ *
+ * Every state of the same link is here, and every one is a place rather than a
+ * dead end: an expired room offers a fresh one, a room made on an older game
+ * offers a fresh one, a room you were never in offers a way in. The taunts are
+ * kept because they are the voice of the thing; the rest is plain.
+ */
+function roomCopy(
+  view: RoomView, extra: { interstitial?: { index: number; total: number }; sent?: boolean; card?: boolean },
+): { title: string; tag: string | null; lead: string; sub: string; note: string | null; keys: RoomKey[] } {
+  const said = roomWords(view, extra);
+  // The innings that just ended has a card, and the card is where the Top 50
+  // is claimed — so the room keeps a way to it, under the keys that matter.
+  if (extra.card && (view.kind === 'waiting' || view.kind === 'spectate' || view.kind === 'result')) {
+    said.keys.push({ kind: 'ghost', act: 'card', label: 'Your scorecard' });
+  }
+  return said;
+}
+
+function roomWords(
+  view: RoomView, extra: { interstitial?: { index: number; total: number }; sent?: boolean },
+): { title: string; tag: string | null; lead: string; sub: string; note: string | null; keys: RoomKey[] } {
+  const you = view.mine;
+  const others = view.players.filter(row => row.playerId !== you?.playerId);
+  const other = others[0] ?? null;
+  const first = (row: ChallengeRow | null) => row?.name ?? 'your friend';
+  const key = (kind: RoomKey['kind'], act: RoomKey['act'], label: string, href?: string): RoomKey => ({ kind, act, label, href });
+  const back = key('ghost', 'home', 'Back to the menu');
+  const lobbyLead = 'Challenge your friends';
+  const lobbySub = 'Send the link. They bat their 30, you bat yours, together now or whenever they get round to it.';
+
+  switch (view.kind) {
+    case 'lobby': {
+      const joined = others.length > 0;
+      if (!you?.host && !joined) {
+        return {
+          title: 'Match Room', tag: null, lead: 'You’re in.',
+          sub: `Nobody has batted yet. Go first and set the score, or wait — ${first(view.players.find(row => row.host) ?? null)} sees what you did either way.`,
+          note: null, keys: [key('green', 'invite', 'SHARE'), key('play', 'play', 'PLAY NOW')],
+        };
+      }
+      return {
+        title: 'Match Room', tag: null, lead: lobbyLead, sub: lobbySub,
+        note: joined ? null : extra.sent ? 'Link sent · they can bat now or later' : null,
+        keys: [key('green', 'invite', 'SHARE'), key('play', 'play', 'PLAY NOW')],
+      };
+    }
+    case 'chase': {
+      const batting = others.find(row => row.status === 'batting');
+      const done = others.filter(row => row.status === 'done' || row.status === 'forfeit');
+      return {
+        title: 'Match Room', tag: null,
+        lead: batting ? `${batting.name} is batting right now` : done.length === 1 ? `${done[0].name} has batted` : lobbyLead,
+        sub: batting
+          ? 'Jump in. You’ll see what they did on each ball, one ball behind your own, and the scores on your last.'
+          : '30 balls. Beat a score you can’t see. You’ll get their innings ball by ball, and the total on your thirtieth.',
+        note: `Their score stays hidden till your last ball · ${view.closes}`,
+        keys: [key('green', 'invite', 'SHARE'), key('play', 'play', 'PLAY NOW')],
+      };
+    }
+    case 'resume': {
+      const balls = you?.balls ?? 0;
+      return {
+        title: 'Welcome back', tag: null,
+        lead: `You were on ball ${balls}`,
+        sub: 'Your innings is saved ball by ball. Pick it up where you left it — the balls already faced stay faced. No restarts.',
+        note: null,
+        keys: [key('play', 'resume', `RESUME · BALL ${balls + 1}`), back],
+      };
+    }
+    case 'waiting':
+      return {
+        title: 'Match Room', tag: null,
+        lead: 'Your innings is in',
+        sub: others.length
+          ? `${others.map(row => row.name).join(', ')} ${others.length === 1 ? 'has' : 'have'} the link and ${others.length === 1 ? 'hasn’t' : 'haven’t'} batted yet. You’ll be told the moment it happens.`
+          : 'Nobody has opened the link yet. Send it on — they can bat tonight or on Thursday and it still counts.',
+        note: `Your score counts toward your career either way · ${view.closes}`,
+        keys: [key('green', 'nudge', others.length ? 'NUDGE' : 'SHARE'), back],
+      };
+    case 'spectate': {
+      const live = view.live!;
+      return {
+        title: 'Live', tag: null,
+        lead: `${live.row.name} ${live.needs}`,
+        sub: 'Stay and watch it land, or go — the result finds you either way.',
+        note: null,
+        keys: [key('ghost', 'home', 'Leave · the result will be in Rival Matches')],
+      };
+    }
+    case 'result': {
+      const result = view.result!;
+      const away = extra.interstitial;
+      const tag = away ? `WHILE YOU WERE AWAY${away.total > 1 ? ` · ${away.index} OF ${away.total}` : ''}` : null;
+      const keys: RoomKey[] = [
+        key('green', 'tell', result.tell, result.whatsapp),
+        key('play', 'rematch', 'REMATCH'),
+      ];
+      if (away) keys.push(away.index < away.total ? key('ghost', 'next', 'Next result') : key('ghost', 'home', 'Done'));
+      return { title: 'Result', tag, lead: result.title, sub: result.sub, note: null, keys };
+    }
+    case 'expired': {
+      const batted = you && (you.status === 'done' || you.status === 'forfeit');
+      return {
+        title: 'Closed', tag: 'A WEEK IS A WEEK',
+        lead: 'This one closed',
+        sub: batted
+          ? `${other ? first(other) : 'Nobody'} didn’t bat within the week. Your ${you!.runs} stays in your career; no result goes down against anybody.`
+          : 'Nobody batted within the week, so there is nothing to decide.',
+        note: null,
+        keys: [key('play', 'new', other ? 'CHALLENGE AGAIN' : 'START A NEW MATCH'), back],
+      };
+    }
+    case 'void':
+      return {
+        title: 'Match Room', tag: 'OLDER VERSION',
+        lead: 'Made on an older version',
+        sub: 'The scoring changed since this was set, so a result here wouldn’t be fair on either of you. No win or loss recorded.',
+        note: null,
+        keys: [key('play', 'new', 'START A FRESH MATCH'), back],
+      };
+    case 'declined':
+      return {
+        title: 'Match Room', tag: 'DECLINED',
+        lead: 'You declined this one',
+        sub: `It went down as a defeat. ${first(other)} keeps the points \u2014 a rematch is how you get them back.`,
+        note: null,
+        keys: [key('play', 'new', other ? 'CHALLENGE AGAIN' : 'START A NEW MATCH'), back],
+      };
+    case 'spectator': {
+      const settled = view.players.filter(row => row.status === 'done' || row.status === 'forfeit');
+      const top = settled[0];
+      const second = settled[1];
+      const lead = top && second
+        ? top.score === second.score ? `${top.name} and ${second.name} tied` : `${top.name} beat ${second.name} by ${top.runs - second.runs}`
+        : 'This match is over';
+      const joinable = view.state !== 'expired';
+      return {
+        title: 'Match Room', tag: 'YOU WEREN’T IN THIS ONE',
+        lead, sub: joinable
+          ? 'But the room’s still open. Bat your 30 and see where you land against them both.'
+          : 'It closed before you got here. Start one and drag them both into it.',
+        note: null,
+        keys: [key('play', joinable ? 'join' : 'new', joinable ? 'BAT · BEAT THEM BOTH' : 'CHALLENGE THEM'), back],
+      };
+    }
+  }
+}
+
+function roomKey(key: RoomKey): string {
+  const cls = key.kind === 'ghost' ? 'ghost-link' : `rival-key is-${key.kind}`;
+  if (key.href) {
+    return `<a class="${cls}" data-act="${key.act}" href="${key.href}" target="_blank" rel="noopener noreferrer">${key.label}</a>`;
+  }
+  return `<button class="${cls}" data-act="${key.act}" type="button">${key.label}</button>`;
+}
+
+/**
+ * The faces in the room: two side by side with VS between them, a third under
+ * them in the middle, a fourth beside that; an empty dashed seat while a rival
+ * is still to arrive. Under each face, the name, and where they are — a JOINED
+ * or WAITING pill, or "batting ball 15 of 30" with the ring round the face
+ * drawn to that ball.
+ */
+function roomGrid(view: RoomView): string {
+  const you = view.mine;
+  const ordered = [...view.players].sort((a, b) => Number(b.playerId === you?.playerId) - Number(a.playerId === you?.playerId) || a.joined - b.joined);
+  const seats = ordered.map(row => roomSeat(row, view));
+  const showEmpty = ordered.length < 2 && (view.kind === 'lobby' || view.kind === 'waiting');
+  if (showEmpty) {
+    seats.push(`<div class="room-seat is-empty"><span class="room-face is-empty"><i>?</i></span><b class="room-name">Rival</b><span class="room-pill is-waiting">WAITING</span></div>`);
+  }
+  const many = seats.length > 2;
+  return `<div class="room-seats${many ? ' is-many' : ''}${seats.length === 3 ? ' is-three' : ''}">${seats.join('')}<span class="room-vs" aria-hidden="true">VS</span></div>`;
+}
+
+const RING_R = 52;
+const RING_LENGTH = Math.round(2 * Math.PI * RING_R * 100) / 100;
+
+function roomSeat(row: ChallengeRow, view: RoomView): string {
+  const you = row.playerId === view.mine?.playerId;
+  const hide = view.blind && !you;
+  const name = you ? 'You' : escapeName(row.name);
+  let under: string;
+  let progress = '';
+  switch (row.status) {
+    case 'joined':
+      under = view.kind === 'lobby' || view.kind === 'waiting' || view.kind === 'chase'
+        ? (view.kind === 'lobby' ? `<span class="room-pill is-joined">JOINED</span>` : `<span class="room-under">not batted yet</span>`)
+        : `<span class="room-pill is-joined">JOINED</span>`;
+      break;
+    case 'batting':
+      under = `<span class="room-under is-live">batting ball ${row.balls} of ${GAME.totalBalls}</span>`;
+      progress = String(row.balls / GAME.totalBalls);
+      break;
+    case 'forfeit':
+      under = `<span class="room-under">gave it up on ball ${row.balls}</span>`;
+      break;
+    case 'declined':
+      under = `<span class="room-under">declined</span>`;
+      break;
+    default:
+      under = hide
+        ? `<span class="room-under">batted · ${row.balls} balls</span>`
+        : `<span class="room-score">${row.runs}<em>/${row.wickets}</em></span>`;
+  }
+  const ring = row.status === 'batting'
+    ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.playerId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd3ff"/><stop offset=".55" stop-color="#ffb347"/><stop offset="1" stop-color="#ff7a2a"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.playerId})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
+    : '';
+  return `<div class="room-seat is-${row.status}${you ? ' is-you' : ''}" data-player="${row.playerId}"${progress ? ` data-progress="${progress}"` : ''}>
+    <span class="room-face">${kitMarkup(row.avatar, row.name)}${ring}</span>
+    <b class="room-name">${name}</b>
+    ${under}
+  </div>`;
+}
+
+/**
+ * One innings on the result: the face, the name, a WINNER or LOSER pill, the
+ * sixes and fours and balls, and the score in the colour of how it went. No
+ * tracks: the result is a verdict, not a scorecard.
+ */
+function resultRow(row: ChallengeRow, result: ResultView): string {
+  const mine = row.playerId === result.you;
+  const top = result.players[0]?.score ?? 0;
+  const draw = !result.winner && row.score === top;
+  const won = !!result.winner && row.playerId === result.winner.playerId;
+  const tone = draw ? 'is-draw' : won ? 'is-won' : 'is-lost';
+  const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : 'LOSER';
+  return `<div class="verdict-row ${tone}${mine ? ' is-you' : ''}">
+    ${kitMarkup(row.avatar, row.name)}
+    <span class="verdict-who">
+      <span class="verdict-name"><b>${mine ? 'You' : escapeName(row.name)}</b><i class="verdict-pill">${pill}</i></span>
+      <span class="verdict-stats"><em class="is-six">6s:</em> ${row.sixes} <em class="is-four">4s:</em> ${row.fours} <small>${row.balls} ball${row.balls === 1 ? '' : 's'}</small></span>
+    </span>
+    <span class="verdict-score">${row.runs}<em>/${row.wickets}</em></span>
+  </div>`;
+}
+
+/** One rival's ball, for the flash between deliveries. */
+export interface GhostBall {
+  who: string;
+  avatar: number;
+  result: string;
+  kind: 'runs' | 'out' | 'big';
+}
+
+/** The three sections of Rival Matches. */
+export interface ListSections {
+  received: ListRowView[];
+  waiting: ListRowView[];
+  past: ListRowView[];
+}
+
+/** One row of Rival Matches. */
+export interface ListRowView {
+  code: string;
+  /** Who it is against: the other person, or the leader of a group, or nobody yet. */
+  them: { playerId: string; name: string; avatar: number } | null;
+  /** How many others are in it, for a group. */
+  others: number;
+  /** The line under the name. */
+  note: string;
+  /** For a received row: accept and decline stand on it. */
+  actionable?: boolean;
+  /** For a settled row: how it went for this person, and in how many words. */
+  outcome?: 'W' | 'L' | 'D' | '—';
+  verdict?: string;
+}
+
+/**
+ * A row: who, what it needs, and what to do about it. The name is a key of its
+ * own — the head-to-head lives behind it — and the rest of the row opens the
+ * room. A received row carries accept and decline; a past row its letter.
+ */
+function listRow(row: ListRowView): string {
+  const who = row.them
+    ? `<button class="rival-row-kit" type="button" data-rival="${row.them.playerId}" data-code="${row.code}" aria-label="Head to head with ${escapeName(row.them.name)}">${kitMarkup(row.them.avatar, row.them.name)}</button>`
+    : `<span class="rival-row-kit"><span class="board-kit is-empty" aria-hidden="true">?</span></span>`;
+  const name = row.them ? `${escapeName(row.them.name)}${row.others > 1 ? ` <i>+${row.others - 1}</i>` : ''}` : 'Nobody yet';
+  const right = row.actionable
+    ? `<span class="rival-row-acts"><button class="rival-act is-accept" type="button" data-accept="${row.code}">ACCEPT</button><button class="rival-act is-decline" type="button" data-decline="${row.code}">DECLINE</button></span>`
+    : row.outcome
+      ? `<span class="rival-row-verdict is-${row.outcome === '—' ? 'none' : row.outcome}">${row.verdict ?? ''}</span><span class="rival-row-badge is-${row.outcome === '—' ? 'none' : row.outcome}">${row.outcome === '—' ? '–' : row.outcome}</span>`
+      : `<span class="rival-row-go" aria-hidden="true">${icon('arrow')}</span>`;
+  return `<li class="rival-row" data-code="${row.code}">
+    ${who}
+    <button class="rival-row-open" type="button" data-open="${row.code}"><b>${name}</b><em>${row.note}</em></button>
+    ${right}
+  </li>`;
+}
+
+/** A name is somebody else's text, so it never reaches innerHTML as it stands. */
+export function escapeName(name: string): string {
+  return name.replace(/[&<>"']/g, char =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
+}

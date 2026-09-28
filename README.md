@@ -765,6 +765,15 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `survive-blows-0` … `survive-blows-5-plus` | How many blows he took. Read beside the meter rather than instead of it: one on the helmet costs more than two on the pad. |
 | `survive-balls-under-1-over` … `survive-balls-8-10-overs` | How long the last man lasted, in overs rather than balls, because that is how a Test innings is read. |
 | `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
+| `challenge-set`, `challenge-rematch` | A Rivals room made, and one made off the back of a result. Against `challenge-joined`, how many invitations find a taker. |
+| `challenge-shared`, `challenge-copied` | The link sent through the phone's sheet, or copied to paste somewhere. The taps, as above. |
+| `challenge-opened`, `challenge-joined`, `challenge-declined` | A link landing on the challenge-received sheet, and the two ways off it. Opened against joined is the funnel; declined is the one that goes down as a defeat. |
+| `challenge-accepted`, `challenge-resumed`, `challenge-answered` | A match innings begun, one picked back up, and one that landed. Accepted against answered is the completion rate for a match, which `innings-end` cannot give because it does not know which innings were matches. |
+| `challenge-live`, `challenge-apart` | Whether the friend was batting at the same time, or this innings answered one played earlier. The pair says which of the two ways the mode is actually used. |
+| `challenge-won`, `challenge-lost`, `challenge-drew` | A result seen, once per person per match, from whichever side. |
+| `challenge-by-forfeit` | A result that was a walkout or a decline rather than two innings. How many matches never become matches. |
+| `challenge-players-2`, `…-3`, `…-4-plus` | How many were in the room when the result was read. Whether the forwarded link ever becomes a group. |
+| `rivals-list`, `rivals-head-to-head` | Rival Matches opened, and a friend's row tapped for the tally. Whether the record is looked at, and whether rivalries form. |
 | `help-open` | The controls did not explain themselves. |
 | `feedback-open`, `feedback-open-link` | The questionnaire opened, and whether from inside the game or from the shared link. |
 | `feedback-cover`, `feedback-card`, `feedback-pause` | Which of the three lines into it is the one people actually use. |
@@ -816,3 +825,21 @@ Two consequences worth knowing:
 `.github/workflows/deploy.yml` is gone: it published to GitHub Pages on every push, and a second copy of the game with no board behind it is worse than no second copy. Whatever Pages last built stays up until Pages is switched off in the repository's settings. `.openai/hosting.json` still describes a Sites deployment and has been left alone.
 
 Source remains in the Hitman-Cricket GitHub repository. No account, download, or local server is required to play the published link. A personal best stays on each player's device; a place on the board is kept by the store. Both provided sound clips are included in the public game.
+
+## Rivals
+
+One link is one match room. Whoever opens it joins; whoever taps Play bats;
+every ball is written to the room as it happens, so two friends can bat at the
+same time and see each other's balls land between their own, or bat days apart
+and get the same thing replayed. Nobody sees a score until their own last ball.
+Ties break on runs, sixes, fours; level on all three is a draw. A room lives a
+week; an innings left for a day is a forfeit; a challenge declined is a defeat.
+Every finished match goes on a record — won, lost, drawn — kept on the server
+for good and shown at the top of Rival Matches and under the cards on My Stats.
+The host bats in the home kit; the friends who follow bat in green, purple and
+blue, in the order they came in.
+
+`docs/CHALLENGE.md` has every state, where each piece lives, and how to test it
+— including `?room=<state>`, which draws any face of the room on one phone,
+and `scripts/challenge-check.mjs`, which plays a whole match between two
+headless browsers.

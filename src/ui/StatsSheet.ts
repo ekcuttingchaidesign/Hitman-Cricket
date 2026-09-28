@@ -2,6 +2,7 @@ import { keyCardMarkup, type KeyView } from './CareerKey';
 import { restoreLinkMarkup } from './Restore';
 import { escape } from './Leaderboard';
 import { statsAlt, statsExplain, statsHitBoxes, type StatsFacts } from '../game/StatsCard';
+import { recordMarkup, type RivalsRecord } from './Record';
 
 /**
  * The career card, as a screen of its own.
@@ -80,6 +81,12 @@ export interface StatsSheetView {
    * line is simply never read.
    */
   offerRestore?: boolean;
+  /**
+   * Matches won, lost and drawn against friends, once the store has answered.
+   * Null until then, and the strip is left out rather than drawn with zeros
+   * that are about to change.
+   */
+  rivals?: RivalsRecord | null;
 }
 
 export function statsSheetMarkup(view: StatsSheetView): string {
@@ -95,6 +102,7 @@ ${many ? dotsMarkup(cards, at) : ''}
       <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${
   many ? ' role="group" aria-label="Your cards, one a game"' : ''}>${
   cards.map((card, i) => slideMarkup(card, many, i === at)).join('')}</div>${
+  view.rivals ? recordMarkup(view.rivals, 'RIVALS RECORD', 'is-stats') : ''}${
   // Below the rail rather than inside it. There are two cards on this screen
   // and one key, and a key that swiped away with the Blast card would read as
   // the Blast's key with the Test match's somewhere behind it.
