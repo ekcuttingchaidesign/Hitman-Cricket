@@ -118,7 +118,10 @@ export interface StoredPlayer {
   seen?: boolean;
   /** Whether they turned the match down. A defeat, taken on the chin. */
   declined?: boolean;
-  /** Whether this room has been added to their record. Written once. */
+  /**
+   * Written by an earlier build that kept the record as running totals, and
+   * read by nothing now. Left on old rooms, where it does no harm.
+   */
   tallied?: boolean;
 }
 
@@ -173,10 +176,13 @@ export interface ChallengeStore {
   indexed(playerId: string): Promise<string[]>;
   /** Forgets a code that no longer opens anything. */
   unindex(playerId: string, code: string): Promise<void>;
-  /** Adds one match to this player's record. */
-  tally(playerId: string, outcome: RivalsOutcome): Promise<void>;
-  /** This player's record: zeros where they have never finished a match. */
-  record(playerId: string): Promise<RivalsRecord>;
+  /**
+   * How every finished match went for this player, by room code. Kept for
+   * good: rooms go after a month, what they came to does not.
+   */
+  outcomes(playerId: string): Promise<Record<string, RivalsOutcome>>;
+  /** Writes how one match went for this player, over whatever was there. */
+  setOutcome(playerId: string, code: string, outcome: RivalsOutcome): Promise<void>;
 }
 
 /** One innings in the room, as the endpoint sends it. */
@@ -535,33 +541,50 @@ export async function readMine(
 ): Promise<ChallengeListOutcome | ChallengeRefusal> {
   if (!isPlayerId(playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
   const codes = (await store.indexed(playerId)).slice(0, PLAYERS_MAX * 2);
+  // The record is a side effect of the read, and never the reason it fails.
+  // A write refused here once took the whole list down with it: every player
+  // with a finished match was shown an empty Rival Matches and a zero record.
+  const held = await store.outcomes(playerId).catch(() => ({} as Record<string, RivalsOutcome>));
+  const outcomes: Record<string, RivalsOutcome> = { ...held };
   const rooms = await Promise.all(codes.map(async code => {
     const challenge = await store.read(code);
     if (!challenge) { await store.unindex(playerId, code); return null; }
-    // The record is a side effect of the read, and never the reason it fails.
-    // A write refused here once took the whole list down with it: every player
-    // with a finished match was shown an empty Rival Matches and a zero record.
-    // Untallied, the room is simply counted on the next read that can.
-    await tallyIfOver(store, code, challenge, playerId, now).catch(() => null);
+    // Worked out afresh on every read, and written only where it has changed:
+    // a third friend who joins a finished room and beats everybody turns a
+    // win into a loss, and the record follows the room rather than keeping
+    // whatever it said the first time.
+    const outcome = outcomeOf(challenge, playerId, now);
+    if (outcome && held[code] !== outcome) {
+      outcomes[code] = outcome;
+      await store.setOutcome(playerId, code, outcome).catch(() => null);
+    }
     return challengePayload(code, challenge, now);
   }));
   const challenges = rooms
     .filter((room): room is ChallengePayload => room !== null)
     .sort((a, b) => b.at - a.at)
     .slice(0, PLAYERS_MAX);
-  const record = await store.record(playerId).catch(() => ({ won: 0, lost: 0, drawn: 0 }));
-  return { ok: true, challenges, record };
+  return { ok: true, challenges, record: recordOf(outcomes) };
+}
+
+/** Matches won, lost and drawn, counted from how each one went. */
+export function recordOf(outcomes: Record<string, RivalsOutcome>): RivalsRecord {
+  const record: RivalsRecord = { won: 0, lost: 0, drawn: 0 };
+  for (const outcome of Object.values(outcomes)) if (outcome in record) record[outcome]++;
+  return record;
 }
 
 /**
- * A finished match, added to this player's record — once.
+ * How a finished match went for one player, or null while it is not over.
  *
  * Nothing on the server fires when a match ends: a forfeit is a clock that ran
  * out, an expiry is a week that passed, and neither happens while anybody is
- * looking. So the record is kept up here instead, on the read every phone makes
- * when it opens Rivals, and a room is marked as counted for this player before
- * their record moves. The mark is written first: the failure that leaves a
- * match uncounted is the one to have, since the other one counts it twice.
+ * looking. So the record is worked out on the read every phone makes when it
+ * opens Rivals, one outcome a room, stored against the player and overwritten
+ * when the room says something different. Kept that way rather than as running
+ * totals, because a total cannot be corrected: a room that finished, took a
+ * third innings and finished again was counted as it first stood and never
+ * looked at again.
  *
  * What counts is what the result screen shows, and no sooner. `done` is every
  * innings settled. `expired` is a week gone with at least two settled, this
@@ -571,11 +594,8 @@ export async function readMine(
  * a loss; a group is one match and one line on the record, not a win over each
  * person under you.
  */
-export async function tallyIfOver(
-  store: ChallengeStore, code: string, challenge: StoredChallenge, playerId: string, now = Date.now(),
-): Promise<RivalsOutcome | null> {
-  const mine = challenge.players[playerId];
-  if (!mine || mine.tallied) return null;
+export function outcomeOf(challenge: StoredChallenge, playerId: string, now = Date.now()): RivalsOutcome | null {
+  if (!challenge.players[playerId]) return null;
   const state = stateOf(challenge, now);
   if (state !== 'done' && state !== 'expired') return null;
   const settled = Object.entries(challenge.players)
@@ -587,11 +607,7 @@ export async function tallyIfOver(
   if (!me || settled.length < 2) return null;
   const top = settled[0].score;
   const level = settled.filter(row => row.score === top).length;
-  const outcome: RivalsOutcome = me.score < top ? 'lost' : level > 1 ? 'drawn' : 'won';
-  await store.write(code, { players: { [playerId]: { ...mine, tallied: true } } }, CHALLENGE_TTL_SECONDS);
-  mine.tallied = true;
-  await store.tally(playerId, outcome);
-  return outcome;
+  return me.score < top ? 'lost' : level > 1 ? 'drawn' : 'won';
 }
 
 /** The code checked and the room behind it, or the refusal to hand back. */

@@ -44,10 +44,15 @@ draw, everything else a loss — walking out and declining included. A group is
 one match and one line, not a win over each person under you. A week that ran
 out on one innings adds nothing to anybody.
 
-Nothing on the server fires when a match ends, so the adding is done on the
-read every phone makes when it opens Rivals, and each room is marked as
-counted for that player first, once. `tallyIfOver` in `challenge-store.ts`
-is the whole rule; `the record` in `tests/challenge-store.test.ts` walks it.
+Nothing on the server fires when a match ends, so the record is worked out on
+the read every phone makes when it opens Rivals: one outcome a room, stored
+against the player (`chro:{playerId}`, room code to won, lost or drawn) and
+overwritten whenever the room says something different. The record is a count
+of those. It is kept that way rather than as running totals because a finished
+room can reopen: a third friend who joins and beats everybody turns a win into
+a loss, and a total counted when the room first finished can never be put
+right. `outcomeOf` in `challenge-store.ts` is the whole rule; `the record` in
+`tests/challenge-store.test.ts` walks it, launch-day case included.
 
 ## Testing it
 
