@@ -1559,6 +1559,31 @@ body.start-screen #sound{pointer-events:auto}
 @media (max-width:379px){
   .board-row.is-career .board-hits em:last-child{display:none}
 }
+/* The Rivals row is three figures and all three are the point — won, lost,
+   runs, in the order the board is ranked on — so none of them is the one that
+   goes on a narrow phone. There is no lead figure to make room for, so they
+   fit: the wins a size up, because they are what the place is decided on. */
+.board-row.is-rivals .board-hits{gap:14px;margin-left:auto}
+/* Wins and losses never reach four figures, so their columns are narrow and
+   the runs get the width: set right against each other, "3 lost" and "2,146
+   runs" read as one number. */
+.board-row.is-rivals .board-hits em{width:34px}
+.board-row.is-rivals .board-hits em.is-runs{width:50px}
+.board-row.is-rivals .board-hits em:first-child{font-size:15px}
+/* Green for a win and red for a loss, the result screen's own WINNER and
+   LOSER, so the colour says which is which before the label does. Runs stay
+   white. They keep their colours on your own row too: the row is already lit,
+   and a board where your wins turned orange would stop saying which column is
+   which on the one row you came to read. */
+.board-row.is-rivals .board-hits em.is-won,
+.board-row.is-rivals.is-you .board-hits em.is-won{color:#50ff8a}
+.board-row.is-rivals .board-hits em.is-lost,
+.board-row.is-rivals.is-you .board-hits em.is-lost{color:#ff505c}
+.board-row.is-rivals .board-hits em.is-runs,
+.board-row.is-rivals.is-you .board-hits em.is-runs{color:#fff}
+@media (max-width:379px){
+  .board-row.is-rivals .board-hits em:last-child{display:flex}
+}
 
 /* The figure that actually split a tie, lit where the eye already is. Colour is
    not carrying this on its own: the note under the name says the same thing in

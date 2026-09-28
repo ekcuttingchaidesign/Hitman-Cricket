@@ -1,6 +1,9 @@
 import type { Innings } from '../game/leaderboard.js';
 import type { BoardStore, StoredRow } from './board-store.js';
-import type { ChallengeStore, StoredChallenge } from './challenge-store.js';
+import {
+  packResult, unpackResult,
+  type ChallengeStore, type RivalsResult, type StoredChallenge, type StoredRivalsRow,
+} from './challenge-store.js';
 
 /**
  * The board, in memory.
@@ -72,12 +75,22 @@ export function memoryStore<I = Innings>(
  * it is given and leaves the rest alone. And a challenge really does expire, so
  * the rule that a stale code reads as nothing at all is something a test can
  * prove rather than something we hope Redis does.
+ *
+ * `names` is the board's registry, passed in for the reason the careers take
+ * it: the dev server's boards and its Rivals board have to agree on who is
+ * registered. Left out, the store keeps its own, which a test fills by hand.
  */
-export function memoryChallenges(): ChallengeStore & { clear(): void; expire(code: string): void } {
+export function memoryChallenges(
+  names = new Map<string, string>(),
+): ChallengeStore & { clear(): void; expire(code: string): void; names: Map<string, string> } {
   const challenges = new Map<string, { challenge: StoredChallenge; until: number }>();
   const rate = new Map<string, { count: number; until: number }>();
   const mine = new Map<string, Set<string>>();
-  const results = new Map<string, Record<string, 'won' | 'lost' | 'drawn'>>();
+  // Kept packed, the way Redis keeps them, so a result that does not survive
+  // the round trip fails here first.
+  const results = new Map<string, Record<string, string>>();
+  const ranking = new Map<string, number>();
+  const rows = new Map<string, StoredRivalsRow>();
   /** Drops the room if its time is up, which is what the TTL buys in Redis. */
   const live = (code: string, now: number) => {
     const held = challenges.get(code);
@@ -131,11 +144,30 @@ export function memoryChallenges(): ChallengeStore & { clear(): void; expire(cod
       const held = live(code, Date.now());
       if (held) delete held.challenge.players[playerId];
     },
-    async outcomes(playerId) { return { ...(results.get(playerId) ?? {}) }; },
-    async setOutcome(playerId, code, outcome) {
-      results.set(playerId, { ...(results.get(playerId) ?? {}), [code]: outcome });
+    async outcomes(playerId) {
+      const kept: Record<string, RivalsResult> = {};
+      for (const [code, value] of Object.entries(results.get(playerId) ?? {})) {
+        const result = unpackResult(value);
+        if (result) kept[code] = result;
+      }
+      return kept;
     },
-    clear() { challenges.clear(); rate.clear(); mine.clear(); results.clear(); },
+    async setOutcome(playerId, code, result) {
+      results.set(playerId, { ...(results.get(playerId) ?? {}), [code]: packResult(result) });
+    },
+    async nameHolders(folded) { return folded.map(name => names.get(name) ?? null); },
+    async rank(playerId, score, row) {
+      ranking.set(playerId, score);
+      rows.set(playerId, structuredClone(row));
+    },
+    async topRivals(n) {
+      return [...ranking.entries()]
+        .sort(([a, one], [b, two]) => two - one || b.localeCompare(a))
+        .slice(0, n)
+        .flatMap(([id]) => (rows.has(id) ? [{ playerId: id, ...structuredClone(rows.get(id)!) }] : []));
+    },
+    names,
+    clear() { challenges.clear(); rate.clear(); mine.clear(); results.clear(); ranking.clear(); rows.clear(); },
     /** Ages a room out on the spot, so a test does not wait a week. */
     expire(code: string) {
       const held = challenges.get(code);

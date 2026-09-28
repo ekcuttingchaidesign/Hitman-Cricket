@@ -15,7 +15,8 @@ import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../s
  * everybody who holds the link**, deliberately. That is what lets it sit in the
  * edge cache: two friends batting at once poll the same bytes, and each finds
  * their own row by player id. `GET ?player=…` is one player's list of rooms,
- * and is never cached, because it is one player's.
+ * and is never cached, because it is one player's. `GET ?board=rivals` is the
+ * Rivals board, and caches like a room: it is the same for everybody.
  *
  * `POST` is the four things that change a room: making one, joining it, a ball,
  * and having seen the result. Every rule about them lives in
@@ -37,7 +38,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // Two seconds of edge cache on a room read, then a moment where a stale
     // answer is served while a fresh one is fetched behind it. A room two
     // seconds out of date is not wrong — a ball lands, and the next poll has it.
-    res.setHeader('Cache-Control', cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+    // The board gets longer: it moves when a match ends, not with every ball.
+    const board = !!request.query.board;
+    res.setHeader('Cache-Control', !cacheable(request) ? 'no-store'
+      : board ? 'public, s-maxage=30, stale-while-revalidate=60' : 'public, s-maxage=2, stale-while-revalidate=4');
     res.status(200).json(outcome);
   } catch (error) {
     // A room with no database behind it was never set up; one that is down

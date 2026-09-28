@@ -5,7 +5,7 @@ import { inventInnings, inventedBoard } from '../src/game/board-fixture';
 import { BOARD_SIZE, compareRows, decidedBy, plausible, unpackScore } from '../src/game/leaderboard';
 import type { BoardRow, Innings } from '../src/game/leaderboard';
 import {
-  BOARD_TABS, asInnings, boardMarkup, boardTabsMarkup, cardOffer, cutLabel, cutoff, decider, escape, kitMarkup,
+  BOARD_TABS, asInnings, boardMarkup, boardTabsMarkup, cardOffer, cutLabel, cutoff, decider, escape, flatTab, kitMarkup,
   peekMarkup, pickerMarkup, placeOf, rowMarkup, standingPeek, tieNote,
 } from '../src/ui/Leaderboard';
 import { AVATARS, KITS, kitColour, kitDeal, kitName } from '../src/config/board';
@@ -524,9 +524,16 @@ describe('the two ladders, as tabs over the sheet', () => {
     expect(test).toContain('aria-selected="false">The Blast');
   });
 
-  it('names both ladders the way the mode screen names them, and the card after them', () => {
-    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival', 'My Stats']);
-    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive', 'board-tab-mine']);
+  it('names both ladders the way the mode screen names them, then Rivals, and the card after them', () => {
+    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival', 'Rivals', 'My Stats']);
+    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive', 'board-tab-rivals', 'board-tab-mine']);
+  });
+
+  it('gives Rivals and the card no ladders, and keeps them in a one-game build', () => {
+    expect(flatTab('rivals')).toBe(true);
+    expect(flatTab('mine')).toBe(true);
+    expect(flatTab('classic')).toBe(false);
+    expect(flatTab('survive')).toBe(false);
   });
 
   it('puts the card last, after the games it is a record of', () => {

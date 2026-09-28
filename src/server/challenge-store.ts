@@ -1,6 +1,6 @@
 import type { Innings } from '../game/leaderboard.js';
 import { BALL_CHARS, MAX_BALLS, ended, figuresOf } from '../game/ball-string.js';
-import { AVATARS, NAME_MAX, cleanName } from './board-store.js';
+import { AVATARS, NAME_MAX, cleanName, foldName } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 
 /**
@@ -138,6 +138,42 @@ export interface RivalsRecord {
 export type RivalsOutcome = keyof RivalsRecord;
 
 /**
+ * How one finished match went for one player: the result, what they made in
+ * it, and whether it counts on the Rivals board.
+ *
+ * It counts when somebody else who settled in the room had a registered name.
+ * That is the whole of the rule against farming: two phones with made-up names
+ * can play each other all night and change nothing on the board, because a
+ * made-up name is free and a registered one is not.
+ */
+export interface RivalsResult {
+  outcome: RivalsOutcome;
+  runs: number;
+  ranked: boolean;
+}
+
+/** What the Rivals board shows for a player: three figures, and nothing else. */
+export interface RivalsLine {
+  won: number;
+  lost: number;
+  runs: number;
+}
+
+/** A player's row on the Rivals board, as it is kept. */
+export interface StoredRivalsRow extends RivalsLine {
+  name: string;
+  avatar: number;
+}
+
+/** A row on the Rivals board, as `GET ?board=rivals` sends it. */
+export interface RivalsRow extends StoredRivalsRow {
+  playerId: string;
+}
+
+/** How many rows the Rivals board holds. The same fifty as every other board. */
+export const RIVALS_BOARD_SIZE = 50;
+
+/**
  * A room as it is kept.
  *
  * In Redis this is one hash, which is what makes a whole room one command to
@@ -184,11 +220,21 @@ export interface ChallengeStore {
    * How every finished match went for this player, by room code. Kept for
    * good: rooms go after a month, what they came to does not.
    */
-  outcomes(playerId: string): Promise<Record<string, RivalsOutcome>>;
+  outcomes(playerId: string): Promise<Record<string, RivalsResult>>;
   /** Writes how one match went for this player, over whatever was there. */
-  setOutcome(playerId: string, code: string, outcome: RivalsOutcome): Promise<void>;
+  setOutcome(playerId: string, code: string, result: RivalsResult): Promise<void>;
   /** Takes one player back out of a room: the seat they took was not free. */
   unseat(code: string, playerId: string): Promise<void>;
+  /**
+   * Who holds each of these folded names on the board's registry, in the order
+   * asked, null for a name nobody has claimed. Read only: claiming a name is
+   * the board's, and has a rule attached.
+   */
+  nameHolders(folded: string[]): Promise<(string | null)[]>;
+  /** Puts this player on the Rivals board at this score, with this row. */
+  rank(playerId: string, score: number, row: StoredRivalsRow): Promise<void>;
+  /** The top of the Rivals board, best first. */
+  topRivals(n: number): Promise<RivalsRow[]>;
 }
 
 /** One innings in the room, as the endpoint sends it. */
@@ -263,8 +309,16 @@ export interface ChallengeListOutcome {
   record: RivalsRecord;
 }
 
+/** The Rivals board: the same answer for everybody, which is why it caches. */
+export interface RivalsBoardOutcome {
+  ok: true;
+  rows: RivalsRow[];
+}
+
 /** Whether the room turned this call down. */
-export function challengeRefused(outcome: ChallengeOutcome | ChallengeListOutcome): outcome is ChallengeRefusal {
+export function challengeRefused(
+  outcome: ChallengeOutcome | ChallengeListOutcome | RivalsBoardOutcome,
+): outcome is ChallengeRefusal {
   return !outcome.ok;
 }
 
@@ -480,6 +534,19 @@ export async function recordBalls(
   const player: StoredPlayer = { ...held, card, at: now };
   await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
   challenge.players[input.playerId] = player;
+  // The last ball of an innings may be the last ball of the match. Read back
+  // before deciding, because two friends finishing in the same second each
+  // hold a copy with the other still batting, and neither would settle it.
+  if (statusOf(player, now) === 'done') {
+    // The ball is in by now, and a failed read must not report it as lost —
+    // the retry would find nothing new and settle nothing. The list read
+    // catches the match up instead.
+    const after = await store.read(key).catch(() => null);
+    if (after) {
+      Object.assign(challenge.players, after.players, { [input.playerId]: player });
+      await settle(store, key, challenge, now);
+    }
+  }
   return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
 }
 
@@ -535,6 +602,7 @@ export async function declineChallenge(
   await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
   if (!held) await store.index(input.playerId, key, CHALLENGE_TTL_SECONDS);
   challenge.players[input.playerId] = player;
+  await settle(store, key, challenge, now);
   return { ok: true, code: key, challenge: challengePayload(key, challenge, now) };
 }
 
@@ -556,30 +624,186 @@ export async function readMine(
 ): Promise<ChallengeListOutcome | ChallengeRefusal> {
   if (!isPlayerId(playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
   const codes = (await store.indexed(playerId)).slice(0, LIST_MAX * 2);
-  // The record is a side effect of the read, and never the reason it fails.
-  // A write refused here once took the whole list down with it: every player
-  // with a finished match was shown an empty Rival Matches and a zero record.
-  const held = await store.outcomes(playerId).catch(() => ({} as Record<string, RivalsOutcome>));
-  const outcomes: Record<string, RivalsOutcome> = { ...held };
-  const rooms = await Promise.all(codes.map(async code => {
+  const found = (await Promise.all(codes.map(async code => {
     const challenge = await store.read(code);
     if (!challenge) { await store.unindex(playerId, code); return null; }
-    // Worked out afresh on every read, and written only where it has changed:
-    // a third friend who joins a finished room and beats everybody turns a
-    // win into a loss, and the record follows the room rather than keeping
-    // whatever it said the first time.
-    const outcome = outcomeOf(challenge, playerId, now);
-    if (outcome && held[code] !== outcome) {
-      outcomes[code] = outcome;
-      await store.setOutcome(playerId, code, outcome).catch(() => null);
-    }
-    return challengePayload(code, challenge, now);
-  }));
-  const challenges = rooms
-    .filter((room): room is ChallengePayload => room !== null)
+    return { code, challenge };
+  }))).filter((room): room is Room => room !== null);
+
+  // The record is a side effect of the read, and never the reason it fails:
+  // every call `tally` makes is caught where it is made. A write refused here
+  // once took the whole list down with it, and every player with a finished
+  // match was shown an empty Rival Matches and a zero record.
+  const record = await tally(store, playerId, found, now);
+  const challenges = found
+    .map(room => challengePayload(room.code, room.challenge, now))
     .sort((a, b) => b.at - a.at)
     .slice(0, LIST_MAX);
-  return { ok: true, challenges, record: recordOf(outcomes) };
+  return { ok: true, challenges, record };
+}
+
+/** A room and its code, read. */
+interface Room { code: string; challenge: StoredChallenge }
+
+/**
+ * One player's record, brought up to date from the rooms they are in.
+ *
+ * Nothing on the server fires when a match ends by a clock — a forfeit is a
+ * day that passed, an expiry a week — so this read is where those land. Every
+ * finished room is worked out afresh and written only where it has changed: a
+ * third friend who joins a finished room and beats everybody turns a win into
+ * a loss, and the record follows the room rather than keeping whatever it said
+ * the first time. A room that changed is settled for everybody in it, not only
+ * for whoever happened to look, or a friend who walked out would keep a clean
+ * record on the board until they next opened Rivals — which, having walked
+ * out, they might not.
+ */
+async function tally(store: ChallengeStore, playerId: string, rooms: Room[], now: number): Promise<RivalsRecord> {
+  const held = await store.outcomes(playerId).catch(() => ({} as Record<string, RivalsResult>));
+  const results: Record<string, RivalsResult> = { ...held };
+  const finished = rooms.filter(room => outcomeOf(room.challenge, playerId, now));
+  if (!finished.length) return recordOf(results);
+  // Without the names nothing is written — a result that could not say
+  // whether it counts would say it does not — but the record is still worked
+  // out for the screen.
+  const holders = await holdersOf(store, finished.map(room => room.challenge)).catch(() => null);
+  // One at a time: two rooms settling at once would each read a friend's
+  // results before the other had written, and the friend's board row would
+  // come out missing one of them.
+  for (const room of finished) {
+    const result = resultOf(room.challenge, playerId, now, holders ?? new Map())!;
+    results[room.code] = result;
+    if (holders && (!held[room.code] || packResult(held[room.code]) !== packResult(result))) {
+      await settle(store, room.code, room.challenge, now, holders);
+    }
+  }
+  // The reader's own row is written every time, changed or not. A player who
+  // claims a name after their matches were played has nothing change in any
+  // room, and would otherwise not reach the board until their next match.
+  const newest = [...finished].sort((a, b) => b.challenge.at - a.challenge.at)[0];
+  const me = newest.challenge.players[playerId];
+  if (holders && registered(holders, playerId, me)) await place(store, playerId, me, results).catch(() => null);
+  return recordOf(results);
+}
+
+/**
+ * A finished room, counted for everybody in it: the moment its last innings
+ * lands, and again on any read that finds it has come out differently.
+ *
+ * Never the reason a ball or a decline fails. The innings is in whatever
+ * happens here, and a record a read behind catches up on the next open.
+ */
+async function settle(
+  store: ChallengeStore, code: string, challenge: StoredChallenge, now: number,
+  known?: Map<string, string | null>,
+): Promise<void> {
+  const state = stateOf(challenge, now);
+  if (state !== 'done' && state !== 'expired') return;
+  try {
+    const holders = known ?? await holdersOf(store, [challenge]);
+    await Promise.all(Object.entries(challenge.players).map(async ([id, player]) => {
+      const result = resultOf(challenge, id, now, holders);
+      if (!result) return;
+      const held = await store.outcomes(id);
+      if (!held[code] || packResult(held[code]) !== packResult(result)) await store.setOutcome(id, code, result);
+      if (registered(holders, id, player)) await place(store, id, player, { ...held, [code]: result });
+    }));
+  } catch {
+    // See above: the record catches up on the next read of the list.
+  }
+}
+
+/** Puts a player's line on the board, if they have one to put there. */
+async function place(
+  store: ChallengeStore, playerId: string, who: StoredPlayer, results: Record<string, RivalsResult>,
+): Promise<void> {
+  const counted = Object.values(results).filter(result => result.ranked).length;
+  if (!counted) return;
+  const line = lineOf(results);
+  await store.rank(playerId, rivalsScore(line), { name: who.name, avatar: who.avatar, ...line });
+}
+
+/** Who holds each name in these rooms, keyed by the folded name. One read for all of them. */
+async function holdersOf(store: ChallengeStore, rooms: StoredChallenge[]): Promise<Map<string, string | null>> {
+  const folded = [...new Set(rooms.flatMap(room => Object.values(room.players).map(player => foldName(player.name))))]
+    .filter(Boolean);
+  const ids = folded.length ? await store.nameHolders(folded) : [];
+  return new Map(folded.map((name, i) => [name, ids[i] ?? null]));
+}
+
+/**
+ * Whether this player batted in this room under a name that is theirs on the
+ * board. A room takes any name, because it lasts a week; the board takes only
+ * a registered one, because it lasts for good.
+ */
+function registered(holders: Map<string, string | null>, playerId: string, player: StoredPlayer): boolean {
+  const folded = foldName(player.name);
+  return !!folded && holders.get(folded) === playerId;
+}
+
+/**
+ * How a finished room went for one player, with what they made and whether it
+ * counts on the board. See `RivalsResult`.
+ */
+export function resultOf(
+  challenge: StoredChallenge, playerId: string, now: number, holders: Map<string, string | null>,
+): RivalsResult | null {
+  const outcome = outcomeOf(challenge, playerId, now);
+  if (!outcome) return null;
+  const runs = figuresOf(challenge.players[playerId].card).runs;
+  const ranked = Object.entries(challenge.players).some(([id, player]) => {
+    if (id === playerId) return false;
+    const status = statusOf(player, now);
+    return (status === 'done' || status === 'forfeit' || status === 'declined') && registered(holders, id, player);
+  });
+  return { outcome, runs, ranked };
+}
+
+/**
+ * A result as one short string: `won:47:r`, the result, the runs, and an `r`
+ * when it counts on the board. An earlier build kept the result bare — `won` —
+ * and that still reads, as no runs and not counted, until the next read of the
+ * list writes it out in full.
+ */
+export function packResult(result: RivalsResult): string {
+  return `${result.outcome}:${result.runs}${result.ranked ? ':r' : ''}`;
+}
+
+export function unpackResult(value: unknown): RivalsResult | null {
+  if (typeof value !== 'string') return null;
+  const [outcome, runs, ranked] = value.split(':');
+  if (outcome !== 'won' && outcome !== 'lost' && outcome !== 'drawn') return null;
+  const made = Number(runs);
+  return { outcome, runs: Number.isInteger(made) && made >= 0 ? made : 0, ranked: ranked === 'r' };
+}
+
+/** A board line: the matches that count, and the runs made in them. */
+export function lineOf(results: Record<string, RivalsResult>): RivalsLine {
+  const line: RivalsLine = { won: 0, lost: 0, runs: 0 };
+  for (const result of Object.values(results)) {
+    if (!result.ranked) continue;
+    if (result.outcome === 'won') line.won++;
+    if (result.outcome === 'lost') line.lost++;
+    line.runs += result.runs;
+  }
+  return line;
+}
+
+/**
+ * The board's order as one number: most wins, then fewest losses, then most
+ * runs. Each figure gets its own band of digits, and the bands are wide enough
+ * that nobody fills one — ten thousand losses, a million runs — while the
+ * whole stays inside what a double holds exactly.
+ */
+export function rivalsScore(line: RivalsLine): number {
+  const lost = Math.min(line.lost, 9_999);
+  const runs = Math.min(line.runs, 999_999);
+  return line.won * 1e10 + (9_999 - lost) * 1e6 + runs;
+}
+
+/** The Rivals board, top fifty. The same answer for everybody. */
+export async function readRivalsBoard(store: ChallengeStore): Promise<RivalsBoardOutcome> {
+  return { ok: true, rows: await store.topRivals(RIVALS_BOARD_SIZE) };
 }
 
 /** What a player is told when the room has no seat left for them. */
@@ -594,21 +818,21 @@ function seated(challenge: StoredChallenge, playerId: string): boolean {
   return at >= 0 && at < PLAYERS_MAX;
 }
 
-/** Matches won, lost and drawn, counted from how each one went. */
-export function recordOf(outcomes: Record<string, RivalsOutcome>): RivalsRecord {
+/** Matches won, lost and drawn, counted from how each one went. Every match, counted or not. */
+export function recordOf(results: Record<string, RivalsResult>): RivalsRecord {
   const record: RivalsRecord = { won: 0, lost: 0, drawn: 0 };
-  for (const outcome of Object.values(outcomes)) if (outcome in record) record[outcome]++;
+  for (const result of Object.values(results)) if (result.outcome in record) record[result.outcome]++;
   return record;
 }
 
 /**
  * How a finished match went for one player, or null while it is not over.
  *
- * Nothing on the server fires when a match ends: a forfeit is a clock that ran
- * out, an expiry is a week that passed, and neither happens while anybody is
- * looking. So the record is worked out on the read every phone makes when it
- * opens Rivals, one outcome a room, stored against the player and overwritten
- * when the room says something different. Kept that way rather than as running
+ * A match that ends on a ball or a decline is counted there and then. One that
+ * ends on a clock — a forfeit is a day that ran out, an expiry a week — ends
+ * while nobody is looking, so it is caught on the read every phone makes when
+ * it opens Rivals. Either way it is one outcome a room, stored against the
+ * player and overwritten when the room says something different. Kept that way rather than as running
  * totals, because a total cannot be corrected: a room that finished, took a
  * third innings and finished again was counted as it first stood and never
  * looked at again.

@@ -1,7 +1,7 @@
 import type { Innings } from './leaderboard';
-import type { ChallengeState, PlayerStatus, RivalsRecord } from '../server/challenge-store';
+import type { ChallengeState, PlayerStatus, RivalsRecord, RivalsRow } from '../server/challenge-store';
 
-export type { RivalsRecord } from '../server/challenge-store';
+export type { RivalsRecord, RivalsRow } from '../server/challenge-store';
 
 /**
  * The match room, from the browser's side.
@@ -152,6 +152,13 @@ export async function fetchMine(playerId: string): Promise<ChallengeListResult> 
   if (answer.error || !Array.isArray(answer.challenges)) return { ok: false, retry: answer.retry === true };
   const record = { won: answer.record?.won ?? 0, lost: answer.record?.lost ?? 0, drawn: answer.record?.drawn ?? 0 };
   return { ok: true, challenges: answer.challenges, record };
+}
+
+/** The Rivals board, top fifty, or null when it could not be reached. */
+export async function fetchRivalsBoard(): Promise<RivalsRow[] | null> {
+  const answer = await ask<{ rows?: RivalsRow[]; error?: string }>(`${API}/api/challenge?board=rivals`);
+  if (!answer || answer.error || !Array.isArray(answer.rows)) return null;
+  return answer.rows;
 }
 
 async function post(body: Record<string, unknown>): Promise<ChallengeResult> {

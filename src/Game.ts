@@ -38,7 +38,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoSurvive, demoWanted } from './game/demo-board';
+import { demoBoard, demoCareers, demoRivals, demoSurvive, demoWanted } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
@@ -61,7 +61,9 @@ import {
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
-import { CODE_PARAM, challengeLink, copy, hideChallenge, seenHere, whatsapp, type Challenge } from './game/challenge-api';
+import {
+  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, seenHere, whatsapp, type Challenge, type RivalsRow,
+} from './game/challenge-api';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
 import { kitDeal } from './config/board';
@@ -357,6 +359,15 @@ export class Game {
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
+    // The boards, from the mode screen: the same sheet the cover's trophy
+    // opens, laid over the picker, which is still there when it is put away.
+    if (SURVIVE_ONLY) document.getElementById('modes-board')?.remove();
+    else {
+      this.hud.on('modes-board', () => {
+        this.mark('modes-board', 'The boards opened from the mode screen');
+        this.showBoard();
+      });
+    }
     this.hud.on('challenge-list-done', () => { this.hud.closeChallenge(); this.modes(); });
     this.hud.on('challenge-list-new', () => { this.hud.closeChallenge(); void this.openMatch(); });
     this.hud.on('rivalry-again', () => { this.hud.closeChallenge(); void this.challengeRival(); });
@@ -1197,8 +1208,30 @@ export class Game {
     if (tab === this.sheetTab) return;
     this.mark(`board-tab-${tab}`, 'Another tab opened over the sheet');
     if (tab === 'mine') return this.openMine();
+    if (tab === 'rivals') return this.openRivals();
     this.openBoard(tab, 'best');
   };
+
+  /** The Rivals board as last fetched, so a second look is instant. */
+  private rivalsRows: RivalsRow[] | null = null;
+
+  /**
+   * The Rivals board, under its own tab. What was held from the last fetch
+   * goes up at once and the fetch corrects it, the way the career boards do.
+   */
+  private openRivals() {
+    this.sheetTab = 'rivals';
+    const draw = (rows: readonly RivalsRow[], state: 'ready' | 'loading' | 'offline') => {
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'rivals') return;
+      this.hud.rivalsBoard({ rows, youId: this.player, state });
+    };
+    if (this.demo) return draw(demoRivals(this.player), 'ready');
+    draw(this.rivalsRows ?? [], this.rivalsRows ? 'ready' : 'loading');
+    void fetchRivalsBoard().then(rows => {
+      if (rows) this.rivalsRows = rows;
+      draw(this.rivalsRows ?? [], rows ? 'ready' : this.rivalsRows ? 'ready' : 'offline');
+    });
+  }
 
   /**
    * The card, under its own tab on the sheet.

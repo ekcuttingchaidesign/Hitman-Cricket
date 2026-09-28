@@ -3,11 +3,12 @@ import { GAME } from '../src/config/gameplay';
 import {
   CHALLENGE_LIFE_MS, CODE_ALPHABET, CODE_LENGTH, CREATE_LIMIT, FORFEIT_AFTER_MS, PLAYERS_MAX, SCORING_VERSION,
   challengeRefused, cleanCard, cleanCode, createChallenge, declineChallenge, joinChallenge, markSeen, newCode, readChallenge,
-  readMine, recordBalls, stateOf, statusOf, outcomeOf,
+  readMine, readRivalsBoard, recordBalls, stateOf, statusOf, outcomeOf, packResult, unpackResult, rivalsScore,
   type Batter, type ChallengeListOutcome, type ChallengeOutcome, type ChallengeRefusal, type ChallengeStore,
-  type StoredChallenge,
+  type RivalsBoardOutcome, type StoredChallenge,
 } from '../src/server/challenge-store';
-import { challengeRequest } from '../src/server/challenge-endpoint';
+import { cacheable, challengeRequest } from '../src/server/challenge-endpoint';
+import { foldName } from '../src/server/board-store';
 import { memoryChallenges } from '../src/server/memory-store';
 import { nameBlocked } from '../src/server/name-filter';
 
@@ -40,11 +41,11 @@ const who = (over: Partial<Batter> = {}): Batter =>
 const friend = (over: Partial<Batter> = {}): Batter => who({ playerId: FRIEND, name: 'Rahul', avatar: 1, ...over });
 
 /** The room out of an outcome, or a failure naming what was refused instead. */
-function took<T extends ChallengeOutcome | ChallengeListOutcome>(outcome: T): Exclude<T, ChallengeRefusal> {
+function took<T extends ChallengeOutcome | ChallengeListOutcome | RivalsBoardOutcome>(outcome: T): Exclude<T, ChallengeRefusal> {
   if (challengeRefused(outcome)) throw new Error(`refused: ${outcome.status} ${outcome.reason}`);
   return outcome as Exclude<T, ChallengeRefusal>;
 }
-function refused(outcome: ChallengeOutcome | ChallengeListOutcome): number {
+function refused(outcome: ChallengeOutcome | ChallengeListOutcome | RivalsBoardOutcome): number {
   if (!challengeRefused(outcome)) throw new Error('was taken');
   return outcome.status;
 }
@@ -507,5 +508,141 @@ describe('the name filter', () => {
     expect(nameBlocked('sh it')).toBe(true);
     expect(nameBlocked('Chutiya')).toBe(true);
     expect(nameBlocked('B.h.e.n.c.h.o.d')).toBe(true);
+  });
+});
+
+describe('the Rivals board', () => {
+  const third = (over: Partial<Batter> = {}) => who({ playerId: THIRD, name: 'Ayush', avatar: 2, ...over });
+  /** Claims a name on the board's registry, the way posting an innings does. */
+  const register = (store: ReturnType<typeof memoryChallenges>, name: string, id: string) =>
+    store.names.set(foldName(name), id);
+  const match = async (store: ReturnType<typeof memoryChallenges>, hostRuns: number, friendRuns: number, at = T0) => {
+    const code = await room(store, at);
+    took(await recordBalls(store, code, { ...who(), card: card(hostRuns) }, at + 1000));
+    took(await joinChallenge(store, code, friend(), at + 2000));
+    took(await recordBalls(store, code, { ...friend(), card: card(friendRuns) }, at + 3000));
+    return code;
+  };
+  const board = async (store: ChallengeStore) =>
+    (await readRivalsBoard(store)).rows.map(row => [row.name, row.won, row.lost, row.runs]);
+
+  it('counts a match the moment its last innings lands, with nobody reading the list', async () => {
+    const store = memoryChallenges();
+    register(store, 'VK', HOST);
+    register(store, 'Rahul', FRIEND);
+    await match(store, 40, 24);
+    expect(await board(store)).toEqual([['VK', 1, 0, 40], ['Rahul', 0, 1, 24]]);
+  });
+
+  it('leaves out a match nobody registered played in, and never shows a made-up name', async () => {
+    const store = memoryChallenges();
+    await match(store, 40, 24);
+    expect(await board(store)).toEqual([]);
+    // Only the host registered: the friend's loss counts, against a real name,
+    // but the friend has no name of their own to show it under; the host's
+    // win was against a made-up name, so it does not count at all.
+    register(store, 'VK', HOST);
+    await match(store, 50, 12, T0 + 10_000);
+    expect(await board(store)).toEqual([]);
+    // The record on Rival Matches counts every match either way.
+    expect(took(await readMine(store, HOST, T0 + 20_000)).record).toEqual({ won: 2, lost: 0, drawn: 0 });
+  });
+
+  it('ranks by wins, then fewer losses, then runs', async () => {
+    expect(rivalsScore({ won: 2, lost: 9, runs: 0 })).toBeGreaterThan(rivalsScore({ won: 1, lost: 0, runs: 999_999 }));
+    expect(rivalsScore({ won: 1, lost: 0, runs: 0 })).toBeGreaterThan(rivalsScore({ won: 1, lost: 1, runs: 999_999 }));
+    expect(rivalsScore({ won: 1, lost: 1, runs: 41 })).toBeGreaterThan(rivalsScore({ won: 1, lost: 1, runs: 40 }));
+    const store = memoryChallenges();
+    register(store, 'VK', HOST);
+    register(store, 'Rahul', FRIEND);
+    await match(store, 40, 24);
+    await match(store, 12, 60, T0 + 10_000);
+    await match(store, 30, 36, T0 + 20_000);
+    expect(await board(store)).toEqual([['Rahul', 2, 1, 120], ['VK', 1, 2, 82]]);
+  });
+
+  it('follows a finished room down when a third friend joins and wins it', async () => {
+    const store = memoryChallenges();
+    register(store, 'VK', HOST);
+    register(store, 'Rahul', FRIEND);
+    register(store, 'Ayush', THIRD);
+    const code = await match(store, 132, 120);
+    expect(await board(store)).toEqual([['VK', 1, 0, 132], ['Rahul', 0, 1, 120]]);
+    took(await joinChallenge(store, code, third(), T0 + 20_000));
+    took(await recordBalls(store, code, { ...third(), card: card(146) }, T0 + 30_000));
+    expect(await board(store)).toEqual([['Ayush', 1, 0, 146], ['VK', 0, 1, 132], ['Rahul', 0, 1, 120]]);
+  });
+
+  it('settles two friends finishing in the same moment', async () => {
+    // Each ball write holds a copy of the room with the other still batting.
+    const store = memoryChallenges();
+    register(store, 'VK', HOST);
+    register(store, 'Rahul', FRIEND);
+    const code = await room(store, T0);
+    took(await joinChallenge(store, code, friend(), T0));
+    const host = card(40);
+    const other = card(24);
+    await Promise.all([
+      recordBalls(store, code, { ...who(), card: host.slice(0, -1) }, T0 + 1000),
+      recordBalls(store, code, { ...friend(), card: other.slice(0, -1) }, T0 + 1000),
+    ]);
+    await Promise.all([
+      recordBalls(store, code, { ...who(), card: host }, T0 + 2000),
+      recordBalls(store, code, { ...friend(), card: other }, T0 + 2000),
+    ]);
+    expect(await board(store)).toEqual([['VK', 1, 0, 40], ['Rahul', 0, 1, 24]]);
+  });
+
+  it('puts a walk-out on the board for the one who walked, from anybody\'s read', async () => {
+    const store = memoryChallenges();
+    register(store, 'VK', HOST);
+    register(store, 'Rahul', FRIEND);
+    const code = await room(store, T0);
+    took(await recordBalls(store, code, { ...who(), card: card(40) }, T0 + 1000));
+    took(await joinChallenge(store, code, friend(), T0 + 2000));
+    took(await recordBalls(store, code, { ...friend(), card: '66' }, T0 + 3000));
+    expect(await board(store)).toEqual([]);
+    took(await readMine(store, HOST, T0 + 3000 + FORFEIT_AFTER_MS + 1));
+    expect(await board(store)).toEqual([['VK', 1, 0, 40], ['Rahul', 0, 1, 12]]);
+  });
+
+  it('counts a decline as a loss with no runs', async () => {
+    const store = memoryChallenges();
+    register(store, 'VK', HOST);
+    register(store, 'Rahul', FRIEND);
+    const code = await room(store, T0);
+    took(await recordBalls(store, code, { ...who(), card: card(40) }, T0 + 1000));
+    took(await declineChallenge(store, code, friend(), T0 + 2000));
+    expect(await board(store)).toEqual([['VK', 1, 0, 40], ['Rahul', 0, 1, 0]]);
+  });
+
+  it('takes in a player who registers after their matches, on their next list read', async () => {
+    const store = memoryChallenges();
+    register(store, 'Rahul', FRIEND);
+    await match(store, 40, 24);
+    // The host's win was against a registered name, so it counts — but the
+    // host had no name to show it under.
+    expect(await board(store)).toEqual([]);
+    register(store, 'VK', HOST);
+    took(await readMine(store, HOST, T0 + 10_000));
+    expect(await board(store)).toEqual([['VK', 1, 0, 40]]);
+  });
+
+  it('reads an earlier build\'s bare result as not counted, and writes it out in full', async () => {
+    expect(unpackResult('won')).toEqual({ outcome: 'won', runs: 0, ranked: false });
+    expect(unpackResult('lost:47:r')).toEqual({ outcome: 'lost', runs: 47, ranked: true });
+    expect(unpackResult('nonsense')).toBeNull();
+    expect(unpackResult(packResult({ outcome: 'drawn', runs: 30, ranked: false }))).toEqual({ outcome: 'drawn', runs: 30, ranked: false });
+  });
+
+  it('is served by the endpoint, and cached like a room', async () => {
+    const store = memoryChallenges();
+    register(store, 'VK', HOST);
+    register(store, 'Rahul', FRIEND);
+    await match(store, 40, 24);
+    const request = { method: 'GET', query: { board: 'rivals' }, body: undefined, address: 'test' };
+    const read = took(await challengeRequest(store, request));
+    expect('rows' in read && read.rows.map(row => [row.playerId, row.won])).toEqual([[HOST, 1], [FRIEND, 0]]);
+    expect(cacheable(request)).toBe(true);
   });
 });

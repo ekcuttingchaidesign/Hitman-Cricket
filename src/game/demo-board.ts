@@ -6,6 +6,7 @@ import {
   type BlastCareer, type CareerMode, type SurviveCareer,
 } from './career';
 import type { CareerRow } from '../server/career-store';
+import type { RivalsRow } from '../server/challenge-store';
 
 /**
  * A board with fifty people on it, made up on the spot.
@@ -147,6 +148,28 @@ export function demoCareers(mode: CareerMode, youId: string | null, atMs = Date.
       .sort((a, b) => b.score - a.score);
   }
   return { boards, size: DEMO_ROWS };
+}
+
+/**
+ * The Rivals board, filled — fifty records that add up the way the board
+ * ranks them: wins down the ladder, losses that do not always follow, and runs
+ * that break the ties.
+ */
+export function demoRivals(youId: string | null): RivalsRow[] {
+  return NAMES.slice(0, DEMO_ROWS)
+    .map((name, i) => {
+      const won = Math.max(1, 34 - Math.floor(i * 0.7));
+      const lost = 3 + (i * 7) % 11;
+      const played = won + lost;
+      return {
+        playerId: i === MINE && youId ? youId : idOf(i),
+        name, avatar: i % AVATARS, won, lost,
+        runs: played * (58 + (i * 13) % 40),
+      };
+    })
+    // The board's own order, written out rather than imported: the packing
+    // lives on the server, and a made-up board is not worth shipping it for.
+    .sort((a, b) => b.won - a.won || a.lost - b.lost || b.runs - a.runs);
 }
 
 /** Where the flag is remembered for the rest of the tab's life. */

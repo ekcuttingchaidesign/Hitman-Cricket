@@ -12,7 +12,7 @@
  */
 import '../src/styles.css';
 import { HUD } from '../src/ui/HUD';
-import { demoBoard, demoCareers, demoSurvive } from '../src/game/demo-board';
+import { demoBoard, demoCareers, demoRivals, demoSurvive } from '../src/game/demo-board';
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from '../src/ui/CareerBoard';
@@ -76,6 +76,7 @@ function show(mode: BoardTab, modes: BoardTab[], slide: StatsSlide) {
 
 function draw() {
   if (tab === 'mine') return cards();
+  if (tab === 'rivals') return hud.rivalsBoard({ rows: demoRivals(ME), youId: ME, state: 'ready' });
   if (ladder === 'best') return board(tab);
   careers(tab, ladder);
 }
