@@ -534,18 +534,21 @@ describe('the Rivals board', () => {
     expect(await board(store)).toEqual([['VK', 1, 0, 40], ['Rahul', 0, 1, 24]]);
   });
 
-  it('leaves out a match nobody registered played in, and never shows a made-up name', async () => {
+  it('counts every match, and shows only a registered name', async () => {
+    // Nobody registered: the match counts for both, and neither is shown.
     const store = memoryChallenges();
     await match(store, 40, 24);
     expect(await board(store)).toEqual([]);
-    // Only the host registered: the friend's loss counts, against a real name,
-    // but the friend has no name of their own to show it under; the host's
-    // win was against a made-up name, so it does not count at all.
+    // The host registers. Both matches count for them — the first against a
+    // friend who never registered included — and the record and the board
+    // agree. The friend is counted too, and shown the moment they register.
     register(store, 'VK', HOST);
     await match(store, 50, 12, T0 + 10_000);
-    expect(await board(store)).toEqual([]);
-    // The record on Rival Matches counts every match either way.
+    expect(await board(store)).toEqual([['VK', 2, 0, 90]]);
     expect(took(await readMine(store, HOST, T0 + 20_000)).record).toEqual({ won: 2, lost: 0, drawn: 0 });
+    register(store, 'Rahul', FRIEND);
+    took(await readMine(store, FRIEND, T0 + 30_000));
+    expect(await board(store)).toEqual([['VK', 2, 0, 90], ['Rahul', 0, 2, 36]]);
   });
 
   it('ranks by wins, then fewer losses, then runs', async () => {
@@ -618,10 +621,7 @@ describe('the Rivals board', () => {
 
   it('takes in a player who registers after their matches, on their next list read', async () => {
     const store = memoryChallenges();
-    register(store, 'Rahul', FRIEND);
     await match(store, 40, 24);
-    // The host's win was against a registered name, so it counts — but the
-    // host had no name to show it under.
     expect(await board(store)).toEqual([]);
     register(store, 'VK', HOST);
     took(await readMine(store, HOST, T0 + 10_000));

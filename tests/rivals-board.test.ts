@@ -32,7 +32,7 @@ describe('the Rivals board', () => {
 
   it('says what counts, and escapes a name', () => {
     const html = rivalsBoardMarkup({ rows: [row({ name: '<b>x</b>' })] });
-    expect(html).toContain('registered name');
+    expect(html).toContain('Register a name to appear here');
     expect(html).not.toContain('<b>x</b>');
   });
 });

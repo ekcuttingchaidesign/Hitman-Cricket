@@ -455,6 +455,10 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
       await redis.zadd(ranking, { score, member: playerId });
       await redis.hset(rows, { [playerId]: row });
     },
+    async unrank(playerId) {
+      await redis.zrem(ranking, playerId);
+      await redis.hdel(rows, playerId);
+    },
     async topRivals(n) {
       const ids = (await redis.zrange<string[]>(ranking, 0, n - 1, { rev: true })).map(String);
       if (!ids.length) return [];

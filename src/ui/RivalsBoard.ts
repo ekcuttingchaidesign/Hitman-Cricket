@@ -1,5 +1,6 @@
 import type { RivalsRow } from '../game/challenge-api';
 import { escape, kitMarkup, sheetKeys } from './Leaderboard';
+import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals';
 
 /**
  * The Rivals board, as a screen: three figures a player, and nothing else.
@@ -42,7 +43,9 @@ export function rivalsBoardMarkup(view: RivalsBoardView): string {
         ${state === 'ready' && !rows.length
           ? '<p class="board-cut">Nobody is on it yet. Win a Rivals match and the top is yours.</p>' : ''}
       </div>
-      <p class="board-foot">Top ${size}, ranked on matches won, then fewest lost, then runs. A match counts when somebody you played in it has a registered name. Register a name to appear here.</p>
+      <p class="board-foot">Top ${size}, ranked on matches won, then fewest lost, then runs.${
+        RIVALS_NEED_REGISTERED_RIVAL ? ' A match counts when somebody you played in it has a registered name.' : ''
+      } Register a name to appear here.</p>
     </div>`;
 }
 
