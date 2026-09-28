@@ -2527,15 +2527,39 @@ export class Game {
    * The list of matches this person is in, refreshed on the way in so that a
    * ball landed since the last look says so.
    */
+  /**
+   * Rival Matches, opened.
+   *
+   * Drawn at once from the list the mode screen already fetched, and the
+   * picker taken down in the same moment, so there is never a frame with
+   * neither on the screen — waiting on the network first left the ground
+   * showing through for as long as the answer took. The fresh answer is drawn
+   * over it when it lands, and only if it says something different and the
+   * list is still the screen being looked at. With nothing held yet, the
+   * picker stays up until there is a list to replace it with.
+   */
   private async showChallenges() {
     if (!this.player) return;
+    const me = this.player;
     track('rivals-list', 'Rival Matches opened');
-    this.hud.closeModes();
-    const list = await ChallengeRun.mine(this.player);
+    const fromPicker = this.hud.modesOpen;
+    let drawn = '';
+    const draw = (shown: ListView) => {
+      const sections = listSections(shown, me);
+      const said = JSON.stringify([sections, shown.record]);
+      if (said === drawn) return;
+      drawn = said;
+      this.hud.challengesOpen(shown.yourMove.length, shown.waitingOnThem.length);
+      this.hud.closeModes();
+      this.hud.challengeList(sections, shown.record);
+    };
+    if (this.rooms) draw(this.rooms);
+    const wasShowing = !!drawn;
+    const list = await ChallengeRun.mine(me);
     if (list) this.rooms = list;
-    const shown = this.rooms ?? emptyList();
-    this.hud.challengesOpen(shown.yourMove.length, shown.waitingOnThem.length);
-    this.hud.challengeList(listSections(shown, this.player), shown.record);
+    // Somebody who left while it was fetching is not dragged back to it.
+    if (wasShowing ? !this.hud.listOpen : fromPicker && !this.hud.modesOpen) return;
+    draw(this.rooms ?? emptyList());
   }
 
   /** What a row of the list does. */

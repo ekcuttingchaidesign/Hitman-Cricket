@@ -2528,6 +2528,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   get roomOpen() { return !this.$('challenge-room').classList.contains('hidden'); }
+  get listOpen() { return !this.$('challenge-list').classList.contains('hidden'); }
 
   /**
    * The link, ready to go: what happens, and two ways to send it. The message
