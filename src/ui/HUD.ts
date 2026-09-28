@@ -412,6 +412,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <div class="mode-top room-top">
               <button id="room-back" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="room-title" class="mode-heading">Match Room</h2>
+              <button id="room-card" class="room-card-link hidden" type="button">Your scorecard</button>
             </div>
             <div class="room-stage">
               <div id="room-hero" class="room-hero hidden" aria-hidden="true"><div id="room-anim" class="room-anim"></div><span id="room-hero-kit" class="room-hero-kit"></span></div>
@@ -2458,10 +2459,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       drawn.film = which;
     }
 
+    // The innings that just ended has a card, and the card is where the Top 50
+    // is claimed, so the room keeps a way to it: top right, out of the keys'
+    // row, which is pinned and has no room to spare.
+    this.$('room-card').classList.toggle('hidden', !(extra.card && (view.kind === 'waiting' || view.kind === 'spectate' || view.kind === 'result')));
     const keys = said.keys.map(roomKey).join('');
     if (drawn.keys !== keys) {
       this.$('room-keys').innerHTML = keys;
-      this.$('room-keys').classList.toggle('is-pair', !view.result && said.keys.filter(key => key.kind !== 'ghost').length === 2);
+      // Side by side for a pair, the result's included, so the foot of the
+      // screen stays one row high; stacked where the labels are too long to
+      // share one.
+      this.$('room-keys').classList.toggle('is-pair', view.kind !== 'full' && said.keys.filter(key => key.kind !== 'ghost').length === 2);
       drawn.keys = keys;
     }
     this.viewport.classList.toggle('result-room', !!view.result);
@@ -2698,7 +2706,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
       ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
       : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
-    this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a name for the head-to-head.' : '';
+    this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a face for the head-to-head.' : '';
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
@@ -2849,11 +2857,8 @@ function roomCopy(
   view: RoomView, extra: { interstitial?: { index: number; total: number }; sent?: boolean; card?: boolean },
 ): { title: string; tag: string | null; lead: string; sub: string; note: string | null; keys: RoomKey[] } {
   const said = roomWords(view, extra);
-  // The innings that just ended has a card, and the card is where the Top 50
-  // is claimed — so the room keeps a way to it, under the keys that matter.
-  if (extra.card && (view.kind === 'waiting' || view.kind === 'spectate' || view.kind === 'result')) {
-    said.keys.push({ kind: 'ghost', act: 'card', label: 'Your scorecard' });
-  }
+  // A full room has nobody left to send the link to.
+  if (view.full) said.keys = said.keys.filter(key => key.act !== 'invite' && key.act !== 'share');
   return said;
 }
 
@@ -2966,6 +2971,14 @@ function roomWords(
         sub: `It went down as a defeat. ${first(other)} keeps the points \u2014 a rematch is how you get them back.`,
         note: null,
         keys: [key('play', 'new', other ? 'CHALLENGE AGAIN' : 'START A NEW MATCH'), back],
+      };
+    case 'full':
+      return {
+        title: 'Match Room', tag: 'ROOM FULL',
+        lead: 'Uh oh, late to the party',
+        sub: 'Four have already taken the seats in this one. Start your own and send the link before anybody else gets there first.',
+        note: null,
+        keys: [key('play', 'new', 'START A NEW CHALLENGE'), key('steel', 'home', 'MODE SELECTION')],
       };
     case 'spectator': {
       const settled = view.players.filter(row => row.status === 'done' || row.status === 'forfeit');

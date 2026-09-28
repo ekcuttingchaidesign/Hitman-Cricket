@@ -49,7 +49,9 @@ export type RoomKind =
   /** This person is not in the room and never batted; the room is over. */
   | 'spectator'
   /** This person turned the match down, and took the defeat that came with it. */
-  | 'declined';
+  | 'declined'
+  /** This person is not in the room, and every seat in it is taken. */
+  | 'full';
 
 export interface RoomView {
   code: string;
@@ -65,6 +67,8 @@ export interface RoomView {
   closes: string;
   /** How many have opened the link, this person included. */
   size: number;
+  /** Whether every seat is taken, so nobody else can join and the link needs no sharing. */
+  full: boolean;
   /** The result, when there is one to read. */
   result: ResultView | null;
   /** The person still batting, when this one has finished. */
@@ -408,6 +412,8 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
   if (room.state === 'void') kind = 'void';
   else if (result) kind = 'result';
   else if (mine?.status === 'declined') kind = 'declined';
+  // Late to a room with no seat left: told so, whatever state the match is in.
+  else if (!mine && room.players.length >= room.size) kind = 'full';
   else if (!mine && (room.state === 'expired' || room.state === 'done')) kind = 'spectator';
   else if (room.state === 'expired') kind = 'expired';
   else if (mine?.status === 'batting') kind = 'resume';
@@ -435,6 +441,7 @@ export function roomView(room: Challenge, me: string, sent: boolean, now = Date.
     blind,
     closes: closesIn(room.expiresAt, now, room.state),
     size: room.players.length,
+    full: room.players.length >= room.size,
     result,
     live,
   };

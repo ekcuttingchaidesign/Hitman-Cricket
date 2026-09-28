@@ -368,7 +368,14 @@ export class Game {
     // not exist by the time anybody presses one. The room's keys likewise.
     this.hud.viewport.querySelector('#challenge-sections')!.addEventListener('click', event => {
       const key = (event.target as HTMLElement).closest('[data-open],[data-rival],[data-drop],[data-accept],[data-decline]') as HTMLElement | null;
-      if (!key) return;
+      if (!key) {
+        // Anywhere else on a card opens its match: the verdict, the badge, the
+        // padding. Only the face and the accept and decline keys mean something
+        // else, and they are caught above.
+        const card = (event.target as HTMLElement).closest('.rival-row[data-code]') as HTMLElement | null;
+        if (card?.dataset.code) { event.stopPropagation(); void this.listAct('open', card.dataset.code); }
+        return;
+      }
       event.stopPropagation();
       if (key.dataset.drop) void this.listAct('drop', key.dataset.drop);
       else if (key.dataset.accept) void this.listAct('accept', key.dataset.accept);
@@ -381,6 +388,7 @@ export class Game {
       if (!key || key.tagName === 'A') return;
       this.hud.onRoomAct?.(key.dataset.act as RoomAct);
     });
+    this.hud.on('room-card', () => this.hud.onRoomAct?.('card'));
     this.hud.on('modes-cancel', this.closePicker);
     this.hud.on('survive-again', this.start);
     this.hud.on('survive-modes', this.modes);
@@ -836,6 +844,11 @@ export class Game {
    */
   private closePicker = () => {
     this.hud.closeModes();
+    // Before any innings, back from the picker is back to the cover. The cover
+    // is not always still under it: Rival Matches, the room and the sheets all
+    // take it down to stand in its place, and a picker reopened from one of
+    // them closed onto the bare ground, frozen, with nothing to press.
+    if (this.phase === 'START') { this.hud.showCover(); return; }
     // Opened from an end card, which the picker put away to make room for
     // itself. Backing out has to put it back: the innings is over, so there is
     // nothing under the picker but the ground, holding the score it finished on
@@ -2287,7 +2300,9 @@ export class Game {
       case 'new':
         this.rematchLine = null;
         this.challenge.stopWatching();
-        await this.createRoom();
+        // Through the door the Rivals card uses, which asks a first-timer for
+        // a name: straight to the room, a player with none made nothing.
+        await this.openMatch();
         return;
       case 'join': {
         const answer = await this.challenge.join(me);
@@ -2487,7 +2502,7 @@ export class Game {
       // A room that is over for good is shown as it stands. One that is
       // finished but still open takes a third batter — that is how a forwarded
       // link becomes a leaderboard — so it is offered like any other.
-      if (view && (view.state === 'expired' || view.kind === 'void')) { this.showRoom(); return; }
+      if (view && (view.state === 'expired' || view.kind === 'void' || view.kind === 'full')) { this.showRoom(); return; }
       // Not in it yet: who it is from, and a way in. The host, unless somebody
       // else has already batted — then the innings to beat is the one to name.
       const rows = opened.challenge.players;

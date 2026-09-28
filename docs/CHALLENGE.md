@@ -20,7 +20,8 @@ until their own last ball.
 | Declined | "Decline & accept defeat" on the challenge received, or on a row of Rival Matches. Goes down as a loss. |
 | A week with no second innings | "This one closed." Innings kept for the career, no result. |
 | Started, then left for a day | Forfeit. The one who stayed wins. |
-| A third friend on a forwarded link | Joins, bats, and the room becomes a leaderboard. |
+| A third friend on a forwarded link | Joins, bats, and the room becomes a leaderboard. Four seats at most. |
+| A fifth on a forwarded link | "Uh oh, late to the party": START A NEW CHALLENGE, or back to mode selection. |
 
 Ties break on runs, then sixes, then fours. Level on all three is a draw.
 
@@ -93,6 +94,7 @@ person.
 ?room=expired    ?room=void   ?room=spectator   ?room=group   ?room=declined
 ?room=trio       three in, nobody has batted
 ?room=podium     a group result somebody else won
+?room=full       a link opened after all four seats were taken
 ```
 
 The keys on a fixture room do what they always do, which mostly means they

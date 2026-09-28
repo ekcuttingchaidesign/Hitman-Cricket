@@ -3194,6 +3194,36 @@ body.survive-mode .confidence-inner{padding-top:3px;padding-bottom:3px}
 .verdict-row.is-lost .verdict-score{color:#ff505c}
 .verdict-score em{font-style:normal;font-size:15px}
 .stage.result-room .room-keys{gap:14px}
+/* A pair of keys at half width each: the long labels (SEND AN EXCUSE, DEMAND
+   A REMATCH) get a size and spacing that fit half a phone, and wrap to a
+   second line rather than run off the key where they still do not. */
+.room-keys.is-pair .rival-key{
+  min-height:52px;
+  padding:6px 10px;
+  font-size:17px;
+  letter-spacing:.05em;
+  line-height:1.1;
+  white-space:normal;
+  text-align:center
+}
+/* The way to the innings card: top right, level with the back key. */
+.room-card-link{
+  margin-left:auto;
+  padding:8px 4px;
+  border:0;
+  background:none;
+  font-family:var(--card);
+  font-size:14px;
+  font-weight:600;
+  color:#e4edf5;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  text-decoration-color:#e4edf580;
+  white-space:nowrap;
+  cursor:pointer
+}
+.room-card-link:hover{color:#fff}
+.room-card-link.hidden{display:none}
 .stage.result-room .room-keys .rival-key{min-height:48px}
 
 /* ── The result card ───────────────────────────────────────────────────────
@@ -5459,6 +5489,9 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid #5f80a5;
   box-shadow:inset 0 1px 0 #ffffff14
 }
+/* The whole card opens its match, so the whole card answers a press. */
+.rival-row[data-code]{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s ease,background-color .12s ease}
+.rival-row[data-code]:active{transform:scale(.985);background-color:#2e5b8ac7}
 .rival-row.is-empty{
   display:block;
   padding:16px 14px;
@@ -5525,6 +5558,18 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rival-row-badge.is-none{background:#ffffff26;color:#dfe8f0}
 .rival-row-go{flex:none;display:flex;color:#c9d6dd}
 .rival-row-go svg{width:18px;height:18px}
+/* The room's own keys stay on the screen the same way, however many faces or
+   rows are above them: PLAY and SHARE never scroll away under four players.
+   The result's darker room gets a darker fade. */
+#challenge-room .room-keys{
+  position:sticky;
+  bottom:0;
+  z-index:2;
+  margin:auto calc(var(--pad) * -1) calc(-20px - env(safe-area-inset-bottom));
+  padding:32px var(--pad) calc(20px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,#03254600 0%,#032546d9 42%,#032546f2 100%)
+}
+.stage.result-room #challenge-room .room-keys{background:linear-gradient(180deg,#09192600 0%,#091926e6 40%,#091926 100%)}
 /* START A NEW MATCH stays on the screen however long the list gets: pinned to
    the foot, over a fade the rows scroll away under, and out to the screen's
    edges so the fade has no seam at the sheet's padding. */
