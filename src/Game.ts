@@ -2146,19 +2146,34 @@ export class Game {
     this.roomExtra = {};
   }
 
+  /**
+   * A room made, and opened.
+   *
+   * Whatever the tap came from stays on the screen while the room is made,
+   * and gives way to the room in the same moment it is drawn: taking the
+   * picker down first left the start screen showing through for as long as
+   * the server took. A second tap while the first is still out is ignored,
+   * or an impatient thumb makes two rooms.
+   */
   private async createRoom(extra: { card?: string; rematchOf?: string } = {}) {
     const me = this.me;
-    if (!me) return;
-    this.hud.closeModes();
-    const answer = await this.challenge.create(me, extra);
-    if (!answer.ok || !answer.challenge) {
-      this.hud.offline(answer.reason ?? null);
-      return;
+    if (!me || this.creatingRoom) return;
+    this.creatingRoom = true;
+    try {
+      const answer = await this.challenge.create(me, extra);
+      if (!answer.ok || !answer.challenge) {
+        this.hud.offline(answer.reason ?? null);
+        return;
+      }
+      track(extra.rematchOf ? 'challenge-rematch' : 'challenge-set', extra.rematchOf ? 'Rematch made' : 'Match room made');
+      this.pinRoom(answer.challenge.code);
+      this.hud.closeModes();
+      this.showRoom();
+    } finally {
+      this.creatingRoom = false;
     }
-    track(extra.rematchOf ? 'challenge-rematch' : 'challenge-set', extra.rematchOf ? 'Rematch made' : 'Match room made');
-    this.pinRoom(answer.challenge.code);
-    this.showRoom();
   }
+  private creatingRoom = false;
 
   /** The room's code on the address bar, so a reload lands back in it. */
   private pinRoom(code: string | null) {
