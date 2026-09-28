@@ -3,7 +3,9 @@ dist/
 test-results/
 playwright-report/
 *.local
-.claude/
+.claude/*
+# Skills are shared with the team; everything else in .claude/ stays local.
+!.claude/skills/
 dist-single
 
 # Throwaway scripts for driving a browser while reviewing something. A dot
