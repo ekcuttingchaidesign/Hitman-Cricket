@@ -1,7 +1,7 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { AbsoluteFill, useVideoConfig, interpolate } from 'remotion';
 import { theme } from '../theme';
-import { ramp, pop, out, shake } from '../lib';
+import { ramp, pop, out, shake, useSceneFrame } from '../lib';
 import { BgMesh } from '../components/Layers';
 import { Duel } from '../components/Duel';
 import { Slam, Words } from '../components/Bits';
@@ -12,7 +12,7 @@ import { Slam, Words } from '../components/Bits';
  * the friend has joined. It ends on the bare duel, which the live scene opens on.
  */
 export const Intro: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const vs = ramp(f, [0, 9], [0, 1]);
   const left = pop(f, 7, fps, theme.spring.snappy);

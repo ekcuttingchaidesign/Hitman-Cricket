@@ -1,7 +1,7 @@
 import React from 'react';
-import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { useVideoConfig, interpolate } from 'remotion';
 import { theme } from '../theme';
-import { pop } from '../lib';
+import { pop, useSceneFrame } from '../lib';
 
 /**
  * A line of display type that slams in: big, tilted and blurred, then lands.
@@ -18,7 +18,7 @@ export const Slam: React.FC<{
   style?: React.CSSProperties;
   from?: number;
 }> = ({ text, delay, y, size, color = '#fff', exit = 1, tilt = -5, style, from = 1.9 }) => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const p = pop(f, delay, fps, theme.spring.slam);
   const s = interpolate(p, [0, 1], [from, 1]);
@@ -53,7 +53,7 @@ export const Words: React.FC<{
   exit?: number;
   width?: number;
 }> = ({ text, delay, y, size, per = 2, color = theme.colors.textDim, weight = 500, exit = 1, width = 920 }) => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   return (
     <div
@@ -122,7 +122,7 @@ export const Bubble: React.FC<{
   size?: number;
   exit?: number;
 }> = ({ text, mine, y, delay, side = 60, size = 46, exit = 1 }) => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const p = pop(f, delay, fps, theme.spring.bouncy);
   if (f < delay) return null;

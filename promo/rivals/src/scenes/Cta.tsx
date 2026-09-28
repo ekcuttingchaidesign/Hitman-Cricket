@@ -1,8 +1,8 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, useVideoConfig } from 'remotion';
 import { Lottie } from '@remotion/lottie';
 import { at, people, theme } from '../theme';
-import { ramp, pop, breathe } from '../lib';
+import { ramp, pop, breathe, useSceneFrame } from '../lib';
 import { BgMesh } from '../components/Layers';
 import { Avatar, Crown } from '../components/Avatar';
 import { Slam, GameButton } from '../components/Bits';
@@ -13,7 +13,7 @@ import { useLottie } from './Result';
  * flame comes back round it, and the ask is one line: send the link.
  */
 export const Cta: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const flame = useLottie('art/flame.json');
   const fire = ramp(f, [0, 8], [0, 1]);

@@ -1,7 +1,7 @@
 import React from 'react';
-import { AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { AbsoluteFill, Img, staticFile, useVideoConfig, interpolate } from 'remotion';
 import { at, people, theme } from '../theme';
-import { ramp, pop } from '../lib';
+import { ramp, pop, useSceneFrame } from '../lib';
 import { GameButton, Bubble } from '../components/Bits';
 import { VerdictRow } from '../components/Rows';
 import { ResultBg } from './Result';
@@ -19,7 +19,7 @@ const LOSE_Y = 1600;
  * RUB IT IN and SEND AN EXCUSE, and the chat does the rest.
  */
 export const Banter: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const r = ramp(f, [0, 11], [0, 1], theme.ease.inOut);
 

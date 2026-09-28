@@ -1,7 +1,6 @@
 import React from 'react';
-import { useCurrentFrame } from 'remotion';
 import { at, people, theme } from '../theme';
-import { breathe } from '../lib';
+import { breathe, useSceneFrame } from '../lib';
 import { Avatar } from './Avatar';
 
 /**
@@ -20,7 +19,7 @@ export const Duel: React.FC<{
   viratLine?: React.ReactNode;
   namesOpacity?: number;
 }> = ({ leftIn = 1, rightIn = 1, vsScale = 1, vsOpacity = 1, vsBlur = 0, progress, youLine, viratLine, namesOpacity = 1 }) => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const b = breathe(f + 0, 0.012, 20);
   const b2 = breathe(f + 17, 0.012, 20);
   const size = at.duelSize;

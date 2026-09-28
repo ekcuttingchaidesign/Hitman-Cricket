@@ -1,7 +1,7 @@
 import React from 'react';
-import { AbsoluteFill, Audio, Img, Sequence, staticFile, useCurrentFrame, interpolate } from 'remotion';
+import { AbsoluteFill, Audio, Img, Sequence, staticFile, interpolate } from 'remotion';
 import { scenes, theme } from './theme';
-import { ramp } from './lib';
+import { ramp, real, useSceneFrame, STRETCH } from './lib';
 import { Grade, Grain, Vignette, Flash } from './components/Layers';
 import { Hook } from './scenes/Hook';
 import { Intro } from './scenes/Intro';
@@ -12,22 +12,24 @@ import { Banter } from './scenes/Banter';
 import { Board, climb, CROWN } from './scenes/Board';
 import { Cta } from './scenes/Cta';
 
-const span = (s: readonly [number, number]) => ({ from: s[0], durationInFrames: s[1] - s[0] });
+// Scenes are timed in scene frames; the sequences that hold them are real frames.
+const span = (s: readonly [number, number]) => ({ from: real(s[0]), durationInFrames: real(s[1]) - real(s[0]) });
 
-/** The frames your row passes another on the board, one tick each. */
+/** The real frames your row passes another on the board, one tick each. */
 const overtakes = (() => {
   const out: number[] = [];
   let last = Math.round(climb(0));
-  for (let f = 1; f < 60; f++) {
-    const now = Math.round(climb(f));
-    if (now !== last) out.push(scenes.board[0] + f - 1);
+  for (let r = 1; r < real(60); r++) {
+    const now = Math.round(climb(r / STRETCH));
+    if (now !== last) out.push(real(scenes.board[0]) + r - 1);
     last = now;
   }
   return out;
 })();
 
 // Every sound, placed two or three frames before the thing it belongs to lands.
-const SFX: [number, string, number][] = [
+// Written in scene frames, like the scenes, and converted below.
+const CUES: [number, string, number][] = [
   [0, 'hit', 0.7], [8, 'pop', 0.7], [16, 'pop', 0.8], [31, 'whoosh', 0.9], [43, 'hit', 0.9],
   [50, 'pop', 0.6], [53, 'pop', 0.6], [69, 'pop', 0.6], [80, 'tick', 0.8], [82, 'bubble', 0.7], [86, 'pop', 0.6], [94, 'whoosh', 0.6],
   [103, 'pop', 0.6], ...BALLS.map(b => [scenes.live[0] + b.at - 1, 'tick', 0.9] as [number, string, number]), [137, 'pop', 0.6],
@@ -36,9 +38,13 @@ const SFX: [number, string, number][] = [
   [268, 'whoosh', 0.8], [278, 'pop', 0.7], [286, 'tick', 0.9], [287, 'bubble', 0.8], [294, 'bubble', 0.8],
   [299, 'pop', 0.7], [306, 'tick', 0.9], [306, 'trombone', 0.75], [307, 'bubble', 0.8], [318, 'bubble', 0.8],
   [332, 'whoosh', 1], [343, 'hit', 0.9],
-  [346, 'pop', 0.5], [scenes.board[0] + CROWN - 30, 'riser', 0.55], ...overtakes.map(f => [f, 'tick', 0.9] as [number, string, number]),
+  [346, 'pop', 0.5], [scenes.board[0] + CROWN - 25, 'riser', 0.55],
   [scenes.board[0] + CROWN - 1, 'ding', 0.8], [393, 'whoosh', 0.6],
   [403, 'hit', 0.9], [418, 'pop', 0.7], [426, 'tick', 0.7],
+];
+const SFX: [number, string, number][] = [
+  ...CUES.map(([at, name, volume]) => [real(at), name, volume] as [number, string, number]),
+  ...overtakes.map(f => [f, 'tick', 0.9] as [number, string, number]),
 ];
 
 const PATH_X = [1390, -1210];
@@ -46,7 +52,7 @@ const PATH_Y = [-1620, 1380];
 
 /** A ball on fire, thrown corner to corner across the cut into the board. */
 const Fireball: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   // The ball sits at (450, 1080) inside the 1500px picture, so this path puts
   // it dead centre of the frame halfway through, which is the cut.
   const p = ramp(f, [0, 22], [0, 1], theme.ease.inOut);
@@ -93,12 +99,12 @@ export const RivalsPromo: React.FC = () => (
     <Sequence {...span(scenes.board)}><Board /></Sequence>
     <Sequence {...span(scenes.cta)}><Cta /></Sequence>
 
-    <Sequence from={334} durationInFrames={24}><Fireball /></Sequence>
+    <Sequence from={real(334)} durationInFrames={real(24)}><Fireball /></Sequence>
 
     <Grade />
-    <Flash at={45} color={theme.colors.hero} peak={0.55} len={8} />
-    <Flash at={225} color="#ffb070" peak={0.3} len={6} />
-    <Flash at={345} color="#ffd9a0" peak={0.4} len={6} />
+    <Flash at={real(45)} color={theme.colors.hero} peak={0.55} len={8} />
+    <Flash at={real(225)} color="#ffb070" peak={0.3} len={6} />
+    <Flash at={real(345)} color="#ffd9a0" peak={0.4} len={6} />
     <Grain />
     <Vignette />
 

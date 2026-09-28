@@ -1,7 +1,7 @@
 // Synthesises the whole soundtrack as 16-bit WAVs into public/sfx/.
 // No downloads, fully deterministic: the same file every run.
 //
-//   music.wav     15 s bed at 120 BPM, so one beat is exactly 15 frames at 30 fps
+//   music.wav     18 s bed at 100 BPM, so one beat is exactly 18 frames at 30 fps
 //   whoosh.wav    filtered-noise swell for whips and slides
 //   hit.wav       low boom + crack for slams
 //   pop.wav       pitch-drop blip for small entrances
@@ -112,7 +112,7 @@ function stab(out, at, freqs, amp = 1) {
 
 // ── the music bed ─────────────────────────────────────────────────────────────
 {
-  const LEN = 15, BEAT = 0.5;
+  const LEN = 18, BEAT = 0.6;
   const drums = buffer(LEN), bass = buffer(LEN), keys = buffer(LEN);
   // Am  F  C  G, one chord a bar (two seconds)
   const roots = [110, 87.31, 130.81, 98];
@@ -121,7 +121,7 @@ function stab(out, at, freqs, amp = 1) {
   for (let b = 0; b < beats; b++) {
     const t = b * BEAT;
     const bar = Math.floor(b / 4), inBar = b % 4;
-    // The result lands at 7.5 s and the board at 11.5 s: the kick drops out for
+    // The result lands at 9 s and the board at 13.8 s: the kick drops out for
     // the beat before each, so the hit on the downbeat lands in a hole.
     const hole = (b === 14) || (b === 22);
     if (!hole) kick(drums, t, 1);

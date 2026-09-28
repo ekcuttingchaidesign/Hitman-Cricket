@@ -1,7 +1,7 @@
 import React from 'react';
-import { AbsoluteFill, Img, staticFile, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Img, staticFile} from 'remotion';
 import { theme } from '../theme';
-import { ramp, out } from '../lib';
+import { ramp, out, useSceneFrame } from '../lib';
 import { Slam } from '../components/Bits';
 
 // challenge_mode.png is 620x465. Covering 1080x1920 it is drawn 2560x1920,
@@ -16,7 +16,7 @@ const GAP = { x: 1259, y: 351 };
  * out of that same point.
  */
 export const Hook: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   // Ken Burns, then the dive.
   const kb = ramp(f, [0, 34], [1.0, 1.1], theme.ease.inOut);
   const dive = ramp(f, [33, 45], [0, 1], theme.ease.in);

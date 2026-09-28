@@ -1,7 +1,7 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { AbsoluteFill, useVideoConfig, interpolate } from 'remotion';
 import { at, people, theme } from '../theme';
-import { ramp, pop, out } from '../lib';
+import { ramp, pop, out, useSceneFrame } from '../lib';
 import { BgMesh } from '../components/Layers';
 import { Avatar, Crown } from '../components/Avatar';
 import { BoardRow } from '../components/Rows';
@@ -33,7 +33,7 @@ const ROW_AVATAR = { x: 60 + 28 + 70 + 16 + 46, y: TOP + 59, size: 92 };
  * lands on your face. Your face then lifts out of the row into the end card.
  */
 export const Board: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const p = climb(f);
   const wins = 30 + Math.round(((7 - p) / 7) * 5);

@@ -1,8 +1,8 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, staticFile, delayRender, continueRender } from 'remotion';
+import { AbsoluteFill, useVideoConfig, interpolate, staticFile, delayRender, continueRender } from 'remotion';
 import { Lottie, type LottieAnimationData } from '@remotion/lottie';
 import { at, people, theme } from '../theme';
-import { ramp, pop, out, shake, breathe } from '../lib';
+import { ramp, pop, out, shake, breathe, useSceneFrame } from '../lib';
 import { Avatar } from '../components/Avatar';
 import { Slam } from '../components/Bits';
 import { VerdictRow } from '../components/Rows';
@@ -38,7 +38,7 @@ export const ResultBg: React.FC = () => (
  * rows, which the banter scene splits apart.
  */
 export const Result: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const flame = useLottie('art/flame.json');
   // the win film is a trophy with confetti round it; only the confetti is wanted

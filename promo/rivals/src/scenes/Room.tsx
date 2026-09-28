@@ -1,7 +1,7 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { AbsoluteFill, useVideoConfig, interpolate } from 'remotion';
 import { at, people, theme } from '../theme';
-import { ramp, pop, out, shake, breathe } from '../lib';
+import { ramp, pop, out, shake, breathe, useSceneFrame } from '../lib';
 import { BgMesh } from '../components/Layers';
 import { Avatar } from '../components/Avatar';
 import { Slam, Words } from '../components/Bits';
@@ -15,7 +15,7 @@ const mix = (a: number, b: number, t: number) => a + (b - a) * t;
  * face lifts to the top of the frame, where the result scene crowns it.
  */
 export const Room: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
 
   // beat 1: the lock

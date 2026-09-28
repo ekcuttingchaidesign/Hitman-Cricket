@@ -52,8 +52,9 @@ export const theme = {
     bouncy: { damping: 11, stiffness: 170, mass: 0.7 },
     slam: { damping: 16, stiffness: 260, mass: 0.7 },
   },
-  // 120 BPM at 30 fps: one beat is exactly fifteen frames.
-  beat: 15,
+  // 100 BPM at 30 fps: one beat is exactly eighteen frames. Scenes are timed
+  // in fifteen-frame beats and stretched by STRETCH in lib.ts.
+  beat: 18,
 } as const;
 
 export const people = {
@@ -64,7 +65,8 @@ export const people = {
   hardik: { name: 'Hardik', avatar: 'avatars/avatar_2.webp', ring: theme.kits.purple },
 } as const;
 
-// Scene boundaries, in frames. Every cut lands on a beat.
+// Scene boundaries, in scene frames (real frames are these times STRETCH).
+// Every cut lands on a beat.
 export const scenes = {
   hook: [0, 45],
   intro: [45, 105],

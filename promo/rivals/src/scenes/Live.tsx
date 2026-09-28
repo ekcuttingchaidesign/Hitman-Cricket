@@ -1,7 +1,7 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
+import { AbsoluteFill, useVideoConfig, interpolate } from 'remotion';
 import { at, theme } from '../theme';
-import { ramp, pop, out } from '../lib';
+import { ramp, pop, out, useSceneFrame } from '../lib';
 import { BgMesh } from '../components/Layers';
 import { Duel } from '../components/Duel';
 import { Slam, Words } from '../components/Bits';
@@ -23,7 +23,7 @@ const FIRST_BALL = 20;
  * blue around it, and Virat's ring fills ball by ball.
  */
 export const Live: React.FC = () => {
-  const f = useCurrentFrame();
+  const f = useSceneFrame();
   const { fps } = useVideoConfig();
   const done = BALLS.filter(b => f >= b.at).length;
   // the ring steps a ball at a time, easing into each step
