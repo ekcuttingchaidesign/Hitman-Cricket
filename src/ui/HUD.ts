@@ -32,6 +32,7 @@ import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsS
 import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+import { openUnveil } from './Unveil';
 import { milestoneDoodle, type BatterOnScreen } from './Milestone';
 import type { Milestone } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
@@ -321,6 +322,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
+        <div id="unveil-overlay" class="unveil-overlay hidden" role="dialog" aria-modal="true" aria-label="The new ground"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
@@ -961,6 +963,22 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   get storiesOpen() { return !this.$('whatsnew-overlay').classList.contains('hidden'); }
+
+  /**
+   * The old ground over the new one, for the player to pull off. The game
+   * decides when; `then` is what the play key was going to do anyway.
+   */
+  unveil(then: () => void) {
+    this.viewport.classList.add('modal-open');
+    openUnveil(this.$('unveil-overlay'), () => {
+      const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+        .some(id => !this.$(id).classList.contains('hidden'));
+      this.viewport.classList.toggle('modal-open', stacked);
+      then();
+    });
+  }
+
+  get unveilOpen() { return !this.$('unveil-overlay').classList.contains('hidden'); }
 
   closeStories() {
     window.clearTimeout(this.storyHold);

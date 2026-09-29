@@ -47,6 +47,7 @@ import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import { unveilDue } from './game/unveil';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, type Granted } from './game/tier';
 import { openFeedback } from './ui/Feedback';
@@ -1150,6 +1151,16 @@ export class Game {
    * looking has not used up one of the two they are given.
    */
   private play = () => {
+    // Once, before anything else the key does: the old ground, and a line to
+    // pull it off with. What comes after is what the key would have done.
+    if (unveilDue()) {
+      this.mark('unveil', 'New ground shown');
+      return this.hud.unveil(this.playOn);
+    }
+    this.playOn();
+  };
+
+  private playOn = () => {
     const go = () => (this.locked ? this.start() : this.modes());
     if (!whatsNewDue()) return go();
     markWhatsNewShown();
@@ -1573,6 +1584,9 @@ export class Game {
     // them, so they answer first. Without this Enter started an innings behind
     // them — and then started it again on the way out — 'B' opened the board
     // underneath, and Esc closed the board the player had come from.
+    // The covers answer nothing but their own keys: there is no way past them
+    // but pulling them off, and the line and the play key take their own.
+    if (this.hud.unveilOpen) return;
     if (this.hud.storiesOpen) {
       if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeStories(); }
       return;

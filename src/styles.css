@@ -5730,3 +5730,126 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .ghost-flash{transition:opacity .01ms}
   .ghost-flash.is-up{transform:translate(-50%,0)}
 }
+
+/* ── The covers coming off ──────────────────────────────────────────────────
+   The old ground over the new one, cut along a line the player drags from
+   right to left. Both pictures fill the screen the same way, so the ground
+   under the line lines up with the ground over it and the cut reads as one
+   picture changing rather than two pictures side by side. Above everything,
+   because it comes before everything: it is the first thing the play key does. */
+.unveil-overlay{position:absolute;inset:0;z-index:15;background:#07121a}
+.unveil{
+  --at:84%;
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+  cursor:grab;
+  color:#fff
+}
+.unveil.is-dragging{cursor:grabbing}
+.unveil>*{transition:opacity .35s ease}
+.unveil.is-loading>*{opacity:0}
+.unveil-layer{position:absolute;inset:0}
+.unveil-shot,.unveil-shot img{display:block;width:100%;height:100%}
+.unveil-shot img{object-fit:cover;-webkit-user-drag:none;pointer-events:none}
+.unveil-layer.is-before{clip-path:inset(0 calc(100% - var(--at)) 0 0)}
+.unveil-tag{
+  position:absolute;
+  top:36%;
+  padding:6px 10px 5px;
+  border-radius:6px;
+  background:#07121acc;
+  font:700 11px/1 var(--card);
+  letter-spacing:2.2px;
+  white-space:nowrap
+}
+.is-before>.unveil-tag{left:var(--pad);color:#c2d2dc}
+.is-after>.unveil-tag{right:var(--pad-right);background:var(--cta-orange)}
+/* The line and its grip. The whole picture takes the drag, so the grip is a
+   sign of where the cut is rather than the only place to hold it. */
+.unveil-line{position:absolute;top:0;bottom:0;left:var(--at);width:0;outline:none}
+.unveil-line::before{
+  content:'';
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:-1.5px;
+  width:3px;
+  background:#fff;
+  box-shadow:0 0 12px #ffffffa6,0 0 2px #0006
+}
+.unveil-grip{
+  position:absolute;
+  top:50%;
+  left:0;
+  display:grid;
+  place-items:center;
+  width:56px;
+  height:56px;
+  border:3px solid var(--cta-orange);
+  border-radius:50%;
+  background:#fff;
+  color:var(--cta-ink);
+  box-shadow:0 5px 0 var(--cta-orange),0 10px 18px #0007;
+  transform:translate(-50%,-50%)
+}
+.unveil-grip svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.unveil-line:focus-visible .unveil-grip{outline:3px solid #fff2e4;outline-offset:4px}
+.unveil-foot{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  display:grid;
+  justify-items:center;
+  padding:90px var(--pad-right) calc(24px + env(safe-area-inset-bottom,0px)) var(--pad);
+  background:linear-gradient(to top,#07121af0 0%,#07121ab8 45%,#07121a00 100%);
+  pointer-events:none;
+  text-align:center
+}
+.unveil-foot>*{grid-area:1/1}
+.unveil-nudge{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  align-self:end;
+  margin:0;
+  padding:12px 20px 11px 16px;
+  border:1px solid #ffffff38;
+  border-radius:999px;
+  background:#0b1d2bd9;
+  /* Satoshi rather than the keys' Jaro: Jaro draws its V as a U, and a line
+     reading "pull the couers off" is a typo to everybody who reads it. */
+  font:800 14px/1 var(--card);
+  letter-spacing:1.8px;
+  text-transform:uppercase;
+  box-shadow:0 8px 20px #0006;
+  transition:opacity .25s ease,transform .25s ease
+}
+.unveil-nudge svg{width:22px;height:22px;fill:none;stroke:var(--cta-orange);stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;animation:unveil-nudge 1.4s ease-in-out infinite}
+@keyframes unveil-nudge{0%,100%{transform:translateX(0)}45%{transform:translateX(-6px)}}
+.unveil-done{
+  display:grid;
+  justify-items:center;
+  width:min(360px,100%);
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(18px);
+  transition:opacity .35s ease,transform .45s cubic-bezier(.2,1.4,.4,1),visibility 0s .35s
+}
+.unveil-eyebrow{margin:0 0 6px;font:700 11px/1.2 var(--card);letter-spacing:2.6px;color:#ffc7a6}
+.unveil-title{margin:0 0 18px;font:900 clamp(34px,10vw,52px)/1 var(--card);letter-spacing:-1px;text-shadow:0 3px 0 #0005,0 8px 24px #0008}
+.unveil-key{width:100%;pointer-events:auto}
+/* Open: the line and the ask go, and the way on comes up in their place. */
+.unveil.is-open{cursor:default}
+.unveil.is-open .unveil-line,.unveil.is-open .is-before,.unveil.is-open .unveil-nudge,.unveil.is-open .unveil-tag{opacity:0;visibility:hidden}
+.unveil-tag{transition:opacity .3s ease}
+.unveil.is-open .unveil-nudge{transform:translateY(10px)}
+.unveil.is-open .unveil-done{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+@media (prefers-reduced-motion:reduce){
+  .unveil-nudge svg{animation:none}
+  .unveil-done{transform:none;transition:opacity .2s}
+}

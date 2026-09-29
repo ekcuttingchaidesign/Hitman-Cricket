@@ -83,6 +83,13 @@ grey is measured off the pixels of the grass, and the doodles are judged on
 their own clock, because a headless browser rendering the ground in software
 can hold CSS animations at their first frame.
 
+`scripts/unveil-check.mjs` is the covers: the first press of play puts the
+old ground up and a swipe pulls it off. Every other check that presses play
+seeds `hitman-unveiled` so it starts past them, which means this is the only
+one that sees them — keep that seed out of it. The two pictures are the same
+ball on the build before the graphics update and the build after it; retake
+both together, or the line stops lining up.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.
 
