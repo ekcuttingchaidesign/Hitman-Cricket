@@ -505,8 +505,11 @@ const SLOG_SWEEP: Stroke = {
     yaw: -.34, face: -.72, heel: .70, backFootYaw: .95, leadElbow: -.10,
     armHinge: .20, armDrive: 1, shoulderLift: .06 },
   // Up off the knee and back to the guard, with the bat brought down in front
-  // of him rather than back across the shoulder it is wrapped behind.
-  recover: { ...GUARD, hip: [-.06, .78, -.02], chest: [-.02, 1.12, .04],
+  // of him rather than back across the shoulder it is wrapped behind. Most of
+  // the way up, not half: the stage after this one is fifty milliseconds, and
+  // with the hips at .78 here he had to find the last sixteen centimetres of
+  // his height in three frames and hopped into his guard to do it.
+  recover: { ...GUARD, hip: [-.06, .86, -.02], chest: [-.02, 1.20, .04],
     frontFoot: [.06, .08, .30], backFoot: [-.14, .08, -.30],
     grip: [.26, 1.06, .34], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
     yaw: .92, face: -.10, heel: .24, leadElbow: -.20 },
@@ -727,7 +730,12 @@ const REVERSE_SCOOP: Stroke & { down: Pose; beside: Pose; apex: Pose; across: Po
     grip: [-.50, 1.06, .48], batUp: [.10, -.55, -.83], batFace: [.95, .25, -.05],
     yaw: -.60, face: -.30, heel: .30, backFootYaw: 1.10, leadElbow: -.16,
     armHinge: -.20, armDrive: 0, shoulderLift: .03 },
-  recover: SLOG_SWEEP.recover,
+  // The sweeps' way up as it was, half-risen, rather than the taller one they
+  // now use: the reverse's arms are still coming round over his head through
+  // this stage, and a body rising faster under them hurries them past what the
+  // rig allows. Its last stage is still a quick one; evening it out means
+  // re-timing the arms, not the legs.
+  recover: { ...SLOG_SWEEP.recover!, hip: [-.06, .78, -.02], chest: [-.02, 1.12, .04] },
 };
 /** Off stump and outside it: the reverse scoop's reach. */
 const REVERSE_REACH: readonly [number, number] = [.05, .62];
@@ -2185,8 +2193,23 @@ export class Batter {
       // them and wrong for one with a shin flat on the turf: the back knee has
       // to drop straight down and forward, under the hip, or the leg folds out
       // sideways and he reads as sitting rather than kneeling.
-      const kneePole = this.kneeling ? new THREE.Vector3(i === 0 ? .10 : .06, i === 0 ? .95 : -.85, i === 0 ? .30 : .42)
-        : new THREE.Vector3(.65, -.15, .02);
+      //
+      // How much of that bend he gets is read off his hips, not off the stroke.
+      // `kneeling` stays true from the swipe until the next ball resets it, so
+      // taken as a switch it bent a standing man's knees the kneeling way: the
+      // back leg twisted as he got up, held twisted through the whole wait in
+      // his guard, and then flipped straight in one frame when the next ball
+      // came. Down on the knee the hips are below .62 and the bend is all
+      // kneeling; by .84, still well short of the guard's .94, it is all
+      // standing, so the last push up to his full height moves nothing but
+      // the height. Going down it is taken whole from the swipe, as it always
+      // was: the drop to the knee is the stroke, and it is only the way back
+      // up that was wrong.
+      const goingDown = this.poseAge <= this.contactTime - this.swingStart;
+      const kneel = !this.kneeling ? 0
+        : goingDown ? 1 : ease(THREE.MathUtils.clamp((.84 - pose.hip[1]) / (.84 - .62), 0, 1));
+      const kneePole = new THREE.Vector3(.65, -.15, .02)
+        .lerp(new THREE.Vector3(i === 0 ? .10 : .06, i === 0 ? .95 : -.85, i === 0 ? .30 : .42), kneel);
       if (driving && !this.felled && Number.isFinite(this.poseAge)) {
         const weight=ease(THREE.MathUtils.clamp(this.poseAge/80,0,1))*ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/160,0,1));
         kneePole.lerp(new THREE.Vector3(i===0 ? .04 : .35,-.15,.65),weight);

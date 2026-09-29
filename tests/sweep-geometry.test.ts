@@ -265,3 +265,72 @@ describe('the orthodox sweep', () => {
     }
   });
 });
+
+/**
+ * Getting up again, which is where the kneeling strokes went wrong.
+ *
+ * Which way the knees bend was decided by a flag, `kneeling`, that is set at
+ * the swipe and cleared only when the next ball resets him — and for the
+ * reverse scoop not even then, because it was read off the shot. So a man
+ * stood back in his guard still had his knees solved as if one shin were on
+ * the turf. The back leg twisted as he rose, stayed twisted through the whole
+ * wait for the next ball, and then flipped straight in a single frame: sixteen
+ * centimetres of knee in a sixtieth of a second, which is the glitch a player
+ * saw and nothing measured, because every check here looked at the stroke and
+ * none at what came after it.
+ *
+ * And the last of his height came up in three frames, the hips rising from .78
+ * to .94 in fifty milliseconds: a hop into the guard rather than a stand.
+ */
+describe('getting up off the knee', () => {
+  const kneelers = [
+    ['slog sweep', 'LEG', 0, true, false],
+    ['flat sweep', 'LEG', 0, false, true],
+    ['reverse scoop', 'REVERSE_SCOOP', .28, false, false],
+  ] as const;
+  const played = (shot: 'LEG' | 'REVERSE_SCOOP', ballX: number, sweeping: boolean, levelled: boolean) => {
+    const batter = new Batter();
+    batter.prepare(1); batter.update(0);
+    batter.swing(shot, 0, ballX, .54, GAME.contactZ, false, false, sweeping, levelled);
+    return batter;
+  };
+  const farthest = (a: number[][], b: number[][]) =>
+    Math.max(...a.map((p, i) => new Vector3(...p).distanceTo(new Vector3(...b[i]))));
+
+  for (const [name, shot, ballX, sweeping, levelled] of kneelers) {
+    it(`${name}: stands in the guard the next ball resets him to`, () => {
+      const batter = played(shot, ballX, sweeping, levelled);
+      // Long after the stroke, waiting: nothing about it should be left.
+      batter.update(STROKE_DURATION_MS + 2000);
+      const waiting = batter.inspect().knees;
+      // Against a man who never played it, as well as against himself: after
+      // a reverse scoop the reset did not clear the bend either, so the two
+      // agreed with each other and were both wrong.
+      const fresh = new Batter(); fresh.update(0);
+      expect(farthest(waiting, fresh.inspect().knees), 'knees against a fresh guard').toBeLessThan(.005);
+      batter.reset();
+      expect(farthest(waiting, batter.inspect().knees), 'knee jump at the next ball').toBeLessThan(.005);
+      batter.update(0);
+      expect(farthest(batter.inspect().knees, fresh.inspect().knees), 'knees in the next guard').toBeLessThan(.005);
+    });
+
+    // The reverse scoop's last stage is still fifty-five milliseconds: its arms
+    // are coming round over his head as he rises, and a faster rise under them
+    // breaks the rig's own limits on the arms. So only the sweeps are held to it.
+    if (shot === 'REVERSE_SCOOP') continue;
+    it(`${name}: stands up rather than hopping up`, () => {
+      const batter = played(shot, ballX, sweeping, levelled);
+      let previous: number[][] | null = null;
+      // From the moment his hips are back above .80 to his full height. Eight
+      // centimetres a frame is a brisk stand; the hop this is here for was 9.5.
+      for (let time = 600; time <= STROKE_DURATION_MS + 32; time += 1000 / 60) {
+        batter.update(time);
+        const pose = batter.inspect();
+        if (previous && pose.hip[1] > .80) {
+          expect(farthest(pose.knees, previous), `knee travel in the frame to ${Math.round(time)}ms`).toBeLessThan(.08);
+        }
+        previous = pose.knees;
+      }
+    });
+  }
+});
