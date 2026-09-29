@@ -1789,9 +1789,10 @@ export class Game {
     this.celebrating = mild ? FIFTY_MS : CELEBRATION_MS;
     this.scene.celebrate(this.elapsed, mild);
     this.hud.milestone(kind, this.scene.batterOnScreen(), this.celebrating);
-    // The crowd with it, falling away: the fifty's is a short ripple, the big
+    // The crowd with it, falling away: the fifty's is the shorter of the two,
+    // though long enough to be heard as applause rather than a blip; the big
     // two's carry on a little past him into the next ball's run-up.
-    this.audio.cheer(mild ? 1.3 : 2.8);
+    this.audio.cheer(mild ? 2.3 : 2.8);
     track(kind, kind === 'fifty' ? 'Reached fifty' : kind === 'century' ? 'Reached a hundred' : 'Six sixes in a row');
   }
   private presentResult() {

@@ -62,7 +62,7 @@ async function saturation(page, png, box) {
 const MOMENTS = [
   { kind: 'century', grey: true, fire: true, cheer: 2.8 },
   { kind: 'six-sixes', grey: true, fire: true, cheer: 2.8 },
-  { kind: 'fifty', grey: false, fire: false, cheer: 1.3 },
+  { kind: 'fifty', grey: false, fire: false, cheer: 2.3 },
 ];
 
 for (const [name, options] of [
