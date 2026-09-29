@@ -63,9 +63,12 @@ for (const [name, options] of [
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text()); });
+  // Not a returning visitor, unlike the other checks: in a headless browser a
+  // returning visitor's page never starts a CSS animation — on the cover as
+  // much as here, and before this feature as much as after it — so the doodles
+  // would never draw on and the pictures would show a bare field. The
+  // private-window notice that a first visit gets is answered below instead.
   await page.addInitScript(() => {
-    const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
-    try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
     window.__draws = 0;
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       for (const fn of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
@@ -114,12 +117,30 @@ for (const [name, options] of [
   check(seen === 'RESULT', 'a ball is bowled and is dead', seen);
   await page.evaluate(() => window.__cricket.century());
   await page.waitForTimeout(650);
-  check(await page.locator('.century').count() === 1, 'the doodles go up');
-  check(await page.locator('.century .cy-mark').count() >= 15, 'with the marks drawn round him', await page.locator('.century .cy-mark').count());
-  check(await page.locator('#viewport.century-on').count() === 1, 'and the call for the ball steps aside');
+  // Asked in one go: on a slow machine three round trips can outlast it. The
+  // drawing is judged at 650ms on its own clock, set by hand, rather than on
+  // the page's: a headless browser rendering the ground in software can hold
+  // CSS animations at their first frame for as long as it likes, and a check
+  // that waited on that would be timing the machine, not the doodles.
+  const up = await page.evaluate(() => {
+    const doodle = document.querySelector('.century');
+    const animations = doodle?.getAnimations({ subtree: true }) ?? [];
+    for (const animation of animations) { animation.pause(); animation.currentTime = 650; }
+    return {
+      doodle: document.querySelectorAll('.century').length, marks: document.querySelectorAll('.century .cy-mark').length,
+      fire: document.querySelectorAll('.century .cy-fire').length, aside: !!document.querySelector('#viewport.century-on'),
+      drawn: [...document.querySelectorAll('.century .cy-paint')].filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) < .5).length,
+    };
+  });
+  check(up.doodle === 1, 'the doodles go up');
+  check(up.marks >= 15, 'with the marks round him', up.marks);
+  check(up.drawn >= 10, 'drawn on by now, not still waiting', up.drawn);
+  check(up.fire >= 8, 'and fire up the edges', up.fire);
+  check(up.aside, 'and the call for the ball steps aside');
   const during = await page.screenshot({ path: `test-results/century-${name}.png` });
   const grey = await saturation(page, during, grass);
   check(grey < before * .45, `the grass goes grey (saturation ${before.toFixed(2)} to ${grey.toFixed(2)})`);
+  await page.evaluate(() => { for (const animation of document.querySelector('.century')?.getAnimations({ subtree: true }) ?? []) animation.play(); });
   const draws = await page.evaluate(async () => {
     const frames = 20, start = window.__draws;
     await new Promise(done => { let n = 0; const tick = () => (++n >= frames ? done() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });

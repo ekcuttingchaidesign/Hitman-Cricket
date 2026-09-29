@@ -2450,11 +2450,39 @@ body.survive-mode #scoreboard{display:none}
   33%{transform:translate(1px,-1px)}
   66%{transform:translate(-1px,1px)}
 }
+/* The fire up the edges: whooshes up from its base, flickers between its two
+   drawn frames at a dozen a second, and sinks back down as the rest wipes. */
+.cy-fire{
+  transform:scale(.2,0);
+  animation:cy-fire-up .28s cubic-bezier(.2,1.5,.4,1) var(--delay) forwards,
+    cy-fire-down .26s ease-in 1.2s forwards
+}
+@keyframes cy-fire-up{to{transform:none}}
+@keyframes cy-fire-down{from{transform:none}to{transform:scale(.6,0)}}
+.cy-flame{fill:var(--cy-paint);stroke:var(--cy-ink);stroke-linejoin:round}
+.cy-flame-heart{fill:#ffc23a}
+.cy-flame-core{fill:var(--cy-shine)}
+.cy-frame{animation:cy-frame .17s steps(1) infinite}
+.cy-frame+.cy-frame{animation-delay:-.085s}
+@keyframes cy-frame{0%{opacity:1}50%{opacity:0}}
+.cy-ember{
+  fill:#ffc23a;
+  opacity:0;
+  animation:cy-ember .8s ease-out var(--delay) forwards
+}
+@keyframes cy-ember{
+  0%{opacity:0;transform:none}
+  20%{opacity:1}
+  100%{opacity:0;transform:translateY(var(--rise))}
+}
 /* The call for the ball that got him there has had its moment. */
 .stage.century-on .result{visibility:hidden}
 @media (prefers-reduced-motion:reduce){
   .cy-boil{animation:none}
   .cy-mark path,.cy-pop,.cy-dots,.cy-word{animation-duration:1ms;animation-delay:0s}
+  .cy-frame+.cy-frame,.cy-ember{display:none}
+  .cy-frame{animation:none}
+  .cy-fire{animation:none;transform:none}
 }
 
 /* ── Taking one on the body ────────────────────────────────────────────────

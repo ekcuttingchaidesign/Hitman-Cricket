@@ -1881,20 +1881,26 @@ describe('the reverse scoop', () => {
 });
 
 /**
- * The hundred: up out of his guard, the bat to the sky with both arms straight
- * above the helmet, two pumps, and down in front of his face into his guard.
- * It is not a stroke, so none of the stroke tables above reach it, and every
- * rule they hold a stroke to is held here instead.
+ * The hundred: turned to the camera, the bat up beside his head in his right
+ * hand and his left fist punching the sky, two pumps, and both hands back on
+ * the bat into his guard. It is not a stroke, so none of the stroke tables
+ * above reach it, and every rule they hold a stroke to is held here instead —
+ * bar the one it exists to break, that both hands stay on the handle.
  */
 describe('the hundred', () => {
   const celebrating = () => { const batter = new Batter(); batter.update(0); batter.celebrate(0); return batter; };
+  const apart = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]));
+  const helmet = (pose: ReturnType<Batter['inspect']>) => {
+    const chest = new Vector3(...pose.chest), spine = chest.clone().sub(new Vector3(...pose.hip)).normalize();
+    return chest.addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+  };
 
-  it('keeps both gloves on the handle and both arms whole', () => {
+  it('keeps the bat in his right hand, and both arms whole', () => {
     const batter = celebrating();
-    for (let time = 0; time <= CELEBRATION_MS; time += 16) {
+    for (let time = 0; time <= CELEBRATION_MS; time += 8) {
       batter.update(time);
       const pose = batter.inspect();
-      expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1])), `${time}ms`).toBeCloseTo(.110, 6);
+      expect(pose.handGrip[1], `bat hand on the handle at ${time}ms`).toBeCloseTo(-.035, 9);
       for (const [upper, lower] of pose.armLengths) {
         expect(upper, `${time}ms`).toBeCloseTo(.32, 3);
         expect(lower, `${time}ms`).toBeLessThan(.345);
@@ -1902,13 +1908,34 @@ describe('the hundred', () => {
     }
   });
 
-  it('holds the bat up to the sky, above the helmet', () => {
+  it('lets go with his left and punches the sky, the bat up beside his head', () => {
     const batter = celebrating();
-    for (const time of [320, 640, 900]) {
+    for (const time of [390, 690, 990]) {
       batter.update(time);
       const pose = batter.inspect();
-      expect(pose.grip[1], `grip at ${time}ms`).toBeGreaterThan(1.9);
-      expect(pose.bladeTip[1] - pose.grip[1], `blade above the hands at ${time}ms`).toBeGreaterThan(.6);
+      expect(apart(pose), `hands apart at ${time}ms`).toBeGreaterThan(.40);
+      expect(pose.hands[0][1], `fist above the helmet at ${time}ms`).toBeGreaterThan(helmet(pose).y + .25);
+      expect(pose.bladeTip[1] - pose.grip[1], `blade up at ${time}ms`).toBeGreaterThan(.6);
+      expect(pose.grip[1], `bat hand up by his head at ${time}ms`).toBeGreaterThan(1.6);
+    }
+  });
+
+  it('keeps the punching arm off the helmet', () => {
+    const batter = celebrating();
+    for (let time = 0; time <= CELEBRATION_MS; time += 4) {
+      batter.update(time);
+      const pose = batter.inspect(), head = helmet(pose);
+      if (apart(pose) < .2) continue;
+      for (const point of [pose.elbows[0], pose.hands[0]])
+        expect(new Vector3(...point).distanceTo(head), `at ${time}ms`).toBeGreaterThan(.26);
+    }
+  });
+
+  it('takes the bat in both hands again before he settles', () => {
+    const batter = celebrating();
+    for (let time = 1130; time <= CELEBRATION_MS; time += 16) {
+      batter.update(time);
+      expect(apart(batter.inspect()), `${time}ms`).toBeCloseTo(.110, 6);
     }
   });
 
@@ -1943,5 +1970,6 @@ describe('the hundred', () => {
     for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const) {
       done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));
     }
+    expect(done.hands).toEqual(guard.hands);
   });
 });
