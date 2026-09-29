@@ -9,6 +9,7 @@ import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
 import { SKY, Sky } from './sky';
 import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
+import { perimeterBoards } from './boards';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
@@ -163,7 +164,7 @@ export class GameScene {
     });
     const boundary = new THREE.Mesh(new THREE.TorusGeometry(GAME.boundaryRadius, 0.055, 5, 128), mat(colors.white));
     boundary.rotation.x = Math.PI / 2; boundary.position.set(0, 0.06, 10); this.world.add(boundary);
-    this.createStadium();
+    this.createStadium(anisotropy);
     // Fielders are scenery except the one scripted catcher.
     [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]].forEach(([x, z]) => {
       const fielder = new Cricketer(); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
@@ -179,7 +180,7 @@ export class GameScene {
       figure.root.add(under);
     }
   }
-  private createStadium() {
+  private createStadium(anisotropy: number) {
     const seatGeometry = new THREE.BoxGeometry(0.6, 0.55, 0.55);
     const crowd = new THREE.InstancedMesh(seatGeometry, mat(0xffffff), 1344);
     const dummy = new THREE.Object3D(); let index = 0;
@@ -187,7 +188,6 @@ export class GameScene {
     for (let section = 0; section < 28; section++) {
       const a = section / 28 * Math.PI * 2;
       const group = new THREE.Group(); group.position.set(Math.sin(a) * 39, 0, 10 + Math.cos(a) * 39); group.rotation.y = a; this.world.add(group);
-      box(group, 8.7, 1.5, 1.2, section % 3 ? colors.navy : colors.orange, 0, 0.75, -3.3);
       for (let row = 0; row < 4; row++) {
         box(group, 8.5, 0.7 + row * 0.7, 1.4, 0x7d9397, 0, (0.7 + row * 0.7) / 2, -1.7 + row * 1.4);
         for (let col = 0; col < 12; col++) {
@@ -203,6 +203,10 @@ export class GameScene {
       }
     }
     crowd.instanceMatrix.needsUpdate = true; this.world.add(crowd);
+    // The boards along the foot of the stands. Added to the scene rather than
+    // the mirrored stage, or every sponsor would read backwards.
+    const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
+    this.scene.add(boards.group); this.textures.push(boards.texture);
     for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
       cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
       box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);

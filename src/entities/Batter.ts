@@ -1269,7 +1269,9 @@ export class Batter {
     // The helmet is its own material rather than the shirt's, because it is navy
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
-    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .38 }),
+    // Matte: a helmet's shell is covered in fabric, so it takes the light the
+    // way the cap would rather than shining like a motorbike lid.
+    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .92 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),

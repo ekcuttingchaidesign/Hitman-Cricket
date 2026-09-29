@@ -30,10 +30,10 @@ const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 /**
  * Draw calls a frame, shadow pass included. The ground came in at about 850
- * with its textures; lower this whenever a change brings it down, so the
- * saving stays banked.
+ * with its painted textures and about 825 once the perimeter boards were one
+ * ring; lower this whenever a change brings it down, so the saving stays banked.
  */
-const BUDGET = 900;
+const BUDGET = 870;
 
 let failures = 0;
 const check = (ok, what, detail) => {
