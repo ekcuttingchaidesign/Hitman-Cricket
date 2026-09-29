@@ -297,8 +297,15 @@ export class GameScene {
    */
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
-  /** His hundred: the bat to the sky, and the world gone grey around him. */
-  celebrate(now: number) { this.batter.celebrate(now); this.celebratedAt = now; }
+  /**
+   * A moment: his hundred or six sixes, the bat to the sky and the world gone
+   * grey round him; or his fifty, `mild`, the bat raised and the colours left
+   * where they are.
+   */
+  celebrate(now: number, mild = false) {
+    this.batter.celebrate(now, mild);
+    this.celebratedAt = mild ? -Infinity : now;
+  }
   /**
    * Where he stands on the screen, in CSS pixels of the canvas: his feet, the
    * top of his helmet, and the height the bat reaches held up to the sky. The

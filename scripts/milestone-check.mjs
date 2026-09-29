@@ -1,15 +1,19 @@
 /**
- * The hundred, in a real browser: the batter's celebration, the ground going
- * grey round him, the doodles drawn over it, and the game carrying on after.
+ * The moments, in a real browser — a fifty, a hundred, six sixes in a row: the
+ * batter's celebration, the ground going grey round him for the two big ones
+ * and not for the fifty, the doodles drawn over it, and the game carrying on
+ * after.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
- *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/century-check.mjs
- *   node scripts/century-check.mjs http://…:4173    # a preview build
+ *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/milestone-check.mjs
+ *   node scripts/milestone-check.mjs http://…:4173    # a preview build
  *
  * Getting to a real hundred headless is thirty balls of perfect timing, so the
  * moment is asked for through the debug hook, which runs the same method the
- * hundredth run does. Whether a ball is the one that gets there is
- * `reachedCentury`'s business, and `tests/milestone.test.ts` holds it.
+ * ball that gets there does. Which ball that is is `milestoneOf`'s business,
+ * and `tests/milestone.test.ts` holds it. Each moment gets an innings of its
+ * own: the ball left alone to set it up is as often as not a wicket, and three
+ * of those in one innings would end it before the last moment came.
  *
  * What only a browser can say: that the grey is really there, measured off the
  * pixels of the grass rather than taken on trust from a uniform; that the
@@ -54,11 +58,18 @@ async function saturation(page, png, box) {
   }, { data: `data:image/png;base64,${png.toString('base64')}`, box });
 }
 
+/** What each moment should do to the screen. */
+const MOMENTS = [
+  { kind: 'century', grey: true, fire: true },
+  { kind: 'six-sixes', grey: true, fire: true },
+  { kind: 'fifty', grey: false, fire: false },
+];
+
 for (const [name, options] of [
   ['desktop', { viewport: { width: 1280, height: 720 } }],
   ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }],
-]) {
-  console.log(name);
+]) for (const moment of MOMENTS) {
+  console.log(`${name}: ${moment.kind}`);
   const page = await browser.newPage(options);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -115,7 +126,7 @@ for (const [name, options] of [
   // hundredth run sets it off, and the only phase it is ever set off in.
   for (let i = 0; i < 80 && seen !== 'RESULT'; i++) { await page.waitForTimeout(100); seen = await phase(); }
   check(seen === 'RESULT', 'a ball is bowled and is dead', seen);
-  await page.evaluate(() => window.__cricket.century());
+  await page.evaluate(kind => window.__cricket.milestone(kind), moment.kind);
   await page.waitForTimeout(650);
   // Asked in one go: on a slow machine three round trips can outlast it. The
   // drawing is judged at 650ms on its own clock, set by hand, rather than on
@@ -123,24 +134,30 @@ for (const [name, options] of [
   // CSS animations at their first frame for as long as it likes, and a check
   // that waited on that would be timing the machine, not the doodles.
   const up = await page.evaluate(() => {
-    const doodle = document.querySelector('.century');
+    const doodle = document.querySelector('.milestone');
     const animations = doodle?.getAnimations({ subtree: true }) ?? [];
     for (const animation of animations) { animation.pause(); animation.currentTime = 650; }
     return {
-      doodle: document.querySelectorAll('.century').length, marks: document.querySelectorAll('.century .cy-mark').length,
-      fire: document.querySelectorAll('.century .cy-fire').length, aside: !!document.querySelector('#viewport.century-on'),
-      drawn: [...document.querySelectorAll('.century .cy-paint')].filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) < .5).length,
+      doodle: document.querySelectorAll('.milestone').length, marks: document.querySelectorAll('.milestone .cy-mark').length,
+      fire: document.querySelectorAll('.milestone .cy-fire').length, aside: !!document.querySelector('#viewport.milestone-on'),
+      drawn: [...document.querySelectorAll('.milestone .cy-paint')].filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) < .5).length,
+      words: [...document.querySelectorAll('.milestone text.cy-type, .milestone text.cy-ask, .milestone text.cy-word')].map(t => t.textContent),
     };
   });
   check(up.doodle === 1, 'the doodles go up');
-  check(up.marks >= 15, 'with the marks round him', up.marks);
-  check(up.drawn >= 10, 'drawn on by now, not still waiting', up.drawn);
-  check(up.fire >= 8, 'and fire up the edges', up.fire);
+  check(up.marks >= 8, 'with the marks round him', up.marks);
+  check(up.drawn >= 6, 'drawn on by now, not still waiting', up.drawn);
+  check(moment.fire ? up.fire >= 8 : up.fire === 0, moment.fire ? 'and fire up the edges' : 'and no fire: it is the mild one', up.fire);
   check(up.aside, 'and the call for the ball steps aside');
-  const during = await page.screenshot({ path: `test-results/century-${name}.png` });
+  if (moment.kind === 'six-sixes') {
+    check(['SIX 6s', 'YUVI', 'is that you?'].every(w => up.words.includes(w)) && up.words.filter(w => w === 'YUVI').length === 2,
+      'saying SIX 6s, YUVI twice, and is that you?', JSON.stringify(up.words));
+  }
+  const during = await page.screenshot({ path: `test-results/${moment.kind}-${name}.png` });
   const grey = await saturation(page, during, grass);
-  check(grey < before * .45, `the grass goes grey (saturation ${before.toFixed(2)} to ${grey.toFixed(2)})`);
-  await page.evaluate(() => { for (const animation of document.querySelector('.century')?.getAnimations({ subtree: true }) ?? []) animation.play(); });
+  check(moment.grey ? grey < before * .45 : grey > before * .8,
+    `${moment.grey ? 'the grass goes grey' : 'the grass keeps its colour'} (saturation ${before.toFixed(2)} to ${grey.toFixed(2)})`);
+  await page.evaluate(() => { for (const animation of document.querySelector('.milestone')?.getAnimations({ subtree: true }) ?? []) animation.play(); });
   const draws = await page.evaluate(async () => {
     const frames = 20, start = window.__draws;
     await new Promise(done => { let n = 0; const tick = () => (++n >= frames ? done() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });
@@ -149,7 +166,7 @@ for (const [name, options] of [
   check(draws <= BUDGET, `in ${draws} draw calls a frame, within ${BUDGET}`);
 
   await page.waitForTimeout(1600);
-  check(await page.locator('.century').count() === 0, 'the doodles come down by themselves');
+  check(await page.locator('.milestone').count() === 0, 'the doodles come down by themselves');
   const after = await saturation(page, await page.screenshot(), grass);
   check(after > before * .8, `and the colour comes back (saturation ${after.toFixed(2)})`);
   let next = await phase();

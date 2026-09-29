@@ -10,6 +10,10 @@ import type { ShotOutcome } from './types';
  * the same count gives that answer without being told which innings it is.
  */
 export const CENTURY = 100;
+export const FIFTY = 50;
+
+/** The three moments the game stops for, biggest first. */
+export type Milestone = 'six-sixes' | 'century' | 'fifty';
 
 /** What the man at the crease has made: every run since the last wicket fell. */
 export function batterRuns(history: readonly ShotOutcome[]) {
@@ -24,8 +28,33 @@ export function batterRuns(history: readonly ShotOutcome[]) {
  * he is out to is the end of his innings, not a milestone in it.
  */
 export function reachedCentury(history: readonly ShotOutcome[]) {
+  return crossed(history, CENTURY);
+}
+/** His fifty, the same way: the ball that crosses it, and only that one. */
+export function reachedFifty(history: readonly ShotOutcome[]) {
+  return crossed(history, FIFTY);
+}
+function crossed(history: readonly ShotOutcome[], mark: number) {
   const last = history.at(-1);
   if (!last || last.isWicket) return false;
   const now = batterRuns(history);
-  return now >= CENTURY && now - last.runs < CENTURY;
+  return now >= mark && now - last.runs < mark;
+}
+
+/**
+ * Six sixes in a row — for Yuvraj Singh, who did it in an over at Durban in
+ * 2007. Six balls running, each hit for six, and the ball before them not:
+ * the seventh six in a row is a fine thing, but it is not the sixth.
+ */
+export function sixSixes(history: readonly ShotOutcome[]) {
+  if (history.length < 6) return false;
+  const run = history.slice(-6);
+  if (!run.every(ball => ball.runs === 6 && !ball.isWicket)) return false;
+  const before = history.at(-7);
+  return !before || before.runs !== 6 || before.isWicket;
+}
+
+/** Which moment, if any, the ball just played was. Only the biggest is kept. */
+export function milestoneOf(history: readonly ShotOutcome[]): Milestone | null {
+  return sixSixes(history) ? 'six-sixes' : reachedCentury(history) ? 'century' : reachedFifty(history) ? 'fifty' : null;
 }

@@ -1,25 +1,34 @@
 /**
- * The doodles that go up round a hundred.
+ * The doodles that go up for the moments an innings stops for: a fifty, a
+ * hundred, and six sixes in a row.
  *
  * After the street-racing games that draw on their own screens: the moment is
- * marked in marker pen over the picture rather than in a panel in front of it.
- * A crown on the helmet, strokes of energy up both sides of him, a burst behind,
- * stars, and a big hand-drawn 100 with the word under it — drawn on stroke by
- * stroke, held with the slight shiver of a hand-drawn frame, and wiped. Fire
- * comes up the edges of the screen round all of it, cel-shaded flames that
- * flicker between two drawn frames the way drawn animation does, and sink
- * away again with the rest.
+ * marked in marker pen over the picture rather than in a panel in front of it,
+ * drawn on stroke by stroke, held with the slight shiver of a hand-drawn
+ * frame, and wiped.
+ *
+ * The fifty is the mild one — a 50 written beside him, a small burst, a few
+ * stars, the ground left in its colours. The hundred is the big one: the
+ * ground goes grey (see GameScene), a crown on the helmet, energy up both
+ * sides, the 100 on fire, and fire up the edges of the screen, cel-shaded
+ * flames that flicker between two drawn frames the way drawn animation does.
+ * Six sixes is the wild one, for Yuvraj Singh: all of the hundred's fire,
+ * SIX 6s slammed across the top, YUVI tagged either side of him, and a
+ * question with an arrow at the batter — is that you?
  *
  * Everything is placed off where the batter actually is on screen, so it
  * follows him from a phone held upright to a monitor. Everything is SVG
  * strokes and CSS: nothing here touches the ground's renderer, and none of it
- * outlives the second and a half it is up for.
+ * outlives the moment it is up for.
  *
  * The marks are drawn with a seeded wobble, so they look inked rather than
- * plotted and look the same every time. The 100 is drawn rather than set in a
- * face: it is the only type on the screen, and a figure somebody wrote reads
- * as a moment where a figure in a font reads as a label.
+ * plotted and look the same every time. The figures are drawn rather than set
+ * in a face: a number somebody wrote reads as a moment where a number in a
+ * font reads as a label. The words are set, in the cover's display face,
+ * because they are shouted rather than written.
  */
+
+import type { Milestone } from '../game/milestone';
 
 interface Point { x: number; y: number }
 export interface BatterOnScreen { feet: Point; head: Point; bat: Point; width: number; height: number }
@@ -177,27 +186,53 @@ function hundred(x: number, y: number, h: number, random: () => number, delay: n
     + mark(nought(x + h * 1.02), stroke, delay + 190, 170);
 }
 
-/**
- * The picture, laid out round him. `s` is a metre at the batter, in pixels, so
- * every mark is sized to him rather than to the screen.
- */
-export function centuryDoodle(at: BatterOnScreen) {
-  const random = seeded(100);
-  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
-  const x = at.head.x;
-  const pen = Math.max(3, s * .045);
-  const marks: string[] = [];
+/** The figure 50, written: a five in one stroke, flag first, and a nought. */
+function fifty(x: number, y: number, h: number, random: () => number, delay: number, stroke: number) {
+  const f5 = (px: number, py: number) => `${f(x + px * h)} ${f(y + py * h)}`;
+  const five = `M${f5(.52, 0)}L${f5(.12, .02)}L${f5(.08, .44)}Q${f5(.62, .26)} ${f5(.56, .70)}Q${f5(.48, 1.04)} ${f5(.04, .90)}`;
+  return mark(five, stroke, delay, 170)
+    + mark(loop(x + h * .92, y + h * .5, h * .27, h * .5, random, 1.08), stroke, delay + 150, 170);
+}
 
-  // The burst behind him: strokes out from the chest in every direction but
-  // down into the turf, drawn one after another.
-  const chest = { x, y: at.head.y + s * .5 };
-  for (let i = 0; i < 9; i++) {
-    const a = -Math.PI * (.05 + .9 * i / 8) + (random() - .5) * .12;
+/** The burst behind him: strokes out from the chest, up and to the sides. */
+function burst(x: number, y: number, s: number, random: () => number, pen: number, count = 9, spread = .9) {
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = -Math.PI * ((1 - spread) / 2 + spread * i / (count - 1)) + (random() - .5) * .12;
     const inner = s * (.95 + random() * .2), outer = s * (1.45 + random() * .45);
-    const from = { x: chest.x + Math.cos(a) * inner, y: chest.y + Math.sin(a) * inner * 1.2 };
-    const to = { x: chest.x + Math.cos(a) * outer, y: chest.y + Math.sin(a) * outer * 1.2 };
-    marks.push(mark(jag(from, to, random, 3, s * .06), pen * .8, 60 + i * 28, 120, false));
+    const from = { x: x + Math.cos(a) * inner, y: y + Math.sin(a) * inner * 1.2 };
+    const to = { x: x + Math.cos(a) * outer, y: y + Math.sin(a) * outer * 1.2 };
+    out.push(mark(jag(from, to, random, 3, s * .06), pen * .8, 60 + i * 28, 120, false));
   }
+  return out;
+}
+
+/** Stars popping round him at `spots`: offsets and sizes in metres at the batter. */
+function stars(x: number, y: number, s: number, random: () => number, pen: number, spots: [number, number, number][], from = 260) {
+  return spots.map(([dx, dy, r], i) => {
+    const c = { x: x + dx * s, y: y + dy * s };
+    return `<g class="cy-pop" style="--delay:${from + i * 70}ms;transform-origin:${f(c.x)}px ${f(c.y)}px">${
+      mark(star(c, r * s, random), pen * .7, 0, 1, false)}</g>`;
+  });
+}
+
+/**
+ * Words that land rather than get written: `lines` of display type, slammed
+ * in from big at `delay`, each an ink outline over a coloured shadow.
+ */
+function slam(x: number, y: number, size: number, tilt: number, delay: number, words: string, kind: string, shadow = size * .07) {
+  const text = (dx: number, dy: number, cls: string) =>
+    `<text class="${cls}" x="${f(x + dx)}" y="${f(y + dy)}" font-size="${f(size)}">${words}</text>`;
+  return `<g transform="rotate(${tilt} ${f(x)} ${f(y)})"><g class="cy-slam ${kind}" style="--delay:${delay}ms">`
+    + text(shadow, shadow, 'cy-type-shadow') + text(0, 0, 'cy-type') + '</g></g>';
+}
+
+type Layout = { marks: string[]; dots: number; fire: boolean; said: string };
+
+/** A hundred: crown, energy, burst, stars and the 100 on fire. */
+function century(at: BatterOnScreen, s: number, pen: number, random: () => number): Layout {
+  const x = at.head.x;
+  const marks = burst(x, at.head.y + s * .5, s, random, pen);
   // Energy up both sides of him, from the knees to above the raised bat.
   for (const side of [-1, 1]) {
     const from = { x: x + side * s * .42, y: at.feet.y - s * .35 };
@@ -231,23 +266,113 @@ export function centuryDoodle(at: BatterOnScreen) {
     + hundred(tx, ty, h, random, 150, Math.max(6, h * .16))
     + `<text class="cy-word" x="${f(tx + wide / 2)}" y="${f(ty + h + text * 1.25)}" font-size="${f(text)}">CENTURY</text>`
     + '</g>');
+  marks.push(...stars(x, at.head.y, s, random, pen, [[-1.05, -.25, .16], [1.1, .35, .12], [-.8, .75, .1], [.35, -1.05, .11], [-1.3, .35, .08]]));
+  return { marks, dots: h, fire: true, said: 'A hundred.' };
+}
 
-  // Stars and sparks round the lot.
-  const spots: [number, number, number][] = [[-1.05, -.25, .16], [1.1, .35, .12], [-.8, .75, .1], [.35, -1.05, .11], [-1.3, .35, .08]];
-  spots.forEach(([dx, dy, r], i) => {
-    const c = { x: x + dx * s, y: at.head.y + dy * s };
-    marks.push(`<g class="cy-pop" style="--delay:${260 + i * 70}ms;transform-origin:${f(c.x)}px ${f(c.y)}px">${
-      mark(star(c, r * s, random), pen * .7, 0, 1, false)}</g>`);
-  });
+/**
+ * A fifty: the mild one. No fire, no crown, the ground left in its colours —
+ * a 50 written beside him, the word under it, a small burst and three stars,
+ * and gone again before he is back in his guard.
+ */
+function halfCentury(at: BatterOnScreen, s: number, pen: number, random: () => number): Layout {
+  const x = at.head.x;
+  const marks = burst(x, at.head.y + s * .45, s * .8, random, pen * .8, 5, .6);
+  const h = Math.min(s * .62, at.width * .14, 84);
+  const wide = h * 1.25;
+  const roomRight = at.width - (x + s * .8) - 16;
+  const aside = roomRight >= wide + h * .35;
+  const tx = aside ? x + s * .8 : Math.max(16, Math.min(at.width - wide - 16, x - wide / 2));
+  const ty = aside ? at.head.y - h * .2 : Math.max(96, at.bat.y - h * 1.7);
+  const text = h * .32;
+  marks.push(`<g transform="rotate(-6 ${f(tx + wide / 2)} ${f(ty + h / 2)})">`
+    + `<circle class="cy-dots" cx="${f(tx + wide * .55)}" cy="${f(ty + h * .55)}" r="${f(h * .85)}"/>`
+    + fifty(tx, ty, h, random, 90, Math.max(5, h * .16))
+    + `<text class="cy-word" x="${f(tx + wide / 2)}" y="${f(ty + h + text * 1.25)}" font-size="${f(text)}" style="animation-delay:.3s">FIFTY</text>`
+    + '</g>');
+  marks.push(...stars(x, at.head.y, s, random, pen, [[-.95, -.3, .12], [.75, -.75, .1], [-1.15, .45, .08]], 200));
+  return { marks, dots: h, fire: false, said: 'Fifty.' };
+}
 
+/**
+ * Six sixes in a row, for Yuvraj Singh. The wild one: SIX 6s slammed across
+ * the top with the six of them ticked off under it, YUVI tagged either side of
+ * him, and a question with an arrow at the man who just did it — is that you?
+ */
+function yuvi(at: BatterOnScreen, s: number, pen: number, random: () => number): Layout {
+  const x = at.head.x, W = at.width;
+  // A wide burst, but not a dense one: it sits behind four lots of words.
+  const marks = burst(x, at.head.y + s * .5, s * 1.2, random, pen, 8, .96);
+
+  // SIX 6s, across the top, clear of the score bar.
+  const size = Math.min(W * .15, at.height * .13, 116);
+  const top = 92 + size * .9;
+  marks.push(`<circle class="cy-dots" cx="${f(W / 2)}" cy="${f(top - size * .35)}" r="${f(size * 1.25)}"/>`);
+  marks.push(slam(W / 2, top, size, -5, 60, 'SIX 6s', 'is-head'));
+  // The six of them, ticked off one after another under it.
+  const r = size * .16, gap = r * 2.7;
+  for (let i = 0; i < 6; i++) {
+    const c = { x: W / 2 + (i - 2.5) * gap, y: top + size * .42 };
+    marks.push(`<g class="cy-pop" style="--delay:${200 + i * 85}ms;transform-origin:${f(c.x)}px ${f(c.y)}px">`
+      + `<circle class="cy-ball" cx="${f(c.x)}" cy="${f(c.y)}" r="${f(r)}" stroke-width="${f(Math.max(1.5, r * .18))}"/>`
+      + `<text class="cy-ball-six" x="${f(c.x)}" y="${f(c.y + r * .42)}" font-size="${f(r * 1.25)}">6</text></g>`);
+  }
+
+  // YUVI, twice: either side of him where there is room, and where there is
+  // not, one up in the sky and one down on the pitch below him.
+  const tag = Math.min(size * 1.05, s * .7, 110), tagWide = tag * 2.2;
+  const roomLeft = x - s * .75 - 16, roomRight = W - x - s * .75 - 16;
+  const left = roomLeft >= tagWide
+    ? { x: x - s * .75 - tagWide / 2, y: at.head.y + s * .55 }
+    : { x: Math.max(16 + tagWide / 2, W * .28), y: Math.min(at.height - tag * 1.6, at.feet.y + s * .95) };
+  const right = roomRight >= tagWide
+    ? { x: x + s * .75 + tagWide / 2, y: at.head.y + s * .05 }
+    : { x: Math.min(W - 16 - tagWide / 2, W * .72), y: top + size * 1.35 + tag };
+  marks.push(slam(left.x, left.y, tag, -11, 300, 'YUVI', 'is-blue'));
+  marks.push(slam(right.x, right.y, tag, 9, 430, 'YUVI', 'is-orange'));
+
+  // is that you? — up by his head on the bat's side, with an arrow at him.
+  const ask = Math.max(17, s * .24);
+  // Kept on the screen: on a phone there is not the room beside the bat for it,
+  // so it moves in and goes up over the top of the bat instead.
+  const askWide = ask * 5.7, cramped = x - s * .55 < 16 + askWide;
+  const askAt = { x: Math.max(x - s * .55, 16 + askWide), y: at.bat.y - s * (cramped ? .32 : .05) };
+  marks.push(`<g class="cy-slam is-ask" style="--delay:560ms"><text class="cy-ask" x="${f(askAt.x)}" y="${f(askAt.y)}" font-size="${f(ask)}" `
+    + `transform="skewX(-10) translate(${f(askAt.y * .176)} 0)">is that you?</text></g>`);
+  const from = { x: askAt.x - ask * .5, y: askAt.y + ask * .45 };
+  const to = { x: x - s * .2, y: at.head.y - s * .02 };
+  const bend = { x: from.x - s * .05, y: (from.y + to.y) / 2 + s * .15 };
+  marks.push(mark(`M${f(from.x)} ${f(from.y)}Q${f(bend.x)} ${f(bend.y)} ${f(to.x)} ${f(to.y)}`
+    + `M${f(to.x - s * .14)} ${f(to.y - s * .02)}L${f(to.x)} ${f(to.y)}L${f(to.x - s * .06)} ${f(to.y - s * .14)}`, pen * .9, 640, 180, false));
+
+  marks.push(...stars(x, at.head.y, s, random, pen,
+    [[-1.25, -.4, .14], [1.2, -.7, .13], [-.95, .95, .1], [1.05, .85, .1], [.1, -1.25, .09], [-1.5, .3, .08]], 300));
+  return { marks, dots: size, fire: true, said: 'Six sixes. Yuvi, is that you?' };
+}
+
+const LAYOUTS: Record<Milestone, (at: BatterOnScreen, s: number, pen: number, random: () => number) => Layout> = {
+  century, fifty: halfCentury, 'six-sixes': yuvi,
+};
+
+/**
+ * The picture for one moment, laid out round him. `s` is a metre at the
+ * batter, in pixels, so every mark is sized to him rather than to the screen.
+ * `lasts` is how long it is up; it wipes over the last quarter second of it.
+ */
+export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: number) {
+  const random = seeded(kind === 'fifty' ? 50 : kind === 'century' ? 100 : 66);
+  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const pen = Math.max(3, s * .045);
+  const { marks, dots, fire: burning, said } = LAYOUTS[kind](at, s, pen, random);
   const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
-    + `<defs><pattern id="cy-dot" width="${f(h * .09)}" height="${f(h * .09)}" patternUnits="userSpaceOnUse">`
-    + `<circle cx="${f(h * .045)}" cy="${f(h * .045)}" r="${f(h * .018)}" fill="var(--cy-paint)"/></pattern></defs>`
-    + edges(at.width, at.height)
+    + `<defs><pattern id="cy-dot" width="${f(dots * .09)}" height="${f(dots * .09)}" patternUnits="userSpaceOnUse">`
+    + `<circle cx="${f(dots * .045)}" cy="${f(dots * .045)}" r="${f(dots * .018)}" fill="var(--cy-paint)"/></pattern></defs>`
+    + (burning ? edges(at.width, at.height) : '')
     + `<g class="cy-boil">${marks.join('')}</g></svg>`;
   const element = document.createElement('div');
-  element.className = 'century';
+  element.className = `milestone is-${kind}`;
+  element.style.setProperty('--out', `${lasts - 300}ms`);
   element.setAttribute('role', 'status');
-  element.innerHTML = `<span class="century-said">A hundred.</span>${svg}`;
+  element.innerHTML = `<span class="milestone-said">${said}</span>${svg}`;
   return element;
 }

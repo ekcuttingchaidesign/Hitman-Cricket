@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, CELEBRATION_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
+import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -1966,6 +1966,74 @@ describe('the hundred', () => {
     expect(CELEBRATION_MS).toBeLessThanOrEqual(1600);
     const batter = celebrating(), fresh = new Batter(); fresh.update(0);
     batter.update(CELEBRATION_MS);
+    const done = batter.inspect(), guard = fresh.inspect();
+    for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const) {
+      done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));
+    }
+    expect(done.hands).toEqual(guard.hands);
+  });
+});
+
+/**
+ * The fifty: the hundred's gesture, half of it. The bat up beside his head in
+ * his right hand, the left down by his side, and back in his guard in a
+ * little over a second. The same rules as the hundred.
+ */
+describe('the fifty', () => {
+  const nodding = () => { const batter = new Batter(); batter.update(0); batter.celebrate(0, true); return batter; };
+  const apart = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]));
+
+  it('keeps the bat in his right hand, and both arms whole', () => {
+    const batter = nodding();
+    for (let time = 0; time <= FIFTY_MS; time += 8) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(pose.handGrip[1], `${time}ms`).toBeCloseTo(-.035, 9);
+      for (const [upper, lower] of pose.armLengths) {
+        expect(upper, `${time}ms`).toBeCloseTo(.32, 3);
+        expect(lower, `${time}ms`).toBeLessThan(.345);
+      }
+    }
+  });
+
+  it('puts the bat up beside his head, the left hand down by his side', () => {
+    const batter = nodding();
+    for (const time of [360, 600]) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(pose.grip[1], `bat hand up at ${time}ms`).toBeGreaterThan(1.55);
+      expect(pose.bladeTip[1] - pose.grip[1], `blade up at ${time}ms`).toBeGreaterThan(.6);
+      expect(apart(pose), `hands apart at ${time}ms`).toBeGreaterThan(.6);
+      expect(pose.hands[0][1], `left hand down at ${time}ms`).toBeLessThan(pose.hip[1] + .15);
+    }
+  });
+
+  it('does not flip an elbow or wrist between frames', () => {
+    const batter = nodding();
+    let previous = batter.inspect();
+    for (let time = 0; time <= FIFTY_MS + 32; time += 2) {
+      batter.update(time); const pose = batter.inspect();
+      for (let i = 0; i < 2; i++) {
+        const where = `arm=${i} @${time}`;
+        expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+        expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+        expect(pose.cuffAim[i].flex, where).toBeLessThan(Math.PI / 2);
+        expect(pose.elbowCoverage[i], where).toBeGreaterThan(0);
+      }
+      previous = pose;
+    }
+  });
+
+  it('never puts the bat through him, or an elbow into him', () => {
+    const { worst, elbow } = throughHim(nodding(), FIFTY_MS);
+    expect(worst.value, `reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
+    expect(elbow.clearance, JSON.stringify(elbow)).toBeGreaterThan(.15);
+  });
+
+  it('is shorter than the hundred, and ends in his guard', () => {
+    expect(FIFTY_MS).toBeLessThan(CELEBRATION_MS);
+    const batter = nodding(), fresh = new Batter(); fresh.update(0);
+    batter.update(FIFTY_MS);
     const done = batter.inspect(), guard = fresh.inspect();
     for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const) {
       done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));

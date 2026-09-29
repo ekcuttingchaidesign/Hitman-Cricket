@@ -78,6 +78,11 @@ innings — which is how most players get to that card in the first place.
 are canvases and a shader no unit test runs, and it holds the draw-call budget
 a frame. Lower its `BUDGET` when a change brings the count down.
 
+`scripts/milestone-check.mjs` is the fifty, the hundred and six sixes: the
+grey is measured off the pixels of the grass, and the doodles are judged on
+their own clock, because a headless browser rendering the ground in software
+can hold CSS animations at their first frame.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.
 

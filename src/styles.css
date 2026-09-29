@@ -2385,14 +2385,15 @@ body.survive-mode #scoreboard{display:none}
 .survive-card.is-close .sc-cell b{color:#ffce7a}
 .score-bug:has(.survive-card.is-close){box-shadow:0 10px 26px #06121b66,0 1px 0 #ffffff1a inset,0 0 0 1px #ffce7a4d}
 
-/* ── The hundred ──────────────────────────────────────────────────────────
+/* ── A fifty, a hundred, six sixes ────────────────────────────────────────
    Marker pen over the picture, after the street-racing games that draw on
-   their own screens: the ground has gone grey round him (see GameScene), so
-   the orange is the doodles' alone. Every mark is drawn on by its stroke's
-   dash, and the whole drawing shivers a pixel a dozen times a second, which is
-   what makes it read as drawn frame by frame rather than as vectors sliding.
-   Up for a second and a quarter, wiped in a quarter more. */
-.century{
+   their own screens: for the two big ones the ground has gone grey round him
+   (see GameScene), so the orange is the doodles' alone. Every mark is drawn on
+   by its stroke's dash, and the whole drawing shivers a pixel a dozen times a
+   second, which is what makes it read as drawn frame by frame rather than as
+   vectors sliding. Wiped over the last quarter second of it; `--out` is when
+   the wipe starts, set by how long the moment is. */
+.milestone{
   position:absolute;
   inset:0;
   z-index:3;
@@ -2400,10 +2401,10 @@ body.survive-mode #scoreboard{display:none}
   --cy-paint:#ff6a2b;
   --cy-ink:#120b08;
   --cy-shine:#fff3dc;
-  animation:century-out .3s ease-in 1.25s forwards
+  animation:milestone-out .3s ease-in var(--out,1250ms) forwards
 }
-@keyframes century-out{to{opacity:0;transform:scale(1.03)}}
-.century-said{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@keyframes milestone-out{to{opacity:0;transform:scale(1.03)}}
+.milestone-said{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .cy-svg{position:absolute;inset:0;overflow:visible}
 .cy-mark path{
   fill:none;
@@ -2455,7 +2456,7 @@ body.survive-mode #scoreboard{display:none}
 .cy-fire{
   transform:scale(.2,0);
   animation:cy-fire-up .28s cubic-bezier(.2,1.5,.4,1) var(--delay) forwards,
-    cy-fire-down .26s ease-in 1.2s forwards
+    cy-fire-down .26s ease-in calc(var(--out,1250ms) - 50ms) forwards
 }
 @keyframes cy-fire-up{to{transform:none}}
 @keyframes cy-fire-down{from{transform:none}to{transform:scale(.6,0)}}
@@ -2475,11 +2476,48 @@ body.survive-mode #scoreboard{display:none}
   20%{opacity:1}
   100%{opacity:0;transform:translateY(var(--rise))}
 }
+/* Words, slammed in from big rather than written: display type in ink over a
+   shadow of colour, the way a sticker sits on a wall. */
+.cy-slam{
+  opacity:0;
+  transform-box:fill-box;
+  transform-origin:center;
+  animation:cy-slam .26s cubic-bezier(.2,1.6,.4,1) var(--delay) forwards
+}
+@keyframes cy-slam{from{opacity:0;transform:scale(1.9) rotate(-8deg)}to{opacity:1;transform:none}}
+.cy-type,.cy-type-shadow{
+  font-family:var(--cta);
+  text-anchor:middle;
+  stroke:var(--cy-ink);
+  stroke-width:6px;
+  stroke-linejoin:round;
+  paint-order:stroke;
+  letter-spacing:.02em
+}
+.cy-type{fill:var(--cy-shine)}
+.cy-type-shadow{fill:var(--cy-paint)}
+/* YUVI in the colours he played in and the game's own: one blue, one orange. */
+.is-blue .cy-type{fill:#3fa0ff}
+.is-blue .cy-type-shadow{fill:var(--cy-shine)}
+.is-orange .cy-type{fill:var(--cy-paint)}
+.is-orange .cy-type-shadow{fill:#3fa0ff}
+.cy-ball{fill:var(--cy-shine);stroke:var(--cy-ink)}
+.cy-ball-six{font-family:var(--cta);text-anchor:middle;fill:var(--cy-paint)}
+.cy-ask{
+  font-family:var(--card);
+  font-weight:900;
+  fill:var(--cy-shine);
+  stroke:var(--cy-ink);
+  stroke-width:4px;
+  stroke-linejoin:round;
+  paint-order:stroke;
+  text-anchor:end
+}
 /* The call for the ball that got him there has had its moment. */
-.stage.century-on .result{visibility:hidden}
+.stage.milestone-on .result{visibility:hidden}
 @media (prefers-reduced-motion:reduce){
   .cy-boil{animation:none}
-  .cy-mark path,.cy-pop,.cy-dots,.cy-word{animation-duration:1ms;animation-delay:0s}
+  .cy-mark path,.cy-pop,.cy-dots,.cy-word,.cy-slam{animation-duration:1ms;animation-delay:0s}
   .cy-frame+.cy-frame,.cy-ember{display:none}
   .cy-frame{animation:none}
   .cy-fire{animation:none;transform:none}

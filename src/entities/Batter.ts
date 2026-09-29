@@ -1149,6 +1149,23 @@ const LOWERED: Pose = { ...GUARD, hip: [-.04, .94, -.01], chest: [.02, 1.28, .03
   armDrive: 0, shoulderLift: 0, release: 0 };
 const SETTLING: Pose = { ...COVER_CHARGE_RECOVER, hip: [-.05, .94, -.02], chest: [.02, 1.28, .03],
   frontFoot: [-.10, .08, .27], backFoot: [-.13, .08, -.25], yaw: 1.2, backFootYaw: 1.35, release: 0 };
+/**
+ * A fifty: the same gesture, half of it. The bat goes up beside his head in
+ * his right hand to say thank you, the left hand stays down by his side, he
+ * turns less and holds it less, and he is back in his guard in a little over
+ * a second. The way up and the way down are the hundred's, which already go
+ * round him rather than through him.
+ */
+export const FIFTY_MS = 1150;
+const NODDING: Pose = (() => {
+  const body = standing({ ...GUARD, hip: [-.03, .96, -.02], chest: [.00, 1.30, .01],
+    yaw: 2.0, face: 2.0, headDown: -.08, heel: 0, leadElbow: .10, armDrive: 0, shoulderLift: .06 });
+  const raised = aloft(body, [.26, .08], [0, 0]);
+  const down = shoulderOf(body, 0).addScaledVector(UP, -.50).addScaledVector(outwards(body, 0), .10);
+  return { ...raised, fist: point(down) };
+})();
+const NODDED: Pose = { ...NODDING, face: NODDING.face + .25, headDown: .06 };
+const FIFTY = { rise: 110, lift: 220, up: 360, hold: 640, back: 770, down: 890, settle: 1010 } as const;
 const CELEBRATION = { rise: 110, lift: 230, up: 390, pump: 540, again: 690, pump2: 840, look: 990, back: 1130, down: 1260, settle: 1400 } as const;
 const COVER_CHARGE_FINISH = COVER_CHARGE_KEYS[COVER_CHARGE_KEYS.length - 1].pose;
 /**
@@ -1371,6 +1388,8 @@ export class Batter {
   private felledFrom: Pose = GUARD;
   private celebratedAt = -Infinity;
   private celebratedFrom: Pose = GUARD;
+  /** A fifty rather than a hundred: see `FIFTY_MS`. */
+  private mild = false;
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -1529,9 +1548,10 @@ export class Batter {
   /** Whether he is on his way down or already there. */
   get felled() { return Number.isFinite(this.felledAt); }
   /** His hundred: the bat up to the sky and back into his guard. See `RAISED`. */
-  celebrate(now: number) {
+  celebrate(now: number, mild = false) {
     this.celebratedFrom = this.pose;
     this.celebratedAt = now;
+    this.mild = mild;
     // The stroke he got there with is over, and its flags bend the arms its
     // own way — a pull's, a cut's, a sweep's. The charge stays: it is what
     // walks him back to his crease if he went down the pitch for it.
@@ -1643,7 +1663,7 @@ export class Batter {
     this.poseAge = age;
     this.travel(age);
     const celebrating = now - this.celebratedAt;
-    if (celebrating >= 0 && celebrating < CELEBRATION_MS) {
+    if (celebrating >= 0 && celebrating < (this.mild ? FIFTY_MS : CELEBRATION_MS)) {
       // Nothing about the stroke he hit it with is left to shape the legs:
       // an unfinished stroke's age would have them bent its way.
       this.poseAge = Infinity;
@@ -1906,6 +1926,17 @@ export class Batter {
   }
 
   private applyCelebration(age: number) {
+    if (this.mild) {
+      const { rise, lift, up, hold, back, down, settle } = FIFTY;
+      if (age < hold) {
+        return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, { time: rise, pose: RISING },
+          { time: lift, pose: LIFTING }, { time: up, pose: NODDING }, { time: hold, pose: NODDED }], age));
+      }
+      return this.apply(age < back ? mix(NODDED, RETURNING, (age - hold) / (back - hold))
+        : age < down ? mix(RETURNING, LOWERED, (age - back) / (down - back))
+        : age < settle ? mix(LOWERED, SETTLING, (age - down) / (settle - down))
+        : mix(SETTLING, GUARD, (age - settle) / (FIFTY_MS - settle)));
+    }
     const { rise, lift, up, pump, again, pump2, look, back, down, settle } = CELEBRATION;
     if (age < look) {
       return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, { time: rise, pose: RISING },
