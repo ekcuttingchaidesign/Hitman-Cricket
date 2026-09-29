@@ -74,6 +74,10 @@ Reach the screen the way a player does. The checks that open the board from the
 cover missed two bugs on the end card, because nothing had ever finished an
 innings — which is how most players get to that card in the first place.
 
+`scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
+are canvases and a shader no unit test runs, and it holds the draw-call budget
+a frame. Lower its `BUDGET` when a change brings the count down.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.
 

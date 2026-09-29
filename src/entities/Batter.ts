@@ -1269,12 +1269,12 @@ export class Batter {
     // The helmet is its own material rather than the shirt's, because it is navy
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
-    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
+    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .38 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
-    pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
+    pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
-    bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .83 }),
+    bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .62 }),
     accent: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
     // The number on his back is its own colour: white on an away kit, where the
     // accent that does the straps would vanish into the shirt.
