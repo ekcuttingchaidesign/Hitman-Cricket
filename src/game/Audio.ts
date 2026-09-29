@@ -1,5 +1,5 @@
 import type { ShotOutcome } from './types';
-type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge';
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'cheer';
 /**
  * The music, and the screen each piece belongs to.
  *
@@ -72,6 +72,8 @@ export class GameAudio {
   private context: AudioContext | null = null;
   private buffers = new Map<Sound, AudioBuffer>();
   private sources = new Set<AudioBufferSourceNode>();
+  /** The crowd, on a line of its own: see `cheer`. */
+  private roar: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
   private loading: Promise<void> | null = null;
   private disposed = false;
   setting = settingBefore();
@@ -102,6 +104,7 @@ export class GameAudio {
     ['boundary', new URL('../assets/boundary-hit.mp3', import.meta.url)],
     ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
     ['edge', new URL('../assets/bat-edge.mp3', import.meta.url)],
+    ['cheer', new URL('../assets/crowd-cheer.mp3', import.meta.url)],
   ] as const;
   // The setting a returning player left behind applies before anything plays.
   constructor() { this.share(); }
@@ -149,7 +152,7 @@ export class GameAudio {
     // asked to hear the opening bar again.
     if (this.musicOff) this.hush(false); else this.resume();
     if (this.muted) {
-      this.stop();
+      this.stop(); this.hushCrowd();
       // And lets go of the speaker, which `unlock` takes back when it is on.
       try { void this.context?.suspend().catch(() => {}); } catch { /* Already closed. */ }
     }
@@ -352,6 +355,44 @@ export class GameAudio {
       session: session ? `${session.type}/${session.state ?? '?'}` : 'none',
     };
   }
+  /**
+   * The crowd, for a fifty, a hundred or six sixes: at its loudest from the
+   * first moment and dying away to nothing over `seconds` — a roar that goes
+   * up with the bat and settles as he does, not one that builds.
+   *
+   * The clip is cut to start just short of the crowd's peak, so the fall is
+   * all that is left to do, and the fall is done here: exponential, which is
+   * how a crowd sounds going quiet, where a straight line down sounds like a
+   * fader. Its own line rather than the impacts': every impact stops the one
+   * before it, and the next ball's bat should not cut the crowd off, nor the
+   * crowd the bat. There is no synthesized stand-in: a crowd without its clip
+   * stays quiet.
+   */
+  cheer(seconds: number) {
+    const buffer = this.buffers.get('cheer');
+    if (!this.context || !buffer || this.muted || this.disposed) return;
+    const ctx = this.context;
+    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
+    this.hushCrowd();
+    const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime;
+    const lasts = Math.min(seconds, buffer.duration);
+    source.buffer = buffer;
+    // A few hundredths up from silence first, or the cut into the middle of a
+    // roar clicks.
+    gain.gain.setValueAtTime(.0001, now);
+    gain.gain.exponentialRampToValueAtTime(.8, now + .04);
+    gain.gain.exponentialRampToValueAtTime(.001, now + lasts);
+    source.connect(gain); gain.connect(ctx.destination);
+    source.start(now); source.stop(now + lasts + .02);
+    const roar = { source, gain };
+    source.onended = () => { source.disconnect(); gain.disconnect(); if (this.roar === roar) this.roar = null; };
+    this.roar = roar;
+  }
+  private hushCrowd() {
+    if (!this.roar) return;
+    try { this.roar.source.stop(); } catch { /* Already ended. */ }
+    this.roar = null;
+  }
   play(kind: Sound) {
     if (!this.context || this.muted || this.disposed) return;
     const ctx = this.context, buffer = this.buffers.get(kind);
@@ -373,7 +414,7 @@ export class GameAudio {
     }
     // The synthesized fallback is an impact, not a voice: there is nothing
     // sensible to make of a sledge without its clip, so it stays silent.
-    if (kind === 'sledge') return;
+    if (kind === 'sledge' || kind === 'cheer') return;
     const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = kind === 'hit' || kind === 'edge' ? 'triangle' : 'sine';
     osc.frequency.setValueAtTime(kind === 'edge' ? 1550 : kind === 'hit' ? 720 : kind === 'wicket' ? 170 : kind === 'boundary' ? 540 : 240, now);
@@ -383,7 +424,7 @@ export class GameAudio {
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
   dispose() {
-    this.disposed = true; this.stop(); this.hush(true);
+    this.disposed = true; this.stop(); this.hushCrowd(); this.hush(true);
     // Whatever is still arriving is arriving for a page that is going away.
     this.elements.forEach(element => { element.pause(); element.removeAttribute('src'); element.load(); });
     this.elements.clear();

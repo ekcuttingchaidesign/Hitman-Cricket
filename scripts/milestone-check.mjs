@@ -60,9 +60,9 @@ async function saturation(page, png, box) {
 
 /** What each moment should do to the screen. */
 const MOMENTS = [
-  { kind: 'century', grey: true, fire: true },
-  { kind: 'six-sixes', grey: true, fire: true },
-  { kind: 'fifty', grey: false, fire: false },
+  { kind: 'century', grey: true, fire: true, cheer: 2.8 },
+  { kind: 'six-sixes', grey: true, fire: true, cheer: 2.8 },
+  { kind: 'fifty', grey: false, fire: false, cheer: 1.3 },
 ];
 
 for (const [name, options] of [
@@ -80,6 +80,15 @@ for (const [name, options] of [
   // would never draw on and the pictures would show a bare field. The
   // private-window notice that a first visit gets is answered below instead.
   await page.addInitScript(() => {
+    // How long each crowd clip was scheduled for, from start to stop: the cheer
+    // is the one clip three and a half seconds long.
+    window.__cheers = [];
+    const start = AudioBufferSourceNode.prototype.start, stop = AudioBufferSourceNode.prototype.stop;
+    AudioBufferSourceNode.prototype.start = function (when = 0, ...rest) { this.__at = when; return start.call(this, when, ...rest); };
+    AudioBufferSourceNode.prototype.stop = function (when = 0) {
+      if (this.buffer && this.buffer.duration > 3.3 && this.buffer.duration < 3.7) window.__cheers.push(Math.round((when - this.__at) * 10) / 10);
+      return stop.call(this, when);
+    };
     window.__draws = 0;
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       for (const fn of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
@@ -152,6 +161,8 @@ for (const [name, options] of [
   check(up.drawn >= 6, 'drawn on by now, not still waiting', up.drawn);
   check(moment.fire ? up.fire >= 8 : up.fire === 0, moment.fire ? 'and fire up the edges' : 'and no fire: it is the mild one', up.fire);
   check(up.aside, 'and the call for the ball steps aside');
+  const cheers = await page.evaluate(() => window.__cheers);
+  check(cheers.length === 1 && cheers[0] === moment.cheer, `and the crowd cheers, dying away over ${moment.cheer}s`, JSON.stringify(cheers));
   if (moment.kind === 'six-sixes') {
     check(['SIX 6s', 'YUVI', 'is that you?'].every(w => up.words.includes(w)) && up.words.filter(w => w === 'YUVI').length === 1,
       'saying SIX 6s, YUVI once, and is that you?', JSON.stringify(up.words));
