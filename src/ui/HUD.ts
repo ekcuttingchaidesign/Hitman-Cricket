@@ -33,6 +33,8 @@ import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { openUnveil } from './Unveil';
+import { applyNearing, endNearing, nearingMarkup } from './Nearing';
+import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, type BatterOnScreen } from './Milestone';
 import type { Milestone } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
@@ -301,6 +303,7 @@ export class HUD {
           </span>
         </div>
         </div>
+        <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
@@ -976,6 +979,42 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       this.viewport.classList.toggle('modal-open', stacked);
       then();
     });
+  }
+
+  /**
+   * The wait for a moment, under the score bar: see Nearing.ts. `next` is the
+   * wait after the ball just played, `end` how the one before it came off.
+   * A card coming off is given its moment — filled and burst, or crossed out —
+   * before whatever comes next goes up in its place.
+   */
+  private nearingUp: Nearing | null = null;
+  private nearingNext = 0;
+  nearing(next: Nearing | null, end: NearingEnd | null) {
+    const card = this.$('nearing');
+    window.clearTimeout(this.nearingNext);
+    const up = (n: Nearing | null) => {
+      this.nearingUp = n;
+      if (!n) { card.className = 'nearing hidden'; card.innerHTML = ''; return; }
+      card.className = `nearing is-${n.kind}`;
+      card.removeAttribute('style');
+      card.innerHTML = nearingMarkup(n);
+      applyNearing(card, n, null);
+      void card.getBoundingClientRect();
+      card.classList.add('is-in');
+    };
+    const was = this.nearingUp;
+    if (end && was) {
+      this.nearingUp = null;
+      endNearing(card, was, end);
+      this.nearingNext = window.setTimeout(() => up(next), end.how === 'reached' ? 900 : 1500);
+      return;
+    }
+    if (next && was?.kind === next.kind && !card.classList.contains('hidden')) {
+      applyNearing(card, next, was);
+      this.nearingUp = next;
+      return;
+    }
+    up(next);
   }
 
   get unveilOpen() { return !this.$('unveil-overlay').classList.contains('hidden'); }

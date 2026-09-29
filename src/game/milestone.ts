@@ -58,3 +58,63 @@ export function sixSixes(history: readonly ShotOutcome[]) {
 export function milestoneOf(history: readonly ShotOutcome[]): Milestone | null {
   return sixSixes(history) ? 'six-sixes' : reachedCentury(history) ? 'century' : reachedFifty(history) ? 'fifty' : null;
 }
+
+/**
+ * How close he is to one of the moments, while he is close: the last ten runs
+ * to a fifty or a hundred, or three sixes running and counting.
+ *
+ * The celebrations are the payoff; this is the wait for them. A hundred that
+ * arrives out of nowhere is a surprise, and one watched coming from 92 is an
+ * event — so for the ten runs before each mark, and from the third six in a
+ * row, there is something on the screen saying so.
+ *
+ * One at a time, the most fragile first: a run of sixes ends on the very next
+ * ball that is not one, where the nineties can last an over.
+ */
+export type Nearing =
+  | { kind: 'century' | 'fifty'; runs: number; need: number }
+  | { kind: 'six-sixes'; sixes: number };
+
+/** How many runs short of a mark the wait begins. */
+export const NEAR = 10;
+/** How many sixes running before the slots go up. */
+export const SIXES_SHOWN = 3;
+
+/** Sixes on the trot, counted back from the last ball. */
+export function sixStreak(history: readonly ShotOutcome[]) {
+  let streak = 0;
+  for (let i = history.length - 1; i >= 0 && history[i].runs === 6 && !history[i].isWicket; i--) streak++;
+  return streak;
+}
+
+export function nearingOf(history: readonly ShotOutcome[]): Nearing | null {
+  const sixes = sixStreak(history);
+  if (sixes >= SIXES_SHOWN && sixes < 6) return { kind: 'six-sixes', sixes };
+  const runs = batterRuns(history);
+  if (runs >= CENTURY - NEAR && runs < CENTURY) return { kind: 'century', runs, need: CENTURY - runs };
+  if (runs >= FIFTY - NEAR && runs < FIFTY) return { kind: 'fifty', runs, need: FIFTY - runs };
+  return null;
+}
+
+/**
+ * How a wait that was on the screen came off it, if it did: he got there, he
+ * was out short of it, or the sixes stopped. Null while it is still on.
+ */
+export type NearingEnd = { how: 'reached'; runs: number } | { how: 'out'; runs: number } | { how: 'broken' };
+
+export function nearingEnd(before: Nearing | null, history: readonly ShotOutcome[]): NearingEnd | null {
+  if (!before) return null;
+  const now = nearingOf(history);
+  if (now?.kind === before.kind) return null;
+  const reached = before.kind === 'six-sixes' ? sixSixes(history)
+    : before.kind === 'century' ? reachedCentury(history) : reachedFifty(history);
+  if (reached) return { how: 'reached', runs: batterRuns(history) };
+  const last = history.at(-1);
+  if (last?.isWicket) {
+    // Out for what he had made, which the ball he was out to added nothing to.
+    let runs = 0;
+    for (const ball of history.slice(0, -1)) runs = ball.isWicket ? 0 : runs + ball.runs;
+    return { how: 'out', runs };
+  }
+  return { how: 'broken' };
+}

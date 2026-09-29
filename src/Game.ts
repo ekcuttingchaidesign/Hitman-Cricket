@@ -12,7 +12,7 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
-import { milestoneOf, type Milestone } from './game/milestone';
+import { milestoneOf, nearingEnd, nearingOf, type Milestone, type Nearing } from './game/milestone';
 import { CELEBRATION_MS, FIFTY_MS } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
@@ -181,6 +181,8 @@ export class Game {
    */
   private milestoneDue: Milestone | null = null;
   private celebrating = 0;
+  /** The wait for one of those moments that is on the screen, if any: see Nearing.ts. */
+  private nearing: Nearing | null = null;
   /** The ball the field last had something to say on, so they do not repeat themselves. */
   private lastSledge = 0;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
@@ -521,6 +523,11 @@ export class Game {
       // A moment on demand, for `milestone-check.mjs`: getting to a real
       // hundred in a headless browser is thirty balls of perfect timing.
       milestone: (kind: Milestone = 'century') => this.celebrate(kind),
+      // The wait for one, from an innings written out ball by ball — runs, or
+      // 'W' for a wicket — for `nearing-check.mjs`, which cannot bat its way to
+      // 96 either. Each call is one ball: the card moves as it would have.
+      nearing: (balls: (number | 'W')[]) => this.showNearing(balls.map(ball => (
+        { runs: ball === 'W' ? 0 : ball, isWicket: ball === 'W' } as ShotOutcome))),
       // Dresses him in a Rivals kit on the spot, so the four can be looked at
       // without four friends.
       kit: (kit: BatterKit) => this.scene.kit(kit),
@@ -946,6 +953,7 @@ export class Game {
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
     this.hud.start(this.surviving);
+    this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
     // load: a player who only ever picks the five-over innings never asks for
     // it, and by the time this one ends it is already held.
@@ -1810,6 +1818,15 @@ export class Game {
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
   }
+  /**
+   * The wait, moved on by the ball just played. With the score, not after
+   * it: the dial winding on is the same news as the number going up.
+   */
+  private showNearing(history: readonly ShotOutcome[]) {
+    const end = nearingEnd(this.nearing, history);
+    this.nearing = nearingOf(history);
+    this.hud.nearing(this.nearing, end);
+  }
   /** A moment: see `milestoneDue`. */
   private celebrate(kind: Milestone) {
     const mild = kind === 'fifty';
@@ -1825,7 +1842,7 @@ export class Game {
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    if (this.lesson < 0) this.hud.score(this.score);
+    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.score.history); }
     this.hud.result(outcome, this.chargeMiss);
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the

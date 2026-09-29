@@ -83,6 +83,13 @@ grey is measured off the pixels of the grass, and the doodles are judged on
 their own clock, because a headless browser rendering the ground in software
 can hold CSS animations at their first frame.
 
+`scripts/nearing-check.mjs` is the wait for those moments: the card under
+the score bar ten short of a fifty or a hundred and from the third six running.
+It writes the innings out ball by ball through the debug hook with the real one
+paused underneath, and slows the page's timers while it photographs a card on
+its way off — software rendering can spend a card's whole exit between two
+steps of a script.
+
 `scripts/unveil-check.mjs` is the covers: the first innings chosen, in any
 mode, puts the old ground up and a swipe pulls it off. Every other check that
 starts an innings seeds `hitman-unveiled` so it starts past them, which means this is the only
