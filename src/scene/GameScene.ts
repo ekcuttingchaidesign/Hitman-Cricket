@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batter, type BatterKit, CHARGE_MEETS_AT } from '../entities/Batter';
+import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
@@ -34,6 +34,43 @@ function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sides), sides > 8 ? soft(color, 0.8) : mat(color));
   mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
+/**
+ * The world going quiet around a hundred.
+ *
+ * Everything but the batter drains towards grey for the second and a half he
+ * holds the bat up, so the one thing left in colour is him. It is done inside
+ * each material's own shader rather than as a pass over the finished frame: a
+ * pass would grey him too, or need a second render to keep him out, and this
+ * is one blend at the end of a shader that already runs. At nought it changes
+ * nothing, which is every frame but these.
+ */
+const MUTE = /* glsl */`
+  gl_FragColor.rgb = mix(gl_FragColor.rgb,
+    vec3(dot(gl_FragColor.rgb, vec3(.2126, .7152, .0722))) * .80 + .04, uMute * .9);
+`;
+function mutable(material: THREE.Material, amount: { value: number }) {
+  if (material.userData.mutable) return;
+  material.userData.mutable = true;
+  const before = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    before.call(material, shader, renderer);
+    shader.uniforms.uMute = amount;
+    // At the very end of main, after tone mapping and the colour space: the
+    // grey is taken of the colour as it will be seen.
+    shader.fragmentShader = `uniform float uMute;\n${shader.fragmentShader.replace(/\}\s*$/, `${MUTE}}`)}`;
+  };
+  const key = material.customProgramCacheKey.bind(material);
+  material.customProgramCacheKey = () => `${key()}|mute`;
+  material.needsUpdate = true;
+}
+/** How far gone the colour is, a given time into his celebration. */
+function muteAt(age: number) {
+  if (age < 0 || age >= CELEBRATION_MS) return 0;
+  const into = THREE.MathUtils.smoothstep(age, 0, 180);
+  const out = 1 - THREE.MathUtils.smoothstep(age, CELEBRATION_MS - 320, CELEBRATION_MS);
+  return Math.min(into, out);
+}
+
 // The ball and its trail are the only things left that want a bare sphere;
 // every figure on the field is a Cricketer, which carries its own primitives.
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
@@ -87,6 +124,9 @@ export class GameScene {
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
   private textures: THREE.Texture[] = [];
+  /** How grey everything but the batter is: see `MUTE`. */
+  private mute = { value: 0 };
+  private celebratedAt = -Infinity;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -142,6 +182,13 @@ export class GameScene {
       const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: 0xfff5cd, transparent: true, opacity: (1 - i / 9) * 0.32, depthWrite: false }));
       dot.scale.setScalar(0.115 * (1 - i / 12)); this.world.add(dot); this.trail.push(dot);
     }
+    // Everything built so far, bar him, can be greyed for his hundred. Done
+    // once, here, so the shaders are compiled with it before the first frame.
+    const his = new Set<THREE.Material>();
+    this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => his.add(m)); });
+    this.scene.traverse(object => {
+      if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!his.has(m)) mutable(m, this.mute); });
+    });
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
   }
@@ -250,6 +297,22 @@ export class GameScene {
    */
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
+  /** His hundred: the bat to the sky, and the world gone grey around him. */
+  celebrate(now: number) { this.batter.celebrate(now); this.celebratedAt = now; }
+  /**
+   * Where he stands on the screen, in CSS pixels of the canvas: his feet, the
+   * top of his helmet, and the height the bat reaches held up to the sky. The
+   * doodles that go up round his hundred are drawn to these.
+   */
+  batterOnScreen() {
+    const { width, height } = this.renderer.domElement.getBoundingClientRect();
+    this.batter.root.updateWorldMatrix(true, false);
+    const at = (y: number) => {
+      const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(this.camera);
+      return { x: (p.x + 1) / 2 * width, y: (1 - p.y) / 2 * height };
+    };
+    return { feet: at(0), head: at(1.78), bat: at(2.75), width, height };
+  }
 
   whites(on: boolean) {
     const kit = on ? WHITES : KIT;
@@ -265,6 +328,7 @@ export class GameScene {
   kit(kit: BatterKit) { this.batter.dress(kit); }
 
   reset() {
+    this.celebratedAt = -Infinity; this.mute.value = 0;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
@@ -516,6 +580,7 @@ export class GameScene {
     this.camera.position.x = Math.sin(now * 0.085) * shake;
     this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
     this.sky.mesh.position.copy(this.camera.position);
+    this.mute.value = muteAt(now - this.celebratedAt);
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }

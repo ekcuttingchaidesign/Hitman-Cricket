@@ -32,6 +32,7 @@ import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsS
 import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+import { centuryDoodle, type BatterOnScreen } from './Century';
 import { STORIES } from '../game/whats-new';
 import {
   keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
@@ -2292,6 +2293,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * and the body part is named. It lasts about half a second and then the game
    * carries on, which is the difference between feedback and an interruption.
    */
+  /**
+   * His hundred, drawn over the ground round him. The call for the ball that
+   * got him there has had its moment by now and steps aside rather than sit
+   * under the 100. Gone again by itself when the celebration is.
+   */
+  century(at: BatterOnScreen, lasts: number) {
+    this.viewport.querySelector('.century')?.remove();
+    const doodle = centuryDoodle(at);
+    this.viewport.append(doodle);
+    this.viewport.classList.add('century-on');
+    window.setTimeout(() => { doodle.remove(); this.viewport.classList.remove('century-on'); }, lasts);
+  }
   blow(where: string) {
     const burst = this.$('hit-burst');
     this.$('hit-where').textContent = where;

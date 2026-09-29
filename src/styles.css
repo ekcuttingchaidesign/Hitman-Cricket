@@ -2385,6 +2385,78 @@ body.survive-mode #scoreboard{display:none}
 .survive-card.is-close .sc-cell b{color:#ffce7a}
 .score-bug:has(.survive-card.is-close){box-shadow:0 10px 26px #06121b66,0 1px 0 #ffffff1a inset,0 0 0 1px #ffce7a4d}
 
+/* ── The hundred ──────────────────────────────────────────────────────────
+   Marker pen over the picture, after the street-racing games that draw on
+   their own screens: the ground has gone grey round him (see GameScene), so
+   the orange is the doodles' alone. Every mark is drawn on by its stroke's
+   dash, and the whole drawing shivers a pixel a dozen times a second, which is
+   what makes it read as drawn frame by frame rather than as vectors sliding.
+   Up for a second and a quarter, wiped in a quarter more. */
+.century{
+  position:absolute;
+  inset:0;
+  z-index:3;
+  pointer-events:none;
+  --cy-paint:#ff6a2b;
+  --cy-ink:#120b08;
+  --cy-shine:#fff3dc;
+  animation:century-out .3s ease-in 1.25s forwards
+}
+@keyframes century-out{to{opacity:0;transform:scale(1.03)}}
+.century-said{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.cy-svg{position:absolute;inset:0;overflow:visible}
+.cy-mark path{
+  fill:none;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  stroke-dasharray:1;
+  stroke-dashoffset:1;
+  animation:cy-draw var(--draw) cubic-bezier(.4,.1,.3,1) var(--delay) forwards
+}
+@keyframes cy-draw{to{stroke-dashoffset:0}}
+.cy-ink{stroke:var(--cy-ink);opacity:.8}
+.cy-paint{stroke:var(--cy-paint)}
+.cy-shine{stroke:var(--cy-shine);opacity:.85}
+.cy-dots{
+  fill:url(#cy-dot);
+  opacity:0;
+  transform-box:fill-box;
+  transform-origin:center;
+  animation:cy-dots .35s ease-out .12s forwards
+}
+@keyframes cy-dots{from{opacity:0;transform:scale(.4)}to{opacity:.5;transform:none}}
+.cy-word{
+  font-family:var(--card);
+  font-weight:900;
+  letter-spacing:.08em;
+  text-anchor:middle;
+  fill:var(--cy-shine);
+  stroke:var(--cy-ink);
+  stroke-width:5px;
+  stroke-linejoin:round;
+  paint-order:stroke;
+  opacity:0;
+  transform-box:fill-box;
+  transform-origin:center;
+  animation:cy-word .24s cubic-bezier(.2,1.6,.4,1) .42s forwards
+}
+@keyframes cy-word{from{opacity:0;transform:translateY(8px) scale(.7)}to{opacity:1;transform:none}}
+.cy-pop{opacity:0;animation:cy-pop .3s cubic-bezier(.2,1.8,.4,1) var(--delay) forwards}
+.cy-pop .cy-mark path{stroke-dashoffset:0;animation:none}
+@keyframes cy-pop{from{opacity:0;transform:scale(0) rotate(-40deg)}to{opacity:1;transform:none}}
+.cy-boil{animation:cy-boil .25s steps(1) infinite}
+@keyframes cy-boil{
+  0%{transform:translate(0,0)}
+  33%{transform:translate(1px,-1px)}
+  66%{transform:translate(-1px,1px)}
+}
+/* The call for the ball that got him there has had its moment. */
+.stage.century-on .result{visibility:hidden}
+@media (prefers-reduced-motion:reduce){
+  .cy-boil{animation:none}
+  .cy-mark path,.cy-pop,.cy-dots,.cy-word{animation-duration:1ms;animation-delay:0s}
+}
+
 /* ── Taking one on the body ────────────────────────────────────────────────
    Until this existed the only sign a batter had been hit was the meter quietly
    losing a bar, and the first thing a player actually noticed was the critical

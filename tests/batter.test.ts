@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
+import { Batter, CELEBRATION_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -1707,9 +1707,9 @@ const deepestOf = (a: Vector3, b: Vector3, centre: Vector3, radii: Vector3, turn
   return worst;
 };
 /** The bat against the trunk, hips and helmet, and the elbows against the trunk, every 4ms of a stroke. */
-const throughHim = (batter: Batter) => {
+const throughHim = (batter: Batter, until = STROKE_DURATION_MS) => {
   let worst = { value: Infinity, part: '', at: 0 }, elbow = { clearance: Infinity, at: 0 };
-  for (let time = 0; time <= STROKE_DURATION_MS; time += 4) {
+  for (let time = 0; time <= until; time += 4) {
     batter.update(time);
     const pose = batter.inspect();
     const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
@@ -1876,6 +1876,72 @@ describe('the reverse scoop', () => {
       const { worst, elbow } = throughHim(reverse(x));
       expect(worst.value, `x=${x} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
       expect(elbow.clearance, `x=${x} ${JSON.stringify(elbow)}`).toBeGreaterThan(.15);
+    }
+  });
+});
+
+/**
+ * The hundred: up out of his guard, the bat to the sky with both arms straight
+ * above the helmet, two pumps, and down in front of his face into his guard.
+ * It is not a stroke, so none of the stroke tables above reach it, and every
+ * rule they hold a stroke to is held here instead.
+ */
+describe('the hundred', () => {
+  const celebrating = () => { const batter = new Batter(); batter.update(0); batter.celebrate(0); return batter; };
+
+  it('keeps both gloves on the handle and both arms whole', () => {
+    const batter = celebrating();
+    for (let time = 0; time <= CELEBRATION_MS; time += 16) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1])), `${time}ms`).toBeCloseTo(.110, 6);
+      for (const [upper, lower] of pose.armLengths) {
+        expect(upper, `${time}ms`).toBeCloseTo(.32, 3);
+        expect(lower, `${time}ms`).toBeLessThan(.345);
+      }
+    }
+  });
+
+  it('holds the bat up to the sky, above the helmet', () => {
+    const batter = celebrating();
+    for (const time of [320, 640, 900]) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(pose.grip[1], `grip at ${time}ms`).toBeGreaterThan(1.9);
+      expect(pose.bladeTip[1] - pose.grip[1], `blade above the hands at ${time}ms`).toBeGreaterThan(.6);
+    }
+  });
+
+  it('does not flip an elbow or wrist between frames, going up or coming down', () => {
+    const batter = celebrating();
+    let previous = batter.inspect();
+    for (let time = 0; time <= CELEBRATION_MS + 32; time += 2) {
+      batter.update(time); const pose = batter.inspect();
+      for (let i = 0; i < 2; i++) {
+        const where = `arm=${i} @${time}`;
+        expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+        expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+        expect(pose.cuffAim[i].socketError, where).toBeLessThan(1e-9);
+        expect(pose.cuffAim[i].flex, where).toBeLessThan(Math.PI / 2);
+        expect(pose.elbowCoverage[i], where).toBeGreaterThan(0);
+      }
+      previous = pose;
+    }
+  });
+
+  it('never puts the bat through him, or an elbow into him', () => {
+    const { worst, elbow } = throughHim(celebrating(), CELEBRATION_MS);
+    expect(worst.value, `reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
+    expect(elbow.clearance, JSON.stringify(elbow)).toBeGreaterThan(.15);
+  });
+
+  it('is over in a second and a half, and ends in his guard', () => {
+    expect(CELEBRATION_MS).toBeLessThanOrEqual(1600);
+    const batter = celebrating(), fresh = new Batter(); fresh.update(0);
+    batter.update(CELEBRATION_MS);
+    const done = batter.inspect(), guard = fresh.inspect();
+    for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const) {
+      done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));
     }
   });
 });

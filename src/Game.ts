@@ -12,6 +12,8 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
+import { reachedCentury } from './game/milestone';
+import { CELEBRATION_MS } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
@@ -169,6 +171,14 @@ export class Game {
   /** Three balls that went nowhere and the fielders have something to say. */
   private sledger = new Sledger();
   private sledgeDue = false;
+  /**
+   * The ball just played took him to a hundred, and he celebrates it once the
+   * ball is dead — not on the swipe, and not over the flight of the ball that
+   * got him there. `celebrating` holds the next ball back for exactly as long
+   * as it takes, and no longer.
+   */
+  private centuryDue = false;
+  private celebrating = false;
   /** The ball the field last had something to say on, so they do not repeat themselves. */
   private lastSledge = 0;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
@@ -503,6 +513,9 @@ export class Game {
       // Leaves him one blow from the floor, so the fall can be looked at without
       // waiting for an innings that retires hurt to come round on its own.
       hurt: () => { this.health.value = 1; this.showConfidence(); },
+      // The celebration on demand, for `century-check.mjs`: getting to a real
+      // hundred in a headless browser is thirty balls of perfect timing.
+      century: () => this.celebrate(),
       // Dresses him in a Rivals kit on the spot, so the four can be looked at
       // without four friends.
       kit: (kit: BatterKit) => this.scene.kit(kit),
@@ -981,7 +994,9 @@ export class Game {
     const base = this.surviving ? SURVIVE.resultMs : GAME.resultMs;
     // The innings that ends with him on the floor is held open long enough for
     // him to get there. Every other ball is the usual beat.
-    return this.ending === 'RETIRED' ? base + SURVIVE.felledMs : base;
+    if (this.ending === 'RETIRED') return base + SURVIVE.felledMs;
+    // A hundred holds the next ball for the celebration and nothing more.
+    return this.celebrating ? Math.max(base, CELEBRATION_MS) : base;
   }
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() { return this.surviving ? SURVIVE.timing.poor : GAME.timing.poor; }
@@ -1705,11 +1720,13 @@ export class Game {
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
       if (this.elapsed >= this.resolveEndsAt) {
         this.setPhase('RESULT');
+        if (this.centuryDue) { this.centuryDue = false; this.celebrate(); }
         // After the call, not over it: the sledge is what comes back from the
         // field once the ball is dead.
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
       }
     } else if (this.phase === 'RESULT' && age >= this.resultMs) {
+      this.celebrating = false;
       if (this.lesson >= 0) {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
@@ -1727,6 +1744,7 @@ export class Game {
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
+      this.centuryDue = reachedCentury(this.score.history);
       // The other innings, one ball behind the player's own. It goes up after
       // their own result has had the screen to itself, and it is down again
       // before the next ball is bowled — see `flashGhost`.
@@ -1763,6 +1781,13 @@ export class Game {
     this.resultPresented = false; this.contactPlayed = false;
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
+  }
+  /** His hundred: see `centuryDue`. */
+  private celebrate() {
+    this.celebrating = true;
+    this.scene.celebrate(this.elapsed);
+    this.hud.century(this.scene.batterOnScreen(), CELEBRATION_MS);
+    track('century', 'Reached a hundred');
   }
   private presentResult() {
     this.resultPresented = true;
@@ -2687,7 +2712,7 @@ export class Game {
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
-      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false };
+      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();

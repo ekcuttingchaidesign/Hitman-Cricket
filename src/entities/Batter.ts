@@ -1048,6 +1048,50 @@ const COVER_CHARGE_RECOVER: Pose = { ...GUARD, hip: [-.02, .92, .00], chest: [.0
   grip: [.40, 1.10, .44], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
   yaw: .95, face: .05, heel: 0, backFootYaw: 1.10, leadElbow: -.20 };
 const COVER_CHARGE_CONTACT = COVER_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
+
+/**
+ * A hundred.
+ *
+ * He stands up out of his guard, puts the bat up to the sky with both arms
+ * straight above the helmet, pumps it twice at the dressing room, and brings
+ * it down in front of his face into his guard again — a second and a half,
+ * because it is a moment inside an innings and the next ball is coming.
+ *
+ * The raised pose is the over-cover charge's finish, which is already the one
+ * the rig holds both arms straight above the helmet in without an elbow
+ * bowing or a knob passing the grille: the same grip, the same aim held on.
+ * What changes is the body under it. He has not charged anywhere, so the feet
+ * stay where his guard put them, and he stands at his full height with the
+ * chest half open to the bowler's end and his chin up.
+ */
+export const CELEBRATION_MS = 1550;
+const RAISED: Pose = { ...GUARD, hip: [-.03, .97, .01], chest: [.03, 1.31, .05],
+  frontFoot: [-.10, .08, .27], backFoot: [-.14, .08, -.25],
+  grip: [.22, 2.04, .28], batUp: [-.42, -.84, -.34], batFace: [.74, -.14, -.66],
+  yaw: .85, face: .20, headDown: -.20, heel: 0, backFootYaw: 1.20, leadElbow: .30,
+  armHinge: 1.50, armDrive: .80, shoulderLift: .12 };
+/**
+ * The pump: the bat drawn down and a little forward, the knees giving with it.
+ * Forward as well as down, because straight down brings the knob — which
+ * points at him from a bat held up to the sky — onto the helmet.
+ */
+const PUMPED: Pose = { ...RAISED, hip: [-.04, .93, .00], chest: [.02, 1.27, .04],
+  grip: [.26, 1.96, .40], headDown: -.12, armHinge: 1.30, shoulderLift: .08 };
+/** Held up one last time while he looks round the ground at it. */
+const LOOKING: Pose = { ...RAISED, face: .45, headDown: -.26 };
+/**
+ * On the way up, out in front of his face. From the guard the bat is behind
+ * the back shoulder, and the straight line from there to the sky runs through
+ * the helmet, so it comes up the way it will go down: in front, then up.
+ */
+const LIFTING: Pose = { ...COVER_CHARGE_DOWN, hip: [-.04, .95, .00], chest: [.03, 1.29, .05],
+  frontFoot: [-.10, .08, .27], backFoot: [-.14, .08, -.25], yaw: 1.00, face: .10, backFootYaw: 1.25 };
+/** Down in front of the face, the over-cover charge's way, and into his guard. */
+const LOWERED: Pose = { ...COVER_CHARGE_DOWN, hip: [-.04, .93, .00], chest: [.03, 1.27, .05],
+  frontFoot: [-.10, .08, .27], backFoot: [-.14, .08, -.25], yaw: .95, face: .10, backFootYaw: 1.25 };
+const SETTLING: Pose = { ...COVER_CHARGE_RECOVER, hip: [-.05, .94, -.02], chest: [.02, 1.28, .03],
+  frontFoot: [-.10, .08, .27], backFoot: [-.13, .08, -.25], yaw: 1.15, backFootYaw: 1.35 };
+const CELEBRATION = { lift: 150, up: 320, pump: 480, again: 640, pump2: 800, look: 960, down: 1180, settle: 1380 } as const;
 const COVER_CHARGE_FINISH = COVER_CHARGE_KEYS[COVER_CHARGE_KEYS.length - 1].pose;
 /**
  * The charge over long-on — the third recording, from behind the batter.
@@ -1260,6 +1304,8 @@ export class Batter {
   /** When he went down, and the shape he was in when it happened. */
   private felledAt = -Infinity;
   private felledFrom: Pose = GUARD;
+  private celebratedAt = -Infinity;
+  private celebratedFrom: Pose = GUARD;
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -1417,10 +1463,16 @@ export class Batter {
   }
   /** Whether he is on his way down or already there. */
   get felled() { return Number.isFinite(this.felledAt); }
+  /** His hundred: the bat up to the sky and back into his guard. See `RAISED`. */
+  celebrate(now: number) {
+    this.celebratedFrom = this.pose;
+    this.celebratedAt = now;
+  }
 
   reset() {
     this.poseAge = Infinity;
     this.felledAt = -Infinity;
+    this.celebratedAt = -Infinity;
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
@@ -1521,6 +1573,13 @@ export class Batter {
     const age = now - this.swingStart;
     this.poseAge = age;
     this.travel(age);
+    const celebrating = now - this.celebratedAt;
+    if (celebrating >= 0 && celebrating < CELEBRATION_MS) {
+      // Nothing about the stroke he hit it with is left to shape the legs:
+      // an unfinished stroke's age would have them bent its way.
+      this.poseAge = Infinity;
+      return this.applyCelebration(celebrating);
+    }
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
       const guard = mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation);
       this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
@@ -1775,6 +1834,18 @@ export class Batter {
       return this.apply(mix(BUCKLED, FELLED, ease((age - FALL.buckle) / (FALL.settled - FALL.buckle))));
     }
     this.apply(FELLED);
+  }
+
+  private applyCelebration(age: number) {
+    const { lift, up, pump, again, pump2, look, down, settle } = CELEBRATION;
+    if (age < look) {
+      return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, { time: lift, pose: LIFTING }, { time: up, pose: RAISED },
+        { time: pump, pose: PUMPED }, { time: again, pose: RAISED }, { time: pump2, pose: PUMPED },
+        { time: look, pose: LOOKING }], age));
+    }
+    this.apply(age < down ? mix(LOOKING, LOWERED, (age - look) / (down - look))
+      : age < settle ? mix(LOWERED, SETTLING, (age - down) / (settle - down))
+      : mix(SETTLING, GUARD, (age - settle) / (CELEBRATION_MS - settle)));
   }
 
   private apply(pose: Pose) {
