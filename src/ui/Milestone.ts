@@ -13,7 +13,7 @@
  * sides, the 100 on fire, and fire up the edges of the screen, cel-shaded
  * flames that flicker between two drawn frames the way drawn animation does.
  * Six sixes is the wild one, for Yuvraj Singh: all of the hundred's fire,
- * SIX 6s slammed across the top, YUVI tagged either side of him, and a
+ * SIX 6s slammed across the top, YUVI tagged big beside him, and under it a
  * question with an arrow at the batter — is that you?
  *
  * Everything is placed off where the batter actually is on screen, so it
@@ -227,6 +227,28 @@ function slam(x: number, y: number, size: number, tilt: number, delay: number, w
     + text(shadow, shadow, 'cy-type-shadow') + text(0, 0, 'cy-type') + '</g></g>';
 }
 
+/**
+ * YUVI, as a wall tag rather than as a word: a fat orange halo round it, a
+ * deep block of ink behind it for depth, a gradient of blue down the letters in a heavy outline, a thin
+ * cream rim catching the light on each, a marker swoosh drawn under it, and
+ * a couple of sparkles. Leaning and tilted, slammed in from big.
+ */
+function tagged(x: number, y: number, size: number, tilt: number, delay: number, pen: number) {
+  const text = (cls: string, dx = 0, dy = 0) =>
+    `<text class="${cls}" x="${f(x + dx)}" y="${f(y + dy)}" font-size="${f(size)}">YUVI</text>`;
+  const depth = Array.from({ length: 7 }, (_, i) => text('cy-yuvi-depth', (i + 1) * size * .012, (i + 1) * size * .014)).join('');
+  const w = size * 1.12;
+  const swoosh = `M${f(x - w)} ${f(y + size * .2)}Q${f(x - w * .2)} ${f(y + size * .36)} ${f(x + w * 1.05)} ${f(y + size * .08)}`;
+  const sparkle = (px: number, py: number, r: number) =>
+    `M${f(px)} ${f(py - r)}L${f(px)} ${f(py + r)}M${f(px - r)} ${f(py)}L${f(px + r)} ${f(py)}`;
+  return `<g transform="rotate(${tilt} ${f(x)} ${f(y)})">`
+    + mark(swoosh, Math.max(4, size * .07), delay + 180, 220)
+    + `<g class="cy-slam is-yuvi" style="--delay:${delay}ms"><g transform="skewX(-8) translate(${f(y * .1405)} 0)">`
+    + text('cy-yuvi-halo') + depth + text('cy-yuvi') + text('cy-yuvi-shine', -size * .012, -size * .014) + '</g></g>'
+    + mark(sparkle(x + w * .95, y - size * .78, size * .09) + sparkle(x - w * .9, y - size * .55, size * .06), Math.max(2, pen * .6), delay + 260, 90, false)
+    + '</g>';
+}
+
 type Layout = { marks: string[]; dots: number; fire: boolean; said: string };
 
 /** A hundred: crown, energy, burst, stars and the 100 on fire. */
@@ -296,8 +318,9 @@ function halfCentury(at: BatterOnScreen, s: number, pen: number, random: () => n
 
 /**
  * Six sixes in a row, for Yuvraj Singh. The wild one: SIX 6s slammed across
- * the top with the six of them ticked off under it, YUVI tagged either side of
- * him, and a question with an arrow at the man who just did it — is that you?
+ * the top with the six of them ticked off under it, YUVI tagged big beside
+ * him, and under it a question with an arrow at the man who just did it — is
+ * that you?
  */
 function yuvi(at: BatterOnScreen, s: number, pen: number, random: () => number): Layout {
   const x = at.head.x, W = at.width;
@@ -318,32 +341,37 @@ function yuvi(at: BatterOnScreen, s: number, pen: number, random: () => number):
       + `<text class="cy-ball-six" x="${f(c.x)}" y="${f(c.y + r * .42)}" font-size="${f(r * 1.25)}">6</text></g>`);
   }
 
-  // YUVI, twice: either side of him where there is room, and where there is
-  // not, one up in the sky and one down on the pitch below him.
-  const tag = Math.min(size * 1.05, s * .7, 110), tagWide = tag * 2.2;
-  const roomLeft = x - s * .75 - 16, roomRight = W - x - s * .75 - 16;
-  const left = roomLeft >= tagWide
-    ? { x: x - s * .75 - tagWide / 2, y: at.head.y + s * .55 }
-    : { x: Math.max(16 + tagWide / 2, W * .28), y: Math.min(at.height - tag * 1.6, at.feet.y + s * .95) };
-  const right = roomRight >= tagWide
-    ? { x: x + s * .75 + tagWide / 2, y: at.head.y + s * .05 }
-    : { x: Math.min(W - 16 - tagWide / 2, W * .72), y: top + size * 1.35 + tag };
-  marks.push(slam(left.x, left.y, tag, -11, 300, 'YUVI', 'is-blue'));
-  marks.push(slam(right.x, right.y, tag, 9, 430, 'YUVI', 'is-orange'));
+  // YUVI, once, big: beside him on whichever side has the room, and where
+  // neither does — a phone held upright — on the pitch below his feet. The
+  // question goes under it, with an arrow from it to the man.
+  const tag = Math.min(size * 1.3, s * 1.0, W * .24, 150), tagWide = tag * 2.3;
+  const roomLeft = x - s * .8 - 16, roomRight = W - x - s * .8 - 16;
+  const side = roomRight >= tagWide ? 1 : roomLeft >= tagWide ? -1 : 0;
+  const spot = side
+    ? { x: x + side * (s * .8 + tagWide / 2), y: at.head.y + s * .2 }
+    : { x: Math.min(W - 16 - tagWide / 2, Math.max(16 + tagWide / 2, x + s * .15)), y: Math.min(at.height - tag * 1.3, at.feet.y + s * .45 + tag) };
+  marks.push(tagged(spot.x, spot.y, tag, side < 0 ? 7 : -7, 300, pen));
 
-  // is that you? — up by his head on the bat's side, with an arrow at him.
-  const ask = Math.max(17, s * .24);
-  // Kept on the screen: on a phone there is not the room beside the bat for it,
-  // so it moves in and goes up over the top of the bat instead.
-  const askWide = ask * 5.7, cramped = x - s * .55 < 16 + askWide;
-  const askAt = { x: Math.max(x - s * .55, 16 + askWide), y: at.bat.y - s * (cramped ? .32 : .05) };
-  marks.push(`<g class="cy-slam is-ask" style="--delay:560ms"><text class="cy-ask" x="${f(askAt.x)}" y="${f(askAt.y)}" font-size="${f(ask)}" `
+  // is that you? — under YUVI, and an arrow from it to him.
+  const ask = Math.max(18, tag * .3);
+  const askAt = { x: spot.x, y: spot.y + tag * .62 + ask };
+  marks.push(`<g class="cy-slam is-ask" style="--delay:620ms"><text class="cy-ask" x="${f(askAt.x)}" y="${f(askAt.y)}" font-size="${f(ask)}" `
     + `transform="skewX(-10) translate(${f(askAt.y * .176)} 0)">is that you?</text></g>`);
-  const from = { x: askAt.x - ask * .5, y: askAt.y + ask * .45 };
-  const to = { x: x - s * .2, y: at.head.y - s * .02 };
-  const bend = { x: from.x - s * .05, y: (from.y + to.y) / 2 + s * .15 };
+  // Beside him, from the end of the question nearest him round to his chest;
+  // below him, from just over YUVI straight up at him, clear of both words.
+  const askHalf = ask * 2.75;
+  const from = side
+    ? { x: askAt.x - side * (askHalf + ask * .35), y: askAt.y - ask * .35 }
+    : { x: spot.x - tagWide * .3, y: spot.y - tag * .95 };
+  const to = side ? { x: x + side * s * .32, y: at.head.y + s * .45 } : { x: x - s * .05, y: at.feet.y - s * .2 };
+  const bend = side
+    ? { x: (from.x + to.x) / 2, y: Math.max(from.y, to.y) + s * .25 }
+    : { x: from.x - s * .15, y: (from.y + to.y) / 2 };
+  const head = { x: to.x - bend.x, y: to.y - bend.y };
+  const len = Math.hypot(head.x, head.y) || 1, ux = head.x / len, uy = head.y / len, barb = s * .13;
   marks.push(mark(`M${f(from.x)} ${f(from.y)}Q${f(bend.x)} ${f(bend.y)} ${f(to.x)} ${f(to.y)}`
-    + `M${f(to.x - s * .14)} ${f(to.y - s * .02)}L${f(to.x)} ${f(to.y)}L${f(to.x - s * .06)} ${f(to.y - s * .14)}`, pen * .9, 640, 180, false));
+    + `M${f(to.x - ux * barb - uy * barb * .6)} ${f(to.y - uy * barb + ux * barb * .6)}L${f(to.x)} ${f(to.y)}`
+    + `L${f(to.x - ux * barb + uy * barb * .6)} ${f(to.y - uy * barb - ux * barb * .6)}`, pen * .9, 700, 180, false));
 
   marks.push(...stars(x, at.head.y, s, random, pen,
     [[-1.25, -.4, .14], [1.2, -.7, .13], [-.95, .95, .1], [1.05, .85, .1], [.1, -1.25, .09], [-1.5, .3, .08]], 300));
@@ -366,7 +394,9 @@ export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: numb
   const { marks, dots, fire: burning, said } = LAYOUTS[kind](at, s, pen, random);
   const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
     + `<defs><pattern id="cy-dot" width="${f(dots * .09)}" height="${f(dots * .09)}" patternUnits="userSpaceOnUse">`
-    + `<circle cx="${f(dots * .045)}" cy="${f(dots * .045)}" r="${f(dots * .018)}" fill="var(--cy-paint)"/></pattern></defs>`
+    + `<circle cx="${f(dots * .045)}" cy="${f(dots * .045)}" r="${f(dots * .018)}" fill="var(--cy-paint)"/></pattern>`
+    + '<linearGradient id="cy-yuvi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fe0ff"/>'
+    + '<stop offset=".45" stop-color="#3fa0ff"/><stop offset="1" stop-color="#1d4fd8"/></linearGradient></defs>'
     + (burning ? edges(at.width, at.height) : '')
     + `<g class="cy-boil">${marks.join('')}</g></svg>`;
   const element = document.createElement('div');

@@ -2496,11 +2496,19 @@ body.survive-mode #scoreboard{display:none}
 }
 .cy-type{fill:var(--cy-shine)}
 .cy-type-shadow{fill:var(--cy-paint)}
-/* YUVI in the colours he played in and the game's own: one blue, one orange. */
-.is-blue .cy-type{fill:#3fa0ff}
-.is-blue .cy-type-shadow{fill:var(--cy-shine)}
-.is-orange .cy-type{fill:var(--cy-paint)}
-.is-orange .cy-type-shadow{fill:#3fa0ff}
+/* YUVI, tagged: the blue he played in, down the letters in a gradient, over a
+   block of ink for depth and inside a fat halo of the game's orange, with a
+   thin cream rim catching the light. */
+.cy-yuvi,.cy-yuvi-depth,.cy-yuvi-halo,.cy-yuvi-shine{
+  font-family:var(--cta);
+  text-anchor:middle;
+  letter-spacing:.03em;
+  stroke-linejoin:round
+}
+.cy-yuvi-halo{fill:none;stroke:var(--cy-paint);stroke-width:18px}
+.cy-yuvi-depth{fill:var(--cy-ink);stroke:var(--cy-ink);stroke-width:8px}
+.cy-yuvi{fill:url(#cy-yuvi);stroke:var(--cy-ink);stroke-width:7px;paint-order:stroke}
+.cy-yuvi-shine{fill:none;stroke:var(--cy-shine);stroke-width:1.6px;opacity:.9}
 .cy-ball{fill:var(--cy-shine);stroke:var(--cy-ink)}
 .cy-ball-six{font-family:var(--cta);text-anchor:middle;fill:var(--cy-paint)}
 .cy-ask{
@@ -2511,7 +2519,7 @@ body.survive-mode #scoreboard{display:none}
   stroke-width:4px;
   stroke-linejoin:round;
   paint-order:stroke;
-  text-anchor:end
+  text-anchor:middle
 }
 /* The call for the ball that got him there has had its moment. */
 .stage.milestone-on .result{visibility:hidden}

@@ -141,7 +141,10 @@ for (const [name, options] of [
       doodle: document.querySelectorAll('.milestone').length, marks: document.querySelectorAll('.milestone .cy-mark').length,
       fire: document.querySelectorAll('.milestone .cy-fire').length, aside: !!document.querySelector('#viewport.milestone-on'),
       drawn: [...document.querySelectorAll('.milestone .cy-paint')].filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) < .5).length,
-      words: [...document.querySelectorAll('.milestone text.cy-type, .milestone text.cy-ask, .milestone text.cy-word')].map(t => t.textContent),
+      words: [...document.querySelectorAll('.milestone text.cy-type, .milestone text.cy-yuvi, .milestone text.cy-ask, .milestone text.cy-word')].map(t => t.textContent),
+      // Where YUVI and the question under it are, to hold the one below the other.
+      yuvi: document.querySelector('.milestone text.cy-yuvi')?.getBoundingClientRect().toJSON(),
+      ask: document.querySelector('.milestone text.cy-ask')?.getBoundingClientRect().toJSON(),
     };
   });
   check(up.doodle === 1, 'the doodles go up');
@@ -150,8 +153,11 @@ for (const [name, options] of [
   check(moment.fire ? up.fire >= 8 : up.fire === 0, moment.fire ? 'and fire up the edges' : 'and no fire: it is the mild one', up.fire);
   check(up.aside, 'and the call for the ball steps aside');
   if (moment.kind === 'six-sixes') {
-    check(['SIX 6s', 'YUVI', 'is that you?'].every(w => up.words.includes(w)) && up.words.filter(w => w === 'YUVI').length === 2,
-      'saying SIX 6s, YUVI twice, and is that you?', JSON.stringify(up.words));
+    check(['SIX 6s', 'YUVI', 'is that you?'].every(w => up.words.includes(w)) && up.words.filter(w => w === 'YUVI').length === 1,
+      'saying SIX 6s, YUVI once, and is that you?', JSON.stringify(up.words));
+    check(up.ask.top > up.yuvi.top + up.yuvi.height * .5, 'with the question under YUVI', JSON.stringify({ yuvi: up.yuvi, ask: up.ask }));
+    const inside = r => r.left >= 0 && r.right <= options.viewport.width && r.top >= 0 && r.bottom <= options.viewport.height;
+    check(inside(up.yuvi) && inside(up.ask), 'and both of them on the screen', JSON.stringify({ yuvi: up.yuvi, ask: up.ask }));
   }
   const during = await page.screenshot({ path: `test-results/${moment.kind}-${name}.png` });
   const grey = await saturation(page, during, grass);
