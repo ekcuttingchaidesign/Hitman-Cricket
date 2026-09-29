@@ -418,7 +418,10 @@ export class Game {
     this.hud.on('card-result', () => this.backToResult());
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
-    this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
+    this.hud.on('tutorial', this.startTutorial); this.hud.on('tutorial-play', this.walkOut);
+    // Not the covers from a skip: that is pressed with a lesson ball on its way,
+    // and the ball would go on being bowled, heard, behind them.
+    this.hud.on('skip-tutorial', this.start);
     this.hud.on('sound', this.toggleSound);
     // The switch as it was left last visit.
     this.hud.sound(this.audio.setting);
@@ -895,7 +898,27 @@ export class Game {
     this.hud.pause(true);
   };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
-  choose = (mode: GameMode) => { this.mode = mode; this.start(); };
+  choose = (mode: GameMode) => { this.mode = mode; this.walkOut(); };
+  /**
+   * An innings chosen, by whichever way a player chose it: the picker, a link
+   * that named the mode, or the tutorial's way out.
+   *
+   * The first time, the covers go up before it: the old ground, and a line to
+   * pull it off with. Here rather than on the cover's play key, because the new
+   * ground is shown off to somebody about to bat on it — the cover and the
+   * picker are menus, and a reveal in front of a menu is a reveal of nothing
+   * in particular. The play key under the new ground then starts the innings
+   * it was put up in front of.
+   */
+  private walkOut = () => this.unveiled(this.start);
+  /** Put up at most once a visit, so pictures that never load cannot put it up in a loop. */
+  private unveilAsked = false;
+  private unveiled(then: () => void) {
+    if (this.unveilAsked || !unveilDue()) return then();
+    this.unveilAsked = true;
+    this.mark('unveil', 'New ground shown');
+    this.hud.unveil(then);
+  }
   start = () => {
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
@@ -1151,17 +1174,7 @@ export class Game {
    * looking has not used up one of the two they are given.
    */
   private play = () => {
-    // Once, before anything else the key does: the old ground, and a line to
-    // pull it off with. What comes after is what the key would have done.
-    if (unveilDue()) {
-      this.mark('unveil', 'New ground shown');
-      return this.hud.unveil(this.playOn);
-    }
-    this.playOn();
-  };
-
-  private playOn = () => {
-    const go = () => (this.locked ? this.start() : this.modes());
+    const go = () => (this.locked ? this.walkOut() : this.modes());
     if (!whatsNewDue()) return go();
     markWhatsNewShown();
     this.showStories('intro', go);
@@ -1624,7 +1637,7 @@ export class Game {
     }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {
       event.preventDefault();
-      if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.modes();
+      if (this.phase === 'INNINGS_END') this.start(); else if (this.locked) this.walkOut(); else this.modes();
     }
     else if (key === 'B' && !SURVIVE_ONLY) { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
@@ -2490,6 +2503,10 @@ export class Game {
    */
   private startMatchInnings(resume: boolean) {
     if (!this.player) return;
+    // The covers first, the first time, over the room: the innings below them
+    // is set up only once they are off, so the room is still there to go back
+    // to until then.
+    if (!this.unveilAsked && unveilDue()) return this.unveiled(() => this.startMatchInnings(resume));
     this.matchCard = null;
     this.hud.closeRoom();
     this.challenge.beginInnings(this.player);

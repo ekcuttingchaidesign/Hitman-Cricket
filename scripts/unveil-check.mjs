@@ -1,6 +1,8 @@
 /**
- * The covers coming off, in a real browser: the first press of play puts the
- * old ground up, a swipe to the left pulls it off, and play goes on from there.
+ * The covers coming off, in a real browser: the first innings chosen puts the
+ * old ground up, a swipe to the left pulls it off, and the innings starts on
+ * the new one. The cover's play key and the picker are menus, and go by
+ * untouched: the covers are for somebody about to bat.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/unveil-check.mjs
@@ -35,29 +37,36 @@ await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
 async function arrive(page) {
-  await page.goto(`${base}/`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1`, { waitUntil: 'load' });
   await page.waitForTimeout(1500);
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
   if (await anyway.count()) { await anyway.first().click(); await page.waitForTimeout(800); }
 }
 const value = page => page.$eval('#unveil-line', node => Number(node.getAttribute('aria-valuenow'))).catch(() => NaN);
 const remembered = page => page.evaluate(() => localStorage.getItem('hitman-unveiled'));
+const phase = page => page.evaluate(() => window.__cricket?.snapshot().phase ?? '').catch(() => '');
+const pickerUp = page => settled(page, () => {
+  const node = document.querySelector('#modes');
+  return node && !node.classList.contains('hidden');
+});
+const batting = page => settled(page, () => /READY|BOWLER_RUNUP|BALL_IN_FLIGHT/.test(window.__cricket?.snapshot().phase ?? ''));
 const opened = page => page.$eval('.unveil', node => node.classList.contains('is-open')).catch(() => false);
 /** Waits for a condition in the page, in real time: the line eases by animation frames. */
 const settled = (page, fn, arg) => page.waitForFunction(fn, arg, { timeout: 8000 }).then(() => true).catch(() => false);
 
-for (const [name, options] of [
-  ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }],
-  ['desktop', { viewport: { width: 1280, height: 720 } }],
+// One mode each, so both keys on the picker are seen to put the covers up.
+for (const [name, options, mode] of [
+  ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, 'classic'],
+  ['desktop', { viewport: { width: 1280, height: 720 } }, 'survive'],
 ]) {
-  console.log(name);
+  console.log(`${name}, ${mode}`);
   const context = await browser.newContext(options);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     // A returning player who has read the stories, so the covers are the only
-    // thing between the play key and the picker.
+    // thing between the picker and the innings.
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
@@ -70,12 +79,15 @@ for (const [name, options] of [
 
   await arrive(page);
   await page.locator('#start').click({ force: true });
+  check(await pickerUp(page), 'the play key goes to the picker');
+  check(await page.locator('#unveil-overlay').isHidden(), 'with no covers in front of it');
+  await page.locator(`#mode-${mode}`).click({ force: true });
   const up = await settled(page, () => {
     const node = document.querySelector('.unveil');
     return node && !node.classList.contains('is-loading');
   });
-  check(up, 'the play key puts the old ground up first');
-  check(!(await page.locator('#modes').isVisible()), 'with the picker not yet up');
+  check(up, 'choosing a mode puts the old ground up first');
+  check(await phase(page) === 'START', 'with the innings not yet started', await phase(page));
   const pictures = await page.$$eval('.unveil img', nodes => nodes.map(node => ({ src: node.currentSrc, w: node.naturalWidth })));
   check(pictures.length === 2 && pictures.every(one => one.w > 0), 'both pictures drawn', JSON.stringify(pictures));
   const wide = name === 'desktop';
@@ -123,31 +135,26 @@ for (const [name, options] of [
   check(await remembered(page) === 'ground-2026', 'counted as seen once they are off', await remembered(page));
   const play = page.locator('#unveil-play');
   await page.waitForTimeout(600);
-  check(await play.isVisible(), 'the play key comes up');
+  check(await play.isVisible(), 'a play key comes up');
   check(await page.getByText('Covers off. Play on.').isVisible(), 'saying so');
   await page.screenshot({ path: `test-results/unveil-${name}-open.png` });
 
   await play.click();
-  const picker = await settled(page, () => {
-    const node = document.querySelector('#modes');
-    return node && !node.classList.contains('hidden');
-  });
-  check(picker, 'and play goes on to the picker');
+  check(await batting(page), 'and the innings starts on the new ground', await phase(page));
   check(await page.locator('#unveil-overlay').isHidden(), 'with the covers gone');
 
   // The second visit goes straight through.
   await arrive(page);
   await page.locator('#start').click({ force: true });
-  const straight = await settled(page, () => {
-    const node = document.querySelector('#modes');
-    return node && !node.classList.contains('hidden');
-  });
-  check(straight && await page.locator('#unveil-overlay').isHidden(), 'next time, play goes straight to the picker');
+  await pickerUp(page);
+  await page.locator(`#mode-${mode}`).click({ force: true });
+  check(await batting(page) && await page.locator('#unveil-overlay').isHidden(), 'next time, the mode goes straight to the innings', await phase(page));
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
   await context.close();
 }
 
-// The keys: the line takes focus, the arrows move it, Enter takes it all the way.
+// The keys: Enter on the cover and the picker, then the line takes focus, the
+// arrows move it, and Enter takes it all the way and then bats.
 {
   console.log('keyboard');
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -161,6 +168,8 @@ for (const [name, options] of [
   }));
   await arrive(page);
   await page.locator('#start').click({ force: true });
+  await pickerUp(page);
+  await page.locator('#mode-classic').click({ force: true });
   await settled(page, () => document.activeElement?.id === 'unveil-line');
   check(await page.evaluate(() => document.activeElement?.id) === 'unveil-line', 'the line has focus');
   const before = await value(page);
@@ -170,7 +179,7 @@ for (const [name, options] of [
   await page.keyboard.press('Enter');
   check(await settled(page, () => document.activeElement?.id === 'unveil-play'), 'Enter takes it off and hands focus to play');
   await page.keyboard.press('Enter');
-  check(await settled(page, () => !document.querySelector('#modes')?.classList.contains('hidden')), 'and Enter again plays on');
+  check(await batting(page), 'and Enter again starts the innings', await phase(page));
   await context.close();
 }
 

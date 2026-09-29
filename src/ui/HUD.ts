@@ -966,7 +966,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   /**
    * The old ground over the new one, for the player to pull off. The game
-   * decides when; `then` is what the play key was going to do anyway.
+   * decides when; `then` is the innings it was put up in front of.
    */
   unveil(then: () => void) {
     this.viewport.classList.add('modal-open');
