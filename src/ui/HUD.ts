@@ -46,7 +46,6 @@ import {
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
-import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
@@ -273,14 +272,21 @@ export class HUD {
           </div>
         </div>
         <div class="score-stack">
+        <!--
+          One bar: the score across the top, the meter along its foot, and in a
+          Test match the situation in the score's place. See styles.css.
+        -->
+        <div class="score-bug">
         <div id="scoreboard" class="scoreboard" role="group" aria-label="Scoreboard">
-          <div class="board-head"><span class="board-name">HITMAN OVAL</span><span class="board-lamp"></span></div>
-          <div class="board-cells">
-            <div class="cell cell-wide"><span class="cell-label">TOTAL</span><span class="cell-value" id="runs"></span></div>
-            <div class="cell"><span class="cell-label">WKTS</span><span class="cell-value" id="wickets"></span></div>
-            <div class="cell"><span class="cell-label">OVERS</span><span class="cell-value" id="overs"></span></div>
-            <div class="cell"><span class="cell-label">LAST</span><span class="cell-value" id="last"></span></div>
-          </div>
+          <span class="bug-tag" aria-hidden="true">HITMAN<br>OVAL</span>
+          <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
+          <span class="bug-cell"><b id="overs"></b><i>OVERS</i></span>
+          <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
+        </div>
+        <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
+          <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
+          <span class="sc-cell"><b id="sc-need"></b><span class="sc-label">TO WIN</span></span>
+          <span class="sc-cell"><b id="sc-balls"></b><span class="sc-label">BALLS<span class="sc-wide"> LEFT</span></span></span>
         </div>
         <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
@@ -291,15 +297,6 @@ export class HUD {
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
-        <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
-          <div class="sc-head">
-            <span class="sc-score" id="sc-score" aria-live="polite"></span>
-            <span class="sc-chase"><span class="sc-label">TARGET</span><b id="sc-target"></b></span>
-          </div>
-          <div class="sc-feet">
-            <span class="sc-cell"><span class="sc-label">TO WIN</span><b id="sc-need"></b></span>
-            <span class="sc-cell"><span class="sc-label">BALLS LEFT</span><b id="sc-balls"></b></span>
-          </div>
         </div>
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
@@ -1248,13 +1245,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (this.$('end-survive').classList.contains('hidden')) this.$('board').focus();
   }
   score(score: ScoreManager) {
-    this.$('runs').innerHTML = dotMatrix(String(score.runs), `${score.runs} runs`);
-    this.$('wickets').innerHTML = dotMatrix(String(score.wickets), `${score.wickets} wickets`);
-    this.$('overs').innerHTML = dotMatrix(score.overs, `${score.overs} overs`);
+    this.$('runs').textContent = String(score.runs);
+    this.$('wickets').textContent = String(score.wickets);
+    this.$('total').setAttribute('aria-label', `${score.runs} for ${score.wickets}`);
+    this.$('overs').textContent = score.overs;
     const last = score.history.at(-1);
-    const call = last ? last.isWicket ? 'W' : String(last.runs) : '-';
-    this.$('last').innerHTML = dotMatrix(call, last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
-    this.$('last').className = `cell-value ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
+    const last$ = this.$('last');
+    last$.textContent = last ? last.isWicket ? 'W' : String(last.runs) : '–';
+    last$.setAttribute('aria-label', last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
+    last$.className = `bug-last ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
   }
   start(surviving = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
@@ -1894,7 +1893,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
     // Four special strokes now, and they are swiped for differently. Saying
     // "charge it" over a ball that wants a sweep is worse than saying nothing.
-    this.$('confidence-label').textContent = primed ? CUES[primed]
+    // The stroke only: the call under the batter carries the swipe, and the
+    // bar is not wide enough to say both.
+    this.$('confidence-label').textContent = primed ? CUES[primed].split(' — ')[0]
       : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
   /**
