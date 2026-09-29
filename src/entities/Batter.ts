@@ -1214,8 +1214,10 @@ export type BatterKit = 'home' | 'whites' | 'green' | 'purple' | 'blue';
  * one match are four different batters and not the same man four times.
  */
 export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number; number: number }> = {
-  home: { shirt: 0x19334a, helmet: 0x18314a, trousers: 0xe7e2d3, accent: 0xed7044, number: 0xed7044 },
-  whites: { shirt: 0xf2ece0, helmet: 0x18314a, trousers: 0xf4f0e4, accent: 0xd9d3c3, number: 0xd9d3c3 },
+  // A mid navy: the near-black it replaced lost the shape of the shirt under the
+  // day's light, and a navy he can be seen in is still a navy.
+  home: { shirt: 0x2f5a88, helmet: 0x2a527c, trousers: 0xe7e2d3, accent: 0xed7044, number: 0xed7044 },
+  whites: { shirt: 0xf2ece0, helmet: 0x2a527c, trousers: 0xf4f0e4, accent: 0xd9d3c3, number: 0xd9d3c3 },
   green: { shirt: 0x0a2f24, helmet: 0x09291f, trousers: 0xf1eee6, accent: 0x061c15, number: 0xffffff },
   purple: { shirt: 0x5a2fb4, helmet: 0x4d27a3, trousers: 0xf1eee6, accent: 0x3f1e86, number: 0xffffff },
   blue: { shirt: 0x1f6fd6, helmet: 0x1a5fbd, trousers: 0xf1eee6, accent: 0x1657ad, number: 0xffffff },
@@ -1265,13 +1267,13 @@ export class Batter {
     blade: bladeGeometry(),
   };
   private palette = {
-    shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
+    shirt: new THREE.MeshStandardMaterial({ color: 0x2f5a88, roughness: .88 }),
     // The helmet is its own material rather than the shirt's, because it is navy
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
     // Matte: a helmet's shell is covered in fabric, so it takes the light the
     // way the cap would rather than shining like a motorbike lid.
-    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .92 }),
+    helmet: new THREE.MeshStandardMaterial({ color: 0x2a527c, roughness: .92 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
