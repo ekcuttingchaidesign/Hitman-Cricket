@@ -109,16 +109,19 @@ for (const [name, options] of [
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
   if (await anyway.count()) { await anyway.first().click(); await page.waitForTimeout(800); }
   await page.locator('#start').click({ force: true });
+  // Clicks are given fifteen seconds: with the ground drawn in software a
+  // forced click can take five to be delivered, and one cut off at three
+  // never lands, so every retry was cut off the same way.
   for (let i = 0; i < 30; i++) {
     const mode = page.locator('#mode-classic'), done = page.locator('#whatsnew-done');
     if (await mode.isVisible().catch(() => false)) {
       await page.waitForTimeout(500);
-      await mode.click({ force: true, timeout: 3000 }).catch(() => {});
+      await mode.click({ force: true, timeout: 15_000 }).catch(() => {});
       await page.waitForTimeout(800);
       if (!(await mode.isVisible().catch(() => false))) break;
       continue;
     }
-    if (await done.isVisible().catch(() => false)) await done.click({ force: true, timeout: 3000 }).catch(() => {});
+    if (await done.isVisible().catch(() => false)) await done.click({ force: true, timeout: 15_000 }).catch(() => {});
     await page.waitForTimeout(500);
   }
   // Hide the debug readout so it is not in the pictures or the samples.
