@@ -38,8 +38,6 @@ export interface ApiResponse {
 /** Origins the board may be fetched from. Add one here, not a wildcard. */
 export const ALLOWED_ORIGINS = [
   'https://ekcuttingchaidesign.github.io',
-  'https://hitmancricket.in',
-  'https://www.hitmancricket.in',
   'https://hitman-cricket.vercel.app',
   'http://127.0.0.1:5173',
   'http://localhost:5173',

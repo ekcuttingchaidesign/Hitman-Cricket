@@ -23,7 +23,7 @@ import type { StatsSlide } from '../src/ui/StatsSheet';
 
 /** The id the made-up boards put in seventh place, so one row is yours. */
 const ME = 'abc123-defghijklmno';
-const LINK = 'hitmancricket.in';
+const LINK = 'hitman-cricket.vercel.app';
 
 const hud = new HUD(document.getElementById('stage')!, 121);
 hud.showBoardTabs(true);
