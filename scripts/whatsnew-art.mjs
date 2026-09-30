@@ -194,7 +194,7 @@ await shoot('ladders', '.board-stack');
 const drawn = await page.evaluate(async career => {
   const card = await import('/src/game/StatsCard.ts');
   const facts = card.statsFacts('classic', career, { name: 'Hardik', avatar: 2 }, '3rd on Runs');
-  const picture = await card.statsCardImage(facts, 'hitman-cricket.vercel.app', 3);
+  const picture = await card.statsCardImage(facts, 'hitmancricket.in', 3);
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);

@@ -14,8 +14,10 @@ rather than the summary.
 
 ## Production is the default branch
 
-`hitman-cricket.vercel.app` serves `codex/cricket-batting-game`, the
-repository's default branch. Feature branches get their own Vercel preview and
+`hitmancricket.in` serves `codex/cricket-batting-game`, the repository's
+default branch; `hitman-cricket.vercel.app`, the old address, hands players on
+to it from the page, careers and all — see `docs/DOMAIN.md`, and never give the
+old address a redirect in Vercel's settings, which would lose every one. Feature branches get their own Vercel preview and
 their own `preview:`-prefixed database keys, so a change is invisible on the
 live URL until it is merged. Development happens on the branch named in the
 session prompt, never straight onto the default branch.
@@ -105,6 +107,10 @@ starts an innings seeds `hitman-unveiled` so it starts past them, which means th
 one that sees them — keep that seed out of it. The two pictures are the same
 ball on the build before the graphics update and the build after it; retake
 both together, or the line stops lining up.
+
+`scripts/move-check.mjs` is that hand-over: both addresses played by the dev
+server, a player arriving as themselves, a newcomer with nothing, and a link
+carrying somebody else's career refused.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.

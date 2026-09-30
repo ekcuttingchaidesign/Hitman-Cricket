@@ -2,7 +2,7 @@
 
 A small, browser-based 3D cricket batting game. Five overs, 30 legal balls, three wickets. Read the delivery, pick a direction, and time your swing. Built with plain TypeScript, Three.js, and Vite; no external art, fonts, character packs, or physics engine are required.
 
-**[Play it here](https://hitman-cricket.vercel.app/)** — nothing to install, and it works on a phone.
+**[Play it here](https://hitmancricket.in/)** — nothing to install, and it works on a phone.
 
 ## Run locally
 
@@ -605,7 +605,7 @@ What it seeds is **true and incomplete**, which is the trade and worth saying ou
 
 ## Feedback
 
-A questionnaire, in the game and on a link of its own, answered entirely by tapping. **[hitman-cricket.vercel.app/feedback](https://hitman-cricket.vercel.app/feedback)** is the link to hand round; inside the game it is a quiet line on the cover, the pause card and the innings-end card.
+A questionnaire, in the game and on a link of its own, answered entirely by tapping. **[hitmancricket.in/feedback](https://hitmancricket.in/feedback)** is the link to hand round; inside the game it is a quiet line on the cover, the pause card and the innings-end card.
 
 Every question is a tap and there is exactly one box anybody types in, at the end, optional. That rule decides most of the design: a form that asks somebody to type is a form they fill in on a laptop later, which is to say never, and the people worth hearing from are on a phone with one thumb free and an innings they have just lost. Ten taps, forty seconds.
 
@@ -814,13 +814,13 @@ Two things GoatCounter cannot do, and where to go instead. It cannot cross-tabul
 
 ## Hosting
 
-The game is published at **https://hitman-cricket.vercel.app/**, from `codex/cricket-batting-game`, and Vercel is the only host of the three this repository has used that can serve the board: `GET /api/board` and `POST /api/score` are functions, and GitHub Pages and Sites both publish files and nothing else. That is why it is the address.
+The game is published at **https://hitmancricket.in/** (it was `hitman-cricket.vercel.app`, which now hands players on to it — see `docs/DOMAIN.md`), from `codex/cricket-batting-game`, and Vercel is the only host of the three this repository has used that can serve the board: `GET /api/board` and `POST /api/score` are functions, and GitHub Pages and Sites both publish files and nothing else. That is why it is the address.
 
 `vercel.json` carries one rewrite, `/feedback` to the page, which is what makes the questionnaire a link worth sending rather than a query string. Everywhere without it, `?feedback=1` opens the same form.
 
 Two consequences worth knowing:
 
-- **Share the short alias, never a deployment URL.** `hitman-cricket.vercel.app` follows the latest production deployment. The long per-deployment URLs — `hitman-cricket-1qc721gwe-…` and friends — are nailed to one commit each, deliberately, so they never update. A link shared from the deployments list will never show anything you ship afterwards.
+- **Share the domain, never a deployment URL.** `hitmancricket.in` follows the latest production deployment. The long per-deployment URLs — `hitman-cricket-1qc721gwe-…` and friends — are nailed to one commit each, deliberately, so they never update. A link shared from the deployments list will never show anything you ship afterwards.
 - **`FEEDBACK_KEY` is what makes the answers readable.** Set it in the Vercel environment and `GET /api/feedback?key=…` hands back every questionnaire as CSV. Until it is set there is nothing to read and the endpoint says so as a 404.
 - **Put the functions in the database's region.** Both live in Mumbai (`ap-south-1` / `bom1`). Functions default to Washington DC, which makes every Redis command cross the planet twice on a screen that should open instantly.
 

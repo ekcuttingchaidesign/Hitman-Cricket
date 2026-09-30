@@ -1,5 +1,6 @@
 import './styles.css';
 import { feedbackRoute } from './game/feedback';
+import { moveIn, moveOut, movingOut } from './game/new-home';
 import { markNoticeSeen, noticeSeen, privateWindow } from './game/private-mode';
 import { clearThisDevice, forgetFreshFlag, freshWanted } from './game/fresh-start';
 import { keyView } from './game/recovery';
@@ -15,6 +16,11 @@ const root = document.querySelector<HTMLDivElement>('#app')!;
  * to letting the player through, so an ordinary tab waits on it once and barely.
  */
 void (async () => {
+  // The old address hands this browser on to the new one, careers and all,
+  // before anything else happens — see new-home.ts. And the new one takes it
+  // in before anything reads who is playing.
+  if (movingOut()) { await moveOut(); return; }
+  moveIn();
   /**
    * The shared feedback link is a page, not a game, and it is decided here —
    * before anything is imported — because of what the game costs to import. A
