@@ -55,9 +55,12 @@ if (dormant) {
   const context = await visitor();
   const page = await context.newPage();
   await page.goto(`${OLD}/?room=abc123`);
-  await page.waitForTimeout(4000);
+  // The game, or the notice a first visit in a window that looks private gets
+  // in front of it: either is the game having loaded where it is.
+  const loaded = await page.waitForSelector('#start, .private-gate', { state: 'attached', timeout: 30_000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(1500);
   check(new URL(page.url()).origin === OLD, 'the old address stays where it is', page.url());
-  check(await page.locator('#start').count() === 1, 'and the game loads there as it always has');
+  check(loaded, 'and the game loads there as it always has');
   await context.close();
   await browser.close();
   console.log(failures ? `\n${failures} failed` : '\nall passed');
