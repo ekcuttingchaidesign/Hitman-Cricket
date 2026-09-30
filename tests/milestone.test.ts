@@ -55,6 +55,16 @@ describe('six sixes in a row', () => {
     expect(sixSixes(sixes(7))).toBe(false);
     expect(sixSixes([...sixes(3), ball(4), ...sixes(3)])).toBe(false);
   });
+  it('runs on across the end of an over', () => {
+    // The last three balls of the first over and the first three of the
+    // second: the innings is one run of balls, and an over ending breaks
+    // nothing. The slots go up on the third and it is six sixes on the sixth.
+    const firstOver = [ball(1), ball(0), ball(2), ...sixes(3)];
+    expect(nearingOf(firstOver)).toEqual({ kind: 'six-sixes', sixes: 3 });
+    expect(nearingOf([...firstOver, ...sixes(2)])).toEqual({ kind: 'six-sixes', sixes: 5 });
+    expect(sixSixes([...firstOver, ...sixes(3)])).toBe(true);
+    expect(milestoneOf([...firstOver, ...sixes(3)])).toBe('six-sixes');
+  });
   it('can come again after the run is broken', () => {
     expect(sixSixes([...sixes(6), ball(0), ...sixes(6)])).toBe(true);
   });

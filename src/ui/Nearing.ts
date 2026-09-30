@@ -1,7 +1,7 @@
 import type { Nearing, NearingEnd } from '../game/milestone';
 
 /**
- * The wait, drawn: a small chip at the foot of the screen while he is close to a
+ * The wait, drawn: a small card under the score bar while he is close to a
  * fifty, a hundred, or six sixes, in the same marker pen as the doodles that
  * go up when he gets there — so the one reads as the promise of the other.
  *
@@ -49,8 +49,8 @@ function loop(cx: number, cy: number, r: number, random: () => number, turns = 1
 
 /** A box drawn round the card by hand: corners that overshoot, sides that bow. */
 function frame(w: number, h: number, random: () => number) {
-  const j = (n: number) => n + (random() - .5) * 1.4;
-  const r = 8;
+  const j = (n: number) => n + (random() - .5) * 1.8;
+  const r = 9;
   return `M${f(j(r))} ${f(j(2))}L${f(j(w - r))} ${f(j(2))}Q${f(j(w - 2))} ${f(j(2))} ${f(j(w - 2))} ${f(j(r))}`
     + `L${f(j(w - 2))} ${f(j(h - r))}Q${f(j(w - 2))} ${f(j(h - 2))} ${f(j(w - r))} ${f(j(h - 2))}`
     + `L${f(j(r))} ${f(j(h - 2))}Q${f(j(2))} ${f(j(h - 2))} ${f(j(2))} ${f(j(h - r))}`
@@ -88,17 +88,17 @@ function tension(cx: number, cy: number, r: number) {
   const random = seeded(7);
   return Array.from({ length: 6 }, (_, i) => {
     const a = -Math.PI * (.95 - i * .16) + (random() - .5) * .1;
-    const inner = r + 3, outer = r + 6.5 + random() * 2;
+    const inner = r + 3.5, outer = r + 8 + random() * 2.5;
     return `<path class="nr-tick" style="--i:${i}" d="M${f(cx + Math.cos(a) * inner)} ${f(cy + Math.sin(a) * inner)}L${f(cx + Math.cos(a) * outer)} ${f(cy + Math.sin(a) * outer)}"/>`;
   }).join('');
 }
 
 /**
- * A chip, not a card: a third of the score bar, so it can sit in the strip
- * between the side labels at the foot of the screen without crowding it.
+ * Smaller than the score bar it hangs under, so it reads as a note on the
+ * score rather than a second one: about two thirds of it on a phone.
  */
-const RUNS = { w: 126, h: 36, dial: { x: 18, y: 18, r: 11 } };
-const SIXES = { w: 120, h: 36, slot: { x: 13.5, y: 25, r: 6.5, gap: 18.5 } };
+const RUNS = { w: 158, h: 48, dial: { x: 24, y: 24, r: 15 } };
+const SIXES = { w: 156, h: 50, slot: { x: 17, y: 33, r: 8.5, gap: 24.5 } };
 
 /** How hot the wait is running, one to three. */
 export function heatOf(n: Nearing) {
@@ -144,7 +144,7 @@ export function nearingMarkup(n: Nearing): string {
         + `<g class="nr-ball"><circle class="nr-ball-ink" cx="${f(x + 1.2)}" cy="${f(slot.y + 1.5)}" r="${slot.r}"/>`
         + `<circle class="nr-ball-body" cx="${f(x)}" cy="${f(slot.y)}" r="${slot.r}"/>`
         + `<path class="nr-ball-seam" d="M${f(x - slot.r * .55)} ${f(slot.y - slot.r * .72)}Q${f(x - slot.r * .15)} ${f(slot.y)} ${f(x - slot.r * .55)} ${f(slot.y + slot.r * .72)}"/>`
-        + `<text class="nr-ball-six" x="${f(x + 1.2)}" y="${f(slot.y + 3.3)}">6</text></g></g>`;
+        + `<text class="nr-ball-six" x="${f(x + 1.2)}" y="${f(slot.y + 4.2)}">6</text></g></g>`;
     }).join('');
     return `<div class="nr-body"><svg class="nr-svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">`
       + `<g class="nr-boil">${frames(w, h, 3)}</g>${slots}${scribble(w, h, .5, .085)}</svg>`
@@ -159,7 +159,7 @@ export function nearingMarkup(n: Nearing): string {
     + `<path class="nr-track" d="${ring}"/>`
     + `<path class="nr-arc-ink" d="${ring}" pathLength="1" transform="translate(1.2 1.6)"/>`
     + `<path class="nr-arc" d="${ring}" pathLength="1"/>`
-    + `<text class="nr-need" x="${dial.x}" y="${dial.y + 4.6}">${n.need}</text>`
+    + `<text class="nr-need" x="${dial.x}" y="${dial.y + 6}">${n.need}</text>`
     + `${scribble(w, h)}</svg>`
     + `<span class="nr-text" aria-hidden="true"><b class="nr-runs"><span class="nr-count">${n.runs}</span><i>*</i></b>`
     + `<span class="nr-say">${nearingLine(n)}</span></span></div><span class="nr-said">${nearingSaid(n)}</span>`;
@@ -232,7 +232,7 @@ export function endNearing(card: HTMLElement, before: Nearing, end: NearingEnd) 
       if (need) {
         need.textContent = before.kind === 'century' ? '100' : '50';
         // Three figures in a ring drawn for two.
-        if (before.kind === 'century') need.setAttribute('font-size', '10');
+        if (before.kind === 'century') need.setAttribute('font-size', '12');
       }
       kick(need, 'is-new');
     }
