@@ -5996,28 +5996,26 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .pw-ray.is-a{stroke:var(--pw-a);filter:drop-shadow(0 0 3px #43ffb188)}
 .pw-ray.is-b{stroke:var(--pw-b);filter:drop-shadow(0 0 3px #9c78ff88)}
 @keyframes pw-ray{to{stroke-dashoffset:-1}}
-.pw-burst{transform:scale(0);animation:pw-burst .9s cubic-bezier(.2,1.5,.35,1) forwards}
+.pw-burst{transform:scale(0);animation:pw-burst .95s cubic-bezier(.2,1.5,.35,1) forwards}
 @keyframes pw-burst{
-  0%{transform:scale(.1,.05);opacity:0}
-  14%{transform:scale(1.12,1.08);opacity:1}
+  0%{transform:scale(.2,.05);opacity:0}
+  14%{transform:scale(1.08,1.14);opacity:1}
   26%{transform:none}
   72%{transform:none;opacity:1}
-  100%{transform:scale(.7,.25);opacity:0}
+  100%{transform:scale(1.05,0);opacity:0}
 }
-.pw-burst-ink{fill:var(--pw-ink);stroke:var(--pw-ink);stroke-width:3.5px;stroke-linejoin:round;transform:translate(1.5px,2px)}
+.pw-burst-ink{fill:var(--pw-ink);stroke:var(--pw-ink);stroke-linejoin:miter;stroke-miterlimit:8}
 .pw-burst-b{fill:var(--pw-b)}
 .pw-burst-a{fill:var(--pw-a)}
-.pw-burst-core{fill:var(--pw-core)}
 .pw-frame{animation:cy-frame .15s steps(1) infinite}
 .pw-frame+.pw-frame{animation-delay:-.075s}
-.pw-arc{
-  fill:none;stroke:var(--pw-ink);stroke-width:3.2px;stroke-linecap:round;
-  stroke-dasharray:1 1;stroke-dashoffset:1;
-  animation:pw-arc .5s ease-out var(--delay) forwards
-}
+.pw-arc{fill:var(--pw-ink);opacity:0;transform-box:fill-box;transform-origin:center;animation:pw-arc .6s ease-out var(--delay) forwards}
+.pw-arc.is-b{fill:var(--pw-b)}
 @keyframes pw-arc{
-  40%{stroke-dashoffset:0;opacity:1;transform:none}
-  100%{stroke-dashoffset:0;opacity:0;transform:translateX(var(--dx))}
+  0%{opacity:0;transform:scaleX(.3)}
+  25%{opacity:1;transform:none}
+  70%{opacity:1}
+  100%{opacity:0;transform:translateX(var(--dx))}
 }
 .pw-thrown{opacity:0;animation:pw-thrown .55s cubic-bezier(.2,.7,.4,1) var(--delay) forwards}
 .pw-thrown.is-spark{animation-duration:.6s}

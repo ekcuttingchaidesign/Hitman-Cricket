@@ -423,31 +423,51 @@ export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: numb
  * to come: this is the shot, not the score.
  */
 
-/** Mint, violet, and an indigo ink to outline them in; a pale core for heat. */
-const POWER = { a: '#43ffb1', b: '#9c78ff', ink: '#170d33', core: '#f2fff9' };
+/** Mint, violet, and an indigo ink to outline them in. */
+const POWER = { a: '#43ffb1', b: '#9c78ff', ink: '#170d33' };
 
 /**
- * A comic burst on the ground: spikes out of a base at `c`, facing `side`
- * (-1 left, 1 right), the ones that rise taller than the ones that skid, as a
- * splash on a surface seen from low down does. `scale` shrinks the same
- * spikes for the layers inside it.
+ * A comic burst on the ground, the way a hit is drawn in a cartoon: low and
+ * wide, sat on the turf beside his boot, its top a row of jagged teeth blown
+ * outwards from `side` (-1 left, 1 right) — mostly small, two of them tall —
+ * and a long spike skidding along the ground at the far end. `w` and `h` are
+ * its width and the height its teeth are measured in.
+ *
+ * `band` draws the same teeth lower, for the band inside it: the random
+ * draws are the same for both, so the teeth line up the way a cel-shaded
+ * flame's colours do.
  */
-function groundBurst(c: Point, r: number, side: number, random: () => number, scale = 1) {
-  const points: Point[] = [];
-  const spikes = 7;
-  for (let i = 0; i <= spikes * 2; i++) {
-    // From straight up round the outward side to just below level.
-    const t = i / (spikes * 2);
-    const a = -Math.PI / 2 + side * (Math.PI * .05 + t * Math.PI * .62);
-    const tip = i % 2 === 0;
-    // Fat spikes off a solid base: shallow valleys, so it reads as one shape
-    // blowing out rather than a bundle of lines.
-    const reach = tip ? r * (.72 + random() * .45) * (1 - Math.abs(t - .55) * .3) : r * (.4 + random() * .12);
-    const rise = Math.sin(a) < 0 ? .85 : .35;
-    points.push({ x: c.x + Math.cos(a) * reach * scale, y: c.y + Math.sin(a) * reach * rise * scale });
-  }
-  points.push({ x: c.x - side * r * .08 * scale, y: c.y + r * .05 * scale });
-  return `${line(points)}Z`;
+function groundBurst(base: Point, w: number, h: number, side: number, seed: number, band = 1) {
+  const random = seeded(seed);
+  const at = (x: number, y: number): Point => ({ x: base.x + side * x * w, y: base.y - y * h });
+  const points: Point[] = [at(.02, 0)];
+  // Seven teeth, spaced unevenly, peaking a third of the way out and running
+  // down to the far end; every tip raked hard outwards, the far ones nearly
+  // flat, as though the burst were blown along the ground.
+  const spots = [.07, .19, .31, .45, .58, .71, .84];
+  spots.forEach((spot, i) => {
+    const x = spot + (random() - .5) * .04;
+    const hump = .34 * Math.exp(-(((x - .3) / .34) ** 2)) + .05;
+    const tall = i === 2 ? .9 : i === 4 ? .55 : .12 + random() * .2;
+    const reach = tall * (1 - x * .45);
+    const lean = .1 + x * .26 + random() * .04;
+    points.push(at(x - .04, hump * band * .55));
+    points.push(at(x + lean * band, (hump + reach) * band));
+  });
+  // The long one along the ground, and back under.
+  points.push(at(.92, .1 * band));
+  points.push(at(1.1 + .1 * band, .2 * band));
+  points.push(at(1, .07 * band));
+  points.push(at(1.28 + .12 * band, .05 * band));
+  points.push(at(.9, 0));
+  const under = at(.45, -.1);
+  return `${line(points)}Q${f(under.x)} ${f(under.y)} ${f(points[0].x)} ${f(points[0].y)}Z`;
+}
+
+/** A crescent: the swoosh drawn under a burst, thick in the middle, pointed at both ends. */
+function crescent(c: Point, w: number, side: number, bulge: number) {
+  const p = (x: number, y: number) => `${f(c.x + side * x)} ${f(c.y + y)}`;
+  return `M${p(-w, -w * .12)}Q${p(0, w * bulge)} ${p(w, -w * .2)}Q${p(0, w * bulge * .45)} ${p(-w, -w * .12)}Z`;
 }
 
 export function powerDoodle(at: BatterOnScreen, lasts: number) {
@@ -475,24 +495,22 @@ export function powerDoodle(at: BatterOnScreen, lasts: number) {
     }
   }
 
-  // The bursts either side of his boots, three layers each, drawn twice with
-  // different hands and flicked between.
-  const r = s * 1.05;
+  // The bursts either side of his boots: an ink outline, a violet body and a
+  // mint band inside it, each two hands flicked between.
+  const w = s * .95, h = s * .55;
   for (const side of [-1, 1]) {
-    const base = { x: at.feet.x + side * s * .32, y: at.feet.y + s * .02 };
+    const base = { x: at.feet.x + side * s * .2, y: at.feet.y + s * .03 };
     const frames = [0, 1].map(k => {
-      const hand = seeded(900 + side * 10 + k);
-      const shape = (scale: number) => groundBurst(base, r, side, hand, scale);
-      return `<g class="pw-frame"><path class="pw-burst-ink" d="${shape(1)}"/>`
-        + `<path class="pw-burst-b" d="${shape(1)}"/><path class="pw-burst-a" d="${shape(.68)}"/>`
-        + `<path class="pw-burst-core" d="${shape(.36)}"/></g>`;
+      const seed = 900 + (side + 1) * 10 + k;
+      const shape = (band: number) => groundBurst(base, w, h, side, seed, band);
+      return `<g class="pw-frame"><path class="pw-burst-ink" d="${shape(1)}" stroke-width="${f(Math.max(3, s * .07))}"/>`
+        + `<path class="pw-burst-b" d="${shape(1)}"/><path class="pw-burst-a" d="${shape(.44)}"/></g>`;
     }).join('');
     out.push(`<g class="pw-burst" style="transform-origin:${f(base.x)}px ${f(base.y)}px">${frames}</g>`);
-    // Shock-arcs, sliding away along the turf under it.
-    for (let k = 0; k < 2; k++) {
-      const x = base.x + side * s * (.55 + k * .5), y = base.y + s * (.1 + k * .06), w = s * (.32 - k * .08);
-      out.push(`<path class="pw-arc" d="M${f(x - side * w)} ${f(y - w * .1)}Q${f(x)} ${f(y + w * .35)} ${f(x + side * w)} ${f(y - w * .2)}" `
-        + `pathLength="1" style="--dx:${f(side * s * .5)}px;--delay:${60 + k * 70}ms"/>`);
+    // Crescents under it, ink and violet, sliding away along the turf.
+    for (const [k, dx, dy, cw, bulge] of [[0, .3, .14, .34, .75], [1, .85, .1, .18, .8], [2, .05, .26, .14, .8]] as const) {
+      out.push(`<path class="pw-arc${k === 1 ? ' is-b' : ''}" d="${crescent({ x: base.x + side * w * dx, y: base.y + s * dy }, s * cw, side, bulge)}" `
+        + `style="--dx:${f(side * s * .3)}px;--delay:${40 + k * 60}ms"/>`);
     }
   }
 
