@@ -4,7 +4,7 @@ The game moves from `hitman-cricket.vercel.app` to **hitmancricket.in**, a
 domain bought on GoDaddy and served by the same Vercel project. Same
 deployment, same database, same boards: only the address changes.
 
-The old address forwards to the new one — but from the page, not from Vercel's
+Once switched on (step 4), the old address forwards to the new one — but from the page, not from Vercel's
 settings, and the order below matters because of it. Who a player is lives in
 their browser, per address: on a new address the same phone is a new player
 with no name and no career. So the page on the old address packs up what the
@@ -51,20 +51,27 @@ certificate by itself. Then open **https://hitmancricket.in** and check the game
 is there and the board loads. It is the same production deployment, so it
 should look exactly like the old address.
 
-**Do not merge until this works.** The forwarding ships with the code, and
-the moment it is live the old address sends everybody to the new one; if the
-new one is not answering yet, that is everybody sent to nothing.
+## 4. Switch the move on
 
-## 4. Merge
+The code that does the handing over is already in production, switched off:
+it ships before the domain is connected, and an old address forwarding to a
+domain that does not answer yet would be everybody sent to nothing. **Only once
+step 3 works:**
 
-Merge the branch carrying `new-home.ts` into `codex/cricket-batting-game`.
-When the deploy finishes, opening the old address — the link people have
+1. Vercel → the project → **Settings → Environment Variables** → add
+   `VITE_MOVE_HOME` with the value `1`, for **Production** only.
+2. **Deployments** → the latest production deployment → **⋯ → Redeploy**. The
+   setting is read when the game is built, so it takes a new build.
+
+When that deploy finishes, opening the old address — the link people have
 bookmarked and shared — lands on hitmancricket.in, on the same page, as the same
-player.
+player. To turn it off again, remove the variable and redeploy.
 
-`scripts/move-check.mjs` checks all three ways in against a dev server: a
-player with a career arrives as themselves, a newcomer arrives with nothing,
-and a link carrying somebody else's career is refused.
+`scripts/move-check.mjs` checks all three ways in against a dev server started
+with `VITE_MOVE_HOME=1`: a player with a career arrives as themselves, a
+newcomer arrives with nothing, and a link carrying somebody else's career is
+refused. With `--dormant`, against a server without it, it checks the old
+address stays where it is.
 
 ## 5. Afterwards
 

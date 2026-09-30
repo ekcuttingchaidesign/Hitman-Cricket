@@ -3,8 +3,12 @@
  * lands on the new one as themselves, a newcomer lands there with nothing, and
  * a link with somebody else's career in it is refused.
  *
- *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
+ *   VITE_MOVE_HOME=1 VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/move-check.mjs
+ *
+ *   # the switch off, as production has it until the domain is connected:
+ *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
+ *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/move-check.mjs --dormant
  *
  * Both addresses are played by the dev server: every request to either one is
  * answered from it, so the browser really does leave one origin for the other
@@ -14,7 +18,8 @@
 
 import { chromium } from '@playwright/test';
 
-const dev = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
+const dormant = process.argv.includes('--dormant');
+const dev = (process.argv.slice(2).find(arg => !arg.startsWith('--')) ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 const OLD = 'https://hitman-cricket.vercel.app';
 const NEW = 'https://hitmancricket.in';
@@ -43,6 +48,21 @@ async function visitor() {
   return context;
 }
 const settled = page => page.waitForURL(url => url.origin === NEW, { timeout: 30_000 }).then(() => true).catch(() => false);
+
+// ── Switched off: nobody moves ──────────────────────────────────────────────
+if (dormant) {
+  console.log('the move switched off');
+  const context = await visitor();
+  const page = await context.newPage();
+  await page.goto(`${OLD}/?room=abc123`);
+  await page.waitForTimeout(4000);
+  check(new URL(page.url()).origin === OLD, 'the old address stays where it is', page.url());
+  check(await page.locator('#start').count() === 1, 'and the game loads there as it always has');
+  await context.close();
+  await browser.close();
+  console.log(failures ? `\n${failures} failed` : '\nall passed');
+  process.exit(failures ? 1 : 0);
+}
 
 // ── A player with a career on the old address ──────────────────────────────
 {

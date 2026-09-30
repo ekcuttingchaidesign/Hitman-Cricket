@@ -1,3 +1,5 @@
+import { LIVE_ADDRESS } from './new-home';
+
 /**
  * The career key, as a picture somebody can keep.
  *
@@ -142,7 +144,7 @@ export async function keyImage(name: string, code: string): Promise<Blob> {
 
   ctx.fillStyle = '#ffffff7a';
   ctx.font = `600 24px ${FAMILY}`;
-  ctx.fillText('hitmancricket.in', W / 2, 930);
+  ctx.fillText(LIVE_ADDRESS, W / 2, 930);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(made => (made ? resolve(made) : reject(new Error('no picture'))), 'image/png');

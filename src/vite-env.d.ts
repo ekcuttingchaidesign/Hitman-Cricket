@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 /**
- * The build-time settings this game has, and there are only six.
+ * The build-time settings this game has, and there are only seven.
  *
  * `VITE_BOARD_API` is empty when Vercel serves both the game and its endpoints,
  * and set to the API's origin when the game is published somewhere that cannot
@@ -40,6 +40,13 @@
  * innings would be offered it. Without it the picker never opens and Play goes
  * straight to the classic innings — which is what production wants, and what
  * `?mode=SURVIVE` is still there to override for anyone testing.
+ *
+ * `VITE_MOVE_HOME` switches on the move to hitmancricket.in: set to `1`, the
+ * old address hands every visitor on to the new one (see `new-home.ts`). Off
+ * unless set, because the move ships before the domain is connected, and an
+ * old address forwarding to a domain that does not answer yet is everybody
+ * sent to nothing. Set it in Vercel's Production environment once the new
+ * domain works, and redeploy — `docs/DOMAIN.md`.
  */
 interface ImportMetaEnv {
   readonly VITE_BOARD_API?: string;
@@ -48,6 +55,7 @@ interface ImportMetaEnv {
   readonly VITE_CHARGE_ONLY?: string;
   readonly VITE_CHARGE_SLOWMO?: string;
   readonly VITE_SHOW_SURVIVE?: string;
+  readonly VITE_MOVE_HOME?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

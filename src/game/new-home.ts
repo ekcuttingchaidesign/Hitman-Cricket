@@ -45,9 +45,19 @@ const MOST = 200_000;
 
 interface Where { hostname: string; pathname: string; search: string; hash: string }
 
+/**
+ * Whether the move is switched on for this build: `VITE_MOVE_HOME=1`, set in
+ * Vercel once the new domain answers. Until then the old address stays where
+ * it is, and so does everyone on it.
+ */
+export const MOVE_LIVE = import.meta.env.VITE_MOVE_HOME === '1';
+
+/** The address to print where the game names itself: wherever it lives today. */
+export const LIVE_ADDRESS = MOVE_LIVE ? HOME : 'hitman-cricket.vercel.app';
+
 /** Whether this page is on an old address and should move. */
-export function movingOut(where: Pick<Where, 'hostname'> = location): boolean {
-  return OLD_HOMES.includes(where.hostname);
+export function movingOut(where: Pick<Where, 'hostname'> = location, live = MOVE_LIVE): boolean {
+  return live && OLD_HOMES.includes(where.hostname);
 }
 
 /** What travels: the game's keys, and whatever fragment the address already had. */

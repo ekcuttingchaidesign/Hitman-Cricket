@@ -17,12 +17,18 @@ function storage(seed: Record<string, string> = {}) {
 }
 
 describe('the old address', () => {
-  it('moves, and nothing else does', () => {
-    expect(movingOut({ hostname: 'hitman-cricket.vercel.app' })).toBe(true);
-    expect(movingOut({ hostname: HOME })).toBe(false);
+  it('moves once switched on, and nothing else does', () => {
+    expect(movingOut({ hostname: 'hitman-cricket.vercel.app' }, true)).toBe(true);
+    expect(movingOut({ hostname: HOME }, true)).toBe(false);
     // A preview is where a change is looked at before it ships.
-    expect(movingOut({ hostname: 'hitman-cricket-git-claude-blissful-pascal-2csfhv-ek-cutting-chai-design.vercel.app' })).toBe(false);
-    expect(movingOut({ hostname: 'localhost' })).toBe(false);
+    expect(movingOut({ hostname: 'hitman-cricket-git-claude-blissful-pascal-2csfhv-ek-cutting-chai-design.vercel.app' }, true)).toBe(false);
+    expect(movingOut({ hostname: 'localhost' }, true)).toBe(false);
+  });
+
+  it('stays put until the new domain is switched on', () => {
+    // The move ships before the domain answers; forwarding to it then would be
+    // everybody sent to nothing.
+    expect(movingOut({ hostname: 'hitman-cricket.vercel.app' }, false)).toBe(false);
   });
 
   it('sends the same page, with its query, to the new one', () => {
