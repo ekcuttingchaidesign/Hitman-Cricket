@@ -1,6 +1,6 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { SURVIVE } from './config/survive';
-import { Confidence, landedSpecial } from './game/Confidence';
+import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
@@ -20,7 +20,7 @@ import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
-import { POWER_DOODLE_MS, POWER_STYLES, type PowerStyle } from './ui/Milestone';
+import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, type PowerStyle } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
   fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
@@ -528,6 +528,8 @@ export class Game {
       // The special stroke's flash, on demand, for the same reason — in the
       // style named, so `power-check.mjs` can see each, or the next one dealt.
       power: (style?: PowerStyle) => this.powerUp(style),
+      // And a pulled bouncer's, for `pull-check.mjs`.
+      pull: () => this.pullUp(),
       // The wait for one, from an innings written out ball by ball — runs, or
       // 'W' for a wicket — for `nearing-check.mjs`, which cannot bat its way to
       // 96 either. Each call is one ball: the card moves as it would have.
@@ -1757,6 +1759,7 @@ export class Game {
       if (!this.contactPlayed && this.elapsed >= this.contactAt) {
         this.contactPlayed = true;
         if (this.lesson < 0 && landedSpecial(this.outcome!)) this.powerUp();
+        else if (this.lesson < 0 && pulledBouncer(this.delivery!, this.attempt?.shotType, this.outcome!)) this.pullUp();
         if (this.outcome!.aerial && this.outcome!.madeBatContact) this.audio.play('hit');
       }
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
@@ -1844,6 +1847,15 @@ export class Game {
     this.scene.power(this.elapsed);
     this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
     track('special-shot', 'Played a special stroke on a full meter');
+  }
+  /**
+   * A bouncer pulled and hit, on the hit: focus lines, a swoosh behind the bat
+   * and a streak behind the ball. See `pulledBouncer` and `pullDoodle`.
+   */
+  private pullUp() {
+    this.scene.pull(this.elapsed);
+    this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS);
+    track('pulled-bouncer', 'Pulled a bouncer');
   }
   private readonly powerStyles = new ShuffleBag(POWER_STYLES);
   /** The burst the last special stroke was drawn with, for the debug snapshot. */
@@ -2788,7 +2800,8 @@ export class Game {
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
-      special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle };
+      special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
+      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();

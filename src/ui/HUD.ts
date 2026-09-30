@@ -35,7 +35,7 @@ import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { openUnveil } from './Unveil';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
-import { milestoneDoodle, powerDoodle, type BatterOnScreen, type PowerStyle } from './Milestone';
+import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle } from './Milestone';
 import type { Milestone } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
 import {
@@ -2371,6 +2371,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   power(at: BatterOnScreen, lasts: number, style: PowerStyle) {
     this.viewport.querySelector('.milestone')?.remove();
     const doodle = powerDoodle(at, lasts, style);
+    this.viewport.append(doodle);
+    window.setTimeout(() => doodle.remove(), lasts);
+  }
+  /** The focus lines for a pulled bouncer: see `pullDoodle`. Not a moment either. */
+  pull(at: BatterOnScreen, lasts: number) {
+    this.viewport.querySelector('.milestone')?.remove();
+    const doodle = pullDoodle(at, lasts);
     this.viewport.append(doodle);
     window.setTimeout(() => doodle.remove(), lasts);
   }

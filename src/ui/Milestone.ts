@@ -614,23 +614,17 @@ function crescent(c: Point, w: number, side: number, bulge: number) {
 }
 
 /**
- * How long the flash's doodle is up: a little longer than the grey, so the
- * second wave of lines can run out after the colour has started to come back.
+ * The focus lines: a dozen strokes of marker, in two unhurried waves, each
+ * starting on an oval that clears him and running out past the edge of the
+ * screen. A length of each travels out along it and is gone — a trim path —
+ * inked like every other mark in this pen: a dark stroke under the colour, a
+ * hand's bend in it, and the whole lot shivering the way drawn lines do. Not
+ * straight down, where the burst on the ground is doing the talking.
+ *
+ * Drawn off `random`, which the caller goes on drawing from: the same stream,
+ * in the same order, is what keeps a flash the same every time.
  */
-export const POWER_DOODLE_MS = 1400;
-
-export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle = 'teeth') {
-  const random = seeded(77);
-  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
-  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
-  const out: string[] = [];
-
-  // The focus lines: a dozen strokes of marker, in two unhurried waves, each
-  // starting on an oval that clears him and running out past the edge of the
-  // screen. A length of each travels out along it and is gone — a trim path —
-  // inked like every other mark in this pen: a dark stroke under the colour,
-  // a hand's bend in it, and the whole lot shivering the way drawn lines do.
-  // Not straight down, where the burst on the ground is doing the talking.
+function focusLines(at: BatterOnScreen, c: Point, s: number, random: () => number) {
   const rays: string[] = [];
   for (const [count, from, spread] of [[8, 0, 180], [5, 320, 140]] as const) {
     for (let i = 0; i < count; i++) {
@@ -658,7 +652,22 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
         + `<path class="pw-ray ${tone}" d="${d}" ${dash} stroke-width="${f(width)}"/></g>`);
     }
   }
-  out.push(`<g class="cy-boil">${rays.join('')}</g>`);
+  return `<g class="cy-boil">${rays.join('')}</g>`;
+}
+
+/**
+ * How long the flash's doodle is up: a little longer than the grey, so the
+ * second wave of lines can run out after the colour has started to come back.
+ */
+export const POWER_DOODLE_MS = 1400;
+
+export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle = 'teeth') {
+  const random = seeded(77);
+  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
+  const out: string[] = [];
+
+  out.push(focusLines(at, c, s, random));
 
   // The bursts either side of his boots: an ink outline, the body and a
   // brighter band inside it, each two hands flicked between. The dust puff
@@ -715,6 +724,39 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
   element.className = 'milestone is-power';
   element.dataset.style = style;
   for (const [name, value] of Object.entries(POWER[style])) element.style.setProperty(`--pw-${name}`, value);
+  element.style.setProperty('--out', `${lasts - 260}ms`);
+  element.innerHTML = svg;
+  return element;
+}
+
+/**
+ * The pull's pen: gold and turquoise, inked in a deep teal. The swoosh behind
+ * the bat and the streak behind the ball run through the same two colours
+ * (see `TAILS` in GameScene), and none of the special strokes' five pens use
+ * either, so a pulled bouncer is never mistaken for one of those.
+ */
+const PULL = { a: '#ffd23f', b: '#12e0c4', ink: '#062a2a' };
+
+/** How long a pulled bouncer's doodle is up: long enough for the second wave of lines. */
+export const PULL_DOODLE_MS = 1300;
+
+/**
+ * A bouncer pulled and hit: an ordinary stroke, but the hardest one in the
+ * game to land — only middled does it — so it gets a flash of its own. Only
+ * the focus lines are drawn here: no burst on the ground, no grey, because it
+ * is a great shot rather than a special one. The rest of it is in the ground's
+ * renderer: a swoosh following the bat through its swing and a gold streak
+ * behind the ball (see `GameScene.pull`).
+ */
+export function pullDoodle(at: BatterOnScreen, lasts: number) {
+  const random = seeded(41);
+  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
+  const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
+    + focusLines(at, c, s, random) + '</svg>';
+  const element = document.createElement('div');
+  element.className = 'milestone is-pull';
+  for (const [name, value] of Object.entries(PULL)) element.style.setProperty(`--pw-${name}`, value);
   element.style.setProperty('--out', `${lasts - 260}ms`);
   element.innerHTML = svg;
   return element;

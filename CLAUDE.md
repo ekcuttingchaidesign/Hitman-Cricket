@@ -95,6 +95,14 @@ stopwatch. It also plays real balls on a hand-wound clock until a special
 stroke lands, for the fire trail that burns behind only those
 (`snapshot().burning`); that part takes several minutes in software.
 
+`scripts/pull-check.mjs` is the flash for a bouncer pulled and hit, the one
+ordinary stroke that gets one: focus lines in the pull's pen, a swoosh behind
+the bat (`snapshot().swishing`) and the ball's tail recoloured
+(`snapshot().tail`), with the ground left in colour. It raises it through the
+debug hook, then plays real innings in both modes, blocking every ball until a
+bouncer comes and pulling that one on time, so the rule that earns it is proved
+to fire in play and not only on demand.
+
 `scripts/nearing-check.mjs` is the wait for those moments: the card under
 the score bar ten short of a fifty or a hundred and from the third six running.
 It writes the innings out ball by ball through the debug hook with the real one
