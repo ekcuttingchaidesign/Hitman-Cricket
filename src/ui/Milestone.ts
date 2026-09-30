@@ -409,51 +409,118 @@ export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: numb
 
 /**
  * A special stroke played on a full meter — the charge, the slog sweep, a
- * scoop — gets a flash of the same pen: fire streaking out of him in every
- * direction, flames licking off the ends of the upper ones and up round his
- * boots, and embers thrown off. Shorter than any of the moments and wordless,
- * because the ball is still in the air and the call for it is still to come:
- * this is the shot, not the score.
+ * scoop — gets a look of its own rather than the moments' fire: the pen is
+ * mint and violet, and the marks move.
+ *
+ * Focus lines, the way a comic pulls the eye to one figure: two waves of
+ * strokes run out from round him and off the edges of the screen, each a
+ * short length of line travelling along its path — trim paths — so what the
+ * eye follows back is him. On the ground either side of his boots, a burst
+ * that blows outwards and flickers, inked round, with shock-arcs sliding away
+ * along the turf, specks of dirt thrown out and a few sparks thrown up.
+ *
+ * Wordless, because the ball is still in the air and the call for it is still
+ * to come: this is the shot, not the score.
  */
+
+/** Mint, violet, and an indigo ink to outline them in; a pale core for heat. */
+const POWER = { a: '#43ffb1', b: '#9c78ff', ink: '#170d33', core: '#f2fff9' };
+
+/**
+ * A comic burst on the ground: spikes out of a base at `c`, facing `side`
+ * (-1 left, 1 right), the ones that rise taller than the ones that skid, as a
+ * splash on a surface seen from low down does. `scale` shrinks the same
+ * spikes for the layers inside it.
+ */
+function groundBurst(c: Point, r: number, side: number, random: () => number, scale = 1) {
+  const points: Point[] = [];
+  const spikes = 7;
+  for (let i = 0; i <= spikes * 2; i++) {
+    // From straight up round the outward side to just below level.
+    const t = i / (spikes * 2);
+    const a = -Math.PI / 2 + side * (Math.PI * .05 + t * Math.PI * .62);
+    const tip = i % 2 === 0;
+    // Fat spikes off a solid base: shallow valleys, so it reads as one shape
+    // blowing out rather than a bundle of lines.
+    const reach = tip ? r * (.72 + random() * .45) * (1 - Math.abs(t - .55) * .3) : r * (.4 + random() * .12);
+    const rise = Math.sin(a) < 0 ? .85 : .35;
+    points.push({ x: c.x + Math.cos(a) * reach * scale, y: c.y + Math.sin(a) * reach * rise * scale });
+  }
+  points.push({ x: c.x - side * r * .08 * scale, y: c.y + r * .05 * scale });
+  return `${line(points)}Z`;
+}
+
 export function powerDoodle(at: BatterOnScreen, lasts: number) {
   const random = seeded(77);
   const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
-  const pen = Math.max(3, s * .05);
-  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .5 };
+  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
+  const far = Math.hypot(at.width, at.height);
   const out: string[] = [];
-  // The streaks: out from an oval that clears him — he is the one thing left
-  // in colour, and the fire is round him, not on him — the upper ones longest,
-  // and none downwards, where they would cross the stumps and the pitch.
-  const rays = 14;
-  for (let i = 0; i < rays; i++) {
-    const a = -Math.PI / 2 + (i / rays) * Math.PI * 2 + (random() - .5) * .2;
-    const down = Math.sin(a);
-    if (down > .45) continue;
-    const up = -down;
-    const from = { x: c.x + Math.cos(a) * s * .62, y: c.y + Math.sin(a) * s * 1.12 };
-    const reach = s * (.55 + random() * .3 + Math.max(0, up) * .55);
-    const to = { x: from.x + Math.cos(a) * reach, y: from.y + Math.sin(a) * reach };
-    out.push(mark(jag(from, to, random, 4, s * .06), pen * (up > .3 ? 1 : .75), 20 + (i % 4) * 30, 150));
-    // Fire off the tips of the ones that point up, leaning the way they point.
-    if (up > .35 && i % 2 === 0) {
-      const h = s * (.3 + random() * .1);
-      out.push(fire({ x: to.x, y: to.y + h * .15 }, h * .7, h, Math.cos(a) * .6, 200 + i, 120 + (i % 4) * 30, Math.max(1.5, pen * .4)));
+
+  // The focus lines. Each starts on an oval that clears him and runs past the
+  // edge of the screen; a length of it travels out along it and is gone. Not
+  // straight down, where the burst on the ground is doing the talking.
+  for (const [wave, count, from] of [[0, 28, 0], [1, 22, 240]] as const) {
+    for (let i = 0; i < count; i++) {
+      const a = -Math.PI / 2 + ((i + wave * .5) / count) * Math.PI * 2 + (random() - .5) * .18;
+      if (Math.sin(a) > .8) continue;
+      const start = { x: c.x + Math.cos(a) * s * (.7 + random() * .15), y: c.y + Math.sin(a) * s * (1.15 + random() * .2) };
+      const end = { x: start.x + Math.cos(a) * far, y: start.y + Math.sin(a) * far };
+      const len = (.08 + random() * .12).toFixed(3);
+      const width = f(Math.max(1.4, s * (.016 + random() * .04)));
+      const tone = (i + wave) % 3 === 2 ? 'is-b' : 'is-a';
+      out.push(`<path class="pw-ray ${tone}" d="M${f(start.x)} ${f(start.y)}L${f(end.x)} ${f(end.y)}" pathLength="1" `
+        + `stroke-width="${width}" stroke-dasharray="${len} 2" stroke-dashoffset="${len}" `
+        + `style="--delay:${Math.round(from + random() * 160)}ms;--dur:${Math.round(420 + random() * 220)}ms"/>`);
     }
   }
-  // And flames either side of his boots, leaning out, clear of his legs.
-  for (const [dx, w, h, seed] of [[-.78, .42, .6, 301], [.78, .42, .6, 302], [-1.18, .3, .4, 303], [1.18, .3, .4, 304]] as const) {
-    out.push(fire({ x: at.feet.x + dx * s, y: at.feet.y + s * .02 }, w * s, h * s, Math.sign(dx) * .3, seed, 30, Math.max(1.5, pen * .4)));
+
+  // The bursts either side of his boots, three layers each, drawn twice with
+  // different hands and flicked between.
+  const r = s * 1.05;
+  for (const side of [-1, 1]) {
+    const base = { x: at.feet.x + side * s * .32, y: at.feet.y + s * .02 };
+    const frames = [0, 1].map(k => {
+      const hand = seeded(900 + side * 10 + k);
+      const shape = (scale: number) => groundBurst(base, r, side, hand, scale);
+      return `<g class="pw-frame"><path class="pw-burst-ink" d="${shape(1)}"/>`
+        + `<path class="pw-burst-b" d="${shape(1)}"/><path class="pw-burst-a" d="${shape(.68)}"/>`
+        + `<path class="pw-burst-core" d="${shape(.36)}"/></g>`;
+    }).join('');
+    out.push(`<g class="pw-burst" style="transform-origin:${f(base.x)}px ${f(base.y)}px">${frames}</g>`);
+    // Shock-arcs, sliding away along the turf under it.
+    for (let k = 0; k < 2; k++) {
+      const x = base.x + side * s * (.55 + k * .5), y = base.y + s * (.1 + k * .06), w = s * (.32 - k * .08);
+      out.push(`<path class="pw-arc" d="M${f(x - side * w)} ${f(y - w * .1)}Q${f(x)} ${f(y + w * .35)} ${f(x + side * w)} ${f(y - w * .2)}" `
+        + `pathLength="1" style="--dx:${f(side * s * .5)}px;--delay:${60 + k * 70}ms"/>`);
+    }
   }
-  // Embers, thrown up and out.
-  for (let i = 0; i < 12; i++) {
-    const a = -Math.PI * (.1 + random() * .8);
-    const r = s * (.8 + random() * .9);
-    out.push(`<circle class="cy-ember" cx="${f(c.x + Math.cos(a) * r)}" cy="${f(c.y + Math.sin(a) * r)}" r="${f(s * (.018 + random() * .02))}" style="--delay:${Math.round(80 + random() * 260)}ms;--rise:${f(-s * (.4 + random() * .5))}px"/>`);
+
+  // Dirt thrown out along the ground, and sparks thrown up.
+  for (let i = 0; i < 16; i++) {
+    const side = i % 2 ? 1 : -1;
+    const x = at.feet.x + side * s * (.2 + random() * .9), y = at.feet.y - s * (random() * .5);
+    const size = s * (.02 + random() * .03);
+    // Thrown by the group, tilted by the shape: an animated transform on the
+    // shape itself would replace its tilt.
+    out.push(`<g class="pw-thrown" style="--dx:${f(side * s * (.4 + random() * .8))}px;--dy:${f(-s * (.1 + random() * .6))}px;--delay:${Math.round(random() * 140)}ms">`
+      + `<rect class="pw-speck${i % 4 === 0 ? ' is-b' : ''}" x="${f(x)}" y="${f(y)}" width="${f(size)}" height="${f(size * .7)}" `
+      + `transform="rotate(${Math.round(random() * 90)} ${f(x)} ${f(y)})"/></g>`);
   }
+  for (let i = 0; i < 7; i++) {
+    const side = i % 2 ? 1 : -1;
+    const x = at.feet.x + side * s * (.5 + random() * .6), y = at.feet.y - s * (.3 + random() * .5);
+    const len = s * (.14 + random() * .08), tilt = side * (30 + random() * 40);
+    const d = `M${f(x)} ${f(y - len)}Q${f(x + len * .35)} ${f(y)} ${f(x)} ${f(y + len * .35)}Q${f(x - len * .35)} ${f(y)} ${f(x)} ${f(y - len)}Z`;
+    out.push(`<g class="pw-thrown is-spark" style="--dx:${f(side * s * (.3 + random() * .5))}px;--dy:${f(-s * (.5 + random() * .6))}px;--delay:${Math.round(40 + random() * 200)}ms">`
+      + `<path class="pw-spark" d="${d}" transform="rotate(${Math.round(tilt)} ${f(x)} ${f(y)})"/></g>`);
+  }
+
   const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
-    + `<g class="cy-boil">${out.join('')}</g></svg>`;
+    + out.join('') + '</svg>';
   const element = document.createElement('div');
   element.className = 'milestone is-power';
+  for (const [name, value] of Object.entries(POWER)) element.style.setProperty(`--pw-${name}`, value);
   element.style.setProperty('--out', `${lasts - 260}ms`);
   element.innerHTML = svg;
   return element;

@@ -84,8 +84,9 @@ their own clock, because a headless browser rendering the ground in software
 can hold CSS animations at their first frame.
 
 `scripts/power-check.mjs` is the flash for a special stroke played on a full
-meter: the ground greyed round the batter and the ball, fire streaking out of
-him, and the call for the ball left in place. The grey runs on the game's
+meter: the ground greyed round the batter and the ball, focus lines running
+out from him and off the screen, a burst either side of his boots, and the
+call for the ball left in place. The grey runs on the game's
 clock, so it is waited out by asking the game (`snapshot().muted`), not a
 stopwatch.
 

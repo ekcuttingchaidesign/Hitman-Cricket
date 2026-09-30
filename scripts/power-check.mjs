@@ -1,6 +1,7 @@
 /**
  * The flash for a special stroke, in a real browser: the ground greys round
- * the batter and the ball, fire streaks out of him, and both are gone again
+ * the batter and the ball, focus lines run out from him and off the screen,
+ * the turf bursts either side of his boots, and all of it is gone again
  * without the call for the ball being moved aside.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -107,16 +108,23 @@ for (const [name, options] of [
     // Judged at 400ms on its own clock, set by hand: see milestone-check.
     for (const animation of doodle?.getAnimations({ subtree: true }) ?? []) { animation.pause(); animation.currentTime = 400; }
     return {
-      doodle: !!doodle, marks: document.querySelectorAll('.is-power .cy-mark').length,
-      fire: document.querySelectorAll('.is-power .cy-fire').length, embers: document.querySelectorAll('.is-power .cy-ember').length,
-      drawn: [...document.querySelectorAll('.is-power .cy-paint')].filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) < .5).length,
+      doodle: !!doodle,
+      rays: document.querySelectorAll('.is-power .pw-ray').length,
+      // A length of line part way along its path: out from him, not yet off the screen.
+      travelling: [...document.querySelectorAll('.is-power .pw-ray')].filter(ray => {
+        const offset = parseFloat(getComputedStyle(ray).strokeDashoffset);
+        return offset < 0 && offset > -.95;
+      }).length,
+      bursts: document.querySelectorAll('.is-power .pw-burst').length,
+      thrown: document.querySelectorAll('.is-power .pw-thrown').length,
+      arcs: document.querySelectorAll('.is-power .pw-arc').length,
       aside: !!document.querySelector('#viewport.milestone-on'),
       muted: window.__cricket.snapshot().muted,
     };
   });
   check(up.doodle, 'the flash goes up');
-  check(up.marks >= 8 && up.drawn >= 7, 'fire lines streaking out of him, drawn on', JSON.stringify(up));
-  check(up.fire >= 4 && up.embers >= 8, 'with flames and embers', JSON.stringify(up));
+  check(up.rays >= 20 && up.travelling >= 8, 'focus lines travelling out from him', JSON.stringify(up));
+  check(up.bursts === 2 && up.arcs >= 4 && up.thrown >= 16, 'a burst either side of his boots, with dirt and sparks thrown', JSON.stringify(up));
   check(!up.aside, 'and the call for the ball left where it is');
   check(up.muted > .5, 'the ground going grey', up.muted);
   const during = await page.screenshot({ path: `test-results/power-${name}.png` });
@@ -125,10 +133,10 @@ for (const [name, options] of [
   let muted = 1;
   for (let i = 0; i < 120 && muted > 0; i++) { await page.waitForTimeout(250); muted = (await snap()).muted; }
   check(muted === 0, 'and the grey goes by itself');
-  // Again at the page's own pace, to see the fire go without being asked.
+  // Again at the page's own pace, to see it go without being asked.
   await page.evaluate(() => { window.__timerScale = 1; window.__cricket.power(); });
   await page.waitForTimeout(2500);
-  check(await page.locator('.is-power').count() === 0, 'and so does the fire');
+  check(await page.locator('.is-power').count() === 0, 'and so do the lines and the bursts');
   muted = 1;
   for (let i = 0; i < 120 && muted > 0; i++) { await page.waitForTimeout(250); muted = (await snap()).muted; }
   const after = await saturation(page, await page.screenshot(), grass);

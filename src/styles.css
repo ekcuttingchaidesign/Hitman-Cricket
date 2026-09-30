@@ -5986,3 +5986,52 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .nr-frame,.nr-tick,.nr-body,.nr-slot.is-next .nr-empty{animation:none!important}
   .nr-frame+.nr-frame{display:none}
 }
+
+/* ── The flash for a special stroke ────────────────────────────────────────
+   Mint and violet, inked in indigo (see powerDoodle). Focus lines travel out
+   from him and off the screen as moving lengths of line; bursts blow out on
+   the ground either side of his boots and flicker; dirt, sparks and
+   shock-arcs thrown clear. */
+.pw-ray{fill:none;stroke-linecap:round;animation:pw-ray var(--dur) cubic-bezier(.3,.1,.5,1) var(--delay) forwards}
+.pw-ray.is-a{stroke:var(--pw-a);filter:drop-shadow(0 0 3px #43ffb188)}
+.pw-ray.is-b{stroke:var(--pw-b);filter:drop-shadow(0 0 3px #9c78ff88)}
+@keyframes pw-ray{to{stroke-dashoffset:-1}}
+.pw-burst{transform:scale(0);animation:pw-burst .9s cubic-bezier(.2,1.5,.35,1) forwards}
+@keyframes pw-burst{
+  0%{transform:scale(.1,.05);opacity:0}
+  14%{transform:scale(1.12,1.08);opacity:1}
+  26%{transform:none}
+  72%{transform:none;opacity:1}
+  100%{transform:scale(.7,.25);opacity:0}
+}
+.pw-burst-ink{fill:var(--pw-ink);stroke:var(--pw-ink);stroke-width:3.5px;stroke-linejoin:round;transform:translate(1.5px,2px)}
+.pw-burst-b{fill:var(--pw-b)}
+.pw-burst-a{fill:var(--pw-a)}
+.pw-burst-core{fill:var(--pw-core)}
+.pw-frame{animation:cy-frame .15s steps(1) infinite}
+.pw-frame+.pw-frame{animation-delay:-.075s}
+.pw-arc{
+  fill:none;stroke:var(--pw-ink);stroke-width:3.2px;stroke-linecap:round;
+  stroke-dasharray:1 1;stroke-dashoffset:1;
+  animation:pw-arc .5s ease-out var(--delay) forwards
+}
+@keyframes pw-arc{
+  40%{stroke-dashoffset:0;opacity:1;transform:none}
+  100%{stroke-dashoffset:0;opacity:0;transform:translateX(var(--dx))}
+}
+.pw-thrown{opacity:0;animation:pw-thrown .55s cubic-bezier(.2,.7,.4,1) var(--delay) forwards}
+.pw-thrown.is-spark{animation-duration:.6s}
+.pw-speck{fill:var(--pw-ink)}
+.pw-speck.is-b{fill:var(--pw-b)}
+.pw-spark{fill:var(--pw-a);stroke:var(--pw-ink);stroke-width:1.5px}
+@keyframes pw-thrown{
+  0%{opacity:0;transform:none}
+  15%{opacity:1}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy))}
+}
+@media (prefers-reduced-motion:reduce){
+  .pw-ray,.pw-thrown,.pw-arc{display:none}
+  .pw-frame{animation:none}
+  .pw-frame+.pw-frame{display:none}
+  .pw-burst{animation:none;transform:none}
+}
