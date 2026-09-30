@@ -470,30 +470,52 @@ function crescent(c: Point, w: number, side: number, bulge: number) {
   return `M${p(-w, -w * .12)}Q${p(0, w * bulge)} ${p(w, -w * .2)}Q${p(0, w * bulge * .45)} ${p(-w, -w * .12)}Z`;
 }
 
+/**
+ * How long the flash's doodle is up: a little longer than the grey, so the
+ * second wave of lines can run out after the colour has started to come back.
+ */
+export const POWER_DOODLE_MS = 1400;
+
 export function powerDoodle(at: BatterOnScreen, lasts: number) {
   const random = seeded(77);
   const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
   const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
-  const far = Math.hypot(at.width, at.height);
   const out: string[] = [];
 
-  // The focus lines. Each starts on an oval that clears him and runs past the
-  // edge of the screen; a length of it travels out along it and is gone. Not
-  // straight down, where the burst on the ground is doing the talking.
-  for (const [wave, count, from] of [[0, 28, 0], [1, 22, 240]] as const) {
+  // The focus lines: a dozen strokes of marker, in two unhurried waves, each
+  // starting on an oval that clears him and running out past the edge of the
+  // screen. A length of each travels out along it and is gone — a trim path —
+  // inked like every other mark in this pen: a dark stroke under the colour,
+  // a hand's bend in it, and the whole lot shivering the way drawn lines do.
+  // Not straight down, where the burst on the ground is doing the talking.
+  const rays: string[] = [];
+  for (const [count, from, spread] of [[8, 0, 180], [5, 320, 140]] as const) {
     for (let i = 0; i < count; i++) {
-      const a = -Math.PI / 2 + ((i + wave * .5) / count) * Math.PI * 2 + (random() - .5) * .18;
-      if (Math.sin(a) > .8) continue;
-      const start = { x: c.x + Math.cos(a) * s * (.7 + random() * .15), y: c.y + Math.sin(a) * s * (1.15 + random() * .2) };
-      const end = { x: start.x + Math.cos(a) * far, y: start.y + Math.sin(a) * far };
-      const len = (.08 + random() * .12).toFixed(3);
-      const width = f(Math.max(1.4, s * (.016 + random() * .04)));
-      const tone = (i + wave) % 3 === 2 ? 'is-b' : 'is-a';
-      out.push(`<path class="pw-ray ${tone}" d="M${f(start.x)} ${f(start.y)}L${f(end.x)} ${f(end.y)}" pathLength="1" `
-        + `stroke-width="${width}" stroke-dasharray="${len} 2" stroke-dashoffset="${len}" `
-        + `style="--delay:${Math.round(from + random() * 160)}ms;--dur:${Math.round(420 + random() * 220)}ms"/>`);
+      const a = -Math.PI / 2 + ((i + (from ? .5 : 0)) / count) * Math.PI * 2 + (random() - .5) * .3;
+      if (Math.sin(a) > .75) continue;
+      const start = { x: c.x + Math.cos(a) * s * (.75 + random() * .15), y: c.y + Math.sin(a) * s * (1.2 + random() * .2) };
+      // To just past the edge of the screen, so the whole of its run is seen.
+      const dx = Math.cos(a), dy = Math.sin(a);
+      const reach = Math.min(
+        dx > 0 ? (at.width - start.x) / dx : dx < 0 ? -start.x / dx : Infinity,
+        dy > 0 ? (at.height - start.y) / dy : dy < 0 ? -start.y / dy : Infinity,
+      ) + s * .6;
+      const end = { x: start.x + dx * reach, y: start.y + dy * reach };
+      // A bend a third of the way along, to one side or the other.
+      const bend = (random() - .5) * s * .7;
+      const mid = { x: start.x + dx * reach * .35 - dy * bend, y: start.y + dy * reach * .35 + dx * bend };
+      const d = `M${f(start.x)} ${f(start.y)}Q${f(mid.x)} ${f(mid.y)} ${f(end.x)} ${f(end.y)}`;
+      const len = (.22 + random() * .14).toFixed(3);
+      const width = Math.max(2.5, s * (.045 + random() * .03));
+      const tone = i % 2 ? 'is-b' : 'is-a';
+      const timing = `style="--delay:${Math.round(from + random() * spread)}ms;--dur:${Math.round(760 + random() * 200)}ms"`;
+      const dash = `pathLength="1" stroke-dasharray="${len} 2" stroke-dashoffset="${len}"`;
+      rays.push(`<g class="pw-stroke" ${timing}>`
+        + `<path class="pw-ray-ink" d="${d}" ${dash} stroke-width="${f(width + 3)}" transform="translate(1.5 2)"/>`
+        + `<path class="pw-ray ${tone}" d="${d}" ${dash} stroke-width="${f(width)}"/></g>`);
     }
   }
+  out.push(`<g class="cy-boil">${rays.join('')}</g>`);
 
   // The bursts either side of his boots: an ink outline, a violet body and a
   // mint band inside it, each two hands flicked between.

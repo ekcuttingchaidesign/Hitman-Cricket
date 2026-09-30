@@ -18,7 +18,8 @@ import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slog
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
-import { GameScene, POWER_MS } from './scene/GameScene';
+import { GameScene } from './scene/GameScene';
+import { POWER_DOODLE_MS } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
   fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
@@ -1836,7 +1837,7 @@ export class Game {
    */
   private powerUp() {
     this.scene.power(this.elapsed);
-    this.hud.power(this.scene.batterOnScreen(), POWER_MS);
+    this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS);
     track('special-shot', 'Played a special stroke on a full meter');
   }
   /** A moment: see `milestoneDue`. */
@@ -2778,7 +2779,8 @@ export class Game {
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
-      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100 };
+      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
+      special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();

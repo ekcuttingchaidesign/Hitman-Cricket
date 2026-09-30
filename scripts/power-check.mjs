@@ -123,7 +123,7 @@ for (const [name, options] of [
     };
   });
   check(up.doodle, 'the flash goes up');
-  check(up.rays >= 20 && up.travelling >= 8, 'focus lines travelling out from him', JSON.stringify(up));
+  check(up.rays >= 8 && up.rays <= 14 && up.travelling >= 4, 'a dozen focus lines, not a storm, travelling out from him', JSON.stringify(up));
   check(up.bursts === 2 && up.arcs >= 4 && up.thrown >= 16, 'a burst either side of his boots, with dirt and sparks thrown', JSON.stringify(up));
   check(!up.aside, 'and the call for the ball left where it is');
   check(up.muted > .5, 'the ground going grey', up.muted);
@@ -141,6 +141,75 @@ for (const [name, options] of [
   for (let i = 0; i < 120 && muted > 0; i++) { await page.waitForTimeout(250); muted = (await snap()).muted; }
   const after = await saturation(page, await page.screenshot(), grass);
   check(after > before * .8, `with the colour back (saturation ${after.toFixed(2)})`);
+  check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
+  await page.close();
+}
+
+// ── A real one ───────────────────────────────────────────────────────────
+// The fire behind the ball only burns behind a ball struck with a special
+// stroke, so this plays some: the meter filled through the debug hook before
+// each ball, the stroke the cue names played on time on a clock wound by hand,
+// as end-card-check winds it, until one lands.
+{
+  console.log('a real special stroke');
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => {
+    const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
+    try {
+      localStorage.setItem('hitman-seen', day);
+      localStorage.setItem('hitman-whatsnew', 'rivals-launch:9');
+      localStorage.setItem('hitman-unveiled', 'ground-2026');
+    } catch { /* Then the notices stand. */ }
+  });
+  await page.route('**/api/board**', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),
+  }));
+  const snap = () => page.evaluate(() => window.__cricket.snapshot());
+  const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
+  await page.clock.install();
+  await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
+  await advance(2500);
+  await page.waitForTimeout(800);
+  await page.locator('#start').click({ force: true, timeout: 15_000 });
+  await advance(600);
+  await page.locator('#mode-classic').click({ force: true, timeout: 15_000 });
+  await advance(600);
+  await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
+  const KEYS = { CHARGE: ['w'], SWEEP: ['a'], SCOOP: ['s', 'a'], REVERSE: ['s', 'd'] };
+  let landed = null;
+  for (let ball = 0; ball < 10 && !landed; ball++) {
+    // Full before the ball is chosen, which is when the cue is settled.
+    for (let i = 0; i < 60 && !['READY', 'RESULT'].includes((await snap()).phase); i++) await advance(200);
+    await page.evaluate(() => window.__cricket.fillConfidence());
+    let seen = await snap();
+    for (let i = 0; i < 80 && seen.phase !== 'BALL_IN_FLIGHT'; i++) { await advance(100); seen = await snap(); }
+    if (seen.phase !== 'BALL_IN_FLIGHT') break;
+    if (!seen.primed) { await advance(3000); continue; }
+    await advance(seen.contactAt - seen.elapsed - 60);
+    const keys = KEYS[seen.primed];
+    for (const key of keys) await page.keyboard.down(key);
+    for (const key of keys) await page.keyboard.up(key);
+    // Wound on in small steps to the moment the ball is in the air, burning.
+    for (let i = 0; i < 40; i++) {
+      await advance(60);
+      const now = await snap();
+      if (now.burning > 0) { landed = { ...now, primed: seen.primed }; break; }
+      if (now.phase === 'RESULT' || now.phase === 'READY') break;
+    }
+  }
+  check(!!landed, 'a special stroke lands, and the ball burns behind it', JSON.stringify(landed));
+  if (landed) {
+    check(landed.special, `a ${landed.primed.toLowerCase()} that found the bat`, JSON.stringify(landed));
+    await advance(40);
+    await page.screenshot({ path: 'test-results/power-trail.png' });
+    check((await snap()).burning >= 10, 'a tail of it, not a spark');
+  }
+  // And an ordinary ball after it: no fire.
+  let next = await snap();
+  for (let i = 0; i < 80 && next.phase !== 'BALL_IN_FLIGHT'; i++) { await advance(100); next = await snap(); }
+  check(next.burning === 0, 'the next ball goes back to the ordinary trail', JSON.stringify(next));
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
   await page.close();
 }

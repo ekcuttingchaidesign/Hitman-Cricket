@@ -5992,9 +5992,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    from him and off the screen as moving lengths of line; bursts blow out on
    the ground either side of his boots and flicker; dirt, sparks and
    shock-arcs thrown clear. */
-.pw-ray{fill:none;stroke-linecap:round;animation:pw-ray var(--dur) cubic-bezier(.3,.1,.5,1) var(--delay) forwards}
-.pw-ray.is-a{stroke:var(--pw-a);filter:drop-shadow(0 0 3px #43ffb188)}
-.pw-ray.is-b{stroke:var(--pw-b);filter:drop-shadow(0 0 3px #9c78ff88)}
+.pw-ray,.pw-ray-ink{fill:none;stroke-linecap:round;animation:pw-ray var(--dur) cubic-bezier(.35,.05,.45,1) var(--delay) forwards}
+.pw-ray-ink{stroke:var(--pw-ink);opacity:.75}
+.pw-ray.is-a{stroke:var(--pw-a)}
+.pw-ray.is-b{stroke:var(--pw-b)}
 @keyframes pw-ray{to{stroke-dashoffset:-1}}
 .pw-burst{transform:scale(0);animation:pw-burst .95s cubic-bezier(.2,1.5,.35,1) forwards}
 @keyframes pw-burst{
@@ -6028,7 +6029,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   100%{opacity:0;transform:translate(var(--dx),var(--dy))}
 }
 @media (prefers-reduced-motion:reduce){
-  .pw-ray,.pw-thrown,.pw-arc{display:none}
+  .pw-stroke,.pw-thrown,.pw-arc{display:none}
   .pw-frame{animation:none}
   .pw-frame+.pw-frame{display:none}
   .pw-burst{animation:none;transform:none}

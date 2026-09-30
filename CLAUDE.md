@@ -88,7 +88,9 @@ meter: the ground greyed round the batter and the ball, focus lines running
 out from him and off the screen, a burst either side of his boots, and the
 call for the ball left in place. The grey runs on the game's
 clock, so it is waited out by asking the game (`snapshot().muted`), not a
-stopwatch.
+stopwatch. It also plays real balls on a hand-wound clock until a special
+stroke lands, for the fire trail that burns behind only those
+(`snapshot().burning`); that part takes several minutes in software.
 
 `scripts/nearing-check.mjs` is the wait for those moments: the card under
 the score bar ten short of a fifty or a hundred and from the third six running.

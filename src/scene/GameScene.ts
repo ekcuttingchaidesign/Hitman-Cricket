@@ -99,6 +99,13 @@ export class GameScene {
   private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
   private trail: THREE.Mesh[] = [];
+  /**
+   * The fire behind a ball struck with a special stroke: yellow at the ball,
+   * red at the tail, glowing rather than lit, and flickering. Drawn instead of
+   * the ordinary trail on those balls, and on no others.
+   */
+  private fire: THREE.Mesh[] = [];
+  private blazing = false;
   private resizeObserver: ResizeObserver;
   private hitStart = 0;
   private hitOrigin = new THREE.Vector3();
@@ -190,13 +197,24 @@ export class GameScene {
       const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: 0xfff5cd, transparent: true, opacity: (1 - i / 9) * 0.32, depthWrite: false }));
       dot.scale.setScalar(0.115 * (1 - i / 12)); this.world.add(dot); this.trail.push(dot);
     }
+    // Solid colours rather than light added on: added light over a pale sky
+    // comes out white, and this is meant to read as yellow going to red.
+    const hot = new THREE.Color(0xffd23f), mid = new THREE.Color(0xff7a1f), cold = new THREE.Color(0xd7261b);
+    for (let i = 0; i < 26; i++) {
+      const t = i / 25;
+      const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({
+        color: t < .5 ? hot.clone().lerp(mid, t * 2) : mid.clone().lerp(cold, (t - .5) * 2),
+        transparent: true, opacity: 0.9 - t * 0.75, depthWrite: false,
+      }));
+      dot.visible = false; this.world.add(dot); this.fire.push(dot);
+    }
     // Everything built so far, bar him, can be greyed for his hundred. Done
     // once, here, so the shaders are compiled with it before the first frame.
     const his = new Set<THREE.Material>();
     this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => his.add(m)); });
     // And the ball he hit, and its trail: a special stroke greys the ground
     // while the ball is still in the air, and the eye wants to follow it.
-    for (const mesh of [this.ball, ...this.trail]) [mesh.material].flat().forEach(m => his.add(m));
+    for (const mesh of [this.ball, ...this.trail, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
     this.scene.traverse(object => {
       if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!his.has(m)) mutable(m, this.mute); });
     });
@@ -321,7 +339,9 @@ export class GameScene {
    * A special stroke on a full meter, from the moment it is hit: the same
    * grey as his hundred, round him and the ball, for about a second.
    */
-  power(now: number) { this.poweredAt = now; }
+  power(now: number) { this.poweredAt = now; this.blazing = true; }
+  /** How much of the fire trail is showing this frame. For the checks. */
+  get burning() { return this.fire.filter(dot => dot.visible).length; }
   /** How grey the ground is this frame, nought to one. For the checks. */
   get muted() { return this.mute.value; }
   /**
@@ -353,9 +373,9 @@ export class GameScene {
   kit(kit: BatterKit) { this.batter.dress(kit); }
 
   reset() {
-    this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0;
+    this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blazing = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
-    this.trail.forEach(t => t.visible = false); this.batter.reset();
+    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.catcher.root.position.set(12, 0, 20); this.catcher.root.rotation.y = Math.atan2(-12, -20); this.catcher.catchAt(0);
@@ -531,6 +551,7 @@ export class GameScene {
       this.ball.position.lerpVectors(this.incomingPosition, this.hitOrigin, result.advance ? THREE.MathUtils.smoothstep(approach, 0, 1) : approach);
       this.groundShadow(this.ball.position, true);
       this.trail.forEach(dot => dot.visible = false);
+      this.fire.forEach(dot => dot.visible = false);
       return;
     }
     const t = Math.min(1, (now - this.hitStart) / this.flightMs);
@@ -557,11 +578,23 @@ export class GameScene {
       // off the body is not a struck shot, and a tail behind it says it was.
       this.trail.forEach((dot, i) => {
         const behind = t - (i + 1) * 0.019;
-        dot.visible = !result.hit && this.ball.visible && behind > 0;
+        dot.visible = !this.blazing && !result.hit && this.ball.visible && behind > 0;
         if (dot.visible) this.struckAt(behind, dot.position);
+      });
+      // Struck with a special stroke, the ball burns instead: closer-set and
+      // smaller as they go, each one breathing a little so the tail flickers.
+      this.fire.forEach((dot, i) => {
+        // Close enough that they overlap into one streak rather than a string
+        // of beads, even on a six going away at full pelt.
+        const behind = t - (i + 1) * 0.0018;
+        dot.visible = this.blazing && this.ball.visible && behind > 0;
+        if (!dot.visible) return;
+        this.struckAt(behind, dot.position);
+        dot.scale.setScalar(0.13 * (1 - i / 32) * (1 + 0.18 * Math.sin(now * 0.045 + i * 1.7)));
       });
     } else {
       this.trail.forEach(dot => dot.visible = false);
+      this.fire.forEach(dot => dot.visible = false);
       // Carry on from where the ball actually is rather than resetting it to the
       // crease, so a beaten stroke never rewinds the delivery.
       const from = this.incomingPosition;
