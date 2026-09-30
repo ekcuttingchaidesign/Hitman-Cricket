@@ -303,12 +303,12 @@ export class HUD {
           </span>
         </div>
         </div>
-        <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
+        <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
           <p id="coach-brief">Drive it straight back past the bowler.</p>
@@ -982,7 +982,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
-   * The wait for a moment, under the score bar: see Nearing.ts. `next` is the
+   * The wait for a moment, at the foot of the screen: see Nearing.ts. `next` is the
    * wait after the ball just played, `end` how the one before it came off.
    * A card coming off is given its moment — filled and burst, or crossed out —
    * before whatever comes next goes up in its place.

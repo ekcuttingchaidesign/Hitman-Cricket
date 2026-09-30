@@ -1,6 +1,6 @@
 /**
- * The wait for a moment, in a real browser: the card under the score bar that
- * goes up ten short of a fifty or a hundred and on the third six running, and
+ * The wait for a moment, in a real browser: the chip at the foot of the screen
+ * that goes up ten short of a fifty or a hundred and on the third six running, and
  * how it moves, runs hotter, and comes off.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
@@ -128,8 +128,21 @@ for (const [name, options] of [
   check(seen.runs === '40' && seen.need === '10' && seen.heat === '1', 'on 40, ten to get, running cool', JSON.stringify(seen));
   check(seen.say === 'Fifty in sight', 'fifty in sight', seen.say);
   const bar = await page.$eval('.score-bug', node => node.getBoundingClientRect().toJSON());
-  check(seen.box.top >= bar.bottom && seen.box.left >= bar.left - 1, 'hanging under the score bar', `${JSON.stringify(bar)} / ${JSON.stringify(seen.box)}`);
-  check(seen.box.right <= options.viewport.width && seen.box.bottom < options.viewport.height / 3, 'small, and up out of the way', JSON.stringify(seen.box));
+  const { width: W, height: H } = options.viewport;
+  check(seen.box.width * seen.box.height <= bar.width * bar.height * .45,
+    'a chip, well under half the score bar', `${Math.round(seen.box.width)}×${Math.round(seen.box.height)} against ${Math.round(bar.width)}×${Math.round(bar.height)}`);
+  check(seen.box.bottom <= H && seen.box.top > H * .85 && Math.abs(seen.box.left + seen.box.width / 2 - W / 2) <= 2,
+    'at the foot of the screen, in the middle', JSON.stringify(seen.box));
+  const overlaps = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  const sides = await page.$$eval('.arena-bottom>span', nodes => nodes.map(node => node.getBoundingClientRect().toJSON()));
+  check(sides.length === 2 && sides.every(side => !overlaps(side, seen.box)), 'between the side labels, touching neither', JSON.stringify(sides));
+  // The swipe cue, as it reads with a charge on: it steps up out of the way.
+  const cue = await page.evaluate(() => {
+    const label = document.getElementById('phase-label');
+    label.classList.remove('hidden'); label.textContent = 'REVERSE IT · SWIPE DOWN-RIGHT';
+    return label.getBoundingClientRect().toJSON();
+  });
+  check(cue.bottom <= seen.box.top, 'with the swipe cue stepped up above it', `${JSON.stringify(cue)} / ${JSON.stringify(seen.box)}`);
   await play(3);                                                         // 43
   seen = await card();
   check(seen.runs === '43' && seen.need === '7', 'a three winds it on to 43', JSON.stringify(seen));

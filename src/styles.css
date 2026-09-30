@@ -5855,30 +5855,41 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 
 /* ── The wait for a moment ──────────────────────────────────────────────────
-   A card under the score bar while he is close to a fifty, a hundred or six
-   sixes, in the doodles' marker pen (see Nearing.ts). The bar's glass behind
-   it, a box drawn round it by hand, and everything in it running hotter as
-   the gap closes: amber, then orange, then red; the pen boiling faster; the
-   tension marks crowding in; and at the last, a pulse. */
+   A chip at the foot of the screen while he is close to a fifty, a hundred or
+   six sixes, in the doodles' marker pen (see Nearing.ts). Down there rather
+   than under the score bar: it sits in the strip between the side labels,
+   where the eye already goes for the swipe cue, and the bar keeps the top of
+   the screen to itself. The bar's glass behind it, a box drawn round it by
+   hand, and everything in it running hotter as the gap closes: amber, then
+   orange, then red; the pen boiling faster; the tension marks crowding in;
+   and at the last, a pulse. */
 .nearing{
   --nr-pen:#ffb03a;
   --nr-ink:#120b08;
   --nr-cream:#fff3dc;
   --boil:.5s;
-  position:relative;
-  width:188px;
-  height:62px;
-  margin-top:8px;
-  border-radius:12px;
+  --bar:linear-gradient(180deg,#132d42f2,#0b1f2ef0);
+  --bar-shadow:0 6px 16px #06121b59,0 1px 0 #ffffff1a inset;
+  position:absolute;
+  bottom:calc(var(--pad-bottom) - 6px);
+  left:0;
+  right:0;
+  z-index:3;
+  width:126px;
+  height:36px;
+  margin:0 auto;
+  border-radius:9px;
   background:var(--bar);
   box-shadow:var(--bar-shadow);
   -webkit-backdrop-filter:blur(8px);
   backdrop-filter:blur(8px);
   color:var(--nr-cream);
   pointer-events:none;
-  transform-origin:24% 50%
+  transform-origin:50% 60%
 }
-.nearing.is-six-sixes{width:204px;height:66px}
+.nearing.is-six-sixes{width:120px}
+/* The swipe cue steps up out of its way while it is there. */
+.stage:has(>.nearing:not(.hidden)) .phase-label{bottom:calc(var(--pad-bottom) + 38px)}
 .nearing[data-heat="2"]{--nr-pen:#ff7a2b;--boil:.3s}
 .nearing[data-heat="3"]{--nr-pen:#ff4330;--boil:.16s}
 .nr-body{position:absolute;inset:0;transform-origin:inherit}
@@ -5887,8 +5898,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 
 /* The box, drawn twice by two hands and flicked between. */
 .nr-frame path{fill:none;stroke-linecap:round;stroke-linejoin:round}
-.nr-frame .nr-ink{stroke:var(--nr-ink);stroke-width:4.4;opacity:.65;transform:translate(1px,1.6px)}
-.nr-frame .nr-pen{stroke:var(--nr-pen);stroke-width:2.4;transition:stroke .3s}
+.nr-frame .nr-ink{stroke:var(--nr-ink);stroke-width:3.2;opacity:.65;transform:translate(.8px,1.2px)}
+.nr-frame .nr-pen{stroke:var(--nr-pen);stroke-width:1.8;transition:stroke .3s}
 .nr-frame{animation:nr-frame var(--boil) steps(1) infinite}
 .nr-frame+.nr-frame{animation-delay:calc(var(--boil) / -2)}
 @keyframes nr-frame{0%{opacity:1}50%{opacity:0}}
@@ -5897,16 +5908,16 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 @keyframes nr-draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 
 /* The dial: a dashed ring, inked round from twelve as he closes. */
-.nr-track{fill:none;stroke:#fff3dc40;stroke-width:4;stroke-dasharray:2 3.4;stroke-linecap:round}
+.nr-track{fill:none;stroke:#fff3dc40;stroke-width:3;stroke-dasharray:1.6 2.6;stroke-linecap:round}
 .nr-arc,.nr-arc-ink{fill:none;stroke-linecap:round;stroke-dasharray:1 1;stroke-dashoffset:1;transition:stroke-dashoffset .7s cubic-bezier(.25,1.3,.4,1),stroke .3s}
-.nr-arc{stroke:var(--nr-pen);stroke-width:5.5}
-.nr-arc-ink{stroke:var(--nr-ink);stroke-width:6.5;opacity:.55}
+.nr-arc{stroke:var(--nr-pen);stroke-width:4}
+.nr-arc-ink{stroke:var(--nr-ink);stroke-width:4.8;opacity:.55}
 .nr-need{
-  font:400 22px var(--cta);
+  font:400 13px var(--cta);
   text-anchor:middle;
   fill:var(--nr-cream);
   stroke:var(--nr-ink);
-  stroke-width:3.5px;
+  stroke-width:2.6px;
   paint-order:stroke;
   transform-box:fill-box;
   transform-origin:center
@@ -5914,7 +5925,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .nr-need.is-new{animation:nr-slam .34s cubic-bezier(.2,1.7,.4,1)}
 @keyframes nr-slam{from{opacity:0;transform:scale(2) rotate(-12deg)}to{opacity:1;transform:none}}
 /* Tension marks off the dial: two, then four, then all six and twitching. */
-.nr-tick{fill:none;stroke:var(--nr-pen);stroke-width:2.2;stroke-linecap:round;opacity:0;transition:opacity .2s}
+.nr-tick{fill:none;stroke:var(--nr-pen);stroke-width:1.6;stroke-linecap:round;opacity:0;transition:opacity .2s}
 .nearing[data-heat="1"] .nr-tick:nth-child(-n+2),
 .nearing[data-heat="2"] .nr-tick:nth-child(-n+4),
 .nearing[data-heat="3"] .nr-tick{opacity:1}
@@ -5922,23 +5933,23 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 @keyframes nr-twitch{0%{opacity:1}50%{opacity:.25}}
 
 /* What he has made, and what a commentator would be saying about it. */
-.nr-text{position:absolute;left:62px;top:9px;right:8px;display:flex;flex-direction:column;gap:4px}
-.nr-runs{font:400 27px/1 var(--cta);letter-spacing:.5px;text-shadow:2px 2px 0 var(--nr-ink)}
+.nr-text{position:absolute;left:35px;top:5px;right:3px;display:flex;flex-direction:column;gap:2px}
+.nr-runs{font:400 16px/1 var(--cta);letter-spacing:.3px;text-shadow:1.5px 1.5px 0 var(--nr-ink)}
 .nr-runs i{font-style:normal;color:var(--nr-pen);transition:color .3s}
 .nr-count{display:inline-block}
 .nr-count.is-new{animation:nr-slam .34s cubic-bezier(.2,1.7,.4,1)}
 /* Satoshi, not Jaro: Jaro draws a V as a U, and "nervous" is in here. */
-.nr-say{font:800 10px/1.1 var(--card);letter-spacing:1.3px;text-transform:uppercase;color:var(--nr-pen);white-space:nowrap;transition:color .3s}
-.nr-say-top{position:absolute;left:12px;top:10px}
+.nr-say{font:800 7.5px/1.1 var(--card);letter-spacing:.7px;text-transform:uppercase;color:var(--nr-pen);white-space:nowrap;transition:color .3s}
+.nr-say-top{position:absolute;left:6px;right:6px;top:5px;text-align:center}
 
 /* Six balls in a row: the ones hit stamped with a 6, the rest dashed in. */
 .nr-slot>*{transform-origin:var(--at)}
-.nr-empty{fill:none;stroke:#fff3dc80;stroke-width:2;stroke-dasharray:3 3.4;stroke-linecap:round;transition:opacity .2s}
+.nr-empty{fill:none;stroke:#fff3dc80;stroke-width:1.5;stroke-dasharray:2 2.4;stroke-linecap:round;transition:opacity .2s}
 .nr-ball{opacity:0}
 .nr-ball-ink{fill:var(--nr-ink);opacity:.6}
-.nr-ball-body{fill:var(--nr-pen);stroke:var(--nr-ink);stroke-width:1.8;transition:fill .3s}
-.nr-ball-seam{fill:none;stroke:var(--nr-cream);stroke-width:1.2;stroke-dasharray:1.6 1.6;opacity:.75}
-.nr-ball-six{font:400 14px var(--cta);text-anchor:middle;fill:var(--nr-cream);stroke:var(--nr-ink);stroke-width:2.6px;paint-order:stroke}
+.nr-ball-body{fill:var(--nr-pen);stroke:var(--nr-ink);stroke-width:1.3;transition:fill .3s}
+.nr-ball-seam{fill:none;stroke:var(--nr-cream);stroke-width:.9;stroke-dasharray:1.2 1.2;opacity:.75}
+.nr-ball-six{font:400 9.5px var(--cta);text-anchor:middle;fill:var(--nr-cream);stroke:var(--nr-ink);stroke-width:2px;paint-order:stroke}
 .nr-slot.is-filled .nr-ball{opacity:1}
 .nr-slot.is-filled .nr-empty{opacity:0}
 .nr-slot.is-new .nr-ball{animation:nr-stamp .36s cubic-bezier(.2,1.8,.4,1) var(--stamp,0ms) backwards}
@@ -5949,7 +5960,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 
 /* Going up, and reacting: a scoring shot bumps it, a dot ball makes it flinch. */
 .nearing.is-in{animation:nr-in .42s cubic-bezier(.2,1.5,.4,1) both}
-@keyframes nr-in{from{opacity:0;transform:translateY(-12px) scale(.8) rotate(-4deg)}to{opacity:1;transform:none}}
+@keyframes nr-in{from{opacity:0;transform:translateY(12px) scale(.8) rotate(-4deg)}to{opacity:1;transform:none}}
 .nr-body.is-moved{animation:nr-bump .36s cubic-bezier(.2,1.6,.4,1)}
 @keyframes nr-bump{40%{transform:scale(1.07) rotate(-1deg)}}
 .nr-body.is-stuck{animation:nr-flinch .42s ease-in-out}
@@ -5957,7 +5968,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* The last few: a heartbeat. */
 .nearing[data-heat="3"] .nr-body:not(.is-stuck):not(.is-moved){animation:nr-beat .9s ease-in-out infinite}
 @keyframes nr-beat{0%,56%,100%{transform:none}14%{transform:scale(1.05)}28%{transform:scale(.99)}42%{transform:scale(1.03)}}
-.nearing[data-heat="3"]{box-shadow:var(--bar-shadow),0 0 18px #ff43304d}
+.nearing[data-heat="3"]{box-shadow:var(--bar-shadow),0 0 14px #ff43304d}
 
 /* Coming off. Got there: inked full, a flash, and gone up. */
 .nearing.is-reached{animation:nr-burst .9s cubic-bezier(.3,0,.6,1) forwards}
@@ -5966,10 +5977,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 @keyframes nr-burst{
   0%{transform:none;filter:none}
   35%{transform:scale(1.14);filter:drop-shadow(0 0 14px var(--nr-pen)) brightness(1.25)}
-  100%{opacity:0;transform:scale(1.35) translateY(-8px);filter:drop-shadow(0 0 20px var(--nr-pen))}
+  100%{opacity:0;transform:scale(1.35) translateY(-14px);filter:drop-shadow(0 0 20px var(--nr-pen))}
 }
 /* Short of it: scribbled out in red, greyed, and put away. */
-.nr-scratch{fill:none;stroke:#ff3b2f;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 1;stroke-dashoffset:1;opacity:0}
+.nr-scratch{fill:none;stroke:#ff3b2f;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 1;stroke-dashoffset:1;opacity:0}
 .nearing.is-crossed .nr-scratch{opacity:1;animation:nr-draw .38s cubic-bezier(.4,.1,.3,1) .05s forwards}
 .nearing.is-crossed .nr-body{animation:none}
 /* Greyed under the scribble, the scribble itself left red and the line under
@@ -5979,9 +5990,16 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .nearing.is-crossed .nr-say{color:#ff9a8c}
 .nr-scratch{filter:drop-shadow(1px 1.5px 0 #120b08b3)}
 .nearing.is-crossed{animation:nr-gone .34s ease-in 1.15s forwards}
-@keyframes nr-gone{to{opacity:0;transform:translateY(-6px) rotate(2deg)}}
+@keyframes nr-gone{to{opacity:0;transform:translateY(8px) rotate(2deg)}}
 
 @media (prefers-reduced-motion:reduce){
   .nr-frame,.nr-tick,.nr-body,.nr-slot.is-next .nr-empty{animation:none!important}
   .nr-frame+.nr-frame{display:none}
+}
+body.start-screen .nearing,.tutorial-active .nearing{display:none}
+/* A desk is further from the eye than a phone: the chip a little larger there, and
+   the cue stepped up by as much again. */
+@media (min-width:900px) and (hover:hover){
+  .nearing{zoom:1.15}
+  .stage:has(>.nearing:not(.hidden)) .phase-label{bottom:calc(var(--pad-bottom) + 44px)}
 }
