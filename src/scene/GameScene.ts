@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batter, type BatterKit, CHARGE_MEETS_AT } from '../entities/Batter';
+import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
@@ -7,11 +7,14 @@ import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
+import { SKY, Sky } from './sky';
+import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
+import { perimeterBoards } from './boards';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
 const BEATEN_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
-const colors = { grass: 0x668b49, grassLight: 0x70974e, pitch: 0xcbb283, navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
+const colors = { navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
 const materials = new Map<number, THREE.MeshStandardMaterial>();
 // Scenery keeps its faceted, low-poly look; anything sculpted asks for `soft`.
 function mat(color: number) {
@@ -31,6 +34,50 @@ function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sides), sides > 8 ? soft(color, 0.8) : mat(color));
   mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
+/**
+ * The world going quiet around a hundred.
+ *
+ * Everything but the batter drains towards grey for the second and a half he
+ * holds the bat up, so the one thing left in colour is him. It is done inside
+ * each material's own shader rather than as a pass over the finished frame: a
+ * pass would grey him too, or need a second render to keep him out, and this
+ * is one blend at the end of a shader that already runs. At nought it changes
+ * nothing, which is every frame but these.
+ */
+const MUTE = /* glsl */`
+  gl_FragColor.rgb = mix(gl_FragColor.rgb,
+    vec3(dot(gl_FragColor.rgb, vec3(.2126, .7152, .0722))) * .80 + .04, uMute * .9);
+`;
+function mutable(material: THREE.Material, amount: { value: number }) {
+  if (material.userData.mutable) return;
+  material.userData.mutable = true;
+  const before = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    before.call(material, shader, renderer);
+    shader.uniforms.uMute = amount;
+    // At the very end of main, after tone mapping and the colour space: the
+    // grey is taken of the colour as it will be seen.
+    shader.fragmentShader = `uniform float uMute;\n${shader.fragmentShader.replace(/\}\s*$/, `${MUTE}}`)}`;
+  };
+  const key = material.customProgramCacheKey.bind(material);
+  material.customProgramCacheKey = () => `${key()}|mute`;
+  material.needsUpdate = true;
+}
+/** How long the flash of grey round a special stroke lasts, from the hit. */
+export const POWER_MS = 1100;
+/** How far gone the colour is, a given time into a special stroke: in fast, out slower. */
+function powerAt(age: number) {
+  if (age < 0 || age >= POWER_MS) return 0;
+  return Math.min(THREE.MathUtils.smoothstep(age, 0, 110), 1 - THREE.MathUtils.smoothstep(age, POWER_MS - 380, POWER_MS));
+}
+/** How far gone the colour is, a given time into his celebration. */
+function muteAt(age: number) {
+  if (age < 0 || age >= CELEBRATION_MS) return 0;
+  const into = THREE.MathUtils.smoothstep(age, 0, 180);
+  const out = 1 - THREE.MathUtils.smoothstep(age, CELEBRATION_MS - 320, CELEBRATION_MS);
+  return Math.min(into, out);
+}
+
 // The ball and its trail are the only things left that want a bare sphere;
 // every figure on the field is a Cricketer, which carries its own primitives.
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
@@ -52,6 +99,13 @@ export class GameScene {
   private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
   private trail: THREE.Mesh[] = [];
+  /**
+   * The fire behind a ball struck with a special stroke: yellow at the ball,
+   * red at the tail, glowing rather than lit, and flickering. Drawn instead of
+   * the ordinary trail on those balls, and on no others.
+   */
+  private fire: THREE.Mesh[] = [];
+  private blazing = false;
   private resizeObserver: ResizeObserver;
   private hitStart = 0;
   private hitOrigin = new THREE.Vector3();
@@ -80,6 +134,14 @@ export class GameScene {
   private bowling = false;
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private sky = new Sky();
+  private environment: THREE.WebGLRenderTarget;
+  /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
+  private textures: THREE.Texture[] = [];
+  /** How grey everything but the batter is: see `MUTE`. */
+  private mute = { value: 0 };
+  private celebratedAt = -Infinity;
+  private poweredAt = -Infinity;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -87,15 +149,26 @@ export class GameScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.setClearColor(0xa9cbd0);
+    // Neutral rather than ACES: it rolls off the sunlit whites without shifting
+    // the kit colours, which are the club's and are not the renderer's to change.
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.setClearColor(SKY.horizon);
     container.prepend(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
-    this.scene.fog = new THREE.Fog(0xb4ced0, 48, 125);
+    // The haze is the sky's own horizon, so the far stands sink into it rather
+    // than into a grey that belongs to nothing.
+    this.scene.fog = new THREE.Fog(SKY.horizon, 48, 125);
+    this.scene.add(this.sky.mesh);
+    this.environment = this.sky.environment(this.renderer);
+    this.scene.environment = this.environment.texture;
+    this.scene.environmentIntensity = 0.75;
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
     this.world.scale.x = -1; this.scene.add(this.world);
     this.camera.fov = 50;
     this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
-    this.scene.add(new THREE.HemisphereLight(0xe9f6ff, 0x66744a, 2.5));
+    // The sky now lights the scene through the environment map; this is what is
+    // left of the old fill, warm from above so the shade does not go cold.
+    this.scene.add(new THREE.HemisphereLight(0xfff4e2, 0x66744a, 1.1));
     const sun = new THREE.DirectionalLight(0xffedce, 3.2); sun.position.set(-15, 30, -8); sun.castShadow = true;
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025;
@@ -104,7 +177,7 @@ export class GameScene {
     this.wicket(0); this.wicket(18.7);
     this.catcher.root.position.set(12, 0, 20);
     this.world.add(this.batter.root, this.bowler.root, this.catcher.root);
-    this.ball = new THREE.Mesh(SHAPES.ball, soft(0xe84829, 0.55));
+    this.ball = new THREE.Mesh(SHAPES.ball, soft(0xe84829, 0.34));
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(0x972708);
     (this.ball.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2;
@@ -117,9 +190,6 @@ export class GameScene {
     this.bounceRing.rotation.x = -Math.PI / 2; this.world.add(this.bounceRing);
     this.catchRing = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.66, 32), ringMat.clone());
     this.catchRing.rotation.x = -Math.PI / 2; this.catchRing.visible = false; this.world.add(this.catchRing);
-    // The shockwave that goes out from under a charged hit.
-    this.chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.60, 48), new THREE.MeshBasicMaterial({ color: 0xffdb96, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
-    this.chargeRing.rotation.x = -Math.PI / 2; this.chargeRing.visible = false; this.world.add(this.chargeRing);
     // The shockwave under a charged hit.
     this.chargeRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.62, 48), new THREE.MeshBasicMaterial({ color: 0xffdb96, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
     this.chargeRing.rotation.x = -Math.PI / 2; this.chargeRing.visible = false; this.world.add(this.chargeRing);
@@ -127,20 +197,40 @@ export class GameScene {
       const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({ color: 0xfff5cd, transparent: true, opacity: (1 - i / 9) * 0.32, depthWrite: false }));
       dot.scale.setScalar(0.115 * (1 - i / 12)); this.world.add(dot); this.trail.push(dot);
     }
+    // Solid colours rather than light added on: added light over a pale sky
+    // comes out white, and this is meant to read as yellow going to red.
+    const hot = new THREE.Color(0xffd23f), mid = new THREE.Color(0xff7a1f), cold = new THREE.Color(0xd7261b);
+    for (let i = 0; i < 26; i++) {
+      const t = i / 25;
+      const dot = new THREE.Mesh(this.ball.geometry, new THREE.MeshBasicMaterial({
+        color: t < .5 ? hot.clone().lerp(mid, t * 2) : mid.clone().lerp(cold, (t - .5) * 2),
+        transparent: true, opacity: 0.9 - t * 0.75, depthWrite: false,
+      }));
+      dot.visible = false; this.world.add(dot); this.fire.push(dot);
+    }
+    // Everything built so far, bar him, can be greyed for his hundred. Done
+    // once, here, so the shaders are compiled with it before the first frame.
+    const his = new Set<THREE.Material>();
+    this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => his.add(m)); });
+    // And the ball he hit, and its trail: a special stroke greys the ground
+    // while the ball is still in the air, and the eye wants to follow it.
+    for (const mesh of [this.ball, ...this.trail, ...this.fire]) [mesh.material].flat().forEach(m => his.add(m));
+    this.scene.traverse(object => {
+      if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!his.has(m)) mutable(m, this.mute); });
+    });
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
   }
   private createGround() {
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), mat(colors.grass)); ground.rotation.x = -Math.PI / 2;
+    const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    const grass = grassTexture(70, 10, GAME.boundaryRadius, anisotropy);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
-    for (let i = 0; i < 10; i++) {
-      const ring = new THREE.Mesh(new THREE.RingGeometry(i * 6 + 2, i * 6 + 5, 96), mat(colors.grassLight));
-      ring.rotation.x = -Math.PI / 2; ring.position.set(0, -0.025, 10); ring.receiveShadow = true; this.world.add(ring);
-    }
-    box(this.world, 2.8, 0.025, 32, colors.pitch, 0, 0, 4.3);
-    box(this.world, 2.0, 0.029, 30, 0xc4ac80, 0, 0, 4.6);
-    // Fine deterministic wear marks on the wicket; all created once.
-    for (let i = 0; i < 95; i++) box(this.world, 0.015 + (i % 5) * 0.018, 0.003, 0.08 + (i % 4) * 0.1, i % 2 ? 0xb49d73 : 0xd4be94, Math.sin(i * 72.4) * 0.92, 0.018, 0.5 + (i * 1.73) % 18);
+    // The strip, its wear painted on rather than built from boxes.
+    const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 });
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 }));
+    strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
+    this.textures.push(grass, surface);
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {
@@ -150,14 +240,23 @@ export class GameScene {
     });
     const boundary = new THREE.Mesh(new THREE.TorusGeometry(GAME.boundaryRadius, 0.055, 5, 128), mat(colors.white));
     boundary.rotation.x = Math.PI / 2; boundary.position.set(0, 0.06, 10); this.world.add(boundary);
-    this.createStadium();
+    this.createStadium(anisotropy);
     // Fielders are scenery except the one scripted catcher.
     [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]].forEach(([x, z]) => {
       const fielder = new Cricketer(); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
       this.fielders.push(fielder);
     });
+    // A soft patch under everyone but the batter, who is close enough to the
+    // camera that the sun's own shadow does the job.
+    const contact = contactShadowTexture(); this.textures.push(contact);
+    const patch = new THREE.MeshBasicMaterial({ map: contact, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const plane = new THREE.PlaneGeometry(1.15, 1.15);
+    for (const figure of [...this.fielders, this.catcher, this.bowler.figure]) {
+      const under = new THREE.Mesh(plane, patch); under.rotation.x = -Math.PI / 2; under.position.y = 0.016;
+      figure.root.add(under);
+    }
   }
-  private createStadium() {
+  private createStadium(anisotropy: number) {
     const seatGeometry = new THREE.BoxGeometry(0.6, 0.55, 0.55);
     const crowd = new THREE.InstancedMesh(seatGeometry, mat(0xffffff), 1344);
     const dummy = new THREE.Object3D(); let index = 0;
@@ -165,7 +264,6 @@ export class GameScene {
     for (let section = 0; section < 28; section++) {
       const a = section / 28 * Math.PI * 2;
       const group = new THREE.Group(); group.position.set(Math.sin(a) * 39, 0, 10 + Math.cos(a) * 39); group.rotation.y = a; this.world.add(group);
-      box(group, 8.7, 1.5, 1.2, section % 3 ? colors.navy : colors.orange, 0, 0.75, -3.3);
       for (let row = 0; row < 4; row++) {
         box(group, 8.5, 0.7 + row * 0.7, 1.4, 0x7d9397, 0, (0.7 + row * 0.7) / 2, -1.7 + row * 1.4);
         for (let col = 0; col < 12; col++) {
@@ -181,6 +279,10 @@ export class GameScene {
       }
     }
     crowd.instanceMatrix.needsUpdate = true; this.world.add(crowd);
+    // The boards along the foot of the stands. Added to the scene rather than
+    // the mirrored stage, or every sponsor would read backwards.
+    const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
+    this.scene.add(boards.group); this.textures.push(boards.texture);
     for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
       cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
       box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
@@ -224,6 +326,38 @@ export class GameScene {
    */
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
+  /**
+   * A moment: his hundred or six sixes, the bat to the sky and the world gone
+   * grey round him; or his fifty, `mild`, the bat raised and the colours left
+   * where they are.
+   */
+  celebrate(now: number, mild = false) {
+    this.batter.celebrate(now, mild);
+    this.celebratedAt = mild ? -Infinity : now;
+  }
+  /**
+   * A special stroke on a full meter, from the moment it is hit: the same
+   * grey as his hundred, round him and the ball, for about a second.
+   */
+  power(now: number) { this.poweredAt = now; this.blazing = true; }
+  /** How much of the fire trail is showing this frame. For the checks. */
+  get burning() { return this.fire.filter(dot => dot.visible).length; }
+  /** How grey the ground is this frame, nought to one. For the checks. */
+  get muted() { return this.mute.value; }
+  /**
+   * Where he stands on the screen, in CSS pixels of the canvas: his feet, the
+   * top of his helmet, and the height the bat reaches held up to the sky. The
+   * doodles that go up round his hundred are drawn to these.
+   */
+  batterOnScreen() {
+    const { width, height } = this.renderer.domElement.getBoundingClientRect();
+    this.batter.root.updateWorldMatrix(true, false);
+    const at = (y: number) => {
+      const p = this.batter.root.localToWorld(new THREE.Vector3(0, y, 0)).project(this.camera);
+      return { x: (p.x + 1) / 2 * width, y: (1 - p.y) / 2 * height };
+    };
+    return { feet: at(0), head: at(1.78), bat: at(2.75), width, height };
+  }
 
   whites(on: boolean) {
     const kit = on ? WHITES : KIT;
@@ -239,8 +373,9 @@ export class GameScene {
   kit(kit: BatterKit) { this.batter.dress(kit); }
 
   reset() {
+    this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blazing = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
-    this.trail.forEach(t => t.visible = false); this.batter.reset();
+    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.catcher.root.position.set(12, 0, 20); this.catcher.root.rotation.y = Math.atan2(-12, -20); this.catcher.catchAt(0);
@@ -416,6 +551,7 @@ export class GameScene {
       this.ball.position.lerpVectors(this.incomingPosition, this.hitOrigin, result.advance ? THREE.MathUtils.smoothstep(approach, 0, 1) : approach);
       this.groundShadow(this.ball.position, true);
       this.trail.forEach(dot => dot.visible = false);
+      this.fire.forEach(dot => dot.visible = false);
       return;
     }
     const t = Math.min(1, (now - this.hitStart) / this.flightMs);
@@ -442,11 +578,23 @@ export class GameScene {
       // off the body is not a struck shot, and a tail behind it says it was.
       this.trail.forEach((dot, i) => {
         const behind = t - (i + 1) * 0.019;
-        dot.visible = !result.hit && this.ball.visible && behind > 0;
+        dot.visible = !this.blazing && !result.hit && this.ball.visible && behind > 0;
         if (dot.visible) this.struckAt(behind, dot.position);
+      });
+      // Struck with a special stroke, the ball burns instead: closer-set and
+      // smaller as they go, each one breathing a little so the tail flickers.
+      this.fire.forEach((dot, i) => {
+        // Close enough that they overlap into one streak rather than a string
+        // of beads, even on a six going away at full pelt.
+        const behind = t - (i + 1) * 0.0018;
+        dot.visible = this.blazing && this.ball.visible && behind > 0;
+        if (!dot.visible) return;
+        this.struckAt(behind, dot.position);
+        dot.scale.setScalar(0.13 * (1 - i / 32) * (1 + 0.18 * Math.sin(now * 0.045 + i * 1.7)));
       });
     } else {
       this.trail.forEach(dot => dot.visible = false);
+      this.fire.forEach(dot => dot.visible = false);
       // Carry on from where the ball actually is rather than resetting it to the
       // crease, so a beaten stroke never rewinds the delivery.
       const from = this.incomingPosition;
@@ -489,6 +637,8 @@ export class GameScene {
     const shake = power * Math.max(0, 1 - since / (outcome?.advance ? 620 : 300));
     this.camera.position.x = Math.sin(now * 0.085) * shake;
     this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
+    this.sky.mesh.position.copy(this.camera.position);
+    this.mute.value = Math.max(muteAt(now - this.celebratedAt), powerAt(now - this.poweredAt));
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }
@@ -507,6 +657,9 @@ export class GameScene {
     Object.values(SHAPES).forEach(shape => geometries.delete(shape));
     FIGURE_ASSETS.shapes.forEach(shape => geometries.delete(shape));
     FIGURE_ASSETS.materials.forEach(material => mats.delete(material));
+    // The sky's own, and what was painted for the ground.
+    geometries.delete(this.sky.mesh.geometry); mats.delete(this.sky.mesh.material as THREE.Material); this.sky.dispose();
+    this.environment.dispose(); this.textures.forEach(t => t.dispose());
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); materials.clear(); this.renderer.dispose();
   }
 }

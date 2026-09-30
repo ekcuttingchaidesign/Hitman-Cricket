@@ -1,6 +1,6 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { SURVIVE } from './config/survive';
-import { Confidence } from './game/Confidence';
+import { Confidence, landedSpecial } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
@@ -12,11 +12,14 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
+import { milestoneOf, nearingEnd, nearingOf, type Milestone, type Nearing } from './game/milestone';
+import { CELEBRATION_MS, FIFTY_MS } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
+import { POWER_DOODLE_MS } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
   fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
@@ -45,6 +48,7 @@ import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
+import { unveilDue } from './game/unveil';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, type Granted } from './game/tier';
 import { openFeedback } from './ui/Feedback';
@@ -169,6 +173,17 @@ export class Game {
   /** Three balls that went nowhere and the fielders have something to say. */
   private sledger = new Sledger();
   private sledgeDue = false;
+  /**
+   * The ball just played was a moment — his fifty, his hundred, or the sixth
+   * six in a row — and he celebrates it once the ball is dead: not on the
+   * swipe, and not over the flight of the ball that got him there.
+   * `celebrating` holds the next ball back for exactly as long as it takes,
+   * and no longer.
+   */
+  private milestoneDue: Milestone | null = null;
+  private celebrating = 0;
+  /** The wait for one of those moments that is on the screen, if any: see Nearing.ts. */
+  private nearing: Nearing | null = null;
   /** The ball the field last had something to say on, so they do not repeat themselves. */
   private lastSledge = 0;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
@@ -406,7 +421,10 @@ export class Game {
     this.hud.on('card-result', () => this.backToResult());
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
-    this.hud.on('tutorial', this.startTutorial); this.hud.on('skip-tutorial', this.start); this.hud.on('tutorial-play', this.start);
+    this.hud.on('tutorial', this.startTutorial); this.hud.on('tutorial-play', this.walkOut);
+    // Not the covers from a skip: that is pressed with a lesson ball on its way,
+    // and the ball would go on being bowled, heard, behind them.
+    this.hud.on('skip-tutorial', this.start);
     this.hud.on('sound', this.toggleSound);
     // The switch as it was left last visit.
     this.hud.sound(this.audio.setting);
@@ -503,6 +521,16 @@ export class Game {
       // Leaves him one blow from the floor, so the fall can be looked at without
       // waiting for an innings that retires hurt to come round on its own.
       hurt: () => { this.health.value = 1; this.showConfidence(); },
+      // A moment on demand, for `milestone-check.mjs`: getting to a real
+      // hundred in a headless browser is thirty balls of perfect timing.
+      milestone: (kind: Milestone = 'century') => this.celebrate(kind),
+      // The special stroke's flash, on demand, for the same reason.
+      power: () => this.powerUp(),
+      // The wait for one, from an innings written out ball by ball — runs, or
+      // 'W' for a wicket — for `nearing-check.mjs`, which cannot bat its way to
+      // 96 either. Each call is one ball: the card moves as it would have.
+      nearing: (balls: (number | 'W')[]) => this.showNearing(balls.map(ball => (
+        { runs: ball === 'W' ? 0 : ball, isWicket: ball === 'W' } as ShotOutcome))),
       // Dresses him in a Rivals kit on the spot, so the four can be looked at
       // without four friends.
       kit: (kit: BatterKit) => this.scene.kit(kit),
@@ -880,7 +908,27 @@ export class Game {
     this.hud.pause(true);
   };
   /** Pick an innings. The mode is remembered, so Play Again replays the same one. */
-  choose = (mode: GameMode) => { this.mode = mode; this.start(); };
+  choose = (mode: GameMode) => { this.mode = mode; this.walkOut(); };
+  /**
+   * An innings chosen, by whichever way a player chose it: the picker, a link
+   * that named the mode, or the tutorial's way out.
+   *
+   * The first time, the covers go up before it: the old ground, and a line to
+   * pull it off with. Here rather than on the cover's play key, because the new
+   * ground is shown off to somebody about to bat on it — the cover and the
+   * picker are menus, and a reveal in front of a menu is a reveal of nothing
+   * in particular. The play key under the new ground then starts the innings
+   * it was put up in front of.
+   */
+  private walkOut = () => this.unveiled(this.start);
+  /** Put up at most once a visit, so pictures that never load cannot put it up in a loop. */
+  private unveilAsked = false;
+  private unveiled(then: () => void) {
+    if (this.unveilAsked || !unveilDue()) return then();
+    this.unveilAsked = true;
+    this.mark('unveil', 'New ground shown');
+    this.hud.unveil(then);
+  }
   start = () => {
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
@@ -908,6 +956,7 @@ export class Game {
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
     this.hud.start(this.surviving);
+    this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
     // load: a player who only ever picks the five-over innings never asks for
     // it, and by the time this one ends it is already held.
@@ -981,7 +1030,9 @@ export class Game {
     const base = this.surviving ? SURVIVE.resultMs : GAME.resultMs;
     // The innings that ends with him on the floor is held open long enough for
     // him to get there. Every other ball is the usual beat.
-    return this.ending === 'RETIRED' ? base + SURVIVE.felledMs : base;
+    if (this.ending === 'RETIRED') return base + SURVIVE.felledMs;
+    // A hundred holds the next ball for the celebration and nothing more.
+    return Math.max(base, this.celebrating);
   }
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() { return this.surviving ? SURVIVE.timing.poor : GAME.timing.poor; }
@@ -1134,7 +1185,7 @@ export class Game {
    * looking has not used up one of the two they are given.
    */
   private play = () => {
-    const go = () => (this.locked ? this.start() : this.modes());
+    const go = () => (this.locked ? this.walkOut() : this.modes());
     if (!whatsNewDue()) return go();
     markWhatsNewShown();
     this.showStories('intro', go);
@@ -1557,6 +1608,9 @@ export class Game {
     // them, so they answer first. Without this Enter started an innings behind
     // them — and then started it again on the way out — 'B' opened the board
     // underneath, and Esc closed the board the player had come from.
+    // The covers answer nothing but their own keys: there is no way past them
+    // but pulling them off, and the line and the play key take their own.
+    if (this.hud.unveilOpen) return;
     if (this.hud.storiesOpen) {
       if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeStories(); }
       return;
@@ -1594,7 +1648,7 @@ export class Game {
     }
     if (key === 'ENTER' && (this.phase === 'START' || this.phase === 'INNINGS_END')) {
       event.preventDefault();
-      if (this.locked || this.phase === 'INNINGS_END') this.start(); else this.modes();
+      if (this.phase === 'INNINGS_END') this.start(); else if (this.locked) this.walkOut(); else this.modes();
     }
     else if (key === 'B' && !SURVIVE_ONLY) { event.preventDefault(); this.showBoard(); }
     else if (key === 'R' && this.phase !== 'START') { event.preventDefault(); this.start(); }
@@ -1700,16 +1754,19 @@ export class Game {
       // A skied ball cracks off the bat now and is judged when it comes down.
       if (!this.contactPlayed && this.elapsed >= this.contactAt) {
         this.contactPlayed = true;
+        if (this.lesson < 0 && landedSpecial(this.outcome!)) this.powerUp();
         if (this.outcome!.aerial && this.outcome!.madeBatContact) this.audio.play('hit');
       }
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
       if (this.elapsed >= this.resolveEndsAt) {
         this.setPhase('RESULT');
+        if (this.milestoneDue) { this.celebrate(this.milestoneDue); this.milestoneDue = null; }
         // After the call, not over it: the sledge is what comes back from the
         // field once the ball is dead.
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
       }
     } else if (this.phase === 'RESULT' && age >= this.resultMs) {
+      this.celebrating = 0;
       if (this.lesson >= 0) {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
@@ -1727,6 +1784,7 @@ export class Game {
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
+      this.milestoneDue = milestoneOf(this.score.history);
       // The other innings, one ball behind the player's own. It goes up after
       // their own result has had the screen to itself, and it is down again
       // before the next ball is bowled — see `flashGhost`.
@@ -1764,10 +1822,40 @@ export class Game {
     this.setPhase('SHOT_RESOLVE');
     if (this.outcome.aerial) this.hud.airborne();
   }
+  /**
+   * The wait, moved on by the ball just played. With the score, not after
+   * it: the dial winding on is the same news as the number going up.
+   */
+  private showNearing(history: readonly ShotOutcome[]) {
+    const end = nearingEnd(this.nearing, history);
+    this.nearing = nearingOf(history);
+    this.hud.nearing(this.nearing, end);
+  }
+  /**
+   * A special stroke, on the hit: the ground greys round him and the ball for
+   * a second and fire streaks out of him. See `powerDoodle`.
+   */
+  private powerUp() {
+    this.scene.power(this.elapsed);
+    this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS);
+    track('special-shot', 'Played a special stroke on a full meter');
+  }
+  /** A moment: see `milestoneDue`. */
+  private celebrate(kind: Milestone) {
+    const mild = kind === 'fifty';
+    this.celebrating = mild ? FIFTY_MS : CELEBRATION_MS;
+    this.scene.celebrate(this.elapsed, mild);
+    this.hud.milestone(kind, this.scene.batterOnScreen(), this.celebrating);
+    // The crowd with it, falling away: the fifty's is the shorter of the two,
+    // though long enough to be heard as applause rather than a blip; the big
+    // two's carry on a little past him into the next ball's run-up.
+    this.audio.cheer(mild ? 2.3 : 2.8);
+    track(kind, kind === 'fifty' ? 'Reached fifty' : kind === 'century' ? 'Reached a hundred' : 'Six sixes in a row');
+  }
   private presentResult() {
     this.resultPresented = true;
     const outcome = this.outcome!;
-    if (this.lesson < 0) this.hud.score(this.score);
+    if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.score.history); }
     this.hud.result(outcome, this.chargeMiss);
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
@@ -2445,6 +2533,10 @@ export class Game {
    */
   private startMatchInnings(resume: boolean) {
     if (!this.player) return;
+    // The covers first, the first time, over the room: the innings below them
+    // is set up only once they are off, so the room is still there to go back
+    // to until then.
+    if (!this.unveilAsked && unveilDue()) return this.unveiled(() => this.startMatchInnings(resume));
     this.matchCard = null;
     this.hud.closeRoom();
     this.challenge.beginInnings(this.player);
@@ -2687,7 +2779,8 @@ export class Game {
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
-      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false };
+      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
+      special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();

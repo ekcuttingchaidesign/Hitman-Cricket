@@ -3,6 +3,7 @@ import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+await page.addInitScript(() => { try { localStorage.setItem('hitman-unveiled', 'ground-2026'); } catch { /* Then they stand in the way. */ } });
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 const snapshot = () => page.evaluate(() => window.__cricket.snapshot());

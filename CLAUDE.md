@@ -74,6 +74,38 @@ Reach the screen the way a player does. The checks that open the board from the
 cover missed two bugs on the end card, because nothing had ever finished an
 innings — which is how most players get to that card in the first place.
 
+`scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
+are canvases and a shader no unit test runs, and it holds the draw-call budget
+a frame. Lower its `BUDGET` when a change brings the count down.
+
+`scripts/milestone-check.mjs` is the fifty, the hundred and six sixes: the
+grey is measured off the pixels of the grass, and the doodles are judged on
+their own clock, because a headless browser rendering the ground in software
+can hold CSS animations at their first frame.
+
+`scripts/power-check.mjs` is the flash for a special stroke played on a full
+meter: the ground greyed round the batter and the ball, focus lines running
+out from him and off the screen, a burst either side of his boots, and the
+call for the ball left in place. The grey runs on the game's
+clock, so it is waited out by asking the game (`snapshot().muted`), not a
+stopwatch. It also plays real balls on a hand-wound clock until a special
+stroke lands, for the fire trail that burns behind only those
+(`snapshot().burning`); that part takes several minutes in software.
+
+`scripts/nearing-check.mjs` is the wait for those moments: the card under
+the score bar ten short of a fifty or a hundred and from the third six running.
+It writes the innings out ball by ball through the debug hook with the real one
+paused underneath, and slows the page's timers while it photographs a card on
+its way off — software rendering can spend a card's whole exit between two
+steps of a script.
+
+`scripts/unveil-check.mjs` is the covers: the first innings chosen, in any
+mode, puts the old ground up and a swipe pulls it off. Every other check that
+starts an innings seeds `hitman-unveiled` so it starts past them, which means this is the only
+one that sees them — keep that seed out of it. The two pictures are the same
+ball on the build before the graphics update and the build after it; retake
+both together, or the line stops lining up.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.
 

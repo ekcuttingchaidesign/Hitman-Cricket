@@ -32,6 +32,11 @@ import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsS
 import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+import { openUnveil } from './Unveil';
+import { applyNearing, endNearing, nearingMarkup } from './Nearing';
+import type { Nearing, NearingEnd } from '../game/milestone';
+import { milestoneDoodle, powerDoodle, type BatterOnScreen } from './Milestone';
+import type { Milestone } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
 import {
   keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
@@ -46,7 +51,6 @@ import {
 } from '../game/StatsCard';
 import { AVATARS, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
-import { dotMatrix } from './DotMatrix';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
@@ -273,14 +277,21 @@ export class HUD {
           </div>
         </div>
         <div class="score-stack">
+        <!--
+          One bar: the score across the top, the meter along its foot, and in a
+          Test match the situation in the score's place. See styles.css.
+        -->
+        <div class="score-bug">
         <div id="scoreboard" class="scoreboard" role="group" aria-label="Scoreboard">
-          <div class="board-head"><span class="board-name">HITMAN OVAL</span><span class="board-lamp"></span></div>
-          <div class="board-cells">
-            <div class="cell cell-wide"><span class="cell-label">TOTAL</span><span class="cell-value" id="runs"></span></div>
-            <div class="cell"><span class="cell-label">WKTS</span><span class="cell-value" id="wickets"></span></div>
-            <div class="cell"><span class="cell-label">OVERS</span><span class="cell-value" id="overs"></span></div>
-            <div class="cell"><span class="cell-label">LAST</span><span class="cell-value" id="last"></span></div>
-          </div>
+          <span class="bug-tag" aria-hidden="true">HITMAN<br>OVAL</span>
+          <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
+          <span class="bug-cell"><b id="overs"></b><i>OVERS</i></span>
+          <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
+        </div>
+        <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
+          <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
+          <span class="sc-cell"><b id="sc-need"></b><span class="sc-label">TO WIN</span></span>
+          <span class="sc-cell"><b id="sc-balls"></b><span class="sc-label">BALLS<span class="sc-wide"> LEFT</span></span></span>
         </div>
         <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
@@ -291,16 +302,8 @@ export class HUD {
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
-        <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
-          <div class="sc-head">
-            <span class="sc-score" id="sc-score" aria-live="polite"></span>
-            <span class="sc-chase"><span class="sc-label">TARGET</span><b id="sc-target"></b></span>
-          </div>
-          <div class="sc-feet">
-            <span class="sc-cell"><span class="sc-label">TO WIN</span><b id="sc-need"></b></span>
-            <span class="sc-cell"><span class="sc-label">BALLS LEFT</span><b id="sc-balls"></b></span>
-          </div>
         </div>
+        <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
         </div>
         <div id="hit-burst" class="hit-burst" aria-hidden="true"><em id="hit-where"></em></div>
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
@@ -322,6 +325,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
+        <div id="unveil-overlay" class="unveil-overlay hidden" role="dialog" aria-modal="true" aria-label="The new ground"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
@@ -963,6 +967,58 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   get storiesOpen() { return !this.$('whatsnew-overlay').classList.contains('hidden'); }
 
+  /**
+   * The old ground over the new one, for the player to pull off. The game
+   * decides when; `then` is the innings it was put up in front of.
+   */
+  unveil(then: () => void) {
+    this.viewport.classList.add('modal-open');
+    openUnveil(this.$('unveil-overlay'), () => {
+      const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+        .some(id => !this.$(id).classList.contains('hidden'));
+      this.viewport.classList.toggle('modal-open', stacked);
+      then();
+    });
+  }
+
+  /**
+   * The wait for a moment, under the score bar: see Nearing.ts. `next` is the
+   * wait after the ball just played, `end` how the one before it came off.
+   * A card coming off is given its moment — filled and burst, or crossed out —
+   * before whatever comes next goes up in its place.
+   */
+  private nearingUp: Nearing | null = null;
+  private nearingNext = 0;
+  nearing(next: Nearing | null, end: NearingEnd | null) {
+    const card = this.$('nearing');
+    window.clearTimeout(this.nearingNext);
+    const up = (n: Nearing | null) => {
+      this.nearingUp = n;
+      if (!n) { card.className = 'nearing hidden'; card.innerHTML = ''; return; }
+      card.className = `nearing is-${n.kind}`;
+      card.removeAttribute('style');
+      card.innerHTML = nearingMarkup(n);
+      applyNearing(card, n, null);
+      void card.getBoundingClientRect();
+      card.classList.add('is-in');
+    };
+    const was = this.nearingUp;
+    if (end && was) {
+      this.nearingUp = null;
+      endNearing(card, was, end);
+      this.nearingNext = window.setTimeout(() => up(next), end.how === 'reached' ? 900 : 1500);
+      return;
+    }
+    if (next && was?.kind === next.kind && !card.classList.contains('hidden')) {
+      applyNearing(card, next, was);
+      this.nearingUp = next;
+      return;
+    }
+    up(next);
+  }
+
+  get unveilOpen() { return !this.$('unveil-overlay').classList.contains('hidden'); }
+
   closeStories() {
     window.clearTimeout(this.storyHold);
     // Which card they were standing on when they left. Opening was already
@@ -1248,13 +1304,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     if (this.$('end-survive').classList.contains('hidden')) this.$('board').focus();
   }
   score(score: ScoreManager) {
-    this.$('runs').innerHTML = dotMatrix(String(score.runs), `${score.runs} runs`);
-    this.$('wickets').innerHTML = dotMatrix(String(score.wickets), `${score.wickets} wickets`);
-    this.$('overs').innerHTML = dotMatrix(score.overs, `${score.overs} overs`);
+    this.$('runs').textContent = String(score.runs);
+    this.$('wickets').textContent = String(score.wickets);
+    this.$('total').setAttribute('aria-label', `${score.runs} for ${score.wickets}`);
+    this.$('overs').textContent = score.overs;
     const last = score.history.at(-1);
-    const call = last ? last.isWicket ? 'W' : String(last.runs) : '-';
-    this.$('last').innerHTML = dotMatrix(call, last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
-    this.$('last').className = `cell-value ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
+    const last$ = this.$('last');
+    last$.textContent = last ? last.isWicket ? 'W' : String(last.runs) : '–';
+    last$.setAttribute('aria-label', last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
+    last$.className = `bug-last ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
   }
   start(surviving = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
@@ -1894,7 +1952,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('confidence-fill').style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
     // Four special strokes now, and they are swiped for differently. Saying
     // "charge it" over a ball that wants a sweep is worse than saying nothing.
-    this.$('confidence-label').textContent = primed ? CUES[primed]
+    // The stroke only: the call under the batter carries the swipe, and the
+    // bar is not wide enough to say both.
+    this.$('confidence-label').textContent = primed ? CUES[primed].split(' — ')[0]
       : full ? 'CONFIDENCE FULL' : 'CONFIDENCE';
   }
   /**
@@ -2291,6 +2351,29 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * and the body part is named. It lasts about half a second and then the game
    * carries on, which is the difference between feedback and an interruption.
    */
+  /**
+   * A fifty, a hundred or six sixes, drawn over the ground round him. The call
+   * for the ball that got him there has had its moment by now and steps aside
+   * rather than sit under the doodles. Gone again by itself when he is done.
+   */
+  milestone(kind: Milestone, at: BatterOnScreen, lasts: number) {
+    this.viewport.querySelector('.milestone')?.remove();
+    const doodle = milestoneDoodle(kind, at, lasts);
+    this.viewport.append(doodle);
+    this.viewport.classList.add('milestone-on');
+    window.setTimeout(() => { doodle.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+  }
+  /**
+   * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
+   * call for the ball is left where it is; and a moment arriving on top of it
+   * takes its place, since `milestone` clears whatever doodle is up.
+   */
+  power(at: BatterOnScreen, lasts: number) {
+    this.viewport.querySelector('.milestone')?.remove();
+    const doodle = powerDoodle(at, lasts);
+    this.viewport.append(doodle);
+    window.setTimeout(() => doodle.remove(), lasts);
+  }
   blow(where: string) {
     const burst = this.$('hit-burst');
     this.$('hit-where').textContent = where;

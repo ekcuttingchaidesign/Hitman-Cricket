@@ -61,6 +61,8 @@ const until = async phase => {
 await page.addInitScript(() => {
   const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
   try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
+  // The covers have come off already: unveil-check is the one that pulls them.
+  try { localStorage.setItem('hitman-unveiled', 'ground-2026'); } catch { /* Then they stand in the way. */ }
 });
 
 /**

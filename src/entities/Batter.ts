@@ -27,6 +27,13 @@ interface Pose {
   armHinge?: number;
   armDrive?: number;
   shoulderLift?: number;
+  /**
+   * How far the top hand has let go of the bat: nought on the handle, one at
+   * `fist`. Only the celebration lets go; every stroke is played two-handed.
+   */
+  release?: number;
+  /** Where the free hand's wrist is, in the batter's own space. */
+  fist?: Point;
 }
 const V = (p: Point) => new THREE.Vector3(...p);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -59,6 +66,8 @@ export const CHARGE_MEETS_AT = .76;
  * holds the handle the way a right-hander's does. Shared by every stroke.
  */
 const HAND = { top: .075, bottom: -.035 } as const;
+/** The hand that lets go of the bat to punch the air: the top one, his left. */
+const FREE_HAND = 0;
 /** How far apart the two fists sit. Photo-referenced, and the same for all shots. */
 export const HAND_SPACING = HAND.top - HAND.bottom;
 export const STROKE_DURATION_MS = 940;
@@ -505,8 +514,11 @@ const SLOG_SWEEP: Stroke = {
     yaw: -.34, face: -.72, heel: .70, backFootYaw: .95, leadElbow: -.10,
     armHinge: .20, armDrive: 1, shoulderLift: .06 },
   // Up off the knee and back to the guard, with the bat brought down in front
-  // of him rather than back across the shoulder it is wrapped behind.
-  recover: { ...GUARD, hip: [-.06, .78, -.02], chest: [-.02, 1.12, .04],
+  // of him rather than back across the shoulder it is wrapped behind. Most of
+  // the way up, not half: the stage after this one is fifty milliseconds, and
+  // with the hips at .78 here he had to find the last sixteen centimetres of
+  // his height in three frames and hopped into his guard to do it.
+  recover: { ...GUARD, hip: [-.06, .86, -.02], chest: [-.02, 1.20, .04],
     frontFoot: [.06, .08, .30], backFoot: [-.14, .08, -.30],
     grip: [.26, 1.06, .34], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
     yaw: .92, face: -.10, heel: .24, leadElbow: -.20 },
@@ -727,7 +739,12 @@ const REVERSE_SCOOP: Stroke & { down: Pose; beside: Pose; apex: Pose; across: Po
     grip: [-.50, 1.06, .48], batUp: [.10, -.55, -.83], batFace: [.95, .25, -.05],
     yaw: -.60, face: -.30, heel: .30, backFootYaw: 1.10, leadElbow: -.16,
     armHinge: -.20, armDrive: 0, shoulderLift: .03 },
-  recover: SLOG_SWEEP.recover,
+  // The sweeps' way up as it was, half-risen, rather than the taller one they
+  // now use: the reverse's arms are still coming round over his head through
+  // this stage, and a body rising faster under them hurries them past what the
+  // rig allows. Its last stage is still a quick one; evening it out means
+  // re-timing the arms, not the legs.
+  recover: { ...SLOG_SWEEP.recover!, hip: [-.06, .78, -.02], chest: [-.02, 1.12, .04] },
 };
 /** Off stump and outside it: the reverse scoop's reach. */
 const REVERSE_REACH: readonly [number, number] = [.05, .62];
@@ -1040,6 +1057,116 @@ const COVER_CHARGE_RECOVER: Pose = { ...GUARD, hip: [-.02, .92, .00], chest: [.0
   grip: [.40, 1.10, .44], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
   yaw: .95, face: .05, heel: 0, backFootYaw: 1.10, leadElbow: -.20 };
 const COVER_CHARGE_CONTACT = COVER_CHARGE_KEYS.find(k => k.time === CHARGE_CLOCK.contact)!.pose;
+
+/**
+ * A hundred.
+ *
+ * He turns towards the camera, puts the bat up beside his head in his right
+ * hand, and punches the sky with his left; pumps it twice; looks round the
+ * ground at it; then takes the bat in both hands again in front of him and is
+ * back in his guard — a second and a half, because it is a moment inside an
+ * innings and the next ball is coming.
+ *
+ * It is the only thing in the game played one-handed: the top hand lets go
+ * of the handle by `release` and goes to `fist`, and the bat is held up by
+ * the bottom hand alone. Turned three-quarters to the camera, so the player
+ * sees his front, which from behind the stumps is otherwise only ever his back.
+ */
+export const CELEBRATION_MS = 1550;
+/**
+ * A shoulder, where `apply` will put it for this body. The celebration's hands
+ * are placed off the shoulders rather than written in as numbers: he turns
+ * right round to face the camera for it, and a hand written for one turn is
+ * in the wrong place for any other.
+ */
+function shoulderOf(body: Pose, side: 0 | 1) {
+  const chest = V(body.chest), spine = chest.clone().sub(V(body.hip)).normalize();
+  const torso = new THREE.Quaternion().setFromUnitVectors(UP, spine)
+    .multiply(new THREE.Quaternion().setFromAxisAngle(UP, body.yaw));
+  return new THREE.Vector3(side === 0 ? -.163 : .163, .075 + (body.shoulderLift ?? 0), 0).applyQuaternion(torso).add(chest);
+}
+/** Level, from the chest out through a shoulder. */
+const outwards = (body: Pose, side: 0 | 1) => shoulderOf(body, side).sub(V(body.chest)).setY(0).normalize();
+const point = (v: THREE.Vector3) => v.toArray() as unknown as Point;
+/** Feet under the hips, a little wider than them, for a body turned `yaw`. */
+function standing(body: Pose): Pose {
+  const hip = V(body.hip);
+  const foot = (side: 0 | 1) => point(hip.clone().addScaledVector(outwards(body, side), .19).setY(.08));
+  return { ...body, frontFoot: foot(0), backFoot: foot(1), backFootYaw: body.yaw - .1 };
+}
+/**
+ * The bat up beside his head in his right hand, the left fist punching the
+ * sky: `bat` and `fist` are how far up and how far out from each shoulder.
+ */
+function aloft(body: Pose, bat: [up: number, out: number], fist: [up: number, out: number]): Pose {
+  const right = shoulderOf(body, 1), left = shoulderOf(body, 0);
+  const outR = outwards(body, 1), outL = outwards(body, 0);
+  // Toe to the sky, leaning a little away from his head.
+  const toe = UP.clone().addScaledVector(outR, .22).normalize();
+  return { ...body,
+    grip: point(right.addScaledVector(UP, bat[0]).addScaledVector(outR, bat[1])),
+    batUp: point(toe.clone().negate()), batFace: [0, 0, -1],
+    fist: point(left.addScaledVector(UP, fist[0]).addScaledVector(outL, fist[1])), release: 1 };
+}
+/** Turned to face the camera, stood up tall, chin up. */
+const FACING: Pose = standing({ ...GUARD, hip: [-.02, .97, -.02], chest: [.00, 1.31, .00],
+  yaw: 2.4, face: 2.4, headDown: -.24, heel: 0, leadElbow: .20,
+  armHinge: -.6, armDrive: 0, shoulderLift: .10 });
+const RAISED = aloft(FACING, [.33, .10], [.54, .28]);
+/** The pump: fist and bat drawn down together, the knees giving with them. */
+const PUMPED = aloft({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 }, [.26, .10], [.38, .26]);
+const LOOKING: Pose = { ...RAISED, face: RAISED.face + .35, headDown: -.28 };
+/**
+ * On the way up, turning, with both hands still on the bat and the bat coming
+ * up his right side. From the guard it sits behind the back shoulder, and the
+ * straight line from there to beside his head runs through the helmet.
+ */
+const LIFTING: Pose = (() => {
+  const body = standing({ ...GUARD, hip: [-.04, .95, -.02], chest: [.00, 1.29, .01],
+    yaw: 1.85, face: 1.5, headDown: -.10, heel: 0, leadElbow: .05, armDrive: 0, shoulderLift: .05 });
+  const out = outwards(body, 1), ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  // Out in front of the right shoulder rather than beside it, with the left
+  // hand already coming off: taken right across while both hands held it, the
+  // bat dragged the left arm across his chest.
+  return { ...body, grip: point(shoulderOf(body, 1).addScaledVector(out, .14).addScaledVector(ahead, .24).add(new THREE.Vector3(0, .03, 0))),
+    batUp: [0, -1, 0], batFace: [0, 0, -1], release: .35 };
+})();
+/** The same place on the way down, with the left hand all the way back on the handle. */
+const RETURNING: Pose = { ...LIFTING, release: 0 };
+/**
+ * First up in front of him, both hands, the toe to the sky, still mostly
+ * side-on. Straight from the guard to beside his right shoulder, the bat went
+ * across him at hip height and through them.
+ */
+const RISING: Pose = { ...GUARD, hip: [-.04, .95, -.02], chest: [.01, 1.29, .02],
+  grip: [.32, 1.28, -.02], batUp: [0, -1, 0], batFace: [.2, 0, -1],
+  yaw: 1.45, face: .8, headDown: -.05, heel: 0, leadElbow: -.10, armDrive: 0, shoulderLift: .02, release: 0 };
+/** Both hands on it again, the bat down in front of him, turning back. */
+const LOWERED: Pose = { ...GUARD, hip: [-.04, .94, -.01], chest: [.02, 1.28, .03],
+  frontFoot: [-.08, .08, .27], backFoot: [-.15, .08, -.22],
+  grip: [.30, 1.30, .02], batUp: [-.15, -.95, .25], batFace: [.70, -.25, .66],
+  yaw: 1.6, face: .05, headDown: 0, heel: 0, backFootYaw: 1.45, leadElbow: -.20,
+  armDrive: 0, shoulderLift: 0, release: 0 };
+const SETTLING: Pose = { ...COVER_CHARGE_RECOVER, hip: [-.05, .94, -.02], chest: [.02, 1.28, .03],
+  frontFoot: [-.10, .08, .27], backFoot: [-.13, .08, -.25], yaw: 1.2, backFootYaw: 1.35, release: 0 };
+/**
+ * A fifty: the same gesture, half of it. The bat goes up beside his head in
+ * his right hand to say thank you, the left hand stays down by his side, he
+ * turns less and holds it less, and he is back in his guard in a little over
+ * a second. The way up and the way down are the hundred's, which already go
+ * round him rather than through him.
+ */
+export const FIFTY_MS = 1150;
+const NODDING: Pose = (() => {
+  const body = standing({ ...GUARD, hip: [-.03, .96, -.02], chest: [.00, 1.30, .01],
+    yaw: 2.0, face: 2.0, headDown: -.08, heel: 0, leadElbow: .10, armDrive: 0, shoulderLift: .06 });
+  const raised = aloft(body, [.26, .08], [0, 0]);
+  const down = shoulderOf(body, 0).addScaledVector(UP, -.50).addScaledVector(outwards(body, 0), .10);
+  return { ...raised, fist: point(down) };
+})();
+const NODDED: Pose = { ...NODDING, face: NODDING.face + .25, headDown: .06 };
+const FIFTY = { rise: 110, lift: 220, up: 360, hold: 640, back: 770, down: 890, settle: 1010 } as const;
+const CELEBRATION = { rise: 110, lift: 230, up: 390, pump: 540, again: 690, pump2: 840, look: 990, back: 1130, down: 1260, settle: 1400 } as const;
 const COVER_CHARGE_FINISH = COVER_CHARGE_KEYS[COVER_CHARGE_KEYS.length - 1].pose;
 /**
  * The charge over long-on — the third recording, from behind the batter.
@@ -1136,6 +1263,10 @@ function mix(a: Pose, b: Pose, amount: number): Pose {
     armHinge: THREE.MathUtils.lerp(a.armHinge ?? -.6,b.armHinge ?? -.6,t),
     armDrive: THREE.MathUtils.lerp(a.armDrive ?? 0,b.armDrive ?? 0,t),
     shoulderLift: THREE.MathUtils.lerp(a.shoulderLift ?? 0,b.shoulderLift ?? 0,t),
+    release: THREE.MathUtils.lerp(a.release ?? 0, b.release ?? 0, t),
+    // A pose that never let go has no fist of its own: it takes the other's,
+    // so the hand leaves the handle for where it is going, not for the origin.
+    fist: a.fist || b.fist ? point(a.fist ?? b.fist!, b.fist ?? a.fist!) : undefined,
   };
 }
 
@@ -1161,6 +1292,9 @@ function flowing(keys: readonly { time: number; pose: Pose }[], age: number, hor
   pose.backFootYaw = sample(keys.map(k => k.pose.backFootYaw ?? 1.38));
   for (const key of ['armHinge','armDrive','shoulderLift'] as const)
     pose[key] = sample(keys.map(k=>k.pose[key] ?? (key==='armHinge'?-.6:0)));
+  pose.release = THREE.MathUtils.clamp(sample(keys.map(k => k.pose.release ?? 0)), 0, 1);
+  const anyFist = keys.find(k => k.pose.fist)?.pose.fist;
+  if (anyFist) pose.fist = [0, 1, 2].map(axis => sample(keys.map(k => (k.pose.fist ?? anyFist)[axis]))) as unknown as Point;
   const rotations = keys.map(k => batOrientation(k.pose).clone());
   for (let n = 1; n < rotations.length; n++) if (rotations[n-1].dot(rotations[n]) < 0)
     rotations[n].set(...rotations[n].toArray().map(v => -v) as [number, number, number, number]);
@@ -1214,8 +1348,10 @@ export type BatterKit = 'home' | 'whites' | 'green' | 'purple' | 'blue';
  * one match are four different batters and not the same man four times.
  */
 export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number; number: number }> = {
-  home: { shirt: 0x19334a, helmet: 0x18314a, trousers: 0xe7e2d3, accent: 0xed7044, number: 0xed7044 },
-  whites: { shirt: 0xf2ece0, helmet: 0x18314a, trousers: 0xf4f0e4, accent: 0xd9d3c3, number: 0xd9d3c3 },
+  // A mid navy: the near-black it replaced lost the shape of the shirt under the
+  // day's light, and a navy he can be seen in is still a navy.
+  home: { shirt: 0x2f5a88, helmet: 0x2a527c, trousers: 0xe7e2d3, accent: 0xed7044, number: 0xed7044 },
+  whites: { shirt: 0xf2ece0, helmet: 0x2a527c, trousers: 0xf4f0e4, accent: 0xd9d3c3, number: 0xd9d3c3 },
   green: { shirt: 0x0a2f24, helmet: 0x09291f, trousers: 0xf1eee6, accent: 0x061c15, number: 0xffffff },
   purple: { shirt: 0x5a2fb4, helmet: 0x4d27a3, trousers: 0xf1eee6, accent: 0x3f1e86, number: 0xffffff },
   blue: { shirt: 0x1f6fd6, helmet: 0x1a5fbd, trousers: 0xf1eee6, accent: 0x1657ad, number: 0xffffff },
@@ -1250,6 +1386,10 @@ export class Batter {
   /** When he went down, and the shape he was in when it happened. */
   private felledAt = -Infinity;
   private felledFrom: Pose = GUARD;
+  private celebratedAt = -Infinity;
+  private celebratedFrom: Pose = GUARD;
+  /** A fifty rather than a hundred: see `FIFTY_MS`. */
+  private mild = false;
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -1265,16 +1405,18 @@ export class Batter {
     blade: bladeGeometry(),
   };
   private palette = {
-    shirt: new THREE.MeshStandardMaterial({ color: 0x19334a, roughness: .88 }),
+    shirt: new THREE.MeshStandardMaterial({ color: 0x2f5a88, roughness: .88 }),
     // The helmet is its own material rather than the shirt's, because it is navy
     // in both innings: a cricketer's lid does not change colour when the rest of
     // the kit does, and in whites a cream one read as a bald head.
-    helmet: new THREE.MeshStandardMaterial({ color: 0x18314a, roughness: .62 }),
+    // Matte: a helmet's shell is covered in fabric, so it takes the light the
+    // way the cap would rather than shining like a motorbike lid.
+    helmet: new THREE.MeshStandardMaterial({ color: 0x2a527c, roughness: .92 }),
     trousers: new THREE.MeshStandardMaterial({ color: 0xe7e2d3, roughness: .82 }),
-    pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .72 }),
+    pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
-    bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .83 }),
+    bat: new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .62 }),
     accent: new THREE.MeshStandardMaterial({ color: 0xed7044, roughness: .7 }),
     // The number on his back is its own colour: white on an away kit, where the
     // accent that does the straps would vanish into the shirt.
@@ -1405,10 +1547,21 @@ export class Batter {
   }
   /** Whether he is on his way down or already there. */
   get felled() { return Number.isFinite(this.felledAt); }
+  /** His hundred: the bat up to the sky and back into his guard. See `RAISED`. */
+  celebrate(now: number, mild = false) {
+    this.celebratedFrom = this.pose;
+    this.celebratedAt = now;
+    this.mild = mild;
+    // The stroke he got there with is over, and its flags bend the arms its
+    // own way — a pull's, a cut's, a sweep's. The charge stays: it is what
+    // walks him back to his crease if he went down the pitch for it.
+    this.pulling = this.cutting = this.squaring = this.lofted = this.sweeping = this.levelled = false;
+  }
 
   reset() {
     this.poseAge = Infinity;
     this.felledAt = -Infinity;
+    this.celebratedAt = -Infinity;
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
@@ -1509,6 +1662,13 @@ export class Batter {
     const age = now - this.swingStart;
     this.poseAge = age;
     this.travel(age);
+    const celebrating = now - this.celebratedAt;
+    if (celebrating >= 0 && celebrating < (this.mild ? FIFTY_MS : CELEBRATION_MS)) {
+      // Nothing about the stroke he hit it with is left to shape the legs:
+      // an unfinished stroke's age would have them bent its way.
+      this.poseAge = Infinity;
+      return this.applyCelebration(celebrating);
+    }
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
       const guard = mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation);
       this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
@@ -1765,6 +1925,34 @@ export class Batter {
     this.apply(FELLED);
   }
 
+  private applyCelebration(age: number) {
+    if (this.mild) {
+      const { rise, lift, up, hold, back, down, settle } = FIFTY;
+      if (age < hold) {
+        return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, { time: rise, pose: RISING },
+          { time: lift, pose: LIFTING }, { time: up, pose: NODDING }, { time: hold, pose: NODDED }], age));
+      }
+      return this.apply(age < back ? mix(NODDED, RETURNING, (age - hold) / (back - hold))
+        : age < down ? mix(RETURNING, LOWERED, (age - back) / (down - back))
+        : age < settle ? mix(LOWERED, SETTLING, (age - down) / (settle - down))
+        : mix(SETTLING, GUARD, (age - settle) / (FIFTY_MS - settle)));
+    }
+    const { rise, lift, up, pump, again, pump2, look, back, down, settle } = CELEBRATION;
+    if (age < look) {
+      return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, { time: rise, pose: RISING },
+        { time: lift, pose: LIFTING }, { time: up, pose: RAISED },
+        { time: pump, pose: PUMPED }, { time: again, pose: RAISED }, { time: pump2, pose: PUMPED },
+        { time: look, pose: LOOKING }], age));
+    }
+    // Down the way it came up: out to his right, where the left hand takes the
+    // handle again, and only then in front of him. Straight from beside his
+    // head to in front of his chest, the handle went through him.
+    this.apply(age < back ? mix(LOOKING, RETURNING, (age - look) / (back - look))
+      : age < down ? mix(RETURNING, LOWERED, (age - back) / (down - back))
+      : age < settle ? mix(LOWERED, SETTLING, (age - down) / (settle - down))
+      : mix(SETTLING, GUARD, (age - settle) / (CELEBRATION_MS - settle)));
+  }
+
   private apply(pose: Pose) {
     this.pose = pose;
     const hip = V(pose.hip), chest = V(pose.chest);
@@ -1827,7 +2015,12 @@ export class Batter {
      */
     const shoulders = [0, 1].map(i => new THREE.Vector3(i === 0 ? -.163 : .163, .075+(pose.shoulderLift??0), 0)
       .applyQuaternion(this.torso.quaternion).add(chest));
+    // Both gloves back on the handle every frame; only a hand that has let go
+    // is moved off it, below, and only for as long as it is let go.
+    this.arms.forEach((arm, i) => arm.glove.position.set(0, i === 0 ? HAND.top : HAND.bottom, 0));
     for (let pass = 0; pass < 5; pass++) for (let i = 0; i < 2; i++) {
+      // A hand mostly off the bat has no say in where the bat can go.
+      if (i === FREE_HAND && (pose.release ?? 0) > .5) continue;
       // Measured at the wrist the solver is about to place, which is neither
       // the bat's origin nor the fist: it sits beside the handle, and how far
       // beside depends on where the arm is coming from.
@@ -2162,6 +2355,39 @@ export class Batter {
         // knuckles into an open palm or flip the visible grip during a shot.
         this.segment(arm.palm[0],arm.socket.clone().multiplyScalar(.40),arm.socket,.081,.080);
       }
+      /**
+       * The free hand, punching the air.
+       *
+       * Solved as if still on the handle first, then taken from there to the
+       * fist by `release`, with the elbow's bend taken the same way: from where
+       * the handle put it to out beside the shoulder. So the hand leaves the
+       * bat and comes back to it along a line rather than jumping, and at
+       * nought nothing here moves anything. The glove goes with the wrist,
+       * on down the forearm. It keeps the bat's own turn rather than taking
+       * the forearm's: held up to the sky the bat's axis points straight back
+       * down the arm, and a turn between two opposite directions has no one
+       * way round, so it spun. The glove is round enough not to need one.
+       */
+      const release = i === FREE_HAND && pose.fist ? ease(THREE.MathUtils.clamp(pose.release ?? 0, 0, 1)) : 0;
+      if (release > 0) {
+        const outward = arm.shoulder.clone().sub(chest).normalize();
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.torso.quaternion);
+        const fist = V(pose.fist!);
+        const reach = fist.clone().sub(arm.shoulder);
+        if (reach.length() > .64) fist.copy(arm.shoulder).addScaledVector(reach.normalize(), .64);
+        const out = arm.shoulder.clone().addScaledVector(outward, .45).addScaledVector(forward, .12).addScaledVector(spine, -.10);
+        const pole = elbow.clone().lerp(out, release);
+        hand.lerp(fist, release);
+        elbow = solveJoint(arm.shoulder, hand, .32, .34, pole);
+        arm.wrist.copy(hand);
+        const forearm = hand.clone().sub(elbow).normalize();
+        const onHandle = arm.glove.position.clone().applyQuaternion(this.bat.quaternion).add(this.bat.position);
+        const gloveAt = onHandle.lerp(hand.clone().addScaledVector(forearm, .06), release);
+        const inverse = this.bat.quaternion.clone().invert();
+        arm.glove.position.copy(gloveAt).sub(this.bat.position).applyQuaternion(inverse);
+        arm.socket.copy(hand).sub(gloveAt).applyQuaternion(inverse);
+        this.segment(arm.palm[0], arm.socket.clone().multiplyScalar(.40), arm.socket, .081, .080);
+      }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
@@ -2181,8 +2407,23 @@ export class Batter {
       // them and wrong for one with a shin flat on the turf: the back knee has
       // to drop straight down and forward, under the hip, or the leg folds out
       // sideways and he reads as sitting rather than kneeling.
-      const kneePole = this.kneeling ? new THREE.Vector3(i === 0 ? .10 : .06, i === 0 ? .95 : -.85, i === 0 ? .30 : .42)
-        : new THREE.Vector3(.65, -.15, .02);
+      //
+      // How much of that bend he gets is read off his hips, not off the stroke.
+      // `kneeling` stays true from the swipe until the next ball resets it, so
+      // taken as a switch it bent a standing man's knees the kneeling way: the
+      // back leg twisted as he got up, held twisted through the whole wait in
+      // his guard, and then flipped straight in one frame when the next ball
+      // came. Down on the knee the hips are below .62 and the bend is all
+      // kneeling; by .84, still well short of the guard's .94, it is all
+      // standing, so the last push up to his full height moves nothing but
+      // the height. Going down it is taken whole from the swipe, as it always
+      // was: the drop to the knee is the stroke, and it is only the way back
+      // up that was wrong.
+      const goingDown = this.poseAge <= this.contactTime - this.swingStart;
+      const kneel = !this.kneeling ? 0
+        : goingDown ? 1 : ease(THREE.MathUtils.clamp((.84 - pose.hip[1]) / (.84 - .62), 0, 1));
+      const kneePole = new THREE.Vector3(.65, -.15, .02)
+        .lerp(new THREE.Vector3(i === 0 ? .10 : .06, i === 0 ? .95 : -.85, i === 0 ? .30 : .42), kneel);
       if (driving && !this.felled && Number.isFinite(this.poseAge)) {
         const weight=ease(THREE.MathUtils.clamp(this.poseAge/80,0,1))*ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/160,0,1));
         kneePole.lerp(new THREE.Vector3(i===0 ? .04 : .35,-.15,.65),weight);

@@ -1,0 +1,112 @@
+/**
+ * The ground itself, in a real browser: that it draws, that its shaders
+ * compile, and what it costs.
+ *
+ *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
+ *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/scene-check.mjs
+ *   node scripts/scene-check.mjs http://…:4173    # a preview build
+ *
+ * The sky, the painted outfield and the painted pitch are canvases and a
+ * shader, so neither the unit tests nor the type checker ever runs a line of
+ * them. A shader that fails to compile is a console error and a black dome,
+ * not an exception, which is why the console is watched as well as the page.
+ *
+ * The number that matters is draw calls a frame. The ground used to cost over a
+ * thousand, most of them scenery built one box at a time; painting the wear
+ * and the mowing into textures brought it down, and this is here so the next
+ * change that bolts on a hundred little meshes is caught before it ships. The
+ * frames are counted at the crease, with the whole ground in view, which is
+ * where a player spends the innings — reached through the cover and the mode
+ * picker as they reach it.
+ *
+ * Screenshots land in test-results/, for a person to look at: a check can tell
+ * the sky drew, but not that it looks like a sky.
+ */
+
+import { chromium } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+
+const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
+const executablePath = process.env.CHROMIUM_PATH || undefined;
+/**
+ * Draw calls a frame, shadow pass included. The ground came in at about 850
+ * with its painted textures and about 825 once the perimeter boards were one
+ * ring; lower this whenever a change brings it down, so the saving stays banked.
+ */
+const BUDGET = 870;
+
+let failures = 0;
+const check = (ok, what, detail) => {
+  console.log(`${ok ? '  ok  ' : ' FAIL '} ${what}${ok || detail === undefined ? '' : `\n        ${detail}`}`);
+  if (!ok) failures++;
+};
+
+await mkdir('test-results', { recursive: true });
+const browser = await chromium.launch({ executablePath });
+
+for (const [name, options] of [
+  ['desktop', { viewport: { width: 1280, height: 720 } }],
+  ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }],
+]) {
+  console.log(name);
+  const page = await browser.newPage(options);
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  // A resource that fails to load is the network's business, and the analytics
+  // script cannot reach its server from every machine this runs on.
+  page.on('console', message => { if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text()); });
+  await page.addInitScript(() => {
+    // A returning player, so the private-window notice does not stand in the way.
+    const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
+    try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
+    // The covers have come off already: unveil-check is the one that pulls them.
+    try { localStorage.setItem('hitman-unveiled', 'ground-2026'); } catch { /* Then they stand in the way. */ }
+    window.__draws = 0;
+    for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
+      for (const fn of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
+        const original = proto[fn];
+        if (original) proto[fn] = function (...args) { window.__draws++; return original.apply(this, args); };
+      }
+    }
+  });
+  // Nothing here needs the board, and a dev server has none to give.
+  await page.route('**/api/board**', route => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),
+  }));
+
+  await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
+  if (await anyway.count()) { await anyway.first().click(); await page.waitForTimeout(800); }
+  await page.locator('#start').click({ force: true });
+  await page.waitForTimeout(700);
+  for (let i = 0; i < 8; i++) {
+    const done = page.locator('#whatsnew-done');
+    if (!(await done.count()) || !(await done.isVisible())) break;
+    await done.click({ force: true });
+    await page.waitForTimeout(500);
+  }
+  await page.locator('#mode-classic').click({ force: true });
+
+  let phase = '';
+  for (let i = 0; i < 40 && !/BALL|RUNUP|READY/.test(phase); i++) {
+    await page.waitForTimeout(250);
+    phase = await page.evaluate(() => window.__cricket?.snapshot().phase ?? '');
+  }
+  check(/BALL|RUNUP|READY/.test(phase), 'an innings is under way', phase);
+
+  const draws = await page.evaluate(async () => {
+    const frames = 30, start = window.__draws;
+    await new Promise(done => { let n = 0; const tick = () => (++n >= frames ? done() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });
+    return Math.round((window.__draws - start) / frames);
+  });
+  check(draws > 0, 'the ground is being drawn', draws);
+  check(draws <= BUDGET, `in ${draws} draw calls a frame, within ${BUDGET}`);
+  check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
+  await page.screenshot({ path: `test-results/scene-${name}.png` });
+  await page.close();
+}
+
+await browser.close();
+console.log(failures ? `\n${failures} failed` : '\nall passed');
+if (failures) process.exitCode = 1;
