@@ -1021,8 +1021,17 @@ export class Game {
       bounceZ: GAME.bounceZ, rise: GAME.rise,
       durationMs: (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale };
   }
+  /**
+   * `?bouncers=1`: every ball a bouncer, in either mode, for looking at the
+   * pull and its flash without waiting an over for each one. No spinner, and
+   * no yorker or slower ball owed, since either would stand in its place.
+   * Nothing else changes — the same timing and the same scoring.
+   */
+  private bouncersOnly = new URLSearchParams(location.search).get('bouncers') === '1';
   private get plan() {
     const plan = this.surviving ? SURVIVE_PLAN : CLASSIC_PLAN;
+    if (this.bouncersOnly) return { ...plan, spin: undefined, short: undefined,
+      specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 1 } };
     if (!this.spinOnly || !plan.spin) return plan;
     // Every over his, from the first: `spinOvers` always gives him `notBefore`
     // and draws the rest from what follows, so asking for all of them from
