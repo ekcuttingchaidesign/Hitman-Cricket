@@ -35,7 +35,7 @@ import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { openUnveil } from './Unveil';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
-import { milestoneDoodle, type BatterOnScreen } from './Milestone';
+import { milestoneDoodle, powerDoodle, type BatterOnScreen } from './Milestone';
 import type { Milestone } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
 import {
@@ -2362,6 +2362,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.viewport.append(doodle);
     this.viewport.classList.add('milestone-on');
     window.setTimeout(() => { doodle.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+  }
+  /**
+   * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
+   * call for the ball is left where it is; and a moment arriving on top of it
+   * takes its place, since `milestone` clears whatever doodle is up.
+   */
+  power(at: BatterOnScreen, lasts: number) {
+    this.viewport.querySelector('.milestone')?.remove();
+    const doodle = powerDoodle(at, lasts);
+    this.viewport.append(doodle);
+    window.setTimeout(() => doodle.remove(), lasts);
   }
   blow(where: string) {
     const burst = this.$('hit-burst');

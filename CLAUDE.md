@@ -83,6 +83,12 @@ grey is measured off the pixels of the grass, and the doodles are judged on
 their own clock, because a headless browser rendering the ground in software
 can hold CSS animations at their first frame.
 
+`scripts/power-check.mjs` is the flash for a special stroke played on a full
+meter: the ground greyed round the batter and the ball, fire streaking out of
+him, and the call for the ball left in place. The grey runs on the game's
+clock, so it is waited out by asking the game (`snapshot().muted`), not a
+stopwatch.
+
 `scripts/nearing-check.mjs` is the wait for those moments: the card under
 the score bar ten short of a fifty or a hundred and from the third six running.
 It writes the innings out ball by ball through the debug hook with the real one

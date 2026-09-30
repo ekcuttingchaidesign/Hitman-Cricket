@@ -63,6 +63,13 @@ function mutable(material: THREE.Material, amount: { value: number }) {
   material.customProgramCacheKey = () => `${key()}|mute`;
   material.needsUpdate = true;
 }
+/** How long the flash of grey round a special stroke lasts, from the hit. */
+export const POWER_MS = 1100;
+/** How far gone the colour is, a given time into a special stroke: in fast, out slower. */
+function powerAt(age: number) {
+  if (age < 0 || age >= POWER_MS) return 0;
+  return Math.min(THREE.MathUtils.smoothstep(age, 0, 110), 1 - THREE.MathUtils.smoothstep(age, POWER_MS - 380, POWER_MS));
+}
 /** How far gone the colour is, a given time into his celebration. */
 function muteAt(age: number) {
   if (age < 0 || age >= CELEBRATION_MS) return 0;
@@ -127,6 +134,7 @@ export class GameScene {
   /** How grey everything but the batter is: see `MUTE`. */
   private mute = { value: 0 };
   private celebratedAt = -Infinity;
+  private poweredAt = -Infinity;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     const mobile = window.matchMedia('(pointer: coarse)').matches;
@@ -186,6 +194,9 @@ export class GameScene {
     // once, here, so the shaders are compiled with it before the first frame.
     const his = new Set<THREE.Material>();
     this.batter.root.traverse(object => { if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => his.add(m)); });
+    // And the ball he hit, and its trail: a special stroke greys the ground
+    // while the ball is still in the air, and the eye wants to follow it.
+    for (const mesh of [this.ball, ...this.trail]) [mesh.material].flat().forEach(m => his.add(m));
     this.scene.traverse(object => {
       if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!his.has(m)) mutable(m, this.mute); });
     });
@@ -307,6 +318,13 @@ export class GameScene {
     this.celebratedAt = mild ? -Infinity : now;
   }
   /**
+   * A special stroke on a full meter, from the moment it is hit: the same
+   * grey as his hundred, round him and the ball, for about a second.
+   */
+  power(now: number) { this.poweredAt = now; }
+  /** How grey the ground is this frame, nought to one. For the checks. */
+  get muted() { return this.mute.value; }
+  /**
    * Where he stands on the screen, in CSS pixels of the canvas: his feet, the
    * top of his helmet, and the height the bat reaches held up to the sky. The
    * doodles that go up round his hundred are drawn to these.
@@ -335,7 +353,7 @@ export class GameScene {
   kit(kit: BatterKit) { this.batter.dress(kit); }
 
   reset() {
-    this.celebratedAt = -Infinity; this.mute.value = 0;
+    this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
@@ -587,7 +605,7 @@ export class GameScene {
     this.camera.position.x = Math.sin(now * 0.085) * shake;
     this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
     this.sky.mesh.position.copy(this.camera.position);
-    this.mute.value = muteAt(now - this.celebratedAt);
+    this.mute.value = Math.max(muteAt(now - this.celebratedAt), powerAt(now - this.poweredAt));
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }

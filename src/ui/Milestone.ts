@@ -406,3 +406,55 @@ export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: numb
   element.innerHTML = `<span class="milestone-said">${said}</span>${svg}`;
   return element;
 }
+
+/**
+ * A special stroke played on a full meter — the charge, the slog sweep, a
+ * scoop — gets a flash of the same pen: fire streaking out of him in every
+ * direction, flames licking off the ends of the upper ones and up round his
+ * boots, and embers thrown off. Shorter than any of the moments and wordless,
+ * because the ball is still in the air and the call for it is still to come:
+ * this is the shot, not the score.
+ */
+export function powerDoodle(at: BatterOnScreen, lasts: number) {
+  const random = seeded(77);
+  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const pen = Math.max(3, s * .05);
+  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .5 };
+  const out: string[] = [];
+  // The streaks: out from an oval that clears him — he is the one thing left
+  // in colour, and the fire is round him, not on him — the upper ones longest,
+  // and none downwards, where they would cross the stumps and the pitch.
+  const rays = 14;
+  for (let i = 0; i < rays; i++) {
+    const a = -Math.PI / 2 + (i / rays) * Math.PI * 2 + (random() - .5) * .2;
+    const down = Math.sin(a);
+    if (down > .45) continue;
+    const up = -down;
+    const from = { x: c.x + Math.cos(a) * s * .62, y: c.y + Math.sin(a) * s * 1.12 };
+    const reach = s * (.55 + random() * .3 + Math.max(0, up) * .55);
+    const to = { x: from.x + Math.cos(a) * reach, y: from.y + Math.sin(a) * reach };
+    out.push(mark(jag(from, to, random, 4, s * .06), pen * (up > .3 ? 1 : .75), 20 + (i % 4) * 30, 150));
+    // Fire off the tips of the ones that point up, leaning the way they point.
+    if (up > .35 && i % 2 === 0) {
+      const h = s * (.3 + random() * .1);
+      out.push(fire({ x: to.x, y: to.y + h * .15 }, h * .7, h, Math.cos(a) * .6, 200 + i, 120 + (i % 4) * 30, Math.max(1.5, pen * .4)));
+    }
+  }
+  // And flames either side of his boots, leaning out, clear of his legs.
+  for (const [dx, w, h, seed] of [[-.78, .42, .6, 301], [.78, .42, .6, 302], [-1.18, .3, .4, 303], [1.18, .3, .4, 304]] as const) {
+    out.push(fire({ x: at.feet.x + dx * s, y: at.feet.y + s * .02 }, w * s, h * s, Math.sign(dx) * .3, seed, 30, Math.max(1.5, pen * .4)));
+  }
+  // Embers, thrown up and out.
+  for (let i = 0; i < 12; i++) {
+    const a = -Math.PI * (.1 + random() * .8);
+    const r = s * (.8 + random() * .9);
+    out.push(`<circle class="cy-ember" cx="${f(c.x + Math.cos(a) * r)}" cy="${f(c.y + Math.sin(a) * r)}" r="${f(s * (.018 + random() * .02))}" style="--delay:${Math.round(80 + random() * 260)}ms;--rise:${f(-s * (.4 + random() * .5))}px"/>`);
+  }
+  const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
+    + `<g class="cy-boil">${out.join('')}</g></svg>`;
+  const element = document.createElement('div');
+  element.className = 'milestone is-power';
+  element.style.setProperty('--out', `${lasts - 260}ms`);
+  element.innerHTML = svg;
+  return element;
+}

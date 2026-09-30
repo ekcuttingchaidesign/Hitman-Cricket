@@ -1,6 +1,6 @@
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { SURVIVE } from './config/survive';
-import { Confidence } from './game/Confidence';
+import { Confidence, landedSpecial } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
@@ -18,7 +18,7 @@ import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slog
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
-import { GameScene } from './scene/GameScene';
+import { GameScene, POWER_MS } from './scene/GameScene';
 import { HUD } from './ui/HUD';
 import {
   fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
@@ -523,6 +523,8 @@ export class Game {
       // A moment on demand, for `milestone-check.mjs`: getting to a real
       // hundred in a headless browser is thirty balls of perfect timing.
       milestone: (kind: Milestone = 'century') => this.celebrate(kind),
+      // The special stroke's flash, on demand, for the same reason.
+      power: () => this.powerUp(),
       // The wait for one, from an innings written out ball by ball — runs, or
       // 'W' for a wicket — for `nearing-check.mjs`, which cannot bat its way to
       // 96 either. Each call is one ball: the card moves as it would have.
@@ -1751,6 +1753,7 @@ export class Game {
       // A skied ball cracks off the bat now and is judged when it comes down.
       if (!this.contactPlayed && this.elapsed >= this.contactAt) {
         this.contactPlayed = true;
+        if (this.lesson < 0 && landedSpecial(this.outcome!)) this.powerUp();
         if (this.outcome!.aerial && this.outcome!.madeBatContact) this.audio.play('hit');
       }
       if (!this.resultPresented && this.elapsed >= this.presentationAt) this.presentResult();
@@ -1826,6 +1829,15 @@ export class Game {
     const end = nearingEnd(this.nearing, history);
     this.nearing = nearingOf(history);
     this.hud.nearing(this.nearing, end);
+  }
+  /**
+   * A special stroke, on the hit: the ground greys round him and the ball for
+   * a second and fire streaks out of him. See `powerDoodle`.
+   */
+  private powerUp() {
+    this.scene.power(this.elapsed);
+    this.hud.power(this.scene.batterOnScreen(), POWER_MS);
+    track('special-shot', 'Played a special stroke on a full meter');
   }
   /** A moment: see `milestoneDue`. */
   private celebrate(kind: Milestone) {
@@ -2766,7 +2778,7 @@ export class Game {
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
-      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0 };
+      confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100 };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
