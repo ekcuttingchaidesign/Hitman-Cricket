@@ -12,6 +12,7 @@ import { effectiveLine, flightProgress } from './game/DeliveryTrajectory';
 import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
+import { ShuffleBag } from './game/ShuffleBag';
 import { milestoneOf, nearingEnd, nearingOf, type Milestone, type Nearing } from './game/milestone';
 import { CELEBRATION_MS, FIFTY_MS } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
@@ -19,7 +20,7 @@ import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
-import { POWER_DOODLE_MS } from './ui/Milestone';
+import { POWER_DOODLE_MS, POWER_STYLES, type PowerStyle } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
   fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
@@ -524,8 +525,9 @@ export class Game {
       // A moment on demand, for `milestone-check.mjs`: getting to a real
       // hundred in a headless browser is thirty balls of perfect timing.
       milestone: (kind: Milestone = 'century') => this.celebrate(kind),
-      // The special stroke's flash, on demand, for the same reason.
-      power: () => this.powerUp(),
+      // The special stroke's flash, on demand, for the same reason — in the
+      // style named, so `power-check.mjs` can see each, or the next one dealt.
+      power: (style?: PowerStyle) => this.powerUp(style),
       // The wait for one, from an innings written out ball by ball — runs, or
       // 'W' for a wicket — for `nearing-check.mjs`, which cannot bat its way to
       // 96 either. Each call is one ball: the card moves as it would have.
@@ -1833,13 +1835,19 @@ export class Game {
   }
   /**
    * A special stroke, on the hit: the ground greys round him and the ball for
-   * a second and fire streaks out of him. See `powerDoodle`.
+   * a second and fire streaks out of him. See `powerDoodle`. The burst is
+   * dealt from a shuffled bag of its five styles, off `Math.random` and never
+   * the innings' seed, so which one comes up leaves the bowling alone.
    */
-  private powerUp() {
+  private powerUp(style: PowerStyle = this.powerStyles.next()) {
+    this.powerStyle = style;
     this.scene.power(this.elapsed);
-    this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS);
+    this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
     track('special-shot', 'Played a special stroke on a full meter');
   }
+  private readonly powerStyles = new ShuffleBag(POWER_STYLES);
+  /** The burst the last special stroke was drawn with, for the debug snapshot. */
+  private powerStyle: PowerStyle | null = null;
   /** A moment: see `milestoneDue`. */
   private celebrate(kind: Milestone) {
     const mild = kind === 'fifty';
@@ -2780,7 +2788,7 @@ export class Game {
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
-      special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning };
+      special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();

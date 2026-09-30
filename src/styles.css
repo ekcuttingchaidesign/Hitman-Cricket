@@ -5988,7 +5988,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 
 /* ── The flash for a special stroke ────────────────────────────────────────
-   Mint and violet, inked in indigo (see powerDoodle). Focus lines travel out
+   In one of five pens, set on the element (see powerDoodle). Focus lines travel out
    from him and off the screen as moving lengths of line; bursts blow out on
    the ground either side of his boots and flicker; dirt, sparks and
    shock-arcs thrown clear. */
@@ -6008,8 +6008,51 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .pw-burst-ink{fill:var(--pw-ink);stroke:var(--pw-ink);stroke-linejoin:miter;stroke-miterlimit:8}
 .pw-burst-b{fill:var(--pw-b)}
 .pw-burst-a{fill:var(--pw-a)}
-.pw-frame{animation:cy-frame .15s steps(1) infinite}
-.pw-frame+.pw-frame{animation-delay:-.075s}
+.pw-frame{animation:cy-frame var(--pw-flick,.15s) steps(1) infinite}
+.pw-frame+.pw-frame{animation-delay:calc(var(--pw-flick,.15s) / -2)}
+/* Flame: licks up off the turf, keeps licking, and sinks. */
+.pw-burst.is-flame{--pw-flick:.12s;transform:scale(.6,0);animation:pw-lick 1s cubic-bezier(.3,1.3,.4,1) forwards}
+@keyframes pw-lick{
+  0%{transform:scale(.6,0);opacity:0}
+  12%{transform:scale(.95,1.22);opacity:1}
+  24%{transform:scale(1.02,.92)}
+  36%{transform:scale(1,1.06)}
+  48%{transform:none}
+  74%{transform:none;opacity:1}
+  100%{transform:scale(.85,0);opacity:0}
+}
+/* Lightning: there at once with a white flash, jittering, one stutter before it goes. */
+.pw-burst.is-bolt{--pw-flick:.09s;transform:none;animation:pw-strike .9s linear forwards}
+@keyframes pw-strike{
+  0%{opacity:1;transform:scale(1.12)}
+  6%{transform:none}
+  70%{opacity:1}
+  74%{opacity:.2}
+  78%{opacity:1}
+  100%{opacity:0;transform:scale(1,.9)}
+}
+.pw-strike{fill:#fff;opacity:0;animation:pw-flash .22s ease-out forwards}
+@keyframes pw-flash{0%{opacity:.5}100%{opacity:0}}
+/* Dust: swells softly, then drifts off outwards and thins. */
+.pw-burst.is-puff{--pw-flick:.24s;transform:scale(.3);animation:pw-swell 1.05s cubic-bezier(.2,.9,.3,1) forwards}
+@keyframes pw-swell{
+  0%{transform:scale(.3,.2);opacity:0}
+  16%{transform:scale(1.04,1.1);opacity:1}
+  30%{transform:none}
+  70%{transform:translateX(var(--drift));opacity:1}
+  100%{transform:translateX(var(--drift-out)) scale(1.18,.9);opacity:0}
+}
+.pw-halftone{fill:url(#pw-halftone)}
+.pw-dot{fill:var(--pw-b)}
+/* The starburst: punched in with a twist. */
+.pw-burst.is-star{animation:pw-punch .95s cubic-bezier(.2,1.6,.35,1) forwards}
+@keyframes pw-punch{
+  0%{transform:scale(.1) rotate(-35deg);opacity:0}
+  14%{transform:scale(1.16) rotate(6deg);opacity:1}
+  28%{transform:none}
+  72%{transform:none;opacity:1}
+  100%{transform:scale(1.25);opacity:0}
+}
 .pw-arc{fill:var(--pw-ink);opacity:0;transform-box:fill-box;transform-origin:center;animation:pw-arc .6s ease-out var(--delay) forwards}
 .pw-arc.is-b{fill:var(--pw-b)}
 @keyframes pw-arc{
@@ -6029,8 +6072,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   100%{opacity:0;transform:translate(var(--dx),var(--dy))}
 }
 @media (prefers-reduced-motion:reduce){
-  .pw-stroke,.pw-thrown,.pw-arc{display:none}
+  .pw-stroke,.pw-thrown,.pw-arc,.pw-strike{display:none}
   .pw-frame{animation:none}
   .pw-frame+.pw-frame{display:none}
-  .pw-burst{animation:none;transform:none}
+  .pw-burst,.pw-burst.is-flame,.pw-burst.is-bolt,.pw-burst.is-puff,.pw-burst.is-star{animation:none;transform:none}
 }

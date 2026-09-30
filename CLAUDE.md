@@ -86,7 +86,10 @@ can hold CSS animations at their first frame.
 `scripts/power-check.mjs` is the flash for a special stroke played on a full
 meter: the ground greyed round the batter and the ball, focus lines running
 out from him and off the screen, a burst either side of his boots, and the
-call for the ball left in place. The grey runs on the game's
+call for the ball left in place. The burst comes in five styles, each in its
+own pen and dealt from a shuffled bag; the check puts each up by name
+(`__cricket.power('flame')`), photographs it, and deals five to see all five.
+A new style goes in `POWER_STYLES` and in the check's `PENS`. The grey runs on the game's
 clock, so it is waited out by asking the game (`snapshot().muted`), not a
 stopwatch. It also plays real balls on a hand-wound clock until a special
 stroke lands, for the fire trail that burns behind only those

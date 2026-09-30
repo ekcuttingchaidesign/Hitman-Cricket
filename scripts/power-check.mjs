@@ -2,7 +2,8 @@
  * The flash for a special stroke, in a real browser: the ground greys round
  * the batter and the ball, focus lines run out from him and off the screen,
  * the turf bursts either side of his boots, and all of it is gone again
- * without the call for the ball being moved aside.
+ * without the call for the ball being moved aside. The burst is each of its
+ * five styles in turn, photographed, and dealt five times to see all five.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/power-check.mjs
@@ -27,6 +28,10 @@ import { mkdir } from 'node:fs/promises';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
+
+/** The five bursts, and the body colour each is drawn in: see `POWER` in Milestone.ts. */
+const PENS = { teeth: '#9c78ff', flame: '#ff6a1f', bolt: '#22cbff', puff: '#ff3d9a', star: '#2f5bff' };
+const STYLES = Object.keys(PENS);
 
 let failures = 0;
 const check = (ok, what, detail) => {
@@ -101,7 +106,7 @@ for (const [name, options] of [
   const before = await saturation(page, await page.screenshot(), grass);
   check((await snap()).muted === 0, 'the ground in colour to begin with');
 
-  await page.evaluate(() => { window.__timerScale = 40; window.__cricket.power(); });
+  await page.evaluate(() => { window.__timerScale = 40; window.__cricket.power('teeth'); });
   await page.waitForTimeout(300);
   const up = await page.evaluate(() => {
     const doodle = document.querySelector('.milestone.is-power');
@@ -130,9 +135,53 @@ for (const [name, options] of [
   const during = await page.screenshot({ path: `test-results/power-${name}.png` });
   const grey = await saturation(page, during, grass);
   check(grey < before * .5, `the grass greys (saturation ${before.toFixed(2)} to ${grey.toFixed(2)})`);
+
+  // Each of the five bursts, put up by name and photographed at 400ms: the
+  // same lines, arcs and throw round every one, the burst and the pen its own.
+  for (const style of STYLES) {
+    await page.evaluate(style => window.__cricket.power(style), style);
+    await page.waitForTimeout(300);
+    const drawn = await page.evaluate(() => {
+      const doodle = document.querySelector('.milestone.is-power');
+      for (const animation of doodle?.getAnimations({ subtree: true }) ?? []) { animation.pause(); animation.currentTime = 400; }
+      const burst = doodle?.querySelector('.pw-burst');
+      const body = burst?.querySelector('.pw-burst-b');
+      const size = body?.getBoundingClientRect();
+      return {
+        style: doodle?.dataset.style, asked: window.__cricket.snapshot().powerStyle,
+        bursts: doodle?.querySelectorAll('.pw-burst').length, burstClass: burst?.getAttribute('class'),
+        rays: doodle?.querySelectorAll('.pw-ray').length, arcs: doodle?.querySelectorAll('.pw-arc').length,
+        thrown: doodle?.querySelectorAll('.pw-thrown').length,
+        pen: doodle ? getComputedStyle(doodle).getPropertyValue('--pw-b').trim() : '',
+        ray: doodle?.querySelector('.pw-ray.is-b') ? getComputedStyle(doodle.querySelector('.pw-ray.is-b')).stroke : '',
+        body: body ? getComputedStyle(body).fill : '',
+        seen: !!size && size.width > 20 && size.height > 10 && getComputedStyle(burst).opacity > .5,
+        halftone: !!doodle?.querySelector('pattern#pw-halftone .pw-dot') && !!doodle?.querySelector('.pw-halftone'),
+        strike: !!doodle?.querySelector('.pw-strike'),
+      };
+    });
+    await page.screenshot({ path: `test-results/power-${name}-${style}.png` });
+    check(drawn.style === style && drawn.asked === style && drawn.burstClass?.includes(`is-${style}`), `${style}: the burst asked for`, JSON.stringify(drawn));
+    check(drawn.bursts === 2 && drawn.rays === up.rays && drawn.arcs === up.arcs && drawn.thrown === up.thrown,
+      `${style}: either side of his boots, round the same lines and throw`, JSON.stringify(drawn));
+    check(drawn.seen, `${style}: up and on the screen at 400ms`, JSON.stringify(drawn));
+    check(drawn.pen.toLowerCase() === PENS[style] && drawn.ray === drawn.body, `${style}: the lines in the burst's pen`, JSON.stringify(drawn));
+    check(drawn.halftone === (style === 'puff') && drawn.strike === (style === 'bolt'), `${style}: its own touches and nobody else's`, JSON.stringify(drawn));
+  }
+  // Pens that differ, or the five would be one burst in five shapes.
+  check(new Set(Object.values(PENS)).size === STYLES.length, 'five pens, all different');
   let muted = 1;
   for (let i = 0; i < 120 && muted > 0; i++) { await page.waitForTimeout(250); muted = (await snap()).muted; }
   check(muted === 0, 'and the grey goes by itself');
+  // Dealt rather than asked for, five in a row are the five: a shuffled bag,
+  // untouched by the ones put up by name above.
+  const dealt = [];
+  for (let i = 0; i < STYLES.length; i++) {
+    dealt.push(await page.evaluate(() => { window.__cricket.power(); return window.__cricket.snapshot().powerStyle; }));
+  }
+  check(new Set(dealt).size === STYLES.length && dealt.every(style => STYLES.includes(style)), 'five dealt in a row are the five, each once', dealt.join(' '));
+  muted = 1;
+  for (let i = 0; i < 120 && muted > 0; i++) { await page.waitForTimeout(250); muted = (await snap()).muted; }
   // Again at the page's own pace, to see it go without being asked.
   await page.evaluate(() => { window.__timerScale = 1; window.__cricket.power(); });
   await page.waitForTimeout(2500);
