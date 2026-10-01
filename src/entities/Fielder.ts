@@ -427,12 +427,16 @@ export function travel(from: Spot, to: { x: number; z: number }, start: number, 
       for (const [hand, side, other] of [[pose.leftHand, -1, feet[1]], [pose.rightHand, 1, feet[0]]] as const) {
         const swing = THREE.MathUtils.clamp(other.z / .5, -1, 1);
         const pump = g.run;
-        hand.set(side * THREE.MathUtils.lerp(.215, .19, pump),
-          THREE.MathUtils.lerp(hipY - .03 + Math.abs(swing) * .03, hipY + .16 + Math.max(0, swing) * .24, pump),
-          THREE.MathUtils.lerp(.05 + swing * .17, pose.chest.z * .6 + swing * .30, pump));
+        // Out from the ribs, not tucked against them: seen from the bat — the
+        // way the game sees a fielder — a hand inside the width of his shirt
+        // is a hand that is not there, and a man sprinting with no arms.
+        hand.set(side * THREE.MathUtils.lerp(.23, .30, pump),
+          THREE.MathUtils.lerp(hipY - .03 + Math.abs(swing) * .03, hipY + .16 + Math.max(0, swing) * .26, pump),
+          THREE.MathUtils.lerp(.05 + swing * .19, pose.chest.z * .6 + swing * .34, pump));
       }
       pose.headPitch = -lean * .7;
-      pose.elbowsBack = g.run;
+      // Back and a little out: straight back tucks the whole arm behind him.
+      pose.elbowsBack = g.run * .5;
       const body = upright(spot, pose);
       return look ? watch(body, look) : body;
     },

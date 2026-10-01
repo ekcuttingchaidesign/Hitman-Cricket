@@ -37,6 +37,8 @@ interface Built {
   bowling?: Routine | null;
   /** Follow the bowler rather than a fielder. */
   followBowler?: boolean;
+  /** The bowler's own action, on this clock, for a clip that is about him. */
+  bowlerClock?: (t: number) => number;
 }
 interface Clip {
   id: string; group: string; label: string; length: number; view: View; note: string;
@@ -230,6 +232,11 @@ const CLIPS: Clip[] = [
     build: () => groundBall(1.5, 10, false, 'Picking it up', true),
   },
   {
+    id: 'runup', group: 'Moving', label: 'Bowler running in', length: 3400, view: 'game',
+    note: 'The bowler’s run-up, delivery and follow-through, from the batter’s end as the game sees it. Running in, his hands swing clear of his sides so his arms read face on. They come back in for the gather, so the delivery itself is unchanged.',
+    build: () => ({ cast: [], lead: 0, followBowler: true, bowlerClock: t => Math.min(ACTION_MS, Math.max(0, t - 400)) }),
+  },
+  {
     id: 'field', group: 'In the field', label: 'Six fielders, one catch', length: 8600, view: 'game',
     note: 'The whole ring from the game camera. They wait, walk in with the bowler and split step together. Then one of them runs and dives for a mistimed drive while the rest turn to watch and the nearest backs him up. The deep fielders are out of shot most of the time, which is how it will be in the game.',
     build: () => {
@@ -364,7 +371,7 @@ function load(next: Clip) {
   // The lead fielder's actions, as marks along the timeline you can jump to.
   ticksEl.replaceChildren();
   const seen = new Set<string>();
-  for (const action of built.cast[built.lead].routine.actions) {
+  for (const action of built.cast[built.lead]?.routine.actions ?? []) {
     if (!Number.isFinite(action.start) || action.start < 0 || action.start > next.length || seen.has(action.name)) continue;
     seen.add(action.name);
     const tick = document.createElement('button'); tick.type = 'button'; tick.className = 'tick';
@@ -398,9 +405,10 @@ const hipOf = (body: Body) => onField(body, body.pose.hip);
 
 /** Whoever the camera follows: the lead fielder, or the bowler. */
 function leadAt(at: number): Body {
+  if (built.bowlerClock) { bowler.animate(built.bowlerClock(at)); return bodyOf(bowler.figure.posed, bowler.root.position.x, bowler.root.position.z); }
   if (built.followBowler && built.bowling && at >= built.bowling.actions[0].start) return built.bowling.at(at);
   if (built.followBowler) return bowlerRest;
-  return built.cast[built.lead].routine.at(at);
+  return built.cast[built.lead]?.routine.at(at) ?? bowlerRest;
 }
 
 function draw() {
@@ -408,7 +416,7 @@ function draw() {
   if (built.bowling && t >= built.bowling.actions[0].start) showBody(bowlerHolder, bowler.figure, built.bowling.at(t));
   else {
     bowlerHolder.position.set(0, 0, 0); bowlerHolder.rotation.set(0, 0, 0); bowler.root.quaternion.identity();
-    bowler.animate(ACTION_MS);
+    bowler.animate(built.bowlerClock ? built.bowlerClock(t) : ACTION_MS);
   }
   let lead: Body | null = null;
   built.cast.forEach(({ fielder, routine }, i) => {
@@ -433,10 +441,10 @@ function draw() {
     camera.position.add(delta);
     controls.target.add(delta); followed.copy(next);
   }
-  const routine = built.cast[built.lead].routine;
-  const action = routine.actions[routine.current(t)];
-  const speed = 'speedAt' in action && t <= action.end ? (action as unknown as { speedAt(t: number): number }).speedAt(t) : 0;
-  hudEl.textContent = `${action.name}${speed > .3 ? ` · ${speed.toFixed(1)} m/s` : ''}`;
+  const routine = built.cast[built.lead]?.routine;
+  const action = routine?.actions[routine.current(t)];
+  const speed = action && 'speedAt' in action && t <= action.end ? (action as unknown as { speedAt(t: number): number }).speedAt(t) : 0;
+  hudEl.textContent = action ? `${action.name}${speed > .3 ? ` · ${speed.toFixed(1)} m/s` : ''}` : 'Bowler';
   scrubEl.value = String(Math.round(t));
   timeEl.textContent = `${(t / 1000).toFixed(2)} s`;
 }

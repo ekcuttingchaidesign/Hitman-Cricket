@@ -487,6 +487,15 @@ export class Bowler {
       : t <= BOUND ? ARM_REACH * .60
       : THREE.MathUtils.lerp(ARM_REACH - .01, ARM_REACH * .5, ease(span(t, BACK_FOOT, 1)));
     pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, -.16), frontReach);
+    // Running in, the hands swing clear of his sides rather than inside the
+    // width of his shirt — the batter sees him face on, and arms tucked
+    // against the ribs read as no arms at all. Gone by the bound, so the
+    // gather and the delivery are untouched.
+    if (after === 0 && t < BOUND) {
+      const clear = (1 - ease(span(t, BOUND - .12, BOUND))) * .14;
+      pose.rightHand.addScaledVector(right, clear);
+      pose.leftHand.addScaledVector(right, -clear);
+    }
   }
 }
 
