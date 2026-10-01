@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { BLAST_FIELD, Field, TEST_FIELD, type Visible } from '../src/scene/field';
-import { SPRINT } from '../src/entities/Fielder';
+import { DIVE, SPRINT, midpointOfHands } from '../src/entities/Fielder';
 
 /**
  * The camera a phone held upright gets: `GameScene.resize` at 390×844, where
@@ -65,6 +65,18 @@ describe('the field', () => {
       if (m.deep) return;
       expect(routines[i].actions.some(a => a.name === 'Walking in'), m.name).toBe(true);
     });
+  });
+
+  it('is settled for the next ball only once everyone is back on his mark', () => {
+    const field = new Field();
+    expect(field.settled(HIT - 5000)).toBe(true);
+    field.walkIn(HIT - 2000);
+    field.set(HIT - 1000, HIT);
+    field.struck(HIT, HIT + 1250, look);
+    expect(field.settled(HIT + 500)).toBe(false);
+    let at = HIT + 500;
+    while (!field.settled(at) && at < HIT + 10_000) at += 50;
+    expect(at).toBeLessThan(HIT + 10_000);
   });
 
   it('deals a different walk the next ball', () => {
@@ -151,6 +163,34 @@ describe('the field', () => {
             last = now;
           }
         }
+      });
+    }
+
+    for (const [stroke, angle] of [['straight drive', 0], ['on drive', -24], ['cover drive', 24], ['on drive, wide', -14], ['cover drive, wide', 16]] as const) {
+      it(`dives towards a ${stroke}, not away from it, and gets there as it passes`, () => {
+        const field = new Field();
+        const end = line(field, angle, 44);
+        field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true });
+        const routines = routinesOf(field) as unknown as { actions: { name: string; start: number }[]; at(t: number): Parameters<typeof midpointOfHands>[0] }[];
+        const dir = end.clone().sub(origin).setY(0).normalize();
+        /** How far a point is from the ball's line, and which side of it. */
+        const across = (p: { x: number; z: number }) => (p.x - origin.x) * dir.z - (p.z - origin.z) * dir.x;
+        routines.forEach((routine, i) => {
+          const dive = routine.actions.find(a => a.name === 'Diving catch');
+          if (!dive) return;
+          const name = BLAST_FIELD[i].name;
+          const stood = routine.at(HIT);
+          const out = midpointOfHands(routine.at(dive.start + DIVE.catch));
+          // Towards it: his hands finish nearer the line than he stood, on his own side of it.
+          expect(Math.abs(across(out)), name).toBeLessThan(Math.abs(across(stood)));
+          expect(Math.sign(across(out)) === Math.sign(across(stood)) || Math.abs(across(out)) < .5, name).toBe(true);
+          // And as it passes: the ball reaches him along the line at a known time.
+          const along = (stood.x - origin.x) * dir.x + (stood.z - origin.z) * dir.z;
+          const passes = HIT + along / end.clone().sub(origin).setY(0).length() * 1250;
+          const out_at = dive.start + DIVE.catch;
+          expect(out_at, name).toBeGreaterThan(passes - 60);
+          expect(out_at, name).toBeLessThan(Math.max(passes, HIT + 140 + DIVE.catch) + 120);
+        });
       });
     }
 

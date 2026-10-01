@@ -108,6 +108,17 @@ export class Field {
     this.fielders.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
   }
 
+  /**
+   * Whether everyone is back on his mark and waiting there — what the bowler
+   * waits for before he turns at the top of his mark.
+   */
+  settled(now: number) {
+    return this.routines.every((routine, i) => {
+      const at = routine.at(now);
+      return away(at, this.marks[i].spot) < .4 && routine.actions[routine.current(now)].name.startsWith('Waiting');
+    });
+  }
+
   /** A fresh delivery: whoever was under the last one is no longer catching it. */
   reset() { this.catching = null; this.gathering = null; }
 
@@ -296,7 +307,7 @@ export class Field {
      * can react and get down if that is later still. Struck hard at him, it
      * is past before he is down — which is what being beaten looks like.
      */
-    const late = (at: number) => Math.max(at + 40, now + REACTION_MS + DIVE.catch + 60);
+    const late = (at: number) => Math.max(at + 10, now + REACTION_MS * .6 + DIVE.catch);
     const busy = new Set<number>();
     const dives: number[] = [];
 
@@ -362,7 +373,7 @@ export class Field {
     toward.normalize();
     // Where his hands get to: short of the line, and just after it has gone.
     const target = pass.point.clone().addScaledVector(toward, .45).setY(.25);
-    const plan = planCatch(spot, target, now, pass.at + 40, { dropped: true, ground: true, look });
+    const plan = planCatch(spot, target, now, pass.at, { dropped: true, ground: true, look });
     const after = plan.routine.actions.slice(1);
     const end = after[after.length - 1];
     const back = this.homeward(i, plan.routine, end.start + 1400);
@@ -463,7 +474,7 @@ export class Field {
     // turns and jogs.
     const near = distance < 4;
     const pace = .85 + deal(i, this.ball, 8) * .4;
-    const duration = (near ? WALK_BACK_MS : Math.max(WALK_BACK_MS, distance / 3.4 * 1000)) * pace;
+    const duration = (near ? WALK_BACK_MS : Math.max(WALK_BACK_MS, distance / 4.2 * 1000)) * pace;
     const back = travel({ x: there.x, z: there.z, heading: there.heading }, spot, from, duration, 'stop',
       { face: near ? spot.heading : undefined, name: 'Walking back' });
     return [back, idle(spot, style, SEEDS[i], from + duration)];

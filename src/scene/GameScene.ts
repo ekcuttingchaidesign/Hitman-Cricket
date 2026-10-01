@@ -845,6 +845,8 @@ export class GameScene {
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }
+  /** Whether the field is back on its marks, so the next ball can be bowled. */
+  get fieldSettled() { return this.field.settled(this.clock); }
   /** The field as of the last frame, for `field-check.mjs`. */
   get fieldState() {
     const state = this.field.state(this.clock);

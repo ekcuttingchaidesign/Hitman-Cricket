@@ -89,10 +89,17 @@ function press(keys) {
 /** The drive that suits the line: on, straight, cover, or the swipe either side. */
 const STROKE = { OUTSIDE_LEG: ['a'], LEG: ['a', 'w'], MIDDLE: ['w'], OFF: ['w', 'd'], OUTSIDE_OFF: ['w', 'd'] };
 
-let four = null, beaten = null, picked = null;
+let four = null, beaten = null, picked = null, settledEvery = 0;
 const closest = { gap: Infinity, who: '' };
 for (let ball = 0; ball < 24 && !(four && beaten && picked); ball++) {
   seen = await snap();
+  // The bowler sets off only once everyone is back on his mark.
+  for (let i = 0; i < 400 && seen.phase !== 'BOWLER_RUNUP' && seen.phase !== 'INNINGS_END'; i++) { await advance(25); seen = await snap(); }
+  if (seen.phase === 'BOWLER_RUNUP') {
+    const off = (await field()).fielders.filter(f => f.home > .45);
+    if (off.length) check(false, 'the bowler waits for the field to be back on its marks', JSON.stringify(off));
+    else settledEvery++;
+  }
   for (let i = 0; i < 120 && seen.phase !== 'BALL_IN_FLIGHT'; i++) {
     if (seen.phase === 'INNINGS_END') break;
     await advance(100); seen = await snap();
@@ -149,6 +156,7 @@ for (let ball = 0; ball < 24 && !(four && beaten && picked); ball++) {
     }
   }
 }
+check(settledEvery > 0, 'the bowler waits for the field to be back on its marks', `${settledEvery} balls`);
 check(!!four, 'a four along the ground came');
 check(!!beaten, 'somebody dived at one and was beaten');
 check(!!picked, 'a ball that stopped in the field was picked up');

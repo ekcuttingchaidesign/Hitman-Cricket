@@ -456,9 +456,13 @@ export const DIVE = { takeoff: 120, catch: 400, land: 450, settled: 560, slid: 8
  * has gone sideways and lands on his shoulder still facing the bat. `speed`
  * is how fast he was going when he took off; it carries him further.
  */
-export function dive(spot: Spot, start: number, options: { twist?: number; speed?: number; hands?: 'cupped' | 'spill'; end?: number } = {}): Action {
+export function dive(spot: Spot, start: number, options: {
+  twist?: number; speed?: number; hands?: 'cupped' | 'spill'; end?: number;
+  /** How far the hips travel through the air, when it is not his run-up that decides it. */
+  flight?: number;
+} = {}): Action {
   const twist = options.twist ?? 0, speed = options.speed ?? 6;
-  const flight = THREE.MathUtils.clamp(.75 + .2 * speed, .9, 2.3);
+  const flight = options.flight ?? THREE.MathUtils.clamp(.75 + .2 * speed, .9, 2.3);
   const slide = THREE.MathUtils.clamp(.05 * speed, .05, .4);
   const { takeoff, catch: caught, land, settled, slid } = DIVE;
   return {
@@ -738,8 +742,8 @@ export function furthest(ms: number) {
  * A template dive is posed once and measured, so the planner can work
  * backwards from the ball to where he has to leave the ground.
  */
-function handsInDive(twist: number, speed: number) {
-  const action = dive({ x: 0, z: 0, heading: 0 }, 0, { twist, speed });
+function handsInDive(twist: number, speed: number, flight?: number) {
+  const action = dive({ x: 0, z: 0, heading: 0 }, 0, { twist, speed, flight });
   const body = action.at(DIVE.catch);
   return midpointOfHands(body);
 }
@@ -797,6 +801,30 @@ export function planCatch(home: Spot, ball: THREE.Vector3, hitAt: number, arrive
   let heading = Math.atan2(ball.x - home.x, ball.z - home.z);
   const toBat = Math.atan2(batter.x - ball.x, batter.z - ball.z);
   const twist = THREE.MathUtils.clamp(turnTo(heading, toBat), -1.35, 1.35) * .9;
+
+  // Within one dive of where he stands: no run at all. He goes from the spot,
+  // straight at it, as far through the air as it takes and no further.
+  // Working back from the ball by a full dive's reach put the take-off point
+  // behind him when the ball was nearer than that — and turned him round to
+  // dive away from it.
+  const full = handsInDive(twist, 0, 2.3), none = handsInDive(twist, 0, 0);
+  if (away <= Math.hypot(full.x, full.z)) {
+    const short = Math.hypot(none.x, none.z), long = Math.hypot(full.x, full.z);
+    const flight = THREE.MathUtils.clamp((away - short) / Math.max(.01, long - short) * 2.3, 0, 2.3);
+    const hands = handsInDive(twist, 0, flight);
+    // Aimed so his hands, not his head, go at it: the roll carries them off the line.
+    const facing = heading - Math.atan2(hands.x, hands.z);
+    const spot: Spot = { x: home.x, z: home.z, heading: facing };
+    // Down as late as he can be and still get there; never before he has read it.
+    const diveStart = Math.max(hitAt + REACTION_MS * .6, arrives - DIVE.catch);
+    const flying = dive(spot, diveStart, { twist, speed: 0, flight, hands: options.dropped ? 'spill' : 'cupped' });
+    actions.push(flying);
+    const lying = flying.at(diveStart + DIVE.slid + 200);
+    actions.push(rise(lying, diveStart + DIVE.slid + 260, options.dropped ? 'spilled' : 'held'));
+    const routine = new Routine(actions, t => (t < diveStart ? options.look?.(t) ?? null : null));
+    return { routine, hands: midpointOfHands(flying.at(diveStart + DIVE.catch)), catchAt: diveStart + DIVE.catch, style: 'dive', topSpeed: 0 };
+  }
+
   let speed = 6;
   let takeoff = new THREE.Vector3();
   let run!: ReturnType<typeof travel>;

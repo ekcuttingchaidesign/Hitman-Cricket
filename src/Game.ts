@@ -148,6 +148,9 @@ const SURVIVE_LIMITS: InningsLimits = {
   totalBalls: SURVIVE.totalBalls, maxWickets: SURVIVE.maxWickets, ballsPerOver: SURVIVE.ballsPerOver,
 };
 
+/** The longest the bowler waits past `readyMs` for the field to be back on its marks. */
+const FIELD_WAIT_MS = 6000;
+
 export class Game {
   private phase: GamePhase = 'START';
   private previousPhase: GamePhase = 'READY';
@@ -1731,7 +1734,10 @@ export class Game {
   }
   private update() {
     const age = this.elapsed - this.phaseStart;
-    if (this.phase === 'READY' && age >= this.readyMs) {
+    // The bowler waits for the field to be back on its marks — a catcher
+    // jogging back from deep midwicket, the man who chased one to the rope —
+    // and no longer than a few seconds past the usual wait, whatever happens.
+    if (this.phase === 'READY' && age >= this.readyMs && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false;
