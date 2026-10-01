@@ -6,6 +6,7 @@ import {
   type Action, type Body, type Idle, type Spot,
 } from '../src/entities/Fielder';
 import { ease, span } from '../src/entities/rig';
+import { Field } from '../src/scene/field';
 
 /**
  * The fielders' rig, one action at a time and then all of them together.
@@ -93,6 +94,38 @@ const FIELD: { spot: Spot; style: Idle; seed: number }[] = [
   { spot: spotAt(-11, 34), style: 'hips', seed: 6.6 },    // long-on
 ];
 
+/**
+ * A ball along the ground through the Blast's field, planned by the game's
+ * own `Field` exactly as the game plans it: the walk in, the split step, the
+ * line turned off anybody it would have gone through, and whoever goes after
+ * it. Then it is played back. The camera follows `who`: the man who dives,
+ * chases, or picks it up.
+ */
+function groundBall(angle: number, distance: number, four: boolean, who: 'Diving catch' | 'Chasing it' | 'Picking it up'): Built {
+  const field = new Field();
+  const hit = HIT + 1600, flightMs = 1250;
+  field.walkIn(HIT - 400);
+  field.set(HIT + 400, hit);
+  const turned = field.clear(hit, angle * Math.PI / 180, distance);
+  const from = BAT.clone().setY(.1);
+  const to = new THREE.Vector3(Math.sin(turned) * distance, .1, Math.cos(turned) * distance);
+  let ballAt: (t: number) => THREE.Vector3 | null = () => null;
+  const { gathered } = field.ground(hit, hit + flightMs, t => ballAt(t), { from, to, flightMs, four });
+  ballAt = t => {
+    if (t < hit) return null;
+    const held = field.held(t);
+    if (held) return held;
+    const u = Math.min(1, (t - hit) / flightMs);
+    if (u >= 1 && !gathered) return null;
+    const p = from.clone().lerp(to, u);
+    p.y = .1 + Math.sin(Math.min(1, u * 1.6) * Math.PI) * .22;
+    return p;
+  };
+  const cast = field.fielders.map((fielder, i) => ({ fielder, routine: field.routine(i) }));
+  const lead = Math.max(0, cast.findIndex(c => c.routine.actions.some(a => a.name === who)));
+  return { cast, lead, ball: ballAt };
+}
+
 const CLIPS: Clip[] = [
   {
     id: 'idle', group: 'Waiting', label: 'Waiting', length: 9000, view: 'follow',
@@ -154,6 +187,21 @@ const CLIPS: Clip[] = [
     id: 'drop', group: 'Catching', label: 'Diving, put down', length: 5400, view: 'follow',
     note: 'He gets there and gets both hands to it. The ball comes out as he hits the ground, and he gets up with his hands on his head.',
     build: () => soloCatch(MIDWICKET, offset(MIDWICKET, 6.5, 0), true),
+  },
+  {
+    id: 'beaten', group: 'Along the ground', label: 'Cover drive, beaten by it', length: 6800, view: 'follow',
+    note: 'A cover drive struck straight at mid-off in the Blast field. The line is turned a stride and a half off him, and he goes from the spot, full length towards it, and is down just as it passes his hands. Then he gets up with his hands on his head.',
+    build: () => groundBall(24, 44, true, 'Diving catch'),
+  },
+  {
+    id: 'chase', group: 'Along the ground', label: 'On drive for four, chased', length: 6800, view: 'follow',
+    note: 'An on drive along the ground to the rope. The man in the deep nearest where it crosses goes after it as hard as he can and pulls up when it is over, then jogs back to his mark so the bowler is not kept waiting.',
+    build: () => groundBall(-24, 44, true, 'Chasing it'),
+  },
+  {
+    id: 'pick', group: 'Along the ground', label: 'Picked up for two', length: 7200, view: 'follow',
+    note: 'A push into the field that stops for two. The nearest man runs to it, gets there once it has stopped, bends to pick it up with his right hand, and comes up with it at his chest. There is no throw.',
+    build: () => groundBall(-30, 19, false, 'Picking it up'),
   },
   {
     id: 'field', group: 'In the field', label: 'Six fielders, one catch', length: 8600, view: 'game',

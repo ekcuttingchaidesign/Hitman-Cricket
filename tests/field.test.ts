@@ -154,6 +154,12 @@ describe('the field', () => {
         const going = BLAST_FIELD.map((m, i) => ({ m, names: routines[i].actions.map(a => a.name) }))
           .filter(({ m, names }) => m.deep && (names.includes('Chasing it') || names.includes('Diving catch')));
         expect(going.length, JSON.stringify(routines.map(r => r.actions.map(a => a.name)))).toBeGreaterThanOrEqual(1);
+        // And everyone is back on his mark in time for the next ball: the bowler
+        // waits for the field, and a man chasing to the far end of the rope
+        // kept him waiting past his limit.
+        let home = HIT;
+        while (!field.settled(home) && home < HIT + 20_000) home += 50;
+        expect(home - HIT, 'back on their marks').toBeLessThan(1250 + 1050 + 550 + 3000);
         // And nobody goes faster than a man can.
         for (const r of routines) {
           let last = r.at(HIT);

@@ -103,6 +103,9 @@ export class Field {
     this.catching = null; this.gathering = null;
   }
 
+  /** One man's plan, as it stands: for the rig lab, which plans a ball up front and plays it back. */
+  routine(i: number) { return this.routines[i]; }
+
   /** Pose everyone for this instant. */
   update(now: number) {
     this.fielders.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
@@ -380,19 +383,26 @@ export class Field {
     this.routines[i] = new Routine([...recent(this.routines[i], now), ...after, ...back], plan.routine.look);
   }
 
-  /** After it, to the rope: too far to dive, so he runs it down and pulls up as it goes over. */
+  /**
+   * After it, towards the rope: too far to dive, so he runs it down as hard
+   * as he can and pulls up as it goes over — wherever that leaves him. He
+   * does not carry on to where it crossed: that was the bowler kept waiting
+   * at the top of his mark while a man jogged back from the far end of the
+   * rope.
+   */
   private chase(i: number, spot: Spot, rope: THREE.Vector3, now: number, reachesRopeIn: number,
     look: (t: number) => THREE.Vector3 | null) {
     const routine = this.routines[i];
-    const distance = away(spot, rope);
-    // Flat out, arriving a little after the ball, a stride short of the rope.
-    const duration = Math.max(reachesRopeIn - REACTION_MS + 250, distance / 5.3 * 1000);
-    const toward = new THREE.Vector3(rope.x - spot.x, 0, rope.z - spot.z).normalize();
-    const end = { x: rope.x - toward.x * .8, z: rope.z - toward.z * .8 };
+    const duration = Math.max(500, reachesRopeIn - REACTION_MS + 350);
+    const toward = new THREE.Vector3(rope.x - spot.x, 0, rope.z - spot.z);
+    // As far as a man covers in that time, pulling up at the end of it.
+    const going = Math.min(toward.length() - .8, furthest(duration) * .75);
+    toward.normalize();
+    const end = { x: spot.x + toward.x * going, z: spot.z + toward.z * going };
     const run = travel(spot, end, now + REACTION_MS, duration, 'stop', { name: 'Chasing it' });
     const stopped: Spot = { x: end.x, z: end.z, heading: Math.atan2(toward.x, toward.z) };
-    const pause = idle(stopped, 'hips', SEEDS[i], run.end + 100);
-    const back = this.homeward(i, new Routine([run, pause]), run.end + 900);
+    const pause = idle(stopped, 'hips', SEEDS[i], run.end + 80);
+    const back = this.homeward(i, new Routine([run, pause]), run.end + 450);
     this.routines[i] = new Routine([...recent(routine, now), run, pause, ...back], look);
   }
 
