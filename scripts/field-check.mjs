@@ -32,9 +32,11 @@ const check = (ok, what, detail) => {
 
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
-// Small, because every step of the wound clock draws frames and a headless browser
-// draws them in software; what is measured here does not depend on the size.
-const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
+// A phone held upright, which is how most people play and the narrowest view
+// of the ground there is: a catch put where a laptop sees it can still be off
+// this screen. At one pixel to the point, because every step of the wound
+// clock draws frames and a headless browser draws them in software.
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text()); });
@@ -103,10 +105,13 @@ for (let ball = 0; ball < 24 && !(dived && walked); ball++) {
   }
   if (seen.phase !== 'BALL_IN_FLIGHT') break;
   if (!walked) {
+    // Each in his own time, so some are still on their way as it is let go.
+    await advance(250);
     const now = await field();
-    const ring = now.fielders.slice(0, 4);
-    walked = ring.every(f => f.home > 1.2) && ring.some(f => f.action === 'Walking in' || f.action === 'Split step');
+    const ring = now.fielders.filter(f => !f.deep);
+    walked = ring.every(f => f.action === 'Walking in' || f.action === 'Split step' || f.home > .5);
     check(walked, 'the ring walks in with the bowler', JSON.stringify(ring));
+    seen = await snap();
   }
   // Late enough to sky it — a poor stroke in the classic innings always goes
   // up — and to the leg side where the line allows, where midwicket has to go
@@ -129,8 +134,12 @@ for (let ball = 0; ball < 24 && !(dived && walked); ball++) {
   await press(off ? 'w' : 'a');
   const frames = [];
   let at = await snap();
+  let shot = false;
   for (let i = 0; i < 120 && at.phase !== 'RESULT' && at.phase !== 'READY' && at.phase !== 'INNINGS_END'; i++) {
-    frames.push({ ...(await field()), t: at.elapsed });
+    const now = { ...(await field()), t: at.elapsed };
+    frames.push(now);
+    // The moment he takes it, for a person to look at.
+    if (!shot && now.catchAt && now.t >= now.catchAt) { shot = true; await page.screenshot({ path: `test-results/field-catch-${ball + 1}.png` }); }
     await advance(40);
     at = await snap();
   }
@@ -159,6 +168,7 @@ for (let ball = 0; ball < 24 && !(dived && walked); ball++) {
   const gap = ball3 && hands ? Math.hypot(ball3[0] - hands[0], ball3[1] - hands[1], ball3[2] - hands[2]) : Infinity;
   console.log(`        ball ${ball + 1}: ${outcome} — ${first.catcher}, ${first.style}, from ${catcher.home}m off his mark`);
   check(catcher.home < 2.6, `${first.catcher} sets off from his own patch, not from under the ball`, JSON.stringify(catcher));
+  check(first.inShot === true, 'and the catch is on the screen', JSON.stringify(first.hands));
   check(worst <= 8.5, 'nobody moves faster than a sprint between frames', `${worst.toFixed(2)} m/s`);
   check(held.length > 0 && gap < .05, 'the ball comes down into his hands and stays there', `${gap.toFixed(2)}m — ball ${JSON.stringify(ball3)}, hands ${JSON.stringify(hands)}`);
   // And it got there along its flight, not by a jump: the frame before the
@@ -173,7 +183,6 @@ for (let ball = 0; ball < 24 && !(dived && walked); ball++) {
     check(travelled > 2, 'and he covers the ground to get there', `${travelled.toFixed(2)}m`);
   }
   if (first.style === 'high' && !settled) settled = first;
-  await page.screenshot({ path: `test-results/field-catch-${ball + 1}.png` });
   // On to the next ball: the field goes back to its marks while the result is
   // up, and is on them by the time the bowler sets off again.
   let back = await snap();

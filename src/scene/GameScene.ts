@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
 import { Bowler } from '../entities/Bowler';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
-import { Field } from './field';
+import { BLAST_FIELD, Field, TEST_FIELD } from './field';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
@@ -536,6 +536,9 @@ export class GameScene {
     // The fielding side too. Leaving them in coloured clothing while the two
     // men in the middle wore whites read as a bug rather than as a mode.
     this.field.dress(kit);
+    // And set the field for the game: the Test match's attacking ring, or
+    // the Blast's men back on the rope.
+    this.field.setField(on ? TEST_FIELD : BLAST_FIELD);
   }
 
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
@@ -671,8 +674,10 @@ export class GameScene {
     const look = () => (this.ball.visible ? this.ball.position.clone() : null);
     const deadAt = this.hitStart + this.flightMs;
     if ((caught || outcome.dropped) && !outcome.edged) {
-      const plan = this.field.struck(this.hitStart, deadAt, look,
-        { target: this.hitEnd.clone(), arrives: this.hitStart + this.flightMs * this.takeAt, dropped: !!outcome.dropped });
+      const plan = this.field.struck(this.hitStart, deadAt, look, {
+        angle, height: flight.endY, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: !!outcome.dropped,
+        visible: point => this.inShot(point),
+      });
       if (plan) this.hitEnd.copy(plan.hands);
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     } else this.field.struck(this.hitStart, deadAt, look);
@@ -827,7 +832,22 @@ export class GameScene {
   }
   inspectBatter() { return this.batter.inspect(); }
   /** The field as of the last frame, for `field-check.mjs`. */
-  get fieldState() { return { ...this.field.state(this.clock), ball: this.ball.visible ? this.ball.position.toArray().map(v => +v.toFixed(3)) : null }; }
+  get fieldState() {
+    const state = this.field.state(this.clock);
+    const hands = state.hands ? new THREE.Vector3(...state.hands) : null;
+    return { ...state, ball: this.ball.visible ? this.ball.position.toArray().map(v => +v.toFixed(3)) : null, inShot: hands ? this.inShot(hands) : null };
+  }
+  /**
+   * Whether a point on the field is on the screen this player is holding, and
+   * clear of its edges and the scoreboard: a phone held upright sees a wedge
+   * of the ground a third as wide as a laptop does, and a catch is put where
+   * it can be seen.
+   */
+  private inShot(point: THREE.Vector3) {
+    this.world.updateMatrixWorld();
+    const p = this.world.localToWorld(point.clone()).project(this.camera);
+    return p.z < 1 && Math.abs(p.x) < .8 && p.y > -.7 && p.y < .55;
+  }
   inspectBowler() {
     const b = this.bowler.figure.inspect();
     return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1] };

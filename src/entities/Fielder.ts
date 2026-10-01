@@ -161,7 +161,10 @@ export function idle(spot: Spot, style: Idle, seed: number, start = -Infinity, e
     name: style === 'hips' ? 'Waiting, hands on hips' : 'Waiting', start, end, blend: 260,
     at(t, look) {
       const pose = restPose(NOWHERE);
-      const s = (period: number, offset = 0) => Math.sin(t / period * Math.PI * 2 + seed * 2.39 + offset);
+      // His own tempo as well as his own phase: started apart, a field on one
+      // clock drifts back into step and breathes together.
+      const tempo = 1 + .18 * Math.sin(seed * 5.17);
+      const s = (period: number, offset = 0) => Math.sin(t / (period * tempo) * Math.PI * 2 + seed * 2.39 + offset);
       const breath = s(3600), drift = s(7700, 1.3);
       pose.hip.x += drift * .028;
       pose.hip.y -= Math.abs(drift) * .012;
