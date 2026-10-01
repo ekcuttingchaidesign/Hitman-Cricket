@@ -509,6 +509,8 @@ export class Game {
     this.frameId = requestAnimationFrame(this.frame);
     if (this.debug) Object.defineProperty(window, '__cricket', { configurable: true, value: {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
+      // Where every fielder is and what he is doing, for `field-check.mjs`.
+      field: () => this.scene.fieldState,
       // Who this browser settled on being. Asked by `key-check.mjs`, which
       // cannot know it any other way: the id is resolved from three stores
       // against a one-second fuse, and a headless browser with a cold

@@ -693,6 +693,11 @@ function handsInDive(twist: number, speed: number) {
   const body = action.at(DIVE.catch);
   return midpointOfHands(body);
 }
+/** How far past where he leaves the ground his hands are when he takes it. */
+export function diveReach() {
+  const hands = handsInDive(0, 6);
+  return Math.hypot(hands.x, hands.z);
+}
 export function midpointOfHands(body: Body) {
   return onField(body, body.pose.leftHand).add(onField(body, body.pose.rightHand)).multiplyScalar(.5);
 }
@@ -782,6 +787,8 @@ export function planCatch(home: Spot, ball: THREE.Vector3, hitAt: number, arrive
 export class Fielder {
   readonly root = new THREE.Group();
   readonly figure: Cricketer;
+  /** A contact shadow, kept under his hips — which in a dive are metres from his feet. */
+  patch?: THREE.Object3D;
   constructor(kit?: Kit) {
     this.figure = new Cricketer(kit);
     this.root.name = 'Fielder';
@@ -794,5 +801,6 @@ export class Fielder {
     this.figure.root.quaternion.copy(tip);
     this.figure.root.position.copy(body.anchor).sub(body.pose.hip.clone().applyQuaternion(tip));
     this.figure.apply(copyPose(body.pose));
+    this.patch?.position.set(body.anchor.x, this.patch.position.y, body.anchor.z);
   }
 }
