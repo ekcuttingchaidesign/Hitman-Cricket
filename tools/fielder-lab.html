@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hitman — Fielding rigs</title>
+<!-- The fielders' rig review. Excluded from the production build, like the
+     bowler's lab beside it; the same markup is published as a standalone page
+     with the script bundled. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the ground first, as big as the screen allows; the transport and its
+   timeline under it; then the clip list beside the notes, stacking on a phone. */
+:root {
+  --bg: #f1f4ef;          /* sightscreen white, a touch of turf in it */
+  --surface: #ffffff;
+  --ink: #16241c;
+  --muted: #56675c;
+  --line: #d3dccf;
+  --accent: #c9551f;      /* the fielding side's shirts */
+  --accent-ink: #ffffff;
+  --turf: #3d6a31;
+  --chip: #e6ece3;
+  --stage: #bfd7e3;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1612; --surface: #16211b; --ink: #e4ece5; --muted: #9db0a2; --line: #2b3a31;
+    --accent: #f08a52; --accent-ink: #1a0f08; --turf: #8cc27a; --chip: #1e2b23; --stage: #1d2a24;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1612; --surface: #16211b; --ink: #e4ece5; --muted: #9db0a2; --line: #2b3a31;
+  --accent: #f08a52; --accent-ink: #1a0f08; --turf: #8cc27a; --chip: #1e2b23; --stage: #1d2a24;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+h1 { font: 700 clamp(28px, 4vw, 40px)/1 var(--display); letter-spacing: .01em; margin: 0; text-transform: uppercase; text-wrap: balance; }
+h1 span { color: var(--accent); }
+.sub { color: var(--muted); margin: 0; font-size: 15px; }
+
+#stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; aspect-ratio: 16 / 9; max-height: 64vh; width: 100%; max-width: 100%; }
+#stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#hud { position: absolute; left: 12px; top: 12px; font: 500 13px/1 var(--mono); background: rgb(255 255 255 / .86); color: #16241c; padding: 7px 10px; border-radius: 4px; pointer-events: none; }
+.hint { position: absolute; right: 12px; bottom: 10px; font: 12px var(--body); color: #16241c; background: rgb(255 255 255 / .7); padding: 3px 8px; border-radius: 4px; pointer-events: none; }
+
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+button, select { font: 600 15px var(--body); color: var(--ink); background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 8px 14px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--muted); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); min-width: 84px; }
+.views { display: inline-flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.views button { border: 0; border-radius: 0; background: var(--surface); font-weight: 500; }
+.views button + button { border-left: 1px solid var(--line); }
+.views button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+#time { font: 500 15px var(--mono); font-variant-numeric: tabular-nums; margin-left: auto; color: var(--muted); }
+
+.track { display: grid; gap: 2px; }
+#scrub { width: 100%; accent-color: var(--accent); margin: 0; }
+#ticks { position: relative; height: 46px; }
+.tick:nth-child(even) { top: 18px; }
+.tick { position: absolute; top: 0; transform: translateX(-2px); font: 500 11px/1.2 var(--body); padding: 6px 6px 3px; background: none; border: 0; border-left: 2px solid var(--accent); border-radius: 0; color: var(--muted); white-space: nowrap; }
+.tick:hover { color: var(--ink); }
+
+.below { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 760px) { .below { grid-template-columns: minmax(0, 1fr); } #time { margin-left: 0; } #stage { aspect-ratio: 4 / 3; } }
+#clips { display: grid; gap: 14px; }
+.clip-group { display: grid; gap: 6px; }
+.group-label { font: 600 13px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--turf); }
+.clip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.clip { font-weight: 500; background: var(--surface); }
+.clip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+.notes { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; min-width: 0; }
+.notes h2 { font: 700 24px/1.1 var(--display); text-transform: uppercase; margin: 0; letter-spacing: .01em; }
+#note { margin: 0; max-width: 62ch; }
+.notes h3 { font: 600 13px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--turf); margin: 8px 0 0; }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--muted); font-size: 15px; max-width: 62ch; }
+.notes b { color: var(--ink); font-weight: 600; }
+kbd { font: 12px var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Hitman <span>Fielding</span> Rigs</h1>
+    <p class="sub">The fielders' new moves, built on the game's own pitch and planner.</p>
+  </header>
+
+  <div id="stage"><div id="hud" aria-live="polite"></div><div class="hint">Drag to orbit · scroll to zoom</div></div>
+
+  <div class="transport">
+    <button id="play" type="button">Pause</button>
+    <select id="speed" aria-label="Playback speed">
+      <option value="0.25">¼ speed</option>
+      <option value="0.5" selected>½ speed</option>
+      <option value="1">Match speed</option>
+    </select>
+    <div class="views" role="group" aria-label="Camera">
+      <button type="button" data-view="follow">Follow</button>
+      <button type="button" data-view="side">Side-on</button>
+      <button type="button" data-view="game">Game camera</button>
+    </div>
+    <output id="time">0.00 s</output>
+  </div>
+  <div class="track">
+    <input id="scrub" type="range" min="0" max="1000" step="1" value="0" aria-label="Time in the clip">
+    <div id="ticks"></div>
+  </div>
+
+  <div class="below">
+    <div id="clips"></div>
+    <section class="notes">
+      <h2 id="clip-title">Waiting</h2>
+      <p id="note"></p>
+      <h3>How the rig is built</h3>
+      <ul>
+        <li><b>Controls, not clips.</b> Each frame sets where he stands, how far he tips, where his hips are and where his hands and feet go. Knees and elbows are solved by the same two-bone IK the bowler and batter use.</li>
+        <li><b>Feet on the ground.</b> A running foot is fixed where it lands until it lifts, and the hips drop when a planted leg would be overstretched. Nothing slides.</li>
+        <li><b>A floor.</b> While he lies after a dive or gets up, the body lifts so no knee or elbow goes into the grass.</li>
+        <li><b>Planned backwards from the ball.</b> The catcher reads it for 0.23 s, then sprints at no more than 8 m/s and dives the last two metres. He has to come from his own mark.</li>
+        <li><b>Crossfades.</b> Each action blends out of the one before it, the way an animation mixer blends clips.</li>
+      </ul>
+      <h3>Keys</h3>
+      <ul><li><kbd>Space</kbd> play or pause · <kbd>←</kbd> <kbd>→</kbd> step one frame · click a mark on the timeline to jump to it</li></ul>
+    </section>
+  </div>
+</div>
+<script type="module" src="/tools/fielder-lab.ts"></script>
+</body></html>

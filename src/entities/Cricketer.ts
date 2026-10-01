@@ -35,6 +35,12 @@ export interface Figure {
   rightHand: THREE.Vector3;
   headYaw: number;
   headPitch: number;
+  /**
+   * Which way the elbows point: nought is down and out, away from the ribs,
+   * which is what a hanging or bowling arm does; one is straight back behind
+   * him, which is what a running arm does. Left out, nought.
+   */
+  elbowsBack?: number;
 }
 
 /** Limb lengths, shared so a bowler and a fielder are the same person. */
@@ -49,7 +55,7 @@ export const ARM_REACH = BUILD.upperArm + BUILD.foreArm;
 /** Hip to upper chest. One number, so every figure is the same person. */
 export const SPINE = .46;
 /** Hip height stood upright, with the legs very nearly straight. */
-const REST_HIP = .9525;
+export const REST_HIP = .9525;
 
 /**
  * A surface of revolution from a bottom-to-top `[height, radius]` profile,
@@ -264,16 +270,7 @@ export class Cricketer {
    * weight at 86% of its length is a crouch, and a figure that crouches while
    * doing nothing reads as braced for something that never comes.
    */
-  rest(): Figure {
-    return {
-      root: this.root,
-      hip: new THREE.Vector3(0, REST_HIP, 0), chest: new THREE.Vector3(0, REST_HIP + SPINE, .012),
-      yaw: 0, lean: 0,
-      leftFoot: new THREE.Vector3(-.115, .05, .025), rightFoot: new THREE.Vector3(.115, .05, -.025),
-      leftHand: new THREE.Vector3(-.205, REST_HIP - .055, .06), rightHand: new THREE.Vector3(.205, REST_HIP - .055, .06),
-      headYaw: 0, headPitch: .03,
-    };
-  }
+  rest(): Figure { return restPose(this.root); }
 
   /**
    * A fielder waiting on the ball, which is not the same thing as standing: he
@@ -282,18 +279,7 @@ export class Cricketer {
    * pose written out beside it — the difference between the two is the crouch
    * and nothing else.
    */
-  stand(): Figure {
-    const pose = this.rest();
-    const crouch = .052;
-    pose.hip.y -= crouch;
-    pose.chest.set(0, pose.hip.y + SPINE, .015);
-    pose.leftFoot.set(-.185, .05, .06);
-    pose.rightFoot.set(.185, .05, -.06);
-    pose.leftHand.set(-.245, pose.hip.y - .045, .115);
-    pose.rightHand.set(.245, pose.hip.y - .045, .115);
-    pose.headPitch = .04;
-    return pose;
-  }
+  stand(): Figure { return standPose(this.root); }
 
   /**
    * Taking a catch: from the waiting crouch to both hands up over the head,
@@ -357,7 +343,10 @@ export class Cricketer {
       const along = hand.clone().sub(shoulder);
       if (along.lengthSq() < .000001) along.copy(up).negate();
       along.normalize();
-      const hint = up.clone().negate().addScaledVector(right, side * .55);
+      // A runner's elbows drive back past the ribs rather than flaring out:
+      // with the outward pole a pumping arm rolls its forearm across his body.
+      const back = THREE.MathUtils.clamp(pose.elbowsBack ?? 0, 0, 1);
+      const hint = up.clone().negate().addScaledVector(right, side * .55 * (1 - back)).addScaledVector(forward, -1.6 * back);
       hint.addScaledVector(along, -hint.dot(along));
       if (hint.lengthSq() < .0001) hint.copy(right).multiplyScalar(side);
       hint.normalize();
@@ -392,6 +381,9 @@ export class Cricketer {
     }
   }
 
+  /** The pose last applied, for handing a figure from one kind of control to another. */
+  get posed(): Figure { return this.pose; }
+
   /** Read-only measurements, for tests that check the action rather than watch it. */
   inspect() {
     this.root.updateMatrixWorld(true);
@@ -413,6 +405,36 @@ export class Cricketer {
       legReach: this.legs.map((l, i) => this.hipJoints[i].distanceTo(l.end.position) / (BUILD.thigh + BUILD.shin)),
     };
   }
+}
+
+/**
+ * The two standing poses, out here so a pose can be built without a figure to
+ * hang it on: the fielders' planner works out where a man will be a second from
+ * now, and building a whole set of meshes to ask that would be absurd. `root` is
+ * only carried along — nothing in a pose reads it.
+ */
+export function restPose(root: THREE.Group): Figure {
+  return {
+    root,
+    hip: new THREE.Vector3(0, REST_HIP, 0), chest: new THREE.Vector3(0, REST_HIP + SPINE, .012),
+    yaw: 0, lean: 0,
+    leftFoot: new THREE.Vector3(-.115, .05, .025), rightFoot: new THREE.Vector3(.115, .05, -.025),
+    leftHand: new THREE.Vector3(-.205, REST_HIP - .055, .06), rightHand: new THREE.Vector3(.205, REST_HIP - .055, .06),
+    headYaw: 0, headPitch: .03,
+  };
+}
+
+export function standPose(root: THREE.Group): Figure {
+  const pose = restPose(root);
+  const crouch = .052;
+  pose.hip.y -= crouch;
+  pose.chest.set(0, pose.hip.y + SPINE, .015);
+  pose.leftFoot.set(-.185, .05, .06);
+  pose.rightFoot.set(.185, .05, -.06);
+  pose.leftHand.set(-.245, pose.hip.y - .045, .115);
+  pose.rightHand.set(.245, pose.hip.y - .045, .115);
+  pose.headPitch = .04;
+  return pose;
 }
 
 /**

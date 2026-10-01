@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
-import { Bowler } from '../entities/Bowler';
-import { Cricketer, FIGURE_ASSETS } from '../entities/Cricketer';
+import { ACTION_MS, Bowler } from '../entities/Bowler';
+import { bodyOf, showBody } from '../entities/Fielder';
+import { FIGURE_ASSETS } from '../entities/Cricketer';
+import { BLAST_FIELD, Field, TEST_FIELD } from './field';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
 import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
@@ -122,9 +124,20 @@ export class GameScene {
   private world = new THREE.Group();
   private batter = new Batter();
   private bowler = new Bowler();
-  private catcher = new Cricketer();
-  /** Scenery, but they are on the same field and wear the same kit as everyone else. */
-  private fielders: Cricketer[] = [];
+  /**
+   * What the bowler stands in: nothing, while he bowls — his action places
+   * him itself — and the man on the turf once he has a ball to field, when he
+   * is driven by the same rig as the fielders.
+   */
+  private bowlerHolder = new THREE.Group();
+  /** The fielding side: six men who wait, walk in, and go for the ball. See `Field`. */
+  private field = new Field();
+  /** The game's clock as of the last frame drawn, for the calls that are not handed it. */
+  private clock = 0;
+  /** Whether this delivery has been let go yet, so the split step is timed once. */
+  private released = false;
+  /** A ball along the ground that a fielder is going to pick up, so it stays in sight where it stops. */
+  private gathered = false;
   private ball: THREE.Mesh;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
@@ -224,8 +237,8 @@ export class GameScene {
     this.scene.add(sun);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
-    this.catcher.root.position.set(12, 0, 20);
-    this.world.add(this.batter.root, this.bowler.root, this.catcher.root);
+    this.bowlerHolder.add(this.bowler.root);
+    this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
     this.ball = new THREE.Mesh(SHAPES.ball, soft(0xe84829, 0.34));
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(0x972708);
@@ -398,20 +411,17 @@ export class GameScene {
     const boundary = new THREE.Mesh(new THREE.TorusGeometry(GAME.boundaryRadius, 0.055, 5, 128), mat(colors.white));
     boundary.rotation.x = Math.PI / 2; boundary.position.set(0, 0.06, 10); this.world.add(boundary);
     this.createStadium(anisotropy);
-    // Fielders are scenery except the one scripted catcher.
-    [[-18, 20], [22, 5], [-14, -4], [2, 35], [-7, 29]].forEach(([x, z]) => {
-      const fielder = new Cricketer(); fielder.root.position.set(x, 0, z); fielder.root.rotation.y = Math.atan2(-x, -z); this.world.add(fielder.root);
-      this.fielders.push(fielder);
-    });
     // A soft patch under everyone but the batter, who is close enough to the
     // camera that the sun's own shadow does the job.
     const contact = contactShadowTexture(); this.textures.push(contact);
     const patch = new THREE.MeshBasicMaterial({ map: contact, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
     const plane = new THREE.PlaneGeometry(1.15, 1.15);
-    for (const figure of [...this.fielders, this.catcher, this.bowler.figure]) {
-      const under = new THREE.Mesh(plane, patch); under.rotation.x = -Math.PI / 2; under.position.y = 0.016;
-      figure.root.add(under);
-    }
+    const under = () => { const mesh = new THREE.Mesh(plane, patch); mesh.rotation.x = -Math.PI / 2; mesh.position.y = 0.016; return mesh; };
+    this.bowler.figure.root.add(under());
+    // A fielder's goes on the man standing on the turf, not on the figure that
+    // tips over in a dive, and follows his hips wherever they go.
+    for (const fielder of this.field.fielders) { fielder.patch = under(); fielder.root.add(fielder.patch); }
+    this.field.update(0);
   }
   private createStadium(anisotropy: number) {
     const seatGeometry = new THREE.BoxGeometry(0.6, 0.55, 0.55);
@@ -535,8 +545,10 @@ export class GameScene {
     this.bowler.figure.dress(kit);
     // The fielding side too. Leaving them in coloured clothing while the two
     // men in the middle wore whites read as a bug rather than as a mode.
-    this.catcher.dress(kit);
-    for (const fielder of this.fielders) fielder.dress(kit);
+    this.field.dress(kit);
+    // And set the field for the game: the Test match's attacking ring, or
+    // the Blast's men back on the rope.
+    this.field.setField(on ? TEST_FIELD : BLAST_FIELD);
   }
 
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
@@ -548,7 +560,9 @@ export class GameScene {
     this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
-    this.catcher.root.position.set(12, 0, 20); this.catcher.root.rotation.y = Math.atan2(-12, -20); this.catcher.catchAt(0);
+    this.field.reset(); this.released = false; this.gathered = false;
+    // Out of the holder's hands and back into his own.
+    this.bowlerHolder.position.set(0, 0, 0); this.bowlerHolder.rotation.set(0, 0, 0); this.bowler.root.quaternion.identity();
     this.bowler.reset(); this.bowling = false; this.actionStartedAt = Infinity; this.runupProgress = 0;
   }
   /**
@@ -557,7 +571,11 @@ export class GameScene {
    * follow-through are one continuous timeline rather than two that have to be
    * talked into lining up at the join.
    */
-  runup(t: number) { this.bowling = true; this.runupProgress = t; }
+  runup(t: number) {
+    // The bowler sets off and the field walks in with him.
+    if (!this.bowling) this.field.walkIn(this.clock);
+    this.bowling = true; this.runupProgress = t;
+  }
   /**
    * Which bowler is at the top of the mark. Set after `reset` and before the
    * action starts, because `reset` puts the ball back in the quick bowler's
@@ -578,6 +596,8 @@ export class GameScene {
   }
   delivery(delivery: Delivery, progress: number) {
     this.batter.prepare(progress);
+    // Out of his hand: the field times its split step to the ball reaching the bat.
+    if (!this.released) { this.released = true; this.field.set(this.clock, this.clock + Math.max(0, 1 - progress) * delivery.durationMs); }
     this.ball.visible = this.shadow.visible = true;
     const pos = ballPosition(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
     this.groundShadow(this.ball.position, true);
@@ -648,23 +668,42 @@ export class GameScene {
     if ((caught || toAFielder) && Math.abs(angle) < 0.2) angle = 0.22;
     // A ball off the body drops away on the leg side, at his feet.
     if (struckBody) angle = -0.85;
+    // Along the ground and into the field: never between a fielder's boots.
+    // Turned the least it takes to pass him by a stride and a half, which is
+    // close enough that he dives for it and it beats him.
+    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended
+      && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
+    if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
+    this.gathered = false;
     this.hitEnd.set(Math.sin(angle) * flight.distance, flight.endY, Math.cos(angle) * flight.distance);
     // Played on and edged are both placed rather than swept out along the
     // stroke's angle: one finishes in his own stumps, the other in the keeper's
     // gloves before the stroke is over.
     if (playedOn) this.hitEnd.set(0.1, flight.endY, -1.5);
     if (outcome.edged) this.hitEnd.set(0.58, flight.endY, -1.6);
+    // The take lines up with the fielder's hands closing — see `takeAt`.
+    this.takeAt = (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
     // An edge is taken behind the stumps with nobody in the frame: the ball
     // simply deflects off the face and dies back past him. A fielder placed
     // there stands between the camera and the batter and fills the shot.
-    // Somebody is under every skied ball, whether he holds it or not.
+    // Somebody goes for every other ball that goes up to the field, whether he
+    // holds it or not — the fielder best placed, from where he is standing,
+    // running and diving if he has to. The flight is bent to finish in his
+    // hands, wherever they get to, so he is never put under it.
+    const look = () => (this.ball.visible ? this.ball.position.clone() : null);
+    const deadAt = this.hitStart + this.flightMs;
     if ((caught || outcome.dropped) && !outcome.edged) {
-      this.catcher.root.position.set(this.hitEnd.x, 0, this.hitEnd.z);
-      this.catcher.root.rotation.y = Math.atan2(-this.hitEnd.x, -this.hitEnd.z);
+      const plan = this.field.struck(this.hitStart, deadAt, look, {
+        angle, height: flight.endY, arrives: this.hitStart + this.flightMs * this.takeAt, dropped: !!outcome.dropped,
+        visible: point => this.inShot(point),
+      });
+      if (plan) this.hitEnd.copy(plan.hands);
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
-    }
-    // The take lines up with the fielder's hands closing — see `takeAt`.
-    this.takeAt = (caught || outcome.dropped) && !outcome.edged ? 0.86 : 1;
+    } else if (along) {
+      this.gathered = this.field.ground(this.hitStart, deadAt, look,
+        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4 },
+        this.bowling ? this.bowlerAtRest() : undefined).gathered;
+    } else this.field.struck(this.hitStart, deadAt, look);
     this.bounceRing.visible = false;
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
     // Hold the call back until a skied ball is taken, put down, or clears the rope.
@@ -705,7 +744,7 @@ export class GameScene {
     // take it leaves them and goes to the turf, accelerating, just beyond him.
     if (this.dropAt > 0 && t > this.dropAt) {
       const fall = Math.min(1, (t - this.dropAt) / (1 - this.dropAt));
-      into.y = THREE.MathUtils.lerp(1.42, 0.12, fall * fall);
+      into.y = THREE.MathUtils.lerp(this.hitEnd.y, 0.12, fall * fall);
       into.z += fall * 0.6;
     }
     return into;
@@ -733,22 +772,20 @@ export class GameScene {
     }
     if (result.madeBatContact || result.hit) {
       this.struckAt(t, this.ball.position);
-      // The fielder reaches for it either way. Whether it stays in his hands is
-      // decided by `dropAt`, not by whether he gets there.
-      if ((result.wicketType === 'CAUGHT' || result.dropped) && !result.edged) {
-        this.catcher.catchAt(THREE.MathUtils.clamp((t - 0.62) / 0.24, 0, 1));
-      }
       // A ball he did not hold, and a ball that came off the body, both finish
       // on the ground in shot rather than winking out at the end of a flight.
       // Played on, the stumps go when the ball gets there, the same as any other
       // ball that finishes in them.
       if (result.wicketType === 'BOWLED') this.breakBails(now);
-      this.ball.visible = t < 1 || !!result.dropped || !!result.hit;
+      // Caught, it stays in his hands: `render` carries it with him.
+      // And along the ground, it lies where it stopped until somebody picks it up.
+      this.ball.visible = t < 1 || !!result.dropped || !!result.hit || (result.wicketType === 'CAUGHT' && !result.edged) || this.gathered;
       // The streak behind the ball is most of what sells a struck shot. A ball
       // off the body is not a struck shot, and a tail behind it says it was.
       this.trail.forEach((dot, i) => {
         const behind = t - (i + 1) * 0.019;
-        dot.visible = !this.blaze && !result.hit && this.ball.visible && behind > 0;
+        // Not behind a ball that has stopped: the streak is for one moving.
+        dot.visible = !this.blaze && !result.hit && this.ball.visible && behind > 0 && t < 1;
         if (dot.visible) this.struckAt(behind, dot.position);
       });
       // Struck with a special stroke, the ball burns instead: closer-set and
@@ -790,9 +827,21 @@ export class GameScene {
     this.shadow.visible = visible;
   }
   render(now: number) {
+    // A new innings starts the game's clock again from nought, and every plan
+    // the field has is timed on the old one: put them back on their marks.
+    if (now + 1 < this.clock) this.field.home();
+    this.clock = now;
     this.batter.update(now);
+    this.field.update(now);
+    // Held, the ball goes where his hands go: through the slide, and up with
+    // him when he stands.
+    const held = this.field.held(now);
+    if (held && this.ball.visible) { this.ball.position.copy(held); this.groundShadow(this.ball.position, true); }
     this.traceBat(now);
-    if (this.bowling) {
+    // Fielding the ball he bowled: driven by his plan, standing in his holder.
+    const bowling = this.field.bowlerRoutine();
+    if (bowling && now >= bowling.actions[0].start) showBody(this.bowlerHolder, this.bowler.figure, bowling.at(now));
+    else if (this.bowling) {
       // Anchor the action's clock to how far into the run-up the game already
       // is, rather than to the frame this happened to be noticed on: started a
       // frame late, the arm reaches the top a frame after the ball has gone.
@@ -813,6 +862,37 @@ export class GameScene {
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }
+  /**
+   * Where the bowler will be standing, and how, once his follow-through is
+   * over — and when that is. The ball he has just bowled may be his to field.
+   */
+  private bowlerAtRest() {
+    this.bowler.animate(ACTION_MS);
+    const rest = bodyOf(this.bowler.figure.posed, this.bowler.root.position.x, this.bowler.root.position.z);
+    // Back to where he really is this frame.
+    this.bowler.animate(this.clock - this.actionStartedAt);
+    return { rest, free: this.actionStartedAt + ACTION_MS };
+  }
+
+  /** Whether the field is back on its marks, so the next ball can be bowled. */
+  get fieldSettled() { return this.field.settled(this.clock); }
+  /** The field as of the last frame, for `field-check.mjs`. */
+  get fieldState() {
+    const state = this.field.state(this.clock);
+    const hands = state.hands ? new THREE.Vector3(...state.hands) : null;
+    return { ...state, ball: this.ball.visible ? this.ball.position.toArray().map(v => +v.toFixed(3)) : null, inShot: hands ? this.inShot(hands) : null };
+  }
+  /**
+   * Whether a point on the field is on the screen this player is holding, and
+   * clear of its edges and the scoreboard: a phone held upright sees a wedge
+   * of the ground a third as wide as a laptop does, and a catch is put where
+   * it can be seen.
+   */
+  private inShot(point: THREE.Vector3) {
+    this.world.updateMatrixWorld();
+    const p = this.world.localToWorld(point.clone()).project(this.camera);
+    return p.z < 1 && Math.abs(p.x) < .8 && p.y > -.7 && p.y < .55;
+  }
   inspectBowler() {
     const b = this.bowler.figure.inspect();
     return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1] };
