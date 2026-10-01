@@ -487,14 +487,25 @@ export class Bowler {
       : t <= BOUND ? ARM_REACH * .60
       : THREE.MathUtils.lerp(ARM_REACH - .01, ARM_REACH * .5, ease(span(t, BACK_FOOT, 1)));
     pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, -.16), frontReach);
-    // Running in, the hands swing clear of his sides rather than inside the
-    // width of his shirt — the batter sees him face on, and arms tucked
-    // against the ribs read as no arms at all. Gone by the bound, so the
-    // gather and the delivery are untouched.
+    // Running in, his arms run: they pump against his legs — the left hand
+    // forward as the right foot comes through — with the elbows driving back
+    // past his ribs and the hands clear of his sides. Held at a fixed bend
+    // from the shoulder instead, both forearms stuck out level at his waist
+    // for the whole approach. They hand over to the bowling arm and the front
+    // arm before the bound, so the gather and the delivery are untouched.
     if (after === 0 && t < BOUND) {
-      const clear = (1 - ease(span(t, BOUND - .12, BOUND))) * .14;
-      pose.rightHand.addScaledVector(right, clear);
-      pose.leftHand.addScaledVector(right, -clear);
+      const w = 1 - ease(span(t, BOUND - .14, BOUND));
+      const gait = ease(span(t, 0, WALK_UP));
+      const turn = new THREE.Vector3(0, 1, 0);
+      const local = (p: THREE.Vector3) => p.clone().applyAxisAngle(turn, -pose.yaw);
+      const hipY = pose.hip.y, chestZ = local(pose.chest).z;
+      for (const [hand, side, other] of [[pose.leftHand, -1, pose.rightFoot], [pose.rightHand, 1, pose.leftFoot]] as const) {
+        const swing = THREE.MathUtils.clamp((local(other).z - local(pose.hip).z) / .5, -1, 1) * gait;
+        const running = new THREE.Vector3(side * .27, hipY + .14 + Math.max(0, swing) * .24, chestZ * .6 + .04 + swing * .3)
+          .applyAxisAngle(turn, pose.yaw);
+        hand.lerp(running, w);
+      }
+      pose.elbowsBack = .5 * w;
     }
   }
 }
