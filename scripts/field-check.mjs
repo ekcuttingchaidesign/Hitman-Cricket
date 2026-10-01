@@ -109,11 +109,14 @@ for (let ball = 0; ball < 12 && !(dived && walked); ball++) {
     check(walked, 'the ring walks in with the bowler', JSON.stringify(ring));
   }
   // Late enough to sky it — a poor stroke in the classic innings always goes
-  // up — and to the leg side, where midwicket has to go and get it. Poor runs
+  // up — and to the leg side where the line allows, where midwicket has to go
+  // and get it. Poor runs
   // from 135ms late to 205, shrunk to 82% for a quick ball, so 145 is poor
   // whatever the pace; any later and a quick one is missed altogether.
+  // A stroke that suits the line, or it is no stroke at all and he is out
+  // leg before: the swipe to leg on leg and middle, straight on off.
   await advance(seen.contactAt - seen.elapsed + 145);
-  await press('a');
+  await press(['OFF', 'OUTSIDE_OFF'].includes(seen.effectiveLine) ? 'w' : 'a');
   const frames = [];
   let at = await snap();
   for (let i = 0; i < 120 && at.phase !== 'RESULT' && at.phase !== 'READY' && at.phase !== 'INNINGS_END'; i++) {
