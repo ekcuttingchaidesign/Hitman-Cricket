@@ -51,6 +51,22 @@ describe('the field', () => {
     expect(new Set(steps.map(Math.round)).size).toBe(6);
   });
 
+  it('walks in a man still crouched on his mark from the last ball', () => {
+    // Nobody walked in for this one, so each split steps on his mark; the
+    // ball goes nowhere and each is dealt his own moment to stand up again,
+    // some of them after the bowler is already on his way for the next.
+    const field = new Field();
+    field.set(HIT - 300, HIT);
+    field.struck(HIT, HIT + 1250, look);
+    const next = HIT + 1300;
+    field.walkIn(next);
+    const routines = (field as unknown as { routines: { actions: { name: string; start: number }[] }[] }).routines;
+    BLAST_FIELD.forEach((m, i) => {
+      if (m.deep) return;
+      expect(routines[i].actions.some(a => a.name === 'Walking in'), m.name).toBe(true);
+    });
+  });
+
   it('deals a different walk the next ball', () => {
     const field = new Field();
     const walksOf = () => (field as unknown as { routines: { actions: { name: string; start: number }[] }[] }).routines

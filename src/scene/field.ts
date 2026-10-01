@@ -119,9 +119,13 @@ export class Field {
     this.marks.forEach((m, i) => {
       const routine = this.routines[i];
       const body = routine.at(now);
-      // Only a man waiting on his mark; one still on his way back from the
-      // last ball carries on getting there.
-      if (away(body, m.spot) > .3 || !routine.actions[routine.current(now)].name.startsWith('Waiting')) return;
+      // Anyone on his mark, whatever he is doing there — the end of the last
+      // ball's walk back is dealt to each man separately, so one can still be
+      // holding his crouch on the spot for a moment after the bowler sets
+      // off. Asking for "waiting" left him stood there while the rest walked
+      // in. One still on his way back from the last ball carries on getting
+      // there.
+      if (away(body, m.spot) > .3) return;
       if (m.deep && deal(i, this.ball, 1) < .3) return;
       const r = (salt: number) => deal(i, this.ball, salt);
       const distance = m.deep ? .8 + r(2) * .9 : 1.3 + r(2) * 1.1;
