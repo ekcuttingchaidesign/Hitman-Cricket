@@ -108,8 +108,11 @@ for (let ball = 0; ball < 12 && !(dived && walked); ball++) {
     walked = ring.every(f => f.home > 1.2) && ring.some(f => f.action === 'Walking in' || f.action === 'Split step');
     check(walked, 'the ring walks in with the bowler', JSON.stringify(ring));
   }
-  // Late enough to sky it, to the leg side, where midwicket has to go and get it.
-  await advance(seen.contactAt - seen.elapsed + 165);
+  // Late enough to sky it — a poor stroke in the classic innings always goes
+  // up — and to the leg side, where midwicket has to go and get it. Poor runs
+  // from 135ms late to 205, shrunk to 82% for a quick ball, so 145 is poor
+  // whatever the pace; any later and a quick one is missed altogether.
+  await advance(seen.contactAt - seen.elapsed + 145);
   await press('a');
   const frames = [];
   let at = await snap();
