@@ -215,7 +215,8 @@ export class Field {
         const body = routine.at(now);
         const hip = onField(body, body.pose.hip);
         return { name: this.marks[i].name, deep: this.marks[i].deep, x: +hip.x.toFixed(3), y: +hip.y.toFixed(3), z: +hip.z.toFixed(3),
-          action: routine.actions[routine.current(now)].name, home: +away(hip, this.marks[i].spot).toFixed(2) };
+          action: routine.actions[routine.current(now)].name, home: +away(hip, this.marks[i].spot).toFixed(2),
+          plan: routine.actions.map(a => `${a.name}@${Math.round(a.start)}`).join(' > ') };
       }),
       catcher: this.catching ? this.marks[this.catching.index].name : null,
       catchAt: this.catching ? Math.round(this.catching.plan.catchAt) : null,
