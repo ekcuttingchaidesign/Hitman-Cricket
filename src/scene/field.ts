@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { Kit } from '../entities/Cricketer';
 import {
-  DIVE, Fielder, REACTION_MS, Routine, diveReach, furthest, idle, midpointOfHands, onField, planCatch, splitStep, travel,
-  type Action, type CatchPlan, type Idle, type Spot,
+  DIVE, Fielder, PICKED_UP, REACTION_MS, Routine, diveReach, furthest, gather, idle, midpointOfHands, onField, planCatch,
+  splitStep, travel, type Action, type CatchPlan, type Idle, type Spot,
 } from '../entities/Fielder';
 
 /**
@@ -84,6 +84,8 @@ export class Field {
   private routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
   /** Who is under the ball this delivery, and the catch he is taking. */
   private catching: { index: number; plan: CatchPlan; dropped: boolean } | null = null;
+  /** Who is picking up a ball along the ground, and when it is in his hand. */
+  private gathering: { index: number; at: number } | null = null;
   /** Deliveries walked in for, so every ball deals each man a different walk. */
   private ball = 0;
 
@@ -98,7 +100,7 @@ export class Field {
     if (marks === this.marks) return;
     this.marks = marks;
     this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
-    this.catching = null;
+    this.catching = null; this.gathering = null;
   }
 
   /** Pose everyone for this instant. */
@@ -107,7 +109,7 @@ export class Field {
   }
 
   /** A fresh delivery: whoever was under the last one is no longer catching it. */
-  reset() { this.catching = null; }
+  reset() { this.catching = null; this.gathering = null; }
 
   /**
    * The bowler sets off, and the field walks in with him — each man when he
@@ -199,6 +201,10 @@ export class Field {
    * as he lands and slides, then up in the right one as he gets up with it.
    */
   held(now: number): THREE.Vector3 | null {
+    if (this.gathering && now >= this.gathering.at) {
+      const body = this.routines[this.gathering.index].at(now);
+      return onField(body, body.pose.rightHand);
+    }
     if (!this.catching || this.catching.dropped || now < this.catching.plan.catchAt) return null;
     const routine = this.routines[this.catching.index];
     const body = routine.at(now);
@@ -228,6 +234,178 @@ export class Field {
       hands: this.catching ? this.catching.plan.hands.toArray().map(v => +v.toFixed(3)) : null,
       held: this.held(now)?.toArray().map(v => +v.toFixed(3)) ?? null,
     };
+  }
+
+  /**
+   * A line along the ground that does not go through anybody. A ball struck
+   * at a man is struck to one side of him or the other, never between his
+   * boots; this turns the stroke's angle the least it takes to leave every
+   * fielder at least a stride and a half from it, away from whoever it would
+   * have hit. Near enough is the point: he dives for it, and it beats him.
+   */
+  clear(now: number, angle: number, distance: number): number {
+    const CLEAR = 1.7;
+    for (let pass = 0; pass < 3; pass++) {
+      let moved = false;
+      for (const routine of this.routines) {
+        const at = routine.at(now);
+        const along = at.x * Math.sin(angle) + at.z * Math.cos(angle);
+        if (along < 3 || along > distance - .5) continue;
+        const across = at.x * Math.cos(angle) - at.z * Math.sin(angle);
+        if (Math.abs(across) >= CLEAR) continue;
+        // Turn the line away from him: towards the side he is not on.
+        const side = across >= 0 ? 1 : -1;
+        angle += side * Math.atan2(CLEAR - Math.abs(across), along) * 1.05;
+        moved = true;
+      }
+      if (!moved) break;
+    }
+    return angle;
+  }
+
+  /**
+   * A ball along the ground, from `from` to `to` over `flightMs`, stopping
+   * there unless it is going for four.
+   *
+   * Anybody it passes within a dive of goes full length at it and misses —
+   * the run of the game decided it is not stopped, so it beats him by a hand.
+   * Going for four, the man in the deep nearest where it reaches the rope
+   * goes for it too, diving if he can get there and chasing it to the rope
+   * if he cannot. Stopping in the field, the nearest man runs to where it
+   * stops and picks it up. Everyone else watches it and wanders back.
+   *
+   * Answers with whether somebody is going to pick it up, which means the
+   * ball should stay in sight where it stops until he does.
+   */
+  ground(now: number, deadAt: number, look: (t: number) => THREE.Vector3 | null,
+    path: { from: THREE.Vector3; to: THREE.Vector3; flightMs: number; four: boolean }): { gathered: boolean } {
+    const dir = path.to.clone().sub(path.from).setY(0);
+    const length = dir.length();
+    if (length < 2) { this.struck(now, deadAt, look); return { gathered: false }; }
+    dir.divideScalar(length);
+    const spots = this.routines.map(routine => { const at = routine.at(now); return { x: at.x, z: at.z, heading: at.heading }; });
+    /** Where along the line it passes him, how far off it he is, and when it gets there. */
+    const passing = (spot: Spot) => {
+      const along = THREE.MathUtils.clamp((spot.x - path.from.x) * dir.x + (spot.z - path.from.z) * dir.z, 0, length);
+      const point = path.from.clone().addScaledVector(dir, along).setY(.12);
+      return { point, gap: away(spot, point), at: now + along / length * path.flightMs, along };
+    };
+    const reachBy = (at: number) => furthest(Math.max(0, at - now - REACTION_MS - DIVE.catch)) + diveReach() * .95;
+    /**
+     * When his hands get to the line: just after the ball, or as soon as a man
+     * can react and get down if that is later still. Struck hard at him, it
+     * is past before he is down — which is what being beaten looks like.
+     */
+    const late = (at: number) => Math.max(at + 40, now + REACTION_MS + DIVE.catch + 60);
+    const busy = new Set<number>();
+    const dives: number[] = [];
+
+    // At it full length, and beaten.
+    spots.forEach((spot, i) => {
+      const pass = passing(spot);
+      // Past him before it stops, and close enough to throw himself at.
+      if (pass.along > length - .8 || pass.gap > reachBy(late(pass.at))) return;
+      dives.push(i);
+    });
+    dives.sort((a, b) => passing(spots[a]).gap - passing(spots[b]).gap);
+    for (const i of dives.slice(0, 2)) {
+      const pass = passing(spots[i]);
+      this.diveAt(i, spots[i], { ...pass, at: late(pass.at) - 40 }, now, look);
+      busy.add(i);
+    }
+
+    if (path.four) {
+      // The man in the deep nearest where it reaches the rope goes after it.
+      const rope = path.from.clone().addScaledVector(dir, Math.min(length, ropeAlong(path.from, dir) - 1.5)).setY(.12);
+      let chaser = -1, best = Infinity;
+      spots.forEach((spot, i) => {
+        if (busy.has(i)) return;
+        const d = away(spot, rope) + (this.marks[i].deep ? 0 : 6);
+        if (d < best) { best = d; chaser = i; }
+      });
+      // Always somebody, and a man from the deep if one is free: a four along
+      // the ground with nobody going after it is the thing this is here to stop.
+      if (chaser >= 0) {
+        const spot = spots[chaser], pass = passing(spot);
+        if (pass.gap <= reachBy(late(pass.at)) && pass.along < length - .8) this.diveAt(chaser, spot, { ...pass, at: late(pass.at) - 40 }, now, look);
+        else this.chase(chaser, spot, rope, now, path.flightMs * (ropeAlong(path.from, dir) / length), look);
+        busy.add(chaser);
+      }
+    } else {
+      // Stopping in the field: the nearest man free goes and picks it up.
+      let picker = -1, best = Infinity;
+      spots.forEach((spot, i) => {
+        if (busy.has(i)) return;
+        const d = away(spot, path.to);
+        if (d < best) { best = d; picker = i; }
+      });
+      if (picker >= 0 && best < 28) {
+        this.pickUp(picker, spots[picker], path.to.clone().setY(.07), now, now + path.flightMs, look);
+        busy.add(picker);
+      }
+    }
+
+    // Everyone else watches it go and wanders back once it is dead.
+    this.routines.forEach((routine, i) => {
+      if (busy.has(i)) return;
+      const back = this.homeward(i, routine, deadAt + 200 + deal(i, this.ball, 7) * 450);
+      this.routines[i] = new Routine([...recent(routine, now), ...back], look);
+    });
+    return { gathered: !!this.gathering };
+  }
+
+  /** Full length at a ball going past him, a hand short of it, and up with his hands on his head. */
+  private diveAt(i: number, spot: Spot, pass: { point: THREE.Vector3; gap: number; at: number }, now: number,
+    look: (t: number) => THREE.Vector3 | null) {
+    const toward = new THREE.Vector3(spot.x - pass.point.x, 0, spot.z - pass.point.z);
+    if (toward.lengthSq() < .0001) toward.set(1, 0, 0);
+    toward.normalize();
+    // Where his hands get to: short of the line, and just after it has gone.
+    const target = pass.point.clone().addScaledVector(toward, .45).setY(.25);
+    const plan = planCatch(spot, target, now, pass.at + 40, { dropped: true, ground: true, look });
+    const after = plan.routine.actions.slice(1);
+    const end = after[after.length - 1];
+    const back = this.homeward(i, plan.routine, end.start + 1400);
+    this.routines[i] = new Routine([...recent(this.routines[i], now), ...after, ...back], plan.routine.look);
+  }
+
+  /** After it, to the rope: too far to dive, so he runs it down and pulls up as it goes over. */
+  private chase(i: number, spot: Spot, rope: THREE.Vector3, now: number, reachesRopeIn: number,
+    look: (t: number) => THREE.Vector3 | null) {
+    const routine = this.routines[i];
+    const distance = away(spot, rope);
+    // Flat out, arriving a little after the ball, a stride short of the rope.
+    const duration = Math.max(reachesRopeIn - REACTION_MS + 250, distance / 5.3 * 1000);
+    const toward = new THREE.Vector3(rope.x - spot.x, 0, rope.z - spot.z).normalize();
+    const end = { x: rope.x - toward.x * .8, z: rope.z - toward.z * .8 };
+    const run = travel(spot, end, now + REACTION_MS, duration, 'stop', { name: 'Chasing it' });
+    const stopped: Spot = { x: end.x, z: end.z, heading: Math.atan2(toward.x, toward.z) };
+    const pause = idle(stopped, 'hips', SEEDS[i], run.end + 100);
+    const back = this.homeward(i, new Routine([run, pause]), run.end + 900);
+    this.routines[i] = new Routine([...recent(routine, now), run, pause, ...back], look);
+  }
+
+  /** To where it has stopped, and down to pick it up; then back with it. */
+  private pickUp(i: number, spot: Spot, ball: THREE.Vector3, now: number, stops: number,
+    look: (t: number) => THREE.Vector3 | null) {
+    const routine = this.routines[i];
+    const toward = new THREE.Vector3(ball.x - spot.x, 0, ball.z - spot.z);
+    const distance = toward.length();
+    toward.normalize();
+    // A stride short of it, facing it, and the ball off his right foot.
+    const right = new THREE.Vector3(toward.z, 0, -toward.x);
+    const stand = { x: ball.x - toward.x * .58 - right.x * .12, z: ball.z - toward.z * .58 - right.z * .12 };
+    const heading = Math.atan2(toward.x, toward.z);
+    const going = Math.max(0, distance - .58);
+    // No faster than a sprint gets him there, and not before it has stopped.
+    const duration = Math.max(going / 5.3 * 1000, stops + 120 - now - REACTION_MS, 300);
+    const run = travel(spot, stand, now + REACTION_MS, duration, 'stop', { name: 'After it' });
+    const there: Spot = { x: stand.x, z: stand.z, heading };
+    const pick = gather(there, run.end, ball);
+    this.gathering = { index: i, at: run.end + PICKED_UP };
+    const back = this.homeward(i, new Routine([run, pick]), run.end + PICKED_UP + 900);
+    this.routines[i] = new Routine([...recent(routine, now), run, pick, ...back],
+      t => (t < run.end + PICKED_UP ? look(t) : null));
   }
 
   /**
@@ -290,6 +468,13 @@ export class Field {
       { face: near ? spot.heading : undefined, name: 'Walking back' });
     return [back, idle(spot, style, SEEDS[i], from + duration)];
   }
+}
+
+/** How far along a line from `from` the rope is: thirty metres round a point ten up the pitch. */
+function ropeAlong(from: THREE.Vector3, dir: THREE.Vector3) {
+  const cx = from.x, cz = from.z - 10;
+  const b = cx * dir.x + cz * dir.z, c = cx * cx + cz * cz - 30 * 30;
+  return -b + Math.sqrt(Math.max(0, b * b - c));
 }
 
 /**

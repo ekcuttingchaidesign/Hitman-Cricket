@@ -101,4 +101,76 @@ describe('the field', () => {
       }
     }
   });
+
+  describe('a ball along the ground', () => {
+    const origin = new THREE.Vector3(-.2, .1, 1.3);
+    /** Where a stroke at `angle` ends `distance` out, once the field has had its say. */
+    const line = (field: Field, angle: number, distance: number) => {
+      const turned = field.clear(HIT, deg(angle), distance);
+      return new THREE.Vector3(Math.sin(turned) * distance, .1, Math.cos(turned) * distance);
+    };
+    const routinesOf = (field: Field) => (field as unknown as { routines: { actions: { name: string; start: number; end: number }[]; at(t: number): { x: number; z: number } }[] }).routines;
+
+    it('never goes through a fielder: a cover drive at mid-off is turned to pass him by a stride and a half', () => {
+      const field = new Field();
+      // Mid-off stands at 24°; a cover drive goes at 24°.
+      const end = line(field, 24, 44);
+      for (const m of BLAST_FIELD) {
+        const along = m.spot.x * Math.sin(Math.atan2(end.x, end.z)) + m.spot.z * Math.cos(Math.atan2(end.x, end.z));
+        if (along < 3 || along > 43) continue;
+        const across = Math.abs(m.spot.x * Math.cos(Math.atan2(end.x, end.z)) - m.spot.z * Math.sin(Math.atan2(end.x, end.z)));
+        expect(across, m.name).toBeGreaterThan(1.6);
+      }
+    });
+
+    it('beats the man it passes close to, who dives for it', () => {
+      const field = new Field();
+      const end = line(field, 24, 44);
+      field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true });
+      const routines = routinesOf(field);
+      const midOff = BLAST_FIELD.findIndex(m => m.name === 'Mid-off');
+      expect(routines[midOff].actions.map(a => a.name)).toContain('Diving catch');
+      expect(routines[midOff].actions.map(a => a.name)).toContain('Up, hands on head');
+    });
+
+    for (const [stroke, angle] of [['straight drive', 0], ['on drive', -24], ['cover drive', 24]] as const) {
+      it(`sends somebody from the deep after a ${stroke} going for four`, () => {
+        const field = new Field();
+        const end = line(field, angle, 44);
+        field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true });
+        const routines = routinesOf(field);
+        const going = BLAST_FIELD.map((m, i) => ({ m, names: routines[i].actions.map(a => a.name) }))
+          .filter(({ m, names }) => m.deep && (names.includes('Chasing it') || names.includes('Diving catch')));
+        expect(going.length, JSON.stringify(routines.map(r => r.actions.map(a => a.name)))).toBeGreaterThanOrEqual(1);
+        // And nobody goes faster than a man can.
+        for (const r of routines) {
+          let last = r.at(HIT);
+          for (let t = HIT + 20; t < HIT + 4000; t += 20) {
+            const now = r.at(t);
+            expect(Math.hypot(now.x - last.x, now.z - last.z) / .02).toBeLessThan(SPRINT * 1.3);
+            last = now;
+          }
+        }
+      });
+    }
+
+    it('has the nearest man pick up a ball that stops in the field, and hold it', () => {
+      const field = new Field();
+      const end = line(field, -24, 19);
+      const { gathered } = field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: false });
+      expect(gathered).toBe(true);
+      const routines = routinesOf(field);
+      const picker = routines.findIndex(r => r.actions.some(a => a.name === 'Picking it up'));
+      expect(picker).toBeGreaterThanOrEqual(0);
+      const pick = routines[picker].actions.find(a => a.name === 'Picking it up')!;
+      // Not before the ball has stopped.
+      expect(pick.start).toBeGreaterThanOrEqual(HIT + 1250);
+      // And then it is in his hand, where it lay to begin with.
+      const inHand = field.held(pick.start + 400)!;
+      expect(inHand).not.toBeNull();
+      expect(Math.hypot(inHand.x - end.x, inHand.z - end.z)).toBeLessThan(.6);
+      expect(field.held(pick.start + 100)).toBeNull();
+    });
+  });
 });
+

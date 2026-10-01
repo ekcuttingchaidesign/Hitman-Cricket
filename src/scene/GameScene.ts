@@ -129,6 +129,8 @@ export class GameScene {
   private clock = 0;
   /** Whether this delivery has been let go yet, so the split step is timed once. */
   private released = false;
+  /** A ball along the ground that a fielder is going to pick up, so it stays in sight where it stops. */
+  private gathered = false;
   private ball: THREE.Mesh;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
@@ -550,7 +552,7 @@ export class GameScene {
     this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
-    this.field.reset(); this.released = false;
+    this.field.reset(); this.released = false; this.gathered = false;
     this.bowler.reset(); this.bowling = false; this.actionStartedAt = Infinity; this.runupProgress = 0;
   }
   /**
@@ -656,6 +658,13 @@ export class GameScene {
     if ((caught || toAFielder) && Math.abs(angle) < 0.2) angle = 0.22;
     // A ball off the body drops away on the leg side, at his feet.
     if (struckBody) angle = -0.85;
+    // Along the ground and into the field: never between a fielder's boots.
+    // Turned the least it takes to pass him by a stride and a half, which is
+    // close enough that he dives for it and it beats him.
+    const along = outcome.madeBatContact && !outcome.aerial && !caught && !outcome.edged && !playedOn && !outcome.defended
+      && !struckBody && !outcome.advance && flight.height < 1 && outcome.runs >= 1;
+    if (along) angle = this.field.clear(this.hitStart, angle, flight.distance);
+    this.gathered = false;
     this.hitEnd.set(Math.sin(angle) * flight.distance, flight.endY, Math.cos(angle) * flight.distance);
     // Played on and edged are both placed rather than swept out along the
     // stroke's angle: one finishes in his own stumps, the other in the keeper's
@@ -680,6 +689,9 @@ export class GameScene {
       });
       if (plan) this.hitEnd.copy(plan.hands);
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
+    } else if (along) {
+      this.gathered = this.field.ground(this.hitStart, deadAt, look,
+        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4 }).gathered;
     } else this.field.struck(this.hitStart, deadAt, look);
     this.bounceRing.visible = false;
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
@@ -755,12 +767,14 @@ export class GameScene {
       // ball that finishes in them.
       if (result.wicketType === 'BOWLED') this.breakBails(now);
       // Caught, it stays in his hands: `render` carries it with him.
-      this.ball.visible = t < 1 || !!result.dropped || !!result.hit || (result.wicketType === 'CAUGHT' && !result.edged);
+      // And along the ground, it lies where it stopped until somebody picks it up.
+      this.ball.visible = t < 1 || !!result.dropped || !!result.hit || (result.wicketType === 'CAUGHT' && !result.edged) || this.gathered;
       // The streak behind the ball is most of what sells a struck shot. A ball
       // off the body is not a struck shot, and a tail behind it says it was.
       this.trail.forEach((dot, i) => {
         const behind = t - (i + 1) * 0.019;
-        dot.visible = !this.blaze && !result.hit && this.ball.visible && behind > 0;
+        // Not behind a ball that has stopped: the streak is for one moving.
+        dot.visible = !this.blaze && !result.hit && this.ball.visible && behind > 0 && t < 1;
         if (dot.visible) this.struckAt(behind, dot.position);
       });
       // Struck with a special stroke, the ball burns instead: closer-set and

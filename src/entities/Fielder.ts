@@ -611,6 +611,53 @@ export function rise(from: Body, start: number, mood: 'held' | 'spilled', durati
   };
 }
 
+/** When, into `gather`, the ball is in his hand. */
+export const PICKED_UP = 330;
+
+/**
+ * Picking up a ball that has stopped: he is stood a stride short of it,
+ * facing it, bends from the hips and the knees to put his right hand on it,
+ * and comes up with it held at his chest. Written the way the getting up is,
+ * as keys on the turf — feet planted, the ball where it lies — solved back
+ * into a body that tips forward over them, with the floor under the knees.
+ */
+export function gather(spot: Spot, start: number, ball: THREE.Vector3, end = Infinity): Action {
+  const stood = (body: Body, z: number) => {
+    for (const [foot, side] of [[body.pose.leftFoot, -1], [body.pose.rightFoot, 1]] as const) {
+      foot.copy(fromField(body, outOfSpot(new THREE.Vector3(side * .16, SOLE, z + (side > 0 ? .1 : -.08)), spot)));
+    }
+  };
+  const upright = (() => {
+    const pose = standPose(NOWHERE);
+    const body: Body = { ...spot, pitch: 0, anchor: pose.hip.clone(), pose };
+    stood(body, 0);
+    return body;
+  })();
+  const bent = (() => {
+    const pose = standPose(NOWHERE);
+    pose.hip.set(0, .9, 0); pose.chest.set(0, .9 + SPINE, 0);
+    const body: Body = { ...spot, pitch: 1.12, anchor: new THREE.Vector3(0, .54, -.02), pose };
+    stood(body, 0);
+    // The right hand on the ball where it lies; the left alongside, low.
+    pose.rightHand.copy(fromField(body, ball.clone().setY(Math.max(ball.y, .07))));
+    pose.leftHand.copy(fromField(body, outOfSpot(intoSpot(ball, spot).add(new THREE.Vector3(-.2, .1, -.1)), spot)));
+    pose.headPitch = .35;
+    return body;
+  })();
+  return {
+    name: 'Picking it up', start, end, blend: 120,
+    at(t) {
+      const ms = t - start;
+      const down = ease(span(ms, 0, PICKED_UP)), up = ease(span(ms, PICKED_UP + 120, PICKED_UP + 520));
+      const body = mixBodies(mixBodies(upright, bent, down), upright, up);
+      const pose = copyPose(body.pose);
+      // Up with it held at his chest in the right hand.
+      pose.rightHand.lerp(new THREE.Vector3(.16, pose.hip.y + .38, .24), up);
+      return aboveGround({ ...body, anchor: body.anchor.clone(), pose });
+    },
+  };
+}
+
 /**
  * Settled under a skied ball and taking it above his head. The hands go up as
  * it comes down; on `catch` they close round it and bring it in to the chest.
@@ -715,7 +762,11 @@ export function midpointOfHands(body: Body) {
  * actually are at that moment, and the flight should be bent to finish there.
  */
 export function planCatch(home: Spot, ball: THREE.Vector3, hitAt: number, arrives: number,
-  options: { dropped?: boolean; seed?: number; look?: (t: number) => THREE.Vector3 | null; batter?: { x: number; z: number } } = {}): CatchPlan {
+  options: {
+    dropped?: boolean; seed?: number; look?: (t: number) => THREE.Vector3 | null; batter?: { x: number; z: number };
+    /** Along the ground: there is no settling under one of these, only throwing himself at it. */
+    ground?: boolean;
+  } = {}): CatchPlan {
   const batter = options.batter ?? { x: 0, z: 0 };
   const go = hitAt + REACTION_MS;
   const actions: Action[] = [];
@@ -725,7 +776,7 @@ export function planCatch(home: Spot, ball: THREE.Vector3, hitAt: number, arrive
   const window = arrives - go;
 
   // Near enough to walk under it, and with time to: no need to throw himself.
-  if (away < 2.2 || away / Math.max(.2, (window - 450) / 1000) < 2.6) {
+  if (!options.ground && (away < 2.2 || away / Math.max(.2, (window - 450) / 1000) < 2.6)) {
     const heading = Math.atan2(batter.x - ball.x, batter.z - ball.z);
     const under: Spot = { x: ball.x, z: ball.z, heading };
     // He turns and goes, and squares up to the bat as he settles: holding his
