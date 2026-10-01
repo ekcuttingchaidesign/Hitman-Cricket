@@ -95,7 +95,7 @@ function press(key) {
 }
 
 let walked = false, dived = null, settled = null, wickets = 0;
-for (let ball = 0; ball < 12 && !(dived && walked); ball++) {
+for (let ball = 0; ball < 24 && !(dived && walked); ball++) {
   seen = await snap();
   for (let i = 0; i < 120 && seen.phase !== 'BALL_IN_FLIGHT'; i++) {
     if (seen.phase === 'INNINGS_END') break;
@@ -115,8 +115,18 @@ for (let ball = 0; ball < 12 && !(dived && walked); ball++) {
   // whatever the pace; any later and a quick one is missed altogether.
   // A stroke that suits the line, or it is no stroke at all and he is out
   // leg before: the swipe to leg on leg and middle, straight on off.
+  // Three wickets end the innings, so once a high catch has been seen the
+  // off-side balls are blocked, and the wickets kept for the leg side.
+  const off = ['OFF', 'OUTSIDE_OFF'].includes(seen.effectiveLine);
+  if (off && settled) {
+    await advance(seen.contactAt - seen.elapsed);
+    await press('s');
+    let rest = await snap();
+    for (let i = 0; i < 80 && rest.phase !== 'READY' && rest.phase !== 'INNINGS_END'; i++) { await advance(100); rest = await snap(); }
+    continue;
+  }
   await advance(seen.contactAt - seen.elapsed + 145);
-  await press(['OFF', 'OUTSIDE_OFF'].includes(seen.effectiveLine) ? 'w' : 'a');
+  await press(off ? 'w' : 'a');
   const frames = [];
   let at = await snap();
   for (let i = 0; i < 120 && at.phase !== 'RESULT' && at.phase !== 'READY' && at.phase !== 'INNINGS_END'; i++) {
