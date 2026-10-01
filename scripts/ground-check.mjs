@@ -150,7 +150,10 @@ for (let ball = 0; ball < 24 && !(four && beaten && picked); ball++) {
   if (runs >= 1 && runs <= 3 && !picked) {
     const pick = frames.find(f => f.held);
     picked = pick ?? false;
-    check(acted('Picking it up'), `a ball stopping in the field for ${runs} is run to and picked up`, outcome);
+    // By a fielder, who throws it in to the bowler — or, stopping on the
+    // pitch, by the bowler himself.
+    check(!!pick, `a ball stopping in the field for ${runs} is run to and picked up`, `${outcome}${acted('Picking it up') ? '' : ' — nobody picked it up'}`);
+    if (acted('Throwing it in')) check(true, 'and thrown in to the bowler');
     if (pick) {
       const gap = Math.hypot(pick.ball[0] - pick.held[0], pick.ball[1] - pick.held[1], pick.ball[2] - pick.held[2]);
       check(gap < .05, 'and then it is in his hand', `${gap.toFixed(2)}m`);
