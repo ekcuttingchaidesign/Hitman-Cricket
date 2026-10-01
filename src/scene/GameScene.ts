@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
-import { Bowler } from '../entities/Bowler';
+import { ACTION_MS, Bowler } from '../entities/Bowler';
+import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
@@ -123,6 +124,12 @@ export class GameScene {
   private world = new THREE.Group();
   private batter = new Batter();
   private bowler = new Bowler();
+  /**
+   * What the bowler stands in: nothing, while he bowls — his action places
+   * him itself — and the man on the turf once he has a ball to field, when he
+   * is driven by the same rig as the fielders.
+   */
+  private bowlerHolder = new THREE.Group();
   /** The fielding side: six men who wait, walk in, and go for the ball. See `Field`. */
   private field = new Field();
   /** The game's clock as of the last frame drawn, for the calls that are not handed it. */
@@ -230,7 +237,8 @@ export class GameScene {
     this.scene.add(sun);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
-    this.world.add(this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root));
+    this.bowlerHolder.add(this.bowler.root);
+    this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
     this.ball = new THREE.Mesh(SHAPES.ball, soft(0xe84829, 0.34));
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
     (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(0x972708);
@@ -553,6 +561,8 @@ export class GameScene {
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.field.reset(); this.released = false; this.gathered = false;
+    // Out of the holder's hands and back into his own.
+    this.bowlerHolder.position.set(0, 0, 0); this.bowlerHolder.rotation.set(0, 0, 0); this.bowler.root.quaternion.identity();
     this.bowler.reset(); this.bowling = false; this.actionStartedAt = Infinity; this.runupProgress = 0;
   }
   /**
@@ -691,7 +701,8 @@ export class GameScene {
       this.catchRing.position.set(this.hitEnd.x, 0.04, this.hitEnd.z); this.catchRing.visible = true;
     } else if (along) {
       this.gathered = this.field.ground(this.hitStart, deadAt, look,
-        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4 }).gathered;
+        { from: this.hitOrigin.clone(), to: this.hitEnd.clone(), flightMs: this.flightMs, four: outcome.runs === 4 },
+        this.bowling ? this.bowlerAtRest() : undefined).gathered;
     } else this.field.struck(this.hitStart, deadAt, look);
     this.bounceRing.visible = false;
     if (outcome.advance) this.chargeRing.position.set(this.hitOrigin.x, 0.045, this.hitOrigin.z);
@@ -824,7 +835,10 @@ export class GameScene {
     const held = this.field.held(now);
     if (held && this.ball.visible) { this.ball.position.copy(held); this.groundShadow(this.ball.position, true); }
     this.traceBat(now);
-    if (this.bowling) {
+    // Fielding the ball he bowled: driven by his plan, standing in his holder.
+    const bowling = this.field.bowlerRoutine();
+    if (bowling && now >= bowling.actions[0].start) showBody(this.bowlerHolder, this.bowler.figure, bowling.at(now));
+    else if (this.bowling) {
       // Anchor the action's clock to how far into the run-up the game already
       // is, rather than to the frame this happened to be noticed on: started a
       // frame late, the arm reaches the top a frame after the ball has gone.
@@ -845,6 +859,18 @@ export class GameScene {
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }
+  /**
+   * Where the bowler will be standing, and how, once his follow-through is
+   * over — and when that is. The ball he has just bowled may be his to field.
+   */
+  private bowlerAtRest() {
+    this.bowler.animate(ACTION_MS);
+    const rest = bodyOf(this.bowler.figure.posed, this.bowler.root.position.x, this.bowler.root.position.z);
+    // Back to where he really is this frame.
+    this.bowler.animate(this.clock - this.actionStartedAt);
+    return { rest, free: this.actionStartedAt + ACTION_MS };
+  }
+
   /** Whether the field is back on its marks, so the next ball can be bowled. */
   get fieldSettled() { return this.field.settled(this.clock); }
   /** The field as of the last frame, for `field-check.mjs`. */

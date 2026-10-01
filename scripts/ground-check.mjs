@@ -108,6 +108,7 @@ for (let ball = 0; ball < 24 && !(four && beaten && picked); ball++) {
   // On time is a four along the ground; a little late, a nudge into the field
   // for one, two or three. Alternate until each has been seen.
   const wantFour = !four || (picked && !beaten);
+  const scored = seen.runs;
   await advance(seen.contactAt - seen.elapsed + (wantFour ? 55 : 100));
   await press(STROKE[seen.effectiveLine] ?? ['w']);
   const frames = [];
@@ -122,7 +123,8 @@ for (let ball = 0; ball < 24 && !(four && beaten && picked); ball++) {
     at = await snap();
   }
   const outcome = at.outcome;
-  const runs = Number(String(outcome).match(/\d+/)?.[0] ?? NaN);
+  // Off the scoreboard, not the call: the call for a four is "FOUR!".
+  const runs = at.runs - scored;
   const acted = name => frames.some(f => f.fielders.some(x => x.action === name));
   // Never through a man: while the ball is on the ground and moving, nobody's
   // hips are on top of it.

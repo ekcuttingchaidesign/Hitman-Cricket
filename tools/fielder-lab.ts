@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Batter } from '../src/entities/Batter';
+import { ACTION_MS, Bowler } from '../src/entities/Bowler';
 import {
-  DIVE, Fielder, REACTION_MS, Routine, idle, midpointOfHands, onField, planCatch, splitStep, travel,
+  DIVE, Fielder, REACTION_MS, Routine, bodyOf, idle, midpointOfHands, onField, planCatch, showBody, splitStep, travel,
   type Action, type Body, type Idle, type Spot,
 } from '../src/entities/Fielder';
 import { ease, span } from '../src/entities/rig';
@@ -32,6 +33,10 @@ interface Built {
   ball?: (t: number) => THREE.Vector3 | null;
   /** Where the catch is going to be, for the ring on the turf. */
   ring?: { at: THREE.Vector3; from: number; to: number };
+  /** The bowler's plan, when the ball is his to field or to take a throw. */
+  bowling?: Routine | null;
+  /** Follow the bowler rather than a fielder. */
+  followBowler?: boolean;
 }
 interface Clip {
   id: string; group: string; label: string; length: number; view: View; note: string;
@@ -95,13 +100,23 @@ const FIELD: { spot: Spot; style: Idle; seed: number }[] = [
 ];
 
 /**
+ * The bowler, stood where his follow-through leaves him — which is where he
+ * is when the ball he bowled comes back to him.
+ */
+const bowler = new Bowler();
+const bowlerHolder = new THREE.Group(); bowlerHolder.add(bowler.root);
+bowler.animate(ACTION_MS);
+const bowlerRest = bodyOf(bowler.figure.posed, bowler.root.position.x, bowler.root.position.z);
+
+/**
  * A ball along the ground through the Blast's field, planned by the game's
  * own `Field` exactly as the game plans it: the walk in, the split step, the
  * line turned off anybody it would have gone through, and whoever goes after
  * it. Then it is played back. The camera follows `who`: the man who dives,
  * chases, or picks it up.
  */
-function groundBall(angle: number, distance: number, four: boolean, who: 'Diving catch' | 'Chasing it' | 'Picking it up'): Built {
+function groundBall(angle: number, distance: number, four: boolean,
+  who: 'Diving catch' | 'Chasing it' | 'Picking it up' | 'Throwing it in', followBowler = false): Built {
   const field = new Field();
   const hit = HIT + 1600, flightMs = 1250;
   field.walkIn(HIT - 400);
@@ -110,7 +125,8 @@ function groundBall(angle: number, distance: number, four: boolean, who: 'Diving
   const from = BAT.clone().setY(.1);
   const to = new THREE.Vector3(Math.sin(turned) * distance, .1, Math.cos(turned) * distance);
   let ballAt: (t: number) => THREE.Vector3 | null = () => null;
-  const { gathered } = field.ground(hit, hit + flightMs, t => ballAt(t), { from, to, flightMs, four });
+  const { gathered } = field.ground(hit, hit + flightMs, t => ballAt(t), { from, to, flightMs, four },
+    { rest: bowlerRest, free: hit + 400 });
   ballAt = t => {
     if (t < hit) return null;
     const held = field.held(t);
@@ -123,7 +139,7 @@ function groundBall(angle: number, distance: number, four: boolean, who: 'Diving
   };
   const cast = field.fielders.map((fielder, i) => ({ fielder, routine: field.routine(i) }));
   const lead = Math.max(0, cast.findIndex(c => c.routine.actions.some(a => a.name === who)));
-  return { cast, lead, ball: ballAt };
+  return { cast, lead, ball: ballAt, bowling: field.bowlerRoutine(), followBowler };
 }
 
 const CLIPS: Clip[] = [
@@ -202,6 +218,16 @@ const CLIPS: Clip[] = [
     id: 'pick', group: 'Along the ground', label: 'Picked up for two', length: 7200, view: 'follow',
     note: 'A push into the field that stops for two. The nearest man runs to it, gets there once it has stopped, bends to pick it up with his right hand, and comes up with it at his chest. There is no throw.',
     build: () => groundBall(-30, 19, false, 'Picking it up'),
+  },
+  {
+    id: 'throw', group: 'Along the ground', label: 'Flicked for two, thrown in', length: 8200, view: 'follow',
+    note: 'A flick into the leg side that stops for two. The nearest man runs to it, picks it up, turns side-on and throws it in to the bowler, who faces him and takes it in front of his chest. Then the fielder jogs back to his mark without the ball, which is quicker than carrying it back.',
+    build: () => groundBall(-60, 19, false, 'Throwing it in'),
+  },
+  {
+    id: 'bowler', group: 'Along the ground', label: 'Pushed for one, bowler fields', length: 7000, view: 'follow',
+    note: 'A push that stops on the pitch. That ball is the bowler’s: he walks off the end of his follow-through, bends, and picks it up. No fielder comes in for it.',
+    build: () => groundBall(1.5, 10, false, 'Picking it up', true),
   },
   {
     id: 'field', group: 'In the field', label: 'Six fielders, one catch', length: 8600, view: 'game',
@@ -283,6 +309,7 @@ for (const z of [0, 18.7]) for (const x of [-.11, 0, .11]) {
   stump.position.set(x, .36, z); stump.castShadow = true; stage.add(stump);
 }
 const batter = new Batter(); batter.reset(); batter.update(0); stage.add(batter.root);
+stage.add(bowlerHolder);
 const ball = new THREE.Mesh(new THREE.SphereGeometry(.115, 20, 14), new THREE.MeshStandardMaterial({ color: 0xe84829, roughness: .34, emissive: 0x972708, emissiveIntensity: .25 }));
 ball.castShadow = true; stage.add(ball);
 const shadow = new THREE.Mesh(new THREE.CircleGeometry(.17, 16), new THREE.MeshBasicMaterial({ color: 0x243828, transparent: true, opacity: .35, depthWrite: false }));
@@ -356,7 +383,7 @@ function setView(next: View, reset = false) {
     camera.fov = 50; camera.position.set(0, 2.9, -5.15); camera.lookAt(0, 1.05, 9);
   } else if (reset || next === 'side' || next === 'follow') {
     camera.fov = 42;
-    const hip = hipOf(built.cast[built.lead].routine.at(t));
+    const hip = hipOf(leadAt(t));
     // In the mirrored stage a point's x is flipped on its way to the screen.
     followed.set(-hip.x, .9, hip.z);
     if (next === 'follow') camera.position.set(followed.x + 2.9, 1.7, followed.z - 3.6);
@@ -369,7 +396,20 @@ function setView(next: View, reset = false) {
 /** Where his hips are on the field: what the camera follows, through a dive and all. */
 const hipOf = (body: Body) => onField(body, body.pose.hip);
 
+/** Whoever the camera follows: the lead fielder, or the bowler. */
+function leadAt(at: number): Body {
+  if (built.followBowler && built.bowling && at >= built.bowling.actions[0].start) return built.bowling.at(at);
+  if (built.followBowler) return bowlerRest;
+  return built.cast[built.lead].routine.at(at);
+}
+
 function draw() {
+  // The bowler: stood at the end of his action, until the ball is his business.
+  if (built.bowling && t >= built.bowling.actions[0].start) showBody(bowlerHolder, bowler.figure, built.bowling.at(t));
+  else {
+    bowlerHolder.position.set(0, 0, 0); bowlerHolder.rotation.set(0, 0, 0); bowler.root.quaternion.identity();
+    bowler.animate(ACTION_MS);
+  }
   let lead: Body | null = null;
   built.cast.forEach(({ fielder, routine }, i) => {
     const body = routine.at(t);
@@ -387,7 +427,7 @@ function draw() {
   if (built.ring) ring.position.set(built.ring.at.x, .03, built.ring.at.z);
   if (lead && view !== 'game') {
     // Keep the camera's offset and carry it along with him.
-    const hip = hipOf(lead as Body);
+    const hip = hipOf(leadAt(t));
     const next = new THREE.Vector3(-hip.x, .9, hip.z);
     const delta = next.clone().sub(followed);
     camera.position.add(delta);

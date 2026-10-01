@@ -876,13 +876,107 @@ export class Fielder {
     this.root.name = 'Fielder';
     this.root.add(this.figure.root);
   }
-  show(body: Body) {
-    this.root.position.set(body.x, 0, body.z);
-    this.root.rotation.set(0, body.heading, 0);
-    const tip = tipOf(body.pitch);
-    this.figure.root.quaternion.copy(tip);
-    this.figure.root.position.copy(body.anchor).sub(body.pose.hip.clone().applyQuaternion(tip));
-    this.figure.apply(copyPose(body.pose));
-    this.patch?.position.set(body.anchor.x, this.patch.position.y, body.anchor.z);
-  }
+  show(body: Body) { showBody(this.root, this.figure, body, this.patch); }
 }
+
+/**
+ * Put a figure in a body: the holder on the turf, turned; the figure inside
+ * it tipped and posed. The bowler is driven this way too once his action is
+ * over and he has the ball to field.
+ */
+export function showBody(holder: THREE.Object3D, figure: Cricketer, body: Body, patch?: THREE.Object3D) {
+  holder.position.set(body.x, 0, body.z);
+  holder.rotation.set(0, body.heading, 0);
+  const tip = tipOf(body.pitch);
+  figure.root.quaternion.copy(tip);
+  figure.root.position.copy(body.anchor).sub(body.pose.hip.clone().applyQuaternion(tip));
+  figure.apply(copyPose(body.pose));
+  patch?.position.set(body.anchor.x, patch.position.y, body.anchor.z);
+}
+
+/**
+ * A figure's own pose, where it is standing, as a body: the turn it carries in
+ * its pose taken out of the pose and given to the holder. The bowler faces
+ * the bat by turning his pose rather than himself, and nothing that blends
+ * from one body to another could follow him otherwise.
+ */
+export function bodyOf(pose: Figure, x: number, z: number): Body {
+  const turned = copyPose(pose);
+  const back = -pose.yaw;
+  for (const p of [turned.hip, turned.chest, turned.leftFoot, turned.rightFoot, turned.leftHand, turned.rightHand]) {
+    p.applyAxisAngle(new THREE.Vector3(0, 1, 0), back);
+  }
+  turned.yaw = 0;
+  turned.root = NOWHERE;
+  return { x, z, heading: pose.yaw, pitch: 0, anchor: turned.hip.clone(), pose: turned };
+}
+
+/** A body held still from `start`: whatever a figure was doing when it was handed over. */
+export function still(body: Body, start: number, name = 'Standing'): Action {
+  return { name, start, end: Infinity, blend: 0, at: () => ({ ...body, anchor: body.anchor.clone(), pose: copyPose(body.pose) }) };
+}
+
+/** When, into `throwIn`, the ball leaves his hand. */
+export const RELEASED = 300;
+
+/**
+ * Throwing it in: turned side-on to where it is going, the left arm pointed
+ * at it, the right hand taken back behind the head, a stride towards it and
+ * the arm over the top, letting go above and in front of the head, and the
+ * hand following through across him. Then he stands up out of it.
+ */
+export function throwIn(spot: Spot, start: number): Action {
+  const pose = () => standPose(NOWHERE);
+  return {
+    name: 'Throwing it in', start, end: Infinity, blend: 140,
+    at(t) {
+      const ms = t - start;
+      const back = ease(span(ms, 0, 200)), whip = ease(span(ms, 190, RELEASED + 30)), through = ease(span(ms, RELEASED, 520));
+      const recover = ease(span(ms, 560, 900));
+      const p = pose();
+      const lean = (.1 * back + .28 * whip - .1 * through) * (1 - recover);
+      const hipY = p.hip.y - .05 * (1 - recover) * (back + whip) / 2;
+      p.hip.set(0, hipY, .04 * whip * (1 - recover));
+      p.chest.set(-.04 * back * (1 - recover), hipY + SPINE * Math.cos(lean), p.hip.z + SPINE * Math.sin(lean));
+      // A stride towards it with the left foot; the right stays planted.
+      p.leftFoot.set(-.17, SOLE, THREE.MathUtils.lerp(.06, .42, ease(span(ms, 80, 280)) * (1 - recover)));
+      p.rightFoot.set(.17, SOLE, THREE.MathUtils.lerp(-.06, -.2, back * (1 - recover)));
+      const shoulder = p.chest.y + BUILD.shoulderY;
+      // The throwing hand: back behind the head, over the top, through and down.
+      const cocked = new THREE.Vector3(.3, shoulder + .2, -.3);
+      const released = new THREE.Vector3(.16, shoulder + .42, .34);
+      const finished = new THREE.Vector3(-.12, p.hip.y + .12, .42);
+      const rest = new THREE.Vector3(.2, p.hip.y + .3, .2);
+      const hand = new THREE.Vector3().copy(p.rightHand)
+        .lerp(cocked, back).lerp(released, whip).lerp(finished, through).lerp(rest, recover);
+      p.rightHand.copy(hand);
+      // The left arm points at where it is going, then tucks in as he throws.
+      p.leftHand.copy(p.leftHand).lerp(new THREE.Vector3(-.22, shoulder - .02, .5), back * (1 - whip))
+        .lerp(new THREE.Vector3(-.24, p.hip.y + .05, .1), Math.max(whip, recover));
+      p.headPitch = -.08;
+      return aboveGround(upright(spot, p));
+    },
+  };
+}
+
+/**
+ * Taking a throw: turned to face it, hands together in front of the chest,
+ * meeting it at `at` a forearm's length out, and bringing it in.
+ */
+export function receive(spot: Spot, start: number, at: number, end = Infinity): Action {
+  return {
+    name: 'Taking the throw', start, end, blend: 200,
+    at(t, look) {
+      const reach = ease(span(t, at - 380, at - 40)), bring = ease(span(t, at + 60, at + 420));
+      const p = standPose(NOWHERE);
+      const chestY = p.chest.y;
+      for (const [hand, side] of [[p.leftHand, -1], [p.rightHand, 1]] as const) {
+        hand.lerp(new THREE.Vector3(side * .07, chestY + .02, .42), reach).lerp(new THREE.Vector3(side * .08, chestY - .12, .22), bring);
+      }
+      const body = upright(spot, p);
+      if (look && t < at) watch(body, look);
+      return body;
+    },
+  };
+}
+

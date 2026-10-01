@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { Kit } from '../entities/Cricketer';
 import {
-  DIVE, Fielder, PICKED_UP, REACTION_MS, Routine, diveReach, furthest, gather, idle, midpointOfHands, onField, planCatch,
-  splitStep, travel, type Action, type CatchPlan, type Idle, type Spot,
+  DIVE, Fielder, PICKED_UP, REACTION_MS, RELEASED, Routine, diveReach, furthest, gather, idle, midpointOfHands, onField,
+  planCatch, receive, splitStep, still, throwIn, travel, type Action, type Body, type CatchPlan, type Idle, type Spot,
 } from '../entities/Fielder';
 
 /**
@@ -84,8 +84,14 @@ export class Field {
   private routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
   /** Who is under the ball this delivery, and the catch he is taking. */
   private catching: { index: number; plan: CatchPlan; dropped: boolean } | null = null;
-  /** Who is picking up a ball along the ground, and when it is in his hand. */
-  private gathering: { index: number; at: number } | null = null;
+  /**
+   * Where the ball is once somebody has picked it up — in his hand, in the
+   * air on its way in, in the bowler's hands — or null while it still lies
+   * where it stopped.
+   */
+  private gathering: ((t: number) => THREE.Vector3 | null) | null = null;
+  /** The bowler's own plan once his action is over and the ball is his business: picking it up, or taking the throw. */
+  private bowling: Routine | null = null;
   /** Deliveries walked in for, so every ball deals each man a different walk. */
   private ball = 0;
 
@@ -100,7 +106,7 @@ export class Field {
     if (marks === this.marks) return;
     this.marks = marks;
     this.routines = marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
-    this.catching = null; this.gathering = null;
+    this.catching = null; this.gathering = null; this.bowling = null;
   }
 
   /** One man's plan, as it stands: for the rig lab, which plans a ball up front and plays it back. */
@@ -118,12 +124,19 @@ export class Field {
   settled(now: number) {
     return this.routines.every((routine, i) => {
       const at = routine.at(now);
-      return away(at, this.marks[i].spot) < .4 && routine.actions[routine.current(now)].name.startsWith('Waiting');
+      const doing = routine.actions[routine.current(now)].name;
+      // Or as good as: the last couple of strides of his walk back are taken
+      // while the bowler is running in, as on any ground.
+      return away(at, this.marks[i].spot) < .4 && doing.startsWith('Waiting')
+        || away(at, this.marks[i].spot) < 2 && doing === 'Walking back';
     });
   }
 
   /** A fresh delivery: whoever was under the last one is no longer catching it. */
-  reset() { this.catching = null; this.gathering = null; }
+  reset() { this.catching = null; this.gathering = null; this.bowling = null; }
+
+  /** The bowler's plan for this ball, if he has one. Drawn by the scene on the bowler. */
+  bowlerRoutine() { return this.bowling; }
 
   /**
    * The bowler sets off, and the field walks in with him — each man when he
@@ -215,10 +228,7 @@ export class Field {
    * as he lands and slides, then up in the right one as he gets up with it.
    */
   held(now: number): THREE.Vector3 | null {
-    if (this.gathering && now >= this.gathering.at) {
-      const body = this.routines[this.gathering.index].at(now);
-      return onField(body, body.pose.rightHand);
-    }
+    if (this.gathering) return this.gathering(now);
     if (!this.catching || this.catching.dropped || now < this.catching.plan.catchAt) return null;
     const routine = this.routines[this.catching.index];
     const body = routine.at(now);
@@ -292,7 +302,8 @@ export class Field {
    * ball should stay in sight where it stops until he does.
    */
   ground(now: number, deadAt: number, look: (t: number) => THREE.Vector3 | null,
-    path: { from: THREE.Vector3; to: THREE.Vector3; flightMs: number; four: boolean }): { gathered: boolean } {
+    path: { from: THREE.Vector3; to: THREE.Vector3; flightMs: number; four: boolean },
+    bowler?: { rest: Body; free: number }): { gathered: boolean } {
     const dir = path.to.clone().sub(path.from).setY(0);
     const length = dir.length();
     if (length < 2) { this.struck(now, deadAt, look); return { gathered: false }; }
@@ -345,6 +356,10 @@ export class Field {
         else this.chase(chaser, spot, rope, now, path.flightMs * (ropeAlong(path.from, dir) / length), look);
         busy.add(chaser);
       }
+    } else if (bowler && Math.abs(path.to.x) < 2.6 && path.to.z > 3 && path.to.z < 18.5) {
+      // Stopping on or beside the pitch: it is the bowler's, walking off the
+      // end of his follow-through to pick it up.
+      this.bowlerPicks(bowler, path.to.clone().setY(.07), now, now + path.flightMs);
     } else {
       // Stopping in the field: the nearest man free goes and picks it up.
       let picker = -1, best = Infinity;
@@ -354,7 +369,7 @@ export class Field {
         if (d < best) { best = d; picker = i; }
       });
       if (picker >= 0 && best < 28) {
-        this.pickUp(picker, spots[picker], path.to.clone().setY(.07), now, now + path.flightMs, look);
+        this.pickUp(picker, spots[picker], path.to.clone().setY(.07), now, now + path.flightMs, look, bowler);
         busy.add(picker);
       }
     }
@@ -406,9 +421,13 @@ export class Field {
     this.routines[i] = new Routine([...recent(routine, now), run, pause, ...back], look);
   }
 
-  /** To where it has stopped, and down to pick it up; then back with it. */
+  /**
+   * To where it has stopped, down to pick it up, and — with a bowler to throw
+   * to — up into a throw to him, which he turns and takes. Then back to his
+   * mark without it, which is quicker than bringing it.
+   */
   private pickUp(i: number, spot: Spot, ball: THREE.Vector3, now: number, stops: number,
-    look: (t: number) => THREE.Vector3 | null) {
+    look: (t: number) => THREE.Vector3 | null, bowler?: { rest: Body; free: number }) {
     const routine = this.routines[i];
     const toward = new THREE.Vector3(ball.x - spot.x, 0, ball.z - spot.z);
     const distance = toward.length();
@@ -418,15 +437,65 @@ export class Field {
     const stand = { x: ball.x - toward.x * .58 - right.x * .12, z: ball.z - toward.z * .58 - right.z * .12 };
     const heading = Math.atan2(toward.x, toward.z);
     const going = Math.max(0, distance - .58);
-    // No faster than a sprint gets him there, and not before it has stopped.
+    // As quick as he can get there, and not before it has stopped.
+    // A run from standing to standing peaks at half again its average, so
+    // this is as quick as a man can be about it.
     const duration = Math.max(going / 5.3 * 1000, stops + 120 - now - REACTION_MS, 300);
     const run = travel(spot, stand, now + REACTION_MS, duration, 'stop', { name: 'After it' });
     const there: Spot = { x: stand.x, z: stand.z, heading };
     const pick = gather(there, run.end, ball);
-    this.gathering = { index: i, at: run.end + PICKED_UP };
-    const back = this.homeward(i, new Routine([run, pick]), run.end + PICKED_UP + 900);
-    this.routines[i] = new Routine([...recent(routine, now), run, pick, ...back],
-      t => (t < run.end + PICKED_UP ? look(t) : null));
+    const pickedAt = run.end + PICKED_UP;
+    if (!bowler) {
+      this.gathering = t => (t < pickedAt ? null : (b => onField(b, b.pose.rightHand))(this.routines[i].at(t)));
+      const back = this.homeward(i, new Routine([run, pick]), pickedAt + 900);
+      this.routines[i] = new Routine([...recent(routine, now), run, pick, ...back], t => (t < pickedAt ? look(t) : null));
+      return;
+    }
+    // Up into the throw, turned to the bowler.
+    const target = new THREE.Vector3(bowler.rest.x, 1.2, bowler.rest.z);
+    const thrower: Spot = { x: stand.x, z: stand.z, heading: Math.atan2(target.x - stand.x, target.z - stand.z) };
+    const throwStart = pickedAt + 180;
+    const throwing = throwIn(thrower, throwStart);
+    const releasedAt = throwStart + RELEASED;
+    const from = (b => onField(b, b.pose.rightHand))(throwing.at(releasedAt));
+    // The bowler faces him and has his hands out where it is coming.
+    const catcher: Spot = { x: bowler.rest.x, z: bowler.rest.z, heading: Math.atan2(stand.x - bowler.rest.x, stand.z - bowler.rest.z) };
+    const hands = midpointOfHands(receive(catcher, 0, 1000).at(1000));
+    const span = from.distanceTo(hands);
+    const arrives = releasedAt + 120 + span / 26 * 1000;
+    const loft = Math.min(3, span * .09);
+    const taking = receive(catcher, Math.max(bowler.free, releasedAt - 650), arrives);
+    this.bowling = new Routine([still(bowler.rest, bowler.free), taking], t => (t < arrives ? this.held(t) : null));
+    const back = this.homeward(i, new Routine([run, pick, throwing]), releasedAt + 450);
+    this.routines[i] = new Routine([...recent(routine, now), run, pick, throwing, ...back], t => (t < pickedAt ? look(t) : null));
+    this.gathering = t => {
+      if (t < pickedAt) return null;
+      if (t < releasedAt) return (b => onField(b, b.pose.rightHand))(this.routines[i].at(t));
+      if (t < arrives) {
+        const u = (t - releasedAt) / (arrives - releasedAt);
+        const p = from.clone().lerp(hands, u);
+        p.y += Math.sin(u * Math.PI) * loft;
+        return p;
+      }
+      return midpointOfHands(this.bowling!.at(t));
+    };
+  }
+
+  /** The bowler off the end of his follow-through, to a ball stopped on the pitch, to pick it up. */
+  private bowlerPicks(bowler: { rest: Body; free: number }, ball: THREE.Vector3, now: number, stops: number) {
+    const from: Spot = { x: bowler.rest.x, z: bowler.rest.z, heading: bowler.rest.heading };
+    const toward = new THREE.Vector3(ball.x - from.x, 0, ball.z - from.z);
+    const distance = toward.length();
+    toward.normalize();
+    const right = new THREE.Vector3(toward.z, 0, -toward.x);
+    const stand = { x: ball.x - toward.x * .58 - right.x * .12, z: ball.z - toward.z * .58 - right.z * .12 };
+    const start = Math.max(bowler.free, now + 300);
+    const duration = Math.max(Math.max(0, distance - .58) / 4.5 * 1000, stops + 100 - start, 300);
+    const walk = travel(from, stand, start, duration, 'stop', { name: 'After it' });
+    const pick = gather({ x: stand.x, z: stand.z, heading: Math.atan2(toward.x, toward.z) }, walk.end, ball);
+    const pickedAt = walk.end + PICKED_UP;
+    this.bowling = new Routine([still(bowler.rest, bowler.free), walk, pick]);
+    this.gathering = t => (t < pickedAt ? null : (b => onField(b, b.pose.rightHand))(this.bowling!.at(t)));
   }
 
   /**
@@ -484,7 +553,9 @@ export class Field {
     // turns and jogs.
     const near = distance < 4;
     const pace = .85 + deal(i, this.ball, 8) * .4;
-    const duration = (near ? WALK_BACK_MS : Math.max(WALK_BACK_MS, distance / 4.2 * 1000)) * pace;
+    // A long way out, a brisk jog: from standing to standing it peaks at half
+    // again this, which is a stride under a sprint.
+    const duration = (near ? WALK_BACK_MS : Math.max(WALK_BACK_MS, distance / 4.8 * 1000)) * Math.min(pace, near ? 2 : 1);
     const back = travel({ x: there.x, z: there.z, heading: there.heading }, spot, from, duration, 'stop',
       { face: near ? spot.heading : undefined, name: 'Walking back' });
     return [back, idle(spot, style, SEEDS[i], from + duration)];

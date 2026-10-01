@@ -381,6 +381,9 @@ export class Cricketer {
     }
   }
 
+  /** The pose last applied, for handing a figure from one kind of control to another. */
+  get posed(): Figure { return this.pose; }
+
   /** Read-only measurements, for tests that check the action rather than watch it. */
   inspect() {
     this.root.updateMatrixWorld(true);

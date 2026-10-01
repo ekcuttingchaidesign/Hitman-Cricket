@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { BLAST_FIELD, Field, TEST_FIELD, type Visible } from '../src/scene/field';
-import { DIVE, SPRINT, midpointOfHands } from '../src/entities/Fielder';
+import { DIVE, SPRINT, bodyOf, midpointOfHands } from '../src/entities/Fielder';
+import { standPose } from '../src/entities/Cricketer';
 
 /**
  * The camera a phone held upright gets: `GameScene.resize` at 390×844, where
@@ -199,6 +200,54 @@ describe('the field', () => {
         });
       });
     }
+
+    /** The bowler at the end of his follow-through: just short of the stumps at his end, facing the bat. */
+    const bowler = () => {
+      const pose = standPose(new THREE.Group());
+      pose.yaw = Math.PI;
+      for (const p of [pose.hip, pose.chest, pose.leftFoot, pose.rightFoot, pose.leftHand, pose.rightHand]) p.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+      return { rest: bodyOf(pose, .3, 16.6), free: HIT + 600 };
+    };
+
+    it('leaves a ball stopping on the pitch to the bowler, who walks to it and picks it up', () => {
+      const field = new Field();
+      const end = new THREE.Vector3(.4, .1, 10);
+      const { gathered } = field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: false }, bowler());
+      expect(gathered).toBe(true);
+      expect(routinesOf(field).some(r => r.actions.some(a => a.name === 'Picking it up'))).toBe(false);
+      const his = field.bowlerRoutine()!;
+      const pick = his.actions.find(a => a.name === 'Picking it up')!;
+      expect(pick).toBeDefined();
+      expect(pick.start).toBeGreaterThanOrEqual(HIT + 1250);
+      const inHand = field.held(pick.start + 400)!;
+      expect(Math.hypot(inHand.x - end.x, inHand.z - end.z)).toBeLessThan(.6);
+    });
+
+    it('throws a ball picked up in the field to the bowler, who takes it, and is home in time', () => {
+      const field = new Field();
+      const end = line(field, -60, 19);
+      field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: false }, bowler());
+      const routines = routinesOf(field);
+      const picker = routines.findIndex(r => r.actions.some(a => a.name === 'Throwing it in'));
+      expect(picker).toBeGreaterThanOrEqual(0);
+      const his = field.bowlerRoutine()!;
+      const taking = his.actions.find(a => a.name === 'Taking the throw')!;
+      expect(taking).toBeDefined();
+      // The ball goes hand to hand without a jump: picked up, thrown, taken.
+      const pick = routines[picker].actions.find(a => a.name === 'Picking it up')!;
+      let last = field.held(pick.start + 340)!;
+      expect(last).not.toBeNull();
+      for (let t = pick.start + 350; t < pick.start + 4000; t += 10) {
+        const now = field.held(t)!;
+        expect(now.distanceTo(last), `at ${t}`).toBeLessThan(.45);
+        last = now;
+      }
+      // And finishes in the bowler's hands, near where he stands.
+      expect(Math.hypot(last.x - .3, last.z - 16.6)).toBeLessThan(1);
+      let home = HIT;
+      while (!field.settled(home) && home < HIT + 20_000) home += 50;
+      expect(home - HIT).toBeLessThan(1250 + 1050 + 550 + 3500);
+    });
 
     it('has the nearest man pick up a ball that stops in the field, and hold it', () => {
       const field = new Field();
