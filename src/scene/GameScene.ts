@@ -140,8 +140,8 @@ export class GameScene {
   private batPath: { at: number; toe: THREE.Vector3 }[] = [];
   private swishedAt = -Infinity;
   /** The swoosh's colours, at the bat and behind it: the pull's pen (see `PULL_PENS`). */
-  private swishHead = new THREE.Color(0xffd23f);
-  private swishTail = new THREE.Color(0x12e0c4);
+  private swishHead = new THREE.Color(0x2f8bff);
+  private swishTail = new THREE.Color(0xffffff);
   private resizeObserver: ResizeObserver;
   private hitStart = 0;
   private hitOrigin = new THREE.Vector3();

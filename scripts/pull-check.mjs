@@ -113,7 +113,7 @@ for (const [name, options] of [
   check(up.doodle && !up.power, 'the pull’s flash goes up, and not the special stroke’s');
   check(up.rays >= 8 && up.rays <= 14 && up.travelling >= 4, 'focus lines travelling out from him', JSON.stringify(up));
   check(up.bursts === 0 && up.thrown === 0, 'with nothing burst or thrown on the ground', JSON.stringify(up));
-  check(up.pen === 'rgb(18, 224, 196)', 'in the pull’s turquoise', up.pen);
+  check(up.pen === 'rgb(47, 139, 255)' && up.pullPen === 'ice', 'in the pull’s blue', up.pen);
   check(up.swishing, 'a swoosh behind the bat', JSON.stringify(up));
   check(up.tail === 'pull', 'the ball’s tail set to the pull’s', up.tail);
   check(up.muted === 0, 'and the ground left in its colours', up.muted);

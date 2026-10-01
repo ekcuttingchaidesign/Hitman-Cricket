@@ -1862,19 +1862,18 @@ export class Game {
    * and a streak behind the ball. See `pulledBouncer` and `pullDoodle`.
    */
   private pullUp() {
-    const pen = PULL_PENS[this.pullPen];
-    this.scene.pull(this.elapsed, { head: pen.a, tail: pen.b });
+    this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
     this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS, this.pullPen);
     track('pulled-bouncer', 'Pulled a bouncer');
   }
   /**
    * `?pullpen=ice` and the like: which colours a pulled bouncer's focus lines
-   * and swoosh are drawn in, for trying them against each other. Gold and
-   * turquoise unless a link names another of `PULL_PENS`.
+   * and swoosh are drawn in, for trying them against each other. White and
+   * blue unless a link names another of `PULL_PENS`.
    */
   private readonly pullPen: PullPen = (() => {
     const asked = new URLSearchParams(location.search).get('pullpen') ?? '';
-    return asked in PULL_PENS ? asked as PullPen : 'gold';
+    return asked in PULL_PENS ? asked as PullPen : 'ice';
   })();
   private readonly powerStyles = new ShuffleBag(POWER_STYLES);
   /** The burst the last special stroke was drawn with, for the debug snapshot. */

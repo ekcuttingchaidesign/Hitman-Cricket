@@ -731,17 +731,24 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
 
 /**
  * The pull's pens: the focus lines are drawn in `a` and `b` and inked in
- * `ink`, and the swoosh behind the bat runs from `a` at the bat to `b` behind
- * it (see `GameScene.pull`). The ball's streak is red whichever pen is up.
- * Gold and turquoise is the one it plays with; the others are there to be
- * tried side by side, through `?pullpen=` (see Game's `pullPen`).
+ * `ink`, and the swoosh behind the bat runs from `swish.head` at the bat to
+ * `swish.tail` behind it (see `GameScene.pull`). The ball's streak is red
+ * whichever pen is up.
+ *
+ * White and blue is the one it plays with. Blue is as far from the ball's
+ * red as a colour gets, so the bat's swoosh and the ball's streak read as two
+ * things going two ways rather than one red smear; red is also already the
+ * wicket's colour, and a pull for six is not a warning. Its swoosh runs blue
+ * into white, the other way round from its lines, because a white head
+ * vanished into the pale strip right where the eye was. The others stay to
+ * be tried side by side, through `?pullpen=` (see Game's `pullPen`).
  */
 export const PULL_PENS = {
-  gold: { a: '#ffd23f', b: '#12e0c4', ink: '#062a2a' },
-  ice: { a: '#ffffff', b: '#2f8bff', ink: '#071433' },
-  neon: { a: '#c6ff3d', b: '#ff2bd6', ink: '#1d0628' },
-  red: { a: '#ffffff', b: '#ff2d3d', ink: '#1a0508' },
-  royal: { a: '#ffb000', b: '#7a3cff', ink: '#14082e' },
+  ice: { a: '#ffffff', b: '#2f8bff', ink: '#071433', swish: { head: '#2f8bff', tail: '#ffffff' } },
+  gold: { a: '#ffd23f', b: '#12e0c4', ink: '#062a2a', swish: { head: '#ffd23f', tail: '#12e0c4' } },
+  neon: { a: '#c6ff3d', b: '#ff2bd6', ink: '#1d0628', swish: { head: '#c6ff3d', tail: '#ff2bd6' } },
+  red: { a: '#ffffff', b: '#ff2d3d', ink: '#1a0508', swish: { head: '#ffffff', tail: '#ff2d3d' } },
+  royal: { a: '#ffb000', b: '#7a3cff', ink: '#14082e', swish: { head: '#ffb000', tail: '#7a3cff' } },
 } as const;
 export type PullPen = keyof typeof PULL_PENS;
 
@@ -756,7 +763,7 @@ export const PULL_DOODLE_MS = 1300;
  * renderer: a swoosh following the bat through its swing and a red streak
  * behind the ball (see `GameScene.pull`).
  */
-export function pullDoodle(at: BatterOnScreen, lasts: number, pen: PullPen = 'gold') {
+export function pullDoodle(at: BatterOnScreen, lasts: number, pen: PullPen = 'ice') {
   const random = seeded(41);
   const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
   const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
@@ -765,7 +772,8 @@ export function pullDoodle(at: BatterOnScreen, lasts: number, pen: PullPen = 'go
   const element = document.createElement('div');
   element.className = 'milestone is-pull';
   element.dataset.pen = pen;
-  for (const [name, value] of Object.entries(PULL_PENS[pen])) element.style.setProperty(`--pw-${name}`, value);
+  const { a, b, ink } = PULL_PENS[pen];
+  for (const [name, value] of Object.entries({ a, b, ink })) element.style.setProperty(`--pw-${name}`, value);
   element.style.setProperty('--out', `${lasts - 260}ms`);
   element.innerHTML = svg;
   return element;
