@@ -96,7 +96,9 @@ for (let ball = 0; ball < 24 && !(four && beaten && picked); ball++) {
   // The bowler sets off only once everyone is back on his mark.
   for (let i = 0; i < 400 && seen.phase !== 'BOWLER_RUNUP' && seen.phase !== 'INNINGS_END'; i++) { await advance(25); seen = await snap(); }
   if (seen.phase === 'BOWLER_RUNUP') {
-    const off = (await field()).fielders.filter(f => f.home > .45);
+    // On his mark, or in the last couple of strides of his walk back, which
+    // he takes while the bowler runs in.
+    const off = (await field()).fielders.filter(f => f.home > .45 && !(f.action === 'Walking back' && f.home < 2));
     if (off.length) check(false, 'the bowler waits for the field to be back on its marks', JSON.stringify(off));
     else settledEvery++;
   }
