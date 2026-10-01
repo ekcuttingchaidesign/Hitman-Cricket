@@ -827,6 +827,9 @@ export class GameScene {
     this.shadow.visible = visible;
   }
   render(now: number) {
+    // A new innings starts the game's clock again from nought, and every plan
+    // the field has is timed on the old one: put them back on their marks.
+    if (now + 1 < this.clock) this.field.home();
     this.clock = now;
     this.batter.update(now);
     this.field.update(now);

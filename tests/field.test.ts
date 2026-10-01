@@ -80,6 +80,22 @@ describe('the field', () => {
     expect(at).toBeLessThan(HIT + 10_000);
   });
 
+  it('goes home, settled, when the clock starts again from nought', () => {
+    // An innings ended mid-chase, and the next starts the game clock at zero.
+    const field = new Field();
+    field.walkIn(HIT - 2000);
+    field.set(HIT - 1000, HIT);
+    field.ground(HIT, HIT + 1250, look, { from: new THREE.Vector3(-.2, .1, 1.3), to: new THREE.Vector3(-30, .1, 30), flightMs: 1250, four: true });
+    expect(field.settled(0)).toBe(false);
+    field.home();
+    expect(field.settled(0)).toBe(true);
+    expect(field.bowlerRoutine()).toBeNull();
+    // And walks in with the next bowler as if nothing had happened.
+    field.walkIn(600);
+    const routines = (field as unknown as { routines: { actions: { name: string }[] }[] }).routines;
+    expect(routines.filter(r => r.actions.some(a => a.name === 'Walking in')).length).toBeGreaterThanOrEqual(3);
+  });
+
   it('deals a different walk the next ball', () => {
     const field = new Field();
     const walksOf = () => (field as unknown as { routines: { actions: { name: string; start: number }[] }[] }).routines

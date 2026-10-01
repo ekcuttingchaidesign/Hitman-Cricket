@@ -116,6 +116,17 @@ export class Field {
   /** One man's plan, as it stands: for the rig lab, which plans a ball up front and plays it back. */
   routine(i: number) { return this.routines[i]; }
 
+  /**
+   * Everyone back on his mark and waiting, and nothing planned: for a game
+   * clock that has started again from nought. Every plan is timed on the old
+   * clock, so at nought each man is held at the first step of something due
+   * half a minute later — and the bowler waits for a field that never comes.
+   */
+  home() {
+    this.routines = this.marks.map((m, i) => new Routine([idle(m.spot, m.style, SEEDS[i])]));
+    this.catching = null; this.gathering = null; this.bowling = null;
+  }
+
   /** Pose everyone for this instant. */
   update(now: number) {
     this.fielders.forEach((fielder, i) => fielder.show(this.routines[i].at(now)));
