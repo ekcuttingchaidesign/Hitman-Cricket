@@ -35,6 +35,12 @@ export interface Figure {
   rightHand: THREE.Vector3;
   headYaw: number;
   headPitch: number;
+  /**
+   * Which way the elbows point: nought is down and out, away from the ribs,
+   * which is what a hanging or bowling arm does; one is straight back behind
+   * him, which is what a running arm does. Left out, nought.
+   */
+  elbowsBack?: number;
 }
 
 /** Limb lengths, shared so a bowler and a fielder are the same person. */
@@ -337,7 +343,10 @@ export class Cricketer {
       const along = hand.clone().sub(shoulder);
       if (along.lengthSq() < .000001) along.copy(up).negate();
       along.normalize();
-      const hint = up.clone().negate().addScaledVector(right, side * .55);
+      // A runner's elbows drive back past the ribs rather than flaring out:
+      // with the outward pole a pumping arm rolls its forearm across his body.
+      const back = THREE.MathUtils.clamp(pose.elbowsBack ?? 0, 0, 1);
+      const hint = up.clone().negate().addScaledVector(right, side * .55 * (1 - back)).addScaledVector(forward, -1.6 * back);
       hint.addScaledVector(along, -hint.dot(along));
       if (hint.lengthSq() < .0001) hint.copy(right).multiplyScalar(side);
       hint.normalize();

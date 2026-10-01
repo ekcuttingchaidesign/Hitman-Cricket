@@ -107,6 +107,7 @@ export function mixBodies(a: Body, b: Body, w: number): Body {
       leftFoot: l(P.leftFoot, Q.leftFoot), rightFoot: l(P.rightFoot, Q.rightFoot),
       leftHand: l(P.leftHand, Q.leftHand), rightHand: l(P.rightHand, Q.rightHand),
       headYaw: THREE.MathUtils.lerp(P.headYaw, Q.headYaw, w), headPitch: THREE.MathUtils.lerp(P.headPitch, Q.headPitch, w),
+      elbowsBack: THREE.MathUtils.lerp(P.elbowsBack ?? 0, Q.elbowsBack ?? 0, w),
     },
   };
 }
@@ -428,6 +429,7 @@ export function travel(from: Spot, to: { x: number; z: number }, start: number, 
           THREE.MathUtils.lerp(.05 + swing * .17, pose.chest.z * .6 + swing * .30, pump));
       }
       pose.headPitch = -lean * .7;
+      pose.elbowsBack = g.run;
       const body = upright(spot, pose);
       return look ? watch(body, look) : body;
     },
