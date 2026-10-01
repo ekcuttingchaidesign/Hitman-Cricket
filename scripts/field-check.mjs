@@ -139,13 +139,23 @@ for (let ball = 0; ball < 12 && !(dived && walked); ball++) {
     }
   }
   const catcher = first.fielders.find(f => f.name === first.catcher);
-  const near = frames.reduce((best, f) => (Math.abs(f.t - first.catchAt) < Math.abs(best.t - first.catchAt) ? f : best), frames[0]);
-  const ball3 = near.ball, hands = first.hands;
+  // From the catch on, the ball is wherever his hands are. Sampled at the
+  // frame nearest the catch instead, a ball falling the last of a skier at
+  // twenty-odd metres a second is a third of a metre short of them on a
+  // clock that steps forty milliseconds at a time.
+  const held = frames.filter(f => f.t >= first.catchAt && f.held && f.ball);
+  const near = held[0] ?? frames[frames.length - 1];
+  const ball3 = near.ball, hands = near.held;
   const gap = ball3 && hands ? Math.hypot(ball3[0] - hands[0], ball3[1] - hands[1], ball3[2] - hands[2]) : Infinity;
   console.log(`        ball ${ball + 1}: ${outcome} — ${first.catcher}, ${first.style}, from ${catcher.home}m off his mark`);
   check(catcher.home < 2.6, `${first.catcher} sets off from his own patch, not from under the ball`, JSON.stringify(catcher));
   check(worst <= 8.5, 'nobody moves faster than a sprint between frames', `${worst.toFixed(2)} m/s`);
-  check(gap < .4, 'the ball comes down into his hands', `${gap.toFixed(2)}m — ball ${JSON.stringify(ball3)}, hands ${JSON.stringify(hands)}`);
+  check(held.length > 0 && gap < .05, 'the ball comes down into his hands and stays there', `${gap.toFixed(2)}m — ball ${JSON.stringify(ball3)}, hands ${JSON.stringify(hands)}`);
+  // And it got there along its flight, not by a jump: the frame before the
+  // catch has it within a frame's fall of where his hands took it.
+  const last = frames.filter(f => f.t < first.catchAt && f.ball).pop();
+  const arrive = last ? Math.hypot(last.ball[0] - first.hands[0], last.ball[1] - first.hands[1], last.ball[2] - first.hands[2]) : Infinity;
+  check(arrive < 1.4, 'arriving along its flight rather than jumping to him', `${arrive.toFixed(2)}m short a frame before`);
   if (first.style === 'dive' && !dived) {
     dived = first;
     // Back to the moment he leaves the ground and the moment he takes it.
@@ -154,10 +164,11 @@ for (let ball = 0; ball < 12 && !(dived && walked); ball++) {
   }
   if (first.style === 'high' && !settled) settled = first;
   await page.screenshot({ path: `test-results/field-catch-${ball + 1}.png` });
-  // On to the next ball: the field goes back to its marks while the result is up.
+  // On to the next ball: the field goes back to its marks while the result is
+  // up, and is on them by the time the bowler sets off again.
   let back = await snap();
-  for (let i = 0; i < 80 && back.phase !== 'READY' && back.phase !== 'INNINGS_END'; i++) { await advance(100); back = await snap(); }
-  if (back.phase === 'READY') {
+  for (let i = 0; i < 80 && back.phase !== 'BOWLER_RUNUP' && back.phase !== 'INNINGS_END'; i++) { await advance(50); back = await snap(); }
+  if (back.phase === 'BOWLER_RUNUP') {
     const home = await field();
     const off = home.fielders.filter(f => f.name !== first.catcher && f.home > .3);
     check(off.length === 0, 'everyone else is back on his mark for the next ball', JSON.stringify(off));

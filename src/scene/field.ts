@@ -131,9 +131,11 @@ export class Field {
       this.routines[catcher] = new Routine([...recent(routine, now), ...after, ...back], plan.routine.look);
       this.catching = { index: catcher, plan, dropped: take.dropped };
     }
+    // Caught, the ball is dead in his hands, and the rest can go back then.
+    const over = plan && !take?.dropped ? Math.min(deadAt, plan.catchAt + 250) : deadAt + 200;
     this.routines.forEach((routine, i) => {
       if (i === catcher) return;
-      const back = this.homeward(i, routine, deadAt + 200);
+      const back = this.homeward(i, routine, over);
       this.routines[i] = new Routine([...recent(routine, now), ...back], look);
     });
     return plan;
@@ -166,6 +168,7 @@ export class Field {
         return { name: MARKS[i].name, x: +hip.x.toFixed(3), y: +hip.y.toFixed(3), z: +hip.z.toFixed(3),
           action: routine.actions[routine.current(now)].name, home: +away(hip, MARKS[i].spot).toFixed(2) };
       }),
+      held: this.held(now)?.toArray().map(v => +v.toFixed(3)) ?? null,
       catcher: this.catching ? MARKS[this.catching.index].name : null,
       catchAt: this.catching ? Math.round(this.catching.plan.catchAt) : null,
       style: this.catching?.plan.style ?? null,
