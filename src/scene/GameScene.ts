@@ -78,9 +78,22 @@ function powerAt(age: number) {
  */
 const SWISH_SPAN_MS = 220;
 /** How wide the swoosh is at the bat, in metres; it tapers to nothing behind. */
-const SWISH_WIDTH = .26;
+const SWISH_WIDTH = .3;
 const SWISH_MS = 560;
 const SWISH_SAMPLES = 32;
+/**
+ * The band is drawn through a curve laid over the bat's samples, this many
+ * points to a frame's worth of travel: the toe goes the best part of half a
+ * metre in a frame at the bottom of a pull, and drawn straight from sample to
+ * sample the band came out as a run of kinks.
+ */
+const SWISH_SMOOTH = 4;
+/** Points round the half-circle that rounds off the end at the bat. */
+const SWISH_CAP = 8;
+/** How strong the band is at its two edges against its middle: a feathered edge rather than a cut one. */
+const SWISH_EDGE = .55;
+/** Rows of points the band can need: the cap, and the smoothed path behind it. */
+const SWISH_ROWS = SWISH_CAP + 1 + (SWISH_SAMPLES - 1) * SWISH_SMOOTH + 1;
 /**
  * The colours the struck ball's tail is drawn in, head to tail. Fire for a
  * special stroke; red for a pulled bouncer, bright at the ball and going to
@@ -260,17 +273,22 @@ export class GameScene {
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
   }
   /**
-   * The band for the swoosh: two rows of points, either side of the toe's
-   * path, one pair per moment of the swing, laid out once and moved each frame.
-   * Flat colour, untouched by the lights or the tone mapping, so it reads as
-   * drawn on rather than lit.
+   * The band for the swoosh: rows of three points across it — an edge, the
+   * middle, the other edge — strung along the toe's path, with a half-circle
+   * of rows rounding off the end at the bat. Laid out once and moved each
+   * frame. Flat colour, untouched by the lights or the tone mapping, so it
+   * reads as drawn on rather than lit, and fading out to both edges so it has
+   * no hard one.
    */
   private createSwish() {
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SWISH_SAMPLES * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
-    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(SWISH_SAMPLES * 2 * 4), 4).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SWISH_ROWS * 3 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(SWISH_ROWS * 3 * 4), 4).setUsage(THREE.DynamicDrawUsage));
     const index: number[] = [];
-    for (let i = 0; i < SWISH_SAMPLES - 1; i++) { const a = i * 2; index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    for (let row = 0; row < SWISH_ROWS - 1; row++) {
+      const a = row * 3, b = a + 3;
+      index.push(a, b, a + 1, a + 1, b, b + 1, a + 1, b + 1, a + 2, a + 2, b + 1, b + 2);
+    }
     geometry.setIndex(index);
     const swish = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
       vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
@@ -295,29 +313,61 @@ export class GameScene {
     const fade = 1 - THREE.MathUtils.smoothstep(age, SWISH_MS * .5, SWISH_MS);
     const position = this.swish.geometry.getAttribute('position') as THREE.BufferAttribute;
     const colour = this.swish.geometry.getAttribute('color') as THREE.BufferAttribute;
-    const n = this.batPath.length, c = new THREE.Color();
-    const along = new THREE.Vector3(), toCamera = new THREE.Vector3(), side = new THREE.Vector3();
     const camera = this.world.worldToLocal(this.camera.getWorldPosition(new THREE.Vector3()));
-    this.batPath.forEach(({ toe }, i) => {
-      const f = i / (n - 1);
-      // Across the path and across the line of sight, so the band shows its
-      // face whichever way the bat is going. Held over from the last point
-      // where the bat is still, which has no way it is going.
-      along.subVectors(this.batPath[Math.max(i - 1, 0)].toe, this.batPath[Math.min(i + 1, n - 1)].toe);
-      toCamera.subVectors(camera, toe);
-      const across = along.clone().cross(toCamera);
-      if (across.lengthSq() > 1e-8) side.copy(across.normalize());
-      else if (!i) side.set(0, 1, 0);
-      const half = SWISH_WIDTH / 2 * (1 - f) ** .5;
+
+    // The path, smoothed: a curve through the samples, newest first.
+    const toes = this.batPath.map(({ toe }) => toe);
+    const steps = (toes.length - 1) * SWISH_SMOOTH;
+    const curve = toes.length > 2 ? new THREE.CatmullRomCurve3(toes, false, 'centripetal') : null;
+    const path = Array.from({ length: steps + 1 }, (_, j) => curve ? curve.getPoint(j / steps) : toes[0].clone().lerp(toes[1], j / steps));
+
+    // Across the path and across the line of sight at each point, so the band
+    // shows its face whichever way the bat is going. Held over from the last
+    // point where the bat is still, which has no way it is going.
+    const sides: THREE.Vector3[] = [];
+    const side = new THREE.Vector3(0, 1, 0);
+    path.forEach((point, j) => {
+      const along = path[Math.max(j - 1, 0)].clone().sub(path[Math.min(j + 1, steps)]);
+      const across = along.cross(camera.clone().sub(point));
+      if (across.lengthSq() > 1e-10) side.copy(across.normalize());
+      sides.push(side.clone());
+    });
+
+    let row = 0;
+    const c = new THREE.Color();
+    const put = (centre: THREE.Vector3, across: THREE.Vector3, half: number, f: number) => {
       c.copy(this.swishHead).lerp(this.swishTail, Math.min(1, f * 1.6));
-      // Solid at the bat and gone at the tail.
-      const alpha = (1 - f) ** 1.1 * .95 * fade;
-      position.setXYZ(i * 2, toe.x + side.x * half, toe.y + side.y * half, toe.z + side.z * half);
-      position.setXYZ(i * 2 + 1, toe.x - side.x * half, toe.y - side.y * half, toe.z - side.z * half);
-      colour.setXYZW(i * 2, c.r, c.g, c.b, alpha); colour.setXYZW(i * 2 + 1, c.r, c.g, c.b, alpha);
+      // Solid at the bat and gone at the tail; softer at both edges than down the middle.
+      const alpha = (1 - f) ** 1.5 * fade;
+      for (const [k, at, strength] of [[0, half, SWISH_EDGE], [1, 0, 1], [2, -half, SWISH_EDGE]] as const) {
+        position.setXYZ(row * 3 + k, centre.x + across.x * at, centre.y + across.y * at, centre.z + across.z * at);
+        colour.setXYZW(row * 3 + k, c.r, c.g, c.b, alpha * strength);
+      }
+      row++;
+    };
+
+    // The end at the bat, rounded: a half-circle as wide as the band there,
+    // its far edge on the toe itself so it never runs out ahead of the bat.
+    const head = SWISH_WIDTH / 2;
+    const forward = path[0].clone().sub(path[1]);
+    const reach = forward.length();
+    forward.normalize();
+    const radius = Math.min(head, reach * steps * .5);
+    const middle = path[0].clone().addScaledVector(forward, -radius);
+    for (let k = 0; k <= SWISH_CAP; k++) {
+      const turn = k / SWISH_CAP * Math.PI / 2;
+      put(middle.clone().addScaledVector(forward, radius * Math.cos(turn)), sides[0], radius * Math.sin(turn), 0);
+    }
+    // Then the path behind it, from where the half-circle leaves off.
+    let travelled = 0;
+    path.forEach((point, j) => {
+      if (j) travelled += point.distanceTo(path[j - 1]);
+      if (travelled <= radius) return;
+      const f = j / steps;
+      put(point, sides[j], SWISH_WIDTH / 2 * (1 - f) ** .5, f);
     });
     position.needsUpdate = true; colour.needsUpdate = true;
-    this.swish.geometry.setDrawRange(0, (n - 1) * 6);
+    this.swish.geometry.setDrawRange(0, Math.max(0, row - 1) * 12);
   }
   /** The struck ball's tail, in the colours of `TAILS[kind]`. */
   private tail(kind: keyof typeof TAILS) {
