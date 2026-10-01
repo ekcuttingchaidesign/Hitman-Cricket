@@ -59,6 +59,10 @@ export const TEST_FIELD: readonly Mark[] = [
 ];
 
 const SEEDS = [.4, 1.9, 3.1, 4.4, 5.2, 6.6];
+/** How far either side of his own mark, seen from the bat, a man in the deep covers the rope. */
+const AREA = 35 * Math.PI / 180;
+/** And no further than this from where it crosses, whatever the angle. */
+const AREA_REACH = 22;
 /** Back to the mark once the ball is dead, before each man's own pace is laid on it. */
 const WALK_BACK_MS = 1150;
 
@@ -340,16 +344,23 @@ export class Field {
     }
 
     if (path.four) {
-      // The man in the deep nearest where it reaches the rope goes after it.
+      // The man in the deep whose area it is goes after it: the ball going
+      // within his part of the rope, and not so far along it that he would be
+      // running across from somewhere else. A flick to square leg is deep
+      // midwicket's; long-on, nearly straight, has no business with it, and
+      // sending the nearest free man regardless had him sprinting across the
+      // whole leg side. Nobody's area, nobody goes: it has found the gap.
       const rope = path.from.clone().addScaledVector(dir, Math.min(length, ropeAlong(path.from, dir) - 1.5)).setY(.12);
+      const going = Math.atan2(dir.x, dir.z);
       let chaser = -1, best = Infinity;
       spots.forEach((spot, i) => {
-        if (busy.has(i)) return;
-        const d = away(spot, rope) + (this.marks[i].deep ? 0 : 6);
+        if (busy.has(i) || !this.marks[i].deep) return;
+        const mark = this.marks[i].spot;
+        const off = Math.abs(Math.atan2(Math.sin(Math.atan2(mark.x, mark.z) - going), Math.cos(Math.atan2(mark.x, mark.z) - going)));
+        const d = away(spot, rope);
+        if (off > AREA || d > AREA_REACH) return;
         if (d < best) { best = d; chaser = i; }
       });
-      // Always somebody, and a man from the deep if one is free: a four along
-      // the ground with nobody going after it is the thing this is here to stop.
       if (chaser >= 0) {
         const spot = spots[chaser], pass = passing(spot);
         if (pass.gap <= reachBy(late(pass.at)) && pass.along < length - .8) this.diveAt(chaser, spot, { ...pass, at: late(pass.at) - 40 }, now, look);

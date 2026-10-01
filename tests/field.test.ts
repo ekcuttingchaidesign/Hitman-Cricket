@@ -249,6 +249,25 @@ describe('the field', () => {
       expect(home - HIT).toBeLessThan(1250 + 1050 + 550 + 3500);
     });
 
+    for (const [stroke, angle, whose] of [['flick to square leg', -62, 'Deep midwicket'], ['flick at deep midwicket', -52, 'Deep midwicket'],
+      ['flick, a shade straighter', -55, 'Deep midwicket'], ['sweep, fine of square', -80, 'Deep midwicket'], ['square drive', 62, 'Deep cover']] as const) {
+      it(`leaves a ${stroke} for four to the man whose area it is`, () => {
+        const field = new Field();
+        const end = line(field, angle, 44);
+        field.ground(HIT, HIT + 1250, look, { from: origin, to: end, flightMs: 1250, four: true });
+        const routines = routinesOf(field);
+        BLAST_FIELD.forEach((m, i) => {
+          const names = routines[i].actions.map(a => a.name);
+          const after = names.includes('Chasing it') || names.includes('Diving catch');
+          // Long-on and long-off, nearly straight, stay out of it, and nobody
+          // on the ring runs a four down to the rope.
+          if (m.name === 'Long-on' || m.name === 'Long-off') expect(after, m.name).toBe(false);
+          expect(names.includes('Chasing it') && !m.deep, m.name).toBe(false);
+          if (m.name === whose) expect(after, m.name).toBe(true);
+        });
+      });
+    }
+
     it('has the nearest man pick up a ball that stops in the field, and hold it', () => {
       const field = new Field();
       const end = line(field, -24, 19);
