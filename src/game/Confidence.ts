@@ -1,5 +1,5 @@
 import { CONFIDENCE_FULL, CONFIDENCE_STEP } from '../config/gameplay';
-import type { ShotOutcome } from './types';
+import type { Delivery, ShotOutcome, ShotType } from './types';
 
 /**
  * The batter's confidence: full, it buys one special stroke — a charge down
@@ -19,6 +19,19 @@ export function specialStroke(outcome: Pick<ShotOutcome, 'advance' | 'swept' | '
  */
 export function landedSpecial(outcome: Pick<ShotOutcome, 'advance' | 'swept' | 'scooped' | 'madeBatContact' | 'isWicket'>) {
   return specialStroke(outcome) && outcome.madeBatContact && !outcome.isWicket;
+}
+
+/**
+ * A bouncer pulled and hit: the one ordinary stroke that gets a flash of its
+ * own (see `pullDoodle`) — focus lines, a swoosh behind the bat and a streak
+ * behind the ball, in either mode. Only a middled pull hits a bouncer at all;
+ * anything less goes through, over, or off the glove. So it is rare, and it
+ * should feel it. A special stroke is never this: it has its own flash.
+ */
+export function pulledBouncer(delivery: Pick<Delivery, 'style'>, shot: ShotType | undefined,
+  outcome: Pick<ShotOutcome, 'advance' | 'swept' | 'scooped' | 'madeBatContact' | 'isWicket' | 'runs'>) {
+  return delivery.style === 'SHORT' && shot === 'LEG' && !specialStroke(outcome)
+    && outcome.madeBatContact && !outcome.isWicket && outcome.runs > 0;
 }
 
 export class Confidence {

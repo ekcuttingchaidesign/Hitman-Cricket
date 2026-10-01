@@ -70,6 +70,39 @@ function powerAt(age: number) {
   if (age < 0 || age >= POWER_MS) return 0;
   return Math.min(THREE.MathUtils.smoothstep(age, 0, 110), 1 - THREE.MathUtils.smoothstep(age, POWER_MS - 380, POWER_MS));
 }
+/**
+ * The swoosh behind the bat on a pulled bouncer: how much of the swing it
+ * covers, as a stretch of the bat's own recent past, and how long it is up
+ * from the hit. It covers the downswing into the ball and follows the bat on
+ * through the finish, thinning out behind as it goes.
+ */
+const SWISH_SPAN_MS = 220;
+/** How wide the swoosh is at the bat, in metres; it tapers to nothing behind. */
+const SWISH_WIDTH = .3;
+const SWISH_MS = 560;
+const SWISH_SAMPLES = 32;
+/**
+ * The band is drawn through a curve laid over the bat's samples, this many
+ * points to a frame's worth of travel: the toe goes the best part of half a
+ * metre in a frame at the bottom of a pull, and drawn straight from sample to
+ * sample the band came out as a run of kinks.
+ */
+const SWISH_SMOOTH = 4;
+/** Points round the half-circle that rounds off the end at the bat. */
+const SWISH_CAP = 8;
+/** How strong the band is at its two edges against its middle: a feathered edge rather than a cut one. */
+const SWISH_EDGE = .55;
+/** Rows of points the band can need: the cap, and the smoothed path behind it. */
+const SWISH_ROWS = SWISH_CAP + 1 + (SWISH_SAMPLES - 1) * SWISH_SMOOTH + 1;
+/**
+ * The colours the struck ball's tail is drawn in, head to tail. Fire for a
+ * special stroke; red for a pulled bouncer, bright at the ball and going to
+ * crimson, so it reads apart from the fire's yellow.
+ */
+const TAILS = {
+  fire: [0xffd23f, 0xff7a1f, 0xd7261b],
+  pull: [0xff6a55, 0xf01b2c, 0x9c0018],
+} as const;
 /** How far gone the colour is, a given time into his celebration. */
 function muteAt(age: number) {
   if (age < 0 || age >= CELEBRATION_MS) return 0;
@@ -102,10 +135,26 @@ export class GameScene {
   /**
    * The fire behind a ball struck with a special stroke: yellow at the ball,
    * red at the tail, glowing rather than lit, and flickering. Drawn instead of
-   * the ordinary trail on those balls, and on no others.
+   * the ordinary trail on those balls, and on a pulled bouncer, recoloured
+   * red (see `TAILS`); on no others.
    */
   private fire: THREE.Mesh[] = [];
-  private blazing = false;
+  /** Which tail the struck ball has: fire, the pull's, or the ordinary trail. */
+  private blaze: keyof typeof TAILS | null = null;
+  /**
+   * The swoosh behind the bat on a pulled bouncer: a band laid along the path
+   * the toe of the bat has taken over the last stretch of the swing, turned to
+   * face the camera. Not a ribbon strung down the blade: a pull swings the bat
+   * flat at chest height, and the sheet that sweeps out is seen edge-on from
+   * behind him — a hairline. Where the bat has been is kept every frame,
+   * because by the time the ball is hit the downswing that hit it is history.
+   */
+  private swish!: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  private batPath: { at: number; toe: THREE.Vector3 }[] = [];
+  private swishedAt = -Infinity;
+  /** The swoosh's colours, at the bat and behind it: the pull's pen (see `PULL_PENS`). */
+  private swishHead = new THREE.Color(0x2f8bff);
+  private swishTail = new THREE.Color(0xffffff);
   private resizeObserver: ResizeObserver;
   private hitStart = 0;
   private hitOrigin = new THREE.Vector3();
@@ -218,8 +267,116 @@ export class GameScene {
     this.scene.traverse(object => {
       if (object instanceof THREE.Mesh) [object.material].flat().forEach(m => { if (!his.has(m)) mutable(m, this.mute); });
     });
+    // After the greying is wired, so a hundred never greys the swoosh.
+    this.swish = this.createSwish();
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
+  }
+  /**
+   * The band for the swoosh: rows of three points across it — an edge, the
+   * middle, the other edge — strung along the toe's path, with a half-circle
+   * of rows rounding off the end at the bat. Laid out once and moved each
+   * frame. Flat colour, untouched by the lights or the tone mapping, so it
+   * reads as drawn on rather than lit, and fading out to both edges so it has
+   * no hard one.
+   */
+  private createSwish() {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SWISH_ROWS * 3 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(SWISH_ROWS * 3 * 4), 4).setUsage(THREE.DynamicDrawUsage));
+    const index: number[] = [];
+    for (let row = 0; row < SWISH_ROWS - 1; row++) {
+      const a = row * 3, b = a + 3;
+      index.push(a, b, a + 1, a + 1, b, b + 1, a + 1, b + 1, a + 2, a + 2, b + 1, b + 2);
+    }
+    geometry.setIndex(index);
+    const swish = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    }));
+    // Its points move every frame, so a bounding sphere worked out once is wrong.
+    swish.frustumCulled = false; swish.visible = false;
+    this.world.add(swish);
+    return swish;
+  }
+  /** Where the bat is now, kept for the swoosh; then the swoosh drawn through it. */
+  private traceBat(now: number) {
+    const bat = this.batter.bat;
+    bat.updateWorldMatrix(true, false);
+    // Kept in the ground's own frame, which the swoosh is drawn in: the ground
+    // is mirrored (see `world`), and a point in the scene's frame drawn inside
+    // it lands on the far side of him.
+    this.batPath.unshift({ at: now, toe: this.world.worldToLocal(bat.localToWorld(new THREE.Vector3(0, -.8, 0))) });
+    while (this.batPath.length > SWISH_SAMPLES || (this.batPath.length > 2 && now - this.batPath[this.batPath.length - 1].at > SWISH_SPAN_MS)) this.batPath.pop();
+    const age = now - this.swishedAt;
+    this.swish.visible = age >= 0 && age < SWISH_MS && this.batPath.length > 1;
+    if (!this.swish.visible) return;
+    const fade = 1 - THREE.MathUtils.smoothstep(age, SWISH_MS * .5, SWISH_MS);
+    const position = this.swish.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const colour = this.swish.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const camera = this.world.worldToLocal(this.camera.getWorldPosition(new THREE.Vector3()));
+
+    // The path, smoothed: a curve through the samples, newest first.
+    const toes = this.batPath.map(({ toe }) => toe);
+    const steps = (toes.length - 1) * SWISH_SMOOTH;
+    const curve = toes.length > 2 ? new THREE.CatmullRomCurve3(toes, false, 'centripetal') : null;
+    const path = Array.from({ length: steps + 1 }, (_, j) => curve ? curve.getPoint(j / steps) : toes[0].clone().lerp(toes[1], j / steps));
+
+    // Across the path and across the line of sight at each point, so the band
+    // shows its face whichever way the bat is going. Held over from the last
+    // point where the bat is still, which has no way it is going.
+    const sides: THREE.Vector3[] = [];
+    const side = new THREE.Vector3(0, 1, 0);
+    path.forEach((point, j) => {
+      const along = path[Math.max(j - 1, 0)].clone().sub(path[Math.min(j + 1, steps)]);
+      const across = along.cross(camera.clone().sub(point));
+      if (across.lengthSq() > 1e-10) side.copy(across.normalize());
+      sides.push(side.clone());
+    });
+
+    let row = 0;
+    const c = new THREE.Color();
+    const put = (centre: THREE.Vector3, across: THREE.Vector3, half: number, f: number) => {
+      c.copy(this.swishHead).lerp(this.swishTail, Math.min(1, f * 1.6));
+      // Solid at the bat and gone at the tail; softer at both edges than down the middle.
+      const alpha = (1 - f) ** 1.5 * fade;
+      for (const [k, at, strength] of [[0, half, SWISH_EDGE], [1, 0, 1], [2, -half, SWISH_EDGE]] as const) {
+        position.setXYZ(row * 3 + k, centre.x + across.x * at, centre.y + across.y * at, centre.z + across.z * at);
+        colour.setXYZW(row * 3 + k, c.r, c.g, c.b, alpha * strength);
+      }
+      row++;
+    };
+
+    // The end at the bat, rounded: a half-circle as wide as the band there,
+    // its far edge on the toe itself so it never runs out ahead of the bat.
+    const head = SWISH_WIDTH / 2;
+    const forward = path[0].clone().sub(path[1]);
+    const reach = forward.length();
+    forward.normalize();
+    const radius = Math.min(head, reach * steps * .5);
+    const middle = path[0].clone().addScaledVector(forward, -radius);
+    for (let k = 0; k <= SWISH_CAP; k++) {
+      const turn = k / SWISH_CAP * Math.PI / 2;
+      put(middle.clone().addScaledVector(forward, radius * Math.cos(turn)), sides[0], radius * Math.sin(turn), 0);
+    }
+    // Then the path behind it, from where the half-circle leaves off.
+    let travelled = 0;
+    path.forEach((point, j) => {
+      if (j) travelled += point.distanceTo(path[j - 1]);
+      if (travelled <= radius) return;
+      const f = j / steps;
+      put(point, sides[j], SWISH_WIDTH / 2 * (1 - f) ** .5, f);
+    });
+    position.needsUpdate = true; colour.needsUpdate = true;
+    this.swish.geometry.setDrawRange(0, Math.max(0, row - 1) * 12);
+  }
+  /** The struck ball's tail, in the colours of `TAILS[kind]`. */
+  private tail(kind: keyof typeof TAILS) {
+    this.blaze = kind;
+    const [hot, mid, cold] = TAILS[kind].map(hex => new THREE.Color(hex));
+    this.fire.forEach((dot, i) => {
+      const t = i / (this.fire.length - 1);
+      (dot.material as THREE.MeshBasicMaterial).color.copy(t < .5 ? hot.clone().lerp(mid, t * 2) : mid.clone().lerp(cold, (t - .5) * 2));
+    });
   }
   private createGround() {
     const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
@@ -339,7 +496,20 @@ export class GameScene {
    * A special stroke on a full meter, from the moment it is hit: the same
    * grey as his hundred, round him and the ball, for about a second.
    */
-  power(now: number) { this.poweredAt = now; this.blazing = true; }
+  power(now: number) { this.poweredAt = now; this.tail('fire'); }
+  /**
+   * A bouncer pulled and hit, from the moment it is hit: a swoosh behind the
+   * bat, from `head` at the bat to `tail` behind it, and a red streak behind
+   * the ball. No grey — it is a great shot, not a special one.
+   */
+  pull(now: number, swish: { head: string; tail: string }) {
+    this.swishedAt = now; this.tail('pull');
+    this.swishHead.set(swish.head); this.swishTail.set(swish.tail);
+  }
+  /** Whether the swoosh behind the bat is up this frame. For the checks. */
+  get swishing() { return this.swish.visible; }
+  /** Which tail the struck ball has, for the checks: 'fire', 'pull', or null. */
+  get tailKind() { return this.blaze; }
   /** How much of the fire trail is showing this frame. For the checks. */
   get burning() { return this.fire.filter(dot => dot.visible).length; }
   /** How grey the ground is this frame, nought to one. For the checks. */
@@ -373,7 +543,7 @@ export class GameScene {
   kit(kit: BatterKit) { this.batter.dress(kit); }
 
   reset() {
-    this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blazing = false;
+    this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
@@ -578,7 +748,7 @@ export class GameScene {
       // off the body is not a struck shot, and a tail behind it says it was.
       this.trail.forEach((dot, i) => {
         const behind = t - (i + 1) * 0.019;
-        dot.visible = !this.blazing && !result.hit && this.ball.visible && behind > 0;
+        dot.visible = !this.blaze && !result.hit && this.ball.visible && behind > 0;
         if (dot.visible) this.struckAt(behind, dot.position);
       });
       // Struck with a special stroke, the ball burns instead: closer-set and
@@ -587,7 +757,7 @@ export class GameScene {
         // Close enough that they overlap into one streak rather than a string
         // of beads, even on a six going away at full pelt.
         const behind = t - (i + 1) * 0.0018;
-        dot.visible = this.blazing && this.ball.visible && behind > 0;
+        dot.visible = !!this.blaze && this.ball.visible && behind > 0;
         if (!dot.visible) return;
         this.struckAt(behind, dot.position);
         dot.scale.setScalar(0.13 * (1 - i / 32) * (1 + 0.18 * Math.sin(now * 0.045 + i * 1.7)));
@@ -621,6 +791,7 @@ export class GameScene {
   }
   render(now: number) {
     this.batter.update(now);
+    this.traceBat(now);
     if (this.bowling) {
       // Anchor the action's clock to how far into the run-up the game already
       // is, rather than to the frame this happened to be noticed on: started a

@@ -86,11 +86,22 @@ can hold CSS animations at their first frame.
 `scripts/power-check.mjs` is the flash for a special stroke played on a full
 meter: the ground greyed round the batter and the ball, focus lines running
 out from him and off the screen, a burst either side of his boots, and the
-call for the ball left in place. The grey runs on the game's
+call for the ball left in place. The burst comes in five styles, each in its
+own pen and dealt from a shuffled bag; the check puts each up by name
+(`__cricket.power('flame')`), photographs it, and deals five to see all five.
+A new style goes in `POWER_STYLES` and in the check's `PENS`. The grey runs on the game's
 clock, so it is waited out by asking the game (`snapshot().muted`), not a
 stopwatch. It also plays real balls on a hand-wound clock until a special
 stroke lands, for the fire trail that burns behind only those
 (`snapshot().burning`); that part takes several minutes in software.
+
+`scripts/pull-check.mjs` is the flash for a bouncer pulled and hit, the one
+ordinary stroke that gets one: focus lines in the pull's pen, a swoosh behind
+the bat (`snapshot().swishing`) and the ball's tail recoloured
+(`snapshot().tail`), with the ground left in colour. It raises it through the
+debug hook, then plays real innings in both modes, blocking every ball until a
+bouncer comes and pulling that one on time, so the rule that earns it is proved
+to fire in play and not only on demand.
 
 `scripts/nearing-check.mjs` is the wait for those moments: the card under
 the score bar ten short of a fifty or a hundred and from the third six running.

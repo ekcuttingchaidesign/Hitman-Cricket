@@ -409,8 +409,8 @@ export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: numb
 
 /**
  * A special stroke played on a full meter — the charge, the slog sweep, a
- * scoop — gets a look of its own rather than the moments' fire: the pen is
- * mint and violet, and the marks move.
+ * scoop — gets a look of its own rather than the moments' fire, and the marks
+ * move.
  *
  * Focus lines, the way a comic pulls the eye to one figure: two waves of
  * strokes run out from round him and off the edges of the screen, each a
@@ -419,12 +419,38 @@ export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: numb
  * that blows outwards and flickers, inked round, with shock-arcs sliding away
  * along the turf, specks of dirt thrown out and a few sparks thrown up.
  *
+ * The burst comes in five styles, each with its own pen, and the focus lines,
+ * arcs and sparks are drawn in that pen too: see `POWER_STYLES`. Everything
+ * but the burst is the same drawing in every style.
+ *
  * Wordless, because the ball is still in the air and the call for it is still
  * to come: this is the shot, not the score.
  */
 
-/** Mint, violet, and an indigo ink to outline them in. */
-const POWER = { a: '#43ffb1', b: '#9c78ff', ink: '#170d33' };
+/**
+ * The five bursts. Comic teeth is the one the flash was made with; flame is
+ * the fire the ball burns with, on the ground; lightning strikes, a crack
+ * running off along the turf; the dust puff is the cloud a cartoon runner
+ * leaves behind; the starburst is a comic POW squashed flat on the grass.
+ */
+export const POWER_STYLES = ['teeth', 'flame', 'bolt', 'puff', 'star'] as const;
+export type PowerStyle = typeof POWER_STYLES[number];
+
+/**
+ * Each style's pen: `a` the bright inner band, `b` the body, `ink` what both
+ * are outlined in. The ground is grey while the flash is up, so every pair is
+ * saturated and every ink dark: a pastel would sink into it.
+ */
+const POWER: Record<PowerStyle, { a: string; b: string; ink: string }> = {
+  teeth: { a: '#43ffb1', b: '#9c78ff', ink: '#170d33' },
+  flame: { a: '#ffd53a', b: '#ff6a1f', ink: '#2a0906' },
+  bolt: { a: '#eafcff', b: '#22cbff', ink: '#06123a' },
+  puff: { a: '#ffe53b', b: '#ff3d9a', ink: '#14061a' },
+  star: { a: '#ff9f1c', b: '#2f5bff', ink: '#070b2e' },
+};
+
+/** A burst's shape, the same call for every style: see `groundBurst`. */
+type BurstShape = (base: Point, w: number, h: number, side: number, seed: number, band?: number) => string;
 
 /**
  * A comic burst on the ground, the way a hit is drawn in a cartoon: low and
@@ -464,6 +490,123 @@ function groundBurst(base: Point, w: number, h: number, side: number, seed: numb
   return `${line(points)}Q${f(under.x)} ${f(under.y)} ${f(points[0].x)} ${f(points[0].y)}Z`;
 }
 
+/**
+ * Flame on the ground: seven tongues, each an S drawn up from the turf to a
+ * tip curled outwards, tallest near his boot and dying away along the grass.
+ * `band` draws the inner colour lower and leaning less, off the same draws, so
+ * the bands line up the way the fire up the screen's edges does.
+ */
+function flameBurst(base: Point, w: number, h: number, side: number, seed: number, band = 1) {
+  const random = seeded(seed);
+  const at = (x: number, y: number): Point => ({ x: base.x + side * x * w, y: base.y - y * h });
+  const p = (point: Point) => `${f(point.x)} ${f(point.y)}`;
+  const tongues = [[.02, .16, .7], [.16, .15, 1.25], [.3, .15, .9], [.44, .14, 1.05], [.57, .13, .6], [.69, .12, .42], [.8, .12, .26]];
+  const hump = (x: number) => .12 * Math.exp(-(((x - .25) / .4) ** 2)) + .02;
+  let d = `M${p(at(0, 0))}`;
+  for (const [x, wide, tall] of tongues) {
+    const x0 = x + (random() - .5) * .02;
+    const t = tall * (.85 + random() * .3) * band * (1 - x0 * .35);
+    const lean = (.12 + x0 * .28 + random() * .05) * (.7 + band * .3);
+    const v = hump(x0) * band, next = hump(x0 + wide) * band;
+    d += `C${p(at(x0 - .03, v + t * .35))} ${p(at(x0 + lean * .1 - .02, v + t * .8))} ${p(at(x0 + lean, v + t))}`;
+    d += `C${p(at(x0 + lean * .75, v + t * .5))} ${p(at(x0 + wide - .03, next + t * .22))} ${p(at(x0 + wide, next))}`;
+  }
+  d += `L${p(at(.95, .03 * band))}Q${p(at(1.12, .1 * band))} ${p(at(1.2 + .1 * band, .02))}L${p(at(.9, 0))}`;
+  return `${d}Q${p(at(.45, -.1))} ${p(at(0, 0))}Z`;
+}
+
+/**
+ * Lightning out of the ground: three forked bolts fanned outwards from beside
+ * his boot, each a zig-zag that thins to a point, and a crack skidding off
+ * along the turf. `band` is the white-hot core, the same bolts drawn thinner.
+ */
+function boltBurst(base: Point, w: number, h: number, side: number, seed: number, band = 1) {
+  const random = seeded(seed);
+  const at = (x: number, y: number): Point => ({ x: base.x + side * x * w, y: base.y - y * h });
+  const shapes: string[] = [];
+  const bolt = (from: Point, angle: number, length: number, thick: number, kinks: number, fork: number) => {
+    const ax = Math.cos(angle), ay = Math.sin(angle);
+    const points = [from];
+    for (let i = 1; i <= kinks; i++) {
+      const k = i / kinks;
+      const jitter = (i % 2 ? 1 : -1) * (.25 + random() * .35) * length / kinks;
+      points.push({ x: from.x + side * (ax * length * k - ay * jitter), y: from.y - ay * length * k - ax * jitter * .6 });
+    }
+    // Outlined either side of its spine, thinning to nothing at the tip.
+    const left: Point[] = [], right: Point[] = [];
+    points.forEach((point, i) => {
+      const ahead = points[Math.min(i + 1, points.length - 1)], behind = points[Math.max(i - 1, 0)];
+      const dx = ahead.x - behind.x, dy = ahead.y - behind.y, length = Math.hypot(dx, dy) || 1;
+      const half = thick * band * (1 - i / (points.length - 1)) ** .8 + (i === points.length - 1 ? 0 : .6);
+      left.push({ x: point.x - dy / length * half, y: point.y + dx / length * half });
+      right.push({ x: point.x + dy / length * half, y: point.y - dx / length * half });
+    });
+    shapes.push(`${line([...left, ...right.reverse()])}Z`);
+    if (fork) bolt(points[Math.floor(points.length / 2)], angle + fork, length * .42, thick * .55, 3, 0);
+  };
+  const thick = h * .18;
+  bolt(at(.05, 0), 1.25, h * 1.9, thick, 6, -.7);
+  bolt(at(.18, 0), .72, h * 1.6, thick * .85, 6, .6);
+  bolt(at(.3, 0), .3, w * .9, thick * .7, 5, .55);
+  const crack = [at(.1, .02)];
+  for (let i = 1; i <= 6; i++) crack.push(at(.1 + i * .19, (i % 2 ? .1 : -.02) * (.6 + random() * .6)));
+  const over = crack.map(point => ({ x: point.x, y: point.y - h * .065 * band }));
+  const under = crack.map((point, i) => ({ x: point.x, y: point.y + (i === crack.length - 1 ? 0 : h * .045 * band) })).reverse();
+  shapes.push(`${line([...over, ...under])}Z`);
+  return shapes.join('');
+}
+
+/**
+ * A dust cloud on the ground, the one a cartoon runner leaves behind: a mound
+ * tallest a third of the way out, its top a run of scallops. `band` is the
+ * smaller cloud inside it, set a little further out.
+ */
+function puffBurst(base: Point, w: number, h: number, side: number, seed: number, band = 1) {
+  const random = seeded(seed);
+  const at = (x: number, y: number): Point => ({ x: base.x + side * x * w, y: base.y - y * h });
+  const sweep = side > 0 ? 1 : 0;
+  const tops: Point[] = [];
+  for (let i = 0; i <= 9; i++) {
+    const x = -.05 + i / 9 * 1.1;
+    const y = (.25 + 1.05 * Math.exp(-(((x - .35) / .36) ** 2))) * (.88 + random() * .24);
+    tops.push(at(band === 1 ? x : x * .86 + .06, y * band));
+  }
+  const start = at(-.05, 0), end = at(1.08, 0);
+  let d = `M${f(start.x)} ${f(start.y)}L${f(tops[0].x)} ${f(tops[0].y)}`;
+  for (let i = 1; i < tops.length; i++) {
+    const r = Math.hypot(tops[i].x - tops[i - 1].x, tops[i].y - tops[i - 1].y) * (.55 + random() * .12);
+    d += `A${f(r)} ${f(r)} 0 0 ${sweep} ${f(tops[i].x)} ${f(tops[i].y)}`;
+  }
+  const r = Math.abs(end.x - tops[tops.length - 1].x) * .7 + 4;
+  return `${d}A${f(r)} ${f(r)} 0 0 ${sweep} ${f(end.x)} ${f(end.y)}Z`;
+}
+
+/**
+ * A comic POW star, squashed flat onto the turf beside his boot, its spikes
+ * longest on the side facing away from him. `band` is the star inside it.
+ */
+function starBurst(base: Point, w: number, h: number, side: number, seed: number, band = 1) {
+  const random = seeded(seed);
+  const c = { x: base.x + side * w * .42, y: base.y - h * .42 };
+  const points: Point[] = [];
+  for (let i = 0; i < 22; i++) {
+    const a = Math.PI + i / 22 * Math.PI * 2 + (random() - .5) * .12;
+    const outward = .75 + .45 * Math.max(0, Math.cos(a) * side);
+    const r = i % 2 ? .42 + random() * .08 : (.8 + random() * .35) * outward;
+    points.push({ x: c.x + Math.cos(a) * w * .55 * r * band, y: c.y + Math.sin(a) * h * .95 * r * band });
+  }
+  return `${line(points)}Z`;
+}
+
+/** Each style's burst, and how deep its inner band sits. */
+const BURSTS: Record<PowerStyle, { shape: BurstShape; band: number }> = {
+  teeth: { shape: groundBurst, band: .44 },
+  flame: { shape: flameBurst, band: .44 },
+  bolt: { shape: boltBurst, band: .45 },
+  puff: { shape: puffBurst, band: .62 },
+  star: { shape: starBurst, band: .6 },
+};
+
 /** A crescent: the swoosh drawn under a burst, thick in the middle, pointed at both ends. */
 function crescent(c: Point, w: number, side: number, bulge: number) {
   const p = (x: number, y: number) => `${f(c.x + side * x)} ${f(c.y + y)}`;
@@ -471,23 +614,17 @@ function crescent(c: Point, w: number, side: number, bulge: number) {
 }
 
 /**
- * How long the flash's doodle is up: a little longer than the grey, so the
- * second wave of lines can run out after the colour has started to come back.
+ * The focus lines: a dozen strokes of marker, in two unhurried waves, each
+ * starting on an oval that clears him and running out past the edge of the
+ * screen. A length of each travels out along it and is gone — a trim path —
+ * inked like every other mark in this pen: a dark stroke under the colour, a
+ * hand's bend in it, and the whole lot shivering the way drawn lines do. Not
+ * straight down, where the burst on the ground is doing the talking.
+ *
+ * Drawn off `random`, which the caller goes on drawing from: the same stream,
+ * in the same order, is what keeps a flash the same every time.
  */
-export const POWER_DOODLE_MS = 1400;
-
-export function powerDoodle(at: BatterOnScreen, lasts: number) {
-  const random = seeded(77);
-  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
-  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
-  const out: string[] = [];
-
-  // The focus lines: a dozen strokes of marker, in two unhurried waves, each
-  // starting on an oval that clears him and running out past the edge of the
-  // screen. A length of each travels out along it and is gone — a trim path —
-  // inked like every other mark in this pen: a dark stroke under the colour,
-  // a hand's bend in it, and the whole lot shivering the way drawn lines do.
-  // Not straight down, where the burst on the ground is doing the talking.
+function focusLines(at: BatterOnScreen, c: Point, s: number, random: () => number) {
   const rays: string[] = [];
   for (const [count, from, spread] of [[8, 0, 180], [5, 320, 140]] as const) {
     for (let i = 0; i < count; i++) {
@@ -515,21 +652,46 @@ export function powerDoodle(at: BatterOnScreen, lasts: number) {
         + `<path class="pw-ray ${tone}" d="${d}" ${dash} stroke-width="${f(width)}"/></g>`);
     }
   }
-  out.push(`<g class="cy-boil">${rays.join('')}</g>`);
+  return `<g class="cy-boil">${rays.join('')}</g>`;
+}
 
-  // The bursts either side of his boots: an ink outline, a violet body and a
-  // mint band inside it, each two hands flicked between.
+/**
+ * How long the flash's doodle is up: a little longer than the grey, so the
+ * second wave of lines can run out after the colour has started to come back.
+ */
+export const POWER_DOODLE_MS = 1400;
+
+export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle = 'teeth') {
+  const random = seeded(77);
+  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
+  const out: string[] = [];
+
+  out.push(focusLines(at, c, s, random));
+
+  // The bursts either side of his boots: an ink outline, the body and a
+  // brighter band inside it, each two hands flicked between. The dust puff
+  // has halftone dots over its band, the way a comic prints a cloud.
   const w = s * .95, h = s * .55;
+  const { shape: drawn, band } = BURSTS[style];
+  const defs = style === 'puff'
+    ? `<defs><pattern id="pw-halftone" width="${f(s * .08)}" height="${f(s * .08)}" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">`
+      + `<circle class="pw-dot" cx="${f(s * .04)}" cy="${f(s * .04)}" r="${f(s * .019)}"/></pattern></defs>`
+    : '';
+  // Lightning strikes with a white flash over the whole picture, gone in a blink.
+  if (style === 'bolt') out.unshift(`<rect class="pw-strike" width="${f(at.width)}" height="${f(at.height)}"/>`);
   for (const side of [-1, 1]) {
     const base = { x: at.feet.x + side * s * .2, y: at.feet.y + s * .03 };
     const frames = [0, 1].map(k => {
       const seed = 900 + (side + 1) * 10 + k;
-      const shape = (band: number) => groundBurst(base, w, h, side, seed, band);
+      const shape = (depth: number) => drawn(base, w, h, side, seed, depth);
       return `<g class="pw-frame"><path class="pw-burst-ink" d="${shape(1)}" stroke-width="${f(Math.max(3, s * .07))}"/>`
-        + `<path class="pw-burst-b" d="${shape(1)}"/><path class="pw-burst-a" d="${shape(.44)}"/></g>`;
+        + `<path class="pw-burst-b" d="${shape(1)}"/><path class="pw-burst-a" d="${shape(band)}"/>`
+        + (style === 'puff' ? `<path class="pw-halftone" d="${shape(band)}"/>` : '') + '</g>';
     }).join('');
-    out.push(`<g class="pw-burst" style="transform-origin:${f(base.x)}px ${f(base.y)}px">${frames}</g>`);
-    // Crescents under it, ink and violet, sliding away along the turf.
+    const drift = style === 'puff' ? `;--drift:${f(side * s * .08)}px;--drift-out:${f(side * s * .3)}px` : '';
+    out.push(`<g class="pw-burst is-${style}" style="transform-origin:${f(base.x)}px ${f(base.y)}px${drift}">${frames}</g>`);
+    // Crescents under it, in ink and the body's colour, sliding away along the turf.
     for (const [k, dx, dy, cw, bulge] of [[0, .3, .14, .34, .75], [1, .85, .1, .18, .8], [2, .05, .26, .14, .8]] as const) {
       out.push(`<path class="pw-arc${k === 1 ? ' is-b' : ''}" d="${crescent({ x: base.x + side * w * dx, y: base.y + s * dy }, s * cw, side, bulge)}" `
         + `style="--dx:${f(side * s * .3)}px;--delay:${40 + k * 60}ms"/>`);
@@ -557,10 +719,61 @@ export function powerDoodle(at: BatterOnScreen, lasts: number) {
   }
 
   const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
-    + out.join('') + '</svg>';
+    + defs + out.join('') + '</svg>';
   const element = document.createElement('div');
   element.className = 'milestone is-power';
-  for (const [name, value] of Object.entries(POWER)) element.style.setProperty(`--pw-${name}`, value);
+  element.dataset.style = style;
+  for (const [name, value] of Object.entries(POWER[style])) element.style.setProperty(`--pw-${name}`, value);
+  element.style.setProperty('--out', `${lasts - 260}ms`);
+  element.innerHTML = svg;
+  return element;
+}
+
+/**
+ * The pull's pens: the focus lines are drawn in `a` and `b` and inked in
+ * `ink`, and the swoosh behind the bat runs from `swish.head` at the bat to
+ * `swish.tail` behind it (see `GameScene.pull`). The ball's streak is red
+ * whichever pen is up.
+ *
+ * White and blue is the one it plays with. Blue is as far from the ball's
+ * red as a colour gets, so the bat's swoosh and the ball's streak read as two
+ * things going two ways rather than one red smear; red is also already the
+ * wicket's colour, and a pull for six is not a warning. Its swoosh runs blue
+ * into white, the other way round from its lines, because a white head
+ * vanished into the pale strip right where the eye was. The others stay to
+ * be tried side by side, through `?pullpen=` (see Game's `pullPen`).
+ */
+export const PULL_PENS = {
+  ice: { a: '#ffffff', b: '#2f8bff', ink: '#071433', swish: { head: '#2f8bff', tail: '#ffffff' } },
+  gold: { a: '#ffd23f', b: '#12e0c4', ink: '#062a2a', swish: { head: '#ffd23f', tail: '#12e0c4' } },
+  neon: { a: '#c6ff3d', b: '#ff2bd6', ink: '#1d0628', swish: { head: '#c6ff3d', tail: '#ff2bd6' } },
+  red: { a: '#ffffff', b: '#ff2d3d', ink: '#1a0508', swish: { head: '#ffffff', tail: '#ff2d3d' } },
+  royal: { a: '#ffb000', b: '#7a3cff', ink: '#14082e', swish: { head: '#ffb000', tail: '#7a3cff' } },
+} as const;
+export type PullPen = keyof typeof PULL_PENS;
+
+/** How long a pulled bouncer's doodle is up: long enough for the second wave of lines. */
+export const PULL_DOODLE_MS = 1300;
+
+/**
+ * A bouncer pulled and hit: an ordinary stroke, but the hardest one in the
+ * game to land — only middled does it — so it gets a flash of its own. Only
+ * the focus lines are drawn here: no burst on the ground, no grey, because it
+ * is a great shot rather than a special one. The rest of it is in the ground's
+ * renderer: a swoosh following the bat through its swing and a red streak
+ * behind the ball (see `GameScene.pull`).
+ */
+export function pullDoodle(at: BatterOnScreen, lasts: number, pen: PullPen = 'ice') {
+  const random = seeded(41);
+  const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+  const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
+  const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
+    + focusLines(at, c, s, random) + '</svg>';
+  const element = document.createElement('div');
+  element.className = 'milestone is-pull';
+  element.dataset.pen = pen;
+  const { a, b, ink } = PULL_PENS[pen];
+  for (const [name, value] of Object.entries({ a, b, ink })) element.style.setProperty(`--pw-${name}`, value);
   element.style.setProperty('--out', `${lasts - 260}ms`);
   element.innerHTML = svg;
   return element;
