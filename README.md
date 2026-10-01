@@ -205,7 +205,7 @@ The on drive has a six of its own too, from a broadcast recording: swipe to long
 
 The pull is not a separate control: swipe leg side (or press `A`) at a ball up around your chest and the batter plays it off the back foot with a horizontal bat, finishing high with the hands in front of the chest, instead of the front-foot flick he uses at a normal-height ball. Only the pull follows a ball up there — every other stroke swings at its own height and a bouncer passes over the bat.
 
-Only a perfectly timed pull hits a bouncer at all, so one that does gets a flash of its own, in either mode: focus lines out from him, a gold swoosh behind the bat, and a gold streak behind the ball, with the ground left in its colours. `?bouncers=1` is the playtest for it: every ball a bouncer, in either mode, with the timing and the scoring unchanged.
+Only a perfectly timed pull hits a bouncer at all, so one that does gets a flash of its own, in either mode: focus lines out from him, a swoosh behind the bat, and a red streak behind the ball, with the ground left in its colours. `?bouncers=1` is the playtest for it: every ball a bouncer, in either mode, with the timing and the scoring unchanged. `?pullpen=` tries the lines and the swoosh in another pair of colours — `ice`, `neon`, `red` or `royal` — against the gold and turquoise they play in.
 
 A four runs to the rope along the ground; only a six leaves it, and only a mishit hangs in the air.
 

@@ -83,15 +83,13 @@ const SWISH_MS = 560;
 const SWISH_SAMPLES = 32;
 /**
  * The colours the struck ball's tail is drawn in, head to tail. Fire for a
- * special stroke; gold into turquoise for a pulled bouncer, the pull's pen
- * (see `pullDoodle`), and the same two colours the swoosh behind the bat
- * runs through.
+ * special stroke; red for a pulled bouncer, bright at the ball and going to
+ * crimson, so it reads apart from the fire's yellow.
  */
 const TAILS = {
   fire: [0xffd23f, 0xff7a1f, 0xd7261b],
-  pull: [0xfff1a8, 0xffd23f, 0x12e0c4],
+  pull: [0xff6a55, 0xf01b2c, 0x9c0018],
 } as const;
-const PULL_SWISH = { head: new THREE.Color(0xffe06a), tail: new THREE.Color(0x12e0c4) };
 /** How far gone the colour is, a given time into his celebration. */
 function muteAt(age: number) {
   if (age < 0 || age >= CELEBRATION_MS) return 0;
@@ -125,7 +123,7 @@ export class GameScene {
    * The fire behind a ball struck with a special stroke: yellow at the ball,
    * red at the tail, glowing rather than lit, and flickering. Drawn instead of
    * the ordinary trail on those balls, and on a pulled bouncer, recoloured
-   * gold into turquoise (see `TAILS`); on no others.
+   * red (see `TAILS`); on no others.
    */
   private fire: THREE.Mesh[] = [];
   /** Which tail the struck ball has: fire, the pull's, or the ordinary trail. */
@@ -141,6 +139,9 @@ export class GameScene {
   private swish!: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   private batPath: { at: number; toe: THREE.Vector3 }[] = [];
   private swishedAt = -Infinity;
+  /** The swoosh's colours, at the bat and behind it: the pull's pen (see `PULL_PENS`). */
+  private swishHead = new THREE.Color(0xffd23f);
+  private swishTail = new THREE.Color(0x12e0c4);
   private resizeObserver: ResizeObserver;
   private hitStart = 0;
   private hitOrigin = new THREE.Vector3();
@@ -308,7 +309,7 @@ export class GameScene {
       if (across.lengthSq() > 1e-8) side.copy(across.normalize());
       else if (!i) side.set(0, 1, 0);
       const half = SWISH_WIDTH / 2 * (1 - f) ** .5;
-      c.copy(PULL_SWISH.head).lerp(PULL_SWISH.tail, Math.min(1, f * 1.6));
+      c.copy(this.swishHead).lerp(this.swishTail, Math.min(1, f * 1.6));
       // Solid at the bat and gone at the tail.
       const alpha = (1 - f) ** 1.1 * .95 * fade;
       position.setXYZ(i * 2, toe.x + side.x * half, toe.y + side.y * half, toe.z + side.z * half);
@@ -448,10 +449,13 @@ export class GameScene {
   power(now: number) { this.poweredAt = now; this.tail('fire'); }
   /**
    * A bouncer pulled and hit, from the moment it is hit: a swoosh behind the
-   * bat and a gold streak behind the ball. No grey — it is a great shot, not
-   * a special one.
+   * bat, from `head` at the bat to `tail` behind it, and a red streak behind
+   * the ball. No grey — it is a great shot, not a special one.
    */
-  pull(now: number) { this.swishedAt = now; this.tail('pull'); }
+  pull(now: number, swish: { head: string; tail: string }) {
+    this.swishedAt = now; this.tail('pull');
+    this.swishHead.set(swish.head); this.swishTail.set(swish.tail);
+  }
   /** Whether the swoosh behind the bat is up this frame. For the checks. */
   get swishing() { return this.swish.visible; }
   /** Which tail the struck ball has, for the checks: 'fire', 'pull', or null. */

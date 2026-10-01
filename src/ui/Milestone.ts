@@ -730,12 +730,20 @@ export function powerDoodle(at: BatterOnScreen, lasts: number, style: PowerStyle
 }
 
 /**
- * The pull's pen: gold and turquoise, inked in a deep teal. The swoosh behind
- * the bat and the streak behind the ball run through the same two colours
- * (see `TAILS` in GameScene), and none of the special strokes' five pens use
- * either, so a pulled bouncer is never mistaken for one of those.
+ * The pull's pens: the focus lines are drawn in `a` and `b` and inked in
+ * `ink`, and the swoosh behind the bat runs from `a` at the bat to `b` behind
+ * it (see `GameScene.pull`). The ball's streak is red whichever pen is up.
+ * Gold and turquoise is the one it plays with; the others are there to be
+ * tried side by side, through `?pullpen=` (see Game's `pullPen`).
  */
-const PULL = { a: '#ffd23f', b: '#12e0c4', ink: '#062a2a' };
+export const PULL_PENS = {
+  gold: { a: '#ffd23f', b: '#12e0c4', ink: '#062a2a' },
+  ice: { a: '#ffffff', b: '#2f8bff', ink: '#071433' },
+  neon: { a: '#c6ff3d', b: '#ff2bd6', ink: '#1d0628' },
+  red: { a: '#ffffff', b: '#ff2d3d', ink: '#1a0508' },
+  royal: { a: '#ffb000', b: '#7a3cff', ink: '#14082e' },
+} as const;
+export type PullPen = keyof typeof PULL_PENS;
 
 /** How long a pulled bouncer's doodle is up: long enough for the second wave of lines. */
 export const PULL_DOODLE_MS = 1300;
@@ -745,10 +753,10 @@ export const PULL_DOODLE_MS = 1300;
  * game to land — only middled does it — so it gets a flash of its own. Only
  * the focus lines are drawn here: no burst on the ground, no grey, because it
  * is a great shot rather than a special one. The rest of it is in the ground's
- * renderer: a swoosh following the bat through its swing and a gold streak
+ * renderer: a swoosh following the bat through its swing and a red streak
  * behind the ball (see `GameScene.pull`).
  */
-export function pullDoodle(at: BatterOnScreen, lasts: number) {
+export function pullDoodle(at: BatterOnScreen, lasts: number, pen: PullPen = 'gold') {
   const random = seeded(41);
   const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
   const c = { x: at.head.x, y: at.head.y + (at.feet.y - at.head.y) * .48 };
@@ -756,7 +764,8 @@ export function pullDoodle(at: BatterOnScreen, lasts: number) {
     + focusLines(at, c, s, random) + '</svg>';
   const element = document.createElement('div');
   element.className = 'milestone is-pull';
-  for (const [name, value] of Object.entries(PULL)) element.style.setProperty(`--pw-${name}`, value);
+  element.dataset.pen = pen;
+  for (const [name, value] of Object.entries(PULL_PENS[pen])) element.style.setProperty(`--pw-${name}`, value);
   element.style.setProperty('--out', `${lasts - 260}ms`);
   element.innerHTML = svg;
   return element;

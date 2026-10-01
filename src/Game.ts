@@ -20,7 +20,7 @@ import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
-import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, type PowerStyle } from './ui/Milestone';
+import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
   fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
@@ -1862,10 +1862,20 @@ export class Game {
    * and a streak behind the ball. See `pulledBouncer` and `pullDoodle`.
    */
   private pullUp() {
-    this.scene.pull(this.elapsed);
-    this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS);
+    const pen = PULL_PENS[this.pullPen];
+    this.scene.pull(this.elapsed, { head: pen.a, tail: pen.b });
+    this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS, this.pullPen);
     track('pulled-bouncer', 'Pulled a bouncer');
   }
+  /**
+   * `?pullpen=ice` and the like: which colours a pulled bouncer's focus lines
+   * and swoosh are drawn in, for trying them against each other. Gold and
+   * turquoise unless a link names another of `PULL_PENS`.
+   */
+  private readonly pullPen: PullPen = (() => {
+    const asked = new URLSearchParams(location.search).get('pullpen') ?? '';
+    return asked in PULL_PENS ? asked as PullPen : 'gold';
+  })();
   private readonly powerStyles = new ShuffleBag(POWER_STYLES);
   /** The burst the last special stroke was drawn with, for the debug snapshot. */
   private powerStyle: PowerStyle | null = null;
@@ -2810,7 +2820,7 @@ export class Game {
       compatibility: this.outcome?.compatibility ?? '—', quality: this.outcome?.quality.toFixed(2) ?? '—', outcome: this.outcome?.feedback ?? '—', shot: this.attempt?.shotType ?? '—',
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
-      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind };
+      pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
