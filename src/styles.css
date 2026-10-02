@@ -2030,16 +2030,18 @@ body.start-screen #sound{pointer-events:auto}
 .pause-card .card-shares .story-key{margin-top:0;font-size:12.5px;letter-spacing:.6px}
 .pause-card .story-key{margin-top:11px}
 .pause-card .start-hint{margin-top:10px;color:var(--quiet)}
-/* Day or night, under the two ways out: one ledge in the story keys' navy,
-   split in two, the half in play lifted out of it in the key's own cream.
-   A sun and a moon say which is which before the words do. */
+/* Day or night, under the two ways out: one dark ledge split in two, the half
+   in play filled in the cream the keys write in, with navy on it. In the keys'
+   own navy the chosen half read as a third key under Restart and Change mode
+   rather than as the setting that is on. A sun and a moon say which is which
+   before the words do. */
 .lights-toggle{display:flex;gap:4px;margin-top:11px;padding:4px;border-radius:12px;background:#0f2638;box-shadow:inset 0 2px 0 #0008}
 .lights-toggle.hidden{display:none}
 .lights-option{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border:0;border-radius:9px;
   background:transparent;color:#9fb2bd;font-family:var(--cta);font-weight:400;font-size:12.5px;letter-spacing:.8px;cursor:pointer;transition:background .15s,color .15s}
 .lights-option svg{width:17px;height:17px}
 .lights-option:hover:not(.is-on){color:#ffeede}
-.lights-option.is-on{background:#26506e;color:#ffeede;box-shadow:0 3px 0 #0b1e2b,inset 0 1px 0 #ffffff1f}
+.lights-option.is-on{background:#ffeede;color:#102536;box-shadow:0 3px 0 #0b1e2b,inset 0 1px 0 #ffffff}
 .lights-option:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 /* ── What to do next ───────────────────────────────────────────────────── */
