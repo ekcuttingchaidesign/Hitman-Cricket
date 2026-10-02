@@ -7,7 +7,7 @@ import { HALL, glassFinish, pavilionHall } from './pavilion';
  * turf, the boards along the rope and the floodlights are taken as given.
  *
  * Two are built. **The pavilion ground** is the one every mode plays on now —
- * a Victorian red-brick pavilion behind the bowler (`pavilion.ts`), a white
+ * a Victorian pavilion, cream under green roofs, behind the bowler (`pavilion.ts`), a white
  * sightscreen and members' benches in front of it, two-tier white stands with
  * peaked tent roofs down one side and a flat cantilever down the other, and a
  * crowd dressed for an English summer. It is a ground of that kind, not a copy

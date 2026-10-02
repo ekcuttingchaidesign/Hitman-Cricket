@@ -41,7 +41,7 @@ export function unveilMarkup(): string {
   return `
     <div class="unveil is-loading" style="--at:${REST * 100}%">
       <div class="unveil-layer is-after">${shot('after',
-    'The ground now: a red-brick pavilion with two towers and its balconies behind the bowler, a white sightscreen, and white two-tier stands with tent roofs.')}
+    'The ground now: a cream pavilion with two green-roofed towers and its balconies behind the bowler, a white sightscreen, and white two-tier stands with tent roofs.')}
         <span class="unveil-tag">NEW GROUND</span>
       </div>
       <div class="unveil-layer is-before">${shot('before',

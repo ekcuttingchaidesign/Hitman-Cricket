@@ -5,16 +5,18 @@ import type { Batch } from './build';
  * The pavilion at the bowler's end of the pavilion ground.
  *
  * A Victorian members' pavilion of the kind cricket grew up in front of: a
- * tower at either end under a bell-cast slate roof, each with its
+ * tower at either end under a bell-cast roof, each with its
  * dressing-room balcony, and between them the members on two balconies one
  * over the other, on slim white columns in front of tall arched windows,
  * under a canopy with a clock over the middle and the flag above it.
  *
  * **It is part of the ground, not a picture stood behind it**, and two things
- * keep it that way. The palette is the stands': the same whites for the paint,
- * the same painted concrete for the stone and the terraces, slate in the
- * stands' steel-grey, and a dusty brick light enough to sit in the haze with
- * them rather than in front of it. And the detail stops at what reads from the
+ * keep it that way. The palette is the stands': cream-rendered walls in the
+ * family of their painted concrete, the same white for the paint, and the
+ * roofs in the green of the flag and of the crowd. Brick was tried twice, a
+ * saturated red and then a dusty terracotta, and both times it was the one
+ * warm brown thing in a ground of creams, whites, greens and sky — a building
+ * from somewhere else, however its detail was pared back. And the detail stops at what reads from the
  * striker's end — the towers and their roofs, the balconies, the clock. A
  * richer first draft, with quoins, balusters, glazing bars, dormers and vanes,
  * was busier than everything around it put together, and from the crease it
@@ -23,7 +25,7 @@ import type { Batch } from './build';
  * The depth that is there is built, because nothing else will show it: the
  * building stands outside the sun's shadow frustum, so a flat front with
  * windows on it looks exactly that. Sills, cornices and the balconies stand
- * proud of the wall; the walls behind the balconies are a shaded brick; the
+ * proud of the wall; the walls behind the balconies are in shade; the
  * faceted shading lights every top face and darkens every soffit.
  *
  * Laid out in the stage's own frame: the field is towards -z, and the main
@@ -32,16 +34,16 @@ import type { Batch } from './build';
  */
 
 export const HALL = {
-  /** A dusty terracotta: brick, but in the stands' light rather than against it. */
-  brick: 0xae7660,
-  /** The same brick in the shade of a balcony. */
-  shade: 0x8a5c4b,
-  /** Stone dressings, in the cream of the stands' concrete. */
-  stone: 0xe6dfcf,
+  /** The walls: a cream render, a shade warmer than the stands' concrete so the trim still shows on it. */
+  wall: 0xe3dac6,
+  /** The same render in the shade of a balcony. */
+  shade: 0xbcb19b,
+  /** Stone dressings and trim, paler than the walls. */
+  stone: 0xf3efe4,
   /** The stands' white: columns, balcony fronts, the canopy. */
   paint: 0xf7f4ea,
-  /** Slate, in the stands' steel-grey. */
-  slate: 0x7f8b92,
+  /** The roofs: the flag's green and the crowd's, gone grey in the distance. */
+  roof: 0x55705f,
   /** The windows: grey-blue, catching the sky rather than holes in the wall. */
   glass: 0x5f7380,
   /** The open doorways at ground level. */
@@ -53,7 +55,7 @@ export const HALL = {
   flag: 0x2f5d46,
 } as const;
 
-/** The windows catch the sky: smooth and a little metallic, where the brick is faceted and dry. */
+/** The windows catch the sky: smooth and a little metallic, where the render is faceted and dry. */
 export const glassFinish = () => new THREE.MeshStandardMaterial({ color: HALL.glass, roughness: 0.3, metalness: 0.3 });
 
 /** Somebody sitting at x, y, z, the `n`th of them for the colour of their shirt. */
@@ -78,15 +80,15 @@ const TOWER_Z = TOWER_FRONT + TOWER_W / 2;
 
 export function pavilionHall(b: Batch, seat: Seat) {
   mainBlock(b, seat);
-  roof(b);
+  canopy(b);
   attic(b);
   for (const side of [-1, 1]) tower(b, side * TOWER_X);
 }
 
 /** The two balconies, the long rooms behind them, and the arcade under the first. */
 function mainBlock(b: Batch, seat: Seat) {
-  const { brick, shade, stone, paint, dark, terrace } = HALL;
-  b.box(HALF * 2, CANOPY, DEPTH, brick, 0, CANOPY / 2, FRONT + DEPTH / 2);
+  const { wall, shade, stone, paint, dark, terrace } = HALL;
+  b.box(HALF * 2, CANOPY, DEPTH, wall, 0, CANOPY / 2, FRONT + DEPTH / 2);
   b.box(HALF * 2 + 0.2, 0.5, DEPTH + 0.2, stone, 0, 0.25, FRONT + DEPTH / 2);
   // The arcade at ground level, mostly behind the sightscreen.
   for (const x of BAYS) arched(b, x, 0.5, FRONT, 1.5, 2.1, dark);
@@ -115,27 +117,27 @@ function mainBlock(b: Batch, seat: Seat) {
   }
 }
 
-/** The canopy over the top balcony, the slate roof behind it, and two chimneys. */
-function roof(b: Batch) {
-  const { brick, stone, paint, slate } = HALL;
+/** The canopy over the top balcony, the roof behind it, and two chimneys. */
+function canopy(b: Batch) {
+  const { wall, stone, paint, roof } = HALL;
   b.box(HALF * 2 + 0.2, 0.2, BALCONY + 1, paint, 0, CANOPY, FRONT - BALCONY / 2 + 0.4);
   soffit(b, HALF * 2, BALCONY, CANOPY - 0.105, FRONT - BALCONY / 2);
   ledge(b, HALF * 2 + 0.3, 0.4, 0.12, stone, 0, CANOPY - 0.04, FRONT - BALCONY - 0.1);
   // A low parapet along the top, either side of the attic.
   for (const side of [-1, 1]) b.box(HALF - 2.7, 0.5, 0.25, stone, side * (2.7 + (HALF - 2.7) / 2), CANOPY + 0.35, FRONT - BALCONY + 0.05);
   const ridge = new THREE.CylinderGeometry(1, 1, HALF * 2, 3).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2);
-  b.add(ridge.scale(1, 1.1, 2.9).translate(0, CANOPY + 0.55, FRONT + DEPTH / 2), slate);
+  b.add(ridge.scale(1, 1.1, 2.9).translate(0, CANOPY + 0.55, FRONT + DEPTH / 2), roof);
   for (const x of [-4.6, 4.6]) {
-    b.box(0.7, 2.2, 0.95, brick, x, CANOPY + 1.1, FRONT + 2.6);
+    b.box(0.7, 2.2, 0.95, wall, x, CANOPY + 1.1, FRONT + 2.6);
     ledge(b, 0.9, 0.16, 1.15, stone, x, CANOPY + 2.25, FRONT + 2.6);
   }
 }
 
 /** The attic over the middle of the canopy: the clock, a pediment over it, and the flag on top. */
 function attic(b: Batch) {
-  const { brick, stone, paint, flag } = HALL;
+  const { wall, stone, paint, flag } = HALL;
   const base = CANOPY + 0.1, front = FRONT - BALCONY + 0.05;
-  b.box(5.2, 1.5, 0.9, brick, 0, base + 0.75, front + 0.45);
+  b.box(5.2, 1.5, 0.9, wall, 0, base + 0.75, front + 0.45);
   for (const x of [-2.45, 2.45]) b.box(0.4, 1.5, 1, stone, x, base + 0.75, front + 0.45);
   ledge(b, 5.7, 0.2, 1.15, stone, 0, base + 1.6, front + 0.45);
   // The clock: a stone ring, a white face, two hands at ten to two.
@@ -144,7 +146,7 @@ function attic(b: Batch) {
   b.add(new THREE.CircleGeometry(0.52, 20).rotateY(Math.PI).translate(0, clock.y, clock.z - 0.02), paint);
   for (const [length, turn] of [[0.32, Math.PI / 3], [0.44, -Math.PI / 3]] as const) {
     const hand = new THREE.BoxGeometry(0.05, length, 0.02).translate(0, length / 2, 0).rotateZ(turn);
-    b.add(hand.translate(0, clock.y, clock.z - 0.05), HALL.slate);
+    b.add(hand.translate(0, clock.y, clock.z - 0.05), HALL.roof);
   }
   // The pediment: a stone triangle with its raking cornices standing proud.
   const top = base + 1.7, span = 5.6, rise = 1.2;
@@ -160,14 +162,14 @@ function attic(b: Batch) {
 }
 
 /**
- * A tower: brick on a stone plinth, a stone strip up each front corner and a
+ * A tower: rendered walls on a stone plinth, a stone strip up each front corner and a
  * course at each floor; arched windows, the dressing room's doors onto its
- * balcony; a cornice; and a bell-cast slate roof with a lantern and a finial.
+ * balcony; a cornice; and a bell-cast roof with a lantern and a finial.
  */
 function tower(b: Batch, x: number) {
-  const { brick, stone, slate, dark, paint } = HALL;
+  const { wall, stone, roof, dark, paint } = HALL;
   const half = TOWER_W / 2, z = TOWER_Z, face = TOWER_FRONT;
-  b.box(TOWER_W, TOWER_TOP, TOWER_W, brick, x, TOWER_TOP / 2, z);
+  b.box(TOWER_W, TOWER_TOP, TOWER_W, wall, x, TOWER_TOP / 2, z);
   b.box(TOWER_W + 0.24, 0.6, TOWER_W + 0.24, stone, x, 0.3, z);
   for (const y of [L1, L2]) ledge(b, TOWER_W + 0.2, 0.18, TOWER_W + 0.2, stone, x, y, z);
   for (const corner of [-1, 1]) b.box(0.34, TOWER_TOP - 0.6, 0.06, stone, x + corner * (half - 0.17), 0.6 + (TOWER_TOP - 0.6) / 2, face - 0.03);
@@ -187,12 +189,12 @@ function tower(b: Batch, x: number) {
   ledge(b, TOWER_W + 0.56, 0.2, TOWER_W + 0.56, stone, x, TOWER_TOP + 0.3, z);
   const eaves = TOWER_TOP + 0.4, corner = (TOWER_W + 0.5) / 2 * Math.SQRT2;
   const profile = [[1, 0], [0.9, 0.28], [0.67, 0.95], [0.44, 1.75], [0.27, 2.4], [0.18, 2.62]].map(([r, y]) => new THREE.Vector2(r * corner, y));
-  b.add(new THREE.LatheGeometry(profile, 4, Math.PI / 4).translate(x, eaves, z), slate);
+  b.add(new THREE.LatheGeometry(profile, 4, Math.PI / 4).translate(x, eaves, z), roof);
   // The lantern, its cap and a finial.
   const lantern = eaves + 2.62;
   b.box(0.8, 0.55, 0.8, paint, x, lantern + 0.275, z);
-  b.peak(1, 0.45, 1, slate, x, lantern + 0.55, z);
-  b.post(0.035, 0.7, slate, x, lantern + 1.3, z);
+  b.peak(1, 0.45, 1, roof, x, lantern + 0.55, z);
+  b.post(0.035, 0.7, roof, x, lantern + 1.3, z);
 }
 
 /**
