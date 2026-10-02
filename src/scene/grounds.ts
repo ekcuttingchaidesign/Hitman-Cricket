@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 import { Batch, box, colors, cylinder, mat } from './build';
+import { HALL, glassFinish, pavilionHall } from './pavilion';
 
 /**
  * The stands and the building at the far end: what a ground is, once the
  * turf, the boards along the rope and the floodlights are taken as given.
  *
  * Two are built. **The pavilion ground** is the one every mode plays on now —
- * a red-brick pavilion with two towers and its balconies behind the bowler,
- * a white sightscreen in front of it, two-tier white stands with peaked tent
- * roofs down one side and a flat cantilever down the other, and a crowd
- * dressed for an English summer. It is a ground of that kind, not a copy of a
- * named one, and it is never called anything but the pavilion ground.
+ * a Victorian red-brick pavilion behind the bowler (`pavilion.ts`), a white
+ * sightscreen and members' benches in front of it, two-tier white stands with
+ * peaked tent roofs down one side and a flat cantilever down the other, and a
+ * crowd dressed for an English summer. It is a ground of that kind, not a copy
+ * of a named one, and it is never called anything but the pavilion ground.
  *
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
@@ -79,20 +80,16 @@ function bowl(world: THREE.Object3D) {
   }
 }
 
-/** The pavilion ground's colours, in sRGB as a designer would pick them. */
+/** The stands' colours, in sRGB as a designer would pick them. The pavilion's own are in `pavilion.ts`. */
 const PAVILION = {
-  brick: 0xb0603f,
-  stone: 0xece2c8,
-  slate: 0x4f5b63,
-  /** Railings, the colonnade, the tents and the sightscreen. */
+  stone: HALL.stone,
+  /** The colonnade, the tents and the canopies. */
   white: 0xf7f4ea,
-  /** Glass in shade: the windows and the rooms behind the balconies. */
-  glass: 0x2b343a,
   /** The stands' concrete, painted. */
   terrace: 0xe4dfd2,
   steel: 0x8d989c,
-  flag: 0x2f5d46,
   sightscreen: 0xf4f3ee,
+  seam: 0xd6d3c8,
 } as const;
 
 /**
@@ -166,77 +163,24 @@ function pavilion(world: THREE.Object3D) {
     for (const x of [-3.9, 3.9]) scenery.post(0.09, eaves, PAVILION.steel, x, eaves / 2, middle + depth / 2 - 0.3, frame);
   }
 
-  // The building is drawn at full size and stood a little smaller and further
-  // back: at full size from the striker's end it filled the sky over the
-  // bowler, and a ground is the frame round the play rather than the picture.
-  const building = new Batch();
-  pavilionBuilding(building);
-  const hall = new THREE.Group();
-  building.build(hall);
-  hall.scale.setScalar(HALL.scale);
-  hall.position.z = HALL.front * (1 - HALL.scale) + HALL.setBack;
-  world.add(hall);
-  // Members' benches in front of it, and the sightscreen in front of those.
   const here = new THREE.Matrix4();
+  pavilionHall(scenery, (x, y, z, n) => seat(here, x, y, z, n));
+  scenery.finish(HALL.glass, glassFinish());
+  // Members' benches in front of it, between its towers, and the sightscreen in front of those.
   for (let row = 0; row < 3; row++) {
     const top = 0.45 + row * 0.45;
-    scenery.box(24, top, 0.75, PAVILION.terrace, 0, top / 2, 46.9 + row * 0.75);
-    for (let col = 0; col < 32; col++) seat(here, -11.6 + col * 0.75, top + 0.3, 46.9 + row * 0.75, row * 5 + col * 3 + col % 2);
+    scenery.box(14.2, top, 0.75, PAVILION.terrace, 0, top / 2, 46.4 + row * 0.75);
+    for (let col = 0; col < 19; col++) seat(here, -6.75 + col * 0.75, top + 0.3, 46.4 + row * 0.75, row * 5 + col * 3 + col % 2);
   }
-  scenery.box(12.5, 4.4, 0.3, PAVILION.sightscreen, 0, 2.2, 46.1);
+  // The sightscreen: tall enough to stand behind the bowler's hand and no
+  // taller, so the members on the first balcony still show over it. Panels,
+  // a capping rail along the top.
+  scenery.box(12.5, 3.3, 0.3, PAVILION.sightscreen, 0, 1.65, 45.7);
+  scenery.box(12.7, 0.12, 0.42, PAVILION.steel, 0, 3.32, 45.7);
+  for (let i = 1; i < 6; i++) scenery.box(0.05, 3.2, 0.02, PAVILION.seam, -6.25 + i * 12.5 / 6, 1.62, 45.54);
   scenery.build(world);
 
   const crowd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.55, 0.55), mat(0xffffff), seats.length);
   seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(seatColours[i])); });
   crowd.instanceMatrix.needsUpdate = true; world.add(crowd);
-}
-
-/** Where the pavilion's front is drawn, and how it is stood on the ground: smaller, and further back. */
-const HALL = { front: 49.5, scale: 0.85, setBack: 1.5 } as const;
-
-/**
- * Red brick between two towers: two tiers of balconies on a white colonnade
- * across the middle, a row of windows over them, a pediment with a clock and
- * the flag, and a slate pyramid on each tower. Drawn with its front on
- * `HALL.front`, straight behind the bowler; the sightscreen hides its ground floor.
- */
-function pavilionBuilding(scenery: Batch) {
-  const { brick, stone, slate, white, glass, flag } = PAVILION;
-  const front = HALL.front, depth = 6, centre = front + depth / 2;
-  const floors = [3.6, 7.1];
-
-  // The middle block, and the stone courses that run across it.
-  scenery.box(17, 10.5, depth, brick, 0, 5.25, centre);
-  for (const y of [...floors, 10.5]) scenery.box(17.2, 0.35, depth + 0.1, stone, 0, y, centre);
-  // Two tiers of balconies: the floor, a white rail along its edge, the rooms
-  // behind in shade, and columns carrying the one above.
-  for (const y of floors) {
-    scenery.box(16, 0.22, 1.6, stone, 0, y, front - 0.8);
-    scenery.box(16, 0.85, 0.07, white, 0, y + 0.53, front - 1.55);
-    scenery.box(15.4, 2.6, 0.08, glass, 0, y + 1.6, front - 0.04);
-    for (let i = 0; i < 7; i++) scenery.post(0.09, 3.3, white, -7.5 + i * 2.5, y + 1.75, front - 1.5);
-  }
-  // A stone canopy over the top of the colonnade.
-  scenery.box(16, 0.22, 1.6, stone, 0, 10.5, front - 0.8);
-  // The top floor's windows.
-  for (let i = 0; i < 7; i++) scenery.box(1.1, 1.7, 0.08, glass, -6 + i * 2, 8.9, front - 0.04);
-  // A slate roof behind the parapet, and the pediment over the middle with its clock.
-  scenery.box(16.6, 0.5, depth - 1, slate, 0, 10.9, centre + 0.4);
-  const pediment = new THREE.CylinderGeometry(1.4, 1.4, 0.5, 3).rotateX(-Math.PI / 2).scale(2.9, 1, 1);
-  scenery.add(pediment.translate(0, 11.4, front + 0.1), stone);
-  scenery.add(new THREE.CircleGeometry(0.62, 20).rotateY(Math.PI).translate(0, 11.25, front - 0.17), glass);
-  scenery.add(new THREE.CircleGeometry(0.5, 20).rotateY(Math.PI).translate(0, 11.25, front - 0.18), white);
-  scenery.post(0.06, 3.4, white, 0, 13.8, front + 0.4);
-  scenery.box(1.6, 0.95, 0.04, flag, 0.82, 14.9, front + 0.4);
-
-  // The towers, a little proud of the front, each under its own slate pyramid.
-  for (const side of [-1, 1]) {
-    const x = side * 10.8;
-    scenery.box(4.6, 13.5, depth + 0.8, brick, x, 6.75, centre);
-    for (const y of [...floors, 10.5]) scenery.box(4.8, 0.35, depth + 1, stone, x, y, centre);
-    scenery.box(5, 0.4, depth + 1.2, stone, x, 13.7, centre);
-    for (const y of [1.9, 5.4, 8.9, 12.1]) for (const dx of [-1.1, 1.1]) scenery.box(1, 1.9, 0.08, glass, x + dx, y, front - 0.44);
-    scenery.peak(5, 3.6, depth + 1.2, slate, x, 13.9, centre);
-    scenery.post(0.07, 1.4, white, x, 18.2, centre);
-  }
 }

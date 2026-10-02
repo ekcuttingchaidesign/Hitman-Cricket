@@ -19,8 +19,9 @@ describe('the ground', () => {
     world.traverse(object => { if (object instanceof THREE.Mesh) meshes.push(object); });
     const crowd = meshes.filter(mesh => mesh instanceof THREE.InstancedMesh) as THREE.InstancedMesh[];
     expect(crowd).toHaveLength(1);
-    // Twenty-five sections of seven rows of twelve, and three rows of benches.
-    expect(crowd[0].count).toBe(25 * 7 * 12 + 3 * 32);
+    // Twenty-five sections of seven rows of twelve, three rows of benches,
+    // and the pavilion's members: two rows on each balcony, three on the roof.
+    expect(crowd[0].count).toBe(25 * 7 * 12 + 3 * 19 + (2 + 2 + 3) * 20);
     // Merged: a mesh for each colour, not a mesh for each box.
     const merged = meshes.filter(mesh => !(mesh instanceof THREE.InstancedMesh));
     expect(merged.length).toBeLessThan(20);

@@ -41,7 +41,11 @@ export function cylinder(parent: THREE.Object3D, r: number, h: number, color: nu
  */
 export class Batch {
   private parts = new Map<number, THREE.BufferGeometry[]>();
+  private finishes = new Map<number, THREE.Material>();
   private static here = new THREE.Matrix4();
+
+  /** Draws everything laid down in `color` in `material` instead of the faceted scenery one: glass, say. */
+  finish(color: number, material: THREE.Material) { this.finishes.set(color, material); }
 
   /** Any geometry, moved by `frame` (where it stands on the ground) and kept under its colour. */
   add(geometry: THREE.BufferGeometry, color: number, frame: THREE.Matrix4 = Batch.here) {
@@ -65,7 +69,7 @@ export class Batch {
   /** One mesh a colour, under `parent`. */
   build(parent: THREE.Object3D) {
     for (const [color, list] of this.parts) {
-      const mesh = new THREE.Mesh(mergeGeometries(list), mat(color));
+      const mesh = new THREE.Mesh(mergeGeometries(list), this.finishes.get(color) ?? mat(color));
       mesh.castShadow = true; mesh.receiveShadow = true;
       parent.add(mesh);
       list.forEach(geometry => geometry.dispose());
