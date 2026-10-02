@@ -1,3 +1,4 @@
+import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { SURVIVE } from './config/survive';
@@ -81,7 +82,7 @@ const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESO
 /** How long a counted innings waits before its second and final attempt. */
 const RETRY_MS = 4000;
 /** Which innings is being played. The two share a loop and almost nothing else. */
-export type GameMode = 'CLASSIC' | 'SURVIVE';
+export type { GameMode } from './game/modes';
 
 /**
  * Whether this bundle was built to play Survive and nothing else. Set by the
@@ -441,7 +442,7 @@ export class Game {
     this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.modes(); });
     // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
     for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
-      if (this.phase !== 'PAUSED' || this.surviving) return;
+      if (this.phase !== 'PAUSED' || this.test) return;
       keepLights(time); this.scene.time(time); this.hud.lightsSwitch(time);
     });
     this.hud.on('share', () => { void this.hud.share(); });
@@ -973,9 +974,9 @@ export class Game {
     this.chasing = this.surviving ? teamScore(this.rng) : 0;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
-    this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
-    // A Test by day; the Blast under the floodlights, unless the player has asked for a day game.
-    this.scene.time(this.surviving ? 'day' : blastLights());
+    this.input.reset(); this.scene.reset(); this.scene.whites(this.test);
+    // A Test by day; the Blast by the player's clock, or their own choice.
+    this.scene.time(this.test ? 'day' : blastLights());
     this.hud.start(this.surviving);
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
@@ -1013,7 +1014,10 @@ export class Game {
     events.forEach(event => track(event));
   }
 
+  /** Test Survival: its rules, its board, its chase. */
   private get surviving() { return this.mode === 'SURVIVE'; }
+  /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
+  private get test() { return isTest(this.mode); }
   private get limits() { return this.surviving ? SURVIVE_LIMITS : CLASSIC_LIMITS; }
   /** `?spin=1` is the same thing as the build flag, for a dev server. */
   private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
@@ -1159,7 +1163,7 @@ export class Game {
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else {
       this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
-      this.hud.lightsSwitch(this.surviving ? null : this.scene.lit);
+      this.hud.lightsSwitch(this.test ? null : this.scene.lit);
       // A paused innings is the one moment in the game where nothing is waiting
       // on the player, which is the only kind of moment worth asking in.
       this.hud.offerFeedback({ pause: true });

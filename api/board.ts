@@ -8,6 +8,7 @@
 import { CLASSIC_LADDER, SURVIVE_LADDER, readBoard } from '../src/server/board-store.js';
 import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
+import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
 
 /**
  * `GET /api/board` — the fifty, and the score the fiftieth is holding.
@@ -32,7 +33,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   if (req.method !== 'GET') return failed(res, 405, 'Use GET.');
   try {
-    const survive = String(req.query?.mode ?? '').toLowerCase() === 'survive';
+    const mode = modeAsked(req.query?.mode);
+    if (!open(mode)) return failed(res, 400, NOT_OPEN);
+    const survive = mode === 'survive';
     const ladder = survive ? SURVIVE_LADDER : CLASSIC_LADDER;
     const board = await readBoard(upstashStore(redisFromEnv(true), ladder.scope), ladder);
     // Ten seconds of edge cache, then a minute where a stale board is served

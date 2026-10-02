@@ -13,6 +13,7 @@ import {
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 import type { SurviveInnings } from '../src/game/survive-board.js';
+import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
 
 /**
  * `POST /api/score` — an innings offered to the board.
@@ -33,7 +34,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   // Which board is being offered an innings. The two are separate ladders over
   // separate keys, and the figures a row carries differ, so this decides both.
-  const survive = String(body.mode ?? '').toLowerCase() === 'survive';
+  const mode = modeAsked(body.mode);
+  if (!open(mode)) return failed(res, 400, NOT_OPEN);
+  const survive = mode === 'survive';
   const who = {
     playerId: String(body.playerId ?? ''),
     name: String(body.name ?? ''),

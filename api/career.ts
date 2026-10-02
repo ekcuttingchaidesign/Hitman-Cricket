@@ -4,6 +4,7 @@ import { CAREER_BOARD_SIZE, readCareer, readCareerBoards } from '../src/server/c
 import { NoDatabase, redisFromEnv, upstashCareer } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import { BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer } from '../src/game/career.js';
+import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
 
 /**
  * `GET /api/career` — every career board of one mode, or one player's figures.
@@ -32,7 +33,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   if (req.method !== 'GET') return failed(res, 405, 'Use GET.');
 
-  const survive = String(req.query?.mode ?? '').toLowerCase() === 'survive';
+  const mode = modeAsked(req.query?.mode);
+  if (!open(mode)) return failed(res, 400, NOT_OPEN);
+  const survive = mode === 'survive';
   const player = String(req.query?.player ?? '');
 
   try {

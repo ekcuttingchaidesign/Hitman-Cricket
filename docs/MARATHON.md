@@ -260,8 +260,14 @@ the only way to raise it is to score more.
 Each step is a pull request of its own, behind the flag until the last.
 
 0. **This spec.**
-1. **Groundwork.** A third mode everywhere the code says Blast-or-Survive. No
-   behaviour changes; the existing tests prove it.
+1. **Groundwork.** *Done.* `src/game/modes.ts` holds the three modes and
+   the one question both Test modes answer yes to (`isTest`: whites, the Test
+   field, by day), kept apart from "is this Test Survival", which decides its
+   rules. `src/server/mode.ts` reads the mode for the board, career and innings
+   endpoints and the dev server alike, and turns `marathon` away with a 400
+   until step 5 gives it a store — before it, anything not `survive` was taken
+   for the Blast, so a Marathon innings would have landed on the Blast's
+   board. No behaviour changes for the two modes that exist.
 2. **The rules.** Three batters and their windows, retired hurt bringing in
    the next, the bowling plan by levels, declaring, the 500-ball stop, the
    simulator, and tuning.
