@@ -440,10 +440,9 @@ export class Game {
     // card is exactly where it was.
     this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.modes(); });
     // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
-    this.hud.on('lights-toggle', () => {
+    for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
       if (this.phase !== 'PAUSED' || this.surviving) return;
-      const next = this.scene.lit === 'night' ? 'day' : 'night';
-      keepLights(next); this.scene.time(next); this.hud.lightsSwitch(next);
+      keepLights(time); this.scene.time(time); this.hud.lightsSwitch(time);
     });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
