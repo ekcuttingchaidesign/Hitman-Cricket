@@ -1,7 +1,7 @@
 /**
  * The new ground, shown off once.
  *
- * The pavilion ground replaced the bowl — the clubhouse and its ring of
+ * The stadium replaced the bowl — the clubhouse and its ring of one-tier
  * stands — and a player who had batted on the old ground would otherwise
  * notice it as "something looks different" rather than as a thing done for
  * them. So the first innings chosen — any mode, from the picker, a link or a
@@ -18,7 +18,7 @@
  * Which reveal this is. In the key, so a later update that wants its own
  * before-and-after is a new key and shows itself to everybody again.
  */
-export const REVEAL = 'ground-pavilion';
+export const REVEAL = 'ground-stadium';
 
 const KEY = 'hitman-unveiled';
 

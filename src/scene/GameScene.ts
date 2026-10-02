@@ -13,8 +13,7 @@ import { SKY, Sky } from './sky';
 import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
-import { buildGround, groundFrom, type GroundName } from './grounds';
-import { ownFloodlights } from './ends';
+import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
@@ -180,7 +179,7 @@ export class GameScene {
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private sky = new Sky();
-  /** Which ground the stands and the pavilion are built for: see `grounds.ts`. */
+  /** Which ground the stands are built for: see `grounds.ts`. */
   readonly ground: GroundName = groundFrom(location.search);
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */

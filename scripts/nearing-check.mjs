@@ -52,7 +52,7 @@ for (const [name, options] of [
     try {
       localStorage.setItem('hitman-seen', day);
       localStorage.setItem('hitman-whatsnew', 'rivals-launch:9');
-      localStorage.setItem('hitman-unveiled', 'ground-pavilion');
+      localStorage.setItem('hitman-unveiled', 'ground-stadium');
     } catch { /* Then the notices stand. */ }
     const later = window.setTimeout;
     window.__timerScale = 1;

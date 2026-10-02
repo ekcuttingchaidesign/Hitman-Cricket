@@ -45,7 +45,7 @@ async function phone(name) {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
     // The covers have come off already: unveil-check is the one that pulls them.
-    try { localStorage.setItem('hitman-unveiled', 'ground-pavilion'); } catch { /* Then they stand in the way. */ }
+    try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),

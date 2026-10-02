@@ -27,7 +27,7 @@ const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 /** The ground under the covers, and the one they come off. */
 const BEFORE = 'bowl';
-const AFTER = 'pavilion';
+const AFTER = 'stadium';
 /** The ball: a length ball on off stump from this seed, caught this long before it reaches the bat. */
 const SEED = 222;
 const BEFORE_CONTACT_MS = 260;
@@ -47,7 +47,7 @@ async function photograph(ground, options, png) {
     localStorage.setItem('hitman-seen', day);
     localStorage.setItem('hitman-whatsnew', 'rivals-launch:9');
     // Past the covers: these are the pictures that go on them.
-    localStorage.setItem('hitman-unveiled', 'ground-pavilion');
+    localStorage.setItem('hitman-unveiled', 'ground-stadium');
   });
   await page.route('**/api/board**', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),

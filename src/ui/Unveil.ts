@@ -41,7 +41,7 @@ export function unveilMarkup(): string {
   return `
     <div class="unveil is-loading" style="--at:${REST * 100}%">
       <div class="unveil-layer is-after">${shot('after',
-    'The ground now: a cream pavilion with two green-roofed towers and its balconies behind the bowler, a white sightscreen, and white two-tier stands with tent roofs.')}
+    'The ground now: two tiers of stands right round the ground under a white cantilever roof, a commentary box over the sightscreen, and floodlights.')}
         <span class="unveil-tag">NEW GROUND</span>
       </div>
       <div class="unveil-layer is-before">${shot('before',
@@ -56,7 +56,7 @@ export function unveilMarkup(): string {
       <div class="unveil-foot">
         <p class="unveil-nudge" aria-hidden="true">${LEFT}<span>Swipe to pull the covers off</span></p>
         <div class="unveil-done" aria-live="polite">
-          <p class="unveil-eyebrow">NEW PAVILION · NEW STANDS</p>
+          <p class="unveil-eyebrow">NEW STANDS · FLOODLIGHTS</p>
           <h2 class="unveil-title">Covers off. Play on.</h2>
           <button id="unveil-play" class="key-button unveil-key" type="button" tabindex="-1">PLAY</button>
         </div>

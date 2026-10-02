@@ -77,7 +77,7 @@ innings — which is how most players get to that card in the first place.
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
 a frame. Lower its `BUDGET` when a change brings the count down. It walks both
-grounds — the pavilion ground every mode plays on, and the bowl before it,
+grounds — the stadium every mode plays in, and the bowl before it,
 which `?ground=bowl` still builds and which is kept for that and for the
 covers. Build new scenery through `Batch` (`src/scene/build.ts`), one mesh a
 colour, not a box at a time.
