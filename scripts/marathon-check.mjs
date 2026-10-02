@@ -94,7 +94,12 @@ for (let i = 0; i < 8; i++) {
 }
 
 // ── The opener walks out ───────────────────────────────────────────────────
-const first = await until('READY');
+// Getting past the cover can take long enough for a ball to be bowled at an
+// opener nobody is batting for. A restart is the guard of a fresh innings.
+await until('READY');
+await page.keyboard.press('r');
+await advance(16);
+const first = await snap();
 check(first.marathon?.batter === 'OPENER', 'a Marathon starts with the opener in', JSON.stringify(first.marathon));
 check((await label())?.includes('OPENER IN'), 'and says so as he takes guard', await label());
 check(first.marathon?.level === 1 && first.marathon?.bowler === 'PACE', 'against Level 1 pace', JSON.stringify(first.marathon));
