@@ -444,6 +444,8 @@ The integration injects one set of credentials into Production, Preview and Deve
 
 `GET /api/board` answers with the fifty and the packed score the fiftieth is holding — **the same answer for everybody**, deliberately, so it can sit in Vercel's edge cache for ten seconds. Where a player stands is worked out in their own browser from the packed score, which is the same number computed by the same function, so the response carries nothing personal. A hundred people opening the board in the same ten seconds cost one pair of Redis commands rather than a hundred, which is what keeps a half-million-command month out of reach. It reads with the read-only token: an endpoint that cannot write is one fewer thing to get wrong.
 
+The mode is read in one place, `src/server/mode.ts`, for these endpoints, the career endpoints and the dev server alike. `?mode=marathon` is turned away with a 400 until the Test Marathon has a store of its own (`docs/MARATHON.md`): before that reader, anything that was not `survive` was taken for the Blast, and a Marathon innings would have gone onto the Blast's board.
+
 `POST /api/score` checks the rate limit first (so a script pays nothing to be turned away), then the shape, then `plausible()`, then the name — and stamps the submission itself. The clock is read on the server and nowhere else, or a laptop running fast would win every tiebreak it entered.
 
 The storage shape is chosen to spend as few commands as possible rather than for how it would look in a relational schema:

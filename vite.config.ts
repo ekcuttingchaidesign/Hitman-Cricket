@@ -17,6 +17,7 @@ import {
   BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
   type BlastCareer, type SurviveCareer,
 } from './src/game/career';
+import { NOT_OPEN, modeAsked, open } from './src/server/mode';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -114,7 +115,9 @@ function boardEndpoints(): Plugin {
               : send(200, { ok: true });
           }
           const query = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
-          const survive = query.get('mode') === 'survive';
+          const mode = modeAsked(query.get('mode'));
+          if (!open(mode)) return send(400, { error: NOT_OPEN });
+          const survive = mode === 'survive';
           if (path === '/api/career') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
             const player = query.get('player') ?? '';
@@ -141,7 +144,9 @@ function boardEndpoints(): Plugin {
               nonce: String(sent.nonce ?? ''),
               address: 'dev',
             };
-            const asked = String(sent.mode ?? '').toLowerCase() === 'survive';
+            const countingMode = modeAsked(sent.mode);
+            if (!open(countingMode)) return send(400, { error: NOT_OPEN });
+            const asked = countingMode === 'survive';
             const counted = asked
               ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: readSurviveTally(sent.innings) })
               : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: readBlastTally(sent.innings) });
@@ -197,7 +202,9 @@ function boardEndpoints(): Plugin {
             // One address in development: whatever the dev server sees.
             address: 'dev',
           };
-          const asked = String(body.mode ?? '').toLowerCase() === 'survive';
+          const submitted = modeAsked(body.mode);
+          if (!open(submitted)) return send(400, { error: NOT_OPEN });
+          const asked = submitted === 'survive';
           const outcome = asked
             ? await submitScore(boards['survive:'], SURVIVE_LADDER, { ...who, innings: surviveFigures(body.innings) })
             : await submitScore(boards[''], CLASSIC_LADDER, { ...who, innings: figures(body.innings) });

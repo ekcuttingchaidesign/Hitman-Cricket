@@ -8,6 +8,7 @@ import {
   BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
   type BlastCareer, type SurviveCareer,
 } from '../src/game/career.js';
+import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
 
 /**
  * `POST /api/innings` — an innings, counted toward a career.
@@ -37,7 +38,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   // Which career this innings belongs to. The two are separate records over
   // separate keys, and the figures a tally carries differ, so this decides both.
-  const survive = String(body.mode ?? '').toLowerCase() === 'survive';
+  const mode = modeAsked(body.mode);
+  if (!open(mode)) return failed(res, 400, NOT_OPEN);
+  const survive = mode === 'survive';
   const who = {
     playerId: String(body.playerId ?? ''),
     // Whatever this browser last batted under. It is only written onto the
