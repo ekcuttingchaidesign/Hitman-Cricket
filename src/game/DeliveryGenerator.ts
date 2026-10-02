@@ -2,6 +2,7 @@ import { CLASSIC_SPIN, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } fro
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
+import { EXPRESS_OVER, MARATHON, BLOCK_OVERS, levelOf, type Level, type OverKind } from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
@@ -29,6 +30,25 @@ export interface BowlingPlan {
    * with a plan takes the bouncer out of its weight table, or it gets both.
    */
   short?: ShortPlan;
+  /**
+   * Who bowls each over, when the mode plans it by blocks rather than by one
+   * spell. See `BlockPlan`. A mode with blocks takes its spinner's overs from
+   * them, and `spin` is then only how he bowls, not when.
+   */
+  blocks?: BlockPlan;
+}
+
+/**
+ * The innings planned ten overs at a time: how many of each block are pace,
+ * spin and the express bowler's, and how much the pace bowlers swing it. The
+ * Marathon's, and only the Marathon's — see `LEVELS` in `config/marathon.ts`.
+ */
+export interface BlockPlan {
+  size: number;
+  /** How many overs the innings can run to, so every block is drawn up front. */
+  ofOvers: number;
+  levelOf(block: number): Level;
+  express: typeof EXPRESS_OVER;
 }
 
 /**
@@ -128,6 +148,37 @@ export function spinOvers(rng: SeededRandom, spell: SpinSpell, keepForPace = 0):
   for (let over = spell.notBefore + 1; over < spell.ofOvers - keepForPace; over++) later.push(over);
   return new Set([spell.notBefore, ...rng.shuffle(later).slice(0, spell.overs - 1)]);
 }
+/**
+ * Who bowls which over of one block.
+ *
+ * The counts are the level's and always exact; only where they fall is drawn.
+ * An over the spinner always has (`spinFirst`) is his, the overs before it are
+ * pace — two of pace and then the ball tossed to him, as in Survival — and his
+ * others come after it. And the express bowler never has two overs running,
+ * this block or across the join with the last, because no bowler does: the
+ * ends change every over and he cannot bowl from both.
+ *
+ * Shuffled and drawn again until it holds, rather than built: four of ten with
+ * none adjacent comes up about one shuffle in six, and a shuffle is the only
+ * draw that makes every legal pattern as likely as every other.
+ */
+export function drawBlock(level: Level, size: number, rng: SeededRandom, expressBefore = false): OverKind[] {
+  const fixed = level.spinFirst ?? -1;
+  const rest: OverKind[] = [
+    ...Array<OverKind>(level.pace - Math.max(0, fixed)).fill('PACE'),
+    ...Array<OverKind>(level.spin - (fixed >= 0 ? 1 : 0)).fill('SPIN'),
+    ...Array<OverKind>(level.express).fill('EXPRESS'),
+  ];
+  const head: OverKind[] = fixed >= 0 ? [...Array<OverKind>(fixed).fill('PACE'), 'SPIN'] : [];
+  let overs: OverKind[] = [];
+  for (let tries = 0; tries < 200; tries++) {
+    overs = [...head, ...rng.shuffle(rest)].slice(0, size);
+    const back = overs.some((kind, i) => kind === 'EXPRESS' && (i === 0 ? expressBefore : overs[i - 1] === 'EXPRESS'));
+    if (!back) break;
+  }
+  return overs;
+}
+
 export const CLASSIC_PLAN: BowlingPlan = {
   styles: STYLES, specials: SPECIALS, travelScale: GAME.travelScale, spin: CLASSIC_SPIN,
 };
@@ -155,6 +206,20 @@ export const SURVIVE_PLAN: BowlingPlan = {
   short: { ...BOUNCERS, ofOvers: SURVIVE.totalBalls / SURVIVE.ballsPerOver, ballsPerOver: SURVIVE.ballsPerOver },
 };
 
+/**
+ * The Marathon: Survival's bowling in Survival's first ten overs, and harder in
+ * every ten after. The bouncer is placed in every pace over as Survival places
+ * it, but with no death overs — Survival's last two are the end of its innings
+ * and here they are the middle of one.
+ */
+const MARATHON_OVERS = Math.ceil(MARATHON.maxBalls / MARATHON.ballsPerOver);
+export const MARATHON_PLAN: BowlingPlan = {
+  ...SURVIVE_PLAN,
+  spin: { ...SPIN, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
+  short: { ...BOUNCERS, deathOvers: 0, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
+  blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, express: EXPRESS_OVER },
+};
+
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
 const BODY_LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG'];
 /** The lines that invite a drive at a ball he should be leaving. */
@@ -172,14 +237,41 @@ export class DeliveryGenerator {
   private shortBalls = new Set<number>();
   /** The over those were drawn for, so they are drawn once and not per ball. */
   private shortOver = -1;
+  /** What each ball of the express bowler's over is. Drawn at its top. */
+  private expressBalls = new Map<number, DeliveryStyle>();
   private readonly spinning: Set<number>;
+  /** Who bowls every over, when the plan is by blocks. Drawn whole, up front. */
+  private readonly schedule: OverKind[] = [];
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
-    this.spinning = plan.spin ? spinOvers(rng, plan.spin, plan.short?.deathOvers ?? 0) : new Set();
+    const blocks = plan.blocks;
+    if (blocks) {
+      // Every block now rather than each as it comes, so the draw sits at the
+      // same place in the seed's sequence whatever is asked of it on the way.
+      for (let block = 0; block * blocks.size < blocks.ofOvers; block++) {
+        const before = this.schedule[this.schedule.length - 1] === 'EXPRESS';
+        this.schedule.push(...drawBlock(blocks.levelOf(block), blocks.size, rng, before));
+      }
+    }
+    this.spinning = plan.spin && !blocks ? spinOvers(rng, plan.spin, plan.short?.deathOvers ?? 0) : new Set();
+  }
+  /** The over the next ball belongs to, counting from nought. */
+  private get over() { return Math.floor(this.bowled / (this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver)); }
+  /** Who bowls over `over`: always pace, spin or express in a plan by blocks, and null otherwise. */
+  overKind(over: number): OverKind | null {
+    return this.plan.blocks ? this.schedule[over] ?? 'PACE' : null;
+  }
+  /** The level over `over` is bowled at, in a plan by blocks. */
+  levelAt(over: number): Level | null {
+    const blocks = this.plan.blocks;
+    return blocks ? blocks.levelOf(Math.floor(over / blocks.size)) : null;
   }
   /** Whether the ball about to be bowled belongs to the spinner. */
   get spinnerOn() {
+    if (this.plan.blocks) return this.overKind(this.over) === 'SPIN';
     return !!this.plan.spin && this.spinning.has(Math.floor(this.bowled / this.plan.spin.ballsPerOver));
   }
+  /** Whether it belongs to the express bowler. */
+  get expressOn() { return this.overKind(this.over) === 'EXPRESS'; }
   /** The overs he was given, for the HUD and for a test that there are three. */
   get spell(): readonly number[] { return [...this.spinning].sort((a, b) => a - b); }
   /** The bowler watches what happens to him and answers it next ball. */
@@ -219,8 +311,31 @@ export class DeliveryGenerator {
     const wanted = atTheDeath(over, plan) ? plan.atTheDeath : plan.perOver;
     return new Set(this.rng.shuffle(positions).slice(0, Math.min(wanted, plan.ballsPerOver)));
   }
+  /**
+   * The express bowler's over, planned at the top of it: one bouncer, a second
+   * one over in three, now and then the yorker, and the rest full and quick.
+   */
+  private placeExpress(express: typeof EXPRESS_OVER, ballsPerOver: number): Map<number, DeliveryStyle> {
+    const positions = [];
+    for (let ball = 0; ball < ballsPerOver; ball++) positions.push(ball);
+    const order = this.rng.shuffle(positions);
+    const bouncers = express.bouncers + (this.rng.next() < express.secondBouncerChance ? 1 : 0);
+    const planned = new Map<number, DeliveryStyle>();
+    order.slice(0, bouncers).forEach(ball => planned.set(ball, 'SHORT'));
+    if (this.rng.next() < express.yorkerChance) planned.set(order[bouncers], 'YORKER');
+    return planned;
+  }
   private chooseStyle(): DeliveryStyle {
     const { specials, styles } = this.plan;
+    // His over is all his, and all of it at his pace. The owed yorker and the
+    // owed change-up wait for the next bowler: a slower ball is the one thing
+    // this one does not bowl.
+    if (this.expressOn) {
+      const ballsPerOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
+      const ballInOver = this.bowled % ballsPerOver;
+      if (ballInOver === 0) this.expressBalls = this.placeExpress(this.plan.blocks!.express, ballsPerOver);
+      return this.expressBalls.get(ballInOver) ?? 'EXPRESS';
+    }
     // His over is his. None of what follows — the yorker owed for a six, the
     // change-up owed for a spell of pace — belongs to a spinner, and a bouncer
     // least of all.
@@ -276,22 +391,34 @@ export class DeliveryGenerator {
     const line = turning ? this.pick(turnable(sign, spell!)) : (this.aim(style) ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;
     const shape = this.plan.styles[style];
-    const speedKph = Math.round(this.rng.range(shape.min, shape.max));
+    const express = this.expressOn;
+    const pace = express ? this.plan.blocks!.express : shape;
+    const speedKph = Math.round(this.rng.range(pace.min, pace.max));
+    // A plan by blocks swings it harder as the innings goes on, on the same
+    // two deliveries: further, and later in the flight. Survival's level is
+    // one and nought, which leaves its ball exactly as it was.
+    const level = this.levelAt(this.over);
+    const swung = !turning && sign !== 0 && !!level;
     // How much room this line leaves before the ball would finish wide, which
     // is what the turn is drawn against: every turning ball gets at least
     // `minTurn`, because the lines that could not offer that were not offered.
     const room = turning ? spell!.maxFinalX - sign * LINE_X[line] : 0;
     const movement = sign * (turning
       ? this.rng.range(spell!.minTurn, Math.min(spell!.maxTurn, room))
-      : this.rng.range(GAME.movement * 0.65, GAME.movement));
+      : this.rng.range(GAME.movement * 0.65, GAME.movement) * (swung ? level!.swing : 1));
     // Belt and braces: the line choice above already makes this unreachable.
+    // A ball swinging harder is held to the widest a gentle one could finish,
+    // so more swing is more of a test and never a wide.
     const finalTargetX = turning
       ? clampX(LINE_X[line] + movement, spell!.maxFinalX)
+      : swung ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
       : LINE_X[line] + movement;
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
     this.bowled++;
     return { line, style, speedKph, baseTargetX: LINE_X[line], finalTargetX,
       bounceZ: shape.bounce ?? GAME.bounceZ, rise: shape.rise ?? GAME.rise,
-      durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs };
+      durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
+      ...(swung && level!.late ? { late: level!.late } : {}),
+      ...(express ? { express: true } : {}) };
   }
 }

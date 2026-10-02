@@ -236,8 +236,9 @@ the only way to raise it is to score more.
 - The mode is a third `GameMode` everywhere `CLASSIC | SURVIVE` is now: the
   game, `?mode=marathon`, the board and career endpoints (`?mode=marathon`),
   `CareerMode`, the picker.
-- A build flag, `VITE_SHOW_MARATHON`, keeps the mode off the picker until it
-  ships, the way `VITE_SHOW_SURVIVE` did.
+- Until it ships the mode has no card on the picker at all, and is reached
+  only by `?mode=marathon`; a build flag, `VITE_SHOW_MARATHON`, will put the
+  card up when there is a board behind it, the way `VITE_SHOW_SURVIVE` did.
 
 ## How it is checked
 
@@ -268,9 +269,16 @@ Each step is a pull request of its own, behind the flag until the last.
    until step 5 gives it a store — before it, anything not `survive` was taken
    for the Blast, so a Marathon innings would have landed on the Blast's
    board. No behaviour changes for the two modes that exist.
-2. **The rules.** Three batters and their windows, retired hurt bringing in
-   the next, the bowling plan by levels, declaring, the 500-ball stop, the
-   simulator, and tuning.
+2. **The rules.** *Done.* Three batters and their windows, retired hurt
+   bringing in the next, the bowling plan by levels, declaring, the 500-ball
+   stop, the simulator, and tuning. Playable at `?mode=marathon`, on a
+   placeholder card that sends nothing. Two things the simulator settled that
+   the spec did not say: **each batter's block narrows with his windows**, by
+   less — with one block for all three, the express bowler carried off an
+   opener exactly as often as a tailender — and **a harder-swinging ball is held
+   to the widest line a gentle one could finish on**, so more swing is never a
+   wide. The batter is named as he takes guard (`OPENER IN · TAKE YOUR
+   GUARD`); the proper walk-out and level banners are step 4's.
 3. **The left-hander.**
 4. **The express bowler**, his action and release, and the level banners.
    The speed gun comes with this step.

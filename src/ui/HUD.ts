@@ -1,3 +1,4 @@
+import { MarathonInnings } from '../game/Marathon';
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
 import {
@@ -331,7 +332,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="unveil-overlay" class="unveil-overlay hidden" role="dialog" aria-modal="true" aria-label="The new ground"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
+        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -1317,10 +1318,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     last$.setAttribute('aria-label', last ? last.isWicket ? 'Out' : `${last.runs} off the last ball` : 'No ball bowled yet');
     last$.className = `bug-last ${last?.isWicket ? 'wicket-color' : last && last.runs >= 4 ? 'boundary-color' : ''}`;
   }
-  start(surviving = false) {
+  start(surviving = false, marathon = false) {
     document.body.classList.remove('tutorial-active', 'start-screen');
     document.body.classList.add('innings-active');
     document.body.classList.toggle('survive-mode', surviving);
+    // The Marathon keeps the Blast's scoreboard — a total and the wickets, with
+    // no target to chase — and Survival's meter.
+    document.body.classList.toggle('marathon-mode', marathon);
     this.viewport.classList.remove('modal-open');
     this.viewport.classList.remove('hurt-on');
     // Both full-screen overlays put the hud row away while they are up.
@@ -1332,7 +1336,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // five-over scorecard and there is no Test one to draw yet. The board key
     // works in both, because each mode now has a ladder of its own behind it
     // and the key opens whichever one is being played.
-    (this.$('share') as HTMLButtonElement).disabled = surviving;
+    (this.$('share') as HTMLButtonElement).disabled = surviving || marathon;
     (this.$('board') as HTMLButtonElement).disabled = false;
     this.viewport.classList.add('playing'); (this.$('pause') as HTMLButtonElement).disabled = false;
     this.$('phase-label').classList.remove('hidden');
@@ -1349,13 +1353,24 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     this.guide(on, specials);
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
-      : phase === 'READY' ? 'TAKE YOUR GUARD' : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
+      : phase === 'READY' ? this.walking ? `${this.walking} IN · TAKE YOUR GUARD` : 'TAKE YOUR GUARD' :  phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
     // The edge of the field lights up too: a line of text at the bottom is easy
     // to miss in the second the ball takes to arrive.
     this.viewport.classList.toggle('charge-on', on);
     if (phase === 'READY') this.$('result').classList.add('hidden');
+    // Said once, on the guard he takes for his first ball.
+    if (phase === 'BOWLER_RUNUP') this.walking = null;
   }
+  /**
+   * A Marathon batter walking out, named by his place in the order. The
+   * windows narrow with each wicket, and a drop in skill that nothing on the
+   * screen announces reads as bad luck rather than as a weaker batter.
+   */
+  private walking: string | null = null;
+  walkingOut(title: string | null) { this.walking = title; }
+  /** The pause card's declaration, offered in a Marathon from twenty overs. */
+  declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
   private guide(on: boolean, specials: readonly NonNullable<Primed>[]) {
     const guide = this.$('swipe-guide');
@@ -1420,7 +1435,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
   }
   pause(value: boolean) { this.viewport.classList.toggle('modal-open', value); this.$('pause-overlay').classList.toggle('hidden', !value); if (value) this.$('resume').focus(); }
-  end(score: ScoreManager, best: number, isRecord: boolean) {
+  end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
     this.viewport.classList.add('modal-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
@@ -1443,8 +1458,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // inside two overs. Each bar carries its own place in the order, which is
     // what lets the stylesheet play them back in it.
     const track = this.$('final-balls');
-    track.style.setProperty('--balls', String(GAME.totalBalls));
-    track.innerHTML = Array.from({ length: GAME.totalBalls }, (_, i) => {
+    track.style.setProperty('--balls', String(track$));
+    track.innerHTML = Array.from({ length: track$ }, (_, i) => {
       const ball = score.history[i];
       if (!ball) return `<i class="ball-unfaced" style="--i:${i}"></i>`;
       return `<i class="${ball.isWicket ? 'ball-out' : ''}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
@@ -2409,6 +2424,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     window.setTimeout(() => this.viewport.classList.remove('struck'), 920);
   }
 
+  /**
+   * How a Marathon finished, on the Blast's card until it has one of its own:
+   * the total, the three batters under it, and none of the board. The track is
+   * the balls bowled rather than a fixed length — there is no fixed length.
+   */
+  endMarathon(score: ScoreManager, innings: MarathonInnings) {
+    this.end(score, 0, false, Math.max(1, score.balls));
+    this.$('end-title').textContent = {
+      ALL_OUT: 'All out', RETIRED: 'Retired hurt', BALLS: 'Five hundred balls', DECLARED: 'Declared',
+    }[innings.ending ?? 'ALL_OUT'];
+    this.$('end-message').textContent = innings.batters
+      .map(b => `${b.batter.title} ${MarathonInnings.score(b)} (${b.balls})`).join(' · ');
+    this.$('final-score').innerHTML = `${score.runs}<span class="card-wickets">/${innings.gone}</span>`;
+    this.$('final-score').setAttribute('aria-label', `${score.runs} for ${innings.gone}`);
+  }
   /**
    * How a Test match finished. The headline is the result rather than the score,
    * because in this mode the score is not the point — and a retirement names the

@@ -3537,6 +3537,11 @@ body.survive-mode #scoreboard{display:none}
    draw is a five-over scorecard and there is no Test one to draw yet. The board
    key stays live, because the key now opens the ladder being played. */
 body.survive-mode #share{opacity:.3;pointer-events:none}
+/* The Marathon has no board, career or share picture yet, so its card offers none of them. */
+body.marathon-mode #share{opacity:.3;pointer-events:none}
+body.marathon-mode #end :is(#card-board,#card-career,#card-key,#challenge-set,#card-share){display:none}
+.declare-key{display:block;width:100%;margin-top:10px}
+.declare-key.hidden{display:none}
 
 /* ── The claim strip, on the Test card ─────────────────────────────────────
    The same strip the other card carries, moved here for as long as this is the
