@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Batch, box, colors, cylinder, mat } from './build';
 import { HALL, glassFinish, pavilionHall } from './pavilion';
-import { END, type EndStyle, endCentre, endSection, isEnd, isHill, shellUnderside } from './ends';
+import { END, type EndStyle, endCentre, endSection, isEnd, isHill, lampFinish, shellUnderside } from './ends';
 
 /**
  * The stands and the building at the far end: what a ground is, once the
@@ -171,6 +171,7 @@ function stands(world: THREE.Object3D, end: 'pavilion' | EndStyle) {
     endCentre(scenery, seat, end);
     scenery.finish(END.glass, glassFinish());
     scenery.finish(END.under, shellUnderside());
+    scenery.finish(END.lamp, lampFinish());
   }
   scenery.build(world);
 

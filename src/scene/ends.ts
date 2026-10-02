@@ -20,11 +20,17 @@ import type { Batch } from './build';
  */
 export type EndStyle = 'members' | 'modern';
 
+/** Whether a ground brings its own floodlights, in place of the four poles every other ground stands up. */
+export const ownFloodlights = (ground: string) => ground === 'modern';
+
 /**
  * A shell is a single curved sheet, so from below the crease sees its back
  * face; the underside is drawn from the back, in the soffit lilac that the
  * grass's green bounce light turns into a neutral shade (see `pavilion.ts`).
  */
+/** The floodlights' lamps, lit. */
+export const lampFinish = () => new THREE.MeshStandardMaterial({ color: END.lamp, roughness: 0.4, emissive: 0xfff1c8, emissiveIntensity: 0.9 });
+
 export const shellUnderside = () => new THREE.MeshStandardMaterial({ color: END.under, roughness: 0.85, flatShading: true, side: THREE.BackSide, emissive: 0x4a4744 });
 
 /** The sections the end stand takes over, counted round from straight behind the bowler. */
@@ -45,6 +51,8 @@ export const END = {
   under: 0xc89cf1,
   screen: 0x1d2b36,
   frame: 0x3a4650,
+  /** The lamps: lit, a warm white that glows a little even by day (see `lampFinish`). */
+  lamp: 0xfff4d9,
   grass: 0x6f9a4c,
   leaf: 0x4f7a3d,
   trunk: 0x6b5a48,
@@ -129,6 +137,38 @@ function cantilever(b: Batch, frame: THREE.Matrix4, rear: number) {
   b.box(w, 0.08, depth, END.soffit, 0, EAVES + 0.08, middle, frame, -0.04);
   b.box(w, 0.9, 0.3, END.steel, 0, EAVES + 0.3, middle - depth / 2, frame);
   b.box(w, 0.2, 0.32, END.paint, 0, EAVES + 0.8, middle - depth / 2, frame);
+  // Lamps along the roof's front edge, three a section, tipped down at the
+  // field: the floodlights a phone sees, since its view never reaches the towers.
+  const edge = middle - depth / 2 + 0.5;
+  for (const x of [-w / 3, 0, w / 3]) {
+    b.box(1.5, 0.5, 0.5, END.frame, x, EAVES + 1.15, edge, frame, 0.5);
+    b.box(1.3, 0.34, 0.06, END.lamp, x, EAVES + 1.1, edge - 0.28, frame, 0.5);
+  }
+}
+
+/**
+ * Four floodlight towers behind the corners of the bowl: a tapering steel
+ * mast, and a head of lamps in a frame, turned to the middle of the ground
+ * and tipped down at it.
+ */
+function floodlights(b: Batch) {
+  const centre = new THREE.Vector3(0, 0, 10);
+  for (const turn of [-1, -3, 1, 3]) {
+    const a = turn * Math.PI / 4;
+    const at = new THREE.Vector3(Math.sin(a) * 52, 0, 10 + Math.cos(a) * 52);
+    const yaw = Math.atan2(at.x - centre.x, at.z - centre.z);
+    const frame = new THREE.Matrix4().compose(at, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
+    const mast = 17;
+    b.add(new THREE.CylinderGeometry(0.35, 0.65, mast, 8).translate(0, mast / 2, 0), END.steel, frame);
+    // The head: a frame tipped towards the field, four rows of six lamps on its face.
+    const head = new THREE.Matrix4().multiplyMatrices(frame, new THREE.Matrix4().compose(
+      new THREE.Vector3(0, mast + 1.6, -0.8), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.45), new THREE.Vector3(1, 1, 1)));
+    b.box(7.2, 4.4, 0.5, END.frame, 0, 0, 0, head);
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 6; col++) {
+      b.box(0.9, 0.75, 0.12, END.lamp, -2.85 + col * 1.14, -1.53 + row * 1.02, -0.3, head);
+    }
+    b.box(1.2, 1.2, 1.2, END.frame, 0, mast, 0, frame);
+  }
 }
 
 /** What goes once at the end, in the ground's own frame: the sightscreen, and the end's landmark. */
@@ -136,6 +176,7 @@ export function endCentre(b: Batch, seat: SeatAt, style: EndStyle) {
   const front = 10 + RING;
   b.box(12.5, 3.3, 0.3, END.cover, 0, 1.65, front - 3.3);
   b.box(12.7, 0.12, 0.42, END.steel, 0, 3.32, front - 3.3);
+  if (style === 'modern') floodlights(b);
   if (style === 'members') {
     // The cupola on the middle of the roofline: a white drum, a green roof, a clock, the flag.
     const y = EAVES + 1.1, z = front + 3;

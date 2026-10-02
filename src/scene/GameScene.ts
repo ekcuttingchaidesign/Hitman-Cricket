@@ -14,6 +14,7 @@ import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, type GroundName } from './grounds';
+import { ownFloodlights } from './ends';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
@@ -413,7 +414,7 @@ export class GameScene {
     // the mirrored stage, or every sponsor would read backwards.
     const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
     this.scene.add(boards.group); this.textures.push(boards.texture);
-    for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
+    if (!ownFloodlights(this.ground)) for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
       cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
       box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
       for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(this.world, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
