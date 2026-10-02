@@ -173,7 +173,8 @@ check(!(await page.locator('#card-board').isVisible()) && !(await page.locator('
 
 // ── All out, played to the end ─────────────────────────────────────────────
 await page.locator('#again').click({ force: true });
-await advance(600);
+// Less than the guard: any longer and a ball is bowled at nobody.
+await advance(16);
 await until('READY');
 const again = await snap();
 check(again.balls === 0 && again.marathon.batter === 'OPENER', 'playing again starts a new Marathon with the opener', JSON.stringify(again.marathon));
@@ -186,7 +187,8 @@ check((await page.locator('#end-title').textContent())?.includes('All out'), 'an
 
 // ── Walked out on ──────────────────────────────────────────────────────────
 await page.locator('#again').click({ force: true });
-await advance(600);
+// Less than the guard: any longer and a ball is bowled at nobody.
+await advance(16);
 await until('READY');
 await write(ones(30));
 await block();
