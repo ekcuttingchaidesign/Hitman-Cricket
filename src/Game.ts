@@ -1911,7 +1911,9 @@ export class Game {
         this.confidence.record(this.outcome);
       }
       this.showConfidence();
-      if (this.hurts && this.health.critical && !this.wasCritical) this.turnedCritical();
+      // Not about a Marathon batter this ball has already taken out of the
+      // innings: the notice would pause over the next man, with a full meter.
+      if (this.hurts && this.health.critical && !this.wasCritical && !this.changed) this.turnedCritical();
       // The Test match needles a batter who is stuck rather than one who has
       // simply played a few balls — see `sledgeDue`.
       if (this.hurts) {

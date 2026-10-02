@@ -125,6 +125,8 @@ for (let i = 0; i < 24 && !next; i++) {
   for (let j = 0; j < 30; j++) {
     await advance(400);
     const now = await snap();
+    // Paused on its own is a notice in the way, and nothing will bowl past it.
+    if (now.phase === 'PAUSED') throw new Error(`Paused between balls: ${await page.locator('#hurt-note').isVisible() ? 'the hurt note' : 'unknown'}`);
     if (now.phase === 'READY') { if (now.marathon.gone === 2) next = now; break; }
   }
 }
