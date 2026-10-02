@@ -191,20 +191,23 @@ function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: n
   const rear = UPPER_Z + UPPER * UPPER_STEP.z;
   b.box(span(rear), EAVES, 0.4, concrete, 0, EAVES / 2, rear, frame);
   for (const x of [-span(rear) / 2 + 0.3, span(rear) / 2 - 0.3]) b.post(0.12, EAVES + 1.2, steel, x, (EAVES + 1.2) / 2, rear - 0.2, frame);
-  roof(b, frame, rear, lights);
+  roof(b, frame, rear, lights, section % 2 === 0);
 }
 
 /** A flat cantilever roof over a section, its fascia, and three lamps along its edge. */
-function roof(b: Batch, frame: THREE.Matrix4, rear: number, lights: StadiumLights) {
+function roof(b: Batch, frame: THREE.Matrix4, rear: number, lights: StadiumLights, lit: boolean) {
   const { paint, steel, soffit, frame: housing, lamp } = STADIUM;
   const depth = rear + 3.2, middle = rear - depth / 2 + 0.2, w = span(middle) + 0.1;
   b.box(w, 0.35, depth, paint, 0, EAVES + 0.3, middle, frame, -0.04);
   b.box(w, 0.08, depth, soffit, 0, EAVES + 0.08, middle, frame, -0.04);
   b.box(w, 0.9, 0.3, steel, 0, EAVES + 0.3, middle - depth / 2, frame);
   b.box(w, 0.2, 0.32, paint, 0, EAVES + 0.8, middle - depth / 2, frame);
-  // The lamps, tipped down at the field: the floodlights a phone sees all the way across.
+  // A bank of lamps on every other section, tipped down at the field: the
+  // floodlights a phone sees across the top of its frame. Three a section,
+  // all the way round, was a string of fairy lights rather than a stadium's.
+  if (!lit) return;
   const edge = middle - depth / 2 + 0.5;
-  for (const x of [-w / 3, 0, w / 3]) {
+  for (const x of [0]) {
     b.box(1.5, 0.5, 0.5, housing, x, EAVES + 1.15, edge, frame, 0.5);
     b.box(1.3, 0.34, 0.06, lamp, x, EAVES + 1.1, edge - 0.28, frame, 0.5);
     lights.roof.push(new THREE.Vector3(x, EAVES + 1.05, edge - 0.45).applyMatrix4(frame));

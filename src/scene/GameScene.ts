@@ -10,13 +10,15 @@ import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
 import { SKY, Sky, type SkyTime } from './sky';
-import { FILL_POSITION, LIGHTING, glows, moon } from './night';
+import { FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
 import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
+/** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
+const KIT_GLOW = 0.32;
 /** Where a beaten ball runs out of steam: just short of the stumps. */
 const BEATEN_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
 /**
@@ -191,6 +193,8 @@ export class GameScene {
   private boardsMaterial: THREE.MeshStandardMaterial | null = null;
   private lamps: THREE.MeshStandardMaterial | null = null;
   private night: THREE.Object3D[] = [];
+  /** The lights the ground reflects after dark: see `nightReflections`. */
+  private reflections = nightReflections();
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
   private textures: THREE.Texture[] = [];
@@ -484,7 +488,7 @@ export class GameScene {
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
     this.environment.dispose();
-    this.environment = this.sky.environment(this.renderer);
+    this.environment = this.sky.environment(this.renderer, time === 'night' ? this.reflections : []);
     this.scene.environment = this.environment.texture;
     this.scene.environmentIntensity = light.environment;
     this.hemisphere.color.set(light.hemisphere.sky); this.hemisphere.groundColor.set(light.hemisphere.ground);
@@ -494,6 +498,29 @@ export class GameScene {
     if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
     if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
     for (const object of this.night) object.visible = time === 'night';
+    this.kitsUnderLights();
+  }
+  /**
+   * The kits under the floodlights. Lit only by a warm key from behind and a
+   * cool fill from the far end, a navy shirt went to black and an orange one
+   * to brown: floodlit cricket is a riot of colour, and this was a dim one. So
+   * at night every figure's own colours are lifted a little by glowing in
+   * themselves — the shirt's colour, not white, so a kit stays its colour and
+   * only gets brighter. Called again whenever a kit changes, since the glow is
+   * the kit's own colour.
+   */
+  private kitsUnderLights() {
+    const night = this.now === 'night';
+    const roots = [this.batter.root, this.bowler.root, ...this.field.fielders.map(f => f.root)];
+    for (const root of roots) root.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      for (const material of [object.material].flat()) {
+        if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+        const day = material.userData.dayGlow ??= { colour: material.emissive.getHex(), intensity: material.emissiveIntensity };
+        if (night) { material.emissive.copy(material.color); material.emissiveIntensity = KIT_GLOW; }
+        else { material.emissive.setHex(day.colour); material.emissiveIntensity = day.intensity; }
+      }
+    });
   }
   /** Whether the ground is lit for night. For the checks. */
   get lit() { return this.now; }
@@ -555,10 +582,11 @@ export class GameScene {
     // And set the field for the game: the Test match's attacking ring, or
     // the Blast's men back on the rope.
     this.field.setField(on ? TEST_FIELD : BLAST_FIELD);
+    this.kitsUnderLights();
   }
 
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
-  kit(kit: BatterKit) { this.batter.dress(kit); }
+  kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
 
   reset() {
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;

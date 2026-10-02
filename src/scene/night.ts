@@ -39,21 +39,47 @@ export const LIGHTING: Record<SkyTime, {
     key: { colour: 0xfff3e2, intensity: 3.4, position: [-12, 34, -30] },
     // The far towers, catching the batter's edges from the other side.
     fill: { colour: 0xe4ecff, intensity: 1.1 },
-    environment: 0.5,
+    environment: 0.85,
     boards: 1,
     lamps: 2.6,
   },
 };
 
+/**
+ * What the ground reflects at night, besides the sky: the floodlights' heads,
+ * the ring of lamps along the roof, and the lit stands under them. Without
+ * these a helmet, the glass and the ball reflected nothing but a dark blue
+ * dome, and everything shiny went dull exactly when a floodlit ground is
+ * full of glints. Drawn into the environment map only — they are never in
+ * the scene itself.
+ */
+export function nightReflections(): THREE.Object3D[] {
+  const glare = (r: number, g: number, b: number) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b), side: THREE.DoubleSide, toneMapped: false });
+  const objects: THREE.Object3D[] = [];
+  for (const [x, z] of [[-19, 58], [19, 58], [-19, -38], [19, -38]]) {
+    const head = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.5), glare(7, 6.6, 6));
+    head.position.set(x, 15.6, z - 10).normalize().multiplyScalar(40);
+    head.lookAt(0, 0, 0);
+    objects.push(head);
+  }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(41, 0.3, 4, 64).rotateX(Math.PI / 2), glare(2.6, 2.5, 2.2));
+  ring.position.y = 8.2;
+  const stands = new THREE.Mesh(new THREE.CylinderGeometry(42, 42, 8, 48, 1, true), glare(0.34, 0.32, 0.29));
+  stands.position.y = 4;
+  objects.push(ring, stands);
+  return objects;
+}
+
 /** Where the fill light comes from: the far towers. */
 export const FILL_POSITION: [number, number, number] = [14, 28, 60];
 
 /**
- * The moon: full, low over the far end and to one side of the commentary box,
- * in the stretch of sky a phone held upright actually shows — between the
- * roofline and the score bar, inside the floodlight towers.
+ * The moon: full, small and high, so it reads as far off rather than as a
+ * lamp on the roof. A phone held upright shows the sky over the far end only
+ * in the gap between the score bar and the buttons, just right of the middle,
+ * so that is where it hangs; on a desktop it is near the top of the frame.
  */
-const MOON = { azimuth: 10.5, elevation: 10.8, distance: 150, size: 9 } as const;
+const MOON = { azimuth: -2.5, elevation: 15.4, distance: 170, size: 4.2 } as const;
 
 function moonTexture() {
   const S = 256;
