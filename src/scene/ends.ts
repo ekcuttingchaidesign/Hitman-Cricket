@@ -147,27 +147,51 @@ function cantilever(b: Batch, frame: THREE.Matrix4, rear: number) {
 }
 
 /**
- * Four floodlight towers behind the corners of the bowl: a tapering steel
- * mast, and a head of lamps in a frame, turned to the middle of the ground
- * and tipped down at it.
+ * Floodlight towers: a tapering steel mast and a head of lamps in a frame,
+ * turned to the middle of the ground and tipped down at it.
+ *
+ * A phone sees only the end straight ahead — about seventeen degrees either
+ * side — so towers at the corners, where a real ground puts them, never
+ * reached its screen. These stand in behind the end stand, close enough in
+ * that a phone catches the edge of each head at the sides of its frame and a
+ * desktop sees them whole; a matching pair stands behind the near end, out
+ * of shot, so the ground is lit from both.
  */
+const TOWERS = [[-19, 58], [19, 58], [-19, -38], [19, -38]] as const;
+const MAST = 14;
 function floodlights(b: Batch) {
   const centre = new THREE.Vector3(0, 0, 10);
-  for (const turn of [-1, -3, 1, 3]) {
-    const a = turn * Math.PI / 4;
-    const at = new THREE.Vector3(Math.sin(a) * 52, 0, 10 + Math.cos(a) * 52);
+  for (const [x, z] of TOWERS) {
+    const at = new THREE.Vector3(x, 0, z);
     const yaw = Math.atan2(at.x - centre.x, at.z - centre.z);
     const frame = new THREE.Matrix4().compose(at, new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
-    const mast = 17;
-    b.add(new THREE.CylinderGeometry(0.35, 0.65, mast, 8).translate(0, mast / 2, 0), END.steel, frame);
+    b.add(new THREE.CylinderGeometry(0.3, 0.6, MAST, 8).translate(0, MAST / 2, 0), END.steel, frame);
     // The head: a frame tipped towards the field, four rows of six lamps on its face.
     const head = new THREE.Matrix4().multiplyMatrices(frame, new THREE.Matrix4().compose(
-      new THREE.Vector3(0, mast + 1.6, -0.8), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.45), new THREE.Vector3(1, 1, 1)));
-    b.box(7.2, 4.4, 0.5, END.frame, 0, 0, 0, head);
+      new THREE.Vector3(0, MAST + 1.6, -0.8), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.45), new THREE.Vector3(1, 1, 1)));
+    b.box(6.6, 4, 0.5, END.frame, 0, 0, 0, head);
     for (let row = 0; row < 4; row++) for (let col = 0; col < 6; col++) {
-      b.box(0.9, 0.75, 0.12, END.lamp, -2.85 + col * 1.14, -1.53 + row * 1.02, -0.3, head);
+      b.box(0.82, 0.68, 0.12, END.lamp, -2.6 + col * 1.04, -1.38 + row * 0.92, -0.3, head);
     }
-    b.box(1.2, 1.2, 1.2, END.frame, 0, mast, 0, frame);
+    b.box(1.1, 1.1, 1.1, END.frame, 0, MAST, 0, frame);
+  }
+}
+
+/**
+ * The commentary box, on the roof over the middle of the end stand: the one
+ * place a phone is always looking. A white box, its front a band of glass
+ * raked out at the ground the way a broadcast booth's is, a dark line of
+ * shade under the glass, and two dishes on top.
+ */
+function commentary(b: Batch) {
+  const front = 10 + RING - 3, y = EAVES + 0.6;
+  b.box(14, 3.2, 4, END.paint, 0, y + 1.6, front + 2.6);
+  b.box(13.4, 1.7, 0.2, END.glass, 0, y + 1.7, front + 0.55, undefined, 0.22);
+  b.box(14.2, 0.3, 0.9, END.paint, 0, y + 2.85, front + 0.75);
+  b.box(14.2, 0.25, 0.9, END.frame, 0, y + 0.55, front + 0.75);
+  for (const x of [-4.5, 5]) {
+    b.post(0.06, 1, END.steel, x, y + 3.7, front + 3.4);
+    b.add(new THREE.CylinderGeometry(0.75, 0.2, 0.25, 10).rotateX(-1.1).translate(x, y + 4.3, front + 3.2), END.paint);
   }
 }
 
@@ -176,7 +200,7 @@ export function endCentre(b: Batch, seat: SeatAt, style: EndStyle) {
   const front = 10 + RING;
   b.box(12.5, 3.3, 0.3, END.cover, 0, 1.65, front - 3.3);
   b.box(12.7, 0.12, 0.42, END.steel, 0, 3.32, front - 3.3);
-  if (style === 'modern') floodlights(b);
+  if (style === 'modern') { floodlights(b); commentary(b); }
   if (style === 'members') {
     // The cupola on the middle of the roofline: a white drum, a green roof, a clock, the flag.
     const y = EAVES + 1.1, z = front + 3;
