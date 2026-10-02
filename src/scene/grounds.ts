@@ -83,10 +83,10 @@ function bowl(world: THREE.Object3D) {
 /** The stands' colours, in sRGB as a designer would pick them. The pavilion's own are in `pavilion.ts`. */
 const PAVILION = {
   stone: HALL.stone,
-  /** The colonnade, the tents and the canopies. */
-  white: 0xf7f4ea,
-  /** The stands' concrete, painted. */
-  terrace: 0xe4dfd2,
+  /** The tents, the canopies and the fascias; the pavilion's paint is the same white. */
+  white: HALL.paint,
+  /** The stands' concrete, painted, as the members' terraces are. */
+  terrace: HALL.terrace,
   steel: 0x8d989c,
   sightscreen: 0xf4f3ee,
   seam: 0xd6d3c8,
