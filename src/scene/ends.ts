@@ -11,8 +11,9 @@ import type { Batch } from './build';
  *   roof shells, one a section, with a small green-roofed cupola, clock and
  *   flag at the middle of the roofline; a grass hill with two trees round to
  *   one side.
- * - **modern**: a modern bowl. A flat cantilever roof with a deep fascia, and
- *   a big screen over the sightscreen.
+ * - **modern**: a modern bowl. The same two tiers carried right round the
+ *   ground, under one flat cantilever roof with a deep fascia: no screen, no
+ *   building, the stand is the ground.
  *
  * These are blockouts for choosing between, not finished work: the shapes
  * and the proportions are what is being judged.
@@ -28,6 +29,9 @@ export const shellUnderside = () => new THREE.MeshStandardMaterial({ color: END.
 
 /** The sections the end stand takes over, counted round from straight behind the bowler. */
 export const END_SECTIONS = new Set([26, 27, 0, 1, 2]);
+
+/** Whether a section is built as the end stand: the members' end only behind the bowler, the modern bowl all the way round. */
+export const isEnd = (section: number, style: EndStyle) => style === 'modern' || END_SECTIONS.has(section);
 
 export const END = {
   concrete: 0xe4dfd2,
@@ -142,12 +146,6 @@ export function endCentre(b: Batch, seat: SeatAt, style: EndStyle) {
     b.post(0.05, 2.6, END.paint, 0, y + 4.7, z);
     b.box(1.4, 0.85, 0.04, END.green, 0.72, y + 5.5, z);
     hill(b, seat);
-  } else {
-    // The big screen over the sightscreen, on two legs behind the roof.
-    const y = EAVES + 1.2, z = front + 4;
-    b.box(11, 3.6, 0.5, END.frame, 0, y + 1.8, z);
-    b.box(10.4, 3.1, 0.1, END.screen, 0, y + 1.8, z - 0.27);
-    for (const x of [-5, 5]) b.post(0.3, y + 1, END.steel, x, (y + 1) / 2, z + 1);
   }
 }
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Batch, box, colors, cylinder, mat } from './build';
 import { HALL, glassFinish, pavilionHall } from './pavilion';
-import { END, END_SECTIONS, type EndStyle, endCentre, endSection, isHill, shellUnderside } from './ends';
+import { END, type EndStyle, endCentre, endSection, isEnd, isHill, shellUnderside } from './ends';
 
 /**
  * The stands and the building at the far end: what a ground is, once the
@@ -133,7 +133,7 @@ function stands(world: THREE.Object3D, end: 'pavilion' | EndStyle) {
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a),
       new THREE.Vector3(1, 1, 1),
     );
-    if (end !== 'pavilion' && END_SECTIONS.has(section)) { endSection(scenery, seat, frame, section, end); continue; }
+    if (end !== 'pavilion' && isEnd(section, end)) { endSection(scenery, seat, frame, section, end); continue; }
     if (end !== 'pavilion' && isHill(section, end)) continue;
     // Rows rake back from the rope; the upper tier carries on the same rake
     // from a little higher, with a white fascia across the break, which is
