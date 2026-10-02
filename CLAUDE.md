@@ -79,9 +79,11 @@ are canvases and a shader no unit test runs, and it holds the draw-call budget
 a frame. Lower its `BUDGET` when a change brings the count down. It walks both
 grounds — the stadium every mode plays in, and the bowl before it,
 which `?ground=bowl` still builds and which is kept for that and for the
-covers — and the stadium both by day and by night. The Blast is played at
-night by default, so any check that judges the ground's colours in a Blast
-innings is judging the night; `?lights=day` asks for the day. Build new
+covers — and the stadium both by day and by night. The Blast follows the
+device's clock — night from six in the evening to seven in the morning — so a
+check that judges the ground's colours in a Blast innings without saying
+which is judging whatever the machine's clock says; `?lights=day` or
+`?lights=night` asks for one. Build new
 scenery through `Batch` (`src/scene/build.ts`), one mesh a colour, not a box
 at a time.
 
