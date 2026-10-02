@@ -66,8 +66,8 @@ const block = async () => {
   }
   return snap();
 };
-const pause = async () => { await page.locator('#pause').click({ force: true }); await advance(200); };
-const resume = async () => { await page.locator('#resume').click({ force: true }); await advance(200); };
+const pause = async () => { await page.locator('#pause').click({ force: true }); await advance(50); };
+const resume = async () => { await page.locator('#resume').click({ force: true }); await advance(50); };
 const declareShown = () => page.locator('#declare').isVisible();
 
 await page.addInitScript(() => {
@@ -92,6 +92,12 @@ for (let i = 0; i < 8; i++) {
   await advance(400);
   await page.waitForTimeout(200);
 }
+
+// From here the clock moves only when the check moves it. Left running, a
+// software-rendered frame is most of a second of real time, and a guard of
+// 420ms is gone before the next line of this script runs — so a ball is
+// already on its way when the innings is written past it.
+await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 1000);
 
 // ── The opener walks out ───────────────────────────────────────────────────
 // Getting past the cover can take long enough for a ball to be bowled at an
