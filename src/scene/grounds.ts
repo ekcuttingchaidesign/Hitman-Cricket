@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Batch, box, colors, cylinder, mat } from './build';
 import { HALL, glassFinish, pavilionHall } from './pavilion';
+import { END, END_SECTIONS, type EndStyle, endCentre, endSection, isHill, shellUnderside } from './ends';
 
 /**
  * The stands and the building at the far end: what a ground is, once the
@@ -23,9 +24,9 @@ import { HALL, glassFinish, pavilionHall } from './pavilion';
  * leg side reads left: the bowler's end is +z, and both are symmetric enough
  * across x that the mirror changes nothing anybody would notice.
  */
-export type GroundName = 'pavilion' | 'bowl';
+export type GroundName = 'pavilion' | 'bowl' | EndStyle;
 
-export const GROUNDS: readonly GroundName[] = ['pavilion', 'bowl'];
+export const GROUNDS: readonly GroundName[] = ['pavilion', 'bowl', 'members', 'modern'];
 
 /** The ground every innings is played on unless the link asks for another. */
 export const DEFAULT_GROUND: GroundName = 'pavilion';
@@ -37,7 +38,7 @@ export function groundFrom(search: string): GroundName {
 }
 
 export function buildGround(name: GroundName, world: THREE.Object3D) {
-  if (name === 'bowl') bowl(world); else pavilion(world);
+  if (name === 'bowl') bowl(world); else stands(world, name);
 }
 
 /** Where the stands stand: a ring this far from the middle of the ground, cut into this many sections. */
@@ -115,7 +116,7 @@ const SEATS_A_ROW = 12;
 /** How far the upper tier is lifted over the line the lower one rakes back on. */
 const UPPER_LIFT = 0.9;
 
-function pavilion(world: THREE.Object3D) {
+function stands(world: THREE.Object3D, end: 'pavilion' | EndStyle) {
   const scenery = new Batch();
   const seats: THREE.Matrix4[] = [];
   const seatColours: number[] = [];
@@ -125,13 +126,15 @@ function pavilion(world: THREE.Object3D) {
   };
 
   for (let section = 0; section < SECTIONS; section++) {
-    if (PAVILION_SECTIONS.has(section)) continue;
+    if (end === 'pavilion' && PAVILION_SECTIONS.has(section)) continue;
     const a = section / SECTIONS * Math.PI * 2;
     const frame = new THREE.Matrix4().compose(
       new THREE.Vector3(Math.sin(a) * RING, 0, CENTRE_Z + Math.cos(a) * RING),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a),
       new THREE.Vector3(1, 1, 1),
     );
+    if (end !== 'pavilion' && END_SECTIONS.has(section)) { endSection(scenery, seat, frame, section, end); continue; }
+    if (end !== 'pavilion' && isHill(section, end)) continue;
     // Rows rake back from the rope; the upper tier carries on the same rake
     // from a little higher, with a white fascia across the break, which is
     // what makes it read as two tiers rather than one deep one.
@@ -163,6 +166,21 @@ function pavilion(world: THREE.Object3D) {
     for (const x of [-3.9, 3.9]) scenery.post(0.09, eaves, PAVILION.steel, x, eaves / 2, middle + depth / 2 - 0.3, frame);
   }
 
+  if (end === 'pavilion') pavilionEnd(scenery, seat);
+  else {
+    endCentre(scenery, seat, end);
+    scenery.finish(END.glass, glassFinish());
+    scenery.finish(END.under, shellUnderside());
+  }
+  scenery.build(world);
+
+  const crowd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.55, 0.55), mat(0xffffff), seats.length);
+  seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(seatColours[i])); });
+  crowd.instanceMatrix.needsUpdate = true; world.add(crowd);
+}
+
+/** The pavilion end: the building, the members' benches in front of it, and the sightscreen. */
+function pavilionEnd(scenery: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void) {
   const here = new THREE.Matrix4();
   pavilionHall(scenery, (x, y, z, n) => seat(here, x, y, z, n));
   scenery.finish(HALL.glass, glassFinish());
@@ -178,9 +196,4 @@ function pavilion(world: THREE.Object3D) {
   scenery.box(12.5, 3.3, 0.3, PAVILION.sightscreen, 0, 1.65, 45.7);
   scenery.box(12.7, 0.12, 0.42, PAVILION.steel, 0, 3.32, 45.7);
   for (let i = 1; i < 6; i++) scenery.box(0.05, 3.2, 0.02, PAVILION.seam, -6.25 + i * 12.5 / 6, 1.62, 45.54);
-  scenery.build(world);
-
-  const crowd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.55, 0.55), mat(0xffffff), seats.length);
-  seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(seatColours[i])); });
-  crowd.instanceMatrix.needsUpdate = true; world.add(crowd);
 }
