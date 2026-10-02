@@ -15,7 +15,8 @@ import { Batch, box, colors, cylinder, mat } from './build';
  * **The bowl** is the ground before it: one tier of stands in a full ring, flat
  * roofs, and the low clubhouse with the flags. It is kept whole, line for line,
  * so it can be looked at again with `?ground=bowl` and stood beside the new
- * one, and so a later ground has two to be measured against.
+ * one, and because the covers need it: their before picture is the bowl,
+ * photographed on this build (`scripts/unveil-shots.mjs`).
  *
  * Both are laid out in the stage's own frame, which `GameScene` mirrors so the
  * leg side reads left: the bowler's end is +z, and both are symmetric enough

@@ -1,8 +1,8 @@
 /**
  * The new ground, shown off once.
  *
- * The graphics update changed the sky, the turf, the boards, the kit and the
- * scoreboard, and a player who had batted on the old ground would otherwise
+ * The pavilion ground replaced the bowl — the clubhouse and its ring of
+ * stands — and a player who had batted on the old ground would otherwise
  * notice it as "something looks different" rather than as a thing done for
  * them. So the first innings chosen — any mode, from the picker, a link or a
  * Rivals room — puts the old ground up first, full screen, with a line down its
