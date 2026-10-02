@@ -2030,6 +2030,9 @@ body.start-screen #sound{pointer-events:auto}
 .pause-card .card-shares .story-key{margin-top:0;font-size:12.5px;letter-spacing:.6px}
 .pause-card .story-key{margin-top:11px}
 .pause-card .start-hint{margin-top:10px;color:var(--quiet)}
+/* Day or night, under the two ways out: the same quiet key, the full width. */
+.pause-card .lights-key{display:block;width:100%;margin-top:9px;font-size:12.5px;letter-spacing:.6px}
+.pause-card .lights-key.hidden{display:none}
 
 /* ── What to do next ───────────────────────────────────────────────────── */
 /* Under the sheet, not inside it.

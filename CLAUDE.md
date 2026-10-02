@@ -79,8 +79,11 @@ are canvases and a shader no unit test runs, and it holds the draw-call budget
 a frame. Lower its `BUDGET` when a change brings the count down. It walks both
 grounds — the stadium every mode plays in, and the bowl before it,
 which `?ground=bowl` still builds and which is kept for that and for the
-covers. Build new scenery through `Batch` (`src/scene/build.ts`), one mesh a
-colour, not a box at a time.
+covers — and the stadium both by day and by night. The Blast is played at
+night by default, so any check that judges the ground's colours in a Blast
+innings is judging the night; `?lights=day` asks for the day. Build new
+scenery through `Batch` (`src/scene/build.ts`), one mesh a colour, not a box
+at a time.
 
 `scripts/milestone-check.mjs` is the fifty, the hundred and six sixes: the
 grey is measured off the pixels of the grass, and the doodles are judged on

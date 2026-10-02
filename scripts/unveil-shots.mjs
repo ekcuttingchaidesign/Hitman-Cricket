@@ -58,7 +58,7 @@ async function photograph(ground, options, png) {
   // and every step after it is one this script took.
   await page.clock.install({ time: new Date('2026-07-01T11:00:00Z') });
   await page.clock.pauseAt(new Date('2026-07-01T11:00:01Z'));
-  await page.goto(`${base}/?debug=1&seed=${SEED}&ground=${ground}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${base}/?debug=1&seed=${SEED}&ground=${ground}&lights=day`, { waitUntil: 'domcontentloaded' });
   for (let i = 0; i < 100 && !(await page.evaluate(() => !!window.__cricket)); i++) { await advance(100); await page.waitForTimeout(50); }
   await advance(2500);
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });

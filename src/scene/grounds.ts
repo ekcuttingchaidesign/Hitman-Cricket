@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { box, colors, cylinder, mat } from './build';
-import { stadium } from './stadium';
+import { stadium, type StadiumLights } from './stadium';
 
 /**
  * The stands and everything over them: what a ground is, once the turf and
@@ -33,8 +33,10 @@ export function groundFrom(search: string): GroundName {
   return GROUNDS.find(name => name === asked) ?? DEFAULT_GROUND;
 }
 
-export function buildGround(name: GroundName, world: THREE.Object3D) {
-  if (name === 'bowl') bowl(world); else stadium(world);
+/** Builds a ground onto `world`; the stadium hands back its lamps, for the night. */
+export function buildGround(name: GroundName, world: THREE.Object3D): StadiumLights | null {
+  if (name === 'bowl') { bowl(world); return null; }
+  return stadium(world);
 }
 
 /** Whether a ground brings its own floodlights, in place of the four poles `GameScene` stands up for the bowl. */

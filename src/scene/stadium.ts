@@ -86,9 +86,21 @@ const COVERED = 3.8;
 /** Half the width of the aisle down the middle of every section. */
 const AISLE = 0.4;
 
+/**
+ * What the scene needs to light the stadium up at night: the lamps' material,
+ * to turn them up, and where the lamps are, in the stage's frame, to hang a
+ * glow on each.
+ */
+export interface StadiumLights {
+  lamps: THREE.MeshStandardMaterial;
+  roof: THREE.Vector3[];
+  towers: THREE.Vector3[];
+}
+
 /** Builds the stadium onto `world`, the stage's own frame: the bowler's end is +z. */
-export function stadium(world: THREE.Object3D) {
+export function stadium(world: THREE.Object3D): StadiumLights {
   const b = new Batch();
+  const lights: StadiumLights = { lamps: lampFinish(), roof: [], towers: [] };
   const seats: THREE.Matrix4[] = [];
   const colours: number[] = [];
   const seat = (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => {
@@ -103,20 +115,23 @@ export function stadium(world: THREE.Object3D) {
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a),
       new THREE.Vector3(1, 1, 1),
     );
-    stand(b, seat, frame, section);
+    stand(b, seat, frame, section, lights);
   }
   sightscreen(b);
   commentary(b);
-  floodlights(b);
+  floodlights(b, lights);
 
   b.finish(STADIUM.glass, glassFinish());
-  b.finish(STADIUM.lamp, lampFinish());
+  b.finish(STADIUM.lamp, lights.lamps);
   b.finish(STADIUM.soffit, soffitFinish());
-  b.build(world);
+  // The stands stand beyond the shadow map's edge, so they cast nothing that
+  // could land on the field: they are left out of the shadow pass altogether.
+  b.build(world, { casts: false });
 
   const crowd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.55, 0.55), mat(0xffffff), seats.length);
   seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(colours[i])); });
   crowd.instanceMatrix.needsUpdate = true; world.add(crowd);
+  return lights;
 }
 
 /** The seats across a row `w` wide, either side of the aisle down the middle. */
@@ -134,7 +149,7 @@ function across(w: number, skip: (x: number) => boolean, place: (x: number) => v
  * a tunnel into the middle of its lower tier, so the ring has the rhythm a
  * real stand has rather than one unbroken band of crowd.
  */
-function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number) {
+function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: number, n: number) => void, frame: THREE.Matrix4, section: number, lights: StadiumLights) {
   const { concrete, paint, steel, glass, cover, tunnel } = STADIUM;
   const behindTheBowler = section === 0, tunnelled = section % 2 === 1;
   let n = section * 31;
@@ -176,11 +191,11 @@ function stand(b: Batch, seat: (frame: THREE.Matrix4, x: number, y: number, z: n
   const rear = UPPER_Z + UPPER * UPPER_STEP.z;
   b.box(span(rear), EAVES, 0.4, concrete, 0, EAVES / 2, rear, frame);
   for (const x of [-span(rear) / 2 + 0.3, span(rear) / 2 - 0.3]) b.post(0.12, EAVES + 1.2, steel, x, (EAVES + 1.2) / 2, rear - 0.2, frame);
-  roof(b, frame, rear);
+  roof(b, frame, rear, lights);
 }
 
 /** A flat cantilever roof over a section, its fascia, and three lamps along its edge. */
-function roof(b: Batch, frame: THREE.Matrix4, rear: number) {
+function roof(b: Batch, frame: THREE.Matrix4, rear: number, lights: StadiumLights) {
   const { paint, steel, soffit, frame: housing, lamp } = STADIUM;
   const depth = rear + 3.2, middle = rear - depth / 2 + 0.2, w = span(middle) + 0.1;
   b.box(w, 0.35, depth, paint, 0, EAVES + 0.3, middle, frame, -0.04);
@@ -192,6 +207,7 @@ function roof(b: Batch, frame: THREE.Matrix4, rear: number) {
   for (const x of [-w / 3, 0, w / 3]) {
     b.box(1.5, 0.5, 0.5, housing, x, EAVES + 1.15, edge, frame, 0.5);
     b.box(1.3, 0.34, 0.06, lamp, x, EAVES + 1.1, edge - 0.28, frame, 0.5);
+    lights.roof.push(new THREE.Vector3(x, EAVES + 1.05, edge - 0.45).applyMatrix4(frame));
   }
 }
 
@@ -235,7 +251,7 @@ function commentary(b: Batch) {
  */
 const TOWERS = [[-19, 58], [19, 58], [-19, -38], [19, -38]] as const;
 const MAST = 14;
-function floodlights(b: Batch) {
+function floodlights(b: Batch, lights: StadiumLights) {
   const { steel, frame: housing, lamp } = STADIUM;
   const centre = new THREE.Vector3(0, 0, CENTRE_Z);
   for (const [x, z] of TOWERS) {
@@ -250,5 +266,6 @@ function floodlights(b: Batch) {
       b.box(0.82, 0.68, 0.12, lamp, -2.6 + col * 1.04, -1.38 + row * 0.92, -0.3, head);
     }
     b.box(1.1, 1.1, 1.1, housing, 0, MAST, 0, frame);
+    lights.towers.push(new THREE.Vector3(0, 0, -0.9).applyMatrix4(head));
   }
 }

@@ -66,11 +66,15 @@ export class Batch {
     const geometry = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4).rotateY(Math.PI / 4).scale(w, h, d);
     this.add(geometry.translate(x, y + h / 2, z), color, frame);
   }
-  /** One mesh a colour, under `parent`. */
-  build(parent: THREE.Object3D) {
+  /**
+   * One mesh a colour, under `parent`. `casts: false` for scenery that stands
+   * outside the sun's shadow map, where a shadow costs a draw call in the
+   * shadow pass and lands on nothing anybody sees.
+   */
+  build(parent: THREE.Object3D, { casts = true } = {}) {
     for (const [color, list] of this.parts) {
       const mesh = new THREE.Mesh(mergeGeometries(list), this.finishes.get(color) ?? mat(color));
-      mesh.castShadow = true; mesh.receiveShadow = true;
+      mesh.castShadow = casts; mesh.receiveShadow = true;
       parent.add(mesh);
       list.forEach(geometry => geometry.dispose());
     }

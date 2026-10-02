@@ -11,7 +11,7 @@
  * them. A shader that fails to compile is a console error and a black dome,
  * not an exception, which is why the console is watched as well as the page.
  *
- * Both grounds are walked: the stadium every innings is played in,
+ * Both grounds are walked, and the stadium by night as well as by day: the stadium every innings is played in,
  * and the bowl before it, which `?ground=bowl` still builds.
  *
  * The number that matters is draw calls a frame. The ground used to cost over a
@@ -35,7 +35,9 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  * Draw calls a frame, shadow pass included, on the ground every innings is
  * played on. The ground came in at about 850 with its painted textures and
  * about 825 once the perimeter boards were one ring; the stadium, its stands
- * merged into one mesh a colour, came in at 655. Lower this whenever a
+ * merged into one mesh a colour and left out of the shadow pass, came in at
+ * 647 by day and 678 by night, when the floodlights behind the batter's end
+ * cast the fielders' shadows the sun had not. Lower this whenever a
  * change brings it down, so the saving stays banked.
  */
 const BUDGET = 680;
@@ -44,7 +46,12 @@ const BUDGET = 680;
  * `?ground=bowl`, so it is still drawn here and held to the budget it shipped
  * under: built a box at a time, it costs about 800.
  */
-const GROUNDS = [['stadium', '', BUDGET], ['bowl', '&ground=bowl', 870]];
+const GROUNDS = [
+  ['stadium', 'day', '&lights=day', BUDGET],
+  // The Blast's night: the same stadium, the moon and two clouds of glow added.
+  ['stadium', 'night', '&lights=night', BUDGET],
+  ['bowl', 'day', '&ground=bowl&lights=day', 870],
+];
 
 let failures = 0;
 const check = (ok, what, detail) => {
@@ -55,11 +62,11 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
-for (const [ground, query, budget] of GROUNDS) for (const [name, options] of [
+for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] of [
   ['desktop', { viewport: { width: 1280, height: 720 } }],
   ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }],
 ]) {
-  console.log(`${ground} · ${name}`);
+  console.log(`${ground} · ${time} · ${name}`);
   const page = await browser.newPage(options);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -113,10 +120,12 @@ for (const [ground, query, budget] of GROUNDS) for (const [name, options] of [
   });
   const built = await page.evaluate(() => window.__cricket?.ground());
   check(built === ground, `on the ${ground} ground`, built);
+  const lit = await page.evaluate(() => window.__cricket?.lights());
+  check(lit === time, `by ${time}`, lit);
   check(draws > 0, 'the ground is being drawn', draws);
   check(draws <= budget, `in ${draws} draw calls a frame, within ${budget}`);
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
-  await page.screenshot({ path: `test-results/scene-${ground}-${name}.png` });
+  await page.screenshot({ path: `test-results/scene-${ground}-${time}-${name}.png` });
   await page.close();
 }
 

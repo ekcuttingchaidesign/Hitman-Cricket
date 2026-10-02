@@ -22,6 +22,24 @@ export const SKY = {
   ground: 0x5d7d44,
 } as const;
 
+/**
+ * The same dome after dark: a deep blue overhead, going to a horizon lifted by
+ * the glow of the ground's own lights, and an outfield the floodlights have
+ * made brighter than anything round it.
+ */
+export const NIGHT_SKY = {
+  zenith: 0x0b1530,
+  horizon: 0x2a3d5e,
+  ground: 0x3d5a34,
+} as const;
+
+/** Day or night: the palette, how much light the clouds catch, and whether the stars are out. */
+export type SkyTime = 'day' | 'night';
+const TIMES = {
+  day: { ...SKY, cloud: 1, stars: 0 },
+  night: { ...NIGHT_SKY, cloud: 0.1, stars: 1 },
+} as const;
+
 /** How far up the sky the cloud band reaches, as the sine of the elevation (30°). */
 const CLOUD_TOP = 0.5;
 
@@ -41,7 +59,10 @@ const fragmentShader = /* glsl */`
   uniform vec3 horizon;
   uniform vec3 ground;
   uniform sampler2D clouds;
+  uniform float cloudLight;
+  uniform float stars;
   varying vec3 vDir;
+  float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
   void main() {
     vec3 d = normalize(vDir);
     float e = d.y;
@@ -52,9 +73,15 @@ const fragmentShader = /* glsl */`
     if (v > 0.0 && v < 1.0) {
       float density = texture2D(clouds, vec2(atan(d.x, d.z) * 0.15915494 + 0.5, v)).r;
       // Thin cloud takes the colour of the sky behind it; thick cloud is white.
-      vec3 cloud = mix(horizon * 0.92, vec3(1.0), smoothstep(0.25, 0.8, density));
+      vec3 cloud = mix(horizon * 0.92, vec3(cloudLight), smoothstep(0.25, 0.8, density));
       float cover = smoothstep(0.12, 0.42, density) * smoothstep(0.0, 0.14, v) * (1.0 - smoothstep(0.7, 1.0, v));
       colour = mix(colour, cloud, cover * 0.92);
+    }
+    // Stars: a sparse scatter that fades in with height, out of the horizon's glow.
+    if (stars > 0.0) {
+      vec3 cell = floor(d * 720.0);
+      float star = step(0.9992, hash(cell)) * smoothstep(0.08, 0.35, e);
+      colour += vec3(0.85, 0.88, 1.0) * star * stars * (0.5 + 0.5 * hash(cell + 3.0));
     }
     colour = mix(colour, ground, smoothstep(0.0, -0.06, e));
     gl_FragColor = vec4(colour, 1.0);
@@ -116,6 +143,8 @@ export class Sky {
         horizon: { value: new THREE.Color(SKY.horizon) },
         ground: { value: new THREE.Color(SKY.ground) },
         clouds: { value: this.clouds },
+        cloudLight: { value: 1 },
+        stars: { value: 0 },
       },
       vertexShader, fragmentShader,
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -125,6 +154,17 @@ export class Sky {
     // Drawn after every opaque thing, so the pixels they already cover are
     // thrown away by the depth test rather than shaded and painted over.
     this.mesh.renderOrder = 10;
+  }
+
+  /** Day or night: repaints the dome. The environment map has to be taken again after it. */
+  time(time: SkyTime) {
+    const t = TIMES[time], u = this.material.uniforms;
+    (u.zenith.value as THREE.Color).set(t.zenith);
+    (u.horizon.value as THREE.Color).set(t.horizon);
+    (u.ground.value as THREE.Color).set(t.ground);
+    u.cloudLight.value = t.cloud;
+    u.stars.value = t.stars;
+    return t;
   }
 
   /** The dome prefiltered for image-based lighting. Dispose of it with the scene. */

@@ -9,7 +9,8 @@ import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
-import { SKY, Sky } from './sky';
+import { SKY, Sky, type SkyTime } from './sky';
+import { FILL_POSITION, LIGHTING, glows, moon } from './night';
 import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
@@ -181,6 +182,15 @@ export class GameScene {
   private sky = new Sky();
   /** Which ground the stands are built for: see `grounds.ts`. */
   readonly ground: GroundName = groundFrom(location.search);
+  /** Day or night: see `time`. */
+  private now: SkyTime = 'day';
+  private hemisphere = new THREE.HemisphereLight(LIGHTING.day.hemisphere.sky, LIGHTING.day.hemisphere.ground, LIGHTING.day.hemisphere.intensity);
+  private sun = new THREE.DirectionalLight(LIGHTING.day.key.colour, LIGHTING.day.key.intensity);
+  private fill = new THREE.DirectionalLight(LIGHTING.night.fill.colour, 0);
+  /** What lights up after dark: the boards' material, the stadium's lamps, the moon and the glows. */
+  private boardsMaterial: THREE.MeshStandardMaterial | null = null;
+  private lamps: THREE.MeshStandardMaterial | null = null;
+  private night: THREE.Object3D[] = [];
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
   private textures: THREE.Texture[] = [];
@@ -214,11 +224,15 @@ export class GameScene {
     this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
     // The sky now lights the scene through the environment map; this is what is
     // left of the old fill, warm from above so the shade does not go cold.
-    this.scene.add(new THREE.HemisphereLight(0xfff4e2, 0x66744a, 1.1));
-    const sun = new THREE.DirectionalLight(0xffedce, 3.2); sun.position.set(-15, 30, -8); sun.castShadow = true;
+    this.scene.add(this.hemisphere);
+    // The sun by day, the floodlights behind the batter's end by night: the one that casts.
+    const sun = this.sun; sun.position.set(-15, 30, -8); sun.castShadow = true;
     sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -28; sun.shadow.camera.right = 28;
     sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -20; sun.shadow.normalBias = 0.025;
     this.scene.add(sun);
+    // The far towers' light, catching the batter's edges after dark; nothing by day.
+    // Always in the scene, so switching to night recompiles no shader.
+    this.fill.position.set(...FILL_POSITION); this.scene.add(this.fill);
     this.createGround();
     this.wicket(0); this.wicket(18.7);
     this.bowlerHolder.add(this.bowler.root);
@@ -408,11 +422,22 @@ export class GameScene {
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
-    buildGround(this.ground, this.world);
+    const lights = buildGround(this.ground, this.world);
     // The boards along the foot of the stands. Added to the scene rather than
     // the mirrored stage, or every sponsor would read backwards.
     const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
     this.scene.add(boards.group); this.textures.push(boards.texture);
+    boards.group.traverse(object => {
+      if (object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).emissiveMap) this.boardsMaterial = object.material as THREE.MeshStandardMaterial;
+    });
+    // The night's own: the moon, and a glow on every lamp the stadium has.
+    const theMoon = moon(this.camera.position);
+    this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
+    if (lights) {
+      this.lamps = lights.lamps;
+      const glow = glows(lights.roof, lights.towers);
+      this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
+    }
     if (!ownFloodlights(this.ground)) for (const [x, z] of [[-29, 35], [29, 35], [-32, -13], [32, -13]]) {
       cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
       box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
@@ -445,6 +470,33 @@ export class GameScene {
    * it is red in both, which is the one thing a Test match and this game's
    * limited-overs innings have always agreed on.
    */
+  /**
+   * Day or night. Repaints the sky and takes its environment map again,
+   * moves and recolours the lights, turns the lamps and the boards up, and
+   * puts the moon and the glows out. The ground is the same ground: nothing is
+   * built or rebuilt, and no shader changes, so it can be switched from the
+   * pause menu between balls.
+   */
+  time(time: SkyTime) {
+    if (time === this.now) return;
+    this.now = time;
+    const palette = this.sky.time(time), light = LIGHTING[time];
+    this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
+    this.renderer.setClearColor(palette.horizon);
+    this.environment.dispose();
+    this.environment = this.sky.environment(this.renderer);
+    this.scene.environment = this.environment.texture;
+    this.scene.environmentIntensity = light.environment;
+    this.hemisphere.color.set(light.hemisphere.sky); this.hemisphere.groundColor.set(light.hemisphere.ground);
+    this.hemisphere.intensity = light.hemisphere.intensity;
+    this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity; this.sun.position.set(...light.key.position);
+    this.fill.intensity = light.fill.intensity;
+    if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
+    if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
+    for (const object of this.night) object.visible = time === 'night';
+  }
+  /** Whether the ground is lit for night. For the checks. */
+  get lit() { return this.now; }
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
   /**

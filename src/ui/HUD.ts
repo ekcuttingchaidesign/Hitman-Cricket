@@ -328,7 +328,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="unveil-overlay" class="unveil-overlay hidden" role="dialog" aria-modal="true" aria-label="The new ground"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
+        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="lights-toggle" class="story-key lights-key hidden" type="button" aria-pressed="true"></button><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -1402,6 +1402,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE');
     // Restart the rise-and-fade from the top for back-to-back deliveries.
     panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
+  }
+  /**
+   * The pause card's day-or-night key, in a Blast innings only: a Test is
+   * played by day. It says what pressing it would do, not what is on now,
+   * because the ground behind the card already shows that.
+   */
+  lightsSwitch(now: 'day' | 'night' | null) {
+    const key = this.$('lights-toggle');
+    key.classList.toggle('hidden', now === null);
+    if (!now) return;
+    key.textContent = now === 'night' ? 'PLAY BY DAY' : 'PLAY UNDER LIGHTS';
+    key.setAttribute('aria-pressed', String(now === 'night'));
+    key.setAttribute('aria-label', now === 'night' ? 'Floodlights on. Switch to a day game' : 'Day game. Switch to a night game under the floodlights');
   }
   pause(value: boolean) { this.viewport.classList.toggle('modal-open', value); this.$('pause-overlay').classList.toggle('hidden', !value); if (value) this.$('resume').focus(); }
   end(score: ScoreManager, best: number, isRecord: boolean) {
