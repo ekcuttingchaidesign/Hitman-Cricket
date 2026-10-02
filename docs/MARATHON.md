@@ -104,7 +104,9 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 
 ## The speed gun
 
-Every ball's speed is shown, the way a broadcast shows it: a small reading by
+Every ball's speed is shown, the way a broadcast shows it — **in the
+Marathon first**; the Blast and Test Survival can take the same reading later,
+since it is one HUD element and one curve: a small reading by
 the score bar the moment the ball leaves the hand — `142 km/h` — that stays
 until the next ball. It shows on a phone, where the far end and the top of the
 frame are the only places nobody's thumb is.
@@ -265,8 +267,7 @@ Each step is a pull request of its own, behind the flag until the last.
    simulator, and tuning.
 3. **The left-hander.**
 4. **The express bowler**, his action and release, and the level banners.
-   (The speed gun can ship before any of this, in every mode — see Open
-   questions.)
+   The speed gun comes with this step.
 5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two
    ladders, the store, `?demo=1`.
 6. **My Stats.** The third card and its tier.
@@ -291,7 +292,3 @@ Each has the default it will be built with.
 4. **Where the left-hander comes in.** The default is **any of the three, at
    random**, as decided; if playtests find the mirrored swipes cost an opener
    too many runs, he can be held to No. 2 or No. 3.
-5. **The speed gun in every mode.** The default is **all three modes**: it is
-   one HUD element and one curve, and a reading that appeared only in the
-   Marathon would make the other two look unfinished. It can ship ahead of the
-   mode, on its own.
