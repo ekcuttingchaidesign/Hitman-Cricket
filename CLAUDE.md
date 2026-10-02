@@ -76,7 +76,14 @@ innings — which is how most players get to that card in the first place.
 
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
-a frame. Lower its `BUDGET` when a change brings the count down.
+a frame. Lower its `BUDGET` when a change brings the count down. It walks both
+grounds — the stadium every mode plays in, and the bowl before it,
+which `?ground=bowl` still builds and which is kept for that and for the
+covers — and the stadium both by day and by night. The Blast is played at
+night by default, so any check that judges the ground's colours in a Blast
+innings is judging the night; `?lights=day` asks for the day. Build new
+scenery through `Batch` (`src/scene/build.ts`), one mesh a colour, not a box
+at a time.
 
 `scripts/milestone-check.mjs` is the fifty, the hundred and six sixes: the
 grey is measured off the pixels of the grass, and the doodles are judged on
@@ -114,8 +121,10 @@ steps of a script.
 mode, puts the old ground up and a swipe pulls it off. Every other check that
 starts an innings seeds `hitman-unveiled` so it starts past them, which means this is the only
 one that sees them — keep that seed out of it. The two pictures are the same
-ball on the build before the graphics update and the build after it; retake
-both together, or the line stops lining up.
+ball on the ground before and the ground after; `scripts/unveil-shots.mjs`
+retakes both together on one build, or the line stops lining up. A new pair
+wants a new `REVEAL` in `src/game/unveil.ts`, and the same key in every check
+that seeds it.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.

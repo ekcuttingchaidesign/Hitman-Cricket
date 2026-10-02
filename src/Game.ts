@@ -1,3 +1,4 @@
+import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { SURVIVE } from './config/survive';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
@@ -438,6 +439,11 @@ export class Game {
     // it: pick a mode and the innings is walked out on, back out of it and the
     // card is exactly where it was.
     this.hud.on('change-mode', () => { if (this.phase === 'PAUSED') this.modes(); });
+    // Day or night, from the pause card, between balls. Remembered for the next Blast innings.
+    for (const time of ['day', 'night'] as const) this.hud.on(`lights-${time}`, () => {
+      if (this.phase !== 'PAUSED' || this.surviving) return;
+      keepLights(time); this.scene.time(time); this.hud.lightsSwitch(time);
+    });
     this.hud.on('share', () => { void this.hud.share(); });
     this.hud.on('board', this.showBoard);
     // Both ladders exist, so the sheet carries a way between them.
@@ -514,6 +520,10 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Where every fielder is and what he is doing, for `field-check.mjs`.
       field: () => this.scene.fieldState,
+      // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
+      ground: () => this.scene.ground,
+      // Day or night, for the checks.
+      lights: () => this.scene.lit,
       // Who this browser settled on being. Asked by `key-check.mjs`, which
       // cannot know it any other way: the id is resolved from three stores
       // against a one-second fuse, and a headless browser with a cold
@@ -964,6 +974,8 @@ export class Game {
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.surviving);
+    // A Test by day; the Blast under the floodlights, unless the player has asked for a day game.
+    this.scene.time(this.surviving ? 'day' : blastLights());
     this.hud.start(this.surviving);
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
@@ -979,7 +991,7 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false);
+    this.scene.whites(false); this.scene.time(blastLights());
     this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -1147,6 +1159,7 @@ export class Game {
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else {
       this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
+      this.hud.lightsSwitch(this.surviving ? null : this.scene.lit);
       // A paused innings is the one moment in the game where nothing is waiting
       // on the player, which is the only kind of moment worth asking in.
       this.hud.offerFeedback({ pause: true });

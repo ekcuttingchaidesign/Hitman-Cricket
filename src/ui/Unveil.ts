@@ -4,12 +4,12 @@ import { track } from '../game/analytics';
 /**
  * The covers coming off: the old ground over the new one, and a line to drag.
  *
- * Two photographs of the same ball — the same seed, the same moment in the
- * bowler's run-up, on the build before the update and the build after it — so
+ * Two photographs of the same ball — the same seed, the same moment in its
+ * flight, on the ground before and the ground after — so
  * the line moving across is the only thing that changes and every difference
  * under it is the update's. They are photographs rather than the live ground
- * because there is no old ground to render any more, and because two still
- * pictures cost nothing a frame on a phone that is about to bat.
+ * because two still pictures cost nothing a frame on a phone that is about to
+ * bat; `scripts/unveil-shots.mjs` takes them.
  *
  * A pair for a phone held upright and a pair for a wider screen, picked by the
  * browser, so each only ever downloads the two it shows. Imported rather than
@@ -41,11 +41,11 @@ export function unveilMarkup(): string {
   return `
     <div class="unveil is-loading" style="--at:${REST * 100}%">
       <div class="unveil-layer is-after">${shot('after',
-    'The ground now: a blue sky with cloud, striped turf, sponsors along the fence, and the score in one bar across the top.')}
+    'The ground now: two tiers of stands right round the ground under a white cantilever roof, a commentary box over the sightscreen, and floodlights.')}
         <span class="unveil-tag">NEW GROUND</span>
       </div>
       <div class="unveil-layer is-before">${shot('before',
-    'The ground as it was: a flat sky, plain grass, orange fence boards, and the score in two boxes.')}
+    'The ground as it was: a low clubhouse with three flags behind the bowler, and one tier of stands in a ring under flat roofs.')}
         <span class="unveil-tag">OLD GROUND</span>
       </div>
       <div id="unveil-line" class="unveil-line" role="slider" tabindex="0"
@@ -56,7 +56,7 @@ export function unveilMarkup(): string {
       <div class="unveil-foot">
         <p class="unveil-nudge" aria-hidden="true">${LEFT}<span>Swipe to pull the covers off</span></p>
         <div class="unveil-done" aria-live="polite">
-          <p class="unveil-eyebrow">NEW SKY · NEW TURF · NEW KIT</p>
+          <p class="unveil-eyebrow">NEW STANDS · FLOODLIGHTS</p>
           <h2 class="unveil-title">Covers off. Play on.</h2>
           <button id="unveil-play" class="key-button unveil-key" type="button" tabindex="-1">PLAY</button>
         </div>

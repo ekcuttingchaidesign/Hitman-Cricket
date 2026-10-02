@@ -99,7 +99,9 @@ if (slides.length > 1) {
   const now = await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim());
   check(now === 'Test Survival', 'swiping moves which card is in front', now);
   await page.click('.stats-dot[data-slide="0"]');
-  await page.waitForTimeout(900);
+  // Waited for rather than slept on: in software rendering a frame can take a
+  // second, and the rail eases back over several of them.
+  await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
   check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'The Blast',
     'and the dots take you back without a swipe');
 }
@@ -109,10 +111,21 @@ const figures = await page.$$eval('.stats-tap', keys => keys.map(key => key.data
 check(taps.length > 0, 'every figure on the picture carries a key to press', figures.join(', '));
 
 if (taps.length) {
+  // Whether the toast rose is watched for as it happens rather than sampled
+  // after a sleep. It stays up four and a half seconds, and in software
+  // rendering, where a frame can take a second, Playwright's click alone can
+  // spend longer than that waiting for the page to settle: sampled afterwards,
+  // a toast that rose and went exactly as it should read as one that never came.
+  await page.evaluate(() => {
+    const toast = document.getElementById('stats-toast');
+    window.__toastRose = false;
+    new MutationObserver(() => { if (toast.classList.contains('is-up')) window.__toastRose = true; })
+      .observe(toast, { attributes: true, attributeFilter: ['class'] });
+  });
   await taps[0].click();
-  await page.waitForTimeout(500);
+  await page.waitForFunction(() => window.__toastRose, null, { timeout: 10_000 }).catch(() => {});
   const said = await page.$eval('#stats-toast', toast => ({
-    up: toast.classList.contains('is-up'), text: toast.textContent.trim(),
+    up: window.__toastRose, text: toast.textContent.trim(),
   }));
   check(said.up && said.text.length > 20, 'pressing a figure says what it counts', JSON.stringify(said));
   await page.waitForTimeout(5200);

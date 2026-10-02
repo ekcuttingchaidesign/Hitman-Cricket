@@ -46,7 +46,7 @@ page.on('pageerror', error => errors.push(error.message));
 await page.clock.install();
 // The covers come before the stories on a first press of play, and have a
 // check of their own: this one starts on the far side of them.
-await page.addInitScript(() => { try { localStorage.setItem('hitman-unveiled', 'ground-2026'); } catch { /* Then they stand in the way. */ } });
+await page.addInitScript(() => { try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ } });
 
 /** The page's own clock, wound on, then a beat of real time to draw in. */
 const tick = async (ms, draw = 200) => { await page.clock.runFor(ms); await page.waitForTimeout(draw); };

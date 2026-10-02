@@ -132,7 +132,7 @@ for (const [name, options, mode] of [
   const through = await settled(page, () => document.querySelector('.unveil')?.classList.contains('is-open'));
   check(through, 'past half, the covers come off');
   check(await value(page) === 100, 'all the way', await value(page));
-  check(await remembered(page) === 'ground-2026', 'counted as seen once they are off', await remembered(page));
+  check(await remembered(page) === 'ground-stadium', 'counted as seen once they are off', await remembered(page));
   const play = page.locator('#unveil-play');
   await page.waitForTimeout(600);
   check(await play.isVisible(), 'a play key comes up');

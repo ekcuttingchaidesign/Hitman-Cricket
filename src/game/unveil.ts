@@ -1,8 +1,8 @@
 /**
  * The new ground, shown off once.
  *
- * The graphics update changed the sky, the turf, the boards, the kit and the
- * scoreboard, and a player who had batted on the old ground would otherwise
+ * The stadium replaced the bowl — the clubhouse and its ring of one-tier
+ * stands — and a player who had batted on the old ground would otherwise
  * notice it as "something looks different" rather than as a thing done for
  * them. So the first innings chosen — any mode, from the picker, a link or a
  * Rivals room — puts the old ground up first, full screen, with a line down its
@@ -18,7 +18,7 @@
  * Which reveal this is. In the key, so a later update that wants its own
  * before-and-after is a new key and shows itself to everybody again.
  */
-export const REVEAL = 'ground-2026';
+export const REVEAL = 'ground-stadium';
 
 const KEY = 'hitman-unveiled';
 

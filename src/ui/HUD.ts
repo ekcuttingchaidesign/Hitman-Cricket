@@ -88,6 +88,9 @@ const icon = (name: string) => {
     close: '<path d="m7 7 10 10M17 7 7 17"/>',
     /* Two bats crossed: the mark of a match against somebody. */
     versus: '<path d="m5 19 5-5m-5 0 5 5M5 5l14 14M19 5 5 19"/>',
+    /* Day and night, for the pause card's switch. */
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
@@ -328,7 +331,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="unveil-overlay" class="unveil-overlay hidden" role="dialog" aria-modal="true" aria-label="The new ground"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
+        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -1402,6 +1405,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       : outcome.timingDeltaMs === null ? 'NO SHOT' : outcome.timingGrade === 'MISS' ? 'MISSED IT' : outcome.timingDeltaMs < 0 ? 'EARLY' : 'LATE');
     // Restart the rise-and-fade from the top for back-to-back deliveries.
     panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
+  }
+  /**
+   * The pause card's day-or-night toggle, in a Blast innings only: a Test is
+   * played by day. Two halves, a sun and a moon, with the one in play lit.
+   */
+  lightsSwitch(now: 'day' | 'night' | null) {
+    this.$('lights-toggle').classList.toggle('hidden', now === null);
+    if (!now) return;
+    for (const time of ['day', 'night'] as const) {
+      const option = this.$(`lights-${time}`);
+      option.classList.toggle('is-on', time === now);
+      option.setAttribute('aria-checked', String(time === now));
+    }
   }
   pause(value: boolean) { this.viewport.classList.toggle('modal-open', value); this.$('pause-overlay').classList.toggle('hidden', !value); if (value) this.$('resume').focus(); }
   end(score: ScoreManager, best: number, isRecord: boolean) {

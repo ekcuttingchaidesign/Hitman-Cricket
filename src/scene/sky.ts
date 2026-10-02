@@ -22,6 +22,25 @@ export const SKY = {
   ground: 0x5d7d44,
 } as const;
 
+/**
+ * The same dome after dark: a deep blue overhead, going to a horizon lifted by
+ * the glow of the ground's own lights, and an outfield the floodlights have
+ * made brighter than anything round it.
+ */
+export const NIGHT_SKY = {
+  zenith: 0x0b1530,
+  horizon: 0x2a3d5e,
+  ground: 0x3d5a34,
+} as const;
+
+/** Day or night: the palette, how much light the clouds catch, and whether the stars are out. */
+export type SkyTime = 'day' | 'night';
+const TIMES = {
+  day: { ...SKY, cloud: 1, cover: 1, stars: 0 },
+  // No cloud at night: a clear sky, so the stars and the moon have it to themselves.
+  night: { ...NIGHT_SKY, cloud: 0.1, cover: 0, stars: 1 },
+} as const;
+
 /** How far up the sky the cloud band reaches, as the sine of the elevation (30°). */
 const CLOUD_TOP = 0.5;
 
@@ -41,7 +60,11 @@ const fragmentShader = /* glsl */`
   uniform vec3 horizon;
   uniform vec3 ground;
   uniform sampler2D clouds;
+  uniform float cloudLight;
+  uniform float cover;
+  uniform float stars;
   varying vec3 vDir;
+  float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
   void main() {
     vec3 d = normalize(vDir);
     float e = d.y;
@@ -52,9 +75,19 @@ const fragmentShader = /* glsl */`
     if (v > 0.0 && v < 1.0) {
       float density = texture2D(clouds, vec2(atan(d.x, d.z) * 0.15915494 + 0.5, v)).r;
       // Thin cloud takes the colour of the sky behind it; thick cloud is white.
-      vec3 cloud = mix(horizon * 0.92, vec3(1.0), smoothstep(0.25, 0.8, density));
-      float cover = smoothstep(0.12, 0.42, density) * smoothstep(0.0, 0.14, v) * (1.0 - smoothstep(0.7, 1.0, v));
-      colour = mix(colour, cloud, cover * 0.92);
+      vec3 cloud = mix(horizon * 0.92, vec3(cloudLight), smoothstep(0.25, 0.8, density));
+      float coverage = smoothstep(0.12, 0.42, density) * smoothstep(0.0, 0.14, v) * (1.0 - smoothstep(0.7, 1.0, v));
+      colour = mix(colour, cloud, coverage * 0.92 * cover);
+    }
+    // Stars: a sparse scatter that fades in with height, out of the horizon's glow.
+    if (stars > 0.0) {
+      // Sparse: about one cell in four hundred, each a pixel or two on a phone,
+      // in a spread of brightness so they read as a sky rather than a grid.
+      vec3 grid = d * 340.0, cell = floor(grid);
+      // Round and soft rather than the square of the cell it lives in.
+      float dot = 1.0 - smoothstep(0.12, 0.42, length(fract(grid) - 0.5));
+      float star = step(0.9975, hash(cell)) * dot * smoothstep(0.06, 0.3, e);
+      colour += vec3(0.86, 0.9, 1.0) * star * stars * (0.35 + 0.65 * hash(cell + 3.0));
     }
     colour = mix(colour, ground, smoothstep(0.0, -0.06, e));
     gl_FragColor = vec4(colour, 1.0);
@@ -116,6 +149,9 @@ export class Sky {
         horizon: { value: new THREE.Color(SKY.horizon) },
         ground: { value: new THREE.Color(SKY.ground) },
         clouds: { value: this.clouds },
+        cloudLight: { value: 1 },
+        cover: { value: 1 },
+        stars: { value: 0 },
       },
       vertexShader, fragmentShader,
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -127,11 +163,24 @@ export class Sky {
     this.mesh.renderOrder = 10;
   }
 
+  /** Day or night: repaints the dome. The environment map has to be taken again after it. */
+  time(time: SkyTime) {
+    const t = TIMES[time], u = this.material.uniforms;
+    (u.zenith.value as THREE.Color).set(t.zenith);
+    (u.horizon.value as THREE.Color).set(t.horizon);
+    (u.ground.value as THREE.Color).set(t.ground);
+    u.cloudLight.value = t.cloud;
+    u.cover.value = t.cover;
+    u.stars.value = t.stars;
+    return t;
+  }
+
   /** The dome prefiltered for image-based lighting. Dispose of it with the scene. */
-  environment(renderer: THREE.WebGLRenderer) {
+  environment(renderer: THREE.WebGLRenderer, extras: THREE.Object3D[] = []) {
     const pmrem = new THREE.PMREMGenerator(renderer);
     const room = new THREE.Scene();
     room.add(new THREE.Mesh(this.mesh.geometry, this.material));
+    for (const extra of extras) room.add(extra);
     const target = pmrem.fromScene(room, 0.02);
     pmrem.dispose();
     return target;
