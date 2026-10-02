@@ -12,30 +12,12 @@ import { flightOf } from './flight';
 import { SKY, Sky } from './sky';
 import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
+import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
+import { buildGround, groundFrom, type GroundName } from './grounds';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 
 /** Where a beaten ball runs out of steam: just short of the stumps. */
 const BEATEN_STOP = (GAME.releaseZ - 0.3) / (GAME.releaseZ - GAME.contactZ);
-const colors = { navy: 0x19334a, orange: 0xf37943, white: 0xf8f1df, skin: 0xb77950 };
-const materials = new Map<number, THREE.MeshStandardMaterial>();
-// Scenery keeps its faceted, low-poly look; anything sculpted asks for `soft`.
-function mat(color: number) {
-  if (!materials.has(color)) materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true }));
-  return materials.get(color)!;
-}
-function soft(color: number, roughness = 0.72) {
-  const key = color + 0x1000000;
-  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness }));
-  return materials.get(key)!;
-}
-function box(parent: THREE.Object3D, w: number, h: number, d: number, color: number, x = 0, y = 0, z = 0) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
-  mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
-}
-function cylinder(parent: THREE.Object3D, r: number, h: number, color: number, x: number, y: number, z: number, sides = 8) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, sides), sides > 8 ? soft(color, 0.8) : mat(color));
-  mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh;
-}
 /**
  * The world going quiet around a hundred.
  *
@@ -197,6 +179,8 @@ export class GameScene {
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private sky = new Sky();
+  /** Which ground the stands and the pavilion are built for: see `grounds.ts`. */
+  readonly ground: GroundName = groundFrom(location.search);
   private environment: THREE.WebGLRenderTarget;
   /** Painted once at start-up; the scene's traversal finds materials, not their maps. */
   private textures: THREE.Texture[] = [];
@@ -424,28 +408,7 @@ export class GameScene {
     this.field.update(0);
   }
   private createStadium(anisotropy: number) {
-    const seatGeometry = new THREE.BoxGeometry(0.6, 0.55, 0.55);
-    const crowd = new THREE.InstancedMesh(seatGeometry, mat(0xffffff), 1344);
-    const dummy = new THREE.Object3D(); let index = 0;
-    const seatColors = [0x22465a, 0xf5bf71, 0xc8dbce, 0xf4794c, 0xe9e0c9, 0x467787];
-    for (let section = 0; section < 28; section++) {
-      const a = section / 28 * Math.PI * 2;
-      const group = new THREE.Group(); group.position.set(Math.sin(a) * 39, 0, 10 + Math.cos(a) * 39); group.rotation.y = a; this.world.add(group);
-      for (let row = 0; row < 4; row++) {
-        box(group, 8.5, 0.7 + row * 0.7, 1.4, 0x7d9397, 0, (0.7 + row * 0.7) / 2, -1.7 + row * 1.4);
-        for (let col = 0; col < 12; col++) {
-          dummy.position.set(-3.9 + col * 0.71, 1 + row * 0.7, -1.7 + row * 1.4);
-          dummy.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), a).add(group.position);
-          dummy.rotation.y = a; dummy.updateMatrix(); crowd.setMatrixAt(index, dummy.matrix);
-          crowd.setColorAt(index, new THREE.Color(seatColors[(section * 13 + row * 7 + col * 3 + col % 2) % seatColors.length])); index++;
-        }
-      }
-      if (section % 4 !== 0) {
-        box(group, 9.1, 0.25, 7.5, 0xc7d3cd, 0, 5.3, 0.4).rotation.x = -0.07;
-        [-3.9, 3.9].forEach(x => cylinder(group, 0.075, 5.2, 0x627d83, x, 2.6, 3.3));
-      }
-    }
-    crowd.instanceMatrix.needsUpdate = true; this.world.add(crowd);
+    buildGround(this.ground, this.world);
     // The boards along the foot of the stands. Added to the scene rather than
     // the mirrored stage, or every sponsor would read backwards.
     const boards = perimeterBoards(35.1, 1.2, 1.5, 10, anisotropy);
@@ -454,15 +417,6 @@ export class GameScene {
       cylinder(this.world, 0.19, 18, 0x839697, x, 9, z);
       box(this.world, 4, 2, 0.3, 0x304953, x, 17.5, z);
       for (let row = 0; row < 2; row++) for (let col = 0; col < 5; col++) box(this.world, 0.55, 0.55, 0.1, 0xfff4d9, x - 1.5 + col * 0.75, 17.1 + row * 0.8, z - 0.21);
-    }
-    // Clubhouse pavilion at the bowler's end.
-    box(this.world, 13, 7, 5, 0xe0d7bc, 0, 3.5, 53);
-    box(this.world, 15, 0.45, 6, colors.navy, 0, 7, 53);
-    box(this.world, 9, 2, 0.08, colors.navy, 0, 4.1, 50.46);
-    for (let i = -2; i <= 2; i++) box(this.world, 1.3, 1.6, 0.1, 0x406876, i * 2.4, 1.8, 50.45);
-    for (let i = -1; i <= 1; i++) {
-      cylinder(this.world, 0.05, 3, 0xe9e3cb, i * 4, 8.6, 53);
-      box(this.world, 1.15, 0.65, 0.04, i === 0 ? colors.orange : colors.navy, i * 4 + 0.56, 9.5, 53);
     }
   }
   private wicket(z: number) {
@@ -911,6 +865,6 @@ export class GameScene {
     // The sky's own, and what was painted for the ground.
     geometries.delete(this.sky.mesh.geometry); mats.delete(this.sky.mesh.material as THREE.Material); this.sky.dispose();
     this.environment.dispose(); this.textures.forEach(t => t.dispose());
-    geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); materials.clear(); this.renderer.dispose();
+    geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); forgetMaterials(); this.renderer.dispose();
   }
 }

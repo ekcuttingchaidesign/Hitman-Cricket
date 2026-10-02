@@ -18,7 +18,7 @@
  * Which reveal this is. In the key, so a later update that wants its own
  * before-and-after is a new key and shows itself to everybody again.
  */
-export const REVEAL = 'ground-2026';
+export const REVEAL = 'ground-pavilion';
 
 const KEY = 'hitman-unveiled';
 

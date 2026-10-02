@@ -514,6 +514,8 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Where every fielder is and what he is doing, for `field-check.mjs`.
       field: () => this.scene.fieldState,
+      // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
+      ground: () => this.scene.ground,
       // Who this browser settled on being. Asked by `key-check.mjs`, which
       // cannot know it any other way: the id is resolved from three stores
       // against a one-second fuse, and a headless browser with a cold

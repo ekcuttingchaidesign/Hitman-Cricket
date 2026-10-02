@@ -672,6 +672,16 @@ The suggestion is the only field anybody typed, and it is handled as such. Contr
 
 **On a Pages build there is no endpoint behind the form.** That deployment is survive-only and deliberately has no functions; a form opened there will say it could not be sent. Set `VITE_BOARD_API` to the Vercel origin on that workflow if playtest feedback should reach you — the allowlist in `src/server/http.ts` already names the Pages origin.
 
+## The ground
+
+Every mode is played on **the pavilion ground**: a red-brick pavilion behind the bowler, with two towers under slate pyramids, two tiers of balconies on a white colonnade, a pediment with a clock and the flag; a white sightscreen in front of it and members' benches either side; two-tier white stands round the rest of the ring, peaked tent roofs down one side and a flat cantilever down the other; and a crowd in summer whites and greens. It is a ground of a familiar kind, not a copy of a named one, and nothing in the game names it.
+
+**The ground before it is kept.** `?ground=bowl` builds the bowl — one tier of stands in a full ring, flat roofs, the low clubhouse with three flags — from the same code it always was, moved whole into `src/scene/grounds.ts`. It is there to be looked at beside the new one, and because the covers need it (below). The turf, the boards along the rope and the floodlights belong to both and stay in `GameScene`.
+
+**The pavilion ground is cheaper than the one it replaced.** The bowl is built a box at a time, a draw call each and two in the sun's shadow; the pavilion ground lays its pieces into a `Batch` (`src/scene/build.ts`) that merges them into one mesh a colour. More building, about 125 fewer draw calls a frame: 674 against 800 on a desktop. `scripts/scene-check.mjs` walks both grounds and holds the pavilion ground to the lower budget.
+
+**The covers came back for it.** The covers that pull the old ground off (`src/ui/Unveil.ts`) are two photographs of the same ball, and they only line up if nothing but the ground differs between them. `scripts/unveil-shots.mjs` takes them on one build, on one seed, on a clock wound by hand to the same millisecond, with `?ground=bowl` for the before — which is the other reason the old ground is kept. `REVEAL` in `src/game/unveil.ts` moved to `ground-pavilion` with them, so everybody who pulled the last covers off gets these.
+
 ## Architecture and tuning
 
 - `src/config/gameplay.ts`: timing bands, line positions, delivery weights/speeds/lengths, the compatibility matrix and the threshold that separates a middled shot from a skied one, the triggers for each special delivery, wicket probabilities, and innings pacing.

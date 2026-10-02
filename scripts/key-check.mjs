@@ -40,7 +40,7 @@ await page.addInitScript(() => {
   const day = new Date(Date.now() - 172800000).toISOString().slice(0, 10);
   try { localStorage.setItem('hitman-seen', day); } catch { /* then the notice stands */ }
   // The covers have come off already: unveil-check is the one that pulls them.
-  try { localStorage.setItem('hitman-unveiled', 'ground-2026'); } catch { /* Then they stand in the way. */ }
+  try { localStorage.setItem('hitman-unveiled', 'ground-pavilion'); } catch { /* Then they stand in the way. */ }
 });
 await page.goto(`${BASE}/?debug=1&seed=222`, { waitUntil: 'load' });
 await wait(3000);
