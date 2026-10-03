@@ -291,7 +291,6 @@ export class HUD {
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
           <span class="bug-cell"><b id="overs"></b><i>OVERS</i></span>
           <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
-          <span id="speed-cell" class="bug-cell bug-speed hidden"><b id="speed" aria-live="off">–</b><i>KM/H</i></span>
         </div>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
           <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
@@ -325,7 +324,7 @@ export class HUD {
           <button id="skip-tutorial" class="ghost-button">SKIP TO INNINGS</button>
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
-        <div class="arena-bottom"><span><span id="side-left">LEG SIDE</span> <span class="direction-line"></span></span><span><span class="direction-line"></span> <span id="side-right">OFF SIDE</span></span></div>
+        <div id="speed-gun" class="speed-gun" aria-hidden="true"><b id="speed"></b><i>KM/H</i></div><div class="arena-bottom"><span><span id="side-left">LEG SIDE</span> <span class="direction-line"></span></span><span><span class="direction-line"></span> <span id="side-right">OFF SIDE</span></span></div>
 ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
@@ -1326,9 +1325,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The Marathon keeps the Blast's scoreboard — a total and the wickets, with
     // no target to chase — and Survival's meter.
     document.body.classList.toggle('marathon-mode', marathon);
-    // The speed gun, in the Marathon first. Blank until the first ball is bowled.
-    this.$('speed-cell').classList.toggle('hidden', !marathon);
-    this.$('speed').textContent = '–';
+    // The speed gun, in the Marathon first: nothing up until a ball is bowled.
+    this.$('speed-gun').classList.remove('is-on');
+    this.$('speed').textContent = '';
     this.viewport.classList.remove('modal-open');
     this.viewport.classList.remove('hurt-on');
     // Both full-screen overlays put the hud row away while they are up.
@@ -1401,14 +1400,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('side-right').textContent = left ? 'LEG SIDE' : 'OFF SIDE';
   }
   /**
-   * The speed gun's reading, the moment the ball leaves the hand, standing
-   * until the next one does. Already folded into what a gun would say.
+   * The speed gun's reading, at the foot of the field the moment the ball
+   * leaves the hand, and gone again before the next one: a broadcast's
+   * caption, not a figure on the scoreboard. Already folded into what a gun
+   * would say.
    */
   speed(kph: number) {
-    const reading = this.$('speed');
-    reading.textContent = String(kph);
-    reading.setAttribute('aria-label', `${kph} kilometres an hour`);
-    reading.classList.remove('is-new'); void reading.offsetWidth; reading.classList.add('is-new');
+    const gun = this.$('speed-gun');
+    this.$('speed').textContent = String(kph);
+    gun.classList.remove('is-on'); void gun.offsetWidth; gun.classList.add('is-on');
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }

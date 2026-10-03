@@ -3537,15 +3537,40 @@ body.survive-mode #scoreboard{display:none}
    draw is a five-over scorecard and there is no Test one to draw yet. The board
    key stays live, because the key now opens the ladder being played. */
 body.survive-mode #share{opacity:.3;pointer-events:none}
-/* The speed gun: the Marathon's, in the bar's own last cell. The reading pops
-   as the ball leaves the hand and then sits until the next one. */
-.bug-speed.hidden{display:none}
-.bug-cell.bug-speed{min-width:44px;padding:0 9px}
-.bug-cell.bug-speed b{font-size:16px}
-@media (prefers-reduced-motion:no-preference){
-  .bug-speed b.is-new{animation:speed-in .32s cubic-bezier(.2,1.6,.4,1) both}
+/* The speed gun: the Marathon's, a caption at the foot of the field between
+   the two side labels, which is the one place nothing else is. Up as the ball
+   leaves the hand, gone before the next — it takes no room on the scoreboard.
+   Short enough to sit under the call above it. */
+.speed-gun{
+  position:absolute;
+  bottom:calc(var(--pad-bottom) - 6px);
+  left:50%;
+  display:flex;
+  align-items:baseline;
+  gap:4px;
+  padding:4px 10px 4px 11px;
+  border-radius:999px;
+  background:var(--bar);
+  border:1px solid var(--bar-edge);
+  color:#f6f1e4;
+  transform:translateX(-50%);
+  opacity:0;
+  pointer-events:none;
+  z-index:3
 }
-@keyframes speed-in{from{transform:scale(1.35);color:#ffce7a}to{transform:scale(1)}}
+.speed-gun b{font:900 15px/1 var(--card);font-variant-numeric:tabular-nums}
+.speed-gun i{font:800 7.5px/1 var(--card);font-style:normal;letter-spacing:.16em;color:var(--quiet)}
+.speed-gun.is-on{animation:speed-gun 2.4s ease both}
+@keyframes speed-gun{
+  0%{opacity:0;transform:translate(-50%,6px)}
+  10%{opacity:1;transform:translate(-50%,0)}
+  78%{opacity:1;transform:translate(-50%,0)}
+  100%{opacity:0;transform:translate(-50%,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .speed-gun.is-on{animation-name:speed-gun-still}
+  @keyframes speed-gun-still{0%,100%{opacity:0}10%,78%{opacity:1}}
+}
 /* The left-hander's first ball borrows the tutorial's panel; it has no lesson to skip. */
 .coach.is-lefty #skip-tutorial,.coach.is-lefty .coach-how{display:none}
 .touch-device #coach-brief .touch-only{display:inline}
