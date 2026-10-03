@@ -1907,8 +1907,6 @@ export class Game {
   }
   private resolve() {
     const step = this.lesson >= 0 ? TUTORIAL[this.lesson] : null;
-    // The left-hander's arrow has done its job once he has faced a ball.
-    if (this.marathon) this.hud.leftHander(false);
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
       : this.marathon ? this.marathonBall()
       : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng)
@@ -2035,18 +2033,16 @@ export class Game {
     this.hand();
   }
   /**
-   * Which way round the man in bats, said as he takes guard. A left-hander
-   * gets the ground mirrored, the swipes mirrored with it, and the tutorial's
-   * arrow over his first ball, because a pull that is suddenly a swipe the
-   * other way is a wicket nobody was warned about.
+   * Which way round the man in bats. A left-hander gets the ground mirrored,
+   * the swipes mirrored with it and the side labels swapped, and nothing said
+   * about it: a batter on the other side of the stumps says it himself.
    */
   private hand() {
     const man = this.marathon?.current ?? null;
     const left = !!man?.left;
     this.scene.leftHanded(left);
     this.hud.sides(left);
-    this.hud.walkingOut(man?.batter.title ?? null, left);
-    this.hud.leftHander(left);
+    this.hud.walkingOut(man?.batter.title ?? null);
   }
   /**
    * The player has had enough, from the pause card. Refused before twenty

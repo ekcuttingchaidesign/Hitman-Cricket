@@ -1397,28 +1397,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private walking: string | null = null;
   /** The innings on screen is a Marathon. */
   private marathon = false;
-  walkingOut(title: string | null, left = false) {
-    this.walking = title === null ? null : left ? `${title} IN · LEFT-HANDED` : `${title} IN · TAKE YOUR GUARD`;
-  }
-  /**
-   * A left-hander's first ball: the tutorial's panel and arrow, saying the
-   * swipes are mirrored while he is in. Gone once he has faced a ball.
-   */
-  leftHander(show: boolean) {
-    const coach = this.$('coach');
-    if (!show) {
-      if (coach.classList.contains('is-lefty')) coach.classList.add('hidden');
-      coach.classList.remove('is-lefty');
-      return;
-    }
-    this.$('coach-step').textContent = 'LEFT-HANDER';
-    // The how goes in the sentence: the panel's own line under the arrow sits
-    // where the call under the batter is, and the two would print over each other.
-    this.$('coach-brief').innerHTML = 'Mirrored while he is in. His leg side is on the right: '
-      + '<span class="touch-only">swipe right</span><span class="keyboard-only">press <kbd>D</kbd></span> to play to leg.';
-    this.$('coach-cue').className = 'coach-cue right';
-    coach.classList.add('is-lefty');
-    coach.classList.remove('hidden');
+  walkingOut(title: string | null) {
+    this.walking = title === null ? null : `${title} IN · TAKE YOUR GUARD`;
   }
   /** The labels along the foot of the field, the right way round for whoever is in. */
   sides(left: boolean) {
@@ -1485,8 +1465,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('coach-brief').textContent = step.brief;
     this.$('coach-how').innerHTML = `<span class="touch-only">${step.swipe}</span><span class="keyboard-only">Press <kbd>${step.key}</kbd></span>`;
     this.$('coach-cue').className = `coach-cue ${step.cue}`;
-    // The panel may last have been a left-hander's, which hides the skip key.
-    this.$('coach').classList.remove('hidden', 'is-lefty');
+    this.$('coach').classList.remove('hidden');
   }
   /** Once the shot is away the cue has done its job. */
   coachPlayed(praise: string, played: boolean) {

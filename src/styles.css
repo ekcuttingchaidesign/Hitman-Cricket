@@ -3601,9 +3601,6 @@ body.marathon-mode .settle-meter.is-full .meter-icon{color:#ffcf8a}
 .settle-meter.is-settled .icon-flame{display:contents}
 .settle-meter:not(.is-settled) .confidence-track>i{background:linear-gradient(90deg,#4f7894,#a9cfe0)}
 .settle-cap{order:1}
-/* The left-hander's first ball borrows the tutorial's panel; it has no lesson to skip. */
-.coach.is-lefty #skip-tutorial,.coach.is-lefty .coach-how{display:none}
-.touch-device #coach-brief .touch-only{display:inline}
 /* The Marathon has no board, career or share picture yet, so its card offers none of them. */
 body.marathon-mode #share{opacity:.3;pointer-events:none}
 body.marathon-mode #end :is(#card-board,#card-career,#card-key,#challenge-set,#card-share){display:none}

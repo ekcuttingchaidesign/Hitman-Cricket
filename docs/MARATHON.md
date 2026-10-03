@@ -53,9 +53,9 @@ exactly as in the other modes: the one call that counts an innings stays in
   ground is mirrored (the stage is already flipped once in `GameScene`; this
   flips it back), the swipe directions are mirrored with it — a left-hander's
   pull is a swipe to the right — and the bowler is flipped back on his own so
-  he stays right-arm, now bowling across him. His first ball carries an
-  announcement and the tutorial's arrow so the reversed swipes are not a
-  surprise.
+  he stays right-arm, now bowling across him. Nothing announces him: after
+  the playtest, a batter standing on the other side of the stumps was found
+  to say it himself.
 - **Retired hurt** works as in Test Survival — the injury meter, the same
   damage table, nothing heals — except that it brings the next batter in
   rather than ending the innings. A retired batter's score stands as **not
@@ -293,8 +293,9 @@ Each step is a pull request of its own, behind the flag until the last.
 3. **The left-hander.** *Done.* As specified, with two additions found in a
    browser: the LEG SIDE / OFF SIDE labels along the foot of the field swap
    while he is in, and `?lefty=1`–`3` (or `0` for none) puts him at a place in
-   the order for testing. The tutorial's panel says the swipes are mirrored
-   and points right, to his leg side; the end card marks him `(LH)`.
+   the order for testing. The tutorial's panel and arrow over his first ball
+   came out after the playtest — it is obvious — and the end card marks him
+   `(LH)`.
 4. **Settling, the express bowler**, his action and release, and the level
    banners. *Settling is done*: every batter settles over 36 balls (a blow
    knocks him back a ball per four points of injury), and settled, the meter
