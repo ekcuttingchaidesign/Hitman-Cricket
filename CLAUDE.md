@@ -173,3 +173,13 @@ The board is untouched: the name stays claimed and a saved key still opens it.
 Fills the boards with fifty made-up players, in the browser that asked, saving
 nothing. It is how a full board gets looked at without claiming fifty real
 names. `?demo=0` or a new tab turns it off.
+
+## `?moments=1`
+
+A row of keys along the foot of the picture, one a milestone — 50, 100, six
+sixes, and the Test marks 150 to 400 — for looking at any celebration on a
+phone without batting to it. A tap between balls plays the moment at once and
+holds the bowler at his mark until it is over; with a ball on its way it waits
+for that ball to be dead, which is when a real one goes up. It is the same
+celebration with none of the innings: no runs, nothing counted, nothing sent.
+Add `&mode=marathon` for the Test kit and ground.

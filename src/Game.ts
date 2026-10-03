@@ -335,6 +335,16 @@ export class Game {
   private audio = new GameAudio();
   private debug = new URLSearchParams(location.search).get('debug') === '1';
   /**
+   * `?moments=1`: a row of keys on the screen, one a milestone — 50, 100, six
+   * sixes, and the Test marks 150 to 400 — so each celebration can be looked
+   * at on a phone without batting to it. A tap plays the moment exactly as the
+   * ball that earns it would, and adds no runs, counts nothing and sends
+   * nothing anywhere: it is the same celebration with none of the innings.
+   */
+  private readonly momentKeys = new URLSearchParams(location.search).get('moments') === '1';
+  /** A moment asked for with a key and waiting for the ball to be dead: see `askMoment`. */
+  private momentAsked: Moment | null = null;
+  /**
    * `?demo=1`: fifty made-up rows on every ladder, and nothing written.
    *
    * A leaderboard is a screen you cannot judge empty — the scroll, the cut-off
@@ -386,6 +396,7 @@ export class Game {
     // who was handed the link to give an opinion on the batting.
     if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
+    if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport,
       () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0,
       // The downward diagonals are the scoops whenever there is a meter to
@@ -1171,6 +1182,19 @@ export class Game {
   private setPhase(phase: GamePhase) {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
     if (phase === 'READY' && this.marathon) this.tellLevel();
+    if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
+  }
+  /**
+   * A moment asked for with `?moments=1`'s keys. Between balls it goes up at
+   * once and the bowler waits at his mark until it is over, the way he does
+   * for a level banner; with a ball on its way it waits for that ball to be
+   * dead, which is when a real one goes up.
+   */
+  private askMoment(moment: Moment) {
+    if (this.phase === 'READY') {
+      this.celebrate(moment, true);
+      this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + this.celebrating);
+    } else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.momentAsked = moment;
   }
   /**
    * At the top of an over, whether it is the one the innings changes in: the
@@ -1921,6 +1945,7 @@ export class Game {
       if (this.elapsed >= this.resolveEndsAt) {
         this.setPhase('RESULT');
         if (this.milestoneDue) { this.celebrate(this.milestoneDue); this.milestoneDue = null; }
+        else if (this.momentAsked) { this.celebrate(this.momentAsked, true); this.momentAsked = null; }
         // After the call, not over it: the sledge is what comes back from the
         // field once the ball is dead.
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
@@ -2125,7 +2150,7 @@ export class Game {
   /** The burst the last special stroke was drawn with, for the debug snapshot. */
   private powerStyle: PowerStyle | null = null;
   /** A moment: see `milestoneDue`. */
-  private celebrate(moment: Moment) {
+  private celebrate(moment: Moment, asked = false) {
     const { kind } = moment;
     // Which celebration the batter plays: the raised bat for every other
     // fifty, the hundred's for six sixes, and the three big ones their own.
@@ -2139,7 +2164,7 @@ export class Game {
     // carries on a little past him into the next ball's run-up; and the big
     // ones take the whole of the clip.
     this.audio.cheer(CHEER[kind]);
-    track(kind, MOMENT_SAID[kind]);
+    if (!asked) track(kind, MOMENT_SAID[kind]);
   }
   private presentResult() {
     this.resultPresented = true;
@@ -3110,6 +3135,14 @@ export class Game {
 
 
 /** How long the crowd keeps it up for each moment, in seconds; the clip is three and a half. */
+/** `?moments=1`'s keys, in the order an innings reaches them. */
+const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
+  { label: '50', moment: { kind: 'fifty', mark: 50 } }, { label: '100', moment: { kind: 'century', mark: 100 } },
+  { label: '6\u00d76', moment: { kind: 'six-sixes', mark: 0 } }, { label: '150', moment: { kind: 'raise', mark: 150 } },
+  { label: '200', moment: { kind: 'double', mark: 200 } }, { label: '250', moment: { kind: 'raise', mark: 250 } },
+  { label: '300', moment: { kind: 'triple', mark: 300 } }, { label: '350', moment: { kind: 'raise', mark: 350 } },
+  { label: '400', moment: { kind: 'four', mark: 400 } },
+];
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {
   fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',

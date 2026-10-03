@@ -2500,6 +2500,26 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     return { back: doodle.back, cutout: doodle.cutout };
   }
   /**
+   * `?moments=1`'s keys: one a milestone, along the foot of the picture. Their
+   * presses are kept from the bat underneath, so a key tapped with a ball in
+   * the air is a key and not a shot.
+   */
+  momentKeys(keys: readonly { label: string; moment: Moment }[], pick: (moment: Moment) => void) {
+    const row = document.createElement('div');
+    row.className = 'moment-keys';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Play a milestone');
+    for (const { label, moment } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'moment-key'; key.textContent = label;
+      key.setAttribute('aria-label', `Play the ${label} celebration`);
+      key.addEventListener('click', () => pick(moment));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
    * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
    * call for the ball is left where it is; and a moment arriving on top of it
    * takes its place, since `milestone` clears whatever doodle is up.
