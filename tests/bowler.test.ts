@@ -420,14 +420,17 @@ describe('the express bowler, against the fast bowler', () => {
     expect(express.hands[0][1]).toBeGreaterThan(express.shoulders[0][1] + .5);
   });
 
-  it('chops the front arm down in front of him, not behind', () => {
-    // Facing the batter, -z is in front. The fast bowler pulls his down behind.
+  it('chops the front arm down straight in front of him, not bent and behind', () => {
+    // Facing the batter, -z is in front. The fast bowler pulls his down
+    // behind and folds it into his ribs; the slinger's stays straight.
     const front = (s: ReturnType<typeof at>) => s.hands[0][2] - s.shoulders[0][2];
     for (const t of [.9, .93, 1]) {
       const [pace, express] = both(pose(t));
       expect(front(express)).toBeLessThan(-.15);
       expect(front(pace)).toBeGreaterThan(front(express) + .2);
+      expect(express.armReach[0]).toBeGreaterThan(.9);
     }
+    expect(at(1).armReach[0]).toBeLessThan(.6);
   });
 
   it('slings it: the arm comes through wide of the shoulder, the body tilted away', () => {
@@ -473,13 +476,12 @@ describe('the express bowler, against the fast bowler', () => {
     expect(express.hands[0][1]).toBeGreaterThan(express.shoulders[0][1]);
     expect(express.armReach[0]).toBeGreaterThan(.85);
     expect(pace.armReach[0]).toBeLessThan(.6);
-    // And it gets there with the bowling arm, not after it: straight by the
-    // time that arm is halfway down, and up behind him by the time it has
-    // finished coming across — at which point the fast bowler's front arm
-    // has barely moved.
+    // And it gets there with the bowling arm, not after it, straight the
+    // whole way: up behind him by the time that arm has finished coming
+    // across — at which point the fast bowler's front arm has barely moved.
     bowler.action(EXPRESS_ACTION);
-    const halfway = flight(.34 * .18), across = flight(.34 * .36);
-    expect(halfway.armReach[0]).toBeGreaterThan(.85);
+    for (const p of [0, .05, .1, .18, .27, .36]) expect(flight(.34 * p).armReach[0]).toBeGreaterThan(.9);
+    const across = flight(.34 * .36);
     expect(across.hands[0][2]).toBeGreaterThan(across.shoulders[0][2] + .3);
     bowler.action(PACE_ACTION);
     expect(flight(.34 * .36).armReach[0]).toBeLessThan(.6);
