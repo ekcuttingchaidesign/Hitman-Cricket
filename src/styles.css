@@ -2499,8 +2499,6 @@ body.survive-mode #scoreboard{display:none}
 }
 @keyframes cy-word{from{opacity:0;transform:translateY(8px) scale(.7)}to{opacity:1;transform:none}}
 .cy-pop{opacity:0;animation:cy-pop .3s cubic-bezier(.2,1.8,.4,1) var(--delay) forwards}
-.cy-confetti{opacity:0;animation:cy-confetti 1.7s ease-out var(--delay) forwards}
-@keyframes cy-confetti{0%{opacity:0;transform:translateY(-18px) rotate(0)}12%{opacity:1}100%{opacity:0;transform:translateY(var(--drift)) rotate(var(--spin))}}
 .cy-spark{fill:var(--cy-shine);stroke:var(--cy-ink);stroke-width:1.2px}
 .cy-pop .cy-mark path{stroke-dashoffset:0;animation:none}
 @keyframes cy-pop{from{opacity:0;transform:scale(0) rotate(-40deg)}to{opacity:1;transform:none}}
@@ -2510,6 +2508,35 @@ body.survive-mode #scoreboard{display:none}
   33%{transform:translate(1px,-1px)}
   66%{transform:translate(-1px,1px)}
 }
+/* The Test innings' marks after the hundred. Some of each goes under him: the
+   stage's underlay sits over the picture and under the HUD, and the cut-out
+   canvas over it is him drawn again on his own, with his outline (see
+   GameScene's `cutout`). Their pieces come on each in its own way — a sticker
+   slapped down, the ball peeking up behind it, wings spreading from folded and
+   keeping a slow beat, the podium rising, feathers drifting — and all of it
+   boils with the rest of the pen. */
+.stage-underlay{position:absolute;inset:0;z-index:1;pointer-events:none}
+.stage>canvas.stage-cut{z-index:1;pointer-events:none}
+.milestone-under{z-index:auto}
+.cy-ribbon{font-family:var(--cta);text-anchor:middle;letter-spacing:.06em;fill:#1b1f4a}
+.cy-slap{transform-box:fill-box;transform-origin:center;opacity:0;animation:cy-slap .24s cubic-bezier(.3,1.5,.5,1) var(--delay) forwards}
+@keyframes cy-slap{from{opacity:0;transform:scale(2.2) rotate(10deg)}60%{opacity:1}to{opacity:1;transform:none}}
+.cy-peek{opacity:0;animation:cy-peek .5s cubic-bezier(.2,1.6,.4,1) var(--delay) forwards}
+@keyframes cy-peek{from{opacity:0;transform:translateY(34px)}30%{opacity:1}to{opacity:1;transform:none}}
+.cy-rise{animation:cy-rise .55s cubic-bezier(.2,1.25,.4,1) var(--delay) both}
+@keyframes cy-rise{from{transform:translateY(60vh)}to{transform:none}}
+.cy-wipe{opacity:0;animation:cy-wipe .4s ease-out var(--delay) forwards}
+@keyframes cy-wipe{to{opacity:1}}
+.cy-spread{transform-box:fill-box;animation:cy-spread .5s cubic-bezier(.2,1.5,.4,1) var(--delay) both}
+.cy-spread.is-left,.cy-flap.is-left{transform-origin:right bottom}
+.cy-spread.is-right,.cy-flap.is-right{transform-origin:left bottom}
+@keyframes cy-spread{from{transform:scale(.1) rotate(var(--fold,0deg))}to{transform:none}}
+.cy-flap{transform-box:fill-box;animation:cy-flap 1.1s ease-in-out .7s infinite alternate}
+@keyframes cy-flap{to{transform:rotate(var(--beat,4deg))}}
+.cy-drift{animation:cy-drift 2.4s ease-in-out var(--delay) infinite alternate}
+@keyframes cy-drift{to{transform:translate(8px,26px) rotate(24deg)}}
+.cy-twinkle{transform-box:fill-box;transform-origin:center;animation:cy-twinkle .9s ease-in-out var(--delay) infinite alternate}
+@keyframes cy-twinkle{from{transform:scale(.6)}to{transform:scale(1.1) rotate(20deg)}}
 /* The fire up the edges: whooshes up from its base, flickers between its two
    drawn frames at a dozen a second, and sinks back down as the rest wipes. */
 .cy-fire{
@@ -2580,12 +2607,14 @@ body.survive-mode #scoreboard{display:none}
   paint-order:stroke;
   text-anchor:middle
 }
-/* The call for the ball that got him there has had its moment. */
-.stage.milestone-on .result{visibility:hidden}
+/* The call for the ball that got him there has had its moment, and so has its speed. */
+.stage.milestone-on .result,.stage.milestone-on .speed-gun{visibility:hidden}
 @media (prefers-reduced-motion:reduce){
   .cy-boil{animation:none}
   .cy-mark path,.cy-pop,.cy-dots,.cy-word,.cy-slam{animation-duration:1ms;animation-delay:0s}
-  .cy-confetti{animation:none;opacity:.7}
+  .cy-slap,.cy-peek,.cy-wipe{animation:none;opacity:1}
+  .cy-rise,.cy-spread{animation:none}
+  .cy-flap,.cy-drift,.cy-twinkle{animation:none}
   .cy-frame+.cy-frame,.cy-ember{display:none}
   .cy-frame{animation:none}
   .cy-fire{animation:none;transform:none}

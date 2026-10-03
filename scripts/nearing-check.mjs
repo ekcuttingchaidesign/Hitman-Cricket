@@ -173,9 +173,9 @@ for (const [name, options] of [
   check(seen.reached && seen.say === 'Double hundred!', 'getting there fills it and bursts it', JSON.stringify(seen));
   await shot('double-reached');
   await slow(false);
-  await fresh(...sixes(24), 1);                                          // 145
+  await fresh(...sixes(23), 2);                                          // 140
   seen = await card();
-  check(!seen.hidden && seen.kind === 'is-raise' && seen.say === '150 in sight', 'on 145, 150 in sight', JSON.stringify(seen));
+  check(!seen.hidden && seen.kind === 'is-raise' && seen.say === '150 in sight', 'on 140, 150 in sight', JSON.stringify(seen));
 
   // ── The hundred, and out short of it ─────────────────────────────────────
   await fresh(...sixes(15), 0, 2);                                       // 92

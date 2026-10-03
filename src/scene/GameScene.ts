@@ -16,6 +16,7 @@ import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
+import type { Cutout } from '../ui/Milestone';
 
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
 const KIT_GLOW = 0.32;
@@ -151,6 +152,16 @@ export class GameScene {
   private catchRing: THREE.Mesh;
   private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
+  /** His own stumps, the ones between the camera and him: drawn back over a moment's back layer with him. */
+  private stumps: THREE.Mesh[] = [];
+  /**
+   * The layers a Test innings' moment puts between the picture and the HUD:
+   * the doodle's back layer, then him cut back out over it with his outline.
+   * See `cutout`.
+   */
+  private readonly underlay = document.createElement('div');
+  private readonly cutCanvas = document.createElement('canvas');
+  private cut: { spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement; ring: HTMLCanvasElement } | null = null;
   private trail: THREE.Mesh[] = [];
   /**
    * The fire behind a ball struck with a special stroke: yellow at the ball,
@@ -227,7 +238,8 @@ export class GameScene {
   private celebratedFor = CELEBRATION_MS;
   private poweredAt = -Infinity;
   constructor(private container: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // Alpha, so a pass of him alone can be lifted off a clear background: see `cutout`.
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     const mobile = window.matchMedia('(pointer: coarse)').matches;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
@@ -238,6 +250,9 @@ export class GameScene {
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.setClearColor(SKY.horizon);
     container.prepend(this.renderer.domElement);
+    this.underlay.className = 'stage-underlay'; this.cutCanvas.className = 'stage-cut';
+    this.cutCanvas.style.display = 'none'; this.cutCanvas.setAttribute('aria-hidden', 'true');
+    this.renderer.domElement.after(this.underlay, this.cutCanvas);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
     // The haze is the sky's own horizon, so the far stands sink into it rather
     // than into a grey that belongs to nothing.
@@ -475,10 +490,13 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    for (const x of [-0.145, 0, 0.145]) cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
+    for (const x of [-0.145, 0, 0.145]) {
+      const stump = cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
+      if (z === 0) this.stumps.push(stump);
+    }
     for (const x of [-0.073, 0.073]) {
       const bail = box(this.world, 0.16, 0.035, 0.045, colors.orange, x, GAME.stumpHeight + 0.02, z);
-      if (z === 0) this.bails.push(bail);
+      if (z === 0) { this.bails.push(bail); this.stumps.push(bail); }
     }
   }
   private resize = () => {
@@ -581,6 +599,94 @@ export class GameScene {
     this.celebratedFor = celebrationLength(kind);
   }
   /**
+   * A moment's layers under the HUD, for `lasts` milliseconds: `back`, the
+   * doodle's layer that goes behind him, and `spec`, how he is cut back out
+   * over it — outline rings stamped round his silhouette, and his stumps
+   * with him where they stand in front of him. Each frame he is rendered
+   * once more on his own, onto a clear background, and that picture is laid
+   * over the back layer, so the doodle goes behind him without a 3D card in
+   * the scene. Called with nothing, it takes them down.
+   */
+  cutout(back?: HTMLElement, spec?: Cutout, lasts = 0) {
+    this.underlay.replaceChildren(...(back ? [back] : []));
+    if (back) window.setTimeout(() => back.remove(), lasts);
+    if (!spec) { this.cut = null; this.cutCanvas.style.display = 'none'; return; }
+    const him = new Set<THREE.Object3D>(), stumps = new Set<THREE.Object3D>(spec.stumps ? this.stumps : []);
+    this.batter.root.traverse(o => him.add(o));
+    this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), ring: document.createElement('canvas') };
+  }
+  /** Him alone, then his stumps with him, into the cut-out's canvas, with the outline rings under. */
+  private drawCutout() {
+    const cut = this.cut!, left = cut.until - performance.now();
+    if (left <= 0) { this.cutout(); return; }
+    const gl = this.renderer.domElement, canvas = this.cutCanvas;
+    if (canvas.width !== gl.width || canvas.height !== gl.height) { canvas.width = gl.width; canvas.height = gl.height; }
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.style.display = '';
+    canvas.style.opacity = String(Math.min(1, left / 300));
+
+    const hidden: THREE.Object3D[] = [];
+    const only = (keep: (o: THREE.Object3D) => boolean) => this.scene.traverse(o => {
+      if (o.visible && !keep(o) && ((o as THREE.Mesh).isMesh || (o as THREE.Points).isPoints || (o as THREE.Line).isLine || (o as THREE.Sprite).isSprite)) { o.visible = false; hidden.push(o); }
+    });
+    const clear = this.renderer.getClearColor(new THREE.Color()), alpha = this.renderer.getClearAlpha();
+    const shadows = this.renderer.shadowMap.autoUpdate;
+    this.renderer.setClearColor(0x000000, 0);
+    // The shadow map is the last frame's: drawn again for him alone, he would
+    // be lit as if nothing else stood on the ground.
+    this.renderer.shadowMap.autoUpdate = false;
+    try {
+      only(o => cut.him.has(o));
+      this.renderer.render(this.scene, this.camera);
+      this.outline(context, gl);
+      context.drawImage(gl, 0, 0);
+      if (cut.stumps.size) {
+        hidden.forEach(o => { if (cut.stumps.has(o)) o.visible = true; });
+        this.renderer.render(this.scene, this.camera);
+        context.drawImage(gl, 0, 0);
+      }
+    } finally {
+      hidden.forEach(o => { o.visible = true; });
+      this.renderer.setClearColor(clear, alpha);
+      this.renderer.shadowMap.autoUpdate = shadows;
+    }
+  }
+  /**
+   * The outline rings, biggest first: his silhouette stamped round a circle
+   * of each ring's radius and filled with its colour. Worked at CSS pixels in
+   * a box round him rather than across the whole screen, and the stamps are
+   * jittered afresh nine times a second so the line boils like the pen's.
+   */
+  private outline(context: CanvasRenderingContext2D, gl: HTMLCanvasElement) {
+    const cut = this.cut!, at = this.batterOnScreen(), ratio = gl.width / Math.max(1, at.width);
+    const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+    const x0 = Math.max(0, Math.min(at.head.x, at.feet.x) - s * 2.1), x1 = Math.min(at.width, Math.max(at.head.x, at.feet.x) + s * 2.1);
+    const y0 = Math.max(0, at.head.y - s * 1.5), y1 = Math.min(at.height, at.feet.y + s * .45);
+    const w = Math.ceil(x1 - x0), h = Math.ceil(y1 - y0);
+    if (w <= 0 || h <= 0) return;
+    for (const c of [cut.sil, cut.ring]) if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    const sil = cut.sil.getContext('2d'), ring = cut.ring.getContext('2d');
+    if (!sil || !ring) return;
+    sil.clearRect(0, 0, w, h);
+    sil.drawImage(gl, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, w, h);
+    let seed = Math.floor(performance.now() / 110) * 7919 >>> 0;
+    const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    for (const { r, colour, dx = 0, dy = 0 } of cut.spec.rings) {
+      ring.globalCompositeOperation = 'source-over';
+      ring.clearRect(0, 0, w, h);
+      for (const [count, reach] of [[16, 1], [8, .55]] as const) for (let i = 0; i < count; i++) {
+        const a = (i + random() * .3) / count * Math.PI * 2, rr = r * reach * (1 + (random() - .5) * .16);
+        ring.drawImage(cut.sil, Math.cos(a) * rr, Math.sin(a) * rr);
+      }
+      ring.globalCompositeOperation = 'source-in';
+      ring.fillStyle = colour;
+      ring.fillRect(0, 0, w, h);
+      context.drawImage(cut.ring, 0, 0, w, h, (x0 + dx) * ratio, (y0 + dy) * ratio, w * ratio, h * ratio);
+    }
+  }
+  /**
    * A special stroke on a full meter, from the moment it is hit: the same
    * grey as his hundred, round him and the ball, for about a second.
    */
@@ -681,6 +787,7 @@ export class GameScene {
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
 
   reset() {
+    this.cutout();
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
@@ -997,6 +1104,7 @@ export class GameScene {
       this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
     }
     this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
+    if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }

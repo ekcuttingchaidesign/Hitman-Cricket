@@ -88,11 +88,15 @@ scenery through `Batch` (`src/scene/build.ts`), one mesh a colour, not a box
 at a time.
 
 `scripts/milestone-check.mjs` is the fifty, the hundred, six sixes, and the
-Test innings' marks after them — 150 with the raised bat and the number, and
+Test innings' marks after them — 150 with the raised bat and the sticker, and
 the double, the triple and four hundred, each with a celebration and a doodle
 of its own: the grey is measured off the pixels of the grass, and the doodles
 are judged on their own clock, because a headless browser rendering the ground
-in software can hold CSS animations at their first frame. A moment is asked
+in software can hold CSS animations at their first frame. The big three put a
+layer up behind him and draw him back out over it (GameScene's `cutout`); the
+check reads his outline off the cut-out canvas's own pixels, and takes all of
+it in the one look at 650ms: in software the next look can land seconds later,
+after a moment as short as 150's is already down. A moment is asked
 for by name (`__cricket.milestone('triple')`); which ball earns it is
 `milestoneOf`'s, in the unit tests.
 

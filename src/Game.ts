@@ -2098,6 +2098,7 @@ export class Game {
   private powerUp(style: PowerStyle = this.powerStyles.next()) {
     this.powerStyle = style;
     this.scene.power(this.elapsed);
+    this.scene.cutout();
     this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
     track('special-shot', 'Played a special stroke on a full meter');
   }
@@ -2107,6 +2108,7 @@ export class Game {
    */
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
+    this.scene.cutout();
     this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS, this.pullPen);
     track('pulled-bouncer', 'Pulled a bouncer');
   }
@@ -2130,7 +2132,8 @@ export class Game {
     const pose: Celebration = kind === 'fifty' || kind === 'raise' ? 'fifty' : kind === 'century' || kind === 'six-sixes' ? 'hundred' : kind;
     this.celebrating = celebrationLength(pose);
     this.scene.celebrate(this.elapsed, pose);
-    this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
+    const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
+    this.scene.cutout(back, cutout, this.celebrating);
     // The crowd with it, falling away: the fifty's is the shorter, though
     // long enough to be heard as applause rather than a blip; the hundred's
     // carries on a little past him into the next ball's run-up; and the big

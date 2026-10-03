@@ -2484,16 +2484,20 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * carries on, which is the difference between feedback and an interruption.
    */
   /**
-   * A fifty, a hundred or six sixes, drawn over the ground round him. The call
+   * A moment's doodle, drawn over the ground round him. The call
    * for the ball that got him there has had its moment by now and steps aside
    * rather than sit under the doodles. Gone again by itself when he is done.
+   * What goes under him — the Test innings' back layers — and how he is cut
+   * back out over it are handed back for the scene, which owns the layers
+   * under the HUD.
    */
   milestone(moment: Moment, at: BatterOnScreen, lasts: number) {
-    this.viewport.querySelector('.milestone')?.remove();
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
     const doodle = milestoneDoodle(moment, at, lasts);
-    this.viewport.append(doodle);
+    this.viewport.append(doodle.element);
     this.viewport.classList.add('milestone-on');
-    window.setTimeout(() => { doodle.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+    window.setTimeout(() => { doodle.element.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+    return { back: doodle.back, cutout: doodle.cutout };
   }
   /**
    * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
@@ -2501,14 +2505,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * takes its place, since `milestone` clears whatever doodle is up.
    */
   power(at: BatterOnScreen, lasts: number, style: PowerStyle) {
-    this.viewport.querySelector('.milestone')?.remove();
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
     const doodle = powerDoodle(at, lasts, style);
     this.viewport.append(doodle);
     window.setTimeout(() => doodle.remove(), lasts);
   }
   /** The focus lines for a pulled bouncer: see `pullDoodle`. Not a moment either. */
   pull(at: BatterOnScreen, lasts: number, pen: PullPen) {
-    this.viewport.querySelector('.milestone')?.remove();
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
     const doodle = pullDoodle(at, lasts, pen);
     this.viewport.append(doodle);
     window.setTimeout(() => doodle.remove(), lasts);

@@ -123,11 +123,11 @@ ball he walked out on:
 
 | Mark | What he does | What goes up |
 | --- | --- | --- |
-| 50, 150, 250, 350 … | The fifty's raised bat, a second of it | The number written beside him, a burst and stars; the ground keeps its colours |
+| 50, 150, 250, 350 … | The fifty's raised bat, a second of it | The fifty: the number written beside him, a burst and stars. 150, 250, 350: a sticker of the number slapped on beside him, a googly-eyed ball peeking over it. The ground keeps its colours |
 | 100 | The hundred, as in the Blast | The crown, the 100 on fire, fire up the edges, the ground greyed |
-| 200 | The double biceps: elbows out at the shoulders, fists by the helmet, the bat stood up in his right fist; squeezed twice and shown to each side | The hundred's, with confetti across the top |
-| 300 | Arms flung wide, a little above the shoulders, the bat out along the arm, head back | The double's, with fireworks over the stands |
-| 400 | The champion: feet wide, the bat straight up at full stretch, the left fist pumped down by his hip; then the roar | The triple's, with FOUR HUNDRED slammed across the top |
+| 200 | The double biceps: elbows out at the shoulders, fists by the helmet, the bat stood up in his right fist; squeezed twice and shown to each side | A neon starburst behind him, a pink and cyan outline, retro stripes up the edges, the 200 in yellow bubble figures |
+| 300 | Arms flung wide, a little above the shoulders, the bat out along the arm, head back | Wings opening behind him, a halo, a sky-blue outline, the 300 in white bubble figures |
+| 400 | The champion: feet wide, the bat straight up at full stretch, the left fist pumped down by his hip; then the roar | A poster over the whole picture: navy starfield, the giant 400, spotlights, a podium under his feet with LARA'S CLUB round it, a yellow and navy outline |
 
 Past four hundred, every hundred is four hundred's and every other fifty the
 raised bat's. The numbers are the thing — written big, by hand, as the 50 and
