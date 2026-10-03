@@ -12,7 +12,8 @@
  */
 import '../src/styles.css';
 import { HUD } from '../src/ui/HUD';
-import { demoBoard, demoCareers, demoRivals, demoSurvive } from '../src/game/demo-board';
+import { demoBoard, demoCareers, demoMarathon, demoSurvive } from '../src/game/demo-board';
+import type { MarathonLadder } from '../src/ui/MarathonBoard';
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from '../src/ui/CareerBoard';
@@ -27,6 +28,7 @@ const LINK = 'hitman-cricket.vercel.app';
 
 const hud = new HUD(document.getElementById('stage')!, 121);
 hud.showBoardTabs(true);
+hud.showMarathonTab(true);
 
 let tab: SheetTab = 'classic';
 let ladder: LadderTab = 'best';
@@ -76,14 +78,17 @@ function show(mode: BoardTab, modes: BoardTab[], slide: StatsSlide) {
 
 function draw() {
   if (tab === 'mine') return cards();
-  if (tab === 'rivals') return hud.rivalsBoard({ rows: demoRivals(ME), youId: ME, state: 'ready' });
+  if (tab === 'marathon') {
+    const rows = demoMarathon(ME);
+    return hud.marathonBoard({ ladder: (ladder === 'solo' ? 'solo' : 'team') as MarathonLadder, team: rows.team, solo: rows.solo, youId: ME, state: 'ready' });
+  }
   if (ladder === 'best') return board(tab);
   careers(tab, ladder);
 }
 
 hud.onBoardTab = next => {
   tab = next;
-  ladder = 'best';
+  ladder = next === 'marathon' ? 'team' : 'best';
   draw();
 };
 hud.onLadderTab = next => {

@@ -524,16 +524,16 @@ describe('the two ladders, as tabs over the sheet', () => {
     expect(test).toContain('aria-selected="false">The Blast');
   });
 
-  it('names both ladders the way the mode screen names them, then Rivals, and the card after them', () => {
-    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival', 'Rivals', 'My Stats']);
-    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive', 'board-tab-rivals', 'board-tab-mine']);
+  it('names the three games the way the mode screen names them, and the card after them — Rivals has moved to Rival Matches', () => {
+    expect(BOARD_TABS.map(tab => tab.name)).toEqual(['The Blast', 'Test Survival', 'Test Marathon', 'My Stats']);
+    expect(BOARD_TABS.map(tab => tab.id)).toEqual(['board-tab-classic', 'board-tab-survive', 'board-tab-marathon', 'board-tab-mine']);
   });
 
-  it('gives Rivals and the card no ladders, and keeps them in a one-game build', () => {
-    expect(flatTab('rivals')).toBe(true);
+  it('gives the card no ladders, and every game a row of them', () => {
     expect(flatTab('mine')).toBe(true);
     expect(flatTab('classic')).toBe(false);
     expect(flatTab('survive')).toBe(false);
+    expect(flatTab('marathon')).toBe(false);
   });
 
   it('puts the card last, after the games it is a record of', () => {

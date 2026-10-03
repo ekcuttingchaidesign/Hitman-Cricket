@@ -1760,6 +1760,19 @@ body.start-screen #sound{pointer-events:auto}
    padding back or its figures sit out past the column they belong to. */
 .survive-list .board-row.is-you{padding:7px 10px}
 .survive-sheet .board-eyebrow{letter-spacing:1.4px}
+/* ── The Test Marathon's sheet ────────────────────────────────────────────
+   Test Survival's rows, saying the Marathon's things: on the team ladder a
+   letter for how the innings ended and four columns, which are drawn a little
+   narrower so a name keeps its room on a phone; on the individual ladder the
+   letter is which of the three he was, and a left-hander says so under his
+   name. */
+.marathon-sheet.is-team .marathon-list .board-hits em{width:33px}
+.marathon-sheet.is-team .marathon-list .board-hits em.is-rate{width:44px}
+.marathon-list .board-result{color:#9fc4d8}
+.marathon-list .is-all-out .board-result{color:#f09a8c}
+.marathon-list .is-retired .board-result{color:#f0c65c}
+.marathon-list .is-declared .board-result,.marathon-list .is-balls .board-result{color:#7de3ad}
+.marathon-list .board-who small{display:block}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */
 /* The card does not grow to hold this. It is already 349px tall on a landscape
@@ -2607,6 +2620,25 @@ body.survive-mode #scoreboard{display:none}
   paint-order:stroke;
   text-anchor:middle
 }
+/* The Rivals ranking, on Rival Matches under the player's record: the top ten,
+   the player's own row wherever it falls, and the rest a key away so the
+   matches underneath are not pushed off the screen. */
+/* The board sheet's own colours, which its rows are written in: out here they
+   are not inherited from a sheet, so they are given again. */
+.rival-ranking{
+  --ink:#f7f0e5;
+  --quiet:#9fb2bd;
+  --rule:#ffffff1c;
+  --accent:#f2814f;
+  margin:16px 0 6px;
+  color:var(--ink)
+}
+.rival-ranking .rival-section-head{display:flex;justify-content:space-between;align-items:baseline}
+.rival-ranking-line{margin:2px 0 6px;font-size:13px;color:var(--quiet)}
+.rival-ranking-line b{color:var(--ink)}
+.rival-ranking:not(.is-open) .rival-ranking-list>li:nth-child(n+11):not(.is-you){display:none}
+.rival-ranking-more{display:block;margin:6px auto 0}
+.rival-ranking-foot{margin:8px 0 0;font-size:11px;line-height:1.4;color:var(--quiet)}
 /* `?moments=1`: a key a milestone along the foot of the picture, over the
    doodles, for looking at each celebration without batting to it. */
 .moment-keys{

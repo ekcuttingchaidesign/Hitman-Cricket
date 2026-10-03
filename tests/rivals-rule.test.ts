@@ -17,7 +17,7 @@ vi.mock('../src/config/rivals', () => ({
 const { createChallenge, joinChallenge, readMine, readRivalsBoard, recordBalls } = await import('../src/server/challenge-store');
 const { memoryChallenges } = await import('../src/server/memory-store');
 const { foldName } = await import('../src/server/board-store');
-const { rivalsBoardMarkup } = await import('../src/ui/RivalsBoard');
+const { rivalsRankingMarkup } = await import('../src/ui/RivalsBoard');
 
 const HOST = 'abcdef-abcdefghijkl';
 const FRIEND = 'abcdeg-mnopqrstuvwx';
@@ -75,8 +75,8 @@ describe('the Rivals board, with the rule against farming on', () => {
 
   it('says so under the board', () => {
     rule.on = true;
-    expect(rivalsBoardMarkup({ rows: [] })).toContain('has a registered name');
+    expect(rivalsRankingMarkup({ rows: [] })).toContain('has a registered name');
     rule.on = false;
-    expect(rivalsBoardMarkup({ rows: [] })).not.toContain('has a registered name');
+    expect(rivalsRankingMarkup({ rows: [] })).not.toContain('has a registered name');
   });
 });

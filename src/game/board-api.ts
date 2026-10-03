@@ -1,6 +1,7 @@
 import { inventedBoard } from './board-fixture';
 import type { BoardRow, Innings } from './leaderboard';
 import type { SurviveInnings, SurviveRow } from './survive-board';
+import type { MarathonFigures, SoloRow, TeamRow } from './marathon-board';
 
 /**
  * The board, fetched.
@@ -27,8 +28,8 @@ const TIMEOUT_MS = 4000;
 /** How long a fetched board is reused before asking again. */
 const FRESH_MS = 20_000;
 
-/** Which board is being asked for. The two are separate ladders over separate keys. */
-export type BoardMode = 'classic' | 'survive';
+/** Which board is being asked for. Each is its own ladder over its own keys. */
+export type BoardMode = 'classic' | 'survive' | 'marathon';
 
 export interface BoardPayload {
   rows: BoardRow[];
@@ -43,13 +44,20 @@ export interface SurvivePayload {
   size: number;
 }
 
+/** The Test Marathon's two ladders, which come as one answer: see `api/board.ts`. */
+export interface MarathonPayload {
+  team: { rows: TeamRow[]; cutoff: number | null; size: number };
+  solo: { rows: SoloRow[]; cutoff: number | null; size: number };
+}
+
 /** What the sheet knows about the board it is drawing. */
 export type BoardState = 'ready' | 'loading' | 'offline';
 
 export interface SubmitResult<P = BoardPayload> {
   ok: boolean;
-  improved?: boolean;
-  score?: number;
+  /** For the Marathon, one flag a ladder: `{ team, solo }`. */
+  improved?: boolean | { team: boolean; solo: boolean };
+  score?: number | { team: number; solo: number };
   /** The board as it stands with this innings on it, so nothing has to guess. */
   board?: P;
   /** Why it was turned down, in words the player can act on. */
@@ -83,7 +91,7 @@ const STILL_COUNTS = 'Your innings still counts on this device.';
  * rows have different figures on them and the sheet would draw whichever it was
  * given.
  */
-const cached: Partial<Record<BoardMode, { at: number; payload: BoardPayload | SurvivePayload }>> = {};
+const cached: Partial<Record<BoardMode, { at: number; payload: BoardPayload | SurvivePayload | MarathonPayload }>> = {};
 
 /**
  * The fifty. A board fetched in the last few seconds is reused rather than
@@ -99,10 +107,15 @@ export async function fetchSurviveBoard(force = false): Promise<SurvivePayload |
   return await board(force, 'survive') as SurvivePayload | null;
 }
 
+/** The Test Marathon's two ladders, fetched together. */
+export async function fetchMarathonBoard(force = false): Promise<MarathonPayload | null> {
+  return await board(force, 'marathon') as MarathonPayload | null;
+}
+
 async function board(force: boolean, mode: BoardMode) {
   const held = cached[mode];
   if (!force && held && Date.now() - held.at < FRESH_MS) return held.payload;
-  const query = mode === 'survive' ? '?mode=survive' : '';
+  const query = mode === 'classic' ? '' : `?mode=${mode}`;
   // `ask` hands back a refusal as readily as a board, and the sheet has one line
   // for every way this can fail, so anything carrying `error` is no board here.
   const answer = await ask<BoardPayload & { error?: string }>(`${API}/api/board${query}`);
@@ -133,11 +146,21 @@ export function submitSurvive(
   return offer(playerId, name, avatar, innings, 'survive') as Promise<SubmitResult<SurvivePayload>>;
 }
 
+/**
+ * A whole Marathon innings, offered to both its ladders at once: the store
+ * writes the side to one and the best of the three to the other.
+ */
+export function submitMarathon(
+  playerId: string, name: string, avatar: number, innings: MarathonFigures,
+): Promise<SubmitResult<MarathonPayload>> {
+  return offer(playerId, name, avatar, innings, 'marathon') as Promise<SubmitResult<MarathonPayload>>;
+}
+
 async function offer(
-  playerId: string, name: string, avatar: number, innings: Innings | SurviveInnings, mode: BoardMode,
-): Promise<SubmitResult<BoardPayload | SurvivePayload>> {
+  playerId: string, name: string, avatar: number, innings: Innings | SurviveInnings | MarathonFigures, mode: BoardMode,
+): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload>> {
   const answer = await ask<{
-    improved: boolean; score: number; board: BoardPayload | SurvivePayload;
+    improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload;
     error?: string; retry?: boolean; status?: number; key?: string;
   }>(
     `${API}/api/score`,
@@ -167,7 +190,7 @@ async function offer(
 }
 
 /** Throws away the board held from last time, so the next open asks again. */
-export function forgetBoard() { delete cached.classic; delete cached.survive; }
+export function forgetBoard() { delete cached.classic; delete cached.survive; delete cached.marathon; }
 
 /**
  * One request, with a timeout and no way to throw. A rejected fetch, a timeout

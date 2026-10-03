@@ -3,7 +3,9 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
-import { MarathonInnings, leftHanderOf, type Change } from './game/Marathon';
+import { MarathonInnings, leftHanderOf, marathonFigures, type Change } from './game/Marathon';
+import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
+import type { MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
@@ -28,8 +30,8 @@ import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
-  fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
-  type BoardPayload, type SurvivePayload,
+  fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitSurvive,
+  type BoardPayload, type SurvivePayload, type MarathonPayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
 import {
@@ -47,7 +49,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoRivals, demoSurvive, demoWanted } from './game/demo-board';
+import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
@@ -107,6 +109,13 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
  * testing it. It is hidden, not removed.
  */
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
+/**
+ * Whether the Test Marathon can be reached from here, and so whether its board
+ * has a tab. Until it launches the mode is a link and nothing else
+ * (`?mode=marathon`); `VITE_SHOW_MARATHON` is the switch that launch turns on.
+ */
+const MARATHON_OPEN = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
+  || new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 
 /**
  * When the ghost's ball appears, and how long it holds.
@@ -491,6 +500,7 @@ export class Game {
     this.hud.on('board', this.showBoard);
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
+    this.hud.showMarathonTab(MARATHON_OPEN);
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
     this.hud.onLadderTab = this.tabLadder;
@@ -1383,6 +1393,7 @@ export class Game {
     // The board a player asks for is the board for the innings they are in. The
     // other one is a tab away, and never the one they land on.
     this.boardActions = false;
+    if (this.marathoning) return this.openMarathon(this.marathonLadder);
     this.openBoard(this.surviving ? 'survive' : 'classic', 'best');
   };
 
@@ -1435,28 +1446,50 @@ export class Game {
     if (tab === this.sheetTab) return;
     this.mark(`board-tab-${tab}`, 'Another tab opened over the sheet');
     if (tab === 'mine') return this.openMine();
-    if (tab === 'rivals') return this.openRivals();
+    if (tab === 'marathon') return this.openMarathon(this.marathonLadder);
     this.openBoard(tab, 'best');
   };
 
-  /** The Rivals board as last fetched, so a second look is instant. */
+  /** The Rivals ranking as last fetched, so a second look at Rival Matches is instant. */
   private rivalsRows: RivalsRow[] | null = null;
 
+  /** The Rivals ranking for Rival Matches, as it stands: held, demo, or still coming. */
+  private rivalsRanking(state?: 'ready' | 'loading' | 'offline') {
+    if (this.demo) return { rows: demoRivals(this.player), youId: this.player, state: 'ready' as const };
+    return { rows: this.rivalsRows ?? [], youId: this.player, state: state ?? (this.rivalsRows ? 'ready' as const : 'loading' as const) };
+  }
+
+  /** Both Marathon ladders as last fetched, and which of the two is up. */
+  private marathonRows: MarathonPayload | null = null;
+  private marathonLadder: MarathonLadder = 'team';
+
   /**
-   * The Rivals board, under its own tab. What was held from the last fetch
-   * goes up at once and the fetch corrects it, the way the career boards do.
+   * The Test Marathon's board, on one of its two ladders. What was held from
+   * the last fetch goes up at once and the fetch corrects it; both ladders come
+   * in one answer, so the toggle between them is instant after the first look.
+   * After an innings, that innings sits under the list on its ladder's terms.
    */
-  private openRivals() {
-    this.sheetTab = 'rivals';
-    const draw = (rows: readonly RivalsRow[], state: 'ready' | 'loading' | 'offline') => {
-      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'rivals') return;
-      this.hud.rivalsBoard({ rows, youId: this.player, state });
+  private openMarathon(ladder: MarathonLadder) {
+    this.boardRestoreOffer();
+    this.sheetTab = 'marathon';
+    this.marathonLadder = ladder;
+    this.boardLadder = ladder;
+    const mine = this.phase === 'INNINGS_END' && this.marathoning && this.marathon?.ended;
+    const played = mine ? marathonFigures(this.marathon!) : null;
+    const yours = played ? { team: teamOf(played), solo: soloOf(played) } : null;
+    const draw = (rows: MarathonPayload | { team: { rows: TeamRow[] }; solo: { rows: SoloRow[] } } | null, state: 'ready' | 'loading' | 'offline') => {
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'marathon' || this.marathonLadder !== ladder) return;
+      this.hud.marathonBoard({ ladder, team: rows?.team.rows ?? [], solo: rows?.solo.rows ?? [], youId: this.player, yours, state });
     };
-    if (this.demo) return draw(demoRivals(this.player), 'ready');
-    draw(this.rivalsRows ?? [], this.rivalsRows ? 'ready' : 'loading');
-    void fetchRivalsBoard().then(rows => {
-      if (rows) this.rivalsRows = rows;
-      draw(this.rivalsRows ?? [], rows ? 'ready' : this.rivalsRows ? 'ready' : 'offline');
+    // The sheet has to be up before `draw` will draw on it.
+    if (this.demo) { const demo = demoMarathon(this.player); this.hud.marathonBoard({ ladder, team: demo.team, solo: demo.solo, youId: this.player, yours, state: 'ready' }); return; }
+    this.hud.marathonBoard({
+      ladder, team: this.marathonRows?.team.rows ?? [], solo: this.marathonRows?.solo.rows ?? [], youId: this.player, yours,
+      state: this.marathonRows ? 'ready' : 'loading',
+    });
+    void fetchMarathonBoard().then(payload => {
+      if (payload) this.marathonRows = payload;
+      draw(this.marathonRows, payload || this.marathonRows ? 'ready' : 'offline');
     });
   }
 
@@ -1535,6 +1568,7 @@ export class Game {
   private tabLadder = (ladder: LadderTab) => {
     if (ladder === this.boardLadder) return;
     this.mark(`board-ladder-${ladder}`, 'A career ladder opened from a tab');
+    if (this.sheetTab === 'marathon') return this.openMarathon(ladder as MarathonLadder);
     this.openBoard(this.boardTab, ladder);
   };
 
@@ -3051,9 +3085,16 @@ export class Game {
       drawn = said;
       this.hud.challengesOpen(shown.yourMove.length, shown.waitingOnThem.length);
       this.hud.closeModes();
-      this.hud.challengeList(sections, shown.record);
+      this.hud.challengeList(sections, shown.record, this.rivalsRanking());
     };
     if (this.rooms) draw(this.rooms);
+    // The ranking under the record, fetched alongside the list and drawn in
+    // when it lands, if the list is still the screen being looked at.
+    if (!this.demo) void fetchRivalsBoard().then(rows => {
+      if (rows) this.rivalsRows = rows;
+      if (!this.hud.listOpen || !this.rooms) return;
+      this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(rows || this.rivalsRows ? 'ready' : 'offline'));
+    });
     const wasShowing = !!drawn;
     const list = await ChallengeRun.mine(me);
     if (list) this.rooms = list;
@@ -3071,7 +3112,7 @@ export class Game {
       const shown = this.rooms ?? emptyList();
       const rest = (rows: Challenge[]) => rows.filter(room => room.code !== code);
       this.rooms = { yourMove: rest(shown.yourMove), waitingOnThem: rest(shown.waitingOnThem), done: rest(shown.done), unseen: shown.unseen, record: shown.record };
-      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record);
+      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record, this.rivalsRanking());
       return;
     }
     const room = [...(this.rooms?.yourMove ?? []), ...(this.rooms?.waitingOnThem ?? []), ...(this.rooms?.done ?? [])]

@@ -30,7 +30,8 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
-import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
+import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
+import { MARATHON_LADDERS, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { openUnveil } from './Unveil';
@@ -620,9 +621,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     );
   }
 
-  /** The Rivals board, under its own tab. No ladders and no innings-end keys: it is not a mode. */
-  rivalsBoard(view: RivalsBoardView) {
-    this.sheet(rivalsBoardMarkup(view), 'rivals', 'best');
+  /** The Test Marathon's board, on whichever of its two ladders is up. */
+  marathonBoard(view: MarathonBoardView) {
+    this.sheet(marathonBoardMarkup(view), 'marathon', view.ladder);
   }
 
 
@@ -1187,6 +1188,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   private bothModes = false;
   showBoardTabs(on: boolean) { this.bothModes = on; }
+  /**
+   * Whether the Test Marathon's tab is on the row. Only where the mode can be
+   * reached: until it launches that is a session that came in on
+   * `?mode=marathon`, and a tab for a mode nobody can play would be a door
+   * painted on a wall.
+   */
+  private marathonTab = false;
+  showMarathonTab(on: boolean) { this.marathonTab = on; }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** What the sheet's What's New key does. */
@@ -1214,15 +1223,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Rivals is the same: one board, not a mode, so no ladders either.
     const mine = tab === 'mine';
     const flat = flatTab(tab);
-    if (!flat) this.lastGame = tab;
+    const marathon = tab === 'marathon';
+    if (tab === 'classic' || tab === 'survive') this.lastGame = tab;
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
     //
     // Two rows of them, and the second exists whether or not the first does:
     // the ladders inside a mode are this mode's ladders, so a build that plays
     // one mode still has a career and still has a card, while a build that
-    // plays both needs the row above to get between them.
-    const tabs = `${boardTabsMarkup(tab)}${flat ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
+    // plays both needs the row above to get between them. The Marathon's
+    // second row is its own two ladders rather than a career's.
+    const ladders = flat ? '' : marathon ? marathonLaddersMarkup(ladder as MarathonLadder) : ladderTabsMarkup(tab as BoardTab, ladder);
+    const tabs = `${boardTabsMarkup(tab)}${ladders}`;
     // The keys stand under the sheet rather than inside it. They are what to do
     // next, which is not a fact about a leaderboard — sealed into its foot they
     // read as part of the board, and a board with a PLAY AGAIN in it is a board
@@ -1231,14 +1243,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     for (const other of BOARD_TABS) {
       const key = document.getElementById(other.id);
       if (!key) continue;
-      // A build that plays one mode still has a card, so the row is always
-      // drawn — the other game's tab is simply taken off it.
-      const here = flat ? this.lastGame : tab;
-      if (!this.bothModes && !flatTab(other.tab) && other.tab !== here) { key.remove(); continue; }
+      // The Marathon's tab only where the mode can be reached; and a build
+      // that plays one of the other two takes the other one's tab off the row,
+      // keeping the game it plays wherever the player is standing.
+      if (other.tab === 'marathon' ? !this.marathonTab
+        : other.tab !== 'mine' && !this.bothModes && other.tab !== this.lastGame) { key.remove(); continue; }
       key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }
     if (!flat) {
-      for (const other of laddersOf(tab as BoardTab)) {
+      const keys: readonly { key: string }[] = marathon ? MARATHON_LADDERS : laddersOf(tab as BoardTab);
+      for (const other of keys) {
         this.$(`board-ladder-${other.key}`).onclick = () => {
           if (other.key !== ladder) this.onLadderTab?.(other.key);
         };
@@ -2971,7 +2985,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * Rival Matches: what has come in, what is waiting on somebody, and how the
    * last ten went. A row opens its room; accept and decline act on the spot.
    */
-  challengeList(sections: ListSections, record?: RivalsRecord) {
+  /** Whether the Rivals ranking on Rival Matches has been opened out past its top ten. */
+  private rankingOpen = false;
+  challengeList(sections: ListSections, record?: RivalsRecord, ranking?: RivalsBoardView) {
     this.shutSheets();
     if (this.roomOpen) this.closeRoom();
     this.$('intro').classList.add('hidden');
@@ -2979,10 +2995,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const section = (title: string, rows: ListRowView[]) => rows.length
       ? `<h3 class="rival-section-head">${title}</h3><ul class="rival-rows">${rows.map(listRow).join('')}</ul>`
       : '';
-    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
+    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (ranking ? rivalsRankingMarkup(ranking) : '') + (total
       ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
       : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
     this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a face for the head-to-head.' : '';
+    // The ranking's top ten, or all of it once asked for; a redrawn list keeps
+    // whichever the player chose.
+    const rankingBox = this.$('challenge-sections').querySelector<HTMLElement>('.rival-ranking');
+    const more = this.$('challenge-sections').querySelector<HTMLButtonElement>('#rival-ranking-more');
+    const openOut = (open: boolean) => {
+      this.rankingOpen = open;
+      rankingBox?.classList.toggle('is-open', open);
+      if (more) { more.setAttribute('aria-expanded', String(open)); more.textContent = open ? 'Show the top ten' : `Show all ${ranking?.rows.length ?? ''}`; }
+    };
+    openOut(this.rankingOpen);
+    if (more) more.onclick = () => openOut(!this.rankingOpen);
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
