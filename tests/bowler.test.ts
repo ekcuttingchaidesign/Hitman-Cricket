@@ -483,6 +483,9 @@ describe('the express bowler, against the fast bowler', () => {
     for (const p of [0, .05, .1, .18, .27, .36]) expect(flight(.34 * p).armReach[0]).toBeGreaterThan(.9);
     const across = flight(.34 * .36);
     expect(across.hands[0][2]).toBeGreaterThan(across.shoulders[0][2] + .3);
+    // Out beside the head rather than straight behind it, so that it shows
+    // from the far end: a hand's width and more out to his left.
+    expect(across.hands[0][0]).toBeGreaterThan(across.shoulders[0][0] + .25);
     bowler.action(PACE_ACTION);
     expect(flight(.34 * .36).armReach[0]).toBeLessThan(.6);
     // The chest round further than the hips, which face the way the feet step:

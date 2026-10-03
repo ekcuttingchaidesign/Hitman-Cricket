@@ -195,9 +195,11 @@ export interface ActionStyle {
    * How far the front arm reaches as it is pulled down to the release, and
    * once it is flung after it: half is tucked into the ribs, all but one is
    * straight. And how far it leans out from its own circle: in across the
-   * body, or out past the hip, which a straight arm swinging down needs.
+   * body, or out past the hip, which a straight arm swinging down needs —
+   * and once it is up behind him, further out again, so that it is seen
+   * beside the head from the far end rather than hidden behind it.
    */
-  frontTuck: number; frontAfterReach: number; frontTilt: number;
+  frontTuck: number; frontAfterReach: number; frontTilt: number; frontAfterTilt: number;
   /**
    * Whose clock the front arm keeps after the release: nought is the fall's,
    * the fast bowler's arm drifting as he folds; one is the bowling arm's, so
@@ -237,7 +239,7 @@ export const PACE_ACTION: ActionStyle = {
   carry: 'run', lane: .34,
   runLean: 0, pump: 1,
   frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: -.175,
-  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35, throughTwist: 0, frontTuck: .5, frontAfterReach: .5, frontTilt: -.16, frontSync: 0,
+  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35, throughTwist: 0, frontTuck: .5, frontAfterReach: .5, frontTilt: -.16, frontAfterTilt: -.16, frontSync: 0,
   kick: 0, kickHold: 0, followAcross: 0,
 };
 
@@ -286,7 +288,7 @@ export const EXPRESS_ACTION: ActionStyle = {
   carry: 'chest', lane: .6,
   runLean: .1, pump: 1,
   frontRise: [.46, .64], kneeDrive: 1.5, releaseTilt: -.5, tiltFrom: BACK_FOOT, armTilt: -.8, throughTilt: .5,
-  open: .7, throughTurn: .3, releaseHead: .5, throughHead: .5, throughTwist: .55, frontTuck: .97, frontAfterReach: .985, frontTilt: .22, frontSync: 1,
+  open: .7, throughTurn: .3, releaseHead: .5, throughHead: .5, throughTwist: .55, frontTuck: .97, frontAfterReach: .985, frontTilt: .22, frontAfterTilt: .62, frontSync: 1,
   kick: .25, kickHold: .25, followAcross: .5,
 };
 
@@ -703,7 +705,8 @@ export class Bowler {
     const frontReach = after > 0 ? ARM_REACH * THREE.MathUtils.lerp(style.frontTuck, style.frontAfterReach, openK)
       : t <= BOUND ? THREE.MathUtils.lerp(ARM_REACH * .60, ARM_REACH - .01, rising)
       : THREE.MathUtils.lerp(ARM_REACH - .01, ARM_REACH * style.frontTuck, ease(span(t, BACK_FOOT, 1)));
-    pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, style.frontTilt), frontReach);
+    const frontTilt = after > 0 ? THREE.MathUtils.lerp(style.frontTilt, style.frontAfterTilt, frontK) : style.frontTilt;
+    pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, frontTilt), frontReach);
     // Running in, his arms run: they pump against his legs — the left hand
     // forward as the right foot comes through — with the elbows driving back
     // past his ribs and the hands clear of his sides. Held at a fixed bend
