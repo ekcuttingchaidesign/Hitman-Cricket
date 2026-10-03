@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bowling Rig</title>
+<style>
+/* Layout: one working screen. The ground fills it; the clock, the phase and the transport sit under it, and the readings beside it (under it on a phone). */
+:root{
+  --ground:#e9eee6; --panel:#f8faf5; --ink:#152b3c; --muted:#5d6e70; --rule:#cdd8cc;
+  --pace:#e4703a; --express:#a81c1c; --focus:#2f6fd6; --field:#d7e0d2;
+  --display:Jaro,'Arial Narrow',Impact,sans-serif; --body:Satoshi,'Segoe UI',Arial,sans-serif;
+  --data:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#0f1d26; --panel:#162733; --ink:#eef1ea; --muted:#9fb1b8; --rule:#2a3f4c;
+  --pace:#f2814f; --express:#e5574d; --focus:#7fb0ff; --field:#1b2f2a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ground:#0f1d26; --panel:#162733; --ink:#eef1ea; --muted:#9fb1b8; --rule:#2a3f4c;
+  --pace:#f2814f; --express:#e5574d; --focus:#7fb0ff; --field:#1b2f2a; color-scheme:dark}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.45 var(--body);-webkit-font-smoothing:antialiased}
+.app{box-sizing:border-box;height:100%;display:grid;grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:auto minmax(0,1fr) auto;gap:12px;padding-block:14px;padding-inline:max(16px,env(safe-area-inset-left)) max(16px,env(safe-area-inset-right))}
+header{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
+h1{font:400 30px/1 var(--display);letter-spacing:.02em;margin:0}
+header p{margin:4px 0 0;color:var(--muted);font-size:13px;max-width:60ch}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{font:600 13px var(--body);color:var(--ink);background:none;border:0;padding:8px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--ground)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.dot.pace{background:var(--pace)} .dot.express{background:var(--express)}
+.stage{position:relative;min-height:240px;border-radius:10px;overflow:hidden;background:var(--field);border:1px solid var(--rule)}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none}
+.cams{position:absolute;left:10px;top:10px;right:10px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+.cams button{pointer-events:auto;font:600 12px var(--body);color:var(--ink);background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--rule);border-radius:999px;padding:5px 10px;cursor:pointer}
+.cams button[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.phase{position:absolute;left:10px;bottom:10px;pointer-events:none;background:color-mix(in srgb,var(--panel) 90%,transparent);border:1px solid var(--rule);border-radius:8px;padding:7px 11px 6px}
+.phase b{display:block;font:400 28px/1 var(--display);letter-spacing:.02em}
+.phase span{font:600 12.5px var(--data);color:var(--muted);font-variant-numeric:tabular-nums}
+.halves{position:absolute;inset:0;pointer-events:none;display:none}
+.cams,.phase{z-index:1}
+.split .halves{display:grid;grid-template-columns:1fr 1fr}
+.halves span{align-self:end;justify-self:end;margin:10px;font:700 12px var(--body);background:color-mix(in srgb,var(--panel) 90%,transparent);border:1px solid var(--rule);border-radius:999px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px}
+.split::after{content:"";position:absolute;background:var(--rule);left:50%;top:0;bottom:0;width:2px;transform:translateX(-1px);pointer-events:none}
+aside{grid-row:2/4;grid-column:2;display:flex;flex-direction:column;gap:12px;min-width:0;overflow:auto}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:12px 14px}
+.card h2{font:700 11px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th{font:700 12px var(--body);text-align:right;padding:0 0 6px 10px;white-space:nowrap}
+th .dot{display:inline-block;margin-right:5px}
+th:first-child{text-align:left;font-weight:600;color:var(--muted)}
+td{font:500 13px var(--data);text-align:right;padding:4px 0 4px 10px;border-top:1px solid var(--rule);white-space:nowrap}
+td:first-child{font:500 13px var(--body);text-align:left;color:var(--muted);padding-left:0;white-space:normal}
+.notes{margin:0;padding-left:18px;font-size:13px;color:var(--ink)}
+.notes li{margin:0 0 6px}
+.notes li::marker{color:var(--express)}
+.transport{grid-column:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.play{font:600 14px var(--body);background:var(--ink);color:var(--ground);border:0;border-radius:8px;padding:9px 16px;cursor:pointer;min-width:88px}
+.step{font:600 14px var(--body);background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:8px;padding:8px 11px;cursor:pointer}
+.clock{font:600 13px var(--data);font-variant-numeric:tabular-nums;color:var(--muted);margin-left:auto}
+.check{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.scrub{position:relative;padding-bottom:30px}
+.scrub input{width:100%;margin:0;accent-color:var(--ink)}
+.ticks{position:absolute;left:0;right:0;top:22px;height:30px;font:600 10.5px var(--body);color:var(--muted);pointer-events:none}
+.ticks i{position:absolute;top:0;width:1px;height:7px;background:var(--muted)}
+.ticks i.release{height:12px;width:2px;background:var(--express)}
+.ticks span{position:absolute;top:9px;transform:translateX(-50%);white-space:nowrap}
+.ticks .band{position:absolute;top:-17px;height:4px;border-radius:2px;background:var(--express);opacity:.55}
+@media (max-width:820px){
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(300px,56vh) auto auto;height:auto}
+  aside{grid-row:auto;grid-column:1;overflow:visible}
+  .phase b{font-size:22px}
+  .ticks span.wide{display:none}
+  .split .halves{grid-template-columns:1fr;grid-template-rows:1fr 1fr}
+  .split::after{left:0;right:0;top:50%;bottom:auto;width:auto;height:2px;transform:translateY(-1px)}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style></head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Bowling Rig</h1>
+      <p>The game's own bowler, in slow motion. The fast bowler bowls in every mode; the express bowler is the Test Marathon's Level 3 quick, a slinger after the slow-motion reference.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Which action">
+      <button id="show-pace" data-show="pace" aria-pressed="false"><span class="dot pace"></span>Fast bowler</button>
+      <button id="show-express" data-show="express" aria-pressed="true"><span class="dot express"></span>Express</button>
+      <button id="show-both" data-show="both" aria-pressed="false">Side by side</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="cams" role="group" aria-label="Camera">
+      <button id="cam-side" data-cam="side" aria-pressed="true">Off side</button>
+      <button id="cam-leg" data-cam="leg">Leg side</button>
+      <button id="cam-front" data-cam="front">From the batter</button>
+      <button id="cam-behind" data-cam="behind">Behind the arm</button>
+      <button id="cam-game" data-cam="game">Game camera</button>
+      <button id="cam-above" data-cam="above">Overhead</button>
+    </div>
+    <div class="halves" aria-hidden="true"><span><i class="dot pace"></i>Fast bowler</span><span><i class="dot express"></i>Express</span></div>
+    <div class="phase" aria-live="polite"><b id="phase">Run-up</b><span id="phase-time">0 ms</span></div>
+  </div>
+
+  <div class="transport">
+    <div class="row">
+      <button class="play" id="play">Pause</button>
+      <button class="step" id="back" aria-label="Back 10 milliseconds">−10 ms</button>
+      <button class="step" id="fwd" aria-label="Forward 10 milliseconds">+10 ms</button>
+      <div class="seg" role="group" aria-label="Playback speed">
+        <button id="speed-1" data-speed="1" aria-pressed="false">1×</button>
+        <button id="speed-4" data-speed="0.25" aria-pressed="false">¼×</button>
+        <button id="speed-10" data-speed="0.1" aria-pressed="true">⅒×</button>
+        <button id="speed-25" data-speed="0.04" aria-pressed="false">1⁄25×</button>
+      </div>
+      <label class="check"><input type="checkbox" id="trail" checked> Ball hand's path</label>
+      <span class="clock" id="clock">0 / 2240 ms</span>
+    </div>
+    <div class="scrub">
+      <input type="range" id="scrub" min="0" max="2240" step="1" value="0" aria-label="Moment in the action, in milliseconds">
+      <div class="ticks" id="ticks"></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h2>At this moment</h2>
+      <table id="readout"></table>
+      <p style="margin:8px 0 0;font-size:12px;color:var(--muted)">Arm: 0° straight up, + over towards the batter, − back behind him. Turned: 0° square to the batter, 90° side-on, past 90° his back is to him.</p>
+    </div>
+    <div class="card">
+      <h2>The express action</h2>
+      <ol class="notes">
+        <li>Runs in with the ball held at his chest in both hands.</li>
+        <li>The hands part at the leap: front arm straight up in front of his face, ball arm dropping away behind, knee driven high.</li>
+        <li>Gathers side-on with the ball arm hanging low and wide behind him, back arched away.</li>
+        <li>Slings it: the arm comes through wide and round, the front arm chopped down in front to the chest, the body tilted hard away with the bowling shoulder high.</li>
+        <li>The arm carries on across his body, the head still falling away, and he runs off across the pitch.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h2>What stays the same</h2>
+      <p style="margin:0;font-size:13px">Both bowlers let the ball go at 840 ms from the same point in front of the stumps, so a batter times the express bowler off the same release. The slinger runs in from a wider lane so his arm, swinging in from out there, arrives where an arm coming over the top does. A true sling would let go at shoulder height; the ball starts over his head, so the arm leans out as far as still reaches it.</p>
+    </div>
+  </aside>
+</div>
+<script type="module" src="/tools/rig-viewer.ts"></script>
+</body></html>

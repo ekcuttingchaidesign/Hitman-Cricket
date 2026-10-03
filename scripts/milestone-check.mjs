@@ -1,8 +1,17 @@
 /**
- * The moments, in a real browser — a fifty, a hundred, six sixes in a row: the
- * batter's celebration, the ground going grey round him for the two big ones
- * and not for the fifty, the doodles drawn over it, and the game carrying on
- * after.
+ * The moments, in a real browser — a fifty, a hundred, six sixes in a row, and
+ * the Test innings' marks after them: 150 with the raised bat, and the double,
+ * the triple and four hundred with celebrations of their own. The batter's
+ * celebration, the ground going grey round him for the big ones and not for
+ * the mild ones, the doodles drawn over it, and the game carrying on after.
+ *
+ * The Test marks after the hundred each have a look of their own: a sticker
+ * slapped on beside him for 150, and for the big three a layer that goes up
+ * *behind* him — the neon burst, the wings, the poster that covers the whole
+ * picture — with him drawn back over it and outlined (GameScene's `cutout`).
+ * For those it holds that the layer goes up under him, that he is cut back
+ * out over it with his outline really painted round him, and that both come
+ * down again by themselves.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/milestone-check.mjs
@@ -58,11 +67,21 @@ async function saturation(page, png, box) {
   }, { data: `data:image/png;base64,${png.toString('base64')}`, box });
 }
 
-/** What each moment should do to the screen. */
+/**
+ * What each moment should do to the screen. `marked` is the marker pen's
+ * moments, judged by their strokes; `look` is the selector the Test marks'
+ * own pieces are found by; `under` that a layer goes up behind him and he is
+ * cut back out over it with `ring`, a colour of his outline; `cover` that the
+ * layer covers the whole picture, the outfield with it.
+ */
 const MOMENTS = [
-  { kind: 'century', grey: true, fire: true, cheer: 2.8 },
-  { kind: 'six-sixes', grey: true, fire: true, cheer: 2.8 },
-  { kind: 'fifty', grey: false, fire: false, cheer: 2.3 },
+  { kind: 'century', grey: true, fire: true, cheer: 2.8, words: ['CENTURY'], marked: true },
+  { kind: 'six-sixes', grey: true, fire: true, cheer: 2.8, marked: true },
+  { kind: 'fifty', grey: false, fire: false, cheer: 2.3, words: ['FIFTY'], marked: true },
+  { kind: 'raise', grey: false, fire: false, cheer: 2.3, look: '.cy-slap', also: '.cy-peek' },
+  { kind: 'double', grey: true, fire: false, cheer: 3.1, look: '.cy-slap', under: true, ring: [255, 63, 164] },
+  { kind: 'triple', grey: true, fire: false, cheer: 3.3, look: '.cy-slap', also: '.cy-spread', under: true, ring: [63, 169, 245] },
+  { kind: 'four', grey: true, fire: false, cheer: 3.5, look: '.cy-slap', also: '.cy-ribbon', under: true, ring: [255, 210, 63], cover: true },
 ];
 
 for (const [name, options] of [
@@ -147,12 +166,28 @@ for (const [name, options] of [
   // the page's: a headless browser rendering the ground in software can hold
   // CSS animations at their first frame for as long as it likes, and a check
   // that waited on that would be timing the machine, not the doodles.
-  const up = await page.evaluate(() => {
-    const doodle = document.querySelector('.milestone');
-    const animations = doodle?.getAnimations({ subtree: true }) ?? [];
+  const up = await page.evaluate(({ ring, look, also }) => {
+    const doodle = document.querySelector('.milestone:not(.milestone-under)');
+    const animations = [...document.querySelectorAll('.milestone')].flatMap(m => m.getAnimations({ subtree: true }));
     for (const animation of animations) { animation.pause(); animation.currentTime = 650; }
+    // The outline, read off the cut-out's own pixels: how many are its colour.
+    const cut = document.querySelector('.stage-cut');
+    let ringed = 0;
+    if (ring && cut && getComputedStyle(cut).display !== 'none' && cut.width) {
+      const { data } = cut.getContext('2d').getImageData(0, 0, cut.width, cut.height);
+      for (let i = 0; i < data.length; i += 4) if (data[i + 3] > 200 && Math.abs(data[i] - ring[0]) < 40 && Math.abs(data[i + 1] - ring[1]) < 40 && Math.abs(data[i + 2] - ring[2]) < 40) ringed++;
+    }
     return {
-      doodle: document.querySelectorAll('.milestone').length, marks: document.querySelectorAll('.milestone .cy-mark').length,
+      doodle: document.querySelectorAll('.milestone:not(.milestone-under)').length, marks: doodle?.querySelectorAll('.cy-mark').length ?? 0,
+      under: document.querySelectorAll('.stage-underlay .milestone-under').length, cut: !!cut && getComputedStyle(cut).display !== 'none', ringed,
+      look: look ? document.querySelectorAll(`.milestone ${look}`).length : 0, also: also ? document.querySelectorAll(`.milestone ${also}`).length : 0,
+      // The poster's sheet: the first thing in the layer under him.
+      sheet: (() => {
+        const rect = document.querySelector('.stage-underlay .milestone-under svg rect');
+        if (!rect) return null;
+        const box = rect.getBoundingClientRect();
+        return { width: box.width, height: box.height, fill: rect.getAttribute('fill'), opacity: getComputedStyle(rect.closest('.cy-wipe') ?? rect).opacity };
+      })(),
       fire: document.querySelectorAll('.milestone .cy-fire').length, aside: !!document.querySelector('#viewport.milestone-on'),
       drawn: [...document.querySelectorAll('.milestone .cy-paint')].filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) < .5).length,
       words: [...document.querySelectorAll('.milestone text.cy-type, .milestone text.cy-yuvi, .milestone text.cy-ask, .milestone text.cy-word')].map(t => t.textContent),
@@ -160,12 +195,24 @@ for (const [name, options] of [
       yuvi: document.querySelector('.milestone text.cy-yuvi')?.getBoundingClientRect().toJSON(),
       ask: document.querySelector('.milestone text.cy-ask')?.getBoundingClientRect().toJSON(),
     };
-  });
+  }, { ring: moment.ring ?? null, look: moment.look ?? null, also: moment.also ?? null });
   check(up.doodle === 1, 'the doodles go up');
-  check(up.marks >= 8, 'with the marks round him', up.marks);
-  check(up.drawn >= 6, 'drawn on by now, not still waiting', up.drawn);
-  check(moment.fire ? up.fire >= 8 : up.fire === 0, moment.fire ? 'and fire up the edges' : 'and no fire: it is the mild one', up.fire);
+  if (moment.marked) {
+    check(up.marks >= 8, 'with the marks round him', up.marks);
+    check(up.drawn >= 6, 'drawn on by now, not still waiting', up.drawn);
+  } else {
+    check(up.look >= 1, `with its own look (${moment.look})`, up.look);
+    if (moment.also) check(up.also >= 1, `and ${moment.also}`, up.also);
+  }
+  check(moment.under ? up.under === 1 : up.under === 0, moment.under ? 'a layer goes up behind him' : 'and nothing goes up behind him', up.under);
+  check(moment.under ? up.cut : !up.cut, moment.under ? 'and he is drawn back out over it' : 'and he is not cut out', up.cut);
+  if (moment.ring) check(up.ringed > 300, `with his outline painted round him (${up.ringed} pixels of it)`, up.ringed);
+  check(moment.fire ? up.fire >= 8 : up.fire === 0, moment.fire ? 'and fire up the edges' : 'and no fire up the edges', up.fire);
   check(up.aside, 'and the call for the ball steps aside');
+  if (moment.words) {
+    check(moment.words.every(w => up.words.includes(w)) && (moment.words.length > 0 || up.words.length === 0),
+      moment.words.length ? `saying ${moment.words.join(', ')}` : 'with the number alone and no word under it', JSON.stringify(up.words));
+  }
   const cheers = await page.evaluate(() => window.__cheers);
   check(cheers.length === 1 && cheers[0] === moment.cheer, `and the crowd cheers, dying away over ${moment.cheer}s`, JSON.stringify(cheers));
   if (moment.kind === 'six-sixes') {
@@ -176,10 +223,18 @@ for (const [name, options] of [
     check(inside(up.yuvi) && inside(up.ask), 'and both of them on the screen', JSON.stringify({ yuvi: up.yuvi, ask: up.ask }));
   }
   const during = await page.screenshot({ path: `test-results/${moment.kind}-${name}.png` });
-  const grey = await saturation(page, during, grass);
-  check(moment.grey ? grey < before * .45 : grey > before * .8,
-    `${moment.grey ? 'the grass goes grey' : 'the grass keeps its colour'} (saturation ${before.toFixed(2)} to ${grey.toFixed(2)})`);
-  await page.evaluate(() => { for (const animation of document.querySelector('.milestone')?.getAnimations({ subtree: true }) ?? []) animation.play(); });
+  if (moment.cover) {
+    // Taken from the page at 650ms rather than off the screenshot: in
+    // software the screenshot lands seconds later, after the poster is down.
+    const { width: w, height: h } = options.viewport, sheet = up.sheet;
+    check(!!sheet && sheet.width >= w - 1 && sheet.height >= h - 1 && sheet.fill === '#1b1f4a' && sheet.opacity === '1',
+      'the poster covers the whole picture, under him', JSON.stringify(sheet));
+  } else {
+    const grey = await saturation(page, during, grass);
+    check(moment.grey ? grey < before * .45 : grey > before * .8,
+      `${moment.grey ? 'the grass goes grey' : 'the grass keeps its colour'} (saturation ${before.toFixed(2)} to ${grey.toFixed(2)})`);
+  }
+  await page.evaluate(() => { for (const animation of [...document.querySelectorAll('.milestone')].flatMap(m => m.getAnimations({ subtree: true }))) animation.play(); });
   const draws = await page.evaluate(async () => {
     const frames = 20, start = window.__draws;
     await new Promise(done => { let n = 0; const tick = () => (++n >= frames ? done() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });
@@ -187,12 +242,17 @@ for (const [name, options] of [
   });
   check(draws <= BUDGET, `in ${draws} draw calls a frame, within ${BUDGET}`);
 
-  await page.waitForTimeout(1600);
+  // Four hundred's is up for more than three seconds; it is waited out, not timed.
+  await page.waitForFunction(() => !document.querySelector('.milestone') && getComputedStyle(document.querySelector('.stage-cut')).display === 'none', null, { timeout: 7000 }).catch(() => {});
   check(await page.locator('.milestone').count() === 0, 'the doodles come down by themselves');
+  check(await page.evaluate(() => getComputedStyle(document.querySelector('.stage-cut')).display === 'none'), 'and so does the cut-out of him');
+  // The grey runs on the game's clock, which on a loaded machine lags the
+  // one the doodles come down on, so it is waited out by asking the game.
+  await page.waitForFunction(() => { const s = window.__cricket.snapshot(); return !s.celebrating && s.muted === 0; }, null, { timeout: 30000 }).catch(() => {});
   const after = await saturation(page, await page.screenshot(), grass);
   check(after > before * .8, `and the colour comes back (saturation ${after.toFixed(2)})`);
   let next = await phase();
-  for (let i = 0; i < 20 && !['BOWLER_RUNUP', 'BALL_IN_FLIGHT'].includes(next); i++) { await page.waitForTimeout(250); next = await phase(); }
+  for (let i = 0; i < 80 && !['BOWLER_RUNUP', 'BALL_IN_FLIGHT'].includes(next); i++) { await page.waitForTimeout(250); next = await phase(); }
   check(['BOWLER_RUNUP', 'BALL_IN_FLIGHT'].includes(next), 'and the next ball comes on its own', next);
   check(errors.length === 0, 'with nothing in the console', errors.join('\n        '));
   await page.close();

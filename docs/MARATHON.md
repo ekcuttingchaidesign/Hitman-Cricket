@@ -108,11 +108,32 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 
 ### The level changes are told
 
-- **Level 2 (over 11):** a banner — the ball has started to swing — and the
+- **The swing (over 6):** a banner — the ball has started to swing — and the
   sky clouds over a little, which is the condition every cricket fan already
-  links with swing.
-- **Level 3 (his first over):** a banner for the express spell as he takes the
-  ball.
+  links with swing. It goes up on the first over the pace bowler swings it,
+  which since the playtest is the sixth.
+- **The express bowler (his first over):** a banner for the express spell as
+  he takes the ball.
+
+## The milestones
+
+The Blast's two moments are a fifty and a hundred. A Test innings goes past
+both, so **every fifty is a moment**, each batter's own, counted from the
+ball he walked out on:
+
+| Mark | What he does | What goes up |
+| --- | --- | --- |
+| 50, 150, 250, 350 … | The fifty's raised bat, a second of it | The fifty: the number written beside him, a burst and stars. 150, 250, 350: a sticker of the number slapped on beside him, a googly-eyed ball peeking over it. The ground keeps its colours |
+| 100 | The hundred, as in the Blast | The crown, the 100 on fire, fire up the edges, the ground greyed |
+| 200 | The double biceps: elbows out at the shoulders, fists by the helmet, the bat stood up in his right fist; squeezed twice and shown to each side | A neon starburst behind him, a pink and cyan outline, retro stripes up the edges, the 200 in yellow bubble figures |
+| 300 | Arms flung wide, a little above the shoulders, the bat out along the arm, head back | Wings opening behind him, a halo, a sky-blue outline, the 300 in white bubble figures |
+| 400 | The champion: feet wide, the bat straight up at full stretch, the left fist pumped down by his hip; then the roar | A poster over the whole picture: navy starfield, the giant 400, spotlights, a podium under his feet with LARA'S CLUB round it, a yellow and navy outline |
+
+Past four hundred, every hundred is four hundred's and every other fifty the
+raised bat's. The numbers are the thing — written big, by hand, as the 50 and
+the 100 are — and the word under them is small. The nearing card waits ten
+short of every mark: the nervous 190s, 290s and 390s. The crowd keeps it up
+longer for each: the big three take the whole of the clip.
 
 ## The speed gun
 
@@ -306,7 +327,21 @@ Each step is a pull request of its own, behind the flag until the last.
    came out after the playtest — it is obvious — and the end card marks him
    `(LH)`.
 4. **Settling, the express bowler**, his action and release, and the level
-   banners. *Settling is done*: every batter settles over 30 balls (36 at first,
+   banners. *Done.* And, before the boards, **the milestones** above: every
+   fifty a moment, the three big ones with celebrations of their own. The express bowler is a slinger, after a slow-motion
+   reference of the most famous one: the ball carried at the chest in both
+   hands, the hands parting at the leap, the front arm chopped down in front,
+   the arm coming through wide and round with the body tilted hard away, and
+   the arm carried on across the body as he runs off across the pitch — on
+   the fast bowler's run-up and clock, releasing at the same moment from
+   within a few centimetres of the same point, which a wider lane makes
+   possible (`EXPRESS_ACTION`, tested against every rule the fast bowler's
+   action is). A true sling lets go at shoulder height; the ball starts over
+   his head, so the arm leans out as far as still reaches it. The first cut
+   nudged the fast bowler's numbers and a playtest could not tell the two
+   apart; the second, a Shoaib-style action pushed hard, bent the front arm
+   the wrong way and stretched the spine in the fold, which the rig now
+   refuses. *Settling*: every batter settles over 30 balls (36 at first,
    until the playtest found it too long), a blow knocking him back a ball per
    four points of injury, and settled, the meter
    is his confidence — a quarter full, filling more slowly than the Blast's
@@ -315,14 +350,30 @@ Each step is a pull request of its own, behind the flag until the last.
    simulator a settled good player is offered one about every three overs.
    The speed gun came forward to step 2, and moved off the scoreboard to a
    caption at the foot of the field after the playtest.
-5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two
-   ladders, the store, `?demo=1`.
+5. **The boards.** *Done.* The Rivals ranking is on Rival Matches, under the
+   record: ten shown, *Show all* for the fifty, the player's own row always
+   in view. The sheet's tabs are *The Blast · Test Survival · Test Marathon ·
+   My Stats*, the Marathon's drawn only where the mode can be reached, and its
+   two ladders sit behind a Team / Individual toggle (`src/ui/MarathonBoard.ts`).
+   The store (`src/game/marathon-board.ts`, `submitMarathon` in
+   `src/server/board-store.ts`) packs as above, refuses what could not have
+   happened — sums batter by batter, the meter rules, one left-hander, nobody
+   after a man still in, an ending the figures bear out — and writes both rows
+   from one post, through the same `admit()` the other boards' checks now
+   share. The end card offers a place in the boards' own strip, the team
+   ladder's where the innings takes one and the individual's where only that
+   one does, and sends nothing unless it is claimed; the career endpoints
+   still turn the mode away until step 6. `?demo=1` fills both ladders. And,
+   agreed along the way: past 60 balls, leaving the page asks first
+   (`MARATHON.warnFrom`) — an innings that long is an hour of somebody's
+   evening.
 6. **My Stats.** The third card and its tier.
 7. **The Test look.** *Done.* The darker ball (a Dukes's cherry, `0xa81c1c`,
    against the Blast's `0xe84829`) and the greener pitch, in both Test modes.
    A full green top was tried first and was too much; the strip keeps half
    the grass `pitchTexture` can paint.
-8. **Launch.** A What's New story, the flag on, merge.
+8. **Launch.** A What's New story, the flag on (`VITE_SHOW_MARATHON`, which
+   also draws the Marathon tab on every board), merge.
 
 ## Open questions
 

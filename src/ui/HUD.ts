@@ -30,14 +30,16 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
-import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
+import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
+import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
+import type { TeamRow } from '../game/marathon-board';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { openUnveil } from './Unveil';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
-import type { Milestone } from '../game/milestone';
+import type { Moment } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
 import {
   keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
@@ -55,6 +57,7 @@ import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/privat
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
+import type { LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -185,6 +188,17 @@ const panelIntro = (best: number, top: number) => `
 /** Which special stroke the ball on its way is for, when the meter is full to play it. */
 export type Primed = 'CHARGE' | 'SWEEP' | 'SCOOP' | 'REVERSE' | null;
 /** The call for each, over the meter and down the pitch. */
+/**
+ * What the Marathon's two banners say. The swing's line is the rule the swing
+ * bowler bowls by, in a batter's words: from off stump it comes back in, from
+ * leg it goes away. The express bowler's is the warning a dressing room would
+ * give — and says nothing of the slower ball, which is meant to be a surprise.
+ */
+const BANNERS: Record<LevelBanner, { eyebrow: string; title: string; line: string }> = {
+  swing: { eyebrow: 'CLOUD COVER', title: 'THE BALL HAS STARTED TO SWING', line: 'Off stump swings in. Leg stump swings away.' },
+  express: { eyebrow: 'NEW BOWLER', title: 'EXPRESS PACE', line: 'A bouncer and a yorker every over.' },
+};
+
 const CUES: Record<NonNullable<Primed>, string> = {
   CHARGE: 'CHARGE IT — SWIPE UP', SWEEP: 'SWEEP IT — SWIPE TO LEG',
   SCOOP: 'SCOOP IT — SWIPE DOWN-LEFT', REVERSE: 'REVERSE IT — SWIPE DOWN-RIGHT',
@@ -330,6 +344,7 @@ export class HUD {
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
+        <div id="level-banner" class="level-banner hidden" role="status" aria-live="polite"><span class="lb-eyebrow" id="lb-eyebrow"></span><strong id="lb-title"></strong><span class="lb-line" id="lb-line"></span></div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
           <p id="coach-brief">Drive it straight back past the bowler.</p>
@@ -607,9 +622,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     );
   }
 
-  /** The Rivals board, under its own tab. No ladders and no innings-end keys: it is not a mode. */
-  rivalsBoard(view: RivalsBoardView) {
-    this.sheet(rivalsBoardMarkup(view), 'rivals', 'best');
+  /** The Test Marathon's board, on whichever of its two ladders is up. */
+  marathonBoard(view: MarathonBoardView & { actions?: boolean }) {
+    this.sheet(marathonBoardMarkup(view), 'marathon', view.ladder, this.actions('marathon', !!view.actions));
   }
 
 
@@ -624,8 +639,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * returning player opens first, so an offer that came only with the keys was
    * an offer absent from the one screen it was added for.
    */
-  private actions(mode: BoardTab, keyed: boolean) {
-    const keys = keyed ? (mode === 'survive' ? surviveActions() : actionsMarkup()) : '';
+  private actions(mode: BoardTab | 'marathon', keyed: boolean) {
+    // The Test match's two keys suit the Marathon as they stand.
+    const keys = keyed ? (mode === 'classic' ? actionsMarkup() : surviveActions()) : '';
     // The first key rides above them in the same column. Floating it over the
     // foot of the board put it on top of these keys, which kept the focus they
     // had — so the ring of a key nobody could see showed around the widget
@@ -1174,6 +1190,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   private bothModes = false;
   showBoardTabs(on: boolean) { this.bothModes = on; }
+  /**
+   * Whether the Test Marathon's tab is on the row. Only where the mode can be
+   * reached: until it launches that is a session that came in on
+   * `?mode=marathon`, and a tab for a mode nobody can play would be a door
+   * painted on a wall.
+   */
+  private marathonTab = false;
+  showMarathonTab(on: boolean) { this.marathonTab = on; }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** What the sheet's What's New key does. */
@@ -1201,15 +1225,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Rivals is the same: one board, not a mode, so no ladders either.
     const mine = tab === 'mine';
     const flat = flatTab(tab);
-    if (!flat) this.lastGame = tab;
+    const marathon = tab === 'marathon';
+    if (tab === 'classic' || tab === 'survive') this.lastGame = tab;
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
     //
     // Two rows of them, and the second exists whether or not the first does:
     // the ladders inside a mode are this mode's ladders, so a build that plays
     // one mode still has a career and still has a card, while a build that
-    // plays both needs the row above to get between them.
-    const tabs = `${boardTabsMarkup(tab)}${flat ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
+    // plays both needs the row above to get between them. The Marathon's
+    // second row is its own two ladders rather than a career's.
+    const ladders = flat ? '' : marathon ? marathonLaddersMarkup(ladder as MarathonLadder) : ladderTabsMarkup(tab as BoardTab, ladder);
+    const tabs = `${boardTabsMarkup(tab)}${ladders}`;
     // The keys stand under the sheet rather than inside it. They are what to do
     // next, which is not a fact about a leaderboard — sealed into its foot they
     // read as part of the board, and a board with a PLAY AGAIN in it is a board
@@ -1218,14 +1245,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     for (const other of BOARD_TABS) {
       const key = document.getElementById(other.id);
       if (!key) continue;
-      // A build that plays one mode still has a card, so the row is always
-      // drawn — the other game's tab is simply taken off it.
-      const here = flat ? this.lastGame : tab;
-      if (!this.bothModes && !flatTab(other.tab) && other.tab !== here) { key.remove(); continue; }
+      // The Marathon's tab only where the mode can be reached; and a build
+      // that plays one of the other two takes the other one's tab off the row,
+      // keeping the game it plays wherever the player is standing.
+      if (other.tab === 'marathon' ? !this.marathonTab
+        : other.tab !== 'mine' && !this.bothModes && other.tab !== this.lastGame) { key.remove(); continue; }
       key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }
     if (!flat) {
-      for (const other of laddersOf(tab as BoardTab)) {
+      const keys: readonly { key: string }[] = marathon ? MARATHON_LADDERS : laddersOf(tab as BoardTab);
+      for (const other of keys) {
         this.$(`board-ladder-${other.key}`).onclick = () => {
           if (other.key !== ladder) this.onLadderTab?.(other.key);
         };
@@ -1288,6 +1317,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       const modes = this.$('board-modes');
       if (this.$('survive-modes').classList.contains('hidden')) modes.remove();
       else modes.onclick = () => { this.closeBoard(); this.$('survive-modes').click(); };
+    } else if (tab === 'marathon') {
+      // The Marathon is reached by a link that locks the mode, so its card has
+      // no picker to send anybody to; and it has no share picture yet.
+      document.getElementById('board-modes')?.remove();
     } else {
       this.$('board-share').addEventListener('click', () => void this.shareScore());
     }
@@ -1439,6 +1472,24 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
   /** Said on the next guard he takes, once: a batter settled, or walking out. */
   callOut(words: string) { this.walking = words; }
+  /**
+   * A Marathon level beginning, put up the way a broadcast would: the swing
+   * coming on under the cloud, or the express bowler marking out his run. Up
+   * for `lasts` — as long as the bowler waits at his mark for it — and away.
+   */
+  private bannerDown = 0;
+  levelBanner(kind: LevelBanner | null, over = 0, lasts = 0) {
+    const banner = this.$('level-banner');
+    window.clearTimeout(this.bannerDown);
+    if (!kind) { banner.className = 'level-banner hidden'; return; }
+    const words = BANNERS[kind];
+    this.$('lb-eyebrow').textContent = `OVER ${over} · ${words.eyebrow}`;
+    this.$('lb-title').textContent = words.title;
+    this.$('lb-line').textContent = words.line;
+    banner.style.setProperty('--lasts', `${lasts}ms`);
+    banner.className = `level-banner is-${kind}`; void banner.offsetWidth; banner.classList.add('is-on');
+    this.bannerDown = window.setTimeout(() => { banner.className = 'level-banner hidden'; }, lasts);
+  }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
@@ -1623,6 +1674,22 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       best: standing => `Your best still stands &mdash; <b>${surviveBest(rows, standing.place)}</b>`,
       peek: place => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
       held: place => (rows.length ? surviveStandingPeek(rows, place) : ''),
+    });
+  }
+
+  /**
+   * The same strip, on the Marathon's card — which is the Blast's card with the
+   * three batters under the total, so it hosts the strip where the Blast does.
+   * No peek of the rows round the place: an innings writes two rows on two
+   * ladders, and three rows of one of them would be half the story.
+   */
+  offerMarathonClaim(
+    offer: CardOffer, known: { name: string; avatar: number } | null, team: readonly TeamRow[], playerId: string | null = null,
+  ) {
+    this.strip(offer, known, playerId, false, {
+      best: standing => `Your best still stands &mdash; <b>${team[standing.place - 1] ? marathonBest(team[standing.place - 1]) : standing.runs}</b>`,
+      peek: () => '',
+      held: () => '',
     });
   }
 
@@ -2453,16 +2520,40 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * carries on, which is the difference between feedback and an interruption.
    */
   /**
-   * A fifty, a hundred or six sixes, drawn over the ground round him. The call
+   * A moment's doodle, drawn over the ground round him. The call
    * for the ball that got him there has had its moment by now and steps aside
    * rather than sit under the doodles. Gone again by itself when he is done.
+   * What goes under him — the Test innings' back layers — and how he is cut
+   * back out over it are handed back for the scene, which owns the layers
+   * under the HUD.
    */
-  milestone(kind: Milestone, at: BatterOnScreen, lasts: number) {
-    this.viewport.querySelector('.milestone')?.remove();
-    const doodle = milestoneDoodle(kind, at, lasts);
-    this.viewport.append(doodle);
+  milestone(moment: Moment, at: BatterOnScreen, lasts: number) {
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
+    const doodle = milestoneDoodle(moment, at, lasts);
+    this.viewport.append(doodle.element);
     this.viewport.classList.add('milestone-on');
-    window.setTimeout(() => { doodle.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+    window.setTimeout(() => { doodle.element.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+    return { back: doodle.back, cutout: doodle.cutout };
+  }
+  /**
+   * `?moments=1`'s keys: one a milestone, along the foot of the picture. Their
+   * presses are kept from the bat underneath, so a key tapped with a ball in
+   * the air is a key and not a shot.
+   */
+  momentKeys(keys: readonly { label: string; moment: Moment }[], pick: (moment: Moment) => void) {
+    const row = document.createElement('div');
+    row.className = 'moment-keys';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Play a milestone');
+    for (const { label, moment } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'moment-key'; key.textContent = label;
+      key.setAttribute('aria-label', `Play the ${label} celebration`);
+      key.addEventListener('click', () => pick(moment));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
   }
   /**
    * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
@@ -2470,14 +2561,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * takes its place, since `milestone` clears whatever doodle is up.
    */
   power(at: BatterOnScreen, lasts: number, style: PowerStyle) {
-    this.viewport.querySelector('.milestone')?.remove();
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
     const doodle = powerDoodle(at, lasts, style);
     this.viewport.append(doodle);
     window.setTimeout(() => doodle.remove(), lasts);
   }
   /** The focus lines for a pulled bouncer: see `pullDoodle`. Not a moment either. */
   pull(at: BatterOnScreen, lasts: number, pen: PullPen) {
-    this.viewport.querySelector('.milestone')?.remove();
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
     const doodle = pullDoodle(at, lasts, pen);
     this.viewport.append(doodle);
     window.setTimeout(() => doodle.remove(), lasts);
@@ -2916,7 +3007,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * Rival Matches: what has come in, what is waiting on somebody, and how the
    * last ten went. A row opens its room; accept and decline act on the spot.
    */
-  challengeList(sections: ListSections, record?: RivalsRecord) {
+  /** Whether the Rivals ranking on Rival Matches has been opened out past its top ten. */
+  private rankingOpen = false;
+  challengeList(sections: ListSections, record?: RivalsRecord, ranking?: RivalsBoardView) {
     this.shutSheets();
     if (this.roomOpen) this.closeRoom();
     this.$('intro').classList.add('hidden');
@@ -2924,10 +3017,21 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const section = (title: string, rows: ListRowView[]) => rows.length
       ? `<h3 class="rival-section-head">${title}</h3><ul class="rival-rows">${rows.map(listRow).join('')}</ul>`
       : '';
-    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
+    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (ranking ? rivalsRankingMarkup(ranking) : '') + (total
       ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
       : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
     this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a face for the head-to-head.' : '';
+    // The ranking's top ten, or all of it once asked for; a redrawn list keeps
+    // whichever the player chose.
+    const rankingBox = this.$('challenge-sections').querySelector<HTMLElement>('.rival-ranking');
+    const more = this.$('challenge-sections').querySelector<HTMLButtonElement>('#rival-ranking-more');
+    const openOut = (open: boolean) => {
+      this.rankingOpen = open;
+      rankingBox?.classList.toggle('is-open', open);
+      if (more) { more.setAttribute('aria-expanded', String(open)); more.textContent = open ? 'Show the top ten' : `Show all ${ranking?.rows.length ?? ''}`; }
+    };
+    openOut(this.rankingOpen);
+    if (more) more.onclick = () => openOut(!this.rankingOpen);
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);

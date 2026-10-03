@@ -12,8 +12,28 @@ import type { ShotOutcome } from './types';
 export const CENTURY = 100;
 export const FIFTY = 50;
 
-/** The three moments the game stops for, biggest first. */
-export type Milestone = 'six-sixes' | 'century' | 'fifty';
+/**
+ * The moments the game stops for. Every fifty is one, and which moment it
+ * gets is the mark's: the fifty's raised bat for 150, 250 and 350, the
+ * hundred, and then the Marathon's three big ones — the double, the triple
+ * and four hundred, each with a celebration of its own. Past four hundred
+ * every hundred is four hundred's and every other fifty the raised bat's.
+ * Six sixes in a row is the one that is not a number.
+ */
+export type Milestone = 'six-sixes' | 'fifty' | 'century' | 'raise' | 'double' | 'triple' | 'four';
+/** A moment, with the mark it was: the runs, or nought for the six sixes. */
+export interface Moment { kind: Milestone; mark: number }
+
+/** Which moment a mark gets. */
+export function kindAt(mark: number): Exclude<Milestone, 'six-sixes'> {
+  if (mark === FIFTY) return 'fifty';
+  if (mark === CENTURY) return 'century';
+  if (mark === 200) return 'double';
+  if (mark === 300) return 'triple';
+  return mark % CENTURY === 0 ? 'four' : 'raise';
+}
+/** The mark each moment is usually: for asking for one by name. */
+export const MARK_OF: Record<Milestone, number> = { 'six-sixes': 0, fifty: 50, century: 100, raise: 150, double: 200, triple: 300, four: 400 };
 
 /** What the man at the crease has made: every run since the last wicket fell. */
 export function batterRuns(history: readonly ShotOutcome[]) {
@@ -33,6 +53,17 @@ export function reachedCentury(history: readonly ShotOutcome[]) {
 /** His fifty, the same way: the ball that crosses it, and only that one. */
 export function reachedFifty(history: readonly ShotOutcome[]) {
   return crossed(history, FIFTY);
+}
+/**
+ * The fifty-mark the ball just played took him past, if it took him past one.
+ * One at most: no ball is worth fifty.
+ */
+export function reachedMark(history: readonly ShotOutcome[]): number | null {
+  const last = history.at(-1);
+  if (!last || last.isWicket) return null;
+  const now = batterRuns(history), before = now - last.runs;
+  const mark = Math.floor(now / FIFTY) * FIFTY;
+  return mark > 0 && mark > before ? mark : null;
 }
 function crossed(history: readonly ShotOutcome[], mark: number) {
   const last = history.at(-1);
@@ -55,13 +86,15 @@ export function sixSixes(history: readonly ShotOutcome[]) {
 }
 
 /** Which moment, if any, the ball just played was. Only the biggest is kept. */
-export function milestoneOf(history: readonly ShotOutcome[]): Milestone | null {
-  return sixSixes(history) ? 'six-sixes' : reachedCentury(history) ? 'century' : reachedFifty(history) ? 'fifty' : null;
+export function milestoneOf(history: readonly ShotOutcome[]): Moment | null {
+  if (sixSixes(history)) return { kind: 'six-sixes', mark: 0 };
+  const mark = reachedMark(history);
+  return mark === null ? null : { kind: kindAt(mark), mark };
 }
 
 /**
  * How close he is to one of the moments, while he is close: the last ten runs
- * to a fifty or a hundred, or three sixes running and counting.
+ * to the next fifty, whichever it is, or three sixes running and counting.
  *
  * The celebrations are the payoff; this is the wait for them. A hundred that
  * arrives out of nowhere is a surprise, and one watched coming from 92 is an
@@ -72,7 +105,7 @@ export function milestoneOf(history: readonly ShotOutcome[]): Milestone | null {
  * ball that is not one, where the nineties can last an over.
  */
 export type Nearing =
-  | { kind: 'century' | 'fifty'; runs: number; need: number }
+  | { kind: Exclude<Milestone, 'six-sixes'>; mark: number; runs: number; need: number }
   | { kind: 'six-sixes'; sixes: number };
 
 /** How many runs short of a mark the wait begins. */
@@ -91,9 +124,8 @@ export function nearingOf(history: readonly ShotOutcome[]): Nearing | null {
   const sixes = sixStreak(history);
   if (sixes >= SIXES_SHOWN && sixes < 6) return { kind: 'six-sixes', sixes };
   const runs = batterRuns(history);
-  if (runs >= CENTURY - NEAR && runs < CENTURY) return { kind: 'century', runs, need: CENTURY - runs };
-  if (runs >= FIFTY - NEAR && runs < FIFTY) return { kind: 'fifty', runs, need: FIFTY - runs };
-  return null;
+  const mark = (Math.floor(runs / FIFTY) + 1) * FIFTY;
+  return mark - runs <= NEAR ? { kind: kindAt(mark), mark, runs, need: mark - runs } : null;
 }
 
 /**
@@ -105,9 +137,9 @@ export type NearingEnd = { how: 'reached'; runs: number } | { how: 'out'; runs: 
 export function nearingEnd(before: Nearing | null, history: readonly ShotOutcome[]): NearingEnd | null {
   if (!before) return null;
   const now = nearingOf(history);
-  if (now?.kind === before.kind) return null;
-  const reached = before.kind === 'six-sixes' ? sixSixes(history)
-    : before.kind === 'century' ? reachedCentury(history) : reachedFifty(history);
+  const still = now && (before.kind === 'six-sixes' ? now.kind === 'six-sixes' : now.kind !== 'six-sixes' && now.mark === before.mark);
+  if (still) return null;
+  const reached = before.kind === 'six-sixes' ? sixSixes(history) : reachedMark(history) === before.mark;
   if (reached) return { how: 'reached', runs: batterRuns(history) };
   const last = history.at(-1);
   if (last?.isWicket) {

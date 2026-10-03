@@ -45,6 +45,12 @@ export const MARATHON = {
    * a declaration would be a way of banking a quick start rather than batting.
    */
   declareFrom: 120,
+  /**
+   * From this many balls an unfinished innings asks before the page is left.
+   * Nothing is saved part-way, so closing the tab on a long innings loses it;
+   * before this it is not long enough to be worth a question.
+   */
+  warnFrom: 60,
   /** How the flight is padded, and how long the innings holds between balls: Survival's. */
   travelScale: SURVIVE.travelScale,
   readyMs: SURVIVE.readyMs,
@@ -247,6 +253,17 @@ export const CONFIDENCE = {
   /** Played at and beaten, or edged for nothing. */
   beaten: -10,
 } as const;
+
+/**
+ * The two moments the innings changes under the batter are put up on the
+ * screen, the way a broadcast would: the ball starting to swing, with the
+ * cloud coming over, and the express bowler's first over. Each is told once an
+ * innings, at the top of the over it begins, and the bowler waits at his mark
+ * for this long while it is up — a banner gone before it can be read is the
+ * same as no banner.
+ */
+export const LEVEL_BANNER_MS = 2600;
+export type LevelBanner = 'swing' | 'express';
 
 /** How a Marathon innings finished. */
 export type MarathonEnding = 'ALL_OUT' | 'RETIRED' | 'BALLS' | 'DECLARED';

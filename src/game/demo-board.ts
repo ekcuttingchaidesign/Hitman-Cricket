@@ -1,3 +1,4 @@
+import { packSolo, packTeam, type SoloInnings, type SoloRow, type TeamInnings, type TeamRow } from './marathon-board';
 import { AVATARS } from '../config/board';
 import { LAUNCH_MS, rankKey, type BoardRow, type Innings } from './leaderboard';
 import { packSurvive, type SurviveInnings, type SurviveRow } from './survive-board';
@@ -75,6 +76,32 @@ export function demoBoard(youId: string | null): BoardRow[] {
       score: rankKey(figures),
     };
   });
+}
+
+/**
+ * The Test Marathon's two ladders, fifty each, with one row on each yours:
+ * totals from the six hundreds down, every way an innings ends, and on the
+ * individual ladder all three places in the order and a few left-handers.
+ * Sorted the way the store would, so the sheet reads as a real board.
+ */
+export function demoMarathon(youId: string | null, atMs = LAUNCH_MS): { team: TeamRow[]; solo: SoloRow[] } {
+  const endings = ['ALL_OUT', 'DECLARED', 'RETIRED', 'ALL_OUT', 'BALLS'] as const;
+  const owner = (name: string, i: number) => ({ playerId: i === MINE && youId ? youId : idOf(i), name, avatar: i % AVATARS });
+  const team: TeamRow[] = NAMES.slice(0, DEMO_ROWS).map((name, i) => {
+    const ending = endings[i % endings.length];
+    // Test scoring: about sixty off every hundred balls, a little either side.
+    const runs = 312 - i * 4;
+    const balls = ending === 'BALLS' ? 500 : Math.min(499, Math.round(runs * (1.45 + ((i * 7) % 9) / 40)));
+    const figures: TeamInnings = { runs, balls, boundaries: Math.round(runs / 9), ending };
+    return { ...figures, ...owner(name, i), score: packTeam(figures, atMs) };
+  });
+  const solo: SoloRow[] = NAMES.slice(0, DEMO_ROWS).map((name, i) => {
+    const runs = 168 - i * 3;
+    const figures: SoloInnings = { runs, balls: Math.round(runs * (1.4 + ((i * 5) % 7) / 30)), out: i % 3 !== 1, order: (i % 3) + 1, left: i % 7 === 3 };
+    return { ...figures, ...owner(name, i), score: packSolo(figures, atMs) };
+  });
+  const order = (a: { score: number }, b: { score: number }) => b.score - a.score;
+  return { team: team.sort(order), solo: solo.sort(order) };
 }
 
 /** The same, over the Test ladder, which ranks a chase by how few balls it took. */

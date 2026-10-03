@@ -2,6 +2,8 @@ import { BATTERS, CONFIDENCE, MARATHON, SETTLE, type Batter, type MarathonEnding
 import { specialStroke } from './Confidence.js';
 import { Health } from './Health.js';
 import { SeededRandom } from './SeededRandom.js';
+import type { MarathonFigures } from './marathon-board.js';
+import { HEALTH } from '../config/survive.js';
 import type { ShotOutcome } from './types.js';
 
 /**
@@ -166,4 +168,26 @@ export class MarathonInnings {
 
   /** How the batter would be written on a card: `143*` not out, `143` out. */
   static score(batter: Pick<BatterInnings, 'runs' | 'out'>) { return `${batter.runs}${batter.out ? '' : '*'}`; }
+}
+
+/**
+ * A finished innings, as the boards are sent it: the side's figures, how it
+ * ended, and every batter's, meter and all (`submitMarathon`).
+ *
+ * The meter is sent as a whole number, rounded *up* unless it is spent. Rounded
+ * to the nearest, a batter still standing on 0.4 would arrive with nothing left
+ * and be read as one who should have been carried off — an innings the store
+ * would refuse.
+ */
+export function marathonFigures(innings: MarathonInnings): MarathonFigures {
+  return {
+    runs: innings.runs, balls: innings.balls, fours: innings.fours, sixes: innings.sixes,
+    ending: innings.ending ?? 'DECLARED',
+    batters: innings.batters.map(b => ({
+      runs: b.runs, balls: b.balls, fours: b.fours, sixes: b.sixes, out: b.out, retired: b.retired,
+      blows: b.health.blows.length,
+      health: b.health.value <= 0 ? 0 : Math.min(HEALTH.full, Math.ceil(b.health.value)),
+      left: b.left,
+    })),
+  };
 }

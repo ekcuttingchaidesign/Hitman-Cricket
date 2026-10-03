@@ -2,6 +2,11 @@ import { BOARD_SIZE, packScore, plausible, type Innings } from '../game/leaderbo
 import {
   SURVIVE_BOARD_SIZE, packSurvive, survivePlausible, type SurviveInnings,
 } from '../game/survive-board.js';
+import {
+  ENDINGS, MARATHON_BOARD_SIZE, marathonPlausible, packSolo, packTeam, soloOf, teamOf,
+  type MarathonFigures, type SoloInnings, type TeamInnings,
+} from '../game/marathon-board.js';
+import { MARATHON } from '../config/marathon.js';
 
 /**
  * What the board is, on the store's side of the wire.
@@ -72,6 +77,28 @@ export const SURVIVE_LADDER: Ladder<SurviveInnings> = {
   figures: from => ({
     runs: from.runs, balls: from.balls, wickets: from.wickets, blows: from.blows, health: from.health,
   }),
+};
+
+/**
+ * The Test Marathon's two ladders. Neither is ever handed an innings of its
+ * own: `submitMarathon` checks the whole innings once and writes both rows from
+ * it. Their `plausible` is only the floor a row read back must stand on.
+ */
+export const MARATHON_TEAM_LADDER: Ladder<TeamInnings> = {
+  size: MARATHON_BOARD_SIZE,
+  pack: packTeam,
+  plausible: i => [i.runs, i.balls, i.boundaries].every(n => Number.isInteger(n) && n >= 0)
+    && i.balls <= MARATHON.maxBalls && ENDINGS.includes(i.ending),
+  scope: 'marathon:',
+  figures: from => ({ runs: from.runs, balls: from.balls, boundaries: from.boundaries, ending: from.ending }),
+};
+export const MARATHON_SOLO_LADDER: Ladder<SoloInnings> = {
+  size: MARATHON_BOARD_SIZE,
+  pack: packSolo,
+  plausible: i => [i.runs, i.balls].every(n => Number.isInteger(n) && n >= 0) && i.balls <= MARATHON.maxBalls
+    && i.order >= 1 && i.order <= MARATHON.batters,
+  scope: 'marathonone:',
+  figures: from => ({ runs: from.runs, balls: from.balls, out: from.out, order: from.order, left: from.left }),
 };
 
 /** A row as it is kept: the figures that board ranks, plus who owns them and when. */
@@ -177,7 +204,7 @@ export type SubmitOutcome<I = Innings> = SubmitAccepted<I> | SubmitRefusal;
  * endpoints have not: they hand it whichever of the two outcomes the mode
  * chose, and inference settled on one of them and then rejected the other.
  */
-export function refused(outcome: SubmitOutcome<unknown>): outcome is SubmitRefusal {
+export function refused(outcome: SubmitOutcome<unknown> | MarathonOutcome): outcome is SubmitRefusal {
   return !outcome.ok;
 }
 
@@ -202,6 +229,31 @@ export interface Submission<I = Innings> {
 export async function submitScore<I>(
   store: BoardStore<I>, ladder: Ladder<I>, input: Submission<I>, now = Date.now(),
 ): Promise<SubmitOutcome<I>> {
+  const admitted = await admit(store, ladder.plausible, input);
+  if (turnedAway(admitted)) return admitted;
+  const score = ladder.pack(input.innings, now);
+  const improved = await store.record(input.playerId, score, {
+    ...ladder.figures(input.innings), name: (admitted as Admitted).name, avatar: input.avatar, at: now,
+  });
+
+  return { ok: true, improved, score, at: now, board: await readBoard(store, ladder) };
+}
+
+/**
+ * Everything a submission must get past before anything is written, in the
+ * order that matters: the rate limit first, so a script pays nothing to be
+ * turned away, then the shape, then whether the innings could have happened,
+ * then the name. Answers with the name as it will be kept.
+ */
+interface Admitted { ok: true; name: string }
+/**
+ * A predicate rather than `if (!admitted.ok)`, for the reason `refused` is one:
+ * the compiler Vercel builds `api/` with does not narrow on the flag.
+ */
+function turnedAway(admitted: Admitted | SubmitRefusal): admitted is SubmitRefusal { return !admitted.ok; }
+async function admit<I>(
+  store: Pick<BoardStore<unknown>, 'hits' | 'claimName'>, plausibleInnings: (innings: I) => boolean, input: Submission<I>,
+): Promise<Admitted | SubmitRefusal> {
   if (await store.hits(input.address, RATE_WINDOW_SECONDS) > RATE_LIMIT) {
     return { ok: false, status: 429, reason: 'Too many innings from here. Try again in an hour.' };
   }
@@ -214,23 +266,65 @@ export async function submitScore<I>(
   // Not an anti-cheat measure and not to be mistaken for one: the game is a
   // static page, so a determined person can post any innings that passes. This
   // turns down the ones that could not have happened, which is the floor.
-  if (!ladder.plausible(input.innings)) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
+  if (!plausibleInnings(input.innings)) return { ok: false, status: 400, reason: 'That innings could not have happened.' };
 
   // The name is claimed before the score is written, and it is claimed whether
   // or not the innings improves, so a player keeps their name across a bad day.
   // A name once held is never released either: letting one go free would let the
   // next person pick up somebody else's reputation.
-  const folded = foldName(name);
-  if (await store.claimName(folded, input.playerId) !== input.playerId) {
+  if (await store.claimName(foldName(name), input.playerId) !== input.playerId) {
     return { ok: false, status: 409, reason: 'Somebody already bats under that name.' };
   }
+  return { ok: true, name };
+}
 
-  const score = ladder.pack(input.innings, now);
-  const improved = await store.record(input.playerId, score, {
-    ...ladder.figures(input.innings), name, avatar: input.avatar, at: now,
-  });
+/** The two Marathon boards, as one answer. */
+export interface MarathonBoards {
+  team: BoardPayload<TeamInnings>;
+  solo: BoardPayload<SoloInnings>;
+}
 
-  return { ok: true, improved, score, at: now, board: await readBoard(store, ladder) };
+/** Both Marathon boards, read side by side. */
+export async function readMarathon(
+  stores: { team: BoardStore<TeamInnings>; solo: BoardStore<SoloInnings> },
+): Promise<MarathonBoards> {
+  const [team, solo] = await Promise.all([
+    readBoard(stores.team, MARATHON_TEAM_LADDER), readBoard(stores.solo, MARATHON_SOLO_LADDER),
+  ]);
+  return { team, solo };
+}
+
+/** A Marathon innings the boards took: where it landed on each. */
+export interface MarathonAccepted {
+  ok: true;
+  improved: { team: boolean; solo: boolean };
+  score: { team: number; solo: number };
+  at: number;
+  board: MarathonBoards;
+}
+/** Named for the same reason `SubmitOutcome` is: see above. */
+export type MarathonOutcome = MarathonAccepted | SubmitRefusal;
+
+/**
+ * A Marathon innings, checked once as a whole and written to both ladders: the
+ * side's total to the team board, and the best of its three batters to the
+ * individual one. One submission and one rate-limit hit, so the two rows can
+ * never describe two different innings, and a refusal refuses both.
+ */
+export async function submitMarathon(
+  stores: { team: BoardStore<TeamInnings>; solo: BoardStore<SoloInnings> },
+  input: Submission<MarathonFigures>, now = Date.now(),
+): Promise<MarathonOutcome> {
+  const admitted = await admit(stores.team, marathonPlausible, input);
+  if (turnedAway(admitted)) return admitted;
+  const owner = { name: (admitted as Admitted).name, avatar: input.avatar, at: now };
+  const team = teamOf(input.innings), solo = soloOf(input.innings);
+  const score = { team: packTeam(team, now), solo: packSolo(solo, now) };
+  const [teamImproved, soloImproved] = await Promise.all([
+    stores.team.record(input.playerId, score.team, { ...MARATHON_TEAM_LADDER.figures(team), ...owner }),
+    stores.solo.record(input.playerId, score.solo, { ...MARATHON_SOLO_LADDER.figures(solo), ...owner }),
+  ]);
+  return { ok: true, improved: { team: teamImproved, solo: soloImproved }, score, at: now, board: await readMarathon(stores) };
 }
 
 /**

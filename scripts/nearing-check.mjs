@@ -159,6 +159,24 @@ for (const [name, options] of [
   await shot('fifty-reached');
   await slow(false);
 
+  // ── The nervous 190s: in a Test innings every fifty after is a wait of its own ──
+  await fresh(...sixes(31), 4);                                          // 190
+  seen = await card();
+  check(!seen.hidden && seen.kind === 'is-double' && seen.runs === '190' && seen.need === '10', 'on 190, the double hundred card', JSON.stringify(seen));
+  check(seen.say === 'Nervous 190s', 'the nervous 190s', JSON.stringify(seen));
+  check(seen.said === 'On 190, 10 short of a double hundred.', 'said in full to a screen reader', seen.said);
+  await shot('double-190');
+  await play(6);                                                         // 196
+  await slow(true);
+  await play(4);                                                         // 200
+  seen = await card();
+  check(seen.reached && seen.say === 'Double hundred!', 'getting there fills it and bursts it', JSON.stringify(seen));
+  await shot('double-reached');
+  await slow(false);
+  await fresh(...sixes(23), 2);                                          // 140
+  seen = await card();
+  check(!seen.hidden && seen.kind === 'is-raise' && seen.say === '150 in sight', 'on 140, 150 in sight', JSON.stringify(seen));
+
   // ── The hundred, and out short of it ─────────────────────────────────────
   await fresh(...sixes(15), 0, 2);                                       // 92
   seen = await card();

@@ -87,10 +87,18 @@ which is judging whatever the machine's clock says; `?lights=day` or
 scenery through `Batch` (`src/scene/build.ts`), one mesh a colour, not a box
 at a time.
 
-`scripts/milestone-check.mjs` is the fifty, the hundred and six sixes: the
-grey is measured off the pixels of the grass, and the doodles are judged on
-their own clock, because a headless browser rendering the ground in software
-can hold CSS animations at their first frame.
+`scripts/milestone-check.mjs` is the fifty, the hundred, six sixes, and the
+Test innings' marks after them — 150 with the raised bat and the sticker, and
+the double, the triple and four hundred, each with a celebration and a doodle
+of its own: the grey is measured off the pixels of the grass, and the doodles
+are judged on their own clock, because a headless browser rendering the ground
+in software can hold CSS animations at their first frame. The big three put a
+layer up behind him and draw him back out over it (GameScene's `cutout`); the
+check reads his outline off the cut-out canvas's own pixels, and takes all of
+it in the one look at 650ms: in software the next look can land seconds later,
+after a moment as short as 150's is already down. A moment is asked
+for by name (`__cricket.milestone('triple')`); which ball earns it is
+`milestoneOf`'s, in the unit tests.
 
 `scripts/power-check.mjs` is the flash for a special stroke played on a full
 meter: the ground greyed round the batter and the ball, focus lines running
@@ -132,13 +140,17 @@ that seeds it.
 named as he walks out, the next one standing after the last was carried off,
 the declare key from the twentieth over and not before, the card, the speed
 gun, the settle meter turning into confidence at thirty balls, the Test match's
-greener strip, the left-hander — the ground mirrored while he is in and off again for
-the man after him, his pull on the key to the right — and no innings sent
-anywhere that keeps one, since the mode has no board yet. It writes most of
+greener strip, the level banners — the swing's, with the sky measured greyer
+off the pixels as the cloud comes over, and the express bowler's — and his own
+action in his over and the fast bowler's in the next, the left-hander — the ground mirrored while he is in and off again for
+the man after him, his pull on the key to the right — and the end card
+offering the boards' claim strip and sending nothing that was not claimed;
+the mode has boards but no career yet. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
-cannot reach. Point it at a preview deployment, never at production.
+cannot reach. It walks all three boards, the Marathon's two ladders from one
+post among them. Point it at a preview deployment, never at production.
 
 ## `?fresh=1`
 
@@ -161,5 +173,15 @@ The board is untouched: the name stays claimed and a saved key still opens it.
 ## `?demo=1`
 
 Fills the boards with fifty made-up players, in the browser that asked, saving
-nothing. It is how a full board gets looked at without claiming fifty real
+nothing — the Marathon's two ladders and the Rivals ranking too. It is how a full board gets looked at without claiming fifty real
 names. `?demo=0` or a new tab turns it off.
+
+## `?moments=1`
+
+A row of keys along the foot of the picture, one a milestone — 50, 100, six
+sixes, and the Test marks 150 to 400 — for looking at any celebration on a
+phone without batting to it. A tap between balls plays the moment at once and
+holds the bowler at his mark until it is over; with a ball on its way it waits
+for that ball to be dead, which is when a real one goes up. It is the same
+celebration with none of the innings: no runs, nothing counted, nothing sent.
+Add `&mode=marathon` for the Test kit and ground.

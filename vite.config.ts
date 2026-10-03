@@ -1,7 +1,10 @@
 import { defineConfig, type Plugin } from 'vite';
 import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
-import { CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, refused, submitScore } from './src/server/board-store';
+import {
+  CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, readMarathon, refused, submitMarathon, submitScore,
+} from './src/server/board-store';
+import { readMarathonFigures, type SoloInnings, type TeamInnings } from './src/game/marathon-board';
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
 import { memoryFeedback } from './src/server/memory-feedback';
 import { challengeRefused } from './src/server/challenge-store';
@@ -42,6 +45,8 @@ function boardEndpoints(): Plugin {
   // carries theirs from one board to the other and nobody else can bat under it.
   const names = new Map<string, string>();
   const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names) };
+  // The Marathon's two, sharing the names as every board does.
+  const marathon = { team: memoryStore<TeamInnings>(names), solo: memoryStore<SoloInnings>(names) };
   // The questionnaire, backed the same way and for the same reason: the form can
   // be opened, filled in, sent and read back as a spreadsheet with no
   // credentials and no database. It is forgotten when the server stops, which is
@@ -116,10 +121,10 @@ function boardEndpoints(): Plugin {
           }
           const query = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
           const mode = modeAsked(query.get('mode'));
-          if (!open(mode)) return send(400, { error: NOT_OPEN });
           const survive = mode === 'survive';
           if (path === '/api/career') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
+            if (!open(mode)) return send(400, { error: NOT_OPEN });
             const player = query.get('player') ?? '';
             if (player) {
               return send(200, survive
@@ -184,6 +189,7 @@ function boardEndpoints(): Plugin {
           }
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
+            if (mode === 'marathon') return send(200, await readMarathon(marathon), 'public, s-maxage=10, stale-while-revalidate=59');
             if (survive) {
               return send(200, await readBoard(boards['survive:'], SURVIVE_LADDER),
                 'public, s-maxage=10, stale-while-revalidate=59');
@@ -203,7 +209,13 @@ function boardEndpoints(): Plugin {
             address: 'dev',
           };
           const submitted = modeAsked(body.mode);
-          if (!open(submitted)) return send(400, { error: NOT_OPEN });
+          if (submitted === 'marathon') {
+            // Both Marathon rows from one innings, and no careers yet: step 6.
+            const taken = await submitMarathon(marathon, { ...who, innings: readMarathonFigures(body.innings) });
+            if (refused(taken)) return send(taken.status, { error: taken.reason });
+            const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+            return send(200, key ? { ...taken, key } : taken);
+          }
           const asked = submitted === 'survive';
           const outcome = asked
             ? await submitScore(boards['survive:'], SURVIVE_LADDER, { ...who, innings: surviveFigures(body.innings) })

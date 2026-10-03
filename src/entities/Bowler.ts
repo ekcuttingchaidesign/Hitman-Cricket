@@ -126,6 +126,173 @@ export const SPIN_RUN = runOf(SPIN_APPROACH, SPIN_BOUND);
 const BOUND = .525, BACK_FOOT = .743, BACK_LIFT = .80, STRIDE_START = .883, FRONT_FOOT = .955;
 
 /**
+ * The shape of one bowler's action: the numbers that make one fast bowler
+ * look unlike another, on a run-up and a clock they share.
+ *
+ * Only the shape. The phases above, the run, the release point and the moment
+ * the ball leaves are the same for every action, because they are the game's:
+ * the ball is handed to its trajectory at the end of the run-up from a fixed
+ * point, and a batter times the ball off the release. What an action is free
+ * to change is everything a batter watches on the way there — how high he
+ * leaps, how far he turns, where his arms are and how hard the arm whips over.
+ */
+export interface ActionStyle {
+  /** The bowling arm at the bottom of the gather: see `armAngle`. */
+  gatherAngle: number;
+  /** How hard the sweep from the gather to the release accelerates. */
+  whip: number;
+  /** Where the ball leaves, just past vertical. */
+  release: number;
+  /** Where the arm finishes coming down across the body after it. */
+  through: number;
+  /** The front arm at the top of the gather, and pulled down at release and after. */
+  frontUp: number; frontPull: number; frontAfter: number;
+  /** How far round he turns: a little running in, most at the gather, and back past square at release. */
+  runTurn: number; gatherTurn: number; releaseTurn: number;
+  /** The hips' rise through the bound, and their drop into the follow-through. */
+  leap: number; followDrop: number;
+  /** The coil away from the target through the gather: the chest back, the lean, the head. */
+  coilBack: number; coilLean: number; coilHead: number;
+  /** How far he folds over the front leg after the ball has gone, and leans away with it. */
+  fold: number; foldLean: number;
+  /** How high the back leg kicks up behind him as he falls away. */
+  backKick: number;
+  /**
+   * What the hands do running in: pump against the legs, or carry the ball at
+   * the chest in both hands until the last stride before the leap.
+   */
+  carry: 'run' | 'chest';
+  /** Where the run-up lies across the pitch: just wide of the stumps, or wider. */
+  lane: number;
+  /** How far forward he leans running in, as a sprinter does, gone by the time he lands from the leap. */
+  runLean: number;
+  /** How hard the arms pump running in: one is the fast bowler's. */
+  pump: number;
+  /** When the front arm goes up, as fractions of the run-up: from the bound to the back foot, or earlier. */
+  frontRise: readonly [number, number];
+  /** How high the front knee drives in the leap: one is the fast bowler's. */
+  kneeDrive: number;
+  /**
+   * How far he tilts away to his non-bowling side as the ball goes, in
+   * radians, and from where in the run-up it builds: the fast bowler's comes
+   * on with the front foot, a slinger's from the back foot, so that he is
+   * already leaning away as the chest opens.
+   */
+  releaseTilt: number; tiltFrom: number;
+  /**
+   * How the chest opens from the gather to the release: the power the easing
+   * is raised to, so that less than one opens it early and more holds it
+   * side-on until late. And how much further it turns after the ball has
+   * gone, with where the head looks through the release and after it.
+   */
+  open: number; throughTurn: number; releaseHead: number; throughHead: number;
+  /**
+   * How far the chest twists round on the hips after the ball has gone, over
+   * and above the turn: the hips keep facing the way the feet are stepping.
+   */
+  throughTwist: number;
+  /**
+   * How far the front arm reaches as it is pulled down to the release, and
+   * once it is flung after it: half is tucked into the ribs, all but one is
+   * straight. And how far it leans out from its own circle: in across the
+   * body, or out past the hip, which a straight arm swinging down needs —
+   * and once it is up behind him, further out again, so that it is seen
+   * beside the head from the far end rather than hidden behind it.
+   */
+  frontTuck: number; frontAfterReach: number; frontTilt: number; frontAfterTilt: number;
+  /**
+   * Whose clock the front arm keeps after the release: nought is the fall's,
+   * the fast bowler's arm drifting as he folds; one is the bowling arm's, so
+   * that as it comes down the front arm straightens and goes up with it.
+   */
+  frontSync: number;
+  /**
+   * How far the bowling arm leans out from the vertical on its way over: nought
+   * is straight over the top, and a slinger's is most of the way to level.
+   * `throughTilt` is where it leans once the ball has gone, so a slung arm can
+   * finish across the body.
+   */
+  armTilt: number; throughTilt: number;
+  /**
+   * The back leg kicked up behind him as he pitches forward over the front
+   * one, how high, and for how much of the falling-away it hangs there before
+   * it swings through. Nought for an action that just runs on.
+   */
+  kick: number; kickHold: number;
+  /**
+   * How far he veers off across the pitch to his non-bowling side as he runs
+   * off, in metres. Only once the front foot has left its mark, so the brace
+   * never slides.
+   */
+  followAcross: number;
+}
+
+/** The fast bowler every mode has had: the action this file was written for. */
+export const PACE_ACTION: ActionStyle = {
+  gatherAngle: -2.42, whip: 2.4, release: .20, through: 2.55,
+  frontUp: -.26, frontPull: -2.5, frontAfter: -2.05,
+  runTurn: .12, gatherTurn: 1.02, releaseTurn: -.42,
+  leap: .17, followDrop: .17,
+  coilBack: .10, coilLean: .22, coilHead: -.5,
+  fold: .19, foldLean: .26,
+  backKick: .32,
+  carry: 'run', lane: .34,
+  runLean: 0, pump: 1,
+  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: -.175,
+  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35, throughTwist: 0, frontTuck: .5, frontAfterReach: .5, frontTilt: -.16, frontAfterTilt: -.16, frontSync: 0,
+  kick: 0, kickHold: 0, followAcross: 0,
+};
+
+/**
+ * The Marathon's express bowler: a slinger, after a slow-motion reference of
+ * the most famous one — the same run-up and clock, and everything else his own.
+ *
+ * The first cut of this was the fast bowler's action with every number nudged
+ * the same way, and a playtest could not tell the two apart: at 840 ms from
+ * twenty metres, ten degrees more turn is nothing. A sling is a different
+ * shape altogether, and reads from the far end.
+ *
+ *   - **The run.** The ball carried at the chest in both hands, upright.
+ *   - **The leap.** The hands part: the front arm goes straight up in front of
+ *     his face, the ball arm drops away behind, and the front knee drives high.
+ *   - **The gather.** Side-on, arched away from the target, the ball arm
+ *     hanging low and wide behind him.
+ *   - **The sling.** The arm comes through round rather than over — leaning
+ *     well out from the vertical the whole way — while the front arm is chopped
+ *     down straight in front of him, past the hip. The chest is open past square and the
+ *     body already tilted hard away to his left before the front foot lands,
+ *     bowling shoulder high, eyes on the batter; a bowler who is square and
+ *     upright until the last frame is not slinging it. The ball still leaves
+ *     at the same moment as every other ball, and from the same point: he runs
+ *     in from a wider lane, so that an arm swinging in from out there arrives
+ *     where an arm coming straight over the top does.
+ *   - **The follow-through.** The chest spins on round past the batter while
+ *     the hips and the feet carry on down the pitch, the bowling arm carried
+ *     across his body to the far hip, the front arm carrying on up behind
+ *     him, straight the whole way, with the fingers up, and the head still falling away — a spin rather
+ *     than the fast bowler's fold over the front leg — and he runs off across
+ *     the pitch.
+ *
+ * What a sling cannot have here is a release at shoulder height: the ball is
+ * handed to its trajectory at a fixed point over his head, so the arm leans
+ * out as far as still reaches it, which is about thirty-five degrees.
+ */
+export const EXPRESS_ACTION: ActionStyle = {
+  gatherAngle: -2.55, whip: 3.2, release: .16, through: 2.7,
+  frontUp: -.1, frontPull: 2.35, frontAfter: Math.PI * 2 - .85,
+  runTurn: .14, gatherTurn: 1.25, releaseTurn: -.7,
+  leap: .3, followDrop: .3,
+  coilBack: .22, coilLean: .4, coilHead: -.7,
+  fold: .2, foldLean: -.35,
+  backKick: .4,
+  carry: 'chest', lane: .6,
+  runLean: .1, pump: 1,
+  frontRise: [.46, .64], kneeDrive: 1.5, releaseTilt: -.5, tiltFrom: BACK_FOOT, armTilt: -.8, throughTilt: .5,
+  open: .7, throughTurn: .3, releaseHead: .5, throughHead: .5, throughTwist: .55, frontTuck: .97, frontAfterReach: .985, frontTilt: .22, frontAfterTilt: .62, frontSync: 1,
+  kick: .25, kickHold: .25, followAcross: .5,
+};
+
+/**
  * How far he has come at `t`. Not linear: he accelerates in, the bound covers
  * ground in one flat leap, and the delivery stride is a lunge that half stops
  * him. A constant speed reads as a conveyor belt.
@@ -144,61 +311,66 @@ function advance(t: number, run: Run) {
  * one number moving from behind his hip, up through the vertical, and down
  * across his body.
  */
-function armAngle(t: number, run: Run) {
+function armAngle(t: number, run: Run, style: ActionStyle) {
   // Through the run-up it drives against the legs. Tying the swing to the
   // stride rather than to a frequency of its own is what makes the arms and the
   // legs belong to the same runner: a right arm goes back as the right leg
   // comes through, and an arm on its own clock never quite does.
   if (t <= BOUND) return -Math.PI + Math.sin(advance(t, run) / STRIDE * Math.PI * 2) * .78;
   // Gather: down and back, the arm at its lowest as he leaves the ground.
-  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(-Math.PI, GATHER_ANGLE, ease(span(t, BOUND, BACK_FOOT)));
+  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(-Math.PI, style.gatherAngle, ease(span(t, BOUND, BACK_FOOT)));
   // And then one accelerating sweep, all the way from the gather to the ball
   // leaving the hand. It used to be two: a climb at 8 rad/s and a last flick at
   // 18, which meant the arm was still gathering pace at the exact moment the
   // ball went — and then fell off a cliff to 5 on the far side of it. An arm
   // that reaches its fastest at release and carries on through is the whole
   // difference between a bowler and someone putting a ball down the pitch.
-  return THREE.MathUtils.lerp(GATHER_ANGLE, RELEASE_ANGLE, span(t, BACK_FOOT, 1) ** ARM_WHIP);
+  // How hard it accelerates is `style.whip`: the arm covers most of its arc in
+  // the last fraction of it, which is why it is a whip and not a windmill — at
+  // the fast bowler's 2.4 it is doing about 24 rad/s as the ball goes. Where it
+  // hangs at the bottom of the gather is `gatherAngle`, behind and below him,
+  // and where it lets go is `release`, just past vertical, which is where a
+  // ball actually leaves the hand.
+  return THREE.MathUtils.lerp(style.gatherAngle, style.release, span(t, BACK_FOOT, 1) ** style.whip);
 }
-/** Where the arm hangs at the bottom of the gather, behind and below him. */
-const GATHER_ANGLE = -2.42;
-/**
- * How hard the sweep accelerates. The arm covers most of its arc in the last
- * fraction of it, which is why it is a whip and not a windmill: at 2.4 it is
- * doing about 24 rad/s as the ball goes, which is a fast bowler's arm.
- */
-const ARM_WHIP = 2.4;
 /** How much of the follow-through the arm spends coming down across the body. */
 const ARM_THROUGH = .36;
-/** Just past vertical, which is where a ball actually leaves the hand. */
-const RELEASE_ANGLE = .20;
+/**
+ * A front arm on the bowling arm's clock opens whatever bend it has over this
+ * much of the follow-through, before it has swung far — a bent arm swung
+ * through straight down flicks its elbow out and back as it passes, because
+ * down is the one direction a hanging elbow has no side to point to.
+ */
+const FRONT_OPEN = .09;
 
 /** The front arm mirrors it: up at the target in the gather, then pulled down. */
-function frontArmAngle(t: number, run: Run) {
-  if (t <= BOUND) return -Math.PI - Math.sin(advance(t, run) / STRIDE * Math.PI * 2) * .78;
-  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(Math.PI, -.26, ease(span(t, BOUND, BACK_FOOT)));
+function frontArmAngle(t: number, run: Run, style: ActionStyle) {
+  const rise = ease(span(t, style.frontRise[0], style.frontRise[1]));
+  // Running, it pumps; an action that puts it up before the leap takes it up
+  // from wherever the pump had it, the long way round over the front. The
+  // stride count lands the pump on straight down at the bound, so the two
+  // halves meet there.
+  if (t <= BOUND) return THREE.MathUtils.lerp(-Math.PI - Math.sin(advance(t, run) / STRIDE * Math.PI * 2) * .78 + (rise > 0 ? 2 * Math.PI : 0), style.frontUp, rise);
+  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(Math.PI, style.frontUp, rise);
   // The pull-down: this is the block that turns the shoulders over.
-  if (t <= 1) return THREE.MathUtils.lerp(-.26, -2.5, ease(span(t, BACK_FOOT, 1)) ** 1.8);
-  return -2.5;
+  if (t <= 1) return THREE.MathUtils.lerp(style.frontUp, style.frontPull, ease(span(t, BACK_FOOT, 1)) ** 1.8);
+  return style.frontPull;
 }
 
 /**
  * How far round from facing the batter he is: side-on through the gather, then
  * driven back through by the front arm's pull and a little past it.
  */
-function turnAt(t: number) {
-  if (t <= BOUND) return .12 * ease(span(t, .3, BOUND));
-  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(.12, 1.02, ease(span(t, BOUND, BACK_FOOT)));
-  return THREE.MathUtils.lerp(1.02, -.42, ease(span(t, BACK_FOOT, 1)) ** 1.15);
+function turnAt(t: number, style: ActionStyle) {
+  if (t <= BOUND) return style.runTurn * ease(span(t, .3, BOUND));
+  if (t <= BACK_FOOT) return THREE.MathUtils.lerp(style.runTurn, style.gatherTurn, ease(span(t, BOUND, BACK_FOOT)));
+  return THREE.MathUtils.lerp(style.gatherTurn, style.releaseTurn, ease(span(t, BACK_FOOT, 1)) ** style.open);
 }
 /** The way `across` points for a foot planted at `t` — frozen at that moment. */
-const acrossAt = (t: number) => {
-  const yaw = Math.PI + turnAt(t);
+const acrossAt = (t: number, style: ActionStyle) => {
+  const yaw = Math.PI + turnAt(t, style);
   return new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
 };
-
-const BACK_ACROSS = acrossAt(BACK_FOOT);
-const FRONT_ACROSS = acrossAt(FRONT_FOOT);
 
 /** A unit direction for an arm on its circle, in the bowler's own space. */
 function armDirection(angle: number, tilt: number) {
@@ -209,8 +381,6 @@ export class Bowler {
   readonly figure: Cricketer;
   readonly root: THREE.Group;
   private ball: THREE.Mesh;
-  /** Where the run-up starts across the pitch: just wide of the stumps. */
-  private laneX = .34;
   /**
    * Which run he is walking back to the top of. Set before the action starts
    * and held for the whole of it, so a delivery cannot change its own geometry
@@ -220,6 +390,22 @@ export class Bowler {
 
   /** Hand the ball to the spinner, or take it back. */
   spinner(on: boolean) { this.run = on ? SPIN_RUN : PACE_RUN; }
+  /**
+   * Whose action he bowls with, and the two feet it plants side-on and braced,
+   * frozen at the moment each comes down. Set before the action starts and
+   * held for the whole of it, like the run.
+   */
+  private style: ActionStyle = PACE_ACTION;
+  private backAcross = acrossAt(BACK_FOOT, PACE_ACTION);
+  private frontAcross = acrossAt(FRONT_FOOT, PACE_ACTION);
+  /** Bowl with this action from the next ball: the express bowler's, or back to the fast bowler's. */
+  action(style: ActionStyle) {
+    this.style = style;
+    this.backAcross = acrossAt(BACK_FOOT, style);
+    this.frontAcross = acrossAt(FRONT_FOOT, style);
+  }
+  /** Whose action it is, for the scene and the checks. */
+  get actionStyle() { return this.style; }
 
   constructor(kit?: Kit) {
     this.figure = new Cricketer(kit);
@@ -284,11 +470,15 @@ export class Bowler {
 
   private apply(t: number, after: number, recover = 0) {
     const travelled = after > 0 ? travelledAt(after, this.run) : advance(t, this.run);
-    this.root.position.set(this.laneX, 0, this.run.startZ - travelled);
+    // His left is +x here, the side away from the stumps.
+    const veer = after > 0 ? ease(span(after, .14, .7)) * this.style.followAcross : 0;
+    this.root.position.set(this.style.lane + veer, 0, this.run.startZ - travelled);
 
     const pose = this.figure.stand();
-    const turn = turnAt(t);
-    pose.yaw = Math.PI + turn - after * .5;
+    const style = this.style;
+    const turn = turnAt(t, style);
+    pose.yaw = Math.PI + turn - after * style.throughTurn;
+    pose.twist = -after * style.throughTwist;
 
     // He stands tallest at release and collapses over the front leg afterwards.
     // He is at his lowest as the front foot lands and his tallest as the ball
@@ -297,18 +487,26 @@ export class Bowler {
     // planted that far in front of it. Standing tall the whole way through, the
     // leg is stretched flat before the foot ever gets down.
     const hipY = .865 + (t <= BOUND ? Math.abs(Math.sin(advance(t, this.run) / STRIDE * Math.PI)) * .045 : 0)
-      + (t > BOUND && t <= BACK_FOOT ? Math.sin(span(t, BOUND, BACK_FOOT) * Math.PI) * .17 : 0)
-      + ease(span(t, STRIDE_START, 1)) * .118 - after * .17;
+      + (t > BOUND && t <= BACK_FOOT ? Math.sin(span(t, BOUND, BACK_FOOT) * Math.PI) * style.leap : 0)
+      + ease(span(t, STRIDE_START, 1)) * .118 - after * style.followDrop;
     pose.hip.set(0, hipY, 0);
 
     // The spine: upright running, coiled back away from the target through the
     // gather so the chest is still closed, then thrown forward over the front
     // leg on release and further still on the follow-through.
     const coil = t <= BOUND ? 0 : t <= BACK_FOOT ? ease(span(t, BOUND, BACK_FOOT)) : 1 - ease(span(t, BACK_FOOT, 1));
-    const fall = ease(span(t, FRONT_FOOT, 1)) * .16 + after * .19;
-    pose.chest.set(0, hipY + SPINE - fall * .16, coil * .10 - fall * .58);
-    pose.lean = coil * .22 - (ease(span(t, FRONT_FOOT, 1)) * .16 + after * .26);
-    pose.headYaw = coil * -.5 + after * .35;
+    const fall = ease(span(t, FRONT_FOOT, 1)) * .16 + after * style.fold;
+    // Running in, a sprinter's lean: in as he gets going, out through the leap.
+    const sprint = style.runLean * ease(span(t, 0, .3)) * (1 - ease(span(t, BOUND, BACK_FOOT)));
+    pose.chest.set(0, hipY + SPINE - fall * .16 - sprint * .1, coil * style.coilBack - fall * .58 - sprint);
+    // A deep fold is a spine bent, not a spine stretched: past the length the
+    // coil already gave it the chest is drawn back in, or the torso and the
+    // shoulders come apart. The fast bowler's fold never reaches it.
+    const spine = pose.chest.clone().sub(pose.hip), longest = Math.hypot(SPINE, coil * style.coilBack);
+    if (spine.length() > longest) pose.chest.copy(pose.hip).addScaledVector(spine.normalize(), longest);
+    const tilting = ease(span(t, style.tiltFrom, 1));
+    pose.lean = coil * style.coilLean - (tilting * style.releaseTilt + after * style.foldLean);
+    pose.headYaw = coil * style.coilHead + tilting * style.releaseHead + after * style.throughHead;
     pose.headPitch = .05 + coil * .06 + after * .22;
 
     this.feet(pose, t, after, travelled);
@@ -382,12 +580,17 @@ export class Bowler {
     // measured from the hips rather than from the ground.
     const lifted = span(t, BACK_LIFT, 1);
     const trailing = travelled - THREE.MathUtils.lerp(advance(BACK_LIFT, this.run) - this.run.backFootPlant, .40, ease(lifted));
-    // Where the trailing leg comes down once it has swung past the front one.
-    const swingThrough = ease(span(after, 0, BACK_LAND));
+    // Where the trailing leg comes down once it has swung past the front one —
+    // held up behind him first, by an action that kicks it there.
+    const { kick, kickHold } = this.style;
+    const swingThrough = ease(span(after, kickHold, BACK_LAND + kickHold * .6));
+    const kicked = kick * (after <= kickHold ? ease(span(after, 0, kickHold * .6)) : 1 - swingThrough);
     place(pose.rightFoot,
       t <= BACK_FOOT ? THREE.MathUtils.lerp(this.run.approach, this.run.backFootPlant, ease(boundT))
         : t <= BACK_LIFT ? this.run.backFootPlant
-        : after > 0 ? THREE.MathUtils.lerp(travelledAt(0, this.run) - .40, this.run.backMark, swingThrough)
+        // Held up, it trails the hips rather than a mark on the ground, which
+        // they are leaving behind.
+        : after > 0 ? THREE.MathUtils.lerp(travelledAt(Math.min(after, kickHold), this.run) - .40, this.run.backMark, swingThrough) - kicked * .5
         : trailing,
       .17,
       // At release the trailing foot is already a foot off the turf, so the
@@ -395,9 +598,9 @@ export class Bowler {
       // the ground drops the leg through the pitch for a frame and, worse,
       // hands the leg a stance it has no length left to reach.
       .06 + (t <= BACK_FOOT ? Math.sin(boundT * Math.PI) * .42
-        : after > 0 ? THREE.MathUtils.lerp(.30, 0, swingThrough) + Math.sin(swingThrough * Math.PI) * .32
+        : after > 0 ? THREE.MathUtils.lerp(.30, 0, swingThrough) + Math.sin(swingThrough * Math.PI) * this.style.backKick + kicked
         : ease(lifted) * .30),
-      t > BACK_FOOT && t <= BACK_LIFT ? BACK_ACROSS : live);
+      t > BACK_FOOT && t <= BACK_LIFT ? this.backAcross : live);
 
     // The front leg: tucked up under him in the bound, then thrown out and
     // slammed down braced. It holds exactly where it lands through the release —
@@ -409,11 +612,14 @@ export class Bowler {
       : t <= FRONT_FOOT
         ? THREE.MathUtils.lerp(this.run.backFootPlant + .06, this.run.frontFootPlant, ease(span(t, BACK_FOOT, FRONT_FOOT)))
         : THREE.MathUtils.lerp(this.run.frontFootPlant, this.run.frontMark, stepOn);
-    const frontLift = t <= BACK_FOOT ? Math.sin(boundT * Math.PI) * .30 + boundT * .34
+    const frontLift = t <= BACK_FOOT ? (Math.sin(boundT * Math.PI) * .30 + boundT * .34) * (1 + (this.style.kneeDrive - 1) * Math.sin(boundT * Math.PI))
       : t <= FRONT_FOOT ? .34 * (1 - ease(span(t, BACK_FOOT, FRONT_FOOT)) ** 1.5)
       : Math.sin(stepOn * Math.PI) * .30;
+    // Braced, it keeps the bearing it landed on through the release and after
+    // it, and only turns with him as it steps on: switching to the live bearing
+    // the moment the ball went slid it sideways under him at the release.
     place(pose.leftFoot, frontDistance, -.10, .06 + frontLift,
-      t >= FRONT_FOOT && after === 0 ? FRONT_ACROSS : live);
+      after > 0 ? this.frontAcross.clone().lerp(live, stepOn) : t >= FRONT_FOOT ? this.frontAcross : live);
   }
 
   /**
@@ -436,6 +642,7 @@ export class Bowler {
     // be taken from where he ends up, not where he was, or the feet settle on
     // the bearing he was turning away from.
     pose.yaw = THREE.MathUtils.lerp(pose.yaw, Math.PI, amount);
+    pose.twist = THREE.MathUtils.lerp(pose.twist ?? 0, 0, amount);
     const across = new THREE.Vector3(Math.cos(pose.yaw), 0, -Math.sin(pose.yaw));
     const settle = (point: THREE.Vector3, to: THREE.Vector3) =>
       point.lerp(new THREE.Vector3(0, to.y, to.z).addScaledVector(across, to.x), amount);
@@ -462,15 +669,25 @@ export class Bowler {
     // rather than stopping at the moment of release and strolling down. Easing
     // in from nothing here is what made a 24 rad/s arm read as a slow one: the
     // eye follows it through the ball, and what it saw was the arm stop.
-    const angle = after > 0 ? THREE.MathUtils.lerp(RELEASE_ANGLE, 2.55, settle(span(after, 0, ARM_THROUGH))) : armAngle(t, this.run);
-    const front = after > 0 ? THREE.MathUtils.lerp(-2.5, -2.05, ease(after)) : frontArmAngle(t, this.run);
+    const style = this.style;
+    const swept = settle(span(after, 0, ARM_THROUGH));
+    const angle = after > 0 ? THREE.MathUtils.lerp(style.release, style.through, swept) : armAngle(t, this.run, style);
+    const tilt = after > 0 ? THREE.MathUtils.lerp(style.armTilt, style.throughTilt, swept) : style.armTilt;
+    // On the arm's clock, the front arm goes up with the bowling arm as it
+    // comes down — eased in, since the pull-down it follows on from has just
+    // come to rest, and an arm that leaps from a standstill jerks.
+    const frontK = THREE.MathUtils.lerp(ease(after), ease(span(after, 0, ARM_THROUGH)), style.frontSync);
+    const openK = THREE.MathUtils.lerp(ease(after), ease(span(after, 0, FRONT_OPEN)), style.frontSync);
+    const front = after > 0 ? THREE.MathUtils.lerp(style.frontPull, style.frontAfter, frontK) : frontArmAngle(t, this.run, style);
 
     // Shoulders, from the trunk the pose has already described.
     const spine = pose.chest.clone().sub(pose.hip).normalize();
     const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.yaw);
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(yaw);
     const roll = new THREE.Quaternion().setFromAxisAngle(forward, pose.lean);
-    const trunk = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), spine.clone().applyQuaternion(roll)).multiply(yaw);
+    // As the figure builds its own, twist included, so the hand lands at full reach from where the shoulder really is.
+    const trunkYaw = yaw.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.twist ?? 0));
+    const trunk = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), spine.clone().applyQuaternion(roll)).multiply(trunkYaw);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(trunk);
     const up = spine.clone().applyQuaternion(roll);
     const shoulder = (side: number) => pose.chest.clone().addScaledVector(right, side * BUILD.shoulderX).addScaledVector(up, BUILD.shoulderY);
@@ -479,14 +696,17 @@ export class Bowler {
     // shoulder, so the limb solver has nothing left to bend.
     const bowlingArm = t > BOUND || after > 0;
     const reach = bowlingArm ? ARM_REACH - .004 : ARM_REACH * .60;
-    pose.rightHand.copy(shoulder(1)).addScaledVector(armDirection(angle, -.175), reach);
+    pose.rightHand.copy(shoulder(1)).addScaledVector(armDirection(angle, tilt), reach);
 
     // The front arm reaches at full stretch in the gather and then folds as it
     // is pulled into the ribs, which is what a front arm actually does.
-    const frontReach = after > 0 ? ARM_REACH * .5
-      : t <= BOUND ? ARM_REACH * .60
-      : THREE.MathUtils.lerp(ARM_REACH - .01, ARM_REACH * .5, ease(span(t, BACK_FOOT, 1)));
-    pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, -.16), frontReach);
+    // An action that puts it up before the leap straightens it on the way.
+    const rising = ease(span(t, style.frontRise[0], style.frontRise[1]));
+    const frontReach = after > 0 ? ARM_REACH * THREE.MathUtils.lerp(style.frontTuck, style.frontAfterReach, openK)
+      : t <= BOUND ? THREE.MathUtils.lerp(ARM_REACH * .60, ARM_REACH - .01, rising)
+      : THREE.MathUtils.lerp(ARM_REACH - .01, ARM_REACH * style.frontTuck, ease(span(t, BACK_FOOT, 1)));
+    const frontTilt = after > 0 ? THREE.MathUtils.lerp(style.frontTilt, style.frontAfterTilt, frontK) : style.frontTilt;
+    pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, frontTilt), frontReach);
     // Running in, his arms run: they pump against his legs — the left hand
     // forward as the right foot comes through — with the elbows driving back
     // past his ribs and the hands clear of his sides. Held at a fixed bend
@@ -501,11 +721,30 @@ export class Bowler {
       const hipY = pose.hip.y, chestZ = local(pose.chest).z;
       for (const [hand, side, other] of [[pose.leftHand, -1, pose.rightFoot], [pose.rightHand, 1, pose.leftFoot]] as const) {
         const swing = THREE.MathUtils.clamp((local(other).z - local(pose.hip).z) / .5, -1, 1) * gait;
-        const running = new THREE.Vector3(side * .27, hipY + .14 + Math.max(0, swing) * .24, chestZ * .6 + .04 + swing * .3)
+        const running = new THREE.Vector3(side * .27, hipY + .14 + Math.max(0, swing) * .24 * style.pump, chestZ * .6 + .04 + swing * .3 * style.pump)
           .applyAxisAngle(turn, pose.yaw);
-        hand.lerp(running, w);
+        // The front arm leaves the run as it goes up, however early that is.
+        hand.lerp(running, side < 0 ? w * (1 - rising) : w);
       }
       pose.elbowsBack = .5 * w;
+    }
+    // The slinger's carry: the ball held at the chest in both hands all the
+    // way in, let go of in the last stride before the leap — the front hand
+    // to go up, the ball hand to drop away behind. Measured in his own frame,
+    // right is +x and forward +z, and turned with him.
+    if (style.carry === 'chest' && after === 0) {
+      const held = 1 - ease(span(t, .42, .56));
+      if (held > 0) {
+        const turn = new THREE.Vector3(0, 1, 0);
+        const local = (p: THREE.Vector3) => p.clone().applyAxisAngle(turn, -pose.yaw);
+        const chest = local(pose.chest);
+        const at = (x: number) => new THREE.Vector3(x, chest.y - .06, chest.z + .3).applyAxisAngle(turn, pose.yaw);
+        pose.rightHand.lerp(at(.03), held);
+        pose.leftHand.lerp(at(-.06), held);
+        // Hands together in front of the chest want the elbows down and out,
+        // not driven back like a runner's.
+        pose.elbowsBack = (pose.elbowsBack ?? 0) * (1 - held);
+      }
     }
   }
 }
@@ -516,6 +755,8 @@ export class Bowler {
  * beside it, which goes stale the first time the action is re-timed.
  */
 export const PHASES = { BOUND, BACK_FOOT, BACK_LIFT, STRIDE_START, FRONT_FOOT } as const;
+/** And the follow-through's, as fractions of it: fallen away, then back on his feet. */
+export const FOLLOW_PHASES = { FOLLOWED, RECOVERED } as const;
 /** The action's length end to end, for anything that needs to wait it out. */
 export const ACTION_MS = RUNUP_MS + FOLLOW_MS;
 /** The top of his mark, and where his hips finish. Read by the action's tests. */
