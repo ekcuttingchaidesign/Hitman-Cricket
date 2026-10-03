@@ -307,12 +307,16 @@ Each step is a pull request of its own, behind the flag until the last.
    came out after the playtest — it is obvious — and the end card marks him
    `(LH)`.
 4. **Settling, the express bowler**, his action and release, and the level
-   banners. *Done.* The express action follows a slow-motion reference: the
-   pre-gather across the body, a higher leap round to side-on, the arm hanging
-   down behind and whipped over faster, and a deep fold with the back leg
-   kicking up — on the fast bowler's run-up and clock, releasing from the same
-   point at the same moment (`EXPRESS_ACTION`, tested against every rule the
-   fast bowler's action is). `/tools/rig-viewer.html` plays both in slow
+   banners. *Done.* The express action follows a slow-motion reference: a
+   sprinter's lean in, the pre-gather across the body, the front arm up and
+   the knee driven high in the leap, turned past side-on with his back to the
+   batter, the arm whipped over as he tilts away, and a deep fold with the
+   back leg kicked up behind before he veers off — on the fast bowler's
+   run-up and clock, releasing at the same moment from within a few
+   centimetres of the same point (`EXPRESS_ACTION`, tested against every rule
+   the fast bowler's action is). The first cut nudged every number the same
+   way and a playtest could not tell the two apart; each is now pushed until
+   it changes his outline from the batter's end. `/tools/rig-viewer.html` plays both in slow
    motion. The banners go up at the top of their overs, once an innings, with
    the bowler waiting at his mark for them, and the cloud comes over the
    ground in three seconds as the swing banner goes up. *Settling*: every batter settles over 30 balls (36 at first,

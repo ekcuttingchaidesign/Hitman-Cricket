@@ -192,7 +192,7 @@ function drawTicks() {
 
 // ── Readings ──────────────────────────────────────────────────────────────
 const readout = document.getElementById('readout')!;
-const ROWS = ['Arm from upright', 'Arm speed, rad/s', 'Shoulders side-on', 'Ball hand height, m', 'Hip height, m', 'Moving at, m/s'];
+const ROWS = ['Arm from upright', 'Arm speed, rad/s', 'Turned from square', 'Ball hand height, m', 'Hip height, m', 'Moving at, m/s'];
 /** Pose the rig at `ms`, and read the numbers off it: two samples 8 ms apart for the speeds. */
 function pose(r: Rig, ms: number) {
   const dt = 8;
@@ -204,8 +204,8 @@ function pose(r: Rig, ms: number) {
   const a0 = arm(before), a1 = arm(s);
   const fromVertical = Math.atan2(-a1.z, a1.y) * 180 / Math.PI;
   const rate = ms < dt ? 0 : a0.angleTo(a1) / (dt / 1000);
-  const [l, rt] = s.shoulders;
-  const side = Math.atan2(Math.abs(l[2] - rt[2]), Math.abs(l[0] - rt[0])) * 180 / Math.PI;
+  // How far round from facing the batter he is: past ninety, his back is to him.
+  const side = (s.yaw - Math.PI) * 180 / Math.PI;
   const speed = ms < dt ? 0 : (z0 - z1) / (dt / 1000);
   return [
     `${fromVertical >= 0 ? '+' : '−'}${Math.abs(fromVertical).toFixed(0)}°`,

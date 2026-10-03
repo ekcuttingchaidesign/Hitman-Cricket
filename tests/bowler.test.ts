@@ -64,7 +64,10 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
       const heights = Array.from({ length: steps + 1 }, (_, i) =>
         at(PHASES.BACK_FOOT + (1 - PHASES.BACK_FOOT) * (i / steps)).hands[1][1]);
       const apex = heights.indexOf(Math.max(...heights));
-      for (let i = 1; i <= apex; i++) expect(heights[i]).toBeGreaterThan(heights[i - 1]);
+      // To a tenth of a millimetre: an arm hanging straight down, as the express
+    // bowler's does, climbs from a standstill, and the body settling under it
+    // can outweigh the first instant of the climb by less than that.
+    for (let i = 1; i <= apex; i++) expect(heights[i]).toBeGreaterThan(heights[i - 1] - 1e-4);
       expect(heights[0]).toBeLessThan(1.2);
       // Release is the far side of the top — a ball let go at the very apex is one
       // that has not been bowled over the top of the arm at all — so the hand is a
@@ -74,9 +77,11 @@ describe.each(ACTIONS)('the bowling action — %s', (_, style) => {
       expect(release).toBeLessThan(heights[apex]);
       expect(heights[apex] - release).toBeLessThan(.12);
       expect(apex / steps).toBeGreaterThan(.9);
-      // And behind him before it comes over: the hand is back past the chest.
+      // And behind him before it comes over: the hand is back past his hips.
+      // Measured from the hips rather than the chest, which an action that
+      // arches away from the target carries back with it.
       const gather = at(.74);
-      expect(gather.hands[1][2]).toBeGreaterThan(gather.chest[2] + .3);
+      expect(gather.hands[1][2]).toBeGreaterThan(gather.hip[2] + .3);
     });
 
     it('whips the arm over, fastest at the ball and still fast after it', () => {
@@ -342,12 +347,18 @@ describe.each(ACTIONS)('the action is the disguise — %s', (_, style) => {
       // One timeline in two halves is two chances to disagree at the seam, and a
       // seam that disagrees is a bowler who twitches at the moment of release —
       // the one frame the batter is looking hardest at.
+      const earlier = poses(GAME.runupMs - 3);
       const before = poses(GAME.runupMs - 1);
       const after = poses(GAME.runupMs + 1);
       expect(Math.abs(after.hip[1] - before.hip[1])).toBeLessThan(.01);
       for (let i = 0; i < 2; i++) {
+        // The bowling hand is the fastest thing on the field at the release,
+        // so it is held to its own pace rather than a fixed distance: across
+        // the join it moves no further than it did over the same two
+        // milliseconds just before it.
         const gap = Math.hypot(...after.hands[i].map((v, k) => v - before.hands[i][k]));
-        expect(gap).toBeLessThan(.05);
+        const pace = Math.hypot(...before.hands[i].map((v, k) => v - earlier.hands[i][k]));
+        expect(gap).toBeLessThan(Math.max(.05, pace * 1.3));
         const step = Math.hypot(...after.feet[i].map((v, k) => v - before.feet[i][k]));
         expect(step).toBeLessThan(.05);
       }
@@ -388,12 +399,31 @@ describe('the express bowler, against the fast bowler', () => {
     expect(express.hands[1][1]).toBeLessThan(express.hip[1] + .15);
   });
 
-  it('leaps higher and turns further, all the way round to side-on', () => {
+  it('leaps higher and turns past side-on, his back to the batter', () => {
     const [paceAir, expressAir] = both(pose(.62));
-    expect(expressAir.hip[1]).toBeGreaterThan(paceAir.hip[1] + .05);
+    expect(expressAir.hip[1]).toBeGreaterThan(paceAir.hip[1] + .1);
+    // Measured as the turn itself: past ninety degrees the line of the
+    // shoulders comes back towards square, and only the way he faces says
+    // which side of side-on he is.
     const [pace, express] = both(pose(PHASES.BACK_FOOT));
-    expect(sideOn(express)).toBeGreaterThan(75);
-    expect(sideOn(express)).toBeGreaterThan(sideOn(pace) + 12);
+    const turned = (s: ReturnType<typeof at>) => (s.yaw - Math.PI) * 180 / Math.PI;
+    expect(turned(pace)).toBeLessThan(90);
+    expect(turned(express)).toBeGreaterThan(100);
+    expect(sideOn(express)).toBeGreaterThan(60);
+  });
+
+  it('veers off across the pitch as he runs off, not straight on', () => {
+    const [pace, express] = both(() => { bowler.followThrough(1); return bowler.root.position.x; });
+    expect(express).toBeGreaterThan(pace + .5);
+    // And not while the front foot is still braced on its mark.
+    const [paceBraced, expressBraced] = both(() => { bowler.followThrough(.04); return bowler.root.position.x; });
+    expect(expressBraced).toBeCloseTo(paceBraced, 5);
+  });
+
+    it('runs in leaning forward and pumping his arms', () => {
+    const [pace, express] = both(pose(.35));
+    const forward = (s: ReturnType<typeof at>) => s.hip[2] - s.chest[2];
+    expect(forward(express)).toBeGreaterThan(forward(pace) + .15);
   });
 
   it('gathers with the front arm up over his head and the bowling arm hanging down behind', () => {
