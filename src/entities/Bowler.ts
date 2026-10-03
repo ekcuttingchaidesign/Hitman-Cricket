@@ -172,8 +172,20 @@ export interface ActionStyle {
   frontRise: readonly [number, number];
   /** How high the front knee drives in the leap: one is the fast bowler's. */
   kneeDrive: number;
-  /** How far he tilts away to his non-bowling side as the ball goes, in radians. */
-  releaseTilt: number;
+  /**
+   * How far he tilts away to his non-bowling side as the ball goes, in
+   * radians, and from where in the run-up it builds: the fast bowler's comes
+   * on with the front foot, a slinger's from the back foot, so that he is
+   * already leaning away as the chest opens.
+   */
+  releaseTilt: number; tiltFrom: number;
+  /**
+   * How the chest opens from the gather to the release: the power the easing
+   * is raised to, so that less than one opens it early and more holds it
+   * side-on until late. And how much further it turns after the ball has
+   * gone, with where the head looks through the release and after it.
+   */
+  open: number; throughTurn: number; releaseHead: number; throughHead: number;
   /**
    * How far the bowling arm leans out from the vertical on its way over: nought
    * is straight over the top, and a slinger's is most of the way to level.
@@ -206,7 +218,8 @@ export const PACE_ACTION: ActionStyle = {
   backKick: .32,
   carry: 'run', lane: .34,
   runLean: 0, pump: 1,
-  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, armTilt: -.175, throughTilt: -.175,
+  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: -.175,
+  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35,
   kick: 0, kickHold: 0, followAcross: 0,
 };
 
@@ -226,13 +239,17 @@ export const PACE_ACTION: ActionStyle = {
  *     hanging low and wide behind him.
  *   - **The sling.** The arm comes through round rather than over — leaning
  *     well out from the vertical the whole way — while the front arm is chopped
- *     down in front of him to the chest and the body tilts hard away to his
- *     left, bowling shoulder high, head going down. The ball still leaves at
- *     the same moment as every other ball, and from the same point: he runs in
- *     from a wider lane, so that an arm swinging in from out there arrives
+ *     down in front of him to the chest. The chest is open past square and the
+ *     body already tilted hard away to his left before the front foot lands,
+ *     bowling shoulder high, eyes on the batter; a bowler who is square and
+ *     upright until the last frame is not slinging it. The ball still leaves
+ *     at the same moment as every other ball, and from the same point: he runs
+ *     in from a wider lane, so that an arm swinging in from out there arrives
  *     where an arm coming straight over the top does.
- *   - **The follow-through.** The arm carries on across his body to the far
- *     hip, the head still falling away, and he runs off across the pitch.
+ *   - **The follow-through.** The chest keeps turning, round past the batter,
+ *     the arm carried on across his body to the far hip and the head still
+ *     falling away — a spin rather than the fast bowler's fold over the front
+ *     leg — and he runs off across the pitch.
  *
  * What a sling cannot have here is a release at shoulder height: the ball is
  * handed to its trajectory at a fixed point over his head, so the arm leans
@@ -241,14 +258,15 @@ export const PACE_ACTION: ActionStyle = {
 export const EXPRESS_ACTION: ActionStyle = {
   gatherAngle: -2.55, whip: 3.2, release: .16, through: 2.7,
   frontUp: -.1, frontPull: 2.35, frontAfter: 2.75,
-  runTurn: .14, gatherTurn: 1.25, releaseTurn: -.55,
+  runTurn: .14, gatherTurn: 1.25, releaseTurn: -.7,
   leap: .3, followDrop: .3,
   coilBack: .22, coilLean: .4, coilHead: -.7,
-  fold: .38, foldLean: -.3,
+  fold: .2, foldLean: -.35,
   backKick: .4,
   carry: 'chest', lane: .6,
   runLean: .1, pump: 1,
-  frontRise: [.46, .64], kneeDrive: 1.5, releaseTilt: -.5, armTilt: -.8, throughTilt: .5,
+  frontRise: [.46, .64], kneeDrive: 1.5, releaseTilt: -.5, tiltFrom: BACK_FOOT, armTilt: -.8, throughTilt: .5,
+  open: .7, throughTurn: 1.1, releaseHead: .5, throughHead: .7,
   kick: .25, kickHold: .25, followAcross: .5,
 };
 
@@ -317,7 +335,7 @@ function frontArmAngle(t: number, run: Run, style: ActionStyle) {
 function turnAt(t: number, style: ActionStyle) {
   if (t <= BOUND) return style.runTurn * ease(span(t, .3, BOUND));
   if (t <= BACK_FOOT) return THREE.MathUtils.lerp(style.runTurn, style.gatherTurn, ease(span(t, BOUND, BACK_FOOT)));
-  return THREE.MathUtils.lerp(style.gatherTurn, style.releaseTurn, ease(span(t, BACK_FOOT, 1)) ** 1.15);
+  return THREE.MathUtils.lerp(style.gatherTurn, style.releaseTurn, ease(span(t, BACK_FOOT, 1)) ** style.open);
 }
 /** The way `across` points for a foot planted at `t` — frozen at that moment. */
 const acrossAt = (t: number, style: ActionStyle) => {
@@ -430,7 +448,7 @@ export class Bowler {
     const pose = this.figure.stand();
     const style = this.style;
     const turn = turnAt(t, style);
-    pose.yaw = Math.PI + turn - after * .5;
+    pose.yaw = Math.PI + turn - after * style.throughTurn;
 
     // He stands tallest at release and collapses over the front leg afterwards.
     // He is at his lowest as the front foot lands and his tallest as the ball
@@ -456,8 +474,9 @@ export class Bowler {
     // shoulders come apart. The fast bowler's fold never reaches it.
     const spine = pose.chest.clone().sub(pose.hip), longest = Math.hypot(SPINE, coil * style.coilBack);
     if (spine.length() > longest) pose.chest.copy(pose.hip).addScaledVector(spine.normalize(), longest);
-    pose.lean = coil * style.coilLean - (ease(span(t, FRONT_FOOT, 1)) * style.releaseTilt + after * style.foldLean);
-    pose.headYaw = coil * style.coilHead + after * .35;
+    const tilting = ease(span(t, style.tiltFrom, 1));
+    pose.lean = coil * style.coilLean - (tilting * style.releaseTilt + after * style.foldLean);
+    pose.headYaw = coil * style.coilHead + tilting * style.releaseHead + after * style.throughHead;
     pose.headPitch = .05 + coil * .06 + after * .22;
 
     this.feet(pose, t, after, travelled);
