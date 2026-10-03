@@ -1767,7 +1767,7 @@ body.start-screen #sound{pointer-events:auto}
    letter is which of the three he was, and a left-hander says so under his
    name. */
 .marathon-sheet.is-team .marathon-list .board-hits em{width:33px}
-.marathon-sheet.is-team .marathon-list .board-hits em.is-rate{width:44px}
+.marathon-sheet.is-team .marathon-list .board-hits em.is-rate{width:50px}
 .marathon-list .board-result{color:#9fc4d8}
 .marathon-list .is-all-out .board-result{color:#f09a8c}
 .marathon-list .is-retired .board-result{color:#f0c65c}
@@ -3738,9 +3738,11 @@ body.marathon-mode .settle-meter.is-full .meter-icon{color:#ffcf8a}
 .settle-meter.is-settled .icon-flame{display:contents}
 .settle-meter:not(.is-settled) .confidence-track>i{background:linear-gradient(90deg,#4f7894,#a9cfe0)}
 .settle-cap{order:1}
-/* The Marathon has no board, career or share picture yet, so its card offers none of them. */
+/* The Marathon has its boards now, so its card carries the boards' strip. It has
+   no career or share picture yet (`docs/MARATHON.md`, step 6), so it offers
+   neither of those. */
 body.marathon-mode #share{opacity:.3;pointer-events:none}
-body.marathon-mode #end :is(#card-board,#card-career,#card-key,#challenge-set,#card-share){display:none}
+body.marathon-mode #end :is(#card-career,#card-key,#challenge-set,#card-share){display:none}
 .declare-key{display:block;width:100%;margin-top:10px}
 .declare-key.hidden{display:none}
 

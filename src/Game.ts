@@ -5,7 +5,7 @@ import { HEALTH, SURVIVE } from './config/survive';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHanderOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
-import type { MarathonLadder } from './ui/MarathonBoard';
+import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
@@ -30,7 +30,7 @@ import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
-  fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitSurvive,
+  fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
@@ -546,7 +546,7 @@ export class Game {
       if (document.fullscreenElement) void document.exitFullscreen();
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
-    window.addEventListener('keydown', this.shortcuts); document.addEventListener('visibilitychange', this.visibility);
+    window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
@@ -1477,15 +1477,16 @@ export class Game {
     const mine = this.phase === 'INNINGS_END' && this.marathoning && this.marathon?.ended;
     const played = mine ? marathonFigures(this.marathon!) : null;
     const yours = played ? { team: teamOf(played), solo: soloOf(played) } : null;
+    const actions = this.boardActions && !!mine;
     const draw = (rows: MarathonPayload | { team: { rows: TeamRow[] }; solo: { rows: SoloRow[] } } | null, state: 'ready' | 'loading' | 'offline') => {
       if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'marathon' || this.marathonLadder !== ladder) return;
-      this.hud.marathonBoard({ ladder, team: rows?.team.rows ?? [], solo: rows?.solo.rows ?? [], youId: this.player, yours, state });
+      this.hud.marathonBoard({ ladder, team: rows?.team.rows ?? [], solo: rows?.solo.rows ?? [], youId: this.player, yours, state, actions });
     };
     // The sheet has to be up before `draw` will draw on it.
-    if (this.demo) { const demo = demoMarathon(this.player); this.hud.marathonBoard({ ladder, team: demo.team, solo: demo.solo, youId: this.player, yours, state: 'ready' }); return; }
+    if (this.demo) { const demo = demoMarathon(this.player); this.hud.marathonBoard({ ladder, team: demo.team, solo: demo.solo, youId: this.player, yours, state: 'ready', actions }); return; }
     this.hud.marathonBoard({
       ladder, team: this.marathonRows?.team.rows ?? [], solo: this.marathonRows?.solo.rows ?? [], youId: this.player, yours,
-      state: this.marathonRows ? 'ready' : 'loading',
+      state: this.marathonRows ? 'ready' : 'loading', actions,
     });
     void fetchMarathonBoard().then(payload => {
       if (payload) this.marathonRows = payload;
@@ -1806,6 +1807,19 @@ export class Game {
   private survived() { return asSurvive(this.score, this.health.blows.length, this.health.value); }
   private visibility = () => { this.audio.background(document.hidden); if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
+  /**
+   * Leaving a long Marathon asks first. Nothing of an innings is kept until it
+   * ends, so a tab closed or reloaded three hundred balls in is three hundred
+   * balls gone; past `MARATHON.warnFrom` the browser's own "leave this page?"
+   * goes up. A phone that closes a backgrounded tab without asking is beyond
+   * reach of this, which is why it is a question and not a save.
+   */
+  private leaving = (event: BeforeUnloadEvent) => {
+    if (!this.marathoning || !this.marathon || this.marathon.ended || this.phase === 'INNINGS_END') return;
+    if (this.marathon.balls < MARATHON.warnFrom) return;
+    event.preventDefault();
+    event.returnValue = '';
+  };
   private shortcuts = (event: KeyboardEvent) => {
     if (event.repeat || this.hud.helpOpen) return;
     // A player typing their name into the claim field is not pressing shortcuts.
@@ -2235,6 +2249,15 @@ export class Game {
     this.hud.offerClaim(shown, readPlayer(), this.board, played, this.player);
   }
 
+  /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
+  private offerMarathon() {
+    const played = marathonFigures(this.marathon!);
+    const rows = { team: this.marathonRows?.team.rows ?? [], solo: this.marathonRows?.solo.rows ?? [] };
+    const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
+    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
+    this.hud.offerMarathonClaim(shown, readPlayer(), rows.team, this.player);
+  }
+
   /** The same, asked of the Test ladder and answered on the Test card. */
   private offerSurvive() {
     const played = this.survived();
@@ -2266,7 +2289,6 @@ export class Game {
    * guessed at — and the board on screen is up to date the moment they open it.
    */
   private async sendClaim() {
-    if (this.marathoning) return;
     const entry = this.hud.claimEntry.name ? this.hud.claimEntry : readPlayer();
     if (!this.canRegister) return this.showBoard();
     if (!entry || !this.player) return this.hud.openClaim();
@@ -2274,7 +2296,9 @@ export class Game {
     // Each mode offers its own innings to its own ladder. The store keeps the
     // two under separate keys, so the mode travels with the figures rather than
     // being inferred from their shape at the far end.
-    const result = this.surviving
+    const result = this.marathoning && this.marathon
+      ? await submitMarathon(this.player, entry.name, entry.avatar, marathonFigures(this.marathon))
+      : this.surviving
       ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
       : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
@@ -2291,6 +2315,15 @@ export class Game {
     if (result.key) {
       keepKey(result.key);
       track('key-issued', 'Career key issued');
+    }
+    // The Marathon's two rows, from what the store answered with, and its tab
+    // opened on the place just taken. It has no careers to refresh yet.
+    if (this.marathoning) {
+      if (result.board) this.marathonRows = result.board as MarathonPayload;
+      this.hud.claimDone();
+      this.boardActions = true;
+      this.offerFirstKey();
+      return this.openMarathon(this.marathonLadder);
     }
     // Claiming a name is what puts a career already counted onto the career
     // boards, so the copies held from before it are wrong the moment this
@@ -2466,14 +2499,22 @@ export class Game {
     // them, but the screen it ends on is the same screen.
     this.audio.music('result');
     if (this.marathon) {
-      // A card and nothing else until the Marathon has a board and a career:
-      // no strip, no claim, no best kept. It is the Blast's card with the
-      // three batters written under the total.
+      // The Blast's card with the three batters written under the total, and
+      // the boards' strip on it. No career yet and no best kept: those are
+      // My Stats (`docs/MARATHON.md`, step 6).
       const marathon = this.marathon;
       this.mark('innings-end', 'Innings completed');
       this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
       track(`marathon-ended-${marathon.ending!.toLowerCase().replace('_', '-')}`, `Test Marathon ended: ${marathon.ending}`);
       this.hud.endMarathon(this.score, marathon);
+      this.offerMarathon();
+      // Both ladders, fresh, and the offer asked again once they are here: an
+      // innings this long outlives whatever was fetched before it.
+      void fetchMarathonBoard(true).then(payload => {
+        if (this.disposed || !payload || this.phase !== 'INNINGS_END' || this.marathon !== marathon) return;
+        this.marathonRows = payload;
+        if (!this.hud.claimOpen) this.offerMarathon();
+      });
       return;
     }
     if (this.surviving) {
@@ -3170,7 +3211,7 @@ export class Game {
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
-    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
+    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
   }
 }
 

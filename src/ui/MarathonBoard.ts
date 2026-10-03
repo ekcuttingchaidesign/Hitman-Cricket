@@ -4,7 +4,7 @@ import {
   MARATHON_BOARD_SIZE, marathonQualifies, packSolo, packTeam, strikeRate,
   type SoloInnings, type SoloRow, type TeamInnings, type TeamRow,
 } from '../game/marathon-board';
-import { escape, kitMarkup, sheetKeys } from './Leaderboard';
+import { escape, kitMarkup, sheetKeys, type CardOffer } from './Leaderboard';
 
 /**
  * The Test Marathon's board, as a screen: two ladders behind a toggle.
@@ -173,6 +173,35 @@ function thisInnings(team: boolean, yours: { team: TeamInnings; solo: SoloInning
             ${team ? teamFigures(yours.team) : soloFigures(yours.solo)}
           </li>
         </ol>`;
+}
+
+/**
+ * What the Marathon card has to say about the boards: the claim if the innings
+ * would make either ladder and beat the row the player already holds there,
+ * their standing row if they hold one and this did not beat it, and nothing
+ * otherwise. The place it offers is the team ladder's where that one takes it,
+ * since the total is what the card leads with, and the individual's where only
+ * that one does.
+ */
+export function marathonOffer(
+  reached: boolean, rows: { team: readonly TeamRow[]; solo: readonly SoloRow[] },
+  yours: { team: TeamInnings; solo: SoloInnings }, atMs: number, youId: string | null = null,
+): CardOffer {
+  if (!reached) return { kind: 'silent' };
+  const team = packTeam(yours.team, atMs), solo = packSolo(yours.solo, atMs);
+  const heldTeam = youId ? rows.team.findIndex(row => row.playerId === youId) : -1;
+  const heldSolo = youId ? rows.solo.findIndex(row => row.playerId === youId) : -1;
+  const takesTeam = marathonQualifies(team, rows.team) && (heldTeam < 0 || team > rows.team[heldTeam].score);
+  const takesSolo = marathonQualifies(solo, rows.solo) && (heldSolo < 0 || solo > rows.solo[heldSolo].score);
+  if (takesTeam) return { kind: 'claim', place: rows.team.filter(row => row.score > team).length + 1 };
+  if (takesSolo) return { kind: 'claim', place: rows.solo.filter(row => row.score > solo).length + 1 };
+  if (heldTeam >= 0) return { kind: 'standing', runs: rows.team[heldTeam].runs, place: heldTeam + 1 };
+  return { kind: 'silent' };
+}
+
+/** What a standing team row still says, for the card's "your best stands" line. */
+export function marathonBest(row: TeamRow): string {
+  return `${row.runs} ${(ENDED[row.ending] ?? ENDED.ALL_OUT).word.toLowerCase()}`;
 }
 
 function ordinal(n: number) {

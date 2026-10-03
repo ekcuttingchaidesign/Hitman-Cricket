@@ -45,6 +45,12 @@ export const MARATHON = {
    * a declaration would be a way of banking a quick start rather than batting.
    */
   declareFrom: 120,
+  /**
+   * From this many balls an unfinished innings asks before the page is left.
+   * Nothing is saved part-way, so closing the tab on a long innings loses it;
+   * before this it is not long enough to be worth a question.
+   */
+  warnFrom: 60,
   /** How the flight is padded, and how long the innings holds between balls: Survival's. */
   travelScale: SURVIVE.travelScale,
   readyMs: SURVIVE.readyMs,

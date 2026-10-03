@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LAUNCH_MS } from '../src/game/leaderboard';
 import { MARATHON_BOARD_SIZE, packSolo, packTeam, type SoloRow, type TeamRow } from '../src/game/marathon-board';
 import { demoMarathon } from '../src/game/demo-board';
-import { marathonBoardMarkup, marathonLaddersMarkup } from '../src/ui/MarathonBoard';
+import { marathonBoardMarkup, marathonLaddersMarkup, marathonOffer } from '../src/ui/MarathonBoard';
 
 /**
  * The Test Marathon's board as a screen: the toggle, a row on each ladder, the
@@ -107,5 +107,37 @@ describe('the made-up fifty', () => {
     expect(new Set(t.map(row => row.ending)).size).toBe(4);
     expect(new Set(s.map(row => row.order)).size).toBe(3);
     expect(s.some(row => row.left)).toBe(true);
+  });
+});
+
+describe('what the card offers', () => {
+  const yours = (runs: number, best: number) => ({
+    team: { runs, balls: 400, boundaries: 30, ending: 'ALL_OUT' as const },
+    solo: { runs: best, balls: 200, out: true, order: 1, left: false },
+  });
+  const full = (from: number) => ({
+    team: Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: from - i, playerId: `p${i}aaaa-bbbbbbbbbbbb` })),
+    solo: Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => solo({ runs: from - i, playerId: `p${i}aaaa-bbbbbbbbbbbb` })),
+  });
+
+  it('says nothing before the boards have been seen', () => {
+    expect(marathonOffer(false, { team: [], solo: [] }, yours(400, 150), AT)).toEqual({ kind: 'silent' });
+  });
+
+  it('offers the team place where the total makes the board', () => {
+    // Twenty rows above on runs, and the one level on 480 used fewer balls.
+    expect(marathonOffer(true, full(500), yours(480, 10), AT)).toEqual({ kind: 'claim', place: 22 });
+  });
+
+  it('offers the individual place where only one batter does', () => {
+    // Thirty above on runs, and the one level on 470 was not out.
+    expect(marathonOffer(true, full(500), yours(100, 470), AT)).toEqual({ kind: 'claim', place: 32 });
+  });
+
+  it('says the player\'s best stands where this did not beat it, and nothing where it makes neither', () => {
+    const rows = full(500);
+    rows.team[4] = team({ runs: 496, playerId: ME });
+    expect(marathonOffer(true, rows, yours(300, 10), AT, ME)).toEqual({ kind: 'standing', runs: 496, place: 5 });
+    expect(marathonOffer(true, full(500), yours(300, 10), AT, ME)).toEqual({ kind: 'silent' });
   });
 });

@@ -31,7 +31,8 @@ import {
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
-import { MARATHON_LADDERS, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
+import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
+import type { TeamRow } from '../game/marathon-board';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { openUnveil } from './Unveil';
@@ -622,8 +623,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /** The Test Marathon's board, on whichever of its two ladders is up. */
-  marathonBoard(view: MarathonBoardView) {
-    this.sheet(marathonBoardMarkup(view), 'marathon', view.ladder);
+  marathonBoard(view: MarathonBoardView & { actions?: boolean }) {
+    this.sheet(marathonBoardMarkup(view), 'marathon', view.ladder, this.actions('marathon', !!view.actions));
   }
 
 
@@ -638,8 +639,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * returning player opens first, so an offer that came only with the keys was
    * an offer absent from the one screen it was added for.
    */
-  private actions(mode: BoardTab, keyed: boolean) {
-    const keys = keyed ? (mode === 'survive' ? surviveActions() : actionsMarkup()) : '';
+  private actions(mode: BoardTab | 'marathon', keyed: boolean) {
+    // The Test match's two keys suit the Marathon as they stand.
+    const keys = keyed ? (mode === 'classic' ? actionsMarkup() : surviveActions()) : '';
     // The first key rides above them in the same column. Floating it over the
     // foot of the board put it on top of these keys, which kept the focus they
     // had — so the ring of a key nobody could see showed around the widget
@@ -1315,6 +1317,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       const modes = this.$('board-modes');
       if (this.$('survive-modes').classList.contains('hidden')) modes.remove();
       else modes.onclick = () => { this.closeBoard(); this.$('survive-modes').click(); };
+    } else if (tab === 'marathon') {
+      // The Marathon is reached by a link that locks the mode, so its card has
+      // no picker to send anybody to; and it has no share picture yet.
+      document.getElementById('board-modes')?.remove();
     } else {
       this.$('board-share').addEventListener('click', () => void this.shareScore());
     }
@@ -1668,6 +1674,22 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       best: standing => `Your best still stands &mdash; <b>${surviveBest(rows, standing.place)}</b>`,
       peek: place => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
       held: place => (rows.length ? surviveStandingPeek(rows, place) : ''),
+    });
+  }
+
+  /**
+   * The same strip, on the Marathon's card — which is the Blast's card with the
+   * three batters under the total, so it hosts the strip where the Blast does.
+   * No peek of the rows round the place: an innings writes two rows on two
+   * ladders, and three rows of one of them would be half the story.
+   */
+  offerMarathonClaim(
+    offer: CardOffer, known: { name: string; avatar: number } | null, team: readonly TeamRow[], playerId: string | null = null,
+  ) {
+    this.strip(offer, known, playerId, false, {
+      best: standing => `Your best still stands &mdash; <b>${team[standing.place - 1] ? marathonBest(team[standing.place - 1]) : standing.runs}</b>`,
+      peek: () => '',
+      held: () => '',
     });
   }
 
