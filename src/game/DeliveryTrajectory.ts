@@ -1,4 +1,5 @@
 import { GAME, LINES, LINE_X } from '../config/gameplay';
+import { REVERSE } from '../config/marathon';
 import type { BallLine, Delivery } from './types';
 const smooth = (t: number) => { const x = Math.max(0, Math.min(1, t)); return x * x * (3 - 2 * x); };
 export function effectiveLine(delivery: Delivery): BallLine {
@@ -51,7 +52,11 @@ export function ballPosition(delivery: Delivery, progress: number) {
   const settled = 0.66;
   // A ball that swings late holds its line for the first part of the way.
   const late = delivery.late ?? 0;
-  const movementT = spin ? smooth((t - bounceT) / (settled - bounceT)) : smooth(late ? (pre - late) / (1 - late) : pre);
+  // Reverse swing goes to the pitch straight and does all of its moving off it.
+  const reverse = delivery.style === 'REVERSE_IN' || delivery.style === 'REVERSE_OUT';
+  const movementT = spin ? smooth((t - bounceT) / (settled - bounceT))
+    : reverse ? smooth((t - bounceT) / (REVERSE.settled - bounceT))
+    : smooth(late ? (pre - late) / (1 - late) : pre);
   const x = delivery.baseTargetX + (delivery.finalTargetX - delivery.baseTargetX) * movementT;
   // The climb off the pitch is the delivery's length: a yorker barely leaves the
   // ground, a bouncer is at the chest by the time it arrives.

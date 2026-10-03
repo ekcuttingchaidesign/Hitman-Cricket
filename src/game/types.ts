@@ -1,5 +1,5 @@
 export type BallLine = 'OUTSIDE_LEG' | 'LEG' | 'MIDDLE' | 'OFF' | 'OUTSIDE_OFF';
-export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' | 'RIB' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'OFF_SPIN' | 'LEG_SPIN' | 'ARM_BALL';
+export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' | 'RIB' | 'SLOWER' | 'SWING_IN' | 'SWING_OUT' | 'REVERSE_IN' | 'REVERSE_OUT' | 'OFF_SPIN' | 'LEG_SPIN' | 'ARM_BALL';
 /**
  * The five scoring strokes, plus the forward defensive, plus the two scoops —
  * special strokes that only a full meter buys, played off the two downward

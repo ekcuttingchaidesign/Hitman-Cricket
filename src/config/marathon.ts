@@ -120,12 +120,14 @@ export interface Level {
   spinFirst?: number;
   /** How much of the pace bowler's roll swings, in and out evenly; absent leaves Survival's table. */
   swingShare?: number;
+  /** And how much of it is reverse swing, in and out evenly. */
+  reverseShare?: number;
 }
 
 export const LEVELS: readonly Level[] = [
   { level: 1, pace: 7, spin: 3, express: 0, swing: 1, late: 0, spinFirst: 2 },
-  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 2 / 3 },
-  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 2 / 3 },
+  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 0.6, reverseShare: 0.12 },
+  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 0.6, reverseShare: 0.12 },
 ];
 
 export const BLOCK_OVERS = 10;
@@ -140,6 +142,26 @@ export const SWING_LINES: Partial<Record<DeliveryStyle, readonly BallLine[]>> = 
   SWING_IN: ['OFF', 'OUTSIDE_OFF'],
   SWING_OUT: ['LEG', 'MIDDLE'],
 };
+
+/**
+ * Reverse swing: the swing bowler's variation, about one ball in eight of
+ * his roll. Where his ordinary swing bends in the air on the way down, this
+ * one goes to the pitch dead straight and darts off it, late and a long way
+ * — two to three stumps' width — at 135 to 150 kph, so it is on the batter
+ * before a player who has read the line off the hand can change his mind.
+ * The reverse inswinger starts on or outside off and comes back into him,
+ * the reverse outswinger starts on middle or leg and goes away, as his
+ * ordinary two do. Held to the same widest line, so it is never a wide.
+ */
+export const REVERSE = {
+  min: 0.3,
+  max: 0.42,
+  lines: { REVERSE_IN: ['OFF', 'OUTSIDE_OFF'], REVERSE_OUT: ['LEG', 'MIDDLE'] } as Partial<Record<DeliveryStyle, readonly BallLine[]>>,
+  /** How far through its flight it has finished moving: after the bounce, and before the bat. */
+  settled: 0.92,
+} as const;
+
+export const isReverse = (style: DeliveryStyle) => style === 'REVERSE_IN' || style === 'REVERSE_OUT';
 
 /** The level a block is bowled at. The third repeats for as long as the innings does. */
 export const levelOf = (block: number): Level => LEVELS[Math.min(block, LEVELS.length - 1)];

@@ -82,10 +82,14 @@ not the batter's: a tailender who walks in at over 30 walks in against over
   Here they are the middle of one, so they are ordinary overs. Every pace
   over still has its one placed bouncer.
 - **Level 2 is a swing bowler.** Level 1's swing is hardly noticeable. From
-  Level 2 about a third of his balls are inswingers, pitched on or outside off
-  and coming back into the batter; a third are outswingers, pitched on middle
-  or leg and going away; and a third go straight, on any line. The swing is
-  later and much further than Level 1's.
+  Level 2 three in ten of his balls are inswingers, pitched on or outside off
+  and coming back into the batter; three in ten are outswingers, pitched on
+  middle or leg and going away; and the rest go straight, on any line. The
+  swing is later and much further than Level 1's.
+- **And reverse swing**, about one ball in eight of his: straight to the
+  pitch, then darting two to three stumps' width off it, in or out, at
+  135–150. It is the one swinging ball that has to be read off the pitch
+  rather than out of the air. `?reverse=1` bowls nothing else.
 - **The express bowler** bowls all six balls of his overs at express pace
   (Test Survival's `EXPRESS`, 172–186 kph), varying the length: full and fast,
   **one bouncer every over and a second in about one over in three**, and **a

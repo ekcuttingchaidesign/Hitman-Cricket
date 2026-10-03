@@ -1110,9 +1110,11 @@ export class Game {
    */
   private swingOnly = new URLSearchParams(location.search).get('swing') === '1';
   private expressOnly = new URLSearchParams(location.search).get('express') === '1';
+  /** `?reverse=1`: the swing bowler every over, bowling nothing but reverse swing. */
+  private reverseOnly = new URLSearchParams(location.search).get('reverse') === '1';
   private get plan() {
-    if (this.marathoning && (this.swingOnly || this.expressOnly)) {
-      return marathonOnly({ swing: this.swingOnly, express: this.expressOnly });
+    if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {
+      return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly) return { ...plan, spin: undefined, short: undefined, blocks: undefined,

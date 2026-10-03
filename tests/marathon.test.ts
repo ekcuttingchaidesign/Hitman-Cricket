@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, LINE_X } from '../src/config/gameplay';
-import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, SETTLE, SWING_FROM, levelAt, levelOf } from '../src/config/marathon';
+import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, REVERSE, SETTLE, SWING_FROM, levelAt, levelOf } from '../src/config/marathon';
 import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -391,7 +391,8 @@ describe('the switches for trying one bowler', () => {
     expect(generator.levelAt(0)?.level).toBe(2);
     expect(bowled.every(d => !d.express && !SPIN_STYLES.includes(d.style))).toBe(true);
     const swung = bowled.filter(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT');
-    expect(swung.length).toBeGreaterThan(bowled.length / 2);
+    // His own two and his reverse swing between them are well over half of what he bowls.
+    expect(bowled.filter(d => d.style.includes('SWING') || d.style.startsWith('REVERSE')).length).toBeGreaterThan(bowled.length / 2);
     for (const d of swung) expect(d.late).toBe(LEVELS[1].late);
     expect(bowled.some(d => d.style !== 'SWING_IN' && d.style !== 'SWING_OUT')).toBe(true);
   });
@@ -566,5 +567,61 @@ describe('settling in, and the confidence that comes of it', () => {
     expect(innings.confident).toBe(true);
     innings.record(out);
     expect(innings.confident).toBe(true);
+  });
+});
+
+describe('reverse swing', () => {
+  const reverseBalls = (count = 60) => {
+    const found: Delivery[] = [];
+    for (let seed = 1; seed < count; seed++) {
+      for (const d of overs(seed, 30).bowled.flat()) if (d.style === 'REVERSE_IN' || d.style === 'REVERSE_OUT') found.push(d);
+    }
+    return found;
+  };
+
+  it('is about one ball in eight of the swing bowler\'s roll from the sixth over, and never before', () => {
+    let pace = 0, reverse = 0;
+    for (let seed = 1; seed < 80; seed++) {
+      const { bowled } = overs(seed, 30);
+      for (const d of bowled.slice(0, SWING_FROM).flat()) expect(d.style.startsWith('REVERSE')).toBe(false);
+      for (const d of bowled.slice(SWING_FROM).flat()) {
+        if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
+        pace++;
+        reverse += Number(d.style.startsWith('REVERSE'));
+      }
+    }
+    expect(reverse / pace).toBeGreaterThan(0.08);
+    expect(reverse / pace).toBeLessThan(0.17);
+  });
+
+  it('is bowled at 135 to 150, from the lines it moves away from, a long way and never wide', () => {
+    const found = reverseBalls();
+    expect(found.length).toBeGreaterThan(50);
+    for (const d of found) {
+      expect(d.speedKph).toBeGreaterThanOrEqual(135);
+      expect(d.speedKph).toBeLessThanOrEqual(150);
+      const moved = d.finalTargetX - d.baseTargetX;
+      if (d.style === 'REVERSE_IN') { expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line); expect(moved).toBeLessThan(0); }
+      else { expect(['LEG', 'MIDDLE']).toContain(d.line); expect(moved).toBeGreaterThan(0); }
+      expect(Math.abs(moved)).toBeGreaterThanOrEqual(REVERSE.min - 1e-9);
+      expect(Math.abs(d.finalTargetX)).toBeLessThanOrEqual(LINE_X.OUTSIDE_OFF + GAME.movement + 1e-9);
+    }
+    expect(new Set(found.map(d => d.style)).size).toBe(2);
+  });
+
+  it('goes to the pitch dead straight, and does all its moving off it before the bat', () => {
+    const d = reverseBalls(10)[0];
+    const bounceT = (GAME.releaseZ - d.bounceZ) / (GAME.releaseZ - GAME.contactZ);
+    expect(ballPosition(d, bounceT * 0.5).x).toBeCloseTo(d.baseTargetX);
+    expect(ballPosition(d, bounceT).x).toBeCloseTo(d.baseTargetX);
+    expect(ballPosition(d, REVERSE.settled).x).toBeCloseTo(d.finalTargetX);
+    expect(ballPosition(d, 1).x).toBeCloseTo(d.finalTargetX);
+  });
+
+  it('?reverse=1 bowls nothing else, from the first ball', () => {
+    const generator = new DeliveryGenerator(new SeededRandom(9), marathonOnly({ reverse: true }));
+    const bowled = [...Array(60)].map(() => generator.next(0));
+    for (const d of bowled) expect(['REVERSE_IN', 'REVERSE_OUT']).toContain(d.style);
+    expect(new Set(bowled.map(d => d.style)).size).toBe(2);
   });
 });

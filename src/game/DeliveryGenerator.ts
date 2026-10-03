@@ -2,7 +2,9 @@ import { CLASSIC_SPIN, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } fro
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
-import { EXPRESS_OVER, MARATHON, BLOCK_OVERS, SWING_LINES, levelAt as marathonLevelAt, levelOf, type Level, type OverKind } from '../config/marathon';
+import {
+  EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
+} from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
@@ -230,14 +232,23 @@ export const MARATHON_PLAN: BowlingPlan = {
  *   - **swing**: every over is the Level 2 swing bowler's, as he bowls it —
  *     inswingers, outswingers and straight ones, the bouncer included.
  *   - **express**: every over is the express bowler's, as he bowls it.
+ *   - **reverse**: every over the swing bowler's, and every ball of it reverse
+ *     swing — no bouncer, no yorker owed and no slower ball in its place.
  *   - **both**: half the overs each, never two of his running.
  */
-export function marathonOnly({ swing = false, express = false }: { swing?: boolean; express?: boolean }): BowlingPlan {
-  const share = swing && express ? 5 : BLOCK_OVERS;
+export function marathonOnly({ swing = false, express = false, reverse = false }: { swing?: boolean; express?: boolean; reverse?: boolean }): BowlingPlan {
+  const pace = swing || reverse;
+  const share = pace && express ? 5 : BLOCK_OVERS;
   const level: Level = {
-    ...levelOf(express && !swing ? 2 : 1), pace: swing ? share : 0, spin: 0, express: express ? share : 0,
+    ...levelOf(express && !pace ? 2 : 1), pace: pace ? share : 0, spin: 0, express: express ? share : 0,
   };
-  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level, levelAt: () => level } };
+  const plan: BowlingPlan = { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level, levelAt: () => level } };
+  if (!reverse) return plan;
+  return {
+    ...plan, short: undefined,
+    blocks: { ...plan.blocks!, levelOf: () => level, levelAt: () => ({ ...level, swingShare: 0, reverseShare: 1 }) },
+    specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 0 },
+  };
 }
 
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
@@ -396,10 +407,14 @@ export class DeliveryGenerator {
     // From Level 2 the pace bowler swings it: the two that swing take the
     // level's share between them and everything else shares what is left, in
     // the proportions Survival gave it.
-    const share = this.levelAt(this.over)?.swingShare;
+    const level = this.levelAt(this.over);
+    const share = level?.swingShare;
+    const reverse = level?.reverseShare ?? 0;
     const swingWeight = Object.entries(styles).reduce((t, [key, v]) => t + (SWING_LINES[key as DeliveryStyle] ? v.weight : 0), 0);
     const weightOf = (key: string, weight: number) => share === undefined ? weight
-      : SWING_LINES[key as DeliveryStyle] ? share / 2 : weight * (1 - share) / (1 - swingWeight);
+      : SWING_LINES[key as DeliveryStyle] ? share / 2
+      : isReverse(key as DeliveryStyle) ? reverse / 2
+      : weight * (1 - share - reverse) / (1 - swingWeight);
     let roll = this.rng.next();
     for (const [key, value] of Object.entries(styles)) {
       roll -= weightOf(key, value.weight);
@@ -412,7 +427,8 @@ export class DeliveryGenerator {
     const style = this.chooseStyle();
     const spell = this.plan.spin;
     const turning = !!spell && TURNING.includes(style);
-    const sign = style === 'SWING_IN' || style === 'OFF_SPIN' ? -1 : style === 'SWING_OUT' || style === 'LEG_SPIN' ? 1 : 0;
+    const sign = style === 'SWING_IN' || style === 'OFF_SPIN' || style === 'REVERSE_IN' ? -1
+      : style === 'SWING_OUT' || style === 'LEG_SPIN' || style === 'REVERSE_OUT' ? 1 : 0;
     // A turning ball picks its line from the ones with somewhere to turn *to*,
     // rather than taking whatever the bag deals and being cut off at the
     // tramline afterwards. Clamping after the fact looked fine on the average
@@ -423,7 +439,8 @@ export class DeliveryGenerator {
     // so where it pitches still does not say which way it is going.
     // The swing bowler starts each of his two where it swings from. Asked
     // before the bag, so it neither takes a line from it nor leaves a gap.
-    const swingFrom = this.levelAt(this.over)?.swingShare !== undefined && !this.expressOn ? SWING_LINES[style] : undefined;
+    const swingFrom = this.levelAt(this.over)?.swingShare !== undefined && !this.expressOn
+      ? SWING_LINES[style] ?? REVERSE.lines[style] : undefined;
     const line = turning ? this.pick(turnable(sign, spell!))
       : swingFrom ? this.pick([...swingFrom])
       : (this.aim(style) ?? this.bag.pop()!);
@@ -436,20 +453,22 @@ export class DeliveryGenerator {
     // two deliveries: further, and later in the flight. Survival's level is
     // one and nought, which leaves its ball exactly as it was.
     const level = this.levelAt(this.over);
-    const swung = !turning && sign !== 0 && !!level;
+    const reversing = isReverse(style);
+    const swung = !turning && !reversing && sign !== 0 && !!level;
     // How much room this line leaves before the ball would finish wide, which
     // is what the turn is drawn against: every turning ball gets at least
     // `minTurn`, because the lines that could not offer that were not offered.
     const room = turning ? spell!.maxFinalX - sign * LINE_X[line] : 0;
     const movement = sign * (turning
       ? this.rng.range(spell!.minTurn, Math.min(spell!.maxTurn, room))
+      : reversing ? this.rng.range(REVERSE.min, REVERSE.max)
       : this.rng.range(GAME.movement * 0.65, GAME.movement) * (swung ? level!.swing : 1));
     // Belt and braces: the line choice above already makes this unreachable.
     // A ball swinging harder is held to the widest a gentle one could finish,
     // so more swing is more of a test and never a wide.
     const finalTargetX = turning
       ? clampX(LINE_X[line] + movement, spell!.maxFinalX)
-      : swung ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
+      : swung || reversing ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
       : LINE_X[line] + movement;
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
     this.bowled++;
