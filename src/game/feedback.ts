@@ -314,7 +314,7 @@ export function cleanContext(raw: unknown): FeedbackContext {
   const from = (raw ?? {}) as Record<string, unknown>;
   const context: FeedbackContext = {};
   const mode = String(from.mode ?? '').toLowerCase();
-  if (mode === 'classic' || mode === 'survive') context.mode = mode;
+  if (mode === 'classic' || mode === 'survive' || mode === 'marathon') context.mode = mode;
   for (const key of ['runs', 'balls', 'best', 'innings', 'days'] as const) {
     const value = Number(from[key]);
     // A figure that is not a figure is left out rather than stored as zero: a

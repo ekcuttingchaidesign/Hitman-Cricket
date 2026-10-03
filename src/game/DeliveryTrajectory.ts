@@ -49,7 +49,9 @@ export function ballPosition(delivery: Delivery, progress: number) {
   // so the required key never changes at the last moment. Tying it to the bounce
   // keeps that true whatever length the ball is pitched at.
   const settled = 0.66;
-  const movementT = spin ? smooth((t - bounceT) / (settled - bounceT)) : smooth(pre);
+  // A ball that swings late holds its line for the first part of the way.
+  const late = delivery.late ?? 0;
+  const movementT = spin ? smooth((t - bounceT) / (settled - bounceT)) : smooth(late ? (pre - late) / (1 - late) : pre);
   const x = delivery.baseTargetX + (delivery.finalTargetX - delivery.baseTargetX) * movementT;
   // The climb off the pitch is the delivery's length: a yorker barely leaves the
   // ground, a bouncer is at the chest by the time it arrives.

@@ -281,6 +281,21 @@ The meter says its own name and a percentage, and nothing else. It used to relab
 
 The mode explains it **once per device** (`HUD.hurtNote`, remembered in `localStorage` by `private-mode.ts`), the first ball a batter is one blow from being carried off, and never again — a lesson rather than a warning. What it says is a trade, not advice, and deliberately so: the obvious counsel is to get behind it and defend, and that is the one thing the numbers say not to do. Blocking is what lets the ball through to the body, and a batter who defends his way out of a critical meter retires hurt about six times more often than one who keeps playing.
 
+## Test Marathon
+
+A third mode, still being built: three wickets, as many balls as they last — to a hard stop at five hundred — and as many runs as they make. `docs/MARATHON.md` is the spec and the build order; this is what is in the code so far. It is reached by `?mode=marathon` and by nothing else until it ships: no card on the picker, nothing on a board, nothing counted toward a career. The store refuses a Marathon innings outright (`src/server/mode.ts`), and the game does not send one.
+
+**The ball is Survival's.** The same ladder resolves it (`resolveSurvive`), the same meter takes the blows, the same table prices them. What is new is in `src/config/marathon.ts` and `src/game/Marathon.ts`:
+
+- **Three batters, getting worse.** The opener's windows are near the Blast's, the No. 3's between, the tailender's Survival's own; their block narrows with them, by less. Each walks out with a full meter and is named on the screen as he takes guard. A batter carried off is **not out** (`143*`) and the next comes in; the innings ends with the third, out or carried off.
+- **The bowling climbs in blocks of ten overs**, by the innings' over rather than the batter's. Overs 1–10 are Survival's, less its last-two-overs barrage. From 11 the pace bowler is a swing bowler: about a third inswingers, pitched on or outside off and coming back into the batter; a third outswingers, pitched on middle or leg and going away; and a third straight, on any line. The swing is big and late — the ball holds its line for the first two fifths of the way (`Delivery.late`) — and an express bowler has one over in the ten. From 21 he has four, never two running: 172–186 kph, a bouncer every over and a second one over in three, a yorker every over, and a slower ball (112–126) in about one over in two. Where each bowler's overs fall in a block is drawn off the seed, so a seed replays the innings. `DeliveryGenerator` reads it all from `MARATHON_PLAN.blocks`; a plan without blocks — every other mode's — draws exactly the balls it drew before.
+- **Declaring** is on the pause card once twenty overs are done, and not a ball before.
+- **Two switches for trying a bowler** without batting ten or twenty overs to reach him: `?mode=marathon&swing=1` gives every over to the Level 2 swing bowler; `?mode=marathon&express=1` gives every over to the express bowler. Each bowls as he would in the real innings. Both together share the overs, never two of his running. Like `?spin=1` and `?bouncers=1`, they change the bowling and nothing else.
+
+- **The speed gun** reads every ball in the score bar as it leaves the hand — `142 KM/H` — in the Marathon first. The game's internal speeds are tuned for play (the express ball is 172–186), so `src/game/speed-gun.ts` shows them the way a real gun would: up to 140 as they are, the quicks folded into 140–160, never under 70 or over 160, the order always kept. Flight time and injury still use the internal speed.
+
+`scripts/marathon-sim.ts` plays it: a good player makes about 400 and meets the express bowler three innings in four, a competent one about 130, and each wicket costs about half the runs the last batter made. One express over to a fresh opener carries him off three to fifteen times in a hundred, by player — inside the spec's one in six. `scripts/marathon-check.mjs` walks it in a browser.
+
 ## The board
 
 A top fifty, one row per player, best innings only. The ranking is built and tested; the two endpoints behind it are not, so the screen runs against fifty invented innings until they are.

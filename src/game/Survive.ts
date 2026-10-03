@@ -35,10 +35,19 @@ import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide }
  * classic innings. Nothing in this file is reachable from it.
  */
 
+/**
+ * How good the man in is: the windows his strokes are graded on, and the bands
+ * his block is. Survival has one batter, its tailender, and these default to
+ * him; the Marathon has three, and passes whichever of them is in.
+ */
+export type Windows = { perfect: number; good: number; ok: number; poor: number };
+export interface Skill { timing: Windows; bands: { clean: number; beaten: number } }
+export const TAILENDER: Skill = { timing: SURVIVE.timing, bands: BANDS };
+
 /** Which side of the ball it was played. Reported on the outcome; rules read `contactOf`. */
-export function timingSide(delta: number | null): TimingSide {
+export function timingSide(delta: number | null, bands: Skill['bands'] = BANDS): TimingSide {
   if (delta === null) return 'LATE';
-  return delta < -BANDS.clean ? 'EARLY' : delta > BANDS.clean ? 'LATE' : 'CLEAN';
+  return delta < -bands.clean ? 'EARLY' : delta > bands.clean ? 'LATE' : 'CLEAN';
 }
 
 /**
@@ -49,15 +58,15 @@ export function timingSide(delta: number | null): TimingSide {
  * the ball simply does whatever it was going to do.
  */
 export type Contact = 'CLEAN' | 'EDGED_EARLY' | 'EDGED_LATE' | 'BEATEN';
-export function contactOf(delta: number | null, tight = false): Contact {
+export function contactOf(delta: number | null, tight = false, bands: Skill['bands'] = BANDS): Contact {
   if (delta === null) return 'BEATEN';
   // A quick ball squeezes the block the same way it squeezes a stroke. Without
   // this the express ball was the *easiest* delivery in the mode to bat out:
   // the attacking windows narrowed for it and the defensive band did not, so a
   // batter who simply blocked never felt the pace at all.
   const off = Math.abs(delta) / (tight ? SURVIVE.fastTimingScale : 1);
-  if (off <= BANDS.clean) return 'CLEAN';
-  if (off > BANDS.beaten) return 'BEATEN';
+  if (off <= bands.clean) return 'CLEAN';
+  if (off > bands.beaten) return 'BEATEN';
   return delta < 0 ? 'EDGED_EARLY' : 'EDGED_LATE';
 }
 
@@ -264,14 +273,16 @@ function nudged(base: ShotOutcome, rng: { next(): number }): ShotOutcome {
  * past it: into him if it was angled at him, off the top edge if it was going
  * across him, and harmlessly into the pitch otherwise.
  */
-function defended(base: ShotOutcome, delivery: Delivery, contact: Contact, delta: number | null, rng: { next(): number }): ShotOutcome {
+function defended(
+  base: ShotOutcome, delivery: Delivery, contact: Contact, delta: number | null, rng: { next(): number }, clean: number,
+): ShotOutcome {
   // A bouncer is ducked — but it has to be ducked in time. Ducking used to be
   // unconditionally safe, which made the fastest, nastiest ball in the mode the
   // one delivery a player could answer without thinking: press the block key
   // and nothing could happen to him. Get under it late and you are still
   // standing up when it arrives.
   if (delivery.style === 'SHORT') {
-    if (delta === null || delta > BANDS.clean) return blow(base, delivery, blowSpot(delivery));
+    if (delta === null || delta > clean) return blow(base, delivery, blowSpot(delivery));
     return { ...base, defended: true, madeBatContact: false, feedback: 'DUCKED' };
   }
   if (contact === 'CLEAN') return { ...base, defended: true, madeBatContact: true, feedback: 'DEFENDED' };
@@ -321,8 +332,10 @@ function shortBall(base: ShotOutcome, delivery: Delivery, shot: string, contact:
  * with no browser and no scene — which is how every number in `survive.ts` was
  * settled rather than guessed.
  */
-export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }): ShotOutcome {
-  const outcome = surviveBall(delivery, attempt, rng);
+export function resolveSurvive(
+  delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, skill: Skill = TAILENDER,
+): ShotOutcome {
+  const outcome = surviveBall(delivery, attempt, rng, skill);
   // The square drive is not one of the two special strokes — it costs no meter,
   // so unlike the charge and the slog sweep it is played in this mode too, and
   // `Batter` animates it here off the same ball it animates it off in the
@@ -354,17 +367,19 @@ export function resolveSurvive(delivery: Delivery, attempt: ShotAttempt | null, 
  * the numbers below were tuned over twelve thousand innings apiece and are not
  * something to take on trust.
  */
-export function surviveBall(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }): ShotOutcome {
+export function surviveBall(
+  delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, skill: Skill = TAILENDER,
+): ShotOutcome {
   const delta = attempt ? attempt.inputTimeMs - delivery.idealContactTimeMs : null;
   const tight = !!STYLES[delivery.style].tight;
   const timingGrade = delta === null ? 'MISS'
-    : gradeTiming(delta, tight, SURVIVE.timing, SURVIVE.fastTimingScale);
-  const contact = contactOf(delta, tight);
+    : gradeTiming(delta, tight, skill.timing, SURVIVE.fastTimingScale);
+  const contact = contactOf(delta, tight, skill.bands);
   const compatibility = attempt ? COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] : 0;
   const base: ShotOutcome = {
     runs: 0, isWicket: false, quality: SURVIVE_TIMING[timingGrade] * compatibility, feedback: 'DOT BALL',
     timingGrade, timingDeltaMs: delta, compatibility, madeBatContact: false, aerial: false,
-    side: timingSide(delta),
+    side: timingSide(delta, skill.bands),
   };
 
   // Nothing played at all. Leaving a bouncer is not leaving it — it is standing
@@ -374,7 +389,7 @@ export function surviveBall(delivery: Delivery, attempt: ShotAttempt | null, rng
     return beaten({ ...base, feedback: 'LEFT ALONE' }, delivery, rng);
   }
 
-  if (attempt.shotType === 'DEFEND') return defended(base, delivery, contact, delta, rng);
+  if (attempt.shotType === 'DEFEND') return defended(base, delivery, contact, delta, rng, skill.bands.clean);
   if (delivery.style === 'SHORT') return shortBall(base, delivery, attempt.shotType, contact, rng);
 
   // Middled: bat on ball, and a stroke the line actually allowed. The grade

@@ -2485,7 +2485,7 @@ export class Batter {
   inspect() {
     this.root.updateMatrixWorld(true);
     return {
-      shot: this.shot, pulling: this.pulling, cutting: this.cutting, squaring: this.squaring, lofted: this.lofted, sweeping: this.sweeping, levelled: this.levelled, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
+      felled: this.felled, shot: this.shot, pulling: this.pulling, cutting: this.cutting, squaring: this.squaring, lofted: this.lofted, sweeping: this.sweeping, levelled: this.levelled, yaw: this.pose.yaw, grip: [...this.pose.grip], frontFoot: [...this.pose.frontFoot], backFoot: [...this.pose.backFoot],
       hands: this.arms.map(arm => arm.glove.getWorldPosition(new THREE.Vector3()).toArray()),
       wrists: this.arms.map(arm => arm.wrist.toArray()),
       elbows: this.arms.map(arm => arm.elbow.position.toArray()),

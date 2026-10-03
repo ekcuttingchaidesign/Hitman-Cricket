@@ -128,6 +128,12 @@ retakes both together on one build, or the line stops lining up. A new pair
 wants a new `REVEAL` in `src/game/unveil.ts`, and the same key in every check
 that seeds it.
 
+`scripts/marathon-check.mjs` is Test Marathon at `?mode=marathon`: the batter
+named as he walks out, the next one standing after the last was carried off,
+the declare key from the twentieth over and not before, the card — and no
+innings sent anywhere that keeps one, since the mode has no board yet. It
+writes most of the innings through `__cricket.marathon` and bats the rest.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. Point it at a preview deployment, never at production.
 

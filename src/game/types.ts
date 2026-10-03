@@ -30,6 +30,14 @@ export interface Delivery {
   /** How steeply the ball climbs off the pitch: low skids a yorker in, high rears a bouncer up. */
   rise: number;
   durationMs: number; releaseTimeMs: number; idealContactTimeMs: number;
+  /**
+   * How much of its way to the pitch a swinging ball holds its line before it
+   * starts to move, as a fraction. Absent is nought — the gentle curve from the
+   * hand every mode had — and the Marathon's later levels set it.
+   */
+  late?: number;
+  /** Bowled by the Marathon's express bowler, whatever its length. */
+  express?: boolean;
 }
 export interface ShotAttempt { shotType: ShotType; inputTimeMs: number }
 export interface ShotOutcome {

@@ -526,6 +526,8 @@ export class GameScene {
   get lit() { return this.now; }
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
+  /** The next man in, at his guard. The last one may be lying where he fell. */
+  newBatter() { this.batter.reset(); }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone
    * grey round him; or his fifty, `mild`, the bat raised and the colours left

@@ -77,13 +77,16 @@ not the batter's: a tailender who walks in at over 30 walks in against over
   last two overs two bouncers each, because they are the end of its innings.
   Here they are the middle of one, so they are ordinary overs. Every pace
   over still has its one placed bouncer.
-- **Level 2 is more swing.** Level 1's swing is hardly noticeable: Level 2
-  moves the ball later and further, on the same swing deliveries.
+- **Level 2 is a swing bowler.** Level 1's swing is hardly noticeable. From
+  Level 2 about a third of his balls are inswingers, pitched on or outside off
+  and coming back into the batter; a third are outswingers, pitched on middle
+  or leg and going away; and a third go straight, on any line. The swing is
+  later and much further than Level 1's.
 - **The express bowler** bowls all six balls of his overs at express pace
-  (Test Survival's `EXPRESS`, 172–186 kph), varying the length rather than the
-  speed: about four full-length express balls an over, **one bouncer every
-  over and a second in about one over in three**, and now and then an express
-  yorker. He uses the existing run-up with a quicker arm action and release;
+  (Test Survival's `EXPRESS`, 172–186 kph), varying the length: full and fast,
+  **one bouncer every over and a second in about one over in three**, and **a
+  yorker every over**. His one change of pace is **a slower ball, in about one
+  over in two**, at 112–126. He uses the existing run-up with a quicker arm action and release;
   the release has to stay easy to read, because that is what a batter times
   off.
 - **Injury is Test Survival's, unchanged.** A blow costs
@@ -236,8 +239,9 @@ the only way to raise it is to score more.
 - The mode is a third `GameMode` everywhere `CLASSIC | SURVIVE` is now: the
   game, `?mode=marathon`, the board and career endpoints (`?mode=marathon`),
   `CareerMode`, the picker.
-- A build flag, `VITE_SHOW_MARATHON`, keeps the mode off the picker until it
-  ships, the way `VITE_SHOW_SURVIVE` did.
+- Until it ships the mode has no card on the picker at all, and is reached
+  only by `?mode=marathon`; a build flag, `VITE_SHOW_MARATHON`, will put the
+  card up when there is a board behind it, the way `VITE_SHOW_SURVIVE` did.
 
 ## How it is checked
 
@@ -268,9 +272,24 @@ Each step is a pull request of its own, behind the flag until the last.
    until step 5 gives it a store — before it, anything not `survive` was taken
    for the Blast, so a Marathon innings would have landed on the Blast's
    board. No behaviour changes for the two modes that exist.
-2. **The rules.** Three batters and their windows, retired hurt bringing in
-   the next, the bowling plan by levels, declaring, the 500-ball stop, the
-   simulator, and tuning.
+2. **The rules.** *Done.* Three batters and their windows, retired hurt
+   bringing in the next, the bowling plan by levels, declaring, the 500-ball
+   stop, the simulator, and tuning. Playable at `?mode=marathon`, on a
+   placeholder card that sends nothing. Two things the simulator settled that
+   the spec did not say: **each batter's block narrows with his windows**, by
+   less — with one block for all three, the express bowler carried off an
+   opener exactly as often as a tailender — and **a harder-swinging ball is held
+   to the widest line a gentle one could finish on**, so more swing is never a
+   wide. After the first playtest: the swing bowler bowls inswingers from on
+   or outside off, outswingers from middle or leg and straight ones on any
+   line, a third each, and swings it much further (2.6× Survival's); the
+   express bowler bowls a yorker every over and a slower ball (112–126) in
+   about one in two; and **the speed gun comes forward from step 4**, so the
+   change of pace can be seen. The batter is named as he takes guard (`OPENER IN · TAKE YOUR
+   GUARD`); the proper walk-out and level banners are step 4's. For trying
+   the two new bowlers without batting to them, `?swing=1` and `?express=1`
+   put the Level 2 swing bowler or the express bowler on from the first over
+   (`marathonOnly` in `DeliveryGenerator.ts`).
 3. **The left-hander.**
 4. **The express bowler**, his action and release, and the level banners.
    The speed gun comes with this step.
