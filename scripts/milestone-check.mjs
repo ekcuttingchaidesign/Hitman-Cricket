@@ -203,6 +203,9 @@ for (const [name, options] of [
   // Four hundred's is up for more than three seconds; it is waited out, not timed.
   await page.waitForFunction(() => !document.querySelector('.milestone'), null, { timeout: 7000 }).catch(() => {});
   check(await page.locator('.milestone').count() === 0, 'the doodles come down by themselves');
+  // The grey runs on the game's clock, which on a loaded machine lags the
+  // one the doodles come down on, so it is waited out by asking the game.
+  await page.waitForFunction(() => { const s = window.__cricket.snapshot(); return !s.celebrating && s.muted === 0; }, null, { timeout: 8000 }).catch(() => {});
   const after = await saturation(page, await page.screenshot(), grass);
   check(after > before * .8, `and the colour comes back (saturation ${after.toFixed(2)})`);
   let next = await phase();
