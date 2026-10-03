@@ -5,10 +5,12 @@
 // which is a 500 with no log of its own. TypeScript maps `.js` back to the `.ts`
 // beside it, and Vite and Vitest resolve it the same way, so this costs the rest
 // of the project nothing. `scripts/function-check.mjs` is what keeps it honest.
-import { CLASSIC_LADDER, SURVIVE_LADDER, readBoard } from '../src/server/board-store.js';
+import {
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, readBoard, readMarathon,
+} from '../src/server/board-store.js';
 import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
-import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
+import { modeAsked } from '../src/server/mode.js';
 
 /**
  * `GET /api/board` — the fifty, and the score the fiftieth is holding.
@@ -28,16 +30,24 @@ import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
  * sorted set holding both would rank them against each other — so the mode
  * picks which pair of keys is read and which ladder shapes the answer. Anything
  * else, including nothing, is the innings this game opened with.
+ *
+ * `?mode=marathon` answers with both of the Test Marathon's ladders at once,
+ * `{ team, solo }`: one sheet shows both behind a toggle, and two requests for
+ * one tab would be two edge-cache misses for one look.
  */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
   if (req.method !== 'GET') return failed(res, 405, 'Use GET.');
   try {
     const mode = modeAsked(req.query?.mode);
-    if (!open(mode)) return failed(res, 400, NOT_OPEN);
-    const survive = mode === 'survive';
-    const ladder = survive ? SURVIVE_LADDER : CLASSIC_LADDER;
-    const board = await readBoard(upstashStore(redisFromEnv(true), ladder.scope), ladder);
+    const read = redisFromEnv(true);
+    const board = mode === 'marathon'
+      ? await readMarathon({
+        team: upstashStore(read, MARATHON_TEAM_LADDER.scope), solo: upstashStore(read, MARATHON_SOLO_LADDER.scope),
+      })
+      : mode === 'survive'
+        ? await readBoard(upstashStore(read, SURVIVE_LADDER.scope), SURVIVE_LADDER)
+        : await readBoard(upstashStore(read, CLASSIC_LADDER.scope), CLASSIC_LADDER);
     // Ten seconds of edge cache, then a minute where a stale board is served
     // while a fresh one is fetched behind it. A leaderboard ten seconds old is
     // not wrong; a leaderboard that makes the player wait is.

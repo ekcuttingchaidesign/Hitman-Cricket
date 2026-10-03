@@ -47,7 +47,7 @@ describe('which mode a request is about', () => {
     expect(modeAsked('blast')).toBe('classic');
   });
 
-  it('keeps the Marathon shut until it has a board of its own', () => {
+  it('keeps the Marathon\'s careers shut until it has careers of its own', () => {
     expect(open('classic')).toBe(true);
     expect(open('survive')).toBe(true);
     expect(open('marathon')).toBe(false);
@@ -56,32 +56,32 @@ describe('which mode a request is about', () => {
 
 /**
  * The reason the reader exists. Every endpoint used to take anything that was
- * not `survive` for the Blast, so a Marathon innings sent before its board
- * exists would have gone onto the Blast's board and into the Blast's careers.
- * Each now turns it away — before it reaches a database, so these run with
- * none configured.
+ * not `survive` for the Blast, so a Marathon innings would have gone onto the
+ * Blast's board and into the Blast's careers. Its boards are its own now; its
+ * careers are not built yet (step 6), so those endpoints still turn it away —
+ * before they reach a database, so these run with none configured.
  */
-describe('a Marathon request, before the Marathon has a board', () => {
+describe('a Marathon request', () => {
   const refused = (said: { status: number; body: any }) => {
     expect(said.status).toBe(400);
     expect(said.body.error).toBe(NOT_OPEN);
   };
 
-  it('is turned away by the board', async () => {
+  it('reaches the board, rather than being turned away', async () => {
     const { res, said } = spy();
     await board(get({ mode: 'marathon' }), res);
-    refused(said);
+    expect(said.body?.error).not.toBe(NOT_OPEN);
+  });
+
+  it('is offered to the Marathon\'s own boards, rather than turned away or put on the Blast\'s', async () => {
+    const { res, said } = spy();
+    await score(post({ mode: 'marathon', playerId: 'p', name: 'Somebody', avatar: 0, innings: {} }), res);
+    expect(said.body?.error).not.toBe(NOT_OPEN);
   });
 
   it('is turned away by the careers', async () => {
     const { res, said } = spy();
     await career(get({ mode: 'marathon' }), res);
-    refused(said);
-  });
-
-  it('is not put on the Blast board', async () => {
-    const { res, said } = spy();
-    await score(post({ mode: 'marathon', playerId: 'p', name: 'Somebody', avatar: 0, innings: {} }), res);
     refused(said);
   });
 
