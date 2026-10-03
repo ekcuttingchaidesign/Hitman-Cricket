@@ -187,6 +187,13 @@ export interface ActionStyle {
    */
   open: number; throughTurn: number; releaseHead: number; throughHead: number;
   /**
+   * How far the chest twists round on the hips after the ball has gone, over
+   * and above the turn: the hips keep facing the way the feet are stepping.
+   */
+  throughTwist: number;
+  /** How far the front arm reaches once it is flung after the release: half is tucked, nine tenths is flung out. */
+  frontAfterReach: number;
+  /**
    * How far the bowling arm leans out from the vertical on its way over: nought
    * is straight over the top, and a slinger's is most of the way to level.
    * `throughTilt` is where it leans once the ball has gone, so a slung arm can
@@ -219,7 +226,7 @@ export const PACE_ACTION: ActionStyle = {
   carry: 'run', lane: .34,
   runLean: 0, pump: 1,
   frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: -.175,
-  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35,
+  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35, throughTwist: 0, frontAfterReach: .5,
   kick: 0, kickHold: 0, followAcross: 0,
 };
 
@@ -246,10 +253,12 @@ export const PACE_ACTION: ActionStyle = {
  *     at the same moment as every other ball, and from the same point: he runs
  *     in from a wider lane, so that an arm swinging in from out there arrives
  *     where an arm coming straight over the top does.
- *   - **The follow-through.** The chest keeps turning, round past the batter,
- *     the arm carried on across his body to the far hip and the head still
- *     falling away — a spin rather than the fast bowler's fold over the front
- *     leg — and he runs off across the pitch.
+ *   - **The follow-through.** The chest spins on round past the batter while
+ *     the hips and the feet carry on down the pitch, the bowling arm carried
+ *     across his body to the far hip, the front arm flung straight out behind
+ *     him with the fingers up, and the head still falling away — a spin rather
+ *     than the fast bowler's fold over the front leg — and he runs off across
+ *     the pitch.
  *
  * What a sling cannot have here is a release at shoulder height: the ball is
  * handed to its trajectory at a fixed point over his head, so the arm leans
@@ -257,7 +266,7 @@ export const PACE_ACTION: ActionStyle = {
  */
 export const EXPRESS_ACTION: ActionStyle = {
   gatherAngle: -2.55, whip: 3.2, release: .16, through: 2.7,
-  frontUp: -.1, frontPull: 2.35, frontAfter: 2.75,
+  frontUp: -.1, frontPull: 2.35, frontAfter: Math.PI * 2 - .85,
   runTurn: .14, gatherTurn: 1.25, releaseTurn: -.7,
   leap: .3, followDrop: .3,
   coilBack: .22, coilLean: .4, coilHead: -.7,
@@ -266,7 +275,7 @@ export const EXPRESS_ACTION: ActionStyle = {
   carry: 'chest', lane: .6,
   runLean: .1, pump: 1,
   frontRise: [.46, .64], kneeDrive: 1.5, releaseTilt: -.5, tiltFrom: BACK_FOOT, armTilt: -.8, throughTilt: .5,
-  open: .7, throughTurn: 1.1, releaseHead: .5, throughHead: .7,
+  open: .7, throughTurn: .3, releaseHead: .5, throughHead: .5, throughTwist: .8, frontAfterReach: .92,
   kick: .25, kickHold: .25, followAcross: .5,
 };
 
@@ -449,6 +458,7 @@ export class Bowler {
     const style = this.style;
     const turn = turnAt(t, style);
     pose.yaw = Math.PI + turn - after * style.throughTurn;
+    pose.twist = -after * style.throughTwist;
 
     // He stands tallest at release and collapses over the front leg afterwards.
     // He is at his lowest as the front foot lands and his tallest as the ball
@@ -612,6 +622,7 @@ export class Bowler {
     // be taken from where he ends up, not where he was, or the feet settle on
     // the bearing he was turning away from.
     pose.yaw = THREE.MathUtils.lerp(pose.yaw, Math.PI, amount);
+    pose.twist = THREE.MathUtils.lerp(pose.twist ?? 0, 0, amount);
     const across = new THREE.Vector3(Math.cos(pose.yaw), 0, -Math.sin(pose.yaw));
     const settle = (point: THREE.Vector3, to: THREE.Vector3) =>
       point.lerp(new THREE.Vector3(0, to.y, to.z).addScaledVector(across, to.x), amount);
@@ -649,7 +660,9 @@ export class Bowler {
     const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.yaw);
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(yaw);
     const roll = new THREE.Quaternion().setFromAxisAngle(forward, pose.lean);
-    const trunk = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), spine.clone().applyQuaternion(roll)).multiply(yaw);
+    // As the figure builds its own, twist included, so the hand lands at full reach from where the shoulder really is.
+    const trunkYaw = yaw.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.twist ?? 0));
+    const trunk = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), spine.clone().applyQuaternion(roll)).multiply(trunkYaw);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(trunk);
     const up = spine.clone().applyQuaternion(roll);
     const shoulder = (side: number) => pose.chest.clone().addScaledVector(right, side * BUILD.shoulderX).addScaledVector(up, BUILD.shoulderY);
@@ -664,7 +677,7 @@ export class Bowler {
     // is pulled into the ribs, which is what a front arm actually does.
     // An action that puts it up before the leap straightens it on the way.
     const rising = ease(span(t, style.frontRise[0], style.frontRise[1]));
-    const frontReach = after > 0 ? ARM_REACH * .5
+    const frontReach = after > 0 ? ARM_REACH * THREE.MathUtils.lerp(.5, style.frontAfterReach, ease(after))
       : t <= BOUND ? THREE.MathUtils.lerp(ARM_REACH * .60, ARM_REACH - .01, rising)
       : THREE.MathUtils.lerp(ARM_REACH - .01, ARM_REACH * .5, ease(span(t, BACK_FOOT, 1)));
     pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, -.16), frontReach);

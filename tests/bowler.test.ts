@@ -462,11 +462,24 @@ describe('the express bowler, against the fast bowler', () => {
     expect(expressRate).toBeGreaterThan(paceRate * 1.1);
   });
 
-  it('carries the arm on across his body and folds deeper, the head still falling away', () => {
+  it('spins the chest on round over hips that keep going, the arms flung across and back', () => {
     const [pace, express] = both(() => flight(.34));
     // Across: the hand finishes on the far side of him from where it came over.
     expect(express.hands[1][0]).toBeGreaterThan(express.shoulders[1][0] + .1);
     expect(pace.hands[1][0]).toBeLessThan(pace.shoulders[1][0] + .05);
+    // The front arm flung out straight behind him, fingers up: the fast
+    // bowler's stays tucked at his hip.
+    expect(express.hands[0][2]).toBeGreaterThan(express.shoulders[0][2] + .35);
+    expect(express.hands[0][1]).toBeGreaterThan(express.shoulders[0][1]);
+    expect(express.armReach[0]).toBeGreaterThan(.85);
+    expect(pace.armReach[0]).toBeLessThan(.6);
+    // The chest round further than the hips, which face the way the feet step:
+    // measured as the shoulders' line against the feet's.
+    const line = (a: number[], b: number[]) => Math.atan2(a[2] - b[2], a[0] - b[0]);
+    const twisted = (s: ReturnType<typeof at>) => Math.abs(line(s.shoulders[0], s.shoulders[1]) - line(s.feet[0], s.feet[1]));
+    expect(twisted(express)).toBeGreaterThan(twisted(pace) + .4);
+    // And the feet still apart, not crossed on one line.
+    expect(Math.abs(express.feet[0][0] - express.feet[1][0])).toBeGreaterThan(.12);
     expect(express.hip[1]).toBeLessThan(pace.hip[1] - .05);
     expect(express.lean).toBeGreaterThan(.4);
     // Bent, never stretched: the spine is the length it is.
@@ -516,6 +529,23 @@ describe('the cricketer every fielder is built from', () => {
     }
     expect(ready.hip[1]).toBeLessThan(upright.hip[1]);
     expect(upright.hip[1] - ready.hip[1]).toBeLessThan(.1);
+  });
+
+  it('twists the trunk on the hips, taking the shoulders round and leaving the feet', () => {
+    // A slinger spins his chest round in the follow-through while his feet
+    // carry on down the pitch; turned in one piece, the legs cross.
+    const fielder = new Cricketer();
+    fielder.apply(fielder.rest());
+    const square = fielder.inspect();
+    fielder.apply({ ...fielder.rest(), twist: .8 });
+    const twisted = fielder.inspect();
+    const line = (a: number[], b: number[]) => Math.atan2(a[2] - b[2], a[0] - b[0]);
+    expect(Math.abs(line(twisted.shoulders[0], twisted.shoulders[1]) - line(square.shoulders[0], square.shoulders[1]))).toBeCloseTo(.8, 1);
+    for (let i = 0; i < 2; i++) {
+      expect(twisted.feet[i]).toEqual(square.feet[i]);
+      expect(twisted.knees[i]).toEqual(square.knees[i]);
+      expect(twisted.armReach[i]).toBeLessThanOrEqual(1);
+    }
   });
 
   it('takes a catch with both hands up over the head', () => {

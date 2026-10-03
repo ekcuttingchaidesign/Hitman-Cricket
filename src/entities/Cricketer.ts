@@ -41,6 +41,13 @@ export interface Figure {
    * him, which is what a running arm does. Left out, nought.
    */
   elbowsBack?: number;
+  /**
+   * The trunk turned on the hips, in radians: the shoulders, the arms and the
+   * head go round with it, the hips and the legs do not. A slinger spins his
+   * chest round past the batter in his follow-through while his feet carry
+   * on down the pitch; turned as one piece, his legs cross. Left out, nought.
+   */
+  twist?: number;
 }
 
 /** Limb lengths, shared so a bowler and a fielder are the same person. */
@@ -320,7 +327,10 @@ export class Cricketer {
     // falling away over his front leg takes his head and shoulders with him.
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(yaw);
     const roll = new THREE.Quaternion().setFromAxisAngle(forward, pose.lean);
-    const trunk = new THREE.Quaternion().setFromUnitVectors(UP, spine.clone().applyQuaternion(roll)).multiply(yaw);
+    // The trunk faces where the hips do, and then as far round again as it is twisted.
+    const trunkYaw = yaw.clone().multiply(new THREE.Quaternion().setFromAxisAngle(UP, pose.twist ?? 0));
+    const trunk = new THREE.Quaternion().setFromUnitVectors(UP, spine.clone().applyQuaternion(roll)).multiply(trunkYaw);
+    const chestForward = new THREE.Vector3(0, 0, 1).applyQuaternion(trunkYaw);
 
     this.hips.position.copy(hip);
     this.hips.quaternion.copy(yaw).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pose.lean * .5));
@@ -346,7 +356,7 @@ export class Cricketer {
       // A runner's elbows drive back past the ribs rather than flaring out:
       // with the outward pole a pumping arm rolls its forearm across his body.
       const back = THREE.MathUtils.clamp(pose.elbowsBack ?? 0, 0, 1);
-      const hint = up.clone().negate().addScaledVector(right, side * .55 * (1 - back)).addScaledVector(forward, -1.6 * back);
+      const hint = up.clone().negate().addScaledVector(right, side * .55 * (1 - back)).addScaledVector(chestForward, -1.6 * back);
       hint.addScaledVector(along, -hint.dot(along));
       if (hint.lengthSq() < .0001) hint.copy(right).multiplyScalar(side);
       hint.normalize();
