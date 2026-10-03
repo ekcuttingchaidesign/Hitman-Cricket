@@ -328,7 +328,8 @@ describe('the Marathon\'s bowling', () => {
     for (let seed = 1; seed < 60; seed++) {
       const { bowled } = overs(seed, 30);
       for (const d of bowled.slice(SWING_FROM).flat()) {
-        if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
+        // The bouncer and the reverse swing are placed; this is what is left to the roll.
+        if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT' || d.style.startsWith('REVERSE')) continue;
         pace++;
         if (d.style === 'SWING_IN') ins++;
         else if (d.style === 'SWING_OUT') outs++;
@@ -579,27 +580,30 @@ describe('reverse swing', () => {
     return found;
   };
 
-  it('is about one ball in eight of the swing bowler\'s roll from the sixth over, and never before', () => {
-    let pace = 0, reverse = 0;
+  it('comes once in every swing over from the sixth, twice in about half of them, never more, and never before', () => {
+    let overs2 = 0, swingOvers = 0;
     for (let seed = 1; seed < 80; seed++) {
       const { bowled } = overs(seed, 30);
-      for (const d of bowled.slice(0, SWING_FROM).flat()) expect(d.style.startsWith('REVERSE')).toBe(false);
-      for (const d of bowled.slice(SWING_FROM).flat()) {
-        if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
-        pace++;
-        reverse += Number(d.style.startsWith('REVERSE'));
+      for (const over of bowled.slice(0, SWING_FROM)) expect(over.some(d => d.style.startsWith('REVERSE'))).toBe(false);
+      for (const over of bowled.slice(SWING_FROM).filter(o => kindOf(o) === 'PACE')) {
+        swingOvers++;
+        const reverse = over.filter(d => d.style.startsWith('REVERSE')).length;
+        expect(reverse === 1 || reverse === 2).toBe(true);
+        overs2 += Number(reverse === 2);
+        // And never on the over's bouncer: that keeps its place.
+        expect(over.filter(d => d.style === 'SHORT')).toHaveLength(1);
       }
     }
-    expect(reverse / pace).toBeGreaterThan(0.08);
-    expect(reverse / pace).toBeLessThan(0.17);
+    expect(overs2 / swingOvers).toBeGreaterThan(0.38);
+    expect(overs2 / swingOvers).toBeLessThan(0.62);
   });
 
-  it('is bowled at 135 to 150, from the lines it moves away from, a long way and never wide', () => {
+  it('is bowled at 142 to 156, from the lines it moves away from, a long way and never wide', () => {
     const found = reverseBalls();
     expect(found.length).toBeGreaterThan(50);
     for (const d of found) {
-      expect(d.speedKph).toBeGreaterThanOrEqual(135);
-      expect(d.speedKph).toBeLessThanOrEqual(150);
+      expect(d.speedKph).toBeGreaterThanOrEqual(142);
+      expect(d.speedKph).toBeLessThanOrEqual(156);
       const moved = d.finalTargetX - d.baseTargetX;
       if (d.style === 'REVERSE_IN') { expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line); expect(moved).toBeLessThan(0); }
       else { expect(['LEG', 'MIDDLE']).toContain(d.line); expect(moved).toBeGreaterThan(0); }

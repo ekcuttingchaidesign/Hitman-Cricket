@@ -86,9 +86,10 @@ not the batter's: a tailender who walks in at over 30 walks in against over
   and coming back into the batter; three in ten are outswingers, pitched on
   middle or leg and going away; and the rest go straight, on any line. The
   swing is later and much further than Level 1's.
-- **And reverse swing**, about one ball in eight of his: straight to the
+- **And reverse swing**, one in every over he swings it and a second in
+  about half of them, never more, placed like the bouncer: straight to the
   pitch, then darting two to three stumps' width off it, in or out, at
-  135–150. It is the one swinging ball that has to be read off the pitch
+  142–156 (141–147 on the gun). It is the one swinging ball that has to be read off the pitch
   rather than out of the air. `?reverse=1` bowls nothing else.
 - **The express bowler** bowls all six balls of his overs at express pace
   (Test Survival's `EXPRESS`, 172–186 kph), varying the length: full and fast,

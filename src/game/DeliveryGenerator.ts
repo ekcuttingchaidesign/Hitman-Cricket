@@ -246,7 +246,7 @@ export function marathonOnly({ swing = false, express = false, reverse = false }
   if (!reverse) return plan;
   return {
     ...plan, short: undefined,
-    blocks: { ...plan.blocks!, levelOf: () => level, levelAt: () => ({ ...level, swingShare: 0, reverseShare: 1 }) },
+    blocks: { ...plan.blocks!, levelOf: () => level, levelAt: () => ({ ...level, reverse: { perOver: MARATHON.ballsPerOver, secondChance: 0 } }) },
     specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 0 },
   };
 }
@@ -268,6 +268,9 @@ export class DeliveryGenerator {
   private shortBalls = new Set<number>();
   /** The over those were drawn for, so they are drawn once and not per ball. */
   private shortOver = -1;
+  /** Which balls of the over now in progress are reverse swing, and the over they were drawn for. */
+  private reverseBalls = new Map<number, DeliveryStyle>();
+  private reverseOver = -1;
   /** What each ball of the express bowler's over is. Drawn at its top. */
   private expressBalls = new Map<number, DeliveryStyle>();
   private readonly spinning: Set<number>;
@@ -363,6 +366,18 @@ export class DeliveryGenerator {
     plan.slice(0, ballsPerOver).forEach((style, i) => planned.set(order[i], style));
     return planned;
   }
+  /**
+   * Which balls of this over are reverse swing, and which way each goes. The
+   * bouncer's ball is not on offer: it was placed first and keeps its place.
+   */
+  private placeReverse(plan: { perOver: number; secondChance: number }, ballsPerOver: number): Map<number, DeliveryStyle> {
+    const free = [];
+    for (let ball = 0; ball < ballsPerOver; ball++) if (!(this.shortOver === this.over && this.shortBalls.has(ball))) free.push(ball);
+    const wanted = plan.perOver + (this.rng.next() < plan.secondChance ? 1 : 0);
+    const placed = new Map<number, DeliveryStyle>();
+    for (const ball of this.rng.shuffle(free).slice(0, wanted)) placed.set(ball, this.rng.next() < 0.5 ? 'REVERSE_IN' : 'REVERSE_OUT');
+    return placed;
+  }
   private chooseStyle(): DeliveryStyle {
     const { specials, styles } = this.plan;
     // His over is all his. The owed yorker and the owed change-up wait for the
@@ -399,6 +414,15 @@ export class DeliveryGenerator {
       if (over !== this.shortOver) { this.shortOver = over; this.shortBalls = this.placeShort(over, short); }
       if (this.shortBalls.has(this.bowled % short.ballsPerOver)) return 'SHORT';
     }
+    // His reverse swing is placed too, after the bouncer and in the balls it
+    // left: one an over, sometimes two.
+    const placed = this.levelAt(this.over)?.reverse;
+    if (placed) {
+      const ballsPerOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
+      if (this.over !== this.reverseOver) { this.reverseOver = this.over; this.reverseBalls = this.placeReverse(placed, ballsPerOver); }
+      const reverse = this.reverseBalls.get(this.bowled % ballsPerOver);
+      if (reverse) return reverse;
+    }
     if (this.punished >= specials.sixesForYorker) { this.punished = 0; return 'YORKER'; }
     // A change of pace only surprises once the batter has been fed quick ones.
     // Counting them consecutively would almost never fire, so they accumulate.
@@ -409,12 +433,10 @@ export class DeliveryGenerator {
     // the proportions Survival gave it.
     const level = this.levelAt(this.over);
     const share = level?.swingShare;
-    const reverse = level?.reverseShare ?? 0;
     const swingWeight = Object.entries(styles).reduce((t, [key, v]) => t + (SWING_LINES[key as DeliveryStyle] ? v.weight : 0), 0);
     const weightOf = (key: string, weight: number) => share === undefined ? weight
       : SWING_LINES[key as DeliveryStyle] ? share / 2
-      : isReverse(key as DeliveryStyle) ? reverse / 2
-      : weight * (1 - share - reverse) / (1 - swingWeight);
+      : weight * (1 - share) / (1 - swingWeight);
     let roll = this.rng.next();
     for (const [key, value] of Object.entries(styles)) {
       roll -= weightOf(key, value.weight);

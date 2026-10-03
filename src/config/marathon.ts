@@ -120,14 +120,14 @@ export interface Level {
   spinFirst?: number;
   /** How much of the pace bowler's roll swings, in and out evenly; absent leaves Survival's table. */
   swingShare?: number;
-  /** And how much of it is reverse swing, in and out evenly. */
-  reverseShare?: number;
+  /** And his reverse swing, placed in the over rather than rolled for: see `REVERSE`. */
+  reverse?: { perOver: number; secondChance: number };
 }
 
 export const LEVELS: readonly Level[] = [
   { level: 1, pace: 7, spin: 3, express: 0, swing: 1, late: 0, spinFirst: 2 },
-  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 0.6, reverseShare: 0.12 },
-  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 0.6, reverseShare: 0.12 },
+  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
+  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
 ];
 
 export const BLOCK_OVERS = 10;
@@ -144,11 +144,14 @@ export const SWING_LINES: Partial<Record<DeliveryStyle, readonly BallLine[]>> = 
 };
 
 /**
- * Reverse swing: the swing bowler's variation, about one ball in eight of
- * his roll. Where his ordinary swing bends in the air on the way down, this
+ * Reverse swing: the swing bowler's variation, placed in his over the way the
+ * bouncer is — one in every over he swings it, a second in about half of
+ * them, never more, at positions drawn fresh each over and never on the
+ * bouncer's. Where his ordinary swing bends in the air on the way down, this
  * one goes to the pitch dead straight and darts off it, late and a long way
- * — two to three stumps' width — at 135 to 150 kph, so it is on the batter
- * before a player who has read the line off the hand can change his mind.
+ * — two to three stumps' width — at 142 to 156 kph (141 to 147 on the gun),
+ * so it is on the batter before a player who has read the line off the hand
+ * can change his mind.
  * The reverse inswinger starts on or outside off and comes back into him,
  * the reverse outswinger starts on middle or leg and goes away, as his
  * ordinary two do. Held to the same widest line, so it is never a wide.
@@ -183,7 +186,7 @@ export function levelAt(over: number): Level {
   const block = Math.floor(over / BLOCK_OVERS);
   if (block > 0 || over < SWING_FROM) return levelOf(block);
   const swinging = LEVELS[1];
-  return { ...LEVELS[0], level: 2, swing: swinging.swing, late: swinging.late, swingShare: swinging.swingShare };
+  return { ...LEVELS[0], level: 2, swing: swinging.swing, late: swinging.late, swingShare: swinging.swingShare, reverse: swinging.reverse };
 }
 
 /**

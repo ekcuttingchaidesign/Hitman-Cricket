@@ -53,8 +53,8 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
   SWING_IN: { weight: 0.170, min: 118, max: 140, label: 'INSWINGER' },
   SWING_OUT: { weight: 0.159, min: 118, max: 140, label: 'OUTSWINGER' },
   // The Marathon swing bowler's, and never bowled here: weightless.
-  REVERSE_IN: { weight: 0, min: 135, max: 150, label: 'REVERSE SWING' },
-  REVERSE_OUT: { weight: 0, min: 135, max: 150, label: 'REVERSE SWING' },
+  REVERSE_IN: { weight: 0, min: 142, max: 156, label: 'REVERSE SWING' },
+  REVERSE_OUT: { weight: 0, min: 142, max: 156, label: 'REVERSE SWING' },
   // The spinner's, and they carry no weight because he is not rolled for: he is
   // given the third over whole, the same as in the Test match. The pace table
   // below them describes the other four overs only.
