@@ -174,18 +174,19 @@ export const EXPRESS_OVER = {
  * stroke to play. Each ball he faces settles him a little — a block and a
  * leave as much as a four — and a blow knocks him back by the size of it, a
  * ball for every four points the blow costs his meter: a glove off a seamer is
- * about four balls, the express bowler on the helmet nearly twenty. Thirty-six
- * balls, six overs of it, and he is settled.
+ * about four balls, the express bowler on the helmet nearly twenty. Thirty
+ * balls, five overs of it, and he is settled — thirty-six was tried first and
+ * the playtest found it too long a wait.
  *
  * Settled, the same meter is his confidence, and it starts a quarter full. It
  * fills with the strokes he plays and with the balls he blocks, more slowly
  * than the Blast's — a Test innings is built, not slogged — and empties with
  * being beaten and being hit. Full, it buys one special stroke, exactly as in
  * the Blast. He never goes back to being unsettled: a battering costs him his
- * confidence, not the six overs it took to find his feet.
+ * confidence, not the five overs it took to find his feet.
  */
 export const SETTLE = {
-  balls: 36,
+  balls: 30,
   /** Balls of settling, or points of confidence, a blow costs per point of injury. */
   perBlowPoint: 1 / 4,
   /** Where his confidence starts the moment he is settled. */

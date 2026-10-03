@@ -484,7 +484,7 @@ describe('settling in, and the confidence that comes of it', () => {
   const played = (over: Partial<ShotOutcome> = {}) => ball({ timingDeltaMs: 12, ...over });
   const settle = (innings: MarathonInnings) => play(innings, SETTLE.balls, ball());
 
-  it('settles a batter a ball at a time, whatever the ball, in thirty-six balls', () => {
+  it('settles a batter a ball at a time, whatever the ball, in thirty balls', () => {
     const innings = new MarathonInnings();
     play(innings, SETTLE.balls - 1, played({ defended: true }));
     expect(innings.current.confidence).toBe(null);

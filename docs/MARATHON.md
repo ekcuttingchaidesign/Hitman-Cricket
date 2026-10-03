@@ -297,8 +297,9 @@ Each step is a pull request of its own, behind the flag until the last.
    came out after the playtest — it is obvious — and the end card marks him
    `(LH)`.
 4. **Settling, the express bowler**, his action and release, and the level
-   banners. *Settling is done*: every batter settles over 36 balls (a blow
-   knocks him back a ball per four points of injury), and settled, the meter
+   banners. *Settling is done*: every batter settles over 30 balls (36 at first,
+   until the playtest found it too long), a blow knocking him back a ball per
+   four points of injury, and settled, the meter
    is his confidence — a quarter full, filling more slowly than the Blast's
    (six +12, four +10, three +6, two +4, single or block +2, beaten −10, a
    blow −1 per four points) — which buys the Blast's special strokes. In the

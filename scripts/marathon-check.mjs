@@ -53,7 +53,7 @@ const until = async phase => {
 const label = () => page.locator('#phase-label').textContent();
 const write = balls => page.evaluate(b => window.__cricket.marathon(b), balls);
 const ones = n => Array(n).fill(1);
-const SETTLE_BALLS = 36;
+const SETTLE_BALLS = 30;
 
 /** One real ball, blocked, and played out to the next guard or the end. */
 const block = async () => {
@@ -118,7 +118,7 @@ check(await page.locator('#confidence').evaluate(el => el.classList.contains('is
 check(await page.locator('#scoreboard').isVisible(), 'and the scoreboard, not a target to chase');
 check(!(await page.locator('#speed-gun').evaluate(el => el.classList.contains('is-on'))), 'no speed up before a ball is bowled');
 const meter = async () => `${await page.locator('#settle-label').textContent()} ${await page.locator('#settle-cap').textContent()}`.trim();
-check(await page.locator('#settle').isVisible() && await meter() === 'SETTLING 0/36', 'and the opener walks out unsettled, beside the injury meter', await meter());
+check(await page.locator('#settle').isVisible() && await meter() === `SETTLING 0/${SETTLE_BALLS}`, 'and the opener walks out unsettled, beside the injury meter', await meter());
 check(!(await page.locator('#scoreboard').textContent())?.includes('KM/H'), 'and none on the scoreboard');
 await block();
 check(!(await label())?.includes('OPENER IN'), 'said once, and not again the next ball', await label());
@@ -131,7 +131,7 @@ let state = await write([...ones(39), 'W']);
 check(state.batter === 'NO_3' && state.gone === 1, 'a wicket sends the No. 3 in', JSON.stringify(state));
 check(state.batters[0] === '39', 'with the opener out for what he made', JSON.stringify(state.batters));
 check((await label())?.includes('NO. 3 IN'), 'named as he walks out', await label());
-check(await meter() === 'SETTLING 0/36', 'unsettled, however settled the opener was', await meter());
+check(await meter() === `SETTLING 0/${SETTLE_BALLS}`, 'unsettled, however settled the opener was', await meter());
 await block();
 
 // ── Felled or bowled by a real ball, and the next man up on his feet ──────
@@ -204,9 +204,9 @@ await page.locator('#again').click({ force: true });
 await advance(16);
 await until('READY');
 await write(ones(SETTLE_BALLS - 1));
-check(await meter() === `SETTLING ${SETTLE_BALLS - 1}/${SETTLE_BALLS}`, 'thirty-five balls in, nearly settled', await meter());
+check(await meter() === `SETTLING ${SETTLE_BALLS - 1}/${SETTLE_BALLS}`, 'a ball short, nearly settled', await meter());
 await write([1]);
-check((await label())?.includes('OPENER SETTLED'), 'thirty-six, and the call says he is settled', await label());
+check((await label())?.includes('OPENER SETTLED'), 'thirty, and the call says he is settled', await label());
 check(await meter() === 'CONFIDENCE' && (await snap()).marathon.confidence === 25, 'and the meter is his confidence now, a quarter full', await meter());
 await block();
 await page.keyboard.press('r');
