@@ -145,6 +145,26 @@ export const SWING_LINES: Partial<Record<DeliveryStyle, readonly BallLine[]>> = 
 export const levelOf = (block: number): Level => LEVELS[Math.min(block, LEVELS.length - 1)];
 
 /**
+ * The over, counting from nought, from which the pace bowler swings it. The
+ * first playtest found ten overs of Survival's gentle bowling too long a
+ * start — an opener made 240 of 284 in twenty-two overs — so the swing comes
+ * on after five, a block early. Only the swing: who bowls which over is
+ * still the block's, so the express bowler waits for the eleventh as before.
+ */
+export const SWING_FROM = 5;
+
+/**
+ * The level over `over` is bowled at, which is its block's — except that the
+ * overs of the first block from `SWING_FROM` on carry Level 2's swing.
+ */
+export function levelAt(over: number): Level {
+  const block = Math.floor(over / BLOCK_OVERS);
+  if (block > 0 || over < SWING_FROM) return levelOf(block);
+  const swinging = LEVELS[1];
+  return { ...LEVELS[0], level: 2, swing: swinging.swing, late: swinging.late, swingShare: swinging.swingShare };
+}
+
+/**
  * The express bowler's over: his pace, and the length the main thing that
  * changes.
  *

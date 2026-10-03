@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, LINE_X } from '../src/config/gameplay';
-import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, SETTLE, levelOf } from '../src/config/marathon';
+import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, SETTLE, SWING_FROM, levelAt, levelOf } from '../src/config/marathon';
 import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -172,6 +172,15 @@ describe('the levels', () => {
     expect(levelOf(7).level).toBe(3);
   });
 
+  it('swing from the sixth over, a block before the express bowler comes on', () => {
+    expect(levelAt(SWING_FROM - 1).swingShare).toBeUndefined();
+    expect(levelAt(SWING_FROM)).toMatchObject({ level: 2, swing: LEVELS[1].swing, late: LEVELS[1].late, swingShare: LEVELS[1].swingShare });
+    // Who bowls the first block is still the first block's: no express over in it.
+    expect(levelAt(SWING_FROM).express).toBe(0);
+    expect(levelAt(BLOCK_OVERS)).toBe(LEVELS[1]);
+    expect(levelAt(2 * BLOCK_OVERS)).toBe(LEVELS[2]);
+  });
+
   it('fill every block exactly', () => {
     for (const level of LEVELS) expect(level.pace + level.spin + level.express).toBe(BLOCK_OVERS);
   });
@@ -275,19 +284,19 @@ describe('the Marathon\'s bowling', () => {
     }
   });
 
-  it('bowls the first ten overs as Survival bowls them, swing and all', () => {
-    const { bowled } = overs(5, 10);
+  it('bowls the first five overs as Survival bowls them, swing and all', () => {
+    const { bowled } = overs(5, SWING_FROM);
     for (const d of bowled.flat().filter(d => !SPIN_STYLES.includes(d.style))) {
       expect(d.late).toBeUndefined();
       expect(Math.abs(d.finalTargetX - d.baseTargetX)).toBeLessThanOrEqual(GAME.movement + 1e-9);
     }
   });
 
-  it('swings it later and further from the eleventh over, and never into a wide', () => {
+  it('swings it later and further from the sixth over, and never into a wide', () => {
     let biggest = 0;
     for (let seed = 1; seed < 30; seed++) {
       const { bowled } = overs(seed, 30);
-      for (const d of bowled.slice(10).flat().filter(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT')) {
+      for (const d of bowled.slice(SWING_FROM).flat().filter(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT')) {
         expect(d.late).toBe(LEVELS[1].late);
         biggest = Math.max(biggest, Math.abs(d.finalTargetX - d.baseTargetX));
         expect(Math.abs(d.finalTargetX)).toBeLessThanOrEqual(LINE_X.OUTSIDE_OFF + GAME.movement + 1e-9);
@@ -296,10 +305,10 @@ describe('the Marathon\'s bowling', () => {
     expect(biggest).toBeGreaterThan(GAME.movement * 1.4);
   });
 
-  it('starts the inswinger on or outside off and the outswinger on middle or leg, from the eleventh over', () => {
+  it('starts the inswinger on or outside off and the outswinger on middle or leg, from the sixth over', () => {
     for (let seed = 1; seed < 30; seed++) {
       const { bowled } = overs(seed, 30);
-      for (const d of bowled.slice(10).flat()) {
+      for (const d of bowled.slice(SWING_FROM).flat()) {
         if (d.express) continue;
         if (d.style === 'SWING_IN') {
           expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line);
@@ -313,12 +322,12 @@ describe('the Marathon\'s bowling', () => {
     }
   });
 
-  it('swings about two balls in three from the eleventh over, in and out evenly, and the rest go straight on any line', () => {
+  it('swings about two balls in three from the sixth over, in and out evenly, and the rest go straight on any line', () => {
     let pace = 0, ins = 0, outs = 0;
     const straightLines = new Set<string>();
     for (let seed = 1; seed < 60; seed++) {
       const { bowled } = overs(seed, 30);
-      for (const d of bowled.slice(10).flat()) {
+      for (const d of bowled.slice(SWING_FROM).flat()) {
         if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
         pace++;
         if (d.style === 'SWING_IN') ins++;
@@ -332,10 +341,10 @@ describe('the Marathon\'s bowling', () => {
     expect(straightLines.size).toBe(5);
   });
 
-  it('leaves the first ten overs\' lines and table to Survival', () => {
+  it('leaves the first five overs\' lines and table to Survival', () => {
     let swing = 0, pace = 0;
     for (let seed = 1; seed < 60; seed++) {
-      for (const d of overs(seed, 10).bowled.flat()) {
+      for (const d of overs(seed, SWING_FROM).bowled.flat()) {
         if (SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
         pace++;
         swing += Number(d.style === 'SWING_IN' || d.style === 'SWING_OUT');

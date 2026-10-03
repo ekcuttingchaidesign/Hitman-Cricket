@@ -69,10 +69,14 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 
 | Overs | Pace (seam & swing) | Spin | Express (the Level 3 bowler) |
 | --- | --- | --- | --- |
-| 1–10 | 7, Test Survival's bowling | 3 | — |
+| 1–10 | 7, Test Survival's bowling — swinging from over 6 | 3 | — |
 | 11–20 | 7, **more swing** (Level 2) | 2 | 1 |
 | 21 onwards, every 10 | 4, more swing | 2 | 4 |
 
+- **The swing comes on at over 6**, half a block early: the first playtest
+  made 284 in 22 overs, 240 of them by the opener, and found the gentle
+  start too long. Who bowls each over is still the block's, so the express
+  bowler's first over is still in 11–20.
 - **Overs 1–10 are Test Survival's**, with one rule dropped: Survive gives its
   last two overs two bouncers each, because they are the end of its innings.
   Here they are the middle of one, so they are ordinary overs. Every pace

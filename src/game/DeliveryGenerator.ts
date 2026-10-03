@@ -2,7 +2,7 @@ import { CLASSIC_SPIN, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } fro
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
-import { EXPRESS_OVER, MARATHON, BLOCK_OVERS, SWING_LINES, levelOf, type Level, type OverKind } from '../config/marathon';
+import { EXPRESS_OVER, MARATHON, BLOCK_OVERS, SWING_LINES, levelAt as marathonLevelAt, levelOf, type Level, type OverKind } from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
@@ -48,6 +48,8 @@ export interface BlockPlan {
   /** How many overs the innings can run to, so every block is drawn up front. */
   ofOvers: number;
   levelOf(block: number): Level;
+  /** The level one over is bowled at, where it is not simply its block's. */
+  levelAt?(over: number): Level;
   express: typeof EXPRESS_OVER;
 }
 
@@ -217,7 +219,7 @@ export const MARATHON_PLAN: BowlingPlan = {
   ...SURVIVE_PLAN,
   spin: { ...SPIN, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
   short: { ...BOUNCERS, deathOvers: 0, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
-  blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, express: EXPRESS_OVER },
+  blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, levelAt: marathonLevelAt, express: EXPRESS_OVER },
 };
 
 /**
@@ -235,7 +237,7 @@ export function marathonOnly({ swing = false, express = false }: { swing?: boole
   const level: Level = {
     ...levelOf(express && !swing ? 2 : 1), pace: swing ? share : 0, spin: 0, express: express ? share : 0,
   };
-  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level } };
+  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level, levelAt: () => level } };
 }
 
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
@@ -281,7 +283,8 @@ export class DeliveryGenerator {
   /** The level over `over` is bowled at, in a plan by blocks. */
   levelAt(over: number): Level | null {
     const blocks = this.plan.blocks;
-    return blocks ? blocks.levelOf(Math.floor(over / blocks.size)) : null;
+    if (!blocks) return null;
+    return blocks.levelAt ? blocks.levelAt(over) : blocks.levelOf(Math.floor(over / blocks.size));
   }
   /** Whether the ball about to be bowled belongs to the spinner. */
   get spinnerOn() {
