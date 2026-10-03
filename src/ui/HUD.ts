@@ -291,6 +291,7 @@ export class HUD {
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
           <span class="bug-cell"><b id="overs"></b><i>OVERS</i></span>
           <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
+          <span id="speed-cell" class="bug-cell bug-speed hidden"><b id="speed" aria-live="off">–</b><i>KM/H</i></span>
         </div>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
           <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
@@ -1325,6 +1326,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The Marathon keeps the Blast's scoreboard — a total and the wickets, with
     // no target to chase — and Survival's meter.
     document.body.classList.toggle('marathon-mode', marathon);
+    // The speed gun, in the Marathon first. Blank until the first ball is bowled.
+    this.$('speed-cell').classList.toggle('hidden', !marathon);
+    this.$('speed').textContent = '–';
     this.viewport.classList.remove('modal-open');
     this.viewport.classList.remove('hurt-on');
     // Both full-screen overlays put the hud row away while they are up.
@@ -1369,6 +1373,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   private walking: string | null = null;
   walkingOut(title: string | null) { this.walking = title; }
+  /**
+   * The speed gun's reading, the moment the ball leaves the hand, standing
+   * until the next one does. Already folded into what a gun would say.
+   */
+  speed(kph: number) {
+    const reading = this.$('speed');
+    reading.textContent = String(kph);
+    reading.setAttribute('aria-label', `${kph} kilometres an hour`);
+    reading.classList.remove('is-new'); void reading.offsetWidth; reading.classList.add('is-new');
+  }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */

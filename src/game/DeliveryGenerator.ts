@@ -2,7 +2,7 @@ import { CLASSIC_SPIN, GAME, LINES, LINE_X, QUICK_STYLES, SPECIALS, STYLES } fro
 import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
-import { EXPRESS_OVER, MARATHON, BLOCK_OVERS, levelOf, type Level, type OverKind } from '../config/marathon';
+import { EXPRESS_OVER, MARATHON, BLOCK_OVERS, SWING_LINES, levelOf, type Level, type OverKind } from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
@@ -225,23 +225,17 @@ export const MARATHON_PLAN: BowlingPlan = {
  * `?swing=1` and `?express=1`. Reaching either the honest way takes ten or
  * twenty overs of batting first.
  *
- *   - **swing**: every over is Level 2 pace, and every ball of it swings —
- *     an inswinger or an outswinger, late and far. No bouncer, no yorker
- *     owed and no slower ball, since any of them would stand in its place.
+ *   - **swing**: every over is the Level 2 swing bowler's, as he bowls it —
+ *     inswingers, outswingers and straight ones, the bouncer included.
  *   - **express**: every over is the express bowler's, as he bowls it.
  *   - **both**: half the overs each, never two of his running.
  */
 export function marathonOnly({ swing = false, express = false }: { swing?: boolean; express?: boolean }): BowlingPlan {
   const share = swing && express ? 5 : BLOCK_OVERS;
   const level: Level = {
-    level: express ? 3 : 2, pace: swing ? share : 0, spin: 0, express: express ? share : 0,
-    swing: levelOf(1).swing, late: levelOf(1).late,
+    ...levelOf(express && !swing ? 2 : 1), pace: swing ? share : 0, spin: 0, express: express ? share : 0,
   };
-  const plan: BowlingPlan = { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level } };
-  if (!swing) return plan;
-  const styles = Object.fromEntries(Object.entries(plan.styles).map(([key, shape]) =>
-    [key, { ...shape, weight: key === 'SWING_IN' || key === 'SWING_OUT' ? 0.5 : 0 }])) as BowlingPlan['styles'];
-  return { ...plan, styles, short: undefined, specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 0 } };
+  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level } };
 }
 
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
@@ -337,7 +331,8 @@ export class DeliveryGenerator {
   }
   /**
    * The express bowler's over, planned at the top of it: one bouncer, a second
-   * one over in three, now and then the yorker, and the rest full and quick.
+   * one over in three, the yorker, one over in two the slower ball, and the
+   * rest full and quick.
    */
   private placeExpress(express: typeof EXPRESS_OVER, ballsPerOver: number): Map<number, DeliveryStyle> {
     const positions = [];
@@ -345,15 +340,19 @@ export class DeliveryGenerator {
     const order = this.rng.shuffle(positions);
     const bouncers = express.bouncers + (this.rng.next() < express.secondBouncerChance ? 1 : 0);
     const planned = new Map<number, DeliveryStyle>();
-    order.slice(0, bouncers).forEach(ball => planned.set(ball, 'SHORT'));
-    if (this.rng.next() < express.yorkerChance) planned.set(order[bouncers], 'YORKER');
+    const slower = this.rng.next() < express.slowerChance ? 1 : 0;
+    const plan: DeliveryStyle[] = [
+      ...Array<DeliveryStyle>(bouncers).fill('SHORT'),
+      ...Array<DeliveryStyle>(express.yorkers).fill('YORKER'),
+      ...Array<DeliveryStyle>(slower).fill('SLOWER'),
+    ];
+    plan.slice(0, ballsPerOver).forEach((style, i) => planned.set(order[i], style));
     return planned;
   }
   private chooseStyle(): DeliveryStyle {
     const { specials, styles } = this.plan;
-    // His over is all his, and all of it at his pace. The owed yorker and the
-    // owed change-up wait for the next bowler: a slower ball is the one thing
-    // this one does not bowl.
+    // His over is all his. The owed yorker and the owed change-up wait for the
+    // next bowler: he bowls his own of each, and only those.
     if (this.expressOn) {
       const ballsPerOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
       const ballInOver = this.bowled % ballsPerOver;
@@ -391,9 +390,16 @@ export class DeliveryGenerator {
     // Counting them consecutively would almost never fire, so they accumulate.
     if (this.quick >= specials.quickForSlower) { this.quick = 0; return 'SLOWER'; }
     if (specials.shortChance > 0 && this.rng.next() < specials.shortChance) return 'SHORT';
+    // From Level 2 the pace bowler swings it: the two that swing take the
+    // level's share between them and everything else shares what is left, in
+    // the proportions Survival gave it.
+    const share = this.levelAt(this.over)?.swingShare;
+    const swingWeight = Object.entries(styles).reduce((t, [key, v]) => t + (SWING_LINES[key as DeliveryStyle] ? v.weight : 0), 0);
+    const weightOf = (key: string, weight: number) => share === undefined ? weight
+      : SWING_LINES[key as DeliveryStyle] ? share / 2 : weight * (1 - share) / (1 - swingWeight);
     let roll = this.rng.next();
     for (const [key, value] of Object.entries(styles)) {
-      roll -= value.weight;
+      roll -= weightOf(key, value.weight);
       if (roll <= 0) return key as DeliveryStyle;
     }
     return 'NORMAL';
@@ -412,11 +418,16 @@ export class DeliveryGenerator {
     // straight — a ball the over promises will turn, going nowhere, and not
     // even the arm ball. Three of the five lines are common to both directions,
     // so where it pitches still does not say which way it is going.
-    const line = turning ? this.pick(turnable(sign, spell!)) : (this.aim(style) ?? this.bag.pop()!);
+    // The swing bowler starts each of his two where it swings from. Asked
+    // before the bag, so it neither takes a line from it nor leaves a gap.
+    const swingFrom = this.levelAt(this.over)?.swingShare !== undefined && !this.expressOn ? SWING_LINES[style] : undefined;
+    const line = turning ? this.pick(turnable(sign, spell!))
+      : swingFrom ? this.pick([...swingFrom])
+      : (this.aim(style) ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;
     const shape = this.plan.styles[style];
     const express = this.expressOn;
-    const pace = express ? this.plan.blocks!.express : shape;
+    const pace = express ? style === 'SLOWER' ? this.plan.blocks!.express.slower : this.plan.blocks!.express : shape;
     const speedKph = Math.round(this.rng.range(pace.min, pace.max));
     // A plan by blocks swings it harder as the innings goes on, on the same
     // two deliveries: further, and later in the flight. Survival's level is

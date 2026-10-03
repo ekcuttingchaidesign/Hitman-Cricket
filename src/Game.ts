@@ -4,6 +4,7 @@ import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { MARATHON } from './config/marathon';
 import { MarathonInnings, type Change } from './game/Marathon';
+import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
@@ -1845,6 +1846,8 @@ export class Game {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
         this.delivery!.releaseTimeMs = this.elapsed; this.delivery!.idealContactTimeMs = this.elapsed + this.delivery!.durationMs; this.setPhase('BALL_IN_FLIGHT');
+        // Out of the hand, onto the gun. The Marathon's first; see `speed-gun.ts`.
+        if (this.marathon) this.hud.speed(shownKph(this.delivery!.speedKph));
       }
     } else if (this.phase === 'BALL_IN_FLIGHT' && this.delivery) {
       const progress = flightProgress(this.delivery, this.elapsed - this.delivery.releaseTimeMs);

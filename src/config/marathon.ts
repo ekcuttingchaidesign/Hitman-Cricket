@@ -1,3 +1,4 @@
+import type { BallLine, DeliveryStyle } from '../game/types.js';
 import { BANDS, SURVIVE } from './survive.js';
 
 /**
@@ -17,17 +18,19 @@ import { BANDS, SURVIVE } from './survive.js';
  * innings of each (runs/balls per batter):
  *
  *            player       runs  balls   opener    no. 3     tail   all out  hurt  past ov 20
- *   expert · chasing       381    154   242/86    96/43    43/25     66%    34%      74%
- *   expert · measured      303    154   192/84    76/43    35/26     42%    58%      78%
- *   competent · chasing    130     61    71/29    39/19    20/13     88%    13%       4%
- *   competent · measured   108     62    56/28    34/20    18/14     75%    25%       3%
+ *   expert · chasing       411    162   256/90   107/46    48/27     66%    34%      77%
+ *   expert · measured      355    164   216/89    95/47    43/28     46%    54%      80%
+ *   competent · chasing    131     61    71/29    40/19    21/13     90%    10%       4%
+ *   competent · measured   111     61    57/28    35/20    19/13     79%    21%       3%
  *
  * Each wicket costs about half the runs the last batter made, which is the drop
  * in skill showing up where a player will see it. A good player meets the
  * express bowler three innings in four, a competent one rarely gets past the
  * swing — the bowling is a ladder to climb, not a wall at the start. And one
- * express over to a fresh opener carries him off between three and sixteen
- * times in a hundred, by player, inside the spec's one in six.
+ * express over to a fresh opener carries him off between three and fifteen
+ * times in a hundred, by player, inside the spec's one in six. The simulated
+ * batter always knows where the ball finishes, so how much harder the swing is
+ * to read is the one thing it cannot say; that is for playtesting.
  */
 
 export const MARATHON = {
@@ -97,8 +100,14 @@ export type OverKind = 'PACE' | 'SPIN' | 'EXPRESS';
  *
  * `swing` multiplies how far a swinging ball moves and `late` is how much of
  * its flight to the pitch it holds its line first — nought for Survival's
- * gentle curve from the hand, which is hardly noticeable, and a third for a
+ * gentle curve from the hand, which is hardly noticeable, and two fifths for a
  * ball that goes straight and then goes.
+ *
+ * From Level 2 the pace bowler is a swing bowler, and `swingShare` is how much
+ * of what he rolls for swings: two thirds, split evenly, so an over is about a
+ * third inswingers, a third outswingers and a third straight — the seam, the
+ * quick one, the ball into the ribs and the placed bouncer, on any line. The
+ * two that swing start on the lines they swing from (`SWING_LINES`).
  */
 export interface Level {
   level: 1 | 2 | 3;
@@ -109,35 +118,53 @@ export interface Level {
   late: number;
   /** An over the spinner always has, counting from nought within the block. */
   spinFirst?: number;
+  /** How much of the pace bowler's roll swings, in and out evenly; absent leaves Survival's table. */
+  swingShare?: number;
 }
 
 export const LEVELS: readonly Level[] = [
   { level: 1, pace: 7, spin: 3, express: 0, swing: 1, late: 0, spinFirst: 2 },
-  { level: 2, pace: 7, spin: 2, express: 1, swing: 1.8, late: 0.35 },
-  { level: 3, pace: 4, spin: 2, express: 4, swing: 1.8, late: 0.35 },
+  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 2 / 3 },
+  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 2 / 3 },
 ];
 
 export const BLOCK_OVERS = 10;
+
+/**
+ * Where the swing bowler starts each of his two. The inswinger is pitched on
+ * or outside off and comes back into the batter; the outswinger is pitched on
+ * middle or leg and goes away from him, after the edge. A ball that swings
+ * from where it would have to start to be any use is a ball worth reading.
+ */
+export const SWING_LINES: Partial<Record<DeliveryStyle, readonly BallLine[]>> = {
+  SWING_IN: ['OFF', 'OUTSIDE_OFF'],
+  SWING_OUT: ['LEG', 'MIDDLE'],
+};
 
 /** The level a block is bowled at. The third repeats for as long as the innings does. */
 export const levelOf = (block: number): Level => LEVELS[Math.min(block, LEVELS.length - 1)];
 
 /**
- * The express bowler's over: all six at his pace, the length the only thing
- * that changes.
+ * The express bowler's over: his pace, and the length the main thing that
+ * changes.
  *
- * About four full-length express balls, one bouncer every over and a second in
- * about one in three, and now and then the yorker. The bouncer and the yorker
- * are the same deliveries as Survival's, bowled at his speed rather than their
- * own, so a blow off one is priced off his pace by `damageFor` with no extra
- * multiplier — the square of 180 over 140 is dear enough.
+ * One bouncer every over and a second in about one in three, a yorker every
+ * over, and in about one over in two a slower ball — the one change of pace an
+ * express bowler has, and the more of a trap for everything round it being so
+ * quick. The rest are full and fast. The bouncer and the yorker are Survival's
+ * deliveries bowled at his speed rather than their own, so a blow off one is
+ * priced off his pace by `damageFor` with no extra multiplier — the square of
+ * 180 over 140 is dear enough. The slower ball has its own speed, below.
  */
 export const EXPRESS_OVER = {
   min: 172,
   max: 186,
   bouncers: 1,
   secondBouncerChance: 1 / 3,
-  yorkerChance: 0.3,
+  yorkers: 1,
+  slowerChance: 0.5,
+  /** His slower ball: well off his pace, still quicker than a seamer's change-up. */
+  slower: { min: 112, max: 126 },
 } as const;
 
 /** How a Marathon innings finished. */

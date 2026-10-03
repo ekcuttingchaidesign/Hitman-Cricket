@@ -111,8 +111,12 @@ check((await label())?.includes('OPENER IN'), 'and says so as he takes guard', a
 check(first.marathon?.level === 1 && first.marathon?.bowler === 'PACE', 'against Level 1 pace', JSON.stringify(first.marathon));
 check(await page.locator('#confidence').evaluate(el => el.classList.contains('is-injury')), 'with the injury meter, not confidence');
 check(await page.locator('#scoreboard').isVisible(), 'and the scoreboard, not a target to chase');
+check((await page.locator('#speed').textContent()) === '–', 'the speed gun blank before a ball is bowled');
 await block();
 check(!(await label())?.includes('OPENER IN'), 'said once, and not again the next ball', await label());
+const gun = Number(await page.locator('#speed').textContent());
+check(await page.locator('#speed-cell').isVisible() && gun >= 70 && gun <= 160,
+  'the speed gun reads the ball, between 70 and 160', `${gun}`);
 
 // ── A wicket brings the No. 3 ──────────────────────────────────────────────
 let state = await write([...ones(39), 'W']);

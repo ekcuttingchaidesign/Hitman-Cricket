@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, LINE_X } from '../src/config/gameplay';
 import { BATTERS, BLOCK_OVERS, EXPRESS_OVER, LEVELS, MARATHON, levelOf } from '../src/config/marathon';
-import { SURVIVE } from '../src/config/survive';
+import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
+import { shownKph } from '../src/game/speed-gun';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
 import { DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonOnly } from '../src/game/DeliveryGenerator';
 import { MarathonInnings } from '../src/game/Marathon';
@@ -230,28 +231,38 @@ describe('the Marathon\'s bowling', () => {
     for (let from = 20; from < 80; from += 10) expect(express(from)).toBe(4);
   });
 
-  it('bowls the express over all at his pace, with a bouncer in every one and never the slower ball', () => {
-    let seconds = 0, yorkers = 0, total = 0;
+  it('bowls the express over at his pace, with a bouncer and a yorker in every one and a slower ball in some', () => {
+    let seconds = 0, slowers = 0, total = 0;
     for (let seed = 1; seed < 40; seed++) {
       const { bowled } = overs(seed);
       for (const over of bowled.filter(o => kindOf(o) === 'EXPRESS')) {
         total++;
         for (const d of over) {
-          expect(d.speedKph).toBeGreaterThanOrEqual(EXPRESS_OVER.min);
-          expect(d.speedKph).toBeLessThanOrEqual(EXPRESS_OVER.max);
-          expect(['EXPRESS', 'SHORT', 'YORKER']).toContain(d.style);
+          const range = d.style === 'SLOWER' ? EXPRESS_OVER.slower : EXPRESS_OVER;
+          expect(d.speedKph).toBeGreaterThanOrEqual(range.min);
+          expect(d.speedKph).toBeLessThanOrEqual(range.max);
+          expect(['EXPRESS', 'SHORT', 'YORKER', 'SLOWER']).toContain(d.style);
         }
         const short = over.filter(d => d.style === 'SHORT').length;
         expect(short === 1 || short === 2).toBe(true);
+        expect(over.filter(d => d.style === 'YORKER')).toHaveLength(1);
+        const slower = over.filter(d => d.style === 'SLOWER').length;
+        expect(slower <= 1).toBe(true);
+        expect(over.filter(d => d.style === 'EXPRESS').length).toBeGreaterThanOrEqual(2);
         seconds += Number(short === 2);
-        yorkers += Number(over.some(d => d.style === 'YORKER'));
+        slowers += slower;
       }
     }
-    // One over in three, and now and then, give or take the draw.
+    // One over in three, and one in two, give or take the draw.
     expect(seconds / total).toBeGreaterThan(0.2);
     expect(seconds / total).toBeLessThan(0.47);
-    expect(yorkers / total).toBeGreaterThan(0.15);
-    expect(yorkers / total).toBeLessThan(0.45);
+    expect(slowers / total).toBeGreaterThan(0.35);
+    expect(slowers / total).toBeLessThan(0.65);
+  });
+
+  it('bowls his slower ball well off his pace, and still quicker than a seamer\'s change-up', () => {
+    expect(EXPRESS_OVER.slower.max).toBeLessThan(EXPRESS_OVER.min - 40);
+    expect(EXPRESS_OVER.slower.min).toBeGreaterThan(SURVIVE_STYLES.SLOWER.max);
   });
 
   it('places one bouncer in every pace over, with no barrage — the tenth over is the middle of this innings', () => {
@@ -284,6 +295,55 @@ describe('the Marathon\'s bowling', () => {
     expect(biggest).toBeGreaterThan(GAME.movement * 1.4);
   });
 
+  it('starts the inswinger on or outside off and the outswinger on middle or leg, from the eleventh over', () => {
+    for (let seed = 1; seed < 30; seed++) {
+      const { bowled } = overs(seed, 30);
+      for (const d of bowled.slice(10).flat()) {
+        if (d.express) continue;
+        if (d.style === 'SWING_IN') {
+          expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line);
+          expect(d.finalTargetX).toBeLessThan(d.baseTargetX);
+        }
+        if (d.style === 'SWING_OUT') {
+          expect(['LEG', 'MIDDLE']).toContain(d.line);
+          expect(d.finalTargetX).toBeGreaterThan(d.baseTargetX);
+        }
+      }
+    }
+  });
+
+  it('swings about two balls in three from the eleventh over, in and out evenly, and the rest go straight on any line', () => {
+    let pace = 0, ins = 0, outs = 0;
+    const straightLines = new Set<string>();
+    for (let seed = 1; seed < 60; seed++) {
+      const { bowled } = overs(seed, 30);
+      for (const d of bowled.slice(10).flat()) {
+        if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
+        pace++;
+        if (d.style === 'SWING_IN') ins++;
+        else if (d.style === 'SWING_OUT') outs++;
+        else straightLines.add(d.line);
+      }
+    }
+    expect((ins + outs) / pace).toBeGreaterThan(0.55);
+    expect((ins + outs) / pace).toBeLessThan(0.78);
+    expect(Math.abs(ins - outs) / (ins + outs)).toBeLessThan(0.12);
+    expect(straightLines.size).toBe(5);
+  });
+
+  it('leaves the first ten overs\' lines and table to Survival', () => {
+    let swing = 0, pace = 0;
+    for (let seed = 1; seed < 60; seed++) {
+      for (const d of overs(seed, 10).bowled.flat()) {
+        if (SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
+        pace++;
+        swing += Number(d.style === 'SWING_IN' || d.style === 'SWING_OUT');
+      }
+    }
+    expect(swing / pace).toBeLessThan(0.33);
+    expect(LEVELS[0].swingShare).toBeUndefined();
+  });
+
   it('holds a late swinger\'s line for the first of the way, and gets it there all the same', () => {
     const delivery: Delivery = {
       line: 'MIDDLE', style: 'SWING_OUT', speedKph: 144, baseTargetX: 0, finalTargetX: 0.2,
@@ -311,43 +371,67 @@ describe('the Marathon\'s bowling', () => {
 });
 
 describe('the switches for trying one bowler', () => {
-  const bowl = (plan: ReturnType<typeof marathonOnly>, balls = 60) => {
+  const bowl = (plan: ReturnType<typeof marathonOnly>, balls = 120) => {
     const generator = new DeliveryGenerator(new SeededRandom(7), plan);
     return { generator, bowled: [...Array(balls)].map(() => generator.next(0)) };
   };
 
-  it('?swing=1 swings every ball, late and far, from the first', () => {
+  it('?swing=1 gives the Level 2 swing bowler every over, from the first, as he bowls it', () => {
     const { generator, bowled } = bowl(marathonOnly({ swing: true }));
-    for (const d of bowled) {
-      expect(['SWING_IN', 'SWING_OUT']).toContain(d.style);
-      expect(d.late).toBe(LEVELS[1].late);
-    }
-    expect(new Set(bowled.map(d => d.style)).size).toBe(2);
     expect(generator.levelAt(0)?.level).toBe(2);
+    expect(bowled.every(d => !d.express && !SPIN_STYLES.includes(d.style))).toBe(true);
+    const swung = bowled.filter(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT');
+    expect(swung.length).toBeGreaterThan(bowled.length / 2);
+    for (const d of swung) expect(d.late).toBe(LEVELS[1].late);
+    expect(bowled.some(d => d.style !== 'SWING_IN' && d.style !== 'SWING_OUT')).toBe(true);
   });
 
   it('?express=1 gives the express bowler every over, as he bowls it', () => {
     const { generator, bowled } = bowl(marathonOnly({ express: true }));
     for (const d of bowled) {
       expect(d.express).toBe(true);
-      expect(['EXPRESS', 'SHORT', 'YORKER']).toContain(d.style);
+      expect(['EXPRESS', 'SHORT', 'YORKER', 'SLOWER']).toContain(d.style);
     }
-    for (let over = 0; over < 10; over++) expect(bowled.slice(over * 6, over * 6 + 6).some(d => d.style === 'SHORT')).toBe(true);
+    for (let over = 0; over < 20; over++) {
+      const six = bowled.slice(over * 6, over * 6 + 6);
+      expect(six.some(d => d.style === 'SHORT')).toBe(true);
+      expect(six.some(d => d.style === 'YORKER')).toBe(true);
+    }
+    expect(bowled.some(d => d.style === 'SLOWER')).toBe(true);
     expect(generator.levelAt(0)?.level).toBe(3);
   });
 
   it('both share the overs, and never give him two running', () => {
-    const { generator, bowled } = bowl(marathonOnly({ swing: true, express: true }), 120);
+    const { generator, bowled } = bowl(marathonOnly({ swing: true, express: true }));
     const kinds = [...Array(20)].map((_, over) => generator.overKind(over));
     expect(kinds.filter(k => k === 'EXPRESS')).toHaveLength(10);
     kinds.forEach((kind, i) => expect(kind === 'EXPRESS' && kinds[i - 1] === 'EXPRESS').toBe(false));
-    for (const d of bowled.filter(d => !d.express)) expect(['SWING_IN', 'SWING_OUT']).toContain(d.style);
+    expect(bowled.filter(d => !d.express).some(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT')).toBe(true);
   });
 
   it('leaves the Marathon\'s own plan as it was', () => {
     marathonOnly({ swing: true, express: true });
     expect(MARATHON_PLAN.blocks!.levelOf(0).level).toBe(1);
-    expect(MARATHON_PLAN.styles.SWING_IN.weight).toBeLessThan(0.5);
-    expect(MARATHON_PLAN.short).toBeDefined();
+    expect(MARATHON_PLAN.blocks!.levelOf(0).express).toBe(0);
+  });
+});
+
+describe('the speed gun', () => {
+  it('reads anything up to 140 as it is, never under 70', () => {
+    expect(shownKph(84)).toBe(84);
+    expect(shownKph(140)).toBe(140);
+    expect(shownKph(55)).toBe(70);
+  });
+
+  it('folds the quicks into 140 to 160, and never more', () => {
+    expect(shownKph(186)).toBe(160);
+    expect(shownKph(163)).toBe(150);
+    expect(shownKph(200)).toBe(160);
+  });
+
+  it('keeps the order: an express ball always reads faster than a fast one, and the slower ball slower than both', () => {
+    for (let kph = 70; kph < 186; kph++) expect(shownKph(kph + 1)).toBeGreaterThanOrEqual(shownKph(kph));
+    expect(shownKph(EXPRESS_OVER.min)).toBeGreaterThan(shownKph(SURVIVE_STYLES.FAST.max) - 1);
+    expect(shownKph(EXPRESS_OVER.slower.max)).toBeLessThan(shownKph(EXPRESS_OVER.min) - 25);
   });
 });
