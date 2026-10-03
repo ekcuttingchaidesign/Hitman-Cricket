@@ -259,6 +259,11 @@ export const STYLES: Record<DeliveryStyle, StyleShape> = {
   SLOWER: { weight: 0.058, min: 82, max: 100, label: 'SLOWER BALL', rush: 1.15 },
   SWING_IN: { weight: 0.115, min: 138, max: 152, label: 'INSWINGER', rush: 0.86, aimBody: 0.3 },
   SWING_OUT: { weight: 0.115, min: 138, max: 152, label: 'OUTSWINGER', rush: 0.86, aimWide: 0.45 },
+  // Reverse swing: the Marathon swing bowler's variation, weightless here
+  // because Survival never rolls for it. It goes straight to the pitch and
+  // darts off it — see `REVERSE` in `marathon.ts`.
+  REVERSE_IN: { weight: 0, min: 142, max: 156, label: 'REVERSE SWING', rush: 0.86 },
+  REVERSE_OUT: { weight: 0, min: 142, max: 156, label: 'REVERSE SWING', rush: 0.86 },
   // The spinner's three balls. All three carry a zero weight because they are
   // never rolled for: the spell is given whole overs by SPIN below, and inside
   // one of those overs these are the only deliveries bowled.

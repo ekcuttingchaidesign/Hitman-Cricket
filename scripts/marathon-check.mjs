@@ -53,6 +53,7 @@ const until = async phase => {
 const label = () => page.locator('#phase-label').textContent();
 const write = balls => page.evaluate(b => window.__cricket.marathon(b), balls);
 const ones = n => Array(n).fill(1);
+const SETTLE_BALLS = 30;
 
 /** One real ball, blocked, and played out to the next guard or the end. */
 const block = async () => {
@@ -77,7 +78,8 @@ await page.addInitScript(() => {
 });
 
 await page.clock.install();
-await page.goto(`${base}/?debug=1&mode=marathon&seed=4242`, { waitUntil: 'load' });
+// All three right-handed here; the left-hander has a section of his own below.
+await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=0`, { waitUntil: 'load' });
 await advance(2500);
 await page.waitForTimeout(800);
 const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
@@ -96,8 +98,11 @@ for (let i = 0; i < 8; i++) {
 // From here the clock moves only when the check moves it. Left running, a
 // software-rendered frame is most of a second of real time, and a guard of
 // 420ms is gone before the next line of this script runs — so a ball is
-// already on its way when the innings is written past it.
-await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 1000);
+// already on its way when the innings is written past it. Five seconds ahead,
+// not one: a server still compiling on its first visit can take longer than a
+// second between reading the clock and stopping it, and a stop in the past
+// throws.
+await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 5000);
 
 // ── The opener walks out ───────────────────────────────────────────────────
 // Getting past the cover can take long enough for a ball to be bowled at an
@@ -111,18 +116,23 @@ check((await label())?.includes('OPENER IN'), 'and says so as he takes guard', a
 check(first.marathon?.level === 1 && first.marathon?.bowler === 'PACE', 'against Level 1 pace', JSON.stringify(first.marathon));
 check(await page.locator('#confidence').evaluate(el => el.classList.contains('is-injury')), 'with the injury meter, not confidence');
 check(await page.locator('#scoreboard').isVisible(), 'and the scoreboard, not a target to chase');
-check((await page.locator('#speed').textContent()) === '–', 'the speed gun blank before a ball is bowled');
+check(await page.evaluate(() => window.__cricket.greenTop()), 'on the Test match\'s greener strip');
+check(!(await page.locator('#speed-gun').evaluate(el => el.classList.contains('is-on'))), 'no speed up before a ball is bowled');
+const meter = async () => `${await page.locator('#settle-label').textContent()} ${await page.locator('#settle-cap').textContent()}`.trim();
+check(await page.locator('#settle').isVisible() && await meter() === `SETTLING 0/${SETTLE_BALLS}`, 'and the opener walks out unsettled, beside the injury meter', await meter());
+check(!(await page.locator('#scoreboard').textContent())?.includes('KM/H'), 'and none on the scoreboard');
 await block();
 check(!(await label())?.includes('OPENER IN'), 'said once, and not again the next ball', await label());
 const gun = Number(await page.locator('#speed').textContent());
-check(await page.locator('#speed-cell').isVisible() && gun >= 70 && gun <= 160,
-  'the speed gun reads the ball, between 70 and 160', `${gun}`);
+check(await page.locator('#speed-gun').evaluate(el => el.classList.contains('is-on')) && gun >= 70 && gun <= 160,
+  'the speed gun put the ball up at the foot of the field, between 70 and 160', `${gun}`);
 
 // ── A wicket brings the No. 3 ──────────────────────────────────────────────
 let state = await write([...ones(39), 'W']);
 check(state.batter === 'NO_3' && state.gone === 1, 'a wicket sends the No. 3 in', JSON.stringify(state));
 check(state.batters[0] === '39', 'with the opener out for what he made', JSON.stringify(state.batters));
 check((await label())?.includes('NO. 3 IN'), 'named as he walks out', await label());
+check(await meter() === `SETTLING 0/${SETTLE_BALLS}`, 'unsettled, however settled the opener was', await meter());
 await block();
 
 // ── Felled or bowled by a real ball, and the next man up on his feet ──────
@@ -194,11 +204,51 @@ await page.locator('#again').click({ force: true });
 // Less than the guard: any longer and a ball is bowled at nobody.
 await advance(16);
 await until('READY');
-await write(ones(30));
+await write(ones(SETTLE_BALLS - 1));
+check(await meter() === `SETTLING ${SETTLE_BALLS - 1}/${SETTLE_BALLS}`, 'a ball short, nearly settled', await meter());
+await write([1]);
+check((await label())?.includes('OPENER SETTLED'), 'thirty, and the call says he is settled', await label());
+check(await meter() === 'CONFIDENCE' && (await snap()).marathon.confidence === 25, 'and the meter is his confidence now, a quarter full', await meter());
 await block();
 await page.keyboard.press('r');
 await advance(800);
 check((await snap()).balls === 0, 'restarting starts again at nought');
+
+// ── The left-hander ────────────────────────────────────────────────────────
+// Put at No. 3 by the link, so the man before him and the man after him show
+// the mirror coming on and going off again.
+await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=2`, { waitUntil: 'load' });
+await advance(2500);
+await page.locator('#start').click({ force: true });
+await advance(400);
+for (let i = 0; i < 8; i++) {
+  const done = page.locator('#whatsnew-done');
+  if (!(await done.count()) || !(await done.isVisible())) break;
+  await done.click({ force: true });
+  await advance(400);
+}
+await until('READY');
+await page.keyboard.press('r');
+await advance(16);
+const sides = async () => [await page.locator('#side-left').textContent(), await page.locator('#side-right').textContent()].join(' / ');
+let hand = (await snap()).marathon;
+check(!hand.left && !hand.mirrored && hand.lefty === -1, 'the opener bats right-handed when the left-hander is No. 3', JSON.stringify(hand));
+hand = await write(['W']);
+check(hand.left && hand.mirrored, 'the No. 3 walks out left-handed, with the ground mirrored', JSON.stringify(hand));
+check((await label())?.includes('NO. 3 IN · TAKE YOUR GUARD'), 'and walks out like anybody else', await label());
+check(!(await page.locator('#coach').isVisible()), 'with no panel or arrow to say he is left-handed: it shows');
+check(await sides() === 'OFF SIDE / LEG SIDE', 'and the sides along the foot of the field the other way round', await sides());
+const lefty = await until('BALL_IN_FLIGHT');
+await advance(lefty.contactAt - lefty.elapsed - 40);
+await page.keyboard.press('d');
+await advance(150);
+check((await snap()).shot === 'LEG', 'the key on the right plays to his leg side', (await snap()).shot);
+let after = await snap();
+for (let i = 0; i < 30 && after.phase !== 'READY'; i++) { await advance(400); after = await snap(); }
+if (after.marathon.gone < 2) after = { marathon: await write(['W']) };
+hand = after.marathon;
+check(hand.batter === 'TAILENDER' && !hand.left && !hand.mirrored, 'the tailender after him is right-handed, and the mirror is off', JSON.stringify(hand));
+check(await sides() === 'LEG SIDE / OFF SIDE', 'with the sides back where they were', await sides());
 
 await page.waitForTimeout(1500);
 check(!kept.length, 'and no innings, finished or not, was sent anywhere that keeps one', kept.join(', '));

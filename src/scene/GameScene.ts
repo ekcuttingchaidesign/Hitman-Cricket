@@ -102,6 +102,21 @@ function muteAt(age: number) {
 // every figure on the field is a Cricketer, which carries its own primitives.
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
 
+/**
+ * The ball, by format: the Blast's bright red, and the Test match's darker
+ * Dukes. Both keep the faint glow of their own colour, which is what holds a
+ * ball against the stands in the second it is in the air.
+ */
+const BALL = {
+  blast: { color: 0xe84829, glow: 0x972708 },
+  test: { color: 0xa81c1c, glow: 0x5c0b07 },
+  /**
+   * How much grass the Test strip keeps, of `pitchTexture`'s nought to one. A
+   * little greener, not a green top: at one the whole strip reads as grass.
+   */
+  testGrass: 0.5,
+} as const;
+
 export class GameScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -124,6 +139,11 @@ export class GameScene {
   /** A ball along the ground that a fielder is going to pick up, so it stays in sight where it stops. */
   private gathered = false;
   private ball: THREE.Mesh;
+  /** The strip's material, and the two surfaces it is laid with: see `testLook`. */
+  private pitch!: THREE.MeshStandardMaterial;
+  private dryPitch!: THREE.Texture;
+  private greenPitch: THREE.Texture | null = null;
+  private anisotropy = 1;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
   private catchRing: THREE.Mesh;
@@ -241,9 +261,9 @@ export class GameScene {
     this.wicket(0); this.wicket(18.7);
     this.bowlerHolder.add(this.bowler.root);
     this.world.add(this.batter.root, this.bowlerHolder, ...this.field.fielders.map(f => f.root));
-    this.ball = new THREE.Mesh(SHAPES.ball, soft(0xe84829, 0.34));
+    this.ball = new THREE.Mesh(SHAPES.ball, soft(BALL.blast.color, 0.34));
     this.ball.scale.setScalar(0.115); this.ball.castShadow = true; this.world.add(this.ball);
-    (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(0x972708);
+    (this.ball.material as THREE.MeshStandardMaterial).emissive.setHex(BALL.blast.glow);
     (this.ball.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2;
     const seam = new THREE.Mesh(new THREE.TorusGeometry(0.98, 0.07, 10, 32), soft(0xffefd6));
     this.ball.add(seam);
@@ -400,7 +420,9 @@ export class GameScene {
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
     const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 });
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 }));
+    this.pitch = new THREE.MeshStandardMaterial({ map: surface, roughness: 0.9 });
+    this.dryPitch = surface; this.anisotropy = anisotropy;
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
     this.textures.push(grass, surface);
     // Popping creases, 1.2m in front of each wicket, with return creases running
@@ -526,6 +548,21 @@ export class GameScene {
   get lit() { return this.now; }
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
+  /**
+   * A left-hander at the crease. The stage is mirrored once already so that a
+   * right-hander's leg side reads left; this takes the mirror off, and the
+   * batter, his field and the ball's flight all come out the other way round.
+   * Everything the game knows stays in the one frame — the line, the stance,
+   * the leg side — so not a rule has to know he is left-handed.
+   *
+   * The bowler is mirrored back on his own, inside it: the same right-arm
+   * bowler, now bowling across him rather than at him.
+   */
+  leftHanded(on: boolean) {
+    this.world.scale.x = on ? 1 : -1;
+    this.bowlerHolder.scale.x = on ? -1 : 1;
+  }
+  get mirrored() { return this.world.scale.x > 0; }
   /** The next man in, at his guard. The last one may be lying where he fell. */
   newBatter() { this.batter.reset(); }
   /**
@@ -576,6 +613,7 @@ export class GameScene {
 
   whites(on: boolean) {
     const kit = on ? WHITES : KIT;
+    this.testLook(on);
     this.batter.dress(on ? 'whites' : 'home');
     this.bowler.figure.dress(kit);
     // The fielding side too. Leaving them in coloured clothing while the two
@@ -586,6 +624,27 @@ export class GameScene {
     this.field.setField(on ? TEST_FIELD : BLAST_FIELD);
     this.kitsUnderLights();
   }
+
+  /**
+   * The Test match's ball and strip. A Dukes rather than the Blast's bright
+   * red — deep cherry, its cream seam standing out the more for it — and a
+   * strip with grass left on it. The green one is painted the first time a
+   * Test is played and kept, so a player who only ever bats in the Blast never
+   * pays for it; swapping the map is all either costs after that, and it
+   * changes no shader.
+   */
+  private testLook(on: boolean) {
+    const ball = this.ball.material as THREE.MeshStandardMaterial;
+    const look = on ? BALL.test : BALL.blast;
+    ball.color.setHex(look.color); ball.emissive.setHex(look.glow);
+    if (on && !this.greenPitch) {
+      this.greenPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass);
+      this.textures.push(this.greenPitch);
+    }
+    this.pitch.map = on ? this.greenPitch! : this.dryPitch;
+  }
+  /** Which strip is down, for the checks. */
+  get greenTop() { return this.pitch.map === this.greenPitch; }
 
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }

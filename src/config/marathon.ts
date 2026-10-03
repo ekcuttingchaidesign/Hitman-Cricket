@@ -120,12 +120,14 @@ export interface Level {
   spinFirst?: number;
   /** How much of the pace bowler's roll swings, in and out evenly; absent leaves Survival's table. */
   swingShare?: number;
+  /** And his reverse swing, placed in the over rather than rolled for: see `REVERSE`. */
+  reverse?: { perOver: number; secondChance: number };
 }
 
 export const LEVELS: readonly Level[] = [
   { level: 1, pace: 7, spin: 3, express: 0, swing: 1, late: 0, spinFirst: 2 },
-  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 2 / 3 },
-  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 2 / 3 },
+  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
+  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
 ];
 
 export const BLOCK_OVERS = 10;
@@ -141,8 +143,51 @@ export const SWING_LINES: Partial<Record<DeliveryStyle, readonly BallLine[]>> = 
   SWING_OUT: ['LEG', 'MIDDLE'],
 };
 
+/**
+ * Reverse swing: the swing bowler's variation, placed in his over the way the
+ * bouncer is — one in every over he swings it, a second in about half of
+ * them, never more, at positions drawn fresh each over and never on the
+ * bouncer's. Where his ordinary swing bends in the air on the way down, this
+ * one goes to the pitch dead straight and darts off it, late and a long way
+ * — two to three stumps' width — at 142 to 156 kph (141 to 147 on the gun),
+ * so it is on the batter before a player who has read the line off the hand
+ * can change his mind.
+ * The reverse inswinger starts on or outside off and comes back into him,
+ * the reverse outswinger starts on middle or leg and goes away, as his
+ * ordinary two do. Held to the same widest line, so it is never a wide.
+ */
+export const REVERSE = {
+  min: 0.3,
+  max: 0.42,
+  lines: { REVERSE_IN: ['OFF', 'OUTSIDE_OFF'], REVERSE_OUT: ['LEG', 'MIDDLE'] } as Partial<Record<DeliveryStyle, readonly BallLine[]>>,
+  /** How far through its flight it has finished moving: after the bounce, and before the bat. */
+  settled: 0.92,
+} as const;
+
+export const isReverse = (style: DeliveryStyle) => style === 'REVERSE_IN' || style === 'REVERSE_OUT';
+
 /** The level a block is bowled at. The third repeats for as long as the innings does. */
 export const levelOf = (block: number): Level => LEVELS[Math.min(block, LEVELS.length - 1)];
+
+/**
+ * The over, counting from nought, from which the pace bowler swings it. The
+ * first playtest found ten overs of Survival's gentle bowling too long a
+ * start — an opener made 240 of 284 in twenty-two overs — so the swing comes
+ * on after five, a block early. Only the swing: who bowls which over is
+ * still the block's, so the express bowler waits for the eleventh as before.
+ */
+export const SWING_FROM = 5;
+
+/**
+ * The level over `over` is bowled at, which is its block's — except that the
+ * overs of the first block from `SWING_FROM` on carry Level 2's swing.
+ */
+export function levelAt(over: number): Level {
+  const block = Math.floor(over / BLOCK_OVERS);
+  if (block > 0 || over < SWING_FROM) return levelOf(block);
+  const swinging = LEVELS[1];
+  return { ...LEVELS[0], level: 2, swing: swinging.swing, late: swinging.late, swingShare: swinging.swingShare, reverse: swinging.reverse };
+}
 
 /**
  * The express bowler's over: his pace, and the length the main thing that
@@ -165,6 +210,42 @@ export const EXPRESS_OVER = {
   slowerChance: 0.5,
   /** His slower ball: well off his pace, still quicker than a seamer's change-up. */
   slower: { min: 112, max: 126 },
+} as const;
+
+/**
+ * Getting your eye in, and what comes of it.
+ *
+ * Every batter walks out unsettled, with no meter to spend and no special
+ * stroke to play. Each ball he faces settles him a little — a block and a
+ * leave as much as a four — and a blow knocks him back by the size of it, a
+ * ball for every four points the blow costs his meter: a glove off a seamer is
+ * about four balls, the express bowler on the helmet nearly twenty. Thirty
+ * balls, five overs of it, and he is settled — thirty-six was tried first and
+ * the playtest found it too long a wait.
+ *
+ * Settled, the same meter is his confidence, and it starts a quarter full. It
+ * fills with the strokes he plays and with the balls he blocks, more slowly
+ * than the Blast's — a Test innings is built, not slogged — and empties with
+ * being beaten and being hit. Full, it buys one special stroke, exactly as in
+ * the Blast. He never goes back to being unsettled: a battering costs him his
+ * confidence, not the five overs it took to find his feet.
+ */
+export const SETTLE = {
+  balls: 30,
+  /** Balls of settling, or points of confidence, a blow costs per point of injury. */
+  perBlowPoint: 1 / 4,
+  /** Where his confidence starts the moment he is settled. */
+  confidenceOnSettling: 25,
+} as const;
+
+export const CONFIDENCE = {
+  full: 100,
+  /** What each stroke adds, by the runs it was worth. */
+  step: { 6: 12, 4: 10, 3: 6, 2: 4, 1: 2 } as Record<number, number>,
+  /** A ball blocked: patience is part of it. */
+  defended: 2,
+  /** Played at and beaten, or edged for nothing. */
+  beaten: -10,
 } as const;
 
 /** How a Marathon innings finished. */

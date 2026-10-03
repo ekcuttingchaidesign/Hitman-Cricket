@@ -78,6 +78,10 @@ const icon = (name: string) => {
     help: '<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01"/>',
     expand: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
+    /* The Marathon's two meters, which have no room for their names. */
+    hurt: '<path d="M12 5v14M5 12h14"/>',
+    settling: '<path d="M7 3h10M7 21h10M8 3c0 6 8 6 8 9s-8 3-8 9M16 3c0 6-8 6-8 9s8 3 8 9"/>',
+    flame: '<path d="M12 3c2 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 3 3-1-3-1-5 0-8Z"/>',
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
     back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
     share: '<path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8"/>',
@@ -291,21 +295,33 @@ export class HUD {
           <span class="bug-total" id="total" role="img"><span id="runs"></span><span class="bug-slash">/</span><span class="bug-wkts" id="wickets"></span></span>
           <span class="bug-cell"><b id="overs"></b><i>OVERS</i></span>
           <span class="bug-cell"><b id="last" class="bug-last" role="img"></b><i>LAST</i></span>
-          <span id="speed-cell" class="bug-cell bug-speed hidden"><b id="speed" aria-live="off">–</b><i>KM/H</i></span>
         </div>
         <div id="survive-card" class="survive-card hidden" role="group" aria-label="Match situation">
           <span class="sc-cell sc-main"><b id="sc-score" aria-live="polite"></b><span class="sc-label">TARGET <em id="sc-target"></em></span></span>
           <span class="sc-cell"><b id="sc-need"></b><span class="sc-label">TO WIN</span></span>
           <span class="sc-cell"><b id="sc-balls"></b><span class="sc-label">BALLS<span class="sc-wide"> LEFT</span></span></span>
         </div>
+        <div class="meters">
         <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
             <span class="confidence-head">
+              <span class="meter-icon" aria-hidden="true">${icon('hurt')}</span>
               <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
               <span class="injury-cap" id="injury-cap" hidden></span>
             </span>
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
+        </div>
+        <div id="settle" class="confidence settle-meter hidden" role="meter" aria-label="Settling" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span class="confidence-inner">
+            <span class="confidence-head">
+              <span class="meter-icon" aria-hidden="true"><span class="icon-settling">${icon('settling')}</span><span class="icon-flame">${icon('flame')}</span></span>
+              <span class="confidence-label" id="settle-label">SETTLING</span>
+              <span class="injury-cap settle-cap" id="settle-cap"></span>
+            </span>
+            <span class="confidence-track"><i id="settle-fill"></i></span>
+          </span>
+        </div>
         </div>
         </div>
         <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
@@ -325,7 +341,7 @@ export class HUD {
           <button id="skip-tutorial" class="ghost-button">SKIP TO INNINGS</button>
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
-        <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
+        <div id="speed-gun" class="speed-gun" aria-hidden="true"><b id="speed"></b><i>KM/H</i></div><div class="arena-bottom"><span><span id="side-left">LEG SIDE</span> <span class="direction-line"></span></span><span><span class="direction-line"></span> <span id="side-right">OFF SIDE</span></span></div>
 ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
@@ -1326,9 +1342,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The Marathon keeps the Blast's scoreboard — a total and the wickets, with
     // no target to chase — and Survival's meter.
     document.body.classList.toggle('marathon-mode', marathon);
-    // The speed gun, in the Marathon first. Blank until the first ball is bowled.
-    this.$('speed-cell').classList.toggle('hidden', !marathon);
-    this.$('speed').textContent = '–';
+    this.marathon = marathon;
+    // The Marathon's second meter: settling, then confidence. Drawn by `settling`.
+    this.$('settle').classList.add('hidden');
+    // The speed gun, in the Marathon first: nothing up until a ball is bowled.
+    this.$('speed-gun').classList.remove('is-on');
+    this.$('speed').textContent = '';
     this.viewport.classList.remove('modal-open');
     this.viewport.classList.remove('hurt-on');
     // Both full-screen overlays put the hud row away while they are up.
@@ -1356,8 +1375,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // for, because each of the four is swiped for differently.
     const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     this.guide(on, specials);
+    // The Marathon keeps the run-up and the flight quiet: the speed gun's
+    // caption takes that spot the moment the ball leaves the hand.
+    const quiet = this.marathon && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
-      : phase === 'READY' ? this.walking ? `${this.walking} IN · TAKE YOUR GUARD` : 'TAKE YOUR GUARD' :  phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
+      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' : quiet ? ''
+      : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
     // The edge of the field lights up too: a line of text at the bottom is easy
     // to miss in the second the ball takes to arrive.
@@ -1372,17 +1395,50 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * screen announces reads as bad luck rather than as a weaker batter.
    */
   private walking: string | null = null;
-  walkingOut(title: string | null) { this.walking = title; }
+  /** The innings on screen is a Marathon. */
+  private marathon = false;
+  walkingOut(title: string | null) {
+    this.walking = title === null ? null : `${title} IN · TAKE YOUR GUARD`;
+  }
+  /** The labels along the foot of the field, the right way round for whoever is in. */
+  sides(left: boolean) {
+    this.$('side-left').textContent = left ? 'OFF SIDE' : 'LEG SIDE';
+    this.$('side-right').textContent = left ? 'LEG SIDE' : 'OFF SIDE';
+  }
   /**
-   * The speed gun's reading, the moment the ball leaves the hand, standing
-   * until the next one does. Already folded into what a gun would say.
+   * The speed gun's reading, at the foot of the field the moment the ball
+   * leaves the hand, and gone again before the next one: a broadcast's
+   * caption, not a figure on the scoreboard. Already folded into what a gun
+   * would say.
    */
   speed(kph: number) {
-    const reading = this.$('speed');
-    reading.textContent = String(kph);
-    reading.setAttribute('aria-label', `${kph} kilometres an hour`);
-    reading.classList.remove('is-new'); void reading.offsetWidth; reading.classList.add('is-new');
+    const gun = this.$('speed-gun');
+    this.$('speed').textContent = String(kph);
+    gun.classList.remove('is-on'); void gun.offsetWidth; gun.classList.add('is-on');
   }
+  /**
+   * The Marathon's second meter, beside the injury: how settled the man in is,
+   * and once he is, his confidence — the Blast's meter, earned more slowly.
+   * Null puts it away.
+   */
+  settling(view: { settled: boolean; fraction: number; balls: number; of: number; primed: Primed } | null) {
+    const meter = this.$('settle');
+    meter.classList.toggle('hidden', !view);
+    if (!view) return;
+    const full = view.settled && view.fraction >= 1;
+    const percent = Math.round(Math.max(0, Math.min(1, view.fraction)) * 100);
+    meter.classList.toggle('is-settled', view.settled);
+    meter.classList.toggle('is-full', full);
+    meter.classList.toggle('is-primed', !!view.primed);
+    meter.setAttribute('aria-label', view.settled ? 'Confidence' : 'Settling');
+    meter.setAttribute('aria-valuenow', String(percent));
+    this.$('settle-fill').style.width = `${percent}%`;
+    this.$('settle-label').textContent = !view.settled ? 'SETTLING'
+      : view.primed ? CUES[view.primed].split(' — ')[0] : full ? 'CONFIDENT' : 'CONFIDENCE';
+    this.$('settle-cap').textContent = view.settled ? '' : `${view.balls}/${view.of}`;
+  }
+  /** Said on the next guard he takes, once: a batter settled, or walking out. */
+  callOut(words: string) { this.walking = words; }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
@@ -2449,7 +2505,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       ALL_OUT: 'All out', RETIRED: 'Retired hurt', BALLS: 'Five hundred balls', DECLARED: 'Declared',
     }[innings.ending ?? 'ALL_OUT'];
     this.$('end-message').textContent = innings.batters
-      .map(b => `${b.batter.title} ${MarathonInnings.score(b)} (${b.balls})`).join(' · ');
+      .map(b => `${b.batter.title}${b.left ? ' (LH)' : ''} ${MarathonInnings.score(b)} (${b.balls})`).join(' · ');
     this.$('final-score').innerHTML = `${score.runs}<span class="card-wickets">/${innings.gone}</span>`;
     this.$('final-score').setAttribute('aria-label', `${score.runs} for ${innings.gone}`);
   }

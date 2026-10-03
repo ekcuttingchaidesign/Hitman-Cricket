@@ -53,9 +53,9 @@ exactly as in the other modes: the one call that counts an innings stays in
   ground is mirrored (the stage is already flipped once in `GameScene`; this
   flips it back), the swipe directions are mirrored with it — a left-hander's
   pull is a swipe to the right — and the bowler is flipped back on his own so
-  he stays right-arm, now bowling across him. His first ball carries an
-  announcement and the tutorial's arrow so the reversed swipes are not a
-  surprise.
+  he stays right-arm, now bowling across him. Nothing announces him: after
+  the playtest, a batter standing on the other side of the stumps was found
+  to say it himself.
 - **Retired hurt** works as in Test Survival — the injury meter, the same
   damage table, nothing heals — except that it brings the next batter in
   rather than ending the innings. A retired batter's score stands as **not
@@ -69,19 +69,28 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 
 | Overs | Pace (seam & swing) | Spin | Express (the Level 3 bowler) |
 | --- | --- | --- | --- |
-| 1–10 | 7, Test Survival's bowling | 3 | — |
+| 1–10 | 7, Test Survival's bowling — swinging from over 6 | 3 | — |
 | 11–20 | 7, **more swing** (Level 2) | 2 | 1 |
 | 21 onwards, every 10 | 4, more swing | 2 | 4 |
 
+- **The swing comes on at over 6**, half a block early: the first playtest
+  made 284 in 22 overs, 240 of them by the opener, and found the gentle
+  start too long. Who bowls each over is still the block's, so the express
+  bowler's first over is still in 11–20.
 - **Overs 1–10 are Test Survival's**, with one rule dropped: Survive gives its
   last two overs two bouncers each, because they are the end of its innings.
   Here they are the middle of one, so they are ordinary overs. Every pace
   over still has its one placed bouncer.
 - **Level 2 is a swing bowler.** Level 1's swing is hardly noticeable. From
-  Level 2 about a third of his balls are inswingers, pitched on or outside off
-  and coming back into the batter; a third are outswingers, pitched on middle
-  or leg and going away; and a third go straight, on any line. The swing is
-  later and much further than Level 1's.
+  Level 2 three in ten of his balls are inswingers, pitched on or outside off
+  and coming back into the batter; three in ten are outswingers, pitched on
+  middle or leg and going away; and the rest go straight, on any line. The
+  swing is later and much further than Level 1's.
+- **And reverse swing**, one in every over he swings it and a second in
+  about half of them, never more, placed like the bouncer: straight to the
+  pitch, then darting two to three stumps' width off it, in or out, at
+  142–156 (141–147 on the gun). It is the one swinging ball that has to be read off the pitch
+  rather than out of the air. `?reverse=1` bowls nothing else.
 - **The express bowler** bowls all six balls of his overs at express pace
   (Test Survival's `EXPRESS`, 172–186 kph), varying the length: full and fast,
   **one bouncer every over and a second in about one over in three**, and **a
@@ -290,14 +299,29 @@ Each step is a pull request of its own, behind the flag until the last.
    the two new bowlers without batting to them, `?swing=1` and `?express=1`
    put the Level 2 swing bowler or the express bowler on from the first over
    (`marathonOnly` in `DeliveryGenerator.ts`).
-3. **The left-hander.**
-4. **The express bowler**, his action and release, and the level banners.
-   The speed gun comes with this step.
+3. **The left-hander.** *Done.* As specified, with two additions found in a
+   browser: the LEG SIDE / OFF SIDE labels along the foot of the field swap
+   while he is in, and `?lefty=1`–`3` (or `0` for none) puts him at a place in
+   the order for testing. The tutorial's panel and arrow over his first ball
+   came out after the playtest — it is obvious — and the end card marks him
+   `(LH)`.
+4. **Settling, the express bowler**, his action and release, and the level
+   banners. *Settling is done*: every batter settles over 30 balls (36 at first,
+   until the playtest found it too long), a blow knocking him back a ball per
+   four points of injury, and settled, the meter
+   is his confidence — a quarter full, filling more slowly than the Blast's
+   (six +12, four +10, three +6, two +4, single or block +2, beaten −10, a
+   blow −1 per four points) — which buys the Blast's special strokes. In the
+   simulator a settled good player is offered one about every three overs.
+   The speed gun came forward to step 2, and moved off the scoreboard to a
+   caption at the foot of the field after the playtest.
 5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two
    ladders, the store, `?demo=1`.
 6. **My Stats.** The third card and its tier.
-7. **The Test look.** The darker ball and the greener pitch, in both Test
-   modes.
+7. **The Test look.** *Done.* The darker ball (a Dukes's cherry, `0xa81c1c`,
+   against the Blast's `0xe84829`) and the greener pitch, in both Test modes.
+   A full green top was tried first and was too much; the strip keeps half
+   the grass `pitchTexture` can paint.
 8. **Launch.** A What's New story, the flag on, merge.
 
 ## Open questions

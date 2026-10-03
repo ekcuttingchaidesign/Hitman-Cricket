@@ -2,8 +2,8 @@ import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
-import { MARATHON } from './config/marathon';
-import { MarathonInnings, type Change } from './game/Marathon';
+import { CONFIDENCE as MARATHON_CONFIDENCE, MARATHON, SETTLE } from './config/marathon';
+import { MarathonInnings, leftHanderOf, type Change } from './game/Marathon';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
@@ -20,7 +20,7 @@ import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { milestoneOf, nearingEnd, nearingOf, type Milestone, type Nearing } from './game/milestone';
 import { CELEBRATION_MS, FIFTY_MS } from './entities/Batter';
-import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
+import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
@@ -386,7 +386,10 @@ export class Game {
       () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0,
       // The downward diagonals are the scoops whenever there is a meter to
       // spend on them. Which ball they get is settled in `playedAs`.
-      () => this.charged);
+      () => this.charged,
+      // A left-hander's swipes and side keys, read the way his mirrored
+      // screen shows them. Asked of the scene, so the two cannot disagree.
+      () => this.scene.mirrored);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);
@@ -549,6 +552,8 @@ export class Game {
       field: () => this.scene.fieldState,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
+      // The Test look, for the checks: the green strip down, or the Blast's.
+      greenTop: () => this.scene.greenTop,
       // Day or night, for the checks.
       lights: () => this.scene.lit,
       // Who this browser settled on being. Asked by `key-check.mjs`, which
@@ -996,8 +1001,6 @@ export class Game {
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
-    this.marathon = this.marathoning ? new MarathonInnings() : null;
-    if (this.marathon) this.health = this.marathon.current.health;
     this.playedFrom = 0; this.changed = null; this.felled = false;
     this.wasCritical = false; this.noticeDue = false;
     const param = new URLSearchParams(location.search).get('seed');
@@ -1007,13 +1010,20 @@ export class Game {
     // the same seed always walks out to the same scoreboard. Drawing it from the
     // clock would have made a share card a lie the moment it was reloaded.
     this.chasing = this.surviving ? teamScore(this.rng) : 0;
+    // Who bats left-handed is the seed's too, drawn apart from the bowling.
+    // `?settled=1` walks every batter out settled with a full meter, for trying
+    // the special strokes without batting six overs to earn each one.
+    this.marathon = this.marathoning
+      ? new MarathonInnings(leftHanderOf(this.seed, location.search), new URLSearchParams(location.search).get('settled') === '1')
+      : null;
+    if (this.marathon) this.health = this.marathon.current.health;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
     this.hud.start(this.surviving, this.marathoning);
-    this.hud.walkingOut(this.marathon?.current.batter.title ?? null);
+    this.hand();
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
     // load: a player who only ever picks the five-over innings never asks for
@@ -1028,7 +1038,7 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false); this.scene.time(blastLights());
+    this.scene.whites(false); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -1100,9 +1110,11 @@ export class Game {
    */
   private swingOnly = new URLSearchParams(location.search).get('swing') === '1';
   private expressOnly = new URLSearchParams(location.search).get('express') === '1';
+  /** `?reverse=1`: the swing bowler every over, bowling nothing but reverse swing. */
+  private reverseOnly = new URLSearchParams(location.search).get('reverse') === '1';
   private get plan() {
-    if (this.marathoning && (this.swingOnly || this.expressOnly)) {
-      return marathonOnly({ swing: this.swingOnly, express: this.expressOnly });
+    if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {
+      return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly) return { ...plan, spin: undefined, short: undefined, blocks: undefined,
@@ -1183,7 +1195,12 @@ export class Game {
    * and it does not exist at all in Survive. A tailender walking down the pitch
    * at a man bowling at 170 is not a shot, it is a decision to be hit.
    */
-  private get charged() { return this.lesson < 0 && !this.hurts && this.confidence.full; }
+  private get charged() {
+    if (this.lesson >= 0) return false;
+    // The Marathon's batter earns his by settling and then playing himself in.
+    if (this.marathon) return this.marathon.confident;
+    return !this.hurts && this.confidence.full;
+  }
   /**
    * This ball is one of the two special strokes, and the meter is full to play
    * it. Which one matters to the player and not to the meter: the charge is a
@@ -1216,6 +1233,12 @@ export class Game {
     return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
   }
   private showConfidence() {
+    if (this.marathon) {
+      const man = this.marathon.current;
+      this.hud.settling(man.confidence === null
+        ? { settled: false, fraction: man.settle / SETTLE.balls, balls: Math.floor(man.settle), of: SETTLE.balls, primed: null }
+        : { settled: true, fraction: man.confidence / MARATHON_CONFIDENCE.full, balls: SETTLE.balls, of: SETTLE.balls, primed: this.isPrimed });
+    }
     if (this.hurts) return this.hud.injury(this.health.injury, this.health.critical);
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
@@ -1889,7 +1912,7 @@ export class Game {
   private resolve() {
     const step = this.lesson >= 0 ? TUTORIAL[this.lesson] : null;
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
-      : this.marathon ? resolveSurvive(this.delivery!, this.attempt, this.rng, this.marathon.current.batter)
+      : this.marathon ? this.marathonBall()
       : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng)
       : resolveShot(this.delivery!, this.attempt, this.rng, this.charged);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
@@ -1921,6 +1944,10 @@ export class Game {
         // man is already padded up, and walks out once this ball is dead.
         this.changed = this.marathon.record(this.outcome);
         this.felled = this.changed === 'RETIRED';
+        if (this.marathon.justSettled && !this.changed) {
+          this.hud.callOut(`${this.marathon.current.batter.title} SETTLED · CONFIDENCE BUILDING`);
+          this.mark('batter-settled', 'A batter settled');
+        }
       } else {
         this.confidence.record(this.outcome);
       }
@@ -1967,12 +1994,27 @@ export class Game {
       this.delivery = delivery;
       this.score.record(outcome); this.generator.record(outcome);
       this.changed = marathon.record(outcome);
+      if (marathon.justSettled && !this.changed) this.hud.callOut(`${marathon.current.batter.title} SETTLED · CONFIDENCE BUILDING`);
       if (this.changed && !marathon.ended) this.nextBatter();
     }
     this.changed = null; this.felled = false;
     this.hud.score(this.score); this.showConfidence();
     if (marathon.ended) this.end(); else this.setPhase('READY');
     return this.marathonState();
+  }
+  /**
+   * A Marathon ball. Survival's ladder resolves it with the skill of whoever
+   * is in — unless he has a full meter and has played one of the special
+   * strokes, and played it well enough to come off, when it is the Blast's
+   * stroke and the Blast's reward. A special swipe mistimed is just the stroke
+   * it was, and a Test stroke at that.
+   */
+  private marathonBall(): ShotOutcome {
+    const delivery = this.delivery!, attempt = this.attempt;
+    const special = this.charged && (advanceShot(delivery, attempt, true)
+      || slogSweep(delivery, attempt, true) || !!scoopShot(delivery, attempt, true));
+    return special ? resolveShot(delivery, attempt, this.rng, true)
+      : resolveSurvive(delivery, attempt, this.rng, this.marathon!.current.batter);
   }
   /** The balls the batter who played the last one has faced. The whole innings, but in a Marathon. */
   private get batterHistory() { return this.score.history.slice(this.playedFrom); }
@@ -1992,7 +2034,19 @@ export class Game {
     this.nearing = null; this.hud.nearing(null, null);
     this.scene.newBatter();
     this.showConfidence();
-    this.hud.walkingOut(marathon.current.batter.title);
+    this.hand();
+  }
+  /**
+   * Which way round the man in bats. A left-hander gets the ground mirrored,
+   * the swipes mirrored with it and the side labels swapped, and nothing said
+   * about it: a batter on the other side of the stumps says it himself.
+   */
+  private hand() {
+    const man = this.marathon?.current ?? null;
+    const left = !!man?.left;
+    this.scene.leftHanded(left);
+    this.hud.sides(left);
+    this.hud.walkingOut(man?.batter.title ?? null);
   }
   /**
    * The player has had enough, from the pause card. Refused before twenty
@@ -3003,6 +3057,8 @@ export class Game {
     const over = Math.floor(this.score.balls / MARATHON.ballsPerOver);
     return {
       batter: marathon.current.batter.role, batters: marathon.batters.map(b => MarathonInnings.score(b)),
+      left: marathon.current.left, mirrored: this.scene.mirrored, lefty: marathon.batters.findIndex(b => b.left),
+      settle: marathon.current.settle, confidence: marathon.current.confidence, confident: marathon.confident,
       gone: marathon.gone, ending: marathon.ending, canDeclare: marathon.canDeclare,
       health: marathon.current.health.value, level: this.generator.levelAt(over)?.level ?? null,
       bowler: this.generator.overKind(over), express: !!this.delivery?.express,

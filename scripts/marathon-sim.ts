@@ -68,6 +68,13 @@ function swing(player: Player, delivery: Delivery, batter: typeof BATTERS[number
   return resolveSurvive(delivery, { shotType: shot, inputTimeMs: delivery.idealContactTimeMs + bias + gauss(rng) * sigma }, rng, batter);
 }
 
+/**
+ * The meters, alongside: balls faced settled, and how often the meter filled.
+ * The simulated batter plays no special strokes, so a full meter is spent the
+ * moment it fills — which is what makes this the rate a special is *offered*,
+ * the number `CONFIDENCE` was tuned on.
+ */
+let settledBalls = 0, fills = 0, settledBatters = 0;
 function playInnings(player: Player, seed: number) {
   const rng = new SeededRandom(seed);
   const generator = new DeliveryGenerator(rng, MARATHON_PLAN);
@@ -76,7 +83,10 @@ function playInnings(player: Player, seed: number) {
     const delivery = generator.next(0);
     const outcome = swing(player, delivery, innings.current.batter, rng);
     generator.record(outcome);
+    if (innings.current.confidence !== null) settledBalls++;
     innings.record(outcome);
+    if (innings.justSettled) settledBatters++;
+    if (innings.confident) { fills++; innings.spend(); }
   }
   return innings;
 }
@@ -102,6 +112,8 @@ function expressOver(player: Player, order: number, trials: number) {
 }
 
 function run(player: Player, count: number) {
+  settledBalls = 0; fills = 0; settledBatters = 0;
+  let walkedOut = 0;
   const endings: Record<MarathonEnding, number> = { ALL_OUT: 0, RETIRED: 0, BALLS: 0, DECLARED: 0 };
   const by = BATTERS.map(() => ({ runs: 0, balls: 0, innings: 0, retired: 0 }));
   let runs = 0, balls = 0, sixes = 0, fours = 0, best = 0, express = 0, longest = 0;
@@ -112,6 +124,7 @@ function run(player: Player, count: number) {
     best = Math.max(best, innings.runs);
     longest = Math.max(longest, innings.balls);
     express += Number(innings.balls > 20 * MARATHON.ballsPerOver);
+    walkedOut += innings.batters.length;
     for (const b of innings.batters) {
       by[b.order].runs += b.runs; by[b.order].balls += b.balls; by[b.order].innings++;
       by[b.order].retired += Number(b.retired);
@@ -131,6 +144,8 @@ function run(player: Player, count: number) {
     `${(by.reduce((t, b) => t + b.retired, 0) / count).toFixed(2)}`.padStart(6),
     (fours ? `1/${Math.round(balls / fours)}` : '—').padStart(6),
     (sixes ? `1/${Math.round(balls / sixes)}` : '—').padStart(6),
+    `${Math.round(settledBatters / walkedOut * 100)}%`.padStart(7),
+    (fills ? (settledBalls / fills / MARATHON.ballsPerOver).toFixed(1) : '—').padStart(7),
   ].join(' ');
 }
 
@@ -146,8 +161,8 @@ const PLAYERS: Player[] = [
 
 console.log(`\nTest Marathon — ${INNINGS.toLocaleString()} innings each (runs/balls per batter)\n`);
 console.log(['player'.padEnd(22), ' runs', ' balls', ' best', ' long', '  opener', '    no.3', '    tail',
-  ' out', ' hurt', '  500', ' ov20', ' hurts', '    4s', '    6s'].join(' '));
-console.log('-'.repeat(118));
+  ' out', ' hurt', '  500', ' ov20', ' hurts', '    4s', '    6s', 'settled', 'ov/spcl'].join(' '));
+console.log('-'.repeat(134));
 for (const player of PLAYERS) console.log(run(player, INNINGS));
 
 console.log('\nOne express over to a fresh batter (retired · out · runs an over)\n');
@@ -158,4 +173,4 @@ for (const player of PLAYERS) {
   }).join('   ');
   console.log(`${player.name.padEnd(22)} ${line}`);
 }
-console.log('\nTarget: a fresh opener carried off in no more than about one express over in six (≤ 17%).\n');
+console.log('\nTargets: a fresh opener carried off in no more than about one express over in six (≤ 17%);\na settled good player offered a special about every four to six overs.\n');

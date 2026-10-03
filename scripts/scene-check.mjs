@@ -120,6 +120,9 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
   });
   const built = await page.evaluate(() => window.__cricket?.ground());
   check(built === ground, `on the ${ground} ground`, built);
+  // The Blast's strip is the dry one: the greener Test strip is never laid
+  // here, and never painted unless a Test is played.
+  check(await page.evaluate(() => window.__cricket?.greenTop()) === false, 'on the Blast\'s dry strip');
   const lit = await page.evaluate(() => window.__cricket?.lights());
   check(lit === time, `by ${time}`, lit);
   check(draws > 0, 'the ground is being drawn', draws);

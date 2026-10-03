@@ -253,6 +253,8 @@ kbd{
 /* The meter: the bar's bottom row, earned by scoring and spent on one charge
    down the pitch. Full, the whole bar pulses; on a ball he can charge, the
    label says which stroke, and the call under the batter says which swipe. */
+.meters{display:flex}
+.meters>.confidence{flex:1;min-width:0}
 .confidence{display:block;border-top:1px solid var(--rule)}
 .confidence-inner{display:flex;align-items:center;gap:9px;padding:5px 11px 6px}
 .confidence-head{display:contents}
@@ -3537,15 +3539,68 @@ body.survive-mode #scoreboard{display:none}
    draw is a five-over scorecard and there is no Test one to draw yet. The board
    key stays live, because the key now opens the ladder being played. */
 body.survive-mode #share{opacity:.3;pointer-events:none}
-/* The speed gun: the Marathon's, in the bar's own last cell. The reading pops
-   as the ball leaves the hand and then sits until the next one. */
-.bug-speed.hidden{display:none}
-.bug-cell.bug-speed{min-width:44px;padding:0 9px}
-.bug-cell.bug-speed b{font-size:16px}
-@media (prefers-reduced-motion:no-preference){
-  .bug-speed b.is-new{animation:speed-in .32s cubic-bezier(.2,1.6,.4,1) both}
+/* The speed gun: the Marathon's, a caption where the call under the batter
+   goes, which the Marathon keeps quiet through the run-up and the flight. Up
+   as the ball leaves the hand, gone before the next — it takes no room on the
+   scoreboard. Dark on light, because white is lost on a sunlit pitch. A
+   special stroke's call keeps the spot, and the caption sits above it. */
+.speed-gun{
+  position:absolute;
+  bottom:calc(var(--pad-bottom) + 22px);
+  left:50%;
+  display:flex;
+  align-items:baseline;
+  gap:4px;
+  padding:4px 10px 4px 11px;
+  border-radius:999px;
+  background:#fbf4e6eb;
+  border:1px solid #0f243324;
+  box-shadow:0 4px 14px #0d263433;
+  color:#0f2433;
+  transform:translateX(-50%);
+  opacity:0;
+  pointer-events:none;
+  z-index:3
 }
-@keyframes speed-in{from{transform:scale(1.35);color:#ffce7a}to{transform:scale(1)}}
+.charge-on .speed-gun{bottom:calc(var(--pad-bottom) + 46px)}
+.speed-gun b{font:900 16px/1 var(--card);font-variant-numeric:tabular-nums}
+.speed-gun i{font:800 7.5px/1 var(--card);font-style:normal;letter-spacing:.16em;color:#0f2433a8}
+.speed-gun.is-on{animation:speed-gun 2.4s ease both}
+@keyframes speed-gun{
+  0%{opacity:0;transform:translate(-50%,6px)}
+  10%{opacity:1;transform:translate(-50%,0)}
+  78%{opacity:1;transform:translate(-50%,0)}
+  100%{opacity:0;transform:translate(-50%,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .speed-gun.is-on{animation-name:speed-gun-still}
+  @keyframes speed-gun-still{0%,100%{opacity:0}10%,78%{opacity:1}}
+}
+/* The Marathon's two meters share the bar's bottom row: the injury, and beside
+   it settling and then confidence. The row never sets the bar's width — it
+   takes the score row's, which is the Blast's — so each half is an icon, a
+   track and its figure, and the names are left to the screen reader. */
+.meter-icon{display:none}
+.settle-meter.hidden{display:none}
+.settle-meter{border-left:1px solid var(--rule)}
+body.marathon-mode .meters{width:0;min-width:100%}
+body.marathon-mode .meters .confidence-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+body.marathon-mode .meters .confidence-inner{gap:6px;padding:4px 8px 4px}
+body.marathon-mode .meters .confidence-track{min-width:16px}
+body.marathon-mode .meters .injury-cap{min-width:0;font-size:10px;line-height:1}
+/* The Blast's height: the injury's thicker track would make this row taller
+   than the one it stands in for. */
+body.marathon-mode .meters .confidence-track,body.marathon-mode .meters .confidence.is-injury .confidence-track{height:6px;border-radius:3px}
+body.marathon-mode .meters .settle-cap{color:#a9cfe0}
+body.marathon-mode .meter-icon{display:inline-grid;place-items:center;flex:none;width:11px;height:11px;color:#e8a49c}
+body.marathon-mode .meter-icon svg{width:11px;height:11px;stroke-width:3}
+body.marathon-mode .settle-meter .meter-icon{color:#a9cfe0}
+body.marathon-mode .settle-meter.is-settled .meter-icon{color:#d1e39d}
+body.marathon-mode .settle-meter.is-full .meter-icon{color:#ffcf8a}
+.settle-meter .icon-flame,.settle-meter.is-settled .icon-settling{display:none}
+.settle-meter.is-settled .icon-flame{display:contents}
+.settle-meter:not(.is-settled) .confidence-track>i{background:linear-gradient(90deg,#4f7894,#a9cfe0)}
+.settle-cap{order:1}
 /* The Marathon has no board, career or share picture yet, so its card offers none of them. */
 body.marathon-mode #share{opacity:.3;pointer-events:none}
 body.marathon-mode #end :is(#card-board,#card-career,#card-key,#challenge-set,#card-share){display:none}

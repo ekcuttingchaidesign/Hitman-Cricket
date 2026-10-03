@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, LINE_X } from '../src/config/gameplay';
-import { BATTERS, BLOCK_OVERS, EXPRESS_OVER, LEVELS, MARATHON, levelOf } from '../src/config/marathon';
+import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, REVERSE, SETTLE, SWING_FROM, levelAt, levelOf } from '../src/config/marathon';
 import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
 import { DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonOnly } from '../src/game/DeliveryGenerator';
-import { MarathonInnings } from '../src/game/Marathon';
+import { MarathonInnings, leftHanderOf } from '../src/game/Marathon';
+import { mapKeys, mapSwipe, mirrorKey } from '../src/game/InputManager';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { surviveBall } from '../src/game/Survive';
 import type { Delivery, ShotOutcome } from '../src/game/types';
@@ -171,6 +172,15 @@ describe('the levels', () => {
     expect(levelOf(7).level).toBe(3);
   });
 
+  it('swing from the sixth over, a block before the express bowler comes on', () => {
+    expect(levelAt(SWING_FROM - 1).swingShare).toBeUndefined();
+    expect(levelAt(SWING_FROM)).toMatchObject({ level: 2, swing: LEVELS[1].swing, late: LEVELS[1].late, swingShare: LEVELS[1].swingShare });
+    // Who bowls the first block is still the first block's: no express over in it.
+    expect(levelAt(SWING_FROM).express).toBe(0);
+    expect(levelAt(BLOCK_OVERS)).toBe(LEVELS[1]);
+    expect(levelAt(2 * BLOCK_OVERS)).toBe(LEVELS[2]);
+  });
+
   it('fill every block exactly', () => {
     for (const level of LEVELS) expect(level.pace + level.spin + level.express).toBe(BLOCK_OVERS);
   });
@@ -274,19 +284,19 @@ describe('the Marathon\'s bowling', () => {
     }
   });
 
-  it('bowls the first ten overs as Survival bowls them, swing and all', () => {
-    const { bowled } = overs(5, 10);
+  it('bowls the first five overs as Survival bowls them, swing and all', () => {
+    const { bowled } = overs(5, SWING_FROM);
     for (const d of bowled.flat().filter(d => !SPIN_STYLES.includes(d.style))) {
       expect(d.late).toBeUndefined();
       expect(Math.abs(d.finalTargetX - d.baseTargetX)).toBeLessThanOrEqual(GAME.movement + 1e-9);
     }
   });
 
-  it('swings it later and further from the eleventh over, and never into a wide', () => {
+  it('swings it later and further from the sixth over, and never into a wide', () => {
     let biggest = 0;
     for (let seed = 1; seed < 30; seed++) {
       const { bowled } = overs(seed, 30);
-      for (const d of bowled.slice(10).flat().filter(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT')) {
+      for (const d of bowled.slice(SWING_FROM).flat().filter(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT')) {
         expect(d.late).toBe(LEVELS[1].late);
         biggest = Math.max(biggest, Math.abs(d.finalTargetX - d.baseTargetX));
         expect(Math.abs(d.finalTargetX)).toBeLessThanOrEqual(LINE_X.OUTSIDE_OFF + GAME.movement + 1e-9);
@@ -295,10 +305,10 @@ describe('the Marathon\'s bowling', () => {
     expect(biggest).toBeGreaterThan(GAME.movement * 1.4);
   });
 
-  it('starts the inswinger on or outside off and the outswinger on middle or leg, from the eleventh over', () => {
+  it('starts the inswinger on or outside off and the outswinger on middle or leg, from the sixth over', () => {
     for (let seed = 1; seed < 30; seed++) {
       const { bowled } = overs(seed, 30);
-      for (const d of bowled.slice(10).flat()) {
+      for (const d of bowled.slice(SWING_FROM).flat()) {
         if (d.express) continue;
         if (d.style === 'SWING_IN') {
           expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line);
@@ -312,13 +322,14 @@ describe('the Marathon\'s bowling', () => {
     }
   });
 
-  it('swings about two balls in three from the eleventh over, in and out evenly, and the rest go straight on any line', () => {
+  it('swings about two balls in three from the sixth over, in and out evenly, and the rest go straight on any line', () => {
     let pace = 0, ins = 0, outs = 0;
     const straightLines = new Set<string>();
     for (let seed = 1; seed < 60; seed++) {
       const { bowled } = overs(seed, 30);
-      for (const d of bowled.slice(10).flat()) {
-        if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
+      for (const d of bowled.slice(SWING_FROM).flat()) {
+        // The bouncer and the reverse swing are placed; this is what is left to the roll.
+        if (d.express || SPIN_STYLES.includes(d.style) || d.style === 'SHORT' || d.style.startsWith('REVERSE')) continue;
         pace++;
         if (d.style === 'SWING_IN') ins++;
         else if (d.style === 'SWING_OUT') outs++;
@@ -331,10 +342,10 @@ describe('the Marathon\'s bowling', () => {
     expect(straightLines.size).toBe(5);
   });
 
-  it('leaves the first ten overs\' lines and table to Survival', () => {
+  it('leaves the first five overs\' lines and table to Survival', () => {
     let swing = 0, pace = 0;
     for (let seed = 1; seed < 60; seed++) {
-      for (const d of overs(seed, 10).bowled.flat()) {
+      for (const d of overs(seed, SWING_FROM).bowled.flat()) {
         if (SPIN_STYLES.includes(d.style) || d.style === 'SHORT') continue;
         pace++;
         swing += Number(d.style === 'SWING_IN' || d.style === 'SWING_OUT');
@@ -381,7 +392,8 @@ describe('the switches for trying one bowler', () => {
     expect(generator.levelAt(0)?.level).toBe(2);
     expect(bowled.every(d => !d.express && !SPIN_STYLES.includes(d.style))).toBe(true);
     const swung = bowled.filter(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT');
-    expect(swung.length).toBeGreaterThan(bowled.length / 2);
+    // His own two and his reverse swing between them are well over half of what he bowls.
+    expect(bowled.filter(d => d.style.includes('SWING') || d.style.startsWith('REVERSE')).length).toBeGreaterThan(bowled.length / 2);
     for (const d of swung) expect(d.late).toBe(LEVELS[1].late);
     expect(bowled.some(d => d.style !== 'SWING_IN' && d.style !== 'SWING_OUT')).toBe(true);
   });
@@ -433,5 +445,187 @@ describe('the speed gun', () => {
     for (let kph = 70; kph < 186; kph++) expect(shownKph(kph + 1)).toBeGreaterThanOrEqual(shownKph(kph));
     expect(shownKph(EXPRESS_OVER.min)).toBeGreaterThan(shownKph(SURVIVE_STYLES.FAST.max) - 1);
     expect(shownKph(EXPRESS_OVER.slower.max)).toBeLessThan(shownKph(EXPRESS_OVER.min) - 25);
+  });
+});
+
+describe('the left-hander', () => {
+  it('is any of the three, about as often as each other, drawn off the seed', () => {
+    const counts = [0, 0, 0];
+    for (let seed = 1; seed <= 3000; seed++) counts[leftHanderOf(seed)!]++;
+    for (const n of counts) expect(n / 3000).toBeGreaterThan(0.28);
+    expect(leftHanderOf(2024)).toBe(leftHanderOf(2024));
+  });
+
+  it('can be put at any place in the order by a link, or left out', () => {
+    expect(leftHanderOf(5, '?lefty=1')).toBe(0);
+    expect(leftHanderOf(5, '?lefty=3')).toBe(2);
+    expect(leftHanderOf(5, '?lefty=0')).toBe(null);
+    expect(leftHanderOf(5, '?lefty=4')).toBe(null);
+    expect(leftHanderOf(5, '?lefty=two')).toBe(null);
+  });
+
+  it('walks out at his place in the order, and only there', () => {
+    const innings = new MarathonInnings(1);
+    expect(innings.current.left).toBe(false);
+    innings.record(out);
+    expect(innings.current.left).toBe(true);
+    innings.record(felled);
+    expect(innings.current.left).toBe(false);
+    expect(new MarathonInnings().batters[0].left).toBe(false);
+  });
+
+  it('plays to leg with the key on the right, and cuts with the one on the left', () => {
+    expect(mapKeys([mirrorKey('D')!])).toBe('LEG');
+    expect(mapKeys([mirrorKey('A')!])).toBe('SQUARE_CUT');
+    expect(mapKeys([mirrorKey('W')!, mirrorKey('D')!])).toBe('LONG_ON');
+    expect(mapKeys([mirrorKey('S')!])).toBe('DEFEND');
+  });
+
+  it('pulls with a swipe to the right once the swipe is read the other way round', () => {
+    // The input negates a left-hander's sideways travel before it is mapped.
+    expect(mapSwipe(-80, 0)).toBe('LEG');
+    expect(mapSwipe(-60, -60)).toBe('LONG_ON');
+    expect(mapSwipe(80, 0)).toBe('SQUARE_CUT');
+    expect(mapSwipe(0, 80)).toBe('DEFEND');
+  });
+});
+
+describe('settling in, and the confidence that comes of it', () => {
+  const blow = (damage: number) => ball({ hit: { where: 'GLOVES', damage } } as Partial<ShotOutcome>);
+  const played = (over: Partial<ShotOutcome> = {}) => ball({ timingDeltaMs: 12, ...over });
+  const settle = (innings: MarathonInnings) => play(innings, SETTLE.balls, ball());
+
+  it('settles a batter a ball at a time, whatever the ball, in thirty balls', () => {
+    const innings = new MarathonInnings();
+    play(innings, SETTLE.balls - 1, played({ defended: true }));
+    expect(innings.current.confidence).toBe(null);
+    expect(innings.current.settle).toBe(SETTLE.balls - 1);
+    innings.record(ball());
+    expect(innings.justSettled).toBe(true);
+    expect(innings.current.confidence).toBe(SETTLE.confidenceOnSettling);
+    innings.record(ball());
+    expect(innings.justSettled).toBe(false);
+  });
+
+  it('knocks him back a ball for every four points a blow costs, and never below nought', () => {
+    const innings = new MarathonInnings();
+    play(innings, 20);
+    innings.record(blow(40));
+    expect(innings.current.settle).toBe(20 + 1 - 10);
+    innings.record(blow(100));
+    expect(innings.current.settle).toBe(0);
+  });
+
+  it('starts his confidence a quarter full, and fills it at the Marathon\'s rates', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    const at = () => innings.current.confidence;
+    innings.record(played({ runs: 4 })); expect(at()).toBe(25 + 10);
+    innings.record(played({ runs: 6 })); expect(at()).toBe(35 + 12);
+    innings.record(played({ runs: 1 })); expect(at()).toBe(47 + 2);
+    innings.record(played({ defended: true })); expect(at()).toBe(49 + 2);
+    innings.record(played({ runs: 2 })); expect(at()).toBe(51 + 4);
+    innings.record(played({ runs: 3 })); expect(at()).toBe(55 + 6);
+  });
+
+  it('drains it when he is beaten or hit, and leaves it alone for a leave', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    innings.record(ball());
+    expect(innings.current.confidence).toBe(25);
+    innings.record(played());
+    expect(innings.current.confidence).toBe(15);
+    innings.record(blow(20));
+    expect(innings.current.confidence).toBe(10);
+    // Sixty more is eighty of his hundred: hurt, not carried off.
+    innings.record(blow(60));
+    expect(innings.current.confidence).toBe(0);
+    // Battered, but still settled: he does not go back to the start.
+    expect(innings.current.settle).toBe(SETTLE.balls);
+  });
+
+  it('offers a special stroke when it is full, and empties it on the stroke', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    play(innings, 8, played({ runs: 4 }));
+    expect(innings.current.confidence).toBe(CONFIDENCE.full);
+    expect(innings.confident).toBe(true);
+    innings.record(played({ runs: 6, advance: true }));
+    expect(innings.current.confidence).toBe(0);
+    expect(innings.confident).toBe(false);
+  });
+
+  it('walks the next man out unsettled, however settled the last one was', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    innings.record(out);
+    expect(innings.current.confidence).toBe(null);
+    expect(innings.current.settle).toBe(0);
+  });
+
+  it('?settled=1 walks every batter out settled and full, for trying the special strokes', () => {
+    const innings = new MarathonInnings(null, true);
+    expect(innings.confident).toBe(true);
+    innings.record(out);
+    expect(innings.confident).toBe(true);
+  });
+});
+
+describe('reverse swing', () => {
+  const reverseBalls = (count = 60) => {
+    const found: Delivery[] = [];
+    for (let seed = 1; seed < count; seed++) {
+      for (const d of overs(seed, 30).bowled.flat()) if (d.style === 'REVERSE_IN' || d.style === 'REVERSE_OUT') found.push(d);
+    }
+    return found;
+  };
+
+  it('comes once in every swing over from the sixth, twice in about half of them, never more, and never before', () => {
+    let overs2 = 0, swingOvers = 0;
+    for (let seed = 1; seed < 80; seed++) {
+      const { bowled } = overs(seed, 30);
+      for (const over of bowled.slice(0, SWING_FROM)) expect(over.some(d => d.style.startsWith('REVERSE'))).toBe(false);
+      for (const over of bowled.slice(SWING_FROM).filter(o => kindOf(o) === 'PACE')) {
+        swingOvers++;
+        const reverse = over.filter(d => d.style.startsWith('REVERSE')).length;
+        expect(reverse === 1 || reverse === 2).toBe(true);
+        overs2 += Number(reverse === 2);
+        // And never on the over's bouncer: that keeps its place.
+        expect(over.filter(d => d.style === 'SHORT')).toHaveLength(1);
+      }
+    }
+    expect(overs2 / swingOvers).toBeGreaterThan(0.38);
+    expect(overs2 / swingOvers).toBeLessThan(0.62);
+  });
+
+  it('is bowled at 142 to 156, from the lines it moves away from, a long way and never wide', () => {
+    const found = reverseBalls();
+    expect(found.length).toBeGreaterThan(50);
+    for (const d of found) {
+      expect(d.speedKph).toBeGreaterThanOrEqual(142);
+      expect(d.speedKph).toBeLessThanOrEqual(156);
+      const moved = d.finalTargetX - d.baseTargetX;
+      if (d.style === 'REVERSE_IN') { expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line); expect(moved).toBeLessThan(0); }
+      else { expect(['LEG', 'MIDDLE']).toContain(d.line); expect(moved).toBeGreaterThan(0); }
+      expect(Math.abs(moved)).toBeGreaterThanOrEqual(REVERSE.min - 1e-9);
+      expect(Math.abs(d.finalTargetX)).toBeLessThanOrEqual(LINE_X.OUTSIDE_OFF + GAME.movement + 1e-9);
+    }
+    expect(new Set(found.map(d => d.style)).size).toBe(2);
+  });
+
+  it('goes to the pitch dead straight, and does all its moving off it before the bat', () => {
+    const d = reverseBalls(10)[0];
+    const bounceT = (GAME.releaseZ - d.bounceZ) / (GAME.releaseZ - GAME.contactZ);
+    expect(ballPosition(d, bounceT * 0.5).x).toBeCloseTo(d.baseTargetX);
+    expect(ballPosition(d, bounceT).x).toBeCloseTo(d.baseTargetX);
+    expect(ballPosition(d, REVERSE.settled).x).toBeCloseTo(d.finalTargetX);
+    expect(ballPosition(d, 1).x).toBeCloseTo(d.finalTargetX);
+  });
+
+  it('?reverse=1 bowls nothing else, from the first ball', () => {
+    const generator = new DeliveryGenerator(new SeededRandom(9), marathonOnly({ reverse: true }));
+    const bowled = [...Array(60)].map(() => generator.next(0));
+    for (const d of bowled) expect(['REVERSE_IN', 'REVERSE_OUT']).toContain(d.style);
+    expect(new Set(bowled.map(d => d.style)).size).toBe(2);
   });
 });
