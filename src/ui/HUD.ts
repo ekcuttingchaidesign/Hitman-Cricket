@@ -78,6 +78,10 @@ const icon = (name: string) => {
     help: '<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4m0 3h.01"/>',
     expand: '<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
     pause: '<path d="M8 5v14M16 5v14"/>',
+    /* The Marathon's two meters, which have no room for their names. */
+    hurt: '<path d="M12 5v14M5 12h14"/>',
+    settling: '<path d="M7 3h10M7 21h10M8 3c0 6 8 6 8 9s-8 3-8 9M16 3c0 6-8 6-8 9s8 3 8 9"/>',
+    flame: '<path d="M12 3c2 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 3 3-1-3-1-5 0-8Z"/>',
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
     back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
     share: '<path d="M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8"/>',
@@ -301,6 +305,7 @@ export class HUD {
         <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
             <span class="confidence-head">
+              <span class="meter-icon" aria-hidden="true">${icon('hurt')}</span>
               <span class="confidence-label" id="confidence-label">CONFIDENCE</span>
               <span class="injury-cap" id="injury-cap" hidden></span>
             </span>
@@ -310,6 +315,7 @@ export class HUD {
         <div id="settle" class="confidence settle-meter hidden" role="meter" aria-label="Settling" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
             <span class="confidence-head">
+              <span class="meter-icon" aria-hidden="true"><span class="icon-settling">${icon('settling')}</span><span class="icon-flame">${icon('flame')}</span></span>
               <span class="confidence-label" id="settle-label">SETTLING</span>
               <span class="injury-cap settle-cap" id="settle-cap"></span>
             </span>
@@ -1336,6 +1342,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The Marathon keeps the Blast's scoreboard — a total and the wickets, with
     // no target to chase — and Survival's meter.
     document.body.classList.toggle('marathon-mode', marathon);
+    this.marathon = marathon;
     // The Marathon's second meter: settling, then confidence. Drawn by `settling`.
     this.$('settle').classList.add('hidden');
     // The speed gun, in the Marathon first: nothing up until a ball is bowled.
@@ -1368,8 +1375,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // for, because each of the four is swiped for differently.
     const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     this.guide(on, specials);
+    // The Marathon keeps the run-up and the flight quiet: the speed gun's
+    // caption takes that spot the moment the ball leaves the hand.
+    const quiet = this.marathon && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
-      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' :  phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
+      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' : quiet ? ''
+      : phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
     // The edge of the field lights up too: a line of text at the bottom is easy
     // to miss in the second the ball takes to arrive.
@@ -1384,6 +1395,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * screen announces reads as bad luck rather than as a weaker batter.
    */
   private walking: string | null = null;
+  /** The innings on screen is a Marathon. */
+  private marathon = false;
   walkingOut(title: string | null, left = false) {
     this.walking = title === null ? null : left ? `${title} IN · LEFT-HANDED` : `${title} IN · TAKE YOUR GUARD`;
   }
