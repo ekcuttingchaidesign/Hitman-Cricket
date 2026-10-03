@@ -248,5 +248,16 @@ export const CONFIDENCE = {
   beaten: -10,
 } as const;
 
+/**
+ * The two moments the innings changes under the batter are put up on the
+ * screen, the way a broadcast would: the ball starting to swing, with the
+ * cloud coming over, and the express bowler's first over. Each is told once an
+ * innings, at the top of the over it begins, and the bowler waits at his mark
+ * for this long while it is up — a banner gone before it can be read is the
+ * same as no banner.
+ */
+export const LEVEL_BANNER_MS = 2600;
+export type LevelBanner = 'swing' | 'express';
+
 /** How a Marathon innings finished. */
 export type MarathonEnding = 'ALL_OUT' | 'RETIRED' | 'BALLS' | 'DECLARED';

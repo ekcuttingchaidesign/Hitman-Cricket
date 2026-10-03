@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
-import { ACTION_MS, Bowler } from '../entities/Bowler';
+import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
@@ -9,7 +9,7 @@ import { ballPosition } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
-import { SKY, Sky, type SkyTime } from './sky';
+import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
 import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
@@ -63,6 +63,8 @@ function powerAt(age: number) {
  * from the hit. It covers the downswing into the ball and follows the bat on
  * through the finish, thinning out behind as it goes.
  */
+/** How long the Marathon's cloud takes to come over. */
+const COVER_MS = 3200;
 const SWISH_SPAN_MS = 220;
 /** How wide the swoosh is at the bat, in metres; it tapers to nothing behind. */
 const SWISH_WIDTH = .3;
@@ -515,7 +517,7 @@ export class GameScene {
     this.scene.environmentIntensity = light.environment;
     this.hemisphere.color.set(light.hemisphere.sky); this.hemisphere.groundColor.set(light.hemisphere.ground);
     this.hemisphere.intensity = light.hemisphere.intensity;
-    this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity; this.sun.position.set(...light.key.position);
+    this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
     this.fill.intensity = light.fill.intensity;
     if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
     if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
@@ -646,6 +648,31 @@ export class GameScene {
   /** Which strip is down, for the checks. */
   get greenTop() { return this.pitch.map === this.greenPitch; }
 
+  /**
+   * The Marathon's cloud cover: the sky greys over and the sun dims as the
+   * ball starts to swing, which is the weather every cricket fan already links
+   * with it. Drawn in over a few seconds, not switched — weather comes over —
+   * and the environment map retaken once when it has, rather than every frame
+   * on the way. `instant` is for a new innings, which starts under clear sky.
+   */
+  private cover = { from: 0, to: 0, at: 0 };
+  overcast(on: boolean, instant = false) {
+    const to = on ? 1 : 0;
+    if (to === this.cover.to && (!instant || this.sky.cover === to)) return;
+    this.cover = { from: instant ? to : this.sky.cover, to, at: this.clock };
+    if (instant) this.clouding(to, true);
+  }
+  /** How clouded over it is now, nought to one, for the checks. */
+  get clouded() { return Math.round(this.sky.cover * 100) / 100; }
+  private clouding(amount: number, settled: boolean) {
+    this.sky.overcast(amount);
+    this.sun.intensity = LIGHTING[this.now].key.intensity * (1 - amount * OVERCAST.sun);
+    if (!settled) return;
+    this.environment.dispose();
+    this.environment = this.sky.environment(this.renderer, this.now === 'night' ? this.reflections : []);
+    this.scene.environment = this.environment.texture;
+  }
+
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
 
@@ -677,6 +704,14 @@ export class GameScene {
    * hand and the spinner has to take it again each ball of his over.
    */
   spinner(on: boolean) { this.bowler.spinner(on); }
+  /**
+   * And whose action he bowls it with: the Marathon's express bowler in his
+   * overs, the fast bowler in everyone else's. Set beside `spinner`, every ball,
+   * so an over can never inherit the last one's.
+   */
+  express(on: boolean) { this.bowler.action(on ? EXPRESS_ACTION : PACE_ACTION); }
+  /** Which action is at the top of the mark, for the checks. */
+  get bowlerAction() { return this.bowler.actionStyle === EXPRESS_ACTION ? 'express' : 'pace'; }
   /**
    * Past the bat, the ball eases through to the stumps over the rest of the
    * late-swing window instead of running on at full speed. That window is worth
@@ -953,6 +988,10 @@ export class GameScene {
     this.camera.position.x = Math.sin(now * 0.085) * shake;
     this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
     this.sky.mesh.position.copy(this.camera.position);
+    if (this.sky.cover !== this.cover.to) {
+      const k = Math.min(1, Math.max(0, (now - this.cover.at) / COVER_MS));
+      this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
+    }
     this.mute.value = Math.max(muteAt(now - this.celebratedAt), powerAt(now - this.poweredAt));
     this.renderer.render(this.scene, this.camera);
   }

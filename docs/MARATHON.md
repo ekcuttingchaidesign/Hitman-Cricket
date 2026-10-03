@@ -108,11 +108,12 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 
 ### The level changes are told
 
-- **Level 2 (over 11):** a banner — the ball has started to swing — and the
+- **The swing (over 6):** a banner — the ball has started to swing — and the
   sky clouds over a little, which is the condition every cricket fan already
-  links with swing.
-- **Level 3 (his first over):** a banner for the express spell as he takes the
-  ball.
+  links with swing. It goes up on the first over the pace bowler swings it,
+  which since the playtest is the sixth.
+- **The express bowler (his first over):** a banner for the express spell as
+  he takes the ball.
 
 ## The speed gun
 
@@ -306,7 +307,15 @@ Each step is a pull request of its own, behind the flag until the last.
    came out after the playtest — it is obvious — and the end card marks him
    `(LH)`.
 4. **Settling, the express bowler**, his action and release, and the level
-   banners. *Settling is done*: every batter settles over 30 balls (36 at first,
+   banners. *Done.* The express action follows a slow-motion reference: the
+   pre-gather across the body, a higher leap round to side-on, the arm hanging
+   down behind and whipped over faster, and a deep fold with the back leg
+   kicking up — on the fast bowler's run-up and clock, releasing from the same
+   point at the same moment (`EXPRESS_ACTION`, tested against every rule the
+   fast bowler's action is). `/tools/rig-viewer.html` plays both in slow
+   motion. The banners go up at the top of their overs, once an innings, with
+   the bowler waiting at his mark for them, and the cloud comes over the
+   ground in three seconds as the swing banner goes up. *Settling*: every batter settles over 30 balls (36 at first,
    until the playtest found it too long), a blow knocking him back a ball per
    four points of injury, and settled, the meter
    is his confidence — a quarter full, filling more slowly than the Blast's

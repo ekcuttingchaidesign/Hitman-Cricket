@@ -67,6 +67,19 @@ const block = async () => {
   }
   return snap();
 };
+/** How colourful a patch of a screenshot is: mean HSV saturation, 0 to 1. As `milestone-check.mjs` measures it. */
+const saturation = (png, box) => page.evaluate(async ({ data, box }) => {
+  const image = new Image(); image.src = data; await image.decode();
+  const canvas = document.createElement('canvas'); canvas.width = box.w; canvas.height = box.h;
+  const ctx = canvas.getContext('2d'); ctx.drawImage(image, box.x * 2, box.y * 2, box.w * 2, box.h * 2, 0, 0, box.w, box.h);
+  const { data: px } = ctx.getImageData(0, 0, box.w, box.h);
+  let total = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    const max = Math.max(px[i], px[i + 1], px[i + 2]), min = Math.min(px[i], px[i + 1], px[i + 2]);
+    total += max ? (max - min) / max : 0;
+  }
+  return total / (px.length / 4);
+}, { data: `data:image/png;base64,${png.toString('base64')}`, box });
 const pause = async () => { await page.locator('#pause').click({ force: true }); await advance(50); };
 const resume = async () => { await page.locator('#resume').click({ force: true }); await advance(50); };
 const declareShown = () => page.locator('#declare').isVisible();
@@ -249,6 +262,65 @@ if (after.marathon.gone < 2) after = { marathon: await write(['W']) };
 hand = after.marathon;
 check(hand.batter === 'TAILENDER' && !hand.left && !hand.mirrored, 'the tailender after him is right-handed, and the mirror is off', JSON.stringify(hand));
 check(await sides() === 'LEG SIDE / OFF SIDE', 'with the sides back where they were', await sides());
+
+// ── The levels, told: the swing under cloud, and the express bowler ───────
+// Written forward an over at a time, so each lands at the top of an over the
+// way a real one does, and the banner is read where a player would read it.
+await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=0`, { waitUntil: 'load' });
+await advance(2500);
+await page.locator('#start').click({ force: true });
+await advance(400);
+for (let i = 0; i < 8; i++) {
+  const done = page.locator('#whatsnew-done');
+  if (!(await done.count()) || !(await done.isVisible())) break;
+  await done.click({ force: true });
+  await advance(400);
+}
+await until('READY');
+await page.keyboard.press('r');
+await advance(16);
+const banner = async () => (await page.locator('#level-banner').isVisible())
+  ? [await page.locator('#lb-eyebrow').textContent(), await page.locator('#lb-title').textContent()].join(' / ') : null;
+const { width: W, height: H } = page.viewportSize();
+// The strip of sky between the score bar and the stand roof, clear of the
+// floodlight on the left and the debug panel on the right.
+const skyBox = { x: Math.round(W * .1), y: Math.round(H * .098), w: Math.round(W * .3), h: Math.round(H * .014) };
+const clearSky = await saturation(await page.screenshot(), skyBox);
+check((await snap()).marathon.clouded === 0 && !(await banner()), 'a Marathon starts under a clear sky, with nothing to tell');
+
+let told = (await snap()).marathon;
+while (!told.told.swing && (await snap()).balls < 120) told = await write(ones(6));
+const swingOver = (await snap()).balls / 6 + 1;
+check(told.told.swing && swingOver >= 6, `the swing is told at the top of over ${swingOver}, the sixth or later`, JSON.stringify(told));
+check((await banner()) === `OVER ${swingOver} · CLOUD COVER / THE BALL HAS STARTED TO SWING`, 'on a banner across the field', await banner());
+await advance(1500);
+check((await snap()).phase === 'READY', 'and the bowler waits at his mark while it is up', (await snap()).phase);
+await advance(2200);
+const clouded = await snap();
+check(clouded.marathon.clouded === 1, 'the cloud has come over by the time it is down', `${clouded.marathon.clouded}`);
+await page.screenshot({ path: 'test-results/marathon-overcast.png' });
+const greySky = await saturation(await page.screenshot(), skyBox);
+check(greySky < clearSky * .85, `and the sky is greyer for it (saturation ${clearSky.toFixed(2)} to ${greySky.toFixed(2)})`);
+await block();
+
+// On to the express bowler's first over: the banner, and his own action.
+told = (await snap()).marathon;
+while (!told.told.express && (await snap()).balls < 300) {
+  const balls = (await snap()).balls;
+  told = await write(ones(6 - balls % 6));
+}
+const expressOver = (await snap()).balls / 6 + 1;
+check(told.told.express && told.bowler === 'EXPRESS', `the express bowler is told as he takes the ball, at over ${expressOver}`, JSON.stringify(told));
+check((await banner()) === `OVER ${expressOver} · NEW BOWLER / EXPRESS PACE`, 'on a banner of his own', await banner());
+const quick = await until('BOWLER_RUNUP');
+check(quick.marathon.action === 'express' && quick.marathon.express, 'running in with the express action', JSON.stringify(quick.marathon));
+await page.screenshot({ path: 'test-results/marathon-express-runup.png' });
+await block();
+const rest = (await snap()).balls;
+await write(ones(6 - rest % 6));
+const next = await until('BOWLER_RUNUP');
+check(next.marathon.bowler !== 'EXPRESS' && next.marathon.action === 'pace', 'and the over after his, the fast bowler\'s action again', JSON.stringify(next.marathon));
+await block();
 
 await page.waitForTimeout(1500);
 check(!kept.length, 'and no innings, finished or not, was sent anywhere that keeps one', kept.join(', '));

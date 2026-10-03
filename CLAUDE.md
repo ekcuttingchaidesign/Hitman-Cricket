@@ -132,7 +132,9 @@ that seeds it.
 named as he walks out, the next one standing after the last was carried off,
 the declare key from the twentieth over and not before, the card, the speed
 gun, the settle meter turning into confidence at thirty balls, the Test match's
-greener strip, the left-hander — the ground mirrored while he is in and off again for
+greener strip, the level banners — the swing's, with the sky measured greyer
+off the pixels as the cloud comes over, and the express bowler's — and his own
+action in his over and the fast bowler's in the next, the left-hander — the ground mirrored while he is in and off again for
 the man after him, his pull on the key to the right — and no innings sent
 anywhere that keeps one, since the mode has no board yet. It writes most of
 the innings through `__cricket.marathon` and bats the rest.

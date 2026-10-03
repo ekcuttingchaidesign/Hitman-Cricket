@@ -2,7 +2,7 @@ import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
-import { CONFIDENCE as MARATHON_CONFIDENCE, MARATHON, SETTLE } from './config/marathon';
+import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHanderOf, type Change } from './game/Marathon';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
@@ -191,6 +191,10 @@ export class Game {
   private ending: Ending | null = null;
   /** The Marathon only: its three batters and its end. */
   private marathon: MarathonInnings | null = null;
+  /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
+  private told = { swing: false, express: false };
+  /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
+  private bannerUntil = 0;
   /** Where the batter who played the last ball came in, in the team's history: his fifty is his own. */
   private playedFrom = 0;
   /** The last ball took the man in out of the innings, and the next walks out once it is dead. */
@@ -1022,6 +1026,9 @@ export class Game {
     this.input.reset(); this.scene.reset(); this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
+    // Under a clear sky, with nothing yet told.
+    this.told = { swing: false, express: false }; this.bannerUntil = 0;
+    this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     this.hand();
     this.nearing = null; this.hud.nearing(null, null);
@@ -1038,7 +1045,7 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -1161,7 +1168,29 @@ export class Game {
     if (this.marathoning) return [`marathon-${name}`, `Test Marathon: ${title}`];
     return [name, title];
   }
-  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials); }
+  private setPhase(phase: GamePhase) {
+    this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
+    if (phase === 'READY' && this.marathon) this.tellLevel();
+  }
+  /**
+   * At the top of an over, whether it is the one the innings changes in: the
+   * first over the pace bowler swings it, which brings the cloud over with it,
+   * or the express bowler's first. Each is put up once an innings, and the
+   * bowler waits at his mark while it is.
+   */
+  private tellLevel() {
+    const balls = this.score.balls;
+    if (balls % MARATHON.ballsPerOver) return;
+    const over = balls / MARATHON.ballsPerOver;
+    const kind = this.generator.overKind(over);
+    const swinging = kind === 'PACE' && this.generator.levelAt(over)?.swingShare !== undefined;
+    const banner = kind === 'EXPRESS' && !this.told.express ? 'express' : swinging && !this.told.swing ? 'swing' : null;
+    if (!banner) return;
+    this.told[banner] = true;
+    if (banner === 'swing') this.scene.overcast(true);
+    this.hud.levelBanner(banner, over + 1, LEVEL_BANNER_MS);
+    this.bannerUntil = this.elapsed + LEVEL_BANNER_MS;
+  }
   private shoot = (shot: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
@@ -1843,7 +1872,7 @@ export class Game {
     // The bowler waits for the field to be back on its marks — a catcher
     // jogging back from deep midwicket, the man who chased one to the rope —
     // and no longer than a few seconds past the usual wait, whatever happens.
-    if (this.phase === 'READY' && age >= this.readyMs && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)) {
+    if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false;
@@ -1864,6 +1893,7 @@ export class Game {
       this.scene.reset(); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
+      this.scene.express(!!this.delivery.express);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
@@ -3061,7 +3091,8 @@ export class Game {
       settle: marathon.current.settle, confidence: marathon.current.confidence, confident: marathon.confident,
       gone: marathon.gone, ending: marathon.ending, canDeclare: marathon.canDeclare,
       health: marathon.current.health.value, level: this.generator.levelAt(over)?.level ?? null,
-      bowler: this.generator.overKind(over), express: !!this.delivery?.express,
+      bowler: this.generator.overKind(over), express: !!this.delivery?.express, action: this.scene.bowlerAction,
+      told: { ...this.told }, clouded: this.scene.clouded,
     };
   }
   dispose() {

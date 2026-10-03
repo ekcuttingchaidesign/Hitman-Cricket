@@ -55,6 +55,7 @@ import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/privat
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
+import type { LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -185,6 +186,17 @@ const panelIntro = (best: number, top: number) => `
 /** Which special stroke the ball on its way is for, when the meter is full to play it. */
 export type Primed = 'CHARGE' | 'SWEEP' | 'SCOOP' | 'REVERSE' | null;
 /** The call for each, over the meter and down the pitch. */
+/**
+ * What the Marathon's two banners say. The swing's line is the rule the swing
+ * bowler bowls by, in a batter's words: from off stump it comes back in, from
+ * leg it goes away. The express bowler's is the warning a dressing room would
+ * give — and says nothing of the slower ball, which is meant to be a surprise.
+ */
+const BANNERS: Record<LevelBanner, { eyebrow: string; title: string; line: string }> = {
+  swing: { eyebrow: 'CLOUD COVER', title: 'THE BALL HAS STARTED TO SWING', line: 'Off stump swings in. Leg stump swings away.' },
+  express: { eyebrow: 'NEW BOWLER', title: 'EXPRESS PACE', line: 'A bouncer and a yorker every over.' },
+};
+
 const CUES: Record<NonNullable<Primed>, string> = {
   CHARGE: 'CHARGE IT — SWIPE UP', SWEEP: 'SWEEP IT — SWIPE TO LEG',
   SCOOP: 'SCOOP IT — SWIPE DOWN-LEFT', REVERSE: 'REVERSE IT — SWIPE DOWN-RIGHT',
@@ -330,6 +342,7 @@ export class HUD {
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
+        <div id="level-banner" class="level-banner hidden" role="status" aria-live="polite"><span class="lb-eyebrow" id="lb-eyebrow"></span><strong id="lb-title"></strong><span class="lb-line" id="lb-line"></span></div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
           <p id="coach-brief">Drive it straight back past the bowler.</p>
@@ -1439,6 +1452,24 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
   /** Said on the next guard he takes, once: a batter settled, or walking out. */
   callOut(words: string) { this.walking = words; }
+  /**
+   * A Marathon level beginning, put up the way a broadcast would: the swing
+   * coming on under the cloud, or the express bowler marking out his run. Up
+   * for `lasts` — as long as the bowler waits at his mark for it — and away.
+   */
+  private bannerDown = 0;
+  levelBanner(kind: LevelBanner | null, over = 0, lasts = 0) {
+    const banner = this.$('level-banner');
+    window.clearTimeout(this.bannerDown);
+    if (!kind) { banner.className = 'level-banner hidden'; return; }
+    const words = BANNERS[kind];
+    this.$('lb-eyebrow').textContent = `OVER ${over} · ${words.eyebrow}`;
+    this.$('lb-title').textContent = words.title;
+    this.$('lb-line').textContent = words.line;
+    banner.style.setProperty('--lasts', `${lasts}ms`);
+    banner.className = `level-banner is-${kind}`; void banner.offsetWidth; banner.classList.add('is-on');
+    this.bannerDown = window.setTimeout(() => { banner.className = 'level-banner hidden'; }, lasts);
+  }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
