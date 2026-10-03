@@ -2,7 +2,7 @@ import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
-import { MARATHON } from './config/marathon';
+import { CONFIDENCE as MARATHON_CONFIDENCE, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHanderOf, type Change } from './game/Marathon';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
@@ -20,7 +20,7 @@ import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { milestoneOf, nearingEnd, nearingOf, type Milestone, type Nearing } from './game/milestone';
 import { CELEBRATION_MS, FIFTY_MS } from './entities/Batter';
-import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
+import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { Primed } from './ui/HUD';
@@ -1009,7 +1009,11 @@ export class Game {
     // clock would have made a share card a lie the moment it was reloaded.
     this.chasing = this.surviving ? teamScore(this.rng) : 0;
     // Who bats left-handed is the seed's too, drawn apart from the bowling.
-    this.marathon = this.marathoning ? new MarathonInnings(leftHanderOf(this.seed, location.search)) : null;
+    // `?settled=1` walks every batter out settled with a full meter, for trying
+    // the special strokes without batting six overs to earn each one.
+    this.marathon = this.marathoning
+      ? new MarathonInnings(leftHanderOf(this.seed, location.search), new URLSearchParams(location.search).get('settled') === '1')
+      : null;
     if (this.marathon) this.health = this.marathon.current.health;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
@@ -1187,7 +1191,12 @@ export class Game {
    * and it does not exist at all in Survive. A tailender walking down the pitch
    * at a man bowling at 170 is not a shot, it is a decision to be hit.
    */
-  private get charged() { return this.lesson < 0 && !this.hurts && this.confidence.full; }
+  private get charged() {
+    if (this.lesson >= 0) return false;
+    // The Marathon's batter earns his by settling and then playing himself in.
+    if (this.marathon) return this.marathon.confident;
+    return !this.hurts && this.confidence.full;
+  }
   /**
    * This ball is one of the two special strokes, and the meter is full to play
    * it. Which one matters to the player and not to the meter: the charge is a
@@ -1220,6 +1229,12 @@ export class Game {
     return ADVANCE.shots.includes(this.attempt.shotType) ? 'CHARGE MISTIMED' : 'THE CHARGE WANTED A DRIVE';
   }
   private showConfidence() {
+    if (this.marathon) {
+      const man = this.marathon.current;
+      this.hud.settling(man.confidence === null
+        ? { settled: false, fraction: man.settle / SETTLE.balls, balls: Math.floor(man.settle), of: SETTLE.balls, primed: null }
+        : { settled: true, fraction: man.confidence / MARATHON_CONFIDENCE.full, balls: SETTLE.balls, of: SETTLE.balls, primed: this.isPrimed });
+    }
     if (this.hurts) return this.hud.injury(this.health.injury, this.health.critical);
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
@@ -1895,7 +1910,7 @@ export class Game {
     // The left-hander's arrow has done its job once he has faced a ball.
     if (this.marathon) this.hud.leftHander(false);
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
-      : this.marathon ? resolveSurvive(this.delivery!, this.attempt, this.rng, this.marathon.current.batter)
+      : this.marathon ? this.marathonBall()
       : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng)
       : resolveShot(this.delivery!, this.attempt, this.rng, this.charged);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
@@ -1927,6 +1942,10 @@ export class Game {
         // man is already padded up, and walks out once this ball is dead.
         this.changed = this.marathon.record(this.outcome);
         this.felled = this.changed === 'RETIRED';
+        if (this.marathon.justSettled && !this.changed) {
+          this.hud.callOut(`${this.marathon.current.batter.title} SETTLED · CONFIDENCE BUILDING`);
+          this.mark('batter-settled', 'A batter settled');
+        }
       } else {
         this.confidence.record(this.outcome);
       }
@@ -1973,12 +1992,27 @@ export class Game {
       this.delivery = delivery;
       this.score.record(outcome); this.generator.record(outcome);
       this.changed = marathon.record(outcome);
+      if (marathon.justSettled && !this.changed) this.hud.callOut(`${marathon.current.batter.title} SETTLED · CONFIDENCE BUILDING`);
       if (this.changed && !marathon.ended) this.nextBatter();
     }
     this.changed = null; this.felled = false;
     this.hud.score(this.score); this.showConfidence();
     if (marathon.ended) this.end(); else this.setPhase('READY');
     return this.marathonState();
+  }
+  /**
+   * A Marathon ball. Survival's ladder resolves it with the skill of whoever
+   * is in — unless he has a full meter and has played one of the special
+   * strokes, and played it well enough to come off, when it is the Blast's
+   * stroke and the Blast's reward. A special swipe mistimed is just the stroke
+   * it was, and a Test stroke at that.
+   */
+  private marathonBall(): ShotOutcome {
+    const delivery = this.delivery!, attempt = this.attempt;
+    const special = this.charged && (advanceShot(delivery, attempt, true)
+      || slogSweep(delivery, attempt, true) || !!scoopShot(delivery, attempt, true));
+    return special ? resolveShot(delivery, attempt, this.rng, true)
+      : resolveSurvive(delivery, attempt, this.rng, this.marathon!.current.batter);
   }
   /** The balls the batter who played the last one has faced. The whole innings, but in a Marathon. */
   private get batterHistory() { return this.score.history.slice(this.playedFrom); }
@@ -3024,6 +3058,7 @@ export class Game {
     return {
       batter: marathon.current.batter.role, batters: marathon.batters.map(b => MarathonInnings.score(b)),
       left: marathon.current.left, mirrored: this.scene.mirrored, lefty: marathon.batters.findIndex(b => b.left),
+      settle: marathon.current.settle, confidence: marathon.current.confidence, confident: marathon.confident,
       gone: marathon.gone, ending: marathon.ending, canDeclare: marathon.canDeclare,
       health: marathon.current.health.value, level: this.generator.levelAt(over)?.level ?? null,
       bowler: this.generator.overKind(over), express: !!this.delivery?.express,

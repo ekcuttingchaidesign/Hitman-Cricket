@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME, LINE_X } from '../src/config/gameplay';
-import { BATTERS, BLOCK_OVERS, EXPRESS_OVER, LEVELS, MARATHON, levelOf } from '../src/config/marathon';
+import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, SETTLE, levelOf } from '../src/config/marathon';
 import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
@@ -476,5 +476,86 @@ describe('the left-hander', () => {
     expect(mapSwipe(-60, -60)).toBe('LONG_ON');
     expect(mapSwipe(80, 0)).toBe('SQUARE_CUT');
     expect(mapSwipe(0, 80)).toBe('DEFEND');
+  });
+});
+
+describe('settling in, and the confidence that comes of it', () => {
+  const blow = (damage: number) => ball({ hit: { where: 'GLOVES', damage } } as Partial<ShotOutcome>);
+  const played = (over: Partial<ShotOutcome> = {}) => ball({ timingDeltaMs: 12, ...over });
+  const settle = (innings: MarathonInnings) => play(innings, SETTLE.balls, ball());
+
+  it('settles a batter a ball at a time, whatever the ball, in thirty-six balls', () => {
+    const innings = new MarathonInnings();
+    play(innings, SETTLE.balls - 1, played({ defended: true }));
+    expect(innings.current.confidence).toBe(null);
+    expect(innings.current.settle).toBe(SETTLE.balls - 1);
+    innings.record(ball());
+    expect(innings.justSettled).toBe(true);
+    expect(innings.current.confidence).toBe(SETTLE.confidenceOnSettling);
+    innings.record(ball());
+    expect(innings.justSettled).toBe(false);
+  });
+
+  it('knocks him back a ball for every four points a blow costs, and never below nought', () => {
+    const innings = new MarathonInnings();
+    play(innings, 20);
+    innings.record(blow(40));
+    expect(innings.current.settle).toBe(20 + 1 - 10);
+    innings.record(blow(100));
+    expect(innings.current.settle).toBe(0);
+  });
+
+  it('starts his confidence a quarter full, and fills it at the Marathon\'s rates', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    const at = () => innings.current.confidence;
+    innings.record(played({ runs: 4 })); expect(at()).toBe(25 + 10);
+    innings.record(played({ runs: 6 })); expect(at()).toBe(35 + 12);
+    innings.record(played({ runs: 1 })); expect(at()).toBe(47 + 2);
+    innings.record(played({ defended: true })); expect(at()).toBe(49 + 2);
+    innings.record(played({ runs: 2 })); expect(at()).toBe(51 + 4);
+    innings.record(played({ runs: 3 })); expect(at()).toBe(55 + 6);
+  });
+
+  it('drains it when he is beaten or hit, and leaves it alone for a leave', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    innings.record(ball());
+    expect(innings.current.confidence).toBe(25);
+    innings.record(played());
+    expect(innings.current.confidence).toBe(15);
+    innings.record(blow(20));
+    expect(innings.current.confidence).toBe(10);
+    // Sixty more is eighty of his hundred: hurt, not carried off.
+    innings.record(blow(60));
+    expect(innings.current.confidence).toBe(0);
+    // Battered, but still settled: he does not go back to the start.
+    expect(innings.current.settle).toBe(SETTLE.balls);
+  });
+
+  it('offers a special stroke when it is full, and empties it on the stroke', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    play(innings, 8, played({ runs: 4 }));
+    expect(innings.current.confidence).toBe(CONFIDENCE.full);
+    expect(innings.confident).toBe(true);
+    innings.record(played({ runs: 6, advance: true }));
+    expect(innings.current.confidence).toBe(0);
+    expect(innings.confident).toBe(false);
+  });
+
+  it('walks the next man out unsettled, however settled the last one was', () => {
+    const innings = new MarathonInnings();
+    settle(innings);
+    innings.record(out);
+    expect(innings.current.confidence).toBe(null);
+    expect(innings.current.settle).toBe(0);
+  });
+
+  it('?settled=1 walks every batter out settled and full, for trying the special strokes', () => {
+    const innings = new MarathonInnings(null, true);
+    expect(innings.confident).toBe(true);
+    innings.record(out);
+    expect(innings.confident).toBe(true);
   });
 });

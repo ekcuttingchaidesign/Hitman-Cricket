@@ -253,6 +253,8 @@ kbd{
 /* The meter: the bar's bottom row, earned by scoring and spent on one charge
    down the pitch. Full, the whole bar pulses; on a ball he can charge, the
    label says which stroke, and the call under the batter says which swipe. */
+.meters{display:flex}
+.meters>.confidence{flex:1;min-width:0}
 .confidence{display:block;border-top:1px solid var(--rule)}
 .confidence-inner{display:flex;align-items:center;gap:9px;padding:5px 11px 6px}
 .confidence-head{display:contents}
@@ -3571,6 +3573,15 @@ body.survive-mode #share{opacity:.3;pointer-events:none}
   .speed-gun.is-on{animation-name:speed-gun-still}
   @keyframes speed-gun-still{0%,100%{opacity:0}10%,78%{opacity:1}}
 }
+/* The Marathon's two meters share the bar's bottom row: the injury, and beside
+   it settling and then confidence. Half a row each, so the labels go short. */
+.settle-meter.hidden{display:none}
+.settle-meter{border-left:1px solid var(--rule)}
+body.marathon-mode .meters .confidence-label{min-width:0}
+body.marathon-mode .meters .confidence-inner{gap:7px;padding:5px 9px 6px}
+body.marathon-mode .meters .confidence-track{min-width:24px}
+.settle-meter:not(.is-settled) .confidence-track>i{background:linear-gradient(90deg,#4f7894,#a9cfe0)}
+.settle-cap{order:1}
 /* The left-hander's first ball borrows the tutorial's panel; it has no lesson to skip. */
 .coach.is-lefty #skip-tutorial,.coach.is-lefty .coach-how{display:none}
 .touch-device #coach-brief .touch-only{display:inline}

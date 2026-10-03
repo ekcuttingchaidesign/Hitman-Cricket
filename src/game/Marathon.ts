@@ -1,4 +1,5 @@
-import { BATTERS, MARATHON, type Batter, type MarathonEnding } from '../config/marathon.js';
+import { BATTERS, CONFIDENCE, MARATHON, SETTLE, type Batter, type MarathonEnding } from '../config/marathon.js';
+import { specialStroke } from './Confidence.js';
 import { Health } from './Health.js';
 import { SeededRandom } from './SeededRandom.js';
 import type { ShotOutcome } from './types.js';
@@ -32,6 +33,10 @@ export interface BatterInnings {
   health: Health;
   /** Bats left-handed: the ground and the swipes are mirrored while he is in. */
   left: boolean;
+  /** Balls towards being settled, nought to `SETTLE.balls`. */
+  settle: number;
+  /** His confidence once he is settled, and null until he is. */
+  confidence: number | null;
 }
 
 /**
@@ -55,16 +60,53 @@ export function leftHanderOf(seed: number, search = ''): number | null {
 /** What a ball did to the order: nothing, or the man in is gone. */
 export type Change = 'OUT' | 'RETIRED' | null;
 
-const walkOut = (order: number, left: boolean): BatterInnings => ({
+const walkOut = (order: number, left: boolean, settled = false): BatterInnings => ({
   batter: BATTERS[order], order, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, retired: false, health: new Health(), left,
+  settle: settled ? SETTLE.balls : 0, confidence: settled ? CONFIDENCE.full : null,
 });
+
+const clamp = (value: number, top: number) => Math.max(0, Math.min(top, value));
+
+/**
+ * One ball's worth of settling, or of confidence once he is settled. Says
+ * whether this was the ball that settled him. See `SETTLE` and `CONFIDENCE`.
+ */
+function settleOn(man: BatterInnings, outcome: ShotOutcome): boolean {
+  const blow = outcome.hit ? outcome.hit.damage * SETTLE.perBlowPoint : 0;
+  if (man.confidence === null) {
+    man.settle = clamp(man.settle + 1 - blow, SETTLE.balls);
+    if (man.settle < SETTLE.balls) return false;
+    man.confidence = SETTLE.confidenceOnSettling;
+    return true;
+  }
+  // Every special stroke spends the meter, whatever it was worth.
+  if (specialStroke(outcome)) { man.confidence = 0; return false; }
+  const played = outcome.timingDeltaMs !== null;
+  const change = blow ? -blow
+    : outcome.runs > 0 ? CONFIDENCE.step[outcome.runs] ?? 0
+    : outcome.defended ? CONFIDENCE.defended
+    : played ? CONFIDENCE.beaten
+    : 0;
+  man.confidence = clamp(man.confidence + change, CONFIDENCE.full);
+  return false;
+}
 
 export class MarathonInnings {
   readonly batters: BatterInnings[];
-  /** `leftHanded` is which of the three bats left-handed, or null for none: see `leftHanderOf`. */
-  constructor(private readonly leftHanded: number | null = null) {
-    this.batters = [walkOut(0, leftHanded === 0)];
+  /** The last ball was the one that settled the man who played it. */
+  justSettled = false;
+  /**
+   * `leftHanded` is which of the three bats left-handed, or null for none: see
+   * `leftHanderOf`. `settled` walks every batter out settled and full of
+   * confidence, for trying the special strokes (`?settled=1`).
+   */
+  constructor(private readonly leftHanded: number | null = null, private readonly settled = false) {
+    this.batters = [walkOut(0, leftHanded === 0, settled)];
   }
+  /** The man in has a full meter: a special stroke is his to play. */
+  get confident() { return (this.current.confidence ?? 0) >= CONFIDENCE.full; }
+  /** Spent without a stroke to show for it — the simulator's, which plays none. */
+  spend() { if (this.current.confidence !== null) this.current.confidence = 0; }
   runs = 0;
   balls = 0;
   fours = 0;
@@ -100,6 +142,7 @@ export class MarathonInnings {
     if (this.ended) return null;
     const man = this.current;
     man.health.record(outcome);
+    this.justSettled = settleOn(man, outcome);
     man.runs += outcome.runs; man.balls++;
     man.fours += Number(outcome.runs === 4); man.sixes += Number(outcome.runs === 6);
     this.runs += outcome.runs; this.balls++;
@@ -109,7 +152,7 @@ export class MarathonInnings {
     if (change === 'OUT') man.out = true;
     if (change === 'RETIRED') man.retired = true;
     if (change && this.batters.length < MARATHON.batters && this.balls < MARATHON.maxBalls) {
-      this.batters.push(walkOut(this.batters.length, this.leftHanded === this.batters.length));
+      this.batters.push(walkOut(this.batters.length, this.leftHanded === this.batters.length, this.settled));
     }
     return change;
   }

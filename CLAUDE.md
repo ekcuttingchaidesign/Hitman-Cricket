@@ -131,7 +131,7 @@ that seeds it.
 `scripts/marathon-check.mjs` is Test Marathon at `?mode=marathon`: the batter
 named as he walks out, the next one standing after the last was carried off,
 the declare key from the twentieth over and not before, the card, the speed
-gun, the left-hander — the ground mirrored while he is in and off again for
+gun, the settle meter turning into confidence at thirty-six balls, the left-hander — the ground mirrored while he is in and off again for
 the man after him, his pull on the key to the right — and no innings sent
 anywhere that keeps one, since the mode has no board yet. It writes most of
 the innings through `__cricket.marathon` and bats the rest.

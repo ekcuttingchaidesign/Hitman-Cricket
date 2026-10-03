@@ -167,5 +167,40 @@ export const EXPRESS_OVER = {
   slower: { min: 112, max: 126 },
 } as const;
 
+/**
+ * Getting your eye in, and what comes of it.
+ *
+ * Every batter walks out unsettled, with no meter to spend and no special
+ * stroke to play. Each ball he faces settles him a little — a block and a
+ * leave as much as a four — and a blow knocks him back by the size of it, a
+ * ball for every four points the blow costs his meter: a glove off a seamer is
+ * about four balls, the express bowler on the helmet nearly twenty. Thirty-six
+ * balls, six overs of it, and he is settled.
+ *
+ * Settled, the same meter is his confidence, and it starts a quarter full. It
+ * fills with the strokes he plays and with the balls he blocks, more slowly
+ * than the Blast's — a Test innings is built, not slogged — and empties with
+ * being beaten and being hit. Full, it buys one special stroke, exactly as in
+ * the Blast. He never goes back to being unsettled: a battering costs him his
+ * confidence, not the six overs it took to find his feet.
+ */
+export const SETTLE = {
+  balls: 36,
+  /** Balls of settling, or points of confidence, a blow costs per point of injury. */
+  perBlowPoint: 1 / 4,
+  /** Where his confidence starts the moment he is settled. */
+  confidenceOnSettling: 25,
+} as const;
+
+export const CONFIDENCE = {
+  full: 100,
+  /** What each stroke adds, by the runs it was worth. */
+  step: { 6: 12, 4: 10, 3: 6, 2: 4, 1: 2 } as Record<number, number>,
+  /** A ball blocked: patience is part of it. */
+  defended: 2,
+  /** Played at and beaten, or edged for nothing. */
+  beaten: -10,
+} as const;
+
 /** How a Marathon innings finished. */
 export type MarathonEnding = 'ALL_OUT' | 'RETIRED' | 'BALLS' | 'DECLARED';

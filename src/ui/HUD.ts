@@ -297,6 +297,7 @@ export class HUD {
           <span class="sc-cell"><b id="sc-need"></b><span class="sc-label">TO WIN</span></span>
           <span class="sc-cell"><b id="sc-balls"></b><span class="sc-label">BALLS<span class="sc-wide"> LEFT</span></span></span>
         </div>
+        <div class="meters">
         <div id="confidence" class="confidence" role="meter" aria-label="Confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
             <span class="confidence-head">
@@ -305,6 +306,16 @@ export class HUD {
             </span>
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
+        </div>
+        <div id="settle" class="confidence settle-meter hidden" role="meter" aria-label="Settling" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span class="confidence-inner">
+            <span class="confidence-head">
+              <span class="confidence-label" id="settle-label">SETTLING</span>
+              <span class="injury-cap settle-cap" id="settle-cap"></span>
+            </span>
+            <span class="confidence-track"><i id="settle-fill"></i></span>
+          </span>
+        </div>
         </div>
         </div>
         <div id="nearing" class="nearing hidden" role="status" aria-live="polite"></div>
@@ -1325,6 +1336,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The Marathon keeps the Blast's scoreboard — a total and the wickets, with
     // no target to chase — and Survival's meter.
     document.body.classList.toggle('marathon-mode', marathon);
+    // The Marathon's second meter: settling, then confidence. Drawn by `settling`.
+    this.$('settle').classList.add('hidden');
     // The speed gun, in the Marathon first: nothing up until a ball is bowled.
     this.$('speed-gun').classList.remove('is-on');
     this.$('speed').textContent = '';
@@ -1410,6 +1423,29 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('speed').textContent = String(kph);
     gun.classList.remove('is-on'); void gun.offsetWidth; gun.classList.add('is-on');
   }
+  /**
+   * The Marathon's second meter, beside the injury: how settled the man in is,
+   * and once he is, his confidence — the Blast's meter, earned more slowly.
+   * Null puts it away.
+   */
+  settling(view: { settled: boolean; fraction: number; balls: number; of: number; primed: Primed } | null) {
+    const meter = this.$('settle');
+    meter.classList.toggle('hidden', !view);
+    if (!view) return;
+    const full = view.settled && view.fraction >= 1;
+    const percent = Math.round(Math.max(0, Math.min(1, view.fraction)) * 100);
+    meter.classList.toggle('is-settled', view.settled);
+    meter.classList.toggle('is-full', full);
+    meter.classList.toggle('is-primed', !!view.primed);
+    meter.setAttribute('aria-label', view.settled ? 'Confidence' : 'Settling');
+    meter.setAttribute('aria-valuenow', String(percent));
+    this.$('settle-fill').style.width = `${percent}%`;
+    this.$('settle-label').textContent = !view.settled ? 'SETTLING'
+      : view.primed ? CUES[view.primed].split(' — ')[0] : full ? 'CONFIDENT' : 'CONFIDENCE';
+    this.$('settle-cap').textContent = view.settled ? '' : `${view.balls}/${view.of}`;
+  }
+  /** Said on the next guard he takes, once: a batter settled, or walking out. */
+  callOut(words: string) { this.walking = words; }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */

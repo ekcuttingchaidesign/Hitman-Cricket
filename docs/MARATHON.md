@@ -295,8 +295,15 @@ Each step is a pull request of its own, behind the flag until the last.
    while he is in, and `?lefty=1`–`3` (or `0` for none) puts him at a place in
    the order for testing. The tutorial's panel says the swipes are mirrored
    and points right, to his leg side; the end card marks him `(LH)`.
-4. **The express bowler**, his action and release, and the level banners.
-   The speed gun comes with this step.
+4. **Settling, the express bowler**, his action and release, and the level
+   banners. *Settling is done*: every batter settles over 36 balls (a blow
+   knocks him back a ball per four points of injury), and settled, the meter
+   is his confidence — a quarter full, filling more slowly than the Blast's
+   (six +12, four +10, three +6, two +4, single or block +2, beaten −10, a
+   blow −1 per four points) — which buys the Blast's special strokes. In the
+   simulator a settled good player is offered one about every three overs.
+   The speed gun came forward to step 2, and moved off the scoreboard to a
+   caption at the foot of the field after the playtest.
 5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two
    ladders, the store, `?demo=1`.
 6. **My Stats.** The third card and its tier.
