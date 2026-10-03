@@ -318,8 +318,8 @@ await page.screenshot({ path: 'test-results/marathon-express-runup.png' });
 await block();
 const rest = (await snap()).balls;
 await write(ones(6 - rest % 6));
-const next = await until('BOWLER_RUNUP');
-check(next.marathon.bowler !== 'EXPRESS' && next.marathon.action === 'pace', 'and the over after his, the fast bowler\'s action again', JSON.stringify(next.marathon));
+const following = await until('BOWLER_RUNUP');
+check(following.marathon.bowler !== 'EXPRESS' && following.marathon.action === 'pace', 'and the over after his, the fast bowler\'s action again', JSON.stringify(following.marathon));
 await block();
 
 await page.waitForTimeout(1500);
