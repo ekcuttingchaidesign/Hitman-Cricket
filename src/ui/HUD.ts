@@ -37,7 +37,7 @@ import { openUnveil } from './Unveil';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
-import type { Milestone } from '../game/milestone';
+import type { Moment } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
 import {
   keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
@@ -2488,9 +2488,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * for the ball that got him there has had its moment by now and steps aside
    * rather than sit under the doodles. Gone again by itself when he is done.
    */
-  milestone(kind: Milestone, at: BatterOnScreen, lasts: number) {
+  milestone(moment: Moment, at: BatterOnScreen, lasts: number) {
     this.viewport.querySelector('.milestone')?.remove();
-    const doodle = milestoneDoodle(kind, at, lasts);
+    const doodle = milestoneDoodle(moment, at, lasts);
     this.viewport.append(doodle);
     this.viewport.classList.add('milestone-on');
     window.setTimeout(() => { doodle.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);

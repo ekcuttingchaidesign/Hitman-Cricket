@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS } from '../src/entities/Batter';
+import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -1980,7 +1980,7 @@ describe('the hundred', () => {
  * little over a second. The same rules as the hundred.
  */
 describe('the fifty', () => {
-  const nodding = () => { const batter = new Batter(); batter.update(0); batter.celebrate(0, true); return batter; };
+  const nodding = () => { const batter = new Batter(); batter.update(0); batter.celebrate(0, 'fifty'); return batter; };
   const apart = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]));
 
   it('keeps the bat in his right hand, and both arms whole', () => {
@@ -2039,5 +2039,119 @@ describe('the fifty', () => {
       done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));
     }
     expect(done.hands).toEqual(guard.hands);
+  });
+});
+
+/**
+ * The Marathon's three big ones — a double, a triple, four hundred — each a
+ * pose of its own: the bat held up over his head in both hands; arms flung
+ * wide, the bat out level; down on one knee with the bat planted, then up and
+ * wide. The hundred's rules hold for all three, and each has its own shape
+ * to answer for.
+ */
+describe.each([['double', 2000], ['triple', 2400], ['four', 3340]] as const)('the %s', (kind, lasts) => {
+  const celebrating = () => { const batter = new Batter(); batter.update(0); batter.celebrate(0, kind); return batter; };
+  const apart = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]));
+  const helmet = (pose: ReturnType<Batter['inspect']>) => {
+    const chest = new Vector3(...pose.chest), spine = chest.clone().sub(new Vector3(...pose.hip)).normalize();
+    return chest.addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+  };
+
+  it('lasts as long as it says, and ends in his guard', () => {
+    expect(CELEBRATION_LENGTHS[kind]).toBe(lasts);
+    const batter = celebrating(), fresh = new Batter(); fresh.update(0);
+    batter.update(lasts);
+    const done = batter.inspect(), guard = fresh.inspect();
+    for (const key of ['grip', 'frontFoot', 'backFoot', 'hip', 'chest'] as const) {
+      done[key].forEach((v, i) => expect(v, key).toBeCloseTo(guard[key][i], 6));
+    }
+    expect(done.hands).toEqual(guard.hands);
+  });
+
+  it('keeps the bat in his right hand, and both arms whole', () => {
+    const batter = celebrating();
+    for (let time = 0; time <= lasts; time += 8) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(pose.handGrip[1], `bat hand on the handle at ${time}ms`).toBeCloseTo(-.035, 9);
+      for (const [upper, lower] of pose.armLengths) {
+        expect(upper, `${time}ms`).toBeCloseTo(.32, 3);
+        expect(lower, `${time}ms`).toBeLessThan(.345);
+      }
+    }
+  });
+
+  it('does not flip an elbow or wrist between frames', () => {
+    const batter = celebrating();
+    let previous = batter.inspect();
+    for (let time = 0; time <= lasts + 32; time += 2) {
+      batter.update(time); const pose = batter.inspect();
+      for (let i = 0; i < 2; i++) {
+        const where = `arm=${i} @${time}`;
+        expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+        expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+        expect(pose.cuffAim[i].socketError, where).toBeLessThan(1e-9);
+        expect(pose.cuffAim[i].flex, where).toBeLessThan(Math.PI / 2);
+        expect(pose.elbowCoverage[i], where).toBeGreaterThan(0);
+      }
+      previous = pose;
+    }
+  });
+
+  it('never puts the bat through him, or an elbow into him', () => {
+    const { worst, elbow } = throughHim(celebrating(), lasts);
+    expect(worst.value, `reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.at}ms`).toBeGreaterThan(1);
+    expect(elbow.clearance, JSON.stringify(elbow)).toBeGreaterThan(.15);
+  });
+
+  it('keeps every foot on or above the turf', () => {
+    const batter = celebrating();
+    for (let time = 0; time <= lasts; time += 16) {
+      batter.update(time);
+      const pose = batter.inspect();
+      for (const foot of [pose.frontFoot, pose.backFoot]) expect(foot[1], `${time}ms`).toBeGreaterThan(.02);
+    }
+  });
+
+  if (kind === 'double') it('holds the bat up over his head in both hands, level', () => {
+    const batter = celebrating();
+    for (const time of [560, 860, 1290]) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(apart(pose), `both hands on it at ${time}ms`).toBeCloseTo(.110, 6);
+      expect(pose.grip[1], `hands over the helmet at ${time}ms`).toBeGreaterThan(helmet(pose).y + .2);
+      expect(Math.abs(pose.bladeTip[1] - pose.grip[1]), `blade level at ${time}ms`).toBeLessThan(.2);
+    }
+  });
+
+  if (kind === 'triple') it('flings both arms wide at shoulder height, the bat out level', () => {
+    const batter = celebrating();
+    for (const time of [640, 1150, 1600]) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(apart(pose), `arms wide at ${time}ms`).toBeGreaterThan(.95);
+      for (const hand of pose.hands) expect(Math.abs(hand[1] - pose.chest[1] - .1), `hand at shoulder height at ${time}ms`).toBeLessThan(.2);
+      expect(Math.abs(pose.bladeTip[1] - pose.grip[1]), `blade level at ${time}ms`).toBeLessThan(.25);
+    }
+  });
+
+  if (kind === 'four') it('goes down on one knee with the bat planted, then up and wide', () => {
+    const batter = celebrating();
+    for (const time of [520, 800, 1050]) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(pose.hip[1], `down at ${time}ms`).toBeLessThan(.66);
+      // A knee on the turf: the back one, which the hips have come down over.
+      expect(Math.min(...pose.knees.map(k => k[1])), `a knee down at ${time}ms`).toBeLessThan(.2);
+      expect(apart(pose), `both hands on the handle at ${time}ms`).toBeCloseTo(.110, 6);
+      expect(pose.bladeTip[1], `the toe on the ground at ${time}ms`).toBeLessThan(.12);
+      expect(pose.bladeTip[1], `and not through it`).toBeGreaterThan(-.08);
+    }
+    for (const time of [2050, 2550]) {
+      batter.update(time);
+      const pose = batter.inspect();
+      expect(pose.hip[1], `up again at ${time}ms`).toBeGreaterThan(.9);
+      expect(apart(pose), `arms wide at ${time}ms`).toBeGreaterThan(.95);
+    }
   });
 });

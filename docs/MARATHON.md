@@ -115,6 +115,26 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 - **The express bowler (his first over):** a banner for the express spell as
   he takes the ball.
 
+## The milestones
+
+The Blast's two moments are a fifty and a hundred. A Test innings goes past
+both, so **every fifty is a moment**, each batter's own, counted from the
+ball he walked out on:
+
+| Mark | What he does | What goes up |
+| --- | --- | --- |
+| 50, 150, 250, 350 … | The fifty's raised bat, a second of it | The number written beside him, a burst and stars; the ground keeps its colours |
+| 100 | The hundred, as in the Blast | The crown, the 100 on fire, fire up the edges, the ground greyed |
+| 200 | The bat held up over his head in both hands, shown round the ground | The hundred's, with confetti across the top |
+| 300 | Arms flung wide at shoulder height, the bat out level, head back | The double's, with fireworks over the stands |
+| 400 | Down on one knee, the bat planted, head bowed; then up and arms wide | The triple's, with FOUR HUNDRED slammed across the top |
+
+Past four hundred, every hundred is four hundred's and every other fifty the
+raised bat's. The numbers are the thing — written big, by hand, as the 50 and
+the 100 are — and the word under them is small. The nearing card waits ten
+short of every mark: the nervous 190s, 290s and 390s. The crowd keeps it up
+longer for each: the big three take the whole of the clip.
+
 ## The speed gun
 
 Every ball's speed is shown, the way a broadcast shows it — **in the
@@ -307,7 +327,8 @@ Each step is a pull request of its own, behind the flag until the last.
    came out after the playtest — it is obvious — and the end card marks him
    `(LH)`.
 4. **Settling, the express bowler**, his action and release, and the level
-   banners. *Done.* The express bowler is a slinger, after a slow-motion
+   banners. *Done.* And, before the boards, **the milestones** above: every
+   fifty a moment, the three big ones with celebrations of their own. The express bowler is a slinger, after a slow-motion
    reference of the most famous one: the ball carried at the chest in both
    hands, the hands parting at the leap, the front arm chopped down in front,
    the arm coming through wide and round with the body tilted hard away, and

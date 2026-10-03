@@ -1,6 +1,7 @@
 /**
  * The doodles that go up for the moments an innings stops for: a fifty, a
- * hundred, and six sixes in a row.
+ * hundred, six sixes in a row — and, in a Test innings, every fifty after:
+ * the raised bat's number for 150, 250 and 350, and the three big ones.
  *
  * After the street-racing games that draw on their own screens: the moment is
  * marked in marker pen over the picture rather than in a panel in front of it,
@@ -16,6 +17,13 @@
  * SIX 6s slammed across the top, YUVI tagged big beside him, and under it a
  * question with an arrow at the batter — is that you?
  *
+ * The double, the triple and four hundred are the hundred's, bigger each
+ * time: the number on fire, the crown, more stars, confetti falling across
+ * the top of the picture, and fireworks going off in the sky over the stands
+ * — a double gets confetti, a triple fireworks, four hundred the lot and the
+ * words slammed across the top as well. The number is the thing: it is
+ * written big, and the word under it is small.
+ *
  * Everything is placed off where the batter actually is on screen, so it
  * follows him from a phone held upright to a monitor. Everything is SVG
  * strokes and CSS: nothing here touches the ground's renderer, and none of it
@@ -28,7 +36,7 @@
  * because they are shouted rather than written.
  */
 
-import type { Milestone } from '../game/milestone';
+import type { Milestone, Moment } from '../game/milestone';
 
 interface Point { x: number; y: number }
 export interface BatterOnScreen { feet: Point; head: Point; bat: Point; width: number; height: number }
@@ -145,30 +153,32 @@ function fire(base: Point, w: number, h: number, lean: number, seed: number, del
  * Fire up the edges of the screen: a bank in each bottom corner and a run up
  * each side, leaning in, the bottom middle left clear for him and the pitch.
  */
-function edges(width: number, height: number) {
+function edges(width: number, height: number, blaze = 1) {
   const unit = Math.min(width, height);
   const out: string[] = [];
   const ink = Math.max(2, unit * .005);
+  // The bigger the moment, the taller the flames and the more of them.
+  const tall = 1 + (blaze - 1) * .18, banks = 3 + (blaze - 1), climbs = 2 + (blaze > 1 ? 1 : 0);
   let seed = 1;
   for (const side of [-1, 1]) {
     const edge = side < 0 ? 0 : width;
     // The corner bank: wide, low flames along the bottom from the edge in.
-    for (let i = 0; i < 3; i++) {
-      const w = unit * (.24 - i * .04), h = unit * (.30 - i * .05);
+    for (let i = 0; i < banks; i++) {
+      const w = unit * (.24 - i * .04), h = unit * (.30 - i * .05) * tall;
       const x = edge - side * (w * .35 + i * w * .55);
       out.push(fire({ x, y: height + unit * .02 }, w, h, side * -.12, seed++, 40 + i * 50, ink));
     }
     // And up the side, smaller as they climb, leaning in towards him — the
     // lower half of it only, clear of the score bar and the keys.
-    for (let i = 0; i < 2; i++) {
-      const w = unit * (.15 - i * .03), h = unit * (.22 - i * .05);
+    for (let i = 0; i < climbs; i++) {
+      const w = unit * (.15 - i * .03), h = unit * (.22 - i * .05) * tall;
       const y = height - unit * (.30 + i * .19);
       out.push(fire({ x: edge - side * w * .15, y }, w, h, side * -.45, seed++, 120 + i * 60, ink));
     }
   }
   // Embers off the top of it all, drifting up.
   const random = seeded(55);
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 14 + (blaze - 1) * 10; i++) {
     const side = i % 2 ? 1 : -1;
     const x = side < 0 ? random() * width * .22 : width - random() * width * .22;
     const y = height - unit * (.15 + random() * .5);
@@ -186,12 +196,93 @@ function hundred(x: number, y: number, h: number, random: () => number, delay: n
     + mark(nought(x + h * 1.02), stroke, delay + 190, 170);
 }
 
+/**
+ * Any number, written: each figure a stroke or two of the pen, a one with a
+ * flag, noughts that overshoot, a four in two strokes. `widthOf` is how wide
+ * it will come out, for placing it before it is drawn.
+ */
+const FIGURE_WIDTH = (ch: string) => (ch === '1' ? .36 : .64) + .04;
+export const widthOf = (text: string, h: number) => h * ([...text].reduce((w, ch) => w + FIGURE_WIDTH(ch), 0) - .04);
+function figure(ch: string, x: number, y: number, h: number, random: () => number, delay: number, stroke: number) {
+  const p = (px: number, py: number) => `${f(x + px * h)} ${f(y + py * h)}`;
+  switch (ch) {
+    case '0': return mark(loop(x + h * .30, y + h * .5, h * .27, h * .5, random, 1.08), stroke, delay, 170);
+    case '1': return mark(line([{ x: x + h * .05, y: y + h * .24 }, { x: x + h * .30, y }, { x: x + h * .26, y: y + h }]), stroke, delay, 110);
+    case '2': return mark(`M${p(.06, .26)}Q${p(.10, -.04)} ${p(.32, .00)}Q${p(.62, .02)} ${p(.54, .34)}Q${p(.46, .58)} ${p(.04, .96)}L${p(.60, .92)}`, stroke, delay, 190);
+    case '3': return mark(`M${p(.06, .10)}Q${p(.56, -.12)} ${p(.52, .30)}Q${p(.48, .50)} ${p(.24, .50)}Q${p(.62, .52)} ${p(.56, .80)}Q${p(.50, 1.06)} ${p(.04, .90)}`, stroke, delay, 200);
+    case '4': return mark(`M${p(.44, .00)}L${p(.04, .68)}L${p(.62, .66)}`, stroke, delay, 120) + mark(`M${p(.46, .30)}L${p(.44, 1.00)}`, stroke, delay + 100, 90);
+    case '5': return mark(`M${p(.52, 0)}L${p(.12, .02)}L${p(.08, .44)}Q${p(.62, .26)} ${p(.56, .70)}Q${p(.48, 1.04)} ${p(.04, .90)}`, stroke, delay, 170);
+    case '6': return mark(`M${p(.54, .06)}Q${p(.10, .10)} ${p(.08, .60)}Q${p(.10, 1.00)} ${p(.34, .98)}Q${p(.60, .96)} ${p(.56, .68)}Q${p(.52, .44)} ${p(.10, .54)}`, stroke, delay, 200);
+    case '7': return mark(`M${p(.06, .04)}L${p(.60, .00)}L${p(.24, 1.00)}`, stroke, delay, 130);
+    case '8': return mark(`M${p(.50, .22)}Q${p(.50, -.04)} ${p(.30, .00)}Q${p(.06, .04)} ${p(.14, .26)}Q${p(.24, .48)} ${p(.42, .54)}Q${p(.64, .62)} ${p(.58, .84)}Q${p(.50, 1.04)} ${p(.26, 1.00)}Q${p(.04, .94)} ${p(.10, .72)}Q${p(.18, .52)} ${p(.42, .48)}`, stroke, delay, 230);
+    case '9': return mark(`M${p(.54, .40)}Q${p(.52, .00)} ${p(.30, .02)}Q${p(.06, .04)} ${p(.08, .30)}Q${p(.10, .54)} ${p(.34, .52)}Q${p(.56, .50)} ${p(.54, .34)}Q${p(.56, .70)} ${p(.20, 1.00)}`, stroke, delay, 200);
+    default: return '';
+  }
+}
+function figures(x: number, y: number, h: number, text: string, random: () => number, delay: number, stroke: number) {
+  let out = '', dx = 0;
+  [...text].forEach((ch, i) => { out += figure(ch, x + dx, y, h, random, delay + i * 95, stroke); dx += h * FIGURE_WIDTH(ch); });
+  return out;
+}
+
 /** The figure 50, written: a five in one stroke, flag first, and a nought. */
 function fifty(x: number, y: number, h: number, random: () => number, delay: number, stroke: number) {
   const f5 = (px: number, py: number) => `${f(x + px * h)} ${f(y + py * h)}`;
   const five = `M${f5(.52, 0)}L${f5(.12, .02)}L${f5(.08, .44)}Q${f5(.62, .26)} ${f5(.56, .70)}Q${f5(.48, 1.04)} ${f5(.04, .90)}`;
   return mark(five, stroke, delay, 170)
     + mark(loop(x + h * .92, y + h * .5, h * .27, h * .5, random, 1.08), stroke, delay + 150, 170);
+}
+
+/** The crown, sat on the helmet at an angle: `size` is one for the hundred's. */
+function crown(x: number, headY: number, s: number, pen: number, size = 1, delay = 120) {
+  const cw = s * .46 * size, ch = s * .3 * size, cx = x - cw / 2, cy = headY - s * .16;
+  return mark(line([
+    { x: cx, y: cy }, { x: cx - cw * .06, y: cy - ch }, { x: cx + cw * .28, y: cy - ch * .45 },
+    { x: cx + cw * .5, y: cy - ch * 1.15 }, { x: cx + cw * .72, y: cy - ch * .45 },
+    { x: cx + cw * 1.06, y: cy - ch }, { x: cx + cw, y: cy }, { x: cx - cw * .04, y: cy + ch * .08 },
+  ]), pen * 1.1 * Math.sqrt(size), delay, 260);
+}
+
+/**
+ * Confetti, falling across the top of the picture: strips of paper in the
+ * doodles' own colours and a few more, each popping in where it is and
+ * drifting down, turning as it goes.
+ */
+function confetti(width: number, height: number, random: () => number, count: number, from: number) {
+  const unit = Math.min(width, height);
+  const colours = ['var(--cy-paint)', 'var(--cy-shine)', '#3fa0ff', '#ffc23a', '#ff5a7a', '#8be36b'];
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const x = random() * width, y = 60 + random() * height * .5;
+    const w = unit * (.008 + random() * .008), h = w * (1.8 + random() * 1.2);
+    out.push(`<rect class="cy-confetti" x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="${f(w * .2)}" fill="${colours[i % colours.length]}" `
+      + `style="--delay:${from + Math.round(random() * 600)}ms;--drift:${f(unit * (.08 + random() * .16))}px;--spin:${Math.round((random() - .5) * 620)}deg;transform-origin:${f(x + w / 2)}px ${f(y + h / 2)}px"/>`);
+  }
+  return out;
+}
+
+/**
+ * Fireworks in the sky over the stands: each a burst of rays from a bright
+ * heart, popping in one after another and left hanging, drawn in the pen.
+ */
+function fireworks(width: number, height: number, random: () => number, count: number, pen: number, from: number) {
+  const unit = Math.min(width, height);
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const c = { x: width * (.1 + random() * .8), y: 80 + random() * height * .2 };
+    const r = unit * (.05 + random() * .045);
+    const rays = 10 + Math.floor(random() * 4);
+    let d = '';
+    for (let k = 0; k < rays; k++) {
+      const a = k / rays * Math.PI * 2 + (random() - .5) * .25;
+      const inner = r * (.28 + random() * .14), outer = r * (.78 + random() * .3);
+      d += `M${f(c.x + Math.cos(a) * inner)} ${f(c.y + Math.sin(a) * inner)}L${f(c.x + Math.cos(a) * outer)} ${f(c.y + Math.sin(a) * outer)}`;
+    }
+    out.push(`<g class="cy-pop" style="--delay:${from + i * 170}ms;transform-origin:${f(c.x)}px ${f(c.y)}px">`
+      + mark(d, Math.max(2, pen * .75), 0, 1, false)
+      + `<circle class="cy-spark" cx="${f(c.x)}" cy="${f(c.y)}" r="${f(r * .13)}"/></g>`);
+  }
+  return out;
 }
 
 /** The burst behind him: strokes out from the chest, up and to the sides. */
@@ -249,7 +340,7 @@ function tagged(x: number, y: number, size: number, tilt: number, delay: number,
     + '</g>';
 }
 
-type Layout = { marks: string[]; dots: number; fire: boolean; said: string };
+type Layout = { marks: string[]; dots: number; fire: boolean; said: string; blaze?: number };
 
 /** A hundred: crown, energy, burst, stars and the 100 on fire. */
 function century(at: BatterOnScreen, s: number, pen: number, random: () => number): Layout {
@@ -262,12 +353,7 @@ function century(at: BatterOnScreen, s: number, pen: number, random: () => numbe
     marks.push(mark(jag(from, to, random, 7, s * .09), pen, 40 + (side + 1) * 40, 260));
   }
   // The crown, sat on the helmet at an angle.
-  const cw = s * .46, ch = s * .3, cx = x - cw / 2, cy = at.head.y - s * .16;
-  marks.push(mark(line([
-    { x: cx, y: cy }, { x: cx - cw * .06, y: cy - ch }, { x: cx + cw * .28, y: cy - ch * .45 },
-    { x: cx + cw * .5, y: cy - ch * 1.15 }, { x: cx + cw * .72, y: cy - ch * .45 },
-    { x: cx + cw * 1.06, y: cy - ch }, { x: cx + cw, y: cy }, { x: cx - cw * .04, y: cy + ch * .08 },
-  ]), pen * 1.1, 120, 260));
+  marks.push(crown(x, at.head.y, s, pen));
 
   // The 100: beside him where there is room, above him where there is not.
   const h = Math.min(s * .95, at.width * .2, 130);
@@ -378,8 +464,86 @@ function yuvi(at: BatterOnScreen, s: number, pen: number, random: () => number):
   return { marks, dots: size, fire: true, said: 'Six sixes. Yuvi, is that you?' };
 }
 
-const LAYOUTS: Record<Milestone, (at: BatterOnScreen, s: number, pen: number, random: () => number) => Layout> = {
-  century, fifty: halfCentury, 'six-sixes': yuvi,
+/**
+ * Another fifty — 150, 250, 350 — the raised bat's: the number written beside
+ * him, a burst and a few stars, no word under it, and the ground left in its
+ * colours. The number is the whole of what it says.
+ */
+function raised(at: BatterOnScreen, s: number, pen: number, random: () => number, runs: number): Layout {
+  const x = at.head.x;
+  const marks = burst(x, at.head.y + s * .45, s * .85, random, pen * .85, 6, .7);
+  const h = Math.min(s * .62, at.width * .14, 84);
+  const text = String(runs), wide = widthOf(text, h);
+  const roomRight = at.width - (x + s * .8) - 16;
+  const aside = roomRight >= wide + h * .35;
+  const tx = aside ? x + s * .8 : Math.max(16, Math.min(at.width - wide - 16, x - wide / 2));
+  const ty = aside ? at.head.y - h * .2 : Math.max(96, at.bat.y - h * 1.7);
+  marks.push(`<g transform="rotate(-6 ${f(tx + wide / 2)} ${f(ty + h / 2)})">`
+    + `<circle class="cy-dots" cx="${f(tx + wide * .5)}" cy="${f(ty + h * .55)}" r="${f(h * .95)}"/>`
+    + figures(tx, ty, h, text, random, 90, Math.max(5, h * .16))
+    + '</g>');
+  marks.push(...stars(x, at.head.y, s, random, pen, [[-.95, -.3, .12], [.75, -.75, .1], [-1.15, .45, .08], [1.05, .6, .09]], 200));
+  return { marks, dots: h, fire: false, said: `${runs}.` };
+}
+
+/**
+ * The big ones: the hundred's, and then some. `blaze` is one for the double,
+ * two for the triple, three for four hundred, and everything scales with it
+ * — the number, the crown, the burst, the stars — with confetti from the
+ * double, fireworks from the triple, and the words slammed across the top
+ * for four hundred.
+ */
+function landmark(at: BatterOnScreen, s: number, pen: number, random: () => number, runs: number, blaze: number): Layout {
+  const x = at.head.x, W = at.width;
+  const marks = burst(x, at.head.y + s * .5, s * (1 + blaze * .08), random, pen, 9 + blaze * 2, .92);
+  // Energy up both sides of him, from the knees to above the raised bat; a
+  // second run outside the first from the triple on.
+  for (const side of [-1, 1]) for (let run = 0; run < (blaze >= 2 ? 2 : 1); run++) {
+    const from = { x: x + side * s * (.42 + run * .3), y: at.feet.y - s * (.35 - run * .2) };
+    const to = { x: x + side * s * (.52 + run * .36), y: at.bat.y + s * (.1 + run * .25) };
+    marks.push(mark(jag(from, to, random, 7, s * .09), pen, 40 + (side + 1) * 40 + run * 90, 260));
+  }
+  marks.push(crown(x, at.head.y, s, pen, 1 + blaze * .15));
+
+  // The number, on fire: beside him where there is room, above him where not.
+  const h = Math.min(s * (.95 + blaze * .08), W * .2, 130 + blaze * 14);
+  const text = String(runs), wide = widthOf(text, h);
+  const roomRight = W - (x + s * .9) - 16;
+  const aside = roomRight >= wide + h * .35;
+  const tx = aside ? x + s * .9 : Math.max(16, Math.min(W - wide - 16, x - wide / 2));
+  const ty = aside ? at.head.y - h * .35 : Math.max(96, at.bat.y - h * 1.75);
+  const caption = h * .3;
+  const word = runs === 200 ? 'DOUBLE' : runs === 300 ? 'TRIPLE' : runs === 400 ? 'FOUR HUNDRED' : '';
+  let flames = '', dx = 0;
+  for (const ch of text) {
+    const w = h * FIGURE_WIDTH(ch);
+    flames += fire({ x: tx + dx + w * .45, y: ty + h * .12 }, w * .78, h * (.56 + random() * .14), .1 + random() * .08, 90 + dx, 330 + dx * .4, Math.max(1.5, h * .025));
+    dx += w;
+  }
+  marks.push(`<g class="cy-hundred" transform="rotate(-8 ${f(tx + wide / 2)} ${f(ty + h / 2)})">`
+    + `<circle class="cy-dots" cx="${f(tx + wide * .5)}" cy="${f(ty + h * .55)}" r="${f(h * (.95 + blaze * .05))}"/>`
+    + flames
+    + figures(tx, ty, h, text, random, 150, Math.max(6, h * .16))
+    + (word ? `<text class="cy-word" x="${f(tx + wide / 2)}" y="${f(ty + h + caption * 1.25)}" font-size="${f(caption)}">${word}</text>` : '')
+    + '</g>');
+  const spots: [number, number, number][] = [[-1.05, -.25, .16], [1.1, .35, .12], [-.8, .75, .1], [.35, -1.05, .11], [-1.3, .35, .08],
+    [1.35, -.6, .11], [-.55, -1.2, .09], [1.5, .8, .1], [-1.55, -.75, .1], [.9, 1.05, .08]];
+  marks.push(...stars(x, at.head.y, s, random, pen, spots.slice(0, 5 + blaze * 2)));
+  marks.push(...confetti(W, at.height, random, 14 + blaze * 12, 260));
+  if (blaze >= 2) marks.push(...fireworks(W, at.height, random, blaze + 1, pen, 420));
+  if (blaze >= 3) {
+    const size = Math.min(W * .11, at.height * .09, 92);
+    marks.push(slam(W / 2, 92 + size * .9, size, -4, 560, 'FOUR HUNDRED', 'is-head'));
+  }
+  const said = runs === 200 ? 'A double hundred.' : runs === 300 ? 'A triple hundred.' : runs === 400 ? 'Four hundred.' : `${runs}.`;
+  return { marks, dots: h, fire: true, said, blaze };
+}
+
+const LAYOUTS: Record<Milestone, (at: BatterOnScreen, s: number, pen: number, random: () => number, mark: number) => Layout> = {
+  century, fifty: halfCentury, 'six-sixes': yuvi, raise: raised,
+  double: (at, s, pen, random, mark) => landmark(at, s, pen, random, mark, 1),
+  triple: (at, s, pen, random, mark) => landmark(at, s, pen, random, mark, 2),
+  four: (at, s, pen, random, mark) => landmark(at, s, pen, random, mark, 3),
 };
 
 /**
@@ -387,17 +551,18 @@ const LAYOUTS: Record<Milestone, (at: BatterOnScreen, s: number, pen: number, ra
  * batter, in pixels, so every mark is sized to him rather than to the screen.
  * `lasts` is how long it is up; it wipes over the last quarter second of it.
  */
-export function milestoneDoodle(kind: Milestone, at: BatterOnScreen, lasts: number) {
-  const random = seeded(kind === 'fifty' ? 50 : kind === 'century' ? 100 : 66);
+export function milestoneDoodle(moment: Moment, at: BatterOnScreen, lasts: number) {
+  const { kind, mark } = moment;
+  const random = seeded(kind === 'six-sixes' ? 66 : mark);
   const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
   const pen = Math.max(3, s * .045);
-  const { marks, dots, fire: burning, said } = LAYOUTS[kind](at, s, pen, random);
+  const { marks, dots, fire: burning, said, blaze = 1 } = LAYOUTS[kind](at, s, pen, random, mark);
   const svg = `<svg class="cy-svg" viewBox="0 0 ${f(at.width)} ${f(at.height)}" width="${f(at.width)}" height="${f(at.height)}" aria-hidden="true">`
     + `<defs><pattern id="cy-dot" width="${f(dots * .09)}" height="${f(dots * .09)}" patternUnits="userSpaceOnUse">`
     + `<circle cx="${f(dots * .045)}" cy="${f(dots * .045)}" r="${f(dots * .018)}" fill="var(--cy-paint)"/></pattern>`
     + '<linearGradient id="cy-yuvi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fe0ff"/>'
     + '<stop offset=".45" stop-color="#3fa0ff"/><stop offset="1" stop-color="#1d4fd8"/></linearGradient></defs>'
-    + (burning ? edges(at.width, at.height) : '')
+    + (burning ? edges(at.width, at.height, blaze) : '')
     + `<g class="cy-boil">${marks.join('')}</g></svg>`;
   const element = document.createElement('div');
   element.className = `milestone is-${kind}`;

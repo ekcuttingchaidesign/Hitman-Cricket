@@ -2499,6 +2499,9 @@ body.survive-mode #scoreboard{display:none}
 }
 @keyframes cy-word{from{opacity:0;transform:translateY(8px) scale(.7)}to{opacity:1;transform:none}}
 .cy-pop{opacity:0;animation:cy-pop .3s cubic-bezier(.2,1.8,.4,1) var(--delay) forwards}
+.cy-confetti{opacity:0;animation:cy-confetti 1.7s ease-out var(--delay) forwards}
+@keyframes cy-confetti{0%{opacity:0;transform:translateY(-18px) rotate(0)}12%{opacity:1}100%{opacity:0;transform:translateY(var(--drift)) rotate(var(--spin))}}
+.cy-spark{fill:var(--cy-shine);stroke:var(--cy-ink);stroke-width:1.2px}
 .cy-pop .cy-mark path{stroke-dashoffset:0;animation:none}
 @keyframes cy-pop{from{opacity:0;transform:scale(0) rotate(-40deg)}to{opacity:1;transform:none}}
 .cy-boil{animation:cy-boil .25s steps(1) infinite}
@@ -2582,6 +2585,7 @@ body.survive-mode #scoreboard{display:none}
 @media (prefers-reduced-motion:reduce){
   .cy-boil{animation:none}
   .cy-mark path,.cy-pop,.cy-dots,.cy-word,.cy-slam{animation-duration:1ms;animation-delay:0s}
+  .cy-confetti{animation:none;opacity:.7}
   .cy-frame+.cy-frame,.cy-ember{display:none}
   .cy-frame{animation:none}
   .cy-fire{animation:none;transform:none}

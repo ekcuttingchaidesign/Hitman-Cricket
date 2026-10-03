@@ -112,18 +112,28 @@ export function nearingLine(n: Nearing) {
   if (n.need === 1) return 'One run away';
   if (n.need <= 4) return 'A four does it';
   if (n.need <= 6) return 'A six does it';
-  return n.kind === 'century' ? 'Nervous nineties' : 'Fifty in sight';
+  return n.kind === 'fifty' ? 'Fifty in sight' : n.kind === 'century' ? 'Nervous nineties'
+    : n.kind === 'raise' ? `${n.mark} in sight` : `Nervous ${n.mark - 10}s`;
+}
+
+/** The mark, said: fifty, a hundred, a double hundred, or just the number. */
+function markSaid(n: Exclude<Nearing, { kind: 'six-sixes' }>) {
+  return n.kind === 'fifty' ? 'fifty' : n.kind === 'century' ? 'a hundred'
+    : n.kind === 'double' ? 'a double hundred' : n.kind === 'triple' ? 'a triple hundred' : String(n.mark);
 }
 
 /** The whole of it as a sentence, for a screen reader. */
 export function nearingSaid(n: Nearing) {
   if (n.kind === 'six-sixes') return `${n.sixes} sixes in a row. ${6 - n.sixes} more for six sixes.`;
-  return `On ${n.runs}, ${n.need} short of ${n.kind === 'century' ? 'a hundred' : 'fifty'}.`;
+  return `On ${n.runs}, ${n.need} short of ${markSaid(n)}.`;
 }
 
 /** What the card says as it goes. */
 export function endLine(before: Nearing, end: NearingEnd) {
-  if (end.how === 'reached') return before.kind === 'six-sixes' ? 'Six 6s!' : before.kind === 'century' ? 'Hundred!' : 'Fifty!';
+  if (end.how === 'reached') {
+    return before.kind === 'six-sixes' ? 'Six 6s!' : before.kind === 'fifty' ? 'Fifty!' : before.kind === 'century' ? 'Hundred!'
+      : before.kind === 'double' ? 'Double hundred!' : before.kind === 'triple' ? 'Triple hundred!' : `${before.mark}!`;
+  }
   if (end.how === 'out') return `Out for ${end.runs}`;
   return 'Streak over';
 }
@@ -151,10 +161,10 @@ export function nearingMarkup(n: Nearing): string {
       + `<span class="nr-say nr-say-top" aria-hidden="true">${nearingLine(n)}</span></div><span class="nr-said">${nearingSaid(n)}</span>`;
   }
   const { w, h, dial } = RUNS;
-  const random = seeded(n.kind === 'century' ? 100 : 50);
+  const random = seeded(n.mark);
   const ring = loop(dial.x, dial.y, dial.r, random);
   return `<div class="nr-body"><svg class="nr-svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" aria-hidden="true">`
-    + `<g class="nr-boil">${frames(w, h, n.kind === 'century' ? 5 : 9)}</g>`
+    + `<g class="nr-boil">${frames(w, h, n.mark >= 100 ? 5 : 9)}</g>`
     + `<g class="nr-ticks">${tension(dial.x, dial.y, dial.r)}</g>`
     + `<path class="nr-track" d="${ring}"/>`
     + `<path class="nr-arc-ink" d="${ring}" pathLength="1" transform="translate(1.2 1.6)"/>`

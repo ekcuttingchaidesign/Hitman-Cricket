@@ -1,8 +1,10 @@
 /**
- * The moments, in a real browser — a fifty, a hundred, six sixes in a row: the
- * batter's celebration, the ground going grey round him for the two big ones
- * and not for the fifty, the doodles drawn over it, and the game carrying on
- * after.
+ * The moments, in a real browser — a fifty, a hundred, six sixes in a row, and
+ * the Test innings' marks after them: 150 with the raised bat, and the double,
+ * the triple and four hundred with celebrations of their own. The batter's
+ * celebration, the ground going grey round him for the big ones and not for
+ * the mild ones, the doodles drawn over it — confetti from the double,
+ * fireworks from the triple — and the game carrying on after.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/milestone-check.mjs
@@ -60,9 +62,13 @@ async function saturation(page, png, box) {
 
 /** What each moment should do to the screen. */
 const MOMENTS = [
-  { kind: 'century', grey: true, fire: true, cheer: 2.8 },
+  { kind: 'century', grey: true, fire: true, cheer: 2.8, words: ['CENTURY'] },
   { kind: 'six-sixes', grey: true, fire: true, cheer: 2.8 },
-  { kind: 'fifty', grey: false, fire: false, cheer: 2.3 },
+  { kind: 'fifty', grey: false, fire: false, cheer: 2.3, words: ['FIFTY'] },
+  { kind: 'raise', grey: false, fire: false, cheer: 2.3, words: [] },
+  { kind: 'double', grey: true, fire: true, cheer: 3.1, words: ['DOUBLE'], confetti: true },
+  { kind: 'triple', grey: true, fire: true, cheer: 3.3, words: ['TRIPLE'], confetti: true, fireworks: true },
+  { kind: 'four', grey: true, fire: true, cheer: 3.5, words: ['FOUR HUNDRED'], confetti: true, fireworks: true },
 ];
 
 for (const [name, options] of [
@@ -154,6 +160,7 @@ for (const [name, options] of [
     return {
       doodle: document.querySelectorAll('.milestone').length, marks: document.querySelectorAll('.milestone .cy-mark').length,
       fire: document.querySelectorAll('.milestone .cy-fire').length, aside: !!document.querySelector('#viewport.milestone-on'),
+      confetti: document.querySelectorAll('.milestone .cy-confetti').length, fireworks: document.querySelectorAll('.milestone .cy-spark').length,
       drawn: [...document.querySelectorAll('.milestone .cy-paint')].filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) < .5).length,
       words: [...document.querySelectorAll('.milestone text.cy-type, .milestone text.cy-yuvi, .milestone text.cy-ask, .milestone text.cy-word')].map(t => t.textContent),
       // Where YUVI and the question under it are, to hold the one below the other.
@@ -166,6 +173,12 @@ for (const [name, options] of [
   check(up.drawn >= 6, 'drawn on by now, not still waiting', up.drawn);
   check(moment.fire ? up.fire >= 8 : up.fire === 0, moment.fire ? 'and fire up the edges' : 'and no fire: it is the mild one', up.fire);
   check(up.aside, 'and the call for the ball steps aside');
+  if (moment.words) {
+    check(moment.words.every(w => up.words.includes(w)) && (moment.words.length > 0 || up.words.length === 0),
+      moment.words.length ? `saying ${moment.words.join(', ')}` : 'with the number alone and no word under it', JSON.stringify(up.words));
+  }
+  check(moment.confetti ? up.confetti >= 20 : up.confetti === 0, moment.confetti ? 'confetti across the top' : 'and no confetti', up.confetti);
+  check(moment.fireworks ? up.fireworks >= 3 : up.fireworks === 0, moment.fireworks ? 'and fireworks over the stands' : 'and no fireworks', up.fireworks);
   const cheers = await page.evaluate(() => window.__cheers);
   check(cheers.length === 1 && cheers[0] === moment.cheer, `and the crowd cheers, dying away over ${moment.cheer}s`, JSON.stringify(cheers));
   if (moment.kind === 'six-sixes') {
@@ -187,7 +200,8 @@ for (const [name, options] of [
   });
   check(draws <= BUDGET, `in ${draws} draw calls a frame, within ${BUDGET}`);
 
-  await page.waitForTimeout(1600);
+  // Four hundred's is up for more than three seconds; it is waited out, not timed.
+  await page.waitForFunction(() => !document.querySelector('.milestone'), null, { timeout: 7000 }).catch(() => {});
   check(await page.locator('.milestone').count() === 0, 'the doodles come down by themselves');
   const after = await saturation(page, await page.screenshot(), grass);
   check(after > before * .8, `and the colour comes back (saturation ${after.toFixed(2)})`);

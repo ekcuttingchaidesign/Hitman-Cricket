@@ -18,8 +18,8 @@ import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
-import { milestoneOf, nearingEnd, nearingOf, type Milestone, type Nearing } from './game/milestone';
-import { CELEBRATION_MS, FIFTY_MS } from './entities/Batter';
+import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
+import { type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
@@ -213,7 +213,7 @@ export class Game {
    * `celebrating` holds the next ball back for exactly as long as it takes,
    * and no longer.
    */
-  private milestoneDue: Milestone | null = null;
+  private milestoneDue: Moment | null = null;
   private celebrating = 0;
   /** The wait for one of those moments that is on the screen, if any: see Nearing.ts. */
   private nearing: Nearing | null = null;
@@ -575,7 +575,7 @@ export class Game {
       hurt: () => { this.health.value = 1; this.showConfidence(); },
       // A moment on demand, for `milestone-check.mjs`: getting to a real
       // hundred in a headless browser is thirty balls of perfect timing.
-      milestone: (kind: Milestone = 'century') => this.celebrate(kind),
+      milestone: (kind: Milestone = 'century', mark?: number) => this.celebrate({ kind, mark: mark ?? MARK_OF[kind] }),
       // The special stroke's flash, on demand, for the same reason — in the
       // style named, so `power-check.mjs` can see each, or the next one dealt.
       power: (style?: PowerStyle) => this.powerUp(style),
@@ -2123,16 +2123,20 @@ export class Game {
   /** The burst the last special stroke was drawn with, for the debug snapshot. */
   private powerStyle: PowerStyle | null = null;
   /** A moment: see `milestoneDue`. */
-  private celebrate(kind: Milestone) {
-    const mild = kind === 'fifty';
-    this.celebrating = mild ? FIFTY_MS : CELEBRATION_MS;
-    this.scene.celebrate(this.elapsed, mild);
-    this.hud.milestone(kind, this.scene.batterOnScreen(), this.celebrating);
-    // The crowd with it, falling away: the fifty's is the shorter of the two,
-    // though long enough to be heard as applause rather than a blip; the big
-    // two's carry on a little past him into the next ball's run-up.
-    this.audio.cheer(mild ? 2.3 : 2.8);
-    track(kind, kind === 'fifty' ? 'Reached fifty' : kind === 'century' ? 'Reached a hundred' : 'Six sixes in a row');
+  private celebrate(moment: Moment) {
+    const { kind } = moment;
+    // Which celebration the batter plays: the raised bat for every other
+    // fifty, the hundred's for six sixes, and the three big ones their own.
+    const pose: Celebration = kind === 'fifty' || kind === 'raise' ? 'fifty' : kind === 'century' || kind === 'six-sixes' ? 'hundred' : kind;
+    this.celebrating = celebrationLength(pose);
+    this.scene.celebrate(this.elapsed, pose);
+    this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
+    // The crowd with it, falling away: the fifty's is the shorter, though
+    // long enough to be heard as applause rather than a blip; the hundred's
+    // carries on a little past him into the next ball's run-up; and the big
+    // ones take the whole of the clip.
+    this.audio.cheer(CHEER[kind]);
+    track(kind, MOMENT_SAID[kind]);
   }
   private presentResult() {
     this.resultPresented = true;
@@ -3101,6 +3105,13 @@ export class Game {
   }
 }
 
+
+/** How long the crowd keeps it up for each moment, in seconds; the clip is three and a half. */
+const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
+const MOMENT_SAID: Record<Milestone, string> = {
+  fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',
+  double: 'Reached a double hundred', triple: 'Reached a triple hundred', four: 'Reached four hundred',
+};
 
 /**
  * What each row of the list says.

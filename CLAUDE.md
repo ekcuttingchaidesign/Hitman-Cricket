@@ -87,10 +87,14 @@ which is judging whatever the machine's clock says; `?lights=day` or
 scenery through `Batch` (`src/scene/build.ts`), one mesh a colour, not a box
 at a time.
 
-`scripts/milestone-check.mjs` is the fifty, the hundred and six sixes: the
-grey is measured off the pixels of the grass, and the doodles are judged on
-their own clock, because a headless browser rendering the ground in software
-can hold CSS animations at their first frame.
+`scripts/milestone-check.mjs` is the fifty, the hundred, six sixes, and the
+Test innings' marks after them — 150 with the raised bat and the number, and
+the double, the triple and four hundred, each with a celebration and a doodle
+of its own: the grey is measured off the pixels of the grass, and the doodles
+are judged on their own clock, because a headless browser rendering the ground
+in software can hold CSS animations at their first frame. A moment is asked
+for by name (`__cricket.milestone('triple')`); which ball earns it is
+`milestoneOf`'s, in the unit tests.
 
 `scripts/power-check.mjs` is the flash for a special stroke played on a full
 meter: the ground greyed round the batter and the ball, focus lines running

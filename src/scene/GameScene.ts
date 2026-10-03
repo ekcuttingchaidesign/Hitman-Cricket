@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
+import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength } from '../entities/Batter';
 import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -93,10 +93,10 @@ const TAILS = {
   pull: [0xff6a55, 0xf01b2c, 0x9c0018],
 } as const;
 /** How far gone the colour is, a given time into his celebration. */
-function muteAt(age: number) {
-  if (age < 0 || age >= CELEBRATION_MS) return 0;
+function muteAt(age: number, lasts = CELEBRATION_MS) {
+  if (age < 0 || age >= lasts) return 0;
   const into = THREE.MathUtils.smoothstep(age, 0, 180);
-  const out = 1 - THREE.MathUtils.smoothstep(age, CELEBRATION_MS - 320, CELEBRATION_MS);
+  const out = 1 - THREE.MathUtils.smoothstep(age, lasts - 320, lasts);
   return Math.min(into, out);
 }
 
@@ -223,6 +223,8 @@ export class GameScene {
   /** How grey everything but the batter is: see `MUTE`. */
   private mute = { value: 0 };
   private celebratedAt = -Infinity;
+  /** How long the celebration under way greys the ground for. */
+  private celebratedFor = CELEBRATION_MS;
   private poweredAt = -Infinity;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -572,9 +574,11 @@ export class GameScene {
    * grey round him; or his fifty, `mild`, the bat raised and the colours left
    * where they are.
    */
-  celebrate(now: number, mild = false) {
-    this.batter.celebrate(now, mild);
-    this.celebratedAt = mild ? -Infinity : now;
+  celebrate(now: number, kind: Celebration = 'hundred') {
+    this.batter.celebrate(now, kind);
+    // The fifty keeps the ground in its colours; the rest grey it for as long as they last.
+    this.celebratedAt = kind === 'fifty' ? -Infinity : now;
+    this.celebratedFor = celebrationLength(kind);
   }
   /**
    * A special stroke on a full meter, from the moment it is hit: the same
@@ -992,7 +996,7 @@ export class GameScene {
       const k = Math.min(1, Math.max(0, (now - this.cover.at) / COVER_MS));
       this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
     }
-    this.mute.value = Math.max(muteAt(now - this.celebratedAt), powerAt(now - this.poweredAt));
+    this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }
