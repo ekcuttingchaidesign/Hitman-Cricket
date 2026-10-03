@@ -1171,84 +1171,74 @@ const NODDED: Pose = { ...NODDING, face: NODDING.face + .25, headDown: .06 };
  * triple and four hundred are three different days and a man who did the
  * same thing for each would be a man who had not noticed.
  *
- * **A double hundred:** the bat held up over his head in both hands, level,
- * head back — the trophy — bobbed once and shown round the ground, then down
- * the way the hundred's comes down.
+ * **A double hundred:** both arms up and flexed, the fists beside his helmet
+ * and the elbows out at the shoulders, the bat stood up in his right fist —
+ * the strongman's double biceps — squeezed twice and shown to each side.
  */
-const OVERHEAD: Pose = (() => {
-  const body: Pose = { ...FACING, hip: [-.02, .98, -.02], chest: [.00, 1.32, .00], headDown: -.34 };
-  const chest = V(body.chest), outR = outwards(body, 1);
+const FLEXING: Pose = (() => {
+  // Square on to the camera, which a three-quarter turn foreshortens the upper arms out of.
+  const body = standing({ ...FACING, hip: [-.02, .97, -.02], chest: [.00, 1.31, .00], yaw: 2.95, face: 2.95, headDown: -.10, shoulderLift: .12 });
+  const outR = outwards(body, 1), outL = outwards(body, 0);
   const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
-  // Both hands on the handle, up over the crown of the helmet, the blade out
-  // to his left and tipped up a shade. To his left, because it comes up from
-  // beside his right ear and goes back down there: tipped over that way the
-  // blade crosses above the helmet, where the other way round the handle's
-  // butt swings through it.
+  // Toe to the sky out of the fist, leaning a little away from his head.
+  const toe = UP.clone().addScaledVector(outR, .14).normalize();
   return { ...body,
-    grip: point(chest.clone().addScaledVector(UP, .72).addScaledVector(outR, .06).addScaledVector(ahead, .05)),
-    batUp: point(outR.clone().addScaledVector(UP, -.12).normalize()), batFace: point(ahead.clone().negate()), release: 0 };
+    grip: point(shoulderOf(body, 1).addScaledVector(outR, .29).addScaledVector(UP, .26).addScaledVector(ahead, .05)),
+    batUp: point(toe.negate()), batFace: [0, 0, -1],
+    fist: point(shoulderOf(body, 0).addScaledVector(outL, .29).addScaledVector(UP, .28).addScaledVector(ahead, .05)), release: 1 };
 })();
-const OVERHEAD_BOB: Pose = { ...OVERHEAD, hip: [-.03, .94, -.03], chest: [-.01, 1.28, -.01], headDown: -.22 };
-const OVERHEAD_LOOK: Pose = { ...OVERHEAD, face: OVERHEAD.face + .4, headDown: -.30 };
+/** The squeeze: knees giving, chest down over it, fists drawn in and down. */
+const FLEX_SQUEEZE: Pose = (() => {
+  const body: Pose = { ...FLEXING, hip: [-.03, .93, -.03], chest: [-.01, 1.26, .01], headDown: .04 };
+  const outR = outwards(body, 1), outL = outwards(body, 0);
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  return { ...body,
+    grip: point(shoulderOf(body, 1).addScaledVector(outR, .25).addScaledVector(UP, .21).addScaledVector(ahead, .08)),
+    fist: point(shoulderOf(body, 0).addScaledVector(outL, .25).addScaledVector(UP, .23).addScaledVector(ahead, .08)) };
+})();
+const FLEX_LEFT: Pose = { ...FLEXING, face: FLEXING.face + .45, headDown: -.04 };
+const FLEX_RIGHT: Pose = { ...FLEXING, face: FLEXING.face - .45, headDown: -.04 };
 /**
- * Off the top of his head and out to his right first, both hands still on,
- * the toe up: straight from over his head to beside his shoulder, the level
- * blade swept through the helmet.
- */
-const ASIDE: Pose = { ...aloft(FACING, [.30, .12], [0, 0]), release: 0 };
-/**
- * **A triple hundred:** arms flung wide at shoulder height, the bat out level
- * in his right hand and the left hand open, head back — taking it all in.
+ * **A triple hundred:** arms flung wide and a little above the shoulders, the
+ * bat out along the line of his right arm and the left hand open, head back —
+ * taking it all in.
  */
 const WIDE: Pose = (() => {
   const body: Pose = { ...FACING, hip: [-.02, .98, -.02], chest: [.00, 1.32, .00], headDown: -.40 };
   const right = shoulderOf(body, 1), left = shoulderOf(body, 0), outR = outwards(body, 1), outL = outwards(body, 0);
   return { ...body,
-    grip: point(right.addScaledVector(outR, .55).addScaledVector(UP, .08)),
+    grip: point(right.addScaledVector(outR, .53).addScaledVector(UP, .18)),
     // The blade carries on along the line of the arm, tipped up a little.
-    batUp: point(outR.clone().negate().addScaledVector(UP, -.18).normalize()), batFace: [0, 0, -1],
-    fist: point(left.addScaledVector(outL, .57).addScaledVector(UP, .10)), release: 1 };
+    batUp: point(outR.clone().negate().addScaledVector(UP, -.30).normalize()), batFace: [0, 0, -1],
+    fist: point(left.addScaledVector(outL, .55).addScaledVector(UP, .20)), release: 1 };
 })();
 const WIDE_LOOK: Pose = { ...WIDE, face: WIDE.face + .4, headDown: -.32 };
 const WIDE_BACK: Pose = { ...WIDE, face: WIDE.face - .3, headDown: -.36 };
 /**
- * **Four hundred:** down on one knee, the bat planted in front of him and
- * both hands on the top of the handle, head bowed; then up, and arms wide.
- * The front foot stays flat in front, the back knee goes to the turf: the
- * hips come down to a thigh's length above it, so the solver puts the knee
- * on the ground under them.
+ * **Four hundred:** the champion. Feet set wide, chest out, the bat held
+ * straight up at the full stretch of his right arm and his eyes on it, the
+ * left elbow tucked in and the fist pumped down by his hip — then the roar, knees giving and head
+ * thrown back as the fist drives down again.
  */
-const KNEELING: Pose = (() => {
-  const yaw = FACING.yaw;
-  const ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
-  const hip = new THREE.Vector3(-.02, .58, -.02);
-  const body: Pose = { ...FACING, hip: point(hip), chest: point(hip.clone().addScaledVector(UP, .33).addScaledVector(ahead, .05)),
-    headDown: .42, leadElbow: .15, shoulderLift: .04 };
-  const outR = outwards(body, 1), outL = outwards(body, 0), chest = V(body.chest);
-  const front = hip.clone().addScaledVector(ahead, .34).addScaledVector(outL, .16).setY(.08);
-  const back = hip.clone().addScaledVector(ahead, -.44).addScaledVector(outR, .14).setY(.08);
-  return { ...body, frontFoot: point(front), backFoot: point(back), backFootYaw: yaw,
-    grip: point(chest.clone().addScaledVector(ahead, .34).addScaledVector(UP, -.11)),
-    batUp: [0, 1, 0], batFace: point(ahead.clone().negate()), release: 0 };
-})();
-const KNEELING_BOWED: Pose = { ...KNEELING, headDown: .62, chest: [KNEELING.chest[0], KNEELING.chest[1] - .02, KNEELING.chest[2]] };
-/** Up off the knee: stood facing the camera, the bat still planted in front of him in both hands. */
-const RISEN: Pose = (() => {
-  const chest = V(FACING.chest), ahead = new THREE.Vector3(Math.sin(FACING.yaw), 0, Math.cos(FACING.yaw));
-  return { ...FACING, headDown: -.10, grip: point(chest.clone().addScaledVector(ahead, .30).addScaledVector(UP, -.42)),
-    batUp: [0, 1, 0], batFace: point(ahead.clone().negate()), release: 0 };
-})();
-/**
- * The bat lifted from planted to raised by way of out in front of him, the
- * toe forward and down: turned straight from toe-down to toe-up where it
- * stood, the blade came up through his chest, and swung level at the hip the
- * handle's butt went into it.
- */
-const SWUNG: Pose = (() => {
-  const chest = V(FACING.chest), ahead = new THREE.Vector3(Math.sin(FACING.yaw), 0, Math.cos(FACING.yaw)), outR = outwards(FACING, 1);
-  return { ...FACING, headDown: -.12, grip: point(chest.clone().addScaledVector(ahead, .34).addScaledVector(outR, .14).addScaledVector(UP, -.08)),
-    batUp: point(ahead.clone().negate().addScaledVector(UP, 1).normalize()), batFace: point(outR), release: 0 };
-})();
+const wide = (body: Pose, apart: number): Pose => {
+  const hip = V(body.hip);
+  const foot = (side: 0 | 1) => point(hip.clone().addScaledVector(outwards(body, side), apart).setY(.08));
+  return { ...body, frontFoot: foot(0), backFoot: foot(1), backFootYaw: body.yaw - .1 };
+};
+function champion(body: Pose, fist: [out: number, up: number, ahead: number]): Pose {
+  const outR = outwards(body, 1), outL = outwards(body, 0);
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  const toe = UP.clone().addScaledVector(outR, .06).normalize();
+  return { ...body,
+    grip: point(shoulderOf(body, 1).addScaledVector(UP, .55).addScaledVector(outR, .09)),
+    batUp: point(toe.negate()), batFace: [0, 0, -1],
+    fist: point(shoulderOf(body, 0).addScaledVector(outL, fist[0]).addScaledVector(UP, fist[1]).addScaledVector(ahead, fist[2])), release: 1 };
+}
+const CHAMPION: Pose = champion(wide({ ...FACING, hip: [-.02, .95, -.02], chest: [.00, 1.30, .00], yaw: 2.75, face: 2.75, headDown: -.42, shoulderLift: .14 }, .30), [.08, -.38, .26]);
+const ROARING: Pose = champion(wide({ ...FACING, hip: [-.03, .89, -.03], chest: [-.01, 1.23, -.02], yaw: 2.75, face: 2.75, headDown: -.58, shoulderLift: .14 }, .32), [.10, -.42, .24]);
+const CHAMPION_LOOK: Pose = { ...CHAMPION, face: CHAMPION.face + .4, headDown: -.30 };
+/** The fist up in front of his chest on the way down, ready to take the handle again. */
+const CHAMPION_DONE: Pose = champion({ ...CHAMPION, headDown: -.20 }, [.08, -.10, .30]);
 
 /** The five celebrations: the fifty's nod, the hundred, and the Marathon's three big ones. */
 export type Celebration = 'fifty' | 'hundred' | 'double' | 'triple' | 'four';
@@ -1266,16 +1256,17 @@ const ROUTINES: Record<Celebration, Routine> = {
   hundred: { keys: [{ time: CELEBRATION.rise, pose: RISING }, { time: CELEBRATION.lift, pose: LIFTING }, { time: CELEBRATION.up, pose: RAISED },
       { time: CELEBRATION.pump, pose: PUMPED }, { time: CELEBRATION.again, pose: RAISED }, { time: CELEBRATION.pump2, pose: PUMPED }, { time: CELEBRATION.look, pose: LOOKING }],
     back: CELEBRATION.back, down: CELEBRATION.down, settle: CELEBRATION.settle, total: CELEBRATION_MS },
-  double: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: ASIDE }, { time: 560, pose: OVERHEAD }, { time: 720, pose: OVERHEAD_BOB },
-      { time: 860, pose: OVERHEAD }, { time: 1080, pose: OVERHEAD_LOOK }, { time: 1290, pose: OVERHEAD }, { time: 1440, pose: ASIDE }],
-    back: 1560, down: 1700, settle: 1840, total: 2000 },
+  double: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 560, pose: FLEXING },
+      { time: 700, pose: FLEX_SQUEEZE }, { time: 840, pose: FLEXING }, { time: 1040, pose: FLEX_LEFT }, { time: 1240, pose: FLEX_RIGHT },
+      { time: 1400, pose: FLEXING }, { time: 1520, pose: FLEX_SQUEEZE }, { time: 1640, pose: FLEXING }, { time: 1800, pose: RAISED }],
+    back: 1920, down: 2060, settle: 2200, total: 2360 },
   triple: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 640, pose: WIDE },
       { time: 900, pose: WIDE_LOOK }, { time: 1150, pose: WIDE }, { time: 1400, pose: WIDE_BACK }, { time: 1600, pose: WIDE }, { time: 1780, pose: RAISED }],
     back: 1920, down: 2060, settle: 2200, total: 2400 },
-  four: { keys: [{ time: 110, pose: RISING }, { time: 520, pose: KNEELING }, { time: 800, pose: KNEELING_BOWED }, { time: 1050, pose: KNEELING },
-      { time: 1350, pose: RISEN }, { time: 1500, pose: SWUNG }, { time: 1680, pose: ASIDE }, { time: 1830, pose: RAISED },
-      { time: 2050, pose: WIDE }, { time: 2350, pose: WIDE_LOOK }, { time: 2550, pose: WIDE }, { time: 2720, pose: RAISED }],
-    back: 2860, down: 3000, settle: 3140, total: 3340 },
+  four: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 520, pose: CHAMPION },
+      { time: 760, pose: ROARING }, { time: 980, pose: CHAMPION }, { time: 1200, pose: ROARING }, { time: 1420, pose: CHAMPION },
+      { time: 1700, pose: CHAMPION_LOOK }, { time: 1960, pose: CHAMPION }, { time: 2140, pose: CHAMPION_DONE }],
+    back: 2300, down: 2440, settle: 2580, total: 2760 },
 };
 /** How long each celebration holds the next ball back. */
 export const CELEBRATION_LENGTHS: Record<Celebration, number> = {

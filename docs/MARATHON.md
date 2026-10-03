@@ -125,9 +125,9 @@ ball he walked out on:
 | --- | --- | --- |
 | 50, 150, 250, 350 … | The fifty's raised bat, a second of it | The number written beside him, a burst and stars; the ground keeps its colours |
 | 100 | The hundred, as in the Blast | The crown, the 100 on fire, fire up the edges, the ground greyed |
-| 200 | The bat held up over his head in both hands, shown round the ground | The hundred's, with confetti across the top |
-| 300 | Arms flung wide at shoulder height, the bat out level, head back | The double's, with fireworks over the stands |
-| 400 | Down on one knee, the bat planted, head bowed; then up and arms wide | The triple's, with FOUR HUNDRED slammed across the top |
+| 200 | The double biceps: elbows out at the shoulders, fists by the helmet, the bat stood up in his right fist; squeezed twice and shown to each side | The hundred's, with confetti across the top |
+| 300 | Arms flung wide, a little above the shoulders, the bat out along the arm, head back | The double's, with fireworks over the stands |
+| 400 | The champion: feet wide, the bat straight up at full stretch, the left fist pumped down by his hip; then the roar | The triple's, with FOUR HUNDRED slammed across the top |
 
 Past four hundred, every hundred is four hundred's and every other fifty the
 raised bat's. The numbers are the thing — written big, by hand, as the 50 and

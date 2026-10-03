@@ -2044,12 +2044,12 @@ describe('the fifty', () => {
 
 /**
  * The Marathon's three big ones — a double, a triple, four hundred — each a
- * pose of its own: the bat held up over his head in both hands; arms flung
- * wide, the bat out level; down on one knee with the bat planted, then up and
- * wide. The hundred's rules hold for all three, and each has its own shape
- * to answer for.
+ * pose of its own: the double biceps, the bat stood up in his right fist;
+ * arms flung wide, the bat out along the arm; the champion, bat straight up
+ * and the left fist pumped down. The hundred's rules hold for all three, and
+ * each has its own shape to answer for.
  */
-describe.each([['double', 2000], ['triple', 2400], ['four', 3340]] as const)('the %s', (kind, lasts) => {
+describe.each([['double', 2360], ['triple', 2400], ['four', 2760]] as const)('the %s', (kind, lasts) => {
   const celebrating = () => { const batter = new Batter(); batter.update(0); batter.celebrate(0, kind); return batter; };
   const apart = (pose: ReturnType<Batter['inspect']>) => new Vector3(...pose.hands[0]).distanceTo(new Vector3(...pose.hands[1]));
   const helmet = (pose: ReturnType<Batter['inspect']>) => {
@@ -2113,45 +2113,49 @@ describe.each([['double', 2000], ['triple', 2400], ['four', 3340]] as const)('th
     }
   });
 
-  if (kind === 'double') it('holds the bat up over his head in both hands, level', () => {
+  if (kind === 'double') it('flexes both arms, fists by the helmet and elbows out, the bat stood up', () => {
     const batter = celebrating();
-    for (const time of [560, 860, 1290]) {
+    for (const time of [560, 840, 1400, 1640]) {
       batter.update(time);
-      const pose = batter.inspect();
-      expect(apart(pose), `both hands on it at ${time}ms`).toBeCloseTo(.110, 6);
-      expect(pose.grip[1], `hands over the helmet at ${time}ms`).toBeGreaterThan(helmet(pose).y + .2);
-      expect(Math.abs(pose.bladeTip[1] - pose.grip[1]), `blade level at ${time}ms`).toBeLessThan(.2);
+      const pose = batter.inspect(), head = helmet(pose);
+      for (let i = 0; i < 2; i++) {
+        const hand = pose.hands[i], elbow = pose.elbows[i];
+        // Forearms upright off elbows at the shoulders puts the fists level with the top of his head.
+        expect(hand[1] - head.y, `fist ${i} up beside the helmet at ${time}ms`).toBeGreaterThan(-.05);
+        expect(hand[1] - head.y, `and not reaching over it at ${time}ms`).toBeLessThan(.28);
+        expect(hand[1] - elbow[1], `forearm ${i} up from the elbow at ${time}ms`).toBeGreaterThan(.18);
+        expect(Math.abs(elbow[1] - pose.chest[1] - .12), `elbow ${i} at shoulder height at ${time}ms`).toBeLessThan(.12);
+      }
+      expect(apart(pose), `fists apart at ${time}ms`).toBeGreaterThan(.5);
+      expect(pose.bladeTip[1], `the toe to the sky at ${time}ms`).toBeGreaterThan(pose.grip[1] + .6);
     }
   });
 
-  if (kind === 'triple') it('flings both arms wide at shoulder height, the bat out level', () => {
+  if (kind === 'triple') it('flings both arms wide, a little above the shoulders, the bat out along the arm', () => {
     const batter = celebrating();
     for (const time of [640, 1150, 1600]) {
       batter.update(time);
       const pose = batter.inspect();
       expect(apart(pose), `arms wide at ${time}ms`).toBeGreaterThan(.95);
-      for (const hand of pose.hands) expect(Math.abs(hand[1] - pose.chest[1] - .1), `hand at shoulder height at ${time}ms`).toBeLessThan(.2);
-      expect(Math.abs(pose.bladeTip[1] - pose.grip[1]), `blade level at ${time}ms`).toBeLessThan(.25);
+      for (const hand of pose.hands) {
+        const above = hand[1] - pose.chest[1];
+        expect(above, `hand up at the shoulders at ${time}ms`).toBeGreaterThan(.1);
+        expect(above, `and not over his head at ${time}ms`).toBeLessThan(.45);
+      }
+      expect(pose.bladeTip[1] - pose.grip[1], `blade along the arm at ${time}ms`).toBeGreaterThan(-.05);
+      expect(pose.bladeTip[1] - pose.grip[1], `and not stood up at ${time}ms`).toBeLessThan(.45);
     }
   });
 
-  if (kind === 'four') it('goes down on one knee with the bat planted, then up and wide', () => {
+  if (kind === 'four') it('stands wide, the bat straight up at full stretch and the left fist pumped down', () => {
     const batter = celebrating();
-    for (const time of [520, 800, 1050]) {
+    for (const time of [520, 760, 980, 1420, 1960]) {
       batter.update(time);
-      const pose = batter.inspect();
-      expect(pose.hip[1], `down at ${time}ms`).toBeLessThan(.66);
-      // A knee on the turf: the back one, which the hips have come down over.
-      expect(Math.min(...pose.knees.map(k => k[1])), `a knee down at ${time}ms`).toBeLessThan(.2);
-      expect(apart(pose), `both hands on the handle at ${time}ms`).toBeCloseTo(.110, 6);
-      expect(pose.bladeTip[1], `the toe on the ground at ${time}ms`).toBeLessThan(.12);
-      expect(pose.bladeTip[1], `and not through it`).toBeGreaterThan(-.08);
+      const pose = batter.inspect(), head = helmet(pose);
+      expect(Math.abs(pose.frontFoot[0] - pose.backFoot[0]) + Math.abs(pose.frontFoot[2] - pose.backFoot[2]), `feet wide at ${time}ms`).toBeGreaterThan(.5);
+      expect(pose.hands[1][1], `bat hand high over the helmet at ${time}ms`).toBeGreaterThan(head.y + .3);
+      expect(pose.bladeTip[1], `the toe to the sky at ${time}ms`).toBeGreaterThan(pose.grip[1] + .7);
+      expect(pose.hands[0][1], `left fist down by the hip at ${time}ms`).toBeLessThan(pose.chest[1] - .1);
     }
-    for (const time of [2050, 2550]) {
-      batter.update(time);
-      const pose = batter.inspect();
-      expect(pose.hip[1], `up again at ${time}ms`).toBeGreaterThan(.9);
-      expect(apart(pose), `arms wide at ${time}ms`).toBeGreaterThan(.95);
-    }
-  });
+});
 });
