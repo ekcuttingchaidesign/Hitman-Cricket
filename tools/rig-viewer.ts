@@ -164,17 +164,16 @@ const MARKS: { ms: number; label: string; quiet?: boolean; wide?: boolean; relea
   { ms: ofFollow(FOLLOW_PHASES.FOLLOWED), label: 'Fallen away', wide: true },
   { ms: ofFollow(FOLLOW_PHASES.RECOVERED), label: 'Stood' },
 ];
-/** The express bowler's pre-gather, as `Bowler` blends it in and out. */
-const PRE_GATHER = [ofRun(.40), ofRun(.61)];
+/** The slinger's carry: the ball at his chest in both hands, let go of here. */
+const CARRY = [0, ofRun(.56)];
 function phaseAt(ms: number, express: boolean) {
   const t = ms / RUNUP;
   if (Math.abs(ms - RUNUP) <= 10) return 'Release';
   if (ms > RUNUP) return ms < ofFollow(FOLLOW_PHASES.FOLLOWED) ? 'Follow-through' : ms < ofFollow(FOLLOW_PHASES.RECOVERED) ? 'Standing up' : 'Stood';
-  if (express && ms >= PRE_GATHER[0] && ms < ofRun(.55)) return 'Pre-gather';
-  if (t < PHASES.BOUND) return t < .12 ? 'Top of the mark' : 'Run-up';
+  if (t < PHASES.BOUND) return t < .12 ? 'Top of the mark' : express ? 'Run-up · the carry' : 'Run-up';
   if (t < PHASES.BACK_FOOT) return 'The leap';
   if (t < PHASES.STRIDE_START) return 'Back foot · gather';
-  if (t < PHASES.FRONT_FOOT) return 'Delivery stride';
+  if (t < PHASES.FRONT_FOOT) return express ? 'The sling' : 'Delivery stride';
   return 'Front foot braced';
 }
 
@@ -183,7 +182,7 @@ function drawTicks() {
   const pct = (ms: number) => `${(ms / ACTION_MS * 100).toFixed(2)}%`;
   ticks.innerHTML = MARKS.map(m => `<i class="${m.release ? 'release' : ''}" style="left:${pct(m.ms)}" title="${m.label}"></i>`
     + (m.quiet ? '' : `<span class="${m.wide ? 'wide' : ''}" style="left:${pct(m.ms)}">${m.label}</span>`)).join('')
-    + (state.show !== 'pace' ? `<div class="band" title="Express pre-gather" style="left:${pct(PRE_GATHER[0])};width:${pct(PRE_GATHER[1] - PRE_GATHER[0])}"></div>` : '');
+    + (state.show !== 'pace' ? `<div class="band" title="The ball carried at the chest" style="left:${pct(CARRY[0])};width:${pct(CARRY[1] - CARRY[0])}"></div>` : '');
   // The first and last labels sit inside the track rather than half off it.
   const spans = ticks.querySelectorAll('span');
   spans[0].style.transform = 'none';

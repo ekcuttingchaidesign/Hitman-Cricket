@@ -373,11 +373,11 @@ describe.each(ACTIONS)('the action is the disguise — %s', (_, style) => {
 });
 
 describe('the express bowler, against the fast bowler', () => {
-  // The Marathon's Level 3 bowler, after a slow-motion reference: the same run
-  // and the same release, and the shape of everything between his own. Each
-  // test here is one thing anyone who has watched the reference remembers, and
-  // each is measured against the fast bowler at the same moment, so it holds
-  // only while the two actually look different.
+  // The Marathon's Level 3 bowler is a slinger, after a slow-motion reference:
+  // the same run and the same release, and the shape of everything between his
+  // own. Each test here is one thing anyone who has watched the reference
+  // remembers, and each is measured against the fast bowler at the same
+  // moment, so it holds only while the two actually look different.
   const both = <T>(read: () => T): [T, T] => {
     bowler.action(PACE_ACTION); const pace = read();
     bowler.action(EXPRESS_ACTION); const express = read();
@@ -385,56 +385,71 @@ describe('the express bowler, against the fast bowler', () => {
     return [pace, express];
   };
   const pose = (t: number) => () => at(t);
-  /** The shoulders' line across the pitch: 0 is square to the batter, 90° side-on. */
-  const sideOn = (s: ReturnType<typeof at>) =>
-    Math.atan2(Math.abs(s.shoulders[0][2] - s.shoulders[1][2]), Math.abs(s.shoulders[0][0] - s.shoulders[1][0])) * 180 / Math.PI;
+  /** How far round from facing the batter he is, in degrees. */
+  const turned = (s: ReturnType<typeof at>) => (s.yaw - Math.PI) * 180 / Math.PI;
 
-  it('swings the ball hand low across his body in the last strides', () => {
-    // The left hand is on +x in his own frame. Running in, the ball hand pumps
-    // on its own side; his crosses the middle of him to the left hip.
-    const [pace, express] = both(pose(.5));
-    expect(pace.hands[1][0]).toBeLessThan(-.15);
-    expect(express.hands[1][0]).toBeGreaterThan(0);
-    // Low, at the hip rather than up at the chest.
-    expect(express.hands[1][1]).toBeLessThan(express.hip[1] + .15);
+  it('runs in with the ball held at his chest in both hands', () => {
+    const [pace, express] = both(pose(.3));
+    // Hands together, in front of the chest, at its height: the fast bowler's
+    // pump has them a shoulder-width apart and by his hips.
+    const apart = (s: ReturnType<typeof at>) => Math.hypot(...s.hands[0].map((v, k) => v - s.hands[1][k]));
+    expect(apart(express)).toBeLessThan(.15);
+    expect(apart(pace)).toBeGreaterThan(.4);
+    for (const hand of express.hands) {
+      expect(hand[1]).toBeGreaterThan(express.chest[1] - .2);
+      expect(hand[2]).toBeLessThan(express.chest[2] - .15);
+    }
   });
 
-  it('leaps higher and turns past side-on, his back to the batter', () => {
+  it('leaps higher, knee driven up, and side-on rather than past it', () => {
     const [paceAir, expressAir] = both(pose(.62));
-    expect(expressAir.hip[1]).toBeGreaterThan(paceAir.hip[1] + .1);
-    // Measured as the turn itself: past ninety degrees the line of the
-    // shoulders comes back towards square, and only the way he faces says
-    // which side of side-on he is.
+    expect(expressAir.hip[1]).toBeGreaterThan(paceAir.hip[1] + .08);
+    expect(expressAir.feet[0][1]).toBeGreaterThan(paceAir.feet[0][1] + .1);
     const [pace, express] = both(pose(PHASES.BACK_FOOT));
-    const turned = (s: ReturnType<typeof at>) => (s.yaw - Math.PI) * 180 / Math.PI;
-    expect(turned(pace)).toBeLessThan(90);
-    expect(turned(express)).toBeGreaterThan(100);
-    expect(sideOn(express)).toBeGreaterThan(60);
+    expect(turned(express)).toBeGreaterThan(turned(pace) + 8);
+    expect(turned(express)).toBeLessThan(90);
   });
 
-  it('veers off across the pitch as he runs off, not straight on', () => {
-    const [pace, express] = both(() => { bowler.followThrough(1); return bowler.root.position.x; });
-    expect(express).toBeGreaterThan(pace + .5);
-    // And not while the front foot is still braced on its mark.
-    const [paceBraced, expressBraced] = both(() => { bowler.followThrough(.04); return bowler.root.position.x; });
-    expect(expressBraced).toBeCloseTo(paceBraced, 5);
-  });
-
-    it('runs in leaning forward and pumping his arms', () => {
-    const [pace, express] = both(pose(.35));
-    const forward = (s: ReturnType<typeof at>) => s.hip[2] - s.chest[2];
-    expect(forward(express)).toBeGreaterThan(forward(pace) + .15);
-  });
-
-  it('gathers with the front arm up over his head and the bowling arm hanging down behind', () => {
+  it('gathers with the ball arm hanging low and wide behind him', () => {
     const [pace, express] = both(pose(PHASES.BACK_FOOT));
+    // Out to his side: the fast bowler's hangs straight down.
+    const out = (s: ReturnType<typeof at>) => Math.abs(s.hands[1][0] - s.shoulders[1][0]);
+    expect(out(express)).toBeGreaterThan(out(pace) + .2);
+    expect(express.hands[1][1]).toBeLessThan(express.shoulders[1][1] - .3);
+    // And the front arm straight up over his head.
     expect(express.hands[0][1]).toBeGreaterThan(express.shoulders[0][1] + .5);
-    expect(express.hands[1][1]).toBeLessThan(pace.hands[1][1] - .08);
-    // And arched away from the target to load it.
-    expect(express.lean).toBeGreaterThan(pace.lean + .08);
   });
 
-  it('whips the arm over faster, from the same place at the same moment', () => {
+  it('chops the front arm down in front of him, not behind', () => {
+    // Facing the batter, -z is in front. The fast bowler pulls his down behind.
+    const front = (s: ReturnType<typeof at>) => s.hands[0][2] - s.shoulders[0][2];
+    for (const t of [.9, .93, 1]) {
+      const [pace, express] = both(pose(t));
+      expect(front(express)).toBeLessThan(-.15);
+      expect(front(pace)).toBeGreaterThan(front(express) + .2);
+    }
+  });
+
+  it('slings it: the arm comes through wide of the shoulder, the body tilted away', () => {
+    const [pace, express] = both(pose(1));
+    // The hand out to his right at the release, where the fast bowler's is
+    // all but over his head.
+    const wide = (s: ReturnType<typeof at>) => Math.abs(s.hands[1][0] - s.shoulders[1][0]);
+    expect(wide(express)).toBeGreaterThan(.33);
+    expect(wide(express)).toBeGreaterThan(wide(pace) + .2);
+    // Tilted away to his left: the bowling shoulder the higher of the two.
+    expect(express.shoulders[1][1]).toBeGreaterThan(express.shoulders[0][1] + .08);
+    expect(pace.shoulders[1][1]).toBeLessThan(pace.shoulders[0][1]);
+  });
+
+  it('runs in from a wider lane, so the slung arm still arrives where the ball starts', () => {
+    const [paceLane, expressLane] = both(() => { bowler.runup(.3); return bowler.root.position.x; });
+    expect(expressLane).toBeGreaterThan(paceLane + .2);
+    // Faster in the arm and wider in the lane: the ball is handed over from
+    // the same point, so a batter who has learned the fast bowler's release
+    // has learned his.
+    const [paceHand, expressHand] = both(() => { bowler.runup(1); return bowler.releasePoint(); });
+    expect(expressHand.distanceTo(paceHand)).toBeLessThan(.12);
     const rate = () => {
       const angle = (ms: number) => {
         bowler.animate(ms);
@@ -443,19 +458,30 @@ describe('the express bowler, against the fast bowler', () => {
       };
       return Math.abs(angle(GAME.runupMs) - angle(GAME.runupMs - 25)) / .025;
     };
-    const [pace, express] = both(rate);
-    expect(express).toBeGreaterThan(pace * 1.15);
-    // Faster in the arm only: the ball is handed over from the same point, so a
-    // batter who has learned the fast bowler's release has learned his.
-    const [paceHand, expressHand] = both(() => { bowler.runup(1); return bowler.releasePoint(); });
-    expect(expressHand.distanceTo(paceHand)).toBeLessThan(.12);
+    const [paceRate, expressRate] = both(rate);
+    expect(expressRate).toBeGreaterThan(paceRate * 1.1);
   });
 
-  it('folds deeper over the front leg and kicks the back leg up high', () => {
-    const [paceKick, expressKick] = both(() => flight(.1));
-    expect(expressKick.feet[1][1]).toBeGreaterThan(paceKick.feet[1][1] + .15);
+  it('carries the arm on across his body and folds deeper, the head still falling away', () => {
     const [pace, express] = both(() => flight(.34));
+    // Across: the hand finishes on the far side of him from where it came over.
+    expect(express.hands[1][0]).toBeGreaterThan(express.shoulders[1][0] + .1);
+    expect(pace.hands[1][0]).toBeLessThan(pace.shoulders[1][0] + .05);
     expect(express.hip[1]).toBeLessThan(pace.hip[1] - .05);
+    expect(express.lean).toBeGreaterThan(.4);
+    // Bent, never stretched: the spine is the length it is.
+    const spine = (s: ReturnType<typeof at>) => Math.hypot(...s.chest.map((v, k) => v - s.hip[k]));
+    for (const p of [.1, .2, .3, .34]) expect(spine(flight(p))).toBeLessThan(.47);
+  });
+
+  it('veers off across the pitch as he runs off, not straight on', () => {
+    const [pace, express] = both(() => { bowler.followThrough(1); return bowler.root.position.x; });
+    const [paceLane, expressLane] = both(() => { bowler.runup(1); return bowler.root.position.x; });
+    expect(express - expressLane).toBeGreaterThan(.4);
+    expect(Math.abs(pace - paceLane)).toBeLessThan(.001);
+    // And not while the front foot is still braced on its mark.
+    const [, expressBraced] = both(() => { bowler.followThrough(.04); return bowler.root.position.x; });
+    expect(expressBraced).toBeCloseTo(expressLane, 5);
   });
 
   it('is the one the scene can tell apart, and the fast bowler by default', () => {

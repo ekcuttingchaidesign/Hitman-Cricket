@@ -157,8 +157,13 @@ export interface ActionStyle {
   fold: number; foldLean: number;
   /** How high the back leg kicks up behind him as he falls away. */
   backKick: number;
-  /** The ball hand swung low across the front of his body in the last strides. */
-  preGather: boolean;
+  /**
+   * What the hands do running in: pump against the legs, or carry the ball at
+   * the chest in both hands until the last stride before the leap.
+   */
+  carry: 'run' | 'chest';
+  /** Where the run-up lies across the pitch: just wide of the stumps, or wider. */
+  lane: number;
   /** How far forward he leans running in, as a sprinter does, gone by the time he lands from the leap. */
   runLean: number;
   /** How hard the arms pump running in: one is the fast bowler's. */
@@ -169,8 +174,13 @@ export interface ActionStyle {
   kneeDrive: number;
   /** How far he tilts away to his non-bowling side as the ball goes, in radians. */
   releaseTilt: number;
-  /** How far the bowling arm leans out from the vertical on its way over: nought is straight over the top. */
-  armTilt: number;
+  /**
+   * How far the bowling arm leans out from the vertical on its way over: nought
+   * is straight over the top, and a slinger's is most of the way to level.
+   * `throughTilt` is where it leans once the ball has gone, so a slung arm can
+   * finish across the body.
+   */
+  armTilt: number; throughTilt: number;
   /**
    * The back leg kicked up behind him as he pitches forward over the front
    * one, how high, and for how much of the falling-away it hangs there before
@@ -194,50 +204,52 @@ export const PACE_ACTION: ActionStyle = {
   coilBack: .10, coilLean: .22, coilHead: -.5,
   fold: .19, foldLean: .26,
   backKick: .32,
-  preGather: false,
+  carry: 'run', lane: .34,
   runLean: 0, pump: 1,
-  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, armTilt: -.175,
+  frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, armTilt: -.175, throughTilt: -.175,
   kick: 0, kickHold: 0, followAcross: 0,
 };
 
 /**
- * The Marathon's express bowler, after a slow-motion reference of the
- * fastest action of them all — the same run-up, and everything else his own.
+ * The Marathon's express bowler: a slinger, after a slow-motion reference of
+ * the most famous one — the same run-up and clock, and everything else his own.
  *
  * The first cut of this was the fast bowler's action with every number nudged
  * the same way, and a playtest could not tell the two apart: at 840 ms from
- * twenty metres, ten degrees more turn is nothing. So each of these is pushed
- * until it changes his outline, which is all a batter sees from the far end.
+ * twenty metres, ten degrees more turn is nothing. A sling is a different
+ * shape altogether, and reads from the far end.
  *
- *   - **The run.** A sprinter's lean, and the arms pumping half as hard again.
- *   - **The pre-gather.** In his last strides the ball hand swings low across
- *     the front of his body to the left hip.
- *   - **The leap.** The front arm straight up before he leaves the ground, the
- *     front knee driven high, and the whole of him higher.
- *   - **The gather.** Turned past side-on — for a moment his back is to the
- *     batter — the bowling arm hanging straight down behind him, and the back
- *     arched away from the target: the coil the whole thing is loaded from.
- *   - **The whip.** The front arm dragged down harder and the arm over faster
- *     and straighter, tilting away to his left as it goes. Faster only in the
- *     arm: the ball leaves at the same moment as every other ball, from within
- *     a few centimetres of the same place, so the release is as easy to time
- *     off as it ever was.
- *   - **The follow-through.** Folded right over the front leg with the back
- *     leg kicked up behind him and held there, then veering off across the
- *     pitch rather than running straight on.
+ *   - **The run.** The ball carried at the chest in both hands, upright.
+ *   - **The leap.** The hands part: the front arm goes straight up in front of
+ *     his face, the ball arm drops away behind, and the front knee drives high.
+ *   - **The gather.** Side-on, arched away from the target, the ball arm
+ *     hanging low and wide behind him.
+ *   - **The sling.** The arm comes through round rather than over — leaning
+ *     well out from the vertical the whole way — while the front arm is chopped
+ *     down in front of him to the chest and the body tilts hard away to his
+ *     left, bowling shoulder high, head going down. The ball still leaves at
+ *     the same moment as every other ball, and from the same point: he runs in
+ *     from a wider lane, so that an arm swinging in from out there arrives
+ *     where an arm coming straight over the top does.
+ *   - **The follow-through.** The arm carries on across his body to the far
+ *     hip, the head still falling away, and he runs off across the pitch.
+ *
+ * What a sling cannot have here is a release at shoulder height: the ball is
+ * handed to its trajectory at a fixed point over his head, so the arm leans
+ * out as far as still reaches it, which is about thirty-five degrees.
  */
 export const EXPRESS_ACTION: ActionStyle = {
-  gatherAngle: -2.98, whip: 3.4, release: .10, through: 2.9,
-  frontUp: .02, frontPull: -2.9, frontAfter: -2.4,
-  runTurn: .16, gatherTurn: 1.85, releaseTurn: -.58,
-  leap: .36, followDrop: .34,
-  coilBack: .30, coilLean: .55, coilHead: -.85,
-  fold: .55, foldLean: .50,
-  backKick: .3,
-  preGather: true,
-  runLean: .24, pump: 1.6,
-  frontRise: [.47, .64], kneeDrive: 1.5, releaseTilt: .48, armTilt: -.19,
-  kick: .62, kickHold: .34, followAcross: .8,
+  gatherAngle: -2.55, whip: 3.2, release: .16, through: 2.7,
+  frontUp: -.1, frontPull: 2.35, frontAfter: 2.75,
+  runTurn: .14, gatherTurn: 1.25, releaseTurn: -.55,
+  leap: .3, followDrop: .3,
+  coilBack: .22, coilLean: .4, coilHead: -.7,
+  fold: .38, foldLean: -.3,
+  backKick: .4,
+  carry: 'chest', lane: .6,
+  runLean: .1, pump: 1,
+  frontRise: [.46, .64], kneeDrive: 1.5, releaseTilt: -.5, armTilt: -.8, throughTilt: .5,
+  kick: .25, kickHold: .25, followAcross: .5,
 };
 
 /**
@@ -322,8 +334,6 @@ export class Bowler {
   readonly figure: Cricketer;
   readonly root: THREE.Group;
   private ball: THREE.Mesh;
-  /** Where the run-up starts across the pitch: just wide of the stumps. */
-  private laneX = .34;
   /**
    * Which run he is walking back to the top of. Set before the action starts
    * and held for the whole of it, so a delivery cannot change its own geometry
@@ -415,7 +425,7 @@ export class Bowler {
     const travelled = after > 0 ? travelledAt(after, this.run) : advance(t, this.run);
     // His left is +x here, the side away from the stumps.
     const veer = after > 0 ? ease(span(after, .14, .7)) * this.style.followAcross : 0;
-    this.root.position.set(this.laneX + veer, 0, this.run.startZ - travelled);
+    this.root.position.set(this.style.lane + veer, 0, this.run.startZ - travelled);
 
     const pose = this.figure.stand();
     const style = this.style;
@@ -441,6 +451,11 @@ export class Bowler {
     // Running in, a sprinter's lean: in as he gets going, out through the leap.
     const sprint = style.runLean * ease(span(t, 0, .3)) * (1 - ease(span(t, BOUND, BACK_FOOT)));
     pose.chest.set(0, hipY + SPINE - fall * .16 - sprint * .1, coil * style.coilBack - fall * .58 - sprint);
+    // A deep fold is a spine bent, not a spine stretched: past the length the
+    // coil already gave it the chest is drawn back in, or the torso and the
+    // shoulders come apart. The fast bowler's fold never reaches it.
+    const spine = pose.chest.clone().sub(pose.hip), longest = Math.hypot(SPINE, coil * style.coilBack);
+    if (spine.length() > longest) pose.chest.copy(pose.hip).addScaledVector(spine.normalize(), longest);
     pose.lean = coil * style.coilLean - (ease(span(t, FRONT_FOOT, 1)) * style.releaseTilt + after * style.foldLean);
     pose.headYaw = coil * style.coilHead + after * .35;
     pose.headPitch = .05 + coil * .06 + after * .22;
@@ -605,7 +620,9 @@ export class Bowler {
     // in from nothing here is what made a 24 rad/s arm read as a slow one: the
     // eye follows it through the ball, and what it saw was the arm stop.
     const style = this.style;
-    const angle = after > 0 ? THREE.MathUtils.lerp(style.release, style.through, settle(span(after, 0, ARM_THROUGH))) : armAngle(t, this.run, style);
+    const swept = settle(span(after, 0, ARM_THROUGH));
+    const angle = after > 0 ? THREE.MathUtils.lerp(style.release, style.through, swept) : armAngle(t, this.run, style);
+    const tilt = after > 0 ? THREE.MathUtils.lerp(style.armTilt, style.throughTilt, swept) : style.armTilt;
     const front = after > 0 ? THREE.MathUtils.lerp(style.frontPull, style.frontAfter, ease(after)) : frontArmAngle(t, this.run, style);
 
     // Shoulders, from the trunk the pose has already described.
@@ -622,7 +639,7 @@ export class Bowler {
     // shoulder, so the limb solver has nothing left to bend.
     const bowlingArm = t > BOUND || after > 0;
     const reach = bowlingArm ? ARM_REACH - .004 : ARM_REACH * .60;
-    pose.rightHand.copy(shoulder(1)).addScaledVector(armDirection(angle, style.armTilt), reach);
+    pose.rightHand.copy(shoulder(1)).addScaledVector(armDirection(angle, tilt), reach);
 
     // The front arm reaches at full stretch in the gather and then folds as it
     // is pulled into the ribs, which is what a front arm actually does.
@@ -653,18 +670,22 @@ export class Bowler {
       }
       pose.elbowsBack = .5 * w;
     }
-    // The express bowler's pre-gather: in his last strides the ball hand
-    // leaves the run and swings low across the front of his body to his left
-    // hip, and from there drops into the gather behind him. Measured in his
-    // own frame — right is +x, forward +z — and turned with him.
-    if (style.preGather && after === 0) {
-      const cross = ease(span(t, .40, .49)) * (1 - ease(span(t, .53, .61)));
-      if (cross > 0) {
+    // The slinger's carry: the ball held at the chest in both hands all the
+    // way in, let go of in the last stride before the leap — the front hand
+    // to go up, the ball hand to drop away behind. Measured in his own frame,
+    // right is +x and forward +z, and turned with him.
+    if (style.carry === 'chest' && after === 0) {
+      const held = 1 - ease(span(t, .42, .56));
+      if (held > 0) {
         const turn = new THREE.Vector3(0, 1, 0);
         const local = (p: THREE.Vector3) => p.clone().applyAxisAngle(turn, -pose.yaw);
-        const hip = local(pose.hip);
-        const across = new THREE.Vector3(-.2, hip.y - .02, hip.z + .3).applyAxisAngle(turn, pose.yaw);
-        pose.rightHand.lerp(across, cross);
+        const chest = local(pose.chest);
+        const at = (x: number) => new THREE.Vector3(x, chest.y - .06, chest.z + .3).applyAxisAngle(turn, pose.yaw);
+        pose.rightHand.lerp(at(.03), held);
+        pose.leftHand.lerp(at(-.06), held);
+        // Hands together in front of the chest want the elbows down and out,
+        // not driven back like a runner's.
+        pose.elbowsBack = (pose.elbowsBack ?? 0) * (1 - held);
       }
     }
   }
