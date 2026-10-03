@@ -3,7 +3,7 @@ import { GAME, LINE_X } from '../src/config/gameplay';
 import { BATTERS, BLOCK_OVERS, EXPRESS_OVER, LEVELS, MARATHON, levelOf } from '../src/config/marathon';
 import { SURVIVE } from '../src/config/survive';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
-import { DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock } from '../src/game/DeliveryGenerator';
+import { DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonOnly } from '../src/game/DeliveryGenerator';
 import { MarathonInnings } from '../src/game/Marathon';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { surviveBall } from '../src/game/Survive';
@@ -307,5 +307,47 @@ describe('the Marathon\'s bowling', () => {
     const generator = new DeliveryGenerator(new SeededRandom(1), SURVIVE_PLAN);
     expect(generator.overKind(0)).toBe(null);
     expect(generator.expressOn).toBe(false);
+  });
+});
+
+describe('the switches for trying one bowler', () => {
+  const bowl = (plan: ReturnType<typeof marathonOnly>, balls = 60) => {
+    const generator = new DeliveryGenerator(new SeededRandom(7), plan);
+    return { generator, bowled: [...Array(balls)].map(() => generator.next(0)) };
+  };
+
+  it('?swing=1 swings every ball, late and far, from the first', () => {
+    const { generator, bowled } = bowl(marathonOnly({ swing: true }));
+    for (const d of bowled) {
+      expect(['SWING_IN', 'SWING_OUT']).toContain(d.style);
+      expect(d.late).toBe(LEVELS[1].late);
+    }
+    expect(new Set(bowled.map(d => d.style)).size).toBe(2);
+    expect(generator.levelAt(0)?.level).toBe(2);
+  });
+
+  it('?express=1 gives the express bowler every over, as he bowls it', () => {
+    const { generator, bowled } = bowl(marathonOnly({ express: true }));
+    for (const d of bowled) {
+      expect(d.express).toBe(true);
+      expect(['EXPRESS', 'SHORT', 'YORKER']).toContain(d.style);
+    }
+    for (let over = 0; over < 10; over++) expect(bowled.slice(over * 6, over * 6 + 6).some(d => d.style === 'SHORT')).toBe(true);
+    expect(generator.levelAt(0)?.level).toBe(3);
+  });
+
+  it('both share the overs, and never give him two running', () => {
+    const { generator, bowled } = bowl(marathonOnly({ swing: true, express: true }), 120);
+    const kinds = [...Array(20)].map((_, over) => generator.overKind(over));
+    expect(kinds.filter(k => k === 'EXPRESS')).toHaveLength(10);
+    kinds.forEach((kind, i) => expect(kind === 'EXPRESS' && kinds[i - 1] === 'EXPRESS').toBe(false));
+    for (const d of bowled.filter(d => !d.express)) expect(['SWING_IN', 'SWING_OUT']).toContain(d.style);
+  });
+
+  it('leaves the Marathon\'s own plan as it was', () => {
+    marathonOnly({ swing: true, express: true });
+    expect(MARATHON_PLAN.blocks!.levelOf(0).level).toBe(1);
+    expect(MARATHON_PLAN.styles.SWING_IN.weight).toBeLessThan(0.5);
+    expect(MARATHON_PLAN.short).toBeDefined();
   });
 });

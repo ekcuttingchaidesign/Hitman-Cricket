@@ -8,7 +8,7 @@ import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, spun } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, marathonOnly, spun } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -1091,7 +1091,18 @@ export class Game {
    * Nothing else changes — the same timing and the same scoring.
    */
   private bouncersOnly = new URLSearchParams(location.search).get('bouncers') === '1';
+  /**
+   * `?swing=1` and `?express=1`, in a Marathon: the Level 2 swing bowler, the
+   * Level 3 express bowler, or the two of them, from the first over — so each
+   * can be tried without batting ten or twenty overs to reach him. See
+   * `marathonOnly`.
+   */
+  private swingOnly = new URLSearchParams(location.search).get('swing') === '1';
+  private expressOnly = new URLSearchParams(location.search).get('express') === '1';
   private get plan() {
+    if (this.marathoning && (this.swingOnly || this.expressOnly)) {
+      return marathonOnly({ swing: this.swingOnly, express: this.expressOnly });
+    }
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly) return { ...plan, spin: undefined, short: undefined, blocks: undefined,
       specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 1 } };

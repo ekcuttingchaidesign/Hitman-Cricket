@@ -278,7 +278,10 @@ Each step is a pull request of its own, behind the flag until the last.
    opener exactly as often as a tailender — and **a harder-swinging ball is held
    to the widest line a gentle one could finish on**, so more swing is never a
    wide. The batter is named as he takes guard (`OPENER IN · TAKE YOUR
-   GUARD`); the proper walk-out and level banners are step 4's.
+   GUARD`); the proper walk-out and level banners are step 4's. For trying
+   the two new bowlers without batting to them, `?swing=1` and `?express=1`
+   put the Level 2 swing bowler or the express bowler on from the first over
+   (`marathonOnly` in `DeliveryGenerator.ts`).
 3. **The left-hander.**
 4. **The express bowler**, his action and release, and the level banners.
    The speed gun comes with this step.

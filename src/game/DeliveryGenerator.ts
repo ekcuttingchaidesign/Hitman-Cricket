@@ -220,6 +220,30 @@ export const MARATHON_PLAN: BowlingPlan = {
   blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, express: EXPRESS_OVER },
 };
 
+/**
+ * The Marathon with only the bowler being tested, from the first over, for
+ * `?swing=1` and `?express=1`. Reaching either the honest way takes ten or
+ * twenty overs of batting first.
+ *
+ *   - **swing**: every over is Level 2 pace, and every ball of it swings —
+ *     an inswinger or an outswinger, late and far. No bouncer, no yorker
+ *     owed and no slower ball, since any of them would stand in its place.
+ *   - **express**: every over is the express bowler's, as he bowls it.
+ *   - **both**: half the overs each, never two of his running.
+ */
+export function marathonOnly({ swing = false, express = false }: { swing?: boolean; express?: boolean }): BowlingPlan {
+  const share = swing && express ? 5 : BLOCK_OVERS;
+  const level: Level = {
+    level: express ? 3 : 2, pace: swing ? share : 0, spin: 0, express: express ? share : 0,
+    swing: levelOf(1).swing, late: levelOf(1).late,
+  };
+  const plan: BowlingPlan = { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level } };
+  if (!swing) return plan;
+  const styles = Object.fromEntries(Object.entries(plan.styles).map(([key, shape]) =>
+    [key, { ...shape, weight: key === 'SWING_IN' || key === 'SWING_OUT' ? 0.5 : 0 }])) as BowlingPlan['styles'];
+  return { ...plan, styles, short: undefined, specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 0 } };
+}
+
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
 const BODY_LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG'];
 /** The lines that invite a drive at a ball he should be leaving. */
