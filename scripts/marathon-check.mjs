@@ -77,7 +77,8 @@ await page.addInitScript(() => {
 });
 
 await page.clock.install();
-await page.goto(`${base}/?debug=1&mode=marathon&seed=4242`, { waitUntil: 'load' });
+// All three right-handed here; the left-hander has a section of his own below.
+await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=0`, { waitUntil: 'load' });
 await advance(2500);
 await page.waitForTimeout(800);
 const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
@@ -199,6 +200,45 @@ await block();
 await page.keyboard.press('r');
 await advance(800);
 check((await snap()).balls === 0, 'restarting starts again at nought');
+
+// ── The left-hander ────────────────────────────────────────────────────────
+// Put at No. 3 by the link, so the man before him and the man after him show
+// the mirror coming on and going off again.
+await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=2`, { waitUntil: 'load' });
+await advance(2500);
+await page.locator('#start').click({ force: true });
+await advance(400);
+for (let i = 0; i < 8; i++) {
+  const done = page.locator('#whatsnew-done');
+  if (!(await done.count()) || !(await done.isVisible())) break;
+  await done.click({ force: true });
+  await advance(400);
+}
+await until('READY');
+await page.keyboard.press('r');
+await advance(16);
+const sides = async () => [await page.locator('#side-left').textContent(), await page.locator('#side-right').textContent()].join(' / ');
+let hand = (await snap()).marathon;
+check(!hand.left && !hand.mirrored && hand.lefty === -1, 'the opener bats right-handed when the left-hander is No. 3', JSON.stringify(hand));
+hand = await write(['W']);
+check(hand.left && hand.mirrored, 'the No. 3 walks out left-handed, with the ground mirrored', JSON.stringify(hand));
+check((await label())?.includes('NO. 3 IN · LEFT-HANDED'), 'and is called a left-hander as he takes guard', await label());
+check(await page.locator('#coach').isVisible() && (await page.locator('#coach-step').textContent()) === 'LEFT-HANDER',
+  'with the tutorial\'s arrow over his first ball');
+check((await page.locator('#coach-cue').getAttribute('class'))?.includes('right'), 'pointing right, to his leg side');
+check(await sides() === 'OFF SIDE / LEG SIDE', 'and the sides along the foot of the field the other way round', await sides());
+const lefty = await until('BALL_IN_FLIGHT');
+await advance(lefty.contactAt - lefty.elapsed - 40);
+await page.keyboard.press('d');
+await advance(150);
+check((await snap()).shot === 'LEG', 'the key on the right plays to his leg side', (await snap()).shot);
+let after = await snap();
+for (let i = 0; i < 30 && after.phase !== 'READY'; i++) { await advance(400); after = await snap(); }
+check(!(await page.locator('#coach').isVisible()) || after.marathon.batter !== 'NO_3', 'the arrow gone once he has faced a ball');
+if (after.marathon.gone < 2) after = { marathon: await write(['W']) };
+hand = after.marathon;
+check(hand.batter === 'TAILENDER' && !hand.left && !hand.mirrored, 'the tailender after him is right-handed, and the mirror is off', JSON.stringify(hand));
+check(await sides() === 'LEG SIDE / OFF SIDE', 'with the sides back where they were', await sides());
 
 await page.waitForTimeout(1500);
 check(!kept.length, 'and no innings, finished or not, was sent anywhere that keeps one', kept.join(', '));

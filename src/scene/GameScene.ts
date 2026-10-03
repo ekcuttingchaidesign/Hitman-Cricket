@@ -526,6 +526,21 @@ export class GameScene {
   get lit() { return this.now; }
   /** He has taken one too many. Nothing stands him back up but a new innings. */
   fall(now: number) { this.batter.fall(now); }
+  /**
+   * A left-hander at the crease. The stage is mirrored once already so that a
+   * right-hander's leg side reads left; this takes the mirror off, and the
+   * batter, his field and the ball's flight all come out the other way round.
+   * Everything the game knows stays in the one frame — the line, the stance,
+   * the leg side — so not a rule has to know he is left-handed.
+   *
+   * The bowler is mirrored back on his own, inside it: the same right-arm
+   * bowler, now bowling across him rather than at him.
+   */
+  leftHanded(on: boolean) {
+    this.world.scale.x = on ? 1 : -1;
+    this.bowlerHolder.scale.x = on ? -1 : 1;
+  }
+  get mirrored() { return this.world.scale.x > 0; }
   /** The next man in, at his guard. The last one may be lying where he fell. */
   newBatter() { this.batter.reset(); }
   /**

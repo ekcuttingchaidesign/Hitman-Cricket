@@ -290,7 +290,11 @@ Each step is a pull request of its own, behind the flag until the last.
    the two new bowlers without batting to them, `?swing=1` and `?express=1`
    put the Level 2 swing bowler or the express bowler on from the first over
    (`marathonOnly` in `DeliveryGenerator.ts`).
-3. **The left-hander.**
+3. **The left-hander.** *Done.* As specified, with two additions found in a
+   browser: the LEG SIDE / OFF SIDE labels along the foot of the field swap
+   while he is in, and `?lefty=1`–`3` (or `0` for none) puts him at a place in
+   the order for testing. The tutorial's panel says the swipes are mirrored
+   and points right, to his leg side; the end card marks him `(LH)`.
 4. **The express bowler**, his action and release, and the level banners.
    The speed gun comes with this step.
 5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two

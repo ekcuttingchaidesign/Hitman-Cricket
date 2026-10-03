@@ -13,6 +13,15 @@ export function shotKey(key: string): 'A' | 'W' | 'D' | 'S' | null {
   if (upper === 'S' || upper === 'ARROWDOWN') return 'S';
   return null;
 }
+/**
+ * The two side keys swapped, for a left-hander. His leg side is on the right
+ * of the screen, so the key on the right plays to leg: everything downstream —
+ * combos, the block, the scoops — reads the swapped key and needs no rule of
+ * its own.
+ */
+export function mirrorKey(key: 'A' | 'W' | 'D' | 'S' | null): 'A' | 'W' | 'D' | 'S' | null {
+  return key === 'A' ? 'D' : key === 'D' ? 'A' : key;
+}
 export function mapKeys(keys: string[]): ShotType | null {
   const normalized = [...new Set(keys.map(k => k.toUpperCase()))];
   // Defence beats anything it is pressed with: a player reaching for the block
@@ -80,7 +89,12 @@ export class InputManager {
    * otherwise. See `mapSwipe`.
    */
   /** `scoops` says whether the downward diagonals are the scoops right now: the meter is full. */
-  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false) {
+  /**
+   * `mirrored` says a left-hander is in. The screen is mirrored for him, so a
+   * swipe or a side key is read the other way round: his pull is a swipe to
+   * the right, exactly where his leg side now is.
+   */
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -101,7 +115,8 @@ export class InputManager {
     if (!this.gesture || event.pointerId !== this.gesture.id) return;
     if (!this.active() || this.used) { this.cancelGesture(); return; }
     event.preventDefault();
-    const shot = mapSwipe(event.clientX - this.gesture.x, event.clientY - this.gesture.y, this.coverLean(), this.scoops());
+    const across = (event.clientX - this.gesture.x) * (this.mirrored() ? -1 : 1);
+    const shot = mapSwipe(across, event.clientY - this.gesture.y, this.coverLean(), this.scoops());
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
@@ -117,8 +132,10 @@ export class InputManager {
     const id = this.gesture?.id; this.gesture = null;
     if (id !== undefined && this.surface?.hasPointerCapture(id)) this.surface.releasePointerCapture(id);
   }
+  /** The key as this batter plays it: the side keys swapped for a left-hander. */
+  private side(key: ReturnType<typeof shotKey>) { return this.mirrored() ? mirrorKey(key) : key; }
   private down = (event: KeyboardEvent) => {
-    const key = shotKey(event.key);
+    const key = this.side(shotKey(event.key));
     if (!key || !this.active()) return;
     event.preventDefault();
     if (event.repeat || this.held.has(key) || this.used) return;
@@ -141,7 +158,7 @@ export class InputManager {
       if (mapped) this.resolve(mapped);
     }
   };
-  private up = (event: KeyboardEvent) => { const key = shotKey(event.key); if (key) this.held.delete(key); };
+  private up = (event: KeyboardEvent) => { const key = this.side(shotKey(event.key)); if (key) this.held.delete(key); };
   private resolve(shot: ShotType) {
     if (!this.pending) return;
     const time = this.pending.time; // Preserve initial press; combo recognition adds no timing penalty.

@@ -5,7 +5,8 @@ import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
 import { DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonOnly } from '../src/game/DeliveryGenerator';
-import { MarathonInnings } from '../src/game/Marathon';
+import { MarathonInnings, leftHanderOf } from '../src/game/Marathon';
+import { mapKeys, mapSwipe, mirrorKey } from '../src/game/InputManager';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { surviveBall } from '../src/game/Survive';
 import type { Delivery, ShotOutcome } from '../src/game/types';
@@ -433,5 +434,47 @@ describe('the speed gun', () => {
     for (let kph = 70; kph < 186; kph++) expect(shownKph(kph + 1)).toBeGreaterThanOrEqual(shownKph(kph));
     expect(shownKph(EXPRESS_OVER.min)).toBeGreaterThan(shownKph(SURVIVE_STYLES.FAST.max) - 1);
     expect(shownKph(EXPRESS_OVER.slower.max)).toBeLessThan(shownKph(EXPRESS_OVER.min) - 25);
+  });
+});
+
+describe('the left-hander', () => {
+  it('is any of the three, about as often as each other, drawn off the seed', () => {
+    const counts = [0, 0, 0];
+    for (let seed = 1; seed <= 3000; seed++) counts[leftHanderOf(seed)!]++;
+    for (const n of counts) expect(n / 3000).toBeGreaterThan(0.28);
+    expect(leftHanderOf(2024)).toBe(leftHanderOf(2024));
+  });
+
+  it('can be put at any place in the order by a link, or left out', () => {
+    expect(leftHanderOf(5, '?lefty=1')).toBe(0);
+    expect(leftHanderOf(5, '?lefty=3')).toBe(2);
+    expect(leftHanderOf(5, '?lefty=0')).toBe(null);
+    expect(leftHanderOf(5, '?lefty=4')).toBe(null);
+    expect(leftHanderOf(5, '?lefty=two')).toBe(null);
+  });
+
+  it('walks out at his place in the order, and only there', () => {
+    const innings = new MarathonInnings(1);
+    expect(innings.current.left).toBe(false);
+    innings.record(out);
+    expect(innings.current.left).toBe(true);
+    innings.record(felled);
+    expect(innings.current.left).toBe(false);
+    expect(new MarathonInnings().batters[0].left).toBe(false);
+  });
+
+  it('plays to leg with the key on the right, and cuts with the one on the left', () => {
+    expect(mapKeys([mirrorKey('D')!])).toBe('LEG');
+    expect(mapKeys([mirrorKey('A')!])).toBe('SQUARE_CUT');
+    expect(mapKeys([mirrorKey('W')!, mirrorKey('D')!])).toBe('LONG_ON');
+    expect(mapKeys([mirrorKey('S')!])).toBe('DEFEND');
+  });
+
+  it('pulls with a swipe to the right once the swipe is read the other way round', () => {
+    // The input negates a left-hander's sideways travel before it is mapped.
+    expect(mapSwipe(-80, 0)).toBe('LEG');
+    expect(mapSwipe(-60, -60)).toBe('LONG_ON');
+    expect(mapSwipe(80, 0)).toBe('SQUARE_CUT');
+    expect(mapSwipe(0, 80)).toBe('DEFEND');
   });
 });

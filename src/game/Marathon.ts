@@ -1,5 +1,6 @@
 import { BATTERS, MARATHON, type Batter, type MarathonEnding } from '../config/marathon.js';
 import { Health } from './Health.js';
+import { SeededRandom } from './SeededRandom.js';
 import type { ShotOutcome } from './types.js';
 
 /**
@@ -29,17 +30,41 @@ export interface BatterInnings {
   retired: boolean;
   /** His own meter. Each walks out with it full, and nothing heals. */
   health: Health;
+  /** Bats left-handed: the ground and the swipes are mirrored while he is in. */
+  left: boolean;
+}
+
+/**
+ * Which of the three bats left-handed, counting from nought: any of them, drawn
+ * once an innings off its seed, so a seed replays the same innings. Drawn from
+ * a stream of its own rather than the bowling's, so adding him changed no ball
+ * any seed bowls.
+ *
+ * `?lefty=1`, `2` or `3` puts him at that place in the order for trying him,
+ * and `?lefty=0` bats all three right-handed.
+ */
+export function leftHanderOf(seed: number, search = ''): number | null {
+  const asked = new URLSearchParams(search).get('lefty');
+  if (asked !== null) {
+    const place = Number(asked);
+    return Number.isInteger(place) && place >= 1 && place <= MARATHON.batters ? place - 1 : null;
+  }
+  return Math.floor(new SeededRandom((seed ^ 0x9e3779b9) >>> 0).next() * MARATHON.batters);
 }
 
 /** What a ball did to the order: nothing, or the man in is gone. */
 export type Change = 'OUT' | 'RETIRED' | null;
 
-const walkOut = (order: number): BatterInnings => ({
-  batter: BATTERS[order], order, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, retired: false, health: new Health(),
+const walkOut = (order: number, left: boolean): BatterInnings => ({
+  batter: BATTERS[order], order, runs: 0, balls: 0, fours: 0, sixes: 0, out: false, retired: false, health: new Health(), left,
 });
 
 export class MarathonInnings {
-  readonly batters: BatterInnings[] = [walkOut(0)];
+  readonly batters: BatterInnings[];
+  /** `leftHanded` is which of the three bats left-handed, or null for none: see `leftHanderOf`. */
+  constructor(private readonly leftHanded: number | null = null) {
+    this.batters = [walkOut(0, leftHanded === 0)];
+  }
   runs = 0;
   balls = 0;
   fours = 0;
@@ -84,7 +109,7 @@ export class MarathonInnings {
     if (change === 'OUT') man.out = true;
     if (change === 'RETIRED') man.retired = true;
     if (change && this.batters.length < MARATHON.batters && this.balls < MARATHON.maxBalls) {
-      this.batters.push(walkOut(this.batters.length));
+      this.batters.push(walkOut(this.batters.length, this.leftHanded === this.batters.length));
     }
     return change;
   }

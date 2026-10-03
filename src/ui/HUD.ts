@@ -325,7 +325,7 @@ export class HUD {
           <button id="skip-tutorial" class="ghost-button">SKIP TO INNINGS</button>
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
-        <div class="arena-bottom"><span>LEG SIDE <span class="direction-line"></span></span><span><span class="direction-line"></span> OFF SIDE</span></div>
+        <div class="arena-bottom"><span><span id="side-left">LEG SIDE</span> <span class="direction-line"></span></span><span><span class="direction-line"></span> <span id="side-right">OFF SIDE</span></span></div>
 ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
@@ -1357,7 +1357,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const on = !!primed && (phase === 'BOWLER_RUNUP' || phase === 'BALL_IN_FLIGHT');
     this.guide(on, specials);
     label.textContent = on ? CUES[primed!].replace(' — ', ' · ')
-      : phase === 'READY' ? this.walking ? `${this.walking} IN · TAKE YOUR GUARD` : 'TAKE YOUR GUARD' :  phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
+      : phase === 'READY' ? this.walking ?? 'TAKE YOUR GUARD' :  phase === 'BOWLER_RUNUP' ? 'HERE COMES THE NEXT BALL' : phase === 'BALL_IN_FLIGHT' ? 'WATCH THE BALL' : '';
     label.classList.toggle('is-primed', on);
     // The edge of the field lights up too: a line of text at the bottom is easy
     // to miss in the second the ball takes to arrive.
@@ -1372,7 +1372,34 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * screen announces reads as bad luck rather than as a weaker batter.
    */
   private walking: string | null = null;
-  walkingOut(title: string | null) { this.walking = title; }
+  walkingOut(title: string | null, left = false) {
+    this.walking = title === null ? null : left ? `${title} IN · LEFT-HANDED` : `${title} IN · TAKE YOUR GUARD`;
+  }
+  /**
+   * A left-hander's first ball: the tutorial's panel and arrow, saying the
+   * swipes are mirrored while he is in. Gone once he has faced a ball.
+   */
+  leftHander(show: boolean) {
+    const coach = this.$('coach');
+    if (!show) {
+      if (coach.classList.contains('is-lefty')) coach.classList.add('hidden');
+      coach.classList.remove('is-lefty');
+      return;
+    }
+    this.$('coach-step').textContent = 'LEFT-HANDER';
+    // The how goes in the sentence: the panel's own line under the arrow sits
+    // where the call under the batter is, and the two would print over each other.
+    this.$('coach-brief').innerHTML = 'Mirrored while he is in. His leg side is on the right: '
+      + '<span class="touch-only">swipe right</span><span class="keyboard-only">press <kbd>D</kbd></span> to play to leg.';
+    this.$('coach-cue').className = 'coach-cue right';
+    coach.classList.add('is-lefty');
+    coach.classList.remove('hidden');
+  }
+  /** The labels along the foot of the field, the right way round for whoever is in. */
+  sides(left: boolean) {
+    this.$('side-left').textContent = left ? 'OFF SIDE' : 'LEG SIDE';
+    this.$('side-right').textContent = left ? 'LEG SIDE' : 'OFF SIDE';
+  }
   /**
    * The speed gun's reading, the moment the ball leaves the hand, standing
    * until the next one does. Already folded into what a gun would say.
@@ -1409,7 +1436,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     this.$('coach-brief').textContent = step.brief;
     this.$('coach-how').innerHTML = `<span class="touch-only">${step.swipe}</span><span class="keyboard-only">Press <kbd>${step.key}</kbd></span>`;
     this.$('coach-cue').className = `coach-cue ${step.cue}`;
-    this.$('coach').classList.remove('hidden');
+    // The panel may last have been a left-hander's, which hides the skip key.
+    this.$('coach').classList.remove('hidden', 'is-lefty');
   }
   /** Once the shot is away the cue has done its job. */
   coachPlayed(praise: string, played: boolean) {
@@ -2449,7 +2477,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       ALL_OUT: 'All out', RETIRED: 'Retired hurt', BALLS: 'Five hundred balls', DECLARED: 'Declared',
     }[innings.ending ?? 'ALL_OUT'];
     this.$('end-message').textContent = innings.batters
-      .map(b => `${b.batter.title} ${MarathonInnings.score(b)} (${b.balls})`).join(' · ');
+      .map(b => `${b.batter.title}${b.left ? ' (LH)' : ''} ${MarathonInnings.score(b)} (${b.balls})`).join(' · ');
     this.$('final-score').innerHTML = `${score.runs}<span class="card-wickets">/${innings.gone}</span>`;
     this.$('final-score').setAttribute('aria-label', `${score.runs} for ${innings.gone}`);
   }

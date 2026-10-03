@@ -3,7 +3,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { MARATHON } from './config/marathon';
-import { MarathonInnings, type Change } from './game/Marathon';
+import { MarathonInnings, leftHanderOf, type Change } from './game/Marathon';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
@@ -386,7 +386,10 @@ export class Game {
       () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0,
       // The downward diagonals are the scoops whenever there is a meter to
       // spend on them. Which ball they get is settled in `playedAs`.
-      () => this.charged);
+      () => this.charged,
+      // A left-hander's swipes and side keys, read the way his mirrored
+      // screen shows them. Asked of the scene, so the two cannot disagree.
+      () => this.scene.mirrored);
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);
@@ -996,8 +999,6 @@ export class Game {
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
-    this.marathon = this.marathoning ? new MarathonInnings() : null;
-    if (this.marathon) this.health = this.marathon.current.health;
     this.playedFrom = 0; this.changed = null; this.felled = false;
     this.wasCritical = false; this.noticeDue = false;
     const param = new URLSearchParams(location.search).get('seed');
@@ -1007,13 +1008,16 @@ export class Game {
     // the same seed always walks out to the same scoreboard. Drawing it from the
     // clock would have made a share card a lie the moment it was reloaded.
     this.chasing = this.surviving ? teamScore(this.rng) : 0;
+    // Who bats left-handed is the seed's too, drawn apart from the bowling.
+    this.marathon = this.marathoning ? new MarathonInnings(leftHanderOf(this.seed, location.search)) : null;
+    if (this.marathon) this.health = this.marathon.current.health;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
     this.hud.start(this.surviving, this.marathoning);
-    this.hud.walkingOut(this.marathon?.current.batter.title ?? null);
+    this.hand();
     this.nearing = null; this.hud.nearing(null, null);
     // The Test board is fetched when a Test innings starts rather than on every
     // load: a player who only ever picks the five-over innings never asks for
@@ -1028,7 +1032,7 @@ export class Game {
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false); this.scene.time(blastLights());
+    this.scene.whites(false); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -1888,6 +1892,8 @@ export class Game {
   }
   private resolve() {
     const step = this.lesson >= 0 ? TUTORIAL[this.lesson] : null;
+    // The left-hander's arrow has done its job once he has faced a ball.
+    if (this.marathon) this.hud.leftHander(false);
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
       : this.marathon ? resolveSurvive(this.delivery!, this.attempt, this.rng, this.marathon.current.batter)
       : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng)
@@ -1992,7 +1998,21 @@ export class Game {
     this.nearing = null; this.hud.nearing(null, null);
     this.scene.newBatter();
     this.showConfidence();
-    this.hud.walkingOut(marathon.current.batter.title);
+    this.hand();
+  }
+  /**
+   * Which way round the man in bats, said as he takes guard. A left-hander
+   * gets the ground mirrored, the swipes mirrored with it, and the tutorial's
+   * arrow over his first ball, because a pull that is suddenly a swipe the
+   * other way is a wicket nobody was warned about.
+   */
+  private hand() {
+    const man = this.marathon?.current ?? null;
+    const left = !!man?.left;
+    this.scene.leftHanded(left);
+    this.hud.sides(left);
+    this.hud.walkingOut(man?.batter.title ?? null, left);
+    this.hud.leftHander(left);
   }
   /**
    * The player has had enough, from the pause card. Refused before twenty
@@ -3003,6 +3023,7 @@ export class Game {
     const over = Math.floor(this.score.balls / MARATHON.ballsPerOver);
     return {
       batter: marathon.current.batter.role, batters: marathon.batters.map(b => MarathonInnings.score(b)),
+      left: marathon.current.left, mirrored: this.scene.mirrored, lefty: marathon.batters.findIndex(b => b.left),
       gone: marathon.gone, ending: marathon.ending, canDeclare: marathon.canDeclare,
       health: marathon.current.health.value, level: this.generator.levelAt(over)?.level ?? null,
       bowler: this.generator.overKind(over), express: !!this.delivery?.express,
