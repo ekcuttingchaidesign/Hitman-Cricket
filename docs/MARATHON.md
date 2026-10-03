@@ -350,14 +350,30 @@ Each step is a pull request of its own, behind the flag until the last.
    simulator a settled good player is offered one about every three overs.
    The speed gun came forward to step 2, and moved off the scoreboard to a
    caption at the foot of the field after the playtest.
-5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two
-   ladders, the store, `?demo=1`.
+5. **The boards.** *Done.* The Rivals ranking is on Rival Matches, under the
+   record: ten shown, *Show all* for the fifty, the player's own row always
+   in view. The sheet's tabs are *The Blast · Test Survival · Test Marathon ·
+   My Stats*, the Marathon's drawn only where the mode can be reached, and its
+   two ladders sit behind a Team / Individual toggle (`src/ui/MarathonBoard.ts`).
+   The store (`src/game/marathon-board.ts`, `submitMarathon` in
+   `src/server/board-store.ts`) packs as above, refuses what could not have
+   happened — sums batter by batter, the meter rules, one left-hander, nobody
+   after a man still in, an ending the figures bear out — and writes both rows
+   from one post, through the same `admit()` the other boards' checks now
+   share. The end card offers a place in the boards' own strip, the team
+   ladder's where the innings takes one and the individual's where only that
+   one does, and sends nothing unless it is claimed; the career endpoints
+   still turn the mode away until step 6. `?demo=1` fills both ladders. And,
+   agreed along the way: past 60 balls, leaving the page asks first
+   (`MARATHON.warnFrom`) — an innings that long is an hour of somebody's
+   evening.
 6. **My Stats.** The third card and its tier.
 7. **The Test look.** *Done.* The darker ball (a Dukes's cherry, `0xa81c1c`,
    against the Blast's `0xe84829`) and the greener pitch, in both Test modes.
    A full green top was tried first and was too much; the strip keeps half
    the grass `pitchTexture` can paint.
-8. **Launch.** A What's New story, the flag on, merge.
+8. **Launch.** A What's New story, the flag on (`VITE_SHOW_MARATHON`, which
+   also draws the Marathon tab on every board), merge.
 
 ## Open questions
 

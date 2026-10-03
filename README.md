@@ -283,7 +283,7 @@ The mode explains it **once per device** (`HUD.hurtNote`, remembered in `localSt
 
 ## Test Marathon
 
-A third mode, still being built: three wickets, as many balls as they last — to a hard stop at five hundred — and as many runs as they make. `docs/MARATHON.md` is the spec and the build order; this is what is in the code so far. It is reached by `?mode=marathon` and by nothing else until it ships: no card on the picker, nothing on a board, nothing counted toward a career. The store refuses a Marathon innings outright (`src/server/mode.ts`), and the game does not send one.
+A third mode, still being built: three wickets, as many balls as they last — to a hard stop at five hundred — and as many runs as they make. `docs/MARATHON.md` is the spec and the build order; this is what is in the code so far. It is reached by `?mode=marathon` and by nothing else until it ships: no card on the picker and nothing counted toward a career — the career endpoints still turn a Marathon away (`src/server/mode.ts`). It has **boards** of its own, though (*The Marathon's two ladders*, below), and a finished innings that would make one is offered a place on the end card, sent only when the player claims it.
 
 **The ball is Survival's.** The same ladder resolves it (`resolveSurvive`), the same meter takes the blows, the same table prices them. What is new is in `src/config/marathon.ts` and `src/game/Marathon.ts`:
 
@@ -372,6 +372,26 @@ Three things follow from the sheet being shared. The innings just played peeks o
 
 The two boards have **separate ranking and row keys and one shared name registry**. Separate keys because a chase and a five-over slog are not comparable and one sorted set holding both would rank them against each other. Shared names because a name is a person, not an innings: a player carries theirs from one board to the other, and nobody else can bat under it on the board they have not played yet.
 
+### The Marathon's two ladders
+
+The Test Marathon has a tab of its own on the sheet, drawn only where the mode can be reached (`?mode=marathon`, or a build with `VITE_SHOW_MARATHON`), and two ladders behind a toggle, because a Marathon is a team's innings and three men's at once:
+
+| Ladder | Ranked on | Keys |
+| --- | --- | --- |
+| **Team** | total runs, then strike rate (fewer balls), then fours and sixes, then the clock | `marathon:board`, `marathon:players` |
+| **Individual** | the best of the three batters: runs, then not out above out, then fewer balls, then the clock | `marathonone:board`, `marathonone:players` |
+
+```
+team  = runs<<18 | (511-balls)<<9 | boundaries        · 2**22 + minutes clock   (51 bits)
+solo  = runs<<10 | notOut<<9 | (511-balls)           · 2**28 + seconds clock   (49 bits)
+```
+
+The team ladder's clock is in minutes, because twenty-nine bits of rank leave it twenty-two; a minute is plenty to split two 300s. A row's letter is how the innings ended — **O** all out, **R** the last man carried off, **B** five hundred balls, **D** declared — and on the individual ladder it is which of the three he was, with a star for not out and *left-handed* under the name where he was.
+
+**One claim writes both.** The card offers the team ladder's place where the innings takes one there and the individual's where only that one does; `POST /api/score?mode=marathon` takes the whole innings — the total and each batter's figures — and records each ladder's row from it, so a player never claims twice for one innings. The store checks the shape it can check: balls and runs that add up batter by batter, a meter that only moved with a blow, one left-hander at most, nobody after a man still batting, and an ending the figures bear out (`marathonPlausible` in `src/game/marathon-board.ts`). It shares the name registry and the rate limit with the other two boards, through the same `admit()`.
+
+`?demo=1` fills both ladders with fifty invented Test innings alongside the other boards', saving nothing.
+
 There are no invented rows for the Test board. The fifty fixtures stand in for the other one while there is no database; a ladder of people who never batted is worse here than an empty screen.
 
 ### Claiming a place
@@ -454,7 +474,7 @@ npm run check:board                                    # the dev server
 node scripts/board-check.mjs https://…vercel.app       # a real deployment
 ```
 
-Unit tests run the rules against an in-memory store, which catches logic and **cannot** catch a missing credential, a function in the wrong region, or an `api/` directory Vercel never turned into functions. This is the check that does, and it is the first thing to run against any new deployment. It reads the board, submits a real innings, proves the row survives a fresh read, proves a worse innings does not displace it, and proves each refusal — a taken name, an impossible innings, something that is not a player, a kit that does not exist — then checks the preflight and the edge-cache header. It then does the same for the Test ladder and proves the two are really separated: an innings on one is nowhere near the other, a slower chase does not improve on a faster one, and a name held on either board is refused on the other. One wrong key prefix is invisible to the unit tests, which run two stores because the test made two.
+Unit tests run the rules against an in-memory store, which catches logic and **cannot** catch a missing credential, a function in the wrong region, or an `api/` directory Vercel never turned into functions. This is the check that does, and it is the first thing to run against any new deployment. It reads the board, submits a real innings, proves the row survives a fresh read, proves a worse innings does not displace it, and proves each refusal — a taken name, an impossible innings, something that is not a player, a kit that does not exist — then checks the preflight and the edge-cache header. It then does the same for the Test ladder and proves the two are really separated: an innings on one is nowhere near the other, a slower chase does not improve on a faster one, and a name held on either board is refused on the other. Last it posts a Marathon innings, finds it on both of that mode's ladders and on neither of the others, has an impossible one refused, and makes sure the career endpoint still turns the mode away. One wrong key prefix is invisible to the unit tests, which run two stores because the test made two.
 
 It writes. Every run leaves a row under a throwaway id and a name nobody would want, and **a name it claims is never released**. Point it at a preview rather than at the board people are playing for.
 
@@ -466,7 +486,7 @@ The integration injects one set of credentials into Production, Preview and Deve
 
 `GET /api/board` answers with the fifty and the packed score the fiftieth is holding — **the same answer for everybody**, deliberately, so it can sit in Vercel's edge cache for ten seconds. Where a player stands is worked out in their own browser from the packed score, which is the same number computed by the same function, so the response carries nothing personal. A hundred people opening the board in the same ten seconds cost one pair of Redis commands rather than a hundred, which is what keeps a half-million-command month out of reach. It reads with the read-only token: an endpoint that cannot write is one fewer thing to get wrong.
 
-The mode is read in one place, `src/server/mode.ts`, for these endpoints, the career endpoints and the dev server alike. `?mode=marathon` is turned away with a 400 until the Test Marathon has a store of its own (`docs/MARATHON.md`): before that reader, anything that was not `survive` was taken for the Blast, and a Marathon innings would have gone onto the Blast's board.
+The mode is read in one place, `src/server/mode.ts`, for these endpoints, the career endpoints and the dev server alike. `?mode=marathon` picks the Marathon's two ladders on these two endpoints and is still turned away with a 400 by the career endpoints, until the Marathon has a career (`docs/MARATHON.md`). Before that reader, anything that was not `survive` was taken for the Blast, and a Marathon innings would have gone onto the Blast's board.
 
 `POST /api/score` checks the rate limit first (so a script pays nothing to be turned away), then the shape, then `plausible()`, then the name — and stamps the submission itself. The clock is read on the server and nowhere else, or a laptop running fast would win every tiebreak it entered.
 
@@ -478,6 +498,7 @@ The storage shape is chosen to spend as few commands as possible rather than for
 | `players` | hash | player id → the row as JSON. One `HMGET` returns all fifty. |
 | `names` | hash | folded name → player id. `HSETNX`, so two people claiming one name in the same second cannot both be told it is free. |
 | `survive:board`, `survive:players` | as above | The Test ladder, on its own keys. `?mode=survive` on either endpoint picks them. |
+| `marathon:…`, `marathonone:…` | as above | The Marathon's team and individual ladders. `?mode=marathon` reads both and one submission writes both. |
 
 Two things are deliberately **not** scoped by mode. `names` is one registry across the whole game, for the reason given above. The rate limit is the other: it counts submissions from an address, and an address that has posted sixty innings has posted sixty whichever mode they were played in.
 
@@ -803,7 +824,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `board-open` | Whether the fifty is looked at. |
 | `modes-board` | The boards opened from the Leaderboards card on the mode screen, rather than from the cover's trophy. |
 | `board-tab-classic`, `board-tab-survive` | Whether the other mode's ladder is reached from the tab over the sheet. |
-| `board-tab-rivals`, `board-tab-mine` | Whether the Rivals board and the player's own card are opened from the tabs. |
+| `board-tab-marathon`, `board-tab-mine` | Whether the Test Marathon's ladders and the player's own card are opened from the tabs. |
 | `board-ladder-runs`, `…-boundaries`, `…-highest`, `…-balls`, `…-blows` | Which career ladder is opened. The one measure of whether the career boards are worth the tabs they cost. |
 | `stats-open` | Whether the career card is looked at at all. |
 | `stats-share-whatsapp`, `stats-share-story` | Whether it is then sent anywhere, which is the whole point of drawing it. The tap, not the delivery — whether the sheet was sent or dismissed is between the player and their phone. |
@@ -886,8 +907,10 @@ Ties break on runs, sixes, fours; level on all three is a draw. A room lives a
 week; an innings left for a day is a forfeit; a challenge declined is a defeat.
 Every finished match goes on a record — won, lost, drawn — kept on the server
 for good and shown at the top of Rival Matches and under the cards on My Stats.
-The Rivals tab on the leaderboard ranks registered names on wins, then fewest
-losses, then runs, over every finished match. A stricter rule — a match counts
+The Rivals ranking, under the record on Rival Matches, ranks registered names
+on wins, then fewest losses, then runs, over every finished match — ten shown,
+the fifty behind a key. It was a tab on the leaderboard until the Test Marathon
+needed the room; a ranking of matches belongs with the matches. A stricter rule — a match counts
 only against a registered name — is written and switched off for now; see
 `src/config/rivals.ts`.
 The host bats in the home kit; the friends who follow bat in green, purple and

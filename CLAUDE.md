@@ -143,12 +143,14 @@ gun, the settle meter turning into confidence at thirty balls, the Test match's
 greener strip, the level banners — the swing's, with the sky measured greyer
 off the pixels as the cloud comes over, and the express bowler's — and his own
 action in his over and the fast bowler's in the next, the left-hander — the ground mirrored while he is in and off again for
-the man after him, his pull on the key to the right — and no innings sent
-anywhere that keeps one, since the mode has no board yet. It writes most of
+the man after him, his pull on the key to the right — and the end card
+offering the boards' claim strip and sending nothing that was not claimed;
+the mode has boards but no career yet. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
-cannot reach. Point it at a preview deployment, never at production.
+cannot reach. It walks all three boards, the Marathon's two ladders from one
+post among them. Point it at a preview deployment, never at production.
 
 ## `?fresh=1`
 
@@ -171,7 +173,7 @@ The board is untouched: the name stays claimed and a saved key still opens it.
 ## `?demo=1`
 
 Fills the boards with fifty made-up players, in the browser that asked, saving
-nothing. It is how a full board gets looked at without claiming fifty real
+nothing — the Marathon's two ladders and the Rivals ranking too. It is how a full board gets looked at without claiming fifty real
 names. `?demo=0` or a new tab turns it off.
 
 ## `?moments=1`

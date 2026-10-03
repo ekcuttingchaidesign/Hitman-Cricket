@@ -8,10 +8,12 @@
  * What no unit test can see: the batter named on the screen as he walks out,
  * the next one standing at his guard with a full meter after the last was
  * carried off, the declare key on the pause card from the twentieth over and
- * not a ball before, the card at the end with all three batters on it — and
- * nothing sent anywhere. The Marathon has no board and no career yet, so an
- * innings of it, finished or walked out on, must not reach a single endpoint
- * that keeps one.
+ * not a ball before, the card at the end with all three batters on it and the
+ * boards' strip offering it a place — and nothing sent without being asked.
+ * The Marathon has boards but no career yet, so an innings of it, finished or
+ * walked out on, must reach no career, and reaches a board only when the
+ * player claims the place (`scripts/board-check.mjs` and the unit tests hold
+ * what a claim writes).
  *
  * Twenty overs cannot be batted in a software-rendered browser, so the innings
  * is written out ball by ball through `__cricket.marathon` between deliveries,
@@ -34,6 +36,7 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, devi
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 // Anything that keeps a score: the boards, the careers, the innings counter.
+// Nobody here claims a place, so nothing at all should go.
 const kept = [];
 page.on('request', request => {
   const { pathname } = new URL(request.url());
@@ -195,8 +198,13 @@ check(await page.locator('#end').isVisible(), 'on the card');
 check((await page.locator('#end-title').textContent())?.includes('Declared'), 'which says it was declared', await page.locator('#end-title').textContent());
 const line = await page.locator('#end-message').textContent();
 check(['OPENER 39 (', 'NO. 3', 'TAILENDER'].every(word => line.includes(word)), 'with all three batters under the total', line);
-check(!(await page.locator('#card-board').isVisible()) && !(await page.locator('#challenge-set').isVisible()),
-  'and no board to register on or friend to challenge');
+// The boards are asked again at the end of an innings this long, and the
+// strip goes up when they answer: a declared innings is a place on a board
+// with room on it.
+for (let i = 0; i < 20 && !(await page.locator('#claim').isVisible()); i++) { await advance(250); await page.waitForTimeout(150); }
+check(await page.locator('#claim').isVisible(), 'and the boards\' strip offers it a place', await page.locator('#claim').textContent());
+check(!(await page.locator('#challenge-set').isVisible()) && !(await page.locator('#card-career').isVisible()),
+  'but no friend to challenge and no career, which it does not have yet');
 
 // ── All out, played to the end ─────────────────────────────────────────────
 await page.locator('#again').click({ force: true });
@@ -323,7 +331,7 @@ check(following.marathon.bowler !== 'EXPRESS' && following.marathon.action === '
 await block();
 
 await page.waitForTimeout(1500);
-check(!kept.length, 'and no innings, finished or not, was sent anywhere that keeps one', kept.join(', '));
+check(!kept.length, 'and no innings, finished or not, was sent anywhere that keeps one without being claimed', kept.join(', '));
 check(!errors.length, 'nothing threw on the way', errors.join('\n        '));
 console.log(failures ? `\n${failures} failed` : '\nall good');
 await browser.close();
