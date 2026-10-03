@@ -194,6 +194,12 @@ export interface ActionStyle {
   /** How far the front arm reaches once it is flung after the release: half is tucked, nine tenths is flung out. */
   frontAfterReach: number;
   /**
+   * Whose clock the front arm keeps after the release: nought is the fall's,
+   * the fast bowler's arm drifting as he folds; one is the bowling arm's, so
+   * that as it comes down the front arm straightens and goes up with it.
+   */
+  frontSync: number;
+  /**
    * How far the bowling arm leans out from the vertical on its way over: nought
    * is straight over the top, and a slinger's is most of the way to level.
    * `throughTilt` is where it leans once the ball has gone, so a slung arm can
@@ -226,7 +232,7 @@ export const PACE_ACTION: ActionStyle = {
   carry: 'run', lane: .34,
   runLean: 0, pump: 1,
   frontRise: [BOUND, BACK_FOOT], kneeDrive: 1, releaseTilt: .16, tiltFrom: FRONT_FOOT, armTilt: -.175, throughTilt: -.175,
-  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35, throughTwist: 0, frontAfterReach: .5,
+  open: 1.15, throughTurn: .5, releaseHead: 0, throughHead: .35, throughTwist: 0, frontAfterReach: .5, frontSync: 0,
   kick: 0, kickHold: 0, followAcross: 0,
 };
 
@@ -275,7 +281,7 @@ export const EXPRESS_ACTION: ActionStyle = {
   carry: 'chest', lane: .6,
   runLean: .1, pump: 1,
   frontRise: [.46, .64], kneeDrive: 1.5, releaseTilt: -.5, tiltFrom: BACK_FOOT, armTilt: -.8, throughTilt: .5,
-  open: .7, throughTurn: .3, releaseHead: .5, throughHead: .5, throughTwist: .8, frontAfterReach: .92,
+  open: .7, throughTurn: .3, releaseHead: .5, throughHead: .5, throughTwist: .55, frontAfterReach: .985, frontSync: 1,
   kick: .25, kickHold: .25, followAcross: .5,
 };
 
@@ -322,6 +328,13 @@ function armAngle(t: number, run: Run, style: ActionStyle) {
 }
 /** How much of the follow-through the arm spends coming down across the body. */
 const ARM_THROUGH = .36;
+/**
+ * A front arm on the bowling arm's clock opens its elbow first, over this much
+ * of the follow-through, and only then swings — a bent arm swung through
+ * straight down flicks its elbow out and back as it passes, because down is
+ * the one direction a hanging elbow has no side to point to.
+ */
+const FRONT_OPEN = .09, FRONT_LAG = .07;
 
 /** The front arm mirrors it: up at the target in the gather, then pulled down. */
 function frontArmAngle(t: number, run: Run, style: ActionStyle) {
@@ -653,7 +666,11 @@ export class Bowler {
     const swept = settle(span(after, 0, ARM_THROUGH));
     const angle = after > 0 ? THREE.MathUtils.lerp(style.release, style.through, swept) : armAngle(t, this.run, style);
     const tilt = after > 0 ? THREE.MathUtils.lerp(style.armTilt, style.throughTilt, swept) : style.armTilt;
-    const front = after > 0 ? THREE.MathUtils.lerp(style.frontPull, style.frontAfter, ease(after)) : frontArmAngle(t, this.run, style);
+    // On the arm's clock: the elbow opens first, then the straight arm goes
+    // up with the bowling arm as it comes down.
+    const frontK = THREE.MathUtils.lerp(ease(after), settle(span(after, FRONT_LAG, ARM_THROUGH + FRONT_LAG)), style.frontSync);
+    const openK = THREE.MathUtils.lerp(ease(after), ease(span(after, 0, FRONT_OPEN)), style.frontSync);
+    const front = after > 0 ? THREE.MathUtils.lerp(style.frontPull, style.frontAfter, frontK) : frontArmAngle(t, this.run, style);
 
     // Shoulders, from the trunk the pose has already described.
     const spine = pose.chest.clone().sub(pose.hip).normalize();
@@ -677,7 +694,7 @@ export class Bowler {
     // is pulled into the ribs, which is what a front arm actually does.
     // An action that puts it up before the leap straightens it on the way.
     const rising = ease(span(t, style.frontRise[0], style.frontRise[1]));
-    const frontReach = after > 0 ? ARM_REACH * THREE.MathUtils.lerp(.5, style.frontAfterReach, ease(after))
+    const frontReach = after > 0 ? ARM_REACH * THREE.MathUtils.lerp(.5, style.frontAfterReach, openK)
       : t <= BOUND ? THREE.MathUtils.lerp(ARM_REACH * .60, ARM_REACH - .01, rising)
       : THREE.MathUtils.lerp(ARM_REACH - .01, ARM_REACH * .5, ease(span(t, BACK_FOOT, 1)));
     pose.leftHand.copy(shoulder(-1)).addScaledVector(armDirection(front, -.16), frontReach);

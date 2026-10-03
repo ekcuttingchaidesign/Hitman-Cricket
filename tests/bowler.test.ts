@@ -473,6 +473,16 @@ describe('the express bowler, against the fast bowler', () => {
     expect(express.hands[0][1]).toBeGreaterThan(express.shoulders[0][1]);
     expect(express.armReach[0]).toBeGreaterThan(.85);
     expect(pace.armReach[0]).toBeLessThan(.6);
+    // And it gets there with the bowling arm, not after it: straight by the
+    // time that arm is halfway down, and up behind him by the time it has
+    // finished coming across — at which point the fast bowler's front arm
+    // has barely moved.
+    bowler.action(EXPRESS_ACTION);
+    const halfway = flight(.34 * .18), across = flight(.34 * .36);
+    expect(halfway.armReach[0]).toBeGreaterThan(.85);
+    expect(across.hands[0][2]).toBeGreaterThan(across.shoulders[0][2] + .3);
+    bowler.action(PACE_ACTION);
+    expect(flight(.34 * .36).armReach[0]).toBeLessThan(.6);
     // The chest round further than the hips, which face the way the feet step:
     // measured as the shoulders' line against the feet's.
     const line = (a: number[], b: number[]) => Math.atan2(a[2] - b[2], a[0] - b[0]);
@@ -543,7 +553,8 @@ describe('the cricketer every fielder is built from', () => {
     expect(Math.abs(line(twisted.shoulders[0], twisted.shoulders[1]) - line(square.shoulders[0], square.shoulders[1]))).toBeCloseTo(.8, 1);
     for (let i = 0; i < 2; i++) {
       expect(twisted.feet[i]).toEqual(square.feet[i]);
-      expect(twisted.knees[i]).toEqual(square.knees[i]);
+      // The hips take a share, so the tops of the legs shift a little; the knees barely.
+      expect(Math.hypot(...twisted.knees[i].map((v, k) => v - square.knees[i][k]))).toBeLessThan(.05);
       expect(twisted.armReach[i]).toBeLessThanOrEqual(1);
     }
   });

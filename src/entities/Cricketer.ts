@@ -42,13 +42,17 @@ export interface Figure {
    */
   elbowsBack?: number;
   /**
-   * The trunk turned on the hips, in radians: the shoulders, the arms and the
-   * head go round with it, the hips and the legs do not. A slinger spins his
+   * The trunk turned past the feet, in radians. A spine twists along its
+   * whole length, so the hips take a third of it and the chest, the arms and
+   * the head the rest; the feet and the knees take none. A slinger spins his
    * chest round past the batter in his follow-through while his feet carry
    * on down the pitch; turned as one piece, his legs cross. Left out, nought.
    */
   twist?: number;
 }
+
+/** How much of a twist the hips take; see `Figure.twist`. */
+const HIP_TWIST = 1 / 3;
 
 /** Limb lengths, shared so a bowler and a fielder are the same person. */
 export const BUILD = {
@@ -327,13 +331,15 @@ export class Cricketer {
     // falling away over his front leg takes his head and shoulders with him.
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(yaw);
     const roll = new THREE.Quaternion().setFromAxisAngle(forward, pose.lean);
-    // The trunk faces where the hips do, and then as far round again as it is twisted.
-    const trunkYaw = yaw.clone().multiply(new THREE.Quaternion().setFromAxisAngle(UP, pose.twist ?? 0));
+    // The hips turn a third of the twist past the feet, the trunk all of it.
+    const twist = pose.twist ?? 0;
+    const hipYaw = yaw.clone().multiply(new THREE.Quaternion().setFromAxisAngle(UP, twist * HIP_TWIST));
+    const trunkYaw = yaw.clone().multiply(new THREE.Quaternion().setFromAxisAngle(UP, twist));
     const trunk = new THREE.Quaternion().setFromUnitVectors(UP, spine.clone().applyQuaternion(roll)).multiply(trunkYaw);
     const chestForward = new THREE.Vector3(0, 0, 1).applyQuaternion(trunkYaw);
 
     this.hips.position.copy(hip);
-    this.hips.quaternion.copy(yaw).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pose.lean * .5));
+    this.hips.quaternion.copy(hipYaw).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), pose.lean * .5));
     this.torso.position.copy(chest);
     this.torso.quaternion.copy(trunk);
     this.head.position.copy(chest).addScaledVector(spine.clone().applyQuaternion(roll), .33);
@@ -371,7 +377,7 @@ export class Cricketer {
       if (wrist.lengthSq() > .000001) arm.end.quaternion.setFromUnitVectors(UP, wrist.normalize());
 
       const leg = this.legs[i];
-      const hipJoint = hip.clone().addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(yaw), side * BUILD.hipX).addScaledVector(UP, -.04);
+      const hipJoint = hip.clone().addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(hipYaw), side * BUILD.hipX).addScaledVector(UP, -.04);
       this.hipJoints[i].copy(hipJoint);
       const foot = i === 0 ? pose.leftFoot : pose.rightFoot;
       // Knees lead forward, in the direction the body faces.
