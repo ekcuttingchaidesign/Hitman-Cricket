@@ -98,8 +98,11 @@ for (let i = 0; i < 8; i++) {
 // From here the clock moves only when the check moves it. Left running, a
 // software-rendered frame is most of a second of real time, and a guard of
 // 420ms is gone before the next line of this script runs — so a ball is
-// already on its way when the innings is written past it.
-await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 1000);
+// already on its way when the innings is written past it. Five seconds ahead,
+// not one: a server still compiling on its first visit can take longer than a
+// second between reading the clock and stopping it, and a stop in the past
+// throws.
+await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 5000);
 
 // ── The opener walks out ───────────────────────────────────────────────────
 // Getting past the cover can take long enough for a ball to be bowled at an
