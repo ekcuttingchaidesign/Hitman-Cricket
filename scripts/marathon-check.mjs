@@ -116,6 +116,7 @@ check((await label())?.includes('OPENER IN'), 'and says so as he takes guard', a
 check(first.marathon?.level === 1 && first.marathon?.bowler === 'PACE', 'against Level 1 pace', JSON.stringify(first.marathon));
 check(await page.locator('#confidence').evaluate(el => el.classList.contains('is-injury')), 'with the injury meter, not confidence');
 check(await page.locator('#scoreboard').isVisible(), 'and the scoreboard, not a target to chase');
+check(await page.evaluate(() => window.__cricket.greenTop()), 'on the Test match\'s greener strip');
 check(!(await page.locator('#speed-gun').evaluate(el => el.classList.contains('is-on'))), 'no speed up before a ball is bowled');
 const meter = async () => `${await page.locator('#settle-label').textContent()} ${await page.locator('#settle-cap').textContent()}`.trim();
 check(await page.locator('#settle').isVisible() && await meter() === `SETTLING 0/${SETTLE_BALLS}`, 'and the opener walks out unsettled, beside the injury meter', await meter());

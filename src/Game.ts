@@ -552,6 +552,8 @@ export class Game {
       field: () => this.scene.fieldState,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
+      // The Test look, for the checks: the green strip down, or the Blast's.
+      greenTop: () => this.scene.greenTop,
       // Day or night, for the checks.
       lights: () => this.scene.lit,
       // Who this browser settled on being. Asked by `key-check.mjs`, which

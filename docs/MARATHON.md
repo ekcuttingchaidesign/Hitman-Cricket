@@ -309,8 +309,10 @@ Each step is a pull request of its own, behind the flag until the last.
 5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two
    ladders, the store, `?demo=1`.
 6. **My Stats.** The third card and its tier.
-7. **The Test look.** The darker ball and the greener pitch, in both Test
-   modes.
+7. **The Test look.** *Done.* The darker ball (a Dukes's cherry, `0xa81c1c`,
+   against the Blast's `0xe84829`) and the greener pitch, in both Test modes.
+   A full green top was tried first and was too much; the strip keeps half
+   the grass `pitchTexture` can paint.
 8. **Launch.** A What's New story, the flag on, merge.
 
 ## Open questions

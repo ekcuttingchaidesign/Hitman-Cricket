@@ -120,12 +120,25 @@ export function grassTexture(radius: number, centreZ: number, boundary: number, 
   return finish(c, anisotropy);
 }
 
+/** Two hex colours, a fraction `t` of the way from the first to the second. */
+function mix(from: string, to: string, t: number) {
+  const a = parseInt(from.slice(1), 16), b = parseInt(to.slice(1), 16);
+  const channel = (shift: number) => Math.round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t);
+  return `#${((channel(16) << 16) | (channel(8) << 8) | channel(0)).toString(16).padStart(6, '0')}`;
+}
+
 /**
  * The strip, for a `BoxGeometry` `width` by `length` centred `centreZ`: the
  * cut playing surface down the middle, fading to worn grass at its edges,
  * with the marks a match leaves on it.
+ *
+ * `green` is how much live grass has been left on it, nought to one. The
+ * Blast's strip has none — a dry, cracked one-day surface. A Test is played on
+ * a greener one: grass through the surface, fewer cracks, less dust between
+ * the wickets, and the bowlers' footmarks worn just the same. At nought this
+ * paints exactly the strip it always has, ball mark for ball mark.
  */
-export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }) {
+export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }, green = 0) {
   const W = 320, H = 3072;
   const { c, ctx } = canvas(W, H);
   const random = seeded(23);
@@ -137,9 +150,9 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
 
   // Worn grass at the edges, the prepared surface in the middle.
   const across = ctx.createLinearGradient(0, 0, W, 0);
-  const edge = '#aaae70', surface = '#d3b683';
-  across.addColorStop(0, edge); across.addColorStop(0.1, '#b9b27b'); across.addColorStop(0.16, surface);
-  across.addColorStop(0.84, surface); across.addColorStop(0.9, '#b9b27b'); across.addColorStop(1, edge);
+  const edge = mix('#aaae70', '#93a862', green), surface = mix('#d3b683', '#b3bd78', green), verge = mix('#b9b27b', '#a1ae6a', green);
+  across.addColorStop(0, edge); across.addColorStop(0.1, verge); across.addColorStop(0.16, surface);
+  across.addColorStop(0.84, surface); across.addColorStop(0.9, verge); across.addColorStop(1, edge);
   ctx.fillStyle = across; ctx.fillRect(0, 0, W, H);
   // And at the ends, where the surface gives way to the square.
   for (const [from, to] of [[0, row(ends.batting - 9)], [H, row(ends.bowling + 1)]] as const) {
@@ -155,8 +168,17 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
     ctx.fillRect(x, y, 1, len);
   }
 
+  // The grass left on it: short blades down the grain, thickest away from
+  // the line of the ball, where nobody has been running.
+  for (let i = 0; i < Math.round(2600 * green); i++) {
+    const x = random() * W, y = random() * H, len = (0.15 + random() * 0.5) * px;
+    const shade = random();
+    ctx.fillStyle = shade < 0.5 ? `rgba(92,138,58,${(0.16 + random() * 0.14).toFixed(2)})` : `rgba(130,168,84,${(0.14 + random() * 0.12).toFixed(2)})`;
+    ctx.fillRect(x, y, 1.4, len);
+  }
+
   // Where the ball pitches: darker, and pocked with ball marks.
-  blob(ctx, col(0), row((ends.batting + ends.bowling) * 0.36), 0.75 * px, 4.2 * px, 'rgba(150,120,80,1)', 0.22);
+  blob(ctx, col(0), row((ends.batting + ends.bowling) * 0.36), 0.75 * px, 4.2 * px, 'rgba(150,120,80,1)', 0.22 * (1 - 0.4 * green));
   for (let i = 0; i < 90; i++) {
     const r = (0.012 + random() * 0.02) * px;
     blob(ctx, col((random() - 0.5) * 1.1), row(ends.batting + 3 + random() * 7), r * 1.3, r, 'rgba(110,88,55,1)', 0.45);
@@ -165,7 +187,7 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
   // Dust and footmarks round both creases, where every ball is played from
   // and bowled from.
   for (const [z, spread, feet] of [[ends.batting + 1.1, 1.6, 70], [ends.bowling - 1.2, 1.8, 110]] as const) {
-    blob(ctx, col(0), row(z), 1.05 * px, spread * px, 'rgba(226,210,170,1)', 0.45);
+    blob(ctx, col(0), row(z), 1.05 * px, spread * px, 'rgba(226,210,170,1)', 0.45 * (1 - 0.3 * green));
     // Scuffed rather than stamped: many faint marks that overlap into a worn
     // patch, where a few dark ones read as spots.
     for (let i = 0; i < feet * 2; i++) {
@@ -178,7 +200,7 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
   ctx.lineCap = 'round';
   // Short and nearly straight: a crack wanders a little, where a long winding
   // one reads from the crease as a scribble.
-  for (let i = 0; i < 110; i++) {
+  for (let i = 0; i < Math.round(110 * (1 - 0.75 * green)); i++) {
     let x = col((random() - 0.5) * 1.8), y = row(ends.batting + random() * (ends.bowling - ends.batting));
     let heading = random() * Math.PI * 2;
     ctx.beginPath(); ctx.moveTo(x, y);
