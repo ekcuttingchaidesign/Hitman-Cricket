@@ -184,6 +184,17 @@ Fills the boards with fifty made-up players, in the browser that asked, saving
 nothing — the Marathon's two ladders and the Rivals ranking too. It is how a full board gets looked at without claiming fifty real
 names. `?demo=0` or a new tab turns it off.
 
+## The preview filler
+
+Off production — every preview and the dev server — the Test Marathon's two
+ladders and the Rivals ranking carry made-up rows among the real ones
+(`fillMarathon` and `fillRivals` in `src/game/demo-board.ts`, switched by
+`PREVIEW_FILL` in `src/Game.ts`), because nobody has played the new boards on
+a fresh preview and an empty board says nothing. Real rows take their true
+places among them and are never pushed off a full board; the Marathon card's
+offer is worked out against the same filled board, so the place it names is
+the place the board shows. Nothing is written. Production never sees them.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six

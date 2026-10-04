@@ -141,3 +141,20 @@ describe('what the card offers', () => {
     expect(marathonOffer(true, full(500), yours(300, 10), AT, ME)).toEqual({ kind: 'silent' });
   });
 });
+
+describe('the preview filler', () => {
+  it('puts made-up rows among the real ones, the real ones in their true places and never pushed off', async () => {
+    const { fillMarathon, fillRivals } = await import('../src/game/demo-board');
+    const real = { team: [team({ playerId: ME, name: 'Virat', runs: 280 })], solo: [solo({ playerId: ME, name: 'Virat', runs: 200 })] };
+    const shown = fillMarathon(real);
+    expect(shown.team.length).toBeGreaterThan(20);
+    expect(shown.team.filter(row => row.playerId === ME)).toHaveLength(1);
+    expect(shown.team.every((row, i) => i === 0 || shown.team[i - 1].score >= row.score)).toBe(true);
+    // A board already full of real rows keeps every one of them.
+    const full = Array.from({ length: MARATHON_BOARD_SIZE }, (_, i) => team({ runs: 600 - i, playerId: `p${i}aaaa-bbbbbbbbbbbb`, name: `Real${i}` }));
+    expect(fillMarathon({ team: full, solo: [] }).team.map(row => row.playerId)).toEqual(full.map(row => row.playerId));
+    const rivals = fillRivals([{ playerId: ME, name: 'Virat', avatar: 0, won: 40, lost: 1, runs: 900 }]);
+    expect(rivals[0].playerId).toBe(ME);
+    expect(rivals.length).toBeGreaterThan(20);
+  });
+});

@@ -50,7 +50,7 @@ import {
   type CareerBoards, type CareerRow,
 } from './game/career-api';
 import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted } from './game/demo-board';
+import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
@@ -124,6 +124,13 @@ const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
  * Whether the Test Marathon can be reached from here, and so whether its board
  * has a tab: from the picker, or from a link that names it (`?mode=marathon`).
  */
+/**
+ * Whether the new boards — the Marathon's two ladders and the Rivals ranking —
+ * carry made-up rows among the real ones (`fillMarathon`, `fillRivals`). Off
+ * production only: a preview nobody has played them on shows a board worth
+ * looking at, and a real innings still lands in its true place among them.
+ */
+const PREVIEW_FILL = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
 const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
   && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 
@@ -1501,7 +1508,14 @@ export class Game {
   /** The Rivals ranking for Rival Matches, as it stands: held, demo, or still coming. */
   private rivalsRanking(state?: 'ready' | 'loading' | 'offline') {
     if (this.demo) return { rows: demoRivals(this.player), youId: this.player, state: 'ready' as const };
-    return { rows: this.rivalsRows ?? [], youId: this.player, state: state ?? (this.rivalsRows ? 'ready' as const : 'loading' as const) };
+    const rows = this.rivalsRows ?? [];
+    return { rows: PREVIEW_FILL && this.rivalsRows ? fillRivals(rows) : rows, youId: this.player, state: state ?? (this.rivalsRows ? 'ready' as const : 'loading' as const) };
+  }
+  /** Both Marathon ladders as they are shown: the real rows, with the preview's filler among them off production. */
+  private get marathonShown(): { team: TeamRow[]; solo: SoloRow[] } | null {
+    if (!this.marathonRows) return null;
+    const real = { team: this.marathonRows.team.rows, solo: this.marathonRows.solo.rows };
+    return PREVIEW_FILL ? fillMarathon(real) : { team: [...real.team], solo: [...real.solo] };
   }
 
   /** Both Marathon ladders as last fetched, and which of the two is up. */
@@ -1525,12 +1539,13 @@ export class Game {
     const actions = this.boardActions && !!mine;
     const draw = (rows: MarathonPayload | { team: { rows: TeamRow[] }; solo: { rows: SoloRow[] } } | null, state: 'ready' | 'loading' | 'offline') => {
       if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'marathon' || this.marathonLadder !== ladder) return;
-      this.hud.marathonBoard({ ladder, team: rows?.team.rows ?? [], solo: rows?.solo.rows ?? [], youId: this.player, yours, state, actions });
+      const shown = rows ? this.marathonShown : null;
+      this.hud.marathonBoard({ ladder, team: shown?.team ?? [], solo: shown?.solo ?? [], youId: this.player, yours, state, actions });
     };
     // The sheet has to be up before `draw` will draw on it.
     if (this.demo) { const demo = demoMarathon(this.player); this.hud.marathonBoard({ ladder, team: demo.team, solo: demo.solo, youId: this.player, yours, state: 'ready', actions }); return; }
     this.hud.marathonBoard({
-      ladder, team: this.marathonRows?.team.rows ?? [], solo: this.marathonRows?.solo.rows ?? [], youId: this.player, yours,
+      ladder, team: this.marathonShown?.team ?? [], solo: this.marathonShown?.solo ?? [], youId: this.player, yours,
       state: this.marathonRows ? 'ready' : 'loading', actions,
     });
     void fetchMarathonBoard().then(payload => {
@@ -2297,7 +2312,7 @@ export class Game {
   /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
   private offerMarathon() {
     const played = marathonFigures(this.marathon!);
-    const rows = { team: this.marathonRows?.team.rows ?? [], solo: this.marathonRows?.solo.rows ?? [] };
+    const rows = this.marathonShown ?? { team: [], solo: [] };
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
     const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
     this.hud.offerMarathonClaim(shown, readPlayer(), rows.team, this.player);

@@ -199,6 +199,30 @@ export function demoRivals(youId: string | null): RivalsRow[] {
     .sort((a, b) => b.won - a.won || a.lost - b.lost || b.runs - a.runs);
 }
 
+/**
+ * Made-up rows among the real ones, for a preview: the Marathon's two ladders
+ * and the Rivals ranking are new, so on a branch's preview nobody has played
+ * them and an empty board says nothing about a board. Every other demo row,
+ * so the filler is spread down the ladder and leaves room under it; real rows
+ * take their true places among them, and a real player is never pushed off.
+ * Off production only — `Game` decides — and nothing is saved.
+ */
+export function fillMarathon(real: { team: readonly TeamRow[]; solo: readonly SoloRow[] }): { team: TeamRow[]; solo: SoloRow[] } {
+  const faux = demoMarathon(null);
+  return { team: among(real.team, faux.team, (a, b) => b.score - a.score), solo: among(real.solo, faux.solo, (a, b) => b.score - a.score) };
+}
+export function fillRivals(real: readonly RivalsRow[]): RivalsRow[] {
+  return among(real, demoRivals(null), (a, b) => b.won - a.won || a.lost - b.lost || b.runs - a.runs);
+}
+function among<R extends { playerId: string; name: string }>(real: readonly R[], faux: readonly R[], order: (a: R, b: R) => number): R[] {
+  const taken = new Set(real.flatMap(row => [row.playerId, row.name.toLowerCase()]));
+  const filler = faux.filter((row, i) => i % 2 === 0 && !taken.has(row.playerId) && !taken.has(row.name.toLowerCase()));
+  const rows = [...real, ...filler].sort(order);
+  // Never a real row lost to make room: filler goes first when the fifty fill.
+  for (let i = rows.length - 1; rows.length > DEMO_ROWS && i >= 0; i--) if (filler.includes(rows[i])) rows.splice(i, 1);
+  return rows;
+}
+
 /** Where the flag is remembered for the rest of the tab's life. */
 const DEMO_KEY = 'hitman-demo';
 

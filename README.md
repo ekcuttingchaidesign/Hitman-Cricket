@@ -394,7 +394,7 @@ The team ladder's clock is in minutes, because twenty-nine bits of rank leave it
 
 **One claim writes both.** The card offers the team ladder's place where the innings takes one there and the individual's where only that one does; `POST /api/score?mode=marathon` takes the whole innings — the total and each batter's figures — and records each ladder's row from it, so a player never claims twice for one innings. The store checks the shape it can check: balls and runs that add up batter by batter, a meter that only moved with a blow, one left-hander at most, nobody after a man still batting, and an ending the figures bear out (`marathonPlausible` in `src/game/marathon-board.ts`). It shares the name registry and the rate limit with the other two boards, through the same `admit()`.
 
-`?demo=1` fills both ladders with fifty invented Test innings alongside the other boards', saving nothing.
+`?demo=1` fills both ladders with fifty invented Test innings alongside the other boards', saving nothing. And on every preview and the dev server, without asking, both ladders and the Rivals ranking carry made-up rows among the real ones — every other demo row, so the filler leaves room under it — because nobody has played the new boards on a fresh preview; real rows take their true places and are never pushed off, and production never sees it (`PREVIEW_FILL`).
 
 There are no invented rows for the Test board. The fifty fixtures stand in for the other one while there is no database; a ladder of people who never batted is worse here than an empty screen.
 
