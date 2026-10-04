@@ -24,8 +24,9 @@ describe('what the update says it did', () => {
     expect(STORIES).toHaveLength(3);
   });
 
-  it('announces Rivals first and asks for the key last', () => {
-    expect(STORIES.slice(0, 2).map(one => one.key)).toEqual(['rivals', 'rivals-result']);
+  it('announces the Test Marathon first and asks for the key last', () => {
+    expect(STORIES.slice(0, 2).map(one => one.key)).toEqual(['marathon', 'marathon-card']);
+    expect(STORIES.some(one => one.key.startsWith('rivals'))).toBe(false);
     expect(STORIES.slice(0, 2).every(one => one.body && !one.withKey)).toBe(true);
     // The key goes last: it is the one card that holds still, so tapping
     // through lands on it rather than past it.
@@ -70,7 +71,7 @@ describe('the story screen', () => {
     expect(markup).not.toContain('is-held');
     expect(markup).not.toContain('whatsnew-keyslot');
     // A screenshot is not square; laid out at its own shape before it loads.
-    expect(markup).toMatch(/width="720" height="709"/);
+    expect(markup).toMatch(/width="720" height="294"/);
   });
 
   it('puts the meme on the screen, and the key under it', () => {

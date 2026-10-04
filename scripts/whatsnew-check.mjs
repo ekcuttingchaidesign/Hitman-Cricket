@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'rivals-launch';
+const UPDATE = 'marathon-launch';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -75,10 +75,10 @@ const first = await title();
 const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
-// Rivals first, a screenshot of the room, loaded.
+// The Test Marathon first, a picture of its card, loaded.
 const loaded = () => page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0);
-check(first === 'Bat against your friends', 'it opens on Rivals', first);
-check(await loaded(), 'with the match room on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+check(first === 'Bat all day', 'it opens on the Test Marathon', first);
+check(await loaded(), 'with its card on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
 check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks for nothing');
 
 // A card that asks for nothing moves on by itself after its seven seconds.
@@ -86,8 +86,8 @@ check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks
 // by itself in real time, and one long wind on a slow machine carries a card
 // past its own hold and the next one's too.
 for (let wound = 0; wound < 9000 && await title() === first; wound += 500) await tick(500, 150);
-check(await title() === 'Winner gets the fire', 'which moves on by itself to the result', await title());
-check(await loaded(), 'with the fire on the screen, loaded');
+check(await title() === 'Declare and get on the board', 'which moves on by itself to the scorecard', await title());
+check(await loaded(), 'with the scorecard on the screen, loaded');
 
 // A tap on the right half goes on, to the meme, last.
 await page.click('#whatsnew-next');
@@ -107,7 +107,7 @@ check(!!(await page.$('.whatsnew-sheet')) && await title() === meme, 'the story 
 // And a tap on the left half goes back.
 await page.click('#whatsnew-back');
 await tick(400);
-check(await title() === 'Winner gets the fire', 'a tap back goes back a card', await title());
+check(await title() === 'Declare and get on the board', 'a tap back goes back a card', await title());
 
 await page.click('#whatsnew-done');
 await tick(700);

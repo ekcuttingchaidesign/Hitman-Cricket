@@ -3021,15 +3021,15 @@ body.survive-mode #scoreboard{display:none}
    From the mode screen's design (Figma, node 1-13): the kit laid out on the
    square, the green coming in from the left over it, and an orange key. The
    hero's own measures hold — the design draws it at the same 360 by 146. */
-.mode-hero-marathon{background:#004225;border:1px solid #4f8f6a}
+.mode-hero-marathon{background:#004225;border:1px solid #2e7a52}
 .mode-hero-marathon .mode-hero-plate{left:20.7%;right:auto;top:-12.9%;bottom:auto;width:87.6%;height:122.6%;-webkit-mask-image:none;mask-image:none}
 .mode-hero-marathon .mode-hero-plate img{object-position:50% 50%}
-.mode-hero-marathon::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#004225 28%,#004225d9 46%,#00422500 100%);pointer-events:none}
+.mode-hero-marathon::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#004225 36%,#00422500 72%);pointer-events:none}
 .mode-hero-marathon .mode-hero-body{z-index:2;padding:5cqw 0 0 4.6cqw}
 .mode-hero-marathon .mode-flag{height:4.5cqw;padding:0 1.6cqw;border-radius:2.1cqw;background:linear-gradient(90deg,#cd1f22,#ff6567);font-weight:900;font-size:2.56cqw;letter-spacing:.1em}
 .mode-hero-marathon .mode-hero-name{margin-top:1.3cqw;font-size:5.93cqw;line-height:1.03}
 .mode-hero-marathon .mode-hero-sub{margin-top:1.3cqw;font-weight:700;font-size:3.24cqw;line-height:1.3;color:#ffffffcc}
-.mode-hero-marathon .mode-key{width:25.3cqw;height:8.5cqw;margin-top:1.6cqw;border-width:.54cqw;border-radius:2.16cqw;background:linear-gradient(90deg,#f2a64f,#fff);box-shadow:0 1.1cqw 0 #000,0 1.6cqw 2.1cqw #0000005c;font-size:3.24cqw;letter-spacing:.13em}
+.mode-hero-marathon .mode-key{width:25.3cqw;height:8.5cqw;margin-top:1.6cqw;border-width:.54cqw;border-radius:2.16cqw;border-color:#4a0710;background:linear-gradient(90deg,#c8102e,#ff5f57);box-shadow:0 1.1cqw 0 #4a0710,0 1.6cqw 2.1cqw #0000005c;color:#fff;font-size:3.24cqw;letter-spacing:.13em}
 
 /* ── The two solo modes, side by side ─────────────────────────────────────
    The design's copy is 12 points on a 589-point phone, eight pixels on a real
@@ -3855,7 +3855,7 @@ body.marathon-mode #end :is(#card-career,#card-key,#challenge-set,#card-share){d
 .mcard-table tfoot th b{display:block;font-size:14px}
 .mcard-dnb{margin:6px 0 0;font-size:11.5px;color:var(--quiet)}
 .mcard-keys{margin-top:10px}
-.mcard-keys .story-key svg{width:17px;height:17px}
+.mcard-keys :is(.story-key,.whatsapp-key) svg{width:17px;height:17px}
 .declare-key{display:block;width:100%;margin-top:10px}
 .declare-key.hidden{display:none}
 

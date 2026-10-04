@@ -416,7 +416,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             </div>
             <div class="card-shares mcard-keys">
               <button id="mcard-modes" class="story-key" type="button">CHANGE MODE</button>
-              <button id="mcard-share" class="story-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
+              <button id="mcard-share" class="whatsapp-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
             <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
             <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>

@@ -70,7 +70,7 @@ for (const [name, options, mode] of [
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'rivals-launch:9');
+      localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({
@@ -161,7 +161,7 @@ for (const [name, options, mode] of [
   const page = await context.newPage();
   await page.addInitScript(() => {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
-    try { localStorage.setItem('hitman-seen', day); localStorage.setItem('hitman-whatsnew', 'rivals-launch:9'); } catch { /* */ }
+    try { localStorage.setItem('hitman-seen', day); localStorage.setItem('hitman-whatsnew', 'marathon-launch:9'); } catch { /* */ }
   });
   await page.route('**/api/board**', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ rows: [], cutoff: null, size: 50 }),

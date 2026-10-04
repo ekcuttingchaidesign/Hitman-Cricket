@@ -45,7 +45,7 @@ async function photograph(ground, options, png) {
   await page.addInitScript(() => {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     localStorage.setItem('hitman-seen', day);
-    localStorage.setItem('hitman-whatsnew', 'rivals-launch:9');
+    localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
     // Past the covers: these are the pictures that go on them.
     localStorage.setItem('hitman-unveiled', 'ground-stadium');
   });

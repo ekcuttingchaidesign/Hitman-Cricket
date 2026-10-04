@@ -5,8 +5,9 @@
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is Rivals: two cards for the mode, pictures of the screens
- * themselves, and then the key — said as a joke, with the key itself under it
+ * This update is the Test Marathon: two cards for the mode, pictures of the
+ * screens themselves — the card it is found by, and the scorecard a long
+ * innings ends on — and then the key — said as a joke, with the key itself under it
  * so the ask and the means of doing it are on the same screen. The key goes
  * last because it is the one card that holds still: everything before it moves
  * on by itself, and a player tapping through lands on the card that wants
@@ -20,12 +21,14 @@
 const meme = 'save%20key%20meme.png';
 
 /**
- * The Rivals screens, photographed from the `?room=` fixtures at three times a
- * phone's width and cut to the part that tells the story. Imported rather than
- * served from `public/`, so the build fingerprints them.
+ * The Marathon's screens, photographed at three times a phone's width and cut
+ * to the part that tells the story: its card on Select Mode, and the worm and
+ * the batting card from the end of an innings. Imported rather than served
+ * from `public/`, so the build fingerprints them. (The Rivals launch's two,
+ * `rivals-room.webp` and `rivals-result.webp`, are kept beside them.)
  */
-const rivalsRoom = new URL('../assets/whatsnew/rivals-room.webp', import.meta.url).href;
-const rivalsResult = new URL('../assets/whatsnew/rivals-result.webp', import.meta.url).href;
+const marathonHero = new URL('../assets/whatsnew/marathon-hero.webp', import.meta.url).href;
+const marathonCard = new URL('../assets/whatsnew/marathon-card.webp', import.meta.url).href;
 
 export interface Story {
   key: string;
@@ -62,24 +65,24 @@ export interface Story {
 
 export const STORIES: readonly Story[] = [
   {
-    key: 'rivals',
-    eyebrow: 'NEW MODE \u00b7 RIVALS',
-    title: 'Bat against your friends',
-    body: 'Make a room, send the link, and everyone who opens it bats the same thirty balls \u2014 together right now, or days apart. Their runs flash up ball by ball. The score stays hidden till your last.',
-    art: rivalsRoom,
-    alt: 'The Rivals match room: You, Virat and Rohit seated round a VS, each marked JOINED.',
+    key: 'marathon',
+    eyebrow: 'NEW MODE \u00b7 TEST MARATHON',
+    title: 'Bat all day',
+    body: 'Three batters, as many balls as they last. Focus to settle in, then build. The pitch wears and the bowling gets tougher as the innings goes on.',
+    art: marathonHero,
+    alt: 'The Test Marathon card on the mode screen: a helmet, gloves and a red ball on the square, and a red PLAY key.',
     width: 720,
-    height: 709,
+    height: 294,
   },
   {
-    key: 'rivals-result',
-    eyebrow: 'RIVALS',
-    title: 'Winner gets the fire',
-    body: 'Top score takes the match and the flames round their face. Every result goes on your record \u2014 won, lost, drawn \u2014 in Rival Matches and on My Stats. Find Rivals on the mode screen.',
-    art: rivalsResult,
-    alt: 'A Rivals result: fire round the winner\u2019s face over You Win, then WINNER and LOSER rows with runs, sixes and fours.',
+    key: 'marathon-card',
+    eyebrow: 'TEST MARATHON',
+    title: 'Declare and get on the board',
+    body: 'Declare when you\u2019re ready and put your score on the boards \u2014 the team total and your best batter. Find Test Marathon at the top of the mode screen.',
+    art: marathonCard,
+    alt: 'A Test Marathon scorecard: the runs climbing over 32 overs with a ball where each batter went, then each batter\u2019s runs, balls, fours, sixes and strike rate, and the total, 271 for 3.',
     width: 720,
-    height: 760,
+    height: 753,
   },
   {
     key: 'save-key',
@@ -101,7 +104,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'rivals-launch';
+export const UPDATE = 'marathon-launch';
 
 /**
  * How many times one browser is shown it unasked.
