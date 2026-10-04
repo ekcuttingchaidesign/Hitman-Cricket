@@ -62,7 +62,7 @@ right. `outcomeOf` in `challenge-store.ts` is the whole rule; `the record` in
 
 ## The Rivals board
 
-The Rivals ranking, behind the trophy key at the top of Rival Matches: matches
+The Rivals ranking, behind the gold trophy key at the top of Rival Matches (gold and pulsing, so it is not mistaken for a second back key): matches
 won, matches lost, and runs made in them, top fifty, in a sheet of its own over
 the list, opened at the player's own row. It sat under the record in the list
 for a while, the top ten and a key for the rest, until a playtest asked for it

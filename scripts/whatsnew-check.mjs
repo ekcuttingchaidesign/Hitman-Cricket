@@ -71,7 +71,11 @@ if (!opened) { await browser.close(); process.exit(1); }
 // runs on in real time while a slow machine decodes a story's picture, and a
 // card's seven-second hold can be gone before the next line runs — so the tap
 // meant for one card lands on the next, the last, and closes the stories.
-await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 1000);
+// The page's time can run past the moment asked for between reading it and
+// pausing at it, so it is read again and asked for again until it holds.
+for (let tries = 0; ; tries++) {
+  try { await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 250); break; } catch (error) { if (tries > 8) throw error; }
+}
 
 const first = await title();
 // A build that plays one mode has no picker to skip to, so the key says the
@@ -80,9 +84,9 @@ const first = await title();
 const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
-// The Test Marathon first, a picture of its card, loaded.
+// The Test Marathon first, its picture across the whole story, loaded.
 const loaded = () => page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0);
-check(first === 'Bat all day', 'it opens on the Test Marathon', first);
+check(first === 'Test Marathon', 'it opens on the Test Marathon', first);
 check(await loaded(), 'with its card on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
 check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks for nothing');
 
@@ -91,7 +95,7 @@ check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks
 // by itself in real time, and one long wind on a slow machine carries a card
 // past its own hold and the next one's too.
 for (let wound = 0; wound < 9000 && await title() === first; wound += 500) await tick(500, 150);
-check(await title() === 'Declare and get on the board', 'which moves on by itself to the scorecard', await title());
+check(await title() === 'Play long, score big', 'which moves on by itself to the scorecard', await title());
 check(await loaded(), 'with the scorecard on the screen, loaded');
 
 // A tap on the right half goes on, to the meme, last.
@@ -112,7 +116,7 @@ check(!!(await page.$('.whatsnew-sheet')) && await title() === meme, 'the story 
 // And a tap on the left half goes back.
 await page.click('#whatsnew-back');
 await tick(400);
-check(await title() === 'Declare and get on the board', 'a tap back goes back a card', await title());
+check(await title() === 'Play long, score big', 'a tap back goes back a card', await title());
 
 await page.click('#whatsnew-done');
 await tick(700);

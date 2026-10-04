@@ -24,7 +24,10 @@ describe('what the update says it did', () => {
     expect(STORIES).toHaveLength(3);
   });
 
-  it('announces the Test Marathon first and asks for the key last', () => {
+  it('opens on the Test Marathon across the whole screen, and asks for the key last', () => {
+    expect(STORIES[0].full).toBe(true);
+    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).toContain('whatsnew-sheet is-full');
+    expect(storiesMarkup({ at: 1, where: 'intro', holdMs: 1 })).not.toContain('is-full');
     expect(STORIES.slice(0, 2).map(one => one.key)).toEqual(['marathon', 'marathon-card']);
     expect(STORIES.some(one => one.key.startsWith('rivals'))).toBe(false);
     expect(STORIES.slice(0, 2).every(one => one.body && !one.withKey)).toBe(true);
@@ -66,7 +69,7 @@ describe('the story screen', () => {
   });
 
   it('moves on by itself from a card that asks for nothing', () => {
-    const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
+    const markup = storiesMarkup({ at: 1, where: 'intro', holdMs: 7000 });
     expect(markup).toContain('--hold:7000ms');
     expect(markup).not.toContain('is-held');
     expect(markup).not.toContain('whatsnew-keyslot');

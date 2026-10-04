@@ -44,7 +44,7 @@ export function storiesMarkup(view: StoriesView): string {
   const story = STORIES[at] ?? STORIES[0];
   const live = (i: number) => i !== at ? '' : story.withKey ? ' is-live is-held' : ' is-live';
   return `
-    <div class="whatsnew-sheet" role="document" aria-roledescription="story">
+    <div class="whatsnew-sheet${story.full ? ' is-full' : ''}" role="document" aria-roledescription="story">
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !story.withKey ? ` style="--hold:${holdMs}ms"` : ''}><i></i></span>`).join('')}

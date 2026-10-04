@@ -21,14 +21,14 @@
 const meme = 'save%20key%20meme.png';
 
 /**
- * The Marathon's two posters, drawn by `scripts/marathon-story-art.mjs`: the
- * kit on the square in British racing green with the mode's four rules as
- * badges, and a broadcast scorecard of a big innings. Posters rather than
+ * The Marathon's two pictures: the kit on the square at golden hour, shown
+ * across the whole story with the mode's name over the sky, and a broadcast
+ * scorecard of a big innings drawn by `scripts/marathon-story-art.mjs`. Not
  * screenshots — the first cut photographed the screens, and a launch read as
  * a screenshot. Imported rather than served from `public/`, so the build
  * fingerprints them. (The Rivals launch's two pictures are kept beside them.)
  */
-const marathonHero = new URL('../assets/whatsnew/marathon-hero.webp', import.meta.url).href;
+const marathonIntro = new URL('../assets/whatsnew/marathon-intro.webp', import.meta.url).href;
 const marathonCard = new URL('../assets/whatsnew/marathon-card.webp', import.meta.url).href;
 
 export interface Story {
@@ -56,6 +56,11 @@ export interface Story {
    */
   cut?: boolean;
   /**
+   * The picture is the whole story: drawn across the screen behind the words,
+   * which are few and sit over it, rather than framed between them.
+   */
+  full?: boolean;
+  /**
    * Whether the career key is drawn under the picture.
    *
    * A story that asks for something holds still: one that moved itself on
@@ -67,20 +72,20 @@ export interface Story {
 export const STORIES: readonly Story[] = [
   {
     key: 'marathon',
-    eyebrow: 'NEW MODE \u00b7 TEST MARATHON',
-    title: 'Bat all day',
-    body: 'A Test innings with three batters and no overs limit. Bat as long as they last \u2014 find it at the top of the mode screen.',
-    art: marathonHero,
-    alt: 'TEST MARATHON over a helmet, gloves and a red ball on the square, with four badges: three batters, focus to settle, the pitch wears, declare and register.',
-    width: 720,
-    height: 900,
-    cut: true,
+    eyebrow: 'NEW MODE',
+    title: 'Test Marathon',
+    body: 'Bat all day.',
+    art: marathonIntro,
+    alt: 'A helmet, a pair of gloves and a red ball on the square at golden hour, the stumps behind them and the stands full.',
+    width: 941,
+    height: 1672,
+    full: true,
   },
   {
     key: 'marathon-card',
     eyebrow: 'TEST MARATHON',
-    title: 'Declare and get on the board',
-    body: 'Every innings ends on a scorecard. Declare when you\u2019re ready and put it on the boards \u2014 the team total, and your best batter on his own.',
+    title: 'Play long, score big',
+    body: 'Three batters, as long as they last. Pile up the runs and put your big score on the board.',
     art: marathonCard,
     alt: 'A Test Marathon scorecard: 271 for 3 in 32.1 overs, the runs climbing with a ball where each batter went, then the opener 152, the No. 3 64 not out retired hurt, and the tailender 55.',
     width: 720,

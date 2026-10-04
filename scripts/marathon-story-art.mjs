@@ -1,5 +1,5 @@
 /**
- * The two pictures the What's New stories introduce the Test Marathon with.
+ * The scorecard the second What's New story shows the Test Marathon with.
  *
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/marathon-story-art.mjs
  *
@@ -7,10 +7,11 @@
  * screens, which tells the truth about an update; the Marathon's first cut did
  * the same and read as a screenshot — a mode card with the debug panel across
  * it, and a scorecard in the game's own small type — where a launch wants a
- * poster. So these are posters, laid out in HTML from the game's own fonts and
- * art and rendered in a browser: the kit on the square in British racing green
- * with the mode's four rules as badges, and a broadcast scorecard of a big
- * innings, the worm with a ball where each man went.
+ * poster. So it is drawn: laid out in HTML from the game's own fonts and art
+ * and rendered in a browser, a broadcast scorecard of a big innings, the worm
+ * with a ball where each man went. (The first story is a photograph of the kit
+ * on the square, `marathon-intro.webp`, shown across the whole screen; this
+ * script drew a poster for it until then.)
  *
  * It needs no server. Everything it draws is read from `src/assets/` and the
  * figures are made up — an innings nobody played, never written anywhere.
@@ -24,7 +25,7 @@ const asset = name => new URL(`../src/assets/${name}`, import.meta.url);
 const b64 = async name => (await readFile(asset(name))).toString('base64');
 const out = name => new URL(`../src/assets/whatsnew/${name}`, import.meta.url);
 
-const [jaro, satoshi, plate] = await Promise.all([b64('jaro-latin.woff2'), b64('satoshi-latin.woff2'), b64('marathon-plate.webp')]);
+const [jaro, satoshi] = await Promise.all([b64('jaro-latin.woff2'), b64('satoshi-latin.woff2')]);
 
 const FONTS = `
   @font-face{font-family:Jaro;src:url(data:font/woff2;base64,${jaro}) format('woff2')}
@@ -34,10 +35,6 @@ const FONTS = `
 
 /** The helmet from the design (Figma, node 12-127), as the rules coachmark draws it. */
 const HELMET = `<svg viewBox="100 66 428 384"><path fill="currentColor" fill-rule="evenodd" d="M118 268C108 268 106 256 110 246C128 150 200 80 290 78C370 76 440 130 468 212L502 212C512 212 518 222 514 230C512 236 506 238 500 238L268 262L276 300C277 307 272 312 266 312L186 312C181 312 177 309 176 304L162 268ZM182 216H234A17 17 0 0 1 234 250H182A17 17 0 0 1 182 216Z"/><circle cx="190" cy="233" r="6" fill="currentColor"/><circle cx="226" cy="233" r="6" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" d="M192 316V368L224 436H456C470 436 476 428 478 416L486 340C487 330 480 324 470 325L262 340C256 341 252 336 252 330V316M198 386H482M332 338V436M414 331V436"/></svg>`;
-const line = body => `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
-const EYE = line('<path d="M6 32s10-16 26-16 26 16 26 16-10 16-26 16S6 32 6 32Z"/><circle cx="32" cy="32" r="8"/>');
-const PITCH = line('<rect x="20" y="6" width="24" height="52" rx="3"/><path d="M27 16l4 5-3 5 5 4M37 34l-4 4 3 5-4 4"/>');
-const FLAG = line('<path d="M18 58V10"/><path d="M18 12h24l-6 8 6 8H18"/>');
 /** A cricket ball, seam and all, for the corner of the poster and the worm's wickets. */
 // One straight seam round its middle, two rows of stitching either side of it.
 const ball = (size, rotate = -24, tone = 'red') => {
@@ -45,41 +42,6 @@ const ball = (size, rotate = -24, tone = 'red') => {
   const id = `b${size}${tone}`;
   return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" style="transform:rotate(${rotate}deg)"><defs><radialGradient id="${id}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="${hi}"/><stop offset=".55" stop-color="${mid}"/><stop offset="1" stop-color="${lo}"/></radialGradient></defs><circle cx="20" cy="20" r="18" fill="url(#${id})" stroke="${rim}" stroke-width="2"/><path d="M2.5 18.4Q20 16.6 37.5 18.4M2.5 21.6Q20 23.4 37.5 21.6" fill="none" stroke="#fff3e6" stroke-width="1.5" stroke-dasharray="1.6 1.8"/><path d="M2.5 20Q20 20 37.5 20" fill="none" stroke="#00000040" stroke-width="1"/></svg>`;
 };
-
-const POSTER = `<!doctype html><html><head><style>${FONTS}
-  .poster{position:relative;width:720px;height:900px;border-radius:44px;overflow:hidden;color:#fff;font-family:Satoshi;
-    background:radial-gradient(120% 80% at 50% 0%,#0a6b3d 0%,#004225 45%,#00180d 100%)}
-  .plate{position:absolute;left:0;right:0;top:0;height:520px;background:url(data:image/webp;base64,${plate}) center 40%/cover;filter:saturate(1.15)}
-  .plate{-webkit-mask-image:linear-gradient(180deg,#000 55%,#0000 100%);mask-image:linear-gradient(180deg,#000 55%,#0000 100%)}
-  .plate::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#00422500 30%,#00422599 100%)}
-  .stripes{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#ffffff06 0 60px,#00000000 60px 120px);mix-blend-mode:screen}
-  .flag{position:absolute;left:48px;top:44px;padding:9px 18px;border-radius:24px;background:linear-gradient(90deg,#cd1f22,#ff6567);font-weight:900;font-size:22px;letter-spacing:.16em;box-shadow:0 6px 18px #0006}
-  .ball{position:absolute;right:38px;top:34px;filter:drop-shadow(0 10px 14px #0008)}
-  .title{position:absolute;left:0;right:0;top:350px;text-align:center}
-  .title b{display:block;font-family:Jaro;font-weight:400;font-size:132px;line-height:.86;letter-spacing:.01em;color:#fff;
-    -webkit-text-stroke:5px #000;paint-order:stroke fill;text-shadow:0 8px 0 #000,0 14px 30px #000a}
-  .title b+b{color:#ffcf5a;font-size:150px}
-  .title em{display:inline-block;margin-top:16px;padding:8px 22px;border-radius:30px;background:#000000a6;font-style:normal;font-weight:700;font-size:26px;letter-spacing:.06em;color:#e9f6ec}
-  .rules{position:absolute;left:30px;right:30px;bottom:34px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-  .rule{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
-  .rule i{display:grid;place-items:center;width:96px;height:96px;border-radius:50%;background:#fff;color:#0b1622;border:5px solid #000;box-shadow:0 7px 0 #000,0 14px 24px #0008}
-  .rule i svg{width:58px;height:58px}
-  .rule:first-child i svg{width:70px;height:62px}
-  .rule span{font-weight:800;font-size:22px;line-height:1.15;color:#fff}
-</style></head><body>
-  <div class="poster">
-    <div class="plate"></div><div class="stripes"></div>
-    <div class="flag">NEW MODE</div>
-    <div class="ball">${ball(92)}</div>
-    <div class="title"><b>TEST</b><b>MARATHON</b><em>Bat all day</em></div>
-    <div class="rules">
-      <div class="rule"><i>${HELMET}</i><span>Three<br>batters</span></div>
-      <div class="rule"><i>${EYE}</i><span>Focus to<br>settle</span></div>
-      <div class="rule"><i>${PITCH}</i><span>The pitch<br>wears</span></div>
-      <div class="rule"><i>${FLAG}</i><span>Declare &amp;<br>register</span></div>
-    </div>
-  </div>
-</body></html>`;
 
 /** The innings on the scorecard: three men, a big total, and a ball where each one went. */
 const BATTERS = [
@@ -171,7 +133,7 @@ const SCORE = `<!doctype html><html><head><style>${FONTS}
 
 const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage({ viewport: { width: 720, height: 900 }, deviceScaleFactor: 1.5 });
-for (const [html, name] of [[POSTER, 'marathon-hero'], [SCORE, 'marathon-card']]) {
+for (const [html, name] of [[SCORE, 'marathon-card']]) {
   await page.setContent(html, { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
