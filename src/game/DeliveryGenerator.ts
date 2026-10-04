@@ -3,7 +3,7 @@ import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
 import {
-  EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
+  EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, SWING_FROM, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
 } from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
@@ -257,6 +257,28 @@ export function marathonOnly({ swing = false, express = false, reverse = false }
     blocks: { ...plan.blocks!, levelOf: () => level, levelAt: () => ({ ...level, reverse: { perOver: MARATHON.ballsPerOver, secondChance: 0 } }) },
     specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 0 },
   };
+}
+
+/**
+ * The Marathon with the pitch wearing five times as fast, for `?wear=fast`:
+ * every step of the innings in a fifth of the overs, so the whole of it can be
+ * felt in one sitting. Blocks of two overs instead of ten — the swing from the
+ * second over instead of the sixth, the express bowler's first over the third
+ * instead of the eleventh, and Level 3, four of every ten his, from the fifth
+ * instead of the twenty-first. Each bowler bowls as he would in the real
+ * innings; only when he comes on is changed.
+ */
+export const FAST_WEAR = 5;
+export function marathonFastWear(): BowlingPlan {
+  const size = BLOCK_OVERS / FAST_WEAR;
+  const swingFrom = Math.max(1, Math.round(SWING_FROM / FAST_WEAR));
+  const levelAt = (over: number): Level => {
+    const block = Math.floor(over / size);
+    if (block > 0 || over < swingFrom) return levelOf(block);
+    const swinging = levelOf(1);
+    return { ...levelOf(0), level: 2, swing: swinging.swing, late: swinging.late, swingShare: swinging.swingShare, reverse: swinging.reverse };
+  };
+  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, size, levelAt } };
 }
 
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */

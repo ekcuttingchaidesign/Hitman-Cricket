@@ -4,7 +4,7 @@ import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, REVER
 import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition } from '../src/game/DeliveryTrajectory';
-import { DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonOnly } from '../src/game/DeliveryGenerator';
+import { DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonFastWear, marathonOnly } from '../src/game/DeliveryGenerator';
 import { MarathonInnings, leftHanderOf } from '../src/game/Marathon';
 import { mapKeys, mapSwipe, mirrorKey } from '../src/game/InputManager';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -649,5 +649,32 @@ describe('reverse swing', () => {
     const bowled = [...Array(60)].map(() => generator.next(0));
     for (const d of bowled) expect(['REVERSE_IN', 'REVERSE_OUT']).toContain(d.style);
     expect(new Set(bowled.map(d => d.style)).size).toBe(2);
+  });
+});
+
+describe('?wear=fast', () => {
+  it('runs every step of the innings in a fifth of the overs', () => {
+    for (let seed = 1; seed < 100; seed++) {
+      const generator = new DeliveryGenerator(new SeededRandom(seed), marathonFastWear());
+      // The swing from the second over, not the sixth.
+      expect(generator.levelAt(0)!.swingShare).toBeUndefined();
+      expect(generator.levelAt(1)!.swingShare).toBeDefined();
+      // The express bowler's first over is the third, not the eleventh, and none before it.
+      expect([generator.overKind(0), generator.overKind(1)]).not.toContain('EXPRESS');
+      expect(generator.overKind(2)).toBe('EXPRESS');
+      // Level 3 from the fifth, not the twenty-first.
+      expect(generator.levelAt(3)!.level).toBe(2);
+      expect(generator.levelAt(4)!.level).toBe(3);
+      for (let over = 1; over < 60; over++) {
+        expect(generator.overKind(over) === 'EXPRESS' && generator.overKind(over - 1) === 'EXPRESS').toBe(false);
+      }
+    }
+  });
+
+  it('leaves the real innings as it was', () => {
+    marathonFastWear();
+    expect(MARATHON_PLAN.blocks!.size).toBe(BLOCK_OVERS);
+    expect(MARATHON_PLAN.blocks!.levelAt(5).swingShare).toBeDefined();
+    expect(MARATHON_PLAN.blocks!.levelAt(4).swingShare).toBeUndefined();
   });
 });

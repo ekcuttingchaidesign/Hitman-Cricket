@@ -12,7 +12,7 @@ import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, marathonOnly, spun } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, marathonFastWear, marathonOnly, spun } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -1163,10 +1163,13 @@ export class Game {
   private expressOnly = new URLSearchParams(location.search).get('express') === '1';
   /** `?reverse=1`: the swing bowler every over, bowling nothing but reverse swing. */
   private reverseOnly = new URLSearchParams(location.search).get('reverse') === '1';
+  /** `?wear=fast`: every step of the Marathon in a fifth of the overs. See `marathonFastWear`. */
+  private wearFast = new URLSearchParams(location.search).get('wear') === 'fast';
   private get plan() {
     if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
+    if (this.marathoning && this.wearFast) return marathonFastWear();
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly) return { ...plan, spin: undefined, short: undefined, blocks: undefined,
       specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 1 } };
