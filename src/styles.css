@@ -1781,27 +1781,42 @@ body.start-screen #sound{pointer-events:auto}
 .marathon-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
 /* ── The Marathon's rules, the first time ─────────────────────────────────
-   A card at the foot of the picture, an icon, a few words, NEXT and SKIP, and
-   the thing a card is about lit in a ring in the dark round it. */
-.mi-overlay{position:absolute;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding:0 var(--pad,16px) calc(24px + env(safe-area-inset-bottom));background:#030a12b8;animation:mi-in .25s ease both}
+   A coachmark: the screen itself under a dark scrim, the words in white on
+   it, a line drawing over them with its moving part in green, and the widget
+   a rule is about popping out of the dark with a dotted arrow to it. */
+.mi-overlay{--mi-scrim:#000000c7;--mi-accent:#6cc070;position:absolute;inset:0;z-index:30;background:var(--mi-scrim);color:#fff;font-family:var(--card);animation:mi-in .25s ease both}
 .mi-overlay.hidden{display:none}
 .mi-overlay.is-spot{background:transparent}
-.mi-spot{position:absolute;border-radius:14px;border:2px solid #f2a64f;box-shadow:0 0 0 9999px #030a12b8,0 0 18px #f2a64f99;pointer-events:none;animation:mi-ring 1.6s ease-in-out infinite;transition:left .25s ease,top .25s ease,width .25s ease,height .25s ease}
+.mi-spot{position:absolute;display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:30px;background:#fff;color:#0b1622;box-shadow:0 8px 24px #0009,0 0 0 9999px var(--mi-scrim);pointer-events:none;white-space:nowrap;animation:mi-pop .35s cubic-bezier(.2,1.6,.4,1) both}
+.mi-spot svg{width:24px;height:24px;stroke-width:2.6}
+.mi-spot b{font-family:var(--card);font-size:17px;font-weight:800;letter-spacing:.08em}
+.mi-spot em{font-family:var(--card);font-style:normal;font-size:17px;font-weight:700;color:#4a6273;font-variant-numeric:tabular-nums}
 .mi-spot.hidden{display:none}
-.mi-card{position:relative;width:min(360px,100%);padding:50px 20px 16px;border-radius:22px;border:1px solid #ceffc8;background:linear-gradient(180deg,#1d5d17 0%,#123f0f 100%);box-shadow:0 20px 50px #00000080;color:#fff;text-align:center;font-family:var(--card)}
-.mi-art{position:absolute;left:50%;top:-38px;width:76px;height:76px;transform:translateX(-50%);display:grid;place-items:center;border-radius:50%;border:3px solid #000;background:linear-gradient(135deg,#f2a64f,#fff3df);color:#102a0d;box-shadow:0 5px 0 #000}
-.mi-art svg{width:44px;height:44px}
-.mi-dots{display:flex;justify-content:center;gap:6px;margin:0 0 10px}
-.mi-dots i{width:6px;height:6px;border-radius:3px;background:#ffffff40;transition:width .2s ease}
-.mi-dots i.is-on{width:18px;background:#f2a64f}
-.mi-title{margin:0;font-family:var(--cta);font-weight:400;font-size:28px;line-height:1.05;color:#fff}
-.mi-line{margin:8px auto 18px;max-width:28ch;font-size:15px;font-weight:600;line-height:1.35;color:#ffffffd9}
-.mi-keys{display:flex;align-items:center;gap:12px}
-.mi-skip{flex:1;min-height:48px;color:#ffffffb3;font-family:var(--cta);font-size:15px;letter-spacing:1px}
-.mi-skip:empty{display:none}
-.mi-next{flex:2;min-height:52px;margin:0;border-color:#000;background:linear-gradient(90deg,#f2a64f,#fff);box-shadow:0 5px 0 #000}
+/* A key of its own: a white disc in front of the dark, the icon drawn bigger in it. */
+.mi-spot.is-round{justify-content:center;padding:0;border-radius:50%}
+.mi-spot.is-round svg{width:46%;height:46%;stroke-width:2.4}
+.mi-arrow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.mi-arrow.hidden{display:none}
+.mi-arrow path:not([fill]){fill:none;stroke:var(--mi-accent);stroke-width:2.2;stroke-linecap:round;stroke-dasharray:.1 6}
+.mi-card{position:absolute;left:24px;right:24px;top:50%;transform:translateY(-60%);display:flex;flex-direction:column;align-items:center;text-align:center;pointer-events:none}
+.mi-overlay.is-spot .mi-card{transform:none}
+.mi-art{width:84px;height:84px;margin-bottom:14px;color:#fff}
+.mi-art svg{width:100%;height:100%}
+.mi-art .acc{stroke:var(--mi-accent)}
+.mi-overlay.is-spot .mi-art{display:none}
+.mi-title{margin:0;font-family:var(--card);font-weight:800;font-size:28px;line-height:1.15;letter-spacing:-.01em;color:#fff}
+.mi-line{margin:8px 0 0;max-width:30ch;font-size:18px;font-weight:500;line-height:1.35;color:#ffffffa6}
+.mi-overlay::after{content:'';position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(180deg,#0000,#000000e6 60%);pointer-events:none}
+.mi-keys{position:absolute;z-index:1;left:20px;right:20px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mi-skip{min-width:84px;min-height:44px;padding:0 8px;border:0;background:none;color:#ffffffa6;font-family:var(--card);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
+.mi-skip[hidden]{display:block;visibility:hidden}
+.mi-dots{display:flex;gap:6px}
+.mi-dots i{width:6px;height:6px;border-radius:3px;background:#ffffff4d;transition:width .2s ease}
+.mi-dots i.is-on{width:18px;background:var(--mi-accent)}
+.mi-next{min-width:112px;min-height:46px;padding:0 22px;border:0;border-radius:23px;background:#fff;color:#0b1622;font-family:var(--card);font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px #00000066}
+.mi-next:active{transform:translateY(1px)}
 @keyframes mi-in{from{opacity:0}to{opacity:1}}
-@keyframes mi-ring{50%{box-shadow:0 0 0 9999px #030a12b8,0 0 30px #f2a64fcc}}
+@keyframes mi-pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot{animation:none}}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */

@@ -674,7 +674,7 @@ describe('?wear=fast', () => {
   it('leaves the real innings as it was', () => {
     marathonFastWear();
     expect(MARATHON_PLAN.blocks!.size).toBe(BLOCK_OVERS);
-    expect(MARATHON_PLAN.blocks!.levelAt(5).swingShare).toBeDefined();
-    expect(MARATHON_PLAN.blocks!.levelAt(4).swingShare).toBeUndefined();
+    expect(MARATHON_PLAN.blocks!.levelAt!(5).swingShare).toBeDefined();
+    expect(MARATHON_PLAN.blocks!.levelAt!(4).swingShare).toBeUndefined();
   });
 });

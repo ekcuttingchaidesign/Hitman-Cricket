@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INTRO_SHOWINGS, INTRO_STEPS, introCardMarkup, introDue } from '../src/ui/MarathonIntro';
+import { INTRO_SHOWINGS, INTRO_STEPS, introDue, introKeysMarkup } from '../src/ui/MarathonIntro';
 
 describe('the Marathon’s rules, the first time', () => {
   it('are four cards, two of them pointing at what they are about', () => {
@@ -11,12 +11,12 @@ describe('the Marathon’s rules, the first time', () => {
     for (const step of INTRO_STEPS) expect(`${step.title} ${step.line}`).not.toMatch(/500|five hundred/i);
   });
 
-  it('say NEXT and SKIP, and LET’S BAT with no skip on the last', () => {
-    expect(introCardMarkup(INTRO_STEPS[0], 0, 4)).toContain('>NEXT<');
-    expect(introCardMarkup(INTRO_STEPS[0], 0, 4)).toContain('>SKIP<');
-    const last = introCardMarkup(INTRO_STEPS[3], 3, 4);
-    expect(last).toContain(">LET'S BAT<");
-    expect(last).not.toContain('>SKIP<');
+  it('say Next and Skip, and Let’s bat with no skip on the last', () => {
+    expect(introKeysMarkup(0, 4)).toContain('>Next<');
+    expect(introKeysMarkup(0, 4)).toMatch(/id="mi-skip" class="mi-skip" type="button">Skip</);
+    const last = introKeysMarkup(3, 4);
+    expect(last).toContain(">Let's bat<");
+    expect(last).toContain('id="mi-skip" class="mi-skip" type="button" hidden>');
     expect(last.match(/class="is-on"/g)).toHaveLength(1);
   });
 

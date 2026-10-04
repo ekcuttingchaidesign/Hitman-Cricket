@@ -31,7 +31,7 @@ import {
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
-import { INTRO_STEPS, introCardMarkup } from './MarathonIntro';
+import { INTRO_STEPS, introCardMarkup, introKeysMarkup } from './MarathonIntro';
 import { fallsOf, marathonShareText, scorecardMarkup, wormMarkup, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
@@ -348,7 +348,7 @@ export class HUD {
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
-        <div id="marathon-intro" class="mi-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="mi-title"><span id="mi-spot" class="mi-spot hidden" aria-hidden="true"></span><div id="mi-card" class="mi-card"></div></div>
+        <div id="marathon-intro" class="mi-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="mi-title"><span id="mi-spot" class="mi-spot hidden" aria-hidden="true"></span><svg id="mi-arrow" class="mi-arrow" aria-hidden="true"><defs><marker id="mi-head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 7 5 1 9" fill="none" stroke="#6cc070" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><path id="mi-arrow-path" marker-end="url(#mi-head)"/></svg><div id="mi-card" class="mi-card"></div><div id="mi-keys" class="mi-keys"></div></div>
         <div id="level-banner" class="level-banner hidden" role="status" aria-live="polite"><span class="lb-eyebrow" id="lb-eyebrow"></span><strong id="lb-title"></strong><span class="lb-line" id="lb-line"></span></div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
@@ -1521,7 +1521,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     let index = 0;
     const show = () => {
       const step = INTRO_STEPS[index];
-      this.$('mi-card').innerHTML = introCardMarkup(step, index, INTRO_STEPS.length);
+      this.$('mi-card').innerHTML = introCardMarkup(step);
+      this.$('mi-keys').innerHTML = introKeysMarkup(index, INTRO_STEPS.length);
       this.spotlight(step.spot ?? null);
       this.$('mi-next').onclick = () => {
         if (++index < INTRO_STEPS.length) return show();
@@ -1535,21 +1536,56 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
   closeIntro() { this.$('marathon-intro').classList.add('hidden'); }
   get introOpen() { return !this.$('marathon-intro').classList.contains('hidden'); }
-  /** A ring round one element of the screen and the dark everywhere else; or just the dark. */
+  /**
+   * The widget a rule is about, popped out of the dark and drawn bigger: a
+   * key comes up as a white disc with its icon in it, and a meter as a white
+   * pill with its icon and its words. The words go under it, and
+   * a dotted arrow runs from them up to it. With nothing to point at, the
+   * words sit in the middle of the screen.
+   */
   private spotlight(id: string | null) {
-    const spot = this.$('mi-spot');
     const overlay = this.$('marathon-intro');
+    const spot = this.$('mi-spot');
+    const card = this.$('mi-card');
+    const arrow = this.$('mi-arrow');
     const target = id ? document.getElementById(id) : null;
     const box = target?.getBoundingClientRect();
-    if (!target || !box || !box.width) { spot.classList.add('hidden'); overlay.classList.remove('is-spot'); return; }
+    spot.innerHTML = '';
+    if (!target || !box || !box.width) {
+      spot.classList.add('hidden'); arrow.classList.add('hidden');
+      overlay.classList.remove('is-spot'); card.style.top = '';
+      return;
+    }
     const frame = overlay.getBoundingClientRect();
-    const pad = 6;
-    Object.assign(spot.style, {
-      left: `${box.left - frame.left - pad}px`, top: `${box.top - frame.top - pad}px`,
-      width: `${box.width + pad * 2}px`, height: `${box.height + pad * 2}px`,
-    });
+    const round = box.width / box.height < 1.4;
+    const icon = target.querySelector('svg')?.cloneNode(true) as SVGElement | undefined;
+    if (icon) { icon.removeAttribute('id'); spot.append(icon); }
+    if (!round) {
+      // The meter's own words, as it says them now.
+      const words = [...target.querySelectorAll<HTMLElement>('.confidence-label, .injury-cap')]
+        .filter(node => !node.hidden && node.textContent?.trim()).map(node => node.textContent!.trim());
+      spot.insertAdjacentHTML('beforeend', `<b>${words[0] ?? ''}</b>${words[1] ? `<em>${words[1]}</em>` : ''}`);
+    }
+    spot.classList.toggle('is-round', round);
     spot.classList.remove('hidden');
+    const cx = box.left - frame.left + box.width / 2, cy = box.top - frame.top + box.height / 2;
+    const w = round ? Math.max(box.width, box.height) * 1.5 : spot.offsetWidth;
+    const h = round ? w : spot.offsetHeight;
+    // Kept on the screen: a meter in the corner would push half its pill off it.
+    const left = Math.min(Math.max(cx - w / 2, 12), frame.width - w - 12);
+    Object.assign(spot.style, round ? { left: `${left}px`, top: `${cy - h / 2}px`, width: `${w}px`, height: `${h}px` } : { left: `${left}px`, top: `${cy - h / 2}px`, width: '', height: '' });
     overlay.classList.add('is-spot');
+    // The words a little under the widget, and the arrow from them to it.
+    const bottom = cy + h / 2;
+    card.style.top = `${bottom + 64}px`;
+    const words = card.getBoundingClientRect();
+    const fromX = Math.min(Math.max(cx, words.left - frame.left + 24), words.right - frame.left - 24);
+    const fromY = bottom + 56;
+    const toY = bottom + 8;
+    const bend = (fromX - cx) * 0.4;
+    arrow.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
+    this.$('mi-arrow-path').setAttribute('d', `M${fromX} ${fromY} C${fromX - bend} ${(fromY + toY) / 2} ${cx + bend} ${(fromY + toY) / 2} ${cx} ${toY}`);
+    arrow.classList.remove('hidden');
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
