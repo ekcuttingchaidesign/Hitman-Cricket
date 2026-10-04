@@ -71,7 +71,7 @@ describe('the story screen', () => {
     expect(markup).not.toContain('is-held');
     expect(markup).not.toContain('whatsnew-keyslot');
     // A screenshot is not square; laid out at its own shape before it loads.
-    expect(markup).toMatch(/width="720" height="294"/);
+    expect(markup).toMatch(/width="720" height="900"/);
   });
 
   it('puts the meme on the screen, and the key under it', () => {
@@ -97,9 +97,12 @@ describe('the story screen', () => {
     expect(storyKeyMarkup(null)).toBe('');
   });
 
-  it('draws no frame round a picture that brings its own corners, and one round a screenshot', () => {
+  it('draws no frame round a picture that brings its own corners', () => {
+    // The meme and both Marathon posters are cut to their own corners.
+    for (let at = 0; at < STORIES.length; at++) {
+      expect(storiesMarkup({ at, where: 'intro', holdMs: 1 }).includes('class="is-cut"')).toBe(!!STORIES[at].cut);
+    }
     expect(storiesMarkup({ at: MEME, where: 'intro', holdMs: 1 })).toContain('class="is-cut"');
-    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).not.toContain('class="is-cut"');
   });
 
   it('never prints a key it was not handed', () => {
