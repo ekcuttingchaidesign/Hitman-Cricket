@@ -83,7 +83,8 @@ const icon = (name: string) => {
     pause: '<path d="M8 5v14M16 5v14"/>',
     /* The Marathon's two meters, which have no room for their names. */
     hurt: '<path d="M12 5v14M5 12h14"/>',
-    settling: '<path d="M7 3h10M7 21h10M8 3c0 6 8 6 8 9s-8 3-8 9M16 3c0 6-8 6-8 9s8 3 8 9"/>',
+    /* Getting his eye in, which is what the settle meter is counting. */
+    settling: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
     flame: '<path d="M12 3c2 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 3 3-1-3-1-5 0-8Z"/>',
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
     back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
