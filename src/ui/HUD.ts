@@ -115,9 +115,8 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
    the same kit — and the Test match has its own, in whites with a red ball. */
 const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
-// A stand-in until the Marathon has a plate of its own: the batter still in
-// at sunset, which is the long day the mode is about.
-const marathonPlate = new URL('../assets/result-drawn.webp', import.meta.url).href;
+// The Marathon's kit laid out on the square, from the mode screen's design.
+const marathonPlate = new URL('../assets/marathon-plate.webp', import.meta.url).href;
 /* The challenge plate ships in `public/` rather than `src/assets/`, so it is a
    bare relative path for the same reason the kits are: the browser resolves it
    against the page, which is right under a GitHub Pages subdirectory and at a
@@ -125,8 +124,6 @@ const marathonPlate = new URL('../assets/result-drawn.webp', import.meta.url).hr
 const challengePlate = 'challenge_mode.png';
 const fireball = 'fireball.webp';
 const rivalsCover = 'rivals_cover.webp';
-/** The podium on the mode screen's way to the boards. Drawn by `scripts/leaderboard-art.mjs`. */
-const leadersCover = 'leaderboard_cover.webp';
 /* The three plates the result card stands on. The loss is used twice: a man
    carried off and a man bowled twelve short are the same picture of the same
    over, and what separates them is the line above it, not the art. */
@@ -419,12 +416,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="modes-title" class="mode-heading">Select Mode</h2>
             </div>
-            <button id="mode-challenge" class="mode-hero" type="button">
-              <span class="mode-hero-plate"><img src="${challengePlate}" alt="" decoding="async" /></span>
+            <button id="mode-marathon" class="mode-hero mode-hero-marathon" type="button">
+              <span class="mode-hero-plate"><img src="${marathonPlate}" alt="" decoding="async" /></span>
               <span class="mode-hero-body">
-                <span id="mode-challenge-flag" class="mode-flag">NEW</span>
-                <span class="mode-hero-name">Rivals</span>
-                <span class="mode-hero-sub">Play with friends</span>
+                <span class="mode-flag">NEW</span>
+                <span class="mode-hero-name">Test Marathon</span>
+                <span class="mode-hero-sub">Play a marathon innings</span>
                 <span class="mode-key">PLAY</span>
               </span>
             </button>
@@ -443,27 +440,25 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                   <span class="mode-copy">Last man standing. Survive 60 balls. Chase the target or hold out for the draw.</span>
                 </span>
               </button>
-              <button id="mode-marathon" class="mode-card mode-marathon" type="button">
-                <span class="mode-plate"><img src="${marathonPlate}" alt="" decoding="async" /></span>
-                <span class="mode-body">
-                  <span class="mode-flag">NEW</span>
-                  <span class="mode-name">Test Marathon</span>
-                  <span class="mode-copy">Three batters. Up to 500 balls. Bat as long as they last and pile up the runs.</span>
+            </div>
+            <div id="mode-key" class="key-slot hidden"></div>
+            <div class="mode-tiles">
+              <button id="mode-challenge" class="mode-tile mode-tile-rivals" type="button">
+                <span class="mode-tile-art" aria-hidden="true"><img src="${challengePlate}" alt="" decoding="async" /></span>
+                <span class="mode-tile-say">
+                  <span id="mode-challenge-flag" class="mode-flag">NEW</span>
+                  <b class="mode-tile-name">Rivals <i class="mode-tile-go">${icon('arrow')}</i></b>
+                  <em>Play with friends</em>
+                </span>
+              </button>
+              <button id="modes-challenges" class="mode-tile mode-tile-matches" type="button">
+                <span class="mode-tile-art" aria-hidden="true"><img src="${rivalsCover}" alt="" decoding="async" /></span>
+                <span class="mode-tile-say">
+                  <b class="mode-tile-name">Rival <i class="mode-tile-go">${icon('arrow')}</i><br>matches</b>
+                  <em id="modes-challenges-note" class="mode-tile-note">See who you've played</em>
                 </span>
               </button>
             </div>
-            <div id="mode-key" class="key-slot hidden"></div>
-            <button id="modes-challenges" class="mode-rivals" type="button">
-              <span class="mode-rivals-art" aria-hidden="true"><img src="${rivalsCover}" alt="" decoding="async" /></span>
-              <span class="mode-rivals-say"><b>Your Rivals Matches</b><em id="modes-challenges-note">See who you've played</em></span>
-              <span id="modes-challenges-count" class="hidden"></span>
-              <span class="mode-rivals-go" aria-hidden="true">${icon('arrow')}</span>
-            </button>
-            <button id="modes-board" class="mode-rivals mode-leaders" type="button">
-              <span class="mode-rivals-art" aria-hidden="true"><img src="${leadersCover}" alt="" decoding="async" /></span>
-              <span class="mode-rivals-say"><b>Leaderboards</b><em>See where you rank</em></span>
-              <span class="mode-rivals-go" aria-hidden="true">${icon('arrow')}</span>
-            </button>
           </div>
         </div>
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">

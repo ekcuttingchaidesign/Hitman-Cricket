@@ -440,15 +440,6 @@ export class Game {
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
-    // The boards, from the mode screen: the same sheet the cover's trophy
-    // opens, laid over the picker, which is still there when it is put away.
-    if (SURVIVE_ONLY) document.getElementById('modes-board')?.remove();
-    else {
-      this.hud.on('modes-board', () => {
-        this.mark('modes-board', 'The boards opened from the mode screen');
-        this.showBoard();
-      });
-    }
     this.hud.on('challenge-list-done', () => { this.hud.closeChallenge(); this.modes(); });
     this.hud.on('challenge-list-new', () => { this.hud.closeChallenge(); void this.openMatch(); });
     this.hud.on('rivalry-again', () => { this.hud.closeChallenge(); void this.challengeRival(); });

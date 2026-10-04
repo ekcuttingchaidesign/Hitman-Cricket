@@ -377,9 +377,9 @@ Each step is a pull request of its own, behind the flag until the last.
 8. **Launch.** A What's New story, the flag on (`VITE_SHOW_MARATHON`, which
    puts the card on production's picker and the Marathon tab on its board),
    merge. Off production both are already there: the card went onto Select
-   Mode on previews and the dev server during step 5, under the other two at
-   full width, with a stand-in plate (the Survival draw's batter at sunset)
-   until the mode has art of its own.
+   Mode on previews and the dev server during step 5, and then became the
+   screen's hero card when Select Mode was laid out again from the Figma
+   design, with the kit-on-the-square art from that design.
 
 ## Open questions
 
