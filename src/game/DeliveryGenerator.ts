@@ -158,7 +158,8 @@ export function spinOvers(rng: SeededRandom, spell: SpinSpell, keepForPace = 0):
  * The counts are the level's and always exact; only where they fall is drawn.
  * An over the spinner always has (`spinFirst`) is his, the overs before it are
  * pace — two of pace and then the ball tossed to him, as in Survival — and his
- * others come after it. And the express bowler never has two overs running,
+ * others come after it. The express bowler's first over (`expressFirst`) is
+ * placed the same way: Level 2 opens with him. And the express bowler never has two overs running,
  * this block or across the join with the last, because no bowler does: the
  * ends change every over and he cannot bowl from both.
  *
@@ -167,13 +168,17 @@ export function spinOvers(rng: SeededRandom, spell: SpinSpell, keepForPace = 0):
  * draw that makes every legal pattern as likely as every other.
  */
 export function drawBlock(level: Level, size: number, rng: SeededRandom, expressBefore = false): OverKind[] {
-  const fixed = level.spinFirst ?? -1;
+  // The overs the level always gives one bowler, and pace before them.
+  const fixed = new Map<number, OverKind>();
+  if (level.spinFirst !== undefined && level.spin > 0) fixed.set(level.spinFirst, 'SPIN');
+  if (level.expressFirst !== undefined && level.express > 0) fixed.set(level.expressFirst, 'EXPRESS');
+  const head: OverKind[] = Array.from({ length: fixed.size ? Math.max(...fixed.keys()) + 1 : 0 }, (_, i) => fixed.get(i) ?? 'PACE');
+  const used = (kind: OverKind) => head.filter(k => k === kind).length;
   const rest: OverKind[] = [
-    ...Array<OverKind>(level.pace - Math.max(0, fixed)).fill('PACE'),
-    ...Array<OverKind>(level.spin - (fixed >= 0 ? 1 : 0)).fill('SPIN'),
-    ...Array<OverKind>(level.express).fill('EXPRESS'),
+    ...Array<OverKind>(level.pace - used('PACE')).fill('PACE'),
+    ...Array<OverKind>(level.spin - used('SPIN')).fill('SPIN'),
+    ...Array<OverKind>(level.express - used('EXPRESS')).fill('EXPRESS'),
   ];
-  const head: OverKind[] = fixed >= 0 ? [...Array<OverKind>(fixed).fill('PACE'), 'SPIN'] : [];
   let overs: OverKind[] = [];
   for (let tries = 0; tries < 200; tries++) {
     overs = [...head, ...rng.shuffle(rest)].slice(0, size);
@@ -241,6 +246,9 @@ export function marathonOnly({ swing = false, express = false, reverse = false }
   const share = pace && express ? 5 : BLOCK_OVERS;
   const level: Level = {
     ...levelOf(express && !pace ? 2 : 1), pace: pace ? share : 0, spin: 0, express: express ? share : 0,
+    // Level 2's opening over is his; here he has half of every block, and a
+    // fixed first over would put him in two running across the join.
+    expressFirst: undefined,
   };
   const plan: BowlingPlan = { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level, levelAt: () => level } };
   if (!reverse) return plan;
@@ -490,7 +498,8 @@ export class DeliveryGenerator {
     // so more swing is more of a test and never a wide.
     const finalTargetX = turning
       ? clampX(LINE_X[line] + movement, spell!.maxFinalX)
-      : swung || reversing ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
+      : reversing ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF)
+      : swung ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
       : LINE_X[line] + movement;
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
     this.bowled++;

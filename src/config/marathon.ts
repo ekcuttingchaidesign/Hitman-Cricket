@@ -101,7 +101,10 @@ export type OverKind = 'PACE' | 'SPIN' | 'EXPRESS';
  *     those are the end of Survival's innings and the middle of this one.
  *     The spinner has the third over, as in Survival, and two more drawn.
  *   - **Level 2**, overs 11–20: the ball starts to swing, later and further,
- *     and the express bowler has one over to show what is coming.
+ *     and the express bowler has one over to show what is coming — the
+ *     eleventh, always. Drawn anywhere in the ten, a player could bat thirteen
+ *     overs and never see him, which the first playtest did: a level that
+ *     might not have started yet is not a level change anybody feels.
  *   - **Level 3**, from over 21, every ten after: four of the ten are his.
  *
  * `swing` multiplies how far a swinging ball moves and `late` is how much of
@@ -124,6 +127,8 @@ export interface Level {
   late: number;
   /** An over the spinner always has, counting from nought within the block. */
   spinFirst?: number;
+  /** And one the express bowler always has, the same way: where he is introduced. */
+  expressFirst?: number;
   /** How much of the pace bowler's roll swings, in and out evenly; absent leaves Survival's table. */
   swingShare?: number;
   /** And his reverse swing, placed in the over rather than rolled for: see `REVERSE`. */
@@ -132,7 +137,7 @@ export interface Level {
 
 export const LEVELS: readonly Level[] = [
   { level: 1, pace: 7, spin: 3, express: 0, swing: 1, late: 0, spinFirst: 2 },
-  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
+  { level: 2, pace: 7, spin: 2, express: 1, expressFirst: 0, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
   { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
 ];
 
@@ -158,14 +163,18 @@ export const SWING_LINES: Partial<Record<DeliveryStyle, readonly BallLine[]>> = 
  * — two to three stumps' width — at 142 to 156 kph (141 to 147 on the gun),
  * so it is on the batter before a player who has read the line off the hand
  * can change his mind.
- * The reverse inswinger starts on or outside off and comes back into him,
- * the reverse outswinger starts on middle or leg and goes away, as his
- * ordinary two do. Held to the same widest line, so it is never a wide.
+ * The reverse inswinger starts on or outside off and comes back into him.
+ * The reverse outswinger starts on middle or off and goes away, finishing no
+ * wider than outside off, after the edge. It started on middle or leg at
+ * first, as his ordinary outswinger does, and a playtest reported reverse
+ * swing that only ever came in: from behind the batter, the leg-stump line is
+ * the one his own body covers, and a ball that does all its moving off the
+ * pitch did it where nobody could see.
  */
 export const REVERSE = {
   min: 0.3,
   max: 0.42,
-  lines: { REVERSE_IN: ['OFF', 'OUTSIDE_OFF'], REVERSE_OUT: ['LEG', 'MIDDLE'] } as Partial<Record<DeliveryStyle, readonly BallLine[]>>,
+  lines: { REVERSE_IN: ['OFF', 'OUTSIDE_OFF'], REVERSE_OUT: ['MIDDLE', 'OFF'] } as Partial<Record<DeliveryStyle, readonly BallLine[]>>,
   /** How far through its flight it has finished moving: after the bounce, and before the bat. */
   settled: 0.92,
 } as const;
@@ -180,7 +189,7 @@ export const levelOf = (block: number): Level => LEVELS[Math.min(block, LEVELS.l
  * first playtest found ten overs of Survival's gentle bowling too long a
  * start — an opener made 240 of 284 in twenty-two overs — so the swing comes
  * on after five, a block early. Only the swing: who bowls which over is
- * still the block's, so the express bowler waits for the eleventh as before.
+ * still the block's, so the express bowler waits for the eleventh.
  */
 export const SWING_FROM = 5;
 

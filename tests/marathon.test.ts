@@ -241,6 +241,16 @@ describe('the Marathon\'s bowling', () => {
     for (let from = 20; from < 80; from += 10) expect(express(from)).toBe(4);
   });
 
+  it('introduces the express bowler with the eleventh over, whatever the seed', () => {
+    // Drawn anywhere in overs 11 to 20, a playtester batted thirteen overs and
+    // never saw him. The level starts with him or it has not started.
+    for (let seed = 1; seed < 200; seed++) {
+      const { generator } = overs(seed, 0);
+      expect(generator.overKind(10)).toBe('EXPRESS');
+      expect([...Array(10)].filter((_, i) => generator.overKind(i) === 'EXPRESS')).toHaveLength(0);
+    }
+  });
+
   it('bowls the express over at his pace, with a bouncer and a yorker in every one and a slower ball in some', () => {
     let seconds = 0, slowers = 0, total = 0;
     for (let seed = 1; seed < 40; seed++) {
@@ -605,9 +615,16 @@ describe('reverse swing', () => {
       expect(d.speedKph).toBeGreaterThanOrEqual(142);
       expect(d.speedKph).toBeLessThanOrEqual(156);
       const moved = d.finalTargetX - d.baseTargetX;
-      if (d.style === 'REVERSE_IN') { expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line); expect(moved).toBeLessThan(0); }
-      else { expect(['LEG', 'MIDDLE']).toContain(d.line); expect(moved).toBeGreaterThan(0); }
-      expect(Math.abs(moved)).toBeGreaterThanOrEqual(REVERSE.min - 1e-9);
+      if (d.style === 'REVERSE_IN') {
+        expect(['OFF', 'OUTSIDE_OFF']).toContain(d.line); expect(moved).toBeLessThan(0);
+        expect(Math.abs(moved)).toBeGreaterThanOrEqual(REVERSE.min - 1e-9);
+      } else {
+        // On the stumps and away, where the batter's body is not in the way of
+        // seeing it go: never from leg, and never wider than outside off.
+        expect(['MIDDLE', 'OFF']).toContain(d.line); expect(moved).toBeGreaterThan(0);
+        expect(moved).toBeGreaterThanOrEqual(LINE_X.OUTSIDE_OFF - LINE_X.OFF - 1e-9);
+        expect(d.finalTargetX).toBeLessThanOrEqual(LINE_X.OUTSIDE_OFF + 1e-9);
+      }
       expect(Math.abs(d.finalTargetX)).toBeLessThanOrEqual(LINE_X.OUTSIDE_OFF + GAME.movement + 1e-9);
     }
     expect(new Set(found.map(d => d.style)).size).toBe(2);

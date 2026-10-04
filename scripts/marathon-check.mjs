@@ -325,7 +325,7 @@ while (!told.told.express && (await snap()).balls < 300) {
   told = await write(ones(6 - balls % 6));
 }
 const expressOver = (await snap()).balls / 6 + 1;
-check(told.told.express && told.bowler === 'EXPRESS', `the express bowler is told as he takes the ball, at over ${expressOver}`, JSON.stringify(told));
+check(told.told.express && told.bowler === 'EXPRESS' && expressOver === 11, `the express bowler is told as he takes the ball, at over ${expressOver} (always the eleventh)`, JSON.stringify(told));
 check((await banner()) === `OVER ${expressOver} · NEW BOWLER / EXPRESS PACE`, 'on a banner of his own', await banner());
 const quick = await until('BOWLER_RUNUP');
 check(quick.marathon.action === 'express' && quick.marathon.express, 'running in with the express action', JSON.stringify(quick.marathon));
