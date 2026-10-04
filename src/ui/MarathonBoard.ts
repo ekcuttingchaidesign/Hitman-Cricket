@@ -9,11 +9,14 @@ import { escape, kitMarkup, sheetKeys, type CardOffer } from './Leaderboard';
 /**
  * The Test Marathon's board, as a screen: two ladders behind a toggle.
  *
- * Built out of the same pieces as the Test Survival sheet — a letter for how
- * it ended, then quiet fixed columns, named once at the head — so the three
- * boards read as one board with three ladders. The team ladder's letter is
- * how the innings ended; the individual ladder's is which of the three he was,
- * because the opener's hundred and the tailender's are different days.
+ * One figure a row, big, on the right — the runs, which is what both ladders
+ * rank on first — and everything else said in words under the name: how the
+ * innings ended, the balls it took and the boundaries in it on the team
+ * ladder, which of the three he was on the individual one, with the strike
+ * rate quiet under the runs. The first cut borrowed Test Survival's quiet
+ * columns, four figures abreast at one size, and the playtest found them a
+ * wall of numbers — "312 452 69.0 35" read as one long number — with letters
+ * in front that only the footnote explained.
  */
 
 /** Which of the two ladders is up. */
@@ -47,11 +50,11 @@ export interface MarathonBoardView {
 }
 
 /** How an innings ended, as a letter and the words behind it. */
-const ENDED: Record<MarathonEnding, { letter: string; word: string }> = {
-  ALL_OUT: { letter: 'O', word: 'All out' },
-  RETIRED: { letter: 'R', word: 'Last man retired hurt' },
-  BALLS: { letter: 'B', word: '500 balls' },
-  DECLARED: { letter: 'D', word: 'Declared' },
+const ENDED: Record<MarathonEnding, { word: string }> = {
+  ALL_OUT: { word: 'All out' },
+  RETIRED: { word: 'Retired hurt' },
+  BALLS: { word: 'Batted out' },
+  DECLARED: { word: 'Declared' },
 };
 
 /** The whole screen, header to footer, for whichever ladder is up. */
@@ -78,7 +81,7 @@ export function marathonBoardMarkup(view: MarathonBoardView): string {
         : state === 'offline' ? 'The board could not be reached.'
         : standing(rows, place, team, !!yours, edge)}</p>
       <div class="board-scroll">${state === 'offline' ? '<p class="board-offline">Try again in a moment.</p>' : ''}
-        <ol class="board-list survive-list marathon-list">${head(team)}${
+        <ol class="board-list marathon-list">${
           rows.map((row, i) => (team ? teamRow(row as TeamRow, i, row.playerId === youId) : soloRow(row as SoloRow, i, row.playerId === youId))).join('')}
         </ol>
         ${edge ? `<p class="board-cut">${cutLabel(edge, team)}</p>` : ''}
@@ -92,57 +95,44 @@ export function marathonBoardMarkup(view: MarathonBoardView): string {
     </div>`;
 }
 
-/** The column names, said once at the head of the list. */
-function head(team: boolean): string {
-  const names = team ? ['runs', 'balls', 'SR', '4s+6s'] : ['runs', 'balls'];
-  return `<li class="board-head" aria-hidden="true">
-            <span class="board-hits">${names.map(name => `<em${name === 'SR' ? ' class="is-rate"' : ''}>${name}</em>`).join('')}</span>
-          </li>`;
-}
-
 export function teamRow(row: TeamRow, index: number, you: boolean): string {
-  const ended = ENDED[row.ending] ?? ENDED.ALL_OUT;
   return `
-          <li class="board-row is-${row.ending.toLowerCase().replace('_', '-')}${you ? ' is-you' : ''}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
+          <li class="board-row marathon-row is-${endingClass(row.ending)}${you ? ' is-you' : ''}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
-            <span class="board-result"><i aria-hidden="true">${ended.letter}</i><b>${ended.word}</b></span>
             ${kitMarkup(row.avatar, row.name)}
-            <span class="board-who"><b>${escape(row.name)}</b></span>
-            ${teamFigures(row)}
+            <span class="board-who"><b>${escape(row.name)}</b>${teamLine(row)}</span>
+            ${total(row.runs, true, row.balls)}
           </li>`;
 }
 
-function teamFigures(innings: TeamInnings): string {
-  return `<span class="board-hits">
-              <em>${innings.runs}<b>runs</b></em>
-              <em>${innings.balls}<b>balls</b></em>
-              <em class="is-rate">${strikeRate(innings.runs, innings.balls).toFixed(1)}<b>strike rate</b></em>
-              <em>${innings.boundaries}<b>fours and sixes</b></em>
-            </span>`;
+/** How a team innings ended, its balls and its boundaries, in words. */
+function teamLine(innings: TeamInnings): string {
+  const ended = ENDED[innings.ending] ?? ENDED.ALL_OUT;
+  return `<small><i class="marathon-end">${ended.word}</i> · ${innings.balls} balls · ${innings.boundaries} 4s &amp; 6s</small>`;
+}
+
+const endingClass = (ending: MarathonEnding) => ending.toLowerCase().replace('_', '-');
+
+/** The one big figure, the star when not out, and the strike rate quiet under it. */
+function total(runs: number, out: boolean, balls: number): string {
+  return `<span class="board-total"><b>${runs}${out ? '' : '<i aria-hidden="true">*</i>'}<span class="marathon-sr"> runs${out ? '' : ' not out'}</span></b><small>SR ${strikeRate(runs, balls).toFixed(1)}</small></span>`;
 }
 
 export function soloRow(row: SoloRow, index: number, you: boolean): string {
   return `
-          <li class="board-row${you ? ' is-you' : ''}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
+          <li class="board-row marathon-row${you ? ' is-you' : ''}" style="--i:${index}"${you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
-            ${orderMarkup(row)}
             ${kitMarkup(row.avatar, row.name)}
-            <span class="board-who"><b>${escape(row.name)}</b>${row.left ? '<small>left-handed</small>' : ''}</span>
-            ${soloFigures(row)}
+            <span class="board-who"><b>${escape(row.name)}</b>${soloLine(row)}</span>
+            ${total(row.runs, row.out, row.balls)}
           </li>`;
 }
 
-/** Which of the three he was: the number, and his title behind it for a reader. */
-function orderMarkup(innings: SoloInnings): string {
+/** Which of the three he was, which hand, and his balls, in words. */
+function soloLine(innings: SoloInnings): string {
   const batter = BATTERS[innings.order - 1];
-  return `<span class="board-result"><i aria-hidden="true">${innings.order}</i><b>${batter ? batter.title.toLowerCase() : `batter ${innings.order}`}</b></span>`;
-}
-
-function soloFigures(innings: SoloInnings): string {
-  return `<span class="board-hits">
-              <em>${innings.runs}${innings.out ? '' : '<i>*</i>'}<b>runs${innings.out ? '' : ' not out'}</b></em>
-              <em>${innings.balls}<b>balls</b></em>
-            </span>`;
+  const title = batter ? batter.title.charAt(0) + batter.title.slice(1).toLowerCase() : `Batter ${innings.order}`;
+  return `<small><i class="marathon-order">${title}</i>${innings.left ? ' · left-handed' : ''} · ${innings.balls} balls</small>`;
 }
 
 /** The line under the title: where am I, who leads, or what it takes. */
@@ -163,14 +153,14 @@ function cutLabel(edge: TeamRow | SoloRow, team: boolean): string {
 
 /** The innings just played, below the list: waiting for a name, or short of it. */
 function thisInnings(team: boolean, yours: { team: TeamInnings; solo: SoloInnings }, place: string, note: string): string {
+  const line = team ? teamLine(yours.team) : soloLine(yours.solo);
   return `
-        <ol class="board-list survive-list marathon-list board-missed">
-          <li class="board-row is-you" style="--i:0">
+        <ol class="board-list marathon-list board-missed">
+          <li class="board-row marathon-row is-you${team ? ` is-${endingClass(yours.team.ending)}` : ''}" style="--i:0">
             <span class="board-place">${place}</span>
-            ${team ? `<span class="board-result"><i aria-hidden="true">${(ENDED[yours.team.ending] ?? ENDED.ALL_OUT).letter}</i><b>${(ENDED[yours.team.ending] ?? ENDED.ALL_OUT).word}</b></span>` : orderMarkup(yours.solo)}
             <span class="board-kit" style="--kit:${kitColour(0)}" aria-hidden="true">?</span>
-            <span class="board-who"><b>This innings</b><small>${note}</small></span>
-            ${team ? teamFigures(yours.team) : soloFigures(yours.solo)}
+            <span class="board-who"><b>This innings <em>${note}</em></b>${line}</span>
+            ${team ? total(yours.team.runs, true, yours.team.balls) : total(yours.solo.runs, yours.solo.out, yours.solo.balls)}
           </li>
         </ol>`;
 }

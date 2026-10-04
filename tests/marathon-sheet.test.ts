@@ -31,22 +31,23 @@ describe('the toggle', () => {
 });
 
 describe('the team ladder', () => {
-  it('reads place, how it ended, name, and runs, balls, strike rate and boundaries', () => {
+  it('reads the runs as its one big figure, and how it ended, its balls and boundaries in words', () => {
     const html = marathonBoardMarkup({ ladder: 'team', team: [team()], solo: [] });
     expect(html).toContain('MARATHON &middot; TEAM');
-    expect(html).toContain('<i aria-hidden="true">O</i><b>All out</b>');
-    const figures = [...html.matchAll(/<em(?: class="is-rate")?>([\d.]+)<b>([^<]+)<\/b><\/em>/g)].map(m => [m[1], m[2]]);
-    expect(figures).toEqual([['412', 'runs'], ['377', 'balls'], ['109.3', 'strike rate'], ['58', 'fours and sixes']]);
+    expect(html).toContain('<small><i class="marathon-end">All out</i> · 377 balls · 58 4s &amp; 6s</small>');
+    expect(html).toContain('<span class="board-total"><b>412<span class="marathon-sr"> runs</span></b><small>SR 109.3</small></span>');
+    // One figure a row: no column of four abreast, and no letters to decode.
+    expect(html).not.toContain('board-hits');
     expect(html).toContain('Ranked on total runs, then strike rate, then boundaries');
   });
 
-  it('marks each ending with its own letter', () => {
+  it('says each ending in a word', () => {
     const html = marathonBoardMarkup({ ladder: 'team', team: [
       team({ ending: 'DECLARED' }), team({ ending: 'BALLS', balls: 500 }), team({ ending: 'RETIRED' }),
     ], solo: [] });
-    expect(html).toContain('>D</i><b>Declared</b>');
-    expect(html).toContain('>B</i><b>500 balls</b>');
-    expect(html).toContain('>R</i><b>Last man retired hurt</b>');
+    expect(html).toContain('marathon-end">Declared</i>');
+    expect(html).toContain('marathon-end">Batted out</i>');
+    expect(html).toContain('marathon-end">Retired hurt</i>');
   });
 
   it('lights your row and says where you stand, or who leads, or that nobody has batted', () => {
@@ -83,15 +84,14 @@ describe('the individual ladder', () => {
   it('reads which of the three he was, his score with the star when not out, and his balls', () => {
     const html = marathonBoardMarkup({ ladder: 'solo', team: [], solo: [solo({ order: 3, left: true })] });
     expect(html).toContain('MARATHON &middot; BATTERS');
-    expect(html).toContain('<i aria-hidden="true">3</i>');
-    expect(html).toContain('143<i>*</i><b>runs not out</b>');
-    expect(html).toContain('<small>left-handed</small>');
+    expect(html).toContain('<small><i class="marathon-order">Tailender</i> · left-handed · 210 balls</small>');
+    expect(html).toContain('143<i aria-hidden="true">*</i><span class="marathon-sr"> runs not out</span>');
     expect(html).toContain('The best of the three batters');
   });
 
   it('writes an out batter without the star', () => {
     const html = marathonBoardMarkup({ ladder: 'solo', team: [], solo: [solo({ out: true })] });
-    expect(html).toContain('143<b>runs</b>');
+    expect(html).toContain('143<span class="marathon-sr"> runs</span>');
     expect(html).toContain('Rohit leads &mdash; 143 off 210.');
   });
 });
