@@ -136,7 +136,8 @@ retakes both together on one build, or the line stops lining up. A new pair
 wants a new `REVEAL` in `src/game/unveil.ts`, and the same key in every check
 that seeds it.
 
-`scripts/marathon-check.mjs` is Test Marathon at `?mode=marathon`: the batter
+`scripts/marathon-check.mjs` is Test Marathon, entered first by its card on
+Select Mode (there off production only) and then twice by `?mode=marathon`: the batter
 named as he walks out, the next one standing after the last was carried off,
 the declare key from the twentieth over and not before, the card, the speed
 gun, the settle meter turning into confidence at thirty balls, the Test match's

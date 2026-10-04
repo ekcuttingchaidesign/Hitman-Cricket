@@ -114,6 +114,9 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
    the same kit — and the Test match has its own, in whites with a red ball. */
 const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
+// A stand-in until the Marathon has a plate of its own: the batter still in
+// at sunset, which is the long day the mode is about.
+const marathonPlate = new URL('../assets/result-drawn.webp', import.meta.url).href;
 /* The challenge plate ships in `public/` rather than `src/assets/`, so it is a
    bare relative path for the same reason the kits are: the browser resolves it
    against the page, which is right under a GitHub Pages subdirectory and at a
@@ -438,6 +441,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <span class="mode-body">
                   <span class="mode-name">Test Survival</span>
                   <span class="mode-copy">Last man standing. Survive 60 balls. Chase the target or hold out for the draw.</span>
+                </span>
+              </button>
+              <button id="mode-marathon" class="mode-card mode-marathon" type="button">
+                <span class="mode-plate"><img src="${marathonPlate}" alt="" decoding="async" /></span>
+                <span class="mode-body">
+                  <span class="mode-flag">NEW</span>
+                  <span class="mode-name">Test Marathon</span>
+                  <span class="mode-copy">Three batters. Up to 500 balls. Bat as long as they last and pile up the runs.</span>
                 </span>
               </button>
             </div>
@@ -2456,6 +2467,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * whether or not the Test match is on offer.
    */
   hideSurviveCard() { this.$('mode-survive').classList.add('hidden'); }
+  /** The Marathon's card, off the picker on production until the mode launches. */
+  hideMarathonCard() { this.$('mode-marathon').classList.add('hidden'); }
 
   /**
    * The end card the picker was opened from, put back the way it was.

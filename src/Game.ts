@@ -110,12 +110,21 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
  */
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
 /**
- * Whether the Test Marathon can be reached from here, and so whether its board
- * has a tab. Until it launches the mode is a link and nothing else
- * (`?mode=marathon`); `VITE_SHOW_MARATHON` is the switch that launch turns on.
+ * Whether the Test Marathon has a card on the picker.
+ *
+ * Everywhere but production until it launches: a preview is where it is
+ * played and judged, and a player there should reach it the way a player will,
+ * from Select Mode rather than from a link somebody remembered.
+ * `VITE_SHOW_MARATHON` is the switch launch turns on for production.
  */
-const MARATHON_OPEN = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
-  || new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
+const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
+  || import.meta.env.VITE_VERCEL_ENV !== 'production');
+/**
+ * Whether the Test Marathon can be reached from here, and so whether its board
+ * has a tab: from the picker, or from a link that names it (`?mode=marathon`).
+ */
+const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
+  && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 
 /**
  * When the ghost's ball appears, and how long it holds.
@@ -419,6 +428,7 @@ export class Game {
     this.hud.on('start', this.play);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
+    this.hud.on('mode-marathon', () => { this.hud.closeModes(); this.choose('MARATHON'); });
     this.hud.on('mode-challenge', () => { void this.openMatch(); });
     this.hud.on('challenge-set', () => { void this.openMatch({ card: encodeInnings(this.score.history) }); });
     this.hud.on('challenge-share-done', () => { this.hud.closeSheets(); this.showRoom(); });
@@ -552,8 +562,8 @@ export class Game {
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
     const named = SURVIVE_ONLY ? 'SURVIVE' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
-    // The Marathon is a link and nothing else until it ships: no card on the
-    // picker, nothing on a board. See `docs/MARATHON.md`.
+    // Off production the Marathon has a card on the picker; on it, until it
+    // ships, it is this link and nothing else. See `docs/MARATHON.md`.
     if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON') {
       this.mode = named as GameMode;
       this.locked = true;
@@ -565,6 +575,7 @@ export class Game {
       // the screen was never seen. The Test card is hidden rather than removed
       // when its flag is off, so the picker still reads as two choices.
       if (!SHOW_SURVIVE) this.hud.hideSurviveCard();
+      if (!SHOW_MARATHON) this.hud.hideMarathonCard();
     }
     // The cover has music of its own. It is asked for rather than waited on:
     // a browser that will not play it yet is not a failure, it is a browser

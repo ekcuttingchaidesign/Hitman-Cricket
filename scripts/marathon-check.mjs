@@ -5,7 +5,7 @@
  *   node scripts/marathon-check.mjs                  # that dev server
  *   node scripts/marathon-check.mjs http://…:4173    # a preview build
  *
- * What no unit test can see: the batter named on the screen as he walks out,
+ * What no unit test can see: the card on Select Mode that starts it, the batter named on the screen as he walks out,
  * the next one standing at his guard with a full meter after the last was
  * carried off, the declare key on the pause card from the twentieth over and
  * not a ball before, the card at the end with all three batters on it and the
@@ -95,7 +95,9 @@ await page.addInitScript(() => {
 
 await page.clock.install();
 // All three right-handed here; the left-hander has a section of his own below.
-await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=0`, { waitUntil: 'load' });
+// In by the picker, as a player off production comes in: the two later visits
+// use the `?mode=marathon` link, so both ways in are walked.
+await page.goto(`${base}/?debug=1&seed=4242&lefty=0`, { waitUntil: 'load' });
 await advance(2500);
 await page.waitForTimeout(800);
 const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
@@ -110,6 +112,11 @@ for (let i = 0; i < 8; i++) {
   await advance(400);
   await page.waitForTimeout(200);
 }
+const card = page.locator('#mode-marathon');
+check(await card.isVisible(), 'Select Mode has a Test Marathon card off production');
+await card.click({ force: true });
+await advance(600);
+await page.waitForTimeout(300);
 
 // From here the clock moves only when the check moves it. Left running, a
 // software-rendered frame is most of a second of real time, and a guard of

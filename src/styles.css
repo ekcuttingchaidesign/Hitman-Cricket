@@ -2994,6 +2994,17 @@ body.survive-mode #scoreboard{display:none}
   object-position:50% 20%
 }
 .mode-survive .mode-plate img{object-position:50% 40%}
+/* The Marathon under the two, the whole row: a third card at half width
+   would leave a hole beside it. */
+.mode-marathon{grid-column:1/-1;aspect-ratio:360/180;border-radius:3.6cqw}
+.mode-marathon{background:#0f2738}
+.mode-marathon .mode-plate{left:34%}
+.mode-marathon .mode-plate img{object-position:30% 22%}
+.mode-marathon .mode-plate::after{background:linear-gradient(90deg,#0f2738 0%,#0f2738a6 22%,#0f273800 50%)}
+.mode-marathon .mode-body{top:0;right:auto;width:54%;display:flex;flex-direction:column;justify-content:center;padding:0 0 0 5.4cqw}
+.mode-marathon .mode-flag{position:static;align-self:flex-start;height:3.7cqw;margin-bottom:1.8cqw;padding:0 2.3cqw;border-radius:1.9cqw;background:#e54144;font-family:var(--card);font-weight:800;font-size:2.5cqw;letter-spacing:.08em}
+.mode-marathon .mode-name{font-size:6.4cqw}
+.mode-marathon .mode-copy{margin-top:1.4cqw;font-size:3.2cqw}
 .mode-plate::after{
   content:'';
   position:absolute;
