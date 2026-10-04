@@ -33,8 +33,9 @@ export const INTRO_STEPS: readonly IntroStep[] = [
   {
     title: 'Three batters',
     line: 'Bat until all three are gone',
-    // Three bats stood up, and the one walking out next marked.
-    art: svg('<path d="M12 46 16 14h6l4 32Z"/><path d="M19 46v10"/><path d="M28 46 32 12h6l4 34Z"/><path d="M35 46v10"/><path d="M44 46 48 14h6l4 32Z"/><path d="M51 46v10"/><path class="acc" d="M8 8h10M46 8h10M27 5h10"/>'),
+    // A cricket helmet in three-quarter profile: the dome, the peak over the
+    // brow, the ear guard, and the grille wrapped round the face in green.
+    art: svg('<path d="M10 46C6 27 16 10 33 8c12-1 20 6 22 16"/><path d="M38 23c9-1 17 1 24 4l-2 4c-7-2-15-3-22-3"/><path d="M10 46c3 4 8 6 14 6"/><path d="M24 52c3-7 7-15 14-24"/><path d="M18 33c4-1 8 1 9 5s-1 8-5 9-8-1-9-5 1-8 5-9Z"/><circle cx="22" cy="40" r="1.6" fill="currentColor"/><path class="acc" d="M38 30c8 0 15 1 20 4 2 6 1 13-4 17-7 4-16 4-24 1M35 38c8 1 16 1 23-1M31 46c8 1 16 1 23-1M47 31v21M56 34l-2 16"/>'),
   },
   {
     title: 'Focus to settle',
