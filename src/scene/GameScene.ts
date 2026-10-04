@@ -11,7 +11,7 @@ import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
 import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
-import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
+import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
@@ -146,6 +146,9 @@ export class GameScene {
   private pitch!: THREE.MeshStandardMaterial;
   private dryPitch!: THREE.Texture;
   private greenPitch: THREE.Texture | null = null;
+  /** The Test strip worn to the current stage, painted when the stage comes; null while it is fresh. */
+  private wornPitch: THREE.Texture | null = null;
+  private wearStage = 0;
   private anisotropy = 1;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
@@ -754,9 +757,36 @@ export class GameScene {
       this.textures.push(this.greenPitch);
     }
     this.pitch.map = on ? this.greenPitch! : this.dryPitch;
+    this.dropWear();
   }
   /** Which strip is down, for the checks. */
   get greenTop() { return this.pitch.map === this.greenPitch; }
+  /** How worn the Test strip is, as a stage of `WEAR_STAGES`, for the checks. */
+  get worn() { return this.wearStage; }
+
+  /**
+   * The Marathon's strip, worn to a stage: repainted as each level comes — the
+   * swing, the express bowler, Level 3 — so what the bowling is doing can be
+   * seen in the surface it is doing it off. One worn strip is kept at a time;
+   * the last is thrown away when the next is painted.
+   */
+  wear(stage: number) {
+    const at = Math.max(0, Math.min(WEAR_STAGES.length - 1, Math.round(stage)));
+    if (at === this.wearStage || !this.greenPitch || this.pitch.map === this.dryPitch) return;
+    this.dropWear();
+    this.wearStage = at;
+    if (!at) return;
+    this.wornPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, WEAR_STAGES[at]);
+    this.pitch.map = this.wornPitch;
+  }
+  private dropWear() {
+    if (this.wornPitch) {
+      if (this.pitch.map === this.wornPitch) this.pitch.map = this.greenPitch;
+      this.wornPitch.dispose();
+      this.wornPitch = null;
+    }
+    this.wearStage = 0;
+  }
 
   /**
    * The Marathon's cloud cover: the sky greys over and the sun dims as the
@@ -1156,7 +1186,7 @@ export class GameScene {
     FIGURE_ASSETS.materials.forEach(material => mats.delete(material));
     // The sky's own, and what was painted for the ground.
     geometries.delete(this.sky.mesh.geometry); mats.delete(this.sky.mesh.material as THREE.Material); this.sky.dispose();
-    this.environment.dispose(); this.textures.forEach(t => t.dispose());
+    this.environment.dispose(); this.textures.forEach(t => t.dispose()); this.wornPitch?.dispose();
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); forgetMaterials(); this.renderer.dispose();
   }
 }

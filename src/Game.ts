@@ -586,6 +586,8 @@ export class Game {
       ground: () => this.scene.ground,
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
+      // How worn the Marathon's strip is, a stage of `WEAR_STAGES`.
+      worn: () => this.scene.worn,
       // Day or night, for the checks.
       lights: () => this.scene.lit,
       // Who this browser settled on being. Asked by `key-check.mjs`, which
@@ -1246,6 +1248,10 @@ export class Game {
     const balls = this.score.balls;
     if (balls % MARATHON.ballsPerOver) return;
     const over = balls / MARATHON.ballsPerOver;
+    // The strip wears in the same steps the bowling climbs: fresh, then the
+    // swing, then the express bowler, then Level 3.
+    const level = this.generator.levelAt(over);
+    this.scene.wear(!level ? 0 : level.level === 3 ? 3 : level.express > 0 ? 2 : level.swingShare !== undefined ? 1 : 0);
     const kind = this.generator.overKind(over);
     const swinging = kind === 'PACE' && this.generator.levelAt(over)?.swingShare !== undefined;
     const banner = swinging && !this.told.swing ? 'swing' : null;
