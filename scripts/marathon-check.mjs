@@ -347,6 +347,7 @@ check(clouded.marathon.clouded === 1, 'the cloud has come over by the time it is
 await page.screenshot({ path: 'test-results/marathon-overcast.png' });
 const greySky = await saturation(await page.screenshot(), skyBox);
 check(greySky < clearSky * .85, `and the sky is greyer for it (saturation ${clearSky.toFixed(2)} to ${greySky.toFixed(2)})`);
+check(await page.evaluate(() => window.__cricket.worn()) === 1, 'and the strip worn a stage with it', String(await page.evaluate(() => window.__cricket.worn())));
 await block();
 
 // On to the express bowler's first over, the eleventh: his own action, and no
@@ -359,6 +360,7 @@ while ((await snap()).balls < 60) {
 const expressOver = (await snap()).balls / 6 + 1;
 check(told.bowler === 'EXPRESS' && expressOver === 11, `the express bowler takes the ball at over ${expressOver} (always the eleventh)`, JSON.stringify(told));
 check((await banner()) === null && !('express' in told.told), 'and nothing is put up to say so', `${await banner()} ${JSON.stringify(told.told)}`);
+check(await page.evaluate(() => window.__cricket.worn()) === 2, 'but the strip wears another stage as he comes on', String(await page.evaluate(() => window.__cricket.worn())));
 const quick = await until('BOWLER_RUNUP');
 check(quick.marathon.action === 'express' && quick.marathon.express, 'running in with the express action', JSON.stringify(quick.marathon));
 await page.screenshot({ path: 'test-results/marathon-express-runup.png' });

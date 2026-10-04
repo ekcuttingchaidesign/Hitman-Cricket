@@ -147,7 +147,8 @@ the declare key from the twentieth over and not before, the card — the worm
 with a ball for each man gone, the batting card, and CHANGE MODE and SHARE
 under PLAY AGAIN — the speed gun, the Focus meter turning into confidence at
 thirty balls, the Test match's
-greener strip, the swing's level banner, with the sky measured greyer off the
+greener strip and its wear — a stage as the swing comes, another with the
+express bowler — the swing's level banner, with the sky measured greyer off the
 pixels as the cloud comes over, the express bowler arriving untold in the
 eleventh over with his own action and the fast bowler's in the next, the left-hander — the ground mirrored while he is in and off again for
 the man after him, his pull on the key to the right — and the end card
