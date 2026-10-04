@@ -31,6 +31,7 @@ import {
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
+import { INTRO_STEPS, introCardMarkup } from './MarathonIntro';
 import { fallsOf, marathonShareText, scorecardMarkup, wormMarkup, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
@@ -329,11 +330,11 @@ export class HUD {
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
-        <div id="settle" class="confidence settle-meter hidden" role="meter" aria-label="Settling" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="settle" class="confidence settle-meter hidden" role="meter" aria-label="Focus" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
             <span class="confidence-head">
               <span class="meter-icon" aria-hidden="true"><span class="icon-settling">${icon('settling')}</span><span class="icon-flame">${icon('flame')}</span></span>
-              <span class="confidence-label" id="settle-label">SETTLING</span>
+              <span class="confidence-label" id="settle-label">FOCUS</span>
               <span class="injury-cap settle-cap" id="settle-cap"></span>
             </span>
             <span class="confidence-track"><i id="settle-fill"></i></span>
@@ -347,6 +348,7 @@ export class HUD {
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
+        <div id="marathon-intro" class="mi-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="mi-title"><span id="mi-spot" class="mi-spot hidden" aria-hidden="true"></span><div id="mi-card" class="mi-card"></div></div>
         <div id="level-banner" class="level-banner hidden" role="status" aria-live="polite"><span class="lb-eyebrow" id="lb-eyebrow"></span><strong id="lb-title"></strong><span class="lb-line" id="lb-line"></span></div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
@@ -1482,10 +1484,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     meter.classList.toggle('is-settled', view.settled);
     meter.classList.toggle('is-full', full);
     meter.classList.toggle('is-primed', !!view.primed);
-    meter.setAttribute('aria-label', view.settled ? 'Confidence' : 'Settling');
+    meter.setAttribute('aria-label', view.settled ? 'Confidence' : 'Focus');
     meter.setAttribute('aria-valuenow', String(percent));
     this.$('settle-fill').style.width = `${percent}%`;
-    this.$('settle-label').textContent = !view.settled ? 'SETTLING'
+    this.$('settle-label').textContent = !view.settled ? 'FOCUS'
       : view.primed ? CUES[view.primed].split(' — ')[0] : full ? 'CONFIDENT' : 'CONFIDENCE';
     this.$('settle-cap').textContent = view.settled ? '' : `${view.balls}/${view.of}`;
   }
@@ -1508,6 +1510,46 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     banner.style.setProperty('--lasts', `${lasts}ms`);
     banner.className = `level-banner is-${kind}`; void banner.offsetWidth; banner.classList.add('is-on');
     this.bannerDown = window.setTimeout(() => { banner.className = 'level-banner hidden'; }, lasts);
+  }
+  /**
+   * The Marathon's rules, a card at a time over the ground, with the thing a
+   * card is about lit in the dark round it. `done` hears whether the player
+   * went through to the end or skipped.
+   */
+  marathonIntro(done: (how: 'finished' | 'skipped') => void) {
+    const overlay = this.$('marathon-intro');
+    let index = 0;
+    const show = () => {
+      const step = INTRO_STEPS[index];
+      this.$('mi-card').innerHTML = introCardMarkup(step, index, INTRO_STEPS.length);
+      this.spotlight(step.spot ?? null);
+      this.$('mi-next').onclick = () => {
+        if (++index < INTRO_STEPS.length) return show();
+        this.closeIntro(); done('finished');
+      };
+      this.$('mi-skip').onclick = () => { this.closeIntro(); done('skipped'); };
+      this.$('mi-next').focus({ preventScroll: true });
+    };
+    overlay.classList.remove('hidden');
+    show();
+  }
+  closeIntro() { this.$('marathon-intro').classList.add('hidden'); }
+  get introOpen() { return !this.$('marathon-intro').classList.contains('hidden'); }
+  /** A ring round one element of the screen and the dark everywhere else; or just the dark. */
+  private spotlight(id: string | null) {
+    const spot = this.$('mi-spot');
+    const overlay = this.$('marathon-intro');
+    const target = id ? document.getElementById(id) : null;
+    const box = target?.getBoundingClientRect();
+    if (!target || !box || !box.width) { spot.classList.add('hidden'); overlay.classList.remove('is-spot'); return; }
+    const frame = overlay.getBoundingClientRect();
+    const pad = 6;
+    Object.assign(spot.style, {
+      left: `${box.left - frame.left - pad}px`, top: `${box.top - frame.top - pad}px`,
+      width: `${box.width + pad * 2}px`, height: `${box.height + pad * 2}px`,
+    });
+    spot.classList.remove('hidden');
+    overlay.classList.add('is-spot');
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }

@@ -137,10 +137,16 @@ wants a new `REVEAL` in `src/game/unveil.ts`, and the same key in every check
 that seeds it.
 
 `scripts/marathon-check.mjs` is Test Marathon, entered first by its card on
-Select Mode (there off production only) and then twice by `?mode=marathon`: the batter
+Select Mode (there off production only) and then twice by `?mode=marathon`: the
+four rules cards a first Marathon opens with, the two that light the Focus
+meter and the pause key, and nothing bowled until they are put away — it is
+the only check that sees them, and it seeds `hitman-marathon-intro` past them
+for the rest; then the batter
 named as he walks out, the next one standing after the last was carried off,
-the declare key from the twentieth over and not before, the card, the speed
-gun, the settle meter turning into confidence at thirty balls, the Test match's
+the declare key from the twentieth over and not before, the card — the worm
+with a ball for each man gone, the batting card, and CHANGE MODE and SHARE
+under PLAY AGAIN — the speed gun, the Focus meter turning into confidence at
+thirty balls, the Test match's
 greener strip, the swing's level banner, with the sky measured greyer off the
 pixels as the cloud comes over, the express bowler arriving untold in the
 eleventh over with his own action and the fast bowler's in the next, the left-hander — the ground mirrored while he is in and off again for

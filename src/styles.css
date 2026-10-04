@@ -1780,6 +1780,30 @@ body.start-screen #sound{pointer-events:auto}
 .marathon-list .board-total small{font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--quiet);font-variant-numeric:tabular-nums}
 .marathon-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
+/* ── The Marathon's rules, the first time ─────────────────────────────────
+   A card at the foot of the picture, an icon, a few words, NEXT and SKIP, and
+   the thing a card is about lit in a ring in the dark round it. */
+.mi-overlay{position:absolute;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding:0 var(--pad,16px) calc(24px + env(safe-area-inset-bottom));background:#030a12b8;animation:mi-in .25s ease both}
+.mi-overlay.hidden{display:none}
+.mi-overlay.is-spot{background:transparent}
+.mi-spot{position:absolute;border-radius:14px;border:2px solid #f2a64f;box-shadow:0 0 0 9999px #030a12b8,0 0 18px #f2a64f99;pointer-events:none;animation:mi-ring 1.6s ease-in-out infinite;transition:left .25s ease,top .25s ease,width .25s ease,height .25s ease}
+.mi-spot.hidden{display:none}
+.mi-card{position:relative;width:min(360px,100%);padding:50px 20px 16px;border-radius:22px;border:1px solid #ceffc8;background:linear-gradient(180deg,#1d5d17 0%,#123f0f 100%);box-shadow:0 20px 50px #00000080;color:#fff;text-align:center;font-family:var(--card)}
+.mi-art{position:absolute;left:50%;top:-38px;width:76px;height:76px;transform:translateX(-50%);display:grid;place-items:center;border-radius:50%;border:3px solid #000;background:linear-gradient(135deg,#f2a64f,#fff3df);color:#102a0d;box-shadow:0 5px 0 #000}
+.mi-art svg{width:44px;height:44px}
+.mi-dots{display:flex;justify-content:center;gap:6px;margin:0 0 10px}
+.mi-dots i{width:6px;height:6px;border-radius:3px;background:#ffffff40;transition:width .2s ease}
+.mi-dots i.is-on{width:18px;background:#f2a64f}
+.mi-title{margin:0;font-family:var(--cta);font-weight:400;font-size:28px;line-height:1.05;color:#fff}
+.mi-line{margin:8px auto 18px;max-width:28ch;font-size:15px;font-weight:600;line-height:1.35;color:#ffffffd9}
+.mi-keys{display:flex;align-items:center;gap:12px}
+.mi-skip{flex:1;min-height:48px;color:#ffffffb3;font-family:var(--cta);font-size:15px;letter-spacing:1px}
+.mi-skip:empty{display:none}
+.mi-next{flex:2;min-height:52px;margin:0;border-color:#000;background:linear-gradient(90deg,#f2a64f,#fff);box-shadow:0 5px 0 #000}
+@keyframes mi-in{from{opacity:0}to{opacity:1}}
+@keyframes mi-ring{50%{box-shadow:0 0 0 9999px #030a12b8,0 0 30px #f2a64fcc}}
+@media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot{animation:none}}
+
 /* ── Claiming a place ──────────────────────────────────────────────────── */
 /* The card does not grow to hold this. It is already 349px tall on a landscape
    phone with three keys on it, so the button area is what changes: the keys go,

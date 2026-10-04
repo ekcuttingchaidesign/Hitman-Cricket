@@ -374,6 +374,9 @@ Each step is a pull request of its own, behind the flag until the last.
    against the Blast's `0xe84829`) and the greener pitch, in both Test modes.
    A full green top was tried first and was too much; the strip keeps half
    the grass `pitchTexture` can paint.
+   *After the second playtest:* the settle meter is **Focus**, and a first
+   Marathon opens with four rules cards (three batters, Focus to settle, the
+   pitch wears, declare then register), shown twice at most.
 8. **Launch.** A What's New story, the flag on (`VITE_SHOW_MARATHON`, which
    puts the card on production's picker and the Marathon tab on its board),
    merge. Off production both are already there: the card went onto Select

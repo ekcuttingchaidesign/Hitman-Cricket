@@ -2,6 +2,7 @@ import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
+import { introDue, noteIntro } from './ui/MarathonIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHanderOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
@@ -1054,7 +1055,7 @@ export class Game {
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
-    this.told = { swing: false }; this.bannerUntil = 0;
+    this.told = { swing: false }; this.bannerUntil = 0; this.hud.closeIntro();
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     this.hand();
@@ -1067,7 +1068,23 @@ export class Game {
     if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
+    if (this.marathoning) this.introduce();
   };
+  /**
+   * The Marathon's rules, the first two times one starts: the bowler waits at
+   * his mark until the last card is put away, the way he waits for a banner.
+   */
+  private introduce() {
+    if (this.demoing || !introDue()) return;
+    noteIntro('shown');
+    this.mark('intro', 'Rules shown');
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.hud.marathonIntro(how => {
+      if (how === 'skipped') noteIntro('skipped');
+      this.mark(how === 'skipped' ? 'intro-skipped' : 'intro-finished', how === 'skipped' ? 'Rules skipped' : 'Rules read to the end');
+      this.bannerUntil = this.elapsed;
+    });
+  }
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');

@@ -118,6 +118,27 @@ await card.click({ force: true });
 await advance(600);
 await page.waitForTimeout(300);
 
+// ── The rules, the first time ──────────────────────────────────────────────
+// Four cards over the ground, the bowler at his mark until the last is put
+// away, and the two that are about something on the screen lighting it.
+const intro = page.locator('#marathon-intro');
+for (let i = 0; i < 20 && !(await intro.isVisible()); i++) { await advance(300); await page.waitForTimeout(100); }
+check(await intro.isVisible(), 'the first Marathon starts with its rules over the ground');
+const cards = [];
+for (let i = 0; i < 4; i++) {
+  cards.push({ title: await page.locator('#mi-title').textContent(), spot: await page.locator('#mi-spot').isVisible() });
+  await advance(2000);
+  if (i === 3) check((await snap()).phase === 'READY' && (await snap()).balls === 0, 'and nothing is bowled while they are up', (await snap()).phase);
+  await page.locator('#mi-next').click({ force: true });
+  await advance(50);
+}
+check(JSON.stringify(cards.map(c => c.title)) === JSON.stringify(['Three batters', 'Focus to settle', 'The pitch wears', 'Declare, then register']),
+  'four of them: three batters, focus, the pitch wearing, declaring', JSON.stringify(cards.map(c => c.title)));
+check(!cards[0].spot && cards[1].spot && !cards[2].spot && cards[3].spot, 'the focus meter and the pause key lit on the cards about them', JSON.stringify(cards));
+check(!(await intro.isVisible()) && await page.evaluate(() => localStorage.getItem('hitman-marathon-intro')) === '1', 'put away by the last, and remembered as shown once');
+// Twice at most, and the rest of this check is not about them.
+await page.evaluate(() => localStorage.setItem('hitman-marathon-intro', 'done'));
+
 // From here the clock moves only when the check moves it. Left running, a
 // software-rendered frame is most of a second of real time, and a guard of
 // 420ms is gone before the next line of this script runs — so a ball is
@@ -142,7 +163,7 @@ check(await page.locator('#scoreboard').isVisible(), 'and the scoreboard, not a 
 check(await page.evaluate(() => window.__cricket.greenTop()), 'on the Test match\'s greener strip');
 check(!(await page.locator('#speed-gun').evaluate(el => el.classList.contains('is-on'))), 'no speed up before a ball is bowled');
 const meter = async () => `${await page.locator('#settle-label').textContent()} ${await page.locator('#settle-cap').textContent()}`.trim();
-check(await page.locator('#settle').isVisible() && await meter() === `SETTLING 0/${SETTLE_BALLS}`, 'and the opener walks out unsettled, beside the injury meter', await meter());
+check(await page.locator('#settle').isVisible() && await meter() === `FOCUS 0/${SETTLE_BALLS}`, 'and the opener walks out unsettled, beside the injury meter', await meter());
 check(!(await page.locator('#scoreboard').textContent())?.includes('KM/H'), 'and none on the scoreboard');
 await block();
 check(!(await label())?.includes('OPENER IN'), 'said once, and not again the next ball', await label());
@@ -155,7 +176,7 @@ let state = await write([...ones(39), 'W']);
 check(state.batter === 'NO_3' && state.gone === 1, 'a wicket sends the No. 3 in', JSON.stringify(state));
 check(state.batters[0] === '39', 'with the opener out for what he made', JSON.stringify(state.batters));
 check((await label())?.includes('NO. 3 IN'), 'named as he walks out', await label());
-check(await meter() === `SETTLING 0/${SETTLE_BALLS}`, 'unsettled, however settled the opener was', await meter());
+check(await meter() === `FOCUS 0/${SETTLE_BALLS}`, 'unsettled, however settled the opener was', await meter());
 await block();
 
 // ── Felled or bowled by a real ball, and the next man up on his feet ──────
@@ -243,7 +264,7 @@ await page.locator('#again').click({ force: true });
 await advance(16);
 await until('READY');
 await write(ones(SETTLE_BALLS - 1));
-check(await meter() === `SETTLING ${SETTLE_BALLS - 1}/${SETTLE_BALLS}`, 'a ball short, nearly settled', await meter());
+check(await meter() === `FOCUS ${SETTLE_BALLS - 1}/${SETTLE_BALLS}`, 'a ball short, nearly settled', await meter());
 await write([1]);
 check((await label())?.includes('OPENER SETTLED'), 'thirty, and the call says he is settled', await label());
 check(await meter() === 'CONFIDENCE' && (await snap()).marathon.confidence === 25, 'and the meter is his confidence now, a quarter full', await meter());
