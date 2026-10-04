@@ -210,7 +210,7 @@ export class Game {
   /** The Marathon only: its three batters and its end. */
   private marathon: MarathonInnings | null = null;
   /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
-  private told = { swing: false, express: false };
+  private told = { swing: false };
   /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
   private bannerUntil = 0;
   /** Where the batter who played the last ball came in, in the team's history: his fifty is his own. */
@@ -1059,7 +1059,7 @@ export class Game {
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
-    this.told = { swing: false, express: false }; this.bannerUntil = 0;
+    this.told = { swing: false }; this.bannerUntil = 0;
     this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     this.hand();
@@ -1219,9 +1219,13 @@ export class Game {
   }
   /**
    * At the top of an over, whether it is the one the innings changes in: the
-   * first over the pace bowler swings it, which brings the cloud over with it,
-   * or the express bowler's first. Each is put up once an innings, and the
-   * bowler waits at his mark while it is.
+   * first over the pace bowler swings it, which brings the cloud over with it.
+   * Put up once an innings, and the bowler waits at his mark while it is.
+   *
+   * The express bowler had a banner of his own too, and the playtest took it
+   * off: the swing is a change in conditions a batter cannot see coming and
+   * should be told about, but a man running in from forty yards at 180 is his
+   * own announcement.
    */
   private tellLevel() {
     const balls = this.score.balls;
@@ -1229,7 +1233,7 @@ export class Game {
     const over = balls / MARATHON.ballsPerOver;
     const kind = this.generator.overKind(over);
     const swinging = kind === 'PACE' && this.generator.levelAt(over)?.swingShare !== undefined;
-    const banner = kind === 'EXPRESS' && !this.told.express ? 'express' : swinging && !this.told.swing ? 'swing' : null;
+    const banner = swinging && !this.told.swing ? 'swing' : null;
     if (!banner) return;
     this.told[banner] = true;
     if (banner === 'swing') this.scene.overcast(true);

@@ -200,7 +200,6 @@ export type Primed = 'CHARGE' | 'SWEEP' | 'SCOOP' | 'REVERSE' | null;
  */
 const BANNERS: Record<LevelBanner, { eyebrow: string; title: string; line: string }> = {
   swing: { eyebrow: 'CLOUD COVER', title: 'THE BALL HAS STARTED TO SWING', line: 'Off stump swings in. Leg stump swings away.' },
-  express: { eyebrow: 'NEW BOWLER', title: 'EXPRESS PACE', line: 'A bouncer and a yorker every over.' },
 };
 
 const CUES: Record<NonNullable<Primed>, string> = {

@@ -112,8 +112,9 @@ not the batter's: a tailender who walks in at over 30 walks in against over
   sky clouds over a little, which is the condition every cricket fan already
   links with swing. It goes up on the first over the pace bowler swings it,
   which since the playtest is the sixth.
-- **The express bowler (his first over):** a banner for the express spell as
-  he takes the ball.
+- **The express bowler is not told.** He had a banner for his spell at
+  first; the second playtest took it off. The swing is a change in conditions
+  nobody can see coming, and he is his own announcement.
 
 ## The milestones
 
@@ -344,10 +345,11 @@ Each step is a pull request of its own, behind the flag until the last.
    refuses. *Settling*: every batter settles over 30 balls (36 at first,
    until the playtest found it too long), a blow knocking him back a ball per
    four points of injury, and settled, the meter
-   is his confidence — a quarter full, filling more slowly than the Blast's
-   (six +12, four +10, three +6, two +4, single or block +2, beaten −10, a
-   blow −1 per four points) — which buys the Blast's special strokes. In the
-   simulator a settled good player is offered one about every three overs.
+   is his confidence — a quarter full, filling a little more slowly than the
+   Blast's (six +26, four +20, three +14, two +10, single or block +2, beaten
+   −10, a blow −1 per four points) — which buys the Blast's special strokes.
+   It was half the Blast's at first, which the second playtest found filled
+   far too late; it is now the Blast's less two a stroke.
    The speed gun came forward to step 2, and moved off the scoreboard to a
    caption at the foot of the field after the playtest.
 5. **The boards.** *Done.* The Rivals ranking is on Rival Matches, under the

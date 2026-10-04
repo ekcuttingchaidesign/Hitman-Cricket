@@ -239,9 +239,11 @@ export const EXPRESS_OVER = {
  * the playtest found it too long a wait.
  *
  * Settled, the same meter is his confidence, and it starts a quarter full. It
- * fills with the strokes he plays and with the balls he blocks, more slowly
- * than the Blast's — a Test innings is built, not slogged — and empties with
- * being beaten and being hit. Full, it buys one special stroke, exactly as in
+ * fills with the strokes he plays and with the balls he blocks, a little
+ * more slowly than the Blast's — two points less a stroke — and empties with
+ * being beaten and being hit. It was half the Blast's at first, on the idea
+ * that a Test innings is built rather than slogged, and the playtest found it
+ * filling far too late to be worth anything. Full, it buys one special stroke, exactly as in
  * the Blast. He never goes back to being unsettled: a battering costs him his
  * confidence, not the five overs it took to find his feet.
  */
@@ -256,7 +258,7 @@ export const SETTLE = {
 export const CONFIDENCE = {
   full: 100,
   /** What each stroke adds, by the runs it was worth. */
-  step: { 6: 12, 4: 10, 3: 6, 2: 4, 1: 2 } as Record<number, number>,
+  step: { 6: 26, 4: 20, 3: 14, 2: 10, 1: 2 } as Record<number, number>,
   /** A ball blocked: patience is part of it. */
   defended: 2,
   /** Played at and beaten, or edged for nothing. */
@@ -264,15 +266,15 @@ export const CONFIDENCE = {
 } as const;
 
 /**
- * The two moments the innings changes under the batter are put up on the
- * screen, the way a broadcast would: the ball starting to swing, with the
- * cloud coming over, and the express bowler's first over. Each is told once an
- * innings, at the top of the over it begins, and the bowler waits at his mark
- * for this long while it is up — a banner gone before it can be read is the
- * same as no banner.
+ * The moment the innings changes under the batter is put up on the screen,
+ * the way a broadcast would: the ball starting to swing, with the cloud coming
+ * over. It is told once an innings, at the top of the over it begins, and the
+ * bowler waits at his mark for this long while it is up — a banner gone before
+ * it can be read is the same as no banner. The express bowler is not told:
+ * he announces himself.
  */
 export const LEVEL_BANNER_MS = 2600;
-export type LevelBanner = 'swing' | 'express';
+export type LevelBanner = 'swing';
 
 /** How a Marathon innings finished. */
 export type MarathonEnding = 'ALL_OUT' | 'RETIRED' | 'BALLS' | 'DECLARED';

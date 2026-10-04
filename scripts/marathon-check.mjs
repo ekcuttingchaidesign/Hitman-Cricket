@@ -318,15 +318,16 @@ const greySky = await saturation(await page.screenshot(), skyBox);
 check(greySky < clearSky * .85, `and the sky is greyer for it (saturation ${clearSky.toFixed(2)} to ${greySky.toFixed(2)})`);
 await block();
 
-// On to the express bowler's first over: the banner, and his own action.
+// On to the express bowler's first over, the eleventh: his own action, and no
+// banner — the playtest took his off, since he announces himself.
 told = (await snap()).marathon;
-while (!told.told.express && (await snap()).balls < 300) {
+while ((await snap()).balls < 60) {
   const balls = (await snap()).balls;
-  told = await write(ones(6 - balls % 6));
+  told = await write(ones(Math.min(6 - balls % 6, 60 - balls)));
 }
 const expressOver = (await snap()).balls / 6 + 1;
-check(told.told.express && told.bowler === 'EXPRESS' && expressOver === 11, `the express bowler is told as he takes the ball, at over ${expressOver} (always the eleventh)`, JSON.stringify(told));
-check((await banner()) === `OVER ${expressOver} · NEW BOWLER / EXPRESS PACE`, 'on a banner of his own', await banner());
+check(told.bowler === 'EXPRESS' && expressOver === 11, `the express bowler takes the ball at over ${expressOver} (always the eleventh)`, JSON.stringify(told));
+check((await banner()) === null && !('express' in told.told), 'and nothing is put up to say so', `${await banner()} ${JSON.stringify(told.told)}`);
 const quick = await until('BOWLER_RUNUP');
 check(quick.marathon.action === 'express' && quick.marathon.express, 'running in with the express action', JSON.stringify(quick.marathon));
 await page.screenshot({ path: 'test-results/marathon-express-runup.png' });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GAME, LINE_X } from '../src/config/gameplay';
+import { CONFIDENCE_STEP, GAME, LINE_X } from '../src/config/gameplay';
 import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, REVERSE, SETTLE, SWING_FROM, levelAt, levelOf } from '../src/config/marathon';
 import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
@@ -530,12 +530,17 @@ describe('settling in, and the confidence that comes of it', () => {
     const innings = new MarathonInnings();
     settle(innings);
     const at = () => innings.current.confidence;
-    innings.record(played({ runs: 4 })); expect(at()).toBe(25 + 10);
-    innings.record(played({ runs: 6 })); expect(at()).toBe(35 + 12);
-    innings.record(played({ runs: 1 })); expect(at()).toBe(47 + 2);
-    innings.record(played({ defended: true })); expect(at()).toBe(49 + 2);
-    innings.record(played({ runs: 2 })); expect(at()).toBe(51 + 4);
-    innings.record(played({ runs: 3 })); expect(at()).toBe(55 + 6);
+    innings.record(played({ runs: 4 })); expect(at()).toBe(25 + 20);
+    innings.record(played({ runs: 1 })); expect(at()).toBe(45 + 2);
+    innings.record(played({ defended: true })); expect(at()).toBe(47 + 2);
+    innings.record(played({ runs: 2 })); expect(at()).toBe(49 + 10);
+    innings.record(played({ runs: 3 })); expect(at()).toBe(59 + 14);
+    innings.record(played({ runs: 6 })); expect(at()).toBe(73 + 26);
+  });
+
+  it('fills it two points a stroke slower than the Blast, and no slower', () => {
+    // Half the Blast's at first, which the playtest found filled far too late.
+    for (const runs of [2, 3, 4, 6]) expect(CONFIDENCE.step[runs]).toBe(CONFIDENCE_STEP[runs] - 2);
   });
 
   it('drains it when he is beaten or hit, and leaves it alone for a leave', () => {
