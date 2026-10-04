@@ -2839,6 +2839,10 @@ body.survive-mode #scoreboard{display:none}
 .stage.result-open .hud-actions>:not(#sound):not(#sound-note){display:none}
 .stage.picking-mode #sound,.stage.result-open #sound{pointer-events:auto}
 .mode-screen{
+  /* One corner for every card on the screen, the Marathon card's: the cards
+     each said theirs in units of a container none of them had, so each fell
+     back to a different share of the screen's width. */
+  --mode-radius:clamp(14px,4.3vw,22px);
   /* The screen the cards stand on. Near black, warming to the board's navy at
      the foot, so the blue hero card is the brightest thing on it. */
   background:linear-gradient(-31deg,#091926 42%,#000 84%);
@@ -2913,7 +2917,7 @@ body.survive-mode #scoreboard{display:none}
   border:0;
   text-align:left;
   background:#087bff;
-  border-radius:3.6cqw;
+  border-radius:var(--mode-radius);
   color:inherit;
   cursor:pointer;
   overflow:hidden;
@@ -3002,10 +3006,10 @@ body.survive-mode #scoreboard{display:none}
    From the mode screen's design (Figma, node 1-13): the kit laid out on the
    square, the green coming in from the left over it, and an orange key. The
    hero's own measures hold — the design draws it at the same 360 by 146. */
-.mode-hero-marathon{background:#27891c;border:1px solid #ceffc8;border-radius:4.3cqw}
+.mode-hero-marathon{background:#004225;border:1px solid #4f8f6a}
 .mode-hero-marathon .mode-hero-plate{left:20.7%;right:auto;top:-12.9%;bottom:auto;width:87.6%;height:122.6%;-webkit-mask-image:none;mask-image:none}
 .mode-hero-marathon .mode-hero-plate img{object-position:50% 50%}
-.mode-hero-marathon::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#27891c 26%,#27891c00 100%);pointer-events:none}
+.mode-hero-marathon::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#004225 28%,#004225d9 46%,#00422500 100%);pointer-events:none}
 .mode-hero-marathon .mode-hero-body{z-index:2;padding:5cqw 0 0 4.6cqw}
 .mode-hero-marathon .mode-flag{height:4.5cqw;padding:0 1.6cqw;border-radius:2.1cqw;background:linear-gradient(90deg,#cd1f22,#ff6567);font-weight:900;font-size:2.56cqw;letter-spacing:.1em}
 .mode-hero-marathon .mode-hero-name{margin-top:1.3cqw;font-size:5.93cqw;line-height:1.03}
@@ -3035,7 +3039,7 @@ body.survive-mode #scoreboard{display:none}
   border:1px solid #d4d4d4;
   text-align:left;
   background:#0f2738;
-  border-radius:9cqw;
+  border-radius:var(--mode-radius);
   color:inherit;
   cursor:pointer;
   overflow:hidden;
@@ -3116,7 +3120,7 @@ body.survive-mode #scoreboard{display:none}
   aspect-ratio:263/150;
   padding:0;
   border:1px solid #35abe1;
-  border-radius:8.9cqw;
+  border-radius:var(--mode-radius);
   background:#087bff;
   color:#fff;
   text-align:left;
