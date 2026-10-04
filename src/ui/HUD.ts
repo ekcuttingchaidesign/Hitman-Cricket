@@ -31,6 +31,7 @@ import {
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
+import { fallsOf, marathonShareText, scorecardMarkup, wormMarkup, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
 import { recordMarkup, type RivalsRecord } from './Record';
@@ -57,9 +58,11 @@ import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/privat
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import { HEALTH, SURVIVE } from '../config/survive';
-import type { LevelBanner } from '../config/marathon';
+import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
+/** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
+const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
@@ -373,6 +376,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <p class="card-overs"><span id="final-overs"></span><small>Overs</small></p>
             </div>
             <div class="card-balls" id="final-balls" aria-hidden="true"></div>
+            <div id="mcard-worm" class="mcard-worm"></div>
+            <div id="mcard-score" class="mcard-score"></div>
             <p id="end-message" class="card-line"></p>
             <dl class="card-stats">
               <div><dt>Fours</dt><dd id="final-fours"></dd></div>
@@ -404,6 +409,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="again" class="key-button">PLAY AGAIN</button>
               <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
+            </div>
+            <div class="card-shares mcard-keys">
+              <button id="mcard-modes" class="story-key" type="button">CHANGE MODE</button>
+              <button id="mcard-share" class="story-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
             <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
             <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
@@ -1567,6 +1576,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
   pause(value: boolean) { this.viewport.classList.toggle('modal-open', value); this.$('pause-overlay').classList.toggle('hidden', !value); if (value) this.$('resume').focus(); }
   end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
+    this.$('end').classList.remove('is-marathon');
     this.viewport.classList.add('modal-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
@@ -2493,6 +2503,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Including the way out of the pause card. A link that names one mode is a
     // link to that mode wherever the player is standing when they ask.
     this.$('change-mode').classList.add('hidden');
+    this.$('mcard-modes').classList.add('hidden');
     // A build with no board behind it should not offer a way to one. The key is
     // on the cover under two different ids depending on whether the screen got
     // the phone layout or the desktop one.
@@ -2604,13 +2615,34 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   endMarathon(score: ScoreManager, innings: MarathonInnings) {
     this.end(score, 0, false, Math.max(1, score.balls));
+    this.$('end').classList.add('is-marathon');
     this.$('end-title').textContent = {
       ALL_OUT: 'All out', RETIRED: 'Retired hurt', BALLS: 'Five hundred balls', DECLARED: 'Declared',
     }[innings.ending ?? 'ALL_OUT'];
-    this.$('end-message').textContent = innings.batters
-      .map(b => `${b.batter.title}${b.left ? ' (LH)' : ''} ${MarathonInnings.score(b)} (${b.balls})`).join(' · ');
     this.$('final-score').innerHTML = `${score.runs}<span class="card-wickets">/${innings.gone}</span>`;
     this.$('final-score').setAttribute('aria-label', `${score.runs} for ${innings.gone}`);
+    const batters: CardBatter[] = innings.batters.map(b => ({
+      title: titleCase(b.batter.title), left: b.left, runs: b.runs, balls: b.balls,
+      fours: b.fours, sixes: b.sixes, out: b.out, retired: b.retired,
+    }));
+    const total: CardTotal = { runs: score.runs, balls: score.balls, fours: score.fours, sixes: score.sixes, wickets: innings.gone, overs: score.overs };
+    const didNotBat = BATTERS.slice(innings.batters.length).map(b => titleCase(b.title));
+    this.$('mcard-worm').innerHTML = wormMarkup(score.history.map(ball => ball.runs), fallsOf(batters));
+    this.$('mcard-score').innerHTML = scorecardMarkup(batters, total, didNotBat);
+    this.marathonShare = marathonShareText(total, batters, gameLink());
+  }
+  /** What the Marathon card's share key sends, written when the card goes up. */
+  private marathonShare = '';
+  /** The Marathon card's share: the scorecard as a line of text, through the phone's sheet or WhatsApp. */
+  async shareMarathon() {
+    if (!this.marathonShare) return;
+    track('share-innings', 'Shared the innings');
+    if (navigator.share) {
+      try { await navigator.share({ text: this.marathonShare }); return; } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(this.marathonShare)}`, '_blank', 'noopener');
   }
   /**
    * How a Test match finished. The headline is the result rather than the score,

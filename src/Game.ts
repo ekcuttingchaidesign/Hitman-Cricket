@@ -478,6 +478,9 @@ export class Game {
     this.hud.on('survive-modes', this.modes);
     this.hud.on('card-result', () => this.backToResult());
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
+    // The Marathon card's own two keys under its play-again key.
+    this.hud.on('mcard-modes', () => { if (this.phase === 'INNINGS_END') this.modes(); });
+    this.hud.on('mcard-share', () => { void this.hud.shareMarathon(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('tutorial-play', this.walkOut);
     // Not the covers from a skip: that is pressed with a lesson ball on its way,
@@ -2506,7 +2509,7 @@ export class Game {
     // them, but the screen it ends on is the same screen.
     this.audio.music('result');
     if (this.marathon) {
-      // The Blast's card with the three batters written under the total, and
+      // The Blast's card with the worm and the batting card under the total, and
       // the boards' strip on it. No career yet and no best kept: those are
       // My Stats (`docs/MARATHON.md`, step 6).
       const marathon = this.marathon;

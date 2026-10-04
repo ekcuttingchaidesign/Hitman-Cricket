@@ -203,8 +203,18 @@ const declared = await snap();
 check(declared.phase === 'INNINGS_END' && declared.marathon.ending === 'DECLARED', 'declaring ends the innings', JSON.stringify(declared.marathon));
 check(await page.locator('#end').isVisible(), 'on the card');
 check((await page.locator('#end-title').textContent())?.includes('Declared'), 'which says it was declared', await page.locator('#end-title').textContent());
-const line = await page.locator('#end-message').textContent();
-check(['OPENER 39 (', 'NO. 3', 'TAILENDER'].every(word => line.includes(word)), 'with all three batters under the total', line);
+// The batting card: a row a batter, the total under them; and the worm over
+// it, with a red ball where each man was out.
+const scored = await page.locator('#mcard-score').evaluate(node => ({
+  rows: [...node.querySelectorAll('tbody tr')].map(row => [...row.children].map(cell => cell.textContent.replace(/\s+/g, ' ').trim())),
+  total: node.querySelector('tfoot tr')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+}));
+check(scored.rows.length === 3 && scored.rows[0][0].startsWith('Opener') && scored.rows[0][1] === '39' && scored.rows[2][0].startsWith('Tailender'),
+  'with all three batters on the batting card, runs, balls, fours, sixes and strike rate', JSON.stringify(scored));
+check(scored.total.startsWith('Total'), 'and the total under them', scored.total);
+const worm = await page.locator('#mcard-worm').evaluate(node => ({ line: !!node.querySelector('.worm-line'), falls: node.querySelectorAll('.worm-fall').length }));
+check(worm.line && worm.falls === declared.marathon.gone, 'the worm over it, a ball on the line for each man gone', JSON.stringify(worm));
+check((await page.locator('#mcard-modes').isVisible()) && (await page.locator('#mcard-share').isVisible()), 'and CHANGE MODE and SHARE side by side under PLAY AGAIN');
 // The boards are asked again at the end of an innings this long, and the
 // strip goes up when they answer: a declared innings is a place on a board
 // with room on it.

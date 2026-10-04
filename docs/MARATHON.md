@@ -325,8 +325,8 @@ Each step is a pull request of its own, behind the flag until the last.
    browser: the LEG SIDE / OFF SIDE labels along the foot of the field swap
    while he is in, and `?lefty=1`–`3` (or `0` for none) puts him at a place in
    the order for testing. The tutorial's panel and arrow over his first ball
-   came out after the playtest — it is obvious — and the end card marks him
-   `(LH)`.
+   came out after the playtest — it is obvious — and the end card's batting
+   card marks him `LH`.
 4. **Settling, the express bowler**, his action and release, and the level
    banners. *Done.* And, before the boards, **the milestones** above: every
    fifty a moment, the three big ones with celebrations of their own. The express bowler is a slinger, after a slow-motion

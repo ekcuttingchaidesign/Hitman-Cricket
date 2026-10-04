@@ -3765,6 +3765,42 @@ body.marathon-mode .settle-meter.is-full .meter-icon{color:#ffcf8a}
    neither of those. */
 body.marathon-mode #share{opacity:.3;pointer-events:none}
 body.marathon-mode #end :is(#card-career,#card-key,#challenge-set,#card-share){display:none}
+/* The Marathon's card: the worm and the batting card where the Blast's ball
+   strip, batter line and three figures are, and its own two keys under PLAY
+   AGAIN. Shown only on that card, so the Blast's is exactly what it was. */
+#end:not(.is-marathon) :is(.mcard-worm,.mcard-score,.mcard-keys){display:none}
+#end.is-marathon :is(#final-balls,#end-message,.card-stats){display:none}
+.mcard-worm{margin:12px -4px 0}
+.worm{display:block;width:100%;height:auto;overflow:visible}
+.worm-grid{stroke:var(--rule);stroke-width:1}
+.worm-y,.worm-x{font-family:var(--card);font-size:9px;font-weight:600;fill:var(--quiet)}
+.worm-y{text-anchor:end}
+.worm-x{text-anchor:middle}
+.worm-x.is-last{text-anchor:end}
+.worm-area{fill:url(#worm-fill)}
+.worm-line{fill:none;stroke:#f2a64f;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.worm-fall circle{fill:var(--ball);stroke:#5a0f0a;stroke-width:1.2}
+.worm-fall path{fill:none;stroke:#ffffffb3;stroke-width:.9;stroke-linecap:round}
+.worm-fall.is-retired circle{fill:#f0c65c;stroke:#6b4d0a}
+.worm-fall.is-retired path{stroke:#00000059}
+.mcard-score{margin:14px 0 18px}
+.mcard-table{width:100%;border-collapse:collapse;font-family:var(--card);font-variant-numeric:tabular-nums}
+.mcard-table th,.mcard-table td{padding:7px 0 7px 8px;text-align:right;font-size:14px;font-weight:600;color:var(--ink)}
+.mcard-table th:first-child{padding-left:0;text-align:left}
+.mcard-table thead th{padding-top:0;padding-bottom:6px;font-size:10px;font-weight:700;letter-spacing:.9px;color:var(--quiet);border-bottom:1px solid var(--rule)}
+.mcard-table tbody tr+tr th,.mcard-table tbody tr+tr td{border-top:1px solid #ffffff0d}
+.mcard-table tbody th b{display:block;font-size:14px;font-weight:700}
+.mcard-table tbody th b i{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.06em;vertical-align:.15em;padding:1px 4px;border-radius:4px;background:#ffffff1a;color:var(--quiet)}
+.mcard-table th small{display:block;margin-top:1px;font-size:11px;font-weight:500;color:var(--quiet)}
+.mcard-table tr.is-out small{color:#f09a8c}
+.mcard-table tr.is-retired-hurt small{color:#f0c65c}
+.mcard-table tr.is-not-out small{color:#7de3ad}
+.mcard-table td.is-runs{font-size:17px;font-weight:800}
+.mcard-table tfoot th,.mcard-table tfoot td{border-top:1px solid var(--rule);padding-top:9px;font-weight:700}
+.mcard-table tfoot th b{display:block;font-size:14px}
+.mcard-dnb{margin:6px 0 0;font-size:11.5px;color:var(--quiet)}
+.mcard-keys{margin-top:10px}
+.mcard-keys .story-key svg{width:17px;height:17px}
 .declare-key{display:block;width:100%;margin-top:10px}
 .declare-key.hidden{display:none}
 
