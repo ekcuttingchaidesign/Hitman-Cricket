@@ -65,6 +65,25 @@ export function ballPosition(delivery: Delivery, progress: number) {
     : Math.max(0.09, 0.09 + rise * post - rise * 0.64 * post * post);
   return { x, y, z: GAME.releaseZ - t * (GAME.releaseZ - GAME.contactZ) };
 }
+/**
+ * Where the ball is drawn when it leaves a hand that is not on its line:
+ * round the wicket, from out wide of the stumps.
+ *
+ * The trajectory starts every ball on the line it is bowled down, which over
+ * the wicket is near enough where the hand comes over — and round the wicket is
+ * more than half a metre the other side of the stumps. So the ball is drawn
+ * from the hand instead and angles in, the gap closing in a straight line to
+ * nothing at the bat: it pitches nearer the side it came from and goes on
+ * across the batter, to arrive exactly where and exactly when it would have
+ * from over the wicket. Nothing the rules read changes. They meet the ball at
+ * the bat, where the two are one point, and past it — the stumps, the keeper
+ * — the drawn ball runs on down the trajectory the rules judged.
+ */
+export function drawnAt(delivery: Delivery, progress: number, handX: number) {
+  const pos = ballPosition(delivery, progress);
+  if (progress < 1) pos.x += (handX - delivery.baseTargetX) * (1 - Math.max(0, progress));
+  return pos;
+}
 export function stumpIntersection(delivery: Delivery) {
   const p = ballPosition(delivery, GAME.releaseZ / (GAME.releaseZ - GAME.contactZ));
   return Math.abs(p.x) <= GAME.stumpZone && p.y <= GAME.stumpHeight;

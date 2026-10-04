@@ -74,6 +74,17 @@ const BOUND_LEAP = 1.5, GATHER = .85, DELIVERY_STRIDE = .70;
 const BACK_LAND = .5, FRONT_LAND = .72;
 /** How far the follow-through carries him past the crease. */
 const FOLLOW = 1.7;
+/**
+ * Round the wicket: the same run, the same action and the same moment, from
+ * the other side of the stumps. Over the wicket a right-arm bowler runs in on
+ * his left of them, the bowling arm coming over beside the bails; round it he
+ * runs in on his right, his left shoulder by the stumps and the arm coming
+ * over wide of them, so the ball leaves from out there and has to angle back
+ * in. His hips are as far from the middle stump as the fast bowler's are over
+ * the wicket, the other way; the action is untouched, so the hand comes over
+ * as far outside them as it ever does — which for the slinger is a long way.
+ */
+const ROUND_LANE = .36;
 
 /**
  * Everything about a run that depends on how long it is.
@@ -406,6 +417,46 @@ export class Bowler {
   }
   /** Whose action it is, for the scene and the checks. */
   get actionStyle() { return this.style; }
+  /**
+   * Which side of the stumps he runs in on. Set before the action starts and
+   * held for the whole of it, like the run and the action.
+   */
+  private roundTheWicket = false;
+  /** Bowl round the wicket from the next ball, or back over it. */
+  round(on: boolean) { this.roundTheWicket = on; }
+  get isRound() { return this.roundTheWicket; }
+  /**
+   * Where the ball leaves his hand across the pitch, in his own frame: the
+   * lane he runs in, and how far outside his hips each action's hand comes
+   * over. That last is measured off the action rather than written down, so a
+   * re-timed action cannot leave the ball beside his hand.
+   */
+  releaseX(): number { return this.laneX(0) + this.reach(this.style); }
+  private readonly reaches = new Map<ActionStyle, number>();
+  /** The last frame put on him, so measuring an action can put it back. */
+  private shown: [number, number, number] = [0, 0, 0];
+  private reach(style: ActionStyle): number {
+    const known = this.reaches.get(style);
+    if (known !== undefined) return known;
+    const [style0, round0, back0, front0, shown0] = [this.style, this.roundTheWicket, this.backAcross, this.frontAcross, this.shown];
+    this.style = style; this.roundTheWicket = false;
+    this.backAcross = acrossAt(BACK_FOOT, style); this.frontAcross = acrossAt(FRONT_FOOT, style);
+    this.apply(1, 0, 0);
+    this.root.updateMatrixWorld(true);
+    const hand = this.ball.getWorldPosition(new THREE.Vector3());
+    if (this.root.parent) this.root.parent.worldToLocal(hand);
+    const reach = hand.x - this.root.position.x;
+    this.reaches.set(style, reach);
+    [this.style, this.roundTheWicket, this.backAcross, this.frontAcross] = [style0, round0, back0, front0];
+    this.apply(...shown0);
+    return reach;
+  }
+  /**
+   * Where his hips are across the pitch, `veer` metres into running off. Over
+   * the wicket he runs off to his left, away from the stumps; round it, to
+   * his right — either way off the line of the pitch rather than down it.
+   */
+  private laneX(veer: number) { return this.roundTheWicket ? -ROUND_LANE - veer : this.style.lane + veer; }
 
   constructor(kit?: Kit) {
     this.figure = new Cricketer(kit);
@@ -413,6 +464,8 @@ export class Bowler {
     this.ball = new THREE.Mesh(new THREE.SphereGeometry(.037, 14, 10), new THREE.MeshStandardMaterial({ color: 0xc0341c, roughness: .5 }));
     this.figure.hands[1].add(this.ball);
     this.ball.position.set(0, .045, .03);
+    // Both actions measured now, while nobody is watching him.
+    this.reach(PACE_ACTION); this.reach(EXPRESS_ACTION);
     this.reset();
   }
 
@@ -469,10 +522,11 @@ export class Bowler {
   }
 
   private apply(t: number, after: number, recover = 0) {
+    this.shown = [t, after, recover];
     const travelled = after > 0 ? travelledAt(after, this.run) : advance(t, this.run);
-    // His left is +x here, the side away from the stumps.
+    // His left is +x here, the side away from the stumps over the wicket.
     const veer = after > 0 ? ease(span(after, .14, .7)) * this.style.followAcross : 0;
-    this.root.position.set(this.style.lane + veer, 0, this.run.startZ - travelled);
+    this.root.position.set(this.laneX(veer), 0, this.run.startZ - travelled);
 
     const pose = this.figure.stand();
     const style = this.style;

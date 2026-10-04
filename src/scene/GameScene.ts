@@ -5,7 +5,7 @@ import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
-import { ballPosition } from '../game/DeliveryTrajectory';
+import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
@@ -854,6 +854,24 @@ export class GameScene {
   /** Which action is at the top of the mark, for the checks. */
   get bowlerAction() { return this.bowler.actionStyle === EXPRESS_ACTION ? 'express' : 'pace'; }
   /**
+   * And which side of the stumps he bowls it from: round the wicket in the
+   * Marathon's overs that are, over it in everyone else's. Set beside
+   * `express`, every ball, for the same reason.
+   */
+  round(on: boolean) { this.bowler.round(on); }
+  get bowlerSide() { return this.bowler.isRound ? 'round' : 'over'; }
+  /** Where the ball leaves his hand across the pitch, in the stage's frame: mirrored with him for a left-hander. */
+  private get releaseX() { return this.bowlerHolder.scale.x * this.bowler.releaseX(); }
+  /** Where the ball is drawn: from his hand, round the wicket. See `drawnAt`. */
+  private flight(delivery: Delivery, progress: number) {
+    return delivery.round ? drawnAt(delivery, progress, this.releaseX) : ballPosition(delivery, progress);
+  }
+  /** And at any point of a flight, by asking rather than by catching the frame: for the checks. */
+  drawnBall(delivery: Delivery, progress: number) {
+    const p = this.flight(delivery, progress);
+    return [p.x, p.y, p.z].map(v => +v.toFixed(4));
+  }
+  /**
    * Past the bat, the ball eases through to the stumps over the rest of the
    * late-swing window instead of running on at full speed. That window is worth
    * most of a second, so extrapolating it flew the ball through the stumps and
@@ -870,11 +888,11 @@ export class GameScene {
     // Out of his hand: the field times its split step to the ball reaching the bat.
     if (!this.released) { this.released = true; this.field.set(this.clock, this.clock + Math.max(0, 1 - progress) * delivery.durationMs); }
     this.ball.visible = this.shadow.visible = true;
-    const pos = ballPosition(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
+    const pos = this.flight(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
     this.groundShadow(this.ball.position, true);
     this.trail.forEach((dot, i) => {
       dot.visible = progress > 0.03;
-      const p = ballPosition(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
+      const p = this.flight(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
     });
     const bounce = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
     const age = (progress - bounce) * delivery.durationMs;
@@ -894,7 +912,7 @@ export class GameScene {
     return charging ? 1 - CHARGE_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
   }
   swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false) {
-    const contact = ballPosition(delivery, GameScene.meetsAt(charging));
+    const contact = this.flight(delivery, GameScene.meetsAt(charging));
     this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
@@ -902,7 +920,7 @@ export class GameScene {
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
-    const p = ballPosition(delivery, GameScene.meetsAt(!!outcome.advance)); this.hitOrigin.set(p.x, p.y, p.z);
+    const p = this.flight(delivery, GameScene.meetsAt(!!outcome.advance)); this.hitOrigin.set(p.x, p.y, p.z);
     // The sweep is hit where the sweep goes — midwicket — rather than out along
     // the sector of the leg-side swipe that played it.
     // The orthodox sweep goes squarer than the slog does: the blade is level and
@@ -1171,7 +1189,9 @@ export class GameScene {
   }
   inspectBowler() {
     const b = this.bowler.figure.inspect();
-    return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1] };
+    return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1],
+      // Across the pitch, in the stage's frame: where he runs in, and where the ball leaves his hand.
+      x: this.bowlerHolder.scale.x * this.bowler.root.position.x, releaseX: this.releaseX, side: this.bowlerSide };
   }
   dispose() {
     this.resizeObserver.disconnect();

@@ -7,6 +7,12 @@ export class SeededRandom {
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   }
   range(min: number, max: number) { return min + this.next() * (max - min); }
+  /**
+   * A second stream, seeded off where this one stands and leaving it standing
+   * there: something new can be drawn from the seed without moving a single
+   * draw that came after it before.
+   */
+  fork(salt: number): SeededRandom { return new SeededRandom((this.seed ^ salt) >>> 0); }
   shuffle<T>(items: T[]): T[] {
     const result = [...items];
     for (let i = result.length - 1; i > 0; i--) {

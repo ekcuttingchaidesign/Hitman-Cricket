@@ -12,7 +12,7 @@ import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, marathonFastWear, marathonOnly, spun } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, marathonFastWear, marathonOnly, roundEvery, spun } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -598,6 +598,9 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Where every fielder is and what he is doing, for `field-check.mjs`.
       field: () => this.scene.fieldState,
+      // Where this ball is drawn `progress` of the way through its flight: from
+      // the hand round the wicket, for `marathon-check.mjs`.
+      drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
       // The Test look, for the checks: the green strip down, or the Blast's.
@@ -1183,7 +1186,13 @@ export class Game {
   private reverseOnly = new URLSearchParams(location.search).get('reverse') === '1';
   /** `?wear=fast`: every step of the Marathon in a fifth of the overs. See `marathonFastWear`. */
   private wearFast = new URLSearchParams(location.search).get('wear') === 'fast';
+  /** `?round=1`: every over of a Marathon bowled round the wicket, from the first. See `roundEvery`. */
+  private roundOnly = new URLSearchParams(location.search).get('round') === '1';
   private get plan() {
+    const plan = this.basePlan;
+    return this.marathoning && this.roundOnly ? roundEvery(plan) : plan;
+  }
+  private get basePlan() {
     if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
@@ -2026,6 +2035,7 @@ export class Game {
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
       this.scene.express(!!this.delivery.express);
+      this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
@@ -3266,6 +3276,7 @@ export class Game {
       gone: marathon.gone, ending: marathon.ending, canDeclare: marathon.canDeclare,
       health: marathon.current.health.value, level: this.generator.levelAt(over)?.level ?? null,
       bowler: this.generator.overKind(over), express: !!this.delivery?.express, action: this.scene.bowlerAction,
+      round: this.generator.roundAt(over), side: this.scene.bowlerSide,
       told: { ...this.told }, clouded: this.scene.clouded,
     };
   }

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION, PHASES, RELEASE_Z, RUNUP_START_Z, type ActionStyle } from '../src/entities/Bowler';
 import { Cricketer } from '../src/entities/Cricketer';
@@ -578,5 +578,87 @@ describe('the cricketer every fielder is built from', () => {
       fielder.catchAt(i / 10);
       for (const reach of [...fielder.inspect().armReach, ...fielder.inspect().legReach]) expect(reach).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+/** The stumps' half-width, near enough: three stumps and two gaps. */
+const STUMPS = .115;
+
+describe.each(ACTIONS)('round the wicket — %s', (_, style) => {
+  beforeEach(() => { bowler.action(style); bowler.round(true); });
+  afterEach(() => bowler.round(false));
+
+  it('runs in on the other side of the stumps', () => {
+    bowler.runup(.3);
+    const round = bowler.root.position.x;
+    bowler.round(false); bowler.runup(.3);
+    expect(round).toBeLessThan(-.3);
+    expect(bowler.root.position.x).toBeGreaterThan(.3);
+  });
+
+  it('lets the ball go out wide of them, at the height and the moment it always goes', () => {
+    bowler.round(false); bowler.runup(1);
+    const over = bowler.releasePoint();
+    bowler.round(true); bowler.runup(1);
+    const round = bowler.releasePoint();
+    expect(round.x).toBeLessThan(-.55);
+    expect(Math.abs(round.y - over.y)).toBeLessThan(.005);
+    expect(Math.abs(round.z - over.z)).toBeLessThan(.005);
+  });
+
+  it('says where the ball leaves his hand, on either side, without being watched to find out', () => {
+    for (const on of [false, true]) {
+      bowler.round(on); bowler.runup(.4);
+      const said = bowler.releaseX();
+      // Asking must not move him.
+      expect(bowler.figure.inspect()).toEqual(at(.4));
+      bowler.runup(1);
+      expect(Math.abs(said - bowler.releasePoint().x)).toBeLessThan(.005);
+    }
+  });
+
+  it('passes the stumps with his left side and never runs through them', () => {
+    for (const t of runup(60)) {
+      const s = at(t), x = bowler.root.position.x;
+      // His frame is the root's: across the pitch is that plus his own offsets.
+      for (const point of [s.shoulders[0], s.shoulders[1], s.feet[0], s.feet[1], s.hip]) expect(x + point[0]).toBeLessThan(-STUMPS);
+    }
+  });
+
+  it('runs off away from the stumps, not across the pitch', () => {
+    bowler.runup(1);
+    const released = bowler.root.position.x;
+    for (const p of [.2, .5, .9]) {
+      bowler.followThrough(p);
+      expect(bowler.root.position.x).toBeLessThanOrEqual(released + 1e-9);
+    }
+  });
+});
+
+describe('round the wicket — the spinner', () => {
+  afterEach(() => { bowler.round(false); bowler.spinner(false); });
+
+  it('lets it go from where he says, off his two paces as off the full run', () => {
+    bowler.action(PACE_ACTION); bowler.spinner(true);
+    for (const on of [false, true]) {
+      bowler.round(on); bowler.runup(1);
+      expect(Math.abs(bowler.releaseX() - bowler.releasePoint().x)).toBeLessThan(.005);
+    }
+    expect(bowler.releasePoint().x).toBeLessThan(-.55);
+  });
+});
+
+describe('an action he has not bowled before', () => {
+  it('is measured for where it lets the ball go, and leaves him on the frame he was showing', () => {
+    const fresh = new Bowler();
+    // Unknown to him until now, so asking measures it, halfway down his run.
+    const other: ActionStyle = { ...PACE_ACTION, lane: .4 };
+    fresh.action(other);
+    fresh.runup(.4);
+    const showing = fresh.figure.inspect();
+    const said = fresh.releaseX();
+    expect(fresh.figure.inspect()).toEqual(showing);
+    fresh.runup(1);
+    expect(Math.abs(said - fresh.releasePoint().x)).toBeLessThan(.005);
   });
 });

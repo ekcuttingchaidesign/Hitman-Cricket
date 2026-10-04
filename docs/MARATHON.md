@@ -70,13 +70,24 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 | Overs | Pace (seam & swing) | Spin | Express (the Level 3 bowler) |
 | --- | --- | --- | --- |
 | 1–10 | 7, Test Survival's bowling — swinging from over 6 | 3 | — |
-| 11–20 | 7, **more swing** (Level 2) | 2 | 1 |
-| 21 onwards, every 10 | 4, more swing | 2 | 4 |
+| 11–20 | 5, **more swing** (Level 2) | 2 | 3: the 11th, and two of the 13th–20th |
+| 21 onwards, every 10 | 3, more swing | 3 | 4 |
 
 - **The swing comes on at over 6**, half a block early: the first playtest
   made 284 in 22 overs, 240 of them by the opener, and found the gentle
   start too long. Who bowls each over is still the block's, so the express
   bowler's first over is still in 11–20.
+- **The express bowler comes on with the 11th**, always, and has two more of
+  the 13th to the 20th — never the 12th, because no bowler bowls two overs
+  running, and never two of his together. He had the 11th alone at first;
+  the next playtest asked for more of him before the 20th, and for every ten
+  after it to be four of his, three of spin and three of swing.
+- **Round the wicket, from over 6**: about three overs in ten, drawn per
+  over and kept for the over (`ROUND`). The bowler runs in on the other side
+  of the stumps and the ball leaves his hand out wide and angles in, to arrive
+  where it would have from over the wicket — only the angle it is read from
+  changes. Asked for after a playtest found every bowler bowling over the
+  wicket. `?round=1` puts every over round the wicket.
 - **Overs 1–10 are Test Survival's**, with one rule dropped: Survive gives its
   last two overs two bouncers each, because they are the end of its innings.
   Here they are the middle of one, so they are ordinary overs. Every pace

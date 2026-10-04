@@ -158,6 +158,9 @@ const first = await snap();
 check(first.marathon?.batter === 'OPENER', 'a Marathon starts with the opener in', JSON.stringify(first.marathon));
 check((await label())?.includes('OPENER IN'), 'and says so as he takes guard', await label());
 check(first.marathon?.level === 1 && first.marathon?.bowler === 'PACE', 'against Level 1 pace', JSON.stringify(first.marathon));
+const overTheWicket = await page.evaluate(() => window.__cricket.bowler());
+check(first.marathon?.side === 'over' && !first.marathon?.round && overTheWicket.x > .3,
+  'bowled over the wicket, from his left of the stumps', JSON.stringify(overTheWicket));
 check(await page.locator('#confidence').evaluate(el => el.classList.contains('is-injury')), 'with the injury meter, not confidence');
 check(await page.locator('#scoreboard').isVisible(), 'and the scoreboard, not a target to chase');
 check(await page.evaluate(() => window.__cricket.greenTop()), 'on the Test match\'s greener strip');
@@ -183,13 +186,24 @@ await block();
 // One blow from going, and every ball left alone until something gives: the
 // meter or the stumps. Either way the man who walks out next is standing.
 await page.evaluate(() => window.__cricket.hurt());
-let next = null;
+let next = null, physio = false;
 for (let i = 0; i < 24 && !next; i++) {
   await until('BALL_IN_FLIGHT');
   for (let j = 0; j < 30; j++) {
     await advance(400);
     const now = await snap();
-    // Paused on its own is a notice in the way, and nothing will bowl past it.
+    // Still in after a ball, one blow from going, he is told so: the physio's
+    // card, once a device, paused between balls. Whether a ball gets that far
+    // is the seed's business; BAT ON carries on, as it does for a player.
+    if (now.phase === 'PAUSED' && !physio && await page.locator('#hurt-note').isVisible()) {
+      physio = true;
+      check((await page.locator('#hurt-note').textContent())?.includes('PHYSIO ON'), 'one blow from going and still in, he is told so between balls', await page.locator('#hurt-note').textContent());
+      await page.locator('#hurt-note-done').click({ force: true });
+      await advance(50);
+      check((await snap()).phase !== 'PAUSED', 'and BAT ON carries on', (await snap()).phase);
+      break;
+    }
+    // Paused on its own otherwise is a notice in the way, and nothing will bowl past it.
     if (now.phase === 'PAUSED') throw new Error(`Paused between balls: ${await page.locator('#hurt-note').isVisible() ? 'the hurt note' : 'unknown'}`);
     if (now.phase === 'READY') { if (now.marathon.gone === 2) next = now; break; }
   }
@@ -273,10 +287,14 @@ await page.keyboard.press('r');
 await advance(800);
 check((await snap()).balls === 0, 'restarting starts again at nought');
 
-// ── The left-hander ────────────────────────────────────────────────────────
+// ── The left-hander, and round the wicket ──────────────────────────────────
 // Put at No. 3 by the link, so the man before him and the man after him show
-// the mirror coming on and going off again.
-await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=2`, { waitUntil: 'load' });
+// the mirror coming on and going off again. Every over round the wicket too,
+// which is otherwise drawn from the sixth: the bowler from the far side of the
+// stumps to the right-handed opener, and the same bowler mirrored with the
+// ground to the left-hander. Only the angle the ball is drawn from changes, so
+// nothing else here has to know.
+await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=2&round=1`, { waitUntil: 'load' });
 await advance(2500);
 await page.locator('#start').click({ force: true });
 await advance(400);
@@ -292,11 +310,46 @@ await advance(16);
 const sides = async () => [await page.locator('#side-left').textContent(), await page.locator('#side-right').textContent()].join(' / ');
 let hand = (await snap()).marathon;
 check(!hand.left && !hand.mirrored && hand.lefty === -1, 'the opener bats right-handed when the left-hander is No. 3', JSON.stringify(hand));
+// From here to the end of the section the clock moves only when the check
+// moves it. Left running, it runs on in real time behind every screenshot,
+// and the first frame a ball is out of the hand is long gone by the time the
+// check asks where it is.
+const freeze = async () => {
+  for (let tries = 0; ; tries++) {
+    try { await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 250); return; } catch (error) { if (tries > 8) throw error; }
+  }
+};
+await freeze();
+/** Half a second into the next run-up, and where the bowler is. */
+const runningIn = async () => {
+  for (let i = 0; i < 200 && (await snap()).phase !== 'BOWLER_RUNUP'; i++) await advance(20);
+  await advance(500);
+  return page.evaluate(() => window.__cricket.bowler());
+};
+const drawn = progress => page.evaluate(p => window.__cricket.drawn(p), progress);
+const round = await runningIn();
+check(hand.round && round.side === 'round' && round.x < -.3, `round the wicket, the bowler runs in on the far side of the stumps (${round.x.toFixed(2)})`, JSON.stringify(round));
+check(round.releaseX < -.5, `and lets the ball go out wide of them (${round.releaseX.toFixed(2)})`, JSON.stringify(round));
+const [from, to, line] = [await drawn(0), await drawn(1), Number((await snap()).finalX)];
+check(Math.abs(from[0] - round.releaseX) < .01, 'the ball drawn from his hand out there', JSON.stringify({ from, hand: round.releaseX }));
+check(Math.abs(to[0] - line) < .001, 'and angling in to reach the bat on its line, where it would have from over the wicket', JSON.stringify({ to, line }));
+await page.screenshot({ path: 'test-results/marathon-round-runup.png' });
+let leaving = null;
+for (let i = 0; i < 40 && !leaving; i++) { await advance(16); leaving = await page.evaluate(() => window.__cricket.field().ball); }
+check(!!leaving && Math.abs(leaving[0] - round.releaseX) < .15, 'and on the screen, the first frame it is out of his hand', JSON.stringify({ leaving, hand: round.releaseX }));
+const angling = await snap();
+await advance(angling.contactAt - angling.elapsed - 40);
+await page.keyboard.press('s');
+for (let i = 0; i < 30 && (await snap()).phase !== 'READY'; i++) await advance(400);
 hand = await write(['W']);
 check(hand.left && hand.mirrored, 'the No. 3 walks out left-handed, with the ground mirrored', JSON.stringify(hand));
 check((await label())?.includes('NO. 3 IN · TAKE YOUR GUARD'), 'and walks out like anybody else', await label());
 check(!(await page.locator('#coach').isVisible()), 'with no panel or arrow to say he is left-handed: it shows');
 check(await sides() === 'OFF SIDE / LEG SIDE', 'and the sides along the foot of the field the other way round', await sides());
+const mirroredRound = await runningIn();
+const mirroredFrom = await drawn(0);
+check(mirroredRound.side === 'round' && mirroredRound.x > .3 && mirroredRound.releaseX > .5 && Math.abs(mirroredFrom[0] - mirroredRound.releaseX) < .01,
+  'and to the left-hander the same bowler round the wicket, mirrored with the ground, the ball from his hand', JSON.stringify({ ...mirroredRound, from: mirroredFrom }));
 const lefty = await until('BALL_IN_FLIGHT');
 await advance(lefty.contactAt - lefty.elapsed - 40);
 await page.keyboard.press('d');
@@ -308,6 +361,8 @@ if (after.marathon.gone < 2) after = { marathon: await write(['W']) };
 hand = after.marathon;
 check(hand.batter === 'TAILENDER' && !hand.left && !hand.mirrored, 'the tailender after him is right-handed, and the mirror is off', JSON.stringify(hand));
 check(await sides() === 'LEG SIDE / OFF SIDE', 'with the sides back where they were', await sides());
+
+await page.clock.resume();
 
 // ── The levels, told: the swing under cloud, and the express bowler ───────
 // Written forward an over at a time, so each lands at the top of an over the
@@ -325,6 +380,10 @@ for (let i = 0; i < 8; i++) {
 await until('READY');
 await page.keyboard.press('r');
 await advance(16);
+// Held from here, as the left-hander's section is: the sky is measured off a
+// screenshot, which in software is slow enough for the clock to bowl the next
+// ball behind it, and an over can only be written between balls.
+await freeze();
 const banner = async () => (await page.locator('#level-banner').isVisible())
   ? [await page.locator('#lb-eyebrow').textContent(), await page.locator('#lb-title').textContent()].join(' / ') : null;
 const { width: W, height: H } = page.viewportSize();

@@ -151,7 +151,10 @@ greener strip and its wear — a stage as the swing comes, another with the
 express bowler — the swing's level banner, with the sky measured greyer off the
 pixels as the cloud comes over, the express bowler arriving untold in the
 eleventh over with his own action and the fast bowler's in the next, the left-hander — the ground mirrored while he is in and off again for
-the man after him, his pull on the key to the right — and the end card
+the man after him, his pull on the key to the right — round the wicket, by
+`?round=1`: the bowler from the far side of the stumps, the ball out of his
+hand out wide and angling in to reach the bat on its line, and the same
+mirrored for the left-hander, against the first over's over the wicket — and the end card
 offering the boards' claim strip and sending nothing that was not claimed;
 the mode has boards but no career yet. It writes most of
 the innings through `__cricket.marathon` and bats the rest.

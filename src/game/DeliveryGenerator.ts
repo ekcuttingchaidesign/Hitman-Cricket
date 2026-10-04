@@ -3,7 +3,7 @@ import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
 import {
-  EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, SWING_FROM, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
+  EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, ROUND, SWING_FROM, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
 } from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
@@ -53,6 +53,12 @@ export interface BlockPlan {
   /** The level one over is bowled at, where it is not simply its block's. */
   levelAt?(over: number): Level;
   express: typeof EXPRESS_OVER;
+  /**
+   * Which overs are bowled round the wicket: none before `from`, and each one
+   * after it with this chance. Absent, every over is bowled over the wicket.
+   * See `ROUND` in `config/marathon.ts`.
+   */
+  round?: { from: number; chance: number };
 }
 
 /**
@@ -226,8 +232,17 @@ export const MARATHON_PLAN: BowlingPlan = {
   ...SURVIVE_PLAN,
   spin: { ...SPIN, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
   short: { ...BOUNCERS, deathOvers: 0, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
-  blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, levelAt: marathonLevelAt, express: EXPRESS_OVER },
+  blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, levelAt: marathonLevelAt, express: EXPRESS_OVER, round: ROUND },
 };
+
+/**
+ * The Marathon with every over bowled round the wicket, from the first, for
+ * `?round=1`: the side is otherwise drawn, from the sixth over, so seeing it
+ * the honest way takes some batting.
+ */
+export function roundEvery(plan: BowlingPlan): BowlingPlan {
+  return plan.blocks ? { ...plan, blocks: { ...plan.blocks, round: { from: 0, chance: 1 } } } : plan;
+}
 
 /**
  * The Marathon with only the bowler being tested, from the first over, for
@@ -278,7 +293,7 @@ export function marathonFastWear(): BowlingPlan {
     const swinging = levelOf(1);
     return { ...levelOf(0), level: 2, swing: swinging.swing, late: swinging.late, swingShare: swinging.swingShare, reverse: swinging.reverse };
   };
-  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, size, levelAt } };
+  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, size, levelAt, round: { ...ROUND, from: swingFrom } } };
 }
 
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
@@ -306,6 +321,8 @@ export class DeliveryGenerator {
   private readonly spinning: Set<number>;
   /** Who bowls every over, when the plan is by blocks. Drawn whole, up front. */
   private readonly schedule: OverKind[] = [];
+  /** Which overs are bowled round the wicket, drawn up front the same way. */
+  private readonly sides: boolean[] = [];
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
     const blocks = plan.blocks;
     if (blocks) {
@@ -314,6 +331,14 @@ export class DeliveryGenerator {
       for (let block = 0; block * blocks.size < blocks.ofOvers; block++) {
         const before = this.schedule[this.schedule.length - 1] === 'EXPRESS';
         this.schedule.push(...drawBlock(blocks.levelOf(block), blocks.size, rng, before));
+      }
+      // From a stream of its own, forked off the seed rather than drawn from
+      // it: the side came after everything else, and taking it from the seed
+      // would have moved every ball each seed bowled before it.
+      const round = blocks.round;
+      if (round) {
+        const sides = rng.fork(0x726f756e);
+        for (let over = 0; over < blocks.ofOvers; over++) this.sides.push(over >= round.from && sides.next() < round.chance);
       }
     }
     this.spinning = plan.spin && !blocks ? spinOvers(rng, plan.spin, plan.short?.deathOvers ?? 0) : new Set();
@@ -337,6 +362,10 @@ export class DeliveryGenerator {
   }
   /** Whether it belongs to the express bowler. */
   get expressOn() { return this.overKind(this.over) === 'EXPRESS'; }
+  /** Whether over `over` is bowled round the wicket. */
+  roundAt(over: number): boolean { return this.sides[over] ?? false; }
+  /** And the ball about to be bowled. */
+  get roundOn() { return this.roundAt(this.over); }
   /** The overs he was given, for the HUD and for a test that there are three. */
   get spell(): readonly number[] { return [...this.spinning].sort((a, b) => a - b); }
   /** The bowler watches what happens to him and answers it next ball. */
@@ -499,6 +528,7 @@ export class DeliveryGenerator {
     if (QUICK_STYLES.includes(style)) this.quick++;
     const shape = this.plan.styles[style];
     const express = this.expressOn;
+    const round = this.roundOn;
     const pace = express ? style === 'SLOWER' ? this.plan.blocks!.express.slower : this.plan.blocks!.express : shape;
     const speedKph = Math.round(this.rng.range(pace.min, pace.max));
     // A plan by blocks swings it harder as the innings goes on, on the same
@@ -529,6 +559,7 @@ export class DeliveryGenerator {
       bounceZ: shape.bounce ?? GAME.bounceZ, rise: shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
-      ...(express ? { express: true } : {}) };
+      ...(express ? { express: true } : {}),
+      ...(round ? { round: true } : {}) };
   }
 }
