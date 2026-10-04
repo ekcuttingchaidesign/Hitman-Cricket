@@ -28,6 +28,14 @@ describe('what the update says it did', () => {
     expect(STORIES[0].full).toBe(true);
     expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).toContain('whatsnew-sheet is-full');
     expect(storiesMarkup({ at: 1, where: 'intro', holdMs: 1 })).not.toContain('is-full');
+    // Laid under the whole sheet, ahead of the words, with a blur of itself
+    // under the screen to melt into — not placed in the column with them.
+    const full = storiesMarkup({ at: 0, where: 'intro', holdMs: 1 });
+    expect(full).toContain('whatsnew-ambient');
+    expect(full.indexOf('whatsnew-art is-backdrop')).toBeGreaterThan(-1);
+    expect(full.indexOf('whatsnew-art is-backdrop')).toBeLessThan(full.indexOf('whatsnew-body'));
+    expect(full.match(/alt="[^"]{20,}"/g)).toHaveLength(1);
+    expect(storiesMarkup({ at: 1, where: 'intro', holdMs: 1 })).not.toContain('whatsnew-ambient');
     expect(STORIES.slice(0, 2).map(one => one.key)).toEqual(['marathon', 'marathon-card']);
     expect(STORIES.some(one => one.key.startsWith('rivals'))).toBe(false);
     expect(STORIES.slice(0, 2).every(one => one.body && !one.withKey)).toBe(true);

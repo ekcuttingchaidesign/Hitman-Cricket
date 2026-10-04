@@ -4910,7 +4910,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    top, the page itself as the control, and a key on the bottom edge that is
    there the whole time. Nothing here is a dialogue — there is nothing to
    answer — so the only thing it asks of a player is that they can leave. */
-.whatsnew-overlay{z-index:12;padding:0}
+.whatsnew-overlay{--column:440px;--lift:96px;z-index:12;padding:0}
 .whatsnew-sheet{
   /* Its own palette, the way every other sheet in this game declares one. The
      tokens are set per surface rather than on the root, so a screen that does
@@ -4921,7 +4921,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   position:relative;
   display:flex;
   flex-direction:column;
-  width:min(440px,100%);
+  width:min(var(--column),100%);
   height:100%;
   max-height:100%;
   margin:auto;
@@ -4994,19 +4994,80 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   line-height:1.15;
   text-wrap:balance
 }
-/* A story whose picture is the whole of it: drawn across the screen behind
-   everything, darkened at the top for the bars and at the foot for the key,
-   with the few words it has set big over the sky. */
-.whatsnew-sheet.is-full{isolation:isolate;background:#05101a}
-.whatsnew-sheet.is-full::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:linear-gradient(180deg,#000000a6 0%,#00000000 18%,#00000000 58%,#000000b3 86%,#000000e6 100%)}
-.is-full .whatsnew-art{position:absolute;inset:0;z-index:-2;pointer-events:none}
-.is-full .whatsnew-art img{width:100%;height:100%;max-width:none;max-height:none;object-fit:cover;object-position:50% 62%;border:0;border-radius:0;box-shadow:none}
-.is-full .whatsnew-body{justify-content:flex-start;gap:6px;padding-top:7vh}
-.is-full .whatsnew-eyebrow{padding:7px 14px;border-radius:16px;background:linear-gradient(90deg,#c8102e,#ff5f57);color:#fff;font-size:12px;font-weight:900;letter-spacing:.18em;box-shadow:0 6px 16px #0006}
-.is-full .whatsnew-title{max-width:8ch;margin-top:8px;font-family:var(--cta);font-weight:400;font-size:clamp(58px,17vw,84px);line-height:.88;letter-spacing:.01em;text-transform:uppercase;color:#fff;
-  -webkit-text-stroke:4px #000;paint-order:stroke fill;text-shadow:0 6px 0 #000,0 14px 30px #0009}
-.is-full .whatsnew-say{margin-top:12px;padding:7px 16px;border-radius:20px;background:#000000a6;color:#fff;font-size:17px;font-weight:700;letter-spacing:.02em}
+/* A story whose picture is the whole of it. Not a picture placed on the sheet:
+   the photograph runs edge to edge under the bars, and at its foot it melts
+   into a blur of itself that darkens into the night the few words and the key
+   stand on, so there is no edge anywhere where the picture stops and the page
+   starts. Wider than a phone, the same blur fills the screen either side of the
+   column and the photograph fades into it at the sides too.
+   The photograph is lifted rather than fitted: its foot, which is only the
+   out-of-focus sand, hangs behind the words, so the kit sits in the open
+   above them on a short screen as well as a tall one. */
+.whatsnew-ambient{position:absolute;inset:0;overflow:hidden;background:#06111b;pointer-events:none}
+.whatsnew-ambient img{position:absolute;left:0;bottom:var(--lift);width:100%;
+  height:max(calc(min(var(--column),100vw) * var(--tall,1.78)),calc(100% - var(--lift)));object-fit:fill;
+  filter:blur(40px) saturate(1.4) brightness(.7)}
+/* Stretched rather than cropped: across a wide screen the blur keeps the
+   photograph's own heights — sky, stands, pitch — level with the column, so
+   the seam where the one fades into the other has nothing to give it away. */
+.whatsnew-ambient::after{content:'';position:absolute;inset:0;
+  background:
+    linear-gradient(180deg,#06111b59 0%,#06111b00 26%,#06111b00 44%,#06111bc7 70%,#06111bf7 90%),
+    radial-gradient(80% 130% at 50% 38%,#06111b00 56%,#06111ba6 100%)}
+.whatsnew-sheet.is-full{background:none}
+.is-full .whatsnew-art.is-backdrop{position:absolute;inset:0;z-index:0;display:block;overflow:hidden;pointer-events:none;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%);mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%)}
+.is-full .whatsnew-art.is-backdrop img{position:absolute;left:0;bottom:var(--lift);width:100%;height:auto;min-height:calc(100% - var(--lift));
+  max-width:none;max-height:none;object-fit:cover;object-position:50% 100%;border:0;border-radius:0;box-shadow:none;
+  transform-origin:50% 72%;animation:wn-drift 9s cubic-bezier(.22,.61,.36,1) both}
+/* Over the photograph and faded with it: a shade under the bars, the corners
+   pulled down a little, and the sand darkening where the words begin. */
+.is-full .whatsnew-art.is-backdrop::after{content:'';position:absolute;inset:0;z-index:2;
+  background:
+    linear-gradient(180deg,#06111ba6 0,#06111b00 110px),
+    linear-gradient(180deg,#06111b00 42%,#06111b8c 66%),
+    radial-gradient(140% 80% at 50% 36%,#06111b00 58%,#06111b73 100%)}
+/* The low sun, where the photograph has it, breathing a little. */
+.is-full .whatsnew-art.is-backdrop::before{content:'';position:absolute;inset:0;z-index:1;mix-blend-mode:screen;
+  background:radial-gradient(46% 30% at 88% 24%,#ffb45c66 0%,#ffb45c00 70%);animation:wn-sun 6s ease-in-out .6s infinite alternate}
+@keyframes wn-drift{from{transform:scale(1.14)}to{transform:scale(1.02)}}
+@keyframes wn-sun{from{opacity:.55}to{opacity:1}}
+.is-full .whatsnew-bars{position:relative;z-index:2}
+.is-full .whatsnew-body{justify-content:flex-end;gap:0;padding:0 0 6px}
+.is-full .whatsnew-body>*{animation:wn-rise .9s cubic-bezier(.2,.75,.25,1) both}
+.is-full .whatsnew-eyebrow{position:relative;overflow:hidden;padding:6px 12px 5px;border-radius:999px;background:linear-gradient(90deg,#cd1f22,#ff6567);color:#fff;
+  font-family:var(--card);font-size:11px;font-weight:900;letter-spacing:.16em;box-shadow:0 6px 18px #cd1f2259;animation-delay:.2s}
+/* A glint across the tag now and then: it is the one thing on the screen that
+   is new, so it is the one thing that catches the light. */
+.is-full .whatsnew-eyebrow::after{content:'';position:absolute;inset:0;transform:translateX(-120%);
+  background:linear-gradient(105deg,#fff0 30%,#ffffff8c 50%,#fff0 70%);animation:wn-glint 4.5s ease-in-out 1.3s infinite}
+@keyframes wn-glint{0%{transform:translateX(-120%)}22%,100%{transform:translateX(120%)}}
+.is-full .whatsnew-title{margin-top:14px;font-family:var(--cta);font-weight:400;font-size:clamp(40px,14.2vw,62px);line-height:.9;
+  letter-spacing:.015em;text-transform:uppercase;white-space:nowrap;color:#fff;
+  background:linear-gradient(180deg,#fff 38%,#ffdcab 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 4px 16px #000a);animation-delay:.32s}
+.is-full .whatsnew-say{margin-top:10px;font-family:var(--card);font-size:17px;font-weight:600;line-height:1.35;letter-spacing:.01em;
+  color:#ffffffd9;text-shadow:0 2px 12px #0009;animation-delay:.46s}
+@keyframes wn-rise{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
+/* A screen too short for the kit and the words both, a phone on its side:
+   the photograph comes down nearer the foot, under the words. */
+@media (max-height:540px){.whatsnew-overlay{--lift:28px}}
+@media (min-width:480px){
+  .is-full .whatsnew-art.is-backdrop{
+    -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%),linear-gradient(90deg,#0000,#000 22%,#000 78%,#0000);
+    -webkit-mask-composite:source-in;
+    mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%),linear-gradient(90deg,#0000,#000 22%,#000 78%,#0000);
+    mask-composite:intersect}
+}
+/* Where the system paints its own colours, the title's gradient fill would
+   paint nothing at all. */
+@media (forced-colors:active){
+  .is-full .whatsnew-title{background:none;-webkit-text-fill-color:currentColor}
+}
+@media (prefers-reduced-motion:reduce){
+  .is-full .whatsnew-art.is-backdrop img,.is-full .whatsnew-art.is-backdrop::before,.is-full .whatsnew-body>*{animation:none}
+  .is-full .whatsnew-eyebrow::after{display:none}
+}
 /* The picture is the point, and it shrinks rather than pushing the key off the
    bottom of the screen — but it does not *grow* into the leftover room, or the
    card ends up marooned in the middle of the screen with a gap above it and a

@@ -51,6 +51,16 @@ await page.addInitScript(() => { try { localStorage.setItem('hitman-unveiled', '
 /** The page's own clock, wound on, then a beat of real time to draw in. */
 const tick = async (ms, draw = 200) => { await page.clock.runFor(ms); await page.waitForTimeout(draw); };
 const title = () => page.$eval('.whatsnew-title', node => node.textContent.trim());
+/**
+ * Stops the page's clock where it stands. Its time can run past the moment
+ * asked for between reading it and pausing at it, so it is read again and
+ * asked for again until it holds.
+ */
+async function freeze() {
+  for (let tries = 0; ; tries++) {
+    try { await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 250); return; } catch (error) { if (tries > 8) throw error; }
+  }
+}
 const seen = () => page.evaluate(() => localStorage.getItem('hitman-whatsnew'));
 async function arrive() {
   await tick(3000, 800);
@@ -62,20 +72,20 @@ await page.goto(`${base}/`, { waitUntil: 'load' });
 await arrive();
 
 // ── The first visit ────────────────────────────────────────────────────────
+// From here the clock moves only when the check moves it, and it is stopped
+// before the stories open rather than after. Left running, it runs on in real
+// time while a slow machine draws the first story — a photograph and a blur of
+// it across the screen — and a card's seven-second hold can be gone before the
+// next line runs, so the check reads the second card where the first should be.
+await freeze();
 await page.click('#start');
-const opened = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 })
-  .then(() => true).catch(() => false);
+let opened = false;
+for (let wound = 0; wound < 6000 && !opened; wound += 100) {
+  await page.clock.runFor(100);
+  opened = !!(await page.$('.whatsnew-sheet'));
+}
 check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
-// From here the clock moves only when the check moves it. Left running, it
-// runs on in real time while a slow machine decodes a story's picture, and a
-// card's seven-second hold can be gone before the next line runs — so the tap
-// meant for one card lands on the next, the last, and closes the stories.
-// The page's time can run past the moment asked for between reading it and
-// pausing at it, so it is read again and asked for again until it holds.
-for (let tries = 0; ; tries++) {
-  try { await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 250); break; } catch (error) { if (tries > 8) throw error; }
-}
 
 const first = await title();
 // A build that plays one mode has no picker to skip to, so the key says the
@@ -85,7 +95,15 @@ const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
 // The Test Marathon first, its picture across the whole story, loaded.
-const loaded = () => page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0);
+// Waited for from out here, a beat at a time: the page's own timers are the
+// ones standing still.
+async function loaded() {
+  for (let i = 0; i < 40; i++) {
+    if (await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0).catch(() => false)) return true;
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
 check(first === 'Test Marathon', 'it opens on the Test Marathon', first);
 check(await loaded(), 'with its card on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
 check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks for nothing');

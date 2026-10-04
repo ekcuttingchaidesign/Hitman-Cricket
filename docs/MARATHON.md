@@ -381,7 +381,13 @@ Each step is a pull request of its own, behind the flag until the last.
    `marathon-launch`, the Rivals launch's two cards are replaced by two of the
    Marathon's (a photograph of the kit on the square across the whole screen,
    with four words on it, then *Play long, score big* over the worm and
-   batting card from an end card), and the career key stays last. Turn the flag on
+   batting card from an end card), and the career key stays last. The
+   photograph is laid under the whole story rather than placed in its column:
+   its foot melts into a blur of itself that darkens into the words and the
+   key, and wider than a phone the same blur fills the screen either side, so
+   there is no edge anywhere where the picture stops. The first cut set it in
+   the column with the words in outlined capitals over the sky, and a
+   playtest found it placed rather than part of the screen. Turn the flag on
    (`VITE_SHOW_MARATHON`, which puts the card on production's picker and the
    Marathon tab on its board) in the same deploy as the merge — the story
    points at the mode, and on production without the flag the mode is not
