@@ -67,6 +67,11 @@ const opened = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 }
   .then(() => true).catch(() => false);
 check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
+// From here the clock moves only when the check moves it. Left running, it
+// runs on in real time while a slow machine decodes a story's picture, and a
+// card's seven-second hold can be gone before the next line runs — so the tap
+// meant for one card lands on the next, the last, and closes the stories.
+await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 1000);
 
 const first = await title();
 // A build that plays one mode has no picker to skip to, so the key says the
