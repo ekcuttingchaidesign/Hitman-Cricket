@@ -33,9 +33,9 @@ export const INTRO_STEPS: readonly IntroStep[] = [
   {
     title: 'Three batters',
     line: 'Bat until all three are gone',
-    // A cricket helmet in three-quarter profile: the dome, the peak over the
-    // brow, the ear guard, and the grille wrapped round the face in green.
-    art: svg('<path d="M10 46C6 27 16 10 33 8c12-1 20 6 22 16"/><path d="M38 23c9-1 17 1 24 4l-2 4c-7-2-15-3-22-3"/><path d="M10 46c3 4 8 6 14 6"/><path d="M24 52c3-7 7-15 14-24"/><path d="M18 33c4-1 8 1 9 5s-1 8-5 9-8-1-9-5 1-8 5-9Z"/><circle cx="22" cy="40" r="1.6" fill="currentColor"/><path class="acc" d="M38 30c8 0 15 1 20 4 2 6 1 13-4 17-7 4-16 4-24 1M35 38c8 1 16 1 23-1M31 46c8 1 16 1 23-1M47 31v21M56 34l-2 16"/>'),
+    // The helmet from the design (Figma, node 12-127): the shell with its peak
+    // and its vent, and the grille, all in white.
+    art: `<svg viewBox="100 66 428 384" fill="none" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M118 268C108 268 106 256 110 246C128 150 200 80 290 78C370 76 440 130 468 212L502 212C512 212 518 222 514 230C512 236 506 238 500 238L268 262L276 300C277 307 272 312 266 312L186 312C181 312 177 309 176 304L162 268ZM182 216H234A17 17 0 0 1 234 250H182A17 17 0 0 1 182 216Z"/><circle cx="190" cy="233" r="6" fill="currentColor"/><circle cx="226" cy="233" r="6" fill="currentColor"/><path stroke="currentColor" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" d="M192 316V368L224 436H456C470 436 476 428 478 416L486 340C487 330 480 324 470 325L262 340C256 341 252 336 252 330V316M198 386H482M332 338V436M414 331V436"/></svg>`,
   },
   {
     title: 'Focus to settle',

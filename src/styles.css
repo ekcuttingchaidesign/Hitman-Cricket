@@ -3164,6 +3164,18 @@ body.survive-mode #scoreboard{display:none}
 /* And the flag on Rivals only once there are matches to flag. */
 .mode-tile .mode-flag{position:absolute;top:5.4cqw;right:5.4cqw;height:7cqw;padding:0 3cqw;border-radius:3.5cqw;font-family:var(--card);font-weight:900;font-size:4cqw;letter-spacing:.08em}
 .mode-tile .mode-flag:not(.is-open){display:none}
+/* The way to the boards, the whole row under the two: the podium on the
+   right, the dark coming in over it. Twice a tile's width, so its words are
+   drawn at half the share of it to come out the same size. */
+.mode-tile-board{grid-column:1/-1;aspect-ratio:538/124;background:#202020}
+.mode-tile-board .mode-tile-art{left:46%;width:54%}
+.mode-tile-board .mode-tile-art img{object-position:50% 40%}
+.mode-tile-board::after{background:linear-gradient(90deg,#202020 46%,#20202000 72%)}
+.mode-tile-board .mode-tile-say{padding-left:3.7cqw}
+.mode-tile-board .mode-tile-name{font-size:6cqw}
+.mode-tile-board .mode-tile-go{width:4.9cqw;height:4.9cqw;margin-left:.7cqw}
+.mode-tile-board .mode-tile-go svg{width:2.9cqw;height:2.9cqw}
+.mode-tile-board .mode-tile-say em{margin-top:1.2cqw;font-size:3.3cqw}
 
 /* ── The match room ────────────────────────────────────────────────────────
    Deep blue with the light coming up from the foot, the faces in the middle,

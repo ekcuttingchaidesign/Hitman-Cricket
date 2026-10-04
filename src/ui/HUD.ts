@@ -128,6 +128,8 @@ const marathonPlate = new URL('../assets/marathon-plate.webp', import.meta.url).
 const challengePlate = 'challenge_mode.png';
 const fireball = 'fireball.webp';
 const rivalsCover = 'rivals_cover.webp';
+/** The podium on the mode screen's way to the boards. Drawn by `scripts/leaderboard-art.mjs`. */
+const leadersCover = 'leaderboard_cover.webp';
 /* The three plates the result card stands on. The loss is used twice: a man
    carried off and a man bowled twelve short are the same picture of the same
    over, and what separates them is the line above it, not the art. */
@@ -467,6 +469,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
                 <span class="mode-tile-say">
                   <b class="mode-tile-name">Rival <i class="mode-tile-go">${icon('arrow')}</i><br>matches</b>
                   <em id="modes-challenges-note" class="mode-tile-note">See who you've played</em>
+                </span>
+              </button>
+              <button id="modes-board" class="mode-tile mode-tile-board" type="button">
+                <span class="mode-tile-art" aria-hidden="true"><img src="${leadersCover}" alt="" decoding="async" /></span>
+                <span class="mode-tile-say">
+                  <b class="mode-tile-name">Leaderboards <i class="mode-tile-go">${icon('arrow')}</i></b>
+                  <em>See where you rank</em>
                 </span>
               </button>
             </div>
