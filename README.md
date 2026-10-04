@@ -844,6 +844,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `challenge-by-forfeit` | A result that was a walkout or a decline rather than two innings. How many matches never become matches. |
 | `challenge-players-2`, `…-3`, `…-4-plus` | How many were in the room when the result was read. Whether the forwarded link ever becomes a group. |
 | `rivals-list`, `rivals-head-to-head` | Rival Matches opened, and a friend's row tapped for the tally. Whether the record is looked at, and whether rivalries form. |
+| `rivals-ranking` | The Rivals ranking opened from the trophy key on Rival Matches. Whether anybody looks for it now it is behind an icon. |
 | `help-open` | The controls did not explain themselves. |
 | `feedback-open`, `feedback-open-link` | The questionnaire opened, and whether from inside the game or from the shared link. |
 | `feedback-cover`, `feedback-card`, `feedback-pause` | Which of the three lines into it is the one people actually use. |
@@ -906,9 +907,9 @@ Ties break on runs, sixes, fours; level on all three is a draw. A room lives a
 week; an innings left for a day is a forfeit; a challenge declined is a defeat.
 Every finished match goes on a record — won, lost, drawn — kept on the server
 for good and shown at the top of Rival Matches and under the cards on My Stats.
-The Rivals ranking, under the record on Rival Matches, ranks registered names
-on wins, then fewest losses, then runs, over every finished match — ten shown,
-the fifty behind a key. It was a tab on the leaderboard until the Test Marathon
+The Rivals ranking, behind the trophy key at the top of Rival Matches, ranks
+registered names on wins, then fewest losses, then runs, over every finished
+match — all fifty in a sheet over the list, scrolled to the player's own row. It was a tab on the leaderboard until the Test Marathon
 needed the room; a ranking of matches belongs with the matches. A stricter rule — a match counts
 only against a registered name — is written and switched off for now; see
 `src/config/rivals.ts`.

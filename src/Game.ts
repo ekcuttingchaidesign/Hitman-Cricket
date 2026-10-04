@@ -440,6 +440,7 @@ export class Game {
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
+    this.hud.on('challenge-list-ranking', () => { this.mark('rivals-ranking', 'The Rivals ranking opened'); this.hud.showRanking(); });
     this.hud.on('challenge-list-done', () => { this.hud.closeChallenge(); this.modes(); });
     this.hud.on('challenge-list-new', () => { this.hud.closeChallenge(); void this.openMatch(); });
     this.hud.on('rivalry-again', () => { this.hud.closeChallenge(); void this.challengeRival(); });

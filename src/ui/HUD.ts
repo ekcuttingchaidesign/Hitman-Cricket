@@ -516,11 +516,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <div class="mode-top room-top">
               <button id="challenge-list-done" class="mode-back" type="button" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="challenge-list-title" class="mode-heading">Rival Matches</h2>
+              <button id="challenge-list-ranking" class="mode-back rival-rank-key" type="button" aria-label="Rivals ranking" title="Rivals ranking">${icon('trophy')}</button>
             </div>
             <div id="challenge-sections" class="rival-sections"></div>
             <p id="challenge-list-copy" class="room-note"></p>
             <div class="room-keys"><button id="challenge-list-new" class="key-button" type="button">START A NEW MATCH</button></div>
           </div>
+        </div>
+        <div id="rivals-ranking" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivals-ranking-title">
+          <div id="rivals-ranking-sheet" class="ranking-sheet"></div>
         </div>
         <div id="challenge-rivalry" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivalry-tally">
           <div class="rival-sheet">
@@ -3016,7 +3020,27 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * last ten went. A row opens its room; accept and decline act on the spot.
    */
   /** Whether the Rivals ranking on Rival Matches has been opened out past its top ten. */
-  private rankingOpen = false;
+  /** The Rivals ranking as last handed over, for the sheet the trophy key opens. */
+  private ranking: RivalsBoardView | null = null;
+  private get rankingShown() { return !this.$('rivals-ranking').classList.contains('hidden'); }
+  /** The ranking in a sheet over Rival Matches, from the trophy key at its top. */
+  showRanking() {
+    if (!this.ranking) return;
+    this.drawRanking();
+    const overlay = this.$('rivals-ranking');
+    // A tap on the dark round the sheet puts it away, as the close key does.
+    overlay.onclick = event => { if (event.target === overlay) this.closeRanking(); };
+    overlay.classList.remove('hidden');
+    this.settle('rivals-ranking');
+  }
+  closeRanking() { this.$('rivals-ranking').classList.add('hidden'); }
+  private drawRanking() {
+    if (!this.ranking) return;
+    const sheet = this.$('rivals-ranking-sheet');
+    sheet.innerHTML = rivalsRankingMarkup(this.ranking);
+    sheet.querySelector<HTMLButtonElement>('#rivals-ranking-close')!.onclick = () => this.closeRanking();
+    sheet.querySelector('.is-you')?.scrollIntoView({ block: 'center' });
+  }
   challengeList(sections: ListSections, record?: RivalsRecord, ranking?: RivalsBoardView) {
     this.shutSheets();
     if (this.roomOpen) this.closeRoom();
@@ -3025,21 +3049,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const section = (title: string, rows: ListRowView[]) => rows.length
       ? `<h3 class="rival-section-head">${title}</h3><ul class="rival-rows">${rows.map(listRow).join('')}</ul>`
       : '';
-    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (ranking ? rivalsRankingMarkup(ranking) : '') + (total
+    this.ranking = ranking ?? null;
+    this.$('challenge-list-ranking').classList.toggle('hidden', !ranking);
+    if (this.rankingShown) this.drawRanking();
+    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
       ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
       : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
     this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a face for the head-to-head.' : '';
-    // The ranking's top ten, or all of it once asked for; a redrawn list keeps
-    // whichever the player chose.
-    const rankingBox = this.$('challenge-sections').querySelector<HTMLElement>('.rival-ranking');
-    const more = this.$('challenge-sections').querySelector<HTMLButtonElement>('#rival-ranking-more');
-    const openOut = (open: boolean) => {
-      this.rankingOpen = open;
-      rankingBox?.classList.toggle('is-open', open);
-      if (more) { more.setAttribute('aria-expanded', String(open)); more.textContent = open ? 'Show the top ten' : `Show all ${ranking?.rows.length ?? ''}`; }
-    };
-    openOut(this.rankingOpen);
-    if (more) more.onclick = () => openOut(!this.rankingOpen);
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
@@ -3111,6 +3127,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   /** Takes every challenge screen down. Called before putting one up. */
   shut() {
     this.shutSheets();
+    this.closeRanking();
     if (this.roomOpen) this.closeRoom();
     if (!this.$('challenge-list').classList.contains('hidden')) this.closeList();
   }

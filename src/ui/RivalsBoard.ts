@@ -11,10 +11,12 @@ import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals';
  * kept for good, over something the player did many times.
  *
  * It used to be a tab on the leaderboard sheet. Rivals is played from Rival
- * Matches and nowhere else, so its ranking lives there now, under the player's
- * own won–lost record, and the sheet's tab went to the Test Marathon
- * (`docs/MARATHON.md`, "The sheet's tabs"). The top ten show; the rest are a
- * key away, so the matches underneath stay within reach.
+ * Matches and nowhere else, so its ranking lives there now, behind a trophy
+ * key at the top of that screen, in a sheet of its own; the leaderboard's tab
+ * went to the Test Marathon (`docs/MARATHON.md`, "The sheet's tabs"). It sat
+ * in the list under the record for a while, the top ten and a key for the
+ * rest, and a playtest asked for it behind an icon, so the matches are the
+ * screen's first thing.
  *
  * A string of HTML built from figures, like every other sheet here, so the
  * whole of it can be checked in a test with no browser in the room.
@@ -27,25 +29,25 @@ export interface RivalsBoardView {
   size?: number;
 }
 
-/** How many rows the ranking shows before the key that opens out the rest. */
-export const RANKING_SHOWN = 10;
-
 export function rivalsRankingMarkup(view: RivalsBoardView): string {
   const { rows, youId = null, state = 'ready', size = 50 } = view;
   const place = rows.findIndex(row => row.playerId === youId);
   return `
-    <section class="rival-ranking" aria-label="Rivals ranking">
-      <h3 class="rival-section-head">RIVALS RANKING<small>top ${size}, all time</small></h3>
+    <section class="rival-ranking" aria-labelledby="rivals-ranking-title">
+      <div class="rival-ranking-head">
+        <h2 id="rivals-ranking-title">Rivals Ranking<small>top ${size}, all time</small></h2>
+        <button id="rivals-ranking-close" class="rival-ranking-close" type="button" aria-label="Close">×</button>
+      </div>
       <p class="rival-ranking-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
         state === 'loading' ? 'Fetching the board…'
         : state === 'offline' ? 'The board could not be reached.'
         : standing(rows, place)}</p>
+      <div class="rival-ranking-scroll">
       ${rows.length ? `<ol class="board-list rival-ranking-list">${rows.map((row, i) => rivalsRowMarkup(row, i, row.playerId === youId)).join('')}
       </ol>` : ''}
       ${state === 'ready' && !rows.length
         ? '<p class="board-cut">Nobody is on it yet. Win a Rivals match and the top is yours.</p>' : ''}
-      ${rows.length > RANKING_SHOWN
-        ? `<button id="rival-ranking-more" class="ghost-link rival-ranking-more" type="button" aria-expanded="false">Show all ${rows.length}</button>` : ''}
+      </div>
       <p class="rival-ranking-foot">Ranked on matches won, then fewest lost, then runs.${
         RIVALS_NEED_REGISTERED_RIVAL ? ' A match counts when somebody you played in it has a registered name.' : ''
       } Register a name to appear here.</p>

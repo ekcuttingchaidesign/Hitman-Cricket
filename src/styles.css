@@ -2619,25 +2619,38 @@ body.survive-mode #scoreboard{display:none}
   paint-order:stroke;
   text-anchor:middle
 }
-/* The Rivals ranking, on Rival Matches under the player's record: the top ten,
-   the player's own row wherever it falls, and the rest a key away so the
-   matches underneath are not pushed off the screen. */
-/* The board sheet's own colours, which its rows are written in: out here they
-   are not inherited from a sheet, so they are given again. */
-.rival-ranking{
+/* The Rivals ranking: a sheet over Rival Matches, from the trophy key at its
+   top. The board sheet's own colours, which its rows are written in, given
+   again because out here they are not inherited from a sheet. */
+.rival-rank-key{margin-left:auto}
+.rival-rank-key svg{width:20px;height:20px}
+.ranking-sheet{
   --ink:#f7f0e5;
   --quiet:#9fb2bd;
   --rule:#ffffff1c;
   --accent:#f2814f;
-  margin:16px 0 6px;
-  color:var(--ink)
+  width:min(420px,100%);
+  max-height:calc(100dvh - 48px);
+  margin:0 auto;
+  display:flex;
+  flex-direction:column;
+  border-radius:20px;
+  border:1px solid #35abe1;
+  background:linear-gradient(180deg,#10293b 0%,#0a1b28 100%);
+  box-shadow:0 24px 60px #00000080,inset 0 1px 0 #ffffff1f;
+  color:var(--ink);
+  overflow:hidden
 }
-.rival-ranking .rival-section-head{display:flex;justify-content:space-between;align-items:baseline}
-.rival-ranking-line{margin:2px 0 6px;font-size:13px;color:var(--quiet)}
+.rival-ranking{display:flex;flex-direction:column;min-height:0;padding:18px 16px 14px;color:var(--ink)}
+.rival-ranking-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.rival-ranking-head h2{margin:0;font-family:var(--cta);font-weight:400;font-size:26px;line-height:1;color:#fff}
+.rival-ranking-head h2 small{display:block;margin-top:6px;font-family:var(--card);font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--quiet)}
+.rival-ranking-close{flex:none;width:34px;height:34px;border:0;border-radius:50%;background:#ffffff14;color:#fff;font-size:22px;line-height:1;cursor:pointer}
+.rival-ranking-close:hover{background:#ffffff26}
+.rival-ranking-line{margin:10px 0 8px;font-size:13px;color:var(--quiet)}
 .rival-ranking-line b{color:var(--ink)}
-.rival-ranking:not(.is-open) .rival-ranking-list>li:nth-child(n+11):not(.is-you){display:none}
-.rival-ranking-more{display:block;margin:6px auto 0}
-.rival-ranking-foot{margin:8px 0 0;font-size:11px;line-height:1.4;color:var(--quiet)}
+.rival-ranking-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;contain:paint;margin:0 -4px;padding:0 4px}
+.rival-ranking-foot{margin:10px 0 0;font-size:11px;line-height:1.4;color:var(--quiet)}
 /* `?moments=1`: a key a milestone along the foot of the picture, over the
    doodles, for looking at each celebration without batting to it. */
 .moment-keys{
