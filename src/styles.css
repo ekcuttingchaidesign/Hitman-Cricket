@@ -5036,6 +5036,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* Cut at the top and the foot to fill the width, its top is already its own
    dark under the bars, so only the foot is faded, and only a little. */
 .whatsnew-film.is-cut{-webkit-mask-image:linear-gradient(180deg,#000 94%,#0000);mask-image:linear-gradient(180deg,#000 94%,#0000)}
+/* In a room taller than it, the box is the film's own shape, resting on the
+   way out, so the fades are on the film's edges and not somewhere above them. */
+.whatsnew-film.is-fit{top:auto;height:auto;aspect-ratio:1080/1920;
+  -webkit-mask-image:linear-gradient(180deg,#0000 0,#000 7%,#000 92%,#0000);mask-image:linear-gradient(180deg,#0000 0,#000 7%,#000 92%,#0000)}
 .whatsnew-film svg{display:block}
 .is-film .whatsnew-bars{position:relative;z-index:2}
 /* The picture is the point, and it shrinks rather than pushing the key off the

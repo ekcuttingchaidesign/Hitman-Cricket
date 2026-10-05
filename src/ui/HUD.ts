@@ -1015,7 +1015,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const film = document.getElementById('whatsnew-film');
     if (story?.film && film) {
       const wide = film.clientWidth / Math.max(1, film.clientHeight) > FILM_ASPECT;
-      film.classList.toggle('is-cut', wide);
+      // Measured across the whole room first; then cut to fill it, or shrunk to
+      // the film's own shape so its fades land on its own edges.
+      film.classList.add(wide ? 'is-cut' : 'is-fit');
       this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
     }
     if (story?.withKey) return;
