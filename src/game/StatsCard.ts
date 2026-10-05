@@ -681,14 +681,10 @@ export async function paintStatsCard(
   // first and floats on the second. A metal tier gets a second hairline inset
   // inside the first, which is the oldest trick there is for making a printed
   // thing look like it was worth printing.
-  ctx.strokeStyle = at(theme.accent, theme.metal ? 0.5 : 0.28);
+  ctx.strokeStyle = theme.edge ? at(theme.edge, 0.6) : at(theme.accent, theme.metal ? 0.5 : 0.28);
   ctx.lineWidth = 1;
   panel(ctx, 0.5, 0.5, width - 1, height - 1, STATS_CARD.radius); ctx.stroke();
-  if (theme.trim) {
-    // A card with a trim of its own wears it as the inset line, a pinstripe.
-    ctx.strokeStyle = at(theme.trim, 0.6);
-    panel(ctx, 4.5, 4.5, width - 9, height - 9, STATS_CARD.radius - 4); ctx.stroke();
-  } else if (theme.metal) {
+  if (theme.metal) {
     ctx.strokeStyle = at(theme.accent, 0.16);
     panel(ctx, 4.5, 4.5, width - 9, height - 9, STATS_CARD.radius - 4); ctx.stroke();
   }
@@ -747,7 +743,7 @@ export async function paintStatsCard(
     glass.addColorStop(1, theme.tileBottom);
     ctx.fillStyle = glass;
     panel(ctx, tx, cursor, tileW, HERO_H, 14); ctx.fill();
-    ctx.strokeStyle = at(theme.accent, 0.5);
+    ctx.strokeStyle = theme.edge ? at(theme.edge, 0.55) : at(theme.accent, 0.5);
     ctx.lineWidth = 1;
     panel(ctx, tx + 0.5, cursor + 0.5, tileW - 1, HERO_H - 1, 14); ctx.stroke();
     ctx.fillStyle = at(theme.trim ?? theme.accent, 0.95);
@@ -789,9 +785,18 @@ export async function paintStatsCard(
   cursor += gridRows(facts) * GRID_ROW_H + (gridRows(facts) - 1) * 6 + FOOT_TOP;
   ctx.fillStyle = rule;
   ctx.fillRect(left, Math.round(cursor - 12), contentW, 1);
+  // The address, in what room the key opposite leaves it. A preview's address
+  // is three times the length of the real one and ran under the key, so a
+  // long one is set smaller, and past that cut short.
+  ctx.font = font(700, 11.5);
+  const room = contentW - ctx.measureText('BEAT MY NUMBERS').width - 14;
+  let address = link ? link.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Hitman Cricket';
+  let size = 11.5;
+  ctx.font = font(600, size);
+  while (ctx.measureText(address).width > room && size > 9) ctx.font = font(600, size -= 0.5);
+  while (ctx.measureText(address).width > room && address.length > 4) address = `${address.slice(0, -2)}…`;
   ctx.fillStyle = quiet;
-  ctx.font = font(600, 11.5);
-  ctx.fillText(link ? link.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Hitman Cricket', left, cursor + FOOT_H);
+  ctx.fillText(address, left, cursor + FOOT_H);
   ctx.textAlign = 'right';
   ctx.fillStyle = theme.metal ? metal(ctx, theme, cursor + 2, 13) : accent;
   ctx.font = font(700, 11.5);

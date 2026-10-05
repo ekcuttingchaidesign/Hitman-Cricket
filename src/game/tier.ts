@@ -84,12 +84,19 @@ export interface Theme {
    */
   tint?: { colour: string; strength: number };
   /**
-   * A second colour for the trim, where a card carries one: the stamp at the
-   * top, the labels on the hero tiles and a pinstripe inset inside the edge.
-   * The tier's metal keeps the badge, the ring and the bar, so a Marathon STAR
-   * reads green, red and silver, and a HITMAN green, red and gold.
+   * A second colour for the type, where a card carries one: the stamp at the
+   * top and the labels on the hero tiles. The tier's metal keeps the badge,
+   * the ring and the bar, so a Marathon STAR reads green, red and silver, and
+   * a HITMAN green, red and gold. Light enough to read on the ground: it is
+   * type, and a red as dark as the glow behind it was too dark to be read.
    */
   trim?: string;
+  /**
+   * The card's own edge and the tiles' hairlines, where they should not be in
+   * the accent. A crimson line round a green card fought the ground rather
+   * than finishing it; a lighter cast of the green itself closes the card.
+   */
+  edge?: string;
 }
 
 export interface Tier {
@@ -248,25 +255,26 @@ export const TIERS: readonly Tier[] = [
  * times. The tier still shows, in the badge, the ring, the bar and the edges —
  * bronze, silver and gold all read on green, and the green darkens as they
  * climb, the way the other grounds go towards black. The red is crimson, not
- * the orange-red a Blast ball is: the stamp, the tile labels and a pinstripe
- * inside the edge on every rung, and on the first rung the badge and bar too,
- * where the others are blue — a blue badge on a green card is two cards.
+ * the orange-red a Blast ball is: rising from the foot, and in the stamp and
+ * the tile labels on every rung, lifted to a lighter cast so it reads as type;
+ * on the first rung the badge and bar are red too, where the others are blue —
+ * a blue badge on a green card is two cards. The edges stay green.
  */
 const MARATHON_GROUNDS: Record<string, Partial<Theme>> = {
   debutant: {
-    top: '#11492f', mid: '#0a3522', bottom: '#052416', ledge: '#010d06', mat: '#02100a',
-    quiet: '#a7c1b1', accent: '#d4243c', sheen: '#f58a98', bloom: 0.12,
+    top: '#0a2e1d', mid: '#061f13', bottom: '#03130b', ledge: '#000704', mat: '#010a06',
+    quiet: '#a7c1b1', accent: '#ff5c70', sheen: '#ffa3ae', bloom: 0.1,
   },
-  emerging: { top: '#0f3f28', mid: '#082c1c', bottom: '#041a10', ledge: '#010804', mat: '#020c06', quiet: '#b5ad8e' },
-  star: { top: '#0c3222', mid: '#062116', bottom: '#02110a', ledge: '#000403', mat: '#010805', quiet: '#99ada3' },
-  hitman: { top: '#0d3020', mid: '#061f14', bottom: '#021009', ledge: '#000302', mat: '#010704', quiet: '#aea582' },
+  emerging: { top: '#09291a', mid: '#051b10', bottom: '#021009', ledge: '#000503', mat: '#010805', quiet: '#b5ad8e' },
+  star: { top: '#082518', mid: '#04170e', bottom: '#010c07', ledge: '#000302', mat: '#010604', quiet: '#99ada3' },
+  hitman: { top: '#082418', mid: '#04160d', bottom: '#010b06', ledge: '#000302', mat: '#010604', quiet: '#aea582' },
 };
 
 /** Crimson: the Marathon's red, in the trim and rising through the green. */
 export const MARATHON_RED = '#c8102e';
 
 /** How strongly the red rises through the green, by rung. */
-const MARATHON_TINT: Record<string, number> = { debutant: 0.42, emerging: 0.38, star: 0.36, hitman: 0.36 };
+const MARATHON_TINT: Record<string, number> = { debutant: 0.4, emerging: 0.36, star: 0.34, hitman: 0.34 };
 
 /** What a tier's card is made of in a mode: its own material, or the Marathon's green. */
 export function cardTheme(mode: CareerMode, tier: Tier): Theme {
@@ -275,7 +283,8 @@ export function cardTheme(mode: CareerMode, tier: Tier): Theme {
     ...tier.theme,
     ...MARATHON_GROUNDS[tier.key],
     tint: { colour: MARATHON_RED, strength: MARATHON_TINT[tier.key] ?? 0.36 },
-    trim: '#e2364f',
+    trim: '#ff6f80',
+    edge: '#3f7d5a',
   };
 }
 

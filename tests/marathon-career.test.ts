@@ -121,7 +121,8 @@ describe('the Marathon card\'s ground', () => {
       const theme = cardTheme('marathon', tier);
       for (const stop of [theme.top, theme.mid, theme.bottom]) expect(green(stop), `${tier.key} ${stop}`).toBe(true);
       expect(theme.tint?.colour).toBe(MARATHON_RED);
-      expect(theme.trim).toBe('#e2364f');
+      expect(theme.trim).toBe('#ff6f80');
+      expect(theme.edge).toBe('#3f7d5a');
       expect(theme.tint!.strength).toBeGreaterThan(0);
     }
   });
@@ -129,7 +130,7 @@ describe('the Marathon card\'s ground', () => {
   it('leaves the tier to the badge: bronze, silver and gold stay, the first rung turns red', () => {
     const [debutant, ...metals] = TIERS;
     for (const tier of metals) expect(cardTheme('marathon', tier).accent).toBe(tier.theme.accent);
-    expect(cardTheme('marathon', debutant).accent).toBe('#d4243c');
+    expect(cardTheme('marathon', debutant).accent).toBe('#ff5c70');
   });
 
   it('is the Marathon\'s alone', () => {
