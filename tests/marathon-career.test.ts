@@ -102,11 +102,14 @@ describe('the Marathon card', () => {
     for (const one of [...facts.hero, ...facts.figures]) expect(statsExplain(one.label), one.label).not.toBeNull();
   });
 
-  it('climbs its own ladder in runs, on the Blast\'s rungs', () => {
-    for (const tier of TIERS) expect(tier.at.marathon).toBe(tier.at.classic);
+  it('climbs its own ladder in runs, at twice the Blast\'s rungs, rounded', () => {
+    expect(TIERS.map(tier => tier.at.marathon)).toEqual([0, 750, 7500, 30000]);
     expect(standingOf('marathon', career).tier.key).toBe('debutant');
-    expect(nextLine('marathon', standingOf('marathon', career))).toBe('79 runs to EMERGING PLAYER');
-    expect(standingOf('marathon', { ...career, runs: 3600 }).tier.key).toBe('star');
+    expect(nextLine('marathon', standingOf('marathon', career))).toBe('479 runs to EMERGING PLAYER');
+    expect(standingOf('marathon', { ...career, runs: 7499 }).tier.key).toBe('emerging');
+    expect(standingOf('marathon', { ...career, runs: 7500 }).tier.key).toBe('star');
+    expect(standingOf('marathon', { ...career, runs: 29999 }).tier.key).toBe('star');
+    expect(standingOf('marathon', { ...career, runs: 30000 }).tier.key).toBe('hitman');
   });
 });
 

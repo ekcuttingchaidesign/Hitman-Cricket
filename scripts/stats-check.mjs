@@ -127,7 +127,7 @@ if (slides.length > 1) {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
       const pick = (fx, fy) => [...ctx.getImageData(Math.round(img.naturalWidth * fx), Math.round(img.naturalHeight * fy), 1, 1).data].slice(0, 3);
-      return { top: pick(0.12, 0.08), foot: pick(0.75, 0.97) };
+      return { top: pick(0.12, 0.08), foot: pick(0.75, 0.86) };
     }).catch(error => ({ error: String(error) }));
     const [r, g, b] = ground.top ?? [0, 0, 0];
     check(g > r * 1.6 && g > b * 1.2, 'on a green card', JSON.stringify(ground));

@@ -388,7 +388,7 @@ Each step is a pull request of its own, behind the flag until the last.
    Test Survival and in British Racing Green, wherever the mode can be played: highest total and best
    individual score as the two big figures, then career runs, runs per
    innings, fifties, hundreds, doubles and the longest innings in balls, and a
-   tier in career runs on the Blast's rungs (`MARATHON_CAREER` in
+   tier in career runs at twice the Blast's rungs — 750, 7,500, 30,000 (`MARATHON_CAREER` in
    `src/game/career.ts`, `marathonFacts` in `StatsCard.ts`). A finished
    innings is counted in `end`, as every mode's is, from the very figures its
    boards are sent — so the career refuses exactly what the boards refuse —

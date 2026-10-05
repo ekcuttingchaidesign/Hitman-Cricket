@@ -118,11 +118,18 @@ export interface Tier {
    * seven innings to the second rung, sixty-odd to the third, and a month of
    * heavy play to the top, whichever mode is being played.
    *
-   * The Test Marathon's is the Blast's, in runs, and for the same reason
-   * measured the other way round: its innings are three to five times as long,
-   * but `scripts/marathon-sim.ts` has it scored at about two runs a ball, near
-   * enough the Blast's rate — so a run costs the same time at the crease in
-   * either, and the same number of them is the same effort.
+   * The Test Marathon's is in runs, like the Blast's, at twice its rungs:
+   * 750, 7,500 and 30,000. A run costs about the same time at the crease in
+   * either — `scripts/marathon-sim.ts` has the Marathon scored at a little
+   * over two runs a ball, near enough the Blast's rate — but the ladder is a
+   * claim about a stretch of the calendar, and the Marathon banks runs far
+   * faster in it: an innings is twenty minutes and more, not three or four, so
+   * one or two a day is 250 to 700 runs, where a Blast player's day is about
+   * 140. On the Blast's rungs a regular Marathon player was a HITMAN in three
+   * to eight weeks, and a strong one's best innings is 500 to 900, which made
+   * fifteen thousand twenty good days. Doubled, the top is a season again.
+   * The day's rate is a guess until the mode has been played: when it has,
+   * this is the line to change.
    */
   at: Record<CareerMode, number>;
   /** One line saying what it took, for the card and for a screen reader. */
@@ -188,7 +195,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'emerging',
     name: 'EMERGING PLAYER',
-    at: { classic: 350, survive: 100, marathon: 350 },
+    at: { classic: 350, survive: 100, marathon: 750 },
     blurb: 'Making a name out there.',
     // Bronze, and dark. A warm ground rather than navy tinted brown, or the
     // copper has nothing to be warm against — but a long way below where it
@@ -208,7 +215,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'star',
     name: 'STAR',
-    at: { classic: 3600, survive: 1000, marathon: 3600 },
+    at: { classic: 3600, survive: 1000, marathon: 7500 },
     blurb: 'People turn up to watch.',
     // Black and silver, in that order. The ground is a neutral near-black with
     // just enough lift at the top to keep an edge; the silver is spent on the
@@ -228,7 +235,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'hitman',
     name: 'HITMAN',
-    at: { classic: 15000, survive: 4250, marathon: 15000 },
+    at: { classic: 15000, survive: 4250, marathon: 30000 },
     blurb: 'The one the game is named for.',
     // Black and gold, and the only card in the game that gets to be either.
     // The ground is black with the faintest warmth in it rather than a dark
