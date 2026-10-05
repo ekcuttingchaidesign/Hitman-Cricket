@@ -29,10 +29,16 @@ const counter = (): GoatCounter | undefined => (window as unknown as { goatcount
  * does a page opened with a seed or the debug flag on, which is how the browser
  * checks play their innings — a scripted thirty balls is not a player, and a
  * dashboard that cannot tell the two apart is worth nothing.
+ *
+ * Nor does a Vercel preview: it is where a change is tried before it ships,
+ * by the people making it, and its visits landed in the same dashboard as the
+ * players'. Off Vercel the build carries no environment at all, and that is
+ * counted as before.
  */
-export function counting(where: { hostname: string; search: string }) {
+export function counting(where: { hostname: string; search: string }, vercelEnv: string = import.meta.env.VITE_VERCEL_ENV ?? '') {
   const params = new URLSearchParams(where.search);
   if (params.has('seed') || params.get('debug') === '1') return false;
+  if (vercelEnv === 'preview' || vercelEnv === 'development') return false;
   return !/^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(where.hostname);
 }
 
@@ -192,4 +198,48 @@ export function restoreFailure(reason: string | null | undefined): 'shape' | 'mi
   if (/three words and two numbers/i.test(reason ?? '')) return 'shape';
   if (/do not go together/i.test(reason ?? '')) return 'mismatch';
   return 'busy';
+}
+
+/**
+ * A Test Marathon's total, in bands. Its own, because the Blast's top out at a
+ * hundred, which is where a Marathon is barely started: the simulator has a
+ * middling player at about 125 and a strong one at 350, and the boards run to
+ * the five hundreds.
+ */
+export function marathonTotalBand(runs: number) {
+  if (runs < 50) return 'total-0-49';
+  if (runs < 100) return 'total-50-99';
+  if (runs < 150) return 'total-100-149';
+  if (runs < 200) return 'total-150-199';
+  if (runs < 300) return 'total-200-299';
+  if (runs < 400) return 'total-300-399';
+  if (runs < 500) return 'total-400-499';
+  return 'total-500-plus';
+}
+
+/** The most one of the three made, cut at the marks the game celebrates. */
+export function marathonBestBand(runs: number) {
+  if (runs < 25) return 'best-0-24';
+  if (runs < 50) return 'best-25-49';
+  if (runs < 100) return 'best-50-99';
+  if (runs < 150) return 'best-100-149';
+  if (runs < 200) return 'best-150-199';
+  if (runs < 300) return 'best-200-299';
+  return 'best-300-plus';
+}
+
+/**
+ * How long a Marathon went, in completed overs, cut where its bowling changes:
+ * the swing at six, the express bowler at eleven, the declaration at twenty,
+ * and the cycle of ten that runs from the twenty-first.
+ */
+export function marathonOversBand(balls: number) {
+  const overs = Math.floor(balls / 6);
+  if (overs < 5) return 'overs-0-4';
+  if (overs < 10) return 'overs-5-9';
+  if (overs < 20) return 'overs-10-19';
+  if (overs < 30) return 'overs-20-29';
+  if (overs < 50) return 'overs-30-49';
+  if (overs < 70) return 'overs-50-69';
+  return 'overs-70-plus';
 }

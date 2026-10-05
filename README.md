@@ -841,6 +841,13 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `survive-injury-0-24` … `survive-injury-retired` | Where the meter finished, in the bands the simulator reports, so the live spread sets against the modelled one without arithmetic. |
 | `survive-blows-0` … `survive-blows-5-plus` | How many blows he took. Read beside the meter rather than instead of it: one on the helmet costs more than two on the pad. |
 | `survive-balls-under-1-over` … `survive-balls-8-10-overs` | How long the last man lasted, in overs rather than balls, because that is how a Test innings is read. |
+| `marathon-…` | The same again for a Test Marathon: `marathon-innings-start`, `-innings-end`, `-claim-done` and the rest, plus the Marathon's own — `-intro`, `-intro-finished`, `-intro-skipped`, `-batter-settled`, `-batter-out`, `-batter-retired`, `-declared`. |
+| `marathon-ended-all-out`, `…-retired`, `…-declared`, `…-balls` | How a Marathon ended: three men gone, the last carried off, declared, or the five hundredth ball. |
+| `marathon-total-0-49` … `marathon-total-500-plus` | What the side made, on the Marathon's own scale: the Blast's bands stop at a hundred, where a Marathon has barely started. |
+| `marathon-best-0-24` … `marathon-best-300-plus` | The most any one of the three made, cut at the marks the game celebrates. |
+| `marathon-overs-0-4` … `marathon-overs-70-plus` | How long it went, in completed overs, cut where the bowling changes: the swing at six, the express bowler at eleven, the declaration at twenty. |
+| `fifty`, `century`, `six-sixes`, and `survive-…`, `marathon-…` of each | A milestone reached in an innings, under its mode's prefix like everything else about an innings. The Marathon's own: `marathon-raise-150`, `-raise-250`, `-raise-350`, `-double`, `-triple`, `-four`. Not sent for a moment asked for with `?moments=1`. |
+| `practice-…` | Any of the above from a practice link — a test switch on, `?nets=1` and the like — so the nets and the tuning switches are counted apart from the innings they would swell: `practice-marathon-innings-end`, `practice-score-25-49`. |
 | `share-whatsapp`, `share-story`, `share-link` | The taps. Whether the sheet was then sent, no browser will say. |
 | `challenge-set`, `challenge-rematch` | A Rivals room made, and one made off the back of a result. Against `challenge-joined`, how many invitations find a taker. |
 | `challenge-shared`, `challenge-copied` | The link sent through the phone's sheet, or copied to paste somewhere. The taps, as above. |
@@ -865,7 +872,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `innings-under-30s` … `innings-over-5m` | How long an innings took, in each mode under its own prefix. |
 | `played-1m`, `played-3m`, `played-5m`, `played-10m`, `played-20m`, `played-30m` | Marks a session got past. |
 
-`counting()` in `src/game/analytics.ts` decides who is counted: not localhost, and not a page opened with `?seed=` or `?debug=1`, which is how the browser checks and a tuning session play their innings. A scripted thirty balls is not a player. The counter script is loaded async, so events raised before it lands queue for up to fifteen seconds and go out when it does; if it never lands — a blocked script, an ad blocker — the queue is dropped and the innings is untouched. Nothing here can throw into the game loop.
+`counting()` in `src/game/analytics.ts` decides who is counted: not localhost, not a page opened with `?seed=` or `?debug=1`, which is how the browser checks and a tuning session play their innings, and not a Vercel preview, which is where a change is tried by the people making it. A scripted thirty balls is not a player. A build off Vercel carries no environment and is counted as before. The counter script is loaded async, so events raised before it lands queue for up to fifteen seconds and go out when it does; if it never lands — a blocked script, an ad blocker — the queue is dropped and the innings is untouched. Nothing here can throw into the game loop.
 
 ### Time, and how it is measured
 
