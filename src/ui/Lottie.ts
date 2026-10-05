@@ -12,7 +12,7 @@
  * what happened, it just does not move to say it.
  */
 
-export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame';
+export type Film = 'win' | 'lose' | 'draw' | 'waiting' | 'joined' | 'flame' | 'test-marathon';
 
 export interface Playing {
   /** Takes the film down and frees what it was holding. */
@@ -36,7 +36,7 @@ const src = (film: Film) => `lotties/${film}.json`;
  * Nothing here throws: a film that cannot load leaves an empty slot, and every
  * screen that carries one reads without it.
  */
-export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolean } = {}): Playing {
+export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolean; fit?: string } = {}): Playing {
   host.innerHTML = '';
   host.dataset.film = film;
   let gone = false;
@@ -50,7 +50,7 @@ export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolea
       loop: options.loop ?? false,
       autoplay: !still,
       path: src(film),
-      rendererSettings: { preserveAspectRatio: 'xMidYMid meet', progressiveLoad: true },
+      rendererSettings: { preserveAspectRatio: options.fit ?? 'xMidYMid meet', progressiveLoad: true },
     });
     if (still) animation.goToAndStop(Math.max(0, animation.totalFrames - 1), true);
   }).catch(() => { /* No film. The words above it still say what happened. */ });

@@ -91,7 +91,6 @@ const first = await title();
 const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
-// The Test Marathon first, its picture across the whole story, loaded.
 // Waited for from out here, a beat at a time: the page's own timers are the
 // ones standing still.
 async function loaded() {
@@ -101,24 +100,33 @@ async function loaded() {
   }
   return false;
 }
+/** The film, drawn: Lottie's svg in the story, with its picture of the kit in it. */
+async function playing() {
+  for (let i = 0; i < 60; i++) {
+    if (await page.$eval('#whatsnew-film svg', svg => svg.querySelectorAll('image, path').length > 20).catch(() => false)) return true;
+    await page.clock.runFor(100);
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
+// The Test Marathon first, as a film across the whole story.
 check(first === 'Test Marathon', 'it opens on the Test Marathon', first);
-check(await loaded(), 'with its card on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+check(await playing(), 'with its film on the screen, playing');
+check(await page.$eval('#whatsnew-film', film => film.getAttribute('aria-label')?.length > 40),
+  'which a screen reader is told about in words');
 check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks for nothing');
 
-// A card that asks for nothing moves on by itself after its seven seconds.
-// Wound in half-second steps until it does: the installed clock also runs on
-// by itself in real time, and one long wind on a slow machine carries a card
-// past its own hold and the next one's too.
-for (let wound = 0; wound < 9000 && await title() === first; wound += 500) await tick(500, 150);
-check(await title() === 'Play long, score big', 'which moves on by itself to the scorecard', await title());
-check(await loaded(), 'with the scorecard on the screen, loaded');
-
-// A tap on the right half goes on, to the meme, last.
-await page.click('#whatsnew-next');
-await tick(400);
+// The film runs nine seconds, and the story holds a beat past it before it
+// moves on by itself. Wound in half-second steps until it does: the installed
+// clock also runs on by itself in real time, and one long wind on a slow
+// machine carries a card past its own hold and the next one's too.
+let held = 0;
+for (; held < 14000 && await title() === first; held += 500) await tick(500, 150);
+check(held >= 9000, 'holding for the whole film', `${held}ms`);
 const meme = await title();
-check(meme === 'Save your career key', 'a tap on goes to the meme, last', meme);
+check(meme === 'Save your career key', 'and moves on by itself to the meme, last', meme);
 check(await loaded(), 'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+check(!(await page.$('#whatsnew-film')), 'and the film is gone with its story');
 // A nameless first visit holds no key, so there is no card to save one.
 check(!(await page.$('#whatsnew-keyslot .key-pass')), 'a player with no name is shown no key card');
 check(!(await page.$('#whatsnew-key-restore')), 'and no way back either');
@@ -131,7 +139,7 @@ check(!!(await page.$('.whatsnew-sheet')) && await title() === meme, 'the story 
 // And a tap on the left half goes back.
 await page.click('#whatsnew-back');
 await tick(400);
-check(await title() === 'Play long, score big', 'a tap back goes back a card', await title());
+check(await title() === 'Test Marathon', 'a tap back goes back a card', await title());
 
 await page.click('#whatsnew-done');
 await tick(700);

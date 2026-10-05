@@ -43,29 +43,26 @@ export function storiesMarkup(view: StoriesView): string {
   const { at, where, holdMs, locked = false, careerKey = null } = view;
   const story = STORIES[at] ?? STORIES[0];
   const live = (i: number) => i !== at ? '' : story.withKey ? ' is-live is-held' : ' is-live';
-  const art = `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
-    story.height ?? story.width}" draggable="false">`;
-  // A story that is all picture lays it under the whole sheet rather than in
-  // the column of words, and a blur of the same picture under the whole screen
-  // behind that, for the photograph to melt into wherever it stops.
-  return `${story.full ? `
-    <div class="whatsnew-ambient" aria-hidden="true" style="--tall:${((story.height ?? story.width) / story.width).toFixed(4)}"><img src="${
-  story.art}" alt="" draggable="false"></div>` : ''}
-    <div class="whatsnew-sheet${story.full ? ' is-full' : ''}" role="document" aria-roledescription="story">${
-  story.full ? `
-      <div class="whatsnew-art is-backdrop">${art}</div>` : ''}
+  const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
+    story.height ?? story.width}" draggable="false">` : '';
+  // A film is the whole story: played down the sheet from the top, under the
+  // bars and over nothing, with the way out under it. It says its own words.
+  return `
+    <div class="whatsnew-sheet${story.film ? ' is-film' : ''}" role="document" aria-roledescription="story">${
+  story.film ? `
+      <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
-  i === at && !story.withKey ? ` style="--hold:${holdMs}ms"` : ''}><i></i></span>`).join('')}
+  i === at && !story.withKey ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
       </div>
       <button id="whatsnew-back" class="whatsnew-half is-back" type="button" aria-label="Previous"></button>
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">
-        <p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>
-        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.full ? '' : `
+        ${story.film ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
+        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${art ? `
         <div class="whatsnew-art">
           ${art}
-        </div>`}
+        </div>` : ''}
         ${story.body ? `<p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>` : ''}
         ${story.withKey ? `<div id="whatsnew-keyslot" class="whatsnew-keyslot">${
   storyKeyMarkup(careerKey)}</div>` : ''}

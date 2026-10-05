@@ -1,3 +1,5 @@
+import type { Film } from '../ui/Lottie';
+
 /**
  * What changed, told the way a story is told.
  *
@@ -5,13 +7,12 @@
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the Test Marathon: two cards for the mode, pictures of the
- * screens themselves — the card it is found by, and the scorecard a long
- * innings ends on — and then the key — said as a joke, with the key itself under it
- * so the ask and the means of doing it are on the same screen. The key goes
- * last because it is the one card that holds still: everything before it moves
- * on by itself, and a player tapping through lands on the card that wants
- * something from them rather than skipping past it.
+ * This update is the Test Marathon: one card for the mode, a film of it, and
+ * then the key — said as a joke, with the key itself under it so the ask and
+ * the means of doing it are on the same screen. The key goes last because it
+ * is the one card that holds still: the film before it moves on by itself, and
+ * a player tapping through lands on the card that wants something from them
+ * rather than skipping past it.
  */
 
 /**
@@ -19,17 +20,6 @@
  * is written encoded. Relative, because the build is served from `./`.
  */
 const meme = 'save%20key%20meme.png';
-
-/**
- * The Marathon's two pictures: the kit on the square at golden hour, shown
- * across the whole story with the mode's name over the sky, and a broadcast
- * scorecard of a big innings drawn by `scripts/marathon-story-art.mjs`. Not
- * screenshots — the first cut photographed the screens, and a launch read as
- * a screenshot. Imported rather than served from `public/`, so the build
- * fingerprints them. (The Rivals launch's two pictures are kept beside them.)
- */
-const marathonIntro = new URL('../assets/whatsnew/marathon-intro.webp', import.meta.url).href;
-const marathonCard = new URL('../assets/whatsnew/marathon-card.webp', import.meta.url).href;
 
 export interface Story {
   key: string;
@@ -42,11 +32,12 @@ export interface Story {
   title: string;
   /** The line under the picture, where the picture needs one. */
   body?: string;
-  art: string;
-  /** What the picture shows, for whoever cannot see it. */
+  /** The picture, for a story that is one. */
+  art?: string;
+  /** What the picture or the film shows, for whoever cannot see it. */
   alt: string;
   /** The picture's own width, so it is laid out before it has loaded. */
-  width: number;
+  width?: number;
   /** And its height, where it is not square. */
   height?: number;
   /**
@@ -56,10 +47,13 @@ export interface Story {
    */
   cut?: boolean;
   /**
-   * The picture is the whole story: drawn across the screen behind the words,
-   * which are few and sit over it, rather than framed between them.
+   * A film instead of a picture, the whole of the story: a Lottie from
+   * `public/lotties/`, played down the screen from the top with the way out
+   * under it. Its words are its own, so the story's are read out, not shown.
    */
-  full?: boolean;
+  film?: Film;
+  /** How long the story holds before it moves on, where it is not the usual. */
+  holdMs?: number;
   /**
    * Whether the career key is drawn under the picture.
    *
@@ -74,23 +68,10 @@ export const STORIES: readonly Story[] = [
     key: 'marathon',
     eyebrow: 'NEW MODE',
     title: 'Test Marathon',
-    body: 'Bat all day.',
-    art: marathonIntro,
-    alt: 'A helmet, a pair of gloves and a red ball on the square at golden hour, the stumps behind them and the stands full.',
-    width: 941,
-    height: 1672,
-    full: true,
-  },
-  {
-    key: 'marathon-card',
-    eyebrow: 'TEST MARATHON',
-    title: 'Play long, score big',
-    body: 'Three batters, as long as they last. Pile up the runs and put your big score on the board.',
-    art: marathonCard,
-    alt: 'A Test Marathon scorecard: 271 for 3 in 32.1 overs, the runs climbing with a ball where each batter went, then the opener 152, the No. 3 64 not out retired hurt, and the tailender 55.',
-    width: 720,
-    height: 900,
-    cut: true,
+    film: 'test-marathon',
+    // The film runs nine seconds, and the story holds a beat past its end.
+    holdMs: 9600,
+    alt: 'Introducing a new mode: Test Marathon. Bat all day. Then: play long innings, make a big score — the runs climb past lunch, tea and stumps to 287 not out.',
   },
   {
     key: 'save-key',

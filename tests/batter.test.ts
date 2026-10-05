@@ -470,6 +470,8 @@ describe('the grip', () => {
     expect(wrist.clone().sub(topHand).dot(axis)).toBeGreaterThan(.015);
     expect(p.elbows[0][1]-wrist.y).toBeGreaterThan(.10);
   });
+  // Every stroke frame by frame: a second or two alone, near the default five
+  // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
     for (const kind of ['pull','square','straight','cover','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
@@ -494,7 +496,7 @@ describe('the grip', () => {
         previous=pose;
       }
     }
-  });
+  }, 20_000);
   it('holds the handle with two hands that agree about it', () => {
     const batter = new Batter();
     let flattest = Infinity, wristWhere = '';

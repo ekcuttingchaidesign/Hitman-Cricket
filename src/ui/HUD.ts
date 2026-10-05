@@ -969,6 +969,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private storyAt = 0;
   private storyWhere: StoriesWhere = 'intro';
   private storyHold = 0;
+  /** The film playing in a story that is one, taken down with the story. */
+  private storyFilm: Playing | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
 
@@ -986,6 +988,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   private drawStory() {
     const overlay = this.$('whatsnew-overlay');
+    this.storyFilm?.destroy(); this.storyFilm = null;
     overlay.innerHTML = storiesMarkup({
       at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
       careerKey: this.keyView,
@@ -1000,8 +1003,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     window.clearTimeout(this.storyHold);
     // A story carrying the key holds until it is left: one that moved itself
     // on would take the key away from under a thumb on its way to it.
-    if (STORIES[this.storyAt]?.withKey) return;
-    this.storyHold = window.setTimeout(() => this.stepStory(1), HUD.STORY_MS);
+    const story = STORIES[this.storyAt];
+    // Set down on the way out rather than hung from the bars: a tall phone's
+    // spare height goes above it, into the dark it fades from, and its own foot
+    // stays over the key.
+    const film = document.getElementById('whatsnew-film');
+    if (story?.film && film) this.storyFilm = playFilm(film, story.film, { fit: 'xMidYMax meet' });
+    if (story?.withKey) return;
+    this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }
 
   /** The key under the picture, which ends where every other one does. */
@@ -1075,6 +1084,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   closeStories() {
     window.clearTimeout(this.storyHold);
+    this.storyFilm?.destroy(); this.storyFilm = null;
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,
