@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PerformanceReadout } from './performance';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
 import { ACTION_MS, Bowler } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
@@ -118,6 +119,7 @@ const BALL = {
 } as const;
 
 export class GameScene {
+  private performanceReadout?: PerformanceReadout;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
@@ -306,6 +308,7 @@ export class GameScene {
     this.swish = this.createSwish();
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
+    if (new URLSearchParams(location.search).get('perf') === '1') this.performanceReadout = new PerformanceReadout(container);
   }
   /**
    * The band for the swoosh: rows of three points across it — an edge, the
@@ -955,6 +958,7 @@ export class GameScene {
     this.sky.mesh.position.copy(this.camera.position);
     this.mute.value = Math.max(muteAt(now - this.celebratedAt), powerAt(now - this.poweredAt));
     this.renderer.render(this.scene, this.camera);
+    this.performanceReadout?.update(this.renderer);
   }
   inspectBatter() { return this.batter.inspect(); }
   /**
@@ -993,9 +997,13 @@ export class GameScene {
     return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1] };
   }
   dispose() {
+    this.performanceReadout?.dispose();
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
-    this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });
+    this.scene.traverse(object => { if (object instanceof THREE.Mesh) {
+      if (object instanceof THREE.InstancedMesh) object.dispose();
+      geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m));
+    } });
     // The shared character primitives outlive any one scene; the rest is ours.
     // That now covers the figures too — bowler and fielders are built from one
     // set of geometries and one set of materials, and freeing either would take

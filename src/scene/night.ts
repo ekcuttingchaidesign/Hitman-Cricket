@@ -25,8 +25,8 @@ export const LIGHTING: Record<SkyTime, {
   lamps: number;
 }> = {
   day: {
-    hemisphere: { sky: 0xfff4e2, ground: 0x66744a, intensity: 1.1 },
-    key: { colour: 0xffedce, intensity: 3.2, position: [-15, 30, -8] },
+    hemisphere: { sky: 0xe5f1ff, ground: 0x73886d, intensity: 1.25 },
+    key: { colour: 0xfffaf1, intensity: 2.75, position: [-15, 30, -8] },
     fill: { colour: 0xdfe8ff, intensity: 0 },
     environment: 0.75,
     boards: 0.35,

@@ -15,6 +15,12 @@ describe('who gets counted', () => {
     expect(at('::1')).toBe(false);
   });
 
+  it('keeps branch previews and performance reviews out of live analytics', () => {
+    expect(at('hitman-cricket-git-codex-graphics-lab-oct05-example.vercel.app')).toBe(false);
+    expect(at('hitman-cricket.vercel.app', '?perf=1')).toBe(false);
+    expect(at('hitman-cricket.vercel.app', '?perf=0')).toBe(true);
+  });
+
   it('does not count a scripted innings', () => {
     // The browser checks play through with a fixed seed, and the debug flag is
     // how a tuning session is opened. Neither is somebody playing the game.

@@ -40,7 +40,9 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  * cast the fielders' shadows the sun had not. Lower this whenever a
  * change brings it down, so the saving stays banked.
  */
-const BUDGET = 680;
+// October graphics lab: rigid-detail merging and limb instances measured
+// 392–455 draws through this same gameplay flow. Keep the saving banked.
+const BUDGET = 500;
 /**
  * The bowl, the ground before it, is kept and can still be asked for with
  * `?ground=bowl`, so it is still drawn here and held to the budget it shipped

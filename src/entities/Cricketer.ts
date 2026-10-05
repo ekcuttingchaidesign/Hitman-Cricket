@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { compactRigidParts, LimbInstances } from './compactParts';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
 
@@ -71,16 +72,16 @@ function lathe(profile: [number, number][], depth: number, segments = 32) {
 }
 
 const SHAPES = {
-  ball: new THREE.SphereGeometry(1, 28, 20),
+  ball: new THREE.SphereGeometry(1, 16, 12),
   /**
    * A limb, tapering towards the joint it points at. `segment` puts the top of
    * this at the far end, so the top is the narrow one: an arm is thickest at
    * the shoulder and thinnest at the wrist, and getting that the wrong way
    * round is most of why a limb reads as a stack of parts rather than an arm.
    */
-  limb: new THREE.CylinderGeometry(.5, .62, 1, 24, 1),
-  tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
-  soft: new RoundedBoxGeometry(1, 1, 1, 5, .3),
+  limb: new THREE.CylinderGeometry(.5, .62, 1, 12, 1),
+  tube: new THREE.CylinderGeometry(.5, .5, 1, 12, 1),
+  soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
   /** Shoulders down to the waist, and up into the neck, in one piece. */
   trunk: lathe([
     [-.34, .02], [-.325, .112], [-.27, .142], [-.17, .163], [-.05, .190],
@@ -135,6 +136,7 @@ const ELBOW = ARM_UPPER * .5, KNEE = LEG_UPPER * .5;
 interface Limb { upper: THREE.Mesh; lower: THREE.Mesh; joint: THREE.Mesh; cap: THREE.Mesh; end: THREE.Group }
 
 export class Cricketer {
+  private limbInstances?: LimbInstances;
   readonly root = new THREE.Group();
   private torso = new THREE.Group();
   private hips = new THREE.Group();
@@ -224,6 +226,13 @@ export class Cricketer {
         end: foot,
       });
     }
+    for (const group of [this.torso, this.hips, this.head, ...this.hands, ...this.legs.map(l => l.end)]) {
+      const merged = compactRigidParts(group);
+      this.dressable = this.dressable.filter(mesh => mesh.parent !== null);
+      this.dressable.push(...merged.filter(mesh => mesh.userData.role));
+    }
+    this.limbInstances = new LimbInstances(this.root);
+    this.dressable.push(...this.limbInstances.meshes.filter(mesh => mesh.userData.role));
     this.pose = this.stand();
     this.apply(this.pose);
   }
@@ -379,6 +388,7 @@ export class Cricketer {
       leg.end.quaternion.setFromAxisAngle(UP, pose.yaw);
       leg.end.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.clamp(pitch, -.9, .9)));
     }
+    this.limbInstances?.update();
   }
 
   /** The pose last applied, for handing a figure from one kind of control to another. */

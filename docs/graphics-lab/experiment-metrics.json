@@ -1,0 +1,47 @@
+[
+  {
+    "name": "phone-day",
+    "calls": 181,
+    "triangles": 188254,
+    "geometries": 100,
+    "textures": 7,
+    "drawingBuffer": [
+      585,
+      1266
+    ],
+    "medianSubmitMs": 5.2000000001862645,
+    "p95SubmitMs": 11.399999999906868,
+    "renderer": "WebKit WebGL",
+    "errors": []
+  },
+  {
+    "name": "phone-night",
+    "calls": 184,
+    "triangles": 188256,
+    "geometries": 109,
+    "textures": 9,
+    "drawingBuffer": [
+      585,
+      1266
+    ],
+    "medianSubmitMs": 5.099999999627471,
+    "p95SubmitMs": 13,
+    "renderer": "WebKit WebGL",
+    "errors": []
+  },
+  {
+    "name": "desktop-day",
+    "calls": 224,
+    "triangles": 207082,
+    "geometries": 100,
+    "textures": 7,
+    "drawingBuffer": [
+      1280,
+      720
+    ],
+    "medianSubmitMs": 9.899999999906868,
+    "p95SubmitMs": 15.299999999813735,
+    "renderer": "WebKit WebGL",
+    "errors": []
+  }
+]

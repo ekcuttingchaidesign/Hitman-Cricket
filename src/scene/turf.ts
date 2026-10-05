@@ -66,7 +66,7 @@ function finish(c: HTMLCanvasElement, anisotropy: number) {
 }
 
 /** Outfield colours, in sRGB. */
-export const TURF = { light: '#6aa449', dark: '#5e9540', edge: 'rgba(38,70,30,1)' } as const;
+export const TURF = { light: '#589c4e', dark: '#4c8d44', edge: 'rgba(30,65,37,1)' } as const;
 
 /**
  * The outfield, for a `CircleGeometry` of `radius` centred `centreZ` along
@@ -84,11 +84,11 @@ export function grassTexture(radius: number, centreZ: number, boundary: number, 
 
   ctx.fillStyle = TURF.dark; ctx.fillRect(0, 0, size, size);
   // Mown up and down the wicket, one stripe centred on the pitch.
-  const stripe = 4.2;
+  const stripe = 5.6;
   ctx.fillStyle = TURF.light;
   for (let x = -stripe / 2 - stripe * 20; x < radius; x += stripe * 2) ctx.fillRect(col(x), 0, stripe * scale, size);
   // And cut across, fainter, which is what makes the chequer a groundsman is proud of.
-  ctx.fillStyle = 'rgba(255,255,230,0.045)';
+  ctx.fillStyle = 'rgba(240,255,242,0.025)';
   const middle = 9.35;
   for (let z = middle - stripe / 2 - stripe * 20; z < centreZ + radius; z += stripe * 2) ctx.fillRect(0, row(z), size, stripe * scale);
 
@@ -116,7 +116,7 @@ export function grassTexture(radius: number, centreZ: number, boundary: number, 
   ctx.fillStyle = outside;
   ctx.beginPath(); ctx.arc(cx, cy, radius * scale, 0, Math.PI * 2); ctx.arc(cx, cy, (boundary + 0.4) * scale, 0, Math.PI * 2, true); ctx.fill();
 
-  overlayGrain(ctx, random, size, size, 0.22);
+  overlayGrain(ctx, random, size, size, 0.12);
   return finish(c, anisotropy);
 }
 
@@ -150,7 +150,7 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
 
   // Worn grass at the edges, the prepared surface in the middle.
   const across = ctx.createLinearGradient(0, 0, W, 0);
-  const edge = mix('#aaae70', '#93a862', green), surface = mix('#d3b683', '#b3bd78', green), verge = mix('#b9b27b', '#a1ae6a', green);
+  const edge = mix('#a5ab79', '#93a862', green), surface = mix('#cbb993', '#b3bd78', green), verge = mix('#b4b18c', '#a1ae6a', green);
   across.addColorStop(0, edge); across.addColorStop(0.1, verge); across.addColorStop(0.16, surface);
   across.addColorStop(0.84, surface); across.addColorStop(0.9, verge); across.addColorStop(1, edge);
   ctx.fillStyle = across; ctx.fillRect(0, 0, W, H);

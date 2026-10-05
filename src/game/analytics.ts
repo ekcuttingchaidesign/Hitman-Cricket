@@ -32,7 +32,9 @@ const counter = (): GoatCounter | undefined => (window as unknown as { goatcount
  */
 export function counting(where: { hostname: string; search: string }) {
   const params = new URLSearchParams(where.search);
-  if (params.has('seed') || params.get('debug') === '1') return false;
+  if (params.has('seed') || params.get('debug') === '1' || params.get('perf') === '1') return false;
+  // Vercel branch experiments must not become production player statistics.
+  if (/^hitman-cricket-.+\.vercel\.app$/.test(where.hostname)) return false;
   return !/^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(where.hostname);
 }
 

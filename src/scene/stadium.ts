@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, mat } from './build';
+import { Batch, soft } from './build';
 
 /**
  * The stadium: one bowl of stands carried right round the ground, which is
@@ -30,12 +30,12 @@ import { Batch, mat } from './build';
 
 export const STADIUM = {
   /** The stands' concrete, painted. */
-  concrete: 0xe4dfd2,
+  concrete: 0xd4dddf,
   /** Fascias, the roof, the commentary box. */
-  paint: 0xf7f4ea,
-  steel: 0x8d989c,
+  paint: 0xf1f4ef,
+  steel: 0x526978,
   /** The boxes between the tiers, and the commentary box's window. */
-  glass: 0x5f7380,
+  glass: 0x3e6172,
   /** The seats behind the sightscreen, covered over, and the sightscreen itself. */
   cover: 0xf4f3ee,
   /** The roof's underside: see `soffitFinish`. */
@@ -128,9 +128,17 @@ export function stadium(world: THREE.Object3D): StadiumLights {
   // could land on the field: they are left out of the shadow pass altogether.
   b.build(world, { casts: false });
 
-  const crowd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.55, 0.55), mat(0xffffff), seats.length);
+  // Recognisable seated silhouettes, still two draws for the whole audience.
+  // The head shares each body's transform and stays shadow-free in the stands.
+  const body = new THREE.CylinderGeometry(.23, .27, .43, 6).scale(1, 1, .78);
+  // Seated torsos never expose their undersides. Keep the shoulders capped.
+  body.setDrawRange(0, body.groups[2].start);
+  const crowd = new THREE.InstancedMesh(body, soft(0xffffff), seats.length);
+  const heads = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.15, 0).translate(0, .32, 0), soft(0xe0b692), seats.length);
   seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(colours[i])); });
-  crowd.instanceMatrix.needsUpdate = true; world.add(crowd);
+  seats.forEach((matrix, i) => heads.setMatrixAt(i, matrix));
+  crowd.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true;
+  world.add(crowd, heads);
   return lights;
 }
 
