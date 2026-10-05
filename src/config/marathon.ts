@@ -18,17 +18,20 @@ import { BANDS, SURVIVE } from './survive.js';
  * innings of each (runs/balls per batter):
  *
  *            player       runs  balls   opener    no. 3     tail   all out  hurt  past ov 20
- *   expert · chasing       411    162   256/90   107/46    48/27     66%    34%      77%
- *   expert · measured      355    164   216/89    95/47    43/28     46%    54%      80%
- *   competent · chasing    131     61    71/29    40/19    21/13     90%    10%       4%
- *   competent · measured   111     61    57/28    35/20    19/13     79%    21%       3%
+ *   expert · chasing       375    154   228/83    99/44    48/27     65%    36%      71%
+ *   expert · measured      332    157   201/84    88/45    43/28     45%    55%      75%
+ *   competent · chasing    124     58    68/28    37/18    19/12     89%    11%       2%
+ *   competent · measured   112     61    59/29    35/19    18/13     79%    21%       2%
  *
  * Each wicket costs about half the runs the last batter made, which is the drop
- * in skill showing up where a player will see it. A good player meets the
- * express bowler three innings in four, a competent one rarely gets past the
- * swing — the bowling is a ladder to climb, not a wall at the start. And one
- * express over to a fresh opener carries him off between three and fifteen
- * times in a hundred, by player, inside the spec's one in six. The simulated
+ * in skill showing up where a player will see it. A good player reaches the
+ * twenty-first over, where four of every ten are the express bowler's, about
+ * three innings in four, and a competent one rarely gets past the swing — the
+ * bowling is a ladder to climb, not a wall at the start. And one express over
+ * to a fresh opener carries him off between two and fourteen times in a
+ * hundred, by player, inside the spec's one in six. Giving the express bowler
+ * three overs of the second ten rather than one took about forty runs off a
+ * good player's innings. The simulated
  * batter always knows where the ball finishes, so how much harder the swing is
  * to read is the one thing it cannot say; that is for playtesting.
  */
@@ -45,6 +48,12 @@ export const MARATHON = {
    * a declaration would be a way of banking a quick start rather than batting.
    */
   declareFrom: 120,
+  /**
+   * From this many balls an unfinished innings asks before the page is left.
+   * Nothing is saved part-way, so closing the tab on a long innings loses it;
+   * before this it is not long enough to be worth a question.
+   */
+  warnFrom: 60,
   /** How the flight is padded, and how long the innings holds between balls: Survival's. */
   travelScale: SURVIVE.travelScale,
   readyMs: SURVIVE.readyMs,
@@ -95,8 +104,15 @@ export type OverKind = 'PACE' | 'SPIN' | 'EXPRESS';
  *     those are the end of Survival's innings and the middle of this one.
  *     The spinner has the third over, as in Survival, and two more drawn.
  *   - **Level 2**, overs 11–20: the ball starts to swing, later and further,
- *     and the express bowler has one over to show what is coming.
- *   - **Level 3**, from over 21, every ten after: four of the ten are his.
+ *     and the express bowler comes on — the eleventh, always, and two more
+ *     drawn from the thirteenth to the twentieth. Drawn anywhere in the ten,
+ *     his first over let a player bat thirteen and never see him, which the
+ *     first playtest did: a level that might not have started yet is not a
+ *     level change anybody feels. The twelfth is never his, because no bowler
+ *     bowls two running, and the next playtest asked for him twice more
+ *     before the twentieth rather than once.
+ *   - **Level 3**, from over 21, every ten after: four of the ten are his,
+ *     three the spinner's and three the swing bowler's.
  *
  * `swing` multiplies how far a swinging ball moves and `late` is how much of
  * its flight to the pitch it holds its line first — nought for Survival's
@@ -118,6 +134,8 @@ export interface Level {
   late: number;
   /** An over the spinner always has, counting from nought within the block. */
   spinFirst?: number;
+  /** And one the express bowler always has, the same way: where he is introduced. */
+  expressFirst?: number;
   /** How much of the pace bowler's roll swings, in and out evenly; absent leaves Survival's table. */
   swingShare?: number;
   /** And his reverse swing, placed in the over rather than rolled for: see `REVERSE`. */
@@ -126,8 +144,8 @@ export interface Level {
 
 export const LEVELS: readonly Level[] = [
   { level: 1, pace: 7, spin: 3, express: 0, swing: 1, late: 0, spinFirst: 2 },
-  { level: 2, pace: 7, spin: 2, express: 1, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
-  { level: 3, pace: 4, spin: 2, express: 4, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
+  { level: 2, pace: 5, spin: 2, express: 3, expressFirst: 0, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
+  { level: 3, pace: 3, spin: 3, express: 4, swing: 2.6, late: 0.4, swingShare: 0.6, reverse: { perOver: 1, secondChance: 0.5 } },
 ];
 
 export const BLOCK_OVERS = 10;
@@ -152,14 +170,18 @@ export const SWING_LINES: Partial<Record<DeliveryStyle, readonly BallLine[]>> = 
  * — two to three stumps' width — at 142 to 156 kph (141 to 147 on the gun),
  * so it is on the batter before a player who has read the line off the hand
  * can change his mind.
- * The reverse inswinger starts on or outside off and comes back into him,
- * the reverse outswinger starts on middle or leg and goes away, as his
- * ordinary two do. Held to the same widest line, so it is never a wide.
+ * The reverse inswinger starts on or outside off and comes back into him.
+ * The reverse outswinger starts on middle or off and goes away, finishing no
+ * wider than outside off, after the edge. It started on middle or leg at
+ * first, as his ordinary outswinger does, and a playtest reported reverse
+ * swing that only ever came in: from behind the batter, the leg-stump line is
+ * the one his own body covers, and a ball that does all its moving off the
+ * pitch did it where nobody could see.
  */
 export const REVERSE = {
   min: 0.3,
   max: 0.42,
-  lines: { REVERSE_IN: ['OFF', 'OUTSIDE_OFF'], REVERSE_OUT: ['LEG', 'MIDDLE'] } as Partial<Record<DeliveryStyle, readonly BallLine[]>>,
+  lines: { REVERSE_IN: ['OFF', 'OUTSIDE_OFF'], REVERSE_OUT: ['MIDDLE', 'OFF'] } as Partial<Record<DeliveryStyle, readonly BallLine[]>>,
   /** How far through its flight it has finished moving: after the bounce, and before the bat. */
   settled: 0.92,
 } as const;
@@ -174,9 +196,22 @@ export const levelOf = (block: number): Level => LEVELS[Math.min(block, LEVELS.l
  * first playtest found ten overs of Survival's gentle bowling too long a
  * start — an opener made 240 of 284 in twenty-two overs — so the swing comes
  * on after five, a block early. Only the swing: who bowls which over is
- * still the block's, so the express bowler waits for the eleventh as before.
+ * still the block's, so the express bowler waits for the eleventh.
  */
 export const SWING_FROM = 5;
+
+/**
+ * Round the wicket. From the sixth over — the swing's, so the first five are
+ * the plain start they always were — about three overs in ten are bowled from
+ * the other side of the stumps: the bowler runs in on his right of them
+ * rather than his left, the ball leaves his hand out wide, and it angles in
+ * across the batter. It arrives exactly where and when it would have from over
+ * the wicket — the line, the length and the moment are the over's, and the
+ * rules meet the ball at the bat — so what changes is the angle it comes from,
+ * and the read a batter has to make off it. Drawn per over and kept for the
+ * whole of it, as a bowler tells the umpire once and then bowls his six.
+ */
+export const ROUND = { from: SWING_FROM, chance: 0.3 } as const;
 
 /**
  * The level over `over` is bowled at, which is its block's — except that the
@@ -224,9 +259,11 @@ export const EXPRESS_OVER = {
  * the playtest found it too long a wait.
  *
  * Settled, the same meter is his confidence, and it starts a quarter full. It
- * fills with the strokes he plays and with the balls he blocks, more slowly
- * than the Blast's — a Test innings is built, not slogged — and empties with
- * being beaten and being hit. Full, it buys one special stroke, exactly as in
+ * fills with the strokes he plays and with the balls he blocks, a little
+ * more slowly than the Blast's — two points less a stroke — and empties with
+ * being beaten and being hit. It was half the Blast's at first, on the idea
+ * that a Test innings is built rather than slogged, and the playtest found it
+ * filling far too late to be worth anything. Full, it buys one special stroke, exactly as in
  * the Blast. He never goes back to being unsettled: a battering costs him his
  * confidence, not the five overs it took to find his feet.
  */
@@ -241,12 +278,23 @@ export const SETTLE = {
 export const CONFIDENCE = {
   full: 100,
   /** What each stroke adds, by the runs it was worth. */
-  step: { 6: 12, 4: 10, 3: 6, 2: 4, 1: 2 } as Record<number, number>,
+  step: { 6: 26, 4: 20, 3: 14, 2: 10, 1: 2 } as Record<number, number>,
   /** A ball blocked: patience is part of it. */
   defended: 2,
   /** Played at and beaten, or edged for nothing. */
   beaten: -10,
 } as const;
+
+/**
+ * The moment the innings changes under the batter is put up on the screen,
+ * the way a broadcast would: the ball starting to swing, with the cloud coming
+ * over. It is told once an innings, at the top of the over it begins, and the
+ * bowler waits at his mark for this long while it is up — a banner gone before
+ * it can be read is the same as no banner. The express bowler is not told:
+ * he announces himself.
+ */
+export const LEVEL_BANNER_MS = 2600;
+export type LevelBanner = 'swing';
 
 /** How a Marathon innings finished. */
 export type MarathonEnding = 'ALL_OUT' | 'RETIRED' | 'BALLS' | 'DECLARED';

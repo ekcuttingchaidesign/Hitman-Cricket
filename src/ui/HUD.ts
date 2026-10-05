@@ -30,14 +30,17 @@ import {
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
-import { rivalsBoardMarkup, type RivalsBoardView } from './RivalsBoard';
+import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
+import { INTRO_STEPS, introCardMarkup, introKeysMarkup } from './MarathonIntro';
+import { fallsOf, marathonShareText, scorecardMarkup, wormMarkup, type CardBatter, type CardTotal } from './MarathonCard';
+import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
+import type { TeamRow } from '../game/marathon-board';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
-import { openUnveil } from './Unveil';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
-import type { Milestone } from '../game/milestone';
+import type { Moment } from '../game/milestone';
 import { STORIES } from '../game/whats-new';
 import {
   keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
@@ -54,9 +57,16 @@ import { AVATARS, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
+import type { NetsBowler } from '../game/DeliveryGenerator';
+
+/** What each of the nets' keys says: the express bowler by the action people know him by. */
+const NETS_LABEL: Record<NetsBowler, string> = { PACE: 'PACE', SWING: 'SWING', SPIN: 'SPIN', EXPRESS: 'SLING' };
 import { HEALTH, SURVIVE } from '../config/survive';
+import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
+/** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
+const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
 const ordinal = (n: number) => {
   const tens = n % 100;
@@ -80,7 +90,8 @@ const icon = (name: string) => {
     pause: '<path d="M8 5v14M16 5v14"/>',
     /* The Marathon's two meters, which have no room for their names. */
     hurt: '<path d="M12 5v14M5 12h14"/>',
-    settling: '<path d="M7 3h10M7 21h10M8 3c0 6 8 6 8 9s-8 3-8 9M16 3c0 6-8 6-8 9s8 3 8 9"/>',
+    /* Getting his eye in, which is what the settle meter is counting. */
+    settling: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
     flame: '<path d="M12 3c2 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 3 3-1-3-1-5 0-8Z"/>',
     arrow: '<path d="M4 12h16m-6-6 6 6-6 6"/>',
     back: '<path d="M20 12H4m6-6-6 6 6 6"/>',
@@ -111,6 +122,8 @@ const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
    the same kit — and the Test match has its own, in whites with a red ball. */
 const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
+// The Marathon's kit laid out on the square, from the mode screen's design.
+const marathonPlate = new URL('../assets/marathon-plate.webp', import.meta.url).href;
 /* The challenge plate ships in `public/` rather than `src/assets/`, so it is a
    bare relative path for the same reason the kits are: the browser resolves it
    against the page, which is right under a GitHub Pages subdirectory and at a
@@ -185,6 +198,16 @@ const panelIntro = (best: number, top: number) => `
 /** Which special stroke the ball on its way is for, when the meter is full to play it. */
 export type Primed = 'CHARGE' | 'SWEEP' | 'SCOOP' | 'REVERSE' | null;
 /** The call for each, over the meter and down the pitch. */
+/**
+ * What the Marathon's two banners say. The swing's line is the rule the swing
+ * bowler bowls by, in a batter's words: from off stump it comes back in, from
+ * leg it goes away. The express bowler's is the warning a dressing room would
+ * give — and says nothing of the slower ball, which is meant to be a surprise.
+ */
+const BANNERS: Record<LevelBanner, { eyebrow: string; title: string; line: string }> = {
+  swing: { eyebrow: 'CLOUD COVER', title: 'THE BALL HAS STARTED TO SWING', line: 'Off stump swings in. Leg stump swings away.' },
+};
+
 const CUES: Record<NonNullable<Primed>, string> = {
   CHARGE: 'CHARGE IT — SWIPE UP', SWEEP: 'SWEEP IT — SWIPE TO LEG',
   SCOOP: 'SCOOP IT — SWIPE DOWN-LEFT', REVERSE: 'REVERSE IT — SWIPE DOWN-RIGHT',
@@ -225,6 +248,9 @@ function swipeGuide() {
     + `<filter id="sg-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.8"/></filter>${gradients.join('')}</defs>`
     + `<circle class="hub" r="2.6"/>${spokes.join('')}</svg>`;
 }
+/** The What's New film's own shape, 1080 by 1920. */
+const FILM_ASPECT = 1080 / 1920;
+
 export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
@@ -312,11 +338,11 @@ export class HUD {
             <span class="confidence-track"><i id="confidence-fill"></i></span>
           </span>
         </div>
-        <div id="settle" class="confidence settle-meter hidden" role="meter" aria-label="Settling" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="settle" class="confidence settle-meter hidden" role="meter" aria-label="Focus" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <span class="confidence-inner">
             <span class="confidence-head">
               <span class="meter-icon" aria-hidden="true"><span class="icon-settling">${icon('settling')}</span><span class="icon-flame">${icon('flame')}</span></span>
-              <span class="confidence-label" id="settle-label">SETTLING</span>
+              <span class="confidence-label" id="settle-label">FOCUS</span>
               <span class="injury-cap settle-cap" id="settle-cap"></span>
             </span>
             <span class="confidence-track"><i id="settle-fill"></i></span>
@@ -330,6 +356,8 @@ export class HUD {
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
+        <div id="marathon-intro" class="mi-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="mi-title"><span id="mi-spot" class="mi-spot hidden" aria-hidden="true"></span><svg id="mi-arrow" class="mi-arrow" aria-hidden="true"><defs><marker id="mi-head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 7 5 1 9" fill="none" stroke="#6cc070" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><path id="mi-arrow-path" marker-end="url(#mi-head)"/></svg><div id="mi-card" class="mi-card"></div><div id="mi-keys" class="mi-keys"></div></div>
+        <div id="level-banner" class="level-banner hidden" role="status" aria-live="polite"><span class="lb-eyebrow" id="lb-eyebrow"></span><strong id="lb-title"></strong><span class="lb-line" id="lb-line"></span></div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
           <p id="coach-brief">Drive it straight back past the bowler.</p>
@@ -346,7 +374,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
-        <div id="unveil-overlay" class="unveil-overlay hidden" role="dialog" aria-modal="true" aria-label="The new ground"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
@@ -358,6 +385,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <p class="card-overs"><span id="final-overs"></span><small>Overs</small></p>
             </div>
             <div class="card-balls" id="final-balls" aria-hidden="true"></div>
+            <div id="mcard-worm" class="mcard-worm"></div>
+            <div id="mcard-score" class="mcard-score"></div>
             <p id="end-message" class="card-line"></p>
             <dl class="card-stats">
               <div><dt>Fours</dt><dd id="final-fours"></dd></div>
@@ -390,6 +419,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
             </div>
+            <div class="card-shares mcard-keys">
+              <button id="mcard-modes" class="story-key" type="button">CHANGE MODE</button>
+              <button id="mcard-share" class="whatsapp-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
+            </div>
             <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
             <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
@@ -401,12 +434,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="modes-title" class="mode-heading">Select Mode</h2>
             </div>
-            <button id="mode-challenge" class="mode-hero" type="button">
-              <span class="mode-hero-plate"><img src="${challengePlate}" alt="" decoding="async" /></span>
+            <button id="mode-marathon" class="mode-hero mode-hero-marathon" type="button">
+              <span class="mode-hero-plate"><img src="${marathonPlate}" alt="" decoding="async" /></span>
               <span class="mode-hero-body">
-                <span id="mode-challenge-flag" class="mode-flag">NEW</span>
-                <span class="mode-hero-name">Rivals</span>
-                <span class="mode-hero-sub">Play with friends</span>
+                <span class="mode-flag">NEW</span>
+                <span class="mode-hero-name">Test Marathon</span>
+                <span class="mode-hero-sub">Play a marathon innings</span>
                 <span class="mode-key">PLAY</span>
               </span>
             </button>
@@ -427,17 +460,30 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               </button>
             </div>
             <div id="mode-key" class="key-slot hidden"></div>
-            <button id="modes-challenges" class="mode-rivals" type="button">
-              <span class="mode-rivals-art" aria-hidden="true"><img src="${rivalsCover}" alt="" decoding="async" /></span>
-              <span class="mode-rivals-say"><b>Your Rivals Matches</b><em id="modes-challenges-note">See who you've played</em></span>
-              <span id="modes-challenges-count" class="hidden"></span>
-              <span class="mode-rivals-go" aria-hidden="true">${icon('arrow')}</span>
-            </button>
-            <button id="modes-board" class="mode-rivals mode-leaders" type="button">
-              <span class="mode-rivals-art" aria-hidden="true"><img src="${leadersCover}" alt="" decoding="async" /></span>
-              <span class="mode-rivals-say"><b>Leaderboards</b><em>See where you rank</em></span>
-              <span class="mode-rivals-go" aria-hidden="true">${icon('arrow')}</span>
-            </button>
+            <div class="mode-tiles">
+              <button id="mode-challenge" class="mode-tile mode-tile-rivals" type="button">
+                <span class="mode-tile-art" aria-hidden="true"><img src="${challengePlate}" alt="" decoding="async" /></span>
+                <span class="mode-tile-say">
+                  <span id="mode-challenge-flag" class="mode-flag">NEW</span>
+                  <b class="mode-tile-name">Rivals <i class="mode-tile-go">${icon('arrow')}</i></b>
+                  <em>Play with friends</em>
+                </span>
+              </button>
+              <button id="modes-challenges" class="mode-tile mode-tile-matches" type="button">
+                <span class="mode-tile-art" aria-hidden="true"><img src="${rivalsCover}" alt="" decoding="async" /></span>
+                <span class="mode-tile-say">
+                  <b class="mode-tile-name">Rival <i class="mode-tile-go">${icon('arrow')}</i><br>matches</b>
+                  <em id="modes-challenges-note" class="mode-tile-note">See who you've played</em>
+                </span>
+              </button>
+              <button id="modes-board" class="mode-tile mode-tile-board" type="button">
+                <span class="mode-tile-art" aria-hidden="true"><img src="${leadersCover}" alt="" decoding="async" /></span>
+                <span class="mode-tile-say">
+                  <b class="mode-tile-name">Leaderboards <i class="mode-tile-go">${icon('arrow')}</i></b>
+                  <em>See where you rank</em>
+                </span>
+              </button>
+            </div>
           </div>
         </div>
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
@@ -495,11 +541,15 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             <div class="mode-top room-top">
               <button id="challenge-list-done" class="mode-back" type="button" aria-label="Back" title="Back">${icon('back')}</button>
               <h2 id="challenge-list-title" class="mode-heading">Rival Matches</h2>
+              <button id="challenge-list-ranking" class="mode-back rival-rank-key" type="button" aria-label="Rivals ranking" title="Rivals ranking">${icon('trophy')}</button>
             </div>
             <div id="challenge-sections" class="rival-sections"></div>
             <p id="challenge-list-copy" class="room-note"></p>
             <div class="room-keys"><button id="challenge-list-new" class="key-button" type="button">START A NEW MATCH</button></div>
           </div>
+        </div>
+        <div id="rivals-ranking" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivals-ranking-title">
+          <div id="rivals-ranking-sheet" class="ranking-sheet"></div>
         </div>
         <div id="challenge-rivalry" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivalry-tally">
           <div class="rival-sheet">
@@ -607,9 +657,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     );
   }
 
-  /** The Rivals board, under its own tab. No ladders and no innings-end keys: it is not a mode. */
-  rivalsBoard(view: RivalsBoardView) {
-    this.sheet(rivalsBoardMarkup(view), 'rivals', 'best');
+  /** The Test Marathon's board, on whichever of its two ladders is up. */
+  marathonBoard(view: MarathonBoardView & { actions?: boolean }) {
+    this.sheet(marathonBoardMarkup(view), 'marathon', view.ladder, this.actions('marathon', !!view.actions));
   }
 
 
@@ -624,8 +674,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * returning player opens first, so an offer that came only with the keys was
    * an offer absent from the one screen it was added for.
    */
-  private actions(mode: BoardTab, keyed: boolean) {
-    const keys = keyed ? (mode === 'survive' ? surviveActions() : actionsMarkup()) : '';
+  private actions(mode: BoardTab | 'marathon', keyed: boolean) {
+    // The Test match's two keys suit the Marathon as they stand.
+    const keys = keyed ? (mode === 'classic' ? actionsMarkup() : surviveActions()) : '';
     // The first key rides above them in the same column. Floating it over the
     // foot of the board put it on top of these keys, which kept the focus they
     // had — so the ring of a key nobody could see showed around the widget
@@ -921,6 +972,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   private storyAt = 0;
   private storyWhere: StoriesWhere = 'intro';
   private storyHold = 0;
+  /** The film playing in a story that is one, taken down with the story. */
+  private storyFilm: Playing | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
 
@@ -938,6 +991,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
 
   private drawStory() {
     const overlay = this.$('whatsnew-overlay');
+    this.storyFilm?.destroy(); this.storyFilm = null;
     overlay.innerHTML = storiesMarkup({
       at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
       careerKey: this.keyView,
@@ -952,8 +1006,22 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     window.clearTimeout(this.storyHold);
     // A story carrying the key holds until it is left: one that moved itself
     // on would take the key away from under a thumb on its way to it.
-    if (STORIES[this.storyAt]?.withKey) return;
-    this.storyHold = window.setTimeout(() => this.stepStory(1), HUD.STORY_MS);
+    const story = STORIES[this.storyAt];
+    // Always as wide as the screen. Where the room is taller than the film, it
+    // is set down on the way out and the spare height goes above it, into the
+    // dark it fades from. Where the room is wider — a phone with the browser's
+    // bars on it — it is cut at the top and the foot instead, which are its
+    // margins, never at the sides, where its words run nearly edge to edge.
+    const film = document.getElementById('whatsnew-film');
+    if (story?.film && film) {
+      const wide = film.clientWidth / Math.max(1, film.clientHeight) > FILM_ASPECT;
+      // Measured across the whole room first; then cut to fill it, or shrunk to
+      // the film's own shape so its fades land on its own edges.
+      film.classList.add(wide ? 'is-cut' : 'is-fit');
+      this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
+    }
+    if (story?.withKey) return;
+    this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }
 
   /** The key under the picture, which ends where every other one does. */
@@ -987,20 +1055,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   get storiesOpen() { return !this.$('whatsnew-overlay').classList.contains('hidden'); }
-
-  /**
-   * The old ground over the new one, for the player to pull off. The game
-   * decides when; `then` is the innings it was put up in front of.
-   */
-  unveil(then: () => void) {
-    this.viewport.classList.add('modal-open');
-    openUnveil(this.$('unveil-overlay'), () => {
-      const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
-        .some(id => !this.$(id).classList.contains('hidden'));
-      this.viewport.classList.toggle('modal-open', stacked);
-      then();
-    });
-  }
 
   /**
    * The wait for a moment, under the score bar: see Nearing.ts. `next` is the
@@ -1038,10 +1092,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     up(next);
   }
 
-  get unveilOpen() { return !this.$('unveil-overlay').classList.contains('hidden'); }
 
   closeStories() {
     window.clearTimeout(this.storyHold);
+    this.storyFilm?.destroy(); this.storyFilm = null;
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,
@@ -1174,6 +1228,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   private bothModes = false;
   showBoardTabs(on: boolean) { this.bothModes = on; }
+  /**
+   * Whether the Test Marathon's tab is on the row. Only where the mode can be
+   * reached: until it launches that is a session that came in on
+   * `?mode=marathon`, and a tab for a mode nobody can play would be a door
+   * painted on a wall.
+   */
+  private marathonTab = false;
+  showMarathonTab(on: boolean) { this.marathonTab = on; }
   /** What a tab does. The game decides, because the rows are the game's. */
   onBoardTab: ((tab: SheetTab) => void) | null = null;
   /** What the sheet's What's New key does. */
@@ -1201,15 +1263,18 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Rivals is the same: one board, not a mode, so no ladders either.
     const mine = tab === 'mine';
     const flat = flatTab(tab);
-    if (!flat) this.lastGame = tab;
+    const marathon = tab === 'marathon';
+    if (tab === 'classic' || tab === 'survive') this.lastGame = tab;
     // The tabs and the sheet are one column, so the sheet can still have the
     // rest of the screen and scroll inside it.
     //
     // Two rows of them, and the second exists whether or not the first does:
     // the ladders inside a mode are this mode's ladders, so a build that plays
     // one mode still has a career and still has a card, while a build that
-    // plays both needs the row above to get between them.
-    const tabs = `${boardTabsMarkup(tab)}${flat ? '' : ladderTabsMarkup(tab as BoardTab, ladder)}`;
+    // plays both needs the row above to get between them. The Marathon's
+    // second row is its own two ladders rather than a career's.
+    const ladders = flat ? '' : marathon ? marathonLaddersMarkup(ladder as MarathonLadder) : ladderTabsMarkup(tab as BoardTab, ladder);
+    const tabs = `${boardTabsMarkup(tab)}${ladders}`;
     // The keys stand under the sheet rather than inside it. They are what to do
     // next, which is not a fact about a leaderboard — sealed into its foot they
     // read as part of the board, and a board with a PLAY AGAIN in it is a board
@@ -1218,14 +1283,16 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     for (const other of BOARD_TABS) {
       const key = document.getElementById(other.id);
       if (!key) continue;
-      // A build that plays one mode still has a card, so the row is always
-      // drawn — the other game's tab is simply taken off it.
-      const here = flat ? this.lastGame : tab;
-      if (!this.bothModes && !flatTab(other.tab) && other.tab !== here) { key.remove(); continue; }
+      // The Marathon's tab only where the mode can be reached; and a build
+      // that plays one of the other two takes the other one's tab off the row,
+      // keeping the game it plays wherever the player is standing.
+      if (other.tab === 'marathon' ? !this.marathonTab
+        : other.tab !== 'mine' && !this.bothModes && other.tab !== this.lastGame) { key.remove(); continue; }
       key.onclick = () => { if (other.tab !== tab) this.onBoardTab?.(other.tab); };
     }
     if (!flat) {
-      for (const other of laddersOf(tab as BoardTab)) {
+      const keys: readonly { key: string }[] = marathon ? MARATHON_LADDERS : laddersOf(tab as BoardTab);
+      for (const other of keys) {
         this.$(`board-ladder-${other.key}`).onclick = () => {
           if (other.key !== ladder) this.onLadderTab?.(other.key);
         };
@@ -1288,6 +1355,10 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       const modes = this.$('board-modes');
       if (this.$('survive-modes').classList.contains('hidden')) modes.remove();
       else modes.onclick = () => { this.closeBoard(); this.$('survive-modes').click(); };
+    } else if (tab === 'marathon') {
+      // The Marathon is reached by a link that locks the mode, so its card has
+      // no picker to send anybody to; and it has no share picture yet.
+      document.getElementById('board-modes')?.remove();
     } else {
       this.$('board-share').addEventListener('click', () => void this.shareScore());
     }
@@ -1430,15 +1501,109 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     meter.classList.toggle('is-settled', view.settled);
     meter.classList.toggle('is-full', full);
     meter.classList.toggle('is-primed', !!view.primed);
-    meter.setAttribute('aria-label', view.settled ? 'Confidence' : 'Settling');
+    meter.setAttribute('aria-label', view.settled ? 'Confidence' : 'Focus');
     meter.setAttribute('aria-valuenow', String(percent));
     this.$('settle-fill').style.width = `${percent}%`;
-    this.$('settle-label').textContent = !view.settled ? 'SETTLING'
+    this.$('settle-label').textContent = !view.settled ? 'FOCUS'
       : view.primed ? CUES[view.primed].split(' — ')[0] : full ? 'CONFIDENT' : 'CONFIDENCE';
     this.$('settle-cap').textContent = view.settled ? '' : `${view.balls}/${view.of}`;
   }
   /** Said on the next guard he takes, once: a batter settled, or walking out. */
   callOut(words: string) { this.walking = words; }
+  /**
+   * A Marathon level beginning, put up the way a broadcast would: the swing
+   * coming on under the cloud, or the express bowler marking out his run. Up
+   * for `lasts` — as long as the bowler waits at his mark for it — and away.
+   */
+  private bannerDown = 0;
+  levelBanner(kind: LevelBanner | null, over = 0, lasts = 0) {
+    const banner = this.$('level-banner');
+    window.clearTimeout(this.bannerDown);
+    if (!kind) { banner.className = 'level-banner hidden'; return; }
+    const words = BANNERS[kind];
+    this.$('lb-eyebrow').textContent = `OVER ${over} · ${words.eyebrow}`;
+    this.$('lb-title').textContent = words.title;
+    this.$('lb-line').textContent = words.line;
+    banner.style.setProperty('--lasts', `${lasts}ms`);
+    banner.className = `level-banner is-${kind}`; void banner.offsetWidth; banner.classList.add('is-on');
+    this.bannerDown = window.setTimeout(() => { banner.className = 'level-banner hidden'; }, lasts);
+  }
+  /**
+   * The Marathon's rules, a card at a time over the ground, with the thing a
+   * card is about lit in the dark round it. `done` hears whether the player
+   * went through to the end or skipped.
+   */
+  marathonIntro(done: (how: 'finished' | 'skipped') => void) {
+    const overlay = this.$('marathon-intro');
+    let index = 0;
+    const show = () => {
+      const step = INTRO_STEPS[index];
+      this.$('mi-card').innerHTML = introCardMarkup(step);
+      this.$('mi-keys').innerHTML = introKeysMarkup(index, INTRO_STEPS.length);
+      this.spotlight(step.spot ?? null);
+      this.$('mi-next').onclick = () => {
+        if (++index < INTRO_STEPS.length) return show();
+        this.closeIntro(); done('finished');
+      };
+      this.$('mi-skip').onclick = () => { this.closeIntro(); done('skipped'); };
+      this.$('mi-next').focus({ preventScroll: true });
+    };
+    overlay.classList.remove('hidden');
+    show();
+  }
+  closeIntro() { this.$('marathon-intro').classList.add('hidden'); }
+  get introOpen() { return !this.$('marathon-intro').classList.contains('hidden'); }
+  /**
+   * The widget a rule is about, popped out of the dark and drawn bigger: a
+   * key comes up as a white disc with its icon in it, and a meter as a white
+   * pill with its icon and its words. The words go under it, and
+   * a dotted arrow runs from them up to it. With nothing to point at, the
+   * words sit in the middle of the screen.
+   */
+  private spotlight(id: string | null) {
+    const overlay = this.$('marathon-intro');
+    const spot = this.$('mi-spot');
+    const card = this.$('mi-card');
+    const arrow = this.$('mi-arrow');
+    const target = id ? document.getElementById(id) : null;
+    const box = target?.getBoundingClientRect();
+    spot.innerHTML = '';
+    if (!target || !box || !box.width) {
+      spot.classList.add('hidden'); arrow.classList.add('hidden');
+      overlay.classList.remove('is-spot'); card.style.top = '';
+      return;
+    }
+    const frame = overlay.getBoundingClientRect();
+    const round = box.width / box.height < 1.4;
+    const icon = target.querySelector('svg')?.cloneNode(true) as SVGElement | undefined;
+    if (icon) { icon.removeAttribute('id'); spot.append(icon); }
+    if (!round) {
+      // The meter's own words, as it says them now.
+      const words = [...target.querySelectorAll<HTMLElement>('.confidence-label, .injury-cap')]
+        .filter(node => !node.hidden && node.textContent?.trim()).map(node => node.textContent!.trim());
+      spot.insertAdjacentHTML('beforeend', `<b>${words[0] ?? ''}</b>${words[1] ? `<em>${words[1]}</em>` : ''}`);
+    }
+    spot.classList.toggle('is-round', round);
+    spot.classList.remove('hidden');
+    const cx = box.left - frame.left + box.width / 2, cy = box.top - frame.top + box.height / 2;
+    const w = round ? Math.max(box.width, box.height) * 1.5 : spot.offsetWidth;
+    const h = round ? w : spot.offsetHeight;
+    // Kept on the screen: a meter in the corner would push half its pill off it.
+    const left = Math.min(Math.max(cx - w / 2, 12), frame.width - w - 12);
+    Object.assign(spot.style, round ? { left: `${left}px`, top: `${cy - h / 2}px`, width: `${w}px`, height: `${h}px` } : { left: `${left}px`, top: `${cy - h / 2}px`, width: '', height: '' });
+    overlay.classList.add('is-spot');
+    // The words a little under the widget, and the arrow from them to it.
+    const bottom = cy + h / 2;
+    card.style.top = `${bottom + 64}px`;
+    const words = card.getBoundingClientRect();
+    const fromX = Math.min(Math.max(cx, words.left - frame.left + 24), words.right - frame.left - 24);
+    const fromY = bottom + 56;
+    const toY = bottom + 8;
+    const bend = (fromX - cx) * 0.4;
+    arrow.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
+    this.$('mi-arrow-path').setAttribute('d', `M${fromX} ${fromY} C${fromX - bend} ${(fromY + toY) / 2} ${cx + bend} ${(fromY + toY) / 2} ${cx} ${toY}`);
+    arrow.classList.remove('hidden');
+  }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
@@ -1506,6 +1671,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
   pause(value: boolean) { this.viewport.classList.toggle('modal-open', value); this.$('pause-overlay').classList.toggle('hidden', !value); if (value) this.$('resume').focus(); }
   end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
+    this.$('end').classList.remove('is-marathon');
     this.viewport.classList.add('modal-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
@@ -1627,6 +1793,22 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   }
 
   /**
+   * The same strip, on the Marathon's card — which is the Blast's card with the
+   * three batters under the total, so it hosts the strip where the Blast does.
+   * No peek of the rows round the place: an innings writes two rows on two
+   * ladders, and three rows of one of them would be half the story.
+   */
+  offerMarathonClaim(
+    offer: CardOffer, known: { name: string; avatar: number } | null, team: readonly TeamRow[], playerId: string | null = null,
+  ) {
+    this.strip(offer, known, playerId, false, {
+      best: standing => `Your best still stands &mdash; <b>${team[standing.place - 1] ? marathonBest(team[standing.place - 1]) : standing.runs}</b>`,
+      peek: () => '',
+      held: () => '',
+    });
+  }
+
+  /**
    * The strip itself, which is one element moved between the two cards rather
    * than one per card. The form inside it carries the picker, the name field
    * and the listeners the game hung on them, and two of everything under two
@@ -1667,6 +1849,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         `${icon('trophy')}<span>Private window — this innings can’t go on the board</span>`;
       this.$('card-peek').innerHTML =
         '<p class="peek-note">Open the game in a normal tab to register a score.</p>';
+      key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'practice') {
+      // Played with a switch in the link — the nets, a full meter, one bowler
+      // all innings — so not an innings anybody else could have played.
+      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Practice innings — not for the leaderboard</span>`;
+      this.$('card-peek').innerHTML =
+        '<p class="peek-note">Played with a test switch in the link. Open the plain link to register a score.</p>';
       key.textContent = 'VIEW LEADERBOARD';
     } else if (offer.kind === 'standing') {
       // Their own row is the news, not this innings. What it says is what still
@@ -2389,6 +2578,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * whether or not the Test match is on offer.
    */
   hideSurviveCard() { this.$('mode-survive').classList.add('hidden'); }
+  /** The Marathon's card, off the picker on production until the mode launches. */
+  hideMarathonCard() { this.$('mode-marathon').classList.add('hidden'); }
 
   /**
    * The end card the picker was opened from, put back the way it was.
@@ -2414,6 +2605,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // Including the way out of the pause card. A link that names one mode is a
     // link to that mode wherever the player is standing when they ask.
     this.$('change-mode').classList.add('hidden');
+    this.$('mcard-modes').classList.add('hidden');
     // A build with no board behind it should not offer a way to one. The key is
     // on the cover under two different ids depending on whether the screen got
     // the phone layout or the desktop one.
@@ -2453,16 +2645,74 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * carries on, which is the difference between feedback and an interruption.
    */
   /**
-   * A fifty, a hundred or six sixes, drawn over the ground round him. The call
+   * A moment's doodle, drawn over the ground round him. The call
    * for the ball that got him there has had its moment by now and steps aside
    * rather than sit under the doodles. Gone again by itself when he is done.
+   * What goes under him — the Test innings' back layers — and how he is cut
+   * back out over it are handed back for the scene, which owns the layers
+   * under the HUD.
    */
-  milestone(kind: Milestone, at: BatterOnScreen, lasts: number) {
-    this.viewport.querySelector('.milestone')?.remove();
-    const doodle = milestoneDoodle(kind, at, lasts);
-    this.viewport.append(doodle);
+  milestone(moment: Moment, at: BatterOnScreen, lasts: number) {
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
+    const doodle = milestoneDoodle(moment, at, lasts);
+    this.viewport.append(doodle.element);
     this.viewport.classList.add('milestone-on');
-    window.setTimeout(() => { doodle.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+    window.setTimeout(() => { doodle.element.remove(); this.viewport.classList.remove('milestone-on'); }, lasts);
+    return { back: doodle.back, cutout: doodle.cutout };
+  }
+  /**
+   * `?moments=1`'s keys: one a milestone, along the foot of the picture. Their
+   * presses are kept from the bat underneath, so a key tapped with a ball in
+   * the air is a key and not a shot.
+   */
+  momentKeys(keys: readonly { label: string; moment: Moment }[], pick: (moment: Moment) => void) {
+    const row = document.createElement('div');
+    row.className = 'moment-keys';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Play a milestone');
+    for (const { label, moment } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'moment-key'; key.textContent = label;
+      key.setAttribute('aria-label', `Play the ${label} celebration`);
+      key.addEventListener('click', () => pick(moment));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
+   * `?nets=1`'s keys: a bowler each, and the side of the stumps. Built hidden,
+   * and shown by `netsShow` once there is a Marathon for them to work on.
+   */
+  netsKeys(bowlers: readonly NetsBowler[], pick: (bowler: NetsBowler) => void, side: () => void) {
+    const row = document.createElement('div');
+    row.className = 'nets-keys hidden';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Choose the bowler');
+    for (const bowler of bowlers) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'nets-key'; key.dataset.bowler = bowler; key.textContent = NETS_LABEL[bowler];
+      key.setAttribute('aria-pressed', 'false');
+      key.addEventListener('click', () => pick(bowler));
+      row.append(key);
+    }
+    const flip = document.createElement('button');
+    flip.type = 'button'; flip.className = 'nets-key nets-side'; flip.id = 'nets-side';
+    flip.addEventListener('click', side);
+    row.append(flip);
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  netsHide() { this.viewport.querySelector('.nets-keys')?.classList.add('hidden'); }
+  /** Which bowler and which side the nets are on. */
+  netsShow(bowler: NetsBowler, round: boolean) {
+    const row = this.viewport.querySelector<HTMLElement>('.nets-keys');
+    if (!row) return;
+    row.classList.remove('hidden');
+    row.querySelectorAll<HTMLButtonElement>('[data-bowler]').forEach(key => key.setAttribute('aria-pressed', String(key.dataset.bowler === bowler)));
+    const flip = row.querySelector<HTMLButtonElement>('#nets-side')!;
+    flip.textContent = round ? 'ROUND' : 'OVER';
+    flip.setAttribute('aria-label', round ? 'Bowling round the wicket: tap for over the wicket' : 'Bowling over the wicket: tap for round the wicket');
   }
   /**
    * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
@@ -2470,14 +2720,14 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * takes its place, since `milestone` clears whatever doodle is up.
    */
   power(at: BatterOnScreen, lasts: number, style: PowerStyle) {
-    this.viewport.querySelector('.milestone')?.remove();
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
     const doodle = powerDoodle(at, lasts, style);
     this.viewport.append(doodle);
     window.setTimeout(() => doodle.remove(), lasts);
   }
   /** The focus lines for a pulled bouncer: see `pullDoodle`. Not a moment either. */
   pull(at: BatterOnScreen, lasts: number, pen: PullPen) {
-    this.viewport.querySelector('.milestone')?.remove();
+    this.viewport.querySelector('.milestone:not(.milestone-under)')?.remove();
     const doodle = pullDoodle(at, lasts, pen);
     this.viewport.append(doodle);
     window.setTimeout(() => doodle.remove(), lasts);
@@ -2501,13 +2751,34 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   endMarathon(score: ScoreManager, innings: MarathonInnings) {
     this.end(score, 0, false, Math.max(1, score.balls));
+    this.$('end').classList.add('is-marathon');
     this.$('end-title').textContent = {
       ALL_OUT: 'All out', RETIRED: 'Retired hurt', BALLS: 'Five hundred balls', DECLARED: 'Declared',
     }[innings.ending ?? 'ALL_OUT'];
-    this.$('end-message').textContent = innings.batters
-      .map(b => `${b.batter.title}${b.left ? ' (LH)' : ''} ${MarathonInnings.score(b)} (${b.balls})`).join(' · ');
     this.$('final-score').innerHTML = `${score.runs}<span class="card-wickets">/${innings.gone}</span>`;
     this.$('final-score').setAttribute('aria-label', `${score.runs} for ${innings.gone}`);
+    const batters: CardBatter[] = innings.batters.map(b => ({
+      title: titleCase(b.batter.title), left: b.left, runs: b.runs, balls: b.balls,
+      fours: b.fours, sixes: b.sixes, out: b.out, retired: b.retired,
+    }));
+    const total: CardTotal = { runs: score.runs, balls: score.balls, fours: score.fours, sixes: score.sixes, wickets: innings.gone, overs: score.overs };
+    const didNotBat = BATTERS.slice(innings.batters.length).map(b => titleCase(b.title));
+    this.$('mcard-worm').innerHTML = wormMarkup(score.history.map(ball => ball.runs), fallsOf(batters));
+    this.$('mcard-score').innerHTML = scorecardMarkup(batters, total, didNotBat);
+    this.marathonShare = marathonShareText(total, batters, gameLink());
+  }
+  /** What the Marathon card's share key sends, written when the card goes up. */
+  private marathonShare = '';
+  /** The Marathon card's share: the scorecard as a line of text, through the phone's sheet or WhatsApp. */
+  async shareMarathon() {
+    if (!this.marathonShare) return;
+    track('share-innings', 'Shared the innings');
+    if (navigator.share) {
+      try { await navigator.share({ text: this.marathonShare }); return; } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(this.marathonShare)}`, '_blank', 'noopener');
   }
   /**
    * How a Test match finished. The headline is the result rather than the score,
@@ -2916,7 +3187,29 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * Rival Matches: what has come in, what is waiting on somebody, and how the
    * last ten went. A row opens its room; accept and decline act on the spot.
    */
-  challengeList(sections: ListSections, record?: RivalsRecord) {
+  /** Whether the Rivals ranking on Rival Matches has been opened out past its top ten. */
+  /** The Rivals ranking as last handed over, for the sheet the trophy key opens. */
+  private ranking: RivalsBoardView | null = null;
+  private get rankingShown() { return !this.$('rivals-ranking').classList.contains('hidden'); }
+  /** The ranking in a sheet over Rival Matches, from the trophy key at its top. */
+  showRanking() {
+    if (!this.ranking) return;
+    this.drawRanking();
+    const overlay = this.$('rivals-ranking');
+    // A tap on the dark round the sheet puts it away, as the close key does.
+    overlay.onclick = event => { if (event.target === overlay) this.closeRanking(); };
+    overlay.classList.remove('hidden');
+    this.settle('rivals-ranking');
+  }
+  closeRanking() { this.$('rivals-ranking').classList.add('hidden'); }
+  private drawRanking() {
+    if (!this.ranking) return;
+    const sheet = this.$('rivals-ranking-sheet');
+    sheet.innerHTML = rivalsRankingMarkup(this.ranking);
+    sheet.querySelector<HTMLButtonElement>('#rivals-ranking-close')!.onclick = () => this.closeRanking();
+    sheet.querySelector('.is-you')?.scrollIntoView({ block: 'center' });
+  }
+  challengeList(sections: ListSections, record?: RivalsRecord, ranking?: RivalsBoardView) {
     this.shutSheets();
     if (this.roomOpen) this.closeRoom();
     this.$('intro').classList.add('hidden');
@@ -2924,6 +3217,9 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     const section = (title: string, rows: ListRowView[]) => rows.length
       ? `<h3 class="rival-section-head">${title}</h3><ul class="rival-rows">${rows.map(listRow).join('')}</ul>`
       : '';
+    this.ranking = ranking ?? null;
+    this.$('challenge-list-ranking').classList.toggle('hidden', !ranking);
+    if (this.rankingShown) this.drawRanking();
     this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
       ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
       : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
@@ -2999,6 +3295,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
   /** Takes every challenge screen down. Called before putting one up. */
   shut() {
     this.shutSheets();
+    this.closeRanking();
     if (this.roomOpen) this.closeRoom();
     if (!this.$('challenge-list').classList.contains('hidden')) this.closeList();
   }

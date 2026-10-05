@@ -2,14 +2,17 @@ import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
-import { CONFIDENCE as MARATHON_CONFIDENCE, MARATHON, SETTLE } from './config/marathon';
-import { MarathonInnings, leftHanderOf, type Change } from './game/Marathon';
+import { introDue, noteIntro } from './ui/MarathonIntro';
+import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
+import { MarathonInnings, leftHanderOf, marathonFigures, type Change } from './game/Marathon';
+import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
+import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, marathonOnly, spun } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, marathonFastWear, marathonOnly, roundEvery, spun, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -18,8 +21,8 @@ import { InputManager } from './game/InputManager';
 import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
-import { milestoneOf, nearingEnd, nearingOf, type Milestone, type Nearing } from './game/milestone';
-import { CELEBRATION_MS, FIFTY_MS } from './entities/Batter';
+import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
+import { type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
@@ -28,8 +31,8 @@ import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import {
-  fetchBoard, fetchSurviveBoard, submitInnings, submitSurvive,
-  type BoardPayload, type SurvivePayload,
+  fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
+  type BoardPayload, type SurvivePayload, type MarathonPayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
 import {
@@ -46,15 +49,14 @@ import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
 } from './game/career-api';
-import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
-import { demoBoard, demoCareers, demoRivals, demoSurvive, demoWanted } from './game/demo-board';
+import { blastTally, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
+import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
 import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
-import { unveilDue } from './game/unveil';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, type Granted } from './game/tier';
 import { openFeedback } from './ui/Feedback';
@@ -69,6 +71,7 @@ import {
   track, trackOnce,
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
+import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
@@ -107,6 +110,29 @@ const SURVIVE_ONLY = !!import.meta.env.VITE_SURVIVE_ONLY;
  * testing it. It is hidden, not removed.
  */
 const SHOW_SURVIVE = SURVIVE_ONLY || !!import.meta.env.VITE_SHOW_SURVIVE;
+/**
+ * Whether the Test Marathon has a card on the picker.
+ *
+ * Everywhere but production until it launches: a preview is where it is
+ * played and judged, and a player there should reach it the way a player will,
+ * from Select Mode rather than from a link somebody remembered.
+ * `VITE_SHOW_MARATHON` is the switch launch turns on for production.
+ */
+const SHOW_MARATHON = !SURVIVE_ONLY && (!!import.meta.env.VITE_SHOW_MARATHON
+  || import.meta.env.VITE_VERCEL_ENV !== 'production');
+/**
+ * Whether the Test Marathon can be reached from here, and so whether its board
+ * has a tab: from the picker, or from a link that names it (`?mode=marathon`).
+ */
+/**
+ * Whether the new boards — the Marathon's two ladders and the Rivals ranking —
+ * carry made-up rows among the real ones (`fillMarathon`, `fillRivals`). Off
+ * production only: a preview nobody has played them on shows a board worth
+ * looking at, and a real innings still lands in its true place among them.
+ */
+const PREVIEW_FILL = !SURVIVE_ONLY && import.meta.env.VITE_VERCEL_ENV !== 'production';
+const MARATHON_OPEN = SHOW_MARATHON || (!SURVIVE_ONLY
+  && new URLSearchParams(location.search).get('mode')?.toLowerCase() === 'marathon');
 
 /**
  * When the ghost's ball appears, and how long it holds.
@@ -191,6 +217,10 @@ export class Game {
   private ending: Ending | null = null;
   /** The Marathon only: its three batters and its end. */
   private marathon: MarathonInnings | null = null;
+  /** What the Marathon has put up this innings: the swing coming on, and the express bowler's first over. */
+  private told = { swing: false };
+  /** When the bowler may set off, if a level's banner is up: he waits for it as for the field. */
+  private bannerUntil = 0;
   /** Where the batter who played the last ball came in, in the team's history: his fifty is his own. */
   private playedFrom = 0;
   /** The last ball took the man in out of the innings, and the next walks out once it is dead. */
@@ -209,7 +239,7 @@ export class Game {
    * `celebrating` holds the next ball back for exactly as long as it takes,
    * and no longer.
    */
-  private milestoneDue: Milestone | null = null;
+  private milestoneDue: Moment | null = null;
   private celebrating = 0;
   /** The wait for one of those moments that is on the screen, if any: see Nearing.ts. */
   private nearing: Nearing | null = null;
@@ -295,9 +325,9 @@ export class Game {
    */
   private sheetTab: SheetTab = 'classic';
   /** Each mode's career boards, held from the last fetch. */
-  private careerBoards: Partial<Record<BoardTab, CareerBoards<AnyCareer>>> = {};
+  private careerBoards: Partial<Record<CareerMode, CareerBoards<AnyCareer>>> = {};
   /** This player's own figures, as the store last reported them. */
-  private myCareer: Partial<Record<BoardTab, {
+  private myCareer: Partial<Record<CareerMode, {
     career: AnyCareer; name: string; avatar: number; granted?: Granted | null;
   }>> = {};
   /** The facts the card on screen was drawn from, so a late paint can be dropped. */
@@ -311,7 +341,7 @@ export class Game {
    * it landed — leaving the Blast for ever "Drawing your card…" beside a
    * finished Test one.
    */
-  private statsDrawn: Partial<Record<BoardTab, StatsFacts>> = {};
+  private statsDrawn: Partial<Record<CareerMode, StatsFacts>> = {};
   /** Whether the career page is wanted. Set before it exists, cleared on the way back. */
   private statsPage = false;
   /**
@@ -330,6 +360,33 @@ export class Game {
   private input!: InputManager;
   private audio = new GameAudio();
   private debug = new URLSearchParams(location.search).get('debug') === '1';
+  /**
+   * `?moments=1`: a row of keys on the screen, one a milestone — 50, 100, six
+   * sixes, and the Test marks 150 to 400 — so each celebration can be looked
+   * at on a phone without batting to it. A tap plays the moment exactly as the
+   * ball that earns it would, and adds no runs, counts nothing and sends
+   * nothing anywhere: it is the same celebration with none of the innings.
+   */
+  private readonly momentKeys = new URLSearchParams(location.search).get('moments') === '1';
+  /**
+   * `?nets=1`, in a Marathon: every bowler round the wicket from the first
+   * ball, and a row of keys to change him — the seamer, the swing bowler, the
+   * spinner, the express bowler — with one more to go back over the wicket
+   * and round again. A tap changes the bowler from the next ball; the innings
+   * is otherwise the innings, scored and offered to the boards as any other.
+   */
+  private readonly netsKeys = new URLSearchParams(location.search).get('nets') === '1';
+  private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
+  /** Hand the nets' choice to the bowling and show it on the keys. */
+  private applyNets() {
+    if (!this.netsKeys) return;
+    // A Blast or a Survival innings played from the same link has no nets.
+    if (!this.marathoning) { this.hud.netsHide(); return; }
+    this.generator?.nets(this.nets.bowler, this.nets.round);
+    this.hud.netsShow(this.nets.bowler, this.nets.round);
+  }
+  /** A moment asked for with a key and waiting for the ball to be dead: see `askMoment`. */
+  private momentAsked: Moment | null = null;
   /**
    * `?demo=1`: fifty made-up rows on every ladder, and nothing written.
    *
@@ -382,6 +439,12 @@ export class Game {
     // who was handed the link to give an opinion on the batting.
     if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
+    // Bowled or stumped, the wicket is heard when the ball reaches it.
+    this.scene.onStumps = () => this.audio.play('stumps');
+    if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
+    if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
+      bowler => { this.nets = { ...this.nets, bowler }; this.applyNets(); },
+      () => { this.nets = { ...this.nets, round: !this.nets.round }; this.applyNets(); });
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport,
       () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0,
       // The downward diagonals are the scoops whenever there is a meter to
@@ -395,6 +458,7 @@ export class Game {
     this.hud.on('start', this.play);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
+    this.hud.on('mode-marathon', () => { this.hud.closeModes(); this.choose('MARATHON'); });
     this.hud.on('mode-challenge', () => { void this.openMatch(); });
     this.hud.on('challenge-set', () => { void this.openMatch({ card: encodeInnings(this.score.history) }); });
     this.hud.on('challenge-share-done', () => { this.hud.closeSheets(); this.showRoom(); });
@@ -415,6 +479,7 @@ export class Game {
         this.showBoard();
       });
     }
+    this.hud.on('challenge-list-ranking', () => { this.mark('rivals-ranking', 'The Rivals ranking opened'); this.hud.showRanking(); });
     this.hud.on('challenge-list-done', () => { this.hud.closeChallenge(); this.modes(); });
     this.hud.on('challenge-list-new', () => { this.hud.closeChallenge(); void this.openMatch(); });
     this.hud.on('rivalry-again', () => { this.hud.closeChallenge(); void this.challengeRival(); });
@@ -452,6 +517,9 @@ export class Game {
     this.hud.on('survive-modes', this.modes);
     this.hud.on('card-result', () => this.backToResult());
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
+    // The Marathon card's own two keys under its play-again key.
+    this.hud.on('mcard-modes', () => { if (this.phase === 'INNINGS_END') this.modes(); });
+    this.hud.on('mcard-share', () => { void this.hud.shareMarathon(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('tutorial-play', this.walkOut);
     // Not the covers from a skip: that is pressed with a lesson ball on its way,
@@ -476,6 +544,7 @@ export class Game {
     this.hud.on('board', this.showBoard);
     // Both ladders exist, so the sheet carries a way between them.
     this.hud.showBoardTabs(SHOW_SURVIVE && !SURVIVE_ONLY);
+    this.hud.showMarathonTab(MARATHON_OPEN);
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
     this.hud.onLadderTab = this.tabLadder;
@@ -521,14 +590,14 @@ export class Game {
       if (document.fullscreenElement) void document.exitFullscreen();
       else if (this.hud.viewport.requestFullscreen) void this.hud.viewport.requestFullscreen().catch(() => {});
     });
-    window.addEventListener('keydown', this.shortcuts); document.addEventListener('visibilitychange', this.visibility);
+    window.addEventListener('keydown', this.shortcuts); window.addEventListener('beforeunload', this.leaving); document.addEventListener('visibilitychange', this.visibility);
     window.addEventListener('blur', this.blur);
     // A bundle built survive-only plays one innings and offers no way out of
     // it — that is the whole of what makes it publishable somewhere with no
     // board behind it. A `?mode=` link does the same thing at runtime.
     const named = SURVIVE_ONLY ? 'SURVIVE' : new URLSearchParams(location.search).get('mode')?.toUpperCase();
-    // The Marathon is a link and nothing else until it ships: no card on the
-    // picker, nothing on a board. See `docs/MARATHON.md`.
+    // Off production the Marathon has a card on the picker; on it, until it
+    // ships, it is this link and nothing else. See `docs/MARATHON.md`.
     if (named === 'SURVIVE' || named === 'CLASSIC' || named === 'MARATHON') {
       this.mode = named as GameMode;
       this.locked = true;
@@ -540,6 +609,7 @@ export class Game {
       // the screen was never seen. The Test card is hidden rather than removed
       // when its flag is off, so the picker still reads as two choices.
       if (!SHOW_SURVIVE) this.hud.hideSurviveCard();
+      if (!SHOW_MARATHON) this.hud.hideMarathonCard();
     }
     // The cover has music of its own. It is asked for rather than waited on:
     // a browser that will not play it yet is not a failure, it is a browser
@@ -550,10 +620,15 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Where every fielder is and what he is doing, for `field-check.mjs`.
       field: () => this.scene.fieldState,
+      // Where this ball is drawn `progress` of the way through its flight: from
+      // the hand round the wicket, for `marathon-check.mjs`.
+      drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
       // The Test look, for the checks: the green strip down, or the Blast's.
       greenTop: () => this.scene.greenTop,
+      // How worn the Marathon's strip is, a stage of `WEAR_STAGES`.
+      worn: () => this.scene.worn,
       // Day or night, for the checks.
       lights: () => this.scene.lit,
       // Who this browser settled on being. Asked by `key-check.mjs`, which
@@ -571,7 +646,7 @@ export class Game {
       hurt: () => { this.health.value = 1; this.showConfidence(); },
       // A moment on demand, for `milestone-check.mjs`: getting to a real
       // hundred in a headless browser is thirty balls of perfect timing.
-      milestone: (kind: Milestone = 'century') => this.celebrate(kind),
+      milestone: (kind: Milestone = 'century', mark?: number) => this.celebrate({ kind, mark: mark ?? MARK_OF[kind] }),
       // The special stroke's flash, on demand, for the same reason — in the
       // style named, so `power-check.mjs` can see each, or the next one dealt.
       power: (style?: PowerStyle) => this.powerUp(style),
@@ -829,9 +904,12 @@ export class Game {
     this.redrawStats();
   }
 
+  /** Whose career the innings in play counts toward. */
+  private get careerMode(): CareerMode { return this.surviving ? 'survive' : this.marathoning ? 'marathon' : 'classic'; }
+
   /** My Stats, in whichever of its two presentations is on the screen. */
   private redrawStats() {
-    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    const mode = this.careerMode;
     if (this.statsPage) {
       this.railStats(mode, view => {
         if (this.disposed || !this.statsPage) return;
@@ -968,24 +1046,11 @@ export class Game {
   choose = (mode: GameMode) => { this.mode = mode; this.walkOut(); };
   /**
    * An innings chosen, by whichever way a player chose it: the picker, a link
-   * that named the mode, or the tutorial's way out.
-   *
-   * The first time, the covers go up before it: the old ground, and a line to
-   * pull it off with. Here rather than on the cover's play key, because the new
-   * ground is shown off to somebody about to bat on it — the cover and the
-   * picker are menus, and a reveal in front of a menu is a reveal of nothing
-   * in particular. The play key under the new ground then starts the innings
-   * it was put up in front of.
+   * that named the mode, or the tutorial's way out. The first one used to put
+   * the old ground up first, to be swiped off the new one; the stadium is
+   * nobody's news any more, so a player now walks straight out to bat.
    */
-  private walkOut = () => this.unveiled(this.start);
-  /** Put up at most once a visit, so pictures that never load cannot put it up in a loop. */
-  private unveilAsked = false;
-  private unveiled(then: () => void) {
-    if (this.unveilAsked || !unveilDue()) return then();
-    this.unveilAsked = true;
-    this.mark('unveil', 'New ground shown');
-    this.hud.unveil(then);
-  }
+  private walkOut = () => this.start();
   start = () => {
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
@@ -1018,10 +1083,14 @@ export class Game {
       : null;
     if (this.marathon) this.health = this.marathon.current.health;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
+    this.applyNets();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
+    // Under a clear sky, with nothing yet told.
+    this.told = { swing: false }; this.bannerUntil = 0; this.hud.closeIntro();
+    this.scene.overcast(false, true); this.hud.levelBanner(null);
     this.hud.start(this.surviving, this.marathoning);
     this.hand();
     this.nearing = null; this.hud.nearing(null, null);
@@ -1033,12 +1102,28 @@ export class Game {
     if (this.surviving) this.hud.target(this.chasing, this.score.runs, this.score.balls, this.score.wickets);
     this.setPhase('READY');
     (document.activeElement as HTMLElement | null)?.blur();
+    if (this.marathoning) this.introduce();
   };
+  /**
+   * The Marathon's rules, the first two times one starts: the bowler waits at
+   * his mark until the last card is put away, the way he waits for a banner.
+   */
+  private introduce() {
+    if (this.demoing || !introDue()) return;
+    noteIntro('shown');
+    this.mark('intro', 'Rules shown');
+    this.bannerUntil = Number.POSITIVE_INFINITY;
+    this.hud.marathonIntro(how => {
+      if (how === 'skipped') noteIntro('skipped');
+      this.mark(how === 'skipped' ? 'intro-skipped' : 'intro-finished', how === 'skipped' ? 'Rules skipped' : 'Rules read to the end');
+      this.bannerUntil = this.elapsed;
+    });
+  }
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
-    this.scene.whites(false); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
+    this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
@@ -1072,10 +1157,27 @@ export class Game {
   /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
   private get test() { return isTest(this.mode); }
   private get limits() { return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : CLASSIC_LIMITS; }
+  /** The switches in this link that change the game: see `practice.ts`. */
+  private readonly switches = practiceSwitches(location.search, { spinOnly: SPIN_ONLY, chargeOnly: CHARGE_ONLY });
+  /**
+   * This innings was played with one of them. Not in a Rival Match, where
+   * they do nothing: a match has to send its innings to finish.
+   */
+  private get practising() { return this.switches.length > 0 && !this.challenge.playing; }
+  /**
+   * What a card offers, once the innings is known to be practice or played in
+   * a private window. An innings with nothing to offer stays quiet either way.
+   */
+  private shownOffer(offer: CardOffer): CardOffer {
+    if (offer.kind === 'silent') return offer;
+    if (this.practising) return { kind: 'practice' };
+    return this.canRegister ? offer : { kind: 'private' };
+  }
   /** `?spin=1` is the same thing as the build flag, for a dev server. */
   private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
   /** `?slowmo=0.65` tries a clock speed for the charge on a dev server. */
-  private chargeSlowmo = Number(new URLSearchParams(location.search).get('slowmo')) || CHARGE_SLOWMO;
+  private slowmoAsked = Number(new URLSearchParams(location.search).get('slowmo')) || CHARGE_SLOWMO;
+  private get chargeSlowmo() { return this.challenge.playing ? CHARGE_SLOWMO : this.slowmoAsked; }
   /** `?charge=1` likewise, and `?charge=ball` for the ball alone. Only the classic innings has a meter to fill. */
   private chargeOnly = CHARGE_ONLY || new URLSearchParams(location.search).get('charge') || '';
   /**
@@ -1085,7 +1187,7 @@ export class Game {
    * wickets — so a mistimed charge is still a mistimed charge.
    */
   private chargeable(delivery: Delivery): Delivery {
-    if (!this.chargeOnly || this.hurts || this.lesson >= 0) return delivery;
+    if (!this.chargeOnly || this.hurts || this.lesson >= 0 || this.challenge.playing) return delivery;
     if (this.chargeOnly !== 'ball') this.confidence.value = CONFIDENCE_FULL;
     // `meter`: the meter alone, the ball left to the innings, for the
     // strokes that want a ball the charge does not — the scoops.
@@ -1112,10 +1214,21 @@ export class Game {
   private expressOnly = new URLSearchParams(location.search).get('express') === '1';
   /** `?reverse=1`: the swing bowler every over, bowling nothing but reverse swing. */
   private reverseOnly = new URLSearchParams(location.search).get('reverse') === '1';
+  /** `?wear=fast`: every step of the Marathon in a fifth of the overs. See `marathonFastWear`. */
+  private wearFast = new URLSearchParams(location.search).get('wear') === 'fast';
+  /** `?round=1`: every over of a Marathon bowled round the wicket, from the first. See `roundEvery`. */
+  private roundOnly = new URLSearchParams(location.search).get('round') === '1';
   private get plan() {
+    // A Rival Match is bowled as the Blast is, whatever the link asks for.
+    if (this.challenge.playing) return CLASSIC_PLAN;
+    const plan = this.basePlan;
+    return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(plan) : plan;
+  }
+  private get basePlan() {
     if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
     }
+    if (this.marathoning && this.wearFast) return marathonFastWear();
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly) return { ...plan, spin: undefined, short: undefined, blocks: undefined,
       specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 1 } };
@@ -1161,7 +1274,50 @@ export class Game {
     if (this.marathoning) return [`marathon-${name}`, `Test Marathon: ${title}`];
     return [name, title];
   }
-  private setPhase(phase: GamePhase) { this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials); }
+  private setPhase(phase: GamePhase) {
+    this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
+    if (phase === 'READY' && this.marathon) this.tellLevel();
+    if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
+  }
+  /**
+   * A moment asked for with `?moments=1`'s keys. Between balls it goes up at
+   * once and the bowler waits at his mark until it is over, the way he does
+   * for a level banner; with a ball on its way it waits for that ball to be
+   * dead, which is when a real one goes up.
+   */
+  private askMoment(moment: Moment) {
+    if (this.phase === 'READY') {
+      this.celebrate(moment, true);
+      this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + this.celebrating);
+    } else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.momentAsked = moment;
+  }
+  /**
+   * At the top of an over, whether it is the one the innings changes in: the
+   * first over the pace bowler swings it, which brings the cloud over with it.
+   * Put up once an innings, and the bowler waits at his mark while it is.
+   *
+   * The express bowler had a banner of his own too, and the playtest took it
+   * off: the swing is a change in conditions a batter cannot see coming and
+   * should be told about, but a man running in from forty yards at 180 is his
+   * own announcement.
+   */
+  private tellLevel() {
+    const balls = this.score.balls;
+    if (balls % MARATHON.ballsPerOver) return;
+    const over = balls / MARATHON.ballsPerOver;
+    // The strip wears in the same steps the bowling climbs: fresh, then the
+    // swing, then the express bowler, then Level 3.
+    const level = this.generator.levelAt(over);
+    this.scene.wear(!level ? 0 : level.level === 3 ? 3 : level.express > 0 ? 2 : level.swingShare !== undefined ? 1 : 0);
+    const kind = this.generator.overKind(over);
+    const swinging = kind === 'PACE' && this.generator.levelAt(over)?.swingShare !== undefined;
+    const banner = swinging && !this.told.swing ? 'swing' : null;
+    if (!banner) return;
+    this.told[banner] = true;
+    if (banner === 'swing') this.scene.overcast(true);
+    this.hud.levelBanner(banner, over + 1, LEVEL_BANNER_MS);
+    this.bannerUntil = this.elapsed + LEVEL_BANNER_MS;
+  }
   private shoot = (shot: ShotType, inputTimeMs: number) => {
     if (this.phase !== 'BALL_IN_FLIGHT' || this.attempt) return;
     // The first swing of the session, tutorial or not: a player who never plays
@@ -1330,6 +1486,7 @@ export class Game {
     // The board a player asks for is the board for the innings they are in. The
     // other one is a tab away, and never the one they land on.
     this.boardActions = false;
+    if (this.marathoning) return this.openMarathon(this.marathonLadder);
     this.openBoard(this.surviving ? 'survive' : 'classic', 'best');
   };
 
@@ -1382,28 +1539,59 @@ export class Game {
     if (tab === this.sheetTab) return;
     this.mark(`board-tab-${tab}`, 'Another tab opened over the sheet');
     if (tab === 'mine') return this.openMine();
-    if (tab === 'rivals') return this.openRivals();
+    if (tab === 'marathon') return this.openMarathon(this.marathonLadder);
     this.openBoard(tab, 'best');
   };
 
-  /** The Rivals board as last fetched, so a second look is instant. */
+  /** The Rivals ranking as last fetched, so a second look at Rival Matches is instant. */
   private rivalsRows: RivalsRow[] | null = null;
 
+  /** The Rivals ranking for Rival Matches, as it stands: held, demo, or still coming. */
+  private rivalsRanking(state?: 'ready' | 'loading' | 'offline') {
+    if (this.demo) return { rows: demoRivals(this.player), youId: this.player, state: 'ready' as const };
+    const rows = this.rivalsRows ?? [];
+    return { rows: PREVIEW_FILL && this.rivalsRows ? fillRivals(rows) : rows, youId: this.player, state: state ?? (this.rivalsRows ? 'ready' as const : 'loading' as const) };
+  }
+  /** Both Marathon ladders as they are shown: the real rows, with the preview's filler among them off production. */
+  private get marathonShown(): { team: TeamRow[]; solo: SoloRow[] } | null {
+    if (!this.marathonRows) return null;
+    const real = { team: this.marathonRows.team.rows, solo: this.marathonRows.solo.rows };
+    return PREVIEW_FILL ? fillMarathon(real) : { team: [...real.team], solo: [...real.solo] };
+  }
+
+  /** Both Marathon ladders as last fetched, and which of the two is up. */
+  private marathonRows: MarathonPayload | null = null;
+  private marathonLadder: MarathonLadder = 'team';
+
   /**
-   * The Rivals board, under its own tab. What was held from the last fetch
-   * goes up at once and the fetch corrects it, the way the career boards do.
+   * The Test Marathon's board, on one of its two ladders. What was held from
+   * the last fetch goes up at once and the fetch corrects it; both ladders come
+   * in one answer, so the toggle between them is instant after the first look.
+   * After an innings, that innings sits under the list on its ladder's terms.
    */
-  private openRivals() {
-    this.sheetTab = 'rivals';
-    const draw = (rows: readonly RivalsRow[], state: 'ready' | 'loading' | 'offline') => {
-      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'rivals') return;
-      this.hud.rivalsBoard({ rows, youId: this.player, state });
+  private openMarathon(ladder: MarathonLadder) {
+    this.boardRestoreOffer();
+    this.sheetTab = 'marathon';
+    this.marathonLadder = ladder;
+    this.boardLadder = ladder;
+    const mine = this.phase === 'INNINGS_END' && this.marathoning && this.marathon?.ended;
+    const played = mine ? marathonFigures(this.marathon!) : null;
+    const yours = played ? { team: teamOf(played), solo: soloOf(played) } : null;
+    const actions = this.boardActions && !!mine;
+    const draw = (rows: MarathonPayload | { team: { rows: TeamRow[] }; solo: { rows: SoloRow[] } } | null, state: 'ready' | 'loading' | 'offline') => {
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'marathon' || this.marathonLadder !== ladder) return;
+      const shown = rows ? this.marathonShown : null;
+      this.hud.marathonBoard({ ladder, team: shown?.team ?? [], solo: shown?.solo ?? [], youId: this.player, yours, state, actions });
     };
-    if (this.demo) return draw(demoRivals(this.player), 'ready');
-    draw(this.rivalsRows ?? [], this.rivalsRows ? 'ready' : 'loading');
-    void fetchRivalsBoard().then(rows => {
-      if (rows) this.rivalsRows = rows;
-      draw(this.rivalsRows ?? [], rows ? 'ready' : this.rivalsRows ? 'ready' : 'offline');
+    // The sheet has to be up before `draw` will draw on it.
+    if (this.demo) { const demo = demoMarathon(this.player); this.hud.marathonBoard({ ladder, team: demo.team, solo: demo.solo, youId: this.player, yours, state: 'ready', actions }); return; }
+    this.hud.marathonBoard({
+      ladder, team: this.marathonShown?.team ?? [], solo: this.marathonShown?.solo ?? [], youId: this.player, yours,
+      state: this.marathonRows ? 'ready' : 'loading', actions,
+    });
+    void fetchMarathonBoard().then(payload => {
+      if (payload) this.marathonRows = payload;
+      draw(this.marathonRows, payload || this.marathonRows ? 'ready' : 'offline');
     });
   }
 
@@ -1416,7 +1604,7 @@ export class Game {
    * not the Blast's because the Blast is first in the row.
    */
   /** The cards on the tab's rail, by mode, as each of them is painted. */
-  private mineSlides: Partial<Record<BoardTab, StatsSlide>> = {};
+  private mineSlides: Partial<Record<CareerMode, StatsSlide>> = {};
 
   /**
    * Both cards, painted as they arrive, handed to whoever is drawing them.
@@ -1434,8 +1622,13 @@ export class Game {
    * asked for. Landing on the Blast after a Test innings is landing on
    * somebody else's card.
    */
-  private railStats(open: BoardTab, draw: (view: StatsSheetView) => void) {
-    const modes: BoardTab[] = SHOW_SURVIVE && !SURVIVE_ONLY ? ['classic', 'survive'] : [this.boardTab];
+  private railStats(open: CareerMode, draw: (view: StatsSheetView) => void) {
+    // The Test Marathon's card comes second, between the Blast's and Test
+    // Survival's, wherever the mode can be played.
+    const marathon: CareerMode[] = MARATHON_OPEN ? ['marathon'] : [];
+    const modes: CareerMode[] = SHOW_SURVIVE && !SURVIVE_ONLY
+      ? ['classic', ...marathon, 'survive']
+      : [this.boardTab, ...marathon];
     const at = Math.max(0, modes.indexOf(open));
     this.mineSlides = {};
     for (const mode of modes) {
@@ -1469,10 +1662,11 @@ export class Game {
   }
 
   private openMine() {
-    this.sheetTab = 'mine';
     // The game they were last looking at, which is why the mode is remembered
-    // apart from the tab.
-    this.railStats(this.boardTab, view => {
+    // apart from the tab — and the Marathon's card from the Marathon's tab.
+    const open: CareerMode = this.sheetTab === 'marathon' ? 'marathon' : this.boardTab;
+    this.sheetTab = 'mine';
+    this.railStats(open, view => {
       if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
       this.hud.statsTab(view);
     });
@@ -1482,6 +1676,7 @@ export class Game {
   private tabLadder = (ladder: LadderTab) => {
     if (ladder === this.boardLadder) return;
     this.mark(`board-ladder-${ladder}`, 'A career ladder opened from a tab');
+    if (this.sheetTab === 'marathon') return this.openMarathon(ladder as MarathonLadder);
     this.openBoard(this.boardTab, ladder);
   };
 
@@ -1547,7 +1742,7 @@ export class Game {
    */
   private showStats = () => {
     this.mark('stats-open', 'Career card opened');
-    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    const mode = this.careerMode;
     // Wanted, rather than open. The first draw is the one that opens the page,
     // so it cannot be the one that checks whether the page is open — guarding
     // on that left the widget doing nothing at all.
@@ -1586,7 +1781,7 @@ export class Game {
    * above, and neither of them has a copy of it.
    */
   private loadStats(
-    mode: BoardTab,
+    mode: CareerMode,
     draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
   ) {
     const batting = readPlayer();
@@ -1627,7 +1822,7 @@ export class Game {
    * thing the player came for either way.
    */
   private paintStats(
-    mode: BoardTab,
+    mode: CareerMode,
     mine: { career: AnyCareer; name: string; avatar: number; granted?: Granted | null },
     draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
   ) {
@@ -1719,6 +1914,19 @@ export class Game {
   private survived() { return asSurvive(this.score, this.health.blows.length, this.health.value); }
   private visibility = () => { this.audio.background(document.hidden); if (document.hidden && !['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
   private blur = () => { if (!['START', 'INNINGS_END', 'PAUSED'].includes(this.phase)) this.togglePause(); };
+  /**
+   * Leaving a long Marathon asks first. Nothing of an innings is kept until it
+   * ends, so a tab closed or reloaded three hundred balls in is three hundred
+   * balls gone; past `MARATHON.warnFrom` the browser's own "leave this page?"
+   * goes up. A phone that closes a backgrounded tab without asking is beyond
+   * reach of this, which is why it is a question and not a save.
+   */
+  private leaving = (event: BeforeUnloadEvent) => {
+    if (!this.marathoning || !this.marathon || this.marathon.ended || this.phase === 'INNINGS_END') return;
+    if (this.marathon.balls < MARATHON.warnFrom) return;
+    event.preventDefault();
+    event.returnValue = '';
+  };
   private shortcuts = (event: KeyboardEvent) => {
     if (event.repeat || this.hud.helpOpen) return;
     // A player typing their name into the claim field is not pressing shortcuts.
@@ -1732,9 +1940,6 @@ export class Game {
     // them, so they answer first. Without this Enter started an innings behind
     // them — and then started it again on the way out — 'B' opened the board
     // underneath, and Esc closed the board the player had come from.
-    // The covers answer nothing but their own keys: there is no way past them
-    // but pulling them off, and the line and the play key take their own.
-    if (this.hud.unveilOpen) return;
     if (this.hud.storiesOpen) {
       if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeStories(); }
       return;
@@ -1843,7 +2048,7 @@ export class Game {
     // The bowler waits for the field to be back on its marks — a catcher
     // jogging back from deep midwicket, the man who chased one to the rope —
     // and no longer than a few seconds past the usual wait, whatever happens.
-    if (this.phase === 'READY' && age >= this.readyMs && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)) {
+    if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
       this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false;
@@ -1864,6 +2069,8 @@ export class Game {
       this.scene.reset(); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
+      this.scene.express(!!this.delivery.express);
+      this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
@@ -1891,6 +2098,7 @@ export class Game {
       if (this.elapsed >= this.resolveEndsAt) {
         this.setPhase('RESULT');
         if (this.milestoneDue) { this.celebrate(this.milestoneDue); this.milestoneDue = null; }
+        else if (this.momentAsked) { this.celebrate(this.momentAsked, true); this.momentAsked = null; }
         // After the call, not over it: the sledge is what comes back from the
         // field once the ball is dead.
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
@@ -2068,6 +2276,7 @@ export class Game {
   private powerUp(style: PowerStyle = this.powerStyles.next()) {
     this.powerStyle = style;
     this.scene.power(this.elapsed);
+    this.scene.cutout();
     this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
     track('special-shot', 'Played a special stroke on a full meter');
   }
@@ -2077,6 +2286,7 @@ export class Game {
    */
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
+    this.scene.cutout();
     this.hud.pull(this.scene.batterOnScreen(), PULL_DOODLE_MS, this.pullPen);
     track('pulled-bouncer', 'Pulled a bouncer');
   }
@@ -2093,16 +2303,21 @@ export class Game {
   /** The burst the last special stroke was drawn with, for the debug snapshot. */
   private powerStyle: PowerStyle | null = null;
   /** A moment: see `milestoneDue`. */
-  private celebrate(kind: Milestone) {
-    const mild = kind === 'fifty';
-    this.celebrating = mild ? FIFTY_MS : CELEBRATION_MS;
-    this.scene.celebrate(this.elapsed, mild);
-    this.hud.milestone(kind, this.scene.batterOnScreen(), this.celebrating);
-    // The crowd with it, falling away: the fifty's is the shorter of the two,
-    // though long enough to be heard as applause rather than a blip; the big
-    // two's carry on a little past him into the next ball's run-up.
-    this.audio.cheer(mild ? 2.3 : 2.8);
-    track(kind, kind === 'fifty' ? 'Reached fifty' : kind === 'century' ? 'Reached a hundred' : 'Six sixes in a row');
+  private celebrate(moment: Moment, asked = false) {
+    const { kind } = moment;
+    // Which celebration the batter plays: the raised bat for every other
+    // fifty, the hundred's for six sixes, and the three big ones their own.
+    const pose: Celebration = kind === 'fifty' || kind === 'raise' ? 'fifty' : kind === 'century' || kind === 'six-sixes' ? 'hundred' : kind;
+    this.celebrating = celebrationLength(pose);
+    this.scene.celebrate(this.elapsed, pose);
+    const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
+    this.scene.cutout(back, cutout, this.celebrating);
+    // The crowd with it, falling away: the fifty's is the shorter, though
+    // long enough to be heard as applause rather than a blip; the hundred's
+    // carries on a little past him into the next ball's run-up; and the big
+    // ones take the whole of the clip.
+    this.audio.cheer(CHEER[kind]);
+    if (!asked) track(kind, MOMENT_SAID[kind]);
   }
   private presentResult() {
     this.resultPresented = true;
@@ -2135,16 +2350,22 @@ export class Game {
     // An innings that had nothing to offer stays quiet in a private window too:
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
-    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
-    this.hud.offerClaim(shown, readPlayer(), this.board, played, this.player);
+    this.hud.offerClaim(this.shownOffer(offer), readPlayer(), this.board, played, this.player);
+  }
+
+  /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
+  private offerMarathon() {
+    const played = marathonFigures(this.marathon!);
+    const rows = this.marathonShown ?? { team: [], solo: [] };
+    const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
+    this.hud.offerMarathonClaim(this.shownOffer(offer), readPlayer(), rows.team, this.player);
   }
 
   /** The same, asked of the Test ladder and answered on the Test card. */
   private offerSurvive() {
     const played = this.survived();
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
-    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
-    this.hud.offerSurviveClaim(shown, readPlayer(), this.surviveRows, played, this.player);
+    this.hud.offerSurviveClaim(this.shownOffer(offer), readPlayer(), this.surviveRows, played, this.player);
   }
 
   /**
@@ -2158,8 +2379,8 @@ export class Game {
    * best is exactly the moment somebody wants a different name on it.
    */
   private startClaim = () => {
-    // A private window has no place to claim, so its key is the board's.
-    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private') return this.showBoard();
+    // A private window has no place to claim, and nor does practice, so the key is the board's.
+    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private' || this.hud.offerKind === 'practice') return this.showBoard();
     this.mark('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
@@ -2170,15 +2391,16 @@ export class Game {
    * guessed at — and the board on screen is up to date the moment they open it.
    */
   private async sendClaim() {
-    if (this.marathoning) return;
     const entry = this.hud.claimEntry.name ? this.hud.claimEntry : readPlayer();
-    if (!this.canRegister) return this.showBoard();
+    if (!this.canRegister || this.practising) return this.showBoard();
     if (!entry || !this.player) return this.hud.openClaim();
     this.hud.claimSending(true);
     // Each mode offers its own innings to its own ladder. The store keeps the
     // two under separate keys, so the mode travels with the figures rather than
     // being inferred from their shape at the far end.
-    const result = this.surviving
+    const result = this.marathoning && this.marathon
+      ? await submitMarathon(this.player, entry.name, entry.avatar, marathonFigures(this.marathon))
+      : this.surviving
       ? await submitSurvive(this.player, entry.name, entry.avatar, this.survived())
       : await submitInnings(this.player, entry.name, entry.avatar, asInnings(this.score));
     if (this.disposed) return;
@@ -2196,10 +2418,19 @@ export class Game {
       keepKey(result.key);
       track('key-issued', 'Career key issued');
     }
+    // The Marathon's two rows, from what the store answered with, and its tab
+    // opened on the place just taken. It has no careers to refresh yet.
+    if (this.marathoning) {
+      if (result.board) this.marathonRows = result.board as MarathonPayload;
+      this.hud.claimDone();
+      this.boardActions = true;
+      this.offerFirstKey();
+      return this.openMarathon(this.marathonLadder);
+    }
     // Claiming a name is what puts a career already counted onto the career
     // boards, so the copies held from before it are wrong the moment this
     // returns — including the card's, which was drawn with no name on it.
-    const claimed: BoardTab = this.surviving ? 'survive' : 'classic';
+    const claimed = this.careerMode;
     delete this.careerBoards[claimed];
     delete this.myCareer[claimed];
     forgetCareer();
@@ -2309,15 +2540,13 @@ export class Game {
    * it has already seen.
    */
   private countThisInnings() {
-    // Not yet: the Marathon has no career to count toward, and the store
-    // refuses it rather than file it under the Blast. See `src/server/mode.ts`.
-    if (this.marathoning) return;
-    if (!this.player || !this.canRegister) return;
-    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    if (!this.player || !this.canRegister || this.practising) return;
+    const mode = this.careerMode;
     // The career's own tally, not the board's row: it carries what each batsman
-    // made, which the six totals on a row cannot say.
-    const tally: BlastTally | SurviveTally = this.surviving
-      ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
+    // made, which the six totals on a row cannot say. The Marathon's is the very
+    // innings its boards are sent, every batter's figures with it.
+    const tally: BlastTally | SurviveTally | MarathonTally = this.marathon ? marathonFigures(this.marathon)
+      : this.surviving ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
       : blastTally(this.score);
     const nonce = mintNonce();
     const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
@@ -2370,14 +2599,24 @@ export class Game {
     // them, but the screen it ends on is the same screen.
     this.audio.music('result');
     if (this.marathon) {
-      // A card and nothing else until the Marathon has a board and a career:
-      // no strip, no claim, no best kept. It is the Blast's card with the
-      // three batters written under the total.
+      // The Blast's card with the worm and the batting card under the total,
+      // the boards' strip on it, and the way to the career it has just added to.
       const marathon = this.marathon;
       this.mark('innings-end', 'Innings completed');
       this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
       track(`marathon-ended-${marathon.ending!.toLowerCase().replace('_', '-')}`, `Test Marathon ended: ${marathon.ending}`);
       this.hud.endMarathon(this.score, marathon);
+      this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
+      this.hud.offerRestorePanel = this.offerRestoreOnCard();
+      this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+      this.offerMarathon();
+      // Both ladders, fresh, and the offer asked again once they are here: an
+      // innings this long outlives whatever was fetched before it.
+      void fetchMarathonBoard(true).then(payload => {
+        if (this.disposed || !payload || this.phase !== 'INNINGS_END' || this.marathon !== marathon) return;
+        this.marathonRows = payload;
+        if (!this.hud.claimOpen) this.offerMarathon();
+      });
       return;
     }
     if (this.surviving) {
@@ -2410,8 +2649,12 @@ export class Game {
       this.offerSurvive();
       return;
     }
-    const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
-    try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
+    // Practice does not move this browser's own best either.
+    const record = !this.practising && this.score.runs > this.best;
+    if (!this.practising) {
+      this.best = Math.max(this.best, this.score.runs);
+      try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
+    }
     track('innings-end', 'Innings completed');
     track(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
     track(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
@@ -2800,10 +3043,6 @@ export class Game {
    */
   private startMatchInnings(resume: boolean) {
     if (!this.player) return;
-    // The covers first, the first time, over the room: the innings below them
-    // is set up only once they are off, so the room is still there to go back
-    // to until then.
-    if (!this.unveilAsked && unveilDue()) return this.unveiled(() => this.startMatchInnings(resume));
     this.matchCard = null;
     this.hud.closeRoom();
     this.challenge.beginInnings(this.player);
@@ -2989,9 +3228,16 @@ export class Game {
       drawn = said;
       this.hud.challengesOpen(shown.yourMove.length, shown.waitingOnThem.length);
       this.hud.closeModes();
-      this.hud.challengeList(sections, shown.record);
+      this.hud.challengeList(sections, shown.record, this.rivalsRanking());
     };
     if (this.rooms) draw(this.rooms);
+    // The ranking under the record, fetched alongside the list and drawn in
+    // when it lands, if the list is still the screen being looked at.
+    if (!this.demo) void fetchRivalsBoard().then(rows => {
+      if (rows) this.rivalsRows = rows;
+      if (!this.hud.listOpen || !this.rooms) return;
+      this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(rows || this.rivalsRows ? 'ready' : 'offline'));
+    });
     const wasShowing = !!drawn;
     const list = await ChallengeRun.mine(me);
     if (list) this.rooms = list;
@@ -3009,7 +3255,7 @@ export class Game {
       const shown = this.rooms ?? emptyList();
       const rest = (rows: Challenge[]) => rows.filter(room => room.code !== code);
       this.rooms = { yourMove: rest(shown.yourMove), waitingOnThem: rest(shown.waitingOnThem), done: rest(shown.done), unseen: shown.unseen, record: shown.record };
-      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record);
+      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record, this.rivalsRanking());
       return;
     }
     const room = [...(this.rooms?.yourMove ?? []), ...(this.rooms?.waitingOnThem ?? []), ...(this.rooms?.done ?? [])]
@@ -3061,15 +3307,32 @@ export class Game {
       settle: marathon.current.settle, confidence: marathon.current.confidence, confident: marathon.confident,
       gone: marathon.gone, ending: marathon.ending, canDeclare: marathon.canDeclare,
       health: marathon.current.health.value, level: this.generator.levelAt(over)?.level ?? null,
-      bowler: this.generator.overKind(over), express: !!this.delivery?.express,
+      bowler: this.generator.overKind(over), express: !!this.delivery?.express, action: this.scene.bowlerAction,
+      round: this.generator.roundAt(over), side: this.scene.bowlerSide,
+      told: { ...this.told }, clouded: this.scene.clouded,
     };
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
-    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
+    window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
   }
 }
 
+
+/** How long the crowd keeps it up for each moment, in seconds; the clip is three and a half. */
+/** `?moments=1`'s keys, in the order an innings reaches them. */
+const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
+  { label: '50', moment: { kind: 'fifty', mark: 50 } }, { label: '100', moment: { kind: 'century', mark: 100 } },
+  { label: '6\u00d76', moment: { kind: 'six-sixes', mark: 0 } }, { label: '150', moment: { kind: 'raise', mark: 150 } },
+  { label: '200', moment: { kind: 'double', mark: 200 } }, { label: '250', moment: { kind: 'raise', mark: 250 } },
+  { label: '300', moment: { kind: 'triple', mark: 300 } }, { label: '350', moment: { kind: 'raise', mark: 350 } },
+  { label: '400', moment: { kind: 'four', mark: 400 } },
+];
+const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
+const MOMENT_SAID: Record<Milestone, string> = {
+  fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',
+  double: 'Reached a double hundred', triple: 'Reached a triple hundred', four: 'Reached four hundred',
+};
 
 /**
  * What each row of the list says.

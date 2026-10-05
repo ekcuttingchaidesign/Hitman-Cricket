@@ -1,21 +1,23 @@
 import * as THREE from 'three';
-import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
-import { ACTION_MS, Bowler } from '../entities/Bowler';
+import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength } from '../entities/Batter';
+import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
 import { BLAST_FIELD, Field, TEST_FIELD } from './field';
 import { ADVANCE, FLAT_SWEEP, GAME, SHOT_ANGLES, SQUARE_DRIVE, SWEEP } from '../config/gameplay';
-import { ballPosition } from '../game/DeliveryTrajectory';
+import { ballPosition, drawnAt } from '../game/DeliveryTrajectory';
 import { KIT } from '../entities/Cricketer';
 import { WHITES } from '../config/survive';
 import { flightOf } from './flight';
-import { SKY, Sky, type SkyTime } from './sky';
+import { OVERCAST, SKY, Sky, type SkyTime } from './sky';
 import { FILL_POSITION, LIGHTING, glows, moon, nightReflections } from './night';
-import { contactShadowTexture, grassTexture, pitchTexture } from './turf';
+import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from './turf';
 import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
+import { buildWicket } from './wicket';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
+import type { Cutout } from '../ui/Milestone';
 
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
 const KIT_GLOW = 0.32;
@@ -63,6 +65,8 @@ function powerAt(age: number) {
  * from the hit. It covers the downswing into the ball and follows the bat on
  * through the finish, thinning out behind as it goes.
  */
+/** How long the Marathon's cloud takes to come over. */
+const COVER_MS = 3200;
 const SWISH_SPAN_MS = 220;
 /** How wide the swoosh is at the bat, in metres; it tapers to nothing behind. */
 const SWISH_WIDTH = .3;
@@ -91,10 +95,10 @@ const TAILS = {
   pull: [0xff6a55, 0xf01b2c, 0x9c0018],
 } as const;
 /** How far gone the colour is, a given time into his celebration. */
-function muteAt(age: number) {
-  if (age < 0 || age >= CELEBRATION_MS) return 0;
+function muteAt(age: number, lasts = CELEBRATION_MS) {
+  if (age < 0 || age >= lasts) return 0;
   const into = THREE.MathUtils.smoothstep(age, 0, 180);
-  const out = 1 - THREE.MathUtils.smoothstep(age, CELEBRATION_MS - 320, CELEBRATION_MS);
+  const out = 1 - THREE.MathUtils.smoothstep(age, lasts - 320, lasts);
   return Math.min(into, out);
 }
 
@@ -143,12 +147,25 @@ export class GameScene {
   private pitch!: THREE.MeshStandardMaterial;
   private dryPitch!: THREE.Texture;
   private greenPitch: THREE.Texture | null = null;
+  /** The Test strip worn to the current stage, painted when the stage comes; null while it is fresh. */
+  private wornPitch: THREE.Texture | null = null;
+  private wearStage = 0;
   private anisotropy = 1;
   private shadow: THREE.Mesh;
   private bounceRing: THREE.Mesh;
   private catchRing: THREE.Mesh;
   private chargeRing: THREE.Mesh;
   private bails: THREE.Mesh[] = [];
+  /** His own stumps, the ones between the camera and him: drawn back over a moment's back layer with him. */
+  private stumps: THREE.Mesh[] = [];
+  /**
+   * The layers a Test innings' moment puts between the picture and the HUD:
+   * the doodle's back layer, then him cut back out over it with his outline.
+   * See `cutout`.
+   */
+  private readonly underlay = document.createElement('div');
+  private readonly cutCanvas = document.createElement('canvas');
+  private cut: { spec: Cutout; until: number; him: Set<THREE.Object3D>; stumps: Set<THREE.Object3D>; sil: HTMLCanvasElement; ring: HTMLCanvasElement } | null = null;
   private trail: THREE.Mesh[] = [];
   /**
    * The fire behind a ball struck with a special stroke: yellow at the ball,
@@ -181,6 +198,8 @@ export class GameScene {
   private hitEnd = new THREE.Vector3();
   private hitOutcome: ShotOutcome | null = null;
   private bailsBrokeAt = 0;
+  /** The moment the ball breaks the wicket, for the stumps' rattle. Once a ball. */
+  onStumps: (() => void) | null = null;
   private flightMs: number = GAME.hitAnimationMs;
   private hitHeight = 0;
   /** Where in a skied ball's flight it is spilled, or 0 when it is not. */
@@ -221,9 +240,12 @@ export class GameScene {
   /** How grey everything but the batter is: see `MUTE`. */
   private mute = { value: 0 };
   private celebratedAt = -Infinity;
+  /** How long the celebration under way greys the ground for. */
+  private celebratedFor = CELEBRATION_MS;
   private poweredAt = -Infinity;
   constructor(private container: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    // Alpha, so a pass of him alone can be lifted off a clear background: see `cutout`.
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     const mobile = window.matchMedia('(pointer: coarse)').matches;
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
@@ -234,6 +256,9 @@ export class GameScene {
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.setClearColor(SKY.horizon);
     container.prepend(this.renderer.domElement);
+    this.underlay.className = 'stage-underlay'; this.cutCanvas.className = 'stage-cut';
+    this.cutCanvas.style.display = 'none'; this.cutCanvas.setAttribute('aria-hidden', 'true');
+    this.renderer.domElement.after(this.underlay, this.cutCanvas);
     this.renderer.domElement.setAttribute('aria-label', '3D cricket ground viewed from behind the batter');
     // The haze is the sky's own horizon, so the far stands sink into it rather
     // than into a grey that belongs to nothing.
@@ -471,11 +496,8 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    for (const x of [-0.145, 0, 0.145]) cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
-    for (const x of [-0.073, 0.073]) {
-      const bail = box(this.world, 0.16, 0.035, 0.045, colors.orange, x, GAME.stumpHeight + 0.02, z);
-      if (z === 0) this.bails.push(bail);
-    }
+    const { timber, bails } = buildWicket(this.world, GAME.stumpHeight, z);
+    if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); }
   }
   private resize = () => {
     const { width, height } = this.container.getBoundingClientRect();
@@ -515,7 +537,7 @@ export class GameScene {
     this.scene.environmentIntensity = light.environment;
     this.hemisphere.color.set(light.hemisphere.sky); this.hemisphere.groundColor.set(light.hemisphere.ground);
     this.hemisphere.intensity = light.hemisphere.intensity;
-    this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity; this.sun.position.set(...light.key.position);
+    this.sun.color.set(light.key.colour); this.sun.intensity = light.key.intensity * (1 - this.sky.cover * OVERCAST.sun); this.sun.position.set(...light.key.position);
     this.fill.intensity = light.fill.intensity;
     if (this.boardsMaterial) this.boardsMaterial.emissiveIntensity = light.boards;
     if (this.lamps) this.lamps.emissiveIntensity = light.lamps;
@@ -570,9 +592,99 @@ export class GameScene {
    * grey round him; or his fifty, `mild`, the bat raised and the colours left
    * where they are.
    */
-  celebrate(now: number, mild = false) {
-    this.batter.celebrate(now, mild);
-    this.celebratedAt = mild ? -Infinity : now;
+  celebrate(now: number, kind: Celebration = 'hundred') {
+    this.batter.celebrate(now, kind);
+    // The fifty keeps the ground in its colours; the rest grey it for as long as they last.
+    this.celebratedAt = kind === 'fifty' ? -Infinity : now;
+    this.celebratedFor = celebrationLength(kind);
+  }
+  /**
+   * A moment's layers under the HUD, for `lasts` milliseconds: `back`, the
+   * doodle's layer that goes behind him, and `spec`, how he is cut back out
+   * over it — outline rings stamped round his silhouette, and his stumps
+   * with him where they stand in front of him. Each frame he is rendered
+   * once more on his own, onto a clear background, and that picture is laid
+   * over the back layer, so the doodle goes behind him without a 3D card in
+   * the scene. Called with nothing, it takes them down.
+   */
+  cutout(back?: HTMLElement, spec?: Cutout, lasts = 0) {
+    this.underlay.replaceChildren(...(back ? [back] : []));
+    if (back) window.setTimeout(() => back.remove(), lasts);
+    if (!spec) { this.cut = null; this.cutCanvas.style.display = 'none'; return; }
+    const him = new Set<THREE.Object3D>(), stumps = new Set<THREE.Object3D>(spec.stumps ? this.stumps : []);
+    this.batter.root.traverse(o => him.add(o));
+    this.cut = { spec, until: performance.now() + lasts, him, stumps, sil: document.createElement('canvas'), ring: document.createElement('canvas') };
+  }
+  /** Him alone, then his stumps with him, into the cut-out's canvas, with the outline rings under. */
+  private drawCutout() {
+    const cut = this.cut!, left = cut.until - performance.now();
+    if (left <= 0) { this.cutout(); return; }
+    const gl = this.renderer.domElement, canvas = this.cutCanvas;
+    if (canvas.width !== gl.width || canvas.height !== gl.height) { canvas.width = gl.width; canvas.height = gl.height; }
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.style.display = '';
+    canvas.style.opacity = String(Math.min(1, left / 300));
+
+    const hidden: THREE.Object3D[] = [];
+    const only = (keep: (o: THREE.Object3D) => boolean) => this.scene.traverse(o => {
+      if (o.visible && !keep(o) && ((o as THREE.Mesh).isMesh || (o as THREE.Points).isPoints || (o as THREE.Line).isLine || (o as THREE.Sprite).isSprite)) { o.visible = false; hidden.push(o); }
+    });
+    const clear = this.renderer.getClearColor(new THREE.Color()), alpha = this.renderer.getClearAlpha();
+    const shadows = this.renderer.shadowMap.autoUpdate;
+    this.renderer.setClearColor(0x000000, 0);
+    // The shadow map is the last frame's: drawn again for him alone, he would
+    // be lit as if nothing else stood on the ground.
+    this.renderer.shadowMap.autoUpdate = false;
+    try {
+      only(o => cut.him.has(o));
+      this.renderer.render(this.scene, this.camera);
+      this.outline(context, gl);
+      context.drawImage(gl, 0, 0);
+      if (cut.stumps.size) {
+        hidden.forEach(o => { if (cut.stumps.has(o)) o.visible = true; });
+        this.renderer.render(this.scene, this.camera);
+        context.drawImage(gl, 0, 0);
+      }
+    } finally {
+      hidden.forEach(o => { o.visible = true; });
+      this.renderer.setClearColor(clear, alpha);
+      this.renderer.shadowMap.autoUpdate = shadows;
+    }
+  }
+  /**
+   * The outline rings, biggest first: his silhouette stamped round a circle
+   * of each ring's radius and filled with its colour. Worked at CSS pixels in
+   * a box round him rather than across the whole screen, and the stamps are
+   * jittered afresh nine times a second so the line boils like the pen's.
+   */
+  private outline(context: CanvasRenderingContext2D, gl: HTMLCanvasElement) {
+    const cut = this.cut!, at = this.batterOnScreen(), ratio = gl.width / Math.max(1, at.width);
+    const s = Math.max(40, (at.feet.y - at.head.y) / 1.78);
+    const x0 = Math.max(0, Math.min(at.head.x, at.feet.x) - s * 2.1), x1 = Math.min(at.width, Math.max(at.head.x, at.feet.x) + s * 2.1);
+    const y0 = Math.max(0, at.head.y - s * 1.5), y1 = Math.min(at.height, at.feet.y + s * .45);
+    const w = Math.ceil(x1 - x0), h = Math.ceil(y1 - y0);
+    if (w <= 0 || h <= 0) return;
+    for (const c of [cut.sil, cut.ring]) if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    const sil = cut.sil.getContext('2d'), ring = cut.ring.getContext('2d');
+    if (!sil || !ring) return;
+    sil.clearRect(0, 0, w, h);
+    sil.drawImage(gl, x0 * ratio, y0 * ratio, w * ratio, h * ratio, 0, 0, w, h);
+    let seed = Math.floor(performance.now() / 110) * 7919 >>> 0;
+    const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    for (const { r, colour, dx = 0, dy = 0 } of cut.spec.rings) {
+      ring.globalCompositeOperation = 'source-over';
+      ring.clearRect(0, 0, w, h);
+      for (const [count, reach] of [[16, 1], [8, .55]] as const) for (let i = 0; i < count; i++) {
+        const a = (i + random() * .3) / count * Math.PI * 2, rr = r * reach * (1 + (random() - .5) * .16);
+        ring.drawImage(cut.sil, Math.cos(a) * rr, Math.sin(a) * rr);
+      }
+      ring.globalCompositeOperation = 'source-in';
+      ring.fillStyle = colour;
+      ring.fillRect(0, 0, w, h);
+      context.drawImage(cut.ring, 0, 0, w, h, (x0 + dx) * ratio, (y0 + dy) * ratio, w * ratio, h * ratio);
+    }
   }
   /**
    * A special stroke on a full meter, from the moment it is hit: the same
@@ -642,14 +754,67 @@ export class GameScene {
       this.textures.push(this.greenPitch);
     }
     this.pitch.map = on ? this.greenPitch! : this.dryPitch;
+    this.dropWear();
   }
   /** Which strip is down, for the checks. */
   get greenTop() { return this.pitch.map === this.greenPitch; }
+  /** How worn the Test strip is, as a stage of `WEAR_STAGES`, for the checks. */
+  get worn() { return this.wearStage; }
+
+  /**
+   * The Marathon's strip, worn to a stage: repainted as each level comes — the
+   * swing, the express bowler, Level 3 — so what the bowling is doing can be
+   * seen in the surface it is doing it off. One worn strip is kept at a time;
+   * the last is thrown away when the next is painted.
+   */
+  wear(stage: number) {
+    const at = Math.max(0, Math.min(WEAR_STAGES.length - 1, Math.round(stage)));
+    if (at === this.wearStage || !this.greenPitch || this.pitch.map === this.dryPitch) return;
+    this.dropWear();
+    this.wearStage = at;
+    if (!at) return;
+    this.wornPitch = pitchTexture(2.8, 32, 4.3, this.anisotropy, { batting: 0, bowling: 18.7 }, BALL.testGrass, WEAR_STAGES[at]);
+    this.pitch.map = this.wornPitch;
+  }
+  private dropWear() {
+    if (this.wornPitch) {
+      if (this.pitch.map === this.wornPitch) this.pitch.map = this.greenPitch;
+      this.wornPitch.dispose();
+      this.wornPitch = null;
+    }
+    this.wearStage = 0;
+  }
+
+  /**
+   * The Marathon's cloud cover: the sky greys over and the sun dims as the
+   * ball starts to swing, which is the weather every cricket fan already links
+   * with it. Drawn in over a few seconds, not switched — weather comes over —
+   * and the environment map retaken once when it has, rather than every frame
+   * on the way. `instant` is for a new innings, which starts under clear sky.
+   */
+  private cover = { from: 0, to: 0, at: 0 };
+  overcast(on: boolean, instant = false) {
+    const to = on ? 1 : 0;
+    if (to === this.cover.to && (!instant || this.sky.cover === to)) return;
+    this.cover = { from: instant ? to : this.sky.cover, to, at: this.clock };
+    if (instant) this.clouding(to, true);
+  }
+  /** How clouded over it is now, nought to one, for the checks. */
+  get clouded() { return Math.round(this.sky.cover * 100) / 100; }
+  private clouding(amount: number, settled: boolean) {
+    this.sky.overcast(amount);
+    this.sun.intensity = LIGHTING[this.now].key.intensity * (1 - amount * OVERCAST.sun);
+    if (!settled) return;
+    this.environment.dispose();
+    this.environment = this.sky.environment(this.renderer, this.now === 'night' ? this.reflections : []);
+    this.scene.environment = this.environment.texture;
+  }
 
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
 
   reset() {
+    this.cutout();
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
@@ -678,6 +843,32 @@ export class GameScene {
    */
   spinner(on: boolean) { this.bowler.spinner(on); }
   /**
+   * And whose action he bowls it with: the Marathon's express bowler in his
+   * overs, the fast bowler in everyone else's. Set beside `spinner`, every ball,
+   * so an over can never inherit the last one's.
+   */
+  express(on: boolean) { this.bowler.action(on ? EXPRESS_ACTION : PACE_ACTION); }
+  /** Which action is at the top of the mark, for the checks. */
+  get bowlerAction() { return this.bowler.actionStyle === EXPRESS_ACTION ? 'express' : 'pace'; }
+  /**
+   * And which side of the stumps he bowls it from: round the wicket in the
+   * Marathon's overs that are, over it in everyone else's. Set beside
+   * `express`, every ball, for the same reason.
+   */
+  round(on: boolean) { this.bowler.round(on); }
+  get bowlerSide() { return this.bowler.isRound ? 'round' : 'over'; }
+  /** Where the ball leaves his hand across the pitch, in the stage's frame: mirrored with him for a left-hander. */
+  private get releaseX() { return this.bowlerHolder.scale.x * this.bowler.releaseX(); }
+  /** Where the ball is drawn: from his hand, round the wicket. See `drawnAt`. */
+  private flight(delivery: Delivery, progress: number) {
+    return delivery.round ? drawnAt(delivery, progress, this.releaseX) : ballPosition(delivery, progress);
+  }
+  /** And at any point of a flight, by asking rather than by catching the frame: for the checks. */
+  drawnBall(delivery: Delivery, progress: number) {
+    const p = this.flight(delivery, progress);
+    return [p.x, p.y, p.z].map(v => +v.toFixed(4));
+  }
+  /**
    * Past the bat, the ball eases through to the stumps over the rest of the
    * late-swing window instead of running on at full speed. That window is worth
    * most of a second, so extrapolating it flew the ball through the stumps and
@@ -694,11 +885,11 @@ export class GameScene {
     // Out of his hand: the field times its split step to the ball reaching the bat.
     if (!this.released) { this.released = true; this.field.set(this.clock, this.clock + Math.max(0, 1 - progress) * delivery.durationMs); }
     this.ball.visible = this.shadow.visible = true;
-    const pos = ballPosition(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
+    const pos = this.flight(delivery, this.flightAt(delivery, progress)); this.ball.position.set(pos.x, pos.y, pos.z);
     this.groundShadow(this.ball.position, true);
     this.trail.forEach((dot, i) => {
       dot.visible = progress > 0.03;
-      const p = ballPosition(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
+      const p = this.flight(delivery, this.flightAt(delivery, Math.max(0, progress - (i + 1) * 0.009))); dot.position.set(p.x, p.y, p.z);
     });
     const bounce = (GAME.releaseZ - delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
     const age = (progress - bounce) * delivery.durationMs;
@@ -718,7 +909,7 @@ export class GameScene {
     return charging ? 1 - CHARGE_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
   }
   swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false) {
-    const contact = ballPosition(delivery, GameScene.meetsAt(charging));
+    const contact = this.flight(delivery, GameScene.meetsAt(charging));
     this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
@@ -726,7 +917,7 @@ export class GameScene {
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
-    const p = ballPosition(delivery, GameScene.meetsAt(!!outcome.advance)); this.hitOrigin.set(p.x, p.y, p.z);
+    const p = this.flight(delivery, GameScene.meetsAt(!!outcome.advance)); this.hitOrigin.set(p.x, p.y, p.z);
     // The sweep is hit where the sweep goes — midwicket — rather than out along
     // the sector of the leg-side swipe that played it.
     // The orthodox sweep goes squarer than the slog does: the blade is level and
@@ -810,7 +1001,7 @@ export class GameScene {
    * batter dragged back onto his own stumps both end with the timber going.
    */
   private breakBails(now: number) {
-    if (!this.bailsBrokeAt && this.ball.position.z <= 0) this.bailsBrokeAt = now;
+    if (!this.bailsBrokeAt && this.ball.position.z <= 0) { this.bailsBrokeAt = now; this.onStumps?.(); }
     if (!this.bailsBrokeAt) return;
     const flung = Math.min(1, (now - this.bailsBrokeAt) / 620);
     this.bails.forEach((bail, i) => {
@@ -953,7 +1144,12 @@ export class GameScene {
     this.camera.position.x = Math.sin(now * 0.085) * shake;
     this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
     this.sky.mesh.position.copy(this.camera.position);
-    this.mute.value = Math.max(muteAt(now - this.celebratedAt), powerAt(now - this.poweredAt));
+    if (this.sky.cover !== this.cover.to) {
+      const k = Math.min(1, Math.max(0, (now - this.cover.at) / COVER_MS));
+      this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
+    }
+    this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
+    if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
   }
   inspectBatter() { return this.batter.inspect(); }
@@ -990,7 +1186,9 @@ export class GameScene {
   }
   inspectBowler() {
     const b = this.bowler.figure.inspect();
-    return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1] };
+    return { z: this.bowler.root.position.z, handY: b.hands[1][1], handZ: b.hands[1][2], hipY: b.hip[1],
+      // Across the pitch, in the stage's frame: where he runs in, and where the ball leaves his hand.
+      x: this.bowlerHolder.scale.x * this.bowler.root.position.x, releaseX: this.releaseX, side: this.bowlerSide };
   }
   dispose() {
     this.resizeObserver.disconnect();
@@ -1005,7 +1203,7 @@ export class GameScene {
     FIGURE_ASSETS.materials.forEach(material => mats.delete(material));
     // The sky's own, and what was painted for the ground.
     geometries.delete(this.sky.mesh.geometry); mats.delete(this.sky.mesh.material as THREE.Material); this.sky.dispose();
-    this.environment.dispose(); this.textures.forEach(t => t.dispose());
+    this.environment.dispose(); this.textures.forEach(t => t.dispose()); this.wornPitch?.dispose();
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); forgetMaterials(); this.renderer.dispose();
   }
 }

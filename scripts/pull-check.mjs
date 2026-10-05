@@ -33,7 +33,7 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
-/** A page past the notices and the covers, on a clock wound by hand, at the mode picker. */
+/** A page past the notices, on a clock wound by hand, at the mode picker. */
 async function open(options) {
   const page = await browser.newPage(options);
   const errors = [];
@@ -43,8 +43,7 @@ async function open(options) {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'rivals-launch:9');
-      localStorage.setItem('hitman-unveiled', 'ground-stadium');
+      localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({
@@ -68,7 +67,8 @@ async function open(options) {
   for (let i = 0; i < 8; i++) {
     const done = page.locator('#whatsnew-done');
     if (!(await done.count()) || !(await done.isVisible())) break;
-    await done.click({ force: true });
+    // Gone between the look and the tap is gone: the stories close themselves.
+    await done.click({ force: true, timeout: 3000 }).catch(() => {});
     await advance(400);
   }
   return { page, errors, advance, snap };

@@ -1,7 +1,10 @@
 import { defineConfig, type Plugin } from 'vite';
 import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
-import { CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, refused, submitScore } from './src/server/board-store';
+import {
+  CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, readMarathon, refused, submitMarathon, submitScore,
+} from './src/server/board-store';
+import { readMarathonFigures, type SoloInnings, type TeamInnings } from './src/game/marathon-board';
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
 import { memoryFeedback } from './src/server/memory-feedback';
 import { challengeRefused } from './src/server/challenge-store';
@@ -14,10 +17,10 @@ import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
 import { firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
-  type BlastCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
+  type BlastCareer, type MarathonCareer, type SurviveCareer,
 } from './src/game/career';
-import { NOT_OPEN, modeAsked, open } from './src/server/mode';
+import { modeAsked } from './src/server/mode';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -42,6 +45,8 @@ function boardEndpoints(): Plugin {
   // carries theirs from one board to the other and nobody else can bat under it.
   const names = new Map<string, string>();
   const boards = { '': memoryStore(names), 'survive:': memoryStore<SurviveInnings>(names) };
+  // The Marathon's two, sharing the names as every board does.
+  const marathon = { team: memoryStore<TeamInnings>(names), solo: memoryStore<SoloInnings>(names) };
   // The questionnaire, backed the same way and for the same reason: the form can
   // be opened, filled in, sent and read back as a spreadsheet with no
   // credentials and no database. It is forgotten when the server stops, which is
@@ -53,6 +58,7 @@ function boardEndpoints(): Plugin {
   const careers = {
     classic: memoryCareer<BlastCareer>(names),
     survive: memoryCareer<SurviveCareer>(names),
+    marathon: memoryCareer<MarathonCareer>(names),
   };
   // The career keys, sharing that same registry for the same reason: restoring
   // asks who holds a name, and claiming is what wrote it. Two maps here would
@@ -116,7 +122,6 @@ function boardEndpoints(): Plugin {
           }
           const query = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
           const mode = modeAsked(query.get('mode'));
-          if (!open(mode)) return send(400, { error: NOT_OPEN });
           const survive = mode === 'survive';
           if (path === '/api/career') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
@@ -124,10 +129,14 @@ function boardEndpoints(): Plugin {
             if (player) {
               return send(200, survive
                 ? await readCareer(careers.survive, SURVIVE_CAREER, player)
+                : mode === 'marathon'
+                ? await readCareer(careers.marathon, MARATHON_CAREER, player)
                 : await readCareer(careers.classic, BLAST_CAREER, player));
             }
             const boards = survive
               ? await readCareerBoards(careers.survive, SURVIVE_CAREER)
+              : mode === 'marathon'
+              ? await readCareerBoards(careers.marathon, MARATHON_CAREER)
               : await readCareerBoards(careers.classic, BLAST_CAREER);
             // The same header the deployed endpoint sends. There is no edge
             // cache in front of a dev server, so it costs nothing here.
@@ -145,10 +154,10 @@ function boardEndpoints(): Plugin {
               address: 'dev',
             };
             const countingMode = modeAsked(sent.mode);
-            if (!open(countingMode)) return send(400, { error: NOT_OPEN });
-            const asked = countingMode === 'survive';
-            const counted = asked
+            const counted = countingMode === 'survive'
               ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: readSurviveTally(sent.innings) })
+              : countingMode === 'marathon'
+              ? await countInnings(careers.marathon, MARATHON_CAREER, { ...counting, tally: readMarathonTally(sent.innings) })
               : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: readBlastTally(sent.innings) });
             return refusedCareer(counted) ? send(counted.status, { error: counted.reason }) : send(200, counted);
           }
@@ -184,6 +193,7 @@ function boardEndpoints(): Plugin {
           }
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
+            if (mode === 'marathon') return send(200, await readMarathon(marathon), 'public, s-maxage=10, stale-while-revalidate=59');
             if (survive) {
               return send(200, await readBoard(boards['survive:'], SURVIVE_LADDER),
                 'public, s-maxage=10, stale-while-revalidate=59');
@@ -203,7 +213,15 @@ function boardEndpoints(): Plugin {
             address: 'dev',
           };
           const submitted = modeAsked(body.mode);
-          if (!open(submitted)) return send(400, { error: NOT_OPEN });
+          if (submitted === 'marathon') {
+            // Both Marathon rows from one innings, and the career it has been
+            // building onto the boards under the name, as the deployed one does.
+            const taken = await submitMarathon(marathon, { ...who, innings: readMarathonFigures(body.innings) });
+            if (refused(taken)) return send(taken.status, { error: taken.reason });
+            await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
+            const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+            return send(200, key ? { ...taken, key } : taken);
+          }
           const asked = submitted === 'survive';
           const outcome = asked
             ? await submitScore(boards['survive:'], SURVIVE_LADDER, { ...who, innings: surviveFigures(body.innings) })
@@ -262,6 +280,11 @@ function surviveFigures(raw: unknown): SurviveInnings {
 
 export default defineConfig({
   base: './',
+  // Which Vercel environment built this bundle, for the one thing the page
+  // decides by it: whether the Test Marathon is on the picker before launch.
+  // Unset anywhere off Vercel, which the page reads as not production, as the
+  // functions read their key prefix.
+  define: { 'import.meta.env.VITE_VERCEL_ENV': JSON.stringify(process.env.VERCEL_ENV ?? '') },
   plugins: [boardEndpoints()],
   // Git worktrees get made inside `.claude/`, and a worktree is a whole second
   // copy of this repository — tests included. Left to its default globs vitest

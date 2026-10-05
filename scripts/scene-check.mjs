@@ -77,8 +77,6 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
     // A returning player, so the private-window notice does not stand in the way.
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
-    // The covers have come off already: unveil-check is the one that pulls them.
-    try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ }
     window.__draws = 0;
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       for (const fn of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced']) {
@@ -101,7 +99,8 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
   for (let i = 0; i < 8; i++) {
     const done = page.locator('#whatsnew-done');
     if (!(await done.count()) || !(await done.isVisible())) break;
-    await done.click({ force: true });
+    // Gone between the look and the tap is gone: the stories close themselves.
+    await done.click({ force: true, timeout: 3000 }).catch(() => {});
     await page.waitForTimeout(500);
   }
   await page.locator('#mode-classic').click({ force: true });

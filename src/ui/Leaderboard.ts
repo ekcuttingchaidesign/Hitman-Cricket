@@ -108,7 +108,7 @@ export function decider(above: Innings | null, row: Innings): LadderKey | null {
 export const BOARD_TABS = [
   { tab: 'classic', id: 'board-tab-classic', name: 'The Blast' },
   { tab: 'survive', id: 'board-tab-survive', name: 'Test Survival' },
-  { tab: 'rivals', id: 'board-tab-rivals', name: 'Rivals' },
+  { tab: 'marathon', id: 'board-tab-marathon', name: 'Test Marathon' },
   { tab: 'mine', id: 'board-tab-mine', name: 'My Stats' },
 ] as const;
 
@@ -125,15 +125,19 @@ export type BoardTab = 'classic' | 'survive';
  * and back must land where they were, which is why the mode is remembered
  * separately from which tab is lit.
  */
-export type SheetTab = BoardTab | 'rivals' | 'mine';
+export type SheetTab = BoardTab | 'marathon' | 'mine';
 
 /**
  * Whether a tab stands on its own, with no ladders under it. The card is one
- * record and Rivals is one board; neither is a mode, so neither has a row of
- * ladders to re-sort, and a build that plays one game keeps both.
+ * record, not a mode, so it has no row of ladders to re-sort, and a build that
+ * plays one game keeps it. The Test Marathon has a row of its own — its Team
+ * and Individual ladders — rather than the careers' (`MarathonBoard.ts`).
+ *
+ * Rivals used to be a tab here. Its ranking moved to Rival Matches, where the
+ * game is played (`RivalsBoard.ts`), and its place went to the Marathon.
  */
-export function flatTab(tab: SheetTab): tab is 'rivals' | 'mine' {
-  return tab === 'rivals' || tab === 'mine';
+export function flatTab(tab: SheetTab): tab is 'mine' {
+  return tab === 'mine';
 }
 
 export function boardTabsMarkup(active: SheetTab): string {
@@ -468,7 +472,9 @@ export type CardOffer =
   | { kind: 'claim'; place: number }
   | { kind: 'standing'; runs: number; place: number }
   /** A private window: the innings was worth a place and cannot be given one. */
-  | { kind: 'private' };
+  | { kind: 'private' }
+  /** Played with a switch in the link that changes the game: see `practice.ts`. */
+  | { kind: 'practice' };
 
 export function cardOffer(
   reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,

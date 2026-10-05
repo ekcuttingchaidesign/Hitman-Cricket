@@ -70,13 +70,26 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 | Overs | Pace (seam & swing) | Spin | Express (the Level 3 bowler) |
 | --- | --- | --- | --- |
 | 1–10 | 7, Test Survival's bowling — swinging from over 6 | 3 | — |
-| 11–20 | 7, **more swing** (Level 2) | 2 | 1 |
-| 21 onwards, every 10 | 4, more swing | 2 | 4 |
+| 11–20 | 5, **more swing** (Level 2) | 2 | 3: the 11th, and two of the 13th–20th |
+| 21 onwards, every 10 | 3, more swing | 3 | 4 |
 
 - **The swing comes on at over 6**, half a block early: the first playtest
   made 284 in 22 overs, 240 of them by the opener, and found the gentle
   start too long. Who bowls each over is still the block's, so the express
   bowler's first over is still in 11–20.
+- **The express bowler comes on with the 11th**, always, and has two more of
+  the 13th to the 20th — never the 12th, because no bowler bowls two overs
+  running, and never two of his together. He had the 11th alone at first;
+  the next playtest asked for more of him before the 20th, and for every ten
+  after it to be four of his, three of spin and three of swing.
+- **Round the wicket, from over 6**: about three overs in ten, drawn per
+  over and kept for the over (`ROUND`). The bowler runs in on the other side
+  of the stumps and the ball leaves his hand out wide and angles in, to arrive
+  where it would have from over the wicket — only the angle it is read from
+  changes. Asked for after a playtest found every bowler bowling over the
+  wicket. `?round=1` puts every over round the wicket, and `?nets=1` does
+  that with keys to change the bowler — pace, swing, spin, sling — and the
+  side, from the next ball, for trying every bowler round the wicket quickly.
 - **Overs 1–10 are Test Survival's**, with one rule dropped: Survive gives its
   last two overs two bouncers each, because they are the end of its innings.
   Here they are the middle of one, so they are ordinary overs. Every pace
@@ -108,11 +121,33 @@ not the batter's: a tailender who walks in at over 30 walks in against over
 
 ### The level changes are told
 
-- **Level 2 (over 11):** a banner — the ball has started to swing — and the
+- **The swing (over 6):** a banner — the ball has started to swing — and the
   sky clouds over a little, which is the condition every cricket fan already
-  links with swing.
-- **Level 3 (his first over):** a banner for the express spell as he takes the
-  ball.
+  links with swing. It goes up on the first over the pace bowler swings it,
+  which since the playtest is the sixth.
+- **The express bowler is not told.** He had a banner for his spell at
+  first; the second playtest took it off. The swing is a change in conditions
+  nobody can see coming, and he is his own announcement.
+
+## The milestones
+
+The Blast's two moments are a fifty and a hundred. A Test innings goes past
+both, so **every fifty is a moment**, each batter's own, counted from the
+ball he walked out on:
+
+| Mark | What he does | What goes up |
+| --- | --- | --- |
+| 50, 150, 250, 350 … | The fifty's raised bat, a second of it | The fifty: the number written beside him, a burst and stars. 150, 250, 350: a sticker of the number slapped on beside him, a googly-eyed ball peeking over it. The ground keeps its colours |
+| 100 | The hundred, as in the Blast | The crown, the 100 on fire, fire up the edges, the ground greyed |
+| 200 | The double biceps: elbows out at the shoulders, fists by the helmet, the bat stood up in his right fist; squeezed twice and shown to each side | A neon starburst behind him, a pink and cyan outline, retro stripes up the edges, the 200 in yellow bubble figures |
+| 300 | Arms flung wide, a little above the shoulders, the bat out along the arm, head back | Wings opening behind him, a halo, a sky-blue outline, the 300 in white bubble figures |
+| 400 | The champion: feet wide, the bat straight up at full stretch, the left fist pumped down by his hip; then the roar | A poster over the whole picture: navy starfield, the giant 400, spotlights, a podium under his feet with LARA'S CLUB round it, a yellow and navy outline |
+
+Past four hundred, every hundred is four hundred's and every other fifty the
+raised bat's. The numbers are the thing — written big, by hand, as the 50 and
+the 100 are — and the word under them is small. The nearing card waits ten
+short of every mark: the nervous 190s, 290s and 390s. The crowd keeps it up
+longer for each: the big three take the whole of the clip.
 
 ## The speed gun
 
@@ -217,7 +252,9 @@ deployment.
 
 ## My Stats
 
-A third card in the carousel, after The Blast and Test Survival:
+A card in the carousel, second, between The Blast and Test Survival, on a
+ground of its own — British Racing Green, with crimson rising from the foot
+and in the trim, the tier's metal on the badge and bar:
 
 - **The two big figures:** highest total and highest individual score.
 - **Under them:** career runs, **runs per innings** (not an average — see
@@ -265,7 +302,7 @@ the only way to raise it is to score more.
   key appearing at over 20 and not before, a left-hander's pull being a swipe
   to the right, and an innings that is walked out on not counting.
 - The existing checks extended where the mode reaches them: `stats-check` for
-  a third card on the rail, `end-card-check` for the Marathon card,
+  a green card second on the rail, `end-card-check` for the Marathon card,
   `career-count-check` for the counting rule.
 
 ## Build order
@@ -303,26 +340,83 @@ Each step is a pull request of its own, behind the flag until the last.
    browser: the LEG SIDE / OFF SIDE labels along the foot of the field swap
    while he is in, and `?lefty=1`–`3` (or `0` for none) puts him at a place in
    the order for testing. The tutorial's panel and arrow over his first ball
-   came out after the playtest — it is obvious — and the end card marks him
-   `(LH)`.
+   came out after the playtest — it is obvious — and the end card's batting
+   card marks him `LH`.
 4. **Settling, the express bowler**, his action and release, and the level
-   banners. *Settling is done*: every batter settles over 30 balls (36 at first,
+   banners. *Done.* And, before the boards, **the milestones** above: every
+   fifty a moment, the three big ones with celebrations of their own. The express bowler is a slinger, after a slow-motion
+   reference of the most famous one: the ball carried at the chest in both
+   hands, the hands parting at the leap, the front arm chopped down in front,
+   the arm coming through wide and round with the body tilted hard away, and
+   the arm carried on across the body as he runs off across the pitch — on
+   the fast bowler's run-up and clock, releasing at the same moment from
+   within a few centimetres of the same point, which a wider lane makes
+   possible (`EXPRESS_ACTION`, tested against every rule the fast bowler's
+   action is). A true sling lets go at shoulder height; the ball starts over
+   his head, so the arm leans out as far as still reaches it. The first cut
+   nudged the fast bowler's numbers and a playtest could not tell the two
+   apart; the second, a Shoaib-style action pushed hard, bent the front arm
+   the wrong way and stretched the spine in the fold, which the rig now
+   refuses. *Settling*: every batter settles over 30 balls (36 at first,
    until the playtest found it too long), a blow knocking him back a ball per
    four points of injury, and settled, the meter
-   is his confidence — a quarter full, filling more slowly than the Blast's
-   (six +12, four +10, three +6, two +4, single or block +2, beaten −10, a
-   blow −1 per four points) — which buys the Blast's special strokes. In the
-   simulator a settled good player is offered one about every three overs.
+   is his confidence — a quarter full, filling a little more slowly than the
+   Blast's (six +26, four +20, three +14, two +10, single or block +2, beaten
+   −10, a blow −1 per four points) — which buys the Blast's special strokes.
+   It was half the Blast's at first, which the second playtest found filled
+   far too late; it is now the Blast's less two a stroke.
    The speed gun came forward to step 2, and moved off the scoreboard to a
    caption at the foot of the field after the playtest.
-5. **The boards.** Rivals into Rival Matches, the Marathon tab with its two
-   ladders, the store, `?demo=1`.
-6. **My Stats.** The third card and its tier.
+5. **The boards.** *Done.* The Rivals ranking is on Rival Matches, under the
+   record: ten shown, *Show all* for the fifty, the player's own row always
+   in view. The sheet's tabs are *The Blast · Test Survival · Test Marathon ·
+   My Stats*, the Marathon's drawn only where the mode can be reached, and its
+   two ladders sit behind a Team / Individual toggle (`src/ui/MarathonBoard.ts`).
+   The store (`src/game/marathon-board.ts`, `submitMarathon` in
+   `src/server/board-store.ts`) packs as above, refuses what could not have
+   happened — sums batter by batter, the meter rules, one left-hander, nobody
+   after a man still in, an ending the figures bear out — and writes both rows
+   from one post, through the same `admit()` the other boards' checks now
+   share. The end card offers a place in the boards' own strip, the team
+   ladder's where the innings takes one and the individual's where only that
+   one does, and sends nothing unless it is claimed; the career endpoints
+   turned the mode away until step 6. `?demo=1` fills both ladders. And,
+   agreed along the way: past 60 balls, leaving the page asks first
+   (`MARATHON.warnFrom`) — an innings that long is an hour of somebody's
+   evening.
+6. **My Stats.** *Done.* The second card on the rail, between The Blast and
+   Test Survival and in British Racing Green, wherever the mode can be played: highest total and best
+   individual score as the two big figures, then career runs, runs per
+   innings, fifties, hundreds, doubles and the longest innings in balls, and a
+   tier in career runs at twice the Blast's rungs — 750, 7,500, 30,000 (`MARATHON_CAREER` in
+   `src/game/career.ts`, `marathonFacts` in `StatsCard.ts`). A finished
+   innings is counted in `end`, as every mode's is, from the very figures its
+   boards are sent — so the career refuses exactly what the boards refuse —
+   and a practice innings is not counted. No career ladders of its own yet:
+   the two innings ladders are where it is ranked.
 7. **The Test look.** *Done.* The darker ball (a Dukes's cherry, `0xa81c1c`,
    against the Blast's `0xe84829`) and the greener pitch, in both Test modes.
    A full green top was tried first and was too much; the strip keeps half
    the grass `pitchTexture` can paint.
-8. **Launch.** A What's New story, the flag on, merge.
+   *After the second playtest:* the settle meter is **Focus**, and a first
+   Marathon opens with four rules cards (three batters, Focus to settle, the
+   pitch wears, declare then register), shown twice at most.
+8. **Launch.** The What's New story is written: the update key is
+   `marathon-launch`, the Rivals launch's two cards are replaced by one of the
+   Marathon's — a film, designed for it as a Lottie
+   (`public/lotties/test-marathon.json`, nine seconds: the kit on the square
+   with the mode's name, then the runs climbing past lunch, tea and stumps) —
+   and the career key stays last. The film is set down on the way out, with
+   the bars over it and both its edges faded into its own green, and the story
+   holds a beat past its end. It replaced two cards, a photograph and a drawn
+   scorecard. Turn the flag on
+   (`VITE_SHOW_MARATHON`, which puts the card on production's picker and the
+   Marathon tab on its board) in the same deploy as the merge — the story
+   points at the mode, and on production without the flag the mode is not
+   there to find. Then merge. Off production both are already there: the card went onto Select
+   Mode on previews and the dev server during step 5, and then became the
+   screen's hero card when Select Mode was laid out again from the Figma
+   design, with the kit-on-the-square art from that design.
 
 ## Open questions
 

@@ -1,5 +1,6 @@
 import {
-  CLASSIC_LADDER, SURVIVE_LADDER, cleanName, refused, submitScore, type Submission,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, cleanName, refused, submitMarathon,
+  submitScore, type Submission,
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
 import { foldName } from '../src/server/board-store.js';
@@ -8,12 +9,13 @@ import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
 } from '../src/game/career.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
 import type { SurviveInnings } from '../src/game/survive-board.js';
-import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
+import { readMarathonFigures, type MarathonFigures } from '../src/game/marathon-board.js';
+import { modeAsked } from '../src/server/mode.js';
 
 /**
  * `POST /api/score` — an innings offered to the board.
@@ -35,8 +37,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   // Which board is being offered an innings. The two are separate ladders over
   // separate keys, and the figures a row carries differ, so this decides both.
   const mode = modeAsked(body.mode);
-  if (!open(mode)) return failed(res, 400, NOT_OPEN);
-  const survive = mode === 'survive';
+  const survive = mode === 'survive', marathon = mode === 'marathon';
   const who = {
     playerId: String(body.playerId ?? ''),
     name: String(body.name ?? ''),
@@ -45,7 +46,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   };
 
   try {
-    const outcome = survive
+    const write = redisFromEnv();
+    const outcome = marathon
+      ? await submitMarathon(
+        { team: upstashStore(write, MARATHON_TEAM_LADDER.scope), solo: upstashStore(write, MARATHON_SOLO_LADDER.scope) },
+        { ...who, innings: readMarathonFigures(body.innings) } satisfies Submission<MarathonFigures>,
+      )
+      : survive
       ? await submitScore(
         upstashStore<SurviveInnings>(redisFromEnv(), SURVIVE_LADDER.scope),
         SURVIVE_LADDER,
@@ -69,6 +76,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const name = cleanName(who.name);
       await (survive
         ? nameCareer(upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope), SURVIVE_CAREER,
+          who.playerId, name, who.avatar)
+        : marathon
+        ? nameCareer(upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope), MARATHON_CAREER,
           who.playerId, name, who.avatar)
         : nameCareer(upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope), BLAST_CAREER,
           who.playerId, name, who.avatar));
@@ -130,3 +140,4 @@ function surviveFigures(raw: unknown): SurviveInnings {
     blows: read('blows'), health: read('health'),
   };
 }
+

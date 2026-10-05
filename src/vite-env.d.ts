@@ -48,6 +48,8 @@ interface ImportMetaEnv {
   readonly VITE_CHARGE_ONLY?: string;
   readonly VITE_CHARGE_SLOWMO?: string;
   readonly VITE_SHOW_SURVIVE?: string;
+  readonly VITE_SHOW_MARATHON?: string;
+  readonly VITE_VERCEL_ENV?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

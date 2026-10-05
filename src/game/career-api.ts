@@ -1,5 +1,5 @@
-import type { BlastCareer, CareerMode, SurviveCareer, SurviveTally } from './career';
-import { emptyBlast, emptySurvive } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, MarathonTally, SurviveCareer, SurviveTally } from './career';
+import { emptyBlast, emptyMarathon, emptySurvive } from './career';
 import type { Innings } from './leaderboard';
 
 /**
@@ -50,7 +50,7 @@ export interface MyCareer<C> {
   granted?: { key: string; reason: string } | null;
 }
 
-type AnyCareer = BlastCareer | SurviveCareer;
+type AnyCareer = BlastCareer | SurviveCareer | MarathonCareer;
 
 const cached: Partial<Record<CareerMode, { at: number; payload: CareerBoards<AnyCareer> }>> = {};
 
@@ -81,7 +81,7 @@ export function mintNonce(): string {
  * the name is theirs, so sending one here can never take somebody else's.
  */
 export async function countInnings<C extends AnyCareer>(
-  playerId: string, mode: CareerMode, innings: Innings | SurviveTally,
+  playerId: string, mode: CareerMode, innings: Innings | SurviveTally | MarathonTally,
   who: { name: string; avatar: number } | null, nonce: string,
 ): Promise<MyCareer<C> | null> {
   const answer = await ask<{
@@ -141,7 +141,7 @@ export async function fetchCareerBoards<C extends AnyCareer>(
 }
 
 /** Throws away the boards held from last time, so the next open asks again. */
-export function forgetCareer() { delete cached.classic; delete cached.survive; }
+export function forgetCareer() { delete cached.classic; delete cached.survive; delete cached.marathon; }
 
 /**
  * What this browser last saw of its own career, or an empty one.
@@ -151,7 +151,7 @@ export function forgetCareer() { delete cached.classic; delete cached.survive; }
  * will not parse is treated as no mirror rather than repaired.
  */
 export function heldCareer(mode: CareerMode): AnyCareer {
-  const blank = mode === 'survive' ? emptySurvive() : emptyBlast();
+  const blank = mode === 'survive' ? emptySurvive() : mode === 'marathon' ? emptyMarathon() : emptyBlast();
   try {
     const raw = localStorage.getItem(MIRROR_KEY);
     if (!raw) return blank;

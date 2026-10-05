@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'rivals-launch';
+const UPDATE = 'marathon-launch';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -44,13 +44,20 @@ const page = await browser.newPage({
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 await page.clock.install();
-// The covers come before the stories on a first press of play, and have a
-// check of their own: this one starts on the far side of them.
-await page.addInitScript(() => { try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ } });
 
 /** The page's own clock, wound on, then a beat of real time to draw in. */
 const tick = async (ms, draw = 200) => { await page.clock.runFor(ms); await page.waitForTimeout(draw); };
 const title = () => page.$eval('.whatsnew-title', node => node.textContent.trim());
+/**
+ * Stops the page's clock where it stands. Its time can run past the moment
+ * asked for between reading it and pausing at it, so it is read again and
+ * asked for again until it holds.
+ */
+async function freeze() {
+  for (let tries = 0; ; tries++) {
+    try { await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 250); return; } catch (error) { if (tries > 8) throw error; }
+  }
+}
 const seen = () => page.evaluate(() => localStorage.getItem('hitman-whatsnew'));
 async function arrive() {
   await tick(3000, 800);
@@ -62,9 +69,18 @@ await page.goto(`${base}/`, { waitUntil: 'load' });
 await arrive();
 
 // ── The first visit ────────────────────────────────────────────────────────
+// From here the clock moves only when the check moves it, and it is stopped
+// before the stories open rather than after. Left running, it runs on in real
+// time while a slow machine draws the first story — a photograph and a blur of
+// it across the screen — and a card's seven-second hold can be gone before the
+// next line runs, so the check reads the second card where the first should be.
+await freeze();
 await page.click('#start');
-const opened = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 })
-  .then(() => true).catch(() => false);
+let opened = false;
+for (let wound = 0; wound < 6000 && !opened; wound += 100) {
+  await page.clock.runFor(100);
+  opened = !!(await page.$('.whatsnew-sheet'));
+}
 check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
@@ -75,26 +91,42 @@ const first = await title();
 const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
-// Rivals first, a screenshot of the room, loaded.
-const loaded = () => page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0);
-check(first === 'Bat against your friends', 'it opens on Rivals', first);
-check(await loaded(), 'with the match room on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+// Waited for from out here, a beat at a time: the page's own timers are the
+// ones standing still.
+async function loaded() {
+  for (let i = 0; i < 40; i++) {
+    if (await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0).catch(() => false)) return true;
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
+/** The film, drawn: Lottie's svg in the story, with its picture of the kit in it. */
+async function playing() {
+  for (let i = 0; i < 60; i++) {
+    if (await page.$eval('#whatsnew-film svg', svg => svg.querySelectorAll('image, path').length > 20).catch(() => false)) return true;
+    await page.clock.runFor(100);
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
+// The Test Marathon first, as a film across the whole story.
+check(first === 'Test Marathon', 'it opens on the Test Marathon', first);
+check(await playing(), 'with its film on the screen, playing');
+check(await page.$eval('#whatsnew-film', film => film.getAttribute('aria-label')?.length > 40),
+  'which a screen reader is told about in words');
 check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks for nothing');
 
-// A card that asks for nothing moves on by itself after its seven seconds.
-// Wound in half-second steps until it does: the installed clock also runs on
-// by itself in real time, and one long wind on a slow machine carries a card
-// past its own hold and the next one's too.
-for (let wound = 0; wound < 9000 && await title() === first; wound += 500) await tick(500, 150);
-check(await title() === 'Winner gets the fire', 'which moves on by itself to the result', await title());
-check(await loaded(), 'with the fire on the screen, loaded');
-
-// A tap on the right half goes on, to the meme, last.
-await page.click('#whatsnew-next');
-await tick(400);
+// The film runs nine seconds, and the story holds a beat past it before it
+// moves on by itself. Wound in half-second steps until it does: the installed
+// clock also runs on by itself in real time, and one long wind on a slow
+// machine carries a card past its own hold and the next one's too.
+let held = 0;
+for (; held < 14000 && await title() === first; held += 500) await tick(500, 150);
+check(held >= 9000, 'holding for the whole film', `${held}ms`);
 const meme = await title();
-check(meme === 'Save your career key', 'a tap on goes to the meme, last', meme);
+check(meme === 'Save your career key', 'and moves on by itself to the meme, last', meme);
 check(await loaded(), 'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+check(!(await page.$('#whatsnew-film')), 'and the film is gone with its story');
 // A nameless first visit holds no key, so there is no card to save one.
 check(!(await page.$('#whatsnew-keyslot .key-pass')), 'a player with no name is shown no key card');
 check(!(await page.$('#whatsnew-key-restore')), 'and no way back either');
@@ -107,7 +139,7 @@ check(!!(await page.$('.whatsnew-sheet')) && await title() === meme, 'the story 
 // And a tap on the left half goes back.
 await page.click('#whatsnew-back');
 await tick(400);
-check(await title() === 'Winner gets the fire', 'a tap back goes back a card', await title());
+check(await title() === 'Test Marathon', 'a tap back goes back a card', await title());
 
 await page.click('#whatsnew-done');
 await tick(700);

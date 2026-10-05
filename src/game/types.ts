@@ -38,6 +38,12 @@ export interface Delivery {
   late?: number;
   /** Bowled by the Marathon's express bowler, whatever its length. */
   express?: boolean;
+  /**
+   * Bowled round the wicket: from his right of the stumps, the ball leaving
+   * his hand out wide and angling in. Only how it is drawn changes; see
+   * `drawnAt`.
+   */
+  round?: boolean;
 }
 export interface ShotAttempt { shotType: ShotType; inputTimeMs: number }
 export interface ShotOutcome {

@@ -1,3 +1,5 @@
+import type { Film } from '../ui/Lottie';
+
 /**
  * What changed, told the way a story is told.
  *
@@ -5,12 +7,12 @@
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is Rivals: two cards for the mode, pictures of the screens
- * themselves, and then the key — said as a joke, with the key itself under it
- * so the ask and the means of doing it are on the same screen. The key goes
- * last because it is the one card that holds still: everything before it moves
- * on by itself, and a player tapping through lands on the card that wants
- * something from them rather than skipping past it.
+ * This update is the Test Marathon: one card for the mode, a film of it, and
+ * then the key — said as a joke, with the key itself under it so the ask and
+ * the means of doing it are on the same screen. The key goes last because it
+ * is the one card that holds still: the film before it moves on by itself, and
+ * a player tapping through lands on the card that wants something from them
+ * rather than skipping past it.
  */
 
 /**
@@ -18,14 +20,6 @@
  * is written encoded. Relative, because the build is served from `./`.
  */
 const meme = 'save%20key%20meme.png';
-
-/**
- * The Rivals screens, photographed from the `?room=` fixtures at three times a
- * phone's width and cut to the part that tells the story. Imported rather than
- * served from `public/`, so the build fingerprints them.
- */
-const rivalsRoom = new URL('../assets/whatsnew/rivals-room.webp', import.meta.url).href;
-const rivalsResult = new URL('../assets/whatsnew/rivals-result.webp', import.meta.url).href;
 
 export interface Story {
   key: string;
@@ -38,11 +32,12 @@ export interface Story {
   title: string;
   /** The line under the picture, where the picture needs one. */
   body?: string;
-  art: string;
-  /** What the picture shows, for whoever cannot see it. */
+  /** The picture, for a story that is one. */
+  art?: string;
+  /** What the picture or the film shows, for whoever cannot see it. */
   alt: string;
   /** The picture's own width, so it is laid out before it has loaded. */
-  width: number;
+  width?: number;
   /** And its height, where it is not square. */
   height?: number;
   /**
@@ -51,6 +46,14 @@ export interface Story {
    * gap between the two curves shows as a thin outline at each corner.
    */
   cut?: boolean;
+  /**
+   * A film instead of a picture, the whole of the story: a Lottie from
+   * `public/lotties/`, played down the screen from the top with the way out
+   * under it. Its words are its own, so the story's are read out, not shown.
+   */
+  film?: Film;
+  /** How long the story holds before it moves on, where it is not the usual. */
+  holdMs?: number;
   /**
    * Whether the career key is drawn under the picture.
    *
@@ -62,24 +65,13 @@ export interface Story {
 
 export const STORIES: readonly Story[] = [
   {
-    key: 'rivals',
-    eyebrow: 'NEW MODE \u00b7 RIVALS',
-    title: 'Bat against your friends',
-    body: 'Make a room, send the link, and everyone who opens it bats the same thirty balls \u2014 together right now, or days apart. Their runs flash up ball by ball. The score stays hidden till your last.',
-    art: rivalsRoom,
-    alt: 'The Rivals match room: You, Virat and Rohit seated round a VS, each marked JOINED.',
-    width: 720,
-    height: 709,
-  },
-  {
-    key: 'rivals-result',
-    eyebrow: 'RIVALS',
-    title: 'Winner gets the fire',
-    body: 'Top score takes the match and the flames round their face. Every result goes on your record \u2014 won, lost, drawn \u2014 in Rival Matches and on My Stats. Find Rivals on the mode screen.',
-    art: rivalsResult,
-    alt: 'A Rivals result: fire round the winner\u2019s face over You Win, then WINNER and LOSER rows with runs, sixes and fours.',
-    width: 720,
-    height: 760,
+    key: 'marathon',
+    eyebrow: 'NEW MODE',
+    title: 'Test Marathon',
+    film: 'test-marathon',
+    // The film runs nine seconds, and the story holds a beat past its end.
+    holdMs: 9600,
+    alt: 'Introducing a new mode: Test Marathon. Bat all day. Then: play long innings, make a big score — the runs climb past lunch, tea and stumps to 287 not out.',
   },
   {
     key: 'save-key',
@@ -101,7 +93,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'rivals-launch';
+export const UPDATE = 'marathon-launch';
 
 /**
  * How many times one browser is shown it unasked.

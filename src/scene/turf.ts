@@ -137,8 +137,16 @@ function mix(from: string, to: string, t: number) {
  * a greener one: grass through the surface, fewer cracks, less dust between
  * the wickets, and the bowlers' footmarks worn just the same. At nought this
  * paints exactly the strip it always has, ball mark for ball mark.
+ *
+ * `wear` is how far through a long innings the strip is, nought to one: the
+ * grass going off it, the surface browning, more cracks and longer, wider
+ * ones, the footmarks scuffed darker and spreading, and the rough a bowler's
+ * follow-through digs outside the batter's off stump. The Marathon repaints
+ * it as its levels come (`WEAR_STAGES`). At nought nothing is drawn that was
+ * not drawn before, and in the same order, so the strip is unchanged.
  */
-export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }, green = 0) {
+export function pitchTexture(width: number, length: number, centreZ: number, anisotropy: number, ends: { batting: number; bowling: number }, green = 0, wear = 0) {
+  green *= 1 - 0.8 * wear;
   const W = 320, H = 3072;
   const { c, ctx } = canvas(W, H);
   const random = seeded(23);
@@ -150,7 +158,8 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
 
   // Worn grass at the edges, the prepared surface in the middle.
   const across = ctx.createLinearGradient(0, 0, W, 0);
-  const edge = mix('#aaae70', '#93a862', green), surface = mix('#d3b683', '#b3bd78', green), verge = mix('#b9b27b', '#a1ae6a', green);
+  const browned = (colour: string) => (wear ? mix(colour, '#b0905e', 0.5 * wear) : colour);
+  const edge = browned(mix('#aaae70', '#93a862', green)), surface = browned(mix('#d3b683', '#b3bd78', green)), verge = browned(mix('#b9b27b', '#a1ae6a', green));
   across.addColorStop(0, edge); across.addColorStop(0.1, verge); across.addColorStop(0.16, surface);
   across.addColorStop(0.84, surface); across.addColorStop(0.9, verge); across.addColorStop(1, edge);
   ctx.fillStyle = across; ctx.fillRect(0, 0, W, H);
@@ -215,8 +224,60 @@ export function pitchTexture(width: number, length: number, centreZ: number, ani
     ctx.stroke();
   }
 
+  if (wear) wearMarks(ctx, random, wear, col, row, px, ends);
+
   overlayGrain(ctx, random, W, H, 0.16);
   return finish(c, anisotropy);
+}
+
+/** How worn the Marathon's strip is at each of its steps: fresh, the swing, the express bowler, Level 3. */
+export const WEAR_STAGES = [0, 0.4, 0.7, 1] as const;
+
+/**
+ * What a long innings does to a strip, drawn over a fresh one: the footmarks
+ * at both ends scuffed darker and wider, the rough outside the batter's off
+ * stump where the bowler lands and follows through, more ball marks where it
+ * pitches, a dusty patch on a length, and cracks between the wickets — more of
+ * them, longer and opening wider the further it goes.
+ */
+function wearMarks(ctx: CanvasRenderingContext2D, random: () => number, wear: number, col: (x: number) => number, row: (z: number) => number, px: number, ends: { batting: number; bowling: number }) {
+  for (const [z, spread] of [[ends.batting + 1.1, 1.9], [ends.bowling - 1.2, 2.2]] as const) {
+    for (let i = 0; i < Math.round(160 * wear); i++) {
+      const r = (0.03 + random() * 0.05) * px;
+      blob(ctx, col((random() - 0.5) * 1.5), row(z + (random() - 0.5) * spread * 1.5), r * (1 + random() * 1.8), r, 'rgba(118,90,55,1)', 0.1 + random() * 0.18 * wear);
+    }
+  }
+  // The rough: the bowler's landing and follow-through, a full stride outside
+  // the batter's off stump, two to four metres from him.
+  for (const side of [-1, 1]) {
+    blob(ctx, col(side * 0.52), row(ends.batting + 3.1), 0.22 * px, 1.1 * px, 'rgba(112,84,50,1)', 0.32 * wear);
+    for (let i = 0; i < Math.round(60 * wear); i++) {
+      const r = (0.025 + random() * 0.045) * px;
+      blob(ctx, col(side * (0.38 + random() * 0.3)), row(ends.batting + 2 + random() * 2.4), r * 1.4, r, 'rgba(96,72,44,1)', 0.18 + random() * 0.22);
+    }
+  }
+  // Dust on a length, where the ball has been landing all day.
+  blob(ctx, col(0), row(ends.batting + 6), 0.6 * px, 2.6 * px, 'rgba(232,214,176,1)', 0.22 * wear);
+  for (let i = 0; i < Math.round(220 * wear); i++) {
+    const r = (0.014 + random() * 0.022) * px;
+    blob(ctx, col((random() - 0.5) * 1.1), row(ends.batting + 3 + random() * 7), r * 1.3, r, 'rgba(100,78,48,1)', 0.5);
+  }
+  // Cracks, opening: more, longer, wider and darker as it goes.
+  ctx.lineCap = 'round';
+  for (let i = 0; i < Math.round(170 * wear); i++) {
+    let x = col((random() - 0.5) * 1.9), y = row(ends.batting + random() * (ends.bowling - ends.batting));
+    let heading = random() * Math.PI * 2;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    const steps = 3 + Math.floor(random() * (3 + 5 * wear));
+    for (let s = 0; s < steps; s++) {
+      heading += (random() - 0.5) * 0.9;
+      x += Math.cos(heading) * px * 0.045; y += Math.sin(heading) * px * 0.045;
+      ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = `rgba(92,70,42,${(0.22 + random() * 0.3 * wear).toFixed(2)})`;
+    ctx.lineWidth = 0.8 + random() * (0.6 + 1.4 * wear);
+    ctx.stroke();
+  }
 }
 
 /**

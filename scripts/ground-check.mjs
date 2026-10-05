@@ -39,8 +39,7 @@ await page.addInitScript(() => {
   const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
   try {
     localStorage.setItem('hitman-seen', day);
-    localStorage.setItem('hitman-whatsnew', 'rivals-launch:9');
-    localStorage.setItem('hitman-unveiled', 'ground-stadium');
+    localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
   } catch { /* Then the notices stand. */ }
 });
 await page.route('**/api/board**', route => route.fulfill({
@@ -61,7 +60,8 @@ await advance(600);
 for (let i = 0; i < 8; i++) {
   const done = page.locator('#whatsnew-done');
   if (!(await done.count()) || !(await done.isVisible())) break;
-  await done.click({ force: true });
+  // Gone between the look and the tap is gone: the stories close themselves.
+  await done.click({ force: true, timeout: 3000 }).catch(() => {});
   await advance(400);
 }
 await page.locator('#mode-classic').click({ force: true, timeout: 15_000 });

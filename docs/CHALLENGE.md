@@ -62,9 +62,13 @@ right. `outcomeOf` in `challenge-store.ts` is the whole rule; `the record` in
 
 ## The Rivals board
 
-A tab on the leaderboard, between Test Survival and My Stats: matches won,
-matches lost, and runs made in them, top fifty. Ranked on wins, then fewest
-losses, then runs. It moves the moment a match's last innings lands; nobody
+The Rivals ranking, behind the gold trophy key at the top of Rival Matches (gold and pulsing, so it is not mistaken for a second back key): matches
+won, matches lost, and runs made in them, top fifty, in a sheet of its own over
+the list, opened at the player's own row. It sat under the record in the list
+for a while, the top ten and a key for the rest, until a playtest asked for it
+behind an icon so the matches lead the screen. Ranked on wins, then
+fewest losses, then runs. It was a tab on the leaderboard until the Test
+Marathon took the room; a ranking of matches sits better beside the matches. It moves the moment a match's last innings lands; nobody
 has to open anything.
 
 Every finished match counts, and only a registered name appears — a name
@@ -168,7 +172,7 @@ per-player list.
 | `src/game/room-demo.ts` | The `?room=` fixtures. |
 | `src/ui/HUD.ts` | The picker, the room, the sheets. Search for "The match room". |
 | `src/ui/Record.ts` | The won, lost, drawn row, drawn once for Rival Matches and My Stats. |
-| `src/ui/RivalsBoard.ts` | The Rivals board, under its tab on the leaderboard. |
+| `src/ui/RivalsBoard.ts` | The Rivals ranking, in the sheet the trophy key on Rival Matches opens. |
 | `src/ui/Lottie.ts` | The player for the films, fetched the first time one is needed. |
 | `scripts/lottie-art.mjs` | Draws the films into `public/lotties/`, the looping winner's fire among them. |
 

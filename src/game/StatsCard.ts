@@ -1,6 +1,6 @@
 import { kitColour, avatarSrc } from '../config/board';
-import { HUNDRED, survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
-import { nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
+import { DOUBLE, FIFTY, HUNDRED, runsPerInnings, survivals, type BlastCareer, type CareerMode, type MarathonCareer, type SurviveCareer } from './career';
+import { cardTheme, nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
 
 /**
  * The career card, painted so it can leave the page as a picture.
@@ -164,22 +164,55 @@ export function surviveFacts(career: SurviveCareer): Pick<StatsFacts, 'hero' | '
   };
 }
 
+/**
+ * A Test Marathon career: the biggest total and the most one batter made,
+ * then what a long innings is made of (`docs/MARATHON.md`, My Stats). Runs per
+ * innings rather than an average: see `MarathonCareer`.
+ */
+export function marathonFacts(career: MarathonCareer): Pick<StatsFacts, 'hero' | 'figures'> {
+  return {
+    hero: [
+      { label: 'Highest', value: career.highest },
+      { label: 'Best ind.', value: career.individual },
+    ],
+    figures: [
+      { label: 'Runs', value: career.runs },
+      { label: 'Per inns', value: runsPerInnings(career) },
+      { label: 'Fifties', value: career.fifties },
+      { label: 'Hundreds', value: career.hundreds },
+      { label: 'Doubles', value: career.doubles },
+      { label: 'Longest', value: career.longest },
+    ],
+  };
+}
+
+/** The line under the link on a shared card, by mode. */
+const SHARE_LINES: Record<CareerMode, string> = {
+  classic: 'Five overs. Three wickets. Beat my numbers.',
+  survive: 'Ten overs. One wicket. Last longer than me.',
+  marathon: 'Three batters. All day. Beat my total.',
+};
+
+/** What each mode is called on its card. */
+const MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', survive: 'Test Survival', marathon: 'Test Marathon' };
+
 export function statsFacts(
   mode: CareerMode,
-  career: BlastCareer | SurviveCareer,
+  career: BlastCareer | SurviveCareer | MarathonCareer,
   who: { name: string; avatar: number; granted?: Granted | null },
   standing: string | null = null,
 ): StatsFacts {
-  const split = mode === 'survive'
-    ? surviveFacts(career as SurviveCareer)
+  const split = mode === 'survive' ? surviveFacts(career as SurviveCareer)
+    : mode === 'marathon' ? marathonFacts(career as MarathonCareer)
     : blastFacts(career as BlastCareer);
   const ladder = standingOf(mode, career, who.granted ?? null);
   return {
-    tier: ladder.tier,
+    // The rung as this mode's card wears it: the Marathon's is green.
+    tier: { ...ladder.tier, theme: cardTheme(mode, ladder.tier) },
     ladder,
     nextLine: nextLine(mode, ladder),
     mode,
-    modeName: mode === 'survive' ? 'Test Survival' : 'The Blast',
+    modeName: MODE_NAMES[mode],
     // A player who has not registered still has a card; it is their figures,
     // and the only thing a name would add is a name. "You" is what the game
     // calls them everywhere else on the board, so it is what the card calls
@@ -357,6 +390,12 @@ const EXPLAINS: Record<string, string> = {
   'Won': 'Innings where you chased the hundred down before the overs ran out.',
   'Drawn': 'Innings where you batted out all ten overs without getting to a hundred. You survived, you just did not win.',
   'Lost': 'Innings where you lost your wicket before either of those happened.',
+  // Test Marathon. `Highest`, `Best ind.`, `Runs` and `Hundreds` say the same
+  // thing on its card as on the Blast's.
+  'Per inns': 'Your runs divided by your innings. Not an average: a declared or retired batter is not out, so every innings counts once, however it ended.',
+  'Fifties': `Times one of your batters got to ${FIFTY} without going on to ${HUNDRED}.`,
+  'Doubles': `Times one of your batters got to ${DOUBLE}. Each is a hundred too.`,
+  'Longest': 'Your longest innings, in balls faced by all three batters.',
 };
 
 /** What tapping a figure says, or nothing where the figure speaks for itself. */
@@ -612,6 +651,15 @@ export async function paintStatsCard(
   bloom.addColorStop(1, at(theme.accent, 0));
   ctx.fillStyle = bloom;
   ctx.fillRect(0, 0, width, height);
+  // A second light, from the foot, where a mode's card carries one.
+  if (theme.tint) {
+    const rise = ctx.createRadialGradient(width * 0.72, height * 1.04, 0, width * 0.72, height * 1.04, width * 0.95);
+    rise.addColorStop(0, at(theme.tint.colour, theme.tint.strength));
+    rise.addColorStop(0.55, at(theme.tint.colour, theme.tint.strength * 0.35));
+    rise.addColorStop(1, at(theme.tint.colour, 0));
+    ctx.fillStyle = rise;
+    ctx.fillRect(0, 0, width, height);
+  }
   // A foil sweep across the corner, the way light sits on a printed card. It
   // is the one thing here that is pure decoration, and on the metal tiers it
   // is doing the work the weave used to: giving the surface somewhere to
@@ -633,7 +681,7 @@ export async function paintStatsCard(
   // first and floats on the second. A metal tier gets a second hairline inset
   // inside the first, which is the oldest trick there is for making a printed
   // thing look like it was worth printing.
-  ctx.strokeStyle = at(theme.accent, theme.metal ? 0.5 : 0.28);
+  ctx.strokeStyle = theme.edge ? at(theme.edge, 0.6) : at(theme.accent, theme.metal ? 0.5 : 0.28);
   ctx.lineWidth = 1;
   panel(ctx, 0.5, 0.5, width - 1, height - 1, STATS_CARD.radius); ctx.stroke();
   if (theme.metal) {
@@ -649,7 +697,7 @@ export async function paintStatsCard(
   // about to travel without the game around it, and a brag with no name on it
   // is a brag nobody can act on.
   let cursor = y + padTop + EYEBROW_BASE;
-  ctx.fillStyle = at(accent, 0.95);
+  ctx.fillStyle = at(theme.trim ?? accent, 0.95);
   ctx.font = font(700, 10.5);
   tracked(ctx, `${facts.modeName.toUpperCase()} · CAREER`, left, cursor, 2.1);
 
@@ -695,10 +743,10 @@ export async function paintStatsCard(
     glass.addColorStop(1, theme.tileBottom);
     ctx.fillStyle = glass;
     panel(ctx, tx, cursor, tileW, HERO_H, 14); ctx.fill();
-    ctx.strokeStyle = at(theme.accent, 0.5);
+    ctx.strokeStyle = theme.edge ? at(theme.edge, 0.55) : at(theme.accent, 0.5);
     ctx.lineWidth = 1;
     panel(ctx, tx + 0.5, cursor + 0.5, tileW - 1, HERO_H - 1, 14); ctx.stroke();
-    ctx.fillStyle = at(theme.accent, 0.95);
+    ctx.fillStyle = at(theme.trim ?? theme.accent, 0.95);
     ctx.font = font(700, 10);
     tracked(ctx, one.label.toUpperCase(), tx + 16, cursor + 25, 1.4);
     ctx.fillStyle = ink;
@@ -737,9 +785,18 @@ export async function paintStatsCard(
   cursor += gridRows(facts) * GRID_ROW_H + (gridRows(facts) - 1) * 6 + FOOT_TOP;
   ctx.fillStyle = rule;
   ctx.fillRect(left, Math.round(cursor - 12), contentW, 1);
+  // The address, in what room the key opposite leaves it. A preview's address
+  // is three times the length of the real one and ran under the key, so a
+  // long one is set smaller, and past that cut short.
+  ctx.font = font(700, 11.5);
+  const room = contentW - ctx.measureText('BEAT MY NUMBERS').width - 14;
+  let address = link ? link.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Hitman Cricket';
+  let size = 11.5;
+  ctx.font = font(600, size);
+  while (ctx.measureText(address).width > room && size > 9) ctx.font = font(600, size -= 0.5);
+  while (ctx.measureText(address).width > room && address.length > 4) address = `${address.slice(0, -2)}…`;
   ctx.fillStyle = quiet;
-  ctx.font = font(600, 11.5);
-  ctx.fillText(link ? link.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Hitman Cricket', left, cursor + FOOT_H);
+  ctx.fillText(address, left, cursor + FOOT_H);
   ctx.textAlign = 'right';
   ctx.fillStyle = theme.metal ? metal(ctx, theme, cursor + 2, 13) : accent;
   ctx.font = font(700, 11.5);
@@ -831,7 +888,7 @@ export async function statsStoryImage(facts: StatsFacts, link: string, scale = 1
   ctx.globalAlpha = 0.66;
   ctx.font = font(500, 26);
   ctx.fillText(
-    facts.mode === 'survive' ? 'Ten overs. One wicket. Last longer than me.' : 'Five overs. Three wickets. Beat my numbers.',
+    SHARE_LINES[facts.mode],
     width / 2, top + drawnH + 128,
   );
   ctx.globalAlpha = 1;

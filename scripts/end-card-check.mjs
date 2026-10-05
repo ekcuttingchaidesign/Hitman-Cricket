@@ -61,8 +61,6 @@ const until = async phase => {
 await page.addInitScript(() => {
   const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
   try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
-  // The covers have come off already: unveil-check is the one that pulls them.
-  try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ }
 });
 
 /**
@@ -95,7 +93,8 @@ await page.waitForTimeout(300);
 for (let i = 0; i < 8; i++) {
   const done = page.locator('#whatsnew-done');
   if (!(await done.count()) || !(await done.isVisible())) break;
-  await done.click({ force: true });
+  // Gone between the look and the tap is gone: the stories close themselves.
+  await done.click({ force: true, timeout: 3000 }).catch(() => {});
   await advance(400);
   await page.waitForTimeout(200);
 }
@@ -155,11 +154,15 @@ if (await widget.isVisible()) {
   await widget.click({ force: true });
   await page.waitForTimeout(2500);
   const slides = await page.locator('#stats-overlay .stats-slide').count();
-  check(slides === 2, 'which opens both cards', `${slides} of them`);
+  // A card a game: the Blast and the Test match, and off production the Test
+  // Marathon between them.
+  const named = await page.$$eval('#stats-overlay .stats-slide', all => all.map(one => one.getAttribute('aria-label')));
+  check(named.join(' | ') === 'The Blast | Test Survival' || named.join(' | ') === 'The Blast | Test Marathon | Test Survival',
+    'which opens a card for every game', `${slides} of them: ${named.join(' | ')}`);
   check(await page.locator('#stats-overlay #stats-rail.is-rail').count() === 1, 'on a rail to swipe');
   const at = await page.evaluate(() =>
     [...document.querySelectorAll('#stats-overlay .stats-dot')].findIndex(dot => dot.classList.contains('is-on')));
-  check(at === 1, 'standing on the game just played', `card ${at + 1}`);
+  check(at === named.indexOf('Test Survival'), 'standing on the game just played', `card ${at + 1}`);
   await page.locator('#stats-back').click({ force: true });
   await advance(400);
   await page.waitForTimeout(400);

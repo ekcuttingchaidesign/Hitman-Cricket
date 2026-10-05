@@ -44,6 +44,15 @@ const TIMES = {
 /** How far up the sky the cloud band reaches, as the sine of the elevation (30°). */
 const CLOUD_TOP = 0.5;
 
+/**
+ * The Marathon's cloud cover, at its full: what "the sky clouds over a little"
+ * means in numbers. The blue goes greyer, thin cloud thickens enough to show,
+ * and the cloud itself loses some of its white — a day a swing bowler would
+ * pick, not a storm. At nought every one of these drops out of the shader
+ * exactly, so the Blast's sky is the sky it always was.
+ */
+export const OVERCAST = { grey: 0.42, thicker: 0.08, dimmer: 0.16, sun: 0.22 } as const;
+
 const vertexShader = /* glsl */`
   varying vec3 vDir;
   void main() {
@@ -63,6 +72,7 @@ const fragmentShader = /* glsl */`
   uniform float cloudLight;
   uniform float cover;
   uniform float stars;
+  uniform float overcast;
   varying vec3 vDir;
   float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
   void main() {
@@ -75,8 +85,10 @@ const fragmentShader = /* glsl */`
     if (v > 0.0 && v < 1.0) {
       float density = texture2D(clouds, vec2(atan(d.x, d.z) * 0.15915494 + 0.5, v)).r;
       // Thin cloud takes the colour of the sky behind it; thick cloud is white.
-      vec3 cloud = mix(horizon * 0.92, vec3(cloudLight), smoothstep(0.25, 0.8, density));
-      float coverage = smoothstep(0.12, 0.42, density) * smoothstep(0.0, 0.14, v) * (1.0 - smoothstep(0.7, 1.0, v));
+      vec3 cloud = mix(horizon * 0.92, vec3(cloudLight * (1.0 - overcast * ${OVERCAST.dimmer.toFixed(2)})), smoothstep(0.25, 0.8, density));
+      // Overcast, the threshold drops and wisps that were too thin to show do.
+      float thin = overcast * ${OVERCAST.thicker.toFixed(2)};
+      float coverage = smoothstep(0.12 - thin, 0.42 - thin * 2.0, density) * smoothstep(0.0, 0.14, v) * (1.0 - smoothstep(0.7, 1.0, v));
       colour = mix(colour, cloud, coverage * 0.92 * cover);
     }
     // Stars: a sparse scatter that fades in with height, out of the horizon's glow.
@@ -89,6 +101,8 @@ const fragmentShader = /* glsl */`
       float star = step(0.9975, hash(cell)) * dot * smoothstep(0.06, 0.3, e);
       colour += vec3(0.86, 0.9, 1.0) * star * stars * (0.35 + 0.65 * hash(cell + 3.0));
     }
+    // Cloud cover greys the whole dome, cloud and blue alike.
+    colour = mix(colour, vec3(dot(colour, vec3(0.299, 0.587, 0.114))), overcast * ${OVERCAST.grey.toFixed(2)});
     colour = mix(colour, ground, smoothstep(0.0, -0.06, e));
     gl_FragColor = vec4(colour, 1.0);
     #include <tonemapping_fragment>
@@ -152,6 +166,7 @@ export class Sky {
         cloudLight: { value: 1 },
         cover: { value: 1 },
         stars: { value: 0 },
+        overcast: { value: 0 },
       },
       vertexShader, fragmentShader,
       side: THREE.BackSide, depthWrite: false, fog: false,
@@ -174,6 +189,10 @@ export class Sky {
     u.stars.value = t.stars;
     return t;
   }
+
+  /** How clouded over it is, nought to one. The environment map has to be taken again after it, as after `time`. */
+  overcast(amount: number) { this.material.uniforms.overcast.value = amount; }
+  get cover() { return this.material.uniforms.overcast.value as number; }
 
   /** The dome prefiltered for image-based lighting. Dispose of it with the scene. */
   environment(renderer: THREE.WebGLRenderer, extras: THREE.Object3D[] = []) {

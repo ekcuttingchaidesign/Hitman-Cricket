@@ -60,7 +60,8 @@ whenever the over went badly. There is one call that counts an innings and it
 is in `end`. Keep it that way.
 
 **Run the dev server with `VITE_SHOW_SURVIVE=1`.** Without it the build plays
-one game, and a build with one card cannot draw a rail of two — so the whole
+one game, and a build with one card cannot draw a rail of three — the Blast,
+and off production the Test Marathon, then Test Survival — so the whole
 carousel goes unchecked while the checks report success. A carousel bug shipped
 to a preview exactly that way.
 
@@ -78,8 +79,7 @@ innings — which is how most players get to that card in the first place.
 are canvases and a shader no unit test runs, and it holds the draw-call budget
 a frame. Lower its `BUDGET` when a change brings the count down. It walks both
 grounds — the stadium every mode plays in, and the bowl before it,
-which `?ground=bowl` still builds and which is kept for that and for the
-covers — and the stadium both by day and by night. The Blast follows the
+which `?ground=bowl` still builds and which is kept for that — and the stadium both by day and by night. The Blast follows the
 device's clock — night from six in the evening to seven in the morning — so a
 check that judges the ground's colours in a Blast innings without saying
 which is judging whatever the machine's clock says; `?lights=day` or
@@ -87,10 +87,18 @@ which is judging whatever the machine's clock says; `?lights=day` or
 scenery through `Batch` (`src/scene/build.ts`), one mesh a colour, not a box
 at a time.
 
-`scripts/milestone-check.mjs` is the fifty, the hundred and six sixes: the
-grey is measured off the pixels of the grass, and the doodles are judged on
-their own clock, because a headless browser rendering the ground in software
-can hold CSS animations at their first frame.
+`scripts/milestone-check.mjs` is the fifty, the hundred, six sixes, and the
+Test innings' marks after them — 150 with the raised bat and the sticker, and
+the double, the triple and four hundred, each with a celebration and a doodle
+of its own: the grey is measured off the pixels of the grass, and the doodles
+are judged on their own clock, because a headless browser rendering the ground
+in software can hold CSS animations at their first frame. The big three put a
+layer up behind him and draw him back out over it (GameScene's `cutout`); the
+check reads his outline off the cut-out canvas's own pixels, and takes all of
+it in the one look at 650ms: in software the next look can land seconds later,
+after a moment as short as 150's is already down. A moment is asked
+for by name (`__cricket.milestone('triple')`); which ball earns it is
+`milestoneOf`'s, in the unit tests.
 
 `scripts/power-check.mjs` is the flash for a special stroke played on a full
 meter: the ground greyed round the batter and the ball, focus lines running
@@ -119,26 +127,35 @@ paused underneath, and slows the page's timers while it photographs a card on
 its way off — software rendering can spend a card's whole exit between two
 steps of a script.
 
-`scripts/unveil-check.mjs` is the covers: the first innings chosen, in any
-mode, puts the old ground up and a swipe pulls it off. Every other check that
-starts an innings seeds `hitman-unveiled` so it starts past them, which means this is the only
-one that sees them — keep that seed out of it. The two pictures are the same
-ball on the ground before and the ground after; `scripts/unveil-shots.mjs`
-retakes both together on one build, or the line stops lining up. A new pair
-wants a new `REVEAL` in `src/game/unveil.ts`, and the same key in every check
-that seeds it.
-
-`scripts/marathon-check.mjs` is Test Marathon at `?mode=marathon`: the batter
+`scripts/marathon-check.mjs` is Test Marathon, entered first by its card on
+Select Mode (there off production only) and then twice by `?mode=marathon`: the
+four rules cards a first Marathon opens with, the two that light the Focus
+meter and the pause key, and nothing bowled until they are put away — it is
+the only check that sees them, and it seeds `hitman-marathon-intro` past them
+for the rest; then the batter
 named as he walks out, the next one standing after the last was carried off,
-the declare key from the twentieth over and not before, the card, the speed
-gun, the settle meter turning into confidence at thirty balls, the Test match's
-greener strip, the left-hander — the ground mirrored while he is in and off again for
-the man after him, his pull on the key to the right — and no innings sent
-anywhere that keeps one, since the mode has no board yet. It writes most of
+the declare key from the twentieth over and not before, the card — the worm
+with a ball for each man gone, the batting card, and CHANGE MODE and SHARE
+under PLAY AGAIN — the speed gun, the Focus meter turning into confidence at
+thirty balls, the Test match's
+greener strip and its wear — a stage as the swing comes, another with the
+express bowler — the swing's level banner, with the sky measured greyer off the
+pixels as the cloud comes over, the express bowler arriving untold in the
+eleventh over with his own action and the fast bowler's in the next, the left-hander — the ground mirrored while he is in and off again for
+the man after him, his pull on the key to the right — round the wicket, by
+the nets' link `?nets=1`: the bowler from the far side of the stumps, the ball out of his
+hand out wide and angling in to reach the bat on its line, and the same
+mirrored for the left-hander, against the first over's over the wicket; and
+the nets' keys putting on the express bowler, the spinner and the other side
+of the stumps from the next ball — and the end card
+offering the boards' claim strip and sending nothing that was not claimed,
+and the ended nets innings offering none — it is practice. Its career card is
+`stats-check`'s, second on the rail and green. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
-cannot reach. Point it at a preview deployment, never at production.
+cannot reach. It walks all three boards, the Marathon's two ladders from one
+post among them. Point it at a preview deployment, never at production.
 
 ## `?fresh=1`
 
@@ -161,5 +178,38 @@ The board is untouched: the name stays claimed and a saved key still opens it.
 ## `?demo=1`
 
 Fills the boards with fifty made-up players, in the browser that asked, saving
-nothing. It is how a full board gets looked at without claiming fifty real
+nothing — the Marathon's two ladders and the Rivals ranking too. It is how a full board gets looked at without claiming fifty real
 names. `?demo=0` or a new tab turns it off.
+
+## The preview filler
+
+Off production — every preview and the dev server — the Test Marathon's two
+ladders and the Rivals ranking carry made-up rows among the real ones
+(`fillMarathon` and `fillRivals` in `src/game/demo-board.ts`, switched by
+`PREVIEW_FILL` in `src/Game.ts`), because nobody has played the new boards on
+a fresh preview and an empty board says nothing. Real rows take their true
+places among them and are never pushed off a full board; the Marathon card's
+offer is worked out against the same filled board, so the place it names is
+the place the board shows. Nothing is written. Production never sees them.
+
+## Practice: the test switches stay off the boards
+
+An innings played from a link carrying a switch that changes the game —
+`?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
+`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, or the
+preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
+(`src/game/practice.ts`). The card says so in place of an offer, the career
+does not count it, and the browser's own best does not move; in a Rival Match
+the switches do nothing. A new switch goes into `PRACTICE_SWITCHES` or into
+the named exceptions in `tests/practice.test.ts`, which fails on any
+parameter the game reads that is in neither.
+
+## `?moments=1`
+
+A row of keys along the foot of the picture, one a milestone — 50, 100, six
+sixes, and the Test marks 150 to 400 — for looking at any celebration on a
+phone without batting to it. A tap between balls plays the moment at once and
+holds the bowler at his mark until it is over; with a ball on its way it waits
+for that ball to be dead, which is when a real one goes up. It is the same
+celebration with none of the innings: no runs, nothing counted, nothing sent.
+Add `&mode=marathon` for the Test kit and ground.

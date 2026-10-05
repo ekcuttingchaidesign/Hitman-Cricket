@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batterRuns, milestoneOf, nearingEnd, nearingOf, reachedCentury, reachedFifty, sixSixes } from '../src/game/milestone';
+import { batterRuns, kindAt, milestoneOf, nearingEnd, nearingOf, reachedCentury, reachedFifty, reachedMark, sixSixes } from '../src/game/milestone';
 import type { ShotOutcome } from '../src/game/types';
 
 const ball = (runs: ShotOutcome['runs'], isWicket = false): ShotOutcome => ({
@@ -63,7 +63,7 @@ describe('six sixes in a row', () => {
     expect(nearingOf(firstOver)).toEqual({ kind: 'six-sixes', sixes: 3 });
     expect(nearingOf([...firstOver, ...sixes(2)])).toEqual({ kind: 'six-sixes', sixes: 5 });
     expect(sixSixes([...firstOver, ...sixes(3)])).toBe(true);
-    expect(milestoneOf([...firstOver, ...sixes(3)])).toBe('six-sixes');
+    expect(milestoneOf([...firstOver, ...sixes(3)])).toEqual({ kind: 'six-sixes', mark: 0 });
   });
   it('can come again after the run is broken', () => {
     expect(sixSixes([...sixes(6), ball(0), ...sixes(6)])).toBe(true);
@@ -74,19 +74,66 @@ describe('which moment a ball is', () => {
   it('is the biggest of them when one ball is more than one', () => {
     // Sixty-six, then six more sixes: the hundred and the six sixes come on
     // the same ball, and the six sixes is the rarer of the two.
-    expect(milestoneOf([...sixes(11), ball(0), ...sixes(6)].slice(-18))).toBe('six-sixes');
-    expect(milestoneOf([...sixes(16), ball(4)])).toBe('century');
-    expect(milestoneOf([...sixes(8), ball(2)])).toBe('fifty');
+    expect(milestoneOf([...sixes(11), ball(0), ...sixes(6)].slice(-18))).toEqual({ kind: 'six-sixes', mark: 0 });
+    expect(milestoneOf([...sixes(16), ball(4)])).toEqual({ kind: 'century', mark: 100 });
+    expect(milestoneOf([...sixes(8), ball(2)])).toEqual({ kind: 'fifty', mark: 50 });
     expect(milestoneOf([ball(4)])).toBe(null);
+  });
+});
+
+describe('every fifty after, in a long innings', () => {
+  // A Test batter goes on past a hundred, and every fifty is a moment: the
+  // raised bat for the ones in between, and the double, the triple and four
+  // hundred each their own.
+  const runs = (n: number) => [...sixes(Math.floor(n / 6)), ...(n % 6 ? [ball((n % 6) as ShotOutcome['runs'])] : [])];
+
+  it('gives each mark its moment', () => {
+    expect(kindAt(50)).toBe('fifty');
+    expect(kindAt(100)).toBe('century');
+    expect(kindAt(150)).toBe('raise');
+    expect(kindAt(200)).toBe('double');
+    expect(kindAt(250)).toBe('raise');
+    expect(kindAt(300)).toBe('triple');
+    expect(kindAt(350)).toBe('raise');
+    expect(kindAt(400)).toBe('four');
+    expect(kindAt(450)).toBe('raise');
+    expect(kindAt(500)).toBe('four');
+  });
+
+  it('is reached on the ball that crosses the mark, whichever mark', () => {
+    expect(reachedMark([...runs(148), ball(2)])).toBe(150);
+    expect(reachedMark([...runs(148), ball(6)])).toBe(150);
+    expect(reachedMark([...runs(148), ball(1)])).toBe(null);
+    expect(reachedMark([...runs(150), ball(4)])).toBe(null);
+    expect(milestoneOf([...runs(196), ball(4)])).toEqual({ kind: 'double', mark: 200 });
+    expect(milestoneOf([...runs(297), ball(3)])).toEqual({ kind: 'triple', mark: 300 });
+    expect(milestoneOf([...runs(399), ball(1)])).toEqual({ kind: 'four', mark: 400 });
+    expect(milestoneOf([...runs(249), ball(2)])).toEqual({ kind: 'raise', mark: 250 });
+  });
+
+  it('is never the ball he is out to, and is his own from the last wicket', () => {
+    expect(reachedMark([...runs(198), ball(4, true)])).toBe(null);
+    expect(milestoneOf([...runs(180), ball(0, true), ...runs(18), ball(2)])).toBe(null);
+  });
+
+  it('waits ten short of every mark, and comes off when he gets there', () => {
+    expect(nearingOf(runs(190))).toEqual({ kind: 'double', mark: 200, runs: 190, need: 10 });
+    expect(nearingOf(runs(189))).toBe(null);
+    expect(nearingOf(runs(144))).toEqual({ kind: 'raise', mark: 150, runs: 144, need: 6 });
+    expect(nearingOf(runs(396))).toEqual({ kind: 'four', mark: 400, runs: 396, need: 4 });
+    const before = nearingOf(runs(292))!;
+    expect(nearingEnd(before, [...runs(292), ball(4)])).toBe(null);
+    expect(nearingEnd(before, [...runs(292), ball(4), ball(6)])).toEqual({ how: 'reached', runs: 302 });
+    expect(nearingEnd(before, [...runs(292), ball(0, true)])).toEqual({ how: 'out', runs: 292 });
   });
 });
 
 describe('the wait for a moment', () => {
   it('goes up ten short of a fifty and of a hundred, and not before', () => {
-    expect(nearingOf([...sixes(6), ball(3), ball(1)])).toEqual({ kind: 'fifty', runs: 40, need: 10 });
+    expect(nearingOf([...sixes(6), ball(3), ball(1)])).toEqual({ kind: 'fifty', mark: 50, runs: 40, need: 10 });
     expect(nearingOf([...sixes(6), ball(3)])).toBe(null);                     // 39
-    expect(nearingOf([...sixes(8), ball(1)])).toEqual({ kind: 'fifty', runs: 49, need: 1 });
-    expect(nearingOf([...sixes(15), ball(4), ball(1), ball(1)])).toEqual({ kind: 'century', runs: 96, need: 4 });
+    expect(nearingOf([...sixes(8), ball(1)])).toEqual({ kind: 'fifty', mark: 50, runs: 49, need: 1 });
+    expect(nearingOf([...sixes(15), ball(4), ball(1), ball(1)])).toEqual({ kind: 'century', mark: 100, runs: 96, need: 4 });
     expect(nearingOf([...sixes(8), ball(4), ball(1)])).toBe(null);            // 53: past one, nowhere near the next
   });
 

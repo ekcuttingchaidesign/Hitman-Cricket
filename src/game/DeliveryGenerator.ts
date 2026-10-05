@@ -3,7 +3,7 @@ import {
   BOUNCERS, SPECIALS as SURVIVE_SPECIALS, SPIN, STYLES as SURVIVE_STYLES, SURVIVE,
 } from '../config/survive';
 import {
-  EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
+  EXPRESS_OVER, MARATHON, BLOCK_OVERS, REVERSE, ROUND, SWING_FROM, SWING_LINES, isReverse, levelAt as marathonLevelAt, levelOf, type Level, type OverKind,
 } from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
@@ -53,6 +53,12 @@ export interface BlockPlan {
   /** The level one over is bowled at, where it is not simply its block's. */
   levelAt?(over: number): Level;
   express: typeof EXPRESS_OVER;
+  /**
+   * Which overs are bowled round the wicket: none before `from`, and each one
+   * after it with this chance. Absent, every over is bowled over the wicket.
+   * See `ROUND` in `config/marathon.ts`.
+   */
+  round?: { from: number; chance: number };
 }
 
 /**
@@ -158,7 +164,8 @@ export function spinOvers(rng: SeededRandom, spell: SpinSpell, keepForPace = 0):
  * The counts are the level's and always exact; only where they fall is drawn.
  * An over the spinner always has (`spinFirst`) is his, the overs before it are
  * pace — two of pace and then the ball tossed to him, as in Survival — and his
- * others come after it. And the express bowler never has two overs running,
+ * others come after it. The express bowler's first over (`expressFirst`) is
+ * placed the same way: Level 2 opens with him. And the express bowler never has two overs running,
  * this block or across the join with the last, because no bowler does: the
  * ends change every over and he cannot bowl from both.
  *
@@ -167,13 +174,17 @@ export function spinOvers(rng: SeededRandom, spell: SpinSpell, keepForPace = 0):
  * draw that makes every legal pattern as likely as every other.
  */
 export function drawBlock(level: Level, size: number, rng: SeededRandom, expressBefore = false): OverKind[] {
-  const fixed = level.spinFirst ?? -1;
+  // The overs the level always gives one bowler, and pace before them.
+  const fixed = new Map<number, OverKind>();
+  if (level.spinFirst !== undefined && level.spin > 0) fixed.set(level.spinFirst, 'SPIN');
+  if (level.expressFirst !== undefined && level.express > 0) fixed.set(level.expressFirst, 'EXPRESS');
+  const head: OverKind[] = Array.from({ length: fixed.size ? Math.max(...fixed.keys()) + 1 : 0 }, (_, i) => fixed.get(i) ?? 'PACE');
+  const used = (kind: OverKind) => head.filter(k => k === kind).length;
   const rest: OverKind[] = [
-    ...Array<OverKind>(level.pace - Math.max(0, fixed)).fill('PACE'),
-    ...Array<OverKind>(level.spin - (fixed >= 0 ? 1 : 0)).fill('SPIN'),
-    ...Array<OverKind>(level.express).fill('EXPRESS'),
+    ...Array<OverKind>(level.pace - used('PACE')).fill('PACE'),
+    ...Array<OverKind>(level.spin - used('SPIN')).fill('SPIN'),
+    ...Array<OverKind>(level.express - used('EXPRESS')).fill('EXPRESS'),
   ];
-  const head: OverKind[] = fixed >= 0 ? [...Array<OverKind>(fixed).fill('PACE'), 'SPIN'] : [];
   let overs: OverKind[] = [];
   for (let tries = 0; tries < 200; tries++) {
     overs = [...head, ...rng.shuffle(rest)].slice(0, size);
@@ -221,8 +232,17 @@ export const MARATHON_PLAN: BowlingPlan = {
   ...SURVIVE_PLAN,
   spin: { ...SPIN, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
   short: { ...BOUNCERS, deathOvers: 0, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
-  blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, levelAt: marathonLevelAt, express: EXPRESS_OVER },
+  blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, levelAt: marathonLevelAt, express: EXPRESS_OVER, round: ROUND },
 };
+
+/**
+ * The Marathon with every over bowled round the wicket, from the first, for
+ * `?round=1`: the side is otherwise drawn, from the sixth over, so seeing it
+ * the honest way takes some batting.
+ */
+export function roundEvery(plan: BowlingPlan): BowlingPlan {
+  return plan.blocks ? { ...plan, blocks: { ...plan.blocks, round: { from: 0, chance: 1 } } } : plan;
+}
 
 /**
  * The Marathon with only the bowler being tested, from the first over, for
@@ -241,6 +261,9 @@ export function marathonOnly({ swing = false, express = false, reverse = false }
   const share = pace && express ? 5 : BLOCK_OVERS;
   const level: Level = {
     ...levelOf(express && !pace ? 2 : 1), pace: pace ? share : 0, spin: 0, express: express ? share : 0,
+    // Level 2's opening over is his; here he has half of every block, and a
+    // fixed first over would put him in two running across the join.
+    expressFirst: undefined,
   };
   const plan: BowlingPlan = { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, levelOf: () => level, levelAt: () => level } };
   if (!reverse) return plan;
@@ -250,6 +273,43 @@ export function marathonOnly({ swing = false, express = false, reverse = false }
     specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 0 },
   };
 }
+
+/**
+ * The Marathon with the pitch wearing five times as fast, for `?wear=fast`:
+ * every step of the innings in a fifth of the overs, so the whole of it can be
+ * felt in one sitting. Blocks of two overs instead of ten — the swing from the
+ * second over instead of the sixth, the express bowler's first over the third
+ * instead of the eleventh, and Level 3, four of every ten his, from the fifth
+ * instead of the twenty-first. Each bowler bowls as he would in the real
+ * innings; only when he comes on is changed.
+ */
+export const FAST_WEAR = 5;
+export function marathonFastWear(): BowlingPlan {
+  const size = BLOCK_OVERS / FAST_WEAR;
+  const swingFrom = Math.max(1, Math.round(SWING_FROM / FAST_WEAR));
+  const levelAt = (over: number): Level => {
+    const block = Math.floor(over / size);
+    if (block > 0 || over < swingFrom) return levelOf(block);
+    const swinging = levelOf(1);
+    return { ...levelOf(0), level: 2, swing: swinging.swing, late: swinging.late, swingShare: swinging.swingShare, reverse: swinging.reverse };
+  };
+  return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, size, levelAt, round: { ...ROUND, from: swingFrom } } };
+}
+
+/**
+ * The nets, for `?nets=1`: one bowler, chosen by a key on the screen, as he
+ * bowls in the innings — the seamer of the first overs, the swing bowler from
+ * the sixth with his reverse swing, the spinner, or the express bowler — from
+ * whichever side of the stumps was asked for, for as long as the player likes.
+ */
+export type NetsBowler = 'PACE' | 'SWING' | 'SPIN' | 'EXPRESS';
+export const NETS_BOWLERS: readonly NetsBowler[] = ['PACE', 'SWING', 'SPIN', 'EXPRESS'];
+const NETS: Record<NetsBowler, { kind: OverKind; level: () => Level }> = {
+  PACE: { kind: 'PACE', level: () => levelOf(0) },
+  SWING: { kind: 'PACE', level: () => levelOf(1) },
+  SPIN: { kind: 'SPIN', level: () => levelOf(0) },
+  EXPRESS: { kind: 'EXPRESS', level: () => levelOf(1) },
+};
 
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
 const BODY_LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG'];
@@ -276,6 +336,10 @@ export class DeliveryGenerator {
   private readonly spinning: Set<number>;
   /** Who bowls every over, when the plan is by blocks. Drawn whole, up front. */
   private readonly schedule: OverKind[] = [];
+  /** Which overs are bowled round the wicket, drawn up front the same way. */
+  private readonly sides: boolean[] = [];
+  /** The nets' bowler and side, standing in for the plan's every over once asked for. */
+  private netting: { kind: OverKind; level: Level; round: boolean } | null = null;
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
     const blocks = plan.blocks;
     if (blocks) {
@@ -285,6 +349,14 @@ export class DeliveryGenerator {
         const before = this.schedule[this.schedule.length - 1] === 'EXPRESS';
         this.schedule.push(...drawBlock(blocks.levelOf(block), blocks.size, rng, before));
       }
+      // From a stream of its own, forked off the seed rather than drawn from
+      // it: the side came after everything else, and taking it from the seed
+      // would have moved every ball each seed bowled before it.
+      const round = blocks.round;
+      if (round) {
+        const sides = rng.fork(0x726f756e);
+        for (let over = 0; over < blocks.ofOvers; over++) this.sides.push(over >= round.from && sides.next() < round.chance);
+      }
     }
     this.spinning = plan.spin && !blocks ? spinOvers(rng, plan.spin, plan.short?.deathOvers ?? 0) : new Set();
   }
@@ -292,12 +364,27 @@ export class DeliveryGenerator {
   private get over() { return Math.floor(this.bowled / (this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver)); }
   /** Who bowls over `over`: always pace, spin or express in a plan by blocks, and null otherwise. */
   overKind(over: number): OverKind | null {
+    if (this.netting) return this.netting.kind;
     return this.plan.blocks ? this.schedule[over] ?? 'PACE' : null;
+  }
+  /**
+   * Put the nets' bowler on, from the next ball, from this side of the
+   * stumps. The next ball starts an over of his own, so everything he plans
+   * at the top of one — the express bowler's bouncer and yorker, the
+   * spinner's arm ball, the swing bowler's reverse — is planned for him rather
+   * than left over from whoever had the ball before. A plan by blocks only.
+   */
+  nets(bowler: NetsBowler, round: boolean) {
+    if (!this.plan.blocks) return;
+    const perOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
+    if (this.bowled % perOver) this.bowled += perOver - this.bowled % perOver;
+    this.netting = { kind: NETS[bowler].kind, level: NETS[bowler].level(), round };
   }
   /** The level over `over` is bowled at, in a plan by blocks. */
   levelAt(over: number): Level | null {
     const blocks = this.plan.blocks;
     if (!blocks) return null;
+    if (this.netting) return this.netting.level;
     return blocks.levelAt ? blocks.levelAt(over) : blocks.levelOf(Math.floor(over / blocks.size));
   }
   /** Whether the ball about to be bowled belongs to the spinner. */
@@ -307,6 +394,10 @@ export class DeliveryGenerator {
   }
   /** Whether it belongs to the express bowler. */
   get expressOn() { return this.overKind(this.over) === 'EXPRESS'; }
+  /** Whether over `over` is bowled round the wicket. */
+  roundAt(over: number): boolean { return this.netting ? this.netting.round : this.sides[over] ?? false; }
+  /** And the ball about to be bowled. */
+  get roundOn() { return this.roundAt(this.over); }
   /** The overs he was given, for the HUD and for a test that there are three. */
   get spell(): readonly number[] { return [...this.spinning].sort((a, b) => a - b); }
   /** The bowler watches what happens to him and answers it next ball. */
@@ -469,6 +560,7 @@ export class DeliveryGenerator {
     if (QUICK_STYLES.includes(style)) this.quick++;
     const shape = this.plan.styles[style];
     const express = this.expressOn;
+    const round = this.roundOn;
     const pace = express ? style === 'SLOWER' ? this.plan.blocks!.express.slower : this.plan.blocks!.express : shape;
     const speedKph = Math.round(this.rng.range(pace.min, pace.max));
     // A plan by blocks swings it harder as the innings goes on, on the same
@@ -490,7 +582,8 @@ export class DeliveryGenerator {
     // so more swing is more of a test and never a wide.
     const finalTargetX = turning
       ? clampX(LINE_X[line] + movement, spell!.maxFinalX)
-      : swung || reversing ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
+      : reversing ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF)
+      : swung ? clampX(LINE_X[line] + movement, LINE_X.OUTSIDE_OFF + GAME.movement)
       : LINE_X[line] + movement;
     const durationMs = (GAME.releaseZ - GAME.contactZ) / (speedKph / 3.6) * 1000 * this.plan.travelScale * (shape.rush ?? 1);
     this.bowled++;
@@ -498,6 +591,7 @@ export class DeliveryGenerator {
       bounceZ: shape.bounce ?? GAME.bounceZ, rise: shape.rise ?? GAME.rise,
       durationMs, releaseTimeMs, idealContactTimeMs: releaseTimeMs + durationMs,
       ...(swung && level!.late ? { late: level!.late } : {}),
-      ...(express ? { express: true } : {}) };
+      ...(express ? { express: true } : {}),
+      ...(round ? { round: true } : {}) };
   }
 }

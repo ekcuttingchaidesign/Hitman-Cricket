@@ -1,3 +1,4 @@
+import { packSolo, packTeam, type SoloInnings, type SoloRow, type TeamInnings, type TeamRow } from './marathon-board';
 import { AVATARS } from '../config/board';
 import { LAUNCH_MS, rankKey, type BoardRow, type Innings } from './leaderboard';
 import { packSurvive, type SurviveInnings, type SurviveRow } from './survive-board';
@@ -75,6 +76,32 @@ export function demoBoard(youId: string | null): BoardRow[] {
       score: rankKey(figures),
     };
   });
+}
+
+/**
+ * The Test Marathon's two ladders, fifty each, with one row on each yours:
+ * totals from the six hundreds down, every way an innings ends, and on the
+ * individual ladder all three places in the order and a few left-handers.
+ * Sorted the way the store would, so the sheet reads as a real board.
+ */
+export function demoMarathon(youId: string | null, atMs = LAUNCH_MS): { team: TeamRow[]; solo: SoloRow[] } {
+  const endings = ['ALL_OUT', 'DECLARED', 'RETIRED', 'ALL_OUT', 'BALLS'] as const;
+  const owner = (name: string, i: number) => ({ playerId: i === MINE && youId ? youId : idOf(i), name, avatar: i % AVATARS });
+  const team: TeamRow[] = NAMES.slice(0, DEMO_ROWS).map((name, i) => {
+    const ending = endings[i % endings.length];
+    // Test scoring: about sixty off every hundred balls, a little either side.
+    const runs = 312 - i * 4;
+    const balls = ending === 'BALLS' ? 500 : Math.min(499, Math.round(runs * (1.45 + ((i * 7) % 9) / 40)));
+    const figures: TeamInnings = { runs, balls, boundaries: Math.round(runs / 9), ending };
+    return { ...figures, ...owner(name, i), score: packTeam(figures, atMs) };
+  });
+  const solo: SoloRow[] = NAMES.slice(0, DEMO_ROWS).map((name, i) => {
+    const runs = 168 - i * 3;
+    const figures: SoloInnings = { runs, balls: Math.round(runs * (1.4 + ((i * 5) % 7) / 30)), out: i % 3 !== 1, order: (i % 3) + 1, left: i % 7 === 3 };
+    return { ...figures, ...owner(name, i), score: packSolo(figures, atMs) };
+  });
+  const order = (a: { score: number }, b: { score: number }) => b.score - a.score;
+  return { team: team.sort(order), solo: solo.sort(order) };
 }
 
 /** The same, over the Test ladder, which ranks a chase by how few balls it took. */
@@ -170,6 +197,30 @@ export function demoRivals(youId: string | null): RivalsRow[] {
     // The board's own order, written out rather than imported: the packing
     // lives on the server, and a made-up board is not worth shipping it for.
     .sort((a, b) => b.won - a.won || a.lost - b.lost || b.runs - a.runs);
+}
+
+/**
+ * Made-up rows among the real ones, for a preview: the Marathon's two ladders
+ * and the Rivals ranking are new, so on a branch's preview nobody has played
+ * them and an empty board says nothing about a board. Every other demo row,
+ * so the filler is spread down the ladder and leaves room under it; real rows
+ * take their true places among them, and a real player is never pushed off.
+ * Off production only — `Game` decides — and nothing is saved.
+ */
+export function fillMarathon(real: { team: readonly TeamRow[]; solo: readonly SoloRow[] }): { team: TeamRow[]; solo: SoloRow[] } {
+  const faux = demoMarathon(null);
+  return { team: among(real.team, faux.team, (a, b) => b.score - a.score), solo: among(real.solo, faux.solo, (a, b) => b.score - a.score) };
+}
+export function fillRivals(real: readonly RivalsRow[]): RivalsRow[] {
+  return among(real, demoRivals(null), (a, b) => b.won - a.won || a.lost - b.lost || b.runs - a.runs);
+}
+function among<R extends { playerId: string; name: string }>(real: readonly R[], faux: readonly R[], order: (a: R, b: R) => number): R[] {
+  const taken = new Set(real.flatMap(row => [row.playerId, row.name.toLowerCase()]));
+  const filler = faux.filter((row, i) => i % 2 === 0 && !taken.has(row.playerId) && !taken.has(row.name.toLowerCase()));
+  const rows = [...real, ...filler].sort(order);
+  // Never a real row lost to make room: filler goes first when the fifty fill.
+  for (let i = rows.length - 1; rows.length > DEMO_ROWS && i >= 0; i--) if (filler.includes(rows[i])) rows.splice(i, 1);
+  return rows;
 }
 
 /** Where the flag is remembered for the rest of the tab's life. */

@@ -1165,8 +1165,114 @@ const NODDING: Pose = (() => {
   return { ...raised, fist: point(down) };
 })();
 const NODDED: Pose = { ...NODDING, face: NODDING.face + .25, headDown: .06 };
+
+/**
+ * The Marathon's three big ones, each a pose of its own, because a double, a
+ * triple and four hundred are three different days and a man who did the
+ * same thing for each would be a man who had not noticed.
+ *
+ * **A double hundred:** both arms up and flexed, the fists beside his helmet
+ * and the elbows out at the shoulders, the bat stood up in his right fist —
+ * the strongman's double biceps — squeezed twice and shown to each side.
+ */
+const FLEXING: Pose = (() => {
+  // Square on to the camera, which a three-quarter turn foreshortens the upper arms out of.
+  const body = standing({ ...FACING, hip: [-.02, .97, -.02], chest: [.00, 1.31, .00], yaw: 2.95, face: 2.95, headDown: -.10, shoulderLift: .12 });
+  const outR = outwards(body, 1), outL = outwards(body, 0);
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  // Toe to the sky out of the fist, leaning a little away from his head.
+  const toe = UP.clone().addScaledVector(outR, .14).normalize();
+  return { ...body,
+    grip: point(shoulderOf(body, 1).addScaledVector(outR, .29).addScaledVector(UP, .26).addScaledVector(ahead, .05)),
+    batUp: point(toe.negate()), batFace: [0, 0, -1],
+    fist: point(shoulderOf(body, 0).addScaledVector(outL, .29).addScaledVector(UP, .28).addScaledVector(ahead, .05)), release: 1 };
+})();
+/** The squeeze: knees giving, chest down over it, fists drawn in and down. */
+const FLEX_SQUEEZE: Pose = (() => {
+  const body: Pose = { ...FLEXING, hip: [-.03, .93, -.03], chest: [-.01, 1.26, .01], headDown: .04 };
+  const outR = outwards(body, 1), outL = outwards(body, 0);
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  return { ...body,
+    grip: point(shoulderOf(body, 1).addScaledVector(outR, .25).addScaledVector(UP, .21).addScaledVector(ahead, .08)),
+    fist: point(shoulderOf(body, 0).addScaledVector(outL, .25).addScaledVector(UP, .23).addScaledVector(ahead, .08)) };
+})();
+const FLEX_LEFT: Pose = { ...FLEXING, face: FLEXING.face + .45, headDown: -.04 };
+const FLEX_RIGHT: Pose = { ...FLEXING, face: FLEXING.face - .45, headDown: -.04 };
+/**
+ * **A triple hundred:** arms flung wide and a little above the shoulders, the
+ * bat out along the line of his right arm and the left hand open, head back —
+ * taking it all in.
+ */
+const WIDE: Pose = (() => {
+  const body: Pose = { ...FACING, hip: [-.02, .98, -.02], chest: [.00, 1.32, .00], headDown: -.40 };
+  const right = shoulderOf(body, 1), left = shoulderOf(body, 0), outR = outwards(body, 1), outL = outwards(body, 0);
+  return { ...body,
+    grip: point(right.addScaledVector(outR, .53).addScaledVector(UP, .18)),
+    // The blade carries on along the line of the arm, tipped up a little.
+    batUp: point(outR.clone().negate().addScaledVector(UP, -.30).normalize()), batFace: [0, 0, -1],
+    fist: point(left.addScaledVector(outL, .55).addScaledVector(UP, .20)), release: 1 };
+})();
+const WIDE_LOOK: Pose = { ...WIDE, face: WIDE.face + .4, headDown: -.32 };
+const WIDE_BACK: Pose = { ...WIDE, face: WIDE.face - .3, headDown: -.36 };
+/**
+ * **Four hundred:** the champion. Feet set wide, chest out, the bat held
+ * straight up at the full stretch of his right arm and his eyes on it, the
+ * left elbow tucked in and the fist pumped down by his hip — then the roar, knees giving and head
+ * thrown back as the fist drives down again.
+ */
+const wide = (body: Pose, apart: number): Pose => {
+  const hip = V(body.hip);
+  const foot = (side: 0 | 1) => point(hip.clone().addScaledVector(outwards(body, side), apart).setY(.08));
+  return { ...body, frontFoot: foot(0), backFoot: foot(1), backFootYaw: body.yaw - .1 };
+};
+function champion(body: Pose, fist: [out: number, up: number, ahead: number]): Pose {
+  const outR = outwards(body, 1), outL = outwards(body, 0);
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  const toe = UP.clone().addScaledVector(outR, .06).normalize();
+  return { ...body,
+    grip: point(shoulderOf(body, 1).addScaledVector(UP, .55).addScaledVector(outR, .09)),
+    batUp: point(toe.negate()), batFace: [0, 0, -1],
+    fist: point(shoulderOf(body, 0).addScaledVector(outL, fist[0]).addScaledVector(UP, fist[1]).addScaledVector(ahead, fist[2])), release: 1 };
+}
+const CHAMPION: Pose = champion(wide({ ...FACING, hip: [-.02, .95, -.02], chest: [.00, 1.30, .00], yaw: 2.75, face: 2.75, headDown: -.42, shoulderLift: .14 }, .30), [.08, -.38, .26]);
+const ROARING: Pose = champion(wide({ ...FACING, hip: [-.03, .89, -.03], chest: [-.01, 1.23, -.02], yaw: 2.75, face: 2.75, headDown: -.58, shoulderLift: .14 }, .32), [.10, -.42, .24]);
+const CHAMPION_LOOK: Pose = { ...CHAMPION, face: CHAMPION.face + .4, headDown: -.30 };
+/** The fist up in front of his chest on the way down, ready to take the handle again. */
+const CHAMPION_DONE: Pose = champion({ ...CHAMPION, headDown: -.20 }, [.08, -.10, .30]);
+
+/** The five celebrations: the fifty's nod, the hundred, and the Marathon's three big ones. */
+export type Celebration = 'fifty' | 'hundred' | 'double' | 'triple' | 'four';
+/**
+ * How each one goes. The way up and the hold are keyframes of its own; the
+ * way down is the hundred's for all of them — out to his right, where the
+ * left hand takes the handle again, and only then in front of him.
+ */
+interface Routine { keys: readonly { time: number; pose: Pose }[]; back: number; down: number; settle: number; total: number }
 const FIFTY = { rise: 110, lift: 220, up: 360, hold: 640, back: 770, down: 890, settle: 1010 } as const;
 const CELEBRATION = { rise: 110, lift: 230, up: 390, pump: 540, again: 690, pump2: 840, look: 990, back: 1130, down: 1260, settle: 1400 } as const;
+const ROUTINES: Record<Celebration, Routine> = {
+  fifty: { keys: [{ time: FIFTY.rise, pose: RISING }, { time: FIFTY.lift, pose: LIFTING }, { time: FIFTY.up, pose: NODDING }, { time: FIFTY.hold, pose: NODDED }],
+    back: FIFTY.back, down: FIFTY.down, settle: FIFTY.settle, total: FIFTY_MS },
+  hundred: { keys: [{ time: CELEBRATION.rise, pose: RISING }, { time: CELEBRATION.lift, pose: LIFTING }, { time: CELEBRATION.up, pose: RAISED },
+      { time: CELEBRATION.pump, pose: PUMPED }, { time: CELEBRATION.again, pose: RAISED }, { time: CELEBRATION.pump2, pose: PUMPED }, { time: CELEBRATION.look, pose: LOOKING }],
+    back: CELEBRATION.back, down: CELEBRATION.down, settle: CELEBRATION.settle, total: CELEBRATION_MS },
+  double: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 560, pose: FLEXING },
+      { time: 700, pose: FLEX_SQUEEZE }, { time: 840, pose: FLEXING }, { time: 1040, pose: FLEX_LEFT }, { time: 1240, pose: FLEX_RIGHT },
+      { time: 1400, pose: FLEXING }, { time: 1520, pose: FLEX_SQUEEZE }, { time: 1640, pose: FLEXING }, { time: 1800, pose: RAISED }],
+    back: 1920, down: 2060, settle: 2200, total: 2360 },
+  triple: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 400, pose: RAISED }, { time: 640, pose: WIDE },
+      { time: 900, pose: WIDE_LOOK }, { time: 1150, pose: WIDE }, { time: 1400, pose: WIDE_BACK }, { time: 1600, pose: WIDE }, { time: 1780, pose: RAISED }],
+    back: 1920, down: 2060, settle: 2200, total: 2400 },
+  four: { keys: [{ time: 110, pose: RISING }, { time: 230, pose: LIFTING }, { time: 520, pose: CHAMPION },
+      { time: 760, pose: ROARING }, { time: 980, pose: CHAMPION }, { time: 1200, pose: ROARING }, { time: 1420, pose: CHAMPION },
+      { time: 1700, pose: CHAMPION_LOOK }, { time: 1960, pose: CHAMPION }, { time: 2140, pose: CHAMPION_DONE }],
+    back: 2300, down: 2440, settle: 2580, total: 2760 },
+};
+/** How long each celebration holds the next ball back. */
+export const CELEBRATION_LENGTHS: Record<Celebration, number> = {
+  fifty: FIFTY_MS, hundred: CELEBRATION_MS, double: ROUTINES.double.total, triple: ROUTINES.triple.total, four: ROUTINES.four.total,
+};
+export const celebrationLength = (kind: Celebration) => CELEBRATION_LENGTHS[kind];
 const COVER_CHARGE_FINISH = COVER_CHARGE_KEYS[COVER_CHARGE_KEYS.length - 1].pose;
 /**
  * The charge over long-on — the third recording, from behind the batter.
@@ -1388,8 +1494,8 @@ export class Batter {
   private felledFrom: Pose = GUARD;
   private celebratedAt = -Infinity;
   private celebratedFrom: Pose = GUARD;
-  /** A fifty rather than a hundred: see `FIFTY_MS`. */
-  private mild = false;
+  /** Which celebration is on: see `ROUTINES`. */
+  private celebration: Celebration = 'hundred';
   private anticipation = 0;
   private contactTime = -Infinity;
   private ballX = 0;
@@ -1547,11 +1653,11 @@ export class Batter {
   }
   /** Whether he is on his way down or already there. */
   get felled() { return Number.isFinite(this.felledAt); }
-  /** His hundred: the bat up to the sky and back into his guard. See `RAISED`. */
-  celebrate(now: number, mild = false) {
+  /** His hundred, or any of the others: up, held, and back into his guard. See `ROUTINES`. */
+  celebrate(now: number, kind: Celebration = 'hundred') {
     this.celebratedFrom = this.pose;
     this.celebratedAt = now;
-    this.mild = mild;
+    this.celebration = kind;
     // The stroke he got there with is over, and its flags bend the arms its
     // own way — a pull's, a cut's, a sweep's. The charge stays: it is what
     // walks him back to his crease if he went down the pitch for it.
@@ -1663,7 +1769,7 @@ export class Batter {
     this.poseAge = age;
     this.travel(age);
     const celebrating = now - this.celebratedAt;
-    if (celebrating >= 0 && celebrating < (this.mild ? FIFTY_MS : CELEBRATION_MS)) {
+    if (celebrating >= 0 && celebrating < CELEBRATION_LENGTHS[this.celebration]) {
       // Nothing about the stroke he hit it with is left to shape the legs:
       // an unfinished stroke's age would have them bent its way.
       this.poseAge = Infinity;
@@ -1926,31 +2032,16 @@ export class Batter {
   }
 
   private applyCelebration(age: number) {
-    if (this.mild) {
-      const { rise, lift, up, hold, back, down, settle } = FIFTY;
-      if (age < hold) {
-        return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, { time: rise, pose: RISING },
-          { time: lift, pose: LIFTING }, { time: up, pose: NODDING }, { time: hold, pose: NODDED }], age));
-      }
-      return this.apply(age < back ? mix(NODDED, RETURNING, (age - hold) / (back - hold))
-        : age < down ? mix(RETURNING, LOWERED, (age - back) / (down - back))
-        : age < settle ? mix(LOWERED, SETTLING, (age - down) / (settle - down))
-        : mix(SETTLING, GUARD, (age - settle) / (FIFTY_MS - settle)));
-    }
-    const { rise, lift, up, pump, again, pump2, look, back, down, settle } = CELEBRATION;
-    if (age < look) {
-      return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, { time: rise, pose: RISING },
-        { time: lift, pose: LIFTING }, { time: up, pose: RAISED },
-        { time: pump, pose: PUMPED }, { time: again, pose: RAISED }, { time: pump2, pose: PUMPED },
-        { time: look, pose: LOOKING }], age));
-    }
+    const { keys, back, down, settle, total } = ROUTINES[this.celebration];
+    const last = keys[keys.length - 1];
+    if (age < last.time) return this.apply(flowing([{ time: 0, pose: this.celebratedFrom }, ...keys], age));
     // Down the way it came up: out to his right, where the left hand takes the
     // handle again, and only then in front of him. Straight from beside his
     // head to in front of his chest, the handle went through him.
-    this.apply(age < back ? mix(LOOKING, RETURNING, (age - look) / (back - look))
+    this.apply(age < back ? mix(last.pose, RETURNING, (age - last.time) / (back - last.time))
       : age < down ? mix(RETURNING, LOWERED, (age - back) / (down - back))
       : age < settle ? mix(LOWERED, SETTLING, (age - down) / (settle - down))
-      : mix(SETTLING, GUARD, (age - settle) / (CELEBRATION_MS - settle)));
+      : mix(SETTLING, GUARD, (age - settle) / (total - settle)));
   }
 
   private apply(pose: Pose) {

@@ -229,6 +229,51 @@ check(impossibleTest.status === 400, `a Test innings that could not have happene
 const crossName = await post({ playerId: other, name, avatar: 0, mode: 'survive', innings: chase(104, 44) });
 check(crossName.status === 409, `a name held on the five-over board is refused on the Test one (${crossName.status})`, crossName.body);
 
+// ── The Test Marathon's two ladders ────────────────────────────────────────
+// One innings, two rows: the side to the team ladder and the best of the three
+// to the individual one, over keys of their own. Whether they really are their
+// own keys, and whether one submission really writes both, is what only a
+// deployment can say.
+const marathonBoards = await call('/api/board?mode=marathon');
+check(marathonBoards.status === 200, `GET /api/board?mode=marathon answers 200 (${marathonBoards.status}, ${marathonBoards.ms}ms)`, marathonBoards.text.slice(0, 200));
+check(Array.isArray(marathonBoards.body?.team?.rows) && Array.isArray(marathonBoards.body?.solo?.rows),
+  'with both ladders in one answer, team and individual', marathonBoards.body);
+
+/** A batter whose figures add up: fours and singles, out unless said otherwise. */
+const batter = (runs, balls, how = 'out') => ({
+  runs, balls, fours: Math.floor(runs / 8), sixes: 0, out: how === 'out', retired: false, blows: 0, health: 100, left: false,
+});
+const marathonInnings = (...batters) => ({
+  runs: batters.reduce((t, b) => t + b.runs, 0), balls: batters.reduce((t, b) => t + b.balls, 0),
+  fours: batters.reduce((t, b) => t + b.fours, 0), sixes: 0, ending: 'ALL_OUT', batters,
+});
+const marathoner = `${me.slice(0, 6)}-mmmmmmmmmmmm`;
+const marathonName = `zzmara${run.slice(-5)}`;
+const batted = await post({
+  playerId: marathoner, name: marathonName, avatar: 2, mode: 'marathon',
+  innings: marathonInnings(batter(143, 210), batter(61, 90), batter(12, 30)),
+});
+check(batted.status === 200, `POST /api/score takes a Marathon innings (${batted.status}, ${batted.ms}ms)`, batted.body ?? batted.text.slice(0, 200));
+check(batted.body?.board?.team?.rows?.some(r => r.playerId === marathoner && r.runs === 216 && r.balls === 330),
+  'and puts the side on the team ladder', batted.body?.board?.team?.rows?.slice(0, 3));
+check(batted.body?.board?.solo?.rows?.some(r => r.playerId === marathoner && r.runs === 143 && r.order === 1),
+  'and the opener\'s 143 on the individual one', batted.body?.board?.solo?.rows?.slice(0, 3));
+
+const unadded = await post({
+  playerId: marathoner, name: marathonName, avatar: 2, mode: 'marathon',
+  innings: { ...marathonInnings(batter(143, 210), batter(61, 90), batter(12, 30)), runs: 999 },
+});
+check(unadded.status === 400, `a Marathon whose batters do not add up to the side is refused (${unadded.status})`, unadded.body);
+
+const allBoards = await Promise.all([call('/api/board'), call('/api/board?mode=survive')]);
+check(!allBoards.some(one => one.body?.rows?.some(r => r.playerId === marathoner)),
+  'and the Marathon innings is on neither of the other boards', allBoards.map(one => one.body?.rows?.find(r => r.playerId === marathoner)));
+// The Marathon counts a career now (My Stats' third card), and has no career
+// ladders of its own yet: the boards answer, with none on them.
+const marathonCareer = await call('/api/career?mode=marathon');
+check(marathonCareer.status === 200 && marathonCareer.body?.boards && !Object.keys(marathonCareer.body.boards).length,
+  `the Marathon's careers answer, with no ladders yet (${marathonCareer.status})`, marathonCareer.body);
+
 // ── A match room, made, joined and batted ──────────────────────────────────
 // Safer to run against production than everything above it: a room expires on
 // its own and claims no permanent name, so a check leaves nothing behind that
@@ -254,7 +299,13 @@ check(made.body?.challenge?.state === 'open' && made.body?.challenge?.players?.[
 if (code) {
   const read = await call(`/api/challenge?code=${code}`);
   check(read.status === 200, `GET /api/challenge reads it back (${read.status}, ${read.ms}ms)`, read.text.slice(0, 200));
-  check(/s-maxage/.test(read.headers.get('cache-control') ?? ''), 'a room read is cacheable at the edge', read.headers.get('cache-control'));
+  // Deployment Protection rewrites the header on its way out, as on the board.
+  const roomCache = read.headers.get('cache-control') ?? '';
+  if (Object.keys(BYPASS).length && !/s-maxage/.test(roomCache)) {
+    console.log(`  --   room caching not checked: Deployment Protection rewrote it to "${roomCache}"`);
+  } else {
+    check(/s-maxage/.test(roomCache), 'a room read is cacheable at the edge', roomCache);
+  }
 
   const joined = await challengePost({ action: 'join', code, ...friend });
   check(joined.status === 200 && joined.body?.challenge?.players?.length === 2, `a friend joins (${joined.status})`, joined.body);
@@ -316,6 +367,6 @@ check(challengePreflight.status === 204 || challengePreflight.status === 200, `a
 console.log(
   failures
     ? `\n${failures} check${failures === 1 ? '' : 's'} failed.\n`
-    : `\nAll checks passed. Both boards and match rooms are live.\n  Rows left behind: ${me}/"${name}" on the five-over board, ${test}/"${testName}" on the Test one.\n`,
+    : `\nAll checks passed. The boards and match rooms are live.\n  Rows left behind: ${me}/"${name}" on the five-over board, ${test}/"${testName}" on the Test one, ${marathoner}/"${marathonName}" on both Marathon ladders.\n`,
 );
 process.exit(failures ? 1 : 0);

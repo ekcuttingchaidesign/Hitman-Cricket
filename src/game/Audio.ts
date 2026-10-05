@@ -1,5 +1,5 @@
 import type { ShotOutcome } from './types';
-type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'cheer';
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'cheer' | 'stumps';
 /**
  * The music, and the screen each piece belongs to.
  *
@@ -25,7 +25,7 @@ export type Track = 'cover' | 'result';
  * does not try to carry two megabytes of music as a data URI.
  */
 const TRACKS: Record<Track, string> = {
-  cover: 'Hitman_start_screen.aac',
+  cover: 'Shining_Down_Loop.aac',
   result: 'test_survival_glory.aac',
 };
 /**
@@ -33,6 +33,14 @@ const TRACKS: Record<Track, string> = {
  * too; only the fallback element is left at the device's own volume there.
  */
 const MUSIC_GAIN = .5;
+/**
+ * Each track's own level under that, so two files mastered differently play at
+ * the loudness the game was tuned to. Shining Down measures −12.9 LUFS and the
+ * start screen's track before it −26.0, which is 13.1 dB, so it is let through
+ * at a fifth of the gain: the cover sounds as it always has.
+ */
+const LEVEL: Record<Track, number> = { cover: .22, result: 1 };
+const gainOf = (track: Track) => MUSIC_GAIN * LEVEL[track];
 /** How long a track started off a tap stays silent before it is let through. */
 const FADE_IN_MS = 220;
 /** What counts as the tap that lets a refused track through. */
@@ -59,15 +67,22 @@ const SOUND_KEY = 'hitman-sound';
 function settingBefore(): SoundSetting {
   try { const held = localStorage.getItem(SOUND_KEY); return held === 'effects' || held === 'off' ? held : 'on'; } catch { return 'on'; }
 }
-export function outcomeSound(outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'> & { edged?: boolean }): Sound | null {
+export function outcomeSound(
+  outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'> & { edged?: boolean; wicketType?: ShotOutcome['wicketType'] },
+): Sound | null {
   // An edge has its own sound, and it is the sound of the wicket: the thin
   // noise off the face is the whole story of the dismissal, so it is read
   // before the general one for a wicket falling.
   if (outcome.edged) return 'edge';
+  // A wicket broken is heard when it breaks — the stumps' rattle, played by the
+  // scene the moment the ball reaches them — not when the call goes up.
+  if (outcome.isWicket && breaksStumps(outcome.wicketType)) return null;
   if (outcome.isWicket) return 'wicket';
   if (!outcome.madeBatContact) return null;
   return outcome.runs === 4 || outcome.runs === 6 ? 'boundary' : 'hit';
 }
+/** The wickets that end with the bails flying, and so with the stumps' rattle. */
+export const breaksStumps = (wicketType: ShotOutcome['wicketType'] | undefined) => wicketType === 'BOWLED' || wicketType === 'STUMPED';
 export class GameAudio {
   private context: AudioContext | null = null;
   private buffers = new Map<Sound, AudioBuffer>();
@@ -105,6 +120,7 @@ export class GameAudio {
     ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
     ['edge', new URL('../assets/bat-edge.mp3', import.meta.url)],
     ['cheer', new URL('../assets/crowd-cheer.mp3', import.meta.url)],
+    ['stumps', new URL('../assets/stumps-rattle.aac', import.meta.url)],
   ] as const;
   // The setting a returning player left behind applies before anything plays.
   constructor() { this.share(); }
@@ -252,8 +268,8 @@ export class GameAudio {
     if (afterGesture) {
       gain.gain.setValueAtTime(0, now);
       gain.gain.setValueAtTime(0, now + FADE_IN_MS / 1000);
-      gain.gain.linearRampToValueAtTime(MUSIC_GAIN, now + FADE_IN_MS / 1000 + .25);
-    } else gain.gain.value = MUSIC_GAIN;
+      gain.gain.linearRampToValueAtTime(gainOf(track), now + FADE_IN_MS / 1000 + .25);
+    } else gain.gain.value = gainOf(track);
     source.connect(gain); gain.connect(context.destination);
     const from = (this.positions.get(track) ?? 0) % buffer.duration;
     source.start(0, from);
@@ -303,7 +319,7 @@ export class GameAudio {
     let element = this.elements.get(track);
     if (!element) {
       element = new Audio(TRACKS[track]);
-      element.loop = true; element.preload = 'auto'; element.volume = MUSIC_GAIN;
+      element.loop = true; element.preload = 'auto'; element.volume = gainOf(track);
       this.elements.set(track, element);
     }
     return element;
@@ -417,7 +433,7 @@ export class GameAudio {
     if (kind === 'sledge' || kind === 'cheer') return;
     const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = kind === 'hit' || kind === 'edge' ? 'triangle' : 'sine';
-    osc.frequency.setValueAtTime(kind === 'edge' ? 1550 : kind === 'hit' ? 720 : kind === 'wicket' ? 170 : kind === 'boundary' ? 540 : 240, now);
+    osc.frequency.setValueAtTime(kind === 'edge' ? 1550 : kind === 'hit' ? 720 : kind === 'wicket' || kind === 'stumps' ? 170 : kind === 'boundary' ? 540 : 240, now);
     osc.frequency.exponentialRampToValueAtTime(kind === 'boundary' ? 980 : 55, now + .18);
     gain.gain.setValueAtTime(kind === 'bounce' ? .025 : .09, now); gain.gain.exponentialRampToValueAtTime(.001, now + (kind === 'edge' ? .09 : .25));
     osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(now + .26);
