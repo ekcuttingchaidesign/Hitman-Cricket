@@ -253,7 +253,8 @@ deployment.
 ## My Stats
 
 A card in the carousel, second, between The Blast and Test Survival, on a
-ground of its own — British Racing Green, with red rising from the foot:
+ground of its own — British Racing Green, with crimson rising from the foot
+and in the trim, the tier's metal on the badge and bar:
 
 - **The two big figures:** highest total and highest individual score.
 - **Under them:** career runs, **runs per innings** (not an average — see

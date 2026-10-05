@@ -684,7 +684,11 @@ export async function paintStatsCard(
   ctx.strokeStyle = at(theme.accent, theme.metal ? 0.5 : 0.28);
   ctx.lineWidth = 1;
   panel(ctx, 0.5, 0.5, width - 1, height - 1, STATS_CARD.radius); ctx.stroke();
-  if (theme.metal) {
+  if (theme.trim) {
+    // A card with a trim of its own wears it as the inset line, a pinstripe.
+    ctx.strokeStyle = at(theme.trim, 0.6);
+    panel(ctx, 4.5, 4.5, width - 9, height - 9, STATS_CARD.radius - 4); ctx.stroke();
+  } else if (theme.metal) {
     ctx.strokeStyle = at(theme.accent, 0.16);
     panel(ctx, 4.5, 4.5, width - 9, height - 9, STATS_CARD.radius - 4); ctx.stroke();
   }
@@ -697,7 +701,7 @@ export async function paintStatsCard(
   // about to travel without the game around it, and a brag with no name on it
   // is a brag nobody can act on.
   let cursor = y + padTop + EYEBROW_BASE;
-  ctx.fillStyle = at(accent, 0.95);
+  ctx.fillStyle = at(theme.trim ?? accent, 0.95);
   ctx.font = font(700, 10.5);
   tracked(ctx, `${facts.modeName.toUpperCase()} · CAREER`, left, cursor, 2.1);
 
@@ -746,7 +750,7 @@ export async function paintStatsCard(
     ctx.strokeStyle = at(theme.accent, 0.5);
     ctx.lineWidth = 1;
     panel(ctx, tx + 0.5, cursor + 0.5, tileW - 1, HERO_H - 1, 14); ctx.stroke();
-    ctx.fillStyle = at(theme.accent, 0.95);
+    ctx.fillStyle = at(theme.trim ?? theme.accent, 0.95);
     ctx.font = font(700, 10);
     tracked(ctx, one.label.toUpperCase(), tx + 16, cursor + 25, 1.4);
     ctx.fillStyle = ink;

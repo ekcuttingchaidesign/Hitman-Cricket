@@ -83,6 +83,13 @@ export interface Theme {
    * carry one: the red of the Dukes ball rising through the green.
    */
   tint?: { colour: string; strength: number };
+  /**
+   * A second colour for the trim, where a card carries one: the stamp at the
+   * top, the labels on the hero tiles and a pinstripe inset inside the edge.
+   * The tier's metal keeps the badge, the ring and the bar, so a Marathon STAR
+   * reads green, red and silver, and a HITMAN green, red and gold.
+   */
+  trim?: string;
 }
 
 export interface Tier {
@@ -234,28 +241,32 @@ export const TIERS: readonly Tier[] = [
 
 /**
  * The Test Marathon's cards, by rung: British Racing Green, with the red of a
- * Dukes ball coming up through it from the foot.
+ * Dukes ball coming up through it from the foot and in the trim.
  *
  * A ground of its own because the Marathon card sits on the rail between the
  * Blast's and Test Survival's, and three navy cards in a row are one card three
  * times. The tier still shows, in the badge, the ring, the bar and the edges —
  * bronze, silver and gold all read on green, and the green darkens as they
- * climb, the way the other grounds go towards black. The one change past the
- * ground is the first rung's accent, red where the others are blue: a blue
- * badge on a green card is two cards, not one.
+ * climb, the way the other grounds go towards black. The red is crimson, not
+ * the orange-red a Blast ball is: the stamp, the tile labels and a pinstripe
+ * inside the edge on every rung, and on the first rung the badge and bar too,
+ * where the others are blue — a blue badge on a green card is two cards.
  */
 const MARATHON_GROUNDS: Record<string, Partial<Theme>> = {
   debutant: {
     top: '#11492f', mid: '#0a3522', bottom: '#052416', ledge: '#010d06', mat: '#02100a',
-    quiet: '#a7c1b1', accent: '#e0604f', sheen: '#f6b0a4', bloom: 0.12,
+    quiet: '#a7c1b1', accent: '#d4243c', sheen: '#f58a98', bloom: 0.12,
   },
   emerging: { top: '#0f3f28', mid: '#082c1c', bottom: '#041a10', ledge: '#010804', mat: '#020c06', quiet: '#b5ad8e' },
   star: { top: '#0c3222', mid: '#062116', bottom: '#02110a', ledge: '#000403', mat: '#010805', quiet: '#99ada3' },
   hitman: { top: '#0d3020', mid: '#061f14', bottom: '#021009', ledge: '#000302', mat: '#010704', quiet: '#aea582' },
 };
 
-/** The red that rises through the Marathon's green, quieter as the cards darken. */
-const MARATHON_TINT: Record<string, number> = { debutant: 0.3, emerging: 0.24, star: 0.2, hitman: 0.2 };
+/** Crimson: the Marathon's red, in the trim and rising through the green. */
+export const MARATHON_RED = '#c8102e';
+
+/** How strongly the red rises through the green, by rung. */
+const MARATHON_TINT: Record<string, number> = { debutant: 0.42, emerging: 0.38, star: 0.36, hitman: 0.36 };
 
 /** What a tier's card is made of in a mode: its own material, or the Marathon's green. */
 export function cardTheme(mode: CareerMode, tier: Tier): Theme {
@@ -263,7 +274,8 @@ export function cardTheme(mode: CareerMode, tier: Tier): Theme {
   return {
     ...tier.theme,
     ...MARATHON_GROUNDS[tier.key],
-    tint: { colour: '#b3241c', strength: MARATHON_TINT[tier.key] ?? 0.2 },
+    tint: { colour: MARATHON_RED, strength: MARATHON_TINT[tier.key] ?? 0.36 },
+    trim: '#e2364f',
   };
 }
 

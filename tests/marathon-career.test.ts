@@ -4,7 +4,7 @@ import {
 } from '../src/game/career';
 import { countInnings, readCareer, readCareerBoards } from '../src/server/career-store';
 import { memoryCareer } from '../src/server/memory-career';
-import { TIERS, cardTheme, nextLine, standingOf } from '../src/game/tier';
+import { MARATHON_RED, TIERS, cardTheme, nextLine, standingOf } from '../src/game/tier';
 import { statsAlt, statsExplain, statsFacts } from '../src/game/StatsCard';
 
 /** One batter, out, untouched by the bowling. */
@@ -120,7 +120,8 @@ describe('the Marathon card\'s ground', () => {
     for (const tier of TIERS) {
       const theme = cardTheme('marathon', tier);
       for (const stop of [theme.top, theme.mid, theme.bottom]) expect(green(stop), `${tier.key} ${stop}`).toBe(true);
-      expect(theme.tint?.colour).toBe('#b3241c');
+      expect(theme.tint?.colour).toBe(MARATHON_RED);
+      expect(theme.trim).toBe('#e2364f');
       expect(theme.tint!.strength).toBeGreaterThan(0);
     }
   });
@@ -128,7 +129,7 @@ describe('the Marathon card\'s ground', () => {
   it('leaves the tier to the badge: bronze, silver and gold stay, the first rung turns red', () => {
     const [debutant, ...metals] = TIERS;
     for (const tier of metals) expect(cardTheme('marathon', tier).accent).toBe(tier.theme.accent);
-    expect(cardTheme('marathon', debutant).accent).toBe('#e0604f');
+    expect(cardTheme('marathon', debutant).accent).toBe('#d4243c');
   });
 
   it('is the Marathon\'s alone', () => {
