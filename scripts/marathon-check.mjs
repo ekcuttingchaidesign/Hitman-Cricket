@@ -255,8 +255,11 @@ check((await page.locator('#mcard-modes').isVisible()) && (await page.locator('#
 // with room on it.
 for (let i = 0; i < 20 && !(await page.locator('#claim').isVisible()); i++) { await advance(250); await page.waitForTimeout(150); }
 check(await page.locator('#claim').isVisible(), 'and the boards\' strip offers it a place', await page.locator('#claim').textContent());
-check(!(await page.locator('#challenge-set').isVisible()) && !(await page.locator('#card-career').isVisible()),
-  'but no friend to challenge and no career, which it does not have yet');
+check(!(await page.locator('#challenge-set').isVisible()), 'but no friend to challenge, which it does not have');
+// The Marathon counts a career now: the card carries the widget into My Stats,
+// on the Test Marathon's own card, as the other two modes' cards do.
+for (let i = 0; i < 20 && !(await page.locator('#card-career').isVisible()); i++) { await advance(250); await page.waitForTimeout(150); }
+check(await page.locator('#card-career').isVisible(), 'and the career it adds to');
 
 // ── All out, played to the end ─────────────────────────────────────────────
 await page.locator('#again').click({ force: true });
