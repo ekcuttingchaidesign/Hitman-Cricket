@@ -74,6 +74,8 @@ describe('the music a screen owns', () => {
     expect(cover()!.loop).toBe(true);
     expect(cover()!.calls).toEqual(['play']);
     expect(cover()!.muted).toBe(false);
+    // Quieter than the card's: mastered louder, so let through at its own level.
+    expect(cover()!.volume).toBeCloseTo(.11, 5);
     audio.dispose();
   });
   it('leaves the card\'s music exactly where it is when the board goes up over it', () => {
@@ -94,6 +96,7 @@ describe('the music a screen owns', () => {
     expect(cover()!.currentTime).toBe(0);
     audio.music('result');
     expect(result()!.src).toBe('test_survival_glory.aac');
+    expect(result()!.volume).toBe(.5);
     expect(result()!.calls).toEqual(['play']);
     audio.dispose();
   });
@@ -379,7 +382,9 @@ describe('the music through the context', () => {
     expect(fetched.filter(url => url.includes('Shining_Down'))).toHaveLength(1);
     expect(music()).toHaveLength(1);
     expect(music()[0].source.started).toEqual([0, 0]);
-    expect(music()[0].gain.value).toBe(.5);
+    // At its own level: Shining Down is mastered 13 dB hotter than the track
+    // the game was tuned to, so it is let through at a fifth of the music's gain.
+    expect(music()[0].gain.value).toBeCloseTo(.11, 5);
     expect(FakeAudio.made).toHaveLength(0);
     audio.dispose();
   });
@@ -394,7 +399,7 @@ describe('the music through the context', () => {
     await land();
     expect(music()).toHaveLength(1);
     // Silent for the fade, then brought up to the music's level.
-    expect(music()[0].ramps).toEqual([['set', 0, 0], ['set', 0, .22], ['ramp', .5, .47]]);
+    expect(music()[0].ramps.map(([kind, value, at]) => [kind, +value.toFixed(5), at])).toEqual([['set', 0, 0], ['set', 0, .22], ['ramp', .11, .47]]);
     audio.dispose();
   });
   it('stays armed through a touch the browser does not count', async () => {

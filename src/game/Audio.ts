@@ -33,6 +33,14 @@ const TRACKS: Record<Track, string> = {
  * too; only the fallback element is left at the device's own volume there.
  */
 const MUSIC_GAIN = .5;
+/**
+ * Each track's own level under that, so two files mastered differently play at
+ * the loudness the game was tuned to. Shining Down measures −12.9 LUFS and the
+ * start screen's track before it −26.0, which is 13.1 dB, so it is let through
+ * at a fifth of the gain: the cover sounds as it always has.
+ */
+const LEVEL: Record<Track, number> = { cover: .22, result: 1 };
+const gainOf = (track: Track) => MUSIC_GAIN * LEVEL[track];
 /** How long a track started off a tap stays silent before it is let through. */
 const FADE_IN_MS = 220;
 /** What counts as the tap that lets a refused track through. */
@@ -252,8 +260,8 @@ export class GameAudio {
     if (afterGesture) {
       gain.gain.setValueAtTime(0, now);
       gain.gain.setValueAtTime(0, now + FADE_IN_MS / 1000);
-      gain.gain.linearRampToValueAtTime(MUSIC_GAIN, now + FADE_IN_MS / 1000 + .25);
-    } else gain.gain.value = MUSIC_GAIN;
+      gain.gain.linearRampToValueAtTime(gainOf(track), now + FADE_IN_MS / 1000 + .25);
+    } else gain.gain.value = gainOf(track);
     source.connect(gain); gain.connect(context.destination);
     const from = (this.positions.get(track) ?? 0) % buffer.duration;
     source.start(0, from);
@@ -303,7 +311,7 @@ export class GameAudio {
     let element = this.elements.get(track);
     if (!element) {
       element = new Audio(TRACKS[track]);
-      element.loop = true; element.preload = 'auto'; element.volume = MUSIC_GAIN;
+      element.loop = true; element.preload = 'auto'; element.volume = gainOf(track);
       this.elements.set(track, element);
     }
     return element;
