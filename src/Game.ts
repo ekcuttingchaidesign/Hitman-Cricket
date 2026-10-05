@@ -67,7 +67,8 @@ import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
 import type { BoardRow } from './game/leaderboard';
 import {
-  ballsBand, blowsBand, counting, inningsBand, injuryBand, marksPassed, restoreFailure, roomBand, scoreBand,
+  ballsBand, blowsBand, counting, inningsBand, injuryBand, marathonBestBand, marathonOversBand, marathonTotalBand, marksPassed,
+  restoreFailure, roomBand, scoreBand,
   track, trackOnce,
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
@@ -1261,6 +1262,11 @@ export class Game {
    * the minutes played) stays unprefixed: those are the same fact whichever
    * innings it happened in, and splitting them would halve every count for
    * nothing.
+   *
+   * A practice link — a test switch on, see `practising` — gets a prefix of its
+   * own ahead of the mode's: the nets and the tuning switches are somebody
+   * trying the game, and counted with the innings they would swell every
+   * figure the dashboard is read for.
    */
   private mark(name: string, title: string) {
     track(...this.named(name, title));
@@ -1270,9 +1276,10 @@ export class Game {
     trackOnce(...this.named(name, title));
   }
   private named(name: string, title: string): [string, string] {
-    if (this.surviving) return [`survive-${name}`, `Test match: ${title}`];
-    if (this.marathoning) return [`marathon-${name}`, `Test Marathon: ${title}`];
-    return [name, title];
+    const [moded, said]: [string, string] = this.surviving ? [`survive-${name}`, `Test match: ${title}`]
+      : this.marathoning ? [`marathon-${name}`, `Test Marathon: ${title}`]
+      : [name, title];
+    return this.practising ? [`practice-${moded}`, `Practice: ${said}`] : [moded, said];
   }
   private setPhase(phase: GamePhase) {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
@@ -2317,7 +2324,9 @@ export class Game {
     // carries on a little past him into the next ball's run-up; and the big
     // ones take the whole of the clip.
     this.audio.cheer(CHEER[kind]);
-    if (!asked) track(kind, MOMENT_SAID[kind]);
+    // Named for the mode it was reached in, and the raised bat for its mark:
+    // 150, 250 and 350 are one celebration and three different innings.
+    if (!asked) this.mark(kind === 'raise' ? `raise-${moment.mark}` : kind, MOMENT_SAID[kind]);
   }
   private presentResult() {
     this.resultPresented = true;
@@ -2604,7 +2613,12 @@ export class Game {
       const marathon = this.marathon;
       this.mark('innings-end', 'Innings completed');
       this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
-      track(`marathon-ended-${marathon.ending!.toLowerCase().replace('_', '-')}`, `Test Marathon ended: ${marathon.ending}`);
+      this.mark(`ended-${marathon.ending!.toLowerCase().replace('_', '-')}`, `Ended: ${marathon.ending}`);
+      // What it made, the most one man made of it, and how long it went: the
+      // three things the boards rank on and the tuning is done in.
+      this.mark(marathonTotalBand(this.score.runs), 'Total');
+      this.mark(marathonBestBand(Math.max(0, ...marathonFigures(marathon).batters.map(one => one.runs))), 'Best individual score');
+      this.mark(marathonOversBand(this.score.balls), 'Overs batted');
       this.hud.endMarathon(this.score, marathon);
       this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
       this.hud.offerRestorePanel = this.offerRestoreOnCard();
@@ -2631,14 +2645,13 @@ export class Game {
       // ending anyway, with the close losses split off from the rest.
       this.mark('innings-end', 'Innings completed');
       this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
-      track(`survive-result-${resultOf(ending, this.score.runs, this.score.balls).toLowerCase()}`,
-        `Test match ended: ${ending}`);
-      track(`survive-${scoreBand(this.score.runs)}`, 'Test match runs');
-      track(`survive-${ballsBand(this.score.balls)}`, 'Test match balls faced');
+      this.mark(`result-${resultOf(ending, this.score.runs, this.score.balls).toLowerCase()}`, `Ended: ${ending}`);
+      this.mark(scoreBand(this.score.runs), 'Runs');
+      this.mark(ballsBand(this.score.balls), 'Balls faced');
       // What the meter finished on, in bands, so the live spread can be read
       // against the simulator's — the tuning is done in those terms.
-      track(`survive-${injuryBand(this.health.injury)}`, 'Test match injury');
-      track(`survive-${blowsBand(this.health.blows.length)}`, 'Test match blows taken');
+      this.mark(injuryBand(this.health.injury), 'Injury');
+      this.mark(blowsBand(this.health.blows.length), 'Blows taken');
       this.hud.endSurvive(this.score, this.health, ending, this.chasing);
       // The widget follows the strip onto whichever card is up, so this card
       // has one now — and it opens the Test career, because `showStats` reads
@@ -2655,11 +2668,11 @@ export class Game {
       this.best = Math.max(this.best, this.score.runs);
       try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
     }
-    track('innings-end', 'Innings completed');
-    track(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
-    track(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
+    this.mark('innings-end', 'Innings completed');
+    this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
+    this.mark(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',
       this.score.wickets >= GAME.maxWickets ? 'Innings ended all out' : 'Innings ended, overs up');
-    track(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
+    this.mark(scoreBand(this.score.runs), `Innings scored ${scoreBand(this.score.runs).replace('score-', '').replace(/-/g, ' to ')} runs`);
     // A chase answers itself the moment it ends, and the reveal replaces the
     // ordinary card: the scoreline is what the player has been waiting thirty
     // balls for, and the card behind it would be the wrong first thing to see.

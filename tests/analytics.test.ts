@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ballsBand, blowsBand, counting, injuryBand, scoreBand } from '../src/game/analytics';
+import {
+  ballsBand, blowsBand, counting, injuryBand, marathonBestBand, marathonOversBand, marathonTotalBand, scoreBand,
+} from '../src/game/analytics';
 
-const at = (hostname: string, search = '') => counting({ hostname, search });
+const at = (hostname: string, search = '', env = '') => counting({ hostname, search }, env);
 
 describe('who gets counted', () => {
   it('counts a player on the live game', () => {
@@ -21,6 +23,37 @@ describe('who gets counted', () => {
     expect(at('hitman-cricket.vercel.app', '?seed=7')).toBe(false);
     expect(at('hitman-cricket.vercel.app', '?debug=1')).toBe(false);
     expect(at('hitman-cricket.vercel.app', '?debug=0')).toBe(true);
+  });
+
+  it('counts production, and a build off Vercel, but not a preview', () => {
+    expect(at('hitman-cricket.vercel.app', '', 'production')).toBe(true);
+    // Off Vercel the build carries no environment: counted as it always was.
+    expect(at('example.github.io', '', '')).toBe(true);
+    expect(at('hitman-cricket-git-claude-x-ek.vercel.app', '', 'preview')).toBe(false);
+    expect(at('hitman-cricket-git-claude-x-ek.vercel.app', '', 'development')).toBe(false);
+  });
+});
+
+describe('the Test Marathon\'s bands', () => {
+  it('reads a total on the Marathon\'s scale, not the Blast\'s', () => {
+    expect([0, 49, 50, 99, 100, 149, 150, 199, 200, 299, 300, 399, 400, 499, 500, 946].map(marathonTotalBand)).toEqual([
+      'total-0-49', 'total-0-49', 'total-50-99', 'total-50-99', 'total-100-149', 'total-100-149', 'total-150-199', 'total-150-199',
+      'total-200-299', 'total-200-299', 'total-300-399', 'total-300-399', 'total-400-499', 'total-400-499', 'total-500-plus', 'total-500-plus',
+    ]);
+  });
+
+  it('cuts the best individual score at the marks the game celebrates', () => {
+    expect([0, 24, 25, 49, 50, 99, 100, 149, 150, 199, 200, 299, 300, 400].map(marathonBestBand)).toEqual([
+      'best-0-24', 'best-0-24', 'best-25-49', 'best-25-49', 'best-50-99', 'best-50-99', 'best-100-149', 'best-100-149',
+      'best-150-199', 'best-150-199', 'best-200-299', 'best-200-299', 'best-300-plus', 'best-300-plus',
+    ]);
+  });
+
+  it('counts overs completed, cut where the bowling changes', () => {
+    expect([0, 29, 30, 59, 60, 119, 120, 179, 180, 299, 300, 419, 420, 500].map(marathonOversBand)).toEqual([
+      'overs-0-4', 'overs-0-4', 'overs-5-9', 'overs-5-9', 'overs-10-19', 'overs-10-19', 'overs-20-29', 'overs-20-29',
+      'overs-30-49', 'overs-30-49', 'overs-50-69', 'overs-50-69', 'overs-70-plus', 'overs-70-plus',
+    ]);
   });
 });
 
