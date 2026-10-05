@@ -15,6 +15,7 @@ import { WEAR_STAGES, contactShadowTexture, grassTexture, pitchTexture } from '.
 import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
+import { buildWicket } from './wicket';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 
@@ -493,14 +494,8 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    for (const x of [-0.145, 0, 0.145]) {
-      const stump = cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
-      if (z === 0) this.stumps.push(stump);
-    }
-    for (const x of [-0.073, 0.073]) {
-      const bail = box(this.world, 0.16, 0.035, 0.045, colors.orange, x, GAME.stumpHeight + 0.02, z);
-      if (z === 0) { this.bails.push(bail); this.stumps.push(bail); }
-    }
+    const { timber, bails } = buildWicket(this.world, GAME.stumpHeight, z);
+    if (z === 0) { this.bails.push(...bails); this.stumps.push(...timber, ...bails); }
   }
   private resize = () => {
     const { width, height } = this.container.getBoundingClientRect();

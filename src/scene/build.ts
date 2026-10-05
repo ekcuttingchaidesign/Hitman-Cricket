@@ -69,15 +69,19 @@ export class Batch {
   /**
    * One mesh a colour, under `parent`. `casts: false` for scenery that stands
    * outside the sun's shadow map, where a shadow costs a draw call in the
-   * shadow pass and lands on nothing anybody sees.
+   * shadow pass and lands on nothing anybody sees. Handed back, for a caller
+   * that has to find its pieces again.
    */
   build(parent: THREE.Object3D, { casts = true } = {}) {
+    const meshes: THREE.Mesh[] = [];
     for (const [color, list] of this.parts) {
       const mesh = new THREE.Mesh(mergeGeometries(list), this.finishes.get(color) ?? mat(color));
       mesh.castShadow = casts; mesh.receiveShadow = true;
       parent.add(mesh);
+      meshes.push(mesh);
       list.forEach(geometry => geometry.dispose());
     }
     this.parts.clear();
+    return meshes;
   }
 }
