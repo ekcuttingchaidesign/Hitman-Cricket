@@ -58,6 +58,10 @@ import { AVATARS, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
+import type { NetsBowler } from '../game/DeliveryGenerator';
+
+/** What each of the nets' keys says: the express bowler by the action people know him by. */
+const NETS_LABEL: Record<NetsBowler, string> = { PACE: 'PACE', SWING: 'SWING', SPIN: 'SPIN', EXPRESS: 'SLING' };
 import { HEALTH, SURVIVE } from '../config/survive';
 import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
@@ -2664,6 +2668,40 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
     this.viewport.append(row);
+  }
+  /**
+   * `?nets=1`'s keys: a bowler each, and the side of the stumps. Built hidden,
+   * and shown by `netsShow` once there is a Marathon for them to work on.
+   */
+  netsKeys(bowlers: readonly NetsBowler[], pick: (bowler: NetsBowler) => void, side: () => void) {
+    const row = document.createElement('div');
+    row.className = 'nets-keys hidden';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Choose the bowler');
+    for (const bowler of bowlers) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'nets-key'; key.dataset.bowler = bowler; key.textContent = NETS_LABEL[bowler];
+      key.setAttribute('aria-pressed', 'false');
+      key.addEventListener('click', () => pick(bowler));
+      row.append(key);
+    }
+    const flip = document.createElement('button');
+    flip.type = 'button'; flip.className = 'nets-key nets-side'; flip.id = 'nets-side';
+    flip.addEventListener('click', side);
+    row.append(flip);
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  netsHide() { this.viewport.querySelector('.nets-keys')?.classList.add('hidden'); }
+  /** Which bowler and which side the nets are on. */
+  netsShow(bowler: NetsBowler, round: boolean) {
+    const row = this.viewport.querySelector<HTMLElement>('.nets-keys');
+    if (!row) return;
+    row.classList.remove('hidden');
+    row.querySelectorAll<HTMLButtonElement>('[data-bowler]').forEach(key => key.setAttribute('aria-pressed', String(key.dataset.bowler === bowler)));
+    const flip = row.querySelector<HTMLButtonElement>('#nets-side')!;
+    flip.textContent = round ? 'ROUND' : 'OVER';
+    flip.setAttribute('aria-label', round ? 'Bowling round the wicket: tap for over the wicket' : 'Bowling over the wicket: tap for round the wicket');
   }
   /**
    * The flash for a special stroke: see `powerDoodle`. Not a moment, so the

@@ -4,7 +4,7 @@ import { BATTERS, BLOCK_OVERS, CONFIDENCE, EXPRESS_OVER, LEVELS, MARATHON, REVER
 import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition, drawnAt } from '../src/game/DeliveryTrajectory';
-import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonFastWear, marathonOnly, roundEvery } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, NETS_BOWLERS, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonFastWear, marathonOnly, roundEvery } from '../src/game/DeliveryGenerator';
 import { MarathonInnings, leftHanderOf } from '../src/game/Marathon';
 import { mapKeys, mapSwipe, mirrorKey } from '../src/game/InputManager';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -793,5 +793,58 @@ describe('a ball from round the wicket, as it is drawn', () => {
     // A swinging ball keeps its swing on top of the angle.
     const swung = { ...straight, style: 'SWING_OUT', finalTargetX: LINE_X.OFF + .2 } as Delivery;
     expect(drawnAt(swung, 1, hand).x).toBeCloseTo(LINE_X.OFF + .2, 9);
+  });
+});
+
+describe('the nets, ?nets=1', () => {
+  const over = (generator: DeliveryGenerator) => Array.from({ length: MARATHON.ballsPerOver }, () => generator.next(0));
+
+  it('puts on whichever bowler is asked for, from the next ball, bowling as he does in the innings', () => {
+    const generator = new DeliveryGenerator(new SeededRandom(7), roundEvery(MARATHON_PLAN));
+    generator.nets('EXPRESS', true);
+    const quick = over(generator);
+    expect(quick.every(d => d.express && d.round)).toBe(true);
+    expect(quick.some(d => d.style === 'SHORT') && quick.some(d => d.style === 'YORKER')).toBe(true);
+    generator.nets('SPIN', true);
+    const spun = [...over(generator), ...over(generator)];
+    expect(spun.every(d => SPIN_STYLES.includes(d.style) && !d.express)).toBe(true);
+    expect(spun.some(d => d.style === 'ARM_BALL')).toBe(true);
+    generator.nets('SWING', true);
+    const swung = Array.from({ length: 10 }, () => over(generator)).flat();
+    expect(swung.some(d => d.style === 'SWING_IN' || d.style === 'SWING_OUT')).toBe(true);
+    expect(swung.some(d => d.style.startsWith('REVERSE'))).toBe(true);
+    generator.nets('PACE', true);
+    const seamed = Array.from({ length: 10 }, () => over(generator)).flat();
+    expect(seamed.some(d => d.style.startsWith('REVERSE') || d.express || SPIN_STYLES.includes(d.style))).toBe(false);
+    expect(seamed.every(d => d.late === undefined)).toBe(true);
+  });
+
+  it('starts him on an over of his own, wherever the last bowler had got to', () => {
+    const generator = new DeliveryGenerator(new SeededRandom(11), roundEvery(MARATHON_PLAN));
+    generator.nets('SPIN', true);
+    // Two balls into the spinner's over.
+    generator.next(0); generator.next(0);
+    generator.nets('EXPRESS', true);
+    // His bouncer and yorker are planned for a whole over of his, not the tail of the spinner's.
+    const his = over(generator);
+    expect(his.filter(d => d.style === 'YORKER')).toHaveLength(1);
+  });
+
+  it('bowls from the side asked for, and says so for every over', () => {
+    const generator = new DeliveryGenerator(new SeededRandom(3), roundEvery(MARATHON_PLAN));
+    for (const bowler of NETS_BOWLERS) {
+      generator.nets(bowler, false);
+      expect(over(generator).every(d => !d.round)).toBe(true);
+      expect(generator.roundAt(40)).toBe(false);
+      generator.nets(bowler, true);
+      expect(over(generator).every(d => d.round)).toBe(true);
+      expect(generator.roundAt(0)).toBe(true);
+    }
+  });
+
+  it('does nothing to a plan without blocks', () => {
+    const generator = new DeliveryGenerator(new SeededRandom(3), SURVIVE_PLAN);
+    generator.nets('EXPRESS', true);
+    expect(over(generator).some(d => d.express || d.round)).toBe(false);
   });
 });

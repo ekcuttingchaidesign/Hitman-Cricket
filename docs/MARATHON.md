@@ -87,7 +87,9 @@ not the batter's: a tailender who walks in at over 30 walks in against over
   of the stumps and the ball leaves his hand out wide and angles in, to arrive
   where it would have from over the wicket — only the angle it is read from
   changes. Asked for after a playtest found every bowler bowling over the
-  wicket. `?round=1` puts every over round the wicket.
+  wicket. `?round=1` puts every over round the wicket, and `?nets=1` does
+  that with keys to change the bowler — pace, swing, spin, sling — and the
+  side, from the next ball, for trying every bowler round the wicket quickly.
 - **Overs 1–10 are Test Survival's**, with one rule dropped: Survive gives its
   last two overs two bouncers each, because they are the end of its innings.
   Here they are the middle of one, so they are ordinary overs. Every pace

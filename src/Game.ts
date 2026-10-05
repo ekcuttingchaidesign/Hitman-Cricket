@@ -12,7 +12,7 @@ import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
 import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, SURVIVE_PLAN, marathonFastWear, marathonOnly, roundEvery, spun } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, marathonFastWear, marathonOnly, roundEvery, spun, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -368,6 +368,23 @@ export class Game {
    * nothing anywhere: it is the same celebration with none of the innings.
    */
   private readonly momentKeys = new URLSearchParams(location.search).get('moments') === '1';
+  /**
+   * `?nets=1`, in a Marathon: every bowler round the wicket from the first
+   * ball, and a row of keys to change him — the seamer, the swing bowler, the
+   * spinner, the express bowler — with one more to go back over the wicket
+   * and round again. A tap changes the bowler from the next ball; the innings
+   * is otherwise the innings, scored and offered to the boards as any other.
+   */
+  private readonly netsKeys = new URLSearchParams(location.search).get('nets') === '1';
+  private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
+  /** Hand the nets' choice to the bowling and show it on the keys. */
+  private applyNets() {
+    if (!this.netsKeys) return;
+    // A Blast or a Survival innings played from the same link has no nets.
+    if (!this.marathoning) { this.hud.netsHide(); return; }
+    this.generator?.nets(this.nets.bowler, this.nets.round);
+    this.hud.netsShow(this.nets.bowler, this.nets.round);
+  }
   /** A moment asked for with a key and waiting for the ball to be dead: see `askMoment`. */
   private momentAsked: Moment | null = null;
   /**
@@ -423,6 +440,9 @@ export class Game {
     if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
+    if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
+      bowler => { this.nets = { ...this.nets, bowler }; this.applyNets(); },
+      () => { this.nets = { ...this.nets, round: !this.nets.round }; this.applyNets(); });
     this.input = new InputManager(() => this.phase === 'BALL_IN_FLIGHT', this.clockAt, this.shoot, this.hud.viewport,
       () => this.isPrimed === 'CHARGE' ? ADVANCE.coverLean : 0,
       // The downward diagonals are the scoops whenever there is a meter to
@@ -1071,6 +1091,7 @@ export class Game {
       : null;
     if (this.marathon) this.health = this.marathon.current.health;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
+    this.applyNets();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset(); this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
@@ -1190,7 +1211,7 @@ export class Game {
   private roundOnly = new URLSearchParams(location.search).get('round') === '1';
   private get plan() {
     const plan = this.basePlan;
-    return this.marathoning && this.roundOnly ? roundEvery(plan) : plan;
+    return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(plan) : plan;
   }
   private get basePlan() {
     if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {

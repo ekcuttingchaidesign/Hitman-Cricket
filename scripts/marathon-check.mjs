@@ -293,8 +293,9 @@ check((await snap()).balls === 0, 'restarting starts again at nought');
 // which is otherwise drawn from the sixth: the bowler from the far side of the
 // stumps to the right-handed opener, and the same bowler mirrored with the
 // ground to the left-hander. Only the angle the ball is drawn from changes, so
-// nothing else here has to know.
-await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=2&round=1`, { waitUntil: 'load' });
+// nothing else here has to know. By the nets' link, which is round the wicket
+// from the first ball and has keys to change the bowler.
+await page.goto(`${base}/?debug=1&mode=marathon&seed=4242&lefty=2&nets=1`, { waitUntil: 'load' });
 await advance(2500);
 await page.locator('#start').click({ force: true });
 await advance(400);
@@ -341,6 +342,34 @@ const angling = await snap();
 await advance(angling.contactAt - angling.elapsed - 40);
 await page.keyboard.press('s');
 for (let i = 0; i < 30 && (await snap()).phase !== 'READY'; i++) await advance(400);
+// The nets: a key a bowler, and one for the side, each from the next ball.
+const netsKey = name => page.locator(`.nets-key:text-is("${name}")`);
+check(await netsKey('PACE').getAttribute('aria-pressed') === 'true' && await netsKey('ROUND').isVisible(),
+  'the nets\' keys are up, the seamer lit, round the wicket', await page.locator('.nets-keys').textContent());
+/** A ball blocked, back between balls. */
+const through = async () => {
+  const ball = await until('BALL_IN_FLIGHT');
+  await advance(ball.contactAt - ball.elapsed - 40);
+  await page.keyboard.press('s');
+  for (let i = 0; i < 30 && (await snap()).phase !== 'READY'; i++) await advance(400);
+};
+await netsKey('SLING').click({ force: true });
+let netted = await runningIn();
+let nets = (await snap()).marathon;
+check(await netsKey('SLING').getAttribute('aria-pressed') === 'true' && nets.express && nets.action === 'express' && netted.side === 'round' && netted.x < -.3,
+  'SLING puts the express bowler on from the next ball, round the wicket', JSON.stringify({ nets, netted }));
+await through();
+await netsKey('ROUND').click({ force: true });
+netted = await runningIn();
+check(await netsKey('OVER').isVisible() && netted.side === 'over' && netted.x > .3, 'and the side key takes him back over the wicket', JSON.stringify(netted));
+await through();
+await netsKey('SPIN').click({ force: true });
+await netsKey('OVER').click({ force: true });
+netted = await runningIn();
+nets = (await snap()).marathon;
+check(nets.bowler === 'SPIN' && netted.side === 'round' && netted.x < -.3, 'SPIN, and round again, the spinner from the far side', JSON.stringify({ nets, netted }));
+await through();
+await netsKey('PACE').click({ force: true });
 hand = await write(['W']);
 check(hand.left && hand.mirrored, 'the No. 3 walks out left-handed, with the ground mirrored', JSON.stringify(hand));
 check((await label())?.includes('NO. 3 IN · TAKE YOUR GUARD'), 'and walks out like anybody else', await label());

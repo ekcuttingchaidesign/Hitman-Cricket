@@ -296,6 +296,21 @@ export function marathonFastWear(): BowlingPlan {
   return { ...MARATHON_PLAN, blocks: { ...MARATHON_PLAN.blocks!, size, levelAt, round: { ...ROUND, from: swingFrom } } };
 }
 
+/**
+ * The nets, for `?nets=1`: one bowler, chosen by a key on the screen, as he
+ * bowls in the innings — the seamer of the first overs, the swing bowler from
+ * the sixth with his reverse swing, the spinner, or the express bowler — from
+ * whichever side of the stumps was asked for, for as long as the player likes.
+ */
+export type NetsBowler = 'PACE' | 'SWING' | 'SPIN' | 'EXPRESS';
+export const NETS_BOWLERS: readonly NetsBowler[] = ['PACE', 'SWING', 'SPIN', 'EXPRESS'];
+const NETS: Record<NetsBowler, { kind: OverKind; level: () => Level }> = {
+  PACE: { kind: 'PACE', level: () => levelOf(0) },
+  SWING: { kind: 'PACE', level: () => levelOf(1) },
+  SPIN: { kind: 'SPIN', level: () => levelOf(0) },
+  EXPRESS: { kind: 'EXPRESS', level: () => levelOf(1) },
+};
+
 /** The lines that are at the batter rather than at the stumps: he stands outside leg. */
 const BODY_LINES: BallLine[] = ['OUTSIDE_LEG', 'LEG'];
 /** The lines that invite a drive at a ball he should be leaving. */
@@ -323,6 +338,8 @@ export class DeliveryGenerator {
   private readonly schedule: OverKind[] = [];
   /** Which overs are bowled round the wicket, drawn up front the same way. */
   private readonly sides: boolean[] = [];
+  /** The nets' bowler and side, standing in for the plan's every over once asked for. */
+  private netting: { kind: OverKind; level: Level; round: boolean } | null = null;
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
     const blocks = plan.blocks;
     if (blocks) {
@@ -347,12 +364,27 @@ export class DeliveryGenerator {
   private get over() { return Math.floor(this.bowled / (this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver)); }
   /** Who bowls over `over`: always pace, spin or express in a plan by blocks, and null otherwise. */
   overKind(over: number): OverKind | null {
+    if (this.netting) return this.netting.kind;
     return this.plan.blocks ? this.schedule[over] ?? 'PACE' : null;
+  }
+  /**
+   * Put the nets' bowler on, from the next ball, from this side of the
+   * stumps. The next ball starts an over of his own, so everything he plans
+   * at the top of one — the express bowler's bouncer and yorker, the
+   * spinner's arm ball, the swing bowler's reverse — is planned for him rather
+   * than left over from whoever had the ball before. A plan by blocks only.
+   */
+  nets(bowler: NetsBowler, round: boolean) {
+    if (!this.plan.blocks) return;
+    const perOver = this.plan.spin?.ballsPerOver ?? GAME.ballsPerOver;
+    if (this.bowled % perOver) this.bowled += perOver - this.bowled % perOver;
+    this.netting = { kind: NETS[bowler].kind, level: NETS[bowler].level(), round };
   }
   /** The level over `over` is bowled at, in a plan by blocks. */
   levelAt(over: number): Level | null {
     const blocks = this.plan.blocks;
     if (!blocks) return null;
+    if (this.netting) return this.netting.level;
     return blocks.levelAt ? blocks.levelAt(over) : blocks.levelOf(Math.floor(over / blocks.size));
   }
   /** Whether the ball about to be bowled belongs to the spinner. */
@@ -363,7 +395,7 @@ export class DeliveryGenerator {
   /** Whether it belongs to the express bowler. */
   get expressOn() { return this.overKind(this.over) === 'EXPRESS'; }
   /** Whether over `over` is bowled round the wicket. */
-  roundAt(over: number): boolean { return this.sides[over] ?? false; }
+  roundAt(over: number): boolean { return this.netting ? this.netting.round : this.sides[over] ?? false; }
   /** And the ball about to be bowled. */
   get roundOn() { return this.roundAt(this.over); }
   /** The overs he was given, for the HUD and for a test that there are three. */
