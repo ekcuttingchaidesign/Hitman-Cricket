@@ -439,6 +439,8 @@ export class Game {
     // who was handed the link to give an opinion on the batting.
     if (!SURVIVE_ONLY) void this.loadBoard();
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
+    // Bowled or stumped, the wicket is heard when the ball reaches it.
+    this.scene.onStumps = () => this.audio.play('stumps');
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
       bowler => { this.nets = { ...this.nets, bowler }; this.applyNets(); },

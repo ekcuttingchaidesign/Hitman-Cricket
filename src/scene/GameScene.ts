@@ -198,6 +198,8 @@ export class GameScene {
   private hitEnd = new THREE.Vector3();
   private hitOutcome: ShotOutcome | null = null;
   private bailsBrokeAt = 0;
+  /** The moment the ball breaks the wicket, for the stumps' rattle. Once a ball. */
+  onStumps: (() => void) | null = null;
   private flightMs: number = GAME.hitAnimationMs;
   private hitHeight = 0;
   /** Where in a skied ball's flight it is spilled, or 0 when it is not. */
@@ -999,7 +1001,7 @@ export class GameScene {
    * batter dragged back onto his own stumps both end with the timber going.
    */
   private breakBails(now: number) {
-    if (!this.bailsBrokeAt && this.ball.position.z <= 0) this.bailsBrokeAt = now;
+    if (!this.bailsBrokeAt && this.ball.position.z <= 0) { this.bailsBrokeAt = now; this.onStumps?.(); }
     if (!this.bailsBrokeAt) return;
     const flung = Math.min(1, (now - this.bailsBrokeAt) / 620);
     this.bails.forEach((bail, i) => {

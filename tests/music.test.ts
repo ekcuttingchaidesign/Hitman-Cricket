@@ -461,7 +461,9 @@ describe('the music through the context', () => {
     audio.set('effects');
     audio.warm('result'); audio.music('result');
     await land();
-    expect(fetched.filter(url => url.endsWith('.aac'))).toEqual([]);
+    // The music's files, by name: the sound effects are AAC too, and are fetched
+    // for the innings whatever the music is doing.
+    expect(fetched.filter(url => /Shining_Down|test_survival_glory/.test(url))).toEqual([]);
     audio.dispose();
   });
   it('falls back to an element for a track the context will not decode', async () => {

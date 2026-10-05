@@ -209,5 +209,12 @@ describe('user-supplied hit sounds', () => {
     expect(outcomeSound({ runs: 0, madeBatContact: true, isWicket: true, edged: true })).toBe('edge');
     // And a wicket that is not an edge still sounds like one.
     expect(outcomeSound({ runs: 0, madeBatContact: false, isWicket: true })).toBe('wicket');
+    // A broken wicket is heard when it breaks, from the scene: the call is silent.
+    expect(outcomeSound({ runs: 0, madeBatContact: false, isWicket: true, wicketType: 'BOWLED' })).toBeNull();
+    expect(outcomeSound({ runs: 0, madeBatContact: false, isWicket: true, wicketType: 'STUMPED' })).toBeNull();
+    expect(outcomeSound({ runs: 0, madeBatContact: true, isWicket: true, wicketType: 'CAUGHT' })).toBe('wicket');
+    expect(outcomeSound({ runs: 0, madeBatContact: false, isWicket: true, wicketType: 'LBW' })).toBe('wicket');
+    // Played on: the nick off the face at the bat, then the rattle at the stumps.
+    expect(outcomeSound({ runs: 0, madeBatContact: true, isWicket: true, wicketType: 'BOWLED', edged: true })).toBe('edge');
   });
 });
