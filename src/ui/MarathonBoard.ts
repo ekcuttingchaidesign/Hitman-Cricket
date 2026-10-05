@@ -19,12 +19,16 @@ import { escape, kitMarkup, sheetKeys, type CardOffer } from './Leaderboard';
  * in front that only the footnote explained.
  */
 
-/** Which of the two ladders is up. */
-export type MarathonLadder = 'team' | 'solo';
+/**
+ * Which ladder is up: the two innings ladders, or career runs — the one
+ * all-time ladder the Marathon has, drawn by the career boards' own screen.
+ */
+export type MarathonLadder = 'team' | 'solo' | 'runs';
 
 export const MARATHON_LADDERS: readonly { key: MarathonLadder; name: string }[] = [
   { key: 'team', name: 'Team' },
   { key: 'solo', name: 'Individual' },
+  { key: 'runs', name: 'Runs' },
 ];
 
 /** The toggle, drawn as the career ladders' strip so it sits where that one does. */

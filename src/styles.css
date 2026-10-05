@@ -1534,6 +1534,10 @@ body.start-screen #sound{pointer-events:auto}
    both fixed so that fifty rows read as columns rather than as fifty separate
    arrangements. */
 .board-row.is-career{gap:0 6px}
+/* Three supporting figures, said in a line under the name: the row is the
+   innings board's shape again, with the big figure given the room it had. */
+.board-row.is-career.is-lined{grid-template-columns:20px 34px minmax(0,1fr) auto;gap:0 11px}
+.board-row.is-career.is-lined .board-runs{min-width:0;font-size:20px}
 .board-row.is-career .board-runs{min-width:58px;font-size:18px}
 .board-row.is-career .board-hits{gap:6px;margin-left:0}
 /* The label under the figure rather than beside it.

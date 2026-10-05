@@ -155,7 +155,7 @@ the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one
-post among them. Point it at a preview deployment, never at production.
+post among them, and the Marathon's career runs ladder. Point it at a preview deployment, never at production.
 
 ## `?fresh=1`
 

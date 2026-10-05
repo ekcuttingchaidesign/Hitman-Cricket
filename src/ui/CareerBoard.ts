@@ -1,5 +1,5 @@
 import {
-  BLAST_BOARDS, MARATHON_CAREER, SURVIVE_BOARDS,
+  BLAST_BOARDS, MARATHON_BOARDS, SURVIVE_BOARDS,
   type BlastCareer, type CareerBoard, type CareerMode, type MarathonCareer, type SurviveCareer,
 } from '../game/career';
 import type { CareerRow } from '../game/career-api';
@@ -29,9 +29,9 @@ import { escape, kitMarkup, sheetKeys } from './Leaderboard';
  */
 export type AnyCareer = BlastCareer | SurviveCareer | MarathonCareer;
 
-/** A mode's career ladders. The Marathon has none of its own yet: see `MARATHON_CAREER`. */
+/** A mode's career ladders. */
 function boardsOf(mode: CareerMode): readonly CareerBoard<AnyCareer>[] {
-  return (mode === 'survive' ? SURVIVE_BOARDS : mode === 'marathon' ? MARATHON_CAREER.boards : BLAST_BOARDS) as readonly CareerBoard<AnyCareer>[];
+  return (mode === 'survive' ? SURVIVE_BOARDS : mode === 'marathon' ? MARATHON_BOARDS : BLAST_BOARDS) as readonly CareerBoard<AnyCareer>[];
 }
 
 /**
@@ -166,15 +166,20 @@ export function careerRowMarkup(
   board: CareerBoard<AnyCareer>, row: CareerRow<AnyCareer>, index: number, you: boolean,
 ): string {
   const [lead, ...rest] = board.figures;
+  // Three supporting figures do not fit beside a name at phone width — the name
+  // went to an initial and an ellipsis — so a board with three says them in a
+  // line under the name instead, the way an innings row says how it was made.
+  const lined = rest.length > 2;
   return `
-          <li class="board-row is-career${you ? ' is-you' : ''}" style="--i:${index}"${
+          <li class="board-row is-career${lined ? ' is-lined' : ''}${you ? ' is-you' : ''}" style="--i:${index}"${
   you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
             ${kitMarkup(row.avatar, row.name)}
-            <span class="board-who"><b>${escape(row.name)}</b></span>
-            <span class="board-runs">${figure(lead.of(row.career))}</span>
+            <span class="board-who"><b>${escape(row.name)}</b>${lined ? `<small>${rest.map(one =>
+              `${figure(one.of(row.career))} ${escape(one.label)}`).join(' · ')}</small>` : ''}</span>
+            <span class="board-runs">${figure(lead.of(row.career))}</span>${lined ? '' : `
             <span class="board-hits">${rest.map(one =>
-              `<em>${figure(one.of(row.career))}<small>${escape(one.label)}</small></em>`).join('')}</span>
+              `<em>${figure(one.of(row.career))}<small>${escape(one.label)}</small></em>`).join('')}</span>`}
           </li>`;
 }
 

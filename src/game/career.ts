@@ -624,18 +624,40 @@ export const BLAST_CAREER: CareerLadder<BlastCareer, BlastTally> = {
   }),
 };
 
+/**
+ * The Test Marathon's career ladder: every run its three batters have made,
+ * added up, the Blast's Runs ladder for the long game. Its rows carry the
+ * innings it took and the fours and sixes in it; the innings ladders, Team and
+ * Individual, stay where a single innings is ranked.
+ */
+export const MARATHON_BOARDS: readonly CareerBoard<MarathonCareer>[] = [
+  {
+    key: 'runs',
+    name: 'Runs',
+    blurb: 'Every run scored in the Test Marathon, added up. Level totals are split on who took fewer innings.',
+    primary: career => career.runs,
+    secondary: career => fewerInnings(career.innings),
+    figures: [
+      { label: 'runs', of: career => career.runs },
+      { label: 'inns', of: career => career.innings },
+      { label: '4s', of: career => career.fours },
+      { label: '6s', of: career => career.sixes },
+    ],
+    counts: career => career.runs > 0,
+  },
+];
+
 /** A Marathon tally off a request body: the boards' own reader. */
 export const readMarathonTally = (raw: unknown): MarathonTally => readMarathonFigures(raw);
 
 /**
- * The Marathon's careers. No career ladders of its own yet — the card is what
- * step 6 asked for, and the two innings ladders are where it is ranked — so
- * a Marathon career is counted and kept and shown, and ranked nowhere.
+ * The Marathon's careers: counted from the figures its boards are sent, shown
+ * on the card, and ranked on one ladder of their own, career runs.
  */
 export const MARATHON_CAREER: CareerLadder<MarathonCareer, MarathonTally> = {
   mode: 'marathon',
   scope: 'marathoncareer:',
-  boards: [],
+  boards: MARATHON_BOARDS,
   merge: mergeMarathon,
   plausible: marathonPlausible,
   figures: from => ({

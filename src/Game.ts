@@ -1585,6 +1585,7 @@ export class Game {
     const played = mine ? marathonFigures(this.marathon!) : null;
     const yours = played ? { team: teamOf(played), solo: soloOf(played) } : null;
     const actions = this.boardActions && !!mine;
+    if (ladder === 'runs') return this.showMarathonRuns(actions);
     const draw = (rows: MarathonPayload | { team: { rows: TeamRow[] }; solo: { rows: SoloRow[] } } | null, state: 'ready' | 'loading' | 'offline') => {
       if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'marathon' || this.marathonLadder !== ladder) return;
       const shown = rows ? this.marathonShown : null;
@@ -1599,6 +1600,38 @@ export class Game {
     void fetchMarathonBoard().then(payload => {
       if (payload) this.marathonRows = payload;
       draw(this.marathonRows, payload || this.marathonRows ? 'ready' : 'offline');
+    });
+  }
+
+  /**
+   * The Marathon's career runs, under its own tab beside the two innings
+   * ladders: the career boards' screen, the way the Blast's Runs ladder is
+   * drawn, with the Marathon's strip of three over it. What was held goes up
+   * at once and the fetch corrects it.
+   */
+  private showMarathonRuns(actions: boolean) {
+    const board = careerBoardOf('marathon', 'runs');
+    if (!board) return;
+    const draw = (payload: CareerBoards<AnyCareer> | undefined, state: 'ready' | 'loading' | 'offline') => {
+      if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'marathon' || this.marathonLadder !== 'runs') return;
+      this.hud.careerBoard({
+        mode: 'marathon', board, youId: this.player, state, actions,
+        rows: (payload?.boards?.runs ?? []) as readonly CareerRow<AnyCareer>[],
+        size: payload?.size ?? 50,
+      });
+    };
+    // The sheet has to be up before `draw` will draw on it.
+    const first = (payload: CareerBoards<AnyCareer> | undefined, state: 'ready' | 'loading' | 'offline') => this.hud.careerBoard({
+      mode: 'marathon', board, youId: this.player, state, actions,
+      rows: (payload?.boards?.runs ?? []) as readonly CareerRow<AnyCareer>[], size: payload?.size ?? 50,
+    });
+    if (this.demo) return first(demoCareers('marathon', this.player) as CareerBoards<AnyCareer>, 'ready');
+    const held = this.careerBoards.marathon;
+    first(held, held ? 'ready' : 'loading');
+    void fetchCareerBoards<AnyCareer>('marathon').then(payload => {
+      if (this.disposed || !this.hud.boardOpen) return;
+      if (payload) this.careerBoards.marathon = payload;
+      draw(this.careerBoards.marathon, this.careerBoards.marathon ? 'ready' : 'offline');
     });
   }
 
@@ -1682,8 +1715,13 @@ export class Game {
   /** Another ladder of the same mode, from the row of tabs under the first. */
   private tabLadder = (ladder: LadderTab) => {
     if (ladder === this.boardLadder) return;
+    // The Marathon's three under a name of their own: its Runs and the Blast's
+    // are two different ladders with the same key.
+    if (this.sheetTab === 'marathon') {
+      this.mark(`board-ladder-marathon-${ladder}`, 'A Test Marathon ladder opened from a tab');
+      return this.openMarathon(ladder as MarathonLadder);
+    }
     this.mark(`board-ladder-${ladder}`, 'A career ladder opened from a tab');
-    if (this.sheetTab === 'marathon') return this.openMarathon(ladder as MarathonLadder);
     this.openBoard(this.boardTab, ladder);
   };
 

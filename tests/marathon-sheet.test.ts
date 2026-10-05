@@ -3,6 +3,8 @@ import { LAUNCH_MS } from '../src/game/leaderboard';
 import { MARATHON_BOARD_SIZE, packSolo, packTeam, type SoloRow, type TeamRow } from '../src/game/marathon-board';
 import { demoMarathon } from '../src/game/demo-board';
 import { marathonBoardMarkup, marathonLaddersMarkup, marathonOffer } from '../src/ui/MarathonBoard';
+import { careerBoardMarkup, careerBoardOf } from '../src/ui/CareerBoard';
+import { demoCareers } from '../src/game/demo-board';
 
 /**
  * The Test Marathon's board as a screen: the toggle, a row on each ladder, the
@@ -26,7 +28,30 @@ describe('the toggle', () => {
     const html = marathonLaddersMarkup('solo');
     expect(html).toContain('id="board-ladder-team" class="ladder-tab"');
     expect(html).toContain('id="board-ladder-solo" class="ladder-tab is-on"');
-    expect(html).toMatch(/>Team<[\s\S]*>Individual</);
+    expect(html).toMatch(/>Team<[\s\S]*>Individual<[\s\S]*>Runs</);
+  });
+
+  it('puts career runs third, lit when it is the one up', () => {
+    const html = marathonLaddersMarkup('runs');
+    expect(html).toContain('id="board-ladder-runs" class="ladder-tab is-on"');
+    expect(html).toContain('id="board-ladder-team" class="ladder-tab"');
+  });
+});
+
+describe('the career runs ladder', () => {
+  it('draws on the career boards\' screen: runs big, then innings, fours and sixes', () => {
+    const board = careerBoardOf('marathon', 'runs')!;
+    const { boards } = demoCareers('marathon', null);
+    const html = careerBoardMarkup({ mode: 'marathon', board, rows: boards.runs as never, youId: null });
+    expect(html).toContain('<h2 id="board-title">Runs</h2>');
+    expect(html).toContain('Every run scored in the Test Marathon');
+    const [first] = boards.runs;
+    expect(html).toContain(`<span class="board-runs">${first.career.runs.toLocaleString('en-US')}</span>`);
+    expect(html).toContain(`<small>${first.career.innings} inns · ${(first.career as { fours: number }).fours} 4s · ${(first.career as { sixes: number }).sixes} 6s</small>`);
+    expect(html).toContain('is-career is-lined');
+    // Runs down the ladder, as it is ranked.
+    const runs = boards.runs.map(row => (row.career as { runs: number }).runs);
+    expect(runs).toEqual([...runs].sort((a, b) => b - a));
   });
 });
 
