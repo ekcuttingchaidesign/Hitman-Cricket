@@ -5047,7 +5047,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
     radial-gradient(80% 130% at 50% 38%,#06111b00 56%,#06111ba6 100%)}
 .whatsnew-sheet.is-full{background:none}
 .is-full .whatsnew-art.is-backdrop{position:absolute;inset:0;z-index:0;display:block;overflow:hidden;pointer-events:none;
-  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%);mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%)}
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 46%,#0000 76%);mask-image:linear-gradient(180deg,#000 0%,#000 46%,#0000 76%)}
 .is-full .whatsnew-art.is-backdrop img{position:absolute;left:0;bottom:var(--lift);width:100%;height:auto;min-height:calc(100% - var(--lift));
   max-width:none;max-height:none;object-fit:cover;object-position:50% 100%;border:0;border-radius:0;box-shadow:none;
   transform-origin:50% 72%;animation:wn-drift 9s cubic-bezier(.22,.61,.36,1) both}
@@ -5056,7 +5056,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .is-full .whatsnew-art.is-backdrop::after{content:'';position:absolute;inset:0;z-index:2;
   background:
     linear-gradient(180deg,#06111ba6 0,#06111b00 110px),
-    linear-gradient(180deg,#06111b00 42%,#06111b8c 66%),
+    linear-gradient(180deg,#06111b00 34%,#06111ba6 62%),
     radial-gradient(140% 80% at 50% 36%,#06111b00 58%,#06111b73 100%)}
 /* The low sun, where the photograph has it, breathing a little. */
 .is-full .whatsnew-art.is-backdrop::before{content:'';position:absolute;inset:0;z-index:1;mix-blend-mode:screen;
@@ -5064,7 +5064,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 @keyframes wn-drift{from{transform:scale(1.14)}to{transform:scale(1.02)}}
 @keyframes wn-sun{from{opacity:.55}to{opacity:1}}
 .is-full .whatsnew-bars{position:relative;z-index:2}
-.is-full .whatsnew-body{justify-content:flex-end;gap:0;padding:0 0 6px}
+/* The words stand a little clear of the key rather than sitting on it. */
+.is-full .whatsnew-body{justify-content:flex-end;gap:0;padding:0 0 42px}
 .is-full .whatsnew-body>*{animation:wn-rise .9s cubic-bezier(.2,.75,.25,1) both}
 .is-full .whatsnew-eyebrow{position:relative;overflow:hidden;padding:6px 12px 5px;border-radius:999px;background:linear-gradient(90deg,#cd1f22,#ff6567);color:#fff;
   font-family:var(--card);font-size:11px;font-weight:900;letter-spacing:.16em;box-shadow:0 6px 18px #cd1f2259;animation-delay:.2s}
@@ -5085,9 +5086,9 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 @media (max-height:540px){.whatsnew-overlay{--lift:28px}}
 @media (min-width:480px){
   .is-full .whatsnew-art.is-backdrop{
-    -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%),linear-gradient(90deg,#0000,#000 22%,#000 78%,#0000);
+    -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 46%,#0000 76%),linear-gradient(90deg,#0000,#000 22%,#000 78%,#0000);
     -webkit-mask-composite:source-in;
-    mask-image:linear-gradient(180deg,#000 0%,#000 56%,#0000 84%),linear-gradient(90deg,#0000,#000 22%,#000 78%,#0000);
+    mask-image:linear-gradient(180deg,#000 0%,#000 46%,#0000 76%),linear-gradient(90deg,#0000,#000 22%,#000 78%,#0000);
     mask-composite:intersect}
 }
 /* Where the system paints its own colours, the title's gradient fill would

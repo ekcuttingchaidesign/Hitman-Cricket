@@ -7,7 +7,7 @@
  * screens, which tells the truth about an update; the Marathon's first cut did
  * the same and read as a screenshot — a mode card with the debug panel across
  * it, and a scorecard in the game's own small type — where a launch wants a
- * poster. So it is drawn: laid out in HTML from the game's own fonts and art
+ * poster. So it is drawn: laid out in HTML from the game's own font and art
  * and rendered in a browser, a broadcast scorecard of a big innings, the worm
  * with a ball where each man went. (The first story is a photograph of the kit
  * on the square, `marathon-intro.webp`, shown across the whole screen; this
@@ -15,6 +15,12 @@
  *
  * It needs no server. Everything it draws is read from `src/assets/` and the
  * figures are made up — an innings nobody played, never written anywhere.
+ *
+ * Every figure is Satoshi, not Jaro. Jaro is the game's word on a key and a
+ * title; set in it and outlined in black, the totals and the scores read as
+ * stickers, and a scorecard is a table. Each row says how the man went and his
+ * boundaries in words, with a bar in the colour of how — the shorthand (16×4,
+ * SR 157) and a helmet in every row were clutter.
  */
 
 import { chromium } from '@playwright/test';
@@ -25,16 +31,13 @@ const asset = name => new URL(`../src/assets/${name}`, import.meta.url);
 const b64 = async name => (await readFile(asset(name))).toString('base64');
 const out = name => new URL(`../src/assets/whatsnew/${name}`, import.meta.url);
 
-const [jaro, satoshi] = await Promise.all([b64('jaro-latin.woff2'), b64('satoshi-latin.woff2')]);
+const satoshi = await b64('satoshi-latin.woff2');
 
 const FONTS = `
-  @font-face{font-family:Jaro;src:url(data:font/woff2;base64,${jaro}) format('woff2')}
   @font-face{font-family:Satoshi;src:url(data:font/woff2;base64,${satoshi}) format('woff2');font-weight:300 900}
   *{box-sizing:border-box;margin:0}
   body{background:transparent;width:720px}`;
 
-/** The helmet from the design (Figma, node 12-127), as the rules coachmark draws it. */
-const HELMET = `<svg viewBox="100 66 428 384"><path fill="currentColor" fill-rule="evenodd" d="M118 268C108 268 106 256 110 246C128 150 200 80 290 78C370 76 440 130 468 212L502 212C512 212 518 222 514 230C512 236 506 238 500 238L268 262L276 300C277 307 272 312 266 312L186 312C181 312 177 309 176 304L162 268ZM182 216H234A17 17 0 0 1 234 250H182A17 17 0 0 1 182 216Z"/><circle cx="190" cy="233" r="6" fill="currentColor"/><circle cx="226" cy="233" r="6" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" d="M192 316V368L224 436H456C470 436 476 428 478 416L486 340C487 330 480 324 470 325L262 340C256 341 252 336 252 330V316M198 386H482M332 338V436M414 331V436"/></svg>`;
 /** A cricket ball, seam and all, for the corner of the poster and the worm's wickets. */
 // One straight seam round its middle, two rows of stitching either side of it.
 const ball = (size, rotate = -24, tone = 'red') => {
@@ -45,9 +48,9 @@ const ball = (size, rotate = -24, tone = 'red') => {
 
 /** The innings on the scorecard: three men, a big total, and a ball where each one went. */
 const BATTERS = [
-  { name: 'Opener', runs: 152, balls: 97, fours: 16, sixes: 8, how: 'out', colour: '#ff6b5e' },
-  { name: 'No. 3', left: true, runs: 64, balls: 65, fours: 8, sixes: 0, how: 'retired hurt', colour: '#ffcf5a' },
-  { name: 'Tailender', runs: 55, balls: 31, fours: 5, sixes: 5, how: 'out', colour: '#ff6b5e' },
+  { name: 'Opener', runs: 152, balls: 97, fours: 16, sixes: 8, how: 'Out', colour: '#ff5a5f' },
+  { name: 'No. 3', left: true, runs: 64, balls: 65, fours: 8, sixes: 0, how: 'Retired hurt', colour: '#ffc845' },
+  { name: 'Tailender', runs: 55, balls: 31, fours: 5, sixes: 5, how: 'Out', colour: '#ff5a5f' },
 ];
 /** Runs a ball that add up to each man's score, lumpy the way an innings is: dots, singles, the odd boundary. */
 function perBall() {
@@ -81,8 +84,8 @@ function worm() {
   const marks = falls.map((f, i) => {
     const below = i === 1, dx = i === 2 ? -44 : 0;
     const cy = below ? f.by + 48 : f.by - 30;
-    return `<g transform="translate(${f.bx - 17} ${f.by - 17})">${ball(34, 20, f.how === 'out' ? 'red' : 'amber')}</g>
-    <g transform="translate(${f.bx + dx} ${cy})"><rect x="-60" y="-30" width="120" height="30" rx="15" fill="#000000c7"/><text y="-9" text-anchor="middle" class="call">${f.runs}${f.how === 'out' ? '' : '*'} · ${f.name}</text></g>`;
+    return `<g transform="translate(${f.bx - 17} ${f.by - 17})">${ball(34, 20, f.how === 'Out' ? 'red' : 'amber')}</g>
+    <g transform="translate(${f.bx + dx} ${cy})"><rect x="-60" y="-30" width="120" height="30" rx="15" fill="#000000c7"/><text y="-9" text-anchor="middle" class="call">${f.runs}${f.how === 'Out' ? '' : '*'} · ${f.name}</text></g>`;
   }).join('');
   return `<svg class="worm" viewBox="0 0 ${W} ${H}"><defs>
       <linearGradient id="area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ffb347" stop-opacity=".55"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></linearGradient>
@@ -93,29 +96,31 @@ function worm() {
     ${marks}</svg>`;
 }
 
+/** Fours and sixes in words, the ones there were. */
+const boundaries = b => [b.fours && `${b.fours} four${b.fours === 1 ? '' : 's'}`, b.sixes && `${b.sixes} six${b.sixes === 1 ? '' : 'es'}`].filter(Boolean).join(' · ');
+
 const SCORE = `<!doctype html><html><head><style>${FONTS}
-  .card{width:720px;height:900px;border-radius:44px;overflow:hidden;color:#fff;font-family:Satoshi;background:linear-gradient(180deg,#0e2537 0%,#0a1824 100%)}
-  .band{display:flex;align-items:center;justify-content:space-between;padding:30px 40px 26px;background:linear-gradient(90deg,#004225,#0a6b3d);border-bottom:4px solid #000}
-  .band b{font-family:Jaro;font-weight:400;font-size:46px;letter-spacing:.02em;-webkit-text-stroke:3px #000;paint-order:stroke fill}
-  .band span{padding:8px 18px;border-radius:22px;background:linear-gradient(90deg,#c8102e,#ff5f57);font-weight:900;font-size:20px;letter-spacing:.14em;border:3px solid #000}
-  .total{display:flex;align-items:flex-end;justify-content:space-between;padding:26px 44px 0}
-  .total b{font-family:Jaro;font-weight:400;font-size:132px;line-height:.8;color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill;text-shadow:0 7px 0 #000}
-  .total b small{font-size:64px;color:#ffcf5a}
-  .total em{font-style:normal;text-align:right;font-weight:800;font-size:44px;line-height:1}
-  .total em small{display:block;margin-top:6px;font-size:20px;font-weight:700;letter-spacing:.12em;color:#9fb2bd}
+  .card{width:720px;height:900px;border-radius:44px;overflow:hidden;color:#fff;font-family:Satoshi;background:linear-gradient(180deg,#0e2537 0%,#0a1824 100%);font-variant-numeric:tabular-nums}
+  .band{display:flex;align-items:center;justify-content:space-between;padding:30px 40px 28px;background:linear-gradient(90deg,#00381f,#0a6b3d)}
+  .band b{font-weight:900;font-size:24px;letter-spacing:.24em}
+  .band span{padding:8px 16px 7px;border-radius:999px;background:#c8102e;font-weight:900;font-size:17px;letter-spacing:.16em}
+  .total{display:flex;align-items:flex-end;justify-content:space-between;padding:34px 44px 0}
+  .total b{font-weight:900;font-size:112px;line-height:.8;letter-spacing:-.04em}
+  .total b small{margin-left:6px;font-size:52px;font-weight:800;letter-spacing:-.02em;color:#ffc845}
+  .total em{font-style:normal;text-align:right;font-weight:800;font-size:42px;line-height:1;letter-spacing:-.02em}
+  .total em small{display:block;margin-top:8px;font-size:17px;font-weight:700;letter-spacing:.16em;color:#9fb2bd}
   .worm{display:block;width:640px;margin:44px 40px 0;overflow:visible}
   .worm text{font-family:Satoshi;font-size:17px;font-weight:700;fill:#9fb2bd}
   .worm text.call{font-size:16px;font-weight:800;fill:#fff}
-  .rows{display:flex;flex-direction:column;gap:12px;padding:18px 36px 0}
-  .row{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:16px;padding:10px 18px 10px 12px;border-radius:22px;background:#ffffff0f;border:2px solid #ffffff14}
-  .row i{display:grid;place-items:center;width:62px;height:62px;border-radius:50%;background:#fff;color:#0b1622;border:3px solid #000}
-  .row i svg{width:40px;height:36px}
-  .row .who b{display:block;font-weight:900;font-size:26px;line-height:1.1}
-  .row .who b small{margin-left:8px;padding:2px 8px;border-radius:8px;background:#ffffff1f;font-size:15px;letter-spacing:.06em;vertical-align:4px;color:#cfe0e8}
-  .row .who em{font-style:normal;font-size:17px;font-weight:700;color:#9fb2bd}
-  .row .who em b{display:inline;font-size:17px;color:var(--how)}
-  .row .runs{text-align:right;font-family:Jaro;font-size:58px;line-height:.9;color:#fff;-webkit-text-stroke:2px #000;paint-order:stroke fill}
-  .row .runs small{display:block;font-family:Satoshi;font-weight:800;font-size:17px;color:#9fb2bd;-webkit-text-stroke:0}
+  .rows{display:flex;flex-direction:column;gap:12px;padding:20px 36px 0}
+  .row{position:relative;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px 16px 28px;border-radius:20px;background:#ffffff0d;overflow:hidden}
+  .row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--how)}
+  .row .who b{display:block;font-weight:800;font-size:26px;line-height:1.15}
+  .row .who em{display:block;margin-top:4px;font-style:normal;font-size:17px;font-weight:600;color:#9fb2bd}
+  .row .who em b{display:inline;font-size:17px;font-weight:800;color:var(--how)}
+  .row .runs{text-align:right;font-weight:900;font-size:46px;line-height:.95;letter-spacing:-.03em}
+  .row .runs i{font-style:normal;color:#ffc845}
+  .row .runs small{display:block;margin-top:4px;font-weight:700;font-size:16px;letter-spacing:0;color:#9fb2bd}
 </style></head><body>
   <div class="card">
     <div class="band"><b>SCORECARD</b><span>ALL OUT</span></div>
@@ -123,9 +128,8 @@ const SCORE = `<!doctype html><html><head><style>${FONTS}
     ${worm()}
     <div class="rows">${BATTERS.map(b => `
       <div class="row" style="--how:${b.colour}">
-        <i>${HELMET}</i>
-        <span class="who"><b>${b.name}${b.left ? '<small>LH</small>' : ''}</b><em><b>${b.how}</b> · ${b.fours}×4 · ${b.sixes}×6 · SR ${(b.runs / b.balls * 100).toFixed(0)}</em></span>
-        <span class="runs">${b.runs}${b.how === 'out' ? '' : '*'}<small>${b.balls} balls</small></span>
+        <span class="who"><b>${b.name}</b><em><b>${b.how}</b> · ${boundaries(b)}</em></span>
+        <span class="runs">${b.runs}${b.how === 'Out' ? '' : '<i>*</i>'}<small>${b.balls} balls</small></span>
       </div>`).join('')}
     </div>
   </div>
