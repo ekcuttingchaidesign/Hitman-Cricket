@@ -1,0 +1,117 @@
+{
+  "previous": {
+    "stats": [
+      {
+        "name": "guard",
+        "calls": 174,
+        "triangles": 206278
+      },
+      {
+        "name": "straight-load",
+        "calls": 174,
+        "triangles": 206278
+      },
+      {
+        "name": "straight-high",
+        "calls": 174,
+        "triangles": 206278
+      },
+      {
+        "name": "lofted",
+        "calls": 174,
+        "triangles": 206278
+      },
+      {
+        "name": "cover",
+        "calls": 174,
+        "triangles": 206278
+      },
+      {
+        "name": "charge",
+        "calls": 174,
+        "triangles": 206278
+      },
+      {
+        "name": "pull",
+        "calls": 174,
+        "triangles": 206278
+      },
+      {
+        "name": "century",
+        "calls": 174,
+        "triangles": 206278
+      }
+    ],
+    "errors": [],
+    "cpu": {
+      "medianBatterUpdateMs": 0.13399999999984477,
+      "samples": [
+        0.12733333333317812,
+        0.12933333333348856,
+        0.1326666666668219,
+        0.13399999999984477,
+        0.14,
+        0.14766666666682188,
+        0.1560000000001552
+      ]
+    }
+  },
+  "connected": {
+    "stats": [
+      {
+        "name": "guard",
+        "calls": 171,
+        "triangles": 206006
+      },
+      {
+        "name": "straight-load",
+        "calls": 171,
+        "triangles": 206006
+      },
+      {
+        "name": "straight-high",
+        "calls": 171,
+        "triangles": 206006
+      },
+      {
+        "name": "lofted",
+        "calls": 171,
+        "triangles": 206006
+      },
+      {
+        "name": "cover",
+        "calls": 171,
+        "triangles": 206006
+      },
+      {
+        "name": "charge",
+        "calls": 171,
+        "triangles": 206006
+      },
+      {
+        "name": "pull",
+        "calls": 171,
+        "triangles": 206006
+      },
+      {
+        "name": "century",
+        "calls": 171,
+        "triangles": 206006
+      }
+    ],
+    "errors": [],
+    "cpu": {
+      "medianBatterUpdateMs": 0.3473333333331781,
+      "samples": [
+        0.33399999999984475,
+        0.3463333333330229,
+        0.3466666666666667,
+        0.3473333333331781,
+        0.34833333333333333,
+        0.35433333333348854,
+        0.38300000000046563
+      ]
+    }
+  },
+  "environment": "Headless Chromium, 390x844 DPR 1.5, SwiftShader. CPU is warmed median per Batter.update, not phone FPS."
+}

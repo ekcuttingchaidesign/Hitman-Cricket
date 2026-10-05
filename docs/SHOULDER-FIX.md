@@ -1,5 +1,10 @@
 # Raised-arm shoulder coverage
 
+The overlap fix described below closed the holes but made the arms look inserted
+into the body. It has now been replaced by the
+[connected shoulder surface](SHOULDER-SHAPE.md). The comparisons below record
+the earlier gap repair, not the latest shape.
+
 The pitch was visible through the jersey at the sleeve roots during raised-arm
 shots. The previous root followed the lifted IK shoulder, leaving part of each
 open sleeve ring outside the jersey's sloping shoulder surface.

@@ -12,13 +12,27 @@ await page.route('**/shoulder-lab',r=>r.fulfill({contentType:'text/html',body:'<
 await page.goto('http://127.0.0.1:5201/shoulder-lab');
 await page.evaluate(async label=>{
  const {GameScene}=await import('/src/scene/GameScene.ts');const s=window.labScene=new GameScene(document.querySelector('#ground'));
- // Recreate only the old sleeve-root placement for a matched-pose comparison.
- if(label==='before')s.batter.sleeves.forEach((sleeve,i)=>{const update=sleeve.update.bind(sleeve);sleeve.update=(a,j,b)=>{a.copy(s.batter.arms[i].shoulder).lerp(s.batter.torso.position,.25);update(a,j,b);};});
+ // Recreate the preceding preview's overlapping torso and narrow sleeves.
+ if(label==='before'){
+  const THREE=await import('/node_modules/three/build/three.module.js');
+  const {jerseyGeometry}=await import('/src/entities/garment.ts');
+  const {BendingLimb}=await import('/src/entities/BendingLimb.ts');
+  const batter=s.batter;
+  batter.connectedJersey.mesh.visible=false;batter.connectedJersey.update=()=>{};
+  const jersey=new THREE.Mesh(jerseyGeometry(),batter.palette.shirt);jersey.castShadow=jersey.receiveShadow=true;batter.torso.add(jersey);
+  batter.sleeves=[0,1].map(i=>{
+   const sleeve=new BendingLimb([batter.palette.shirt,batter.palette.skin],[.072,.062,.046]);
+   const update=sleeve.update.bind(sleeve),root=new THREE.Vector3();
+   sleeve.update=(_a,j,b)=>{root.set(i===0?-.09:.09,.015,0).applyQuaternion(batter.torso.quaternion).add(batter.torso.position);update(root,j,b);};
+   batter.root.add(sleeve.mesh);return sleeve;
+  });
+ }
  s.render(0);
 },label);
 await mkdir('test-results/shoulders',{recursive:true});
 const stats=[];
 for(const [name,shot,y,charge,loft,t] of [
+ ['guard','STRAIGHT',.54,false,false,0],
  ['straight-load','STRAIGHT',.54,false,false,160],['straight-high','STRAIGHT',.54,false,false,450],
  ['lofted','STRAIGHT',.54,false,true,500],['cover','COVER_LONG_OFF',.54,false,false,450],
  ['charge','STRAIGHT',.54,true,false,650],['pull','LEG',1.12,false,false,500],['century',null,.54,false,false,900],
@@ -31,4 +45,14 @@ for(const [name,shot,y,charge,loft,t] of [
  },{name,shot,y,charge,loft,t});
  await writeFile(`test-results/shoulders/${label}-${name}.png`,Buffer.from(data.png,'base64'));stats.push({name,calls:data.calls,triangles:data.triangles});
 }
-await browser.close();server.kill();await writeFile(`test-results/shoulders/${label}-metrics.json`,JSON.stringify({stats,errors},null,2));console.log(JSON.stringify({label,stats,errors}));if(errors.length)process.exitCode=1;
+const cpu=await page.evaluate(()=>{
+ const b=window.labScene.batter;b.reset();b.prepare(1);b.swing('STRAIGHT',0,0,.54,1.3,false,true);
+ for(let i=0;i<300;i++)b.update(i%900);
+ const samples=[];
+ for(let pass=0;pass<7;pass++){
+  const begin=performance.now();for(let i=0;i<300;i++)b.update(i%900);
+  samples.push((performance.now()-begin)/300);
+ }
+ samples.sort((a,b)=>a-b);return {medianBatterUpdateMs:samples[3],samples};
+});
+await browser.close();server.kill();await writeFile(`test-results/shoulders/${label}-metrics.json`,JSON.stringify({stats,errors,cpu},null,2));console.log(JSON.stringify({label,stats,errors,cpu}));if(errors.length)process.exitCode=1;

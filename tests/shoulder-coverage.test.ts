@@ -2,33 +2,37 @@ import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { Batter, CELEBRATION_MS, FIFTY_MS, STROKE_DURATION_MS, CHARGE_MEETS_AT } from '../src/entities/Batter';
 import { GAME, SHOTS } from '../src/config/gameplay';
-import { jerseyGeometry } from '../src/entities/garment';
-import type { BendingLimb } from '../src/entities/BendingLimb';
+import type { ConnectedJersey } from '../src/entities/ConnectedJersey';
 import type { ShotType } from '../src/game/types';
 
-it('keeps every sleeve-root vertex enclosed by the actual jersey throughout shots and celebrations', () => {
+it('keeps shoulders topologically joined to the torso throughout shots and celebrations', () => {
   const batter = new Batter();
-  const rig = batter as unknown as { torso: THREE.Group; sleeves: BendingLimb[] };
-  const jersey = new THREE.Mesh(jerseyGeometry(), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
-  jersey.updateMatrixWorld();
-  const ray = new THREE.Raycaster(), point = new THREE.Vector3(), inverse = new THREE.Quaternion();
-  const forward = new THREE.Vector3(0, 0, 1), back = new THREE.Vector3(0, 0, -1);
-  let worstClearance = Infinity, checked = 0;
+  const rig = batter as unknown as { connectedJersey: ConnectedJersey };
+  const geometry = rig.connectedJersey.mesh.geometry;
+  const positions = geometry.getAttribute('position'), normals = geometry.getAttribute('normal');
+  const indices = geometry.index!;
+  const edges = new Map<string, number>();
+  const edgeKey = (a: number,b: number) => a < b ? `${a}:${b}` : `${b}:${a}`;
+  for(let i=0;i<indices.count;i+=3)for(let j=0;j<3;j++){
+    const key=edgeKey(indices.getX(i+j),indices.getX(i+(j+1)%3));
+    edges.set(key,(edges.get(key)??0)+1);
+  }
+  // Only waist, collar and wrists may be open. Shoulder edges share vertices
+  // with a face on either side, so animation cannot pull two meshes apart.
+  expect([...edges.values()].filter(n=>n===1)).toHaveLength(96);
+  expect([...edges.values()].every(n=>n===1||n===2)).toBe(true);
+  for(const loop of rig.connectedJersey.loops)for(let i=0;i<loop.length;i++)
+    expect(edges.get(edgeKey(loop[i],loop[(i+1)%loop.length]))).toBe(2);
+  let checked=0;
+  const point=new THREE.Vector3(),normal=new THREE.Vector3();
+  const used=[...new Set(Array.from(indices.array))];
   function check(label: string) {
-    inverse.copy(rig.torso.quaternion).invert();
-    for (const sleeve of rig.sleeves) {
-      const positions = sleeve.mesh.geometry.getAttribute('position');
-      // The open root ring must stay inside the torso, whatever way the arm points.
-      for (let i = 0; i < 16; i++) {
-        point.fromBufferAttribute(positions, i).sub(rig.torso.position).applyQuaternion(inverse);
-        for (const direction of [forward, back]) {
-          ray.set(point, direction);
-          const hit = ray.intersectObject(jersey)[0];
-          expect(hit, `${label}: exposed sleeve root at ${point.toArray()}`).toBeDefined();
-          if (hit) worstClearance = Math.min(worstClearance, hit.distance);
-        }
-        checked++;
-      }
+    expect(geometry.getAttribute('position')).toBe(positions);
+    for(const i of used){
+      point.fromBufferAttribute(positions,i);normal.fromBufferAttribute(normals,i);
+      if(!point.toArray().every(Number.isFinite)||Math.abs(normal.length()-1)>1e-4)
+        throw new Error(`${label}: invalid garment vertex ${i}`);
+      checked++;
     }
   }
   const shots: {shot: ShotType; y: number; charge?: boolean; loft?: boolean; sweep?: boolean; flat?: boolean}[] = [
@@ -47,6 +51,4 @@ it('keeps every sleeve-root vertex enclosed by the actual jersey throughout shot
     for(let t=0;t<=(mild?FIFTY_MS:CELEBRATION_MS);t+=80){batter.update(t);check(`celebration @ ${t}`);}
   }
   expect(checked).toBeGreaterThan(10000);
-  // Some overlap must remain; a ring exactly on the surface can flicker open.
-  expect(worstClearance).toBeGreaterThan(.01);
 }, 60000);

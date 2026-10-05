@@ -133,7 +133,8 @@ No production branch was pushed, merged or redeployed for this experiment.
 ## Stump code handoff
 
 Raised-arm sleeve coverage was subsequently corrected; see
-[the shoulder fix and matched renders](SHOULDER-FIX.md).
+[the original gap fix](SHOULDER-FIX.md) and the subsequent
+[connected shoulder shape and matched renders](SHOULDER-SHAPE.md).
 
 `stump-update.zip` includes the current `wicket.ts`, its `build.ts` helper,
 and integration instructions. The existing bail animation/reset origins

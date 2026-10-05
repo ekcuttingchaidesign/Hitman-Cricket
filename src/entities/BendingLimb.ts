@@ -6,7 +6,6 @@ import * as THREE from 'three';
 export class BendingLimb {
   readonly mesh: THREE.Mesh;
   private readonly rows = 20;
-  private readonly sides = 16;
   private readonly first = new THREE.Vector3();
   private readonly second = new THREE.Vector3();
   private readonly binormal = new THREE.Vector3();
@@ -16,7 +15,7 @@ export class BendingLimb {
   private readonly point = new THREE.Vector3();
   private readonly angles: [number, number][];
 
-  constructor(material: THREE.Material | THREE.Material[], private radii: [number, number, number]) {
+  constructor(material: THREE.Material | THREE.Material[], private radii: [number, number, number], private readonly sides = 16) {
     const geometry = new THREE.BufferGeometry(), count = (this.rows + 1) * (this.sides + 1);
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
     geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
@@ -37,12 +36,12 @@ export class BendingLimb {
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 1, 0), 3);
   }
 
-  update(a: THREE.Vector3, joint: THREE.Vector3, b: THREE.Vector3) {
+  update(a: THREE.Vector3, joint: THREE.Vector3, b: THREE.Vector3, reference?: THREE.Vector3) {
     const u = this.first.subVectors(joint, a), v = this.second.subVectors(b, joint);
     const l1 = u.length(), l2 = v.length(), length = l1 + l2;
     u.multiplyScalar(1 / Math.max(l1, .00001)); v.multiplyScalar(1 / Math.max(l2, .00001));
     const bend = Math.min(.05, l1 * .2, l2 * .2);
-    this.binormal.crossVectors(u, v);
+    this.binormal.crossVectors(u, reference ?? v);
     if (this.binormal.lengthSq() < .0001) {
       this.binormal.set(0, 0, 1).cross(u);
       if (this.binormal.lengthSq() < .0001) this.binormal.set(1, 0, 0).cross(u);

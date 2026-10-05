@@ -4,8 +4,8 @@ import { ADVANCE, CUT, GAME, SQUARE_DRIVE as SQUARE_DRIVE_BALL } from '../config
 import { solveJoint } from './rig';
 import { bladeGeometry, gripGeometry } from './batGeometry';
 import { BendingLimb } from './BendingLimb';
+import { ConnectedJersey } from './ConnectedJersey';
 import { helmetGeometry, helmetRimGeometry } from './helmetGeometry';
-import { jerseyGeometry } from './garment';
 import { compactRigidParts } from './compactParts';
 import type { ShotType } from '../game/types';
 
@@ -1402,12 +1402,12 @@ export class Batter {
   // Every part is modelled from one of four smooth unit primitives, scaled into
   // place. Nothing is a bare cube, so the figure reads as sculpted clay.
   private sleeves: BendingLimb[] = [];
+  private connectedJersey!: ConnectedJersey;
   private trouserLegs: BendingLimb[] = [];
   private limbStart = new THREE.Vector3();
   private shapes = {
     soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
     ball: new THREE.SphereGeometry(1, 24, 16),
-    jersey: jerseyGeometry(),
     helmet: helmetGeometry(),
     helmetRim: helmetRimGeometry(),
     trouser: new THREE.CylinderGeometry(.44, .55, 1, 20, 1),
@@ -1457,12 +1457,9 @@ export class Batter {
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
-    // Torso: a single trunk on the spine. A second, wider ellipsoid up at the
-    // shoulders sounds right but breaks the surface all the way round and, once
-    // the batter bends forward, humps out behind the neck. The deltoid caps on
-    // the arms carry the shoulder line instead.
+    // Torso and arms are one connected garment below; these groups retain
+    // the original IK transforms and carry the rigid kit details.
     this.mesh(this.hips, this.palette.trousers, [.188, .135, .135], 'ball');
-    this.mesh(this.torso, this.palette.shirt, [1, 1, 1], 'jersey');
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
     // Jersey seam, collar, and back number make rotation legible from the camera.
     this.mesh(this.torso, this.palette.accent, [1, 1, .93], 'collar').position.y = .154;
@@ -1541,11 +1538,13 @@ export class Batter {
       // Keep the established IK controls and measurements, but do not draw
       // their separate cylinders or ball joints. The surface spans the chain.
       for (const control of [arm.upper, arm.lower, arm.elbow, arm.cap, leg.thigh, leg.shin, leg.knee, leg.cap]) control.visible = false;
-      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.072, .062, .046]);
+      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.09, .062, .046], 24);
       const trouser = new BendingLimb(this.palette.trousers, [.103, .082, .066]);
       this.sleeves.push(sleeve); this.trouserLegs.push(trouser);
-      this.root.add(sleeve.mesh, trouser.mesh);
+      this.root.add(trouser.mesh);
     }
+    this.connectedJersey = new ConnectedJersey([this.palette.shirt, this.palette.skin]);
+    this.root.add(this.connectedJersey.mesh);
     this.reset();
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
@@ -2418,12 +2417,7 @@ export class Batter {
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
-      // Anchor the whole sleeve opening inside the jersey, independent of
-      // the lifted IK shoulder. Otherwise raised-arm shots expose the open
-      // root ring above the sloping shoulder fabric and show the pitch through it.
-      this.limbStart.set(i === 0 ? -.09 : .09, .015, 0)
-        .applyQuaternion(this.torso.quaternion).add(chest);
-      this.sleeves[i].update(this.limbStart, elbow, hand);
+      this.sleeves[i].update(arm.shoulder, elbow, hand, this.connectedJersey.reference(i, this.torso));
       // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
       arm.cuff.position.copy(hand);
@@ -2505,6 +2499,7 @@ export class Batter {
       leg.shoe.quaternion.setFromAxisAngle(UP, shoeYaw)
         .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), footPitch));
     }
+    this.connectedJersey.update(this.torso, this.sleeves);
   }
   /** How far a point sits from the handle, and so from inside the bat. */
   private offHandle(point: THREE.Vector3) {
