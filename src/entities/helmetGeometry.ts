@@ -1,17 +1,38 @@
 import * as THREE from 'three';
 
-/** A cricket shell: close at the nape, broad above the ears, rounded crown.
- * The face stays open beneath the peak; ear guards are separate rigid pieces.
- */
+/** +Z faces the bat. A raised nape opening interrupts the rear rim. */
+function shellPoint(angle: number, t: number) {
+  const front = Math.max(0, Math.cos(angle)), back = Math.max(0, -Math.cos(angle));
+  const rimY = .035 * front ** 4 - .12 * Math.sin(angle) ** 2 - .10 * back + .025 * back ** 4;
+  const phi = t * Math.acos((rimY - .024) / .184);
+  return new THREE.Vector3(.183 * Math.sin(phi) * Math.sin(angle),
+    .024 + .184 * Math.cos(phi), -.012 + .19 * Math.sin(phi) * Math.cos(angle));
+}
+
+/** Oval crown with a curved nape cutout, instead of a rotational flat base. */
 export function helmetGeometry() {
-  const profile = new THREE.SplineCurve([
-    new THREE.Vector2(.157, -.085),
-    new THREE.Vector2(.181, -.055),
-    new THREE.Vector2(.19, .005),
-    new THREE.Vector2(.178, .085),
-    new THREE.Vector2(.135, .155),
-    new THREE.Vector2(.071, .193),
-    new THREE.Vector2(0, .205),
-  ]);
-  return new THREE.LatheGeometry(profile.getPoints(24), 28).scale(1, 1, 1.04).translate(0, 0, -.018);
+  const rows = 20, sides = 40, positions: number[] = [], indices: number[] = [];
+  for (let j = 0; j <= rows; j++) for (let i = 0; i <= sides; i++) {
+    const p = shellPoint(i / sides * Math.PI * 2, j / rows); positions.push(p.x, p.y, p.z);
+    if (j < rows && i < sides) {
+      const a = j * (sides + 1) + i, b = a + sides + 1;
+      indices.push(a, b, a + 1, a + 1, b, b + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array(positions.length / 3 * 2), 2));
+  geometry.setIndex(indices); geometry.computeVertexNormals();
+  const normals = geometry.getAttribute('normal');
+  for (let j = 0; j <= rows; j++) {
+    const a = j * (sides + 1), b = a + sides;
+    const n = new THREE.Vector3().fromBufferAttribute(normals, a).add(new THREE.Vector3().fromBufferAttribute(normals, b)).normalize();
+    normals.setXYZ(a, n.x, n.y, n.z); normals.setXYZ(b, n.x, n.y, n.z);
+  }
+  return geometry;
+}
+
+export function helmetRimGeometry() {
+  const points = Array.from({ length: 48 }, (_, i) => shellPoint(i / 48 * Math.PI * 2, 1));
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points, true), 48, .0035, 5, true);
 }

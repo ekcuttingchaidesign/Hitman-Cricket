@@ -94,12 +94,12 @@
         104.84
       ],
       "experimentMeanRGB": [
-        150.66,
-        197.55,
-        104.85
+        150.45,
+        197.27,
+        104.69
       ],
-      "meanAbsoluteChannelDifference": 0.288,
-      "maxChannelDifference": 4
+      "meanAbsoluteChannelDifference": 0.516,
+      "maxChannelDifference": 19
     }
   ]
 }

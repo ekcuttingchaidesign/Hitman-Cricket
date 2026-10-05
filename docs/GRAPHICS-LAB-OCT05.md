@@ -19,15 +19,25 @@ pixel samples: the sampled sky, dry pitch and stadium roof match exactly.
 New geometry naturally has different highlights and shadows.
 
 - The batter has a broader shoulder line, fitted waist, less bulky trouser
-  joints, tapered thighs, a shaped cricket helmet with ear guards, and five
-  pad ribs with a flatter knee roll. White trousers are retained.
+  joints, tapered thighs and five pad ribs with a flatter knee roll. White
+  trousers are retained. Sleeves and trouser legs now use continuous bending
+  surfaces; the separate shoulder, elbow, hip and knee balls are no longer
+  rendered. The existing IK controls and shot/contact poses are retained.
+- The helmet now has an oval dome, a gently raised rear neck opening, a thin
+  edge trim and a small rear adjuster. The flat lower wall and bulky side
+  blocks have been removed. Rear and side references: [Masuri C-Line](https://www.masuri.com/products/os2-legacy-steel-cricket-helmet)
+  and [Masuri E-Line](https://www.masuri.com/products/original-series-mk2-elite-titanium-cricket-helmet).
 - Bowler and fielders share the shaped jersey, collar, chest badge and back
   number; the cap and footwear details remain.
-- Grass gains subtle blade relief from a single tiled 256×256 normal map.
-  Its production colour texture and mowing pattern remain untouched. Mipmaps
-  soften the relief into the distance, keeping it from shimmering.
+- Grass now includes narrow, static blade geometry beside the pitch, fading
+  into the flat outfield. It shares the production turf colour map and adds
+  one draw call, no wind update and no shadow-map draw. The tiled 256×256
+  normal map remains for fine relief; the base colour and mowing pattern
+  remain untouched.
 - The detailed stumps, turned wooden bails and batched seated crowd remain.
 - Shot rigs, contact points, camera and game rules are unchanged.
+
+![Previous preview versus revised character](graphics-lab/revision-comparison.webp)
 
 ![Matched-camera character comparison](graphics-lab/character-comparison.webp)
 
@@ -43,18 +53,18 @@ time zero, with no UI. They are **not peak gameplay costs or measured phone FPS*
 
 | Scene | Draw calls: before → after | Triangles: before → after |
 | --- | --- | --- |
-| Phone, day · 585×1266 buffer | 242 → 182 (−24.8%) | 207,074 → 196,134 (−5.3%) |
-| Phone, night · 585×1266 buffer | 245 → 185 (−24.5%) | 207,076 → 196,136 (−5.3%) |
-| Desktop, day · 1280×720 buffer | 326 → 227 (−30.4%) | 273,214 → 216,642 (−20.7%) |
+| Phone, day · 585×1266 buffer | 242 → 174 (−28.1%) | 207,074 → 206,578 (−0.2%) |
+| Phone, night · 585×1266 buffer | 245 → 177 (−27.8%) | 207,076 → 206,580 (−0.2%) |
+| Desktop, day · 1280×720 buffer | 326 → 219 (−32.8%) | 273,214 → 227,086 (−16.9%) |
 
-The final colour/shape/grass revision retains the preceding preview's draw
-counts. The grass normal map adds one texture (8 by day, 10 by night), about
-0.33 MiB including mipmaps, and one normal-map sample in the ground shader.
-It adds no grass geometry or animation and no postprocessing passes.
-This adds no downloaded art assets to gameplay. Geometry object counts
-increase because rigid details are merged into private geometry buffers;
-that trades some buffer storage for fewer draws. It is not a claim of lower
-GPU memory use. Limb instances update a few local matrices each frame.
+The continuous limb surfaces and removal of visible joint meshes save eight
+net draw calls against the preceding preview, including the new grass draw.
+Grass uses static geometry and the existing colour map; no additional texture
+or postprocessing pass is added in this revision. The retained normal map
+uses about 0.33 MiB including mipmaps (8 textures by day, 10 by night).
+The four bending surfaces reuse position/normal buffers and scratch vectors;
+1,428 vertices are updated per pose. Rigid details and crowd remain batched.
+Fewer draws do not establish lower device frame times or GPU memory use.
 
 The attached JSON includes JS submission timings from headless Chromium with
 SwiftShader. Those timings are noisy, exclude some asynchronous GPU work,
@@ -88,10 +98,20 @@ continues using the repository's existing preview database namespace.
 ## Validation
 
 - TypeScript and production build, including serverless function import checks.
-- 238 targeted batter, bowler, fielder, grounds, lighting, analytics and new geometry tests passed.
+- 213 batter, bowler, fielder and geometry tests passed for this revision,
+  including connected limb surfaces and helmet rim/outward-normal checks.
+  The preceding colour restoration also passed the grounds, lighting and
+  analytics checks.
 - Deterministic day/night/desktop captures with no shader or browser errors.
 - Full-game scene checks exercise the actual cover → mode → innings flow.
   All stadium cases remain within the 500-call regression budget, lowered
   from production's 680 calls per frame.
 
 No production branch was pushed, merged or redeployed for this experiment.
+
+## Stump code handoff
+
+`stump-update.zip` includes the current `wicket.ts`, its `build.ts` helper,
+and integration instructions. The existing bail animation/reset origins
+remain unchanged. The package is also usable independently of this character
+and grass revision.

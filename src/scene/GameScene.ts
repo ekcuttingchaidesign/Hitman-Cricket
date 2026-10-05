@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PerformanceReadout } from './performance';
 import { buildWicket } from './wicket';
+import { grassBlades } from './grassBlades';
 import { grassDetail } from './grassDetail';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
 import { ACTION_MS, Bowler } from '../entities/Bowler';
@@ -431,6 +432,7 @@ export class GameScene {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
     this.textures.push(grass, blades, surface);
+    this.world.add(grassBlades(grass));
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {

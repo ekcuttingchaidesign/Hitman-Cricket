@@ -3,7 +3,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { ADVANCE, CUT, GAME, SQUARE_DRIVE as SQUARE_DRIVE_BALL } from '../config/gameplay';
 import { solveJoint } from './rig';
 import { bladeGeometry, gripGeometry } from './batGeometry';
-import { helmetGeometry } from './helmetGeometry';
+import { BendingLimb } from './BendingLimb';
+import { helmetGeometry, helmetRimGeometry } from './helmetGeometry';
 import { jerseyGeometry } from './garment';
 import { compactRigidParts } from './compactParts';
 import type { ShotType } from '../game/types';
@@ -1400,11 +1401,15 @@ export class Batter {
   private ballZ: number = GAME.contactZ;
   // Every part is modelled from one of four smooth unit primitives, scaled into
   // place. Nothing is a bare cube, so the figure reads as sculpted clay.
+  private sleeves: BendingLimb[] = [];
+  private trouserLegs: BendingLimb[] = [];
+  private limbStart = new THREE.Vector3();
   private shapes = {
     soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
     ball: new THREE.SphereGeometry(1, 24, 16),
     jersey: jerseyGeometry(),
     helmet: helmetGeometry(),
+    helmetRim: helmetRimGeometry(),
     trouser: new THREE.CylinderGeometry(.44, .55, 1, 20, 1),
     collar: new THREE.TorusGeometry(.071, .012, 6, 24).rotateX(Math.PI / 2),
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
@@ -1465,7 +1470,8 @@ export class Batter {
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
     this.mesh(this.head, this.palette.helmet, [1, 1, 1], 'helmet');
-    for (const side of [-1, 1]) this.mesh(this.head, this.palette.helmet, [.066, .115, .11], 'soft').position.set(side * .151, -.056, .014);
+    this.mesh(this.head, this.palette.handle, [1, 1, 1], 'helmetRim');
+    this.mesh(this.head, this.palette.handle, [.11, .012, .01], 'soft').position.set(0, -.097, -.153);
     this.mesh(this.head, this.palette.helmet, [.34, .045, .20], 'soft').position.set(0, .045, .135);
     for (const y of [-.055, -.115]) {
       const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');
@@ -1531,6 +1537,16 @@ export class Batter {
     // separate because the grip solver and its inspection hooks use them.
     for (const group of [this.torso, this.hips, this.head,
       ...this.arms.map(a => a.cuff), ...this.legs.flatMap(l => [l.pad, l.shoe])]) compactRigidParts(group);
+    for (let i = 0; i < 2; i++) {
+      const arm = this.arms[i], leg = this.legs[i];
+      // Keep the established IK controls and measurements, but do not draw
+      // their separate cylinders or ball joints. The surface spans the chain.
+      for (const control of [arm.upper, arm.lower, arm.elbow, arm.cap, leg.thigh, leg.shin, leg.knee, leg.cap]) control.visible = false;
+      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.072, .062, .046]);
+      const trouser = new BendingLimb(this.palette.trousers, [.076, .082, .066]);
+      this.sleeves.push(sleeve); this.trouserLegs.push(trouser);
+      this.root.add(sleeve.mesh, trouser.mesh);
+    }
     this.reset();
   }
   private mesh(parent: THREE.Object3D, material: THREE.Material, scale: Point, shape: keyof Batter['shapes'] = 'soft') {
@@ -2403,6 +2419,8 @@ export class Batter {
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
+      this.limbStart.copy(arm.shoulder).lerp(chest, .25);
+      this.sleeves[i].update(this.limbStart, elbow, hand);
       // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
       arm.cuff.position.copy(hand);
@@ -2444,6 +2462,8 @@ export class Batter {
       this.segment(leg.thigh, hipJoint, knee, .175, .19);
       this.segment(leg.shin, knee, foot, .145, .16);
       leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);
+      this.limbStart.copy(hipJoint).lerp(hip, .28).addScaledVector(spine, .06);
+      this.trouserLegs[i].update(this.limbStart, knee, foot);
       const lowerAxis = knee.clone().sub(foot).normalize();
       const shoeYaw = i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);
       /**
