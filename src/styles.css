@@ -2668,16 +2668,15 @@ body.survive-mode #scoreboard{display:none}
 /* The Rivals ranking: a sheet over Rival Matches, from the trophy key at its
    top. The board sheet's own colours, which its rows are written in, given
    again because out here they are not inherited from a sheet. */
-/* The way to the ranking, beside the heading: gold, on a dark ledge, with a
-   soft glow that comes and goes — the one key on the screen that is a prize,
-   where the back key beside it is furniture and wears furniture's grey. */
+/* The way to the ranking, beside the heading: gold, on a dark ledge, and still
+   — the one key on the screen that is a prize, where the back key beside it is
+   furniture and wears furniture's grey. The gold is enough to say so; a glow
+   that came and went said it again, on a loop, and was taken off. */
 .mode-back.rival-rank-key{margin-left:auto;background:linear-gradient(180deg,#ffe08a 0%,#f5b43a 100%);color:#3a2400;
-  box-shadow:0 5px 0 #8a5a00,0 9px 14px #0006,inset 0 1px 0 #fff8;animation:rank-glow 2.4s ease-in-out infinite}
+  box-shadow:0 5px 0 #8a5a00,0 9px 14px #0006,inset 0 1px 0 #fff8}
 .mode-back.rival-rank-key:hover{background:linear-gradient(180deg,#ffe9a8 0%,#f7c050 100%)}
 .mode-back.rival-rank-key:active{transform:translateY(3px);box-shadow:0 2px 0 #8a5a00,0 4px 8px #0006,inset 0 1px 0 #fff8}
 .mode-back.rival-rank-key svg{width:22px;height:22px;stroke-width:2}
-@keyframes rank-glow{50%{box-shadow:0 5px 0 #8a5a00,0 9px 14px #0006,0 0 22px #ffcf5acc,inset 0 1px 0 #fff8}}
-@media (prefers-reduced-motion:reduce){.rival-rank-key{animation:none}}
 .ranking-sheet{
   --ink:#f7f0e5;
   --quiet:#9fb2bd;

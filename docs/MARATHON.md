@@ -252,7 +252,8 @@ deployment.
 
 ## My Stats
 
-A third card in the carousel, after The Blast and Test Survival:
+A card in the carousel, second, between The Blast and Test Survival, on a
+ground of its own — British Racing Green, with red rising from the foot:
 
 - **The two big figures:** highest total and highest individual score.
 - **Under them:** career runs, **runs per innings** (not an average — see
@@ -300,7 +301,7 @@ the only way to raise it is to score more.
   key appearing at over 20 and not before, a left-hander's pull being a swipe
   to the right, and an innings that is walked out on not counting.
 - The existing checks extended where the mode reaches them: `stats-check` for
-  a third card on the rail, `end-card-check` for the Marathon card,
+  a green card second on the rail, `end-card-check` for the Marathon card,
   `career-count-check` for the counting rule.
 
 ## Build order
@@ -382,8 +383,8 @@ Each step is a pull request of its own, behind the flag until the last.
    agreed along the way: past 60 balls, leaving the page asks first
    (`MARATHON.warnFrom`) — an innings that long is an hour of somebody's
    evening.
-6. **My Stats.** *Done.* The third card on the rail, after The Blast and
-   Test Survival, wherever the mode can be played: highest total and best
+6. **My Stats.** *Done.* The second card on the rail, between The Blast and
+   Test Survival and in British Racing Green, wherever the mode can be played: highest total and best
    individual score as the two big figures, then career runs, runs per
    innings, fifties, hundreds, doubles and the longest innings in balls, and a
    tier in career runs on the Blast's rungs (`MARATHON_CAREER` in

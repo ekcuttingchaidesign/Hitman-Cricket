@@ -1,6 +1,6 @@
 import { kitColour, avatarSrc } from '../config/board';
 import { DOUBLE, FIFTY, HUNDRED, runsPerInnings, survivals, type BlastCareer, type CareerMode, type MarathonCareer, type SurviveCareer } from './career';
-import { nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
+import { cardTheme, nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
 
 /**
  * The career card, painted so it can leave the page as a picture.
@@ -207,7 +207,8 @@ export function statsFacts(
     : blastFacts(career as BlastCareer);
   const ladder = standingOf(mode, career, who.granted ?? null);
   return {
-    tier: ladder.tier,
+    // The rung as this mode's card wears it: the Marathon's is green.
+    tier: { ...ladder.tier, theme: cardTheme(mode, ladder.tier) },
     ladder,
     nextLine: nextLine(mode, ladder),
     mode,
@@ -650,6 +651,15 @@ export async function paintStatsCard(
   bloom.addColorStop(1, at(theme.accent, 0));
   ctx.fillStyle = bloom;
   ctx.fillRect(0, 0, width, height);
+  // A second light, from the foot, where a mode's card carries one.
+  if (theme.tint) {
+    const rise = ctx.createRadialGradient(width * 0.72, height * 1.04, 0, width * 0.72, height * 1.04, width * 0.95);
+    rise.addColorStop(0, at(theme.tint.colour, theme.tint.strength));
+    rise.addColorStop(0.55, at(theme.tint.colour, theme.tint.strength * 0.35));
+    rise.addColorStop(1, at(theme.tint.colour, 0));
+    ctx.fillStyle = rise;
+    ctx.fillRect(0, 0, width, height);
+  }
   // A foil sweep across the corner, the way light sits on a printed card. It
   // is the one thing here that is pure decoration, and on the metal tiers it
   // is doing the work the weave used to: giving the surface somewhere to

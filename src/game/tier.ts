@@ -77,6 +77,12 @@ export interface Theme {
    * things that separate a printed card from a coloured rectangle.
    */
   metal: boolean;
+  /**
+   * A second light on the ground, coming up from the foot of the card, in a
+   * colour of its own rather than the accent's. Only the Test Marathon's cards
+   * carry one: the red of the Dukes ball rising through the green.
+   */
+  tint?: { colour: string; strength: number };
 }
 
 export interface Tier {
@@ -225,6 +231,41 @@ export const TIERS: readonly Tier[] = [
     },
   },
 ] as const;
+
+/**
+ * The Test Marathon's cards, by rung: British Racing Green, with the red of a
+ * Dukes ball coming up through it from the foot.
+ *
+ * A ground of its own because the Marathon card sits on the rail between the
+ * Blast's and Test Survival's, and three navy cards in a row are one card three
+ * times. The tier still shows, in the badge, the ring, the bar and the edges —
+ * bronze, silver and gold all read on green, and the green darkens as they
+ * climb, the way the other grounds go towards black. The one change past the
+ * ground is the first rung's accent, red where the others are blue: a blue
+ * badge on a green card is two cards, not one.
+ */
+const MARATHON_GROUNDS: Record<string, Partial<Theme>> = {
+  debutant: {
+    top: '#11492f', mid: '#0a3522', bottom: '#052416', ledge: '#010d06', mat: '#02100a',
+    quiet: '#a7c1b1', accent: '#e0604f', sheen: '#f6b0a4', bloom: 0.12,
+  },
+  emerging: { top: '#0f3f28', mid: '#082c1c', bottom: '#041a10', ledge: '#010804', mat: '#020c06', quiet: '#b5ad8e' },
+  star: { top: '#0c3222', mid: '#062116', bottom: '#02110a', ledge: '#000403', mat: '#010805', quiet: '#99ada3' },
+  hitman: { top: '#0d3020', mid: '#061f14', bottom: '#021009', ledge: '#000302', mat: '#010704', quiet: '#aea582' },
+};
+
+/** The red that rises through the Marathon's green, quieter as the cards darken. */
+const MARATHON_TINT: Record<string, number> = { debutant: 0.3, emerging: 0.24, star: 0.2, hitman: 0.2 };
+
+/** What a tier's card is made of in a mode: its own material, or the Marathon's green. */
+export function cardTheme(mode: CareerMode, tier: Tier): Theme {
+  if (mode !== 'marathon') return tier.theme;
+  return {
+    ...tier.theme,
+    ...MARATHON_GROUNDS[tier.key],
+    tint: { colour: '#b3241c', strength: MARATHON_TINT[tier.key] ?? 0.2 },
+  };
+}
 
 /** The figure a mode's tier is read off: its own headline number. */
 export function tierMeasure(mode: CareerMode, career: BlastCareer | SurviveCareer | MarathonCareer): number {

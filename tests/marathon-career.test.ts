@@ -4,7 +4,7 @@ import {
 } from '../src/game/career';
 import { countInnings, readCareer, readCareerBoards } from '../src/server/career-store';
 import { memoryCareer } from '../src/server/memory-career';
-import { TIERS, nextLine, standingOf } from '../src/game/tier';
+import { TIERS, cardTheme, nextLine, standingOf } from '../src/game/tier';
 import { statsAlt, statsExplain, statsFacts } from '../src/game/StatsCard';
 
 /** One batter, out, untouched by the bowling. */
@@ -107,5 +107,37 @@ describe('the Marathon card', () => {
     expect(standingOf('marathon', career).tier.key).toBe('debutant');
     expect(nextLine('marathon', standingOf('marathon', career))).toBe('79 runs to EMERGING PLAYER');
     expect(standingOf('marathon', { ...career, runs: 3600 }).tier.key).toBe('star');
+  });
+});
+
+describe('the Marathon card\'s ground', () => {
+  const green = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    return g > r * 1.6 && g > b * 1.2;
+  };
+
+  it('is British Racing Green on every rung, with red rising through it', () => {
+    for (const tier of TIERS) {
+      const theme = cardTheme('marathon', tier);
+      for (const stop of [theme.top, theme.mid, theme.bottom]) expect(green(stop), `${tier.key} ${stop}`).toBe(true);
+      expect(theme.tint?.colour).toBe('#b3241c');
+      expect(theme.tint!.strength).toBeGreaterThan(0);
+    }
+  });
+
+  it('leaves the tier to the badge: bronze, silver and gold stay, the first rung turns red', () => {
+    const [debutant, ...metals] = TIERS;
+    for (const tier of metals) expect(cardTheme('marathon', tier).accent).toBe(tier.theme.accent);
+    expect(cardTheme('marathon', debutant).accent).toBe('#e0604f');
+  });
+
+  it('is the Marathon\'s alone', () => {
+    for (const tier of TIERS) {
+      expect(cardTheme('classic', tier)).toBe(tier.theme);
+      expect(cardTheme('survive', tier)).toBe(tier.theme);
+    }
+    const facts = statsFacts('marathon', mergeMarathon(null, allOut()), { name: '', avatar: 0 });
+    expect(facts.tier.theme.top).toBe(cardTheme('marathon', TIERS[0]).top);
+    expect(TIERS[0].theme.top).toBe('#16354a');
   });
 });

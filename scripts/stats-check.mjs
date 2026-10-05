@@ -97,7 +97,8 @@ if (slides.length > 1) {
   });
   await page.waitForTimeout(700);
   const now = await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim());
-  check(now === 'Test Survival', 'swiping moves which card is in front', now);
+  const second = { survive: 'Test Survival', marathon: 'Test Marathon' }[slides[1]];
+  check(now === second, 'swiping moves which card is in front', `${now}, not ${second}`);
   await page.click('.stats-dot[data-slide="0"]');
   // Waited for rather than slept on: in software rendering a frame can take a
   // second, and the rail eases back over several of them.
@@ -105,10 +106,10 @@ if (slides.length > 1) {
   check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'The Blast',
     'and the dots take you back without a swipe');
   // Wherever the Test Marathon can be played — every build off production —
-  // its card is the third, the far end of the rail.
+  // its card is the second, between the Blast's and Test Survival's.
   if (slides.includes('marathon')) {
-    check(slides.join(' | ') === 'classic | survive | marathon', 'the Test Marathon\'s card comes third', slides.join(' | '));
-    await page.click(`.stats-dot[data-slide="${slides.length - 1}"]`);
+    check(slides.join(' | ') === 'classic | marathon | survive', 'the Test Marathon\'s card comes second', slides.join(' | '));
+    await page.click(`.stats-dot[data-slide="${slides.indexOf('marathon')}"]`);
     await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'Test Marathon', null, { timeout: 10_000 }).catch(() => {});
     // The figures, as the picture's own words say them: a canvas has no text.
     await page.waitForSelector('.stats-slide[data-mode="marathon"] .stats-shot', { timeout: 20_000 }).catch(() => {});
@@ -117,6 +118,21 @@ if (slides.length > 1) {
     check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'Test Marathon'
       && /Highest/.test(marathon) && /Best ind/.test(marathon) && /Per inns/.test(marathon),
     'and leads with the highest total and the best individual score, runs per innings under them', marathon.replace(/\s+/g, ' ').slice(0, 160));
+    // British Racing Green, with red rising from the foot: read off the
+    // picture's own pixels, near the top and near the bottom right.
+    const ground = await page.$eval('.stats-slide[data-mode="marathon"] .stats-shot', async img => {
+      await img.decode().catch(() => {});
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const pick = (fx, fy) => [...ctx.getImageData(Math.round(img.naturalWidth * fx), Math.round(img.naturalHeight * fy), 1, 1).data].slice(0, 3);
+      return { top: pick(0.12, 0.08), foot: pick(0.75, 0.97) };
+    }).catch(error => ({ error: String(error) }));
+    const [r, g, b] = ground.top ?? [0, 0, 0];
+    check(g > r * 1.6 && g > b * 1.2, 'on a green card', JSON.stringify(ground));
+    const [fr, fg] = ground.foot ?? [0, 0];
+    check(fr > r && fr > fg * 0.6, 'with red coming up through it at the foot', JSON.stringify(ground));
     await page.click('.stats-dot[data-slide="0"]');
     await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
   }

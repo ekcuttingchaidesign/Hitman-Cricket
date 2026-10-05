@@ -1621,11 +1621,12 @@ export class Game {
    * somebody else's card.
    */
   private railStats(open: CareerMode, draw: (view: StatsSheetView) => void) {
-    // The Test Marathon's card comes third, wherever the mode can be played.
-    const modes: CareerMode[] = [
-      ...(SHOW_SURVIVE && !SURVIVE_ONLY ? ['classic', 'survive'] as const : [this.boardTab]),
-      ...(MARATHON_OPEN ? ['marathon'] as const : []),
-    ];
+    // The Test Marathon's card comes second, between the Blast's and Test
+    // Survival's, wherever the mode can be played.
+    const marathon: CareerMode[] = MARATHON_OPEN ? ['marathon'] : [];
+    const modes: CareerMode[] = SHOW_SURVIVE && !SURVIVE_ONLY
+      ? ['classic', ...marathon, 'survive']
+      : [this.boardTab, ...marathon];
     const at = Math.max(0, modes.indexOf(open));
     this.mineSlides = {};
     for (const mode of modes) {

@@ -61,7 +61,7 @@ is in `end`. Keep it that way.
 
 **Run the dev server with `VITE_SHOW_SURVIVE=1`.** Without it the build plays
 one game, and a build with one card cannot draw a rail of three — the Blast,
-Test Survival and, off production, the Test Marathon — so the whole
+and off production the Test Marathon, then Test Survival — so the whole
 carousel goes unchecked while the checks report success. A carousel bug shipped
 to a preview exactly that way.
 
@@ -150,7 +150,7 @@ the nets' keys putting on the express bowler, the spinner and the other side
 of the stumps from the next ball — and the end card
 offering the boards' claim strip and sending nothing that was not claimed,
 and the ended nets innings offering none — it is practice. Its career card is
-`stats-check`'s, third on the rail. It writes most of
+`stats-check`'s, second on the rail and green. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
