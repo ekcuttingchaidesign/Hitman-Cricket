@@ -472,7 +472,9 @@ export type CardOffer =
   | { kind: 'claim'; place: number }
   | { kind: 'standing'; runs: number; place: number }
   /** A private window: the innings was worth a place and cannot be given one. */
-  | { kind: 'private' };
+  | { kind: 'private' }
+  /** Played with a switch in the link that changes the game: see `practice.ts`. */
+  | { kind: 'practice' };
 
 export function cardOffer(
   reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,

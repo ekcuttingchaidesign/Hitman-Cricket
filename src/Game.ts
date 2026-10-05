@@ -72,6 +72,7 @@ import {
   track, trackOnce,
 } from './game/analytics';
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
+import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
@@ -1165,10 +1166,27 @@ export class Game {
   /** A Test match of either kind: how it looks — whites, the Test field, by day. See `modes.ts`. */
   private get test() { return isTest(this.mode); }
   private get limits() { return this.surviving ? SURVIVE_LIMITS : this.marathoning ? MARATHON_LIMITS : CLASSIC_LIMITS; }
+  /** The switches in this link that change the game: see `practice.ts`. */
+  private readonly switches = practiceSwitches(location.search, { spinOnly: SPIN_ONLY, chargeOnly: CHARGE_ONLY });
+  /**
+   * This innings was played with one of them. Not in a Rival Match, where
+   * they do nothing: a match has to send its innings to finish.
+   */
+  private get practising() { return this.switches.length > 0 && !this.challenge.playing; }
+  /**
+   * What a card offers, once the innings is known to be practice or played in
+   * a private window. An innings with nothing to offer stays quiet either way.
+   */
+  private shownOffer(offer: CardOffer): CardOffer {
+    if (offer.kind === 'silent') return offer;
+    if (this.practising) return { kind: 'practice' };
+    return this.canRegister ? offer : { kind: 'private' };
+  }
   /** `?spin=1` is the same thing as the build flag, for a dev server. */
   private spinOnly = SPIN_ONLY || new URLSearchParams(location.search).get('spin') === '1';
   /** `?slowmo=0.65` tries a clock speed for the charge on a dev server. */
-  private chargeSlowmo = Number(new URLSearchParams(location.search).get('slowmo')) || CHARGE_SLOWMO;
+  private slowmoAsked = Number(new URLSearchParams(location.search).get('slowmo')) || CHARGE_SLOWMO;
+  private get chargeSlowmo() { return this.challenge.playing ? CHARGE_SLOWMO : this.slowmoAsked; }
   /** `?charge=1` likewise, and `?charge=ball` for the ball alone. Only the classic innings has a meter to fill. */
   private chargeOnly = CHARGE_ONLY || new URLSearchParams(location.search).get('charge') || '';
   /**
@@ -1178,7 +1196,7 @@ export class Game {
    * wickets — so a mistimed charge is still a mistimed charge.
    */
   private chargeable(delivery: Delivery): Delivery {
-    if (!this.chargeOnly || this.hurts || this.lesson >= 0) return delivery;
+    if (!this.chargeOnly || this.hurts || this.lesson >= 0 || this.challenge.playing) return delivery;
     if (this.chargeOnly !== 'ball') this.confidence.value = CONFIDENCE_FULL;
     // `meter`: the meter alone, the ball left to the innings, for the
     // strokes that want a ball the charge does not — the scoops.
@@ -1210,6 +1228,8 @@ export class Game {
   /** `?round=1`: every over of a Marathon bowled round the wicket, from the first. See `roundEvery`. */
   private roundOnly = new URLSearchParams(location.search).get('round') === '1';
   private get plan() {
+    // A Rival Match is bowled as the Blast is, whatever the link asks for.
+    if (this.challenge.playing) return CLASSIC_PLAN;
     const plan = this.basePlan;
     return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(plan) : plan;
   }
@@ -2336,8 +2356,7 @@ export class Game {
     // An innings that had nothing to offer stays quiet in a private window too:
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
-    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
-    this.hud.offerClaim(shown, readPlayer(), this.board, played, this.player);
+    this.hud.offerClaim(this.shownOffer(offer), readPlayer(), this.board, played, this.player);
   }
 
   /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
@@ -2345,16 +2364,14 @@ export class Game {
     const played = marathonFigures(this.marathon!);
     const rows = this.marathonShown ?? { team: [], solo: [] };
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
-    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
-    this.hud.offerMarathonClaim(shown, readPlayer(), rows.team, this.player);
+    this.hud.offerMarathonClaim(this.shownOffer(offer), readPlayer(), rows.team, this.player);
   }
 
   /** The same, asked of the Test ladder and answered on the Test card. */
   private offerSurvive() {
     const played = this.survived();
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
-    const shown: CardOffer = this.canRegister || offer.kind === 'silent' ? offer : { kind: 'private' };
-    this.hud.offerSurviveClaim(shown, readPlayer(), this.surviveRows, played, this.player);
+    this.hud.offerSurviveClaim(this.shownOffer(offer), readPlayer(), this.surviveRows, played, this.player);
   }
 
   /**
@@ -2368,8 +2385,8 @@ export class Game {
    * best is exactly the moment somebody wants a different name on it.
    */
   private startClaim = () => {
-    // A private window has no place to claim, so its key is the board's.
-    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private') return this.showBoard();
+    // A private window has no place to claim, and nor does practice, so the key is the board's.
+    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private' || this.hud.offerKind === 'practice') return this.showBoard();
     this.mark('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
@@ -2381,7 +2398,7 @@ export class Game {
    */
   private async sendClaim() {
     const entry = this.hud.claimEntry.name ? this.hud.claimEntry : readPlayer();
-    if (!this.canRegister) return this.showBoard();
+    if (!this.canRegister || this.practising) return this.showBoard();
     if (!entry || !this.player) return this.hud.openClaim();
     this.hud.claimSending(true);
     // Each mode offers its own innings to its own ladder. The store keeps the
@@ -2532,7 +2549,7 @@ export class Game {
     // Not yet: the Marathon has no career to count toward, and the store
     // refuses it rather than file it under the Blast. See `src/server/mode.ts`.
     if (this.marathoning) return;
-    if (!this.player || !this.canRegister) return;
+    if (!this.player || !this.canRegister || this.practising) return;
     const mode: BoardTab = this.surviving ? 'survive' : 'classic';
     // The career's own tally, not the board's row: it carries what each batsman
     // made, which the six totals on a row cannot say.
@@ -2638,8 +2655,12 @@ export class Game {
       this.offerSurvive();
       return;
     }
-    const record = this.score.runs > this.best; this.best = Math.max(this.best, this.score.runs);
-    try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
+    // Practice does not move this browser's own best either.
+    const record = !this.practising && this.score.runs > this.best;
+    if (!this.practising) {
+      this.best = Math.max(this.best, this.score.runs);
+      try { localStorage.setItem('hitman-best', String(this.best)); } catch { /* A session remains playable without persistence. */ }
+    }
     track('innings-end', 'Innings completed');
     track(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
     track(this.score.wickets >= GAME.maxWickets ? 'innings-all-out' : 'innings-overs-up',

@@ -1846,6 +1846,13 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       this.$('card-peek').innerHTML =
         '<p class="peek-note">Open the game in a normal tab to register a score.</p>';
       key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'practice') {
+      // Played with a switch in the link — the nets, a full meter, one bowler
+      // all innings — so not an innings anybody else could have played.
+      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Practice innings — not for the leaderboard</span>`;
+      this.$('card-peek').innerHTML =
+        '<p class="peek-note">Played with a test switch in the link. Open the plain link to register a score.</p>';
+      key.textContent = 'VIEW LEADERBOARD';
     } else if (offer.kind === 'standing') {
       // Their own row is the news, not this innings. What it says is what still
       // stands, and the only thing left to offer is the board it stands on.

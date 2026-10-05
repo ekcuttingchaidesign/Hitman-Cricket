@@ -390,6 +390,12 @@ if (after.marathon.gone < 2) after = { marathon: await write(['W']) };
 hand = after.marathon;
 check(hand.batter === 'TAILENDER' && !hand.left && !hand.mirrored, 'the tailender after him is right-handed, and the mirror is off', JSON.stringify(hand));
 check(await sides() === 'LEG SIDE / OFF SIDE', 'with the sides back where they were', await sides());
+// Batted in the nets, so practice: a score worth a place, and no place offered.
+await write([...Array(60).fill(4), 'W']);
+for (let i = 0; i < 20 && !(await page.locator('#claim').isVisible()); i++) { await advance(250); await page.waitForTimeout(150); }
+const practiceHead = await page.locator('#card-board-head').textContent();
+check(practiceHead?.includes('Practice innings') && (await page.locator('#claim').textContent())?.trim() === 'VIEW LEADERBOARD',
+  'an innings from the nets is practice: the card offers no place, only the board', `${practiceHead} / ${await page.locator('#claim').textContent()}`);
 
 await page.clock.resume();
 

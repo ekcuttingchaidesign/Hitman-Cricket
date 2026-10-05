@@ -200,6 +200,18 @@ places among them and are never pushed off a full board; the Marathon card's
 offer is worked out against the same filled board, so the place it names is
 the place the board shows. Nothing is written. Production never sees them.
 
+## Practice: the test switches stay off the boards
+
+An innings played from a link carrying a switch that changes the game —
+`?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
+`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, or the
+preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
+(`src/game/practice.ts`). The card says so in place of an offer, the career
+does not count it, and the browser's own best does not move; in a Rival Match
+the switches do nothing. A new switch goes into `PRACTICE_SWITCHES` or into
+the named exceptions in `tests/practice.test.ts`, which fails on any
+parameter the game reads that is in neither.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six
