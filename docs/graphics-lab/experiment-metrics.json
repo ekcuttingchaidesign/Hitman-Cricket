@@ -9,8 +9,8 @@
       585,
       1266
     ],
-    "medianSubmitMs": 4.100000000093132,
-    "p95SubmitMs": 10.200000000186265,
+    "medianSubmitMs": 3.7000000001862645,
+    "p95SubmitMs": 8.100000000558794,
     "renderer": "WebKit WebGL",
     "errors": []
   },
@@ -24,8 +24,8 @@
       585,
       1266
     ],
-    "medianSubmitMs": 4.5,
-    "p95SubmitMs": 8.600000000093132,
+    "medianSubmitMs": 3.5,
+    "p95SubmitMs": 6.1000000005587935,
     "renderer": "WebKit WebGL",
     "errors": []
   },
@@ -39,8 +39,8 @@
       1280,
       720
     ],
-    "medianSubmitMs": 3.8000000002793968,
-    "p95SubmitMs": 9.699999999720603,
+    "medianSubmitMs": 4.400000000372529,
+    "p95SubmitMs": 6.800000000745058,
     "renderer": "WebKit WebGL",
     "errors": []
   }

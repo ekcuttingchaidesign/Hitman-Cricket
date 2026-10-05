@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 
-/** +Z faces the bat. A raised nape opening interrupts the rear rim. */
+/** +Z faces the bat. The rear rim dips centrally and rises toward the sides. */
 function shellPoint(angle: number, t: number) {
   const front = Math.max(0, Math.cos(angle)), back = Math.max(0, -Math.cos(angle));
-  // Broad rear lift exposes the nape without turning the lower shell into a tall collar.
-  const rimY = .035 * front ** 4 - .12 * Math.sin(angle) ** 2 - .035 * back + .02 * back ** 4;
+  // A shallow smile from behind: low at the centre, high at either corner.
+  // Keep the whole rear edge clear of the neck rather than cutting an arch into it.
+  const rimY = .035 * front ** 2 - .015 * (1 - front ** 2) - .035 * back ** 2;
   const phi = t * Math.acos((rimY - .024) / .184);
   return new THREE.Vector3(.183 * Math.sin(phi) * Math.sin(angle),
     .024 + .184 * Math.cos(phi), -.012 + .19 * Math.sin(phi) * Math.cos(angle));
 }
 
-/** Oval crown with a curved nape cutout, instead of a rotational flat base. */
+/** Oval crown with a smile-shaped rear edge, instead of a central nape cutout. */
 export function helmetGeometry() {
   const rows = 20, sides = 40, positions: number[] = [], indices: number[] = [];
   for (let j = 0; j <= rows; j++) for (let i = 0; i <= sides; i++) {

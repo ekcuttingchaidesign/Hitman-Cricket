@@ -23,12 +23,13 @@ New geometry naturally has different highlights and shadows.
   trousers are retained. Sleeves and trouser legs now use continuous bending
   surfaces; the separate shoulder, elbow, hip and knee balls are no longer
   rendered. The existing IK controls and shot/contact poses are retained.
-- The helmet now has an oval dome, a higher, broad rear neck opening, a thin
+- The helmet now has an oval dome, a shallow smile-shaped rear edge, a thin
   edge trim and a small rear adjuster. The flat lower wall and bulky side
   blocks have been removed. Rear and side references: [Masuri C-Line](https://www.masuri.com/products/os2-legacy-steel-cricket-helmet)
   and [Masuri E-Line](https://www.masuri.com/products/original-series-mk2-elite-titanium-cricket-helmet).
-  Following the supplied DSC side reference, the rear rim is now lifted a
-  further 0.06 model metres to expose more neck; its adjuster follows the rim.
+  Following the latest correction, the back edge dips at the centre and
+  rises toward both sides. The previous upward central arch is removed.
+  The rim still clears the neck; the adjuster follows the new centre edge.
   Upper thighs are fuller and taper toward the knees, with their roots tucked
   into a slightly broader pelvis. These proportion changes add no geometry,
   draws, materials or animation work.
@@ -42,7 +43,7 @@ New geometry naturally has different highlights and shadows.
 - The detailed stumps, turned wooden bails and batched seated crowd remain.
 - Shot rigs, contact points, camera and game rules are unchanged.
 
-![Neck clearance and hip-to-thigh revision](graphics-lab/neck-thigh-comparison.webp)
+![Corrected rear helmet curve](graphics-lab/helmet-smile-comparison.webp)
 
 ![Matched-camera character comparison](graphics-lab/character-comparison.webp)
 
@@ -103,7 +104,10 @@ continues using the repository's existing preview database namespace.
 ## Validation
 
 - TypeScript and production build, including serverless function import checks.
-- Latest neck/thigh refinement: 145 batter and geometry tests passed;
+- Latest helmet curve: build and 5 geometry/batching tests passed, with
+  day/night phone and desktop renders free of browser/shader errors.
+  Draw calls and triangle counts are unchanged.
+- Preceding neck/thigh refinement: 145 batter and geometry tests passed;
   deterministic phone day/night and desktop captures retain the same render counts.
 - 213 batter, bowler, fielder and geometry tests passed for this revision,
   including connected limb surfaces and helmet rim/outward-normal checks.

@@ -28,9 +28,12 @@ it('keeps a connected, outward-facing limb through straight and bent poses witho
   }
 });
 
-it('raises the rear neckline above the ears and gives the shell outward normals', () => {
+it('curves the rear rim into a smile while clearing the neck and retaining outward normals', () => {
   const geometry = helmetGeometry(), p = geometry.getAttribute('position'), n = geometry.getAttribute('normal');
-  expect(p.getY(20 * 41 + 20) - p.getY(20 * 41 + 10)).toBeGreaterThan(.04);
+  const centre = p.getY(20 * 41 + 20);
+  expect(centre).toBeGreaterThan(-.06);
+  for (const side of [10, 30]) expect(p.getY(20 * 41 + side) - centre).toBeGreaterThan(.03);
+  for (let i = 11; i <= 20; i++) expect(p.getY(20 * 41 + i)).toBeLessThan(p.getY(20 * 41 + i - 1));
   const front = 10 * 41;
   expect(n.getZ(front)).toBeGreaterThan(.5);
   for (let i = 0; i < p.count; i++) expect(Number.isFinite(p.getY(i))).toBe(true);
