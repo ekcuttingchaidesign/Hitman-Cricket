@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Batch, mat, soft } from './build';
+import { CrowdCelebration } from './CrowdCelebration';
 
 /**
  * The stadium: one bowl of stands carried right round the ground, which is
@@ -92,6 +93,7 @@ const AISLE = 0.4;
  * glow on each.
  */
 export interface StadiumLights {
+  createCrowd?: (reducedMotion: boolean) => CrowdCelebration;
   lamps: THREE.MeshStandardMaterial;
   roof: THREE.Vector3[];
   towers: THREE.Vector3[];
@@ -139,6 +141,7 @@ export function stadium(world: THREE.Object3D): StadiumLights {
   seats.forEach((matrix, i) => heads.setMatrixAt(i, matrix));
   crowd.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true;
   world.add(crowd, heads);
+  lights.createCrowd = reducedMotion => new CrowdCelebration(world, crowd, heads, seats, reducedMotion);
   return lights;
 }
 

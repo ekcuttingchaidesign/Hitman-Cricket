@@ -52,6 +52,15 @@ New geometry naturally has different highlights and shadows.
 | --- | --- |
 | ![Production](graphics-lab/production-phone.webp) | ![Experiment](graphics-lab/experiment-phone.webp) |
 
+## Crowd reactions and model views
+
+[Eight-angle batsman snapshots and crowd celebration details](CROWD-CELEBRATIONS.md)
+cover the latest addition: confirmed fours/sixes trigger cheers, raised arms
+and placards; fifties/hundreds use larger, longer crowd reactions. The table
+below remains the idle scene budget. Active reactions add four draw calls
+and up to 12,824 rendered triangles; three shared sign textures upload on
+first use. They add no idle draws and use the existing cheer audio.
+
 ## Rendering budget
 
 Same production source base, camera, pose, viewport, antialiasing, shadow maps
@@ -68,7 +77,7 @@ The continuous limb surfaces and removal of visible joint meshes save eight
 net draw calls against the preceding preview, including the new grass draw.
 Grass uses static geometry and the existing colour map; no additional texture
 or postprocessing pass is added in this revision. The retained normal map
-uses about 0.33 MiB including mipmaps (8 textures by day, 10 by night).
+uses about 0.33 MiB including mipmaps (8 textures by day, 10 by night before crowd placards first appear).
 The four bending surfaces reuse position/normal buffers and scratch vectors;
 1,428 vertices are updated per pose. Rigid details and crowd remain batched.
 Fewer draws do not establish lower device frame times or GPU memory use.

@@ -1,3 +1,4 @@
+import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import * as THREE from 'three';
 import { PerformanceReadout } from './performance';
 import { buildWicket } from './wicket';
@@ -226,6 +227,7 @@ export class GameScene {
   /** How grey everything but the batter is: see `MUTE`. */
   private mute = { value: 0 };
   private celebratedAt = -Infinity;
+  private crowd?: CrowdCelebration;
   private poweredAt = -Infinity;
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -468,6 +470,8 @@ export class GameScene {
     const theMoon = moon(this.camera.position);
     this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
     if (lights) {
+      this.crowd = lights.createCrowd?.(this.reducedMotion);
+      if (this.crowd) this.textures.push(...this.crowd.textures);
       this.lamps = lights.lamps;
       const glow = glows(lights.roof, lights.towers);
       this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
@@ -575,6 +579,8 @@ export class GameScene {
    * grey round him; or his fifty, `mild`, the bat raised and the colours left
    * where they are.
    */
+  cheer(kind: CrowdMoment, now: number) { this.crowd?.trigger(kind, now); }
+  get crowdState() { return this.crowd?.state ?? {kind: null, spectators: 0, banners: 0}; }
   celebrate(now: number, mild = false) {
     this.batter.celebrate(now, mild);
     this.celebratedAt = mild ? -Infinity : now;
@@ -655,6 +661,7 @@ export class GameScene {
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
 
   reset() {
+    this.crowd?.reset();
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
@@ -931,6 +938,7 @@ export class GameScene {
     // the field has is timed on the old one: put them back on their marks.
     if (now + 1 < this.clock) this.field.home();
     this.clock = now;
+    this.crowd?.update(now);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with

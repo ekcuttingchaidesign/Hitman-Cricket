@@ -550,6 +550,7 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Where every fielder is and what he is doing, for `field-check.mjs`.
       field: () => this.scene.fieldState,
+      crowd: () => this.scene.crowdState,
       // Which ground was built, for `scene-check.mjs`: `?ground=bowl` or the default.
       ground: () => this.scene.ground,
       // The Test look, for the checks: the green strip down, or the Blast's.
@@ -2097,6 +2098,7 @@ export class Game {
     const mild = kind === 'fifty';
     this.celebrating = mild ? FIFTY_MS : CELEBRATION_MS;
     this.scene.celebrate(this.elapsed, mild);
+    this.scene.cheer(kind, this.elapsed);
     this.hud.milestone(kind, this.scene.batterOnScreen(), this.celebrating);
     // The crowd with it, falling away: the fifty's is the shorter of the two,
     // though long enough to be heard as applause rather than a blip; the big
@@ -2109,6 +2111,10 @@ export class Game {
     const outcome = this.outcome!;
     if (this.lesson < 0) { this.hud.score(this.score); this.showNearing(this.batterHistory); }
     this.hud.result(outcome, this.chargeMiss);
+    if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {
+      this.scene.cheer(outcome.runs === 6 ? 'six' : 'four', this.elapsed);
+      this.audio.cheer(outcome.runs === 6 ? 2.8 : 1.7);
+    }
     if (outcome.hit) {
       // The blow lands with the call rather than before it, so the flash, the
       // kick and the words are one event instead of three.

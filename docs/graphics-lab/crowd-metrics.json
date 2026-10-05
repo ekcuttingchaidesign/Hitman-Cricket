@@ -1,0 +1,98 @@
+[
+  {
+    "name": "phone",
+    "kind": "four",
+    "spectators": 320,
+    "banners": 8,
+    "calls": 178,
+    "triangles": 212894
+  },
+  {
+    "name": "phone",
+    "kind": "six",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 178,
+    "triangles": 216622
+  },
+  {
+    "name": "phone",
+    "kind": "fifty",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 178,
+    "triangles": 217862
+  },
+  {
+    "name": "phone",
+    "kind": "century",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 178,
+    "triangles": 219102
+  },
+  {
+    "name": "desktop",
+    "kind": "four",
+    "spectators": 320,
+    "banners": 8,
+    "calls": 223,
+    "triangles": 233402
+  },
+  {
+    "name": "desktop",
+    "kind": "six",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 223,
+    "triangles": 237130
+  },
+  {
+    "name": "desktop",
+    "kind": "fifty",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 223,
+    "triangles": 238370
+  },
+  {
+    "name": "desktop",
+    "kind": "century",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 223,
+    "triangles": 239610
+  },
+  {
+    "name": "reduced",
+    "kind": "four",
+    "spectators": 320,
+    "banners": 8,
+    "calls": 178,
+    "triangles": 212894
+  },
+  {
+    "name": "reduced",
+    "kind": "six",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 178,
+    "triangles": 216622
+  },
+  {
+    "name": "reduced",
+    "kind": "fifty",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 178,
+    "triangles": 217862
+  },
+  {
+    "name": "reduced",
+    "kind": "century",
+    "spectators": 320,
+    "banners": 12,
+    "calls": 178,
+    "triangles": 219102
+  }
+]
