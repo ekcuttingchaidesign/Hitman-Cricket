@@ -110,7 +110,8 @@ await a.settle();
 for (let i = 0; i < 8; i++) {
   const done = a.page.locator('#whatsnew-done');
   if (!(await done.count()) || !(await done.isVisible())) break;
-  await done.click({ force: true });
+  // Gone between the look and the tap is gone: the stories close themselves.
+  await done.click({ force: true, timeout: 3000 }).catch(() => {});
   await a.settle();
 }
 check(await a.page.locator('#modes').isVisible(), 'the play key opens the picker');
