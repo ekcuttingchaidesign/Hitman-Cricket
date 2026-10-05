@@ -268,8 +268,11 @@ check(unadded.status === 400, `a Marathon whose batters do not add up to the sid
 const allBoards = await Promise.all([call('/api/board'), call('/api/board?mode=survive')]);
 check(!allBoards.some(one => one.body?.rows?.some(r => r.playerId === marathoner)),
   'and the Marathon innings is on neither of the other boards', allBoards.map(one => one.body?.rows?.find(r => r.playerId === marathoner)));
+// The Marathon counts a career now (My Stats' third card), and has no career
+// ladders of its own yet: the boards answer, with none on them.
 const marathonCareer = await call('/api/career?mode=marathon');
-check(marathonCareer.status === 400, `the Marathon's careers are still shut (${marathonCareer.status})`, marathonCareer.body);
+check(marathonCareer.status === 200 && marathonCareer.body?.boards && !Object.keys(marathonCareer.body.boards).length,
+  `the Marathon's careers answer, with no ladders yet (${marathonCareer.status})`, marathonCareer.body);
 
 // ── A match room, made, joined and batted ──────────────────────────────────
 // Safer to run against production than everything above it: a room expires on
@@ -296,7 +299,13 @@ check(made.body?.challenge?.state === 'open' && made.body?.challenge?.players?.[
 if (code) {
   const read = await call(`/api/challenge?code=${code}`);
   check(read.status === 200, `GET /api/challenge reads it back (${read.status}, ${read.ms}ms)`, read.text.slice(0, 200));
-  check(/s-maxage/.test(read.headers.get('cache-control') ?? ''), 'a room read is cacheable at the edge', read.headers.get('cache-control'));
+  // Deployment Protection rewrites the header on its way out, as on the board.
+  const roomCache = read.headers.get('cache-control') ?? '';
+  if (Object.keys(BYPASS).length && !/s-maxage/.test(roomCache)) {
+    console.log(`  --   room caching not checked: Deployment Protection rewrote it to "${roomCache}"`);
+  } else {
+    check(/s-maxage/.test(roomCache), 'a room read is cacheable at the edge', roomCache);
+  }
 
   const joined = await challengePost({ action: 'join', code, ...friend });
   check(joined.status === 200 && joined.body?.challenge?.players?.length === 2, `a friend joins (${joined.status})`, joined.body);
