@@ -1,5 +1,5 @@
 import { kitColour, avatarSrc } from '../config/board';
-import { HUNDRED, survivals, type BlastCareer, type CareerMode, type SurviveCareer } from './career';
+import { DOUBLE, FIFTY, HUNDRED, runsPerInnings, survivals, type BlastCareer, type CareerMode, type MarathonCareer, type SurviveCareer } from './career';
 import { nextLine, standingOf, type Granted, type Standing, type Theme, type Tier } from './tier';
 
 /**
@@ -164,14 +164,46 @@ export function surviveFacts(career: SurviveCareer): Pick<StatsFacts, 'hero' | '
   };
 }
 
+/**
+ * A Test Marathon career: the biggest total and the most one batter made,
+ * then what a long innings is made of (`docs/MARATHON.md`, My Stats). Runs per
+ * innings rather than an average: see `MarathonCareer`.
+ */
+export function marathonFacts(career: MarathonCareer): Pick<StatsFacts, 'hero' | 'figures'> {
+  return {
+    hero: [
+      { label: 'Highest', value: career.highest },
+      { label: 'Best ind.', value: career.individual },
+    ],
+    figures: [
+      { label: 'Runs', value: career.runs },
+      { label: 'Per inns', value: runsPerInnings(career) },
+      { label: 'Fifties', value: career.fifties },
+      { label: 'Hundreds', value: career.hundreds },
+      { label: 'Doubles', value: career.doubles },
+      { label: 'Longest', value: career.longest },
+    ],
+  };
+}
+
+/** The line under the link on a shared card, by mode. */
+const SHARE_LINES: Record<CareerMode, string> = {
+  classic: 'Five overs. Three wickets. Beat my numbers.',
+  survive: 'Ten overs. One wicket. Last longer than me.',
+  marathon: 'Three batters. All day. Beat my total.',
+};
+
+/** What each mode is called on its card. */
+const MODE_NAMES: Record<CareerMode, string> = { classic: 'The Blast', survive: 'Test Survival', marathon: 'Test Marathon' };
+
 export function statsFacts(
   mode: CareerMode,
-  career: BlastCareer | SurviveCareer,
+  career: BlastCareer | SurviveCareer | MarathonCareer,
   who: { name: string; avatar: number; granted?: Granted | null },
   standing: string | null = null,
 ): StatsFacts {
-  const split = mode === 'survive'
-    ? surviveFacts(career as SurviveCareer)
+  const split = mode === 'survive' ? surviveFacts(career as SurviveCareer)
+    : mode === 'marathon' ? marathonFacts(career as MarathonCareer)
     : blastFacts(career as BlastCareer);
   const ladder = standingOf(mode, career, who.granted ?? null);
   return {
@@ -179,7 +211,7 @@ export function statsFacts(
     ladder,
     nextLine: nextLine(mode, ladder),
     mode,
-    modeName: mode === 'survive' ? 'Test Survival' : 'The Blast',
+    modeName: MODE_NAMES[mode],
     // A player who has not registered still has a card; it is their figures,
     // and the only thing a name would add is a name. "You" is what the game
     // calls them everywhere else on the board, so it is what the card calls
@@ -357,6 +389,12 @@ const EXPLAINS: Record<string, string> = {
   'Won': 'Innings where you chased the hundred down before the overs ran out.',
   'Drawn': 'Innings where you batted out all ten overs without getting to a hundred. You survived, you just did not win.',
   'Lost': 'Innings where you lost your wicket before either of those happened.',
+  // Test Marathon. `Highest`, `Best ind.`, `Runs` and `Hundreds` say the same
+  // thing on its card as on the Blast's.
+  'Per inns': 'Your runs divided by your innings. Not an average: a declared or retired batter is not out, so every innings counts once, however it ended.',
+  'Fifties': `Times one of your batters got to ${FIFTY} without going on to ${HUNDRED}.`,
+  'Doubles': `Times one of your batters got to ${DOUBLE}. Each is a hundred too.`,
+  'Longest': 'Your longest innings, in balls faced by all three batters.',
 };
 
 /** What tapping a figure says, or nothing where the figure speaks for itself. */
@@ -831,7 +869,7 @@ export async function statsStoryImage(facts: StatsFacts, link: string, scale = 1
   ctx.globalAlpha = 0.66;
   ctx.font = font(500, 26);
   ctx.fillText(
-    facts.mode === 'survive' ? 'Ten overs. One wicket. Last longer than me.' : 'Five overs. Three wickets. Beat my numbers.',
+    SHARE_LINES[facts.mode],
     width / 2, top + drawnH + 128,
   );
   ctx.globalAlpha = 1;

@@ -71,7 +71,7 @@ check(drew, 'the card is painted rather than left drawing', await page.$eval('.s
 const tabs = await page.$$eval('.board-tabs button', keys => keys.map(key => key.textContent.trim()));
 check(tabs.length >= 2, 'the card keeps a way back to the board on the tab row', tabs.join(' | '));
 
-// The rail: two cards where the build plays two games, the Blast in front, and
+// The rail: a card a game the build plays, the Blast in front, and
 // the next one showing at the edge so there is something to swipe towards.
 const slides = await page.$$eval('.stats-slide', all => all.map(one => one.dataset.mode));
 if (slides.length > 1) {
@@ -104,6 +104,22 @@ if (slides.length > 1) {
   await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
   check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'The Blast',
     'and the dots take you back without a swipe');
+  // Wherever the Test Marathon can be played — every build off production —
+  // its card is the third, the far end of the rail.
+  if (slides.includes('marathon')) {
+    check(slides.join(' | ') === 'classic | survive | marathon', 'the Test Marathon\'s card comes third', slides.join(' | '));
+    await page.click(`.stats-dot[data-slide="${slides.length - 1}"]`);
+    await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'Test Marathon', null, { timeout: 10_000 }).catch(() => {});
+    // The figures, as the picture's own words say them: a canvas has no text.
+    await page.waitForSelector('.stats-slide[data-mode="marathon"] .stats-shot', { timeout: 20_000 }).catch(() => {});
+    const marathon = await page.$eval('.stats-slide[data-mode="marathon"]',
+      slide => slide.querySelector('.stats-shot')?.getAttribute('alt') ?? slide.textContent);
+    check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'Test Marathon'
+      && /Highest/.test(marathon) && /Best ind/.test(marathon) && /Per inns/.test(marathon),
+    'and leads with the highest total and the best individual score, runs per innings under them', marathon.replace(/\s+/g, ' ').slice(0, 160));
+    await page.click('.stats-dot[data-slide="0"]');
+    await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
+  }
 }
 
 const taps = await page.$$('.stats-tap');

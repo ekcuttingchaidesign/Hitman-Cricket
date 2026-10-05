@@ -3855,11 +3855,11 @@ body.marathon-mode .settle-meter.is-full .meter-icon{color:#ffcf8a}
 .settle-meter.is-settled .icon-flame{display:contents}
 .settle-meter:not(.is-settled) .confidence-track>i{background:linear-gradient(90deg,#4f7894,#a9cfe0)}
 .settle-cap{order:1}
-/* The Marathon has its boards now, so its card carries the boards' strip. It has
-   no career or share picture yet (`docs/MARATHON.md`, step 6), so it offers
-   neither of those. */
+/* The Marathon's card carries the boards' strip, the way to its career and the
+   key card, as the Blast's does. Not the Blast's challenge to a friend, which
+   is a five-over match, nor the Blast's share picture: it has its own SHARE. */
 body.marathon-mode #share{opacity:.3;pointer-events:none}
-body.marathon-mode #end :is(#card-career,#card-key,#challenge-set,#card-share){display:none}
+body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 /* The Marathon's card: the worm and the batting card where the Blast's ball
    strip, batter line and three figures are, and its own two keys under PLAY
    AGAIN. Shown only on that card, so the Blast's is exactly what it was. */

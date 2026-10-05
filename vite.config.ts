@@ -17,10 +17,10 @@ import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
 import { firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
-  type BlastCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
+  type BlastCareer, type MarathonCareer, type SurviveCareer,
 } from './src/game/career';
-import { NOT_OPEN, modeAsked, open } from './src/server/mode';
+import { modeAsked } from './src/server/mode';
 
 /**
  * The board's endpoints, served by the dev server.
@@ -58,6 +58,7 @@ function boardEndpoints(): Plugin {
   const careers = {
     classic: memoryCareer<BlastCareer>(names),
     survive: memoryCareer<SurviveCareer>(names),
+    marathon: memoryCareer<MarathonCareer>(names),
   };
   // The career keys, sharing that same registry for the same reason: restoring
   // asks who holds a name, and claiming is what wrote it. Two maps here would
@@ -124,15 +125,18 @@ function boardEndpoints(): Plugin {
           const survive = mode === 'survive';
           if (path === '/api/career') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
-            if (!open(mode)) return send(400, { error: NOT_OPEN });
             const player = query.get('player') ?? '';
             if (player) {
               return send(200, survive
                 ? await readCareer(careers.survive, SURVIVE_CAREER, player)
+                : mode === 'marathon'
+                ? await readCareer(careers.marathon, MARATHON_CAREER, player)
                 : await readCareer(careers.classic, BLAST_CAREER, player));
             }
             const boards = survive
               ? await readCareerBoards(careers.survive, SURVIVE_CAREER)
+              : mode === 'marathon'
+              ? await readCareerBoards(careers.marathon, MARATHON_CAREER)
               : await readCareerBoards(careers.classic, BLAST_CAREER);
             // The same header the deployed endpoint sends. There is no edge
             // cache in front of a dev server, so it costs nothing here.
@@ -150,10 +154,10 @@ function boardEndpoints(): Plugin {
               address: 'dev',
             };
             const countingMode = modeAsked(sent.mode);
-            if (!open(countingMode)) return send(400, { error: NOT_OPEN });
-            const asked = countingMode === 'survive';
-            const counted = asked
+            const counted = countingMode === 'survive'
               ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: readSurviveTally(sent.innings) })
+              : countingMode === 'marathon'
+              ? await countInnings(careers.marathon, MARATHON_CAREER, { ...counting, tally: readMarathonTally(sent.innings) })
               : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: readBlastTally(sent.innings) });
             return refusedCareer(counted) ? send(counted.status, { error: counted.reason }) : send(200, counted);
           }
@@ -210,9 +214,11 @@ function boardEndpoints(): Plugin {
           };
           const submitted = modeAsked(body.mode);
           if (submitted === 'marathon') {
-            // Both Marathon rows from one innings, and no careers yet: step 6.
+            // Both Marathon rows from one innings, and the career it has been
+            // building onto the boards under the name, as the deployed one does.
             const taken = await submitMarathon(marathon, { ...who, innings: readMarathonFigures(body.innings) });
             if (refused(taken)) return send(taken.status, { error: taken.reason });
+            await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
             const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
             return send(200, key ? { ...taken, key } : taken);
           }

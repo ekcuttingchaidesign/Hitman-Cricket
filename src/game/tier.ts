@@ -1,4 +1,4 @@
-import type { BlastCareer, CareerMode, SurviveCareer } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from './career';
 
 /**
  * What a player *is*, rather than what they have.
@@ -97,6 +97,12 @@ export interface Tier {
    * So the two ladders are set to cost the same *effort* instead: about six or
    * seven innings to the second rung, sixty-odd to the third, and a month of
    * heavy play to the top, whichever mode is being played.
+   *
+   * The Test Marathon's is the Blast's, in runs, and for the same reason
+   * measured the other way round: its innings are three to five times as long,
+   * but `scripts/marathon-sim.ts` has it scored at about two runs a ball, near
+   * enough the Blast's rate — so a run costs the same time at the crease in
+   * either, and the same number of them is the same effort.
    */
   at: Record<CareerMode, number>;
   /** One line saying what it took, for the card and for a screen reader. */
@@ -144,7 +150,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'debutant',
     name: 'DEBUTANT',
-    at: { classic: 0, survive: 0 },
+    at: { classic: 0, survive: 0, marathon: 0 },
     blurb: 'First time out there.',
     // The game's own navy, which is the card everybody starts on and the only
     // one that is not trying to be a material.
@@ -162,7 +168,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'emerging',
     name: 'EMERGING PLAYER',
-    at: { classic: 350, survive: 100 },
+    at: { classic: 350, survive: 100, marathon: 350 },
     blurb: 'Making a name out there.',
     // Bronze, and dark. A warm ground rather than navy tinted brown, or the
     // copper has nothing to be warm against — but a long way below where it
@@ -182,7 +188,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'star',
     name: 'STAR',
-    at: { classic: 3600, survive: 1000 },
+    at: { classic: 3600, survive: 1000, marathon: 3600 },
     blurb: 'People turn up to watch.',
     // Black and silver, in that order. The ground is a neutral near-black with
     // just enough lift at the top to keep an edge; the silver is spent on the
@@ -202,7 +208,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'hitman',
     name: 'HITMAN',
-    at: { classic: 15000, survive: 4250 },
+    at: { classic: 15000, survive: 4250, marathon: 15000 },
     blurb: 'The one the game is named for.',
     // Black and gold, and the only card in the game that gets to be either.
     // The ground is black with the faintest warmth in it rather than a dark
@@ -221,31 +227,14 @@ export const TIERS: readonly Tier[] = [
 ] as const;
 
 /** The figure a mode's tier is read off: its own headline number. */
-export function tierMeasure(mode: CareerMode, career: BlastCareer | SurviveCareer): number {
-  return mode === 'survive' ? career.balls : (career as BlastCareer).runs;
+export function tierMeasure(mode: CareerMode, career: BlastCareer | SurviveCareer | MarathonCareer): number {
+  return mode === 'survive' ? career.balls : (career as BlastCareer | MarathonCareer).runs;
 }
 
-/** What the mode calls that figure, for the line under the progress bar. */
 export function measureName(mode: CareerMode): string {
   return mode === 'survive' ? 'balls' : 'runs';
 }
 
-/**
- * A tier a player holds regardless of their figures, and why.
- *
- * The board existed before careers did, so the people who built it would
- * otherwise open their first card and find themselves DEBUTANT next to
- * somebody who arrived that morning. Being early should count for something,
- * and what it buys is the *tier* — the badge and the material — while every
- * figure on the card stays their own.
- *
- * That line matters and is the whole reason this is a grant rather than a pile
- * of invented runs: the card is built to be sent to other people, and a card
- * saying three thousand runs to somebody who scored a hundred and forty-eight
- * is a claim about them that is not true. So the grant carries its own reason,
- * printed on the card in place of the usual blurb, and the numbers are left
- * alone.
- */
 export interface Granted {
   /** The tier key they hold. */
   key: string;
@@ -277,7 +266,7 @@ export interface Standing {
  * for good is a worse reward than no bar.
  */
 export function standingOf(
-  mode: CareerMode, career: BlastCareer | SurviveCareer, granted: Granted | null = null,
+  mode: CareerMode, career: BlastCareer | SurviveCareer | MarathonCareer, granted: Granted | null = null,
 ): Standing {
   const measure = Math.max(0, Math.floor(tierMeasure(mode, career)));
   let index = 0;
@@ -342,8 +331,8 @@ export function nextLine(mode: CareerMode, standing: Standing): string {
  */
 export function climbedTo(
   mode: CareerMode,
-  was: BlastCareer | SurviveCareer | null,
-  now: BlastCareer | SurviveCareer,
+  was: BlastCareer | SurviveCareer | MarathonCareer | null,
+  now: BlastCareer | SurviveCareer | MarathonCareer,
   granted: Granted | null = null,
 ): Tier | null {
   // Nothing to have climbed from. A first innings is an arrival rather than a

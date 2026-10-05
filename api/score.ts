@@ -9,7 +9,7 @@ import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
 } from '../src/game/career.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import type { Innings } from '../src/game/leaderboard.js';
@@ -72,11 +72,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // It must not be able to fail the claim. The place on the board is what
     // they asked for and it is already written; a career board that is a few
     // minutes behind is fixed by the next innings they finish.
-    // The Marathon has no careers yet (`docs/MARATHON.md`, step 6).
-    if (!marathon) try {
+    try {
       const name = cleanName(who.name);
       await (survive
         ? nameCareer(upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope), SURVIVE_CAREER,
+          who.playerId, name, who.avatar)
+        : marathon
+        ? nameCareer(upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope), MARATHON_CAREER,
           who.playerId, name, who.avatar)
         : nameCareer(upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope), BLAST_CAREER,
           who.playerId, name, who.avatar));

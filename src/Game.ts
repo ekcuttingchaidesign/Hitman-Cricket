@@ -49,7 +49,7 @@ import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
 } from './game/career-api';
-import { blastTally, type BlastTally, type CareerMode, type SurviveTally } from './game/career';
+import { blastTally, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
@@ -325,9 +325,9 @@ export class Game {
    */
   private sheetTab: SheetTab = 'classic';
   /** Each mode's career boards, held from the last fetch. */
-  private careerBoards: Partial<Record<BoardTab, CareerBoards<AnyCareer>>> = {};
+  private careerBoards: Partial<Record<CareerMode, CareerBoards<AnyCareer>>> = {};
   /** This player's own figures, as the store last reported them. */
-  private myCareer: Partial<Record<BoardTab, {
+  private myCareer: Partial<Record<CareerMode, {
     career: AnyCareer; name: string; avatar: number; granted?: Granted | null;
   }>> = {};
   /** The facts the card on screen was drawn from, so a late paint can be dropped. */
@@ -341,7 +341,7 @@ export class Game {
    * it landed — leaving the Blast for ever "Drawing your card…" beside a
    * finished Test one.
    */
-  private statsDrawn: Partial<Record<BoardTab, StatsFacts>> = {};
+  private statsDrawn: Partial<Record<CareerMode, StatsFacts>> = {};
   /** Whether the career page is wanted. Set before it exists, cleared on the way back. */
   private statsPage = false;
   /**
@@ -902,9 +902,12 @@ export class Game {
     this.redrawStats();
   }
 
+  /** Whose career the innings in play counts toward. */
+  private get careerMode(): CareerMode { return this.surviving ? 'survive' : this.marathoning ? 'marathon' : 'classic'; }
+
   /** My Stats, in whichever of its two presentations is on the screen. */
   private redrawStats() {
-    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    const mode = this.careerMode;
     if (this.statsPage) {
       this.railStats(mode, view => {
         if (this.disposed || !this.statsPage) return;
@@ -1599,7 +1602,7 @@ export class Game {
    * not the Blast's because the Blast is first in the row.
    */
   /** The cards on the tab's rail, by mode, as each of them is painted. */
-  private mineSlides: Partial<Record<BoardTab, StatsSlide>> = {};
+  private mineSlides: Partial<Record<CareerMode, StatsSlide>> = {};
 
   /**
    * Both cards, painted as they arrive, handed to whoever is drawing them.
@@ -1617,8 +1620,12 @@ export class Game {
    * asked for. Landing on the Blast after a Test innings is landing on
    * somebody else's card.
    */
-  private railStats(open: BoardTab, draw: (view: StatsSheetView) => void) {
-    const modes: BoardTab[] = SHOW_SURVIVE && !SURVIVE_ONLY ? ['classic', 'survive'] : [this.boardTab];
+  private railStats(open: CareerMode, draw: (view: StatsSheetView) => void) {
+    // The Test Marathon's card comes third, wherever the mode can be played.
+    const modes: CareerMode[] = [
+      ...(SHOW_SURVIVE && !SURVIVE_ONLY ? ['classic', 'survive'] as const : [this.boardTab]),
+      ...(MARATHON_OPEN ? ['marathon'] as const : []),
+    ];
     const at = Math.max(0, modes.indexOf(open));
     this.mineSlides = {};
     for (const mode of modes) {
@@ -1652,10 +1659,11 @@ export class Game {
   }
 
   private openMine() {
-    this.sheetTab = 'mine';
     // The game they were last looking at, which is why the mode is remembered
-    // apart from the tab.
-    this.railStats(this.boardTab, view => {
+    // apart from the tab — and the Marathon's card from the Marathon's tab.
+    const open: CareerMode = this.sheetTab === 'marathon' ? 'marathon' : this.boardTab;
+    this.sheetTab = 'mine';
+    this.railStats(open, view => {
       if (this.disposed || !this.hud.boardOpen || this.sheetTab !== 'mine') return;
       this.hud.statsTab(view);
     });
@@ -1731,7 +1739,7 @@ export class Game {
    */
   private showStats = () => {
     this.mark('stats-open', 'Career card opened');
-    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    const mode = this.careerMode;
     // Wanted, rather than open. The first draw is the one that opens the page,
     // so it cannot be the one that checks whether the page is open — guarding
     // on that left the widget doing nothing at all.
@@ -1770,7 +1778,7 @@ export class Game {
    * above, and neither of them has a copy of it.
    */
   private loadStats(
-    mode: BoardTab,
+    mode: CareerMode,
     draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
   ) {
     const batting = readPlayer();
@@ -1811,7 +1819,7 @@ export class Game {
    * thing the player came for either way.
    */
   private paintStats(
-    mode: BoardTab,
+    mode: CareerMode,
     mine: { career: AnyCareer; name: string; avatar: number; granted?: Granted | null },
     draw: (facts: StatsFacts, picture: string | null, failed: boolean) => void,
   ) {
@@ -2419,7 +2427,7 @@ export class Game {
     // Claiming a name is what puts a career already counted onto the career
     // boards, so the copies held from before it are wrong the moment this
     // returns — including the card's, which was drawn with no name on it.
-    const claimed: BoardTab = this.surviving ? 'survive' : 'classic';
+    const claimed = this.careerMode;
     delete this.careerBoards[claimed];
     delete this.myCareer[claimed];
     forgetCareer();
@@ -2529,15 +2537,13 @@ export class Game {
    * it has already seen.
    */
   private countThisInnings() {
-    // Not yet: the Marathon has no career to count toward, and the store
-    // refuses it rather than file it under the Blast. See `src/server/mode.ts`.
-    if (this.marathoning) return;
     if (!this.player || !this.canRegister || this.practising) return;
-    const mode: BoardTab = this.surviving ? 'survive' : 'classic';
+    const mode = this.careerMode;
     // The career's own tally, not the board's row: it carries what each batsman
-    // made, which the six totals on a row cannot say.
-    const tally: BlastTally | SurviveTally = this.surviving
-      ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
+    // made, which the six totals on a row cannot say. The Marathon's is the very
+    // innings its boards are sent, every batter's figures with it.
+    const tally: BlastTally | SurviveTally | MarathonTally = this.marathon ? marathonFigures(this.marathon)
+      : this.surviving ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
       : blastTally(this.score);
     const nonce = mintNonce();
     const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
@@ -2590,14 +2596,16 @@ export class Game {
     // them, but the screen it ends on is the same screen.
     this.audio.music('result');
     if (this.marathon) {
-      // The Blast's card with the worm and the batting card under the total, and
-      // the boards' strip on it. No career yet and no best kept: those are
-      // My Stats (`docs/MARATHON.md`, step 6).
+      // The Blast's card with the worm and the batting card under the total,
+      // the boards' strip on it, and the way to the career it has just added to.
       const marathon = this.marathon;
       this.mark('innings-end', 'Innings completed');
       this.mark(inningsBand(this.playedMs - this.inningsFrom), 'How long the innings took');
       track(`marathon-ended-${marathon.ending!.toLowerCase().replace('_', '-')}`, `Test Marathon ended: ${marathon.ending}`);
       this.hud.endMarathon(this.score, marathon);
+      this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
+      this.hud.offerRestorePanel = this.offerRestoreOnCard();
+      this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
       this.offerMarathon();
       // Both ladders, fresh, and the offer asked again once they are here: an
       // innings this long outlives whatever was fetched before it.

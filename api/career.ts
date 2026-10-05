@@ -3,8 +3,10 @@
 import { CAREER_BOARD_SIZE, readCareer, readCareerBoards } from '../src/server/career-store.js';
 import { NoDatabase, redisFromEnv, upstashCareer } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
-import { BLAST_CAREER, SURVIVE_CAREER, type BlastCareer, type SurviveCareer } from '../src/game/career.js';
-import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
+import {
+  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, type BlastCareer, type MarathonCareer, type SurviveCareer,
+} from '../src/game/career.js';
+import { modeAsked } from '../src/server/mode.js';
 
 /**
  * `GET /api/career` — every career board of one mode, or one player's figures.
@@ -24,8 +26,8 @@ import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
  * With `?player=`, it is that player's own career for their card, and it is
  * never cached by anyone. Their figures are theirs.
  *
- * `?mode=survive` asks for the Test career instead. The two are separate
- * records over separate keys — balls survived and sixes hit in a slog are not
+ * `?mode=survive` asks for the Test career instead, and `?mode=marathon` the
+ * Marathon's. They are separate records over separate keys — balls survived and sixes hit in a slog are not
  * the same career — so the mode picks which keys are read and which ladder
  * shapes the answer. Anything else, including nothing, is the Blast.
  */
@@ -34,8 +36,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'GET') return failed(res, 405, 'Use GET.');
 
   const mode = modeAsked(req.query?.mode);
-  if (!open(mode)) return failed(res, 400, NOT_OPEN);
-  const survive = mode === 'survive';
   const player = String(req.query?.player ?? '');
 
   try {
@@ -43,14 +43,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // fewer thing to get wrong.
     const redis = redisFromEnv(true);
     if (player) {
-      const mine = survive
+      const mine = mode === 'survive'
         ? await readCareer(upstashCareer<SurviveCareer>(redis, SURVIVE_CAREER.scope), SURVIVE_CAREER, player)
+        : mode === 'marathon'
+        ? await readCareer(upstashCareer<MarathonCareer>(redis, MARATHON_CAREER.scope), MARATHON_CAREER, player)
         : await readCareer(upstashCareer<BlastCareer>(redis, BLAST_CAREER.scope), BLAST_CAREER, player);
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json(mine);
     }
-    const boards = survive
+    const boards = mode === 'survive'
       ? await readCareerBoards(upstashCareer<SurviveCareer>(redis, SURVIVE_CAREER.scope), SURVIVE_CAREER)
+      : mode === 'marathon'
+      ? await readCareerBoards(upstashCareer<MarathonCareer>(redis, MARATHON_CAREER.scope), MARATHON_CAREER)
       : await readCareerBoards(upstashCareer<BlastCareer>(redis, BLAST_CAREER.scope), BLAST_CAREER);
     // Five minutes of edge cache, then an hour where a stale set of boards is
     // served while a fresh one is fetched behind it. An all-time total five

@@ -378,11 +378,20 @@ Each step is a pull request of its own, behind the flag until the last.
    share. The end card offers a place in the boards' own strip, the team
    ladder's where the innings takes one and the individual's where only that
    one does, and sends nothing unless it is claimed; the career endpoints
-   still turn the mode away until step 6. `?demo=1` fills both ladders. And,
+   turned the mode away until step 6. `?demo=1` fills both ladders. And,
    agreed along the way: past 60 balls, leaving the page asks first
    (`MARATHON.warnFrom`) — an innings that long is an hour of somebody's
    evening.
-6. **My Stats.** The third card and its tier.
+6. **My Stats.** *Done.* The third card on the rail, after The Blast and
+   Test Survival, wherever the mode can be played: highest total and best
+   individual score as the two big figures, then career runs, runs per
+   innings, fifties, hundreds, doubles and the longest innings in balls, and a
+   tier in career runs on the Blast's rungs (`MARATHON_CAREER` in
+   `src/game/career.ts`, `marathonFacts` in `StatsCard.ts`). A finished
+   innings is counted in `end`, as every mode's is, from the very figures its
+   boards are sent — so the career refuses exactly what the boards refuse —
+   and a practice innings is not counted. No career ladders of its own yet:
+   the two innings ladders are where it is ranked.
 7. **The Test look.** *Done.* The darker ball (a Dukes's cherry, `0xa81c1c`,
    against the Blast's `0xe84829`) and the greener pitch, in both Test modes.
    A full green top was tried first and was too much; the strip keeps half

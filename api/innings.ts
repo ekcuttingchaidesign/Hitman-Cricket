@@ -5,10 +5,10 @@ import { countInnings, refusedCareer } from '../src/server/career-store.js';
 import { NoDatabase, redisFromEnv, upstashCareer } from '../src/server/upstash.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import {
-  BLAST_CAREER, SURVIVE_CAREER, readBlastTally, readSurviveTally,
-  type BlastCareer, type SurviveCareer,
+  BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
+  type BlastCareer, type MarathonCareer, type SurviveCareer,
 } from '../src/game/career.js';
-import { NOT_OPEN, modeAsked, open } from '../src/server/mode.js';
+import { modeAsked } from '../src/server/mode.js';
 
 /**
  * `POST /api/innings` — an innings, counted toward a career.
@@ -36,11 +36,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const body = parse(req.body);
   if (!body) return failed(res, 400, 'Send an innings as JSON.');
 
-  // Which career this innings belongs to. The two are separate records over
+  // Which career this innings belongs to. The three are separate records over
   // separate keys, and the figures a tally carries differ, so this decides both.
   const mode = modeAsked(body.mode);
-  if (!open(mode)) return failed(res, 400, NOT_OPEN);
-  const survive = mode === 'survive';
   const who = {
     playerId: String(body.playerId ?? ''),
     // Whatever this browser last batted under. It is only written onto the
@@ -53,11 +51,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   };
 
   try {
-    const outcome = survive
+    const outcome = mode === 'survive'
       ? await countInnings(
         upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope),
         SURVIVE_CAREER,
         { ...who, tally: readSurviveTally(body.innings) },
+      )
+      : mode === 'marathon'
+      ? await countInnings(
+        upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope),
+        MARATHON_CAREER,
+        { ...who, tally: readMarathonTally(body.innings) },
       )
       : await countInnings(
         upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope),

@@ -3,6 +3,7 @@ import { LAUNCH_MS, type Innings } from './leaderboard.js';
 import { SURVIVE } from '../config/survive.js';
 import { standingOf, type SurviveInnings } from './survive-board.js';
 import type { ScoreManager } from './ScoreManager.js';
+import { marathonPlausible, readMarathonFigures, type MarathonFigures } from './marathon-board.js';
 import type { ShotOutcome } from './types.js';
 
 /**
@@ -79,6 +80,47 @@ export interface SurviveCareer {
   draws: number;
   losses: number;
 }
+
+/**
+ * A Test Marathon career: the two figures its card leads with — the biggest
+ * total and the most one batter made — and what a long innings is built of.
+ *
+ * Fifties, hundreds and doubles are a batter's, not the innings': three men
+ * bat, and each of them can make one. Fifties are fifty to ninety-nine, so a
+ * hundred is not also a fifty; hundreds count every hundred, doubles included,
+ * as a scorecard's columns do. There is no average, on purpose: an average
+ * divides by dismissals, and a declared or retired batter is not out, so a
+ * player who declared every time would average runs over nothing. The card
+ * shows runs per innings instead, which counts every innings once however it
+ * ended (`docs/MARATHON.md`).
+ */
+export interface MarathonCareer {
+  innings: number;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  /** The biggest innings total. */
+  highest: number;
+  /** The most one batter made in an innings. */
+  individual: number;
+  fifties: number;
+  hundreds: number;
+  doubles: number;
+  /** The longest innings, in balls. */
+  longest: number;
+}
+
+/**
+ * A Marathon innings as the career counts it is the very innings the boards
+ * are sent — the total and each batter's figures — so the two cannot disagree
+ * about what was played, and the career refuses exactly what the boards do.
+ */
+export type MarathonTally = MarathonFigures;
+
+/** The two milestones under a hundred and beyond it, by any batter. */
+export const FIFTY = 50;
+export const DOUBLE = 200;
 
 /**
  * A Blast innings as the career counts it: the six the board already ranks,
@@ -158,6 +200,13 @@ export function emptySurvive(): SurviveCareer {
   return { innings: 0, runs: 0, balls: 0, sixes: 0, fours: 0, blows: 0, wins: 0, draws: 0, losses: 0 };
 }
 
+export function emptyMarathon(): MarathonCareer {
+  return {
+    innings: 0, runs: 0, balls: 0, fours: 0, sixes: 0,
+    highest: 0, individual: 0, fifties: 0, hundreds: 0, doubles: 0, longest: 0,
+  };
+}
+
 /**
  * One more innings, folded in.
  *
@@ -209,6 +258,32 @@ export function mergeSurvive(held: SurviveCareer | null, tally: SurviveTally): S
     draws: was.draws + Number(standing === 'DRAWN'),
     losses: was.losses + Number(standing === 'LOST'),
   };
+}
+
+export function mergeMarathon(held: MarathonCareer | null, tally: MarathonTally): MarathonCareer {
+  const was = held ?? emptyMarathon();
+  const made = tally.batters.map(b => b.runs);
+  return {
+    innings: was.innings + 1,
+    runs: was.runs + tally.runs,
+    balls: was.balls + tally.balls,
+    fours: was.fours + tally.fours,
+    sixes: was.sixes + tally.sixes,
+    highest: Math.max(was.highest, tally.runs),
+    individual: Math.max(was.individual, ...made),
+    fifties: was.fifties + made.filter(runs => runs >= FIFTY && runs < HUNDRED).length,
+    hundreds: was.hundreds + made.filter(runs => runs >= HUNDRED).length,
+    doubles: was.doubles + made.filter(runs => runs >= DOUBLE).length,
+    longest: Math.max(was.longest, tally.balls),
+  };
+}
+
+/**
+ * Runs per innings, to one place: every innings counted once, however it
+ * ended. Nought before the first.
+ */
+export function runsPerInnings(career: Pick<MarathonCareer, 'runs' | 'innings'>): number {
+  return career.innings > 0 ? Math.round(career.runs / career.innings * 10) / 10 : 0;
 }
 
 /**
@@ -433,7 +508,7 @@ export const SURVIVE_BOARDS: readonly CareerBoard<SurviveCareer>[] = [
 ];
 
 /** Which career this is, which is the only thing that differs on the wire. */
-export type CareerMode = 'classic' | 'survive';
+export type CareerMode = 'classic' | 'survive' | 'marathon';
 
 /**
  * Whether a tally could have come from an innings of this mode at all.
@@ -546,6 +621,27 @@ export const BLAST_CAREER: CareerLadder<BlastCareer, BlastTally> = {
     fours: from.fours, wickets: from.wickets, dots: from.dots,
     highest: from.highest, notOut: from.notOut,
     individual: from.individual ?? 0, hundreds: from.hundreds ?? 0,
+  }),
+};
+
+/** A Marathon tally off a request body: the boards' own reader. */
+export const readMarathonTally = (raw: unknown): MarathonTally => readMarathonFigures(raw);
+
+/**
+ * The Marathon's careers. No career ladders of its own yet — the card is what
+ * step 6 asked for, and the two innings ladders are where it is ranked — so
+ * a Marathon career is counted and kept and shown, and ranked nowhere.
+ */
+export const MARATHON_CAREER: CareerLadder<MarathonCareer, MarathonTally> = {
+  mode: 'marathon',
+  scope: 'marathoncareer:',
+  boards: [],
+  merge: mergeMarathon,
+  plausible: marathonPlausible,
+  figures: from => ({
+    innings: from.innings, runs: from.runs, balls: from.balls, fours: from.fours, sixes: from.sixes,
+    highest: from.highest, individual: from.individual,
+    fifties: from.fifties, hundreds: from.hundreds, doubles: from.doubles, longest: from.longest,
   }),
 };
 

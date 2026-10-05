@@ -4,7 +4,7 @@ import career from '../api/career';
 import innings from '../api/innings';
 import score from '../api/score';
 import type { ApiRequest, ApiResponse } from '../src/server/http';
-import { NOT_OPEN, modeAsked, open } from '../src/server/mode';
+import { modeAsked } from '../src/server/mode';
 import { isTest } from '../src/game/modes';
 
 /** A response that remembers what was said rather than saying it. */
@@ -46,48 +46,43 @@ describe('which mode a request is about', () => {
     expect(modeAsked('classic')).toBe('classic');
     expect(modeAsked('blast')).toBe('classic');
   });
-
-  it('keeps the Marathon\'s careers shut until it has careers of its own', () => {
-    expect(open('classic')).toBe(true);
-    expect(open('survive')).toBe(true);
-    expect(open('marathon')).toBe(false);
-  });
 });
 
 /**
  * The reason the reader exists. Every endpoint used to take anything that was
  * not `survive` for the Blast, so a Marathon innings would have gone onto the
- * Blast's board and into the Blast's careers. Its boards are its own now; its
- * careers are not built yet (step 6), so those endpoints still turn it away —
- * before they reach a database, so these run with none configured.
+ * Blast's board and into the Blast's careers. Its boards and its careers are
+ * its own now, so every endpoint takes a Marathon request through to its own
+ * store — which, with no database configured here, is as far as it gets: the
+ * answer is the missing database, not a refusal of the mode.
  */
 describe('a Marathon request', () => {
-  const refused = (said: { status: number; body: any }) => {
-    expect(said.status).toBe(400);
-    expect(said.body.error).toBe(NOT_OPEN);
+  const reachedTheStore = (said: { status: number; body: any }) => {
+    expect(said.status).toBe(503);
+    expect(said.body.error).toBe('The board is not set up yet.');
   };
 
-  it('reaches the board, rather than being turned away', async () => {
+  it('reaches the board', async () => {
     const { res, said } = spy();
     await board(get({ mode: 'marathon' }), res);
-    expect(said.body?.error).not.toBe(NOT_OPEN);
+    reachedTheStore(said);
   });
 
-  it('is offered to the Marathon\'s own boards, rather than turned away or put on the Blast\'s', async () => {
+  it('is offered to the Marathon\'s own boards', async () => {
     const { res, said } = spy();
     await score(post({ mode: 'marathon', playerId: 'p', name: 'Somebody', avatar: 0, innings: {} }), res);
-    expect(said.body?.error).not.toBe(NOT_OPEN);
+    expect(said.status).not.toBe(200);
   });
 
-  it('is turned away by the careers', async () => {
+  it('reaches the careers', async () => {
     const { res, said } = spy();
     await career(get({ mode: 'marathon' }), res);
-    refused(said);
+    reachedTheStore(said);
   });
 
-  it('is not counted toward a Blast career', async () => {
+  it('is counted toward a career of its own', async () => {
     const { res, said } = spy();
     await innings(post({ mode: 'marathon', playerId: 'p', nonce: 'n', innings: {} }), res);
-    refused(said);
+    reachedTheStore(said);
   });
 });

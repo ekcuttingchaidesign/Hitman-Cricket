@@ -1,6 +1,6 @@
 import {
-  BLAST_BOARDS, SURVIVE_BOARDS,
-  type BlastCareer, type CareerBoard, type CareerMode, type SurviveCareer,
+  BLAST_BOARDS, MARATHON_CAREER, SURVIVE_BOARDS,
+  type BlastCareer, type CareerBoard, type CareerMode, type MarathonCareer, type SurviveCareer,
 } from '../game/career';
 import type { CareerRow } from '../game/career-api';
 import { escape, kitMarkup, sheetKeys } from './Leaderboard';
@@ -27,7 +27,12 @@ import { escape, kitMarkup, sheetKeys } from './Leaderboard';
  * union is only ever carried, never inspected, which is why one screen can draw
  * seven ladders over two different records.
  */
-export type AnyCareer = BlastCareer | SurviveCareer;
+export type AnyCareer = BlastCareer | SurviveCareer | MarathonCareer;
+
+/** A mode's career ladders. The Marathon has none of its own yet: see `MARATHON_CAREER`. */
+function boardsOf(mode: CareerMode): readonly CareerBoard<AnyCareer>[] {
+  return (mode === 'survive' ? SURVIVE_BOARDS : mode === 'marathon' ? MARATHON_CAREER.boards : BLAST_BOARDS) as readonly CareerBoard<AnyCareer>[];
+}
 
 /**
  * What the sheet is showing, under the mode tabs: `best`, `you`, or a career
@@ -58,7 +63,7 @@ export type LadderTab = string;
  * disguised as the six that do not. It has its own key under the sheet.
  */
 export function laddersOf(mode: CareerMode): { key: LadderTab; name: string }[] {
-  const career = mode === 'survive' ? SURVIVE_BOARDS : BLAST_BOARDS;
+  const career = boardsOf(mode);
   return [
     // What the board has always been called in everything but name: the biggest
     // score anybody has put together in one innings. "Best innings" described
@@ -81,8 +86,7 @@ export function laddersOf(mode: CareerMode): { key: LadderTab; name: string }[] 
  * of step. This is the one place they can be wrong, and it is four lines long.
  */
 export function careerBoardOf(mode: CareerMode, key: string): CareerBoard<AnyCareer> | null {
-  const boards = (mode === 'survive' ? SURVIVE_BOARDS : BLAST_BOARDS) as readonly CareerBoard<AnyCareer>[];
-  return boards.find(board => board.key === key) ?? null;
+  return boardsOf(mode).find(board => board.key === key) ?? null;
 }
 
 /**
