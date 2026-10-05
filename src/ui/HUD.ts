@@ -248,6 +248,9 @@ function swipeGuide() {
     + `<filter id="sg-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="1.8"/></filter>${gradients.join('')}</defs>`
     + `<circle class="hub" r="2.6"/>${spokes.join('')}</svg>`;
 }
+/** The What's New film's own shape, 1080 by 1920. */
+const FILM_ASPECT = 1080 / 1920;
+
 export class HUD {
   readonly viewport: HTMLElement;
   /** The innings the card is showing, for whatever the share buttons draw. */
@@ -1004,11 +1007,17 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // A story carrying the key holds until it is left: one that moved itself
     // on would take the key away from under a thumb on its way to it.
     const story = STORIES[this.storyAt];
-    // Set down on the way out rather than hung from the bars: a tall phone's
-    // spare height goes above it, into the dark it fades from, and its own foot
-    // stays over the key.
+    // Always as wide as the screen. Where the room is taller than the film, it
+    // is set down on the way out and the spare height goes above it, into the
+    // dark it fades from. Where the room is wider — a phone with the browser's
+    // bars on it — it is cut at the top and the foot instead, which are its
+    // margins, never at the sides, where its words run nearly edge to edge.
     const film = document.getElementById('whatsnew-film');
-    if (story?.film && film) this.storyFilm = playFilm(film, story.film, { fit: 'xMidYMax meet' });
+    if (story?.film && film) {
+      const wide = film.clientWidth / Math.max(1, film.clientHeight) > FILM_ASPECT;
+      film.classList.toggle('is-cut', wide);
+      this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
+    }
     if (story?.withKey) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }

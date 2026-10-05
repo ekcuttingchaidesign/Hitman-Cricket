@@ -5033,6 +5033,9 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .whatsnew-sheet.is-film{background:#02170d}
 .whatsnew-film{position:absolute;left:0;right:0;top:0;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:0;pointer-events:none;
   -webkit-mask-image:linear-gradient(180deg,#0000 0,#000 14%,#000 90%,#0000);mask-image:linear-gradient(180deg,#0000 0,#000 14%,#000 90%,#0000)}
+/* Cut at the top and the foot to fill the width, its top is already its own
+   dark under the bars, so only the foot is faded, and only a little. */
+.whatsnew-film.is-cut{-webkit-mask-image:linear-gradient(180deg,#000 94%,#0000);mask-image:linear-gradient(180deg,#000 94%,#0000)}
 .whatsnew-film svg{display:block}
 .is-film .whatsnew-bars{position:relative;z-index:2}
 /* The picture is the point, and it shrinks rather than pushing the key off the
