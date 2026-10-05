@@ -116,12 +116,12 @@ function cloudTexture() {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, ry, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     }
   };
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 38; i++) {
     const x = random() * W;
     // Low clouds are far away, so they are smaller and flatter and there are more of them.
     const height = Math.pow(random(), 1.6);
     const y = H * (0.88 - height * 0.7);
-    const size = 5 + height * 14 + random() * 6;
+    const size = 6 + height * 20 + random() * 8;
     const puffs = 6 + Math.floor(random() * 8);
     for (let p = 0; p < puffs; p++) {
       const spread = (random() - 0.5) * size * 5;

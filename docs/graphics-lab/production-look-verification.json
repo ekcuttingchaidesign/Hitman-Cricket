@@ -1,0 +1,105 @@
+{
+  "productionCommit": "c42d03c09c78f8798f71164a89996c7de526966f",
+  "checks": {
+    "src/scene/night.ts": {
+      "identicalToProduction": true,
+      "sha256": "860457273c3fc6e0d991a3a381b2702cb1ba392f5c52678eb09af458ef360d9b"
+    },
+    "src/scene/sky.ts": {
+      "identicalToProduction": true,
+      "sha256": "fdb19200b3afa887bcc40818a4761d9ba55a281eb1758534b45fc4b780c59c39"
+    },
+    "src/scene/turf.ts": {
+      "identicalToProduction": true,
+      "sha256": "f358fa6dfe941c92cde3e2cd50b6b99cae9c5e97466eaa5edb87da10443b5866"
+    },
+    "stadiumPaletteIdentical": true,
+    "rendererCameraLightingSetupIdentical": true
+  },
+  "daylightPixelSamples": [
+    {
+      "region": "sky",
+      "bounds": [
+        410,
+        15,
+        560,
+        90
+      ],
+      "productionMeanRGB": [
+        149.94,
+        183.13,
+        215.73
+      ],
+      "experimentMeanRGB": [
+        149.94,
+        183.13,
+        215.73
+      ],
+      "meanAbsoluteChannelDifference": 0.0,
+      "maxChannelDifference": 0
+    },
+    {
+      "region": "pitch",
+      "bounds": [
+        250,
+        960,
+        330,
+        1150
+      ],
+      "productionMeanRGB": [
+        234.96,
+        199.87,
+        141.7
+      ],
+      "experimentMeanRGB": [
+        234.96,
+        199.87,
+        141.7
+      ],
+      "meanAbsoluteChannelDifference": 0.0,
+      "maxChannelDifference": 0
+    },
+    {
+      "region": "roof",
+      "bounds": [
+        30,
+        248,
+        100,
+        254
+      ],
+      "productionMeanRGB": [
+        106.14,
+        116.3,
+        103.1
+      ],
+      "experimentMeanRGB": [
+        106.14,
+        116.3,
+        103.1
+      ],
+      "meanAbsoluteChannelDifference": 0.0,
+      "maxChannelDifference": 0
+    },
+    {
+      "region": "grass",
+      "bounds": [
+        30,
+        750,
+        85,
+        830
+      ],
+      "productionMeanRGB": [
+        150.63,
+        197.52,
+        104.84
+      ],
+      "experimentMeanRGB": [
+        150.66,
+        197.55,
+        104.85
+      ],
+      "meanAbsoluteChannelDifference": 0.288,
+      "maxChannelDifference": 4
+    }
+  ]
+}

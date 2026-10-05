@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batch, soft } from './build';
+import { Batch, mat, soft } from './build';
 
 /**
  * The stadium: one bowl of stands carried right round the ground, which is
@@ -30,12 +30,12 @@ import { Batch, soft } from './build';
 
 export const STADIUM = {
   /** The stands' concrete, painted. */
-  concrete: 0xd4dddf,
+  concrete: 0xe4dfd2,
   /** Fascias, the roof, the commentary box. */
-  paint: 0xf1f4ef,
-  steel: 0x526978,
+  paint: 0xf7f4ea,
+  steel: 0x8d989c,
   /** The boxes between the tiers, and the commentary box's window. */
-  glass: 0x3e6172,
+  glass: 0x5f7380,
   /** The seats behind the sightscreen, covered over, and the sightscreen itself. */
   cover: 0xf4f3ee,
   /** The roof's underside: see `soffitFinish`. */
@@ -133,7 +133,7 @@ export function stadium(world: THREE.Object3D): StadiumLights {
   const body = new THREE.CylinderGeometry(.23, .27, .43, 6).scale(1, 1, .78);
   // Seated torsos never expose their undersides. Keep the shoulders capped.
   body.setDrawRange(0, body.groups[2].start);
-  const crowd = new THREE.InstancedMesh(body, soft(0xffffff), seats.length);
+  const crowd = new THREE.InstancedMesh(body, mat(0xffffff), seats.length);
   const heads = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.15, 0).translate(0, .32, 0), soft(0xe0b692), seats.length);
   seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(colours[i])); });
   seats.forEach((matrix, i) => heads.setMatrixAt(i, matrix));

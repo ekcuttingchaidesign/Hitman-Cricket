@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PerformanceReadout } from './performance';
 import { buildWicket } from './wicket';
+import { grassDetail } from './grassDetail';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
 import { ACTION_MS, Bowler } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
@@ -420,7 +421,8 @@ export class GameScene {
   private createGround() {
     const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     const grass = grassTexture(70, 10, GAME.boundaryRadius, anisotropy);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
+    const blades = grassDetail(140, anisotropy);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(.65, .65), roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
     const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 });
@@ -428,7 +430,7 @@ export class GameScene {
     this.dryPitch = surface; this.anisotropy = anisotropy;
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
-    this.textures.push(grass, surface);
+    this.textures.push(grass, blades, surface);
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {

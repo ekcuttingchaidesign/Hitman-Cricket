@@ -10,22 +10,26 @@ It retains the procedural rig; it is not a finished Blender/GLB character replac
 
 ## Visual changes
 
-- A continuous shaped jersey replaces the ellipsoid torso, with a real neckline
-  and collar, repositioned back number and white Blast trousers.
-  Test whites and the Rivals kit choices remain available.
-- Neutral daylight removes some yellow from white equipment. Richer green,
-  broader mowing bands and quieter grain make the ground less noisy.
-- The pitch is less golden; Test modes keep their greener surface.
-- Cooler stadium concrete and steel, smaller clouds, and seated crowd bodies
-  with separate heads replace the audience's plain boxes.
-- Bowler and fielders share the batter's shaped jersey and collar, with chest
-  badges, back numbers, rounded faces, cap badges and fuller shoes with laces.
-  Their joint positions and bowling/fielding animations are retained.
-- Stumps now have turned crowns, painted rings and maker marks. Wooden bails
-  have barrels, grooves and narrow spigots; their animation origins are retained.
-- Small markings use simple box geometry, rigid details remain merged, and
-  distant jerseys sample the same profile with fewer vertices.
-- Night remains available, using the existing floodlight treatment.
+**Production colour grading is retained exactly.** Lighting, sky generation and
+base grass/pitch texture code are byte-identical to production `c42d03c`.
+The renderer, exposure, fog, environment settings and stadium palette match
+production too. The first experiment's cooler palette has been removed.
+`production-look-verification.json` records source comparisons and matched-camera
+pixel samples: the sampled sky, dry pitch and stadium roof match exactly.
+New geometry naturally has different highlights and shadows.
+
+- The batter has a broader shoulder line, fitted waist, less bulky trouser
+  joints, tapered thighs, a shaped cricket helmet with ear guards, and five
+  pad ribs with a flatter knee roll. White trousers are retained.
+- Bowler and fielders share the shaped jersey, collar, chest badge and back
+  number; the cap and footwear details remain.
+- Grass gains subtle blade relief from a single tiled 256×256 normal map.
+  Its production colour texture and mowing pattern remain untouched. Mipmaps
+  soften the relief into the distance, keeping it from shimmering.
+- The detailed stumps, turned wooden bails and batched seated crowd remain.
+- Shot rigs, contact points, camera and game rules are unchanged.
+
+![Matched-camera character comparison](graphics-lab/character-comparison.webp)
 
 | Production | Experiment |
 | --- | --- |
@@ -39,16 +43,15 @@ time zero, with no UI. They are **not peak gameplay costs or measured phone FPS*
 
 | Scene | Draw calls: before → after | Triangles: before → after |
 | --- | --- | --- |
-| Phone, day · 585×1266 buffer | 242 → 182 (−24.8%) | 207,074 → 195,430 (−5.6%) |
-| Phone, night · 585×1266 buffer | 245 → 185 (−24.5%) | 207,076 → 195,432 (−5.6%) |
-| Desktop, day · 1280×720 buffer | 326 → 227 (−30.4%) | 273,214 → 215,938 (−21.0%) |
+| Phone, day · 585×1266 buffer | 242 → 182 (−24.8%) | 207,074 → 196,134 (−5.3%) |
+| Phone, night · 585×1266 buffer | 245 → 185 (−24.5%) | 207,076 → 196,136 (−5.3%) |
+| Desktop, day · 1280×720 buffer | 326 → 227 (−30.4%) | 273,214 → 216,642 (−20.7%) |
 
-The character and wicket detail revision adds one phone draw and three desktop
-draws over the first experiment; triangles rise about 4%. Both measures remain
-below the production baseline.
-
-Texture counts are unchanged (7 by day, 9 by night). This adds no downloaded
-art assets to gameplay and no postprocessing passes. Geometry object counts
+The final colour/shape/grass revision retains the preceding preview's draw
+counts. The grass normal map adds one texture (8 by day, 10 by night), about
+0.33 MiB including mipmaps, and one normal-map sample in the ground shader.
+It adds no grass geometry or animation and no postprocessing passes.
+This adds no downloaded art assets to gameplay. Geometry object counts
 increase because rigid details are merged into private geometry buffers;
 that trades some buffer storage for fewer draws. It is not a claim of lower
 GPU memory use. Limb instances update a few local matrices each frame.

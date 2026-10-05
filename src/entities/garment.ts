@@ -6,13 +6,13 @@ import * as THREE from 'three';
  */
 export function jerseyGeometry(rows = 32, sides = 24) {
   const profile = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(.142, -.337, .112),
-    new THREE.Vector3(.158, -.315, .123),
-    new THREE.Vector3(.166, -.23, .132),
+    new THREE.Vector3(.164, -.337, .124),
+    new THREE.Vector3(.166, -.315, .129),
+    new THREE.Vector3(.156, -.23, .128),
     new THREE.Vector3(.181, -.12, .141),
-    new THREE.Vector3(.201, -.025, .146),
-    new THREE.Vector3(.207, .045, .142),
-    new THREE.Vector3(.175, .105, .121),
+    new THREE.Vector3(.216, -.025, .148),
+    new THREE.Vector3(.220, .045, .144),
+    new THREE.Vector3(.184, .105, .121),
     new THREE.Vector3(.108, .143, .087),
     new THREE.Vector3(.062, .165, .064),
   ]);
