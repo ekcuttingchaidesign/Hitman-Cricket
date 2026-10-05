@@ -2418,7 +2418,11 @@ export class Batter {
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);
       arm.elbow.position.copy(elbow); arm.cap.position.copy(arm.shoulder);
-      this.limbStart.copy(arm.shoulder).lerp(chest, .25);
+      // Anchor the whole sleeve opening inside the jersey, independent of
+      // the lifted IK shoulder. Otherwise raised-arm shots expose the open
+      // root ring above the sloping shoulder fabric and show the pitch through it.
+      this.limbStart.set(i === 0 ? -.09 : .09, .015, 0)
+        .applyQuaternion(this.torso.quaternion).add(chest);
       this.sleeves[i].update(this.limbStart, elbow, hand);
       // The gauntlet starts at the wrist socket, not inside the handle.
       const wrist = elbow.clone().sub(hand);
