@@ -1461,7 +1461,7 @@ export class Batter {
     // shoulders sounds right but breaks the surface all the way round and, once
     // the batter bends forward, humps out behind the neck. The deltoid caps on
     // the arms carry the shoulder line instead.
-    this.mesh(this.hips, this.palette.trousers, [.182, .13, .13], 'ball');
+    this.mesh(this.hips, this.palette.trousers, [.188, .135, .135], 'ball');
     this.mesh(this.torso, this.palette.shirt, [1, 1, 1], 'jersey');
     const neck = this.mesh(this.torso, this.palette.skin, [.115, .17, .115], 'tube'); neck.position.y = .175;
     // Jersey seam, collar, and back number make rotation legible from the camera.
@@ -1471,7 +1471,7 @@ export class Batter {
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
     this.mesh(this.head, this.palette.helmet, [1, 1, 1], 'helmet');
     this.mesh(this.head, this.palette.handle, [1, 1, 1], 'helmetRim');
-    this.mesh(this.head, this.palette.handle, [.11, .012, .01], 'soft').position.set(0, -.097, -.153);
+    this.mesh(this.head, this.palette.handle, [.11, .012, .01], 'soft').position.set(0, -.027, -.194);
     this.mesh(this.head, this.palette.helmet, [.34, .045, .20], 'soft').position.set(0, .045, .135);
     for (const y of [-.055, -.115]) {
       const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');
@@ -1543,7 +1543,7 @@ export class Batter {
       // their separate cylinders or ball joints. The surface spans the chain.
       for (const control of [arm.upper, arm.lower, arm.elbow, arm.cap, leg.thigh, leg.shin, leg.knee, leg.cap]) control.visible = false;
       const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.072, .062, .046]);
-      const trouser = new BendingLimb(this.palette.trousers, [.076, .082, .066]);
+      const trouser = new BendingLimb(this.palette.trousers, [.103, .082, .066]);
       this.sleeves.push(sleeve); this.trouserLegs.push(trouser);
       this.root.add(sleeve.mesh, trouser.mesh);
     }
@@ -2462,7 +2462,8 @@ export class Batter {
       this.segment(leg.thigh, hipJoint, knee, .175, .19);
       this.segment(leg.shin, knee, foot, .145, .16);
       leg.knee.position.copy(knee); leg.cap.position.copy(hipJoint);
-      this.limbStart.copy(hipJoint).lerp(hip, .28).addScaledVector(spine, .06);
+      // Bury the fuller thigh roots inside the pelvis for a continuous trouser silhouette.
+      this.limbStart.copy(hipJoint).lerp(hip, .5).addScaledVector(spine, .09);
       this.trouserLegs[i].update(this.limbStart, knee, foot);
       const lowerAxis = knee.clone().sub(foot).normalize();
       const shoeYaw = i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);

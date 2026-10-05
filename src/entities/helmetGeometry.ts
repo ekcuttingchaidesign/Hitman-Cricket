@@ -3,7 +3,8 @@ import * as THREE from 'three';
 /** +Z faces the bat. A raised nape opening interrupts the rear rim. */
 function shellPoint(angle: number, t: number) {
   const front = Math.max(0, Math.cos(angle)), back = Math.max(0, -Math.cos(angle));
-  const rimY = .035 * front ** 4 - .12 * Math.sin(angle) ** 2 - .10 * back + .025 * back ** 4;
+  // Broad rear lift exposes the nape without turning the lower shell into a tall collar.
+  const rimY = .035 * front ** 4 - .12 * Math.sin(angle) ** 2 - .035 * back + .02 * back ** 4;
   const phi = t * Math.acos((rimY - .024) / .184);
   return new THREE.Vector3(.183 * Math.sin(phi) * Math.sin(angle),
     .024 + .184 * Math.cos(phi), -.012 + .19 * Math.sin(phi) * Math.cos(angle));
