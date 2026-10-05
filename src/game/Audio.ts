@@ -115,7 +115,7 @@ export class GameAudio {
   private fade = 0;
   private backgrounded = false;
   private files = [
-    ['hit', new URL('../assets/normal-hit.aac', import.meta.url)],
+    ['hit', new URL('../assets/normal-hit.mp3', import.meta.url)],
     ['boundary', new URL('../assets/boundary-hit.mp3', import.meta.url)],
     ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
     ['edge', new URL('../assets/bat-edge.mp3', import.meta.url)],
