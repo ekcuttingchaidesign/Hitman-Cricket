@@ -1471,7 +1471,6 @@ export class Batter {
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
     this.mesh(this.head, this.palette.helmet, [1, 1, 1], 'helmet');
     this.mesh(this.head, this.palette.handle, [1, 1, 1], 'helmetRim');
-    this.mesh(this.head, this.palette.handle, [.11, .012, .01], 'soft').position.set(0, -.060, -.184);
     this.mesh(this.head, this.palette.helmet, [.34, .045, .20], 'soft').position.set(0, .045, .135);
     for (const y of [-.055, -.115]) {
       const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');

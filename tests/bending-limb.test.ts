@@ -31,7 +31,7 @@ it('keeps a connected, outward-facing limb through straight and bent poses witho
 it('curves the rear rim into a smile while clearing the neck and retaining outward normals', () => {
   const geometry = helmetGeometry(), p = geometry.getAttribute('position'), n = geometry.getAttribute('normal');
   const centre = p.getY(20 * 41 + 20);
-  expect(centre).toBeGreaterThan(-.06);
+  expect(centre).toBeGreaterThan(-.09);
   for (const side of [10, 30]) expect(p.getY(20 * 41 + side) - centre).toBeGreaterThan(.03);
   for (let i = 11; i <= 20; i++) expect(p.getY(20 * 41 + i)).toBeLessThan(p.getY(20 * 41 + i - 1));
   const front = 10 * 41;

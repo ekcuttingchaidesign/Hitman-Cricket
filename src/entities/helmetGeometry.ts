@@ -5,7 +5,7 @@ function shellPoint(angle: number, t: number) {
   const front = Math.max(0, Math.cos(angle)), back = Math.max(0, -Math.cos(angle));
   // A shallow smile from behind: low at the centre, high at either corner.
   // Keep the whole rear edge clear of the neck rather than cutting an arch into it.
-  const rimY = .035 * front ** 2 - .015 * (1 - front ** 2) - .035 * back ** 2;
+  const rimY = .035 * front ** 2 - .04 * (1 - front ** 2) - .035 * back ** 2;
   const phi = t * Math.acos((rimY - .024) / .184);
   return new THREE.Vector3(.183 * Math.sin(phi) * Math.sin(angle),
     .024 + .184 * Math.cos(phi), -.012 + .19 * Math.sin(phi) * Math.cos(angle));

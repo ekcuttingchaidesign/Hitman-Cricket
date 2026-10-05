@@ -24,12 +24,13 @@ New geometry naturally has different highlights and shadows.
   surfaces; the separate shoulder, elbow, hip and knee balls are no longer
   rendered. The existing IK controls and shot/contact poses are retained.
 - The helmet now has an oval dome, a shallow smile-shaped rear edge, a thin
-  edge trim and a small rear adjuster. The flat lower wall and bulky side
+  edge trim. The rear adjuster has been removed for a clean silhouette. The flat lower wall and bulky side
   blocks have been removed. Rear and side references: [Masuri C-Line](https://www.masuri.com/products/os2-legacy-steel-cricket-helmet)
   and [Masuri E-Line](https://www.masuri.com/products/original-series-mk2-elite-titanium-cricket-helmet).
   Following the latest correction, the back edge dips at the centre and
   rises toward both sides. The previous upward central arch is removed.
-  The rim still clears the neck; the adjuster follows the new centre edge.
+  The rear rim has been lowered another 0.025 model metres to cover more
+  of the back of the head while retaining some neck clearance.
   Upper thighs are fuller and taper toward the knees, with their roots tucked
   into a slightly broader pelvis. These proportion changes add no geometry,
   draws, materials or animation work.
@@ -43,7 +44,7 @@ New geometry naturally has different highlights and shadows.
 - The detailed stumps, turned wooden bails and batched seated crowd remain.
 - Shot rigs, contact points, camera and game rules are unchanged.
 
-![Corrected rear helmet curve](graphics-lab/helmet-smile-comparison.webp)
+![Corrected rear helmet curve](graphics-lab/helmet-fit-comparison.webp)
 
 ![Matched-camera character comparison](graphics-lab/character-comparison.webp)
 
@@ -59,9 +60,9 @@ time zero, with no UI. They are **not peak gameplay costs or measured phone FPS*
 
 | Scene | Draw calls: before → after | Triangles: before → after |
 | --- | --- | --- |
-| Phone, day · 585×1266 buffer | 242 → 174 (−28.1%) | 207,074 → 206,578 (−0.2%) |
-| Phone, night · 585×1266 buffer | 245 → 177 (−27.8%) | 207,076 → 206,580 (−0.2%) |
-| Desktop, day · 1280×720 buffer | 326 → 219 (−32.8%) | 273,214 → 227,086 (−16.9%) |
+| Phone, day · 585×1266 buffer | 242 → 174 (−28.1%) | 207,074 → 206,278 (−0.4%) |
+| Phone, night · 585×1266 buffer | 245 → 177 (−27.8%) | 207,076 → 206,280 (−0.4%) |
+| Desktop, day · 1280×720 buffer | 326 → 219 (−32.8%) | 273,214 → 226,786 (−17.0%) |
 
 The continuous limb surfaces and removal of visible joint meshes save eight
 net draw calls against the preceding preview, including the new grass draw.
@@ -106,7 +107,7 @@ continues using the repository's existing preview database namespace.
 - TypeScript and production build, including serverless function import checks.
 - Latest helmet curve: build and 5 geometry/batching tests passed, with
   day/night phone and desktop renders free of browser/shader errors.
-  Draw calls and triangle counts are unchanged.
+  Draw calls are unchanged; removing the adjuster saves 300 rendered triangles.
 - Preceding neck/thigh refinement: 145 batter and geometry tests passed;
   deterministic phone day/night and desktop captures retain the same render counts.
 - 213 batter, bowler, fielder and geometry tests passed for this revision,
