@@ -11,13 +11,20 @@ It retains the procedural rig; it is not a finished Blender/GLB character replac
 ## Visual changes
 
 - A continuous shaped jersey replaces the ellipsoid torso, with a real neckline
-  and collar, repositioned back number and coordinated navy Blast trousers.
+  and collar, repositioned back number and white Blast trousers.
   Test whites and the Rivals kit choices remain available.
 - Neutral daylight removes some yellow from white equipment. Richer green,
   broader mowing bands and quieter grain make the ground less noisy.
 - The pitch is less golden; Test modes keep their greener surface.
 - Cooler stadium concrete and steel, smaller clouds, and seated crowd bodies
   with separate heads replace the audience's plain boxes.
+- Bowler and fielders share the batter's shaped jersey and collar, with chest
+  badges, back numbers, rounded faces, cap badges and fuller shoes with laces.
+  Their joint positions and bowling/fielding animations are retained.
+- Stumps now have turned crowns, painted rings and maker marks. Wooden bails
+  have barrels, grooves and narrow spigots; their animation origins are retained.
+- Small markings use simple box geometry, rigid details remain merged, and
+  distant jerseys sample the same profile with fewer vertices.
 - Night remains available, using the existing floodlight treatment.
 
 | Production | Experiment |
@@ -32,9 +39,13 @@ time zero, with no UI. They are **not peak gameplay costs or measured phone FPS*
 
 | Scene | Draw calls: before → after | Triangles: before → after |
 | --- | --- | --- |
-| Phone, day · 585×1266 buffer | 242 → 181 (−25.2%) | 207,074 → 188,254 (−9.1%) |
-| Phone, night · 585×1266 buffer | 245 → 184 (−24.9%) | 207,076 → 188,256 (−9.1%) |
-| Desktop, day · 1280×720 buffer | 326 → 224 (−31.3%) | 273,214 → 207,082 (−24.2%) |
+| Phone, day · 585×1266 buffer | 242 → 182 (−24.8%) | 207,074 → 195,430 (−5.6%) |
+| Phone, night · 585×1266 buffer | 245 → 185 (−24.5%) | 207,076 → 195,432 (−5.6%) |
+| Desktop, day · 1280×720 buffer | 326 → 227 (−30.4%) | 273,214 → 215,938 (−21.0%) |
+
+The character and wicket detail revision adds one phone draw and three desktop
+draws over the first experiment; triangles rise about 4%. Both measures remain
+below the production baseline.
 
 Texture counts are unchanged (7 by day, 9 by night). This adds no downloaded
 art assets to gameplay and no postprocessing passes. Geometry object counts
@@ -74,10 +85,10 @@ continues using the repository's existing preview database namespace.
 ## Validation
 
 - TypeScript and production build, including serverless function import checks.
-- 237 targeted batter, bowler, fielder, grounds, lighting, analytics and new geometry tests passed.
+- 238 targeted batter, bowler, fielder, grounds, lighting, analytics and new geometry tests passed.
 - Deterministic day/night/desktop captures with no shader or browser errors.
 - Full-game scene checks exercise the actual cover → mode → innings flow.
-  Stadium draws were 435/392 by day and 455/412 at night (desktop/phone).
-  The stadium regression budget is lowered from 680 to 500 calls per frame.
+  All stadium cases remain within the 500-call regression budget, lowered
+  from production's 680 calls per frame.
 
 No production branch was pushed, merged or redeployed for this experiment.

@@ -4,7 +4,7 @@ import * as THREE from 'three';
  * Authored in the existing rig's coordinates so no stroke or contact point moves.
  * The profile is continuous; there is no second chest shell intersecting it.
  */
-export function jerseyGeometry() {
+export function jerseyGeometry(rows = 32, sides = 24) {
   const profile = new THREE.CatmullRomCurve3([
     new THREE.Vector3(.142, -.337, .112),
     new THREE.Vector3(.158, -.315, .123),
@@ -16,7 +16,6 @@ export function jerseyGeometry() {
     new THREE.Vector3(.108, .143, .087),
     new THREE.Vector3(.062, .165, .064),
   ]);
-  const rows = 32, sides = 24;
   const vertices: number[] = [], uv: number[] = [], indices: number[] = [];
   for (let j = 0; j <= rows; j++) {
     const p = profile.getPoint(j / rows);

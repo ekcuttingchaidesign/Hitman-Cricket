@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PerformanceReadout } from './performance';
+import { buildWicket } from './wicket';
 import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT } from '../entities/Batter';
 import { ACTION_MS, Bowler } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
@@ -474,11 +475,8 @@ export class GameScene {
     }
   }
   private wicket(z: number) {
-    for (const x of [-0.145, 0, 0.145]) cylinder(this.world, 0.025, GAME.stumpHeight, colors.white, x, GAME.stumpHeight / 2, z, 16);
-    for (const x of [-0.073, 0.073]) {
-      const bail = box(this.world, 0.16, 0.035, 0.045, colors.orange, x, GAME.stumpHeight + 0.02, z);
-      if (z === 0) this.bails.push(bail);
-    }
+    const bails = buildWicket(this.world, GAME.stumpHeight, z);
+    if (z === 0) this.bails.push(...bails);
   }
   private resize = () => {
     const { width, height } = this.container.getBoundingClientRect();

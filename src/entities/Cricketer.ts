@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { jerseyGeometry } from './garment';
 import { compactRigidParts, LimbInstances } from './compactParts';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
@@ -58,19 +59,6 @@ export const SPINE = .46;
 /** Hip height stood upright, with the legs very nearly straight. */
 export const REST_HIP = .9525;
 
-/**
- * A surface of revolution from a bottom-to-top `[height, radius]` profile,
- * flattened front to back. One of these is a whole trunk — shoulders, ribs,
- * waist and neck in a single unbroken skin — where a stack of ellipsoids leaves
- * a seam at every join and reads as exactly what it is.
- */
-function lathe(profile: [number, number][], depth: number, segments = 32) {
-  const geometry = new THREE.LatheGeometry(profile.map(([y, r]) => new THREE.Vector2(Math.max(r, .002), y)), segments);
-  geometry.scale(1, 1, depth);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
 const SHAPES = {
   ball: new THREE.SphereGeometry(1, 16, 12),
   /**
@@ -82,22 +70,11 @@ const SHAPES = {
   limb: new THREE.CylinderGeometry(.5, .62, 1, 12, 1),
   tube: new THREE.CylinderGeometry(.5, .5, 1, 12, 1),
   soft: new RoundedBoxGeometry(1, 1, 1, 2, .3),
-  /** Shoulders down to the waist, and up into the neck, in one piece. */
-  trunk: lathe([
-    [-.34, .02], [-.325, .112], [-.27, .142], [-.17, .163], [-.05, .190],
-    [.055, .201], [.125, .186], [.170, .140], [.200, .098],
-    [.245, .072], [.300, .067], [.325, .02],
-  ], .74),
-  /** The pelvis, wide enough at the top for the trunk to tuck inside it. */
-  pelvis: lathe([
-    [-.20, .02], [-.185, .098], [-.125, .146], [-.02, .170], [.075, .167],
-    [.150, .150], [.200, .092], [.225, .02],
-  ], .80),
-  /** A head, rather than a ball with a jaw stuck under it. */
-  head: lathe([
-    [-.160, .02], [-.144, .066], [-.112, .105], [-.058, .129],
-    [.011, .139], [.075, .132], [.126, .099], [.158, .02],
-  ], .92),
+  // Thin sewn details need only six faces; keep rounding for large forms.
+  detail: new THREE.BoxGeometry(1, 1, 1),
+  // Same profile as the batter, sampled more sparsely for distant players.
+  trunk: jerseyGeometry(24, 20),
+  collar: new THREE.TorusGeometry(.071, .012, 6, 24).rotateX(Math.PI / 2),
 };
 
 export interface Kit {
@@ -172,19 +149,21 @@ export class Cricketer {
     this.root.name = 'Articulated cricketer';
     this.root.add(this.hips, this.torso, this.head);
 
-    // Trunk and pelvis are one lathed skin each, and they overlap at the waist
-    // with the trunk tucked inside the wider pelvis, so the join is buried
-    // rather than shown. The neck is part of the trunk for the same reason.
+    // Match the batter's jersey, preserving the existing animation anchors.
     this.mesh(this.torso, shirt, [1, 1, 1], 'trunk');
-    this.mesh(this.hips, trousers, [1, 1, 1], 'pelvis');
-    // Collar and placket, so a turning body reads as turning.
-    this.mesh(this.torso, trim, [.172, .036, .166], 'tube').position.y = .196;
-    this.mesh(this.torso, trim, [.034, .26, .012], 'soft').position.set(0, .01, .142);
-    this.mesh(this.torso, skin, [.128, .10, .118], 'tube').position.y = .27;
+    this.mesh(this.hips, trousers, [.185, .145, .135], 'ball');
+    this.mesh(this.torso, trim, [1, 1, .93], 'collar').position.y = .154;
+    this.mesh(this.torso, trim, [.024, .06, .008], 'detail').position.set(0, .105, .123);
+    this.mesh(this.torso, skin, [.115, .17, .115], 'tube').position.y = .205;
+    // Club badge and a sewn back number, baked into the collar's trim mesh.
+    this.mesh(this.torso, trim, [.035, .043, .008], 'detail').position.set(-.087, .015, .134);
+    for (const x of [-.055, .055]) this.mesh(this.torso, trim, [.028, .125, .008], 'detail').position.set(x, -.04, -.143);
 
-    // Head: one shape, with the cap sitting on it.
-    this.mesh(this.head, skin, [1, 1, 1], 'head');
+    // Rounded face and jaw follow the batter, with a fielding cap.
+    this.mesh(this.head, skin, [.139, .17, .14], 'ball').position.y = -.015;
+    this.mesh(this.head, skin, [.069, .08, .058], 'ball').position.set(0, -.09, .075);
     for (const x of [-.127, .127]) this.mesh(this.head, skin, [.024, .044, .034], 'ball').position.set(x, -.005, -.012);
+    this.mesh(this.head, skin, [.023, .037, .036], 'ball').position.set(0, -.033, .126);
     const cap = material(kit.cap, .74);
     this.palette.push({ role: 'cap', mat: cap });
     this.mesh(this.head, cap, [.144, .128, .152], 'ball').position.set(0, .050, -.004);
@@ -192,7 +171,8 @@ export class Cricketer {
     // dome. A band round a sphere would ring the whole head like a crest.
     const peak = this.mesh(this.head, cap, [.152, .030, .150], 'ball');
     peak.position.set(0, .046, .072); peak.rotation.x = -.18;
-    this.mesh(this.head, cap, [.027, .027, .027], 'ball').position.set(0, .164, -.004);
+    this.mesh(this.head, cap, [.019, .014, .019], 'ball').position.set(0, .175, -.004);
+    this.mesh(this.head, trim, [.032, .033, .009], 'detail').position.set(0, .101, .135);
 
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? -1 : 1;
@@ -214,10 +194,11 @@ export class Cricketer {
       this.mesh(this.arms[i].upper, trim, [1.04, .075, 1.04], 'tube').position.y = -.30;
 
       const foot = new THREE.Group(); this.root.add(foot);
-      this.mesh(foot, shoe, [.09, .062, .165], 'soft').position.z = .042;
-      this.mesh(foot, shoe, [.046, .034, .036], 'ball').position.set(0, -.012, .128);
-      this.mesh(foot, sole, [.092, .024, .167], 'soft').position.set(0, -.038, .042);
-      this.mesh(foot, flash, [.094, .016, .05], 'soft').position.set(0, .014, 0);
+      this.mesh(foot, shoe, [.15, .10, .26], 'soft').position.z = .042;
+      this.mesh(foot, shoe, [.071, .047, .07], 'ball').position.set(0, -.012, .143);
+      this.mesh(foot, sole, [.154, .026, .28], 'soft').position.set(0, -.052, .052);
+      this.mesh(foot, flash, [.153, .018, .07], 'soft').position.set(0, .027, .02);
+      for (const z of [.07, .10, .13]) this.mesh(foot, shoe, [.066, .008, .01], 'detail').position.set(0, .053, z);
       this.legs.push({
         upper: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),
         lower: this.mesh(this.root, trousers, [1, 1, 1], 'limb'),

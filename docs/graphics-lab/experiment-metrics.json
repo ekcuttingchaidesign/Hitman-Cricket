@@ -1,46 +1,46 @@
 [
   {
     "name": "phone-day",
-    "calls": 181,
-    "triangles": 188254,
-    "geometries": 100,
+    "calls": 182,
+    "triangles": 195430,
+    "geometries": 96,
     "textures": 7,
     "drawingBuffer": [
       585,
       1266
     ],
-    "medianSubmitMs": 5.2000000001862645,
-    "p95SubmitMs": 11.399999999906868,
+    "medianSubmitMs": 7.699999999254942,
+    "p95SubmitMs": 42.5,
     "renderer": "WebKit WebGL",
     "errors": []
   },
   {
     "name": "phone-night",
-    "calls": 184,
-    "triangles": 188256,
-    "geometries": 109,
+    "calls": 185,
+    "triangles": 195432,
+    "geometries": 105,
     "textures": 9,
     "drawingBuffer": [
       585,
       1266
     ],
-    "medianSubmitMs": 5.099999999627471,
-    "p95SubmitMs": 13,
+    "medianSubmitMs": 8.799999999813735,
+    "p95SubmitMs": 16.799999999813735,
     "renderer": "WebKit WebGL",
     "errors": []
   },
   {
     "name": "desktop-day",
-    "calls": 224,
-    "triangles": 207082,
-    "geometries": 100,
+    "calls": 227,
+    "triangles": 215938,
+    "geometries": 96,
     "textures": 7,
     "drawingBuffer": [
       1280,
       720
     ],
-    "medianSubmitMs": 9.899999999906868,
-    "p95SubmitMs": 15.299999999813735,
+    "medianSubmitMs": 10.700000000186265,
+    "p95SubmitMs": 30.100000000558794,
     "renderer": "WebKit WebGL",
     "errors": []
   }

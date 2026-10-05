@@ -1352,7 +1352,7 @@ export type BatterKit = 'home' | 'whites' | 'green' | 'purple' | 'blue';
 export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number; number: number }> = {
   // A mid navy: the near-black it replaced lost the shape of the shirt under the
   // day's light, and a navy he can be seen in is still a navy.
-  home: { shirt: 0x2f5a88, helmet: 0x2a527c, trousers: 0x294f79, accent: 0xed7044, number: 0xed7044 },
+  home: { shirt: 0x2f5a88, helmet: 0x2a527c, trousers: 0xf4f0e4, accent: 0xed7044, number: 0xed7044 },
   whites: { shirt: 0xf2ece0, helmet: 0x2a527c, trousers: 0xf4f0e4, accent: 0xd9d3c3, number: 0xd9d3c3 },
   green: { shirt: 0x0a2f24, helmet: 0x09291f, trousers: 0xf1eee6, accent: 0x061c15, number: 0xffffff },
   purple: { shirt: 0x5a2fb4, helmet: 0x4d27a3, trousers: 0xf1eee6, accent: 0x3f1e86, number: 0xffffff },
@@ -1416,7 +1416,7 @@ export class Batter {
     // Matte: a helmet's shell is covered in fabric, so it takes the light the
     // way the cap would rather than shining like a motorbike lid.
     helmet: new THREE.MeshStandardMaterial({ color: 0x2a527c, roughness: .64 }),
-    trousers: new THREE.MeshStandardMaterial({ color: 0x294f79, roughness: .82 }),
+    trousers: new THREE.MeshStandardMaterial({ color: 0xf4f0e4, roughness: .82 }),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
