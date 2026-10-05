@@ -33,7 +33,7 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
-/** A page past the notices and the covers, on a clock wound by hand, at the mode picker. */
+/** A page past the notices, on a clock wound by hand, at the mode picker. */
 async function open(options) {
   const page = await browser.newPage(options);
   const errors = [];
@@ -44,7 +44,6 @@ async function open(options) {
     try {
       localStorage.setItem('hitman-seen', day);
       localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
-      localStorage.setItem('hitman-unveiled', 'ground-stadium');
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({

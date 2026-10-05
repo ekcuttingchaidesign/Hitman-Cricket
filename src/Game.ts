@@ -57,7 +57,6 @@ import type { LocalCareer } from './ui/Restore';
 import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
-import { unveilDue } from './game/unveil';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, type Granted } from './game/tier';
 import { openFeedback } from './ui/Feedback';
@@ -1042,24 +1041,11 @@ export class Game {
   choose = (mode: GameMode) => { this.mode = mode; this.walkOut(); };
   /**
    * An innings chosen, by whichever way a player chose it: the picker, a link
-   * that named the mode, or the tutorial's way out.
-   *
-   * The first time, the covers go up before it: the old ground, and a line to
-   * pull it off with. Here rather than on the cover's play key, because the new
-   * ground is shown off to somebody about to bat on it — the cover and the
-   * picker are menus, and a reveal in front of a menu is a reveal of nothing
-   * in particular. The play key under the new ground then starts the innings
-   * it was put up in front of.
+   * that named the mode, or the tutorial's way out. The first one used to put
+   * the old ground up first, to be swiped off the new one; the stadium is
+   * nobody's news any more, so a player now walks straight out to bat.
    */
-  private walkOut = () => this.unveiled(this.start);
-  /** Put up at most once a visit, so pictures that never load cannot put it up in a loop. */
-  private unveilAsked = false;
-  private unveiled(then: () => void) {
-    if (this.unveilAsked || !unveilDue()) return then();
-    this.unveilAsked = true;
-    this.mark('unveil', 'New ground shown');
-    this.hud.unveil(then);
-  }
+  private walkOut = () => this.start();
   start = () => {
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
@@ -1943,9 +1929,6 @@ export class Game {
     // them, so they answer first. Without this Enter started an innings behind
     // them — and then started it again on the way out — 'B' opened the board
     // underneath, and Esc closed the board the player had come from.
-    // The covers answer nothing but their own keys: there is no way past them
-    // but pulling them off, and the line and the play key take their own.
-    if (this.hud.unveilOpen) return;
     if (this.hud.storiesOpen) {
       if (key === 'ESCAPE') { event.preventDefault(); this.hud.closeStories(); }
       return;
@@ -3049,10 +3032,6 @@ export class Game {
    */
   private startMatchInnings(resume: boolean) {
     if (!this.player) return;
-    // The covers first, the first time, over the room: the innings below them
-    // is set up only once they are off, so the room is still there to go back
-    // to until then.
-    if (!this.unveilAsked && unveilDue()) return this.unveiled(() => this.startMatchInnings(resume));
     this.matchCard = null;
     this.hud.closeRoom();
     this.challenge.beginInnings(this.player);

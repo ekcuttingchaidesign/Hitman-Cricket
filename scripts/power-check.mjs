@@ -70,7 +70,6 @@ for (const [name, options] of [
   // A first visit, as milestone-check is and for its reason: a returning
   // visitor's page in a headless browser never starts a CSS animation.
   await page.addInitScript(() => {
-    try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ }
     const later = window.setTimeout;
     window.__timerScale = 1;
     window.setTimeout = (fn, ms, ...rest) => later(fn, (ms ?? 0) * window.__timerScale, ...rest);
@@ -209,7 +208,6 @@ for (const [name, options] of [
     try {
       localStorage.setItem('hitman-seen', day);
       localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
-      localStorage.setItem('hitman-unveiled', 'ground-stadium');
     } catch { /* Then the notices stand. */ }
   });
   await page.route('**/api/board**', route => route.fulfill({

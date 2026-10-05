@@ -99,8 +99,6 @@ for (const [name, options] of [
   // would never draw on and the pictures would show a bare field. The
   // private-window notice that a first visit gets is answered below instead.
   await page.addInitScript(() => {
-    // The covers have come off already: unveil-check is the one that pulls them.
-    try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ }
     // How long each crowd clip was scheduled for, from start to stop: the cheer
     // is the one clip three and a half seconds long.
     window.__cheers = [];

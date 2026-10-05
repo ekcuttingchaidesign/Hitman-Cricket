@@ -38,7 +38,6 @@ await page.addInitScript(() => {
   try {
     localStorage.setItem('hitman-seen', day);
     localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
-    localStorage.setItem('hitman-unveiled', 'ground-stadium');
   } catch { /* Then the notices stand. */ }
 });
 await page.route('**/api/**', route => route.fulfill({

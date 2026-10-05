@@ -78,8 +78,7 @@ innings — which is how most players get to that card in the first place.
 are canvases and a shader no unit test runs, and it holds the draw-call budget
 a frame. Lower its `BUDGET` when a change brings the count down. It walks both
 grounds — the stadium every mode plays in, and the bowl before it,
-which `?ground=bowl` still builds and which is kept for that and for the
-covers — and the stadium both by day and by night. The Blast follows the
+which `?ground=bowl` still builds and which is kept for that — and the stadium both by day and by night. The Blast follows the
 device's clock — night from six in the evening to seven in the morning — so a
 check that judges the ground's colours in a Blast innings without saying
 which is judging whatever the machine's clock says; `?lights=day` or
@@ -126,15 +125,6 @@ It writes the innings out ball by ball through the debug hook with the real one
 paused underneath, and slows the page's timers while it photographs a card on
 its way off — software rendering can spend a card's whole exit between two
 steps of a script.
-
-`scripts/unveil-check.mjs` is the covers: the first innings chosen, in any
-mode, puts the old ground up and a swipe pulls it off. Every other check that
-starts an innings seeds `hitman-unveiled` so it starts past them, which means this is the only
-one that sees them — keep that seed out of it. The two pictures are the same
-ball on the ground before and the ground after; `scripts/unveil-shots.mjs`
-retakes both together on one build, or the line stops lining up. A new pair
-wants a new `REVEAL` in `src/game/unveil.ts`, and the same key in every check
-that seeds it.
 
 `scripts/marathon-check.mjs` is Test Marathon, entered first by its card on
 Select Mode (there off production only) and then twice by `?mode=marathon`: the

@@ -90,7 +90,6 @@ const declareShown = () => page.locator('#declare').isVisible();
 await page.addInitScript(() => {
   const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
   try { localStorage.setItem('hitman-seen', day); } catch { /* Then it is a first visit. */ }
-  try { localStorage.setItem('hitman-unveiled', 'ground-stadium'); } catch { /* Then they stand in the way. */ }
 });
 
 await page.clock.install();
