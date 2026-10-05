@@ -36,7 +36,7 @@ let timers: (() => void)[] = [];
 /** Runs whatever the fade-in scheduled, the way a real 220 ms would. */
 const settle = () => { const due = timers; timers = []; due.forEach(fn => fn()); };
 
-const cover = () => FakeAudio.made.find(element => element.src.includes('start_screen'));
+const cover = () => FakeAudio.made.find(element => element.src.includes('Shining_Down'));
 const result = () => FakeAudio.made.find(element => element.src.includes('survival_glory'));
 
 beforeEach(() => {
@@ -70,7 +70,7 @@ describe('the music a screen owns', () => {
   it('plays the cover track, looped, the moment the cover asks for it', () => {
     const audio = new GameAudio();
     audio.music('cover');
-    expect(cover()!.src).toBe('Hitman_start_screen.aac');
+    expect(cover()!.src).toBe('Shining_Down_Loop.aac');
     expect(cover()!.loop).toBe(true);
     expect(cover()!.calls).toEqual(['play']);
     expect(cover()!.muted).toBe(false);
@@ -376,7 +376,7 @@ describe('the music through the context', () => {
     const audio = new GameAudio();
     clock = null; audio.music('cover'); clock!.allow = true; clock!.state = 'running';
     await land();
-    expect(fetched.filter(url => url.includes('start_screen'))).toHaveLength(1);
+    expect(fetched.filter(url => url.includes('Shining_Down'))).toHaveLength(1);
     expect(music()).toHaveLength(1);
     expect(music()[0].source.started).toEqual([0, 0]);
     expect(music()[0].gain.value).toBe(.5);

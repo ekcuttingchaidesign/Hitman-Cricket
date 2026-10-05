@@ -25,7 +25,7 @@ export type Track = 'cover' | 'result';
  * does not try to carry two megabytes of music as a data URI.
  */
 const TRACKS: Record<Track, string> = {
-  cover: 'Hitman_start_screen.aac',
+  cover: 'Shining_Down_Loop.aac',
   result: 'test_survival_glory.aac',
 };
 /**
