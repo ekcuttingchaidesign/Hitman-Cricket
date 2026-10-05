@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MARATHON_CAREER, emptyMarathon, mergeMarathon, readMarathonTally, runsPerInnings, type MarathonCareer, type MarathonTally,
+  MARATHON_CAREER, emptyMarathon, mergeMarathon, rankCareer, readMarathonTally, runsPerInnings, type MarathonCareer, type MarathonTally,
 } from '../src/game/career';
 import { countInnings, readCareer, readCareerBoards } from '../src/server/career-store';
 import { memoryCareer } from '../src/server/memory-career';
+import { foldName } from '../src/server/board-store';
 import { MARATHON_RED, TIERS, cardTheme, nextLine, standingOf } from '../src/game/tier';
 import { statsAlt, statsExplain, statsFacts } from '../src/game/StatsCard';
 
@@ -79,9 +80,36 @@ describe('the Marathon career store', () => {
     expect(refused).toMatchObject({ ok: false, status: 400 });
   });
 
-  it('has no career ladders of its own yet, and answers for them with none', async () => {
-    expect(MARATHON_CAREER.boards).toEqual([]);
-    expect((await readCareerBoards(memoryCareer<MarathonCareer>(), MARATHON_CAREER)).boards).toEqual({});
+  it('ranks career runs on one ladder of its own, named players only', async () => {
+    expect(MARATHON_CAREER.boards.map(board => board.key)).toEqual(['runs']);
+    // The name is the board's to hand out: held here as the registry holds it.
+    const store = memoryCareer<MarathonCareer>(new Map([[foldName('Opener'), 'abcdef2-0123456789ab']]));
+    // Nameless: counted and kept, ranked nowhere until a name is claimed.
+    await countInnings(store, MARATHON_CAREER, { ...who, nonce: 'innings-0101', tally: allOut() }, 1_000_000);
+    expect((await readCareerBoards(store, MARATHON_CAREER)).boards).toEqual({ runs: [] });
+    const named = { ...who, playerId: 'abcdef2-0123456789ab', name: 'Opener', avatar: 2 };
+    await countInnings(store, MARATHON_CAREER, { ...named, nonce: 'innings-0102', tally: allOut() }, 2_000_000);
+    await countInnings(store, MARATHON_CAREER, { ...named, nonce: 'innings-0103', tally: allOut() }, 3_000_000);
+    const { boards } = await readCareerBoards(store, MARATHON_CAREER);
+    expect(boards.runs).toHaveLength(1);
+    expect(boards.runs[0]).toMatchObject({ name: 'Opener', career: { runs: 542, innings: 2, fours: 58, sixes: 26 } });
+  });
+
+  it('splits level totals on who took fewer innings', () => {
+    const [runs] = MARATHON_CAREER.boards;
+    const quick = { ...emptyMarathon(), runs: 1000, innings: 3 };
+    const slow = { ...emptyMarathon(), runs: 1000, innings: 9 };
+    expect(rankCareer(runs, quick, 0)).toBeGreaterThan(rankCareer(runs, slow, 0));
+    expect(rankCareer(runs, { ...slow, runs: 1001 }, 0)).toBeGreaterThan(rankCareer(runs, quick, 0));
+    expect(runs.counts(emptyMarathon())).toBe(false);
+  });
+
+  it('shows runs, innings, fours and sixes on a row', () => {
+    const [runs] = MARATHON_CAREER.boards;
+    expect(runs.name).toBe('Runs');
+    expect(runs.figures.map(one => one.label)).toEqual(['runs', 'inns', '4s', '6s']);
+    const career = mergeMarathon(null, allOut());
+    expect(runs.figures.map(one => one.of(career))).toEqual([271, 1, 29, 13]);
   });
 });
 

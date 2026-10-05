@@ -268,11 +268,11 @@ check(unadded.status === 400, `a Marathon whose batters do not add up to the sid
 const allBoards = await Promise.all([call('/api/board'), call('/api/board?mode=survive')]);
 check(!allBoards.some(one => one.body?.rows?.some(r => r.playerId === marathoner)),
   'and the Marathon innings is on neither of the other boards', allBoards.map(one => one.body?.rows?.find(r => r.playerId === marathoner)));
-// The Marathon counts a career now (My Stats' third card), and has no career
-// ladders of its own yet: the boards answer, with none on them.
+// The Marathon counts a career, and ranks it on one ladder: career runs.
 const marathonCareer = await call('/api/career?mode=marathon');
-check(marathonCareer.status === 200 && marathonCareer.body?.boards && !Object.keys(marathonCareer.body.boards).length,
-  `the Marathon's careers answer, with no ladders yet (${marathonCareer.status})`, marathonCareer.body);
+check(marathonCareer.status === 200 && Array.isArray(marathonCareer.body?.boards?.runs)
+  && Object.keys(marathonCareer.body.boards).join() === 'runs',
+  `the Marathon's careers answer with their runs ladder (${marathonCareer.status})`, marathonCareer.body);
 
 // ── A match room, made, joined and batted ──────────────────────────────────
 // Safer to run against production than everything above it: a room expires on

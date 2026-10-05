@@ -3,8 +3,8 @@ import { AVATARS } from '../config/board';
 import { LAUNCH_MS, rankKey, type BoardRow, type Innings } from './leaderboard';
 import { packSurvive, type SurviveInnings, type SurviveRow } from './survive-board';
 import {
-  BLAST_BOARDS, SURVIVE_BOARDS, emptyBlast, emptySurvive, rankCareer,
-  type BlastCareer, type CareerMode, type SurviveCareer,
+  BLAST_BOARDS, MARATHON_BOARDS, SURVIVE_BOARDS, emptyBlast, emptyMarathon, emptySurvive, rankCareer,
+  type BlastCareer, type CareerMode, type MarathonCareer, type SurviveCareer,
 } from './career';
 import type { CareerRow } from '../server/career-store';
 import type { RivalsRow } from '../server/challenge-store';
@@ -150,17 +150,36 @@ function surviveCareer(i: number): SurviveCareer {
   };
 }
 
+/** A Marathon career: long innings, so fewer of them and many more runs a time. */
+export function marathonCareer(i: number): MarathonCareer {
+  const innings = 40 - Math.floor(i / 2);
+  return {
+    ...emptyMarathon(),
+    innings,
+    runs: 9800 - i * 170,
+    balls: 4300 - i * 70,
+    fours: 980 - i * 17,
+    sixes: 330 - i * 6,
+    highest: 620 - i * 8,
+    individual: 310 - i * 4,
+    fifties: 52 - Math.floor(i * 0.8),
+    hundreds: 21 - Math.floor(i / 3),
+    doubles: Math.max(0, 4 - Math.floor(i / 8)),
+    longest: 360 - i * 4,
+  };
+}
+
 /**
  * Every career ladder of one mode, filled — the same shape `/api/career`
  * answers with, so the screen cannot tell the difference.
  */
 export function demoCareers(mode: CareerMode, youId: string | null, atMs = Date.now()) {
-  const boards: Record<string, CareerRow<BlastCareer | SurviveCareer>[]> = {};
-  const ladders = mode === 'survive' ? SURVIVE_BOARDS : BLAST_BOARDS;
+  const boards: Record<string, CareerRow<BlastCareer | SurviveCareer | MarathonCareer>[]> = {};
+  const ladders = mode === 'survive' ? SURVIVE_BOARDS : mode === 'marathon' ? MARATHON_BOARDS : BLAST_BOARDS;
   for (const board of ladders) {
     boards[board.key] = NAMES.slice(0, DEMO_ROWS)
       .map((name, i) => {
-        const career = mode === 'survive' ? surviveCareer(i) : blastCareer(i);
+        const career = mode === 'survive' ? surviveCareer(i) : mode === 'marathon' ? marathonCareer(i) : blastCareer(i);
         return {
           playerId: i === MINE && youId ? youId : idOf(i),
           name,
