@@ -153,7 +153,11 @@ if (await widget.isVisible()) {
   await widget.click({ force: true });
   await page.waitForTimeout(2500);
   const slides = await page.locator('#stats-overlay .stats-slide').count();
-  check(slides === 2, 'which opens both cards', `${slides} of them`);
+  // A card a game: the Blast and the Test match, and off production the Test
+  // Marathon third.
+  const named = await page.$$eval('#stats-overlay .stats-slide', all => all.map(one => one.getAttribute('aria-label')));
+  check(named.join(' | ') === 'The Blast | Test Survival' || named.join(' | ') === 'The Blast | Test Survival | Test Marathon',
+    'which opens a card for every game', `${slides} of them: ${named.join(' | ')}`);
   check(await page.locator('#stats-overlay #stats-rail.is-rail').count() === 1, 'on a rail to swipe');
   const at = await page.evaluate(() =>
     [...document.querySelectorAll('#stats-overlay .stats-dot')].findIndex(dot => dot.classList.contains('is-on')));
