@@ -603,6 +603,8 @@ export class GameScene {
   get mirrored() { return this.world.scale.x > 0; }
   /** The next man in, at his guard. The last one may be lying where he fell. */
   newBatter() { this.batter.reset(); }
+  /** A stroke that scored: the batter stands up, taps and settles once it is home (`Batter.settle`). */
+  settle(now: number) { this.batter.settle(now); }
   /**
    * The stands for a four or six struck, or a milestone: arms up and placards
    * across the far end. A boundary does not cut short a bigger moment still

@@ -143,6 +143,31 @@ const BACKLIFT: Pose = {
 };
 
 /**
+ * Between balls, after a stroke that scored: he straightens up out of his
+ * stance and lets the bat hang, taps it twice at the crease, and settles back
+ * down into his guard. The bat hangs from the same grip turned upright, so it
+ * is the guard's own bat brought down from his shoulder rather than a new way
+ * of holding it.
+ */
+const hanging = (toe: THREE.Vector3) => {
+  // `batUp` runs from the toe to the handle, so a hanging bat's points up.
+  const to = toe.normalize(), turn = new THREE.Quaternion().setFromUnitVectors(V(GUARD.batUp).normalize(), to);
+  return { batUp: to.toArray() as Point, batFace: V(GUARD.batFace).applyQuaternion(turn).normalize().toArray() as Point };
+};
+const SETTLE_BAT = hanging(new THREE.Vector3(-.08, 1, -.15));
+const STANDING: Pose = {
+  ...GUARD, hip: [-0.05, 0.99, -0.03], chest: [0.00, 1.37, 0.01],
+  grip: [0.24, 0.845, 0.17], ...SETTLE_BAT, yaw: 1.16, leadElbow: -.2,
+};
+/** The toe flicked up off the turf by the wrists, between the two taps. */
+const TAPPING: Pose = { ...STANDING, ...hanging(new THREE.Vector3(-.08, 1, -.42)) };
+/** When each part of it is done, after the stroke has come home. */
+const SETTLE_KEYS: [number, Pose][] = [
+  [0, GUARD], [330, STANDING], [470, TAPPING], [560, STANDING], [690, TAPPING], [780, STANDING], [1100, GUARD],
+];
+export const SETTLE_MS = SETTLE_KEYS[SETTLE_KEYS.length - 1][0];
+
+/**
  * `recover` is the way back to the guard, for a stroke whose follow-through
  * ends somewhere the bat cannot travel home from in a straight line. Blending a
  * wrapped finish directly into the pick-up sweeps the blade through the head
@@ -1355,8 +1380,18 @@ const ON_CHARGE_UNWRAP: Pose = { ...GUARD, hip: [.00, .88, .02], chest: [.02, 1.
   yaw: .24, face: -.06, heel: 0, backFootYaw: .50, leadElbow: .22,
   armHinge: .60, armDrive: 0, shoulderLift: .07 };
 
-function mix(a: Pose, b: Pose, amount: number): Pose {
-  const t = ease(THREE.MathUtils.clamp(amount, 0, 1));
+/**
+ * The two halves of a way home through a recovery pose: away from the
+ * follow-through gathering speed, and into the guard losing it. Eased at both
+ * ends as every other blend is, the bat stopped dead at the recovery pose
+ * halfway home and set off again, which is what made the return look jerky.
+ * These leave and arrive at rest as before, pass the recovery pose still
+ * moving, and are never faster than the smoothstep they replace.
+ */
+const leave = (t: number) => (3 * t * t - t * t * t) / 2;
+const arrive = (t: number) => 1 - leave(1 - t);
+function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
+  const t = curve(THREE.MathUtils.clamp(amount, 0, 1));
   const point = (x: Point, y: Point): Point => [
     THREE.MathUtils.lerp(x[0], y[0], t), THREE.MathUtils.lerp(x[1], y[1], t), THREE.MathUtils.lerp(x[2], y[2], t),
   ];
@@ -1499,6 +1534,8 @@ export class Batter {
   private felledAt = -Infinity;
   private felledFrom: Pose = GUARD;
   private celebratedAt = -Infinity;
+  /** When the stroke that scored is home and he starts to settle: see `settle`. */
+  private settledFrom = -Infinity;
   private celebratedFrom: Pose = GUARD;
   /** Which celebration is on: see `ROUTINES`. */
   private celebration: Celebration = 'hundred';
@@ -1713,6 +1750,8 @@ export class Batter {
   get felled() { return Number.isFinite(this.felledAt); }
   /** His hundred, or any of the others: up, held, and back into his guard. See `ROUTINES`. */
   celebrate(now: number, kind: Celebration = 'hundred') {
+    // A celebration takes him from wherever he is; the settle is not resumed.
+    this.settledFrom = -Infinity;
     this.celebratedFrom = this.pose;
     this.celebratedAt = now;
     this.celebration = kind;
@@ -1725,12 +1764,21 @@ export class Batter {
   reset() {
     this.poseAge = Infinity;
     this.felledAt = -Infinity;
-    this.celebratedAt = -Infinity;
+    this.celebratedAt = -Infinity; this.settledFrom = -Infinity;
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
+  /**
+   * The stroke scored: once it is home, stand up out of the stance, tap the bat
+   * and settle back down (`SETTLE_KEYS`), rather than freeze in the guard until
+   * the next ball. Not after a charge, which walks back to the crease instead.
+   */
+  settle(now: number) {
+    if (this.charging || !Number.isFinite(this.swingStart)) return;
+    this.settledFrom = Math.max(now, this.swingStart + STROKE_DURATION_MS);
+  }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false) {
     // Three charges, one per drive input: straight, over cover, over long-on.
     // Each is one stroke on one line whichever way the ball was actually going.
@@ -1835,8 +1883,9 @@ export class Batter {
   }
   private waiting(pose: Pose, now: number, age: number): Pose {
     const sinceStroke = Number.isFinite(age) ? age - STROKE_DURATION_MS - (this.charging ? ADVANCE.walkBackMs : 0) : Infinity;
+    const sinceSettle = now - this.settledFrom - SETTLE_MS;
     const sinceCelebration = now - this.celebratedAt - CELEBRATION_LENGTHS[this.celebration];
-    const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration) / 450, 0, 1)) * (1 - this.anticipation);
+    const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - this.anticipation);
     const breath = Math.sin(now * Math.PI * 2 / 3700) * weight;
     const drift = Math.sin(now * Math.PI * 2 / 7300) * weight;
     return { ...pose, hip: [pose.hip[0] + drift * .004, pose.hip[1], pose.hip[2]],
@@ -1855,6 +1904,13 @@ export class Batter {
       // an unfinished stroke's age would have them bent its way.
       this.poseAge = Infinity;
       return this.applyCelebration(celebrating);
+    }
+    const settling = now - this.settledFrom;
+    if (settling >= 0 && settling < SETTLE_MS && !this.charging && age >= STROKE_DURATION_MS) {
+      let k = 1; while (k < SETTLE_KEYS.length - 1 && settling >= SETTLE_KEYS[k][0]) k++;
+      const [from, a] = SETTLE_KEYS[k - 1], [to, b] = SETTLE_KEYS[k];
+      this.apply(mix(a, b, (settling - from) / (to - from)));
+      return;
     }
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
       const guard = this.waiting(mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation), now, age);
@@ -1952,8 +2008,8 @@ export class Batter {
         const over = reachPose(SCOOP.unwrap), front = reachPose(SCOOP.across), recovery = reachPose(SCOOP.recover!);
         this.apply(age < unwrap ? mix(finish, over, (age - hold) / (unwrap - hold))
           : age < across ? mix(over, front, (age - unwrap) / (across - unwrap))
-          : age < up ? mix(front, recovery, (age - across) / (up - across))
-          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up)));
+          : age < up ? mix(front, recovery, (age - across) / (up - across), leave)
+          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up), arrive));
       }
       return;
     }
@@ -1970,8 +2026,8 @@ export class Batter {
       else {
         const round = reachPose(REVERSE_SCOOP.across), recovery = reachPose(REVERSE_SCOOP.recover!);
         this.apply(age < across ? mix(finish, round, (age - hold) / (across - hold))
-          : age < up ? mix(round, recovery, (age - across) / (up - across))
-          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up)));
+          : age < up ? mix(round, recovery, (age - across) / (up - across), leave)
+          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up), arrive));
       }
       return;
     }
@@ -2004,8 +2060,8 @@ export class Batter {
         const recovery = reachPose(stroke.recover!);
         const out = hold + 130, up = hold + 270;
         this.apply(age < out ? mix(finish, SWEEP_UNWRAP, (age - hold) / (out - hold))
-          : age < up ? mix(SWEEP_UNWRAP, recovery, (age - out) / (up - out))
-          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up)));
+          : age < up ? mix(SWEEP_UNWRAP, recovery, (age - out) / (up - out), leave)
+          : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up), arrive));
       }
       return;
     }
@@ -2029,8 +2085,8 @@ export class Batter {
         const out = reachPose({ ...PULL.finish, grip: [-.20,1.38,.52], batUp: [1,0,0], batFace: [0,.25,-.97] });
         const first = hold+100, second = hold+240;
         this.apply(age<first ? mix(finish,out,(age-hold)/(first-hold))
-          : age<second ? mix(out,recovery,(age-first)/(second-first))
-          : mix(recovery,GUARD,(age-second)/(STROKE_DURATION_MS-second)));
+          : age<second ? mix(out,recovery,(age-first)/(second-first), leave)
+          : mix(recovery,GUARD,(age-second)/(STROKE_DURATION_MS-second), arrive));
       }
       return;
     }
@@ -2054,8 +2110,8 @@ export class Batter {
         // pick-up. Every shorter path between those two goes through him.
         const recovery = reachPose(stroke.recover!);
         const through = 590 + (STROKE_DURATION_MS - 590) * .52;
-        this.apply(age < through ? mix(finish, recovery, (age - 590) / (through - 590))
-          : mix(recovery, GUARD, (age - through) / (STROKE_DURATION_MS - through)));
+        this.apply(age < through ? mix(finish, recovery, (age - 590) / (through - 590), leave)
+          : mix(recovery, GUARD, (age - through) / (STROKE_DURATION_MS - through), arrive));
       }
       return;
     }
@@ -2079,8 +2135,8 @@ export class Batter {
           ? { ...stroke.finish, grip: [.02,1.42,.74], batUp: [-.15,-.55,-.82], batFace: [.90,-.30,.30], armHinge:.4, armDrive:.5, shoulderLift:.04 }
           : { ...stroke.finish, grip: this.shot==='STRAIGHT'?[.46,1.40,.66]:[.58,1.38,.68], batUp: [-1,0,0], batFace: [0,0,1],armHinge:.2,armDrive:1,shoulderLift:.04 });
         const clear=hold+(this.shot==='COVER_LONG_OFF'?110:90);
-        this.apply(age<clear?mix(finish,out,(age-hold)/(clear-hold)):mix(out,reachPose(stroke.recover!),(age-clear)/(800-clear)));
-      } else this.apply(mix(reachPose(stroke.recover!),GUARD,(age-800)/(STROKE_DURATION_MS-800)));
+        this.apply(age<clear?mix(finish,out,(age-hold)/(clear-hold)):mix(out,reachPose(stroke.recover!),(age-clear)/(800-clear), leave));
+      } else this.apply(mix(reachPose(stroke.recover!),GUARD,(age-800)/(STROKE_DURATION_MS-800), arrive));
       return;
     }
     if (age <= STROKE_CONTACT_MS) this.apply(mix(this.swingFrom, contact, age / STROKE_CONTACT_MS));
@@ -2093,8 +2149,8 @@ export class Batter {
       // coming down off the shoulder than it does settling into the pick-up.
       const through = 570 + (STROKE_DURATION_MS - 570) * .52;
       const recover = reachPose(stroke.recover);
-      if (age < through) this.apply(mix(finish, recover, (age - 570) / (through - 570)));
-      else this.apply(mix(recover, GUARD, (age - through) / (STROKE_DURATION_MS - through)));
+      if (age < through) this.apply(mix(finish, recover, (age - 570) / (through - 570), leave));
+      else this.apply(mix(recover, GUARD, (age - through) / (STROKE_DURATION_MS - through), arrive));
     }
     else this.apply(mix(finish, GUARD, (age - 570) / (STROKE_DURATION_MS - 570)));
   }

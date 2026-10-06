@@ -2523,6 +2523,9 @@ export class Game {
     }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
+    // A stroke that scored and is not about to be celebrated: he stands up out
+    // of his stance and taps the bat at the crease before the next ball.
+    if (outcome.madeBatContact && outcome.runs > 0 && !outcome.isWicket && !this.milestoneDue) this.scene.settle(this.elapsed);
     // The stands for a boundary, once the call is made and not when the ball
     // leaves the bat: a skied one may yet be caught.
     if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {

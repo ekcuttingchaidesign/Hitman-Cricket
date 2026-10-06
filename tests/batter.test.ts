@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS } from '../src/entities/Batter';
+import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, SETTLE_MS } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -276,6 +276,62 @@ describe('the bat and the body', () => {
       }
       expect(worst.value, `${shot} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
     }
+  });
+
+  // After a stroke that scored he stands up, taps the bat twice and settles
+  // back into his guard. It starts where the stroke ends and ends where the
+  // guard is, it never takes the bat through him, and it moves no faster than
+  // the strokes themselves are held to.
+  it('stands him up and settles him back after a scoring stroke, without a jump', () => {
+    const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
+    for (const shot of ['STRAIGHT', 'LEG', 'COVER_LONG_OFF', 'LONG_ON', 'SQUARE_CUT', 'SCOOP', 'REVERSE_SCOOP'] as ShotType[]) {
+      const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, 0, .54);
+      batter.update(500); batter.settle(500);
+      const guard = new Batter(); guard.reset(); guard.update(0);
+      let previous = batter.inspect(), stood = 0;
+      for (let t = 500; t <= STROKE_DURATION_MS + SETTLE_MS + 600; t += 2) {
+        batter.update(t); const pose = batter.inspect();
+        const where = `${shot} @${t}`;
+        for (let i = 0; i < 2; i++) {
+          expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+          expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+        }
+        if (t >= STROKE_DURATION_MS) {
+          const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+          const spine = chest.clone().sub(hip).normalize();
+          const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
+          const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
+          const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+          const bat: [Vector3, Vector3] = [new Vector3(...pose.grip), new Vector3(...pose.bladeTip).sub(root)];
+          for (const [part, centre, radii, turn] of [
+            ['trunk', chest.clone().addScaledVector(spine, -.075), new Vector3(.205, .275, .145), torso],
+            ['hips', hip, new Vector3(.185, .145, .135), yaw],
+            ['helmet', head, new Vector3(.188, .19, .195), torso],
+          ] as [string, Vector3, Vector3, Quaternion][]) expect(deepest(...bat, centre, radii, turn), `${where} ${part}`).toBeGreaterThan(1);
+          // The toe never goes into the turf.
+          expect(pose.bladeTip[1], where).toBeGreaterThan(0);
+          stood = Math.max(stood, pose.hip[1] - guard.inspect().hip[1]);
+        }
+        previous = pose;
+      }
+      // He did stand up, and he is back in the guard he started from.
+      expect(stood, shot).toBeGreaterThan(.04);
+      const end = batter.inspect(), still = guard.inspect();
+      for (let i = 0; i < 3; i++) expect(Math.abs(end.grip[i] - still.grip[i]), shot).toBeLessThan(.01);
+    }
+  });
+
+  it('does not settle after a charge, and a new ball cancels it', () => {
+    const charged = new Batter(); charged.reset(); charged.prepare(1); charged.update(0);
+    charged.swing('STRAIGHT', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true);
+    charged.update(500); charged.settle(500); charged.update(STROKE_DURATION_MS + 300);
+    const walking = new Batter(); walking.reset(); walking.prepare(1); walking.update(0);
+    walking.swing('STRAIGHT', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true); walking.update(STROKE_DURATION_MS + 300);
+    expect(charged.inspect().hip).toEqual(walking.inspect().hip);
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); batter.swing('STRAIGHT', 0, 0, .54);
+    batter.update(500); batter.settle(500); batter.reset(); batter.update(STROKE_DURATION_MS + 300);
+    const guard = new Batter(); guard.reset(); guard.update(STROKE_DURATION_MS + 300);
+    expect(batter.inspect().hip).toEqual(guard.inspect().hip);
   });
 });
 
