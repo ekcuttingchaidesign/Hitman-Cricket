@@ -3,11 +3,12 @@ import { RATED_NAME, STAR_WORDS, tierOf, type RatedThing } from '../game/rating'
 /**
  * The star prompt, as a screen.
  *
- * Not a sheet in front of the card but a slip that rises under it: the card is
- * still the thing the player came to see, with their score on it and PLAY AGAIN
- * a thumb away, and a rating that took the card away to ask would be paid for
- * out of the one screen that is theirs. So it is small, it sits at the foot of
- * the picture, and it goes with one tap of the cross.
+ * Not a sheet in front of the card but a sticker slapped down under it: the
+ * card is still the thing the player came to see, with their score on it and
+ * PLAY AGAIN a thumb away, and a rating that took the card away to ask would be
+ * paid for out of the one screen that is theirs. So it is small, it sits at the
+ * foot of the picture, and it goes with one tap of the cross. It is cream and
+ * inked rather than navy because the card behind it is navy (see the styles).
  *
  * One tap is also the whole of rating. A star is sent the moment it is tapped —
  * whatever happens next, the stars are in — and only then is the player offered
@@ -43,16 +44,18 @@ export interface RatingPrompt {
 
 /** What the prompt says once it has been answered, by how it was answered. */
 const AFTER = {
-  low: { say: 'Ouch — sorry it fell short.', more: 'TELL US WHAT WENT WRONG' },
-  mid: { say: 'Fair. What would make it a five?', more: 'TELL US' },
-  high: { say: 'Glad you’re enjoying it.', more: 'TELL US WHAT’S NEXT' },
-  top: { say: 'Six over the stands. Thank you!', more: 'TELL US WHAT’S NEXT' },
+  low: { say: 'Ouch — sorry it fell short.', more: 'TELL US WHY' },
+  mid: { say: 'Fair. What would make it a five?', more: 'TELL US MORE' },
+  high: { say: 'Glad you’re enjoying it.', more: 'WHAT’S NEXT?' },
+  top: { say: 'Six over the stands. Thank you!', more: 'WHAT’S NEXT?' },
 } as const;
 
 /** How long the stars hold the floor before the prompt asks for more. */
 const SETTLE_MS = { low: 700, mid: 800, high: 900, top: 1300 } as const;
 
-const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="rate-star-edge" d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z"/><path class="rate-star-fill" d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z"/></svg>';
+/** A star: the socket it sits in, the inked fill, and the glint on its upper arm. */
+const STAR_PATH = 'M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z';
+const STAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="rate-star-edge" d="${STAR_PATH}"/><path class="rate-star-fill" d="${STAR_PATH}"/><path class="rate-star-shine" d="M9.6 9.6l1.5-3.1.8 1.7-1 2.1-2.3.4z"/></svg>`;
 
 export function askRating(options: RatingPromptOptions): RatingPrompt {
   const name = RATED_NAME[options.thing];
@@ -69,7 +72,7 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
   pop.dataset.thing = options.thing;
   pop.innerHTML = `
     <button class="rate-close" type="button" aria-label="Not now">×</button>
-    <p class="rate-eyebrow">QUICK ONE</p>
+    <span class="rate-tab" aria-hidden="true">QUICK ONE</span>
     <h3 class="rate-ask">${options.thing === 'game' ? `How are you finding <b>${name}</b>?` : `How was <b>${name}</b>?`}</h3>
     <div class="rate-stars" role="radiogroup" aria-label="Your rating">${[1, 2, 3, 4, 5].map(n => `
       <button class="rate-star" type="button" role="radio" aria-checked="false" data-n="${n}" style="--i:${n - 1}"
@@ -167,8 +170,10 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
     const panel = pop.querySelector<HTMLElement>('.rate-after')!;
     panel.innerHTML = `
       <p class="rate-say">${AFTER[tier].say}</p>
-      <button class="key-button rate-more" type="button">${AFTER[tier].more}</button>
-      <button class="ghost-link rate-done" type="button">Done</button>`;
+      <div class="rate-keys">
+        <button class="rate-done" type="button">DONE</button>
+        <button class="rate-more" type="button">${AFTER[tier].more}</button>
+      </div>`;
     panel.hidden = false;
     pop.classList.add('is-asking');
     panel.querySelector<HTMLButtonElement>('.rate-more')!.onclick = () => { const stars = given; close(); options.onMore(stars); };

@@ -252,7 +252,7 @@ await page.waitForTimeout(150);
 check(await pop.evaluate(node => node.classList.contains('is-low')), 'one star is met quietly');
 check((await thrown()).length === 0, 'with nothing thrown in the air', (await thrown()).join(' '));
 await settle(1000);
-check((await pop.locator('.rate-more').textContent())?.includes('WENT WRONG'), 'and asks what went wrong');
+check((await pop.locator('.rate-more').textContent()) === 'TELL US WHY', 'and asks why', await pop.locator('.rate-more').textContent());
 await shoot('rating-one');
 await pop.locator('.rate-done').click();
 await settle(400);
@@ -266,6 +266,50 @@ await settle(400);
 check(!(await popUp()), 'the cross waves it away');
 check((await memory())?.dismissals === before + 1, 'and is remembered, so it keeps quiet for a while');
 check(!(await memory())?.rated?.rivals, 'without counting as a rating');
+
+// A thumb laid on the row and slid along it fills the stars as it goes and
+// gives them where it lifts — a real touch, not a mouse pretending: the row
+// takes the pointer for itself, and a phone that scrolled instead would fail.
+await page.evaluate(() => window.__cricket.rating('classic'));
+await settle(600);
+const touch = await page.context().newCDPSession(page);
+const centre = async n => { const at = await star(n).boundingBox(); return { x: at.x + at.width / 2, y: at.y + at.height / 2 }; };
+const finger = async (type, at) => touch.send('Input.dispatchTouchEvent', {
+  type, touchPoints: type === 'touchEnd' ? [] : [{ x: at.x, y: at.y, id: 1 }],
+});
+const swipedFrom = sent.length;
+await finger('touchStart', await centre(1));
+for (const n of [2, 3]) { await finger('touchMove', await centre(n)); await page.waitForTimeout(60); }
+check(await pop.locator('.rate-star.is-lit').count() === 3, 'a thumb slid to the third lights three',
+  String(await pop.locator('.rate-star.is-lit').count()));
+check(await pop.getAttribute('data-stars') === null && sent.length === swipedFrom, 'and gives nothing while it is still down');
+await finger('touchMove', await centre(4));
+await finger('touchEnd');
+await page.waitForTimeout(400);
+check(await pop.getAttribute('data-stars') === '4', 'lifted on the fourth, it gives four', await pop.getAttribute('data-stars'));
+check(sent.slice(swipedFrom).some(form => form.rating?.stars === 4), 'and four is what is sent');
+await settle(1200);
+// Two ways on, side by side and half the width each: never a key with a link under it.
+const pair = await pop.locator('.rate-keys > button').evaluateAll(keys => keys.map(key => {
+  const at = key.getBoundingClientRect();
+  return { top: Math.round(at.top), width: Math.round(at.width), underline: getComputedStyle(key).textDecorationLine };
+}));
+check(pair.length === 2 && pair[0].top === pair[1].top && Math.abs(pair[0].width - pair[1].width) <= 1,
+  'the two keys after a rating sit side by side at half the width each', JSON.stringify(pair));
+check(pair.every(key => key.underline === 'none'), 'and neither is drawn as a link');
+// Half the width is not much on a phone, and the longest label was cut off
+// at it. Every label each tier can show is put in a key and measured.
+const fits = await pop.locator('.rate-more').evaluate(key => {
+  const was = key.textContent;
+  const labels = ['TELL US WHY', 'TELL US MORE', 'WHAT’S NEXT?', 'DONE'];
+  const over = labels.filter(label => { key.textContent = label; return key.scrollWidth > key.clientWidth; });
+  key.textContent = was;
+  return over;
+});
+check(fits.length === 0, 'and every label fits its key', fits.join(', '));
+await shoot('rating-swiped');
+await pop.locator('.rate-done').click();
+await settle(400);
 
 // A keyboard walks the stars with the arrows and gives them with Enter.
 await page.evaluate(() => window.__cricket.rating('game'));

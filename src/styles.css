@@ -4279,56 +4279,97 @@ body.private-window{overflow:hidden}
 .feedback-head .board-close{position:static;width:32px;height:32px;margin:-4px -6px 0 0;font-size:19px;flex:none}
 
 /* ── The star prompt ───────────────────────────────────────────────────────
-   A slip at the foot of the picture rather than a sheet in front of the card:
-   the card keeps the score and PLAY AGAIN, and this rises under it, one tap to
-   answer and one to wave away. Above the cards (8), under every sheet the card
-   opens (the board is 10, the career card 11), so opening the board from the
-   card puts the board in front of it rather than a rating in front of the board. */
+   Not another navy panel: the card it rises under is navy already, and a second
+   slab of the same stuff read as a form stacked on a form. It is drawn in the
+   game's other voice instead — the cover's and the milestones' — a cream
+   sticker in navy ink with a hard shadow, slapped down at the foot of the
+   picture, with an orange tab on its edge and the stars inked like the doodles.
+   Above the cards (8), under every sheet the card opens (the board is 10, the
+   career card 11), so the board opened from the card covers it, not the reverse. */
 .rate-pop{
-  --ink:#f7f0e5;
-  --quiet:#9fb2bd;
-  --star:#ffc83d;
+  --ink:#152b3c;
+  --quiet:#5d6f7c;
+  --paper:#fbf3e3;
+  --star:#ffc531;
   --star-deep:#f29a1d;
   position:absolute;
   z-index:9;
   left:50%;
-  bottom:calc(var(--pad-bottom) + 6px);
-  width:min(392px,calc(100% - 32px));
-  padding:14px 18px 12px;
-  border-radius:18px;
-  background:#0f2738;
+  bottom:calc(var(--pad-bottom) + 10px);
+  width:min(380px,calc(100% - 32px));
+  padding:22px 18px 16px;
+  border:3px solid var(--ink);
+  border-radius:20px;
+  background:
+    radial-gradient(120% 90% at 50% 0%,#fffaf0 0%,#fffaf000 60%),
+    var(--paper);
   font-family:var(--card);
   color:var(--ink);
   text-align:center;
-  box-shadow:0 7px 0 #040e15,0 22px 40px #010609b3,inset 0 1px 0 #ffffff1f;
+  box-shadow:0 7px 0 var(--ink),0 18px 34px #01060999;
   transform:translateX(-50%);
-  animation:rate-rise .46s cubic-bezier(.2,1.35,.45,1) both
+  animation:rate-slap .5s cubic-bezier(.2,1.45,.42,1) both
 }
-.rate-pop.is-leaving{animation:rate-sink .26s ease-in both;pointer-events:none}
-@keyframes rate-rise{from{opacity:0;transform:translate(-50%,36px) scale(.96)}to{opacity:1;transform:translate(-50%,0)}}
-@keyframes rate-sink{to{opacity:0;transform:translate(-50%,28px) scale(.97)}}
+.rate-pop.is-leaving{animation:rate-sink .24s ease-in both;pointer-events:none}
+/* Slapped down from a little above and a little crooked, the way the 150's
+   sticker goes on, and settled square so it can be read. */
+@keyframes rate-slap{
+  0%{opacity:0;transform:translate(-50%,46px) rotate(-5deg) scale(1.08)}
+  55%{opacity:1;transform:translate(-50%,-4px) rotate(1.2deg) scale(.99)}
+  100%{opacity:1;transform:translate(-50%,0)}
+}
+@keyframes rate-sink{to{opacity:0;transform:translate(-50%,34px) rotate(2deg) scale(.96)}}
+/* The tab on the top edge: the one thing on the sticker in the game's orange,
+   and the one place the eyebrow could go without costing a line. */
+.rate-tab{
+  position:absolute;
+  top:0;
+  left:50%;
+  padding:5px 13px 4px;
+  border:2.5px solid var(--ink);
+  border-radius:9px;
+  background:var(--cta-orange);
+  color:#fff;
+  font-family:var(--cta);
+  font-size:13px;
+  letter-spacing:1.4px;
+  line-height:1;
+  white-space:nowrap;
+  box-shadow:0 3px 0 var(--ink);
+  transform:translate(-50%,-62%) rotate(-3deg)
+}
 .rate-close{
   position:absolute;
-  top:6px;
-  right:6px;
-  width:34px;
-  height:34px;
-  border:0;
+  top:8px;
+  right:8px;
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  padding:0;
+  border:2px solid #152b3c33;
   border-radius:50%;
-  background:none;
-  color:var(--quiet);
-  font-size:20px;
+  background:#fff;
+  color:var(--ink);
+  font-size:18px;
   line-height:1
 }
-.rate-close:hover{color:var(--ink);background:#ffffff12}
-.rate-eyebrow{margin:0;font-size:10px;font-weight:700;letter-spacing:2px;color:var(--quiet)}
-.rate-ask{margin:4px 28px 0;font-size:17px;font-weight:700;letter-spacing:-.2px;line-height:1.25}
-.rate-ask b{font-weight:800;color:#fff}
+.rate-close:hover{border-color:var(--ink)}
+.rate-ask{
+  margin:2px 34px 0;
+  font-family:var(--cta);
+  font-size:23px;
+  font-weight:400;
+  letter-spacing:.4px;
+  line-height:1.05;
+  text-transform:uppercase
+}
+.rate-ask b{font-weight:400;color:var(--cta-orange)}
 .rate-stars{
   display:flex;
   justify-content:center;
-  gap:4px;
-  margin:10px auto 0;
+  gap:2px;
+  margin:12px auto 0;
   width:max-content;
   touch-action:none;
   user-select:none;
@@ -4336,8 +4377,8 @@ body.private-window{overflow:hidden}
 }
 .rate-star{
   --i:0;
-  width:48px;
-  height:48px;
+  width:54px;
+  height:54px;
   padding:4px;
   border:0;
   background:none;
@@ -4349,55 +4390,82 @@ body.private-window{overflow:hidden}
    lands reads as refused. */
 .rate-star:disabled{cursor:default;opacity:1}
 .rate-star svg{display:block;width:100%;height:100%;overflow:visible}
-.rate-star-edge{fill:#ffffff0d;stroke:#ffffff59;stroke-width:1.4;stroke-linejoin:round}
-/* The fill grows out of the middle of each star rather than fading in, so a
-   thumb dragged along the row reads as the stars catching light one by one. */
-.rate-star-fill{
-  fill:var(--star);
-  stroke:var(--star-deep);
-  stroke-width:1.2;
-  stroke-linejoin:round;
-  transform-box:fill-box;
-  transform-origin:center;
+/* Empty, a star is a socket pressed into the paper; lit, it is inked gold with
+   a glint, the doodles' way of drawing a thing that shines. */
+.rate-star-edge{fill:#152b3c12;stroke:#152b3c4d;stroke-width:1.6;stroke-linejoin:round}
+.rate-star-fill,.rate-star-shine{
+  transform-box:view-box;
+  transform-origin:12px 12.5px;
   transform:scale(0);
-  transition:transform .18s cubic-bezier(.3,1.6,.5,1)
+  transition:transform .2s cubic-bezier(.3,1.7,.5,1)
 }
-.rate-star.is-lit .rate-star-fill{transform:scale(1)}
-.rate-star:focus-visible{outline:2px solid var(--ink);outline-offset:-2px;border-radius:10px}
+.rate-star-fill{fill:var(--star);stroke:var(--ink);stroke-width:1.7;stroke-linejoin:round}
+.rate-star-shine{fill:#fff6cf}
+.rate-star.is-lit .rate-star-fill,.rate-star.is-lit .rate-star-shine{transform:scale(1)}
+.rate-star:focus-visible{outline:2.5px solid var(--ink);outline-offset:-3px;border-radius:12px}
 /* Given: each star pops in turn, left to right, the last one biggest. */
-.rate-pop.is-rated .rate-star.is-on .rate-star-fill{transition-delay:calc(var(--i) * 55ms)}
+.rate-pop.is-rated .rate-star.is-on .rate-star-fill,
+.rate-pop.is-rated .rate-star.is-on .rate-star-shine{transition-delay:calc(var(--i) * 55ms)}
 .rate-pop.is-rated .rate-star.is-on svg{animation:rate-pop .5s cubic-bezier(.25,1.8,.5,1) both;animation-delay:calc(var(--i) * 55ms)}
 .rate-pop.is-rated .rate-star.is-picked svg{animation-name:rate-pick;animation-duration:.62s}
 @keyframes rate-pop{0%{transform:scale(1)}40%{transform:scale(1.28) rotate(-8deg)}100%{transform:scale(1)}}
 @keyframes rate-pick{0%{transform:scale(1)}35%{transform:scale(1.5) rotate(14deg)}65%{transform:scale(.92) rotate(-4deg)}100%{transform:scale(1.08)}}
-/* One or two: nothing jumps. The stars cool and settle, as if put down. */
+/* One or two: nothing jumps. The gold goes dull and the stars settle, as if put down. */
 .rate-pop.is-low .rate-star.is-on svg{animation:rate-settle .6s ease both;animation-delay:calc(var(--i) * 50ms)}
-.rate-pop.is-low .rate-star-fill{fill:#c9a35a;stroke:#9a7a3c}
+.rate-pop.is-low .rate-star-fill{fill:#d9b864}
+.rate-pop.is-low .rate-star-shine{fill:#efdba3}
 @keyframes rate-settle{0%{transform:none}35%{transform:translateY(4px) scale(.94)}100%{transform:translateY(1px)}}
 /* Three: a warm glow behind the row. */
 .rate-pop.is-mid .rate-stars{animation:rate-glow 1s ease both}
-@keyframes rate-glow{0%{filter:none}40%{filter:drop-shadow(0 0 10px #ffc83d99)}100%{filter:drop-shadow(0 0 4px #ffc83d40)}}
-.rate-pop.is-high .rate-stars,.rate-pop.is-top .rate-stars{filter:drop-shadow(0 0 6px #ffc83d59)}
-/* Five: the whole slip takes the hit. */
-.rate-pop.is-top{animation:rate-rise .46s cubic-bezier(.2,1.35,.45,1) both,rate-thud .42s .24s ease-out}
-@keyframes rate-thud{0%,100%{transform:translateX(-50%)}30%{transform:translate(-50%,5px) scale(1.015)}60%{transform:translate(-50%,-2px)}}
-.rate-word{margin:4px 0 0;min-height:18px;font-size:13px;font-weight:700;letter-spacing:.3px;color:var(--quiet);transition:color .15s}
-.rate-pop.is-previewing .rate-word,.rate-pop.is-rated .rate-word{color:var(--star)}
-.rate-pop.is-low .rate-word{color:#d9c08a}
+@keyframes rate-glow{0%{filter:none}40%{filter:drop-shadow(0 0 9px #ffb40099)}100%{filter:drop-shadow(0 0 3px #ffb40055)}}
+/* Five: the whole sticker takes the hit. */
+.rate-pop.is-top{animation:rate-slap .5s cubic-bezier(.2,1.45,.42,1) both,rate-thud .42s .24s ease-out}
+@keyframes rate-thud{0%,100%{transform:translateX(-50%)}30%{transform:translate(-50%,6px) scale(1.02) rotate(-1deg)}60%{transform:translate(-50%,-2px)}}
+.rate-word{
+  margin:2px 0 0;
+  min-height:19px;
+  font-size:13.5px;
+  font-weight:700;
+  letter-spacing:.3px;
+  color:var(--quiet);
+  transition:color .15s
+}
+.rate-pop.is-previewing .rate-word,.rate-pop.is-rated .rate-word{color:var(--ink)}
 .rate-after{animation:rate-after .32s ease both}
 .rate-after[hidden]{display:none}
 @keyframes rate-after{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.rate-say{margin:8px 0 0;font-size:14px;font-weight:700;color:var(--ink)}
-.rate-more{width:100%;min-height:46px;margin-top:10px;font-size:15px}
-.rate-done{display:block;width:100%;margin-top:4px;text-align:center}
+.rate-say{margin:8px 0 0;font-size:14.5px;font-weight:700;color:var(--ink)}
+/* Two ways on, side by side at half the width each — never a key and a link
+   under it. Done is the quiet one, in the sticker's own ink; the way to say
+   more is the game's orange. */
+.rate-keys{display:flex;gap:10px;margin-top:12px}
+.rate-keys>button{
+  flex:1 1 0;
+  min-width:0;
+  min-height:48px;
+  padding:0 8px;
+  border:2.5px solid var(--ink);
+  border-radius:12px;
+  font-family:var(--cta);
+  font-size:15px;
+  letter-spacing:1.2px;
+  line-height:1;
+  white-space:nowrap
+}
+.rate-keys>button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.rate-done{background:#fff;color:var(--ink);box-shadow:0 4px 0 var(--ink)}
+.rate-more{background:var(--cta-orange);color:#fff;box-shadow:0 4px 0 var(--ink)}
+.rate-done:hover{background:#fff8ec}
+.rate-more:hover{background:#f0652f}
+.rate-keys>button:focus-visible{outline:2.5px solid var(--ink);outline-offset:3px}
 
 /* What is thrown in the air. Positioned by the script at the star that landed,
    moved here, and taken away once they have gone. */
 .rate-burst{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .rate-burst>i{position:absolute;display:block;pointer-events:none}
 .rate-spark{
-  width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
-  background:var(--star);box-shadow:0 0 6px var(--star);
+  width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;
+  background:var(--star);border:1.5px solid var(--ink);
   animation:rate-fly .62s var(--d,0ms) cubic-bezier(.15,.7,.35,1) both
 }
 .rate-confetti{
@@ -4406,7 +4474,7 @@ body.private-window{overflow:hidden}
 }
 .rate-confetti.c0{background:var(--star)}
 .rate-confetti.c1{background:var(--orange)}
-.rate-confetti.c2{background:#f7f0e5}
+.rate-confetti.c2{background:#152b3c}
 .rate-confetti.c3{background:#6cc070}
 @keyframes rate-fly{
   0%{opacity:1;transform:translate(0,0) scale(1)}
@@ -4462,7 +4530,7 @@ body.private-window{overflow:hidden}
 @media (prefers-reduced-motion:reduce){
   .rate-pop,.rate-pop.is-top,.rate-pop.is-leaving,.rate-after,
   .rate-pop.is-rated .rate-star svg,.rate-pop.is-mid .rate-stars{animation:none}
-  .rate-star-fill{transition:none}
+  .rate-star-fill,.rate-star-shine{transition:none}
 }
 
 /* ---------------------------------------------------------------------------
