@@ -2739,6 +2739,42 @@ body.survive-mode #scoreboard{display:none}
 }
 .moment-key:active{background:#e9582b}
 .moment-key:focus-visible{outline:2px solid #ffd23f;outline-offset:1px}
+/* `?rate=1`: a key a thing the stars ask about, along the foot of the picture.
+   The sticker is lifted clear of them, so the keys stay in reach while it is up
+   and a different one can be asked for straight away. */
+.rate-preview{
+  position:absolute;
+  left:50%;
+  bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  z-index:10;
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:4px;
+  width:min(100% - 24px,460px);
+  padding:5px;
+  border-radius:14px;
+  background:#071219cc
+}
+.rate-preview-key{
+  min-width:0;
+  height:34px;
+  padding:0;
+  border:1px solid #ffffff2e;
+  border-radius:9px;
+  background:#152b3c;
+  color:#f4efe2;
+  font:700 11px/1 var(--card,system-ui);
+  letter-spacing:.4px;
+  white-space:nowrap;
+  cursor:pointer
+}
+.rate-preview-key:active{background:#e9582b}
+.rate-preview-key:focus-visible{outline:2px solid #ffd23f;outline-offset:1px}
+.rate-preview~.rate-pop{bottom:calc(var(--pad-bottom) + 64px)}
+.rate-preview~.moment-keys{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+/* Not over the follow-up's questions, where a stray tap would put a second sticker up behind them. */
+.rate-preview:has(~.feedback-screen){display:none}
 /* `?nets=1`: a key a bowler and one for the side of the stumps, along the
    foot of the picture. The bowler in now is the lit one. */
 .nets-keys{

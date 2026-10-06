@@ -373,6 +373,48 @@ if (!quick) {
   check(!(await popUp()), 'the next innings puts it away');
 }
 
+// ── ?rate=1 ─────────────────────────────────────────────────────────────────
+// The preview: a key a thing along the foot, the real sticker and follow-up,
+// and nothing sent or remembered however it is played with.
+const before$ = { posts: sent.length, memory: JSON.stringify(await memory()) };
+await page.goto(`${base}/?debug=1&rate=1`, { waitUntil: 'load' });
+await settle(2500);
+if (await anyway.count()) { await anyway.first().click(); await settle(1200); }
+const keys = page.locator('.rate-preview-key');
+check(await keys.count() === 5, 'the preview puts a key up for the game and each mode', String(await keys.count()));
+await page.locator('.rate-preview-key[data-thing="marathon"]').click();
+await settle(600);
+check(await popUp() && await pop.getAttribute('data-thing') === 'marathon', 'its MARATHON key puts the Marathon’s stars up');
+const lifted = await page.evaluate(() => {
+  const keys = document.querySelector('.rate-preview').getBoundingClientRect();
+  const sticker = document.querySelector('.rate-pop:not(.is-leaving)').getBoundingClientRect();
+  return sticker.bottom <= keys.top;
+});
+check(lifted, 'with the sticker lifted clear of the keys');
+await shoot('rating-preview');
+await star(4).click();
+await settle(2200);
+await page.locator('.rate-preview-key[data-thing="rivals"]').click();
+await settle(600);
+check(await pop.getAttribute('data-thing') === 'rivals', 'and another key asks again at once, about that one');
+await star(1).click();
+await settle(1200);
+await pop.locator('.rate-more').click();
+await settle(400);
+const preview = page.locator('.feedback-screen');
+check(await preview.isVisible() && !(await page.locator('.rate-preview').isVisible()), 'the follow-up opens, with the keys out of its way');
+for (let i = 0; i < 6 && !(await page.locator('#feedback-send').count()); i++) {
+  const next = page.locator('#feedback-next');
+  await preview.locator('.feedback-choice').first().click();
+  if (await next.count()) await next.click();
+  await settle(300);
+}
+await page.locator('#feedback-send').click();
+await settle(600);
+check((await preview.locator('.feedback-eyebrow').textContent())?.includes('NOTHING WAS SENT'), 'and says it sent nothing');
+check(sent.length === before$.posts, 'because it did not', `${sent.length - before$.posts} sent`);
+check(JSON.stringify(await memory()) === before$.memory, 'and nothing about being asked was remembered');
+
 check(!errors.length, 'nothing threw on the way', errors.join('\n        '));
 console.log(failures ? `\n${failures} failed` : '\nall good');
 await browser.close();

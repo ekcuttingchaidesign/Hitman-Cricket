@@ -224,3 +224,13 @@ holds the bowler at his mark until it is over; with a ball on its way it waits
 for that ball to be dead, which is when a real one goes up. It is the same
 celebration with none of the innings: no runs, nothing counted, nothing sent.
 Add `&mode=marathon` for the Test kit and ground.
+
+## `?rate=1`
+
+A row of keys along the foot of the picture — GAME, BLAST, MARATHON, SURVIVAL,
+RIVALS — each putting the star sticker up for that thing, for looking at it
+and playing with it on a phone without finishing the innings that earns it.
+It is the real sticker and the real follow-up, and nothing is sent or
+remembered: the stars go nowhere, the follow-up's last screen says so, and
+asking again is one tap. It changes nothing about the batting, so it is not
+practice (`tests/practice.test.ts` names it). `rating-check` walks it.

@@ -48,6 +48,8 @@ export interface FeedbackOptions {
    * for and sends them with the stars, under the rating's own ref.
    */
   followUp?: Rating;
+  /** `?rate=1`'s follow-up: the same screens, and the answers go nowhere. */
+  preview?: boolean;
   /** Called when the sheet is gone, whether it was sent or waved away. */
   onDone?: (given: boolean) => void;
 }
@@ -180,7 +182,7 @@ export function openFeedback(options: FeedbackOptions) {
     const key = find('feedback-send') as HTMLButtonElement;
     key.disabled = true;
     key.textContent = 'SENDING…';
-    const sent = await sendFeedback({
+    const sent = options.preview ? { ok: true as const, reason: undefined } : await sendFeedback({
       playerId: options.playerId ?? null,
       answers,
       suggestion,
@@ -196,6 +198,7 @@ export function openFeedback(options: FeedbackOptions) {
       track('feedback-failed', 'Feedback could not be sent');
       return;
     }
+    if (options.preview) return thanks();
     track(followUp ? 'rating-more-sent' : 'feedback-sent', 'Feedback sent');
     // The follow-up is not the questionnaire, so the quiet lines into that stay.
     if (!followUp) { markFeedbackGiven(); clearDraft(); }
@@ -210,7 +213,7 @@ export function openFeedback(options: FeedbackOptions) {
   function thanks() {
     gate.innerHTML = `
       <div class="feedback-sheet feedback-thanks">
-        <span class="feedback-eyebrow">SENT</span>
+        <span class="feedback-eyebrow">${options.preview ? 'PREVIEW — NOTHING WAS SENT' : 'SENT'}</span>
         <h2>Thank you — that is genuinely useful.</h2>
         <p>Every answer is read. The next version is built out of these.</p>
         ${standalone

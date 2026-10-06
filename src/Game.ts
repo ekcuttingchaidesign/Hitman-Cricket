@@ -381,6 +381,14 @@ export class Game {
    */
   private readonly momentKeys = new URLSearchParams(location.search).get('moments') === '1';
   /**
+   * `?rate=1`: a row of keys on the screen, one a thing the stars are asked
+   * about — the game and each mode — so the sticker can be looked at and played
+   * with on a phone without finishing the innings that would earn it. The same
+   * sticker and the same follow-up, with none of the consequences: nothing is
+   * sent, nothing is remembered, and asking again is one tap.
+   */
+  private readonly rateKeys = new URLSearchParams(location.search).get('rate') === '1';
+  /**
    * `?nets=1`, in a Marathon: every bowler round the wicket from the first
    * ball, and a row of keys to change him — the seamer, the swing bowler, the
    * spinner, the express bowler — with one more to go back over the wicket
@@ -453,6 +461,9 @@ export class Game {
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
     this.scene.onStumps = () => this.audio.play('stumps');
+    // The stars' keys first, so the moments' keys come after them in the page
+    // and can be lifted clear of them when both are asked for.
+    if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
       bowler => { this.nets = { ...this.nets, bowler }; this.applyNets(); },
@@ -1612,6 +1623,31 @@ export class Game {
         writeMemory(dismissed(readMemory(), Date.now()));
         track('rating-dismissed', 'Stars waved away');
       },
+    });
+  }
+
+  /**
+   * The stars as `?rate=1` puts them up: the real sticker and the real
+   * follow-up, sending nothing and remembering nothing, so they can be asked
+   * for again and again and nobody's answers or counts are touched.
+   */
+  private previewRating(thing: RatedThing) {
+    this.putRatingAway();
+    this.ratingPrompt = askRating({
+      root: this.hud.viewport,
+      thing,
+      onRate: () => {},
+      onMore: stars => {
+        this.ratingPrompt = null;
+        openFeedback({
+          root: this.hud.viewport,
+          playerId: this.player,
+          context: this.feedbackContext(),
+          followUp: { stars, thing, moment: thing === 'game' ? 'innings' : 'mode', ref: mintRef() },
+          preview: true,
+        });
+      },
+      onDismiss: () => {},
     });
   }
 
@@ -3473,6 +3509,11 @@ export class Game {
 
 
 /** How long the crowd keeps it up for each moment, in seconds; the clip is three and a half. */
+/** `?rate=1`'s keys: the game, then each mode in the order the picker shows them. */
+const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
+  { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
+  { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
   { label: '50', moment: { kind: 'fifty', mark: 50 } }, { label: '100', moment: { kind: 'century', mark: 100 } },

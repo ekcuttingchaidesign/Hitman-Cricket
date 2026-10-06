@@ -7,6 +7,7 @@ import {
 } from '../game/Share';
 import { track, trackOnce } from '../game/analytics';
 import { feedbackGiven } from '../game/feedback';
+import { RATED_NAME, type RatedThing } from '../game/rating';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
 import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
@@ -2688,6 +2689,25 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       key.type = 'button'; key.className = 'moment-key'; key.textContent = label;
       key.setAttribute('aria-label', `Play the ${label} celebration`);
       key.addEventListener('click', () => pick(moment));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
+   * `?rate=1`'s keys: one a thing the stars ask about, along the foot of the
+   * picture, kept from the bat underneath the way the moments' keys are.
+   */
+  rateKeys(keys: readonly { label: string; thing: RatedThing }[], pick: (thing: RatedThing) => void) {
+    const row = document.createElement('div');
+    row.className = 'rate-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview the star rating');
+    for (const { label, thing } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.thing = thing; key.textContent = label;
+      key.setAttribute('aria-label', `Preview the stars for ${RATED_NAME[thing]}`);
+      key.addEventListener('click', () => pick(thing));
       row.append(key);
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());

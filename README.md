@@ -715,6 +715,8 @@ And the brakes. Never on the first innings anybody plays, of any mode — that i
 
 One rating can be several rows carrying one `ref`: the stars, the stars again if they were changed after being sent, and the follow-up answers, which carry the final stars too. **Take the latest row of each `ref` as its rating**, and average over refs, not over rows, or everybody who changed their mind or said more is counted twice. The columns are `stars`, `thing` (game, survive, marathon, rivals), `moment` (`mode`, `innings`) and `ref`, ahead of the questions.
 
+**`?rate=1` previews it.** A row of keys along the foot of the picture — GAME, BLAST, MARATHON, SURVIVAL, RIVALS — each puts the sticker up for that thing at once, over whatever is on screen. Tap, slide, change your mind, say more: it is the real sticker and the real follow-up, and nothing is sent or remembered, so it can be played with as often as you like. It works on any preview deployment and on production.
+
 `scripts/rating-check.mjs` reaches it the way a player does — finishing innings — because its rule is about *when*: the first innings asks nothing, the second asks about its mode, a third that visit asks nothing. It then puts the slip up through the debug hook (`__cricket.rating('marathon')`) to look at the low mark, the cross and the keyboard, judging the celebrations by the pieces they leave and the requests they send rather than by frames a software renderer may never draw. `SHOTS=dir` keeps pictures of each. `QUICK=1` leaves the innings out and checks only the slip, for a machine whose software renderer cannot bat three innings in reasonable time; it holds nothing about when, so it does not stand in for the full run.
 
 ### Where the game offers it
