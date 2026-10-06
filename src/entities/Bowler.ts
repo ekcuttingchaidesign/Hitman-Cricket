@@ -459,7 +459,9 @@ export class Bowler {
   private laneX(veer: number) { return this.roundTheWicket ? -ROUND_LANE - veer : this.style.lane + veer; }
 
   constructor(kit?: Kit) {
-    this.figure = new Cricketer(kit);
+    // He faces the batter's camera all the way in, so he wears the batter's
+    // kind of shirt and trousers; the fielders keep the plain figure.
+    this.figure = new Cricketer(kit, { connected: true });
     this.root = this.figure.root;
     this.ball = new THREE.Mesh(new THREE.SphereGeometry(.037, 14, 10), new THREE.MeshStandardMaterial({ color: 0xc0341c, roughness: .5 }));
     this.figure.hands[1].add(this.ball);

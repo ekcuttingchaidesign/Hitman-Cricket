@@ -40,6 +40,22 @@ it('keeps the jersey hem and trouser waist joined in every shot and celebration'
   expect([...edges.values()].every(n=>n===1||n===2)).toBe(true);
 });
 
+it('keeps the bowler\'s shirt hem and trouser waist joined through his action', () => {
+  // The bowler wears the batter's kind of clothes (the fielders do not).
+  const bowler = new Bowler();
+  const rig = bowler.figure as unknown as { garments: { jersey: ConnectedJersey; trousers: ConnectedTrousers } };
+  expect(rig.garments).toBeDefined();
+  for (let t = 0; t <= 2240; t += 80) {
+    bowler.animate(t); bowler.figure.drape();
+    const shirt = rig.garments.jersey.mesh.geometry.getAttribute('position');
+    const trousers = rig.garments.trousers.mesh.geometry.getAttribute('position');
+    for (let i = 0; i < 24; i++) for (let axis = 0; axis < 3; axis++)
+      expect(trousers.getComponent(i, axis)).toBeCloseTo(shirt.getComponent(i, axis), 6);
+    for (const value of [...shirt.array, ...trousers.array]) expect(Number.isFinite(value)).toBe(true);
+  }
+  expect((new Cricketer() as unknown as { garments?: unknown }).garments).toBeUndefined();
+});
+
 it('redresses a fielder\'s merged parts without recolouring skin', () => {
   const figure = new Cricketer(); figure.dress({...KIT,shirt:0xffffff,trousers:0xdddddd,skin:0x986b48});
   const seen = new Set<string>();
