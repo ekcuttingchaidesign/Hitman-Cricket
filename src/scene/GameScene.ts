@@ -17,6 +17,8 @@ import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
 import { buildWicket } from './wicket';
 import { PerformanceReadout } from './performance';
+import { grassBlades } from './grassBlades';
+import { grassDetail } from './grassDetail';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 
@@ -445,7 +447,10 @@ export class GameScene {
   private createGround() {
     const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     const grass = grassTexture(70, 10, GAME.boundaryRadius, anisotropy);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
+    // Relief only, the colour left to the turf: a blade's light and shade,
+    // tiled, and fading into the flat as the mipmaps take over.
+    const blades = grassDetail(140, anisotropy);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
     const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 });
@@ -453,7 +458,9 @@ export class GameScene {
     this.dryPitch = surface; this.anisotropy = anisotropy;
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
-    this.textures.push(grass, surface);
+    this.textures.push(grass, blades, surface);
+    // And standing blades either side of the strip near the bat, one draw.
+    this.world.add(grassBlades(grass));
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {

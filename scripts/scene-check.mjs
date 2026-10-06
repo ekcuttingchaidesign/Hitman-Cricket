@@ -95,15 +95,22 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
   if (await anyway.count()) { await anyway.first().click(); await page.waitForTimeout(800); }
   await page.locator('#start').click({ force: true });
-  await page.waitForTimeout(700);
-  for (let i = 0; i < 8; i++) {
-    const done = page.locator('#whatsnew-done');
-    if (!(await done.count()) || !(await done.isVisible())) break;
-    // Gone between the look and the tap is gone: the stories close themselves.
-    await done.click({ force: true, timeout: 3000 }).catch(() => {});
+  // Wait on the screens rather than a sleep, and give each click fifteen
+  // seconds, as milestone-check does: with the ground drawn in software a
+  // forced click can take five to land, and one cut off at three never does,
+  // so the stories stayed up and Select Mode never came.
+  for (let i = 0; i < 30; i++) {
+    const mode = page.locator('#mode-classic'), done = page.locator('#whatsnew-done');
+    if (await mode.isVisible().catch(() => false)) {
+      await page.waitForTimeout(500);
+      await mode.click({ force: true, timeout: 15_000 }).catch(() => {});
+      await page.waitForTimeout(800);
+      if (!(await mode.isVisible().catch(() => false))) break;
+      continue;
+    }
+    if (await done.isVisible().catch(() => false)) await done.click({ force: true, timeout: 15_000 }).catch(() => {});
     await page.waitForTimeout(500);
   }
-  await page.locator('#mode-classic').click({ force: true });
 
   let phase = '';
   for (let i = 0; i < 40 && !/BALL|RUNUP|READY/.test(phase); i++) {
