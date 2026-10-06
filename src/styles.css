@@ -3900,7 +3900,17 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 .mcard-keys{margin-top:10px}
 .mcard-keys :is(.story-key,.whatsapp-key) svg{width:17px;height:17px}
 .declare-key{display:block;width:100%;margin-top:10px}
+/* The blue keys' red: the same lightness and strength, turned to the red of a
+   ball, so ending the innings reads apart from the two keys that carry on. */
+.story-key.declare-key{background:#6e262c;box-shadow:0 4px 0 #2b0b0f,inset 0 1px 0 #ffffff1f}
+.story-key.declare-key:hover:not(:disabled){background:#82303a}
+.story-key.declare-key:active:not(:disabled){box-shadow:0 2px 0 #2b0b0f,inset 0 1px 0 #ffffff1f}
 .declare-key.hidden{display:none}
+/* Shut until twenty overs: there, so the player knows declaring is coming,
+   and plainly not pressable. */
+.declare-key.is-locked,.declare-key:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
+.declare-line{margin:6px 0 0;font-size:12px;font-weight:600;color:var(--quiet,#9fb2bd);text-align:center}
+.declare-line.hidden{display:none}
 
 /* ── The claim strip, on the Test card ─────────────────────────────────────
    The same strip the other card carries, moved here for as long as this is the

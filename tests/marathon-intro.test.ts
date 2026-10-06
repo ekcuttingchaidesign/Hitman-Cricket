@@ -3,8 +3,14 @@ import { INTRO_SHOWINGS, INTRO_STEPS, introDue, introKeysMarkup } from '../src/u
 
 describe('the Marathon’s rules, the first time', () => {
   it('are four cards, two of them pointing at what they are about', () => {
-    expect(INTRO_STEPS.map(step => step.title)).toEqual(['Three batters', 'Focus to settle', 'The pitch wears', 'Declare, then register']);
+    expect(INTRO_STEPS.map(step => step.title)).toEqual(['Three batters', 'Focus to settle', 'The pitch wears', 'Every innings counts']);
     expect(INTRO_STEPS.map(step => step.spot ?? null)).toEqual([null, 'settle', null, 'pause']);
+  });
+
+  it('say every innings goes on the board, and declaring is a choice rather than a step', () => {
+    const last = INTRO_STEPS[INTRO_STEPS.length - 1];
+    expect(last.line).toMatch(/all out or declared/i);
+    expect(`${last.title} ${last.line}`).not.toMatch(/then register|declare, then/i);
   });
 
   it('never tell a player there are five hundred balls', () => {
