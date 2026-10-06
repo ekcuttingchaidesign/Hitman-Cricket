@@ -376,7 +376,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
+        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><p id="declare-line" class="declare-line hidden">Ends the innings here and keeps your score</p><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -1605,7 +1605,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     arrow.classList.remove('hidden');
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
-  declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
+  declareKey(show: boolean) {
+    this.$('declare').classList.toggle('hidden', !show);
+    // What the key does, under it: it is a choice that keeps the score, not a
+    // step every innings owes before it can count.
+    this.$('declare-line').classList.toggle('hidden', !show);
+  }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
   private guide(on: boolean, specials: readonly NonNullable<Primed>[]) {
     const guide = this.$('swipe-guide');

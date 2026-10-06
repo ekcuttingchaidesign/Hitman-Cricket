@@ -3901,6 +3901,8 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 .mcard-keys :is(.story-key,.whatsapp-key) svg{width:17px;height:17px}
 .declare-key{display:block;width:100%;margin-top:10px}
 .declare-key.hidden{display:none}
+.declare-line{margin:6px 0 0;font-size:12px;font-weight:600;color:var(--quiet,#9fb2bd);text-align:center}
+.declare-line.hidden{display:none}
 
 /* ── The claim strip, on the Test card ─────────────────────────────────────
    The same strip the other card carries, moved here for as long as this is the

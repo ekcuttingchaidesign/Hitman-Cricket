@@ -132,7 +132,7 @@ for (let i = 0; i < 4; i++) {
   await page.locator('#mi-next').click({ force: true });
   await advance(50);
 }
-check(JSON.stringify(cards.map(c => c.title)) === JSON.stringify(['Three batters', 'Focus to settle', 'The pitch wears', 'Declare, then register']),
+check(JSON.stringify(cards.map(c => c.title)) === JSON.stringify(['Three batters', 'Focus to settle', 'The pitch wears', 'Every innings counts']),
   'four of them: three batters, focus, the pitch wearing, declaring', JSON.stringify(cards.map(c => c.title)));
 check(!cards[0].spot && cards[1].spot && !cards[2].spot && cards[3].spot, 'the focus meter and the pause key lit on the cards about them', JSON.stringify(cards));
 check(!(await intro.isVisible()) && await page.evaluate(() => localStorage.getItem('hitman-marathon-intro')) === '1', 'put away by the last, and remembered as shown once');
