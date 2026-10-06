@@ -97,6 +97,17 @@ const finishInnings = async () => {
   throw new Error('The innings never ended');
 };
 
+// Every form the page sends, counted inside the page, where a slow renderer's
+// gaps between the script's steps cannot get between a tap and the count.
+await page.addInitScript(() => {
+  const real = window.fetch.bind(window);
+  window.__posts = [];
+  window.fetch = (url, init) => {
+    if (String(url).includes('/api/feedback') && init?.method === 'POST') window.__posts.push(init.body);
+    return real(url, init);
+  };
+});
+
 // A private window counts nothing, and a headless browser reads as one. A visit
 // remembered from an earlier day is the tell that settles it.
 await page.addInitScript(() => {
@@ -177,38 +188,67 @@ const watchThrown = () => page.evaluate(() => {
 });
 const thrown = () => page.evaluate(() => window.__thrown);
 await watchThrown();
-const five = await star(5).boundingBox();
-await page.mouse.move(five.x + five.width / 2, five.y + five.height / 2);
-await page.mouse.down();
-await page.mouse.up();
-await page.waitForTimeout(150);
-check(await pop.getAttribute('data-stars') === '5', 'a tap on the fifth gives five');
+// Five, then three, then five again, in one go inside the page: a renderer this
+// slow can spend the wait before a mark is sent between two steps of a script,
+// and what is being checked is that taps in quick succession send one mark.
+const changes = await page.evaluate(() => {
+  const pop = document.querySelector('.rate-pop:not(.is-leaving)');
+  const row = pop.querySelector('.rate-stars');
+  const tap = n => {
+    const at = pop.querySelector(`.rate-star[data-n="${n}"]`).getBoundingClientRect();
+    const where = { clientX: at.left + at.width / 2, clientY: at.top + at.height / 2, pointerId: 7, pointerType: 'touch', bubbles: true };
+    row.dispatchEvent(new PointerEvent('pointerdown', where));
+    row.dispatchEvent(new PointerEvent('pointerup', where));
+    return { stars: pop.dataset.stars, tiers: ['is-low', 'is-mid', 'is-high', 'is-top'].filter(one => pop.classList.contains(one)), posts: window.__posts.length };
+  };
+  return [tap(5), tap(3), tap(5)];
+});
+check(changes[0].stars === '5', 'a tap on the fifth gives five', JSON.stringify(changes));
+check(changes[1].stars === '3' && changes[1].tiers.join() === 'is-mid', 'a tap on the third then changes it to three, met as a three');
+check(changes[2].stars === '5' && changes[2].tiers.join() === 'is-top', 'and a tap on the fifth changes it back');
+check(changes.every(one => one.posts === 0), 'with nothing sent while the mark is still changing');
 check(await pop.evaluate(node => node.classList.contains('is-top')), 'and is met as a five');
-// Given stars are disabled so they cannot be given twice, and the page dims
-// every disabled key — which turned five gold stars olive the moment they landed.
 check(await star(5).evaluate(node => getComputedStyle(node).opacity) === '1', 'and the stars stay lit once given',
   await star(5).evaluate(node => getComputedStyle(node).opacity));
 const five$ = await thrown();
 check(five$.includes('rate-ball') && five$.includes('rate-six'), 'the last star goes up as a ball, with the call', five$.join(' '));
 check(five$.filter(one => one.startsWith('rate-confetti')).length > 10, 'and the confetti with it', String(five$.length));
 await shoot('rating-five');
-await settle(400);
-const tap = sent.find(form => form.rating);
-check(tap?.rating?.stars === 5 && tap.rating.thing === 'survive' && tap.rating.moment === 'mode',
-  'the stars are sent the moment they land', JSON.stringify(tap));
-check(tap && Object.keys(tap.answers).length === 0, 'on their own, with nothing else asked');
+const ratings = () => sent.filter(form => form.rating && !Object.keys(form.answers).length);
+await settle(2200);
+check(ratings().length === 1 && ratings()[0].rating.stars === 5, 'one rating is sent, of the mark settled on',
+  JSON.stringify(ratings().map(form => form.rating)));
+const tap = ratings()[0];
+check(tap?.rating?.thing === 'survive' && tap.rating.moment === 'mode', 'of the mode, at the end of its innings', JSON.stringify(tap));
 check(!!(await memory())?.rated?.survive, 'and remembered as rated', JSON.stringify(await memory()));
 
-await settle(1400);
 const more = pop.locator('.rate-more');
 check(await more.isVisible(), 'then it offers more');
 check((await more.textContent())?.includes('NEXT'), 'in words that answer a five', await more.textContent());
 await shoot('rating-more');
 
+// Changed again after it went: the keys follow the new mark at once, and the
+// new mark is sent under the same ref, so it replaces the first rather than
+// counting beside it.
+await star(2).click();
+await page.waitForTimeout(150);
+check((await more.textContent()) === 'TELL US WHY', 'changed to two after the keys are up, the keys ask why',
+  await more.textContent());
+check((await pop.locator('.rate-say').textContent())?.includes('fell short'), 'and the words are a two’s');
+await settle(2200);
+const again = ratings().at(-1);
+check(ratings().length === 2 && again.rating.stars === 2 && again.rating.ref === tap.rating.ref,
+  'the new mark is sent under the same ref', JSON.stringify(ratings().map(form => form.rating)));
+// And back to five for the rest, sent at once by the key that moves on.
+await star(5).click();
+await page.waitForTimeout(150);
+
 // ── Tell us more ────────────────────────────────────────────────────────────
-await more.click();
+await pop.locator('.rate-more').click();
 await settle(400);
 check(!(await popUp()), 'the slip goes when more is asked for');
+check(ratings().at(-1)?.rating?.stars === 5, 'taking the five with it, sent without waiting',
+  JSON.stringify(ratings().map(form => form.rating)));
 const sheet = page.locator('.feedback-screen');
 check(await sheet.isVisible(), 'and the follow-up opens');
 check((await sheet.locator('.feedback-eyebrow').textContent()) === 'TELL US MORE', 'as the follow-up, not the questionnaire');
@@ -287,8 +327,8 @@ await finger('touchMove', await centre(4));
 await finger('touchEnd');
 await page.waitForTimeout(400);
 check(await pop.getAttribute('data-stars') === '4', 'lifted on the fourth, it gives four', await pop.getAttribute('data-stars'));
+await settle(2000);
 check(sent.slice(swipedFrom).some(form => form.rating?.stars === 4), 'and four is what is sent');
-await settle(1200);
 // Two ways on, side by side and half the width each: never a key with a link under it.
 const pair = await pop.locator('.rate-keys > button').evaluateAll(keys => keys.map(key => {
   const at = key.getBoundingClientRect();

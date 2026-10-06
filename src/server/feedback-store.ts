@@ -165,17 +165,11 @@ const CONTEXT_COLUMNS = ['mode', 'runs', 'balls', 'best', 'innings', 'days', 'de
  * joined by a space — so counting how many people asked for a bowling mode is a
  * filter rather than a program.
  *
- * A star rating is a row of its own, sent the moment the star is tapped, and the
- * questions that follow it are a second row carrying the same stars and the same
- * `ref`. Average the stars over distinct refs, not over rows, or everybody who
- * said more is counted twice.
- *
- * Every field is quoted and every quote inside one is doubled, which is the
- * whole of the CSV escaping rule. The suggestion is the only field anybody typed
- * and it is also the only one that could carry a comma, a quote or a leading
- * `=` that a spreadsheet would read as a formula — so it is prefixed with a
- * quote character when it starts with one of those, which is what stops a
- * suggestion being executed by the program that opens it.
+ * A star rating is a row of its own, sent once the player settles on a mark;
+ * a mark changed after it was sent is another row, and the questions that
+ * follow are another, all carrying the same `ref` and the latest stars. Take
+ * the latest row of each ref as its rating and average over refs, not rows, or
+ * everybody who changed their mind or said more is counted twice.
  */
 export function feedbackCsv(entries: readonly StoredFeedback[]): string {
   const questions = ALL_QUESTIONS.map(question => question.id);

@@ -1585,12 +1585,15 @@ export class Game {
     this.ratingPrompt = askRating({
       root: this.hud.viewport,
       thing,
-      onRate: stars => {
+      onRate: (stars, changed) => {
         // Remembered as rated before it is sent, and whatever the send says: a
         // rating lost to a dead connection is a pity, but asking again somebody
         // who has already given one is the thing that makes people stop.
         writeMemory(rated(readMemory(), thing, Date.now()));
-        track(`rating-${thing}-${stars}`, `Rated ${thing}: ${stars} stars`);
+        // A mark changed after it was sent is counted as a change rather than as
+        // a second rating, which the counts of each mark could not take back.
+        if (changed) track('rating-changed', `Rating of ${thing} changed`);
+        else track(`rating-${thing}-${stars}`, `Rated ${thing}: ${stars} stars`);
         void sendFeedback({
           playerId: this.player, answers: {}, suggestion: '', context: this.feedbackContext(),
           rating: { stars, thing, moment, ref },

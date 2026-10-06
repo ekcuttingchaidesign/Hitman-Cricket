@@ -10,9 +10,13 @@ import { RATED_NAME, STAR_WORDS, tierOf, type RatedThing } from '../game/rating'
  * foot of the picture, and it goes with one tap of the cross. It is cream and
  * inked rather than navy because the card behind it is navy (see the styles).
  *
- * One tap is also the whole of rating. A star is sent the moment it is tapped —
- * whatever happens next, the stars are in — and only then is the player offered
- * more, in words that depend on what they gave.
+ * One tap is also the whole of rating, and it is not final. The stars stay live
+ * while the sticker is up: a second thought is a second tap, and the sticker
+ * answers it as it answered the first — the words, the keys and the fuss all
+ * follow the new mark. What is sent is the mark the player settled on, once
+ * they stop changing it (`SEND_AFTER_MS`), or at once when they move on — Done,
+ * the cross, saying more, or leaving the page — so somebody who taps three and
+ * then five is one rating of five, not two ratings.
  *
  * The stars are dragged as well as tapped: a thumb laid on the row and slid
  * along it fills them as it goes and rates where it lifts, which is how a phone
@@ -29,8 +33,11 @@ import { RATED_NAME, STAR_WORDS, tierOf, type RatedThing } from '../game/rating'
 export interface RatingPromptOptions {
   root: HTMLElement;
   thing: RatedThing;
-  /** A star tapped. Called once, the moment it lands. */
-  onRate: (stars: number) => void;
+  /**
+   * The mark the player settled on, to be sent. Called again only if they change
+   * it after it has gone, with `changed` set.
+   */
+  onRate: (stars: number, changed: boolean) => void;
   /** "Tell us more", after a rating. The prompt has already gone. */
   onMore: (stars: number) => void;
   /** Waved away before any star was given. */
@@ -53,6 +60,11 @@ const AFTER = {
 /** How long the stars hold the floor before the prompt asks for more. */
 const SETTLE_MS = { low: 700, mid: 800, high: 900, top: 1300 } as const;
 
+/** How long a mark is left alone before it counts as settled and is sent. */
+export const SEND_AFTER_MS = 1500;
+
+const TIERS = ['is-low', 'is-mid', 'is-high', 'is-top'];
+
 /** A star: the socket it sits in, the inked fill, and the glint on its upper arm. */
 const STAR_PATH = 'M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z';
 const STAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="rate-star-edge" d="${STAR_PATH}"/><path class="rate-star-fill" d="${STAR_PATH}"/><path class="rate-star-shine" d="M9.6 9.6l1.5-3.1.8 1.7-1 2.1-2.3.4z"/></svg>`;
@@ -61,9 +73,13 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
   const name = RATED_NAME[options.thing];
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let given = 0;
+  /** What was last sent, so a mark is only sent again when it has changed. */
+  let sent = 0;
   let open = true;
   let dragging = false;
   let settle = 0;
+  let sending = 0;
+  let clearing = 0;
 
   const pop = document.createElement('div');
   pop.className = 'rate-pop';
@@ -93,12 +109,15 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
     close();
   };
 
-  /** The stars lit up to `n`, without giving them. */
+  /**
+   * The stars lit up to `n`, without giving them. Nought puts back whatever is
+   * given — nothing, or the mark already chosen.
+   */
   const preview = (n: number) => {
-    if (given) return;
-    stars.forEach((star, i) => star.classList.toggle('is-lit', i < n));
-    word.textContent = n ? STAR_WORDS[n - 1] : 'Tap a star';
-    pop.classList.toggle('is-previewing', n > 0);
+    const shown = n || given;
+    stars.forEach((star, i) => star.classList.toggle('is-lit', i < shown));
+    word.textContent = shown ? STAR_WORDS[shown - 1] : 'Tap a star';
+    pop.classList.toggle('is-previewing', n > 0 && n !== given);
   };
 
   /** Which star a finger or pointer is over, read off the row so a drag between stars still lands. */
@@ -108,13 +127,15 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
   };
 
   row.addEventListener('pointerdown', event => {
-    if (given) return;
     dragging = true;
-    row.setPointerCapture(event.pointerId);
+    // Kept to the row so a thumb that strays above it while sliding still
+    // rates. A pointer the browser no longer knows cannot be captured, and the
+    // row works without it.
+    try { row.setPointerCapture(event.pointerId); } catch { /* Then it is not held. */ }
     preview(starAt(event.clientX));
   });
   row.addEventListener('pointermove', event => {
-    if (given || (!dragging && event.pointerType !== 'mouse')) return;
+    if (!dragging && event.pointerType !== 'mouse') return;
     preview(starAt(event.clientX));
   });
   row.addEventListener('pointerup', event => {
@@ -133,7 +154,7 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
     star.addEventListener('keydown', event => {
       const step = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1
         : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
-      if (!step || given) return;
+      if (!step) return;
       event.preventDefault();
       const next = stars[Math.max(0, Math.min(4, i + step))];
       stars.forEach(one => { one.tabIndex = one === next ? 0 : -1; });
@@ -143,10 +164,13 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
   });
 
   function rate(n: number) {
-    if (given || !open) return;
+    if (!open || n === given) return;
     given = n;
     const tier = tierOf(n);
-    pop.classList.remove('is-previewing');
+    pop.classList.remove('is-previewing', 'is-rated', ...TIERS);
+    // Taken off and put back with a layout between, so a second mark plays its
+    // own pop rather than leaving the first one's finished frame on screen.
+    void pop.offsetWidth;
     pop.classList.add('is-rated', `is-${tier}`);
     pop.dataset.stars = String(n);
     stars.forEach((star, i) => {
@@ -154,13 +178,26 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
       star.classList.toggle('is-on', i < n);
       star.classList.toggle('is-picked', i === n - 1);
       star.setAttribute('aria-checked', String(i === n - 1));
-      star.disabled = true;
     });
     word.textContent = STAR_WORDS[n - 1];
     try { navigator.vibrate?.(n >= 4 ? [12, 50, 22] : 10); } catch { /* No buzz, then. */ }
     if (!calm) celebrate(tier, stars[n - 1]);
-    options.onRate(n);
-    settle = window.setTimeout(after, calm ? 300 : SETTLE_MS[tier]);
+    window.clearTimeout(sending);
+    sending = window.setTimeout(send, SEND_AFTER_MS);
+    // The keys are already up after a change of mind: they are rewritten for
+    // the new mark straight away rather than taken down and brought back.
+    window.clearTimeout(settle);
+    if (pop.classList.contains('is-asking')) after();
+    else settle = window.setTimeout(after, calm ? 300 : SETTLE_MS[tier]);
+  }
+
+  /** The mark as it stands, sent if it has not been already. */
+  function send() {
+    window.clearTimeout(sending);
+    if (!given || given === sent) return;
+    const changed = sent > 0;
+    sent = given;
+    options.onRate(given, changed);
   }
 
   /** The offer of more, in words that answer the stars. */
@@ -186,6 +223,8 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
    * moves them, and they are taken away once it has.
    */
   function celebrate(tier: 'low' | 'mid' | 'high' | 'top', star: HTMLElement) {
+    window.clearTimeout(clearing);
+    burst.innerHTML = '';
     if (tier === 'low') return;
     const from = star.getBoundingClientRect();
     const box = pop.getBoundingClientRect();
@@ -214,12 +253,27 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
     if (tier === 'top') {
       piece('rate-ball', {});
       piece('rate-six', {});
+      // The whole sticker takes the hit. Played here rather than by a class,
+      // because a class that also carried the arrival would play the arrival
+      // again every time somebody changed their mind to five.
+      pop.animate([
+        { transform: 'translateX(-50%)' },
+        { transform: 'translate(-50%,6px) scale(1.02) rotate(-1deg)', offset: 0.3 },
+        { transform: 'translate(-50%,-2px)', offset: 0.6 },
+        { transform: 'translateX(-50%)' },
+      ], { duration: 420, delay: 240, easing: 'ease-out' });
     }
-    window.setTimeout(() => { burst.innerHTML = ''; }, 1800);
+    clearing = window.setTimeout(() => { burst.innerHTML = ''; }, 1800);
   }
+
+  // Leaving the page is moving on too: the mark goes with it rather than with
+  // a timer that will never fire.
+  window.addEventListener('pagehide', send);
 
   function close() {
     if (!open) return;
+    send();
+    window.removeEventListener('pagehide', send);
     open = false;
     window.clearTimeout(settle);
     pop.classList.add('is-leaving');

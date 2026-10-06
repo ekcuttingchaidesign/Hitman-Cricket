@@ -46,6 +46,9 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackSe
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: stop.signal,
+      // A rating is sent as the page is left, when it is; a request kept alive
+      // outlives the page that made it. The body is small enough to qualify.
+      keepalive: true,
       body: JSON.stringify({
         playerId: payload.playerId ?? '',
         answers: cleanAnswers(payload.answers),

@@ -698,7 +698,7 @@ Once it has been answered, every link into it goes for good. A link that keeps a
 
 ### The stars
 
-The questionnaire waits to be opened. The stars go looking: a cream sticker of five, inked in navy with a hard shadow and an orange *QUICK ONE* tab, slapped down under the innings-end card 1.6 seconds after it goes up — cream because the card behind it is navy, and a second navy panel read as a form stacked on a form — asking about one thing by name — *How was Test Marathon?* — and sent the moment a star is tapped. Whatever happens after that, the rating is in. The rules are in `src/game/rating.ts`; the slip is `src/ui/Rating.ts`.
+The questionnaire waits to be opened. The stars go looking: a cream sticker of five, inked in navy with a hard shadow and an orange *QUICK ONE* tab, slapped down under the innings-end card 1.6 seconds after it goes up — cream because the card behind it is navy, and a second navy panel read as a form stacked on a form — asking about one thing by name — *How was Test Marathon?* — with one tap. The tap is not final: the stars stay live while the sticker is up, and a second thought is a second tap, met as the new mark with its own fuss and its own words. What is sent is the mark the player settles on — 1.5 seconds after the last change, or at once when they move on (Done, the cross, saying more, the next innings, or leaving the page) — so three-then-five is one rating of five. The rules are in `src/game/rating.ts`; the slip is `src/ui/Rating.ts`.
 
 **When it asks** is most of the design, and every rule is a rule about not asking:
 
@@ -713,7 +713,7 @@ And the brakes. Never on the first innings anybody plays, of any mode — that i
 
 **Then it offers more**, in words that answer the stars — *sorry it fell short* for a low mark, *what would make it a five* for a three, *glad you're enjoying it* for a four — as two keys side by side at half the width each, DONE and the way to say more (TELL US WHY, TELL US MORE, WHAT'S NEXT?). Never a key with a link under it. That opens the questionnaire's own screen with a handful of follow-up questions (`FOLLOW_UPS` in `src/game/feedback.ts`): one about the stars, and up to two about the thing rated — a Marathon's length and what made it, how Survival's blows felt, whether a Rival Match was fair and how easy it was to get a friend in. Never more than three and the box. Sending them does not count as answering the questionnaire; its quiet lines stay.
 
-The stars and the follow-up are two rows in the sheet carrying one `ref`. **Average the stars over distinct refs, not over rows**, or everybody who said more is counted twice. The columns are `stars`, `thing` (game, survive, marathon, rivals), `moment` (`mode`, `innings`) and `ref`, ahead of the questions.
+One rating can be several rows carrying one `ref`: the stars, the stars again if they were changed after being sent, and the follow-up answers, which carry the final stars too. **Take the latest row of each `ref` as its rating**, and average over refs, not over rows, or everybody who changed their mind or said more is counted twice. The columns are `stars`, `thing` (game, survive, marathon, rivals), `moment` (`mode`, `innings`) and `ref`, ahead of the questions.
 
 `scripts/rating-check.mjs` reaches it the way a player does — finishing innings — because its rule is about *when*: the first innings asks nothing, the second asks about its mode, a third that visit asks nothing. It then puts the slip up through the debug hook (`__cricket.rating('marathon')`) to look at the low mark, the cross and the keyboard, judging the celebrations by the pieces they leave and the requests they send rather than by frames a software renderer may never draw. `SHOTS=dir` keeps pictures of each. `QUICK=1` leaves the innings out and checks only the slip, for a machine whose software renderer cannot bat three innings in reasonable time; it holds nothing about when, so it does not stand in for the full run.
 
@@ -890,6 +890,7 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `rating-ask-game`, `rating-ask-survive`, `rating-ask-marathon`, `rating-ask-rivals` | The stars put up, and about what. |
 | `rating-game-1` … `rating-rivals-5` | The stars given. The ask against these is the response rate. |
 | `rating-dismissed` | The slip waved away without a star. |
+| `rating-changed` | A mark changed after it had been sent. Counted apart, because the counts of each mark cannot take one back. |
 | `rating-more-open`, `rating-more-sent`, `rating-more-left-0` … | The follow-up after a rating: opened, sent, and where it was left. |
 | `webgl-fail` | The ground could not load, and nothing that follows was ever possible. |
 | `visitor-new`, `visitor-returning` | Whether this browser has played here before. |
