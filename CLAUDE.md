@@ -153,6 +153,15 @@ and the ended nets innings offering none — it is practice. Its career card is
 `stats-check`'s, second on the rail and green. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
+`scripts/rating-check.mjs` is the star prompt under the end card, and like
+`career-count-check` its rule is about *when*: it finishes innings to prove the
+first asks nothing, the second asks about its mode, and a third that visit asks
+nothing, before putting the slip up by name (`__cricket.rating('marathon')`)
+for the rest. The celebrations are judged by the pieces they leave and the
+requests sent, not by frames. When to ask is `nextAsk` in `src/game/rating.ts`,
+in the unit tests; a new mode goes in `NEW_MODES` and gets its follow-ups in
+`FOLLOW_UPS`.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one
 post among them, and the Marathon's career runs ladder. Point it at a preview deployment, never at production.

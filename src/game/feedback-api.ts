@@ -1,4 +1,5 @@
 import { cleanAnswers, cleanContext, cleanSuggestion, type FeedbackAnswers, type FeedbackContext } from './feedback';
+import { cleanRating, type Rating } from './rating';
 
 /**
  * The questionnaire, sent.
@@ -22,6 +23,7 @@ export interface FeedbackPayload {
   answers: FeedbackAnswers;
   suggestion: string;
   context: FeedbackContext;
+  rating?: Rating | null;
 }
 
 export interface FeedbackSent {
@@ -49,6 +51,7 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackSe
         answers: cleanAnswers(payload.answers),
         suggestion: cleanSuggestion(payload.suggestion),
         context: cleanContext(payload.context),
+        rating: cleanRating(payload.rating) ?? undefined,
       }),
     });
     const body = await response.json().catch(() => null) as { error?: string } | null;

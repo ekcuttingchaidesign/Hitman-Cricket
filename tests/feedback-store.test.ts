@@ -87,6 +87,27 @@ describe('a form arriving', () => {
   });
 });
 
+describe('a star rating arriving', () => {
+  it('is a submission on its own, with nothing else answered', async () => {
+    const store = memoryFeedback();
+    const outcome = await takeFeedback(store, form({
+      answers: {}, suggestion: '', rating: { stars: 5, thing: 'marathon', moment: 'mode', ref: 'abc12345' },
+    }));
+    expect(outcome.ok).toBe(true);
+    const [kept] = await store.read(1);
+    expect(kept.rating).toEqual({ stars: 5, thing: 'marathon', moment: 'mode', ref: 'abc12345' });
+  });
+
+  it('drops a rating that is not one, and a form with nothing else in it is then refused', async () => {
+    const store = memoryFeedback();
+    const outcome = await takeFeedback(store, form({ answers: {}, suggestion: '', rating: { stars: 11, thing: 'game' } }));
+    expect(refusedFeedback(outcome) && outcome.status).toBe(400);
+    const kept = await takeFeedback(store, form({ rating: { stars: 0, thing: 'game' } }));
+    expect(kept.ok).toBe(true);
+    expect((await store.read(1))[0].rating).toBeUndefined();
+  });
+});
+
 describe('who sent it', () => {
   it('keeps an id this game minted and drops anything else', () => {
     expect(cleanPlayerId(ID)).toBe(ID);
@@ -111,6 +132,16 @@ describe('the spreadsheet', () => {
     expect(header).toContain('"fun"');
     expect(header).toContain('"tempt"');
     expect(header).toContain('"suggestion"');
+  });
+
+  it('gives the stars and the follow-up questions columns of their own', () => {
+    const csv = feedbackCsv([entry({ rating: { stars: 4, thing: 'rivals', moment: 'mode', ref: 'abc12345' }, answers: { rfair: ['yes'] } })]);
+    const [header, row] = csv.split('\n');
+    for (const column of ['stars', 'thing', 'moment', 'ref', 'rfair', 'mlength']) expect(header).toContain(`"${column}"`);
+    expect(row).toContain('"4","rivals","mode","abc12345"');
+    // A form with no stars leaves the four empty rather than shifting the row.
+    const [, plain] = feedbackCsv([entry()]).split('\n');
+    expect(plain.split(',').slice(2, 6)).toEqual(['""', '""', '""', '""']);
   });
 
   it('joins a shortlist into one cell', () => {

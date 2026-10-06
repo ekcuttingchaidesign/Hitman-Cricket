@@ -37,6 +37,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       answers: body.answers,
       suggestion: body.suggestion,
       context: body.context,
+      rating: body.rating,
       address: addressOf(req),
     });
     if (refusedFeedback(outcome)) return failed(res, outcome.status, outcome.reason);
