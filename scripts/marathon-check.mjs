@@ -86,6 +86,8 @@ const saturation = (png, box) => page.evaluate(async ({ data, box }) => {
 const pause = async () => { await page.locator('#pause').click({ force: true }); await advance(50); };
 const resume = async () => { await page.locator('#resume').click({ force: true }); await advance(50); };
 const declareShown = () => page.locator('#declare').isVisible();
+const declareOpen = () => page.locator('#declare').isEnabled();
+const declareSays = () => page.locator('#declare-line').textContent();
 
 await page.addInitScript(() => {
   const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
@@ -219,13 +221,15 @@ const balls = (await snap()).balls;
 await write(ones(119 - balls));
 check((await snap()).balls === 119, 'nineteen overs and five balls bowled', `${(await snap()).balls}`);
 await pause();
-check(!(await declareShown()), 'no declaration on the pause card a ball short of twenty overs');
+check(await declareShown() && !(await declareOpen()), 'a ball short of twenty overs the declare key is there but shut');
+check((await declareSays()) === 'You can declare after 20 overs', 'saying when it opens', await declareSays());
 await resume();
 let state2 = await write([1]);
 check(state2.canDeclare, 'twenty overs done, and the innings can be declared', JSON.stringify(state2));
 check(state2.level === 3, 'with the express bowler\'s level begun', JSON.stringify(state2));
 await pause();
-check(await declareShown(), 'and the key is on the pause card');
+check(await declareShown() && await declareOpen(), 'and the key on the pause card opens');
+check((await declareSays()) === 'Ends the innings here and keeps your score', 'saying what it does', await declareSays());
 await resume();
 await block();
 

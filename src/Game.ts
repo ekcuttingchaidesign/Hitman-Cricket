@@ -1413,8 +1413,9 @@ export class Game {
       this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
       this.hud.lightsSwitch(this.test ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
-      // nowhere else, so it is never pressed by accident mid-ball.
-      this.hud.declareKey(!!this.marathon?.canDeclare);
+      // nowhere else, so it is never pressed by accident mid-ball. Before
+      // that the key is there but shut, saying when it opens.
+      this.hud.declareKey(!this.marathon ? 'hidden' : this.marathon.canDeclare ? 'open' : 'locked');
       // A paused innings is the one moment in the game where nothing is waiting
       // on the player, which is the only kind of moment worth asking in.
       this.hud.offerFeedback({ pause: true });

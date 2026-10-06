@@ -1605,11 +1605,19 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     arrow.classList.remove('hidden');
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
-  declareKey(show: boolean) {
-    this.$('declare').classList.toggle('hidden', !show);
-    // What the key does, under it: it is a choice that keeps the score, not a
-    // step every innings owes before it can count.
-    this.$('declare-line').classList.toggle('hidden', !show);
+  /**
+   * The declare key on the pause card: absent outside the Marathon, there but
+   * greyed out before twenty overs with the line saying when it opens, and
+   * live after, with the line saying what it does — a choice that keeps the
+   * score, not a step every innings owes before it can count.
+   */
+  declareKey(state: 'hidden' | 'locked' | 'open') {
+    const key = this.$('declare') as HTMLButtonElement, line = this.$('declare-line');
+    key.classList.toggle('hidden', state === 'hidden');
+    line.classList.toggle('hidden', state === 'hidden');
+    key.disabled = state !== 'open';
+    key.classList.toggle('is-locked', state === 'locked');
+    line.textContent = state === 'locked' ? 'You can declare after 20 overs' : 'Ends the innings here and keeps your score';
   }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
   private guide(on: boolean, specials: readonly NonNullable<Primed>[]) {
