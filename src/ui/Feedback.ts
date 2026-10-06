@@ -1,9 +1,10 @@
 import { track } from '../game/analytics';
 import { sendFeedback } from '../game/feedback-api';
 import {
-  PLAYED, SUGGESTION_MAX, askOf, feedbackGiven, markFeedbackGiven, playedFrom, questionsFor,
+  PLAYED, SUGGESTION_MAX, askOf, feedbackGiven, followUpFor, markFeedbackGiven, playedFrom, questionsFor,
   type FeedbackAnswers, type FeedbackContext, type Question,
 } from '../game/feedback';
+import type { Rating } from '../game/rating';
 import { gameLink } from '../game/Share';
 
 /**
@@ -41,6 +42,14 @@ export interface FeedbackOptions {
   /** The shared link, which has a gate at the front and a way into the game at the end. */
   standalone?: boolean;
   playerId?: string | null;
+  /**
+   * The stars just given, where this is the "tell us more" after a rating rather
+   * than the questionnaire. It asks the handful of questions that rating calls
+   * for and sends them with the stars, under the rating's own ref.
+   */
+  followUp?: Rating;
+  /** `?rate=1`'s follow-up: the same screens, and the answers go nowhere. */
+  preview?: boolean;
   /** Called when the sheet is gone, whether it was sent or waved away. */
   onDone?: (given: boolean) => void;
 }
@@ -52,14 +61,19 @@ interface Draft {
 
 export function openFeedback(options: FeedbackOptions) {
   const standalone = !!options.standalone;
+  const followUp = options.followUp ?? null;
   const touch = document.documentElement.classList.contains('touch-device');
-  const draft = readDraft();
+  // The follow-up keeps no draft: it is four taps long, and sharing the
+  // questionnaire's would put its half-finished answers on the wrong form.
+  const draft = followUp ? { answers: {}, suggestion: '' } : readDraft();
   const answers: FeedbackAnswers = draft.answers;
   let suggestion = draft.suggestion;
   let step = 0;
   let sending = false;
 
-  track(standalone ? 'feedback-open-link' : 'feedback-open', 'Feedback form opened');
+  track(followUp ? 'rating-more-open' : standalone ? 'feedback-open-link' : 'feedback-open', 'Feedback form opened');
+  const eyebrow = followUp ? 'TELL US MORE' : 'WHAT DID YOU THINK?';
+  const keep = (held: Draft) => { if (!followUp) saveDraft(held); };
 
   const gate = document.createElement('div');
   gate.className = `modal-overlay feedback-screen${standalone ? ' is-standalone' : ''}`;
@@ -74,7 +88,7 @@ export function openFeedback(options: FeedbackOptions) {
    * shared link the first answer decides the rest: somebody who has never batted
    * is not asked which shot felt best.
    */
-  const questions = () => questionsFor({
+  const questions = () => followUp ? followUpFor(followUp.thing, followUp.stars) : questionsFor({
     standalone,
     played: standalone ? (answers[PLAYED] ? playedFrom(answers[PLAYED][0]) : null) : true,
     touch,
@@ -95,7 +109,7 @@ export function openFeedback(options: FeedbackOptions) {
     gate.innerHTML = `
       <div class="feedback-sheet">
         <div class="feedback-head">
-          <span class="feedback-eyebrow">WHAT DID YOU THINK?</span>
+          <span class="feedback-eyebrow">${eyebrow}</span>
           <button id="feedback-close" class="board-close" type="button" aria-label="Close">×</button>
         </div>
         ${pips}
@@ -120,7 +134,7 @@ export function openFeedback(options: FeedbackOptions) {
         // The gate decides which questions follow, so an answer changed after
         // the fact must not leave answers to questions nobody is being asked.
         if (question.id === PLAYED) prune();
-        saveDraft({ answers, suggestion });
+        keep({ answers, suggestion });
         if (multi) return draw();
         // A beat, so the key is seen to go down before the screen it is on
         // leaves. Without it the tap reads as the screen having jumped.
@@ -143,7 +157,7 @@ export function openFeedback(options: FeedbackOptions) {
     box.oninput = () => {
       suggestion = box.value.slice(0, SUGGESTION_MAX);
       find('feedback-left').textContent = `${SUGGESTION_MAX - suggestion.length}`;
-      saveDraft({ answers, suggestion });
+      keep({ answers, suggestion });
     };
     find('feedback-send').onclick = () => { void send(); };
     const skip = document.getElementById('feedback-skip');
@@ -168,11 +182,12 @@ export function openFeedback(options: FeedbackOptions) {
     const key = find('feedback-send') as HTMLButtonElement;
     key.disabled = true;
     key.textContent = 'SENDING…';
-    const sent = await sendFeedback({
+    const sent = options.preview ? { ok: true as const, reason: undefined } : await sendFeedback({
       playerId: options.playerId ?? null,
       answers,
       suggestion,
       context: { ...options.context, link: standalone || undefined },
+      rating: followUp,
     });
     sending = false;
     if (!sent.ok) {
@@ -183,9 +198,10 @@ export function openFeedback(options: FeedbackOptions) {
       track('feedback-failed', 'Feedback could not be sent');
       return;
     }
-    track('feedback-sent', 'Feedback sent');
-    markFeedbackGiven();
-    clearDraft();
+    if (options.preview) return thanks();
+    track(followUp ? 'rating-more-sent' : 'feedback-sent', 'Feedback sent');
+    // The follow-up is not the questionnaire, so the quiet lines into that stay.
+    if (!followUp) { markFeedbackGiven(); clearDraft(); }
     thanks();
   }
 
@@ -197,7 +213,7 @@ export function openFeedback(options: FeedbackOptions) {
   function thanks() {
     gate.innerHTML = `
       <div class="feedback-sheet feedback-thanks">
-        <span class="feedback-eyebrow">SENT</span>
+        <span class="feedback-eyebrow">${options.preview ? 'PREVIEW — NOTHING WAS SENT' : 'SENT'}</span>
         <h2>Thank you — that is genuinely useful.</h2>
         <p>Every answer is read. The next version is built out of these.</p>
         ${standalone
@@ -214,7 +230,7 @@ export function openFeedback(options: FeedbackOptions) {
       // Where they stopped, which is the one thing a half-filled form can still
       // say: a questionnaire everybody leaves on the same screen has a bad
       // question on it.
-      track(`feedback-left-${step}`, `Feedback left at screen ${step}`);
+      track(`${followUp ? 'rating-more-left' : 'feedback-left'}-${step}`, `Feedback left at screen ${step}`);
     }
     document.removeEventListener('keydown', onKey);
     gate.remove();

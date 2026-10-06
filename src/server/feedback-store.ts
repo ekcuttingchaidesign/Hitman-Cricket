@@ -1,7 +1,8 @@
 import {
-  answered, cleanAnswers, cleanContext, cleanSuggestion,
-  QUESTIONS, type FeedbackAnswers, type FeedbackContext,
+  ALL_QUESTIONS, answered, cleanAnswers, cleanContext, cleanSuggestion,
+  type FeedbackAnswers, type FeedbackContext,
 } from '../game/feedback.js';
+import { cleanRating, type Rating } from '../game/rating.js';
 
 /**
  * What a filled-in form is, on the store's side of the wire.
@@ -48,6 +49,8 @@ export interface StoredFeedback {
   answers: FeedbackAnswers;
   suggestion: string;
   context: FeedbackContext;
+  /** The stars, where this form is a rating or the questions that followed one. */
+  rating?: Rating;
 }
 
 /** Everything the questionnaire needs from whatever is keeping it. */
@@ -66,6 +69,7 @@ export interface FeedbackInput {
   answers: unknown;
   suggestion: unknown;
   context: unknown;
+  rating?: unknown;
   /** Whoever the edge says is asking. Used to rate limit, never as identity. */
   address: string;
 }
@@ -101,7 +105,8 @@ export async function takeFeedback(
   }
   const answers = cleanAnswers(input.answers);
   const suggestion = cleanSuggestion(input.suggestion);
-  if (!answered(answers, suggestion)) {
+  const rating = cleanRating(input.rating);
+  if (!answered(answers, suggestion, rating)) {
     return { ok: false, status: 400, reason: 'Nothing was answered.' };
   }
   await store.save({
@@ -110,6 +115,7 @@ export async function takeFeedback(
     answers,
     suggestion,
     context: cleanContext(input.context),
+    ...(rating ? { rating } : {}),
   });
   return { ok: true, at: now };
 }
@@ -146,7 +152,8 @@ export function keyAccepted(secret: unknown, offered: unknown): boolean {
   return held.length > 0 && given === held;
 }
 
-/** The columns a sheet gets, in order: when, who, every question, then the words. */
+/** The columns a sheet gets, in order: when, who, the stars, every question, then the words. */
+const RATING_COLUMNS = ['stars', 'thing', 'moment', 'ref'] as const;
 const CONTEXT_COLUMNS = ['mode', 'runs', 'balls', 'best', 'innings', 'days', 'device', 'link'] as const;
 
 /**
@@ -158,19 +165,19 @@ const CONTEXT_COLUMNS = ['mode', 'runs', 'balls', 'best', 'innings', 'days', 'de
  * joined by a space — so counting how many people asked for a bowling mode is a
  * filter rather than a program.
  *
- * Every field is quoted and every quote inside one is doubled, which is the
- * whole of the CSV escaping rule. The suggestion is the only field anybody typed
- * and it is also the only one that could carry a comma, a quote or a leading
- * `=` that a spreadsheet would read as a formula — so it is prefixed with a
- * quote character when it starts with one of those, which is what stops a
- * suggestion being executed by the program that opens it.
+ * A star rating is a row of its own, sent once the player settles on a mark;
+ * a mark changed after it was sent is another row, and the questions that
+ * follow are another, all carrying the same `ref` and the latest stars. Take
+ * the latest row of each ref as its rating and average over refs, not rows, or
+ * everybody who changed their mind or said more is counted twice.
  */
 export function feedbackCsv(entries: readonly StoredFeedback[]): string {
-  const questions = QUESTIONS.map(question => question.id);
-  const header = ['at', 'playerId', ...questions, 'suggestion', ...CONTEXT_COLUMNS];
+  const questions = ALL_QUESTIONS.map(question => question.id);
+  const header = ['at', 'playerId', ...RATING_COLUMNS, ...questions, 'suggestion', ...CONTEXT_COLUMNS];
   const rows = entries.map(entry => [
     new Date(entry.at).toISOString(),
     entry.playerId,
+    ...RATING_COLUMNS.map(key => (entry.rating ? String(entry.rating[key]) : '')),
     ...questions.map(id => (entry.answers[id] ?? []).join(' ')),
     entry.suggestion,
     ...CONTEXT_COLUMNS.map(key => {

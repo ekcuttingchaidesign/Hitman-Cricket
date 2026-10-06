@@ -114,7 +114,7 @@ function boardEndpoints(): Plugin {
             const form = JSON.parse(await read(req)) as Record<string, unknown>;
             const outcome = await takeFeedback(feedback, {
               playerId: form.playerId, answers: form.answers,
-              suggestion: form.suggestion, context: form.context, address: 'dev',
+              suggestion: form.suggestion, context: form.context, rating: form.rating, address: 'dev',
             });
             return refusedFeedback(outcome)
               ? send(outcome.status, { error: outcome.reason })

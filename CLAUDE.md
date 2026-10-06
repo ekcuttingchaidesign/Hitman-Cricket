@@ -153,6 +153,17 @@ and the ended nets innings offering none — it is practice. Its career card is
 `stats-check`'s, second on the rail and green. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
+`scripts/rating-check.mjs` is the star prompt under the end card, and like
+`career-count-check` its rule is about *when*: it finishes innings to prove the
+first asks nothing, the second asks about its mode, and a third that visit asks
+nothing, before putting the slip up by name (`__cricket.rating('marathon')`)
+for the rest. The celebrations are judged by the pieces they leave and the
+requests sent, not by frames. When to ask is `nextAsk` in `src/game/rating.ts`,
+in the unit tests; a new mode goes in `NEW_MODES` and gets its follow-ups in
+`FOLLOW_UPS`. `QUICK=1` skips the innings and checks only the slip, for a
+renderer too slow to bat — it says nothing about when, which is the point of
+the check, so it is not a substitute for the full run.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one
 post among them, and the Marathon's career runs ladder. Point it at a preview deployment, never at production.
@@ -213,3 +224,13 @@ holds the bowler at his mark until it is over; with a ball on its way it waits
 for that ball to be dead, which is when a real one goes up. It is the same
 celebration with none of the innings: no runs, nothing counted, nothing sent.
 Add `&mode=marathon` for the Test kit and ground.
+
+## `?rate=1`
+
+A row of keys along the foot of the picture — GAME, BLAST, MARATHON, SURVIVAL,
+RIVALS — each putting the star sticker up for that thing, for looking at it
+and playing with it on a phone without finishing the innings that earns it.
+It is the real sticker and the real follow-up, and nothing is sent or
+remembered: the stars go nowhere, the follow-up's last screen says so, and
+asking again is one tap. It changes nothing about the batting, so it is not
+practice (`tests/practice.test.ts` names it). `rating-check` walks it.

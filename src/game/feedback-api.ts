@@ -1,4 +1,5 @@
 import { cleanAnswers, cleanContext, cleanSuggestion, type FeedbackAnswers, type FeedbackContext } from './feedback';
+import { cleanRating, type Rating } from './rating';
 
 /**
  * The questionnaire, sent.
@@ -22,6 +23,7 @@ export interface FeedbackPayload {
   answers: FeedbackAnswers;
   suggestion: string;
   context: FeedbackContext;
+  rating?: Rating | null;
 }
 
 export interface FeedbackSent {
@@ -44,11 +46,15 @@ export async function sendFeedback(payload: FeedbackPayload): Promise<FeedbackSe
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: stop.signal,
+      // A rating is sent as the page is left, when it is; a request kept alive
+      // outlives the page that made it. The body is small enough to qualify.
+      keepalive: true,
       body: JSON.stringify({
         playerId: payload.playerId ?? '',
         answers: cleanAnswers(payload.answers),
         suggestion: cleanSuggestion(payload.suggestion),
         context: cleanContext(payload.context),
+        rating: cleanRating(payload.rating) ?? undefined,
       }),
     });
     const body = await response.json().catch(() => null) as { error?: string } | null;

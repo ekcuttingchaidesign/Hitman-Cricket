@@ -696,6 +696,29 @@ Nothing is sent until the last screen, and a form left half-done is left rather 
 
 Once it has been answered, every link into it goes for good. A link that keeps asking after it has been answered is not an invitation.
 
+### The stars
+
+The questionnaire waits to be opened. The stars go looking: a panel of five in the game's Test-match voice — the deep cricket green the Marathon's stories stand on, mown in stripes, *QUICK ONE* after a red ball, the thing asked about on the stories' cream bar with its red rule, gold stars like the logo's, and the PLAY key's white and orange for the way on — rising under the innings-end card 1.6 seconds after it goes up. No blue: the card behind it is navy, and a second navy panel read as a form stacked on a form. It goes up asking about one thing by name — *How was Test Marathon?* — with one tap. The tap is not final: the stars stay live while the sticker is up, and a second thought is a second tap, met as the new mark with its own fuss and its own words. What is sent is the mark the player settles on — 1.5 seconds after the last change, or at once when they move on (Done, the cross, saying more, the next innings, or leaving the page) — so three-then-five is one rating of five. The rules are in `src/game/rating.ts`; the slip is `src/ui/Rating.ts`.
+
+**When it asks** is most of the design, and every rule is a rule about not asking:
+
+| Moment | Asked about |
+| --- | --- |
+| The first finished innings of a mode not yet rated — Test Survival, Test Marathon, a Rival Match | That mode, by name. Freshest the moment it ends, and the only time the opinion is of the mode rather than of a memory of it. |
+| The third finished innings | The game. Enough to have an opinion, early enough that the people who are going to leave have not left. |
+
+And the brakes. Never on the first innings anybody plays, of any mode — that is an opinion of controls they have not learned yet. Never on a practice innings, never on an innings walked out on (the count is taken in `end`, where the career's is). One ask a visit. Waved away, it keeps quiet for seven days; waved away three times, it stops for good. Each thing is rated once per browser, and a new mode is a new thing — which is what the questionnaire could never do: its one `hitman-feedback` flag meant anybody who answered before the Marathon existed could never be asked about it. A browser that has sent the questionnaire is not asked about the game again (its fun question was a rating in all but stars), but is asked about each mode. The Blast is not asked about by name; asking about the game already asks about it.
+
+**How it is met** depends on the stars, deliberately unevenly. A thumb can tap a star or slide along the row — the stars fill as it goes, each growing out of its middle, and the rating is where it lifts, with the questionnaire's own five words under them. A tap pops each star in turn, left to right, the last one biggest. Then: one or two, and the stars cool and settle — nothing is thrown in the air for an opinion that the game fell short. Three glows. Four bursts sparks. Five is hit for six: the fifth star goes up as a red ball and off the top of the screen, *SIX!* is stamped where it left, and the panel takes the thud. A phone buzzes, a longer buzz for four and five. A player who has asked for less motion gets the stars filling and nothing else.
+
+**Then it offers more**, in words that answer the stars — *sorry it fell short* for a low mark, *what would make it a five* for a three, *glad you're enjoying it* for a four — as two keys side by side at half the width each, DONE and the way to say more (TELL US WHY, TELL US MORE, WHAT'S NEXT?). Never a key with a link under it. That opens the questionnaire's own screen with a handful of follow-up questions (`FOLLOW_UPS` in `src/game/feedback.ts`): one about the stars, and up to two about the thing rated — a Marathon's length and what made it, how Survival's blows felt, whether a Rival Match was fair and how easy it was to get a friend in. Never more than three and the box. Sending them does not count as answering the questionnaire; its quiet lines stay.
+
+One rating can be several rows carrying one `ref`: the stars, the stars again if they were changed after being sent, and the follow-up answers, which carry the final stars too. **Take the latest row of each `ref` as its rating**, and average over refs, not over rows, or everybody who changed their mind or said more is counted twice. The columns are `stars`, `thing` (game, survive, marathon, rivals), `moment` (`mode`, `innings`) and `ref`, ahead of the questions.
+
+**`?rate=1` previews it.** A row of keys along the foot of the picture — GAME, BLAST, MARATHON, SURVIVAL, RIVALS — each puts the sticker up for that thing at once, over whatever is on screen. Tap, slide, change your mind, say more: it is the real sticker and the real follow-up, and nothing is sent or remembered, so it can be played with as often as you like. It works on any preview deployment and on production.
+
+`scripts/rating-check.mjs` reaches it the way a player does — finishing innings — because its rule is about *when*: the first innings asks nothing, the second asks about its mode, a third that visit asks nothing. It then puts the slip up through the debug hook (`__cricket.rating('marathon')`) to look at the low mark, the cross and the keyboard, judging the celebrations by the pieces they leave and the requests they send rather than by frames a software renderer may never draw. `SHOTS=dir` keeps pictures of each. `QUICK=1` leaves the innings out and checks only the slip, for a machine whose software renderer cannot bat three innings in reasonable time; it holds nothing about when, so it does not stand in for the full run.
+
 ### Where the game offers it
 
 - **The innings-end card**, from the second innings on. The first card is about the score and the board; a questionnaire under it would be asking what somebody thought of a game they have played once, in the same breath as telling them how they did.
@@ -866,6 +889,11 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `feedback-cover`, `feedback-card`, `feedback-pause` | Which of the three lines into it is the one people actually use. |
 | `feedback-sent`, `feedback-failed` | Forms finished, and forms the endpoint could not take. |
 | `feedback-left-0` … | Which screen a form was abandoned on. A questionnaire everybody leaves on the same screen has a bad question on it. |
+| `rating-ask-game`, `rating-ask-survive`, `rating-ask-marathon`, `rating-ask-rivals` | The stars put up, and about what. |
+| `rating-game-1` … `rating-rivals-5` | The stars given. The ask against these is the response rate. |
+| `rating-dismissed` | The slip waved away without a star. |
+| `rating-changed` | A mark changed after it had been sent. Counted apart, because the counts of each mark cannot take one back. |
+| `rating-more-open`, `rating-more-sent`, `rating-more-left-0` … | The follow-up after a rating: opened, sent, and where it was left. |
 | `webgl-fail` | The ground could not load, and nothing that follows was ever possible. |
 | `visitor-new`, `visitor-returning` | Whether this browser has played here before. |
 | `back-same-day` … `back-over-30-days` | How long a returning player was away. |
