@@ -148,3 +148,28 @@ exists, and the card asks for it to be saved the first time it appears.
 
 Nothing in this file needs doing twice. The seed is one-shot by design, and
 the token only wants rotating again if it leaks again.
+
+# Moving to hitmancricket.in
+
+A browser keeps what a site stores per address, so a plain redirect from
+`hitman-cricket.vercel.app` would land every existing player on
+`hitmancricket.in` as a stranger: no name, no career, no key. Instead the old
+address loads, packs up everything the game wrote there and carries it across
+in the link's fragment (`src/game/move-house.ts`, walked by
+`scripts/move-check.mjs`). That only works while the old address still serves
+the game, so the order matters.
+
+1. **Connect the domain.** Vercel → the project → Settings → Domains → add
+   `hitmancricket.in` (and `www.hitmancricket.in`, redirecting to it). At the
+   registrar, set the records Vercel shows — usually `A @ 76.76.21.21` and
+   `CNAME www cname.vercel-dns.com`. Wait for *Valid Configuration* and open
+   `https://hitmancricket.in` to see the game there.
+2. **Do not** set `hitman-cricket.vercel.app` to redirect in the Domains list.
+   A server redirect happens before the page loads, and nothing gets carried.
+3. **Switch the move on.** Settings → Environment Variables → add
+   `VITE_HOME_ORIGIN` = `https://hitmancricket.in` for **Production** only, then
+   redeploy production. From then on the old address forwards everybody, with
+   their player, and the saved key picture names the new address.
+4. **Months later**, once the old link has stopped getting visits, the Domains
+   redirect (308 to `hitmancricket.in`) can replace the in-page one. Anybody
+   who has not come back by then can still restore with their career key.

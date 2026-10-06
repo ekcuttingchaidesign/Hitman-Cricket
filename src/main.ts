@@ -4,6 +4,7 @@ import { markNoticeSeen, noticeSeen, privateWindow } from './game/private-mode';
 import { clearThisDevice, forgetFreshFlag, freshWanted } from './game/fresh-start';
 import { keyView } from './game/recovery';
 import { readPlayer } from './game/player';
+import { moveHouse, moveIn } from './game/move-house';
 import { privateNotice } from './ui/PrivateNotice';
 import { freshNotice } from './ui/FreshNotice';
 const root = document.querySelector<HTMLDivElement>('#app')!;
@@ -15,6 +16,10 @@ const root = document.querySelector<HTMLDivElement>('#app')!;
  * to letting the player through, so an ordinary tab waits on it once and barely.
  */
 void (async () => {
+  // The old address hands everything over to the new one and starts nothing;
+  // the new one unpacks it before anything below reads who is playing.
+  if (await moveHouse()) return;
+  await moveIn();
   /**
    * The shared feedback link is a page, not a game, and it is decided here —
    * before anything is imported — because of what the game costs to import. A

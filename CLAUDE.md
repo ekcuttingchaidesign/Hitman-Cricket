@@ -168,6 +168,16 @@ the check, so it is not a substitute for the full run.
 cannot reach. It walks all three boards, the Marathon's two ladders from one
 post among them, and the Marathon's career runs ladder. Point it at a preview deployment, never at production.
 
+## The move to hitmancricket.in
+
+`hitman-cricket.vercel.app` hands each visitor to `hitmancricket.in` with their
+player packed into the link's fragment, because a browser's storage does not
+follow a redirect. It is switched on by `VITE_HOME_ORIGIN` and only ever moves
+that one host. Leave the old address serving the page — a server-side redirect
+in Vercel's Domains list would strand everybody — until `docs/LAUNCH.md` says
+otherwise. `scripts/move-check.mjs` walks the hop; its server needs
+`VITE_HOME_ORIGIN=https://hitmancricket.in`.
+
 ## `?fresh=1`
 
 Clears what this browser remembers — the player id, the name, the career key,
