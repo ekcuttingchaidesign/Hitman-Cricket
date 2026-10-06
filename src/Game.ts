@@ -643,6 +643,8 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Where every fielder is and what he is doing, for `field-check.mjs`.
       field: () => this.scene.fieldState,
+      // What the stands are doing, for `crowd-check.mjs`.
+      crowd: () => this.scene.crowdState,
       // Where this ball is drawn `progress` of the way through its flight: from
       // the hand round the wicket, for `marathon-check.mjs`.
       drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
@@ -2494,6 +2496,7 @@ export class Game {
     this.scene.celebrate(this.elapsed, pose);
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
+    this.scene.cheer(kind, this.elapsed, moment.mark);
     // The crowd with it, falling away: the fifty's is the shorter, though
     // long enough to be heard as applause rather than a blip; the hundred's
     // carries on a little past him into the next ball's run-up; and the big
@@ -2520,6 +2523,12 @@ export class Game {
     }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
+    // The stands for a boundary, once the call is made and not when the ball
+    // leaves the bat: a skied one may yet be caught.
+    if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {
+      this.scene.cheer(outcome.runs === 6 ? 'hit-six' : 'hit-four', this.elapsed);
+      this.audio.cheer(outcome.runs === 6 ? 2.8 : 1.7);
+    }
   }
   /**
    * What the board has to say about the innings just played, answered from the

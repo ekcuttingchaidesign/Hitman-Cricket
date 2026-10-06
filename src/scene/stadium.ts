@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Batch, mat } from './build';
+import { Batch, mat, soft } from './build';
+import { CrowdCelebration } from './CrowdCelebration';
 
 /**
  * The stadium: one bowl of stands carried right round the ground, which is
@@ -92,6 +93,7 @@ const AISLE = 0.4;
  * glow on each.
  */
 export interface StadiumLights {
+  createCrowd?: (reducedMotion: boolean) => CrowdCelebration;
   lamps: THREE.MeshStandardMaterial;
   roof: THREE.Vector3[];
   towers: THREE.Vector3[];
@@ -128,9 +130,18 @@ export function stadium(world: THREE.Object3D): StadiumLights {
   // could land on the field: they are left out of the shadow pass altogether.
   b.build(world, { casts: false });
 
-  const crowd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.55, 0.55), mat(0xffffff), seats.length);
+  // Recognisable seated silhouettes, still two draws for the whole audience.
+  // The head shares each body's transform and stays shadow-free in the stands.
+  const body = new THREE.CylinderGeometry(.23, .27, .43, 6).scale(1, 1, .78);
+  // Seated torsos never expose their undersides. Keep the shoulders capped.
+  body.setDrawRange(0, body.groups[2].start);
+  const crowd = new THREE.InstancedMesh(body, mat(0xffffff), seats.length);
+  const heads = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.15, 0).translate(0, .32, 0), soft(0xe0b692), seats.length);
   seats.forEach((matrix, i) => { crowd.setMatrixAt(i, matrix); crowd.setColorAt(i, new THREE.Color(colours[i])); });
-  crowd.instanceMatrix.needsUpdate = true; world.add(crowd);
+  seats.forEach((matrix, i) => heads.setMatrixAt(i, matrix));
+  crowd.instanceMatrix.needsUpdate = true; heads.instanceMatrix.needsUpdate = true;
+  world.add(crowd, heads);
+  lights.createCrowd = reducedMotion => new CrowdCelebration(world, crowd, heads, seats, reducedMotion);
   return lights;
 }
 

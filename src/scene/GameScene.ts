@@ -16,6 +16,7 @@ import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
 import { buildWicket } from './wicket';
+import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
 import { grassBlades } from './grassBlades';
 import { grassDetail } from './grassDetail';
@@ -245,6 +246,8 @@ export class GameScene {
   /** How grey everything but the batter is: see `MUTE`. */
   private mute = { value: 0 };
   private celebratedAt = -Infinity;
+  /** The stands on their feet for a boundary or a milestone; the stadium's only, the bowl has none. */
+  private crowd?: CrowdCelebration;
   /** How long the celebration under way greys the ground for. */
   private celebratedFor = CELEBRATION_MS;
   private poweredAt = -Infinity;
@@ -496,6 +499,8 @@ export class GameScene {
     const theMoon = moon(this.camera.position);
     this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
     if (lights) {
+      this.crowd = lights.createCrowd?.(this.reducedMotion);
+      if (this.crowd) this.textures.push(...this.crowd.textures);
       this.lamps = lights.lamps;
       const glow = glows(lights.roof, lights.towers);
       this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
@@ -598,6 +603,13 @@ export class GameScene {
   get mirrored() { return this.world.scale.x > 0; }
   /** The next man in, at his guard. The last one may be lying where he fell. */
   newBatter() { this.batter.reset(); }
+  /**
+   * The stands for a four or six struck, or a milestone: arms up and placards
+   * across the far end. A boundary does not cut short a bigger moment still
+   * up, and the next ball sits them down (`reset`) rather than waiting on them.
+   */
+  cheer(kind: CrowdMoment, now: number, mark = 0) { this.crowd?.trigger(kind, now, mark); }
+  get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone
    * grey round him; or his fifty, `mild`, the bat raised and the colours left
@@ -826,6 +838,7 @@ export class GameScene {
 
   reset() {
     this.cutout();
+    this.crowd?.settle(this.clock);
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
     this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
@@ -1128,6 +1141,7 @@ export class GameScene {
     // the field has is timed on the old one: put them back on their marks.
     if (now + 1 < this.clock) this.field.home();
     this.clock = now;
+    this.crowd?.update(now);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with
@@ -1206,7 +1220,10 @@ export class GameScene {
     this.performanceReadout?.dispose();
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
-    this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });
+    this.scene.traverse(object => { if (object instanceof THREE.Mesh) {
+      if (object instanceof THREE.InstancedMesh) object.dispose();
+      geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m));
+    } });
     // The shared character primitives outlive any one scene; the rest is ours.
     // That now covers the figures too — bowler and fielders are built from one
     // set of geometries and one set of materials, and freeing either would take
