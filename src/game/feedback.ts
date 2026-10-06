@@ -1,3 +1,5 @@
+import type { Rating, RatedThing } from './rating';
+
 /**
  * The questionnaire, as data.
  *
@@ -42,9 +44,14 @@ export interface Question {
    * link: somebody who followed it from a friend and has never batted cannot
    * have an opinion on the timing window, and pretending otherwise fills the
    * answers with noise. `link` is the pair of questions the game itself already
-   * knows the answer to.
+   * knows the answer to. `rated` is never on the questionnaire: it is asked
+   * only after a star rating, of the thing rated, and only at the marks named.
    */
-  who?: 'all' | 'link' | 'played' | 'unplayed';
+  who?: 'all' | 'link' | 'played' | 'unplayed' | 'rated';
+  /** For a `rated` question: which things it is asked about. Every one, if absent. */
+  about?: readonly RatedThing[];
+  /** For a `rated` question: the lowest and highest star it follows. */
+  stars?: readonly [number, number];
 }
 
 /** How long the one thing anybody types may be. */
@@ -198,7 +205,164 @@ export const QUESTIONS: readonly Question[] = [
   },
 ];
 
-const BY_ID = new Map(QUESTIONS.map(question => [question.id, question]));
+/**
+ * What follows a star rating, when the player asks to say more.
+ *
+ * Three or four screens, never the ten: somebody who has just rated has said the
+ * most important thing already, and the follow-up is there to find out *why*.
+ * Which questions depend on the stars — a low mark is asked what went wrong, a
+ * middling one what would make it a five, a high one what to build next — and
+ * then on the thing rated, because a question about a Marathon's length is
+ * nonsense put to somebody rating Rival Matches.
+ */
+export const FOLLOW_UPS: readonly Question[] = [
+  {
+    id: 'wrong',
+    ask: 'What let you down?',
+    who: 'rated',
+    stars: [1, 2],
+    pick: 2,
+    choices: [
+      { id: 'timing', label: 'Timing the swing' },
+      { id: 'controls', label: 'The controls' },
+      { id: 'hard', label: 'Too hard' },
+      { id: 'easy', label: 'Too easy' },
+      { id: 'long', label: 'Too long' },
+      { id: 'rules', label: 'Didn’t get the rules' },
+      { id: 'speed', label: 'Loading or stutter' },
+      { id: 'dull', label: 'Not much happens' },
+    ],
+  },
+  {
+    id: 'five',
+    ask: 'What would make it a five?',
+    who: 'rated',
+    stars: [3, 3],
+    pick: 2,
+    choices: [
+      { id: 'variety', label: 'More variety' },
+      { id: 'controls', label: 'Better controls' },
+      { id: 'easier', label: 'A bit easier' },
+      { id: 'harder', label: 'A bit harder' },
+      { id: 'shorter', label: 'Shorter' },
+      { id: 'clearer', label: 'Clearer rules' },
+      { id: 'rewards', label: 'More to earn' },
+      { id: 'looks', label: 'Better looks' },
+    ],
+  },
+  {
+    id: 'build',
+    ask: 'What should we build next?',
+    who: 'rated',
+    stars: [4, 5],
+    pick: 2,
+    choices: [
+      { id: 'bowl', label: 'Bowl as well as bat' },
+      { id: 'versus', label: 'Live head-to-head' },
+      { id: 'shots', label: 'More shots' },
+      { id: 'season', label: 'A season or tournament' },
+      { id: 'teams', label: 'Pick a team' },
+      { id: 'looks', label: 'Better looks' },
+      { id: 'more', label: 'Just more of this' },
+    ],
+  },
+  {
+    id: 'mlength',
+    ask: 'How did the length of a Marathon feel?',
+    who: 'rated',
+    about: ['marathon'],
+    choices: [
+      { id: 'short', label: 'Too short' },
+      { id: 'right', label: 'About right' },
+      { id: 'long', label: 'A bit long' },
+      { id: 'toolong', label: 'Far too long' },
+    ],
+  },
+  {
+    id: 'mbest',
+    ask: 'What made the Marathon?',
+    who: 'rated',
+    about: ['marathon'],
+    pick: 2,
+    choices: [
+      { id: 'side', label: 'Batting a whole side' },
+      { id: 'focus', label: 'The Focus meter' },
+      { id: 'bowlers', label: 'Bowlers changing it up' },
+      { id: 'declare', label: 'Choosing when to declare' },
+      { id: 'card', label: 'The scorecard at the end' },
+      { id: 'none', label: 'Nothing stood out' },
+    ],
+  },
+  {
+    id: 'sblows',
+    ask: 'How did taking blows feel?',
+    who: 'rated',
+    about: ['survive'],
+    choices: [
+      { id: 'fair', label: 'Tough but fair' },
+      { id: 'harsh', label: 'Too punishing' },
+      { id: 'soft', label: 'Too soft' },
+      { id: 'unseen', label: 'Didn’t notice them' },
+    ],
+  },
+  {
+    id: 'slength',
+    ask: 'How long did the innings feel?',
+    who: 'rated',
+    about: ['survive'],
+    choices: [
+      { id: 'short', label: 'Over too soon' },
+      { id: 'right', label: 'About right' },
+      { id: 'long', label: 'Dragged on' },
+    ],
+  },
+  {
+    id: 'rfair',
+    ask: 'Did the match feel fair?',
+    who: 'rated',
+    about: ['rivals'],
+    choices: [
+      { id: 'yes', label: 'Yes' },
+      { id: 'mostly', label: 'Mostly' },
+      { id: 'no', label: 'Not really' },
+    ],
+  },
+  {
+    id: 'rinvite',
+    ask: 'How easy was it to get a friend in?',
+    who: 'rated',
+    about: ['rivals'],
+    choices: [
+      { id: 'easy', label: 'Easy' },
+      { id: 'fiddly', label: 'A bit fiddly' },
+      { id: 'gaveup', label: 'Gave up' },
+      { id: 'notyet', label: 'Haven’t tried' },
+    ],
+  },
+  {
+    id: 'rback',
+    ask: 'Would you come back tomorrow?',
+    who: 'rated',
+    about: ['game', 'classic'],
+    choices: [
+      { id: 'yes', label: 'Definitely' },
+      { id: 'maybe', label: 'Maybe' },
+      { id: 'no', label: 'Probably not' },
+    ],
+  },
+];
+
+/** The follow-up to a rating, in order: why the stars, then the thing itself. */
+export function followUpFor(thing: RatedThing, stars: number): Question[] {
+  return FOLLOW_UPS.filter(question =>
+    (!question.about || question.about.includes(thing))
+    && (!question.stars || (stars >= question.stars[0] && stars <= question.stars[1])));
+}
+
+const BY_ID = new Map([...QUESTIONS, ...FOLLOW_UPS].map(question => [question.id, question]));
+
+/** Every question that can be answered, questionnaire and follow-ups: the columns of the sheet. */
+export const ALL_QUESTIONS: readonly Question[] = [...QUESTIONS, ...FOLLOW_UPS];
 
 /** Every answer given, as question id to the choice ids picked. */
 export type FeedbackAnswers = Record<string, string[]>;
@@ -326,9 +490,9 @@ export function cleanContext(raw: unknown): FeedbackContext {
   return context;
 }
 
-/** Whether anything was actually said. An empty form is not a submission. */
-export function answered(answers: FeedbackAnswers, suggestion: string): boolean {
-  return Object.keys(answers).length > 0 || suggestion.length > 0;
+/** Whether anything was actually said. An empty form is not a submission; a star is. */
+export function answered(answers: FeedbackAnswers, suggestion: string, rating: Rating | null = null): boolean {
+  return Object.keys(answers).length > 0 || suggestion.length > 0 || rating !== null;
 }
 
 /** Where this browser remembers having had its say. */

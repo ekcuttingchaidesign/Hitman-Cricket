@@ -50,8 +50,11 @@ export const INTRO_STEPS: readonly IntroStep[] = [
     art: svg('<rect x="20" y="6" width="24" height="52" rx="3"/><path class="acc" d="M27 16l4 5-3 5 5 4M37 34l-4 4 3 5-4 4M26 46l3 3"/>'),
   },
   {
-    title: 'Declare, then register',
-    line: 'Declare from pause after twenty overs, then put your score on the board',
+    // Every finished innings goes on the board. "Declare, then register" was
+    // read by a player as two steps owed before a score could count — the
+    // declaration is a choice, to keep a score before the wickets go.
+    title: 'Every innings counts',
+    line: 'All out or declared, your score goes on the board. Declare from pause after 20 overs to keep it',
     // A flag on the stumps.
     art: svg('<path d="M18 58V10"/><path class="acc" d="M18 12h24l-6 8 6 8H18"/><path d="M32 58V40M42 58V40M30 38h14"/>'),
     spot: 'pause',

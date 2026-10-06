@@ -39,6 +39,7 @@ describe('every switch the game reads', () => {
     seed: 'the innings seed; the browser checks claim places with it',
     lefty: 'where the left-hander bats; the browser checks claim places with it',
     moments: 'celebrations on demand, adding no runs and counting nothing',
+    rate: 'the star rating on demand, sending and remembering nothing',
     demo: 'made-up rows on the boards, in this browser only',
     feedback: 'the feedback sheet',
     fresh: 'clearing this browser, asked first',

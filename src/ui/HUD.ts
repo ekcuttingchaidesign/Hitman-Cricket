@@ -7,6 +7,7 @@ import {
 } from '../game/Share';
 import { track, trackOnce } from '../game/analytics';
 import { feedbackGiven } from '../game/feedback';
+import { RATED_NAME, type RatedThing } from '../game/rating';
 import { canShareImage, cardFacts, prepareShareAssets, scorecardImage } from '../game/ShareCard';
 import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
@@ -376,7 +377,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
+        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><p id="declare-line" class="declare-line hidden">Ends the innings here and keeps your score</p><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -1605,7 +1606,20 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     arrow.classList.remove('hidden');
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
-  declareKey(show: boolean) { this.$('declare').classList.toggle('hidden', !show); }
+  /**
+   * The declare key on the pause card: absent outside the Marathon, there but
+   * greyed out before twenty overs with the line saying when it opens, and
+   * live after, with the line saying what it does — a choice that keeps the
+   * score, not a step every innings owes before it can count.
+   */
+  declareKey(state: 'hidden' | 'locked' | 'open') {
+    const key = this.$('declare') as HTMLButtonElement, line = this.$('declare-line');
+    key.classList.toggle('hidden', state === 'hidden');
+    line.classList.toggle('hidden', state === 'hidden');
+    key.disabled = state !== 'open';
+    key.classList.toggle('is-locked', state === 'locked');
+    line.textContent = state === 'locked' ? 'You can declare after 20 overs' : 'Ends the innings here and keeps your score';
+  }
   /** The swipe guide over the pitch: on with the spokes that spend the meter lit, or off. */
   private guide(on: boolean, specials: readonly NonNullable<Primed>[]) {
     const guide = this.$('swipe-guide');
@@ -2675,6 +2689,25 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       key.type = 'button'; key.className = 'moment-key'; key.textContent = label;
       key.setAttribute('aria-label', `Play the ${label} celebration`);
       key.addEventListener('click', () => pick(moment));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
+   * `?rate=1`'s keys: one a thing the stars ask about, along the foot of the
+   * picture, kept from the bat underneath the way the moments' keys are.
+   */
+  rateKeys(keys: readonly { label: string; thing: RatedThing }[], pick: (thing: RatedThing) => void) {
+    const row = document.createElement('div');
+    row.className = 'rate-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview the star rating');
+    for (const { label, thing } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.thing = thing; key.textContent = label;
+      key.setAttribute('aria-label', `Preview the stars for ${RATED_NAME[thing]}`);
+      key.addEventListener('click', () => pick(thing));
       row.append(key);
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());

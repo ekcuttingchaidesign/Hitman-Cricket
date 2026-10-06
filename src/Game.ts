@@ -61,6 +61,12 @@ import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, type Granted } from './game/tier';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
+import { sendFeedback } from './game/feedback-api';
+import { askRating, type RatingPrompt } from './ui/Rating';
+import {
+  counted, dismissed, mintRef, nextAsk, rated, readMemory, writeMemory,
+  type RatedMode, type RatedThing, type RatingMoment,
+} from './game/rating';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
 import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
@@ -88,6 +94,11 @@ const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESO
 
 /** How long a counted innings waits before its second and final attempt. */
 const RETRY_MS = 4000;
+/**
+ * How long the end card stands on its own before the stars rise under it. Long
+ * enough to read the score, which is what the player is looking at first.
+ */
+const RATING_DELAY_MS = 1600;
 /** Which innings is being played. The two share a loop and almost nothing else. */
 export type { GameMode } from './game/modes';
 
@@ -370,6 +381,14 @@ export class Game {
    */
   private readonly momentKeys = new URLSearchParams(location.search).get('moments') === '1';
   /**
+   * `?rate=1`: a row of keys on the screen, one a thing the stars are asked
+   * about — the game and each mode — so the sticker can be looked at and played
+   * with on a phone without finishing the innings that would earn it. The same
+   * sticker and the same follow-up, with none of the consequences: nothing is
+   * sent, nothing is remembered, and asking again is one tap.
+   */
+  private readonly rateKeys = new URLSearchParams(location.search).get('rate') === '1';
+  /**
    * `?nets=1`, in a Marathon: every bowler round the wicket from the first
    * ball, and a row of keys to change him — the seamer, the swing bowler, the
    * spinner, the express bowler — with one more to go back over the wicket
@@ -442,6 +461,9 @@ export class Game {
     try { this.scene = new GameScene(this.hud.viewport); } catch (error) { console.error(error); track('webgl-fail', 'WebGL unavailable'); this.hud.error(); return; }
     // Bowled or stumped, the wicket is heard when the ball reaches it.
     this.scene.onStumps = () => this.audio.play('stumps');
+    // The stars' keys first, so the moments' keys come after them in the page
+    // and can be lifted clear of them when both are asked for.
+    if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
       bowler => { this.nets = { ...this.nets, bowler }; this.applyNets(); },
@@ -667,6 +689,11 @@ export class Game {
       // Each entry is bowled, so the plan moves on with it, and the next man
       // walks out at once. An entry that ends the innings ends it, card and all.
       marathon: (balls: (number | 'W' | 'H')[]) => this.writeMarathon(balls),
+      // The star prompt on demand, for `rating-check.mjs`: which thing, asked
+      // as the end of an innings would ask it, and nothing about when.
+      rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
+      // Whether it is up.
+      ratingOpen: () => !!this.ratingPrompt?.open,
     } });
   }
   /**
@@ -684,6 +711,8 @@ export class Game {
     // The bar rides on the picker, capped at two showings. Nothing is issued
     // yet, so it only appears where a key exists to be saved.
     this.hud.careerKey(this.careerKeyHeld(), { panel: false, bar: true });
+    // The picker replaces the card, and the stars were asked of the card.
+    this.putRatingAway();
     this.hud.modes();
     // What the hero card wears is the last sync's word, and a sync is asked
     // for behind it so the next look is fresher.
@@ -1057,6 +1086,7 @@ export class Game {
     // the only way here that is not the cover, the tutorial, or the card.
     if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) this.mark('innings-restart', 'Innings restarted');
     this.innings++;
+    this.putRatingAway();
     this.inningsFrom = this.playedMs;
     this.mark('innings-start', 'Innings started');
     if (this.innings > 1) this.mark('innings-replay', 'Innings replayed');
@@ -1413,8 +1443,9 @@ export class Game {
       this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
       this.hud.lightsSwitch(this.test ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
-      // nowhere else, so it is never pressed by accident mid-ball.
-      this.hud.declareKey(!!this.marathon?.canDeclare);
+      // nowhere else, so it is never pressed by accident mid-ball. Before
+      // that the key is there but shut, saying when it opens.
+      this.hud.declareKey(!this.marathon ? 'hidden' : this.marathon.canDeclare ? 'open' : 'locked');
       // A paused innings is the one moment in the game where nothing is waiting
       // on the player, which is the only kind of moment worth asking in.
       this.hud.offerFeedback({ pause: true });
@@ -1524,6 +1555,106 @@ export class Game {
       },
     });
   };
+
+  /** The star prompt, while it is up. */
+  private ratingPrompt: RatingPrompt | null = null;
+  /** Whether the stars have been put up this visit. Once a visit is the most they ask. */
+  private ratingAsked = false;
+
+  /**
+   * The innings, counted toward when to ask for stars, and the stars asked for
+   * if this is the moment (`nextAsk` decides; see `game/rating.ts`).
+   *
+   * Counted here rather than at the start for the career's reason: an innings
+   * walked out on is not one anybody has an opinion of yet. Practice is left out
+   * of the count as it is left out of the career, and a demo room is nobody's.
+   */
+  private rateThisInnings() {
+    if (this.practising || this.demoing) return;
+    const mode: RatedMode = this.challenge.playing ? 'rivals' : this.careerMode;
+    const memory = counted(readMemory(), mode);
+    writeMemory(memory);
+    const ask = nextAsk(memory, {
+      mode, practice: false, askedThisVisit: this.ratingAsked, formGiven: feedbackGiven(), now: Date.now(),
+    });
+    if (!ask) return;
+    const innings = this.innings;
+    window.setTimeout(() => {
+      // Still on this innings' card. Played again, or gone to the picker, and
+      // the moment has passed; it is asked at the next one instead.
+      if (this.disposed || this.innings !== innings || this.phase !== 'INNINGS_END') return;
+      this.showRating(ask.thing, ask.moment);
+    }, RATING_DELAY_MS);
+  }
+
+  /** The stars, up. Also the debug hook's way in, for `rating-check.mjs`. */
+  private showRating(thing: RatedThing, moment: RatingMoment) {
+    this.putRatingAway();
+    this.ratingAsked = true;
+    const ref = mintRef();
+    track(`rating-ask-${thing}`, `Stars asked for: ${thing}`);
+    this.ratingPrompt = askRating({
+      root: this.hud.viewport,
+      thing,
+      onRate: (stars, changed) => {
+        // Remembered as rated before it is sent, and whatever the send says: a
+        // rating lost to a dead connection is a pity, but asking again somebody
+        // who has already given one is the thing that makes people stop.
+        writeMemory(rated(readMemory(), thing, Date.now()));
+        // A mark changed after it was sent is counted as a change rather than as
+        // a second rating, which the counts of each mark could not take back.
+        if (changed) track('rating-changed', `Rating of ${thing} changed`);
+        else track(`rating-${thing}-${stars}`, `Rated ${thing}: ${stars} stars`);
+        void sendFeedback({
+          playerId: this.player, answers: {}, suggestion: '', context: this.feedbackContext(),
+          rating: { stars, thing, moment, ref },
+        });
+      },
+      onMore: stars => {
+        this.ratingPrompt = null;
+        openFeedback({
+          root: this.hud.viewport,
+          playerId: this.player,
+          context: this.feedbackContext(),
+          followUp: { stars, thing, moment, ref },
+        });
+      },
+      onDismiss: () => {
+        writeMemory(dismissed(readMemory(), Date.now()));
+        track('rating-dismissed', 'Stars waved away');
+      },
+    });
+  }
+
+  /**
+   * The stars as `?rate=1` puts them up: the real sticker and the real
+   * follow-up, sending nothing and remembering nothing, so they can be asked
+   * for again and again and nobody's answers or counts are touched.
+   */
+  private previewRating(thing: RatedThing) {
+    this.putRatingAway();
+    this.ratingPrompt = askRating({
+      root: this.hud.viewport,
+      thing,
+      onRate: () => {},
+      onMore: stars => {
+        this.ratingPrompt = null;
+        openFeedback({
+          root: this.hud.viewport,
+          playerId: this.player,
+          context: this.feedbackContext(),
+          followUp: { stars, thing, moment: thing === 'game' ? 'innings' : 'mode', ref: mintRef() },
+          preview: true,
+        });
+      },
+      onDismiss: () => {},
+    });
+  }
+
+  private putRatingAway() {
+    this.ratingPrompt?.close();
+    this.ratingPrompt = null;
+  }
 
   /** What rides along with the answers, none of it asked. */
   private feedbackContext(): FeedbackContext {
@@ -1980,6 +2111,12 @@ export class Game {
     const typing = event.target instanceof HTMLElement
       && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable);
     if (typing && event.key !== 'Escape') return;
+    // The stars and the questionnaire take their own keys. Enter on a star
+    // gives it, and Enter on an answer picks it — and on the end card Enter is
+    // also Play Again, so without this a keyboard rating started an innings
+    // behind the prompt. Escape on the questionnaire is its own, too.
+    if (document.querySelector('.feedback-screen')) return;
+    if (event.target instanceof Element && event.target.closest('.rate-pop')) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
     // them, so they answer first. Without this Enter started an innings behind
@@ -2641,6 +2778,7 @@ export class Game {
   private end() {
     this.setPhase('INNINGS_END');
     this.countThisInnings();
+    this.rateThisInnings();
     // Both cards get it, and it is asked for before the modes part company
     // below: the innings that just ended is a different innings in each of
     // them, but the screen it ends on is the same screen.
@@ -3371,6 +3509,11 @@ export class Game {
 
 
 /** How long the crowd keeps it up for each moment, in seconds; the clip is three and a half. */
+/** `?rate=1`'s keys: the game, then each mode in the order the picker shows them. */
+const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
+  { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
+  { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
   { label: '50', moment: { kind: 'fifty', mark: 50 } }, { label: '100', moment: { kind: 'century', mark: 100 } },
