@@ -1476,7 +1476,7 @@ export class Batter {
   private torso = new THREE.Group();
   private hips = new THREE.Group();
   private head = new THREE.Group();
-  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; palm: THREE.Mesh[]; cuff: THREE.Group; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
+  private arms: { upper: THREE.Mesh; lower: THREE.Mesh; elbow: THREE.Mesh; cap: THREE.Mesh; glove: THREE.Group; palm: THREE.Mesh[]; cuff: THREE.Group; knuckles: number; shoulder: THREE.Vector3; wrist: THREE.Vector3; socket: THREE.Vector3 }[] = [];
   private legs: { thigh: THREE.Mesh; shin: THREE.Mesh; knee: THREE.Mesh; cap: THREE.Mesh; pad: THREE.Group; shoe: THREE.Group }[] = [];
   private pose: Pose = GUARD;
   private swingFrom: Pose = GUARD;
@@ -1608,30 +1608,46 @@ export class Batter {
       const shell=this.mesh(glove,this.palette.pad,[.112,.103,.110],'soft');
       shell.name='Closed padded glove';
       const palm=[this.mesh(glove,this.palette.pad,[1,1,1],'soft')];
+      // Re-aimed every frame at the wrist, so never merged into the glove.
+      palm[0].userData.moving=true;
       const leather=this.mesh(glove,this.palette.glovePalm,[.077,.087,.022],'soft');
       leather.position.z=-back*.049;
       leather.name='Palm on inside of closed grip';
+      // Each finger a padded roll in three pieces — over the knuckle, round
+      // the corner of the fist and down the finger — with a groove to the
+      // next finger, which is what makes a batting glove read as one.
       for(let finger=0;finger<4;finger++) {
         const y=.034-finger*.023;
-        const knuckle=this.mesh(glove,this.palette.pad,[.106,.025,.040],'soft');
-        knuckle.position.set(0,y,back*.048);
-        knuckle.name='Padded knuckle';
+        const knuckle=this.mesh(glove,this.palette.pad,[.074,.0195,.034],'soft');
+        knuckle.position.set(-back*.004,y,back*.050);
+        const corner=this.mesh(glove,this.palette.pad,[.034,.0195,.034],'soft');
+        corner.position.set(back*.043,y,back*.041); corner.rotation.y=Math.PI/4;
+        const finger_=this.mesh(glove,this.palette.pad,[.030,.0195,.050],'soft');
+        finger_.position.set(back*.055,y,-back*.004);
         // Curled tips close against the palm; they do not splay away from it.
         const tip=this.mesh(glove,this.palette.pad,[.043,.022,.032],'soft');
         tip.position.set(back*.036,y,-back*.042);
       }
       const thumb=this.mesh(glove,this.palette.pad,[1,1,1],'soft');
       thumb.name='Thumb opposed to curled fingers';
-      this.segment(thumb,new THREE.Vector3(-back*.045,.024,-back*.028),
-        new THREE.Vector3(back*.007,-.018,-back*.061),.039,.039);
+      const thumbFrom=new THREE.Vector3(-back*.045,.024,-back*.028), thumbTo=new THREE.Vector3(back*.007,-.018,-back*.061);
+      this.segment(thumb,thumbFrom,thumbTo,.039,.039);
+      // The thumb guard: two ridges across it.
+      for (const at of [.38,.72]) {
+        const ridge=this.mesh(glove,this.palette.pad,[.047,.008,.047],'tube');
+        ridge.position.copy(thumbFrom).lerp(thumbTo,at);
+        ridge.quaternion.setFromUnitVectors(UP,thumbTo.clone().sub(thumbFrom).normalize());
+      }
       // The wrist is what turns: a gauntlet at the hand aimed back up the forearm.
       const cuff = new THREE.Group(); this.root.add(cuff);
       this.mesh(cuff, this.palette.pad, [.113, .105, .113], 'tube').position.y = .052;
       this.mesh(cuff, this.palette.accent, [.121, .026, .121], 'tube').position.y = .014;
       this.mesh(cuff, this.palette.accent, [.038, .023, .005], 'flat').position.set(0, .069, .058);
+      // A padded rim rolled round the gauntlet's open end.
+      this.mesh(cuff, this.palette.pad, [.122, .014, .122], 'tube').position.y = .104;
       this.arms.push({ upper: this.mesh(this.root, this.palette.shirt, [1, 1, 1], 'tube'), lower: this.mesh(this.root, this.palette.skin, [1, 1, 1], 'tube'),
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .078, .088], 'ball'),
-        glove, palm, cuff, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
+        glove, palm, cuff, knuckles: back, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
       this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
       for (let roll = 0; roll < 5; roll++) this.mesh(pad, this.palette.pad, [.028, .34, .035], 'tube').position.set(-.064 + roll * .032, 0, .082);
@@ -1654,7 +1670,7 @@ export class Batter {
     // These details move together. The glove palm and named knuckles remain
     // separate because the grip solver and its inspection hooks use them.
     for (const group of [this.torso, this.hips, this.head, this.bat,
-      ...this.arms.map(a => a.cuff), ...this.legs.flatMap(l => [l.pad, l.shoe])]) compactRigidParts(group);
+      ...this.arms.map(a => a.glove), ...this.arms.map(a => a.cuff), ...this.legs.flatMap(l => [l.pad, l.shoe])]) compactRigidParts(group);
     for (let i = 0; i < 2; i++) {
       const arm = this.arms[i], leg = this.legs[i];
       // Keep the established IK controls and measurements, but do not draw
@@ -2682,8 +2698,7 @@ export class Batter {
       gripRotation: this.arms.map(arm => arm.glove.quaternion.toArray()),
       // Measure the actual padded side, not an arbitrary reference vector:
       // top-hand knuckles face the spine; bottom-hand knuckles face away.
-      gloveBack: this.arms.map(arm=>new THREE.Vector3(0,0,
-        Math.sign(arm.glove.getObjectByName('Padded knuckle')!.position.z))
+      gloveBack: this.arms.map(arm=>new THREE.Vector3(0,0,arm.knuckles)
         .applyQuaternion(arm.glove.quaternion).toArray()),
       // Where each hand sits on the handle, measured up it from the blade.
       handGrip: this.arms.map(arm => arm.glove.position.y),
