@@ -14,11 +14,19 @@ export class BendingLimb {
   private readonly across = new THREE.Vector3();
   private readonly point = new THREE.Vector3();
   private readonly angles: [number, number][];
+  private readonly profile: number[][];
 
-  constructor(material: THREE.Material | THREE.Material[], private radii: [number, number, number], private readonly sides = 16) {
+  constructor(material: THREE.Material | THREE.Material[], private radii: [number, number, number], private readonly sides = 16,
+    private readonly tailored = false) {
+    this.profile = [[0, radii[0]], [.15, radii[0] + .003], [.5, radii[1]], [.70, radii[1] + .003], [1, radii[2]]];
     const geometry = new THREE.BufferGeometry(), count = (this.rows + 1) * (this.sides + 1);
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
     geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    const uv = new Float32Array(count * 2);
+    for (let row = 0; row <= this.rows; row++) for (let i = 0; i <= this.sides; i++) {
+      const n = (row * (this.sides + 1) + i) * 2; uv[n] = i / this.sides; uv[n + 1] = row / this.rows;
+    }
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     const indices: number[] = [];
     for (let j = 0; j < this.rows; j++) for (let i = 0; i < this.sides; i++) {
       const a = j * (this.sides + 1) + i, b = a + this.sides + 1;
@@ -60,9 +68,19 @@ export class BendingLimb {
         this.tangent.copy(u).multiplyScalar(1 - f).addScaledVector(v, f).normalize();
       }
       this.across.crossVectors(this.binormal, this.tangent).normalize();
-      const radius = t < .5 ? THREE.MathUtils.lerp(this.radii[0], this.radii[1], t * 2)
+      let radius = t < .5 ? THREE.MathUtils.lerp(this.radii[0], this.radii[1], t * 2)
         : THREE.MathUtils.lerp(this.radii[1], this.radii[2], (t - .5) * 2);
-      const slope = 2 * (t < .5 ? this.radii[1] - this.radii[0] : this.radii[2] - this.radii[1]) / Math.max(length, .00001);
+      let slope = 2 * (t < .5 ? this.radii[1] - this.radii[0] : this.radii[2] - this.radii[1]);
+      if (this.tailored) {
+        // Smooth thigh, knee and calf sections keep the knee shaped without
+        // a sharp change of slope or a separate spherical joint.
+        const k = t < .15 ? 0 : t < .5 ? 1 : t < .7 ? 2 : 3;
+        const [from, r0] = this.profile[k], [to, r1] = this.profile[k + 1];
+        const u = (t - from) / (to - from), eased = u * u * (3 - 2 * u);
+        radius = r0 + (r1 - r0) * eased;
+        slope = (r1 - r0) * 6 * u * (1 - u) / (to - from);
+      }
+      slope /= Math.max(length, .00001);
       for (let i = 0; i <= this.sides; i++) {
         const [c, s] = this.angles[i], index = row * (this.sides + 1) + i;
         this.radial.copy(this.across).multiplyScalar(c).addScaledVector(this.binormal, s);

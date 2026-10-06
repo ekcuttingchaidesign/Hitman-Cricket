@@ -42,7 +42,7 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  */
 // October graphics lab: rigid-detail merging and limb instances measured
 // 392–455 draws through this same gameplay flow. Keep the saving banked.
-const BUDGET = 500;
+const BUDGET = 460;
 /**
  * The bowl, the ground before it, is kept and can still be asked for with
  * `?ground=bowl`, so it is still drawn here and held to the budget it shipped
@@ -68,6 +68,7 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
   ['desktop', { viewport: { width: 1280, height: 720 } }],
   ['phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }],
 ]) {
+  if (process.env.SCENE_FILTER && !new RegExp(process.env.SCENE_FILTER).test(`${ground}/${time}/${name}`)) continue;
   console.log(`${ground} · ${time} · ${name}`);
   const page = await browser.newPage(options);
   const errors = [];
@@ -98,15 +99,16 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
   await page.waitForTimeout(1500);
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
   if (await anyway.count()) { await anyway.first().click(); await page.waitForTimeout(800); }
-  await page.locator('#start').click({ force: true });
-  await page.waitForTimeout(700);
-  for (let i = 0; i < 8; i++) {
+  await page.locator('#start').click();
+  // Wait for the screen transition itself: fixed sleeps can miss a late
+  // What's New modal when a software-rendered phone frame takes longer.
+  for (let i = 0; i < 60; i++) {
+    if (await page.locator('#mode-classic').isVisible()) break;
     const done = page.locator('#whatsnew-done');
-    if (!(await done.count()) || !(await done.isVisible())) break;
-    await done.click({ force: true });
-    await page.waitForTimeout(500);
+    if (await done.isVisible()) await done.click();
+    await page.waitForTimeout(250);
   }
-  await page.locator('#mode-classic').click({ force: true });
+  await page.locator('#mode-classic').click();
 
   let phase = '';
   for (let i = 0; i < 40 && !/BALL|RUNUP|READY/.test(phase); i++) {

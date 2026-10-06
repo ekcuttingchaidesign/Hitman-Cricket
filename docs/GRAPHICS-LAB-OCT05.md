@@ -113,6 +113,10 @@ continues using the repository's existing preview database namespace.
 
 ## Validation
 
+The next character-only pass is documented in
+[Character polish — 6 October](CHARACTER-POLISH-OCT06.md), with matched renders
+and CPU/GPU cost measurements.
+
 - TypeScript and production build, including serverless function import checks.
 - Latest helmet curve: build and 5 geometry/batching tests passed, with
   day/night phone and desktop renders free of browser/shader errors.

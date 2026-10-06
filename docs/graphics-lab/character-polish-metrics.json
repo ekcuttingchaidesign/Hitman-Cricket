@@ -1,0 +1,38 @@
+{
+  "baselineCommit": "91b3897427259bff83ae0b3d14494af21b140f4d",
+  "environment": "Headless Chromium, SwiftShader, 600x850. CPU median is one Batter.update + one Bowler.animate + one Cricketer.catchAt; not whole-frame or phone FPS.",
+  "before": {
+    "game": {
+      "calls": 211,
+      "triangles": 223410
+    },
+    "cpu": {
+      "threeCharacterUpdateMedianMs": 0.4261111111108524,
+      "samples": [
+        0.3549999999994826,
+        0.3627777777780365,
+        0.4261111111108524,
+        0.524444444443927,
+        0.5666666666666667
+      ]
+    },
+    "errors": []
+  },
+  "after": {
+    "game": {
+      "calls": 171,
+      "triangles": 217822
+    },
+    "cpu": {
+      "threeCharacterUpdateMedianMs": 0.9905555555545208,
+      "samples": [
+        0.9211111111113698,
+        0.9672222222227396,
+        0.9905555555545208,
+        1.0166666666666666,
+        1.2083333333333333
+      ]
+    },
+    "errors": []
+  }
+}

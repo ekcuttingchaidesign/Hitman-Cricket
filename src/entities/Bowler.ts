@@ -447,13 +447,24 @@ export class Bowler {
     pose.headPitch = THREE.MathUtils.lerp(pose.headPitch, target.headPitch, amount);
     settle(pose.leftHand, target.leftHand);
     settle(pose.rightHand, target.rightHand);
-    settle(pose.leftFoot, target.leftFoot);
-    settle(pose.rightFoot, target.rightFoot);
-    // Each foot arcs on its way home so it steps rather than slides. The arc
-    // closes itself at both ends, so a pose already settled stays put.
-    const lift = Math.sin(amount * Math.PI) * .11;
-    pose.leftFoot.y += lift;
-    pose.rightFoot.y += lift;
+    // Recover one foot at a time, retaining support instead of hopping with
+    // both feet together. This starts after the established delivery action.
+    const leftStep = ease(span(amount, 0, .55)), rightStep = ease(span(amount, .45, 1));
+    const foot = (point: THREE.Vector3, to: THREE.Vector3, phase: number) => {
+      point.lerp(new THREE.Vector3(0, to.y, to.z).addScaledVector(across, to.x), phase);
+      point.y += Math.sin(phase * Math.PI) * .08;
+    };
+    foot(pose.leftFoot, target.leftFoot, leftStep);
+    foot(pose.rightFoot, target.rightFoot, rightStep);
+    let hipY = pose.hip.y;
+    for (const [point, side] of [[pose.leftFoot, -1], [pose.rightFoot, 1]] as const) {
+      const dx = point.x - pose.hip.x - across.x * side * BUILD.hipX;
+      const dz = point.z - pose.hip.z - across.z * side * BUILD.hipX;
+      hipY = Math.min(hipY, point.y + .04 + Math.sqrt(Math.max(0, (BUILD.thigh + BUILD.shin - .003) ** 2 - dx * dx - dz * dz)));
+    }
+    const drop = pose.hip.y - hipY;
+    pose.hip.y = hipY; pose.chest.y -= drop;
+    pose.leftHand.y -= drop; pose.rightHand.y -= drop;
   }
 
   /** Both arms, each on its own circle about its own shoulder. */
