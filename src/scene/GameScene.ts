@@ -16,6 +16,7 @@ import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
 import { buildWicket } from './wicket';
+import { PerformanceReadout } from './performance';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 
@@ -123,6 +124,8 @@ const BALL = {
 
 export class GameScene {
   readonly renderer: THREE.WebGLRenderer;
+  /** Frame rate and draw calls on screen, for judging the graphics on a phone: `?perf=1`. */
+  private performanceReadout?: PerformanceReadout;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   private world = new THREE.Group();
@@ -331,6 +334,7 @@ export class GameScene {
     this.swish = this.createSwish();
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
+    if (new URLSearchParams(location.search).get('perf') === '1') this.performanceReadout = new PerformanceReadout(container);
   }
   /**
    * The band for the swoosh: rows of three points across it — an edge, the
@@ -1151,6 +1155,7 @@ export class GameScene {
     this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
     if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
+    this.performanceReadout?.update(this.renderer);
   }
   inspectBatter() { return this.batter.inspect(); }
   /**
@@ -1191,6 +1196,7 @@ export class GameScene {
       x: this.bowlerHolder.scale.x * this.bowler.root.position.x, releaseX: this.releaseX, side: this.bowlerSide };
   }
   dispose() {
+    this.performanceReadout?.dispose();
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
     this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });

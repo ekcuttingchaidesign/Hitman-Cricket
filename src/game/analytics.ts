@@ -28,7 +28,8 @@ const counter = (): GoatCounter | undefined => (window as unknown as { goatcount
  * Whether a run of the game counts. The local dev server does not, and neither
  * does a page opened with a seed or the debug flag on, which is how the browser
  * checks play their innings — a scripted thirty balls is not a player, and a
- * dashboard that cannot tell the two apart is worth nothing.
+ * dashboard that cannot tell the two apart is worth nothing. The frame-rate
+ * readout (`?perf=1`) is somebody measuring the graphics, not playing.
  *
  * Nor does a Vercel preview: it is where a change is tried before it ships,
  * by the people making it, and its visits landed in the same dashboard as the
@@ -37,7 +38,7 @@ const counter = (): GoatCounter | undefined => (window as unknown as { goatcount
  */
 export function counting(where: { hostname: string; search: string }, vercelEnv: string = import.meta.env.VITE_VERCEL_ENV ?? '') {
   const params = new URLSearchParams(where.search);
-  if (params.has('seed') || params.get('debug') === '1') return false;
+  if (params.has('seed') || params.get('debug') === '1' || params.get('perf') === '1') return false;
   if (vercelEnv === 'preview' || vercelEnv === 'development') return false;
   return !/^(localhost|127\.0\.0\.1|\[::1\]|::1)$/.test(where.hostname);
 }

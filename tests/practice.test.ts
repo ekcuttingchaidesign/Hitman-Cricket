@@ -50,6 +50,7 @@ describe('every switch the game reads', () => {
     view: 'which screen opens',
     shot: 'a shot preview page',
     pullpen: 'the colour of the pull\'s flash',
+    perf: 'the frame-rate readout, measuring and sending nothing',
   };
 
   it('is either practice or named as not practice', () => {
