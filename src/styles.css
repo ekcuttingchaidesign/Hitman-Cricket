@@ -2754,7 +2754,7 @@ body.survive-mode #scoreboard{display:none}
   width:min(100% - 24px,460px);
   padding:5px;
   border-radius:14px;
-  background:#071219cc
+  background:#04190fd9
 }
 .rate-preview-key{
   min-width:0;
@@ -2762,7 +2762,7 @@ body.survive-mode #scoreboard{display:none}
   padding:0;
   border:1px solid #ffffff2e;
   border-radius:9px;
-  background:#152b3c;
+  background:#0b3a22;
   color:#f4efe2;
   font:700 11px/1 var(--card,system-ui);
   letter-spacing:.4px;
@@ -4315,97 +4315,112 @@ body.private-window{overflow:hidden}
 .feedback-head .board-close{position:static;width:32px;height:32px;margin:-4px -6px 0 0;font-size:19px;flex:none}
 
 /* ── The star prompt ───────────────────────────────────────────────────────
-   Not another navy panel: the card it rises under is navy already, and a second
-   slab of the same stuff read as a form stacked on a form. It is drawn in the
-   game's other voice instead — the cover's and the milestones' — a cream
-   sticker in navy ink with a hard shadow, slapped down at the foot of the
-   picture, with an orange tab on its edge and the stars inked like the doodles.
+   Drawn in the game's own Test-match voice rather than as a form: the deep
+   cricket green the Marathon's stories stand on, mown in stripes, with the
+   cover's display type in cream, the thing asked about on the stories' cream
+   bar with its red rule under it, the logo's glossy gold in the stars, and the
+   PLAY key's white and orange for the way on. No blue: the card it rises under
+   is navy, and a second navy slab read as a form stacked on a form.
    Above the cards (8), under every sheet the card opens (the board is 10, the
    career card 11), so the board opened from the card covers it, not the reverse. */
 .rate-pop{
-  --ink:#152b3c;
-  --quiet:#5d6f7c;
-  --paper:#fbf3e3;
-  --star:#ffc531;
-  --star-deep:#f29a1d;
+  --ink:#f6eedd;
+  --quiet:#a9c6b2;
+  --turf:#0b3a22;
+  --turf-deep:#05200f;
+  --ball:#d8263a;
+  --star-edge:#4a2300;
+  --star:#ffc93a;
   position:absolute;
   z-index:9;
   left:50%;
   bottom:calc(var(--pad-bottom) + 10px);
   width:min(380px,calc(100% - 32px));
-  padding:22px 18px 16px;
-  border:3px solid var(--ink);
+  padding:16px 18px 16px;
   border-radius:20px;
   background:
-    radial-gradient(120% 90% at 50% 0%,#fffaf0 0%,#fffaf000 60%),
-    var(--paper);
+    repeating-linear-gradient(104deg,#ffffff07 0 30px,#ffffff00 30px 60px),
+    radial-gradient(130% 90% at 50% 0%,#14603a 0%,#0b3a22 55%,#072a18 100%);
   font-family:var(--card);
   color:var(--ink);
   text-align:center;
-  box-shadow:0 7px 0 var(--ink),0 18px 34px #01060999;
+  box-shadow:0 7px 0 var(--turf-deep),0 20px 38px #000000a6,inset 0 1px 0 #ffffff26,inset 0 0 0 1px #ffffff12;
   transform:translateX(-50%);
   animation:rate-slap .5s cubic-bezier(.2,1.45,.42,1) both
 }
 .rate-pop.is-leaving{animation:rate-sink .24s ease-in both;pointer-events:none}
-/* Slapped down from a little above and a little crooked, the way the 150's
-   sticker goes on, and settled square so it can be read. */
+/* Up from below the picture with a little overshoot, the way the stories' bars
+   land, and a hair of tilt that settles square so it can be read. */
 @keyframes rate-slap{
-  0%{opacity:0;transform:translate(-50%,46px) rotate(-5deg) scale(1.08)}
-  55%{opacity:1;transform:translate(-50%,-4px) rotate(1.2deg) scale(.99)}
+  0%{opacity:0;transform:translate(-50%,46px) rotate(-3deg) scale(1.05)}
+  55%{opacity:1;transform:translate(-50%,-4px) rotate(.8deg) scale(.995)}
   100%{opacity:1;transform:translate(-50%,0)}
 }
-@keyframes rate-sink{to{opacity:0;transform:translate(-50%,34px) rotate(2deg) scale(.96)}}
-/* The tab on the top edge: the one thing on the sticker in the game's orange,
-   and the one place the eyebrow could go without costing a line. */
-.rate-tab{
-  position:absolute;
-  top:0;
-  left:50%;
-  padding:5px 13px 4px;
-  border:2.5px solid var(--ink);
-  border-radius:9px;
-  background:var(--cta-orange);
-  color:#fff;
-  font-family:var(--cta);
-  font-size:13px;
-  letter-spacing:1.4px;
-  line-height:1;
-  white-space:nowrap;
-  box-shadow:0 3px 0 var(--ink);
-  transform:translate(-50%,-62%) rotate(-3deg)
+@keyframes rate-sink{to{opacity:0;transform:translate(-50%,34px) scale(.96)}}
+/* The eyebrow the Marathon's story signs off with: a red ball, then the words. */
+.rate-eyebrow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  margin:0;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:2.2px;
+  color:var(--quiet)
 }
+.rate-eyebrow>i{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#ff8a8a 0 15%,var(--ball) 50%,#7d0d18 100%);
+  box-shadow:0 0 6px #d8263a99
+}
+/* Holds the stars' gold, and takes up no room. */
+.rate-defs{position:absolute;width:0;height:0;overflow:hidden}
 .rate-close{
   position:absolute;
-  top:8px;
-  right:8px;
+  top:10px;
+  right:10px;
   display:grid;
   place-items:center;
   width:32px;
   height:32px;
   padding:0;
-  border:2px solid #152b3c33;
+  border:1.5px solid #ffffff33;
   border-radius:50%;
-  background:#fff;
+  background:#00000026;
   color:var(--ink);
   font-size:18px;
   line-height:1
 }
-.rate-close:hover{border-color:var(--ink)}
+.rate-close:hover{border-color:#ffffff80}
 .rate-ask{
-  margin:2px 34px 0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  margin:8px 30px 0;
   font-family:var(--cta);
-  font-size:23px;
   font-weight:400;
-  letter-spacing:.4px;
-  line-height:1.05;
+  line-height:1;
   text-transform:uppercase
 }
-.rate-ask b{font-weight:400;color:var(--cta-orange)}
+.rate-ask-lead{font-size:21px;letter-spacing:.8px;color:var(--ink)}
+/* The thing asked about, on the stories' cream bar with the red rule under it. */
+.rate-ask-name{
+  padding:4px 10px 3px;
+  background:var(--ink);
+  color:var(--turf);
+  font-size:25px;
+  letter-spacing:.6px;
+  box-shadow:0 3px 0 var(--ball)
+}
 .rate-stars{
   display:flex;
   justify-content:center;
   gap:2px;
-  margin:12px auto 0;
+  margin:14px auto 0;
   width:max-content;
   touch-action:none;
   user-select:none;
@@ -4422,17 +4437,17 @@ body.private-window{overflow:hidden}
   -webkit-tap-highlight-color:transparent
 }
 .rate-star svg{display:block;width:100%;height:100%;overflow:visible}
-/* Empty, a star is a socket pressed into the paper; lit, it is inked gold with
-   a glint, the doodles' way of drawing a thing that shines. */
-.rate-star-edge{fill:#152b3c12;stroke:#152b3c4d;stroke-width:1.6;stroke-linejoin:round}
+/* Empty, a star is a socket sunk into the turf; lit, it is the logo's gold —
+   lit from above, inked dark, with a glint on its upper arm. */
+.rate-star-edge{fill:#00000038;stroke:#ffffff3d;stroke-width:1.4;stroke-linejoin:round}
 .rate-star-fill,.rate-star-shine{
   transform-box:view-box;
   transform-origin:12px 12.5px;
   transform:scale(0);
   transition:transform .2s cubic-bezier(.3,1.7,.5,1)
 }
-.rate-star-fill{fill:var(--star);stroke:var(--ink);stroke-width:1.7;stroke-linejoin:round}
-.rate-star-shine{fill:#fff6cf}
+.rate-star-fill{fill:url(#rate-gold);stroke:var(--star-edge);stroke-width:1.6;stroke-linejoin:round}
+.rate-star-shine{fill:#fffbe0}
 .rate-star.is-lit .rate-star-fill,.rate-star.is-lit .rate-star-shine{transform:scale(1)}
 .rate-star:focus-visible{outline:2.5px solid var(--ink);outline-offset:-3px;border-radius:12px}
 /* Given: each star pops in turn, left to right, the last one biggest. */
@@ -4444,12 +4459,13 @@ body.private-window{overflow:hidden}
 @keyframes rate-pick{0%{transform:scale(1)}35%{transform:scale(1.5) rotate(14deg)}65%{transform:scale(.92) rotate(-4deg)}100%{transform:scale(1.08)}}
 /* One or two: nothing jumps. The gold goes dull and the stars settle, as if put down. */
 .rate-pop.is-low .rate-star.is-on svg{animation:rate-settle .6s ease both;animation-delay:calc(var(--i) * 50ms)}
-.rate-pop.is-low .rate-star-fill{fill:#d9b864}
-.rate-pop.is-low .rate-star-shine{fill:#efdba3}
+.rate-pop.is-low .rate-star-fill{fill:#b9984a}
+.rate-pop.is-low .rate-star-shine{fill:#dcc58a}
 @keyframes rate-settle{0%{transform:none}35%{transform:translateY(4px) scale(.94)}100%{transform:translateY(1px)}}
-/* Three: a warm glow behind the row. */
+/* Three: a warm glow behind the row. Four and five keep a little of it. */
 .rate-pop.is-mid .rate-stars{animation:rate-glow 1s ease both}
-@keyframes rate-glow{0%{filter:none}40%{filter:drop-shadow(0 0 9px #ffb40099)}100%{filter:drop-shadow(0 0 3px #ffb40055)}}
+@keyframes rate-glow{0%{filter:none}40%{filter:drop-shadow(0 0 10px #ffc93acc)}100%{filter:drop-shadow(0 0 4px #ffc93a66)}}
+.rate-pop.is-high .rate-stars,.rate-pop.is-top .rate-stars{filter:drop-shadow(0 0 6px #ffc93a80)}
 .rate-word{
   margin:2px 0 0;
   min-height:19px;
@@ -4459,33 +4475,46 @@ body.private-window{overflow:hidden}
   color:var(--quiet);
   transition:color .15s
 }
-.rate-pop.is-previewing .rate-word,.rate-pop.is-rated .rate-word{color:var(--ink)}
+.rate-pop.is-previewing .rate-word,.rate-pop.is-rated .rate-word{color:#ffd65a}
+.rate-pop.is-low .rate-word{color:#d8c08a}
 .rate-after{animation:rate-after .32s ease both}
 .rate-after[hidden]{display:none}
 @keyframes rate-after{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .rate-say{margin:8px 0 0;font-size:14.5px;font-weight:700;color:var(--ink)}
 /* Two ways on, side by side at half the width each — never a key and a link
-   under it. Done is the quiet one, in the sticker's own ink; the way to say
-   more is the game's orange. */
+   under it. The way to say more is the PLAY key itself, white on its orange
+   ledge; Done is the quiet one, cut into the turf. */
 .rate-keys{display:flex;gap:10px;margin-top:12px}
 .rate-keys>button{
   flex:1 1 0;
   min-width:0;
   min-height:48px;
   padding:0 8px;
-  border:2.5px solid var(--ink);
   border-radius:12px;
   font-family:var(--cta);
   font-size:15px;
-  letter-spacing:1.2px;
+  letter-spacing:1.4px;
   line-height:1;
   white-space:nowrap
 }
-.rate-keys>button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
-.rate-done{background:#fff;color:var(--ink);box-shadow:0 4px 0 var(--ink)}
-.rate-more{background:var(--cta-orange);color:#fff;box-shadow:0 4px 0 var(--ink)}
-.rate-done:hover{background:#fff8ec}
-.rate-more:hover{background:#f0652f}
+.rate-done{
+  /* The same weight of border as its neighbour's, or the pair split the row
+     unevenly: a flex basis of nought adds each key's border on top. */
+  border:3px solid #ffffff38;
+  background:#00000030;
+  color:var(--ink);
+  box-shadow:0 4px 0 var(--turf-deep)
+}
+.rate-more{
+  border:3px solid var(--cta-orange);
+  background:#fff;
+  color:#1d1408;
+  box-shadow:0 4px 0 var(--cta-orange),0 8px 12px #0000004d
+}
+.rate-done:hover{background:#00000045;border-color:#ffffff66}
+.rate-more:hover{box-shadow:0 5px 0 var(--cta-orange),0 10px 14px #0000004d}
+.rate-done:active{transform:translateY(3px);box-shadow:0 1px 0 var(--turf-deep)}
+.rate-more:active{transform:translateY(3px);box-shadow:0 1px 0 var(--cta-orange)}
 .rate-keys>button:focus-visible{outline:2.5px solid var(--ink);outline-offset:3px}
 
 /* What is thrown in the air. Positioned by the script at the star that landed,
@@ -4494,7 +4523,7 @@ body.private-window{overflow:hidden}
 .rate-burst>i{position:absolute;display:block;pointer-events:none}
 .rate-spark{
   width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;
-  background:var(--star);border:1.5px solid var(--ink);
+  background:#ffc93a;border:1.5px solid #4a2300;
   animation:rate-fly .62s var(--d,0ms) cubic-bezier(.15,.7,.35,1) both
 }
 .rate-confetti{
@@ -4503,8 +4532,8 @@ body.private-window{overflow:hidden}
 }
 .rate-confetti.c0{background:var(--star)}
 .rate-confetti.c1{background:var(--orange)}
-.rate-confetti.c2{background:#152b3c}
-.rate-confetti.c3{background:#6cc070}
+.rate-confetti.c2{background:#f6eedd}
+.rate-confetti.c3{background:#d8263a}
 @keyframes rate-fly{
   0%{opacity:1;transform:translate(0,0) scale(1)}
   100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.3)}

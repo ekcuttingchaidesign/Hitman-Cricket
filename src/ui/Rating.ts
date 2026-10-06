@@ -7,8 +7,9 @@ import { RATED_NAME, STAR_WORDS, tierOf, type RatedThing } from '../game/rating'
  * card is still the thing the player came to see, with their score on it and
  * PLAY AGAIN a thumb away, and a rating that took the card away to ask would be
  * paid for out of the one screen that is theirs. So it is small, it sits at the
- * foot of the picture, and it goes with one tap of the cross. It is cream and
- * inked rather than navy because the card behind it is navy (see the styles).
+ * foot of the picture, and it goes with one tap of the cross. It is drawn in
+ * the game's Test-match green rather than navy, because the card behind it is
+ * navy (see the styles).
  *
  * One tap is also the whole of rating, and it is not final. The stars stay live
  * while the sticker is up: a second thought is a second tap, and the sticker
@@ -88,8 +89,12 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
   pop.dataset.thing = options.thing;
   pop.innerHTML = `
     <button class="rate-close" type="button" aria-label="Not now">×</button>
-    <span class="rate-tab" aria-hidden="true">QUICK ONE</span>
-    <h3 class="rate-ask">${options.thing === 'game' ? `How are you finding <b>${name}</b>?` : `How was <b>${name}</b>?`}</h3>
+    <svg class="rate-defs" width="0" height="0" aria-hidden="true"><defs><linearGradient id="rate-gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff2a6"/><stop offset=".45" stop-color="#ffc93a"/><stop offset="1" stop-color="#f08712"/>
+    </linearGradient></defs></svg>
+    <p class="rate-eyebrow"><i aria-hidden="true"></i>QUICK ONE</p>
+    <h3 class="rate-ask"><span class="rate-ask-lead">${options.thing === 'game' ? 'How are you finding' : 'How was'}</span>
+      <span class="rate-ask-name">${name}?</span></h3>
     <div class="rate-stars" role="radiogroup" aria-label="Your rating">${[1, 2, 3, 4, 5].map(n => `
       <button class="rate-star" type="button" role="radio" aria-checked="false" data-n="${n}" style="--i:${n - 1}"
         aria-label="${n} star${n > 1 ? 's' : ''} — ${STAR_WORDS[n - 1]}" tabindex="${n === 1 ? 0 : -1}">${STAR}</button>`).join('')}
