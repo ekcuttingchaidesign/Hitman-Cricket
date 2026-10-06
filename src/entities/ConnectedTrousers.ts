@@ -2,6 +2,17 @@ import * as THREE from 'three';
 import type { BendingLimb } from './BendingLimb';
 import { updateGarmentNormals } from './ConnectedJersey';
 
+/**
+ * How many rows down each leg the trousers take to become the leg: the hip
+ * and the seat live here, so they are blended on a curve rather than in a
+ * straight line, which left a slab behind him and a corner at each hip.
+ */
+const SEAT_ROWS = 4;
+/** How far the seat stands out behind the line from hip to thigh, at its fullest. */
+const SEAT = .034;
+/** And the hips past the thigh at the sides, so the leg grows out of them. */
+const HIP = .018;
+
 /** One trouser surface: waist, tailored rise, crotch and both bending legs. */
 export class ConnectedTrousers {
   readonly mesh: THREE.Mesh;
@@ -9,6 +20,7 @@ export class ConnectedTrousers {
   private p = new THREE.Vector3();
   private q = new THREE.Vector3();
   private ref = new THREE.Vector3();
+  private inverse = new THREE.Quaternion();
   private offset(i: number) { return 51 + i * 320; }
   constructor(material: THREE.Material) {
     const indices: number[] = [], count = 691;
@@ -56,16 +68,37 @@ export class ConnectedTrousers {
         this.p.set(Math.sin(angle) * .164, -.337, Math.cos(angle) * .124)
           .applyQuaternion(torso.quaternion).add(torso.position);
         positions.setXYZ(i, this.p.x, this.p.y, this.p.z);
-      } else set(24 + i, Math.sin(angle) * .184, .025, Math.cos(angle) * .122);
+      } else {
+        // Below the shirt's hem, so the cloth falls from it rather than folding
+        // back up; and deeper behind than in front, the top of the seat.
+        const z = Math.cos(angle);
+        set(24 + i, Math.sin(angle) * .17, -.02, z * (z < 0 ? .15 : .122));
+      }
     }
-    set(48, 0, -.055, .085); set(49, 0, -.098, 0); set(50, 0, -.055, -.085);
+    // The crotch seam: front, under, and behind, where it is set low and well
+    // back so the seat is whole at the top and parts only lower down.
+    set(48, 0, -.055, .085); set(49, 0, -.098, 0); set(50, 0, -.085, -.125);
+    this.inverse.copy(hips.quaternion).invert();
     for (let leg = 0; leg < 2; leg++) {
       const source = legs[leg].mesh.geometry.getAttribute('position');
+      const outside = leg === 0 ? -1 : 1;
       for (let row = 1; row <= 20; row++) for (let i = 0; i < 16; i++) {
-        if (row < 3) {
+        if (row <= SEAT_ROWS) {
+          // From the opening to the leg in even steps, the curve all in the
+          // swell below, worked in the hips' own frame so that behind him is
+          // behind him however he turns.
+          const t = row / (SEAT_ROWS + 1);
           this.p.fromBufferAttribute(positions, this.loops[leg][i]);
-          this.q.fromBufferAttribute(source, 3 * 17 + i);
-          this.p.lerp(this.q, row / 3);
+          this.q.fromBufferAttribute(source, (SEAT_ROWS + 1) * 17 + i);
+          this.p.lerp(this.q, t).sub(hips.position).applyQuaternion(this.inverse);
+          // Rounded out behind, fullest halfway down, and a little at the
+          // outside of each hip; nothing in front or between the legs.
+          const swell = Math.sin(t ** .7 * Math.PI);
+          const behind = Math.max(0, -this.p.z) / (Math.hypot(this.p.x, this.p.z) || 1);
+          const side = Math.max(0, this.p.x * outside) / (Math.hypot(this.p.x, this.p.z) || 1);
+          this.p.z -= SEAT * swell * behind * behind;
+          this.p.x += outside * HIP * swell * side * side;
+          this.p.applyQuaternion(hips.quaternion).add(hips.position);
         } else this.p.fromBufferAttribute(source, row * 17 + i);
         positions.setXYZ(this.offset(leg) + (row - 1) * 16 + i, this.p.x, this.p.y, this.p.z);
       }
