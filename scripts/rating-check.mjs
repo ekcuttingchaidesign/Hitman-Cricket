@@ -18,6 +18,12 @@
  * the burst, and the requests that went out — the things a frozen animation
  * cannot fake. Pictures are written to the folder named by `SHOTS`, if one is,
  * for a person to look at.
+ *
+ * `QUICK=1` leaves the innings out and puts the slip up from the cover through
+ * the hook: everything about the stars, nothing about when. It is for a machine
+ * whose software renderer cannot bat three innings in any time worth waiting —
+ * which is a machine this check has run on — and it is not the check: the rule
+ * about when is the reason this script exists, and only the full run holds it.
  */
 
 import { chromium } from '@playwright/test';
@@ -27,6 +33,7 @@ import { join } from 'node:path';
 const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
 const shots = process.env.SHOTS || '';
+const quick = process.env.QUICK === '1';
 if (shots) mkdirSync(shots, { recursive: true });
 
 let failures = 0;
@@ -36,7 +43,9 @@ const check = (ok, what, detail) => {
 };
 
 const browser = await chromium.launch({ executablePath });
-const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+// At one device pixel a CSS pixel: the ground is rendered in software here, and at
+// two every step of the clock took the better part of a minute.
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 
@@ -49,7 +58,10 @@ page.on('request', request => {
 });
 
 const snap = () => page.evaluate(() => window.__cricket.snapshot());
-const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
+// A hand-wound clock for the innings. QUICK runs on real time instead: winding
+// a clock renders every frame it passes, and a software renderer drawing the
+// ground behind the cover takes most of a second over each one.
+const advance = ms => quick ? page.waitForTimeout(Math.max(16, Math.round(ms))) : page.clock.runFor(Math.max(16, Math.round(ms)));
 const settle = async (ms = 300) => { await advance(ms); await page.waitForTimeout(250); };
 const shoot = async name => { if (shots) await page.screenshot({ path: join(shots, `${name}.png`) }); };
 const until = async phase => {
@@ -65,13 +77,17 @@ const pop = page.locator('.rate-pop:not(.is-leaving)');
 const popUp = async () => (await pop.count()) > 0 && pop.first().isVisible();
 
 /** A Test Survival innings, played a few balls and then to the end. */
+const started = Date.now();
+const note = what => { if (process.env.TRACE) console.log(`  ..   ${((Date.now() - started) / 1000).toFixed(0)}s ${what}`); };
 const finishInnings = async () => {
+  note('innings starts');
   for (let i = 0; i < 2; i++) {
     const ball = await until('BALL_IN_FLIGHT');
     const key = ball.effectiveLine === 'MIDDLE' ? 'w' : Number(ball.finalX) < 0 ? 'a' : 'd';
     await advance(ball.contactAt - ball.elapsed - 65);
     await page.keyboard.press(key);
     await advance(2600);
+    note(`ball ${i + 1} played`);
   }
   await page.evaluate(() => window.__cricket.hurt());
   for (let i = 0; i < 40; i++) {
@@ -88,23 +104,36 @@ await page.addInitScript(() => {
   try { localStorage.setItem('hitman-seen', day); } catch { /* Then nothing counts. */ }
 });
 
-await page.clock.install();
+note('launching');
+if (!quick) await page.clock.install();
 await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
 await settle(2500);
 const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
 if (await anyway.count()) { await anyway.first().click(); await settle(1200); }
 
-await page.locator('#start').click({ force: true });
-await settle(400);
-for (let i = 0; i < 8; i++) {
-  const done = page.locator('#whatsnew-done');
-  if (!(await done.count()) || !(await done.isVisible())) break;
-  await done.click({ force: true, timeout: 3000 }).catch(() => {});
-  await settle(400);
+// Into Test Survival the way a player goes: the cover, the stories if they
+// come up, the picker. Each is waited for rather than assumed, because a
+// software renderer can take seconds to put the next screen up.
+const visible = async selector => { const at = page.locator(selector); return (await at.count()) > 0 && at.first().isVisible(); };
+let picked = quick;
+for (let i = 0; i < 40 && !picked; i++) {
+  if (await visible('#whatsnew-done')) await page.locator('#whatsnew-done').click({ force: true, timeout: 3000 }).catch(() => {});
+  else if (await visible('#mode-survive')) { await page.locator('#mode-survive').click({ force: true }); picked = true; }
+  else if (await visible('#start')) await page.locator('#start').click({ force: true, timeout: 3000 }).catch(() => {});
+  await settle(500);
 }
-await page.locator('#mode-survive').click({ force: true });
-await settle(600);
+if (!picked) throw new Error('Never reached Test Survival on the picker');
+note('survival picked');
 
+if (quick) {
+  console.log('  --   QUICK: no innings played, so nothing here says when the stars are asked for');
+  await page.evaluate(() => window.__cricket.rating('survive'));
+  await settle(600);
+  check(await popUp(), 'the stars rise when asked for');
+  check(await pop.getAttribute('data-thing') === 'survive', 'asked about the mode by name');
+  check((await pop.locator('.rate-ask').textContent())?.includes('Test Survival'), 'and says which');
+  await shoot('rating-asked');
+} else {
 // ── The first innings anybody plays asks nothing ────────────────────────────
 await finishInnings();
 await settle(2500);
@@ -124,6 +153,7 @@ check(await pop.getAttribute('data-thing') === 'survive', 'asked about the mode 
 check((await pop.locator('.rate-ask').textContent())?.includes('Test Survival'), 'and says which');
 check((await page.locator('#survive-again').isVisible()), 'with the card and its keys still there behind it');
 await shoot('rating-asked');
+}
 
 // A pointer over the row lights the stars up to it, without giving them.
 const star = n => pop.locator(`.rate-star[data-n="${n}"]`);
@@ -135,6 +165,18 @@ check((await pop.locator('.rate-word').textContent()) === 'It’s okay', 'with t
 check(sent.length === 0, 'and nothing is sent for looking');
 
 // ── Five, tapped ────────────────────────────────────────────────────────────
+// What is thrown in the air is taken away again 1.8s later, which a slow
+// renderer can spend between two steps of this script. So every piece is
+// written down as it goes in, rather than looked for afterwards.
+const watchThrown = () => page.evaluate(() => {
+  window.__thrown = [];
+  const burst = document.querySelector('.rate-pop:not(.is-leaving) .rate-burst');
+  new MutationObserver(changes => {
+    for (const change of changes) for (const node of change.addedNodes) window.__thrown.push(node.className);
+  }).observe(burst, { childList: true });
+});
+const thrown = () => page.evaluate(() => window.__thrown);
+await watchThrown();
 const five = await star(5).boundingBox();
 await page.mouse.move(five.x + five.width / 2, five.y + five.height / 2);
 await page.mouse.down();
@@ -142,9 +184,13 @@ await page.mouse.up();
 await page.waitForTimeout(150);
 check(await pop.getAttribute('data-stars') === '5', 'a tap on the fifth gives five');
 check(await pop.evaluate(node => node.classList.contains('is-top')), 'and is met as a five');
-check(await pop.locator('.rate-ball').count() === 1 && await pop.locator('.rate-six').count() === 1,
-  'the last star goes up as a ball, with the call');
-check(await pop.locator('.rate-confetti').count() > 10, 'and the confetti with it', String(await pop.locator('.rate-confetti').count()));
+// Given stars are disabled so they cannot be given twice, and the page dims
+// every disabled key — which turned five gold stars olive the moment they landed.
+check(await star(5).evaluate(node => getComputedStyle(node).opacity) === '1', 'and the stars stay lit once given',
+  await star(5).evaluate(node => getComputedStyle(node).opacity));
+const five$ = await thrown();
+check(five$.includes('rate-ball') && five$.includes('rate-six'), 'the last star goes up as a ball, with the call', five$.join(' '));
+check(five$.filter(one => one.startsWith('rate-confetti')).length > 10, 'and the confetti with it', String(five$.length));
 await shoot('rating-five');
 await settle(400);
 const tap = sent.find(form => form.rating);
@@ -189,19 +235,22 @@ if (await back.count()) await back.click();
 await settle(300);
 
 // ── Once a visit ────────────────────────────────────────────────────────────
-await page.locator('#survive-again').click({ force: true });
-await settle(600);
-await finishInnings();
-await settle(2500);
-check(!(await popUp()), 'the next innings this visit asks nothing');
+if (!quick) {
+  await page.locator('#survive-again').click({ force: true });
+  await settle(600);
+  await finishInnings();
+  await settle(2500);
+  check(!(await popUp()), 'the next innings this visit asks nothing');
+}
 
 // ── The other faces, on demand ──────────────────────────────────────────────
 await page.evaluate(() => window.__cricket.rating('marathon'));
 await settle(600);
+await watchThrown();
 await star(1).click();
 await page.waitForTimeout(150);
 check(await pop.evaluate(node => node.classList.contains('is-low')), 'one star is met quietly');
-check(await pop.locator('.rate-burst > i').count() === 0, 'with nothing thrown in the air');
+check((await thrown()).length === 0, 'with nothing thrown in the air', (await thrown()).join(' '));
 await settle(1000);
 check((await pop.locator('.rate-more').textContent())?.includes('WENT WRONG'), 'and asks what went wrong');
 await shoot('rating-one');
@@ -230,10 +279,15 @@ check(await pop.getAttribute('data-stars') === '3', 'arrows and Enter give three
 check(await pop.evaluate(node => node.classList.contains('is-mid')), 'and three glows');
 await shoot('rating-three');
 
+check((await snap()).phase === (quick ? 'START' : 'INNINGS_END'), 'and the Enter that gave them started nothing behind it',
+  (await snap()).phase);
+
 // Walking out to bat takes it away.
-await page.keyboard.press('r');
-await settle(800);
-check(!(await popUp()), 'the next innings puts it away');
+if (!quick) {
+  await page.keyboard.press('r');
+  await settle(800);
+  check(!(await popUp()), 'the next innings puts it away');
+}
 
 check(!errors.length, 'nothing threw on the way', errors.join('\n        '));
 console.log(failures ? `\n${failures} failed` : '\nall good');

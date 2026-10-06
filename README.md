@@ -715,7 +715,7 @@ And the brakes. Never on the first innings anybody plays, of any mode — that i
 
 The stars and the follow-up are two rows in the sheet carrying one `ref`. **Average the stars over distinct refs, not over rows**, or everybody who said more is counted twice. The columns are `stars`, `thing` (game, survive, marathon, rivals), `moment` (`mode`, `innings`) and `ref`, ahead of the questions.
 
-`scripts/rating-check.mjs` reaches it the way a player does — finishing innings — because its rule is about *when*: the first innings asks nothing, the second asks about its mode, a third that visit asks nothing. It then puts the slip up through the debug hook (`__cricket.rating('marathon')`) to look at the low mark, the cross and the keyboard, judging the celebrations by the pieces they leave and the requests they send rather than by frames a software renderer may never draw. `SHOTS=dir` keeps pictures of each.
+`scripts/rating-check.mjs` reaches it the way a player does — finishing innings — because its rule is about *when*: the first innings asks nothing, the second asks about its mode, a third that visit asks nothing. It then puts the slip up through the debug hook (`__cricket.rating('marathon')`) to look at the low mark, the cross and the keyboard, judging the celebrations by the pieces they leave and the requests they send rather than by frames a software renderer may never draw. `SHOTS=dir` keeps pictures of each. `QUICK=1` leaves the innings out and checks only the slip, for a machine whose software renderer cannot bat three innings in reasonable time; it holds nothing about when, so it does not stand in for the full run.
 
 ### Where the game offers it
 

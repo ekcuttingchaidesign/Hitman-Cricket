@@ -160,7 +160,9 @@ nothing, before putting the slip up by name (`__cricket.rating('marathon')`)
 for the rest. The celebrations are judged by the pieces they leave and the
 requests sent, not by frames. When to ask is `nextAsk` in `src/game/rating.ts`,
 in the unit tests; a new mode goes in `NEW_MODES` and gets its follow-ups in
-`FOLLOW_UPS`.
+`FOLLOW_UPS`. `QUICK=1` skips the innings and checks only the slip, for a
+renderer too slow to bat — it says nothing about when, which is the point of
+the check, so it is not a substitute for the full run.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one
