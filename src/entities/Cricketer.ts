@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { compactRigidParts } from './compactParts';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
 
@@ -235,6 +236,15 @@ export class Cricketer {
         end: foot,
       });
     }
+    // The parts that never move against each other — the cap on the head, a
+    // shoe's sole on its upper — are drawn as one mesh a material in each
+    // group. Built once, so the saving in draws costs nothing per frame; the
+    // limbs, which the rig moves, stay as they are.
+    for (const group of [this.torso, this.hips, this.head, ...this.hands, ...this.legs.map(l => l.end)]) {
+      const merged = compactRigidParts(group);
+      this.dressable = this.dressable.filter(mesh => mesh.parent !== null);
+      this.dressable.push(...merged.filter(mesh => mesh.userData.role));
+    }
     this.pose = this.stand();
     this.apply(this.pose);
   }
@@ -393,7 +403,9 @@ export class Cricketer {
       const shin = foot.clone().sub(knee);
       const pitch = shin.lengthSq() > .000001 ? Math.asin(THREE.MathUtils.clamp(-shin.clone().normalize().dot(forward), -1, 1)) : 0;
       leg.end.quaternion.setFromAxisAngle(UP, pose.yaw);
-      leg.end.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.clamp(pitch, -.9, .9)));
+      // Flat on the turf while it is planted; tipping with the shin only once lifted.
+      const lifted = THREE.MathUtils.smoothstep(foot.y, .065, .20);
+      leg.end.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.clamp(pitch, -.9, .9) * lifted));
     }
   }
 

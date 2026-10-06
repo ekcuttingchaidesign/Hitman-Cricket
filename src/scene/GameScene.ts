@@ -1174,6 +1174,7 @@ export class GameScene {
       this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
     }
     this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
+    this.batter.drape();
     if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
     this.performanceReadout?.update(this.renderer);

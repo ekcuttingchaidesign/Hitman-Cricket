@@ -37,20 +37,24 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  * about 825 once the perimeter boards were one ring; the stadium, its stands
  * merged into one mesh a colour and left out of the shadow pass, came in at
  * 647 by day and 678 by night, when the floodlights behind the batter's end
- * cast the fielders' shadows the sun had not. Lower this whenever a
- * change brings it down, so the saving stays banked.
+ * cast the fielders' shadows the sun had not. The figures' fixed parts
+ * merged into one mesh a material, and the batter's limbs drawn as one
+ * shirt and one pair of trousers rather than tubes and joint balls, brought
+ * that to 494 by day and 518 by night. Lower this whenever a change brings it
+ * down, so the saving stays banked.
  */
-const BUDGET = 680;
+const BUDGET = 530;
 /**
  * The bowl, the ground before it, is kept and can still be asked for with
  * `?ground=bowl`, so it is still drawn here and held to the budget it shipped
- * under: built a box at a time, it costs about 800.
+ * under: built a box at a time, it costs about 800, and about 650 with the
+ * figures' parts merged.
  */
 const GROUNDS = [
   ['stadium', 'day', '&lights=day', BUDGET],
   // The Blast's night: the same stadium, the moon and two clouds of glow added.
   ['stadium', 'night', '&lights=night', BUDGET],
-  ['bowl', 'day', '&ground=bowl&lights=day', 870],
+  ['bowl', 'day', '&ground=bowl&lights=day', 660],
 ];
 
 let failures = 0;

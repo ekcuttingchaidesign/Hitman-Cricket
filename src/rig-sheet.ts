@@ -64,7 +64,7 @@ for (let i = 0; i < frames; i++) {
   batter.reset(); batter.prepare(1); batter.update(0);
   batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ + (shot.endsWith('CHARGE') ? CHARGE_MEETS_AT : 0), shot.endsWith('CHARGE'), spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false);
   batter.update(age);
-  renderer.render(scene, camera);
+  batter.drape(); renderer.render(scene, camera);
   const col = i % COLS, row = Math.floor(i / COLS);
   ctx.drawImage(renderer.domElement, col * TILE, row * TILE);
   ctx.fillStyle = '#d8f0c8'; ctx.font = '600 15px monospace';
