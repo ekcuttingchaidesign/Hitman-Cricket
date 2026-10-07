@@ -13,12 +13,19 @@ export interface BallEnded {
   wicket: boolean;
   /** A milestone is about to be celebrated, which takes him from wherever he is. */
   milestone: boolean;
-  /** Out close to a milestone: see `outNearMilestone`. */
-  heartbreak?: boolean;
+  /** A milestone just missed, and how he takes it: see `disappointment`. */
+  heartbreak?: 'sky' | 'down' | null;
   /** Four of them. */
   four?: boolean;
   /** The innings' last ball: the end card comes in over whatever he would do. */
   last?: boolean;
+}
+
+/** Five sixes running before this ball, and not six: the sixth was there for the taking. */
+function fiveSixes(before: readonly ShotOutcome[]) {
+  let sixes = 0;
+  for (let i = before.length - 1; i >= 0 && before[i].runs === 6 && !before[i].isWicket; i--) sixes++;
+  return sixes === 5;
 }
 
 /**
@@ -32,10 +39,25 @@ export function outNearMilestone(history: readonly ShotOutcome[]) {
   if (!out?.isWicket) return false;
   const before = history.slice(0, -1);
   const runs = batterRuns(before);
-  if (runs >= 90 && runs % 100 >= 90) return true;
-  let sixes = 0;
-  for (let i = before.length - 1; i >= 0 && before[i].runs === 6 && !before[i].isWicket; i--) sixes++;
-  return sixes >= 5;
+  return (runs >= 90 && runs % 100 >= 90) || fiveSixes(before);
+}
+
+/**
+ * How he takes a ball that cost him a milestone, if the last in `history` did
+ * (`outNearMilestone`, or the sixth six missed and still in). Caught in the
+ * field or leg before, he looks to the sky; bowled, stumped, or caught behind
+ * off the edge, his head goes down, to the stumps and the keeper behind him.
+ * The sixth six missed and not out, the sky.
+ */
+export function disappointment(history: readonly ShotOutcome[]): 'sky' | 'down' | null {
+  const ball = history[history.length - 1];
+  if (!ball) return null;
+  if (ball.isWicket) {
+    if (!outNearMilestone(history)) return null;
+    const behind = ball.wicketType === 'BOWLED' || ball.wicketType === 'STUMPED' || (ball.wicketType === 'CAUGHT' && !!ball.edged);
+    return behind ? 'down' : 'sky';
+  }
+  return ball.runs !== 6 && fiveSixes(history.slice(0, -1)) ? 'sky' : null;
 }
 
 /** How the batter's habits run in a mode: see `PACES`. */
@@ -98,8 +120,9 @@ const DRIVES = new Set(['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON']);
  *
  * How often is the stroke's too. The pull is hard to play and is twirled
  * every time. Every other sweep or scoop gets the brush, from the first.
- * Beaten, `BEATEN_CHANCE` of the time. Out close to a milestone (`heartbreak`)
- * he always looks to the sky. The drives are the common ones, and get it at
+ * Beaten, `BEATEN_CHANCE` of the time. A milestone missed (`heartbreak`), out
+ * close to one or the sixth six gone begging, always gets the sky or the head
+ * down, even off a ball he left alone. The drives are the common ones, and get it at
  * the mode's `Pace` — except the first four he hits, and a boundary that ends
  * `DOTS_BROKEN` dots, which always do, and twice as often while the
  * boundaries come one after another. Nothing on the innings' last ball, which
@@ -107,10 +130,11 @@ const DRIVES = new Set(['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON']);
  * would do it picks between them too.
  */
 export function afterBall(stroke: PlayedStroke | null, ended: BallEnded, habit: Habit, roll: number): AfterBall | null {
-  if (!stroke || stroke.charging) return null;
-  // Out close to a milestone: always, whatever the roll.
-  if (ended.wicket && ended.heartbreak) return 'sky';
-  if (ended.wicket || ended.milestone || ended.last) return null;
+  if (stroke?.charging) return null;
+  // A milestone missed: always, whatever the roll, and whether or not he
+  // played at it. Out, on the last ball too, which is held for it.
+  if (ended.heartbreak && (ended.wicket || !(ended.milestone || ended.last))) return ended.heartbreak;
+  if (!stroke || ended.wicket || ended.milestone || ended.last) return null;
   if (ended.scored && stroke.pulled) return 'twirl';
   if (ended.scored && swept(stroke)) return habit.sweeps % 2 === 0 ? 'brush' : null;
   const kinds = choose(stroke, ended).filter(kind => kind !== habit.last);

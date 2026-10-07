@@ -26,6 +26,13 @@ interface Pose {
   face: number;
   /** Chin down. Only the fall uses it, and without it a beaten man stares straight ahead. */
   headDown?: number;
+  /**
+   * Chin down too, but about his own shoulders' line. `headDown` tips the head
+   * about the ground's, which is a nod only while he faces the bowler: turned
+   * round to the camera, it put a man looking at the sky to looking at his
+   * boots, and one looking at his boots to the sky.
+   */
+  look?: number;
   heel: number;
   backFootYaw?: number;
   leadElbow: number;
@@ -1188,7 +1195,7 @@ const FACING: Pose = standing({ ...GUARD, hip: [-.02, .97, -.02], chest: [.00, 1
  * Every one starts and ends in the guard, so it can begin the moment the
  * stroke is home and the next ball can find him where it always does.
  */
-export type AfterBall = 'admire' | 'lean' | 'watch' | 'twirl' | 'brush' | 'shadow' | 'scrub' | 'sky';
+export type AfterBall = 'admire' | 'lean' | 'watch' | 'twirl' | 'brush' | 'shadow' | 'scrub' | 'sky' | 'down';
 /** What kind of stroke it was, which is half of what decides the `AfterBall`. */
 export interface PlayedStroke { shot: ShotType; charging: boolean; lofted: boolean; swept: boolean; pulled: boolean }
 /**
@@ -1279,10 +1286,14 @@ const BRUSH_KEYS: Keys = (() => {
  * contact and a little way through, held there while he checks the line, and
  * home. Short of the contact and slowed, it read as unfinished.
  */
-function shadowKeys(struck: Pose, followed: Pose): Keys {
+function shadowKeys(struck: Pose, followed: Pose, shot: ShotType): Keys {
   // To the full contact and on through it into a little of the follow-through
   // without stopping at the ball: briskly, as the stroke is meant, not slowed.
   const through = mix(struck, followed, .35);
+  // The on-drive's goes through round the front leg, and straight home from
+  // there the bat swung through his chest: it comes back down the line of the
+  // stroke, by the contact, and home from that.
+  if (shot === 'LONG_ON') return [[0, GUARD], [380, struck, leave], [560, through, arrive], [900, through], [1120, struck], [1450, GUARD]];
   return [[0, GUARD], [380, struck, leave], [560, through, arrive], [900, through], [1300, GUARD]];
 }
 /** The scrub's bat on the shoulder: toe to handle, forward, down and in. */
@@ -1337,21 +1348,41 @@ const SKY_KEYS: Keys = (() => {
   // hand cut the corner past his hip on the way round.
   const bat = { grip: point(shoulderOf(turned, 1).addScaledVector(UP, -.48).addScaledVector(outwards(turned, 1), .12).addScaledVector(ahead, .20)),
     ...hanging(UP.clone().addScaledVector(outwards(turned, 1), -.22)) };
-  const skyward: Pose = { ...turned, ...bat, headDown: -.62, fist: hangingFist(turned) };
+  const skyward: Pose = { ...turned, ...bat, look: -.72, fist: hangingFist(turned) };
   // The bat down first, as for the other things he does between balls, and
   // only then the turn: both at once swung the bat through his hips. Just the
   // look to the sky: with the head dropping after it as well, it was two
   // moments where one says it, and too long.
-  return [[0, GUARD], [280, { ...STANDING, headDown: -.15 }], [650, skyward], [1550, skyward], [1900, STANDING], [2250, GUARD]];
+  return [[0, GUARD], [280, STANDING], [650, skyward], [1550, skyward], [1900, STANDING], [2250, GUARD]];
+})();
+/**
+ * Out close to a milestone bowled, or taken behind: turned three-quarters to
+ * the camera as for the sky, which is to his stumps and the keeper, and the
+ * head dropped on his chest, the shoulders gone with it, the bat hanging from
+ * the one hand and the other on his hip; held; and he turns back.
+ */
+const DOWN_KEYS: Keys = (() => {
+  const hip = new THREE.Vector3(-.03, .95, -.03), yaw = 2.3;
+  const ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+  // Slumped: the chest forward of the hips and a little lower than he stands.
+  const chest = hip.clone().add(new THREE.Vector3(0, .33, 0)).addScaledVector(ahead, .07);
+  const turned = standing({ ...STANDING, hip: point(hip), chest: point(chest), yaw, face: yaw, release: 1 });
+  const bat = { grip: point(shoulderOf(turned, 1).addScaledVector(UP, -.50).addScaledVector(outwards(turned, 1), .11).addScaledVector(ahead, .18)),
+    ...hanging(UP.clone().addScaledVector(outwards(turned, 1), -.2)) };
+  const slumped: Pose = { ...turned, ...bat, look: .78, fist: onHip(turned) };
+  // The bat down and then the turn, as for the sky.
+  return [[0, GUARD], [280, STANDING], [650, slumped], [1550, slumped], [1900, STANDING], [2250, GUARD]];
 })();
 const keysFor = (kind: AfterBall, shot: ShotType, struck: Pose | null, followed: Pose | null = null): Keys =>
   kind === 'admire' ? CHECK_KEYS : kind === 'lean' ? LEAN_KEYS : kind === 'watch' ? watchKeys(shot) : kind === 'twirl' ? TWIRL_KEYS
-    : kind === 'brush' ? BRUSH_KEYS : kind === 'scrub' ? SCRUB_KEYS : kind === 'sky' ? SKY_KEYS
-    : shadowKeys(struck ?? GUARD, followed ?? struck ?? GUARD);
+    : kind === 'brush' ? BRUSH_KEYS : kind === 'scrub' ? SCRUB_KEYS : kind === 'sky' ? SKY_KEYS : kind === 'down' ? DOWN_KEYS
+    : shadowKeys(struck ?? GUARD, followed ?? struck ?? GUARD, shot);
 /** How long each takes once the stroke is home: the same whatever stroke it follows. */
-const lengthOf = (kind: AfterBall) => { const keys = keysFor(kind, 'STRAIGHT', GUARD); return keys[keys.length - 1][0]; };
+/** How long `kind` takes after `shot`: the on-drive's shadow comes home the long way. */
+const lengthOf = (kind: AfterBall, shot: ShotType = 'STRAIGHT') => { const keys = keysFor(kind, shot, GUARD); return keys[keys.length - 1][0]; };
 /** Longest of them, for whatever has to wait them out. */
-export const AFTER_BALL_MS = Math.max(...(['admire', 'lean', 'watch', 'twirl', 'brush', 'shadow', 'scrub', 'sky'] as AfterBall[]).map(lengthOf)) + ADMIRE_MS;
+export const AFTER_BALL_MS = Math.max(...(['admire', 'lean', 'watch', 'twirl', 'brush', 'shadow', 'scrub', 'sky', 'down'] as AfterBall[])
+  .flatMap(kind => [lengthOf(kind), lengthOf(kind, 'LONG_ON')])) + ADMIRE_MS;
 const RAISED = aloft(FACING, [.33, .10], [.54, .28]);
 /** The pump: fist and bat drawn down together, the knees giving with them. */
 const PUMPED = aloft({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 }, [.26, .10], [.38, .26]);
@@ -1615,6 +1646,7 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     batFace: new THREE.Vector3(0, 0, 1).applyQuaternion(bat).toArray() as unknown as Point,
     yaw: THREE.MathUtils.lerp(a.yaw, b.yaw, t), face: THREE.MathUtils.lerp(a.face, b.face, t), heel: THREE.MathUtils.lerp(a.heel, b.heel, t),
     headDown: THREE.MathUtils.lerp(a.headDown ?? 0, b.headDown ?? 0, t),
+    look: THREE.MathUtils.lerp(a.look ?? 0, b.look ?? 0, t),
     backFootYaw: THREE.MathUtils.lerp(a.backFootYaw ?? 1.38, b.backFootYaw ?? 1.38, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
     armHinge: THREE.MathUtils.lerp(a.armHinge ?? -.6,b.armHinge ?? -.6,t),
@@ -2020,13 +2052,15 @@ export class Batter {
    * if it is asked for before the finish is reached: it cannot be taken back.
    */
   afterBall(kind: AfterBall, now: number) {
-    if (this.charging || !Number.isFinite(this.swingStart)) return now;
+    if (this.charging) return now;
+    // A ball left alone: the bat lowered out of the leave as he goes.
+    if (!Number.isFinite(this.swingStart)) this.anticipation = 0;
     if ((kind === 'admire' || kind === 'lean') && now - this.swingStart <= ADMIRE_AT) this.admiring = true;
     const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : 0);
     // The keys are drawn up when he starts, not now: asked for before the
     // stroke has met the ball, there is no stroke yet for `shadow` to rehearse.
     this.afterward = { from: Math.max(now, home), kind, keys: null };
-    return this.afterward.from + lengthOf(kind);
+    return this.afterward.from + lengthOf(kind, this.shot);
   }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false) {
     // Three charges, one per drive input: straight, over cover, over long-on.
@@ -2133,7 +2167,7 @@ export class Batter {
   }
   private waiting(pose: Pose, now: number, age: number): Pose {
     const sinceStroke = Number.isFinite(age) ? age - STROKE_DURATION_MS - (this.charging ? ADVANCE.walkBackMs : 0) : Infinity;
-    const sinceSettle = this.afterward ? now - this.afterward.from - lengthOf(this.afterward.kind) : Infinity;
+    const sinceSettle = this.afterward ? now - this.afterward.from - lengthOf(this.afterward.kind, this.shot) : Infinity;
     const sinceCelebration = now - this.celebratedAt - CELEBRATION_LENGTHS[this.celebration];
     const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - this.anticipation);
     const breath = Math.sin(now * Math.PI * 2 / 3700) * weight;
@@ -2161,8 +2195,9 @@ export class Batter {
       return this.applyCelebration(celebrating);
     }
     const after = this.afterward, since = after ? now - after.from : -1;
-    if (after && since >= 0 && since < lengthOf(after.kind) && !this.charging && age >= STROKE_DURATION_MS) {
-      const keys = after.keys ??= keysFor(after.kind, this.shot, this.struck, this.followed);
+    if (after && since >= 0 && since < lengthOf(after.kind, this.shot) && !this.charging && age >= STROKE_DURATION_MS) {
+      // From where he is: still up in the leave, for a ball left alone.
+      const keys = after.keys ??= [[0, this.pose], ...keysFor(after.kind, this.shot, this.struck, this.followed).slice(1)];
       let k = 1; while (k < keys.length - 1 && since >= keys[k][0]) k++;
       const [from, a] = keys[k - 1], [to, guard, curve] = keys[k];
       // The bowler already running in: home to the guard he waits in now,
@@ -2455,6 +2490,7 @@ export class Batter {
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
     this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
+    if (pose.look) this.head.rotateX(pose.look);
     this.bat.position.set(...pose.grip);
     // Hands clear of the helmet. The cover drive's high finish carried the
     // fists back round the head close enough for the forearms to pass through

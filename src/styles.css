@@ -2748,7 +2748,7 @@ body.survive-mode #scoreboard{display:none}
   transform:translateX(-50%);
   z-index:6;
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-columns:repeat(5,minmax(0,1fr));
   gap:4px;
   width:min(100% - 24px,460px);
   padding:5px;

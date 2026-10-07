@@ -294,10 +294,15 @@ describe('the bat and the body', () => {
     ['brush', 'REVERSE_SCOOP', b => b.swing('REVERSE_SCOOP', 0, 0, .54)],
     ['shadow', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
     ['shadow', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['shadow', 'LONG_ON', b => b.swing('LONG_ON', 0, 0, .54)],
+    ['scrub', 'LONG_ON', b => b.swing('LONG_ON', 0, 0, .54)],
+    ['scrub', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
     ['shadow', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
     ['scrub', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
     ['scrub', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
     ['sky', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['down', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['down', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
     ['lean', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
     ['lean', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
   ];
@@ -367,6 +372,25 @@ describe('the bat and the body', () => {
     const ready = new Batter(); ready.reset(); ready.prepare(1); ready.update(done + 200);
     for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - ready.inspect().grip[i]), kind).toBeLessThan(.01);
     expect(batter.played, kind).toMatchObject({ pulled: false, swept: false, lofted: false });
+  });
+
+  for (const kind of ['sky', 'down'] as AfterBall[]) it(`${kind} off a ball left alone: from the leave, without a jump, and back in his guard`, () => {
+    // Shouldering arms on 99 and bowled: there is no stroke, and the bat is
+    // still up from waiting for the ball when he starts.
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); batter.update(900);
+    const done = batter.afterBall(kind, 1000);
+    expect(done, kind).toBeGreaterThan(1000);
+    const guard = new Batter(); guard.reset(); guard.update(0);
+    let previous = batter.inspect(), moved = 0;
+    for (let t = 1000; t <= done + 300; t += 2) {
+      batter.update(t); const pose = batter.inspect();
+      for (let i = 0; i < 2; i++) expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), `${kind} @${t}`).toBeLessThan(.032);
+      expect(new Vector3(...pose.grip).distanceTo(new Vector3(...previous.grip)), `${kind} @${t}`).toBeLessThan(.02);
+      moved = Math.max(moved, Math.abs(pose.yaw - guard.inspect().yaw));
+      previous = pose;
+    }
+    expect(moved, kind).toBeGreaterThan(.5);
+    for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - guard.inspect().grip[i]), kind).toBeLessThan(.01);
   });
 
   it('holds an admired drive at its finish, and only if asked before it gets there', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { afterBall, BEATEN_CHANCE, DOTS_BROKEN, HABITS, outNearMilestone, PACES, type Habit } from '../src/game/afterBall';
+import { afterBall, BEATEN_CHANCE, disappointment, DOTS_BROKEN, HABITS, outNearMilestone, PACES, type Habit } from '../src/game/afterBall';
 import type { AfterBall, PlayedStroke } from '../src/entities/Batter';
 import type { ShotOutcome, ShotType } from '../src/game/types';
 
@@ -134,11 +134,50 @@ describe('what the batter does once the ball is done with', () => {
     expect(fours.filter(k => k === 'lean').length).toBe(20);
   });
 
-  it('out close to a milestone: always the look to the sky', () => {
-    const out = { scored: false, beaten: false, wicket: true, milestone: false, heartbreak: true };
-    // Whatever the roll, whatever he did last, and on the innings' last ball too.
-    for (const roll of [0, .5, .99]) expect(afterBall(stroke('STRAIGHT'), { ...out, last: true }, habit({ last: 'sky', since: 0, pace: PACES.MARATHON }), roll)).toBe('sky');
-    expect(afterBall(stroke('STRAIGHT'), { ...out, heartbreak: false }, habit(), 0)).toBeNull();
+  it('a milestone missed: always, even off a ball left alone', () => {
+    for (const heartbreak of ['sky', 'down'] as const) {
+      const out = { scored: false, beaten: false, wicket: true, milestone: false, heartbreak };
+      // Whatever the roll, whatever he did last, and on the innings' last ball too.
+      for (const roll of [0, .5, .99]) expect(afterBall(stroke('STRAIGHT'), { ...out, last: true }, habit({ last: heartbreak, since: 0, pace: PACES.MARATHON }), roll)).toBe(heartbreak);
+      // Left alone, and bowled.
+      expect(afterBall(null, { ...out, beaten: true }, habit(), .99)).toBe(heartbreak);
+      // Not after a charge, which walks him back instead.
+      expect(afterBall(stroke('STRAIGHT', { charging: true }), out, habit(), 0)).toBeNull();
+    }
+    // The sixth six missed and still in: the sky, unless it was his last ball,
+    // or brought up something else.
+    const missed = { scored: true, beaten: false, wicket: false, milestone: false, heartbreak: 'sky' as const };
+    expect(afterBall(stroke('LEG'), missed, habit(), .99)).toBe('sky');
+    expect(afterBall(null, { ...missed, scored: false }, habit(), .99)).toBe('sky');
+    expect(afterBall(stroke('LEG'), { ...missed, last: true }, habit(), 0)).toBeNull();
+    expect(afterBall(stroke('LEG'), { ...missed, milestone: true }, habit(), 0)).toBeNull();
+    expect(afterBall(stroke('STRAIGHT'), { scored: false, beaten: false, wicket: true, milestone: false, heartbreak: null }, habit(), 0)).toBeNull();
+  });
+});
+
+describe('a milestone missed', () => {
+  const sixes = Array.from({ length: 5 }, () => ball(6));
+  const out = (wicketType: ShotOutcome['wicketType'], edged = false) => ({ runs: 0, isWicket: true, wicketType, edged } as ShotOutcome);
+  it('out close to one: caught in the field or leg before, the sky; bowled, stumped or caught behind, the head down', () => {
+    const ninetyNine = [...Array(24).fill(0).map(() => ball(4)), ball(3)];
+    expect(disappointment([...ninetyNine, out('CAUGHT')])).toBe('sky');
+    expect(disappointment([...ninetyNine, out('LBW')])).toBe('sky');
+    expect(disappointment([...ninetyNine, out('BOWLED')])).toBe('down');
+    expect(disappointment([...ninetyNine, out('STUMPED')])).toBe('down');
+    expect(disappointment([...ninetyNine, out('CAUGHT', true)])).toBe('down');
+    expect(disappointment([ball(1), ...sixes, out('BOWLED')])).toBe('down');
+    expect(disappointment([ball(1), ...sixes, out('CAUGHT')])).toBe('sky');
+  });
+  it('the sixth six missed and still in: the sky, for anything short of six', () => {
+    for (const runs of [0, 1, 2, 3, 4]) expect(disappointment([ball(1), ...sixes, ball(runs)]), String(runs)).toBe('sky');
+    // Not the sixth six itself, nor a miss after it was made, nor after four.
+    expect(disappointment([ball(1), ...sixes, ball(6)])).toBeNull();
+    expect(disappointment([ball(1), ...sixes, ball(6), ball(1)])).toBeNull();
+    expect(disappointment([ball(1), ...sixes.slice(1), ball(1)])).toBeNull();
+  });
+  it('nothing for an ordinary wicket', () => {
+    expect(disappointment([ball(4), ball(1), out('BOWLED')])).toBeNull();
+    expect(disappointment([ball(4), ball(1), out('CAUGHT')])).toBeNull();
   });
 });
 

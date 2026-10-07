@@ -30,7 +30,7 @@ import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
-import { afterBall, HABITS, outNearMilestone, PACES } from './game/afterBall';
+import { afterBall, disappointment, HABITS, PACES } from './game/afterBall';
 import type { AfterBall } from './entities/Batter';
 import {
   fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
@@ -2560,13 +2560,15 @@ export class Game {
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
     // What he does once the ball is done with, on some of the balls that call
     // for it (`afterBall`): looking at the bat after a classic drive, and so on.
-    if (this.attempt) {
-      const stroke = this.scene.stroke, scored = outcome.madeBatContact && outcome.runs > 0;
+    // A ball left alone has no stroke, and only a milestone missed off it is
+    // taken at all: bowled shouldering arms on 99 is the worst of them.
+    {
+      const stroke = this.attempt ? this.scene.stroke : null, scored = outcome.madeBatContact && outcome.runs > 0;
       const kind = afterBall(stroke, {
         scored, four: outcome.runs === 4,
         beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
         wicket: outcome.isWicket, milestone: !!this.milestoneDue,
-        heartbreak: this.lesson < 0 && outNearMilestone(this.batterHistory),
+        heartbreak: this.lesson < 0 && !this.felled ? disappointment(this.batterHistory) : null,
         last: this.lesson < 0 && !!(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended),
       }, {
         last: this.lastAfterBall, since: this.afterBallSince, sweeps: this.sweepsScored,
@@ -2585,7 +2587,7 @@ export class Game {
         if (outcome.isWicket) this.afterBallUntil = until;
         this.lastAfterBall = kind; this.afterBallSince = 0;
       }
-    } else this.afterBallSince++;
+    }
     // The stands for a boundary, once the call is made and not when the ball
     // leaves the bat: a skied one may yet be caught.
     if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {
@@ -3590,6 +3592,7 @@ const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
 const ACTION_KEYS: readonly { label: string; kind: AfterBall }[] = [
   { label: 'ADMIRE', kind: 'admire' }, { label: 'LEAN', kind: 'lean' }, { label: 'WATCH', kind: 'watch' }, { label: 'TWIRL', kind: 'twirl' },
   { label: 'BRUSH', kind: 'brush' }, { label: 'SHADOW', kind: 'shadow' }, { label: 'SCRUB', kind: 'scrub' }, { label: 'SKY', kind: 'sky' },
+  { label: 'DOWN', kind: 'down' },
 ];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
