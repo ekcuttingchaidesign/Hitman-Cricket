@@ -10,21 +10,37 @@ const lucky = 0, unlucky = AFTER_BALL_CHANCE;
 
 describe('what the batter does once the ball is done with', () => {
   it('suits the stroke', () => {
-    for (const shot of ['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON'] as ShotType[]) expect(afterBall(stroke(shot), scored, null, lucky)).toBe('admire');
-    expect(afterBall(stroke('STRAIGHT', { lofted: true }), scored, null, lucky)).toBe('watch');
+    for (const shot of ['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON'] as ShotType[]) {
+      expect(afterBall(stroke(shot), scored, null, lucky)).toBe('admire');
+      // The same drives lofted, and only those, are watched.
+      expect(afterBall(stroke(shot, { lofted: true }), scored, null, lucky)).toBe('watch');
+    }
     expect(afterBall(stroke('LEG', { pulled: true }), scored, null, lucky)).toBe('twirl');
     expect(afterBall(stroke('LEG', { swept: true }), scored, null, lucky)).toBe('brush');
     expect(afterBall(stroke('SCOOP'), scored, null, lucky)).toBe('brush');
     expect(afterBall(stroke('REVERSE_SCOOP'), scored, null, lucky)).toBe('brush');
-    expect(afterBall(stroke('COVER_LONG_OFF'), { ...scored, scored: false, beaten: true }, null, lucky)).toBe('shadow');
+  });
+
+  it('beaten driving or blocking: the stroke rehearsed, or the pitch scrubbed', () => {
+    const beaten = { ...scored, scored: false, beaten: true };
+    for (const shot of ['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON', 'DEFEND'] as ShotType[]) {
+      expect(afterBall(stroke(shot), beaten, null, 0)).toBe('shadow');
+      expect(afterBall(stroke(shot), beaten, null, AFTER_BALL_CHANCE * .75)).toBe('scrub');
+      // Never the one he did last: the other instead.
+      expect(afterBall(stroke(shot), beaten, 'shadow', 0)).toBe('scrub');
+      expect(afterBall(stroke(shot), beaten, 'scrub', AFTER_BALL_CHANCE * .75)).toBe('shadow');
+    }
+    // Not after the cross-batted strokes.
+    for (const shot of ['SQUARE_CUT', 'LEG', 'SCOOP'] as ShotType[]) expect(afterBall(stroke(shot), beaten, null, 0)).toBeNull();
   });
 
   it('does nothing for the rest', () => {
-    // The cut, the flick, a dot off a drive, a block.
+    // The cut, the flick, a dot off a drive, a block that scored, a lofted flick.
     expect(afterBall(stroke('SQUARE_CUT'), scored, null, lucky)).toBeNull();
     expect(afterBall(stroke('LEG'), scored, null, lucky)).toBeNull();
     expect(afterBall(stroke('STRAIGHT'), { ...scored, scored: false }, null, lucky)).toBeNull();
-    expect(afterBall(stroke('DEFEND'), { ...scored, beaten: true }, null, lucky)).toBeNull();
+    expect(afterBall(stroke('DEFEND'), scored, null, lucky)).toBeNull();
+    expect(afterBall(stroke('LEG', { lofted: true }), scored, null, lucky)).toBeNull();
   });
 
   it('never after a charge, a wicket or before a milestone', () => {

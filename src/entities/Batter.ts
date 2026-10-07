@@ -1164,12 +1164,14 @@ const FACING: Pose = standing({ ...GUARD, hip: [-.02, .97, -.02], chest: [.00, 1
  *   in the bottom hand;
  * - `twirl`: a pull, the bat spun once in the bottom hand on the way home;
  * - `brush`: up off a knee from a sweep or a scoop, a hand down the front pad;
- * - `shadow`: beaten, the stroke rehearsed slowly, without the ball.
+ * - `shadow`: beaten, the stroke rehearsed slowly, without the ball;
+ * - `scrub`: beaten, stood over the crease looking down at it, scraping the
+ *   pitch with the front foot.
  *
  * Every one starts and ends in the guard, so it can begin the moment the
  * stroke is home and the next ball can find him where it always does.
  */
-export type AfterBall = 'admire' | 'watch' | 'twirl' | 'brush' | 'shadow';
+export type AfterBall = 'admire' | 'watch' | 'twirl' | 'brush' | 'shadow' | 'scrub';
 /** What kind of stroke it was, which is half of what decides the `AfterBall`. */
 export interface PlayedStroke { shot: ShotType; charging: boolean; lofted: boolean; swept: boolean; pulled: boolean }
 type Keys = [number, Pose][];
@@ -1181,16 +1183,26 @@ const LOOK: Partial<Record<ShotType, number>> = { STRAIGHT: 0, LONG_ON: -.45, CO
 /** The free hand on his hip, the elbow out: a man with nothing to do but watch. */
 const onHip = (body: Pose) => point(shoulderOf(body, 0).addScaledVector(UP, -.40).addScaledVector(outwards(body, 0), .17));
 function watchKeys(shot: ShotType): Keys {
-  // Chin well up after the ball, the chest turned a little after it too.
+  // Chin up after the ball, the chest leaning back and turned a little after
+  // it too. Not the head tipped right back: from behind, the peak of the
+  // helmet then shows above the crown at both sides like a pair of ears.
   const look = LOOK[shot] ?? 0;
-  const body: Pose = { ...STANDING, chest: [0.0, 1.38, -0.01], yaw: STANDING.yaw + look * .3, release: 1, face: look, headDown: -.5 };
+  const body: Pose = { ...STANDING, chest: [0.0, 1.38, -0.05], yaw: STANDING.yaw + look * .3, release: 1, face: look, headDown: -.2 };
   const watching: Pose = { ...body, fist: onHip(body) };
   return [[0, GUARD], [380, watching], [1000, watching], [1350, GUARD]];
 }
-/** The bat up off the turf in the bottom hand, the top hand let go, ready to spin it. */
+/**
+ * The bat held up in front of his chest in the bottom hand, blade to the sky
+ * and the handle down, the top hand let go, ready to spin it: the way the
+ * great batters hold it up between balls, not hanging at the pitch.
+ */
 const TWIRLING: Pose = (() => {
-  const body: Pose = { ...STANDING, grip: [0.25, 1.0, 0.22] };
-  return { ...body, release: 1, fist: hangingFist(body) };
+  const body: Pose = { ...STANDING, chest: [0.0, 1.38, 0.0], release: 1 };
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  const grip = shoulderOf(body, 1).addScaledVector(ahead, .30).addScaledVector(UP, -.14);
+  // `batUp` runs from the toe to the handle: with the blade up, it points down.
+  return { ...body, grip: point(grip), batUp: point(new THREE.Vector3(0, -1, 0).addScaledVector(ahead, -.12).normalize()),
+    batFace: point(ahead), fist: hangingFist(body) };
 })();
 const TWIRL_KEYS: Keys = [
   [0, GUARD], [300, TWIRLING], [340, { ...TWIRLING, spin: 0 }], [780, { ...TWIRLING, spin: Math.PI * 2 }],
@@ -1205,18 +1217,35 @@ const BRUSH_KEYS: Keys = (() => {
   const high: Pose = { ...body, fist: pad(.52) }, low: Pose = { ...body, fist: pad(.24) };
   return [[0, GUARD], [300, high], [440, low], [560, high], [690, low], [1050, GUARD]];
 })();
-/** The stroke he was beaten by, played again slowly from the guard, short of its full reach. */
+/**
+ * The stroke he was beaten by, played again slowly from the guard, short of
+ * its full reach: out in one unbroken movement, held there while he checks
+ * the line, and home. (Through a halfway key it stopped dead on the way out.)
+ */
 function shadowKeys(struck: Pose): Keys {
-  const toward = (amount: number) => mix(GUARD, struck, amount);
-  return [[0, GUARD], [450, toward(.5)], [800, toward(.85)], [1050, toward(.85)], [1400, GUARD]];
+  const rehearsed = mix(GUARD, struck, .85);
+  return [[0, GUARD], [700, rehearsed], [1000, rehearsed], [1350, GUARD]];
 }
+/**
+ * Beaten, stood over the crease looking down at the pitch, the bat hanging
+ * in the bottom hand, and the front foot scraping the turf forward and back
+ * twice, as if the ball had done something off a mark there.
+ */
+const SCRUB_KEYS: Keys = (() => {
+  const body: Pose = { ...STANDING, hip: [-0.06, 0.95, -0.03], chest: [0.02, 1.31, 0.10], headDown: .45, release: 1 };
+  const over: Pose = { ...body, fist: hangingFist(body) };
+  // Across the crease more than along it: along it, the scrape runs straight
+  // away from the camera behind him, and cannot be seen.
+  const foot = (out: number): Pose => ({ ...over, frontFoot: [GUARD.frontFoot[0] + out, GUARD.frontFoot[1] + .008, GUARD.frontFoot[2] + out * .45] });
+  return [[0, GUARD], [380, foot(0)], [580, foot(.16)], [780, foot(-.02)], [980, foot(.16)], [1160, foot(0)], [1480, GUARD]];
+})();
 const keysFor = (kind: AfterBall, shot: ShotType, struck: Pose | null): Keys =>
   kind === 'admire' ? TAP_KEYS : kind === 'watch' ? watchKeys(shot) : kind === 'twirl' ? TWIRL_KEYS
-    : kind === 'brush' ? BRUSH_KEYS : shadowKeys(struck ?? GUARD);
+    : kind === 'brush' ? BRUSH_KEYS : kind === 'scrub' ? SCRUB_KEYS : shadowKeys(struck ?? GUARD);
 /** How long each takes once the stroke is home: the same whatever stroke it follows. */
 const lengthOf = (kind: AfterBall) => { const keys = keysFor(kind, 'STRAIGHT', GUARD); return keys[keys.length - 1][0]; };
 /** Longest of them, for whatever has to wait them out. */
-export const AFTER_BALL_MS = Math.max(...(['admire', 'watch', 'twirl', 'brush', 'shadow'] as AfterBall[]).map(lengthOf)) + ADMIRE_MS;
+export const AFTER_BALL_MS = Math.max(...(['admire', 'watch', 'twirl', 'brush', 'shadow', 'scrub'] as AfterBall[]).map(lengthOf)) + ADMIRE_MS;
 const RAISED = aloft(FACING, [.33, .10], [.54, .28]);
 /** The pump: fist and bat drawn down together, the knees giving with them. */
 const PUMPED = aloft({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 }, [.26, .10], [.38, .26]);

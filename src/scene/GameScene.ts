@@ -603,8 +603,8 @@ export class GameScene {
   get mirrored() { return this.world.scale.x > 0; }
   /** The next man in, at his guard. The last one may be lying where he fell. */
   newBatter() { this.batter.reset(); }
-  /** What the batter does once the ball is done with (`Batter.afterBall`). */
-  afterBall(kind: AfterBall, now: number) { this.batter.afterBall(kind, now); }
+  /** What the batter does once the ball is done with (`Batter.afterBall`), and when he will be back in his guard. */
+  afterBall(kind: AfterBall, now: number) { return this.batter.afterBall(kind, now); }
   /**
    * `?actions=1`: the stroke that earns `kind` played at no ball, and then
    * `kind` itself. When he will be back in his guard.
@@ -1255,5 +1255,5 @@ export class GameScene {
 /** The stroke `?actions=1` plays for each: the one each follows in an innings. */
 const REHEARSED: Record<AfterBall, [ShotType, number, boolean, boolean]> = {
   admire: ['COVER_LONG_OFF', .54, false, false], watch: ['STRAIGHT', .54, true, false], twirl: ['LEG', 1.1, false, false],
-  brush: ['LEG', .48, false, true], shadow: ['COVER_LONG_OFF', .54, false, false],
+  brush: ['LEG', .48, false, true], shadow: ['COVER_LONG_OFF', .54, false, false], scrub: ['COVER_LONG_OFF', .54, false, false],
 };

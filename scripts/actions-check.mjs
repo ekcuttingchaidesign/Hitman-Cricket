@@ -1,6 +1,6 @@
 /**
  * `?actions=1`: the keys along the foot of the picture, one a thing the batter
- * does once a ball is done with — ADMIRE, WATCH, TWIRL, BRUSH, SHADOW.
+ * does once a ball is done with — ADMIRE, WATCH, TWIRL, BRUSH, SHADOW, SCRUB.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/actions-check.mjs http://127.0.0.1:5201
@@ -57,8 +57,8 @@ for (let i = 0; i < 30; i++) {
 await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
 
 const keys = page.locator('.action-keys .action-key');
-check(await keys.count() === 5, 'five keys along the foot of the picture', await keys.count());
-check(JSON.stringify(await keys.allTextContents()) === JSON.stringify(['ADMIRE', 'WATCH', 'TWIRL', 'BRUSH', 'SHADOW']), 'in order', (await keys.allTextContents()).join(' '));
+check(await keys.count() === 6, 'six keys along the foot of the picture', await keys.count());
+check(JSON.stringify(await keys.allTextContents()) === JSON.stringify(['ADMIRE', 'WATCH', 'TWIRL', 'BRUSH', 'SHADOW', 'SCRUB']), 'in order', (await keys.allTextContents()).join(' '));
 
 const phase = () => page.evaluate(() => window.__cricket.snapshot().phase);
 const balls = () => page.evaluate(() => window.__cricket.snapshot().balls);
@@ -70,7 +70,7 @@ const guard = await pose();
 // and plays the moment it is. Each one after is asked for while the last is
 // still going, so the bowler, waiting on him, never bowls in between: the
 // whole row is played through without another ball, which is what keeps an
-// innings nobody is batting in alive long enough to look at all five.
+// innings nobody is batting in alive long enough to look at all six.
 let seen = await phase();
 for (let i = 0; i < 120 && seen !== 'BALL_IN_FLIGHT' && seen !== 'BOWLER_RUNUP'; i++) { await page.waitForTimeout(100); seen = await phase(); }
 check(seen === 'BALL_IN_FLIGHT' || seen === 'BOWLER_RUNUP', 'a ball on its way', seen);
@@ -80,7 +80,7 @@ for (let i = 0; i < 120 && !moved; i++) { await page.waitForTimeout(100); moved 
 check(moved, 'that ball is played out first, and then he starts');
 const bowled = await balls();
 
-for (const [n, kind] of ['admire', 'watch', 'twirl', 'brush', 'shadow'].entries()) {
+for (const [n, kind] of ['admire', 'watch', 'twirl', 'brush', 'shadow', 'scrub'].entries()) {
   console.log(kind);
   if (n > 0) await page.locator(`.action-key[data-kind="${kind}"]`).click();
   let furthest = 0, held = true, pictured = false;
@@ -95,7 +95,7 @@ for (const [n, kind] of ['admire', 'watch', 'twirl', 'brush', 'shadow'].entries(
   check(furthest > .15, 'he leaves his guard', furthest.toFixed(3));
   check(held, 'and the bowler waits at his mark while he does');
 }
-check(await balls() === bowled, 'nothing bowled while all five were played', `${bowled} then ${await balls()}`);
+check(await balls() === bowled, 'nothing bowled while all six were played', `${bowled} then ${await balls()}`);
 
 console.log('and after the last');
 let back = false;

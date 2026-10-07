@@ -294,6 +294,9 @@ describe('the bat and the body', () => {
     ['brush', 'REVERSE_SCOOP', b => b.swing('REVERSE_SCOOP', 0, 0, .54)],
     ['shadow', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
     ['shadow', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['shadow', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['scrub', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['scrub', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
   ];
   for (const [kind, shot, play] of AFTER) it(`${kind}s after a ${shot.toLowerCase()} and settles back without a jump`, () => {
     const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
@@ -330,7 +333,7 @@ describe('the bat and the body', () => {
       previous = pose;
     }
     // Stood up for the ones that stand him up, and back in his guard at the end.
-    if (kind !== 'brush' && kind !== 'shadow') expect(stood, kind).toBeGreaterThan(.04);
+    if (kind !== 'brush' && kind !== 'shadow' && kind !== 'scrub') expect(stood, kind).toBeGreaterThan(.04);
     const last = batter.inspect(), still = guard.inspect();
     for (let i = 0; i < 3; i++) expect(Math.abs(last.grip[i] - still.grip[i]), kind).toBeLessThan(.01);
   });
