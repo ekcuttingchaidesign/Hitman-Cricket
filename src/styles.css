@@ -941,7 +941,6 @@ body.start-screen #sound{pointer-events:auto}
 /* The ground behind the last card of the innings goes down further than it does
    behind a pause, so a navy card still has something to stand out from. */
 #end{background:#071219f2}
-#pause-overlay{background:#0a1c28e6}
 .scorecard h2{
   font-size:10.5px;
   font-weight:700;
@@ -2062,26 +2061,193 @@ body.start-screen #sound{pointer-events:auto}
    the one thing left for it to do. */
 #end.is-claimed .card-line{color:#43b978;font-weight:700}
 
-/* ── The pause card ────────────────────────────────────────────────────── */
-/* The same slab the innings ends on, cut shorter. A pause and an innings-end are
-   the same moment structurally — the game has stopped and is asking what next —
-   so they are the same object rather than two panels that happen to overlap.
-   It takes the scorecard's navy, its ledge, its radius and its Satoshi, and the
-   label above the line reads the way "INNINGS COMPLETE" does.
-   The ground behind it is lighter than the one behind the innings card, on
-   purpose: an innings is over and the field can go dark, but a pause is a game
-   still standing there waiting, and it should look like one. */
-/* The card and its footnote, stacked. The note is not part of the card: it is
-   about leaving the innings rather than about the card's contents, and inside
-   the card it would sit under two keys as though it belonged to the second
-   one. Below it, in the room the card does not use, it reads as a note on the
-   screen — which is what it is. */
-#pause-overlay{flex-direction:column;justify-content:center}
-#pause-overlay>.pause-card{margin:0}
+/* ── The pause sheet ───────────────────────────────────────────────────────
+   In the mode screen's language rather than the old scorecard's: a dark sheet
+   with the game's own colour coming in at its head, the title in Jaro, keys
+   stood on dark ledges, and the settings as a grouped list underneath.
+
+   Three tiers, by colour as much as by size. Resume is the one bright thing on
+   it, the cover's orange outlined in black on a black ledge like the mode
+   screen's PLAY. Restart and Change mode are the dark keys that sheet uses
+   for its way back: as easy to hit, plainly second. Declaring, in a
+   Marathon, is the ball's red — it ends the innings. Below them the settings
+   are rows, not keys: a whole row is the switch, so the target is the row's
+   height, and on is the green the mode screen flags "open" in.
+
+   The chip says which game this is in that game's colour — the Blast's blue,
+   a Test's green, a Rival Match's orange — and the line under the title says
+   where the innings stands, so the sheet covering the score bar is not the
+   reason a player forgets it. */
+#pause-overlay{flex-direction:column;justify-content:center;background:linear-gradient(180deg,#050c12d1 0%,#050c12f2 100%)}
+.pause-sheet{
+  --tone:#087bff;
+  --tone-ink:#fff;
+  position:relative;
+  width:min(400px,100%);
+  margin:0;
+  padding:20px 18px 16px;
+  border:1px solid #ffffff17;
+  border-radius:22px;
+  background:
+    radial-gradient(120% 70% at 0% 0%,color-mix(in srgb,var(--tone) 34%,transparent) 0%,transparent 62%),
+    linear-gradient(180deg,#132433 0%,#0b1620 100%);
+  box-shadow:0 8px 0 #03080c,0 26px 46px #000000a6,inset 0 1px 0 #ffffff1f;
+  font-family:var(--card);
+  color:#fff;
+  text-align:left
+}
+.pause-sheet[data-tone="test"]{--tone:#12b45f}
+.pause-sheet[data-tone="rivals"]{--tone:#e9582b}
+.pause-head{padding:0 2px}
+.pause-mode{
+  display:inline-flex;
+  align-items:center;
+  height:22px;
+  padding:0 10px;
+  border-radius:11px;
+  background:var(--tone);
+  color:var(--tone-ink);
+  font-weight:800;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  box-shadow:0 2px 6px #0000004d
+}
+.pause-title{
+  margin:10px 0 0;
+  font-family:var(--cta);
+  font-weight:400;
+  font-size:clamp(34px,10vw,42px);
+  line-height:1;
+  letter-spacing:0;
+  text-transform:none;
+  color:#fff
+}
+.pause-state{
+  margin:6px 0 0;
+  font-weight:700;
+  font-size:14px;
+  line-height:1.3;
+  font-variant-numeric:tabular-nums;
+  color:#c3d0d9
+}
+.pause-state:empty{display:none}
+/* Resume: the one bright key. */
+.pause-resume{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  width:100%;
+  height:60px;
+  margin-top:18px;
+  padding:0 18px;
+  border:2.5px solid #000;
+  border-radius:14px;
+  background:linear-gradient(90deg,var(--cta-orange) 0%,#ff7b47 100%);
+  color:#fff;
+  font-family:var(--cta);
+  font-size:24px;
+  letter-spacing:.04em;
+  text-shadow:0 2px 0 #00000040;
+  box-shadow:0 6px 0 #000,0 11px 16px #00000066;
+  transition:transform .12s,box-shadow .12s
+}
+.pause-resume svg{width:22px;height:22px;fill:currentColor;stroke:none}
+.pause-resume:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 7px 0 #000,0 12px 18px #00000066}
+.pause-resume:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #000,0 4px 8px #00000059}
+.pause-resume:focus-visible{outline:3px solid #fff2e4;outline-offset:3px}
+/* The two ways out: the mode screen's dark key, side by side. */
+.pause-keys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.pause-keys:has(#change-mode.hidden){grid-template-columns:1fr}
+.pause-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  min-width:0;
+  height:50px;
+  padding:0 12px;
+  border:0;
+  border-radius:12px;
+  background:linear-gradient(180deg,#36404a 0%,#252c34 100%);
+  color:#fff;
+  font-family:var(--cta);
+  font-size:17px;
+  letter-spacing:.02em;
+  white-space:nowrap;
+  box-shadow:0 5px 0 #14191e,0 9px 10px #00000059,inset 0 1px 0 #ffffff1f;
+  transition:transform .12s,box-shadow .12s,background .12s
+}
+.pause-key svg{width:18px;height:18px;stroke-width:2}
+.pause-key:hover:not(:disabled){background:linear-gradient(180deg,#404b56 0%,#2c343d 100%)}
+.pause-key:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #14191e,0 4px 6px #0000004d,inset 0 1px 0 #ffffff1f}
+/* Declaring ends the innings: the ball's red, so it reads apart from the two that carry on. */
+.pause-declare{margin-top:14px;background:linear-gradient(180deg,#9b2a37 0%,#741c28 100%);box-shadow:0 5px 0 #2b0b0f,0 9px 10px #00000059,inset 0 1px 0 #ffffff26}
+.pause-declare:hover:not(:disabled){background:linear-gradient(180deg,#ab3343 0%,#82222f 100%)}
+.pause-declare:active:not(:disabled){box-shadow:0 2px 0 #2b0b0f,0 4px 6px #0000004d,inset 0 1px 0 #ffffff26}
+/* Shut until twenty overs: there, so the player knows it is coming, and plainly not pressable. */
+.pause-declare:disabled{opacity:.42;cursor:not-allowed;box-shadow:0 5px 0 #2b0b0f99;transform:none}
+.pause-sheet .declare-line{margin:8px 0 0;font-size:12.5px;font-weight:600;color:#9fb0bc;text-align:center}
+/* The settings: a grouped list. */
+.pause-group-label{
+  margin:22px 4px 8px;
+  font-weight:800;
+  font-size:11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:#8396a3
+}
+.pause-group{border:1px solid #ffffff14;border-radius:16px;background:#060e15b3;overflow:hidden}
+.pause-row{
+  display:grid;
+  grid-template-columns:36px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  min-height:60px;
+  padding:10px 14px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#fff;
+  font-family:var(--card);
+  text-align:left;
+  transition:background .15s
+}
+.pause-row+.pause-row{border-top:1px solid #ffffff12}
+button.pause-row:hover:not(:disabled),button.pause-row:active:not(:disabled){transform:none;background:#ffffff0a}
+button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
+.pause-row-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:10px}
+.pause-row-icon svg{width:20px;height:20px;stroke-width:1.9}
+.pause-row-icon.is-crowd{background:#e9582b2b;color:#ff9566}
+.pause-row-icon.is-ambience{background:#087bff2e;color:#77b9ff}
+.pause-row-icon.is-lights{background:#f5c8422b;color:#f7d36a}
+.pause-row-say{display:flex;flex-direction:column;min-width:0}
+.pause-row-say b{font-weight:700;font-size:15.5px;line-height:1.25}
+.pause-row-say em{font-style:normal;font-weight:500;font-size:12.5px;line-height:1.3;color:#8fa2af}
+/* The switch: grey and to the left when off, the open green and to the right when on. */
+.pause-switch{position:relative;width:48px;height:28px;border-radius:14px;background:#3a4651;box-shadow:inset 0 1px 3px #0000006b;transition:background .18s}
+.pause-switch::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 4px #00000059;transition:transform .18s cubic-bezier(.3,.7,.4,1)}
+.pause-row[aria-checked="true"] .pause-switch{background:#12b45f}
+.pause-row[aria-checked="true"] .pause-switch::after{transform:translateX(20px)}
+.pause-row[aria-checked="false"] .pause-row-icon{filter:grayscale(1);opacity:.55}
+/* Day or night, in its row: a small segmented pair, the half in play filled. */
+.lights-toggle{display:flex;gap:3px;padding:3px;border-radius:11px;background:#02070b;box-shadow:inset 0 1px 3px #000a}
+.lights-option{display:flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 11px;border:0;border-radius:8px;
+  background:transparent;color:#8fa2af;font-family:var(--card);font-weight:800;font-size:12.5px;cursor:pointer;transition:background .15s,color .15s}
+.lights-option svg{width:15px;height:15px;stroke-width:2}
+.lights-option:hover:not(.is-on){color:#fff;transform:none}
+.lights-option.is-on{background:#fff;color:#0d1c27;box-shadow:0 2px 0 #00000059}
+.lights-option:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pause-note{margin:10px 4px 0;font-weight:600;font-size:12.5px;line-height:1.45;color:#f7d36a}
+.pause-sheet .ghost-link{display:block;margin:12px auto 0;color:#9fb0bc}
+.pause-sheet .ghost-link:hover{color:#fff}
+.pause-sheet .start-hint{margin-top:8px;text-align:center;color:#8396a3}
+/* The footnote and the credit under the sheet: notes on the screen, not part of it. */
 .pause-foot{
-  width:min(392px,100%);
-  /* Far enough to be a footnote rather than a third line of the card, close
-     enough to still be about the keys above it. */
+  width:min(400px,100%);
   margin:16px auto 0;
   text-align:center;
   font-family:var(--card);
@@ -2090,74 +2256,25 @@ body.start-screen #sound{pointer-events:auto}
   color:#9fb2bdcc;
   text-wrap:pretty
 }
-/* The crowd's credit, which its licence asks for: on the card a player stops
-   on, under everything else on it, and no louder than a footnote. */
 .pause-credit{
-  width:min(392px,100%);
+  width:min(400px,100%);
   margin:8px auto 0;
   text-align:center;
   font:500 10px/1.4 var(--card,system-ui);
   color:#ffffff73
 }
 .pause-credit a{color:inherit;text-decoration:underline;text-underline-offset:2px}
-.pause-card{
-  padding:22px 26px 20px;
-  /* The scorecard is a left-hand column of figures. This is two keys and a
-     sentence, and they share the card's width, so they are centred on it. */
-  text-align:center
+/* A short screen: the sheet tightens rather than scrolling its keys away. */
+@media (max-height:700px){
+  .pause-sheet{padding:16px 16px 12px}
+  .pause-title{font-size:32px;margin-top:8px}
+  .pause-resume{height:52px;margin-top:14px;font-size:21px}
+  .pause-keys{margin-top:12px}
+  .pause-key{height:46px}
+  .pause-group-label{margin-top:16px}
+  .pause-row{min-height:52px;padding:7px 12px}
+  .pause-row-say em{display:none}
 }
-.pause-eyebrow{
-  margin:0 0 6px;
-  font-size:10.5px;
-  font-weight:700;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  color:var(--quiet)
-}
-/* Big, but nothing like the score: a number is the point of that card and this
-   is only a word. Same family and the same tight setting, two steps down. */
-.pause-card h2{
-  margin:0 0 7px;
-  font-size:clamp(30px,8vw,37px);
-  font-weight:900;
-  letter-spacing:-1.4px;
-  line-height:1.04;
-  /* The scorecard's h2 is its small uppercase stamp. This one is the sentence
-     the card is built around, so it is set as written. */
-  text-transform:none;
-  color:var(--ink)
-}
-.pause-line{
-  margin:0 0 20px;
-  font-size:13.5px;
-  font-weight:600;
-  line-height:1.5;
-  color:var(--quiet)
-}
-/* The two ways out are the card's quieter pair: the navy the innings card gives
-   its story key, on its own dark ledge, side by side at half the width each the
-   way the end card sets its share keys. Subordinate to the white key above them
-   by tone and height rather than by being lines of text — leaving an innings is
-   a real decision either way, and both should be as easy to hit as resuming.
-   Narrower than the end card's pair, so the type comes down a step to sit in
-   them without breaking. */
-.pause-card .card-shares{margin-top:11px}
-.pause-card .card-shares .story-key{margin-top:0;font-size:12.5px;letter-spacing:.6px}
-.pause-card .story-key{margin-top:11px}
-.pause-card .start-hint{margin-top:10px;color:var(--quiet)}
-/* Day or night, under the two ways out: one dark ledge split in two, the half
-   in play filled in the cream the keys write in, with navy on it. In the keys'
-   own navy the chosen half read as a third key under Restart and Change mode
-   rather than as the setting that is on. A sun and a moon say which is which
-   before the words do. */
-.lights-toggle{display:flex;gap:4px;margin-top:11px;padding:4px;border-radius:12px;background:#0f2638;box-shadow:inset 0 2px 0 #0008}
-.lights-toggle.hidden{display:none}
-.lights-option{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:40px;border:0;border-radius:9px;
-  background:transparent;color:#9fb2bd;font-family:var(--cta);font-weight:400;font-size:12.5px;letter-spacing:.8px;cursor:pointer;transition:background .15s,color .15s}
-.lights-option svg{width:17px;height:17px}
-.lights-option:hover:not(.is-on){color:#ffeede}
-.lights-option.is-on{background:#ffeede;color:#102536;box-shadow:0 3px 0 #0b1e2b,inset 0 1px 0 #ffffff}
-.lights-option:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 /* ── What to do next ───────────────────────────────────────────────────── */
 /* Under the sheet, not inside it.
@@ -3979,16 +4096,6 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 .mcard-dnb{margin:6px 0 0;font-size:11.5px;color:var(--quiet)}
 .mcard-keys{margin-top:10px}
 .mcard-keys :is(.story-key,.whatsapp-key) svg{width:17px;height:17px}
-.declare-key{display:block;width:100%;margin-top:10px}
-/* The blue keys' red: the same lightness and strength, turned to the red of a
-   ball, so ending the innings reads apart from the two keys that carry on. */
-.story-key.declare-key{background:#6e262c;box-shadow:0 4px 0 #2b0b0f,inset 0 1px 0 #ffffff1f}
-.story-key.declare-key:hover:not(:disabled){background:#82303a}
-.story-key.declare-key:active:not(:disabled){box-shadow:0 2px 0 #2b0b0f,inset 0 1px 0 #ffffff1f}
-.declare-key.hidden{display:none}
-/* Shut until twenty overs: there, so the player knows declaring is coming,
-   and plainly not pressable. */
-.declare-key.is-locked,.declare-key:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
 .declare-line{margin:6px 0 0;font-size:12px;font-weight:600;color:var(--quiet,#9fb2bd);text-align:center}
 .declare-line.hidden{display:none}
 

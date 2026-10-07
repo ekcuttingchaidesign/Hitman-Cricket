@@ -26,7 +26,7 @@ import { type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
-import type { Primed } from './ui/HUD';
+import type { PauseTone, Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -577,6 +577,9 @@ export class Game {
     this.hud.sound(this.audio.setting);
     this.hud.on('restart', this.start);
     this.hud.on('declare', this.declare);
+    // The pause sheet's sound switches: the crowd, and the ambience under it.
+    this.hud.on('crowd-switch', () => { this.audio.setCrowd(!this.audio.crowdOn); this.soundSwitches(); });
+    this.hud.on('ambience-switch', () => { this.audio.setAmbience(!this.audio.ambienceOn); this.soundSwitches(); });
     // Out of a paused innings and back to the picker. The picker is a screen
     // rather than a card, so it covers the pause card rather than replacing
     // it: pick a mode and the innings is walked out on, back out of it and the
@@ -1485,12 +1488,19 @@ export class Game {
     if (this.hurts) return this.hud.injury(this.health.injury, this.health.critical);
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
-  private toggleSound = () => { this.audio.step(); this.audio.unlock(); this.hud.sound(this.audio.setting, true); };
+  private toggleSound = () => { this.audio.step(); this.audio.unlock(); this.hud.sound(this.audio.setting, true); this.soundSwitches(); };
+  private soundSwitches() { this.hud.crowdSwitches(this.audio.crowdOn, this.audio.ambienceOn, this.audio.setting === 'off'); }
+  /** What the pause sheet calls the game it pauses, and the colour it wears for it. */
+  private get pauseGame(): { name: string; tone: PauseTone } {
+    if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
+    return { name: PAUSE_NAMES[this.mode], tone: this.test ? 'test' : 'blast' };
+  }
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
     if (this.phase === 'PAUSED') { this.audio.unlock(); this.audio.holdCrowd(false); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else {
-      this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
+      this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
+      this.soundSwitches();
       this.hud.lightsSwitch(this.test ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
@@ -3648,6 +3658,8 @@ const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
  * has them only after dark, which `GameScene.fireworks` sees to.
  */
 const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
+/** The games by name, as the pause sheet's chip says them. */
+const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {
   fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',

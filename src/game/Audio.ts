@@ -113,8 +113,21 @@ export function outcomeSound(
 }
 /** The wickets that end with the bails flying, and so with the stumps' rattle. */
 export const breaksStumps = (wicketType: ShotOutcome['wicketType'] | undefined) => wicketType === 'BOWLED' || wicketType === 'STUMPED';
+/**
+ * The pause sheet's two switches, kept between visits like the sound key: the
+ * crowd (its cheers and groans) and the ambience (the murmur under them). Each
+ * is on until it is turned off, and is only a choice within the sound key's,
+ * which still silences everything.
+ */
+const CROWD_KEY = 'hitman-crowd', AMBIENCE_KEY = 'hitman-ambience';
+function switchedOn(key: string) { try { return localStorage.getItem(key) !== 'off'; } catch { return true; } }
+function keepSwitch(key: string, on: boolean) { try { if (on) localStorage.removeItem(key); else localStorage.setItem(key, 'off'); } catch { /* Not kept: on again next visit. */ } }
 export class GameAudio {
   private context: AudioContext | null = null;
+  /** The crowd's cheers and groans: see `setCrowd`. */
+  crowdOn = switchedOn(CROWD_KEY);
+  /** The murmur: see `setAmbience`. */
+  ambienceOn = switchedOn(AMBIENCE_KEY);
   private buffers = new Map<Sound, AudioBuffer>();
   private sources = new Set<AudioBufferSourceNode>();
   /** The crowd's clips, decoded: see `CROWD_FILES`. Fetched at the first tap, not with the page. */
@@ -429,7 +442,7 @@ export class GameAudio {
       session: session ? `${session.type}/${session.state ?? '?'}` : 'none',
       // The crowd: its clips decoded, the murmur's level as it is this
       // moment, and how many cheers are sounding.
-      crowdClips: this.crowdClips.size, murmur: this.murmur ? +this.murmur.gain.gain.value.toFixed(3) : 0, cheering: this.cheers.size, groaning: this.groans.size,
+      crowdClips: this.crowdClips.size, murmur: this.murmur ? +this.murmur.gain.gain.value.toFixed(3) : 0, cheering: this.cheers.size, groaning: this.groans.size, crowdOn: this.crowdOn, ambienceOn: this.ambienceOn,
     };
   }
   /**
@@ -460,6 +473,18 @@ export class GameAudio {
       try { murmur.source.stop(now + MURMUR_FADE * 1.5); } catch { /* Already stopped. */ }
     }
   }
+  /** The crowd's cheers and groans on or off, kept for the next visit; off cuts short any still sounding. */
+  setCrowd(on: boolean) {
+    this.crowdOn = on;
+    keepSwitch(CROWD_KEY, on);
+    if (!on) this.fadeCheers(.3);
+  }
+  /** The murmur on or off, kept likewise: off fades it, on brings it back if an innings wants it. */
+  setAmbience(on: boolean) {
+    this.ambienceOn = on;
+    keepSwitch(AMBIENCE_KEY, on);
+    if (on) this.startMurmur(); else this.fadeMurmur();
+  }
   /** Paused, and on again: the stands hold their breath while the card is up. */
   holdCrowd(held: boolean) {
     this.crowdHeld = held;
@@ -472,7 +497,7 @@ export class GameAudio {
   }
   private startMurmur() {
     const ctx = this.context, buffer = this.crowdClips.get(MURMUR_CLIP);
-    if (this.murmur || !ctx || !buffer || this.muted || this.disposed || this.backgrounded || this.murmurLevel <= 0) return;
+    if (this.murmur || !ctx || !buffer || this.muted || !this.ambienceOn || this.disposed || this.backgrounded || this.murmurLevel <= 0) return;
     const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime;
     // The file is its own loop, its tail crossfaded into its head. The ends are
     // trimmed a touch inside it anyway, for a decoder that leaves the encoder's
@@ -507,7 +532,7 @@ export class GameAudio {
    */
   cheer(cheer: Cheer, at = 0) {
     const ctx = this.context;
-    if (!ctx || this.muted || this.disposed || this.crowdHeld) return;
+    if (!ctx || this.muted || !this.crowdOn || this.disposed || this.crowdHeld) return;
     if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
     const name = this.lastClip.get(cheer.size) === `${cheer.size}-1` ? `${cheer.size}-2` : `${cheer.size}-1`;
     const buffer = this.crowdClips.get(name);
@@ -551,7 +576,7 @@ export class GameAudio {
    */
   groan(groan: Groan, at = 0) {
     const ctx = this.context, buffer = this.crowdClips.get(GROAN_CLIP);
-    if (!ctx || !buffer || this.muted || this.disposed || this.crowdHeld) return;
+    if (!ctx || !buffer || this.muted || !this.crowdOn || this.disposed || this.crowdHeld) return;
     if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
     const { rise, falls, fall } = GROAN_SHAPE;
     const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime + at;

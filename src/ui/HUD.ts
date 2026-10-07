@@ -74,6 +74,8 @@ const ordinal = (n: number) => {
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
   return `${n}${suffix}`;
 };
+/** The colour the pause sheet wears for the game it pauses: the Blast's blue, a Test's green, a Rival Match's orange. */
+export type PauseTone = 'blast' | 'test' | 'rivals';
 /** Each setting of the sound key: its picture, what it is, and what a press does. */
 const SOUND_SETTINGS: Record<SoundSetting, [string, string, string]> = {
   on: ['sound', 'Sound on', 'Turn the music off'],
@@ -108,6 +110,13 @@ const icon = (name: string) => {
     /* Day and night, for the pause card's switch. */
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
+    /* The pause sheet's keys and settings. */
+    play: '<path d="M8 5.5v13l10.5-6.5L8 5.5Z"/>',
+    restart: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/>',
+    modes: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
+    flag: '<path d="M6 21V4m0 1h11l-2.5 4L17 13H6"/>',
+    crowd: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.3a4.5 4.5 0 0 1 4.9 4.7"/>',
+    ambience: '<path d="M3 9.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M3 14.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
@@ -377,7 +386,45 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><p id="declare-line" class="declare-line hidden">Ends the innings here and keeps your score</p><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p><p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p></div>
+        <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <div id="pause-sheet" class="pause-sheet" data-tone="blast">
+            <div class="pause-head">
+              <span id="pause-mode" class="pause-mode">The Blast</span>
+              <h2 id="pause-title" class="pause-title">Paused</h2>
+              <p id="pause-state" class="pause-state"></p>
+            </div>
+            <button id="resume" class="pause-resume" type="button">${icon('play')}<span>Resume</span></button>
+            <div class="pause-keys">
+              <button id="restart" class="pause-key" type="button">${icon('restart')}<span>Restart</span></button>
+              <button id="change-mode" class="pause-key" type="button">${icon('modes')}<span>Change mode</span></button>
+            </div>
+            <button id="declare" class="pause-key pause-declare hidden" type="button">${icon('flag')}<span>Declare the innings</span></button>
+            <p id="declare-line" class="declare-line hidden">Ends the innings here and keeps your score</p>
+            <p class="pause-group-label" id="pause-settings">Settings</p>
+            <div class="pause-group" role="group" aria-labelledby="pause-settings">
+              <button id="crowd-switch" class="pause-row" type="button" role="switch" aria-checked="true">
+                <span class="pause-row-icon is-crowd">${icon('crowd')}</span>
+                <span class="pause-row-say"><b>Crowd</b><em>Cheers and groans</em></span>
+                <span class="pause-switch" aria-hidden="true"></span>
+              </button>
+              <button id="ambience-switch" class="pause-row" type="button" role="switch" aria-checked="true">
+                <span class="pause-row-icon is-ambience">${icon('ambience')}</span>
+                <span class="pause-row-say"><b>Ambience</b><em>The stadium in the background</em></span>
+                <span class="pause-switch" aria-hidden="true"></span>
+              </button>
+              <div id="lights-row" class="pause-row is-static hidden">
+                <span class="pause-row-icon is-lights">${icon('moon')}</span>
+                <span class="pause-row-say"><b id="lights-label">Lights</b></span>
+                <div id="lights-toggle" class="lights-toggle" role="radiogroup" aria-labelledby="lights-label"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>Day</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>Night</span></button></div>
+              </div>
+            </div>
+            <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
+            <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
+            <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+          </div>
+          <p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p>
+          <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
+        </div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -1675,15 +1722,47 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * played by day. Two halves, a sun and a moon, with the one in play lit.
    */
   lightsSwitch(now: 'day' | 'night' | null) {
-    this.$('lights-toggle').classList.toggle('hidden', now === null);
+    this.$('lights-row').classList.toggle('hidden', now === null);
     if (!now) return;
+    this.$('lights-row').querySelector('.pause-row-icon')!.innerHTML = icon(now === 'day' ? 'sun' : 'moon');
     for (const time of ['day', 'night'] as const) {
       const option = this.$(`lights-${time}`);
       option.classList.toggle('is-on', time === now);
       option.setAttribute('aria-checked', String(time === now));
     }
   }
-  pause(value: boolean) { this.viewport.classList.toggle('modal-open', value); this.$('pause-overlay').classList.toggle('hidden', !value); if (value) this.$('resume').focus(); }
+  /**
+   * The pause sheet, up or down. Up, it says which game this is, in that
+   * game's colour, and where the innings stands, read off the score bar that
+   * the sheet covers: the chase in Test Survival, runs, wickets and overs in
+   * the others.
+   */
+  pause(value: boolean, game?: { name: string; tone: PauseTone }) {
+    this.viewport.classList.toggle('modal-open', value);
+    this.$('pause-overlay').classList.toggle('hidden', !value);
+    if (!value) return;
+    if (game) {
+      this.$('pause-mode').textContent = game.name;
+      this.$('pause-sheet').dataset.tone = game.tone;
+    }
+    const text = (id: string) => this.$(id).textContent?.trim() ?? '';
+    const chasing = !this.$('survive-card').classList.contains('hidden');
+    this.$('pause-state').textContent = chasing
+      ? `${text('sc-score')} · ${text('sc-need')} to win · ${text('sc-balls')} balls left`
+      : `${text('runs') || '0'}/${text('wickets') || '0'} · ${text('overs') || '0.0'} overs`;
+    this.$('resume').focus();
+  }
+  /**
+   * The pause sheet's sound switches: the crowd's cheers and groans, and the
+   * murmur under everything. Each its own; with all sound off at the speaker
+   * key they still say what they are set to, and a line under them says why
+   * nothing is heard.
+   */
+  crowdSwitches(crowd: boolean, ambience: boolean, silent: boolean) {
+    this.$('crowd-switch').setAttribute('aria-checked', String(crowd));
+    this.$('ambience-switch').setAttribute('aria-checked', String(ambience));
+    this.$('pause-sound-note').classList.toggle('hidden', !silent);
+  }
   end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
     this.$('end').classList.remove('is-marathon');
     this.viewport.classList.add('modal-open');

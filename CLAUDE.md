@@ -153,6 +153,13 @@ and the ended nets innings offering none — it is practice. Its career card is
 `stats-check`'s, second on the rail and green. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
+`scripts/pause-check.mjs` is the pause sheet, in the Blast and in a Test
+Marathon: the chip naming the game in its colour, the score under the title,
+the keys each game has and not the other's, and the two sound switches — the
+crowd's cheers and groans, and the ambience under them — each flipping only
+itself, kept across a reload (`hitman-crowd`, `hitman-ambience`), and the
+murmur staying away once the innings goes on.
+
 `scripts/rating-check.mjs` is the star prompt under the end card, and like
 `career-count-check` its rule is about *when*: it finishes innings to prove the
 first asks nothing, the second asks about its mode, and a third that visit asks
