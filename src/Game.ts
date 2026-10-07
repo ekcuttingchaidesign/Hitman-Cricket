@@ -30,6 +30,8 @@ import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
+import { afterBall } from './game/afterBall';
+import type { AfterBall } from './entities/Batter';
 import {
   fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
@@ -259,6 +261,8 @@ export class Game {
   private lastSledge = 0;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
+  /** What the batter last did once a ball was done with, so he does not do it twice running. */
+  private lastAfterBall: AfterBall | null = null;
   private best = 0; private bounced = false; private seed = 0;
   /** Innings begun this session, for telling a replay from a first go. */
   private innings = 0;
@@ -2523,9 +2527,16 @@ export class Game {
     }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
-    // A stroke that scored and is not about to be celebrated: he stands up out
-    // of his stance and taps the bat at the crease before the next ball.
-    if (outcome.madeBatContact && outcome.runs > 0 && !outcome.isWicket && !this.milestoneDue) this.scene.settle(this.elapsed);
+    // What he does once the ball is done with, on some of the balls that call
+    // for it (`afterBall`): the crease tap after a classic drive, and so on.
+    if (this.attempt) {
+      const kind = afterBall(this.scene.stroke, {
+        scored: outcome.madeBatContact && outcome.runs > 0,
+        beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
+        wicket: outcome.isWicket, milestone: !!this.milestoneDue,
+      }, this.lastAfterBall, Math.random());
+      if (kind) { this.scene.afterBall(kind, this.elapsed); this.lastAfterBall = kind; }
+    }
     // The stands for a boundary, once the call is made and not when the ball
     // leaves the bat: a skied one may yet be caught.
     if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {

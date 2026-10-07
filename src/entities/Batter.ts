@@ -40,6 +40,12 @@ interface Pose {
   release?: number;
   /** Where the free hand's wrist is, in the batter's own space. */
   fist?: Point;
+  /**
+   * The bat turned about its own handle, in the bottom hand: the twirl. The
+   * gloves are turned back the other way, so the hand holds still and the
+   * blade turns in it.
+   */
+  spin?: number;
 }
 const V = (p: Point) => new THREE.Vector3(...p);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -143,9 +149,9 @@ const BACKLIFT: Pose = {
 };
 
 /**
- * Between balls, after a stroke that scored: he straightens up out of his
- * stance and lets the bat hang, taps it twice at the crease, and settles back
- * down into his guard. The bat hangs from the same grip turned upright, so it
+ * After a classic drive that scored, once he has held the finish (`ADMIRE_MS`):
+ * he straightens up out of his stance and lets the bat hang, taps it twice at
+ * the crease, and settles back down into his guard. The bat hangs from the same grip turned upright, so it
  * is the guard's own bat brought down from his shoulder rather than a new way
  * of holding it.
  */
@@ -162,10 +168,13 @@ const STANDING: Pose = {
 /** The toe flicked up off the turf by the wrists, between the two taps. */
 const TAPPING: Pose = { ...STANDING, ...hanging(new THREE.Vector3(-.08, 1, -.42)) };
 /** When each part of it is done, after the stroke has come home. */
-const SETTLE_KEYS: [number, Pose][] = [
+const TAP_KEYS: [number, Pose][] = [
   [0, GUARD], [330, STANDING], [470, TAPPING], [560, STANDING], [690, TAPPING], [780, STANDING], [1100, GUARD],
 ];
-export const SETTLE_MS = SETTLE_KEYS[SETTLE_KEYS.length - 1][0];
+/** How much longer a classic drive holds its finish, for the photograph, when he admires it. */
+export const ADMIRE_MS = 400;
+/** Where in the drive the hold is taken: inside the finish every drive holds anyway. */
+const ADMIRE_AT = 480;
 
 /**
  * `recover` is the way back to the guard, for a stroke whose follow-through
@@ -1143,6 +1152,70 @@ function aloft(body: Pose, bat: [up: number, out: number], fist: [up: number, ou
 const FACING: Pose = standing({ ...GUARD, hip: [-.02, .97, -.02], chest: [.00, 1.31, .00],
   yaw: 2.4, face: 2.4, headDown: -.24, heel: 0, leadElbow: .20,
   armHinge: -.6, armDrive: 0, shoulderLift: .10 });
+
+/**
+ * What he does once a ball is done with, besides going home to his guard, and
+ * on only some of the balls that call for it (`afterBall` in
+ * `src/game/afterBall.ts` decides which):
+ *
+ * - `admire`: a classic drive held at the finish, then the bat let down and
+ *   tapped twice at the crease;
+ * - `watch`: a lofted shot watched all the way, stood tall, the bat lowered
+ *   in the bottom hand;
+ * - `twirl`: a pull, the bat spun once in the bottom hand on the way home;
+ * - `brush`: up off a knee from a sweep or a scoop, a hand down the front pad;
+ * - `shadow`: beaten, the stroke rehearsed slowly, without the ball.
+ *
+ * Every one starts and ends in the guard, so it can begin the moment the
+ * stroke is home and the next ball can find him where it always does.
+ */
+export type AfterBall = 'admire' | 'watch' | 'twirl' | 'brush' | 'shadow';
+/** What kind of stroke it was, which is half of what decides the `AfterBall`. */
+export interface PlayedStroke { shot: ShotType; charging: boolean; lofted: boolean; swept: boolean; pulled: boolean }
+type Keys = [number, Pose][];
+
+/** The free (top) hand let go and hanging loose by his side. */
+const hangingFist = (body: Pose) => point(shoulderOf(body, 0).addScaledVector(UP, -.52).addScaledVector(outwards(body, 0), .10));
+/** Where he looks to follow a lofted shot: down the ground, or out to either side of it. */
+const LOOK: Partial<Record<ShotType, number>> = { STRAIGHT: 0, LONG_ON: -.45, COVER_LONG_OFF: .45, LEG: -.9 };
+/** The free hand on his hip, the elbow out: a man with nothing to do but watch. */
+const onHip = (body: Pose) => point(shoulderOf(body, 0).addScaledVector(UP, -.40).addScaledVector(outwards(body, 0), .17));
+function watchKeys(shot: ShotType): Keys {
+  // Chin well up after the ball, the chest turned a little after it too.
+  const look = LOOK[shot] ?? 0;
+  const body: Pose = { ...STANDING, chest: [0.0, 1.38, -0.01], yaw: STANDING.yaw + look * .3, release: 1, face: look, headDown: -.5 };
+  const watching: Pose = { ...body, fist: onHip(body) };
+  return [[0, GUARD], [380, watching], [1000, watching], [1350, GUARD]];
+}
+/** The bat up off the turf in the bottom hand, the top hand let go, ready to spin it. */
+const TWIRLING: Pose = (() => {
+  const body: Pose = { ...STANDING, grip: [0.25, 1.0, 0.22] };
+  return { ...body, release: 1, fist: hangingFist(body) };
+})();
+const TWIRL_KEYS: Keys = [
+  [0, GUARD], [300, TWIRLING], [340, { ...TWIRLING, spin: 0 }], [780, { ...TWIRLING, spin: Math.PI * 2 }],
+  // Home with the turn kept: a whole turn is no turn, and blending it back to
+  // nought would spin the bat the other way.
+  [1180, { ...GUARD, spin: Math.PI * 2 }],
+];
+/** Bent over the front pad, the top hand brushing down it. */
+const BRUSH_KEYS: Keys = (() => {
+  const body: Pose = { ...GUARD, hip: [-0.07, 0.87, -0.03], chest: [-0.04, 1.12, 0.19], release: 1, headDown: .25 };
+  const pad = (up: number) => point(V(GUARD.frontFoot).add(new THREE.Vector3(.02, up, .07)));
+  const high: Pose = { ...body, fist: pad(.52) }, low: Pose = { ...body, fist: pad(.24) };
+  return [[0, GUARD], [300, high], [440, low], [560, high], [690, low], [1050, GUARD]];
+})();
+/** The stroke he was beaten by, played again slowly from the guard, short of its full reach. */
+function shadowKeys(struck: Pose): Keys {
+  const toward = (amount: number) => mix(GUARD, struck, amount);
+  return [[0, GUARD], [450, toward(.5)], [800, toward(.85)], [1050, toward(.85)], [1400, GUARD]];
+}
+const keysFor = (kind: AfterBall, shot: ShotType, struck: Pose | null): Keys =>
+  kind === 'admire' ? TAP_KEYS : kind === 'watch' ? watchKeys(shot) : kind === 'twirl' ? TWIRL_KEYS
+    : kind === 'brush' ? BRUSH_KEYS : shadowKeys(struck ?? GUARD);
+/** Longest of them, for whatever has to wait them out. */
+export const AFTER_BALL_MS = Math.max(...(['admire', 'watch', 'twirl', 'brush', 'shadow'] as AfterBall[])
+  .map(kind => { const keys = keysFor(kind, 'STRAIGHT', GUARD); return keys[keys.length - 1][0]; })) + ADMIRE_MS;
 const RAISED = aloft(FACING, [.33, .10], [.54, .28]);
 /** The pump: fist and bat drawn down together, the knees giving with them. */
 const PUMPED = aloft({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 }, [.26, .10], [.38, .26]);
@@ -1411,6 +1484,7 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     armDrive: THREE.MathUtils.lerp(a.armDrive ?? 0,b.armDrive ?? 0,t),
     shoulderLift: THREE.MathUtils.lerp(a.shoulderLift ?? 0,b.shoulderLift ?? 0,t),
     release: THREE.MathUtils.lerp(a.release ?? 0, b.release ?? 0, t),
+    spin: THREE.MathUtils.lerp(a.spin ?? 0, b.spin ?? 0, t),
     // A pose that never let go has no fist of its own: it takes the other's,
     // so the hand leaves the handle for where it is going, not for the origin.
     fist: a.fist || b.fist ? point(a.fist ?? b.fist!, b.fist ?? a.fist!) : undefined,
@@ -1534,8 +1608,12 @@ export class Batter {
   private felledAt = -Infinity;
   private felledFrom: Pose = GUARD;
   private celebratedAt = -Infinity;
-  /** When the stroke that scored is home and he starts to settle: see `settle`. */
-  private settledFrom = -Infinity;
+  /** What he is doing once the ball is done with, and from when: see `afterBall`. */
+  private afterward: { from: number; keys: Keys } | null = null;
+  /** A classic drive's finish held a moment longer: see `ADMIRE_MS`. */
+  private admiring = false;
+  /** The pose he met the ball with, for rehearsing it after a miss. */
+  private struck: Pose | null = null;
   private celebratedFrom: Pose = GUARD;
   /** Which celebration is on: see `ROUTINES`. */
   private celebration: Celebration = 'hundred';
@@ -1750,8 +1828,9 @@ export class Batter {
   get felled() { return Number.isFinite(this.felledAt); }
   /** His hundred, or any of the others: up, held, and back into his guard. See `ROUTINES`. */
   celebrate(now: number, kind: Celebration = 'hundred') {
-    // A celebration takes him from wherever he is; the settle is not resumed.
-    this.settledFrom = -Infinity;
+    // A celebration takes him from wherever he is; what he was doing after the
+    // ball is not resumed.
+    this.afterward = null;
     this.celebratedFrom = this.pose;
     this.celebratedAt = now;
     this.celebration = kind;
@@ -1764,25 +1843,33 @@ export class Batter {
   reset() {
     this.poseAge = Infinity;
     this.felledAt = -Infinity;
-    this.celebratedAt = -Infinity; this.settledFrom = -Infinity;
+    this.celebratedAt = -Infinity; this.afterward = null; this.admiring = false; this.struck = null;
     this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
     this.apply(GUARD);
   }
+  /** The stroke last played, as `afterBall` needs it. */
+  get played(): PlayedStroke {
+    return { shot: this.shot, charging: this.charging, lofted: this.lofted, swept: this.sweeping || this.levelled, pulled: this.pulling };
+  }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
   /**
-   * The stroke scored: once it is home, stand up out of the stance, tap the bat
-   * and settle back down (`SETTLE_KEYS`), rather than freeze in the guard until
-   * the next ball. Not after a charge, which walks back to the crease instead.
+   * Once the stroke is home, do `kind` (see `AfterBall`) and come back to the
+   * guard, rather than stand frozen in it until the next ball. Not after a
+   * charge, which walks back to the crease instead. A drive's held finish only
+   * if it is asked for before the finish is reached: it cannot be taken back.
    */
-  settle(now: number) {
+  afterBall(kind: AfterBall, now: number) {
     if (this.charging || !Number.isFinite(this.swingStart)) return;
-    this.settledFrom = Math.max(now, this.swingStart + STROKE_DURATION_MS);
+    if (kind === 'admire' && now - this.swingStart <= ADMIRE_AT) this.admiring = true;
+    const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : 0);
+    this.afterward = { from: Math.max(now, home), keys: keysFor(kind, this.shot, this.struck) };
   }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false) {
     // Three charges, one per drive input: straight, over cover, over long-on.
     // Each is one stroke on one line whichever way the ball was actually going.
     this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
+    this.afterward = null; this.admiring = false; this.struck = null;
     this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
     // Wide and full off the off-side input: drive it square rather than through
@@ -1883,7 +1970,7 @@ export class Batter {
   }
   private waiting(pose: Pose, now: number, age: number): Pose {
     const sinceStroke = Number.isFinite(age) ? age - STROKE_DURATION_MS - (this.charging ? ADVANCE.walkBackMs : 0) : Infinity;
-    const sinceSettle = now - this.settledFrom - SETTLE_MS;
+    const sinceSettle = this.afterward ? now - this.afterward.from - this.afterward.keys[this.afterward.keys.length - 1][0] : Infinity;
     const sinceCelebration = now - this.celebratedAt - CELEBRATION_LENGTHS[this.celebration];
     const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - this.anticipation);
     const breath = Math.sin(now * Math.PI * 2 / 3700) * weight;
@@ -1895,7 +1982,10 @@ export class Batter {
   }
   update(now: number) {
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
-    const age = now - this.swingStart;
+    let age = now - this.swingStart;
+    // A drive admired holds its finish the longer, and everything after the
+    // hold happens that much later.
+    if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
     this.poseAge = age;
     this.travel(age);
     const celebrating = now - this.celebratedAt;
@@ -1905,13 +1995,16 @@ export class Batter {
       this.poseAge = Infinity;
       return this.applyCelebration(celebrating);
     }
-    const settling = now - this.settledFrom;
-    if (settling >= 0 && settling < SETTLE_MS && !this.charging && age >= STROKE_DURATION_MS) {
-      let k = 1; while (k < SETTLE_KEYS.length - 1 && settling >= SETTLE_KEYS[k][0]) k++;
-      const [from, a] = SETTLE_KEYS[k - 1], [to, b] = SETTLE_KEYS[k];
-      this.apply(mix(a, b, (settling - from) / (to - from)));
+    const after = this.afterward, since = after ? now - after.from : -1;
+    if (after && since >= 0 && since < after.keys[after.keys.length - 1][0] && !this.charging && age >= STROKE_DURATION_MS) {
+      const keys = after.keys;
+      let k = 1; while (k < keys.length - 1 && since >= keys[k][0]) k++;
+      const [from, a] = keys[k - 1], [to, b] = keys[k];
+      this.apply(mix(a, b, (since - from) / (to - from)));
       return;
     }
+    // The pose he met the ball with, kept for rehearsing it if he missed.
+    if (!this.struck && age >= STROKE_CONTACT_MS && age < STROKE_DURATION_MS) this.struck = this.pose;
     if (!Number.isFinite(age) || age >= STROKE_DURATION_MS) {
       const guard = this.waiting(mix(GUARD, BACKLIFT, Number.isFinite(age) ? 0 : this.anticipation), now, age);
       this.apply(this.charging ? this.walking(guard, this.downPitch(age)) : guard);
@@ -2224,6 +2317,9 @@ export class Batter {
         this.bat.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP,roll*Math.max(entryWeight,returnWeight)));
       }
     }
+    // The twirl: the blade turned about its handle, last, so nothing above
+    // takes it back out.
+    if (pose.spin) this.bat.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(UP, pose.spin));
     this.root.updateMatrixWorld(true);
     /**
      * Keep the bat inside the arms that are holding it.
@@ -2306,7 +2402,8 @@ export class Batter {
       const socket=wristSocket(i);
       const hand = grip.clone().addScaledVector(radial,-socket.z).addScaledVector(axis,socket.y);
       arm.wrist.copy(hand);
-      arm.glove.rotation.set(0,0,0);
+      // Turned back against the bat's own spin, so the hand holds still in a twirl.
+      arm.glove.rotation.set(0,-(pose.spin ?? 0),0);
       let elbow = new THREE.Vector3();
       if (this.cutting) {
       // Elbows bend towards these hints. The back arm's has to follow the hands
@@ -2581,7 +2678,8 @@ export class Batter {
         // A padded heel joins the closed hand to its wrist. It articulates
         // inside the glove envelope, so wrist movement cannot turn the left
         // knuckles into an open palm or flip the visible grip during a shot.
-        this.segment(arm.palm[0],arm.socket.clone().multiplyScalar(.40),arm.socket,.081,.080);
+        const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
+        this.segment(arm.palm[0],palm.clone().multiplyScalar(.40),palm,.081,.080);
       }
       /**
        * The free hand, punching the air.
@@ -2614,7 +2712,8 @@ export class Batter {
         const inverse = this.bat.quaternion.clone().invert();
         arm.glove.position.copy(gloveAt).sub(this.bat.position).applyQuaternion(inverse);
         arm.socket.copy(hand).sub(gloveAt).applyQuaternion(inverse);
-        this.segment(arm.palm[0], arm.socket.clone().multiplyScalar(.40), arm.socket, .081, .080);
+        const palm = arm.socket.clone().applyAxisAngle(UP, pose.spin ?? 0);
+        this.segment(arm.palm[0], palm.clone().multiplyScalar(.40), palm, .081, .080);
       }
       this.segment(arm.upper, arm.shoulder, elbow, .14, .145);
       this.segment(arm.lower, elbow, hand, .095);

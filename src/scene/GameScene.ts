@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength } from '../entities/Batter';
+import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength } from '../entities/Batter';
 import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -603,8 +603,10 @@ export class GameScene {
   get mirrored() { return this.world.scale.x > 0; }
   /** The next man in, at his guard. The last one may be lying where he fell. */
   newBatter() { this.batter.reset(); }
-  /** A stroke that scored: the batter stands up, taps and settles once it is home (`Batter.settle`). */
-  settle(now: number) { this.batter.settle(now); }
+  /** What the batter does once the ball is done with (`Batter.afterBall`). */
+  afterBall(kind: AfterBall, now: number) { this.batter.afterBall(kind, now); }
+  /** The stroke he played, for choosing what he does after it. */
+  get stroke() { return this.batter.played; }
   /**
    * The stands for a four or six struck, or a milestone: arms up and placards
    * across the far end. A boundary does not cut short a bigger moment still
