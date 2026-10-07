@@ -2132,31 +2132,10 @@ body.start-screen #sound{pointer-events:auto}
   color:#c3d0d9
 }
 .pause-state:empty{display:none}
-/* Resume: the one bright key. */
-.pause-resume{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:10px;
-  width:100%;
-  height:60px;
-  margin-top:18px;
-  padding:0 18px;
-  border:2.5px solid #000;
-  border-radius:14px;
-  background:linear-gradient(90deg,var(--cta-orange) 0%,#ff7b47 100%);
-  color:#fff;
-  font-family:var(--cta);
-  font-size:24px;
-  letter-spacing:.04em;
-  text-shadow:0 2px 0 #00000040;
-  box-shadow:0 6px 0 #000,0 11px 16px #00000066;
-  transition:transform .12s,box-shadow .12s
-}
-.pause-resume svg{width:22px;height:22px;fill:currentColor;stroke:none}
-.pause-resume:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 7px 0 #000,0 12px 18px #00000066}
-.pause-resume:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #000,0 4px 8px #00000059}
-.pause-resume:focus-visible{outline:3px solid #fff2e4;outline-offset:3px}
+/* Resume: the game's own primary key, as every card has it — white, the
+   cover's orange round it and under it — the one bright thing on the sheet. */
+.pause-resume{min-height:58px;margin-top:18px;font-size:18px}
+.pause-resume:focus-visible{outline-color:#fff2e4;outline-offset:3px}
 /* The two ways out: the mode screen's dark key, side by side. */
 .pause-keys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
 .pause-keys:has(#change-mode.hidden){grid-template-columns:1fr}
@@ -2187,6 +2166,26 @@ body.start-screen #sound{pointer-events:auto}
 .pause-declare{margin-top:14px;background:linear-gradient(180deg,#9b2a37 0%,#741c28 100%);box-shadow:0 5px 0 #2b0b0f,0 9px 10px #00000059,inset 0 1px 0 #ffffff26}
 .pause-declare:hover:not(:disabled){background:linear-gradient(180deg,#ab3343 0%,#82222f 100%)}
 .pause-declare:active:not(:disabled){box-shadow:0 2px 0 #2b0b0f,0 4px 6px #0000004d,inset 0 1px 0 #ffffff26}
+/* What leaving costs, where the keys that leave are: under them, in the
+   sheet rather than as a footnote off it, in the amber the sheet keeps for
+   things to know. */
+.pause-counts{
+  display:flex;
+  gap:9px;
+  align-items:flex-start;
+  margin:12px 0 0;
+  padding:10px 12px;
+  border:1px solid #f7d36a3d;
+  border-radius:12px;
+  background:#f7d36a14;
+  font-size:12.5px;
+  font-weight:500;
+  line-height:1.45;
+  color:#e9dcb4
+}
+.pause-counts b{font-weight:800;color:#f7d36a}
+.pause-counts-icon{flex:none;display:grid;margin-top:1px;color:#f7d36a}
+.pause-counts-icon svg{width:17px;height:17px;stroke-width:2}
 /* Shut until twenty overs: there, so the player knows it is coming, and plainly not pressable. */
 .pause-declare:disabled{opacity:.42;cursor:not-allowed;box-shadow:0 5px 0 #2b0b0f99;transform:none}
 .pause-sheet .declare-line{margin:8px 0 0;font-size:12.5px;font-weight:600;color:#9fb0bc;text-align:center}
@@ -2245,20 +2244,10 @@ button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
 .pause-sheet .ghost-link{display:block;margin:12px auto 0;color:#9fb0bc}
 .pause-sheet .ghost-link:hover{color:#fff}
 .pause-sheet .start-hint{margin-top:8px;text-align:center;color:#8396a3}
-/* The footnote and the credit under the sheet: notes on the screen, not part of it. */
-.pause-foot{
-  width:min(400px,100%);
-  margin:16px auto 0;
-  text-align:center;
-  font-family:var(--card);
-  font-size:11.5px;
-  line-height:1.55;
-  color:#9fb2bdcc;
-  text-wrap:pretty
-}
+/* The credit under the sheet: a note on the screen, not part of it. */
 .pause-credit{
   width:min(400px,100%);
-  margin:8px auto 0;
+  margin:14px auto 0;
   text-align:center;
   font:500 10px/1.4 var(--card,system-ui);
   color:#ffffff73
@@ -2268,7 +2257,8 @@ button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
 @media (max-height:700px){
   .pause-sheet{padding:16px 16px 12px}
   .pause-title{font-size:32px;margin-top:8px}
-  .pause-resume{height:52px;margin-top:14px;font-size:21px}
+  .pause-resume{min-height:50px;margin-top:14px}
+  .pause-counts{margin-top:10px;padding:8px 10px}
   .pause-keys{margin-top:12px}
   .pause-key{height:46px}
   .pause-group-label{margin-top:16px}
