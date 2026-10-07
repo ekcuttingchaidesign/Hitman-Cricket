@@ -7,7 +7,7 @@ import { BendingLimb } from './BendingLimb';
 import { ConnectedJersey } from './ConnectedJersey';
 import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
-import { helmetGeometry, helmetRimGeometry } from './helmetGeometry';
+import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
 import type { ShotType } from '../game/types';
 
@@ -174,6 +174,12 @@ const STROKE_FINISH_MS = 410;
 const HANDS_CLEAR = .36;
 /** The middle of the helmet's dome, from the head's own origin. */
 const HELMET_CENTRE = new THREE.Vector3(0, .04, 0);
+/** The bottom of the grille, under the chin, from the head's own origin. */
+const CHIN_GUARD = new THREE.Vector3(0, -.18, .13);
+/** How far the handle's end is from the grip, along the bat. */
+const KNOB = .23;
+/** How close the handle's end may come to the bottom of the grille: round it, and a little air. */
+const KNOB_CLEAR = .14;
 
 /**
  * `recover` is the way back to the guard, for a stroke whose follow-through
@@ -1761,6 +1767,9 @@ export class Batter {
     ball: new THREE.SphereGeometry(1, 24, 16),
     helmet: helmetGeometry(),
     helmetRim: helmetRimGeometry(),
+    peak: helmetPeakGeometry(),
+    grille: helmetGrilleGeometry(),
+    vent: new THREE.TorusGeometry(1, .32, 6, 16),
     trouser: new THREE.CylinderGeometry(.44, .55, 1, 20, 1),
     collar: new THREE.TorusGeometry(.071, .012, 6, 24).rotateX(Math.PI / 2),
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
@@ -1820,12 +1829,18 @@ export class Batter {
     this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
     this.mesh(this.head, this.palette.helmet, [1, 1, 1], 'helmet');
     this.mesh(this.head, this.palette.handle, [1, 1, 1], 'helmetRim');
-    this.mesh(this.head, this.palette.helmet, [.34, .045, .20], 'soft').position.set(0, .045, .135);
-    for (const y of [-.055, -.115]) {
-      const bar = this.mesh(this.head, this.palette.grille, [.016, .30, .016], 'tube');
-      bar.rotation.z = Math.PI / 2; bar.position.set(0, y, .175);
+    // A cricket helmet: the peak following the shell round the front, the
+    // grille bolted on at either temple and wrapping the face down to a point
+    // under the chin, and the vent on the crown.
+    this.mesh(this.head, this.palette.helmet, [1, 1, 1], 'peak');
+    this.mesh(this.head, this.palette.grille, [1, 1, 1], 'grille');
+    for (const s of [-1, 1]) {
+      const mount = this.mesh(this.head, this.palette.grille, [.012, .026, .085], 'soft');
+      mount.position.copy(GRILLE_MOUNT).setX(GRILLE_MOUNT.x * s * 1.02).add(new THREE.Vector3(0, .004, -.012));
+      mount.rotation.y = s * -.32;
     }
-    for (const x of [-.14, .14]) this.mesh(this.head, this.palette.grille, [.016, .19, .016], 'tube').position.set(x, -.045, .175);
+    const vent = this.mesh(this.head, this.palette.handle, [.014, .014, .014], 'vent');
+    vent.position.set(0, .197, .05); vent.rotation.x = -Math.PI / 2 + .34;
     // Bat: a dark bound handle standing clear of a plain blade.
     const rubber=new THREE.Mesh(gripGeometry(),new THREE.MeshStandardMaterial({color:0x777e80,roughness:.94}));
     rubber.castShadow=true; rubber.receiveShadow=true; this.bat.add(rubber);
@@ -2423,11 +2438,20 @@ export class Batter {
     // the helmet wherever it comes within `HANDS_CLEAR`, by no more than it is
     // short. Not at the contact, which has to meet the ball where it is, and
     // not the other strokes, whose finishes keep their distance already.
-    if (this.shot === 'COVER_LONG_OFF' && !this.charging && Number.isFinite(this.poseAge)) {
+    //
+    // The on-drive's is the same, for the end of the handle: its finish held
+    // the knob against the bottom of the grille, under his chin, so through
+    // either drive's follow-through the bat is eased out from there too.
+    if ((this.shot === 'COVER_LONG_OFF' || this.shot === 'LONG_ON') && !this.charging && Number.isFinite(this.poseAge)) {
       const clearing = THREE.MathUtils.smoothstep(this.poseAge, 260, 340) * (1 - THREE.MathUtils.smoothstep(this.poseAge, 760, STROKE_DURATION_MS));
-      const helmet = this.head.position.clone().add(HELMET_CENTRE);
-      const fromHelmet = this.bat.position.clone().sub(helmet), near = fromHelmet.length();
-      if (clearing > 0 && near < HANDS_CLEAR && near > 1e-6) this.bat.position.addScaledVector(fromHelmet, clearing * (HANDS_CLEAR - near) / near);
+      if (clearing > 0) {
+        const helmet = this.head.position.clone().add(HELMET_CENTRE);
+        const fromHelmet = this.bat.position.clone().sub(helmet), near = fromHelmet.length();
+        if (this.shot === 'COVER_LONG_OFF' && near < HANDS_CLEAR && near > 1e-6) this.bat.position.addScaledVector(fromHelmet, clearing * (HANDS_CLEAR - near) / near);
+        const chin = CHIN_GUARD.clone().applyEuler(this.head.rotation).add(this.head.position);
+        const fromChin = this.bat.position.clone().addScaledVector(UP.clone().applyQuaternion(batOrientation(pose)), KNOB).sub(chin), short = KNOB_CLEAR - fromChin.length();
+        if (short > 0 && short < KNOB_CLEAR) this.bat.position.addScaledVector(fromChin.normalize(), clearing * short);
+      }
     }
     this.bat.quaternion.copy(batOrientation(pose));
     // Keep the approved blade axis/path, but orient its flat face in the
