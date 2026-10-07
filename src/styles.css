@@ -2090,6 +2090,16 @@ body.start-screen #sound{pointer-events:auto}
   color:#9fb2bdcc;
   text-wrap:pretty
 }
+/* The crowd's credit, which its licence asks for: on the card a player stops
+   on, under everything else on it, and no louder than a footnote. */
+.pause-credit{
+  width:min(392px,100%);
+  margin:8px auto 0;
+  text-align:center;
+  font:500 10px/1.4 var(--card,system-ui);
+  color:#ffffff73
+}
+.pause-credit a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .pause-card{
   padding:22px 26px 20px;
   /* The scorecard is a left-hand column of figures. This is two keys and a

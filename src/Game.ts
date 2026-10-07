@@ -30,7 +30,8 @@ import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
-import { afterBall, disappointment, HABITS, PACES } from './game/afterBall';
+import { boundaryCheer, boundaryStreak, HUSH, milestoneCheer, MURMUR, RUNUP, SEND_OFF } from './game/crowd';
+import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, Hurt } from './entities/Batter';
 import {
   fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
@@ -668,6 +669,8 @@ export class Game {
       field: () => this.scene.fieldState,
       // What the stands are doing, for `crowd-check.mjs`.
       crowd: () => this.scene.crowdState,
+      // And what it sounds like: see `GameAudio.describe`.
+      sound: () => this.audio.describe(),
       // Where this ball is drawn `progress` of the way through its flight: from
       // the hand round the wicket, for `marathon-check.mjs`.
       drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
@@ -1120,6 +1123,8 @@ export class Game {
     // bat and the crowd. The card's music is fetched now instead, so that the
     // card does not go up in silence waiting for a megabyte to arrive.
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
+    // And the crowd comes in with him: see `crowd.ts`.
+    this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast);
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     this.playedFrom = 0; this.changed = null; this.felled = false;
@@ -1181,7 +1186,7 @@ export class Game {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
     this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
-    this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
+    this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
@@ -1482,9 +1487,9 @@ export class Game {
   private toggleSound = () => { this.audio.step(); this.audio.unlock(); this.hud.sound(this.audio.setting, true); };
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
-    if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
+    if (this.phase === 'PAUSED') { this.audio.unlock(); this.audio.holdCrowd(false); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else {
-      this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
+      this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
       this.hud.lightsSwitch(this.test ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
@@ -2300,6 +2305,8 @@ export class Game {
       this.scene.express(!!this.delivery.express);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
+      // The stands lift as he runs in, and settle once the ball has gone.
+      this.audio.swellCrowd(1 + RUNUP.swell, GAME.runupMs / 1000, RUNUP.settle, 0, GAME.runupMs / 3000);
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
@@ -2541,11 +2548,10 @@ export class Game {
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
     this.scene.cheer(kind, this.elapsed, moment.mark);
-    // The crowd with it, falling away: the fifty's is the shorter, though
-    // long enough to be heard as applause rather than a blip; the hundred's
-    // carries on a little past him into the next ball's run-up; and the big
-    // ones take the whole of the clip.
-    this.audio.cheer(CHEER[kind]);
+    // The crowd with it, the biggest cheer there is, in a Test too, falling
+    // away: the fifty's the sooner, the hundred's on past him into the next
+    // ball's run-up, and the big ones the longest.
+    this.audio.cheer(milestoneCheer(CHEER[kind]));
     // Named for the mode it was reached in, and the raised bat for its mark:
     // 150, 250 and 350 are one celebration and three different innings.
     if (!asked) this.mark(kind === 'raise' ? `raise-${moment.mark}` : kind, MOMENT_SAID[kind]);
@@ -2602,7 +2608,14 @@ export class Game {
     // leaves the bat: a skied one may yet be caught.
     if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {
       this.scene.cheer(outcome.runs === 6 ? 'hit-six' : 'hit-four', this.elapsed);
-      this.audio.cheer(outcome.runs === 6 ? 2.8 : 1.7);
+      // Bigger the more of them have come in a row (`crowd.ts`).
+      this.audio.cheer(boundaryCheer(outcome.runs, boundaryStreak(this.batterHistory), this.test));
+    }
+    // A wicket goes quiet; one that cost him a milestone, or a man carried
+    // off, is sent off with a softer cheer once it has.
+    if (outcome.isWicket || this.felled) {
+      this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover);
+      if (this.felled || (this.lesson < 0 && outNearMilestone(this.batterHistory))) this.audio.cheer(SEND_OFF, SEND_OFF.after);
     }
   }
   /**
