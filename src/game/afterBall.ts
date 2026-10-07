@@ -14,6 +14,8 @@ export interface BallEnded {
   milestone: boolean;
   /** Out close to a milestone: see `outNearMilestone`. */
   heartbreak?: boolean;
+  /** Four of them. */
+  four?: boolean;
 }
 
 /**
@@ -36,29 +38,25 @@ export function outNearMilestone(history: readonly ShotOutcome[]) {
 /** How often a ball that calls for one gets one: often enough to notice, not so often it is a tic. */
 export const AFTER_BALL_CHANCE = .5;
 
-/** The classic drives: the crease tap after one along the ground, watching it go after one lofted. */
+/** The classic drives: the bat looked at after one along the ground, watching it go after one lofted. */
 const DRIVES = new Set(['STRAIGHT', 'COVER_LONG_OFF', 'LONG_ON']);
 
 /**
  * What the batter does once the ball is done with, if anything (see
- * `AfterBall`). Each kind belongs to the strokes it suits: the crease tap to
- * the classic drives along the ground and watching it go to the same drives
- * lofted; the twirl to the pull; the pad brushed to the strokes played off a
+ * `AfterBall`). Each kind belongs to the strokes it suits: looking at the bat,
+ * or for a four leaning on it, to the classic drives along the ground, and
+ * watching it go to the same drives lofted; the twirl to the pull; the pad brushed to the strokes played off a
  * knee; and, beaten playing one of those drives or a block, the stroke
  * rehearsed or the pitch scrubbed. Only `AFTER_BALL_CHANCE` of the balls that
  * call for one get it (`roll` is a number in [0, 1), and where two would do it
  * picks between them too), and never the same one twice running, so it reads
  * as a man and not a loop. Out close to a milestone (`heartbreak`) he always
- * does something: looks to the sky, or sinks to his haunches.
+ * looks to the sky.
  */
 export function afterBall(stroke: PlayedStroke | null, ended: BallEnded, last: AfterBall | null, roll: number): AfterBall | null {
   if (!stroke || stroke.charging) return null;
-  // Out close to a milestone: always, whatever the roll, and the other of the
-  // two from last time.
-  if (ended.wicket && ended.heartbreak) {
-    const kinds = (['sky', 'crouch'] as AfterBall[]).filter(kind => kind !== last);
-    return kinds[Math.min(kinds.length - 1, Math.floor(roll * kinds.length))];
-  }
+  // Out close to a milestone: always, whatever the roll.
+  if (ended.wicket && ended.heartbreak) return 'sky';
   if (ended.wicket || ended.milestone || roll >= AFTER_BALL_CHANCE) return null;
   const kinds = choose(stroke, ended).filter(kind => kind !== last);
   return kinds.length ? kinds[Math.floor(roll / AFTER_BALL_CHANCE * kinds.length)] : null;
@@ -71,6 +69,7 @@ function choose(stroke: PlayedStroke, ended: BallEnded): AfterBall[] {
   if (!ended.scored || stroke.shot === 'DEFEND') return [];
   if (stroke.swept || stroke.shot === 'SCOOP' || stroke.shot === 'REVERSE_SCOOP') return ['brush'];
   if (stroke.pulled) return ['twirl'];
-  if (DRIVES.has(stroke.shot)) return [stroke.lofted ? 'watch' : 'admire'];
+  // A drive along the ground: the bat looked at, or, for four, leant on too.
+  if (DRIVES.has(stroke.shot)) return stroke.lofted ? ['watch'] : ended.four ? ['admire', 'lean'] : ['admire'];
   return [];
 }

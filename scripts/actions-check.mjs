@@ -1,7 +1,7 @@
 /**
  * `?actions=1`: the keys along the foot of the picture, one a thing the batter
- * does once a ball is done with — ADMIRE, WATCH, TWIRL, BRUSH, SHADOW, SCRUB,
- * and, out close to a milestone, SKY and CROUCH.
+ * does once a ball is done with — ADMIRE, LEAN, WATCH, TWIRL, BRUSH, SHADOW,
+ * SCRUB, and, out close to a milestone, SKY.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/actions-check.mjs http://127.0.0.1:5201
@@ -59,7 +59,7 @@ await page.addStyleTag({ content: '[class*=debug]{display:none!important}' });
 
 const keys = page.locator('.action-keys .action-key');
 check(await keys.count() === 8, 'eight keys along the foot of the picture', await keys.count());
-check(JSON.stringify(await keys.allTextContents()) === JSON.stringify(['ADMIRE', 'WATCH', 'TWIRL', 'BRUSH', 'SHADOW', 'SCRUB', 'SKY', 'CROUCH']), 'in order', (await keys.allTextContents()).join(' '));
+check(JSON.stringify(await keys.allTextContents()) === JSON.stringify(['ADMIRE', 'LEAN', 'WATCH', 'TWIRL', 'BRUSH', 'SHADOW', 'SCRUB', 'SKY']), 'in order', (await keys.allTextContents()).join(' '));
 
 const phase = () => page.evaluate(() => window.__cricket.snapshot().phase);
 const balls = () => page.evaluate(() => window.__cricket.snapshot().balls);
@@ -81,7 +81,7 @@ for (let i = 0; i < 120 && !moved; i++) { await page.waitForTimeout(100); moved 
 check(moved, 'that ball is played out first, and then he starts');
 const bowled = await balls();
 
-for (const [n, kind] of ['admire', 'watch', 'twirl', 'brush', 'shadow', 'scrub', 'sky', 'crouch'].entries()) {
+for (const [n, kind] of ['admire', 'lean', 'watch', 'twirl', 'brush', 'shadow', 'scrub', 'sky'].entries()) {
   console.log(kind);
   if (n > 0) await page.locator(`.action-key[data-kind="${kind}"]`).click();
   let furthest = 0, held = true, pictured = false;

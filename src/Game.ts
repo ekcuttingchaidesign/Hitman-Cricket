@@ -389,7 +389,8 @@ export class Game {
   /**
    * `?actions=1`: a row of keys on the screen, one a thing the batter does once
    * a ball is done with (`AfterBall`) — the crease tap, watching a loft go, the
-   * twirl, brushing the pad, the stroke rehearsed, the pitch scrubbed — so each can be looked at
+   * twirl, brushing the pad, the stroke rehearsed, the pitch scrubbed, the
+   * look to the sky — so each can be looked at
    * on a phone without waiting for the ball that brings it, which is only half
    * of them. A tap plays the stroke it follows, at no ball, and then it. Nothing
    * is bowled, scored or counted.
@@ -2556,7 +2557,7 @@ export class Game {
     // for it (`afterBall`): the crease tap after a classic drive, and so on.
     if (this.attempt) {
       const kind = afterBall(this.scene.stroke, {
-        scored: outcome.madeBatContact && outcome.runs > 0,
+        scored: outcome.madeBatContact && outcome.runs > 0, four: outcome.runs === 4,
         beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
         wicket: outcome.isWicket, milestone: !!this.milestoneDue,
         heartbreak: this.lesson < 0 && outNearMilestone(this.batterHistory),
@@ -3574,9 +3575,8 @@ const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
 ];
 /** `?actions=1`'s keys. */
 const ACTION_KEYS: readonly { label: string; kind: AfterBall }[] = [
-  { label: 'ADMIRE', kind: 'admire' }, { label: 'WATCH', kind: 'watch' }, { label: 'TWIRL', kind: 'twirl' },
-  { label: 'BRUSH', kind: 'brush' }, { label: 'SHADOW', kind: 'shadow' }, { label: 'SCRUB', kind: 'scrub' },
-  { label: 'SKY', kind: 'sky' }, { label: 'CROUCH', kind: 'crouch' },
+  { label: 'ADMIRE', kind: 'admire' }, { label: 'LEAN', kind: 'lean' }, { label: 'WATCH', kind: 'watch' }, { label: 'TWIRL', kind: 'twirl' },
+  { label: 'BRUSH', kind: 'brush' }, { label: 'SHADOW', kind: 'shadow' }, { label: 'SCRUB', kind: 'scrub' }, { label: 'SKY', kind: 'sky' },
 ];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [

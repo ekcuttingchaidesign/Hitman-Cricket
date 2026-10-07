@@ -57,14 +57,20 @@ describe('what the batter does once the ball is done with', () => {
     expect(AFTER_BALL_CHANCE).toBe(.5);
   });
 
-  it('out close to a milestone: always the sky or the haunches, never the same twice', () => {
+  it('out close to a milestone: always the look to the sky', () => {
     const out = { scored: false, beaten: false, wicket: true, milestone: false, heartbreak: true };
-    expect(afterBall(stroke('STRAIGHT'), out, null, 0)).toBe('sky');
-    expect(afterBall(stroke('STRAIGHT'), out, null, .99)).toBe('crouch');
-    // Whatever the roll: it is not one of the half that get one.
-    expect(afterBall(stroke('COVER_LONG_OFF'), out, 'sky', .99)).toBe('crouch');
-    expect(afterBall(stroke('COVER_LONG_OFF'), out, 'crouch', 0)).toBe('sky');
+    // Whatever the roll, and whatever he did last: it is not one of the half that get one.
+    for (const roll of [0, .5, .99]) expect(afterBall(stroke('STRAIGHT'), out, 'sky', roll)).toBe('sky');
     expect(afterBall(stroke('STRAIGHT'), { ...out, heartbreak: false }, null, 0)).toBeNull();
+  });
+
+  it('a drive for four: the bat looked at, or leant on with the legs crossed', () => {
+    const four = { ...scored, four: true };
+    expect(afterBall(stroke('STRAIGHT'), four, null, 0)).toBe('admire');
+    expect(afterBall(stroke('STRAIGHT'), four, null, AFTER_BALL_CHANCE * .75)).toBe('lean');
+    expect(afterBall(stroke('COVER_LONG_OFF'), four, 'lean', AFTER_BALL_CHANCE * .75)).toBe('admire');
+    // A two off the same drive is never leant on.
+    expect(afterBall(stroke('STRAIGHT'), scored, 'admire', 0)).toBeNull();
   });
 });
 
