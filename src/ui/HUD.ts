@@ -397,9 +397,8 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="restart" class="pause-key" type="button">${icon('restart')}<span>Restart</span></button>
               <button id="change-mode" class="pause-key" type="button">${icon('modes')}<span>Change mode</span></button>
             </div>
+            <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
             <p class="pause-counts">Only finished innings count towards your career.</p>
-            <button id="declare" class="pause-key pause-declare hidden" type="button">${icon('flag')}<span>Declare the innings</span></button>
-            <p id="declare-line" class="declare-line hidden">Ends the innings here and keeps your score</p>
             <p class="pause-group-label" id="pause-settings">Settings</p>
             <div class="pause-group" role="group" aria-labelledby="pause-settings">
               <button id="crowd-switch" class="pause-row" type="button" role="switch" aria-checked="true">

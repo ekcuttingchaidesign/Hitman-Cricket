@@ -2162,17 +2162,25 @@ body.start-screen #sound{pointer-events:auto}
 .pause-key svg{width:18px;height:18px;stroke-width:2}
 .pause-key:hover:not(:disabled){background:linear-gradient(180deg,#404b56 0%,#2c343d 100%)}
 .pause-key:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #14191e,0 4px 6px #0000004d,inset 0 1px 0 #ffffff1f}
-/* Declaring ends the innings: the ball's red, so it reads apart from the two that carry on. */
-.pause-declare{margin-top:14px;background:linear-gradient(180deg,#9b2a37 0%,#741c28 100%);box-shadow:0 5px 0 #2b0b0f,0 9px 10px #00000059,inset 0 1px 0 #ffffff26}
+/* Declaring ends the innings: the ball's red, so it reads apart from the two
+   keys that carry on. What it does, or when it opens, is the key's own second
+   line rather than a sentence under it, so the leaving keys stay one block
+   with the finished-innings line under all of them. */
+.pause-declare{flex-direction:column;gap:2px;height:auto;min-height:58px;margin-top:12px;padding:8px 14px;
+  background:linear-gradient(180deg,#9b2a37 0%,#741c28 100%);box-shadow:0 5px 0 #2b0b0f,0 9px 10px #00000059,inset 0 1px 0 #ffffff26}
+.pause-declare-name{display:flex;align-items:center;gap:8px}
+.pause-declare-line{font-family:var(--card);font-weight:600;font-size:12px;letter-spacing:0;color:#ffffffbf;white-space:normal}
 .pause-declare:hover:not(:disabled){background:linear-gradient(180deg,#ab3343 0%,#82222f 100%)}
 .pause-declare:active:not(:disabled){box-shadow:0 2px 0 #2b0b0f,0 4px 6px #0000004d,inset 0 1px 0 #ffffff26}
-/* What leaving costs, where the keys that leave are: one quiet line under
-   them, in the sheet rather than as a footnote off it. Plain text, no box —
-   a box made it one more thing to read before the keys. */
+/* Shut until twenty overs: not a faded red, which read as broken, but the
+   dark keys' grey with its words dimmed — there, plainly not yet. */
+.pause-declare:disabled{opacity:1;cursor:not-allowed;transform:none;color:#8a99a4;
+  background:linear-gradient(180deg,#262d34 0%,#1c2228 100%);box-shadow:0 5px 0 #11161a,inset 0 1px 0 #ffffff0f}
+.pause-declare:disabled .pause-declare-line{color:#74838e}
+/* What leaving costs, under the keys that leave: one quiet line, in the
+   sheet rather than as a footnote off it. Plain text, no box — a box made it
+   one more thing to read before the keys. */
 .pause-counts{margin:12px 0 0;font-size:12.5px;font-weight:600;line-height:1.4;text-align:center;color:#9fb0bc}
-/* Shut until twenty overs: there, so the player knows it is coming, and plainly not pressable. */
-.pause-declare:disabled{opacity:.42;cursor:not-allowed;box-shadow:0 5px 0 #2b0b0f99;transform:none}
-.pause-sheet .declare-line{margin:8px 0 0;font-size:12.5px;font-weight:600;color:#9fb0bc;text-align:center}
 /* The settings: a grouped list. */
 .pause-group-label{
   margin:22px 4px 8px;
@@ -4070,8 +4078,6 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 .mcard-dnb{margin:6px 0 0;font-size:11.5px;color:var(--quiet)}
 .mcard-keys{margin-top:10px}
 .mcard-keys :is(.story-key,.whatsapp-key) svg{width:17px;height:17px}
-.declare-line{margin:6px 0 0;font-size:12px;font-weight:600;color:var(--quiet,#9fb2bd);text-align:center}
-.declare-line.hidden{display:none}
 
 /* ── The claim strip, on the Test card ─────────────────────────────────────
    The same strip the other card carries, moved here for as long as this is the
