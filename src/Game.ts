@@ -30,7 +30,7 @@ import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
-import { afterBall, outNearMilestone } from './game/afterBall';
+import { afterBall, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall } from './entities/Batter';
 import {
   fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
@@ -263,6 +263,8 @@ export class Game {
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   /** What the batter last did once a ball was done with, so he does not do it twice running. */
   private lastAfterBall: AfterBall | null = null;
+  /** Balls since he last did any of them, and sweeps and scoops scored off: see `Habit`. */
+  private afterBallSince = Infinity; private sweepsScored = 0;
   /** A dismissed batter's reaction, which the result is held open for: see `resultMs`. */
   private afterBallUntil = -Infinity;
   private best = 0; private bounced = false; private seed = 0;
@@ -1120,6 +1122,7 @@ export class Game {
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     this.playedFrom = 0; this.changed = null; this.felled = false;
     this.wasCritical = false; this.noticeDue = false;
+    this.lastAfterBall = null; this.afterBallSince = Infinity; this.sweepsScored = 0;
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed);
@@ -2280,7 +2283,9 @@ export class Game {
         scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') && 'REVERSE',
       ] as const).filter((special): special is NonNullable<Primed> => !!special);
       this.primed = this.specials[0] ?? null;
-      this.scene.reset(); this.input.reset();
+      // He may still be finishing what he did after the last ball: the bowler
+      // runs in while he does (see `presentResult`).
+      this.scene.reset(true); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
       this.scene.express(!!this.delivery.express);
@@ -2554,25 +2559,33 @@ export class Game {
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
     // What he does once the ball is done with, on some of the balls that call
-    // for it (`afterBall`): the crease tap after a classic drive, and so on.
+    // for it (`afterBall`): looking at the bat after a classic drive, and so on.
     if (this.attempt) {
-      const kind = afterBall(this.scene.stroke, {
-        scored: outcome.madeBatContact && outcome.runs > 0, four: outcome.runs === 4,
+      const stroke = this.scene.stroke, scored = outcome.madeBatContact && outcome.runs > 0;
+      const kind = afterBall(stroke, {
+        scored, four: outcome.runs === 4,
         beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
         wicket: outcome.isWicket, milestone: !!this.milestoneDue,
         heartbreak: this.lesson < 0 && outNearMilestone(this.batterHistory),
-      }, this.lastAfterBall, Math.random());
-      // The bowler waits at his mark until he is back in his guard, as he does
-      // for a banner: the next ball must not find him halfway through it. Out,
-      // the result is held for him too, so that neither the next man nor the
-      // end of the innings comes in over the top of it.
+        last: this.lesson < 0 && !!(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended),
+      }, {
+        last: this.lastAfterBall, since: this.afterBallSince, sweeps: this.sweepsScored,
+        history: this.batterHistory, pace: PACES[this.mode],
+        favourites: this.marathon ? HABITS[(this.marathon.batters.length - 1) % HABITS.length] : undefined,
+      }, Math.random());
+      if (scored && stroke && !stroke.charging && (stroke.swept || stroke.shot === 'SCOOP' || stroke.shot === 'REVERSE_SCOOP')) this.sweepsScored++;
+      this.afterBallSince++;
+      // The bowler waits at his mark only as long as he must: he runs in while
+      // the batter finishes, and the ball leaves his hand as the batter is back
+      // in his guard, not a run-up later. Out, the result is held for him, so
+      // that neither the next man nor the end of the innings comes in over it.
       if (kind) {
         const until = this.scene.afterBall(kind, this.elapsed);
-        this.bannerUntil = Math.max(this.bannerUntil, until);
+        this.bannerUntil = Math.max(this.bannerUntil, until - GAME.runupMs);
         if (outcome.isWicket) this.afterBallUntil = until;
-        this.lastAfterBall = kind;
+        this.lastAfterBall = kind; this.afterBallSince = 0;
       }
-    }
+    } else this.afterBallSince++;
     // The stands for a boundary, once the call is made and not when the ball
     // leaves the bat: a skied one may yet be caught.
     if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {

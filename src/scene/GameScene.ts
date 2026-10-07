@@ -849,12 +849,13 @@ export class GameScene {
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
 
-  reset() {
+  /** A new ball. `carryOn`: see `Batter.reset`. */
+  reset(carryOn = false) {
     this.cutout();
     this.crowd?.settle(this.clock);
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
-    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
+    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.field.reset(); this.released = false; this.gathered = false;

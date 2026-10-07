@@ -1750,6 +1750,8 @@ export class Batter {
   private afterward: { from: number; kind: AfterBall; keys: Keys | null } | null = null;
   /** A classic drive's finish held a moment longer: see `ADMIRE_MS`. */
   private admiring = false;
+  /** A new ball's reset, put off until he has finished: see `reset`. */
+  private resetDue = false;
   /** The pose he met the ball with, and the finish he went on to, for rehearsing it after a miss. */
   private struck: Pose | null = null;
   private followed: Pose | null = null;
@@ -1988,13 +1990,23 @@ export class Batter {
     this.pulling = this.cutting = this.squaring = this.lofted = this.sweeping = this.levelled = false;
   }
 
-  reset() {
-    this.poseAge = Infinity;
+  /**
+   * Back to the guard for a new ball. `carryOn`, as the bowler starts his
+   * run-up, lets whatever he is doing after the last ball finish first: the
+   * stroke it follows still shapes his arms and knees, so it is put away only
+   * once he is done, and he comes back into the guard he is by then waiting in.
+   */
+  reset(carryOn = false) {
+    if (carryOn && this.afterward) { this.resetDue = true; return; }
+    this.clear(); this.anticipation = 0;
+    this.apply(GUARD);
+  }
+  private clear() {
+    this.poseAge = Infinity; this.resetDue = false;
     this.felledAt = -Infinity;
     this.celebratedAt = -Infinity; this.afterward = null; this.admiring = false; this.struck = null; this.followed = null;
-    this.swingStart = -Infinity; this.contactTime = -Infinity; this.anticipation = 0; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
+    this.swingStart = -Infinity; this.contactTime = -Infinity; this.pulling = false; this.cutting = false; this.squaring = false; this.lofted = false; this.sweeping = false; this.levelled = false; this.charging = false;
     this.root.position.set(GAME.stanceX, 0, GAME.stanceZ); this.root.rotation.set(0, 0, 0);
-    this.apply(GUARD);
   }
   /** The stroke last played, as `afterBall` needs it. */
   get played(): PlayedStroke {
@@ -2020,7 +2032,7 @@ export class Batter {
     // Three charges, one per drive input: straight, over cover, over long-on.
     // Each is one stroke on one line whichever way the ball was actually going.
     this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
-    this.afterward = null; this.admiring = false; this.struck = null; this.followed = null;
+    this.afterward = null; this.resetDue = false; this.admiring = false; this.struck = null; this.followed = null;
     this.charging = charging; this.pulling = !charging && shot === 'LEG' && ballY > .85;
     this.cutting = !charging && shot === 'SQUARE_CUT' && ballY > CUT.highBallY;
     // Wide and full off the off-side input: drive it square rather than through
@@ -2152,10 +2164,15 @@ export class Batter {
     if (after && since >= 0 && since < lengthOf(after.kind) && !this.charging && age >= STROKE_DURATION_MS) {
       const keys = after.keys ??= keysFor(after.kind, this.shot, this.struck, this.followed);
       let k = 1; while (k < keys.length - 1 && since >= keys[k][0]) k++;
-      const [from, a] = keys[k - 1], [to, b, curve] = keys[k];
+      const [from, a] = keys[k - 1], [to, guard, curve] = keys[k];
+      // The bowler already running in: home to the guard he waits in now,
+      // the bat on its way up, rather than the one he left.
+      const b = this.resetDue && k === keys.length - 1 ? mix(GUARD, BACKLIFT, this.anticipation) : guard;
       this.apply(mix(a, b, (since - from) / (to - from), curve));
       return;
     }
+    // Done, with the next ball on its way: the reset the run-up asked for.
+    if (this.resetDue) { this.clear(); age = now - this.swingStart; }
     // The pose he met the ball with, kept for rehearsing it if he missed.
     if (!this.struck && age >= STROKE_CONTACT_MS && age < STROKE_DURATION_MS) this.struck = this.pose;
     if (!this.followed && age >= STROKE_FINISH_MS && age < STROKE_DURATION_MS) this.followed = this.pose;

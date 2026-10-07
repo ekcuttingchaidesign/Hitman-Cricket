@@ -341,6 +341,34 @@ describe('the bat and the body', () => {
     for (let i = 0; i < 3; i++) expect(Math.abs(last.grip[i] - still.grip[i]), kind).toBeLessThan(.01);
   });
 
+  for (const [kind, shot, play] of AFTER) it(`${kind} after a ${shot.toLowerCase()} finishes through the next run-up and leaves him ready`, () => {
+    // The bowler runs in while he finishes: the new ball's reset is asked for
+    // a run-up before he is done, and is taken once he is, with the bat
+    // coming up for the ball the whole time and nothing jumping.
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); play(batter);
+    const asked = kind === 'admire' || kind === 'lean' ? 150 : 600;
+    for (let t = 0; t < asked; t += 2) batter.update(t);
+    const done = batter.afterBall(kind, asked), runup = done - GAME.runupMs;
+    for (let t = asked; t < runup; t += 2) batter.update(t);
+    let previous = batter.inspect();
+    batter.reset(true);
+    for (let t = runup; t <= done + 200; t += 2) {
+      batter.prepare(Math.min(1, (t - runup) / GAME.runupMs)); batter.update(t);
+      const pose = batter.inspect(), where = `${kind} ${shot} @${t}`;
+      for (let i = 0; i < 2; i++) {
+        expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+        expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+      }
+      expect(new Vector3(...pose.grip).distanceTo(new Vector3(...previous.grip)), where).toBeLessThan(.02);
+      previous = pose;
+    }
+    // Waiting for the ball as a man who had stood still all along would be,
+    // and the stroke he played put away with the last ball.
+    const ready = new Batter(); ready.reset(); ready.prepare(1); ready.update(done + 200);
+    for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - ready.inspect().grip[i]), kind).toBeLessThan(.01);
+    expect(batter.played, kind).toMatchObject({ pulled: false, swept: false, lofted: false });
+  });
+
   it('holds an admired drive at its finish, and only if asked before it gets there', () => {
     const held = new Batter(); held.reset(); held.prepare(1); held.update(0); held.swing('STRAIGHT', 0, 0, .54);
     held.update(150); held.afterBall('admire', 150);
