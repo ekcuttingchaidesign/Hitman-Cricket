@@ -46,6 +46,13 @@ interface Pose {
    * blade turns in it.
    */
   spin?: number;
+  /**
+   * How far the bat keeps the face this pose gives it, between balls. Then the
+   * face is otherwise the straight drive's, carried onto the handle's line,
+   * which has the blade on its edge whatever a pose asks: the scrub's bat,
+   * laid on his shoulder on its back with the face to the sky, needs its own.
+   */
+  ownFace?: number;
 }
 const V = (p: Point) => new THREE.Vector3(...p);
 const UP = new THREE.Vector3(0, 1, 0);
@@ -1305,7 +1312,7 @@ const SCRUB_KEYS: Keys = (() => {
   // the shoulder of the blade.
   const rest = shoulderOf(body, 1).addScaledVector(out, SCRUB_REST[0]).addScaledVector(UP, SCRUB_REST[1]).addScaledVector(face, SCRUB_REST[2]);
   const grip = rest.addScaledVector(handle, SCRUB_REST[3]);
-  const over: Pose = { ...body, grip: point(grip), batUp: point(handle), batFace: point(face),
+  const over: Pose = { ...body, grip: point(grip), batUp: point(handle), batFace: point(face), ownFace: 1,
     fist: point(shoulderOf(body, 0).addScaledVector(UP, -.50).addScaledVector(outwards(body, 0), .20)) };
   // Lifted on and off over the top: swung straight up from the guard onto
   // the shoulder, the blade came up through it.
@@ -1615,6 +1622,7 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     shoulderLift: THREE.MathUtils.lerp(a.shoulderLift ?? 0,b.shoulderLift ?? 0,t),
     release: THREE.MathUtils.lerp(a.release ?? 0, b.release ?? 0, t),
     spin: THREE.MathUtils.lerp(a.spin ?? 0, b.spin ?? 0, t),
+    ownFace: THREE.MathUtils.lerp(a.ownFace ?? 0, b.ownFace ?? 0, t),
     // A pose that never let go has no fist of its own: it takes the other's,
     // so the hand leaves the handle for where it is going, not for the origin.
     fist: a.fist || b.fist ? point(a.fist ?? b.fist!, b.fist ?? a.fist!) : undefined,
@@ -2467,7 +2475,11 @@ export class Batter {
       const referenceQ=batOrientation(STROKES.STRAIGHT.contact).clone().slerp(batOrientation(reference),idle?0:ease(THREE.MathUtils.clamp(this.poseAge/impact,0,1)));
       const referenceUp=UP.clone().applyQuaternion(referenceQ);
       const transported=new THREE.Quaternion().setFromUnitVectors(referenceUp,up).multiply(referenceQ);
-      if(idle || (driveShot && this.poseAge<=impact)) this.bat.quaternion.copy(transported);
+      if(idle || (driveShot && this.poseAge<=impact)) {
+        this.bat.quaternion.copy(transported);
+        // Turned about the handle to the pose's own face, as far as it asks.
+        if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
+      }
       else {
         // Return the same corrected guard without snapping the other strokes.
         const duration=STROKE_DURATION_MS;
