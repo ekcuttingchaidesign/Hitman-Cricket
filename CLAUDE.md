@@ -235,6 +235,18 @@ for that ball to be dead, which is when a real one goes up. It is the same
 celebration with none of the innings: no runs, nothing counted, nothing sent.
 Add `&mode=marathon` for the Test kit and ground.
 
+## `?actions=1`
+
+A row of keys along the foot of the picture — ADMIRE, WATCH, TWIRL, BRUSH,
+SHADOW — one a thing the batter does once a ball is done with (`AfterBall` in
+`src/entities/Batter.ts`), for looking at each on a phone without waiting for
+the ball that brings it, which is only half of the balls that call for one
+(`afterBall` in `src/game/afterBall.ts`). A tap between balls plays the stroke
+it follows, at no ball, and then it, and the bowler waits at his mark until he
+is back in his guard; with a ball on its way it waits for that ball to be dead.
+Nothing is bowled, scored or counted, so it is not practice
+(`tests/practice.test.ts` names it). `scripts/actions-check.mjs` walks it.
+
 ## `?rate=1`
 
 A row of keys along the foot of the picture — GAME, BLAST, MARATHON, SURVIVAL,

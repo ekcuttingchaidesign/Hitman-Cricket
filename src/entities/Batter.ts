@@ -1213,9 +1213,10 @@ function shadowKeys(struck: Pose): Keys {
 const keysFor = (kind: AfterBall, shot: ShotType, struck: Pose | null): Keys =>
   kind === 'admire' ? TAP_KEYS : kind === 'watch' ? watchKeys(shot) : kind === 'twirl' ? TWIRL_KEYS
     : kind === 'brush' ? BRUSH_KEYS : shadowKeys(struck ?? GUARD);
+/** How long each takes once the stroke is home: the same whatever stroke it follows. */
+const lengthOf = (kind: AfterBall) => { const keys = keysFor(kind, 'STRAIGHT', GUARD); return keys[keys.length - 1][0]; };
 /** Longest of them, for whatever has to wait them out. */
-export const AFTER_BALL_MS = Math.max(...(['admire', 'watch', 'twirl', 'brush', 'shadow'] as AfterBall[])
-  .map(kind => { const keys = keysFor(kind, 'STRAIGHT', GUARD); return keys[keys.length - 1][0]; })) + ADMIRE_MS;
+export const AFTER_BALL_MS = Math.max(...(['admire', 'watch', 'twirl', 'brush', 'shadow'] as AfterBall[]).map(lengthOf)) + ADMIRE_MS;
 const RAISED = aloft(FACING, [.33, .10], [.54, .28]);
 /** The pump: fist and bat drawn down together, the knees giving with them. */
 const PUMPED = aloft({ ...FACING, hip: [-.03, .93, -.03], chest: [-.01, 1.27, -.01], headDown: -.14 }, [.26, .10], [.38, .26]);
@@ -1609,7 +1610,7 @@ export class Batter {
   private felledFrom: Pose = GUARD;
   private celebratedAt = -Infinity;
   /** What he is doing once the ball is done with, and from when: see `afterBall`. */
-  private afterward: { from: number; keys: Keys } | null = null;
+  private afterward: { from: number; kind: AfterBall; keys: Keys | null } | null = null;
   /** A classic drive's finish held a moment longer: see `ADMIRE_MS`. */
   private admiring = false;
   /** The pose he met the ball with, for rehearsing it after a miss. */
@@ -1860,10 +1861,13 @@ export class Batter {
    * if it is asked for before the finish is reached: it cannot be taken back.
    */
   afterBall(kind: AfterBall, now: number) {
-    if (this.charging || !Number.isFinite(this.swingStart)) return;
+    if (this.charging || !Number.isFinite(this.swingStart)) return now;
     if (kind === 'admire' && now - this.swingStart <= ADMIRE_AT) this.admiring = true;
     const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : 0);
-    this.afterward = { from: Math.max(now, home), keys: keysFor(kind, this.shot, this.struck) };
+    // The keys are drawn up when he starts, not now: asked for before the
+    // stroke has met the ball, there is no stroke yet for `shadow` to rehearse.
+    this.afterward = { from: Math.max(now, home), kind, keys: null };
+    return this.afterward.from + lengthOf(kind);
   }
   swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false) {
     // Three charges, one per drive input: straight, over cover, over long-on.
@@ -1970,7 +1974,7 @@ export class Batter {
   }
   private waiting(pose: Pose, now: number, age: number): Pose {
     const sinceStroke = Number.isFinite(age) ? age - STROKE_DURATION_MS - (this.charging ? ADVANCE.walkBackMs : 0) : Infinity;
-    const sinceSettle = this.afterward ? now - this.afterward.from - this.afterward.keys[this.afterward.keys.length - 1][0] : Infinity;
+    const sinceSettle = this.afterward ? now - this.afterward.from - lengthOf(this.afterward.kind) : Infinity;
     const sinceCelebration = now - this.celebratedAt - CELEBRATION_LENGTHS[this.celebration];
     const weight = ease(THREE.MathUtils.clamp(Math.min(sinceStroke, sinceCelebration, sinceSettle) / 450, 0, 1)) * (1 - this.anticipation);
     const breath = Math.sin(now * Math.PI * 2 / 3700) * weight;
@@ -1996,8 +2000,8 @@ export class Batter {
       return this.applyCelebration(celebrating);
     }
     const after = this.afterward, since = after ? now - after.from : -1;
-    if (after && since >= 0 && since < after.keys[after.keys.length - 1][0] && !this.charging && age >= STROKE_DURATION_MS) {
-      const keys = after.keys;
+    if (after && since >= 0 && since < lengthOf(after.kind) && !this.charging && age >= STROKE_DURATION_MS) {
+      const keys = after.keys ??= keysFor(after.kind, this.shot, this.struck);
       let k = 1; while (k < keys.length - 1 && since >= keys[k][0]) k++;
       const [from, a] = keys[k - 1], [to, b] = keys[k];
       this.apply(mix(a, b, (since - from) / (to - from)));

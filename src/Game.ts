@@ -385,6 +385,17 @@ export class Game {
    */
   private readonly momentKeys = new URLSearchParams(location.search).get('moments') === '1';
   /**
+   * `?actions=1`: a row of keys on the screen, one a thing the batter does once
+   * a ball is done with (`AfterBall`) — the crease tap, watching a loft go, the
+   * twirl, brushing the pad, the stroke rehearsed — so each can be looked at
+   * on a phone without waiting for the ball that brings it, which is only half
+   * of them. A tap plays the stroke it follows, at no ball, and then it. Nothing
+   * is bowled, scored or counted.
+   */
+  private readonly actionKeys = new URLSearchParams(location.search).get('actions') === '1';
+  /** One asked for while a ball was in play, for when it is dead. */
+  private actionAsked: AfterBall | null = null;
+  /**
    * `?rate=1`: a row of keys on the screen, one a thing the stars are asked
    * about — the game and each mode — so the sticker can be looked at and played
    * with on a phone without finishing the innings that would earn it. The same
@@ -469,6 +480,7 @@ export class Game {
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
+    if (this.actionKeys) this.hud.actionKeys(ACTION_KEYS, kind => this.askAction(kind));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
       bowler => { this.nets = { ...this.nets, bowler }; this.applyNets(); },
       () => { this.nets = { ...this.nets, round: !this.nets.round }; this.applyNets(); });
@@ -1321,6 +1333,7 @@ export class Game {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
     if (phase === 'READY' && this.marathon) this.tellLevel();
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
+    if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
   }
   /**
    * A moment asked for with `?moments=1`'s keys. Between balls it goes up at
@@ -1333,6 +1346,15 @@ export class Game {
       this.celebrate(moment, true);
       this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + this.celebrating);
     } else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.momentAsked = moment;
+  }
+  /**
+   * One of `?actions=1`'s keys. Between balls he plays it at once and the
+   * bowler waits at his mark until he is back in his guard; with a ball on its
+   * way it waits for that ball to be dead, as a moment does.
+   */
+  private askAction(kind: AfterBall) {
+    if (this.phase === 'READY') this.bannerUntil = Math.max(this.bannerUntil, this.scene.rehearse(kind, this.elapsed));
+    else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.actionAsked = kind;
   }
   /**
    * At the top of an over, whether it is the one the innings changes in: the
@@ -3536,6 +3558,11 @@ export class Game {
 const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
   { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+];
+/** `?actions=1`'s keys. */
+const ACTION_KEYS: readonly { label: string; kind: AfterBall }[] = [
+  { label: 'ADMIRE', kind: 'admire' }, { label: 'WATCH', kind: 'watch' }, { label: 'TWIRL', kind: 'twirl' },
+  { label: 'BRUSH', kind: 'brush' }, { label: 'SHADOW', kind: 'shadow' },
 ];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [

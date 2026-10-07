@@ -1,3 +1,4 @@
+import type { AfterBall } from '../entities/Batter';
 import { MarathonInnings } from '../game/Marathon';
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
@@ -2689,6 +2690,25 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       key.type = 'button'; key.className = 'moment-key'; key.textContent = label;
       key.setAttribute('aria-label', `Play the ${label} celebration`);
       key.addEventListener('click', () => pick(moment));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
+   * `?actions=1`'s keys: one a thing the batter does after a ball, along the
+   * foot of the picture, kept from the bat underneath the way the moments' are.
+   */
+  actionKeys(keys: readonly { label: string; kind: AfterBall }[], pick: (kind: AfterBall) => void) {
+    const row = document.createElement('div');
+    row.className = 'action-keys';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Play what the batter does after a ball');
+    for (const { label, kind } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'action-key'; key.dataset.kind = kind; key.textContent = label;
+      key.setAttribute('aria-label', `Play the ${label.toLowerCase()} after a ball`);
+      key.addEventListener('click', () => pick(kind));
       row.append(key);
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());

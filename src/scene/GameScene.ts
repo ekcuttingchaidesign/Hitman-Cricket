@@ -605,6 +605,15 @@ export class GameScene {
   newBatter() { this.batter.reset(); }
   /** What the batter does once the ball is done with (`Batter.afterBall`). */
   afterBall(kind: AfterBall, now: number) { this.batter.afterBall(kind, now); }
+  /**
+   * `?actions=1`: the stroke that earns `kind` played at no ball, and then
+   * `kind` itself. When he will be back in his guard.
+   */
+  rehearse(kind: AfterBall, now: number) {
+    const [shot, height, lofted, swept] = REHEARSED[kind];
+    this.batter.swing(shot, now, 0, height, GAME.contactZ, false, lofted, swept);
+    return this.batter.afterBall(kind, now);
+  }
   /** The stroke he played, for choosing what he does after it. */
   get stroke() { return this.batter.played; }
   /**
@@ -1242,3 +1251,9 @@ export class GameScene {
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); forgetMaterials(); this.renderer.dispose();
   }
 }
+
+/** The stroke `?actions=1` plays for each: the one each follows in an innings. */
+const REHEARSED: Record<AfterBall, [ShotType, number, boolean, boolean]> = {
+  admire: ['COVER_LONG_OFF', .54, false, false], watch: ['STRAIGHT', .54, true, false], twirl: ['LEG', 1.1, false, false],
+  brush: ['LEG', .48, false, true], shadow: ['COVER_LONG_OFF', .54, false, false],
+};

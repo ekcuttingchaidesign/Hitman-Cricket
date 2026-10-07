@@ -2739,6 +2739,40 @@ body.survive-mode #scoreboard{display:none}
 }
 .moment-key:active{background:#e9582b}
 .moment-key:focus-visible{outline:2px solid #ffd23f;outline-offset:1px}
+/* `?actions=1`: a key a thing the batter does after a ball, along the foot of
+   the picture; above the moments' keys when both are asked for. */
+.action-keys{
+  position:absolute;
+  left:50%;
+  bottom:calc(30px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  z-index:6;
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:4px;
+  width:min(100% - 24px,460px);
+  padding:5px;
+  border-radius:14px;
+  background:#071219cc
+}
+.moment-keys~.action-keys{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+.rate-preview~.action-keys{bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+.rate-preview~.moment-keys~.action-keys{bottom:calc(118px + env(safe-area-inset-bottom,0px))}
+.action-key{
+  min-width:0;
+  height:34px;
+  padding:0;
+  border:1px solid #ffffff2e;
+  border-radius:9px;
+  background:#152b3c;
+  color:#f4efe2;
+  font:700 11px/1 var(--card,system-ui);
+  letter-spacing:.4px;
+  white-space:nowrap;
+  cursor:pointer
+}
+.action-key:active{background:#e9582b}
+.action-key:focus-visible{outline:2px solid #ffd23f;outline-offset:1px}
 /* `?rate=1`: a key a thing the stars ask about, along the foot of the picture.
    The sticker is lifted clear of them, so the keys stay in reach while it is up
    and a different one can be asked for straight away. */
