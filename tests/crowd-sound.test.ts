@@ -58,8 +58,11 @@ describe('the crowd', () => {
     expect(nearMiss({ ...near, outcome: { ...missed, defended: true } })).toBe(false);
     expect(nearMiss({ ...near, outcome: { ...missed, hit: { where: 'RIBS' as const, damage: 10 } } })).toBe(false);
     // Quieter than a wicket's, and a Test's wicket quieter than the Blast's.
-    expect(GROAN.near).toBeLessThan(GROAN.outTest);
-    expect(GROAN.outTest).toBeLessThan(GROAN.out);
+    expect(GROAN.near.level).toBeLessThan(GROAN.outTest.level);
+    expect(GROAN.outTest.level).toBeLessThan(GROAN.out.level);
+    // The murmur gives way to it, a near thing's least.
+    expect(GROAN.near.under).toBeGreaterThan(GROAN.out.under);
+    for (const groan of Object.values(GROAN)) expect(groan.under).toBeLessThan(1);
   });
 });
 

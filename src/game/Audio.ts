@@ -1,5 +1,5 @@
 import type { ShotOutcome } from './types';
-import type { Cheer, CheerSize } from './crowd';
+import { GROAN_SHAPE, type Cheer, type CheerSize, type Groan } from './crowd';
 type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'stumps';
 /**
  * The music, and the screen each piece belongs to.
@@ -128,6 +128,8 @@ export class GameAudio {
   private crowdHeld = false;
   /** Cheers still sounding, which a wicket cuts short. */
   private cheers = new Set<{ source: AudioBufferSourceNode; gain: GainNode }>();
+  /** Groans still sounding: kept apart from the cheers, which a wicket cuts short and its own groan it must not. */
+  private groans = new Set<{ source: AudioBufferSourceNode; gain: GainNode }>();
   /** The clip each size last played, so the next is the other one. */
   private lastClip = new Map<CheerSize, string>();
   private loading: Promise<void> | null = null;
@@ -427,7 +429,7 @@ export class GameAudio {
       session: session ? `${session.type}/${session.state ?? '?'}` : 'none',
       // The crowd: its clips decoded, the murmur's level as it is this
       // moment, and how many cheers are sounding.
-      crowdClips: this.crowdClips.size, murmur: this.murmur ? +this.murmur.gain.gain.value.toFixed(3) : 0, cheering: this.cheers.size,
+      crowdClips: this.crowdClips.size, murmur: this.murmur ? +this.murmur.gain.gain.value.toFixed(3) : 0, cheering: this.cheers.size, groaning: this.groans.size,
     };
   }
   /**
@@ -526,40 +528,54 @@ export class GameAudio {
   /**
    * A wicket: the murmur down to `depth` of itself almost at once, any cheer
    * still going cut short with it, and the murmur back over `recover` seconds
-   * after `hold`.
+   * after `hold`. With a groan, `at` seconds from now: as the groan dies away,
+   * so the stands go from the groan into the quiet rather than the groan
+   * playing over a silence that is not its own.
    */
-  hushCrowd(depth: number, hold: number, recover: number) {
+  hushCrowd(depth: number, hold: number, recover: number, at = 0) {
     const murmur = this.murmur, ctx = this.context;
-    this.fadeCheers(.25);
+    this.fadeVoices(this.cheers, .25);
     if (!murmur || !ctx || this.crowdHeld) return;
-    const now = ctx.currentTime, gain = murmur.gain.gain;
+    const now = ctx.currentTime + at, gain = murmur.gain.gain;
     holdAt(gain, now);
-    gain.setTargetAtTime(this.murmurLevel * depth, now, .2);
+    gain.setTargetAtTime(this.murmurLevel * depth, now, .3);
     gain.setTargetAtTime(this.murmurLevel, now + hold, recover);
   }
   /**
-   * The groan, at `level` from nought to one, `at` seconds from now: a wicket,
-   * or in a Test a ball that only just missed the bat (`crowd.ts`'s `GROAN`).
-   * Laid over the murmur like a cheer, and cut short like one by a pause.
+   * The groan (`crowd.ts`'s `Groan`), `at` seconds from now: a wicket, or in a
+   * Test a ball that only just missed the bat. It is the same crowd as the
+   * murmur and has to sound it, so the two are crossfaded: the groan comes up
+   * over a fifth of a second as the murmur gives way to it, and goes as the
+   * murmur comes back. Switched on at full over a murmur that stayed where it
+   * was, or that had already dropped away, it was a second recording laid on.
    */
-  groan(level: number, at = 0) {
+  groan(groan: Groan, at = 0) {
     const ctx = this.context, buffer = this.crowdClips.get(GROAN_CLIP);
     if (!ctx || !buffer || this.muted || this.disposed || this.crowdHeld) return;
     if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
+    const { rise, falls, fall } = GROAN_SHAPE;
     const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime + at;
     source.buffer = buffer;
-    gain.gain.value = Math.max(0, Math.min(1, level));
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.setTargetAtTime(Math.max(0, Math.min(1, groan.level)), now, rise);
+    gain.gain.setTargetAtTime(0, now + falls, fall);
     source.connect(gain); gain.connect(ctx.destination);
-    source.start(now);
+    source.start(now); source.stop(now + Math.min(buffer.duration, falls + fall * 5));
     const voice = { source, gain };
-    this.cheers.add(voice);
-    source.onended = () => { source.disconnect(); gain.disconnect(); this.cheers.delete(voice); };
+    this.groans.add(voice);
+    source.onended = () => { source.disconnect(); gain.disconnect(); this.groans.delete(voice); };
+    const murmur = this.murmur;
+    if (!murmur) return;
+    holdAt(murmur.gain.gain, now);
+    murmur.gain.gain.setTargetAtTime(this.murmurLevel * groan.under, now, rise * 1.5);
+    murmur.gain.gain.setTargetAtTime(this.murmurLevel, now + falls, fall * 1.5);
   }
-  private fadeCheers(over: number) {
+  private fadeCheers(over: number) { this.fadeVoices(this.cheers, over); this.fadeVoices(this.groans, over); }
+  private fadeVoices(voices: Set<{ source: AudioBufferSourceNode; gain: GainNode }>, over: number) {
     const ctx = this.context;
     if (!ctx) return;
     const now = ctx.currentTime;
-    this.cheers.forEach(({ source, gain }) => {
+    voices.forEach(({ source, gain }) => {
       holdAt(gain.gain, now);
       gain.gain.setTargetAtTime(0, now, over / 3);
       try { source.stop(now + over * 1.5); } catch { /* Already stopped. */ }
@@ -568,8 +584,10 @@ export class GameAudio {
   /** Everything from the stands stopped where it stands: the sound off, the tab gone, the page closing. */
   private silenceCrowd() {
     if (this.murmur) { try { this.murmur.source.stop(); } catch { /* Already ended. */ } this.murmur = null; }
-    this.cheers.forEach(({ source }) => { try { source.stop(); } catch { /* Already ended. */ } });
-    this.cheers.clear();
+    for (const voices of [this.cheers, this.groans]) {
+      voices.forEach(({ source }) => { try { source.stop(); } catch { /* Already ended. */ } });
+      voices.clear();
+    }
   }
   play(kind: Sound) {
     if (!this.context || this.muted || this.disposed) return;

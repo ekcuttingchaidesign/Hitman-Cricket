@@ -37,19 +37,32 @@ export const MURMUR = { blast: .1, test: .07 } as const;
 /** The bowler running in: how far the murmur lifts, and how quickly it settles once the ball is gone. */
 export const RUNUP = { swell: .22, settle: .9 } as const;
 /**
- * A wicket: the murmur down to this share of itself almost at once, held, and
- * back over `recover` seconds, with the groan over it (`GROAN`).
+ * A wicket: the groan (`GROAN`), and as it dies away, `after` seconds in, the
+ * murmur down to `depth` of itself, held, and back over `recover` seconds.
  */
-export const HUSH = { depth: .25, hold: 1.4, recover: 2.5 } as const;
-/** And for the one who goes close to a milestone, or is carried off: a soft cheer as he goes, after the quiet. */
-export const SEND_OFF: Cheer & { after: number } = { size: 'soft', peak: .42, decay: 1.8, swell: .2, after: 2.2 };
+export const HUSH = { depth: .25, after: 1.3, hold: 1.4, recover: 2.5 } as const;
+/** And for the one who goes close to a milestone, or is carried off: a soft cheer as he goes, once the quiet has come. */
+export const SEND_OFF: Cheer & { after: number } = { size: 'soft', peak: .42, decay: 1.8, swell: .2, after: 3 };
 
 /**
- * The groan's loudness: for a wicket, a Test's a little under the Blast's as
- * all its cheers are, and for a near thing quieter again — an intake of breath
- * rather than a loss.
+ * A groan: how loud, from nought to one, and the share of itself the murmur
+ * gives way to while it sounds — it is the same crowd, not another one on top.
  */
-export const GROAN = { out: .8, outTest: .65, near: .5 } as const;
+export interface Groan { level: number; under: number }
+/**
+ * For a wicket, a Test's a little under the Blast's as all its cheers are; for
+ * a near thing quieter again, an intake of breath rather than a loss, and the
+ * murmur hardly giving way to it.
+ */
+export const GROAN = {
+  out: { level: .8, under: .5 }, outTest: { level: .65, under: .5 }, near: { level: .5, under: .7 },
+} as const satisfies Record<string, Groan>;
+/**
+ * Its shape, in seconds: up on a time constant of `rise`, falling from `falls`
+ * on one of `fall`, the clip's own two seconds rounded off; the murmur dips
+ * and comes back on the same curve.
+ */
+export const GROAN_SHAPE = { rise: .07, falls: 1.3, fall: .3 } as const;
 
 /**
  * A near thing: in a Test, off the express bowler, a stroke played that the

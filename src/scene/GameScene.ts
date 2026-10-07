@@ -548,7 +548,8 @@ export class GameScene {
     if (time === this.now) return;
     this.now = time;
     this.crowd?.setNight(time === 'night');
-    this.bursts.setNight(time === 'night');
+    // Day breaking on a show takes it down: there are none by day.
+    if (time !== 'night') this.bursts.stop();
     const palette = this.sky.time(time), light = LIGHTING[time];
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
@@ -629,10 +630,10 @@ export class GameScene {
   /**
    * Fireworks for `ms` from `now`, in the sky beyond the far stand: one burst
    * over the middle on a screen taller than it is wide, one either side on a
-   * wide one. None with reduced motion.
+   * wide one. Only after dark, in whatever game asks; none with reduced motion.
    */
   fireworks(now: number, ms: number) {
-    if (this.reducedMotion) return;
+    if (this.reducedMotion || this.now !== 'night') return;
     this.bursts.show(now, ms, this.camera.aspect >= 1);
   }
   get fireworksUp() { return this.bursts.up; }

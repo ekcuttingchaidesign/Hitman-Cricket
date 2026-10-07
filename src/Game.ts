@@ -2620,8 +2620,8 @@ export class Game {
     // A wicket goes quiet under a groan; one that cost him a milestone, or a
     // man carried off, is sent off with a softer cheer once it has.
     if (outcome.isWicket || this.felled) {
-      this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover);
       this.audio.groan(this.test ? GROAN.outTest : GROAN.out);
+      this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover, HUSH.after);
       if (this.felled || (this.lesson < 0 && outNearMilestone(this.batterHistory))) this.audio.cheer(SEND_OFF, SEND_OFF.after);
     } else if (nearMiss({ test: this.test, express: !!this.delivery?.express, attempted: !!this.attempt, outcome })) {
       this.audio.groan(GROAN.near);
@@ -3644,7 +3644,8 @@ const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
 /**
  * How long the Blast's fireworks stay up: a special stroke's for one go of the
  * film, and a milestone's for at least that and as long as he celebrates.
- * The Test modes have none: a Test ground is not a T20 night.
+ * The Test modes have none: a Test ground is not a T20 night. And the Blast
+ * has them only after dark, which `GameScene.fireworks` sees to.
  */
 const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };

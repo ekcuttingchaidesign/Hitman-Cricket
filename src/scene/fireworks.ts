@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { paintFilm, type Playing } from '../ui/Lottie';
 
 /**
- * Fireworks in the Blast, for a special stroke or a milestone: the film
+ * Fireworks in the Blast, for a special stroke or a milestone, after dark
+ * only — by day there is nothing for them to light up against: the film
  * painted into a canvas and hung in the sky beyond the far stand, so that the
  * stands are in front of it. The rockets come up from behind the roof and the
  * bursts open over it, and a camera that moves sees them where they are.
@@ -35,7 +36,6 @@ export class Fireworks {
   private bursts: Burst[] = [];
   private until = 0;
   private lasts = 0;
-  private night = false;
   constructor(private readonly world: THREE.Object3D) {}
   /** Up now? For the checks. */
   get up() { return this.bursts.length; }
@@ -52,7 +52,7 @@ export class Fireworks {
       texture.colorSpace = THREE.SRGBColorSpace;
       const material = new THREE.MeshBasicMaterial({
         map: texture, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false,
-        blending: this.night ? THREE.AdditiveBlending : THREE.NormalBlending,
+        blending: THREE.AdditiveBlending,
       });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), material);
       mesh.name = 'Fireworks';
@@ -65,15 +65,6 @@ export class Fireworks {
       this.bursts.push({ mesh, texture, context, film: null, from: now + i * STAGGER });
     });
     this.until = now + ms; this.lasts = ms;
-  }
-  /** After dark they are light added to the sky; by day, colour laid over it. */
-  setNight(night: boolean) {
-    this.night = night;
-    for (const { mesh } of this.bursts) {
-      const material = mesh.material as THREE.MeshBasicMaterial;
-      material.blending = night ? THREE.AdditiveBlending : THREE.NormalBlending;
-      material.needsUpdate = true;
-    }
   }
   update(now: number) {
     if (!this.bursts.length) return;

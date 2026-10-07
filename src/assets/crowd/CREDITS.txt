@@ -18,7 +18,9 @@ Sound 2", supplied for the game: 9s to 39s, mono, looped by crossfading its
 last 2.5 seconds into its first.
 
 groan.mp3, for a wicket and a near thing, is "near_miss", supplied for the
-game: two seconds, mono, its last fifth of a second faded.
+game: two seconds, mono, its last fifth of a second faded, and its low
+middle (150-500Hz) cut by about ten decibels to match the murmur's, which
+was recorded further from the crowd.
 
 Each cheer is eight seconds, faded out over its last two and a half; all are
 levelled to -16 LUFS, the groan too, and the game sets their loudness itself.
