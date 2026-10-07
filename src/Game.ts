@@ -1124,7 +1124,7 @@ export class Game {
     // card does not go up in silence waiting for a megabyte to arrive.
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
     // And the crowd comes in with him: see `crowd.ts`.
-    this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast);
+    this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast, this.test ? 'murmur-test' : 'murmur-blast');
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     this.playedFrom = 0; this.changed = null; this.felled = false;
@@ -2513,6 +2513,8 @@ export class Game {
     this.scene.power(this.elapsed);
     this.scene.cutout();
     this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
+    // The Blast's ground lets the fireworks off for one: see `FIREWORKS_MS`.
+    if (this.mode === 'CLASSIC') this.hud.fireworks(FIREWORKS_MS.special);
     track('special-shot', 'Played a special stroke on a full meter');
   }
   /**
@@ -2545,6 +2547,8 @@ export class Game {
     const pose: Celebration = kind === 'fifty' || kind === 'raise' ? 'fifty' : kind === 'century' || kind === 'six-sixes' ? 'hundred' : kind;
     this.celebrating = celebrationLength(pose);
     this.scene.celebrate(this.elapsed, pose);
+    // And for a milestone, as long as he celebrates it.
+    if (this.mode === 'CLASSIC') this.hud.fireworks(Math.max(FIREWORKS_MS.milestone, this.celebrating));
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
     this.scene.cheer(kind, this.elapsed, moment.mark, 1, this.batter.name);
@@ -3633,6 +3637,12 @@ const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
   { label: '300', moment: { kind: 'triple', mark: 300 } }, { label: '350', moment: { kind: 'raise', mark: 350 } },
   { label: '400', moment: { kind: 'four', mark: 400 } },
 ];
+/**
+ * How long the Blast's fireworks stay up: a special stroke's for one go of the
+ * film, and a milestone's for at least that and as long as he celebrates.
+ * The Test modes have none: a Test ground is not a T20 night.
+ */
+const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {
   fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',

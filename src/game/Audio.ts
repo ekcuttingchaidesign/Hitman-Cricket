@@ -73,10 +73,11 @@ function settingBefore(): SoundSetting {
  * two cheers of each size, cut from Gregor Quendel's Free Crowd Cheering Sounds
  * (CC BY 4.0), each starting just short of its peak.
  */
-/** The murmur's name among them. */
-const MURMUR_CLIP = 'murmur';
+/** The murmurs' names among them: the Blast's, and a Test's quieter one. */
+export type Murmur = 'murmur-blast' | 'murmur-test';
 const CROWD_FILES: readonly [string, URL][] = [
-  [MURMUR_CLIP, new URL('../assets/crowd/murmur.mp3', import.meta.url)],
+  ['murmur-blast', new URL('../assets/crowd/murmur.mp3', import.meta.url)],
+  ['murmur-test', new URL('../assets/crowd/murmur-test.mp3', import.meta.url)],
   ['soft-1', new URL('../assets/crowd/cheer-soft-1.mp3', import.meta.url)], ['soft-2', new URL('../assets/crowd/cheer-soft-2.mp3', import.meta.url)],
   ['mid-1', new URL('../assets/crowd/cheer-mid-1.mp3', import.meta.url)], ['mid-2', new URL('../assets/crowd/cheer-mid-2.mp3', import.meta.url)],
   ['big-1', new URL('../assets/crowd/cheer-big-1.mp3', import.meta.url)], ['big-2', new URL('../assets/crowd/cheer-big-2.mp3', import.meta.url)],
@@ -123,6 +124,8 @@ export class GameAudio {
   private murmur: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
   /** Its level, and nought for no innings. */
   private murmurLevel = 0;
+  /** Which murmur the innings has: see `Murmur`. */
+  private murmurClip: Murmur = 'murmur-blast';
   /** Paused: the murmur held at nothing until the game goes on. */
   private crowdHeld = false;
   /** Cheers still sounding, which a wicket cuts short. */
@@ -430,13 +433,26 @@ export class GameAudio {
     };
   }
   /**
-   * The crowd for an innings: the murmur at `level` (see `MURMUR`), faded in,
-   * or nothing, faded out. Every screen that is not the innings asks for
+   * The crowd for an innings: the murmur `clip` at `level` (see `MURMUR`),
+   * faded in, or nothing, faded out. Every screen that is not the innings asks for
    * music, and asking for music sends the crowd home.
    */
-  crowd(level: number | null) {
+  crowd(level: number | null, clip: Murmur = this.murmurClip) {
     this.murmurLevel = level ?? 0;
+    if (level && this.murmur && clip === this.murmurClip && this.context) {
+      // The same ground again: just its level.
+      this.crowdHeld = false;
+      holdAt(this.murmur.gain.gain, this.context.currentTime);
+      this.murmur.gain.gain.setTargetAtTime(level, this.context.currentTime, MURMUR_FADE / 3);
+      return;
+    }
+    // Off, or the other game's ground: the one there is goes, faded.
+    this.fadeMurmur();
+    this.murmurClip = clip;
     if (level) { this.crowdHeld = false; this.startMurmur(); return; }
+    this.fadeCheers(.4);
+  }
+  private fadeMurmur() {
     const murmur = this.murmur, ctx = this.context;
     this.murmur = null;
     if (murmur && ctx) {
@@ -445,7 +461,6 @@ export class GameAudio {
       murmur.gain.gain.setTargetAtTime(0, now, MURMUR_FADE / 3);
       try { murmur.source.stop(now + MURMUR_FADE * 1.5); } catch { /* Already stopped. */ }
     }
-    this.fadeCheers(.4);
   }
   /** Paused, and on again: the stands hold their breath while the card is up. */
   holdCrowd(held: boolean) {
@@ -458,7 +473,7 @@ export class GameAudio {
     if (held) this.fadeCheers(.2);
   }
   private startMurmur() {
-    const ctx = this.context, buffer = this.crowdClips.get(MURMUR_CLIP);
+    const ctx = this.context, buffer = this.crowdClips.get(this.murmurClip);
     if (this.murmur || !ctx || !buffer || this.muted || this.disposed || this.backgrounded || this.murmurLevel <= 0) return;
     const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime;
     // The file is its own loop, its tail crossfaded into its head. The ends are

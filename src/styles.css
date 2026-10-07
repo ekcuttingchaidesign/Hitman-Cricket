@@ -6715,3 +6715,22 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .pw-frame+.pw-frame{display:none}
   .pw-burst,.pw-burst.is-flame,.pw-burst.is-bolt,.pw-burst.is-puff,.pw-burst.is-star{animation:none;transform:none}
 }
+/* Fireworks for a special stroke or a milestone in the Blast: in the sky band
+   under the score bar, over the ground and under every key and card. The film
+   holds three bursts of its own in the top half of its square, so one copy
+   spans a phone's width, and a wide screen has one either side. */
+.fireworks{
+  position:absolute;
+  left:0;
+  right:0;
+  top:var(--pad-top);
+  height:min(60vh,560px);
+  z-index:1;
+  pointer-events:none;
+  transition:opacity .45s ease
+}
+.fireworks.fading{opacity:0}
+.fireworks-burst{position:absolute;top:0;aspect-ratio:1;filter:drop-shadow(0 0 3px rgba(255,255,255,.55))}
+.fireworks-one{left:50%;width:min(118vw,620px);transform:translateX(-50%)}
+.fireworks-left{left:2%;width:min(46vw,560px)}
+.fireworks-right{right:2%;width:min(46vw,560px);transform:scaleX(-1)}

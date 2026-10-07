@@ -17,5 +17,9 @@ murmur.mp3 is from "Cricket Stadium Cheering Sound (1 min)", supplied for
 the game: 37s to 61s, mono, looped by crossfading its last 2.5 seconds into
 its first. The pack's own ambience had voices in it that stood out.
 
+murmur-test.mp3, a Test's quieter ground, is from "Cricket Stadium Ambience
+Crowd Sound 2", supplied for the game: 9s to 39s, mono, looped by
+crossfading its last 2.5 seconds into its first.
+
 Each cheer is eight seconds, faded out over its last two and a half; all are
 levelled to -16 LUFS, and the game sets their loudness itself.

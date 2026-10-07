@@ -37,13 +37,16 @@ const POSTERS: readonly [string, string][] = [
 /** Each boundary in a row before this one gets this many more of the stands up. */
 const STREAK_STRENGTH = .14;
 /**
- * The phones, for a milestone after dark: torches held up all over the stands,
- * twinkling, and camera flashes going off among them. A six gets a few flashes
- * and a four fewer. Day or night it is one draw, and none at rest.
+ * The phones, for a milestone after dark: camera flashes going off all over
+ * the stands in front of him, each a hard white pop with a four-pointed glint
+ * that is gone in a tenth of a second or so, at its own moment and its own
+ * rate. Steady twinkling lights read as fairy lights rather than cameras, and
+ * there are none. A six gets a scattering and a four fewer. One draw while it
+ * is up, none at rest.
  */
 const TORCHES = 700;
 const TORCH_STRENGTH: Record<CrowdMoment, number> = {
-  'hit-four': .18, 'hit-six': .35, fifty: .8, raise: .8, century: 1, 'six-sixes': 1, double: 1, triple: 1, four: 1,
+  'hit-four': .06, 'hit-six': .14, fifty: .55, raise: .55, century: .8, 'six-sixes': .8, double: .9, triple: 1, four: 1,
 };
 
 /** Event-only animation of the existing audience. Four extra draws while cheering,
@@ -109,11 +112,13 @@ export class CrowdCelebration {
     bodies.instanceMatrix.setUsage(THREE.DynamicDrawUsage); heads.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     // A phone held up over every so many heads in the stands in front of him,
     // at arm's length above the seat.
-    const fronted = seats.filter(m => m.elements[14] > 6);
+    // Only the stands the camera looks at: spread over all of them, most were out of sight.
+    const fronted = seats.filter(m => m.elements[14] > 32 && Math.abs(m.elements[12]) < 34);
     const count = Math.min(TORCHES, fronted.length), positions = new Float32Array(count * 3), phases = new Float32Array(count);
     for (let n = 0; n < count; n++) {
       const e = fronted[Math.floor((n + .5) * fronted.length / count)].elements;
-      positions.set([e[12] + (Math.random() - .5) * .4, e[13] + .95 + Math.random() * .25, e[14]], n * 3);
+      // Held up over the heads: at head height the heads hid most of them.
+      positions.set([e[12] + (Math.random() - .5) * .4, e[13] + 1.45 + Math.random() * .25, e[14] - .1], n * 3);
       phases[n] = Math.random();
     }
     const geometry = new THREE.BufferGeometry();
@@ -127,22 +132,27 @@ export class CrowdCelebration {
         varying float glow;
         void main() {
           vec4 view = modelViewMatrix * vec4(position, 1.0);
-          // A torch on most of them as the level comes up, a different few
-          // first each time; the rest are cameras, dark until they go off.
-          float torch = step(phase, level * .7);
-          float twinkle = still > .5 ? 1.0 : .7 + .3 * sin(time * (2.0 + phase * 3.0) + phase * 40.0);
-          float flash = still > .5 ? 0.0 : step(.985, fract(time * (.35 + phase * .3) + phase * 17.0)) * step(.05, level);
-          glow = max(torch * twinkle * min(1.0, level * 1.6), flash * 1.6);
-          gl_PointSize = (2.2 + 3.0 * flash) * 320.0 / -view.z;
+          // Each phone its own camera: one in so many taking part as the level
+          // comes up, a different few first each time, each going off every
+          // second and a half to three at its own moment. The flash is all at
+          // once and gone over the next fourteenth of its cycle.
+          float taking = step(phase, level);
+          float cycle = fract(time / (1.4 + phase * 1.6) + phase * 37.0);
+          float flash = cycle < .07 ? pow(1.0 - cycle / .07, 2.0) : 0.0;
+          glow = still > .5 ? 0.0 : taking * flash;
+          gl_PointSize = (3.0 + 11.0 * flash) * 320.0 / -view.z;
           gl_Position = projectionMatrix * view;
         }`,
       fragmentShader: `
         varying float glow;
         void main() {
-          float r = length(gl_PointCoord - .5) * 2.0;
-          float a = glow * smoothstep(1.0, 0.0, r);
+          vec2 uv = gl_PointCoord * 2.0 - 1.0;
+          // A hot core and a four-pointed glint off it.
+          float core = exp(-dot(uv, uv) * 10.0);
+          float rays = max(0.0, 1.0 - abs(uv.x) * 9.0) * (1.0 - abs(uv.y)) + max(0.0, 1.0 - abs(uv.y) * 9.0) * (1.0 - abs(uv.x));
+          float a = glow * min(1.0, core * 1.6 + rays * .8);
           if (a < .01) discard;
-          gl_FragColor = vec4(vec3(.92, .96, 1.0) * a, a);
+          gl_FragColor = vec4(vec3(.94, .97, 1.0) * a, a);
         }`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     }));
@@ -163,7 +173,7 @@ export class CrowdCelebration {
     if (this.moment && !this.settling && now < this.started + CROWD_MOMENTS[this.moment].ms && CROWD_MOMENTS[kind].priority < CROWD_MOMENTS[this.moment].priority) return;
     this.moment = kind; this.started = now; this.settling = false;
     this.strength = Math.min(1, CROWD_MOMENTS[kind].strength + (CROWD_MOMENTS[kind].priority === 1 ? STREAK_STRENGTH * Math.max(0, streak - 1) : 0));
-    this.torchLevel = TORCH_STRENGTH[kind] * (CROWD_MOMENTS[kind].priority === 1 ? Math.min(2, 1 + .25 * Math.max(0, streak - 1)) : 1);
+    this.torchLevel = Math.min(1, TORCH_STRENGTH[kind] * (CROWD_MOMENTS[kind].priority === 1 ? Math.min(2.5, 1 + .4 * Math.max(0, streak - 1)) : 1));
     const colours = shuffled(POSTERS).slice(0, 3);
     pickLabels(CROWD_MOMENTS[kind].labels(mark), name).forEach((label, i) => {
       const ctx = this.canvases[i].getContext('2d')!;
@@ -222,7 +232,7 @@ export class CrowdCelebration {
     const torches = this.torches.material as THREE.ShaderMaterial;
     this.torches.visible = this.night && this.torchLevel > 0;
     torches.uniforms.time.value = now / 1000;
-    torches.uniforms.level.value = this.torchLevel * envelope;
+    torches.uniforms.level.value = this.torchLevel * Math.min(1, envelope * 1.5);
   }
 
   /**

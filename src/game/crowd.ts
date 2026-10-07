@@ -28,8 +28,12 @@ export interface Cheer {
   swell: number;
 }
 
-/** The murmur's level, in the same units as a cheer's `peak`. */
-export const MURMUR = { blast: .16, test: .09 } as const;
+/**
+ * The murmur's level, in the same units as a cheer's `peak`: each game has a
+ * recording of its own, both levelled alike, and a Test's is let through at
+ * half the Blast's, the quieter ground.
+ */
+export const MURMUR = { blast: .16, test: .08 } as const;
 /** The bowler running in: how far the murmur lifts, and how quickly it settles once the ball is gone. */
 export const RUNUP = { swell: .22, settle: .9 } as const;
 /**
