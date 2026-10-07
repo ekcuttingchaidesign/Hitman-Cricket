@@ -12,6 +12,8 @@ const SEAT_ROWS = 4;
 const SEAT = .034;
 /** And the hips past the thigh at the sides, so the leg grows out of them. */
 const HIP = .018;
+/** How far the seat's curve hangs from the opening before it turns, as a share of the way to the thigh. */
+const FALL = .7;
 
 /** One trouser surface: waist, tailored rise, crotch and both bending legs. */
 export class ConnectedTrousers {
@@ -84,13 +86,20 @@ export class ConnectedTrousers {
       const outside = leg === 0 ? -1 : 1;
       for (let row = 1; row <= 20; row++) for (let i = 0; i < 16; i++) {
         if (row <= SEAT_ROWS) {
-          // From the opening to the leg in even steps, the curve all in the
-          // swell below, worked in the hips' own frame so that behind him is
-          // behind him however he turns.
+          // From the opening to the leg, worked in the hips' own frame so that
+          // behind him is behind him however he turns.
           const t = row / (SEAT_ROWS + 1);
-          this.p.fromBufferAttribute(positions, this.loops[leg][i]);
-          this.q.fromBufferAttribute(source, (SEAT_ROWS + 1) * 17 + i);
-          this.p.lerp(this.q, t).sub(hips.position).applyQuaternion(this.inverse);
+          this.p.fromBufferAttribute(positions, this.loops[leg][i]).sub(hips.position).applyQuaternion(this.inverse);
+          this.q.fromBufferAttribute(source, (SEAT_ROWS + 1) * 17 + i).sub(hips.position).applyQuaternion(this.inverse);
+          // Behind and at the sides the cloth falls from the hip before it
+          // turns into the thigh. Straight from the opening to a thigh raised
+          // in front, as in the sweep's front leg, the seat folded forward
+          // under the hem and left a gap there to see into from behind. So a
+          // curve whose first handle hangs straight down from the opening,
+          // furthest behind and not at all in front.
+          const fall = FALL * (1 - this.p.z / (Math.hypot(this.p.x, this.p.z) || 1)) / 2 * this.p.distanceTo(this.q);
+          this.p.multiplyScalar((1 - t) ** 2 + 2 * t * (1 - t)).addScaledVector(this.q, t * t);
+          this.p.y -= 2 * t * (1 - t) * fall;
           // Rounded out behind, fullest halfway down, and a little at the
           // outside of each hip; nothing in front or between the legs.
           const swell = Math.sin(t ** .7 * Math.PI);

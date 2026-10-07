@@ -1272,25 +1272,43 @@ function shadowKeys(struck: Pose, followed: Pose): Keys {
   const through = mix(struck, followed, .35);
   return [[0, GUARD], [380, struck, leave], [560, through, arrive], [900, through], [1300, GUARD]];
 }
+/** The scrub's bat on the shoulder: toe to handle, forward, down and in. */
+const SCRUB_LIE = [.85, .35, .12] as const;
+/** Out along the shoulder, up to its top, up off it to the blade's middle line, and on from there along the blade to the hands. */
+const SCRUB_REST = [.02, .09, .05, .30] as const;
+/** Up and out from there, on the way on and off the shoulder. */
+const SCRUB_LIFT = [.14, .06] as const;
 /**
- * Beaten, stood over the crease looking down at the pitch, the bat hanging
- * in the bottom hand, and the front foot scraping the turf forward and back
- * twice, as if the ball had done something off a mark there.
+ * Beaten, stood over the crease looking down at the pitch, the bat on his
+ * shoulder in the bottom hand, and the front foot scraping the turf forward
+ * and back twice, as if the ball had done something off a mark there.
  */
 const SCRUB_KEYS: Keys = (() => {
-  // The bat over his shoulder in the one hand, the blade back behind him, and
-  // the other hand hanging well clear: plainly one-handed from behind.
+  // The bat over his shoulder in the one hand, the other hand hanging well
+  // clear: plainly one-handed from behind. The blade lies on the shoulder on
+  // its back, the face to the sky: the handle comes forward and down to his
+  // hand in front, and the toe runs back behind him and a little out, away
+  // from the helmet. Laid on its edge with the handle on the shoulder's own
+  // line, the blade went down through the shoulder.
   const body: Pose = { ...STANDING, hip: [-0.06, 0.95, -0.03], chest: [0.02, 1.31, 0.10], headDown: .45, release: 1 };
-  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
-  const grip = shoulderOf(body, 1).addScaledVector(ahead, .16).addScaledVector(outwards(body, 1), .10).addScaledVector(UP, -.10);
-  const over: Pose = { ...body, grip: point(grip),
-    // Toe to handle: from up behind his shoulder down to his hand in front.
-    batUp: point(ahead.clone().multiplyScalar(.75).addScaledVector(UP, -.6).normalize()), batFace: point(outwards(body, 1)),
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw)), out = outwards(body, 1);
+  const handle = ahead.clone().multiplyScalar(SCRUB_LIE[0]).addScaledVector(UP, -SCRUB_LIE[1]).addScaledVector(out, -SCRUB_LIE[2]).normalize();
+  const face = UP.clone().addScaledVector(handle, -UP.dot(handle)).normalize();
+  // Where it rests: on top of the shoulder, the back of the blade there and
+  // its middle line that much further up, at a point a hand's width below
+  // the shoulder of the blade.
+  const rest = shoulderOf(body, 1).addScaledVector(out, SCRUB_REST[0]).addScaledVector(UP, SCRUB_REST[1]).addScaledVector(face, SCRUB_REST[2]);
+  const grip = rest.addScaledVector(handle, SCRUB_REST[3]);
+  const over: Pose = { ...body, grip: point(grip), batUp: point(handle), batFace: point(face),
     fist: point(shoulderOf(body, 0).addScaledVector(UP, -.50).addScaledVector(outwards(body, 0), .20)) };
+  // Lifted on and off over the top: swung straight up from the guard onto
+  // the shoulder, the blade came up through it.
+  const lifted: Pose = { ...over, grip: point(grip.clone().addScaledVector(UP, SCRUB_LIFT[0]).addScaledVector(out, SCRUB_LIFT[1])) };
   // Across the crease more than along it: along it, the scrape runs straight
   // away from the camera behind him, and cannot be seen.
-  const foot = (out: number): Pose => ({ ...over, frontFoot: [GUARD.frontFoot[0] + out, GUARD.frontFoot[1] + .008, GUARD.frontFoot[2] + out * .45] });
-  return [[0, GUARD], [380, foot(0)], [580, foot(.16)], [780, foot(-.02)], [980, foot(.16)], [1160, foot(0)], [1480, GUARD]];
+  const foot = (by: number): Pose => ({ ...over, frontFoot: [GUARD.frontFoot[0] + by, GUARD.frontFoot[1] + .008, GUARD.frontFoot[2] + by * .45] });
+  const on = foot(0), off = { ...lifted, frontFoot: on.frontFoot };
+  return [[0, GUARD], [260, off], [400, on], [580, foot(.16)], [780, foot(-.02)], [980, foot(.16)], [1160, on], [1300, off], [1560, GUARD]];
 })();
 /**
  * Out close to a milestone: turned three-quarters to the camera, as for a
@@ -1721,8 +1739,6 @@ export class Batter {
   /** The pose he met the ball with, and the finish he went on to, for rehearsing it after a miss. */
   private struck: Pose | null = null;
   private followed: Pose | null = null;
-  /** His head turned after the ball while an admired drive's finish is held: see `ADMIRE_MS`. */
-  private gaze = { yaw: 0, pitch: 0 };
   private celebratedFrom: Pose = GUARD;
   /** Which celebration is on: see `ROUTINES`. */
   private celebration: Celebration = 'hundred';
@@ -2096,11 +2112,9 @@ export class Batter {
     if (Number.isFinite(this.felledAt)) return this.applyFall(now - this.felledAt);
     let age = now - this.swingStart;
     // A drive admired holds its finish the longer, and everything after the
-    // hold happens that much later; while it is held his head goes after the
-    // ball, out to the side it was hit to and up as it runs away.
-    const held = this.admiring ? (age - ADMIRE_AT) / ADMIRE_MS : -1;
-    const following = held > 0 && held < 1 ? Math.sin(held * Math.PI) : 0;
-    this.gaze.yaw = (LOOK[this.shot] ?? 0) * following; this.gaze.pitch = -.08 * following;
+    // hold happens that much later. Still, head and all: his head turned after
+    // the ball, the helmet's round shell showed nothing of it from behind, and
+    // only the peak came out past it and went back, as if the helmet stretched.
     if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
     this.poseAge = age;
     this.travel(age);
@@ -2400,7 +2414,7 @@ export class Batter {
     this.torso.position.copy(chest);
     this.torso.quaternion.setFromUnitVectors(UP, spine).multiply(yaw);
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
-    this.head.rotation.set(.09 + (pose.headDown ?? 0) + this.gaze.pitch, pose.face + this.gaze.yaw, -.04);
+    this.head.rotation.set(.09 + (pose.headDown ?? 0), pose.face, -.04);
     this.bat.position.set(...pose.grip);
     // Hands clear of the helmet. The cover drive's high finish carried the
     // fists back round the head close enough for the forearms to pass through
