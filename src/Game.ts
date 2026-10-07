@@ -30,7 +30,7 @@ import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
-import { afterBall } from './game/afterBall';
+import { afterBall, outNearMilestone } from './game/afterBall';
 import type { AfterBall } from './entities/Batter';
 import {
   fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
@@ -263,6 +263,8 @@ export class Game {
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
   /** What the batter last did once a ball was done with, so he does not do it twice running. */
   private lastAfterBall: AfterBall | null = null;
+  /** A dismissed batter's reaction, which the result is held open for: see `resultMs`. */
+  private afterBallUntil = -Infinity;
   private best = 0; private bounced = false; private seed = 0;
   /** Innings begun this session, for telling a replay from a first go. */
   private innings = 0;
@@ -1293,8 +1295,9 @@ export class Game {
     // The ball that puts him on the floor is held open long enough for him to
     // get there. Every other ball is the usual beat.
     if (this.felled) return base + SURVIVE.felledMs;
-    // A hundred holds the next ball for the celebration and nothing more.
-    return Math.max(base, this.celebrating);
+    // A hundred holds the next ball for the celebration and nothing more, and
+    // a man out in his nineties for his look at the sky.
+    return Math.max(base, this.celebrating, this.afterBallUntil - this.phaseStart);
   }
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() {
@@ -2314,7 +2317,7 @@ export class Game {
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
       }
     } else if (this.phase === 'RESULT' && age >= this.resultMs) {
-      this.celebrating = 0;
+      this.celebrating = 0; this.afterBallUntil = -Infinity;
       if (this.lesson >= 0) {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
@@ -2556,10 +2559,18 @@ export class Game {
         scored: outcome.madeBatContact && outcome.runs > 0,
         beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
         wicket: outcome.isWicket, milestone: !!this.milestoneDue,
+        heartbreak: this.lesson < 0 && outNearMilestone(this.batterHistory),
       }, this.lastAfterBall, Math.random());
       // The bowler waits at his mark until he is back in his guard, as he does
-      // for a banner: the next ball must not find him halfway through it.
-      if (kind) { this.bannerUntil = Math.max(this.bannerUntil, this.scene.afterBall(kind, this.elapsed)); this.lastAfterBall = kind; }
+      // for a banner: the next ball must not find him halfway through it. Out,
+      // the result is held for him too, so that neither the next man nor the
+      // end of the innings comes in over the top of it.
+      if (kind) {
+        const until = this.scene.afterBall(kind, this.elapsed);
+        this.bannerUntil = Math.max(this.bannerUntil, until);
+        if (outcome.isWicket) this.afterBallUntil = until;
+        this.lastAfterBall = kind;
+      }
     }
     // The stands for a boundary, once the call is made and not when the ball
     // leaves the bat: a skied one may yet be caught.
@@ -3565,6 +3576,7 @@ const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
 const ACTION_KEYS: readonly { label: string; kind: AfterBall }[] = [
   { label: 'ADMIRE', kind: 'admire' }, { label: 'WATCH', kind: 'watch' }, { label: 'TWIRL', kind: 'twirl' },
   { label: 'BRUSH', kind: 'brush' }, { label: 'SHADOW', kind: 'shadow' }, { label: 'SCRUB', kind: 'scrub' },
+  { label: 'SKY', kind: 'sky' }, { label: 'CROUCH', kind: 'crouch' },
 ];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [

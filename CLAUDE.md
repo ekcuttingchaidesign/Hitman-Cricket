@@ -237,8 +237,8 @@ Add `&mode=marathon` for the Test kit and ground.
 
 ## `?actions=1`
 
-A row of keys along the foot of the picture — ADMIRE, WATCH, TWIRL, BRUSH,
-SHADOW, SCRUB — one a thing the batter does once a ball is done with (`AfterBall` in
+Two rows of keys along the foot of the picture — ADMIRE, WATCH, TWIRL, BRUSH,
+SHADOW, SCRUB, SKY, CROUCH — one a thing the batter does once a ball is done with (`AfterBall` in
 `src/entities/Batter.ts`), for looking at each on a phone without waiting for
 the ball that brings it, which is only half of the balls that call for one
 (`afterBall` in `src/game/afterBall.ts`). A tap between balls plays the stroke

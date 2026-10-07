@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { afterBall, AFTER_BALL_CHANCE } from '../src/game/afterBall';
+import { afterBall, AFTER_BALL_CHANCE, outNearMilestone } from '../src/game/afterBall';
 import type { PlayedStroke } from '../src/entities/Batter';
-import type { ShotType } from '../src/game/types';
+import type { ShotOutcome, ShotType } from '../src/game/types';
 
 const stroke = (shot: ShotType, more: Partial<PlayedStroke> = {}): PlayedStroke =>
   ({ shot, charging: false, lofted: false, swept: false, pulled: false, ...more });
@@ -55,5 +55,39 @@ describe('what the batter does once the ball is done with', () => {
     expect(afterBall(stroke('STRAIGHT'), scored, 'admire', lucky)).toBeNull();
     expect(afterBall(stroke('STRAIGHT'), scored, 'watch', lucky)).toBe('admire');
     expect(AFTER_BALL_CHANCE).toBe(.5);
+  });
+
+  it('out close to a milestone: always the sky or the haunches, never the same twice', () => {
+    const out = { scored: false, beaten: false, wicket: true, milestone: false, heartbreak: true };
+    expect(afterBall(stroke('STRAIGHT'), out, null, 0)).toBe('sky');
+    expect(afterBall(stroke('STRAIGHT'), out, null, .99)).toBe('crouch');
+    // Whatever the roll: it is not one of the half that get one.
+    expect(afterBall(stroke('COVER_LONG_OFF'), out, 'sky', .99)).toBe('crouch');
+    expect(afterBall(stroke('COVER_LONG_OFF'), out, 'crouch', 0)).toBe('sky');
+    expect(afterBall(stroke('STRAIGHT'), { ...out, heartbreak: false }, null, 0)).toBeNull();
+  });
+});
+
+describe('out close to a milestone', () => {
+  const ball = (runs: number, isWicket = false) => ({ runs, isWicket } as ShotOutcome);
+  const innings = (...runs: number[]) => runs.map(r => ball(r));
+  it('in the nineties of any hundred', () => {
+    for (const made of [90, 94, 99, 190, 199, 290, 395]) {
+      const history = [...innings(...Array(Math.floor(made / 4)).fill(4)), ...innings(...Array(made % 4).fill(1)), ball(0, true)];
+      expect(outNearMilestone(history), String(made)).toBe(true);
+    }
+  });
+  it('not in the forties, nor short of the nineties, nor once past a hundred', () => {
+    for (const made of [45, 49, 89, 100, 120, 180]) {
+      const history = [...innings(...Array(Math.floor(made / 4)).fill(4)), ...innings(...Array(made % 4).fill(1)), ball(0, true)];
+      expect(outNearMilestone(history), String(made)).toBe(false);
+    }
+  });
+  it('on the ball after five sixes, but not four', () => {
+    expect(outNearMilestone([...innings(1, 6, 6, 6, 6, 6), ball(0, true)])).toBe(true);
+    expect(outNearMilestone([...innings(6, 6, 6, 6, 1, 6), ball(0, true)])).toBe(false);
+  });
+  it('only on the ball that got him out', () => {
+    expect(outNearMilestone(innings(...Array(23).fill(4), 2))).toBe(false);
   });
 });

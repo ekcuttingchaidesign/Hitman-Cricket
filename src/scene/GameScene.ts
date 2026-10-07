@@ -1256,4 +1256,5 @@ export class GameScene {
 const REHEARSED: Record<AfterBall, [ShotType, number, boolean, boolean]> = {
   admire: ['COVER_LONG_OFF', .54, false, false], watch: ['STRAIGHT', .54, true, false], twirl: ['LEG', 1.1, false, false],
   brush: ['LEG', .48, false, true], shadow: ['COVER_LONG_OFF', .54, false, false], scrub: ['COVER_LONG_OFF', .54, false, false],
+  sky: ['COVER_LONG_OFF', .54, false, false], crouch: ['STRAIGHT', .54, false, false],
 };
