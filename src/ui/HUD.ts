@@ -1,4 +1,3 @@
-import type { AfterBall } from '../entities/Batter';
 import { MarathonInnings } from '../game/Marathon';
 import { GAME } from '../config/gameplay';
 import { ScoreManager } from '../game/ScoreManager';
@@ -2699,7 +2698,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * `?actions=1`'s keys: one a thing the batter does after a ball, along the
    * foot of the picture, kept from the bat underneath the way the moments' are.
    */
-  actionKeys(keys: readonly { label: string; kind: AfterBall }[], pick: (kind: AfterBall) => void) {
+  actionKeys<K extends string>(keys: readonly { label: string; kind: K }[], pick: (kind: K) => void) {
     const row = document.createElement('div');
     row.className = 'action-keys';
     row.setAttribute('role', 'group');

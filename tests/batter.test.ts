@@ -303,6 +303,10 @@ describe('the bat and the body', () => {
     ['sky', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
     ['down', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
     ['down', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['ribs', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['sting', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['dazed', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['ribs', 'LEG', b => b.swing('LEG', 0, 0, 1.1)],
     ['lean', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
     ['lean', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
   ];
@@ -391,6 +395,30 @@ describe('the bat and the body', () => {
     }
     expect(moved, kind).toBeGreaterThan(.5);
     for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - guard.inspect().grip[i]), kind).toBeLessThan(.01);
+  });
+
+  for (const where of ['HELMET', 'RIBS', 'GLOVES', 'THIGH'] as const) it(`retired hurt by a blow on the ${where.toLowerCase()}: down onto his knees without a jump, and stays there`, () => {
+    // From his guard, and from the middle of a pull, which is where a bouncer
+    // finds him.
+    for (const from of ['guard', 'pull'] as const) {
+      const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);
+      if (from === 'pull') { batter.swing('LEG', 0, 0, 1.1); for (let t = 0; t <= 200; t += 2) batter.update(t); }
+      const at = from === 'pull' ? 200 : 0;
+      batter.fall(at, where);
+      let previous = batter.inspect();
+      for (let t = at; t <= at + 2600; t += 2) {
+        batter.update(t); const pose = batter.inspect(), here = `${where} from ${from} @${t - at}`;
+        for (let i = 0; i < 2; i++) expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), here).toBeLessThan(.05);
+        expect(new Vector3(...pose.grip).distanceTo(new Vector3(...previous.grip)), here).toBeLessThan(.03);
+        expect(pose.bladeTip[1], here).toBeGreaterThan(-.03);
+        previous = pose;
+      }
+      // On his knees, not sitting and not standing, and still there.
+      const down = batter.inspect();
+      expect(down.hip[1], `${where} from ${from}`).toBeGreaterThan(.4);
+      expect(down.hip[1], `${where} from ${from}`).toBeLessThan(.6);
+      expect(batter.felled).toBe(true);
+    }
   });
 
   it('holds an admired drive at its finish, and only if asked before it gets there', () => {

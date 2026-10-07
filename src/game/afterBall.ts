@@ -1,4 +1,4 @@
-import type { AfterBall, PlayedStroke } from '../entities/Batter';
+import type { AfterBall, Hurt, PlayedStroke } from '../entities/Batter';
 import type { ShotOutcome } from './types';
 import type { GameMode } from './modes';
 import { batterRuns } from './milestone';
@@ -19,7 +19,17 @@ export interface BallEnded {
   four?: boolean;
   /** The innings' last ball: the end card comes in over whatever he would do. */
   last?: boolean;
+  /** Hit, and still on his feet: where. */
+  hurt?: Hurt | null;
 }
+
+/**
+ * A blow he stays up after, and what he does about it: rubs his ribs, shakes
+ * out the hand that took it on the glove, or holds the side of his helmet and
+ * shakes his head. Every time, whatever else: being hit is not a habit. A
+ * blow on the pad is not worth one.
+ */
+export const HURTS: Record<Hurt, AfterBall | null> = { RIBS: 'ribs', GLOVES: 'sting', HELMET: 'dazed', THIGH: null };
 
 /** Five sixes running before this ball, and not six: the sixth was there for the taking. */
 function fiveSixes(before: readonly ShotOutcome[]) {
@@ -134,6 +144,7 @@ export function afterBall(stroke: PlayedStroke | null, ended: BallEnded, habit: 
   // A milestone missed: always, whatever the roll, and whether or not he
   // played at it. Out, on the last ball too, which is held for it.
   if (ended.heartbreak && (ended.wicket || !(ended.milestone || ended.last))) return ended.heartbreak;
+  if (ended.hurt && !ended.last) return HURTS[ended.hurt];
   if (!stroke || ended.wicket || ended.milestone || ended.last) return null;
   if (ended.scored && stroke.pulled) return 'twirl';
   if (ended.scored && swept(stroke)) return habit.sweeps % 2 === 0 ? 'brush' : null;

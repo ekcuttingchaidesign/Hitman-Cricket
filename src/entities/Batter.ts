@@ -9,7 +9,7 @@ import { ConnectedTrousers } from './ConnectedTrousers';
 import { clothMaterial, willowMaterial } from './characterMaterials';
 import { GRILLE_MOUNT, helmetGeometry, helmetGrilleGeometry, helmetPeakGeometry, helmetRimGeometry } from './helmetGeometry';
 import { compactRigidParts } from './compactParts';
-import type { ShotType } from '../game/types';
+import type { BodyPart, ShotType } from '../game/types';
 
 type Point = readonly [number, number, number];
 interface Pose {
@@ -53,6 +53,12 @@ interface Pose {
    * blade turns in it.
    */
   spin?: number;
+  /**
+   * Down on both knees, from nought to one: the knees bent forward and down to
+   * the turf rather than out towards the off side, and both shoes up on their
+   * toes with the shins flat behind. The retired-hurt fall ends there.
+   */
+  kneel?: number;
   /**
    * How far the bat keeps the face this pose gives it, between balls. Then the
    * face is otherwise the straight drive's, carried onto the handle's line,
@@ -116,45 +122,60 @@ const GUARD: Pose = {
  * Going down.
  *
  * Three shapes rather than one, because a man does not arrive on the floor — he
- * is hit, he folds, and then he ends up sitting there. `RECOIL` is the jolt off
- * the body with the weight still on his feet; `BUCKLED` is the knees giving and
- * the chest coming over; `FELLED` is what is left, down on the turf with his
- * knees drawn up and the bat still in his hands because nobody thinks to let go.
+ * is hit, he folds, and then he ends up there. The jolt off the body with the
+ * free hand already gone to where it hurts; bent over it with the knees
+ * giving; and down on both knees, the bat let down in front of him to lean
+ * on, the hand still there and the head hanging. He used to finish sitting on
+ * the turf with the bat across his shins, which from behind is a heap.
  *
- * The leg solve bends the knee towards a pole out on the off side, so a seated
- * pose reads best with the feet drawn back in rather than stretched out in
- * front: the knees splay up and outward, which is how somebody actually sits
- * down in pads.
+ * The leg solve bends the knee towards a pole out on the off side; `kneel`
+ * turns it forward and down, and puts both shoes up on their toes.
  */
 const RECOIL: Pose = {
   ...GUARD,
   hip: [-.06, .90, -.09], chest: [.01, 1.23, -.06],
-  frontFoot: [-.11, .08, .26], backFoot: [-.14, .08, -.27],
+  frontFoot: [-.11, .08, .26], backFoot: [-.14, .08, -.25],
   grip: [.24, .84, .06], batUp: [-.46, -.55, .70], batFace: [.26, .86, .28],
   face: .18, headDown: .16, heel: .10, leadElbow: -.18,
 };
-const BUCKLED: Pose = {
-  ...GUARD,
-  // The knees have gone and he is doubled over them, weight still going
-  // forward. This is the frame between being hit and being down.
-  hip: [-.04, .56, -.12], chest: [.02, .95, .12],
-  frontFoot: [-.16, .08, .26], backFoot: [-.04, .08, -.12],
-  grip: [.26, .56, .34], batUp: [-.20, .46, .86], batFace: [.84, .26, .48],
-  face: .15, headDown: .34, heel: .15, leadElbow: -.05,
-};
-const FELLED: Pose = {
-  ...GUARD,
-  // Down on the turf with his legs out in front of him, one straighter than the
-  // other, propped back on his hands with the bat let go across his shins and
-  // his chin on his chest. The legs are what the shape is read from at this
-  // camera: knees drawn up under him read as kneeling, and he is not kneeling.
-  hip: [-.02, .25, -.22], chest: [.01, .60, -.30],
-  frontFoot: [-.20, .09, .58], backFoot: [.12, .09, .40],
-  grip: [.30, .15, .30], batUp: [.86, .12, .49], batFace: [-.12, .96, .24],
-  face: .12, headDown: .44, heel: 0, leadElbow: .22,
-};
+/** Where a blow can land: the helmet, the ribs, the gloves, the thigh. */
+export type Hurt = BodyPart;
+/** Where the free hand goes for a blow on `where`, on the body `body`. */
+function clutch(body: Pose, where: Hurt) {
+  const ahead = new THREE.Vector3(Math.sin(body.yaw), 0, Math.cos(body.yaw));
+  const chest = V(body.chest), spine = chest.clone().sub(V(body.hip)).normalize();
+  if (where === 'HELMET') return point(chest.clone().addScaledVector(spine, .30).addScaledVector(outwards(body, 0), .22).addScaledVector(ahead, .02));
+  if (where === 'GLOVES') return point(chest.clone().addScaledVector(spine, -.22).addScaledVector(ahead, .22).addScaledVector(outwards(body, 0), .02));
+  if (where === 'THIGH') return point(V(body.hip).addScaledVector(ahead, .17).addScaledVector(outwards(body, 0), .08).addScaledVector(UP, -.10));
+  return point(shoulderOf(body, 0).addScaledVector(spine, -.19).addScaledVector(outwards(body, 0), .04).addScaledVector(ahead, .07));
+}
+/** The fall's three shapes, for a blow on `where`. */
+function fallPoses(where: Hurt) {
+  const look = where === 'HELMET' ? -.32 : .22;
+  const recoil: Pose = { ...RECOIL, release: 1, look, fist: clutch(RECOIL, where) };
+  // Bent over it, the knees going, the bat coming down in front of him, and
+  // turning away from the bowler: from behind, the hand on the hurt was on his
+  // far side, out of sight.
+  const turning = 2.1, across = new THREE.Vector3(Math.sin(turning), 0, Math.cos(turning));
+  const bent: Pose = { ...RECOIL, hip: [-.07, .72, -.08], chest: point(new THREE.Vector3(-.07, 1.02, -.08).addScaledVector(across, .14)),
+    yaw: turning, face: turning, heel: .2, grip: [.30, .68, .02], ...hanging(UP.clone().addScaledVector(across, -.8)), release: 1, look: .35 };
+  const stagger: Pose = { ...bent, fist: clutch(bent, where) };
+  // On both knees, three-quarters to the camera: the hips over the knees, the
+  // chest bent forward, the shins flat behind, and the bat stood in front of
+  // him with its toe on the turf.
+  const yaw = 2.8, ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const hip = new THREE.Vector3(-.10, .50, -.04);
+  const chest = hip.clone().add(new THREE.Vector3(0, .26, 0)).addScaledVector(ahead, .20);
+  const foot = (s: number) => point(hip.clone().addScaledVector(side, s * .135).addScaledVector(ahead, -.30).setY(.10));
+  const batUp = UP.clone().multiplyScalar(.70).addScaledVector(ahead, -.62).normalize();
+  const grip = hip.clone().addScaledVector(ahead, .34).addScaledVector(side, .17).setY(.62);
+  const body: Pose = { ...RECOIL, hip: point(hip), chest: point(chest), frontFoot: foot(-1), backFoot: foot(1), heel: 0,
+    yaw, face: yaw, backFootYaw: yaw, grip: point(grip), batUp: point(batUp), batFace: point(side.clone().negate()), release: 1, kneel: 1, look: .6 };
+  const knelt: Pose = { ...body, fist: clutch(body, where) };
+  return { recoil, stagger, knelt };
+}
 /** How long each stage of going down lasts, cumulative from the blow. */
-const FALL = { recoil: 130, buckle: 430, settled: 1260 } as const;
+const FALL = { recoil: 140, buckle: 560, settled: 1300 } as const;
 
 
 const BACKLIFT: Pose = {
@@ -1195,7 +1216,7 @@ const FACING: Pose = standing({ ...GUARD, hip: [-.02, .97, -.02], chest: [.00, 1
  * Every one starts and ends in the guard, so it can begin the moment the
  * stroke is home and the next ball can find him where it always does.
  */
-export type AfterBall = 'admire' | 'lean' | 'watch' | 'twirl' | 'brush' | 'shadow' | 'scrub' | 'sky' | 'down';
+export type AfterBall = 'admire' | 'lean' | 'watch' | 'twirl' | 'brush' | 'shadow' | 'scrub' | 'sky' | 'down' | 'ribs' | 'sting' | 'dazed';
 /** What kind of stroke it was, which is half of what decides the `AfterBall`. */
 export interface PlayedStroke { shot: ShotType; charging: boolean; lofted: boolean; swept: boolean; pulled: boolean }
 /**
@@ -1373,15 +1394,53 @@ const DOWN_KEYS: Keys = (() => {
   // The bat down and then the turn, as for the sky.
   return [[0, GUARD], [280, STANDING], [650, slumped], [1550, slumped], [1900, STANDING], [2250, GUARD]];
 })();
+/**
+ * Hit and still in. He turns away from the bowler, towards the keeper and so
+ * three-quarters to the camera, as a man does to have a moment with it, and
+ * the free hand goes where it hurts: rubbing at the ribs, shaking out a hand
+ * that took it on the glove, or held to the side of the helmet while he shakes
+ * his head clear. The bat hangs from the other hand. Then back to it.
+ */
+function hurtKeys(where: Hurt): Keys {
+  const yaw = 2.6, ahead = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+  const hip = new THREE.Vector3(-.03, .99, -.03);
+  // A little hunched, and over to the side the ball hit.
+  const chest = hip.clone().add(new THREE.Vector3(0, .345, 0)).addScaledVector(ahead, where === 'HELMET' ? .02 : .07);
+  const turned = standing({ ...STANDING, hip: point(hip), chest: point(chest), yaw, face: yaw, release: 1 });
+  const bat = { grip: point(shoulderOf(turned, 1).addScaledVector(UP, -.48).addScaledVector(outwards(turned, 1), .12).addScaledVector(ahead, .20)),
+    ...hanging(UP.clone().addScaledVector(outwards(turned, 1), -.22)) };
+  const body: Pose = { ...turned, ...bat, look: where === 'HELMET' ? .1 : .32 };
+  const spine = chest.clone().sub(hip).normalize();
+  const at = (fist: THREE.Vector3, more: Partial<Pose> = {}): Pose => ({ ...body, fist: point(fist), ...more });
+  const spot = V(clutch(body, where));
+  const start: Keys = [[0, GUARD], [260, STANDING]];
+  const home: Keys = [[1900, STANDING], [2200, GUARD]];
+  if (where === 'GLOVES') {
+    // The hand off the bat in front of him and shaken out, hard and quick,
+    // then held and looked at.
+    const shaken = (d: number) => at(chest.clone().addScaledVector(ahead, .30).addScaledVector(outwards(body, 0), .10).addScaledVector(UP, -.12 + d), { look: .45 });
+    return [...start, [480, shaken(0)], [570, shaken(.08)], [650, shaken(-.06)], [730, shaken(.08)], [810, shaken(-.06)], [890, shaken(.08)],
+      [1050, shaken(0)], [1550, shaken(.02)], ...home];
+  }
+  if (where === 'HELMET') {
+    // The hand to the side of the helmet, and the head shaken to clear it.
+    const held = (shake: number) => at(spot, { face: yaw + shake });
+    return [...start, [520, held(0)], [680, held(.28)], [840, held(-.24)], [1000, held(.22)], [1160, held(-.16)], [1350, held(0)], [1600, held(0)], ...home];
+  }
+  // Rubbing at it, up and down along his side.
+  const rub = (d: number) => at(spot.clone().addScaledVector(spine, d));
+  return [...start, [500, rub(0)], [660, rub(.05)], [820, rub(-.04)], [980, rub(.05)], [1140, rub(-.04)], [1300, rub(.04)], [1600, rub(0)], ...home];
+}
 const keysFor = (kind: AfterBall, shot: ShotType, struck: Pose | null, followed: Pose | null = null): Keys =>
   kind === 'admire' ? CHECK_KEYS : kind === 'lean' ? LEAN_KEYS : kind === 'watch' ? watchKeys(shot) : kind === 'twirl' ? TWIRL_KEYS
     : kind === 'brush' ? BRUSH_KEYS : kind === 'scrub' ? SCRUB_KEYS : kind === 'sky' ? SKY_KEYS : kind === 'down' ? DOWN_KEYS
+    : kind === 'ribs' ? hurtKeys('RIBS') : kind === 'sting' ? hurtKeys('GLOVES') : kind === 'dazed' ? hurtKeys('HELMET')
     : shadowKeys(struck ?? GUARD, followed ?? struck ?? GUARD, shot);
 /** How long each takes once the stroke is home: the same whatever stroke it follows. */
 /** How long `kind` takes after `shot`: the on-drive's shadow comes home the long way. */
 const lengthOf = (kind: AfterBall, shot: ShotType = 'STRAIGHT') => { const keys = keysFor(kind, shot, GUARD); return keys[keys.length - 1][0]; };
 /** Longest of them, for whatever has to wait them out. */
-export const AFTER_BALL_MS = Math.max(...(['admire', 'lean', 'watch', 'twirl', 'brush', 'shadow', 'scrub', 'sky', 'down'] as AfterBall[])
+export const AFTER_BALL_MS = Math.max(...(['admire', 'lean', 'watch', 'twirl', 'brush', 'shadow', 'scrub', 'sky', 'down', 'ribs', 'sting', 'dazed'] as AfterBall[])
   .flatMap(kind => [lengthOf(kind), lengthOf(kind, 'LONG_ON')])) + ADMIRE_MS;
 const RAISED = aloft(FACING, [.33, .10], [.54, .28]);
 /** The pump: fist and bat drawn down together, the knees giving with them. */
@@ -1654,6 +1713,7 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     shoulderLift: THREE.MathUtils.lerp(a.shoulderLift ?? 0,b.shoulderLift ?? 0,t),
     release: THREE.MathUtils.lerp(a.release ?? 0, b.release ?? 0, t),
     spin: THREE.MathUtils.lerp(a.spin ?? 0, b.spin ?? 0, t),
+    kneel: THREE.MathUtils.lerp(a.kneel ?? 0, b.kneel ?? 0, t),
     ownFace: THREE.MathUtils.lerp(a.ownFace ?? 0, b.ownFace ?? 0, t),
     // A pose that never let go has no fist of its own: it takes the other's,
     // so the hand leaves the handle for where it is going, not for the origin.
@@ -1777,6 +1837,9 @@ export class Batter {
   /** When he went down, and the shape he was in when it happened. */
   private felledAt = -Infinity;
   private felledFrom: Pose = GUARD;
+  /** Where the blow that put him down landed, which is where his hand goes: see `fallPoses`. */
+  private felledBy: Hurt = 'RIBS';
+  private fallKeys: { recoil: Pose; stagger: Pose; knelt: Pose } | null = null;
   private celebratedAt = -Infinity;
   /** What he is doing once the ball is done with, and from when: see `afterBall`. */
   private afterward: { from: number; kind: AfterBall; keys: Keys | null } | null = null;
@@ -2002,9 +2065,10 @@ export class Batter {
    * to the pick-up can stand him up again. Only `reset` does, and that is a new
    * innings.
    */
-  fall(now: number) {
+  fall(now: number, where: Hurt = 'RIBS') {
     this.felledFrom = this.pose;
     this.felledAt = now;
+    this.felledBy = where; this.fallKeys = fallPoses(where);
   }
   /** Whether he is on his way down or already there. */
   get felled() { return Number.isFinite(this.felledAt); }
@@ -2029,7 +2093,7 @@ export class Batter {
    * once he is done, and he comes back into the guard he is by then waiting in.
    */
   reset(carryOn = false) {
-    if (carryOn && this.afterward) { this.resetDue = true; return; }
+    if (carryOn && this.afterward && !this.felled) { this.resetDue = true; return; }
     this.clear(); this.anticipation = 0;
     this.apply(GUARD);
   }
@@ -2455,16 +2519,15 @@ export class Batter {
   }
   /** The fall, stage by stage, and then he stays where he lands. */
   private applyFall(age: number) {
-    if (age <= FALL.recoil) return this.apply(mix(this.felledFrom, RECOIL, ease(age / FALL.recoil)));
-    if (age <= FALL.buckle) {
-      return this.apply(mix(RECOIL, BUCKLED, ease((age - FALL.recoil) / (FALL.buckle - FALL.recoil))));
-    }
-    if (age <= FALL.settled) {
-      // The last stretch is the slowest: the knees have already gone, and what
-      // is left is a man settling onto the turf rather than dropping onto it.
-      return this.apply(mix(BUCKLED, FELLED, ease((age - FALL.buckle) / (FALL.settled - FALL.buckle))));
-    }
-    this.apply(FELLED);
+    const { recoil, stagger, knelt } = this.fallKeys ??= fallPoses(this.felledBy);
+    if (age <= FALL.recoil) return this.apply(mix(this.felledFrom, recoil, age / FALL.recoil));
+    if (age <= FALL.buckle) return this.apply(mix(recoil, stagger, (age - FALL.recoil) / (FALL.buckle - FALL.recoil)));
+    // The last stretch is the slowest: the knees have already gone, and what
+    // is left is a man going down onto them rather than dropping.
+    if (age <= FALL.settled) return this.apply(mix(stagger, knelt, (age - FALL.buckle) / (FALL.settled - FALL.buckle)));
+    // Down there, breathing hard.
+    const heave = Math.sin((age - FALL.settled) * Math.PI * 2 / 1400) * .008;
+    this.apply({ ...knelt, chest: [knelt.chest[0], knelt.chest[1] + heave, knelt.chest[2]] });
   }
 
   private applyCelebration(age: number) {
@@ -2959,7 +3022,7 @@ export class Batter {
       const leg = this.legs[i];
       const hipJoint = new THREE.Vector3(i === 0 ? -.135 : .135, -.045, 0).applyQuaternion(yaw).add(hip);
       const foot = V(i === 0 ? pose.frontFoot : pose.backFoot);
-      const footPitch = i === 1 ? pose.heel * 2.4 : 0;
+      const footPitch = Math.max(i === 1 ? pose.heel * 2.4 : 0, (pose.kneel ?? 0) * 1.15);
       // Lift the heel about a planted toe instead of lifting the entire shoe.
       foot.y += .225 * Math.sin(footPitch) + .07 * (Math.cos(footPitch) - 1);
       const driving = !this.pulling && (this.charging || this.lofted || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF');
@@ -2989,6 +3052,8 @@ export class Batter {
         const weight=ease(THREE.MathUtils.clamp(this.poseAge/80,0,1))*ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/160,0,1));
         kneePole.lerp(new THREE.Vector3(i===0 ? .04 : .35,-.15,.65),weight);
       }
+      // On both knees: forward of him and down to the turf.
+      if (pose.kneel) kneePole.lerp(new THREE.Vector3(Math.sin(pose.yaw) * .55, -.35, Math.cos(pose.yaw) * .55), pose.kneel);
       const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(kneePole));
       this.segment(leg.thigh, hipJoint, knee, .175, .19);
       this.segment(leg.shin, knee, foot, .145, .16);

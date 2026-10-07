@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { afterBall, BEATEN_CHANCE, disappointment, DOTS_BROKEN, HABITS, outNearMilestone, PACES, type Habit } from '../src/game/afterBall';
+import { afterBall, BEATEN_CHANCE, disappointment, DOTS_BROKEN, HABITS, HURTS, outNearMilestone, PACES, type Habit } from '../src/game/afterBall';
 import type { AfterBall, PlayedStroke } from '../src/entities/Batter';
 import type { ShotOutcome, ShotType } from '../src/game/types';
 
@@ -152,6 +152,21 @@ describe('what the batter does once the ball is done with', () => {
     expect(afterBall(stroke('LEG'), { ...missed, last: true }, habit(), 0)).toBeNull();
     expect(afterBall(stroke('LEG'), { ...missed, milestone: true }, habit(), 0)).toBeNull();
     expect(afterBall(stroke('STRAIGHT'), { scored: false, beaten: false, wicket: true, milestone: false, heartbreak: null }, habit(), 0)).toBeNull();
+  });
+});
+
+describe('hit and still standing', () => {
+  const hit = { scored: false, beaten: false, wicket: false, milestone: false };
+  it('every time, whatever he played or did last: the ribs rubbed, the hand shaken out, the helmet held', () => {
+    for (const [where, kind] of [['RIBS', 'ribs'], ['GLOVES', 'sting'], ['HELMET', 'dazed']] as const) for (const roll of [0, .99]) {
+      expect(afterBall(null, { ...hit, hurt: where }, habit({ last: kind, since: 0, pace: PACES.SURVIVE }), roll)).toBe(kind);
+      expect(afterBall(stroke('LEG', { pulled: true }), { ...hit, hurt: where }, habit(), roll)).toBe(kind);
+      expect(HURTS[where]).toBe(kind);
+    }
+  });
+  it('nothing for one on the pad, nor on the last ball', () => {
+    expect(afterBall(null, { ...hit, hurt: 'THIGH' }, habit(), 0)).toBeNull();
+    expect(afterBall(null, { ...hit, hurt: 'RIBS', last: true }, habit(), 0)).toBeNull();
   });
 });
 

@@ -31,7 +31,7 @@ import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import { afterBall, disappointment, HABITS, PACES } from './game/afterBall';
-import type { AfterBall } from './entities/Batter';
+import type { AfterBall, Hurt } from './entities/Batter';
 import {
   fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
@@ -399,7 +399,9 @@ export class Game {
    */
   private readonly actionKeys = new URLSearchParams(location.search).get('actions') === '1';
   /** One asked for while a ball was in play, for when it is dead. */
-  private actionAsked: AfterBall | null = null;
+  private actionAsked: ActionKey | null = null;
+  /** Where `?actions=1`'s FALL key has him hit next: each in turn. */
+  private fallShown = 0;
   /**
    * `?rate=1`: a row of keys on the screen, one a thing the stars are asked
    * about — the game and each mode — so the sticker can be looked at and played
@@ -1359,8 +1361,15 @@ export class Game {
    * bowler waits at his mark until he is back in his guard; with a ball on its
    * way it waits for that ball to be dead, as a moment does.
    */
-  private askAction(kind: AfterBall) {
-    if (this.phase === 'READY') this.bannerUntil = Math.max(this.bannerUntil, this.scene.rehearse(kind, this.elapsed));
+  private askAction(kind: ActionKey) {
+    if (this.phase === 'READY') {
+      // Down, held there a moment, and up again for the next ball, which is
+      // the one thing a real one does not do.
+      if (kind === 'fall') {
+        this.scene.fall(this.elapsed, FALLS[this.fallShown++ % FALLS.length]);
+        this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + FALL_SHOWN_MS);
+      } else this.bannerUntil = Math.max(this.bannerUntil, this.scene.rehearse(kind, this.elapsed));
+    }
     else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.actionAsked = kind;
   }
   /**
@@ -2554,7 +2563,7 @@ export class Game {
       // The one that finishes him puts him on the ground. It is the only blow
       // that does, which is what makes it read as the end rather than as
       // another dent in the meter.
-      if (this.felled) this.scene.fall(this.elapsed);
+      if (this.felled) this.scene.fall(this.elapsed, outcome.hit.where);
     }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
@@ -2569,6 +2578,7 @@ export class Game {
         beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
         wicket: outcome.isWicket, milestone: !!this.milestoneDue,
         heartbreak: this.lesson < 0 && !this.felled ? disappointment(this.batterHistory) : null,
+        hurt: this.felled ? null : outcome.hit?.where ?? null,
         last: this.lesson < 0 && !!(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended),
       }, {
         last: this.lastAfterBall, since: this.afterBallSince, sweeps: this.sweepsScored,
@@ -3589,10 +3599,17 @@ const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
 ];
 /** `?actions=1`'s keys. */
-const ACTION_KEYS: readonly { label: string; kind: AfterBall }[] = [
+/** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */
+type ActionKey = AfterBall | 'fall';
+/** The places FALL has him hit, in turn. */
+const FALLS: readonly Hurt[] = ['HELMET', 'RIBS', 'GLOVES', 'THIGH'];
+/** How long FALL holds the bowler: down, and a while on his knees. */
+const FALL_SHOWN_MS = 3200;
+const ACTION_KEYS: readonly { label: string; kind: ActionKey }[] = [
   { label: 'ADMIRE', kind: 'admire' }, { label: 'LEAN', kind: 'lean' }, { label: 'WATCH', kind: 'watch' }, { label: 'TWIRL', kind: 'twirl' },
   { label: 'BRUSH', kind: 'brush' }, { label: 'SHADOW', kind: 'shadow' }, { label: 'SCRUB', kind: 'scrub' }, { label: 'SKY', kind: 'sky' },
-  { label: 'DOWN', kind: 'down' },
+  { label: 'DOWN', kind: 'down' }, { label: 'RIBS', kind: 'ribs' }, { label: 'HAND', kind: 'sting' }, { label: 'HELMET', kind: 'dazed' },
+  { label: 'FALL', kind: 'fall' },
 ];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [

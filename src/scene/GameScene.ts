@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength } from '../entities/Batter';
+import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -585,7 +585,7 @@ export class GameScene {
   /** Whether the ground is lit for night. For the checks. */
   get lit() { return this.now; }
   /** He has taken one too many. Nothing stands him back up but a new innings. */
-  fall(now: number) { this.batter.fall(now); }
+  fall(now: number, where?: Hurt) { this.batter.fall(now, where); }
   /**
    * A left-hander at the crease. The stage is mirrored once already so that a
    * right-hander's leg side reads left; this takes the mirror off, and the
@@ -1258,4 +1258,5 @@ const REHEARSED: Record<AfterBall, [ShotType, number, boolean, boolean]> = {
   admire: ['COVER_LONG_OFF', .54, false, false], watch: ['STRAIGHT', .54, true, false], twirl: ['LEG', 1.1, false, false],
   brush: ['LEG', .48, false, true], shadow: ['COVER_LONG_OFF', .54, false, false], scrub: ['COVER_LONG_OFF', .54, false, false],
   sky: ['COVER_LONG_OFF', .54, false, false], lean: ['STRAIGHT', .54, false, false], down: ['COVER_LONG_OFF', .54, false, false],
+  ribs: ['DEFEND', .54, false, false], sting: ['DEFEND', .54, false, false], dazed: ['DEFEND', .54, false, false],
 };

@@ -2748,7 +2748,7 @@ body.survive-mode #scoreboard{display:none}
   transform:translateX(-50%);
   z-index:6;
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(7,minmax(0,1fr));
   gap:4px;
   width:min(100% - 24px,460px);
   padding:5px;
@@ -2766,8 +2766,8 @@ body.survive-mode #scoreboard{display:none}
   border-radius:9px;
   background:#152b3c;
   color:#f4efe2;
-  font:700 11px/1 var(--card,system-ui);
-  letter-spacing:.4px;
+  font:700 10px/1 var(--card,system-ui);
+  letter-spacing:.1px;
   white-space:nowrap;
   cursor:pointer
 }
