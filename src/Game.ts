@@ -566,6 +566,7 @@ export class Game {
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     // The Marathon card's own two keys under its play-again key.
     this.hud.on('mcard-modes', () => { if (this.phase === 'INNINGS_END') this.modes(); });
+    this.hud.on('card-change', () => { if (this.phase === 'INNINGS_END') this.modes(); });
     this.hud.on('mcard-share', () => { void this.hud.shareMarathon(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('tutorial-play', this.walkOut);
