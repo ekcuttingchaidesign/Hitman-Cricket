@@ -2547,7 +2547,7 @@ export class Game {
     this.scene.celebrate(this.elapsed, pose);
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
-    this.scene.cheer(kind, this.elapsed, moment.mark);
+    this.scene.cheer(kind, this.elapsed, moment.mark, 1, this.batter.name);
     // The crowd with it, the biggest cheer there is, in a Test too, falling
     // away: the fifty's the sooner, the hundred's on past him into the next
     // ball's run-up, and the big ones the longest.
@@ -2607,9 +2607,10 @@ export class Game {
     // The stands for a boundary, once the call is made and not when the ball
     // leaves the bat: a skied one may yet be caught.
     if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {
-      this.scene.cheer(outcome.runs === 6 ? 'hit-six' : 'hit-four', this.elapsed);
-      // Bigger the more of them have come in a row (`crowd.ts`).
-      this.audio.cheer(boundaryCheer(outcome.runs, boundaryStreak(this.batterHistory), this.test));
+      // Bigger, and more of the stands up, the more of them have come in a row (`crowd.ts`).
+      const streak = boundaryStreak(this.batterHistory);
+      this.scene.cheer(outcome.runs === 6 ? 'hit-six' : 'hit-four', this.elapsed, 0, streak, this.batter.name);
+      this.audio.cheer(boundaryCheer(outcome.runs, streak, this.test));
     }
     // A wicket goes quiet; one that cost him a milestone, or a man carried
     // off, is sent off with a softer cheer once it has.

@@ -57,7 +57,7 @@ for (const [name, width, height, reduce] of [['phone', 390, 844, false], ['deskt
     // Just enough of a game for the two methods: everything else they touch
     // is the HUD's, and that is not what is being looked at here.
     const game = {
-      scene, elapsed: 0, lesson: 0, chargeMiss: null, felled: false, outcome: null, batterHistory: [], test: false,
+      scene, elapsed: 0, lesson: 0, chargeMiss: null, felled: false, outcome: null, batterHistory: [], test: false, batter: { name: 'Arjun' },
       hud: { result() {}, blow() {}, milestone: () => ({}) },
       audio: { play() {}, cheer(cheer) { cheers.push(cheer); }, hushCrowd() {}, swellCrowd() {} },
       mark() {},

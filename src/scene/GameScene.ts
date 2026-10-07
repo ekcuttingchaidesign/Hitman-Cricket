@@ -500,7 +500,7 @@ export class GameScene {
     this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
     if (lights) {
       this.crowd = lights.createCrowd?.(this.reducedMotion);
-      if (this.crowd) this.textures.push(...this.crowd.textures);
+      if (this.crowd) { this.textures.push(...this.crowd.textures); this.crowd.setNight(this.now === 'night'); }
       this.lamps = lights.lamps;
       const glow = glows(lights.roof, lights.towers);
       this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
@@ -544,6 +544,7 @@ export class GameScene {
   time(time: SkyTime) {
     if (time === this.now) return;
     this.now = time;
+    this.crowd?.setNight(time === 'night');
     const palette = this.sky.time(time), light = LIGHTING[time];
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
@@ -621,7 +622,7 @@ export class GameScene {
    * across the far end. A boundary does not cut short a bigger moment still
    * up, and the next ball sits them down (`reset`) rather than waiting on them.
    */
-  cheer(kind: CrowdMoment, now: number, mark = 0) { this.crowd?.trigger(kind, now, mark); }
+  cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') { this.crowd?.trigger(kind, now, mark, streak, name); }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone

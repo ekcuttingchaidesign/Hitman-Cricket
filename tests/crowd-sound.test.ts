@@ -45,3 +45,19 @@ describe('the crowd', () => {
     expect(hundred.decay).toBeGreaterThan(boundaryCheer(6, 1, false).decay);
   });
 });
+
+describe('the placards', () => {
+  it('always the number, then two others, with the name put in, or left out without one', async () => {
+    const { CROWD_MOMENTS, pickLabels } = await import('../src/scene/CrowdCelebration');
+    for (let i = 0; i < 40; i++) {
+      const named = pickLabels(CROWD_MOMENTS.century.labels(100), 'Arjun Sharma-Verma');
+      expect(named[0]).toBe('100');
+      expect(new Set(named).size).toBe(3);
+      for (const label of named) expect(label).not.toContain('{NAME}');
+      const nameless = pickLabels(CROWD_MOMENTS.century.labels(100), '');
+      for (const label of nameless) expect(label).not.toMatch(/NAME|\*$|^GO /);
+    }
+    // Names are cut to fit a placard.
+    expect(pickLabels(['{NAME}'], 'Bartholomew Longname')[0]).toBe('BARTHOLOME');
+  });
+});
