@@ -2766,43 +2766,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     flip.textContent = round ? 'ROUND' : 'OVER';
     flip.setAttribute('aria-label', round ? 'Bowling round the wicket: tap for over the wicket' : 'Bowling over the wicket: tap for round the wicket');
   }
-  /** The fireworks up now, and when they are to come down: see `fireworks`. */
-  private fireworksShow: { layer: HTMLElement; films: Playing[]; timers: number[] } | null = null;
-  /**
-   * Fireworks over the ground, for `ms`: the film, whose three bursts go up in
-   * the top half of its square, across the sky under the score bar — once on
-   * a phone, at its full width, and once either side on a wide screen, the
-   * second a beat behind so they go off in turn. Under the score bar and the
-   * keys rather than over them, and big enough that whatever else is up, most
-   * of every burst is seen.
-   * None with reduced motion: the film's still frame is an empty sky.
-   */
-  fireworks(ms: number) {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    this.stopFireworks();
-    const layer = document.createElement('div');
-    layer.className = 'fireworks'; layer.setAttribute('aria-hidden', 'true');
-    const show = { layer, films: [] as Playing[], timers: [] as number[] };
-    const wide = this.viewport.clientWidth > this.viewport.clientHeight;
-    (wide ? ['left', 'right'] as const : ['one'] as const).forEach((where, i) => {
-      const host = document.createElement('div');
-      host.className = `fireworks-burst fireworks-${where}`;
-      layer.append(host);
-      show.timers.push(window.setTimeout(() => show.films.push(playFilm(host, 'fireworks', { loop: true })), i * 700));
-    });
-    show.timers.push(window.setTimeout(() => layer.classList.add('fading'), Math.max(0, ms - 450)));
-    show.timers.push(window.setTimeout(() => this.stopFireworks(show), ms));
-    this.viewport.append(layer);
-    this.fireworksShow = show;
-  }
-  private stopFireworks(only?: { layer: HTMLElement; films: Playing[]; timers: number[] }) {
-    const show = this.fireworksShow;
-    if (!show || (only && only !== show)) return;
-    show.timers.forEach(timer => clearTimeout(timer));
-    show.films.forEach(film => film.destroy());
-    show.layer.remove();
-    this.fireworksShow = null;
-  }
   /**
    * The flash for a special stroke: see `powerDoodle`. Not a moment, so the
    * call for the ball is left where it is; and a moment arriving on top of it

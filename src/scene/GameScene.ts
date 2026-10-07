@@ -20,6 +20,7 @@ import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
 import { PerformanceReadout } from './performance';
 import { grassBlades } from './grassBlades';
 import { grassDetail } from './grassDetail';
+import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 
@@ -132,6 +133,8 @@ export class GameScene {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   private world = new THREE.Group();
+  /** Fireworks in the sky behind the far stand: see `fireworks`. */
+  private bursts = new Fireworks(this.world);
   private batter = new Batter();
   private bowler = new Bowler();
   /**
@@ -545,6 +548,7 @@ export class GameScene {
     if (time === this.now) return;
     this.now = time;
     this.crowd?.setNight(time === 'night');
+    this.bursts.setNight(time === 'night');
     const palette = this.sky.time(time), light = LIGHTING[time];
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
@@ -622,6 +626,16 @@ export class GameScene {
    * across the far end. A boundary does not cut short a bigger moment still
    * up, and the next ball sits them down (`reset`) rather than waiting on them.
    */
+  /**
+   * Fireworks for `ms` from `now`, in the sky beyond the far stand: one burst
+   * over the middle on a screen taller than it is wide, one either side on a
+   * wide one. None with reduced motion.
+   */
+  fireworks(now: number, ms: number) {
+    if (this.reducedMotion) return;
+    this.bursts.show(now, ms, this.camera.aspect >= 1);
+  }
+  get fireworksUp() { return this.bursts.up; }
   cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') { this.crowd?.trigger(kind, now, mark, streak, name); }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
@@ -1157,6 +1171,7 @@ export class GameScene {
     if (now + 1 < this.clock) this.field.home();
     this.clock = now;
     this.crowd?.update(now);
+    this.bursts.update(now);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with

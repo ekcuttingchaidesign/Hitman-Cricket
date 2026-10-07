@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boundaryCheer, boundaryStreak, milestoneCheer, MURMUR } from '../src/game/crowd';
+import { boundaryCheer, boundaryStreak, GROAN, milestoneCheer, MURMUR, nearMiss } from '../src/game/crowd';
 
 const ball = (runs: number, isWicket = false) => ({ runs: runs as 0, isWicket });
 
@@ -43,6 +43,23 @@ describe('the crowd', () => {
     expect(hundred.size).toBe('big');
     expect(hundred.peak).toBe(1);
     expect(hundred.decay).toBeGreaterThan(boundaryCheer(6, 1, false).decay);
+  });
+  it('groans at a near thing only in a Test, off the express bowler, at a stroke that missed', () => {
+    const missed = { madeBatContact: false, isWicket: false };
+    const near = { test: true, express: true, attempted: true, outcome: missed };
+    expect(nearMiss(near)).toBe(true);
+    expect(nearMiss({ ...near, test: false })).toBe(false);
+    expect(nearMiss({ ...near, express: false })).toBe(false);
+    // Left alone: never near the bat.
+    expect(nearMiss({ ...near, attempted: false })).toBe(false);
+    expect(nearMiss({ ...near, outcome: { ...missed, madeBatContact: true } })).toBe(false);
+    // Out is the wicket's groan, not this one; ducked, or hit, is not a near thing.
+    expect(nearMiss({ ...near, outcome: { ...missed, isWicket: true } })).toBe(false);
+    expect(nearMiss({ ...near, outcome: { ...missed, defended: true } })).toBe(false);
+    expect(nearMiss({ ...near, outcome: { ...missed, hit: { where: 'RIBS' as const, damage: 10 } } })).toBe(false);
+    // Quieter than a wicket's, and a Test's wicket quieter than the Blast's.
+    expect(GROAN.near).toBeLessThan(GROAN.outTest);
+    expect(GROAN.outTest).toBeLessThan(GROAN.out);
   });
 });
 

@@ -69,15 +69,15 @@ function settingBefore(): SoundSetting {
   try { const held = localStorage.getItem(SOUND_KEY); return held === 'effects' || held === 'off' ? held : 'on'; } catch { return 'on'; }
 }
 /**
- * The crowd's clips (see `assets/crowd/CREDITS.txt`): a murmur that loops, and
- * two cheers of each size, cut from Gregor Quendel's Free Crowd Cheering Sounds
- * (CC BY 4.0), each starting just short of its peak.
+ * The crowd's clips (see `assets/crowd/CREDITS.txt`): a murmur that loops, the
+ * same ground in both games and let through at a level of each one's own; a
+ * groan; and two cheers of each size, cut from Gregor Quendel's Free Crowd
+ * Cheering Sounds (CC BY 4.0), each starting just short of its peak.
  */
-/** The murmurs' names among them: the Blast's, and a Test's quieter one. */
-export type Murmur = 'murmur-blast' | 'murmur-test';
+const MURMUR_CLIP = 'murmur', GROAN_CLIP = 'groan';
 const CROWD_FILES: readonly [string, URL][] = [
-  ['murmur-blast', new URL('../assets/crowd/murmur.mp3', import.meta.url)],
-  ['murmur-test', new URL('../assets/crowd/murmur-test.mp3', import.meta.url)],
+  [MURMUR_CLIP, new URL('../assets/crowd/murmur.mp3', import.meta.url)],
+  [GROAN_CLIP, new URL('../assets/crowd/groan.mp3', import.meta.url)],
   ['soft-1', new URL('../assets/crowd/cheer-soft-1.mp3', import.meta.url)], ['soft-2', new URL('../assets/crowd/cheer-soft-2.mp3', import.meta.url)],
   ['mid-1', new URL('../assets/crowd/cheer-mid-1.mp3', import.meta.url)], ['mid-2', new URL('../assets/crowd/cheer-mid-2.mp3', import.meta.url)],
   ['big-1', new URL('../assets/crowd/cheer-big-1.mp3', import.meta.url)], ['big-2', new URL('../assets/crowd/cheer-big-2.mp3', import.meta.url)],
@@ -124,8 +124,6 @@ export class GameAudio {
   private murmur: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
   /** Its level, and nought for no innings. */
   private murmurLevel = 0;
-  /** Which murmur the innings has: see `Murmur`. */
-  private murmurClip: Murmur = 'murmur-blast';
   /** Paused: the murmur held at nothing until the game goes on. */
   private crowdHeld = false;
   /** Cheers still sounding, which a wicket cuts short. */
@@ -433,22 +431,20 @@ export class GameAudio {
     };
   }
   /**
-   * The crowd for an innings: the murmur `clip` at `level` (see `MURMUR`),
-   * faded in, or nothing, faded out. Every screen that is not the innings asks for
+   * The crowd for an innings: the murmur at `level` (see `MURMUR`), faded in,
+   * or nothing, faded out. Every screen that is not the innings asks for
    * music, and asking for music sends the crowd home.
    */
-  crowd(level: number | null, clip: Murmur = this.murmurClip) {
+  crowd(level: number | null) {
     this.murmurLevel = level ?? 0;
-    if (level && this.murmur && clip === this.murmurClip && this.context) {
-      // The same ground again: just its level.
+    if (level && this.murmur && this.context) {
+      // Already there: just its level.
       this.crowdHeld = false;
       holdAt(this.murmur.gain.gain, this.context.currentTime);
       this.murmur.gain.gain.setTargetAtTime(level, this.context.currentTime, MURMUR_FADE / 3);
       return;
     }
-    // Off, or the other game's ground: the one there is goes, faded.
     this.fadeMurmur();
-    this.murmurClip = clip;
     if (level) { this.crowdHeld = false; this.startMurmur(); return; }
     this.fadeCheers(.4);
   }
@@ -473,7 +469,7 @@ export class GameAudio {
     if (held) this.fadeCheers(.2);
   }
   private startMurmur() {
-    const ctx = this.context, buffer = this.crowdClips.get(this.murmurClip);
+    const ctx = this.context, buffer = this.crowdClips.get(MURMUR_CLIP);
     if (this.murmur || !ctx || !buffer || this.muted || this.disposed || this.backgrounded || this.murmurLevel <= 0) return;
     const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime;
     // The file is its own loop, its tail crossfaded into its head. The ends are
@@ -540,6 +536,24 @@ export class GameAudio {
     holdAt(gain, now);
     gain.setTargetAtTime(this.murmurLevel * depth, now, .2);
     gain.setTargetAtTime(this.murmurLevel, now + hold, recover);
+  }
+  /**
+   * The groan, at `level` from nought to one, `at` seconds from now: a wicket,
+   * or in a Test a ball that only just missed the bat (`crowd.ts`'s `GROAN`).
+   * Laid over the murmur like a cheer, and cut short like one by a pause.
+   */
+  groan(level: number, at = 0) {
+    const ctx = this.context, buffer = this.crowdClips.get(GROAN_CLIP);
+    if (!ctx || !buffer || this.muted || this.disposed || this.crowdHeld) return;
+    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
+    const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime + at;
+    source.buffer = buffer;
+    gain.gain.value = Math.max(0, Math.min(1, level));
+    source.connect(gain); gain.connect(ctx.destination);
+    source.start(now);
+    const voice = { source, gain };
+    this.cheers.add(voice);
+    source.onended = () => { source.disconnect(); gain.disconnect(); this.cheers.delete(voice); };
   }
   private fadeCheers(over: number) {
     const ctx = this.context;

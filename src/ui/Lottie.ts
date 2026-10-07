@@ -26,6 +26,13 @@ function load(): Promise<Lottie> {
   player ??= import('lottie-web/build/player/lottie_light').then(module => module.default);
   return player;
 }
+/** The canvas build, for a film painted into the ground rather than onto the page: see `paintFilm`. */
+type Painter = typeof import('lottie-web/build/player/lottie_light_canvas').default;
+let painter: Promise<Painter> | null = null;
+function loadPainter(): Promise<Painter> {
+  painter ??= import('lottie-web/build/player/lottie_light_canvas').then(module => module.default);
+  return painter;
+}
 
 /** Where the films live. A bare relative path, for the same reason the kits use one. */
 const src = (film: Film) => `lotties/${film}.json`;
@@ -60,6 +67,35 @@ export function playFilm(host: HTMLElement, film: Film, options: { loop?: boolea
       animation?.destroy();
       animation = null;
       host.innerHTML = '';
+    },
+  };
+}
+
+/**
+ * Plays a film into a canvas of its own, for the ground to hang up as a
+ * texture: the fireworks, which go off in the sky behind the stands and so
+ * have to be in the picture rather than over it. The canvas is cleared each
+ * frame, so what is not the film is see-through. Nothing here throws either.
+ */
+export function paintFilm(context: CanvasRenderingContext2D, film: Film, options: { loop?: boolean } = {}): Playing {
+  let gone = false;
+  let animation: { destroy(): void } | null = null;
+  void loadPainter().then(lottie => {
+    if (gone) return;
+    animation = lottie.loadAnimation({
+      renderer: 'canvas',
+      loop: options.loop ?? false,
+      autoplay: true,
+      path: src(film),
+      rendererSettings: { context, clearCanvas: true, dpr: 1, preserveAspectRatio: 'xMidYMid meet' },
+    } as Parameters<Painter['loadAnimation']>[0]);
+  }).catch(() => { /* No film: an empty sky. */ });
+  return {
+    destroy() {
+      gone = true;
+      animation?.destroy();
+      animation = null;
+      context.clearRect(0, 0, context.canvas.width, context.canvas.height);
     },
   };
 }

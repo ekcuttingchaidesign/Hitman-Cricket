@@ -3,13 +3,14 @@ import type { ShotOutcome } from './types';
 /**
  * The crowd: what it sounds like, ball by ball.
  *
- * Under everything a murmur, from the walk-out to the end card: the Blast's
- * louder, a Test's about half that, and both lifting a little as the bowler
- * runs in. Over it a cheer for each boundary, the size of it set by how many
+ * Under everything a murmur, from the walk-out to the end card: the one ground
+ * in both games, the Blast's a little louder, and both lifting a little as the
+ * bowler runs in. Over it a cheer for each boundary, the size of it set by how many
  * have come in a row — a four on its own a small one, the third running the
  * biggest the stands have — and the murmur lifted with it, falling back over
  * seconds rather than at once, so a streak that keeps coming climbs. A wicket
- * goes quiet. A milestone is the biggest cheer there is, a Test's too, which
+ * goes quiet under a groan, and so, in a Test, does the express bowler's ball
+ * that the bat only just missed. A milestone is the biggest cheer there is, a Test's too, which
  * is otherwise a size smaller all round.
  *
  * The decisions are made here and the sounds in `GameAudio`, which takes a
@@ -29,21 +30,39 @@ export interface Cheer {
 }
 
 /**
- * The murmur's level, in the same units as a cheer's `peak`: each game has a
- * recording of its own, both levelled alike, and a Test's is let through at
- * half the Blast's, the quieter ground.
+ * The murmur's level, in the same units as a cheer's `peak`: one recording for
+ * both games, a Test's the quieter ground and the Blast's a little up on it.
  */
-export const MURMUR = { blast: .16, test: .08 } as const;
+export const MURMUR = { blast: .1, test: .07 } as const;
 /** The bowler running in: how far the murmur lifts, and how quickly it settles once the ball is gone. */
 export const RUNUP = { swell: .22, settle: .9 } as const;
 /**
  * A wicket: the murmur down to this share of itself almost at once, held, and
- * back over `recover` seconds. A home crowd watching its man go has nothing to
- * shout about; the pack this comes from has no groan, so the quiet is it.
+ * back over `recover` seconds, with the groan over it (`GROAN`).
  */
 export const HUSH = { depth: .25, hold: 1.4, recover: 2.5 } as const;
 /** And for the one who goes close to a milestone, or is carried off: a soft cheer as he goes, after the quiet. */
 export const SEND_OFF: Cheer & { after: number } = { size: 'soft', peak: .42, decay: 1.8, swell: .2, after: 2.2 };
+
+/**
+ * The groan's loudness: for a wicket, a Test's a little under the Blast's as
+ * all its cheers are, and for a near thing quieter again — an intake of breath
+ * rather than a loss.
+ */
+export const GROAN = { out: .8, outTest: .65, near: .5 } as const;
+
+/**
+ * A near thing: in a Test, off the express bowler, a stroke played that the
+ * ball went past without touching. Not a ball left alone, which was never near
+ * the bat, nor one ducked under, nor one that hit him or got him out.
+ */
+export function nearMiss(ball: {
+  test: boolean; express: boolean; attempted: boolean;
+  outcome: Pick<ShotOutcome, 'madeBatContact' | 'isWicket' | 'defended' | 'hit'>;
+}) {
+  const { outcome } = ball;
+  return ball.test && ball.express && ball.attempted && !outcome.madeBatContact && !outcome.isWicket && !outcome.defended && !outcome.hit;
+}
 
 /** Boundaries running, this ball the last of them: nought if this ball was not one. */
 export function boundaryStreak(history: readonly Pick<ShotOutcome, 'runs' | 'isWicket'>[]) {

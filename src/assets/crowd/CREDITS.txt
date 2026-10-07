@@ -13,13 +13,12 @@ Creative Commons Attribution 4.0 International
   cheer-big-1.mp3   from "04 - Strong cheering - II - Short", from 5.25s
   cheer-big-2.mp3   from "03 - Strong cheering - I", from 5.5s
 
-murmur.mp3 is from "Cricket Stadium Cheering Sound (1 min)", supplied for
-the game: 37s to 61s, mono, looped by crossfading its last 2.5 seconds into
-its first. The pack's own ambience had voices in it that stood out.
+murmur.mp3, both games' ground, is from "Cricket Stadium Ambience Crowd
+Sound 2", supplied for the game: 9s to 39s, mono, looped by crossfading its
+last 2.5 seconds into its first.
 
-murmur-test.mp3, a Test's quieter ground, is from "Cricket Stadium Ambience
-Crowd Sound 2", supplied for the game: 9s to 39s, mono, looped by
-crossfading its last 2.5 seconds into its first.
+groan.mp3, for a wicket and a near thing, is "near_miss", supplied for the
+game: two seconds, mono, its last fifth of a second faded.
 
 Each cheer is eight seconds, faded out over its last two and a half; all are
-levelled to -16 LUFS, and the game sets their loudness itself.
+levelled to -16 LUFS, the groan too, and the game sets their loudness itself.

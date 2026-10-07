@@ -53,13 +53,13 @@ for (const [name, width, height, reduce] of [['phone', 390, 844, false], ['deskt
     const scene = window.labScene = new GameScene(document.querySelector('#ground'));
     scene.render(0);
     window.idle = scene.renderer.info.render.calls;
-    const cheers = [];
+    const cheers = [], groans = [];
     // Just enough of a game for the two methods: everything else they touch
     // is the HUD's, and that is not what is being looked at here.
     const game = {
       scene, elapsed: 0, lesson: 0, chargeMiss: null, felled: false, outcome: null, batterHistory: [], test: false, batter: { name: 'Arjun' },
       hud: { result() {}, blow() {}, milestone: () => ({}) },
-      audio: { play() {}, cheer(cheer) { cheers.push(cheer); }, hushCrowd() {}, swellCrowd() {} },
+      audio: { play() {}, cheer(cheer) { cheers.push(cheer); }, hushCrowd() {}, swellCrowd() {}, groan(level) { groans.push(level); } },
       mark() {},
     };
     window.present = (runs, isWicket = false) => {
@@ -72,15 +72,17 @@ for (const [name, width, height, reduce] of [['phone', 390, 844, false], ['deskt
       scene.reset(); window.present(runs, wicket);
       if (scene.crowdState.kind !== null) quiet.push(`${runs}${wicket ? 'w' : ''}`);
     }
-    const quietCheers = cheers.length;
+    const quietCheers = cheers.length, wicketGroans = groans.length;
     const raised = {};
     for (const [runs, kind] of [[4, 'hit-four'], [6, 'hit-six']]) { scene.reset(); window.present(runs); raised[kind] = scene.crowdState.kind; }
     for (const kind of ['fifty', 'raise', 'century', 'six-sixes', 'double', 'triple', 'four']) { scene.reset(); window.milestone(kind); raised[kind] = scene.crowdState.kind; }
     scene.reset();
-    return { quiet, quietCheers, raised, idle: window.idle };
+    return { quiet, quietCheers, wicketGroans, groans: groans.length, raised, idle: window.idle };
   });
   check(seen.quiet.length === 0, 'nobody stands for a dot, a single, a two or a wicket', seen.quiet.join(', '));
-  check(seen.quietCheers === 0, 'and nobody is heard', `${seen.quietCheers} cheers`);
+  check(seen.quietCheers === 0, 'and nobody cheers', `${seen.quietCheers} cheers`);
+  check(seen.wicketGroans === 3, 'but each of the three wickets is groaned at', `${seen.wicketGroans} groans`);
+  check(seen.groans === seen.wicketGroans, 'and a boundary or a milestone is not', `${seen.groans - seen.wicketGroans} more`);
   for (const [kind, got] of Object.entries(seen.raised)) check(got === kind, `the stands rise for ${kind}`, got);
 
   const looks = [];

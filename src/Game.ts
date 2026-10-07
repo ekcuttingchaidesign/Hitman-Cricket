@@ -30,7 +30,7 @@ import type { Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
-import { boundaryCheer, boundaryStreak, HUSH, milestoneCheer, MURMUR, RUNUP, SEND_OFF } from './game/crowd';
+import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, Hurt } from './entities/Batter';
 import {
@@ -669,6 +669,7 @@ export class Game {
       field: () => this.scene.fieldState,
       // What the stands are doing, for `crowd-check.mjs`.
       crowd: () => this.scene.crowdState,
+      fireworks: () => this.scene.fireworksUp,
       // And what it sounds like: see `GameAudio.describe`.
       sound: () => this.audio.describe(),
       // Where this ball is drawn `progress` of the way through its flight: from
@@ -1124,7 +1125,7 @@ export class Game {
     // card does not go up in silence waiting for a megabyte to arrive.
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
     // And the crowd comes in with him: see `crowd.ts`.
-    this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast, this.test ? 'murmur-test' : 'murmur-blast');
+    this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast);
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     this.playedFrom = 0; this.changed = null; this.felled = false;
@@ -2514,7 +2515,7 @@ export class Game {
     this.scene.cutout();
     this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
     // The Blast's ground lets the fireworks off for one: see `FIREWORKS_MS`.
-    if (this.mode === 'CLASSIC') this.hud.fireworks(FIREWORKS_MS.special);
+    if (this.mode === 'CLASSIC') this.scene.fireworks(this.elapsed, FIREWORKS_MS.special);
     track('special-shot', 'Played a special stroke on a full meter');
   }
   /**
@@ -2548,7 +2549,7 @@ export class Game {
     this.celebrating = celebrationLength(pose);
     this.scene.celebrate(this.elapsed, pose);
     // And for a milestone, as long as he celebrates it.
-    if (this.mode === 'CLASSIC') this.hud.fireworks(Math.max(FIREWORKS_MS.milestone, this.celebrating));
+    if (this.mode === 'CLASSIC') this.scene.fireworks(this.elapsed, Math.max(FIREWORKS_MS.milestone, this.celebrating));
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
     this.scene.cheer(kind, this.elapsed, moment.mark, 1, this.batter.name);
@@ -2616,11 +2617,14 @@ export class Game {
       this.scene.cheer(outcome.runs === 6 ? 'hit-six' : 'hit-four', this.elapsed, 0, streak, this.batter.name);
       this.audio.cheer(boundaryCheer(outcome.runs, streak, this.test));
     }
-    // A wicket goes quiet; one that cost him a milestone, or a man carried
-    // off, is sent off with a softer cheer once it has.
+    // A wicket goes quiet under a groan; one that cost him a milestone, or a
+    // man carried off, is sent off with a softer cheer once it has.
     if (outcome.isWicket || this.felled) {
       this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover);
+      this.audio.groan(this.test ? GROAN.outTest : GROAN.out);
       if (this.felled || (this.lesson < 0 && outNearMilestone(this.batterHistory))) this.audio.cheer(SEND_OFF, SEND_OFF.after);
+    } else if (nearMiss({ test: this.test, express: !!this.delivery?.express, attempted: !!this.attempt, outcome })) {
+      this.audio.groan(GROAN.near);
     }
   }
   /**
