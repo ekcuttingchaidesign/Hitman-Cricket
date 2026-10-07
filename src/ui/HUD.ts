@@ -111,7 +111,6 @@ const icon = (name: string) => {
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
     /* The pause sheet's keys and settings. */
-    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/>',
     restart: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/>',
     modes: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
     flag: '<path d="M6 21V4m0 1h11l-2.5 4L17 13H6"/>',
@@ -398,7 +397,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
               <button id="restart" class="pause-key" type="button">${icon('restart')}<span>Restart</span></button>
               <button id="change-mode" class="pause-key" type="button">${icon('modes')}<span>Change mode</span></button>
             </div>
-            <p class="pause-counts"><span class="pause-counts-icon" aria-hidden="true">${icon('info')}</span><span><b>Only finished innings count</b> towards your career. Leave this one now and it won't.</span></p>
+            <p class="pause-counts">Only finished innings count towards your career.</p>
             <button id="declare" class="pause-key pause-declare hidden" type="button">${icon('flag')}<span>Declare the innings</span></button>
             <p id="declare-line" class="declare-line hidden">Ends the innings here and keeps your score</p>
             <p class="pause-group-label" id="pause-settings">Settings</p>
