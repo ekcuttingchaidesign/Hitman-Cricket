@@ -170,6 +170,10 @@ export const ADMIRE_MS = 400;
 const ADMIRE_AT = 480;
 /** When a drive's finish is reached, for keeping it to rehearse. */
 const STROKE_FINISH_MS = 410;
+/** How close the grip may come to the middle of the helmet: its radius, a forearm's, and a little air. */
+const HANDS_CLEAR = .36;
+/** The middle of the helmet's dome, from the head's own origin. */
+const HELMET_CENTRE = new THREE.Vector3(0, .04, 0);
 
 /**
  * `recover` is the way back to the guard, for a stroke whose follow-through
@@ -1166,8 +1170,7 @@ const FACING: Pose = standing({ ...GUARD, hip: [-.02, .97, -.02], chest: [.00, 1
  * - `scrub`: beaten, stood over the crease looking down at it, the bat on his
  *   shoulder, scraping the pitch with the front foot;
  * - `sky`: out close to a milestone, in the nineties or the ball after five
- *   sixes: turned to the camera, head right back to the sky, arms hanging,
- *   and then the shoulders going.
+ *   sixes: turned to the camera, head right back to the sky, arms hanging.
  *
  * Every one starts and ends in the guard, so it can begin the moment the
  * stroke is home and the next ball can find him where it always does.
@@ -1215,7 +1218,7 @@ const LEAN_KEYS: Keys = (() => {
     batUp: point(UP.clone().addScaledVector(far, -.16).normalize()), batFace: point(ahead),
     fist: onHip(turned) };
   // The bat down first and then the turn, as for the sky.
-  return [[0, GUARD], [350, STANDING], [850, crossed], [1900, crossed], [2350, STANDING], [2700, GUARD]];
+  return [[0, GUARD], [280, STANDING], [620, crossed], [1350, crossed], [1650, STANDING], [1950, GUARD]];
 })();
 /** The free (top) hand let go and hanging loose by his side. */
 function hangingFist(body: Pose) { return point(shoulderOf(body, 0).addScaledVector(UP, -.52).addScaledVector(outwards(body, 0), .10)); }
@@ -1293,7 +1296,7 @@ const SCRUB_KEYS: Keys = (() => {
  * Out close to a milestone: turned three-quarters to the camera, as for a
  * celebration, because from behind a man looking at the sky is only the back
  * of a helmet. Head right back, arms hanging, the bat loose in one hand; held;
- * then the shoulders go and the head drops, and he turns back.
+ * and he turns back.
  */
 const SKY_KEYS: Keys = (() => {
   const turned = standing({ ...STANDING, hip: [-.02, .97, -.02], chest: [.00, 1.35, -.03], yaw: 2.2, face: 2.2, release: 1 });
@@ -1304,10 +1307,11 @@ const SKY_KEYS: Keys = (() => {
   const bat = { grip: point(shoulderOf(turned, 1).addScaledVector(UP, -.48).addScaledVector(outwards(turned, 1), .12).addScaledVector(ahead, .20)),
     ...hanging(UP.clone().addScaledVector(outwards(turned, 1), -.22)) };
   const skyward: Pose = { ...turned, ...bat, headDown: -.62, fist: hangingFist(turned) };
-  const slumped: Pose = { ...turned, ...bat, chest: [.03, 1.29, .05], headDown: .45, fist: hangingFist(turned) };
   // The bat down first, as for the other things he does between balls, and
-  // only then the turn: both at once swung the bat through his hips.
-  return [[0, GUARD], [350, STANDING], [800, skyward], [1900, skyward], [2450, slumped], [3000, slumped], [3350, STANDING], [3700, GUARD]];
+  // only then the turn: both at once swung the bat through his hips. Just the
+  // look to the sky: with the head dropping after it as well, it was two
+  // moments where one says it, and too long.
+  return [[0, GUARD], [280, { ...STANDING, headDown: -.15 }], [650, skyward], [1550, skyward], [1900, STANDING], [2250, GUARD]];
 })();
 const keysFor = (kind: AfterBall, shot: ShotType, struck: Pose | null, followed: Pose | null = null): Keys =>
   kind === 'admire' ? CHECK_KEYS : kind === 'lean' ? LEAN_KEYS : kind === 'watch' ? watchKeys(shot) : kind === 'twirl' ? TWIRL_KEYS
@@ -2398,6 +2402,19 @@ export class Batter {
     this.head.position.copy(chest).addScaledVector(spine, .31).add(new THREE.Vector3(.01, .01, .025));
     this.head.rotation.set(.09 + (pose.headDown ?? 0) + this.gaze.pitch, pose.face + this.gaze.yaw, -.04);
     this.bat.position.set(...pose.grip);
+    // Hands clear of the helmet. The cover drive's high finish carried the
+    // fists back round the head close enough for the forearms to pass through
+    // the helmet's side; held for the photograph it showed. Through its
+    // follow-through, long after the ball, the grip is eased straight out from
+    // the helmet wherever it comes within `HANDS_CLEAR`, by no more than it is
+    // short. Not at the contact, which has to meet the ball where it is, and
+    // not the other strokes, whose finishes keep their distance already.
+    if (this.shot === 'COVER_LONG_OFF' && !this.charging && Number.isFinite(this.poseAge)) {
+      const clearing = THREE.MathUtils.smoothstep(this.poseAge, 260, 340) * (1 - THREE.MathUtils.smoothstep(this.poseAge, 760, STROKE_DURATION_MS));
+      const helmet = this.head.position.clone().add(HELMET_CENTRE);
+      const fromHelmet = this.bat.position.clone().sub(helmet), near = fromHelmet.length();
+      if (clearing > 0 && near < HANDS_CLEAR && near > 1e-6) this.bat.position.addScaledVector(fromHelmet, clearing * (HANDS_CLEAR - near) / near);
+    }
     this.bat.quaternion.copy(batOrientation(pose));
     // Keep the approved blade axis/path, but orient its flat face in the
     // stroke plane. The former guard opened the face skyward and then rolled
