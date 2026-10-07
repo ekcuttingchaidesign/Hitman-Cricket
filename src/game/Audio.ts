@@ -69,9 +69,9 @@ function settingBefore(): SoundSetting {
   try { const held = localStorage.getItem(SOUND_KEY); return held === 'effects' || held === 'off' ? held : 'on'; } catch { return 'on'; }
 }
 /**
- * The crowd's clips, cut from Gregor Quendel's Free Crowd Cheering Sounds
- * (CC BY 4.0; see `assets/crowd/CREDITS.txt`): a murmur that loops, and two
- * cheers of each size, each starting just short of its peak.
+ * The crowd's clips (see `assets/crowd/CREDITS.txt`): a murmur that loops, and
+ * two cheers of each size, cut from Gregor Quendel's Free Crowd Cheering Sounds
+ * (CC BY 4.0), each starting just short of its peak.
  */
 /** The murmur's name among them. */
 const MURMUR_CLIP = 'murmur';
