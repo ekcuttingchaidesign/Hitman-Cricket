@@ -72,7 +72,46 @@ kbd{
 }
 
 /* ── The field is the page ─────────────────────────────────────────────── */
-#app{position:fixed;inset:0}
+/* The game's column. On a phone it is the whole screen. On a desktop it is
+   the phone's screen, 9:16 and the full height of the window, with the room
+   either side left to the note below: one layout, designed and checked once.
+   Everything in the game measures this column rather than the window — the
+   viewport units are container units and the size rules container queries —
+   so the column at 405px wide lays out exactly as a 405px phone does. The
+   transform makes it the box the two fixed-position pieces (the private
+   window's gate and the stats toast) are placed in, too. */
+#app{position:fixed;inset:0;container:app/size}
+.desk-note{display:none}
+@media (pointer:fine) and (min-aspect-ratio:3/4){
+  html,body{background:radial-gradient(70% 60% at 50% 40%,#12304a 0%,#08131c 55%,#03070a 100%)}
+  #app{left:50%;right:auto;width:min(100vw,calc(100dvh * 9 / 16));transform:translateX(-50%);
+    box-shadow:0 0 0 1px #ffffff12,0 0 90px #000000b3}
+}
+/* Beside the column, where there is room: the game is made for a phone, and
+   here is the way onto one. It says the keys too, for whoever stays. */
+@media (pointer:fine) and (min-aspect-ratio:5/4){
+  .desk-note{
+    position:fixed;
+    top:50%;
+    left:calc(50% + min(50vw,calc(100dvh * 9 / 32)) + max(24px,(50vw - min(50vw,calc(100dvh * 9 / 32)) - 300px) / 2));
+    width:min(300px,calc(50vw - min(50vw,calc(100dvh * 9 / 32)) - 48px));
+    transform:translateY(-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:14px;
+    font-family:var(--card);
+    color:#fff
+  }
+}
+.desk-note h2{margin:0;font-family:var(--cta);font-weight:400;font-size:34px;line-height:1.05}
+.desk-note p{margin:0;font-size:15px;font-weight:500;line-height:1.5;color:#b9c8d3}
+.desk-qr{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px;padding:12px 12px 10px;border-radius:16px;background:#fff;box-shadow:0 12px 30px #0000008c}
+.desk-qr img{display:block;width:148px;height:148px;image-rendering:pixelated}
+.desk-qr span{font-weight:800;font-size:13px;letter-spacing:.04em;color:#0d1c27}
+.desk-keys{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:-6px;font-size:13px;color:#8fa2af}
+.desk-keyset{display:inline-flex;gap:4px;white-space:nowrap}
+.desk-keys kbd{min-width:26px;height:26px}
 .stage{
   position:absolute;
   inset:0;
@@ -299,7 +338,7 @@ kbd{
 }
 .result>strong{
   font-family:var(--display);
-  font-size:clamp(38px,7vw,66px);
+  font-size:clamp(38px,7cqw,66px);
   display:block;
   line-height:1;
   letter-spacing:-.5px;
@@ -319,7 +358,7 @@ kbd{
 .result.is-advance{top:32%}
 .result.is-advance>strong{
   color:#ffd98a;
-  font-size:clamp(23px,4.3vw,46px);
+  font-size:clamp(23px,4.3cqw,46px);
   max-width:min(560px,calc(100% - 2 * var(--pad)));
   margin:0 auto
 }
@@ -375,7 +414,7 @@ kbd{
   z-index:4
 }
 .level-banner .lb-eyebrow{font:800 10px/1 var(--card);letter-spacing:.18em;color:var(--edge)}
-.level-banner strong{font:400 clamp(22px,4.6vw,34px)/1 var(--cta);letter-spacing:.02em;text-wrap:balance}
+.level-banner strong{font:400 clamp(22px,4.6cqw,34px)/1 var(--cta);letter-spacing:.02em;text-wrap:balance}
 .level-banner .lb-line{font:600 12.5px/1.3 var(--card);color:#c6d4dc}
 .level-banner.is-on{animation:level-banner var(--lasts) ease both}
 @keyframes level-banner{
@@ -597,7 +636,7 @@ kbd{
   flex-direction:column;
   align-items:center;
   justify-content:space-between;
-  padding:7.3svh var(--pad-right) calc(var(--pad-bottom) + 3.6svh) var(--pad);
+  padding:7.3cqh var(--pad-right) calc(var(--pad-bottom) + 3.6cqh) var(--pad);
   text-align:center
 }
 /* The cover does not sit still. Three plates of the same ground stacked in one
@@ -677,7 +716,7 @@ kbd{
   gap:13px
 }
 .play-button,.learn-button{
-  width:clamp(196px,54vw,300px);
+  width:clamp(196px,54cqw,300px);
   border-radius:13px;
   font-family:var(--cta);
   font-size:19px;
@@ -958,7 +997,7 @@ body.start-screen #sound{pointer-events:auto}
   margin:2px 0 0
 }
 .card-runs{
-  font-size:clamp(60px,17vw,78px);
+  font-size:clamp(60px,17cqw,78px);
   font-weight:900;
   letter-spacing:-3.4px;
   line-height:1;
@@ -1563,7 +1602,7 @@ body.start-screen #sound{pointer-events:auto}
    that says who and how many is a row; a row of figures beside two initials
    and a full stop is not. The board's blurb splits ties on the figure that
    stays. */
-@media (max-width:379px){
+@container app (max-width:379px){
   .board-row.is-career .board-hits em:last-child{display:none}
 }
 /* The Rivals row is three figures and all three are the point — won, lost,
@@ -1588,7 +1627,7 @@ body.start-screen #sound{pointer-events:auto}
 .board-row.is-rivals.is-you .board-hits em.is-lost{color:#ff505c}
 .board-row.is-rivals .board-hits em.is-runs,
 .board-row.is-rivals.is-you .board-hits em.is-runs{color:#fff}
-@media (max-width:379px){
+@container app (max-width:379px){
   .board-row.is-rivals .board-hits em:last-child{display:flex}
 }
 
@@ -1877,13 +1916,13 @@ body.start-screen #sound{pointer-events:auto}
 .card-next .modes-key:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #14191e,0 4px 6px #0000004d,inset 0 1px 0 #ffffff1f}
 /* A landscape phone: the same two rows, a size smaller. The card is no
    wider there, so three keys in one row would cut their words in half. */
-@media (max-height:500px) and (orientation:landscape){
+@container app (max-height:500px) and (orientation:landscape){
   .card-keys{gap:10px}
   .card-keys .key-button{min-height:48px}
   .card-next-key{min-height:48px;padding:5px 10px}
 }
 /* At the narrowest widths the pair's words stop fitting side by side. */
-@media (max-width:340px){
+@container app (max-width:340px){
   .card-next{grid-template-columns:1fr}
 }
 .claim-key{
@@ -2156,7 +2195,7 @@ body.start-screen #sound{pointer-events:auto}
   margin:10px 0 0;
   font-family:var(--cta);
   font-weight:400;
-  font-size:clamp(34px,10vw,42px);
+  font-size:clamp(34px,10cqw,42px);
   line-height:1;
   letter-spacing:0;
   text-transform:none;
@@ -2285,7 +2324,7 @@ button.pause-row:focus-visible{outline:3px solid #ec754a;outline-offset:-3px}
 }
 .pause-credit a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 /* A short screen: the sheet tightens rather than scrolling its keys away. */
-@media (max-height:700px){
+@container app (max-height:700px){
   .pause-sheet{padding:16px 16px 12px}
   .pause-title{font-size:32px;margin-top:8px}
   .pause-resume{min-height:50px;margin-top:14px}
@@ -2393,7 +2432,7 @@ dialog{
   border-radius:14px;
   padding:32px 30px;
   width:min(480px,calc(100% - 32px));
-  max-height:86svh;
+  max-height:86cqh;
   overflow-y:auto;
   background:#0f2433;
   color:#fff;
@@ -2421,16 +2460,14 @@ dialog .primary-button{margin-top:18px}
 .touch-device .primary-button{min-height:50px;font-size:12px}
 .touch-device .phase-label{font-size:11px;letter-spacing:1.4px}
 
-@media(max-width:520px){
-}
-@media(max-width:640px){
+@container app (max-width:640px){
   .panel{padding:22px 20px 24px}
   .panel h2{font-size:33px}
   .panel p{font-size:12px}
   .brand{font-size:20px}
   .brand-mark{font-size:32px}
 }
-@media(max-height:560px){
+@container app (max-height:560px){
   .coach{bottom:calc(var(--pad-bottom) + 12px);width:min(420px,calc(100% - 2 * var(--pad)))}
   .coach-cue{width:66px;height:66px}
   .cue-dot{animation-name:cue-short}
@@ -2441,10 +2478,10 @@ dialog .primary-button{margin-top:18px}
   /* A portrait cover crops to nothing useful across a landscape phone, so the
      live ground stands in for it and the lockup sits over the real thing. */
   .cover-plate{display:none}
-  .cover-intro{padding-top:4svh;padding-bottom:calc(var(--pad-bottom) + 10px)}
+  .cover-intro{padding-top:4cqh;padding-bottom:calc(var(--pad-bottom) + 10px)}
   .cover-title{width:min(46%,300px)}
   .cover-actions{gap:9px}
-  .play-button,.learn-button{width:clamp(190px,34vw,280px)}
+  .play-button,.learn-button{width:clamp(190px,34cqw,280px)}
   .play-button{min-height:46px}
   .learn-button{min-height:44px}
   .cover-best{font-size:9px;margin-bottom:0}
@@ -2467,7 +2504,7 @@ dialog .primary-button{margin-top:18px}
   .personal-best{margin-top:12px;padding-top:11px}
   /* Landscape phone: the card loses its breathing room, not its hierarchy. */
   .scorecard{padding:16px 18px 18px;width:min(360px,100%)}
-  .card-runs{font-size:clamp(44px,11vw,54px);letter-spacing:-2.4px}
+  .card-runs{font-size:clamp(44px,11cqw,54px);letter-spacing:-2.4px}
   .card-overs{font-size:21px}
   .card-line{font-size:12px;margin-top:5px}
   .card-stats{margin:11px 0 14px;padding-top:10px;gap:0 20px}
@@ -2736,7 +2773,7 @@ body.survive-mode #scoreboard{display:none}
 .cy-peek{opacity:0;animation:cy-peek .5s cubic-bezier(.2,1.6,.4,1) var(--delay) forwards}
 @keyframes cy-peek{from{opacity:0;transform:translateY(34px)}30%{opacity:1}to{opacity:1;transform:none}}
 .cy-rise{animation:cy-rise .55s cubic-bezier(.2,1.25,.4,1) var(--delay) both}
-@keyframes cy-rise{from{transform:translateY(60vh)}to{transform:none}}
+@keyframes cy-rise{from{transform:translateY(60cqh)}to{transform:none}}
 .cy-wipe{opacity:0;animation:cy-wipe .4s ease-out var(--delay) forwards}
 @keyframes cy-wipe{to{opacity:1}}
 .cy-spread{transform-box:fill-box;animation:cy-spread .5s cubic-bezier(.2,1.5,.4,1) var(--delay) both}
@@ -2837,7 +2874,7 @@ body.survive-mode #scoreboard{display:none}
   --rule:#ffffff1c;
   --accent:#f2814f;
   width:min(420px,100%);
-  max-height:calc(100dvh - 48px);
+  max-height:calc(100cqh - 48px);
   margin:0 auto;
   display:flex;
   flex-direction:column;
@@ -3120,7 +3157,7 @@ body.survive-mode #scoreboard{display:none}
   /* One corner for every card on the screen, the Marathon card's: the cards
      each said theirs in units of a container none of them had, so each fell
      back to a different share of the screen's width. */
-  --mode-radius:clamp(14px,4.3vw,22px);
+  --mode-radius:clamp(14px,4.3cqw,22px);
   /* The screen the cards stand on. Near black, warming to the board's navy at
      the foot, so the blue hero card is the brightest thing on it. */
   background:linear-gradient(-31deg,#091926 42%,#000 84%);
@@ -3169,7 +3206,7 @@ body.survive-mode #scoreboard{display:none}
   min-width:0;
   margin:0;
   font-family:var(--cta);
-  font-size:clamp(26px,8.7vw,34px);
+  font-size:clamp(26px,8.7cqw,34px);
   font-weight:400;
   letter-spacing:0;
   line-height:1;
@@ -3466,7 +3503,7 @@ body.survive-mode #scoreboard{display:none}
 .room-lead{
   margin:0;
   font-family:var(--card);
-  font-size:clamp(26px,7.7vw,30px);
+  font-size:clamp(26px,7.7cqw,30px);
   font-weight:900;
   line-height:1.15;
   letter-spacing:-.01em;
@@ -3690,7 +3727,7 @@ body.survive-mode #scoreboard{display:none}
   margin-top:6px;
   font-family:var(--cta);
   font-weight:400;
-  font-size:clamp(30px,9vw,36px);
+  font-size:clamp(30px,9cqw,36px);
   letter-spacing:.02em;
   background:linear-gradient(90deg,#faebbe 0%,#eff89f 100%);
   -webkit-background-clip:text;
@@ -4210,16 +4247,16 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
 /* A build published somewhere that cannot serve the board hides the way to it
    entirely, rather than offering a key that can only ever say it is unreachable. */
 body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only #board{display:none}
-@media (max-width:560px){
+@container app (max-width:560px){
   .hit-burst span{font-size:36px}
 }
 /* On a phone the ground's name gives way before any figure does: a three-figure
    total would otherwise run the bar under the keys. */
-@media (max-width:480px){
+@container app (max-width:480px){
   .bug-tag{display:none}
 }
 /* The narrowest phones: BALLS LEFT says BALLS, and the cells close up. */
-@media (max-width:379px){
+@container app (max-width:379px){
   .sc-wide{display:none}
   .bug-cell,.survive-card .sc-cell{min-width:40px;padding:0 8px}
 }
@@ -4248,11 +4285,8 @@ body.survive-only #cover-board,body.survive-only #panel-board,body.survive-only 
   align-items:flex-start;
   justify-content:center;
   width:100%;
-  height:100vh;
+  height:100cqh;
   overflow:hidden
-}
-@supports(height:100dvh){
-  .private-poster{height:100dvh}
 }
 /* Held to the top of whatever room there is, so the slack a narrow screen
    leaves over gathers under the poster where the keys are rather than being
@@ -4328,7 +4362,7 @@ body.private-window{overflow:hidden}
 .private-words{text-align:center}
 .private-words h1{
   font-family:var(--cta);
-  font-size:clamp(34px,11vw,54px);
+  font-size:clamp(34px,11cqw,54px);
   line-height:1;
   margin:0;
   color:#ffd23f;
@@ -4350,7 +4384,7 @@ body.private-window{overflow:hidden}
   line-height:1.4;
   color:#9fb6bb
 }
-@media(max-height:620px){
+@container app (max-height:620px){
   .private-keys{padding-top:58px;gap:8px}
   .private-keys .play-button{min-height:46px;font-size:16px}
   .private-keys .learn-button{min-height:38px;font-size:13px}
@@ -5064,7 +5098,7 @@ body.private-window{overflow:hidden}
   display:flex;
   flex-direction:column;
   gap:3px;
-  width:min(420px,calc(100vw - 32px));
+  width:min(420px,calc(100cqw - 32px));
   padding:12px 16px 13px;
   border:1px solid #ffffff1f;
   border-radius:14px;
@@ -5190,7 +5224,7 @@ body.private-window{overflow:hidden}
   gap:8px;
   margin:0
 }
-@media (min-width:380px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
+@container app (min-width:380px){.stats-grid{grid-template-columns:repeat(3,1fr)}}
 .stats-cell{
   padding:10px 12px;
   border-radius:12px;
@@ -5559,7 +5593,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .whatsnew-art img{
   max-width:min(330px,86%);
-  max-height:min(100%,54vh);
+  max-height:min(100%,54cqh);
   width:auto;
   height:auto;
   border-radius:16px;

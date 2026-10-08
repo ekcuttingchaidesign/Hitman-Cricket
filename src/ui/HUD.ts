@@ -189,21 +189,6 @@ const coverIntro = (best: number, top: number) => `
             <button id="feedback-open" class="cover-feedback hidden" type="button">WHAT DO YOU THINK?</button>
           </div>
         </div>`;
-const panelIntro = (best: number, top: number) => `
-        <div id="intro" class="panel intro-panel">
-          <div class="brand"><span class="brand-mark">H</span><span>HITMAN<span class="brand-sub">CRICKET</span></span></div>
-          <span class="challenge-tag">5 OVER BATTING CHALLENGE</span>
-          <h2>Small game. <br>Big innings.</h2>
-          <p>Score as many runs as you can in 30 balls. <br>Three wickets. Make every shot count.</p>
-          <button id="start" class="primary-button">START INNINGS ${icon('arrow')}</button>
-          <button id="tutorial" class="secondary-button">FIRST TIME? PLAY 3 BALLS</button>
-          <span class="start-hint keyboard-only">or press <kbd>Enter</kbd> to step up</span>
-          <span class="shot-keys keyboard-only"><b>←</b><kbd>A</kbd><b>↖</b><kbd>A+W</kbd><b>↑</b><kbd>W</kbd><b>↗</b><kbd>W+D</kbd><b>→</b><kbd>D</kbd><b>↓</b><kbd>S</kbd></span>
-          <span class="start-hint keyboard-only">or play the same shots on the <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> arrow keys</span>
-          <span class="start-hint touch-only">Swipe on the field as the ball reaches your bat. Swipe down to block.<b class="swipe-symbols">← ↖ ↑ ↗ → ↓</b></span>
-          <button id="panel-board" class="personal-best">${icon('trophy')}<div>${trophyFigure(best, top)}</div>${icon('arrow')}</button>
-          <button id="feedback-open" class="ghost-link hidden" type="button">Tell me what you think</button>
-        </div>`;
 /** Which special stroke the ball on its way is for, when the meter is full to play it. */
 export type Primed = 'CHARGE' | 'SWEEP' | 'SCOOP' | 'REVERSE' | null;
 /** The call for each, over the meter and down the pitch. */
@@ -285,10 +270,10 @@ export class HUD {
   private $ = (id: string) => document.getElementById(id)!;
   constructor(root: HTMLElement, best: number, top = 0) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
-    const touch = document.documentElement.classList.contains('touch-device');
-    // The cover fills the screen, so the scoreboard, the meter, the field labels
-    // and the button row all wait until there is an innings to describe.
-    if (touch) document.body.classList.add('start-screen');
+    // The cover fills the screen — on a desktop too, where the screen is the
+    // phone-shaped column — so the scoreboard, the meter, the field labels and
+    // the button row all wait until there is an innings to describe.
+    document.body.classList.add('start-screen');
     // Everything lives inside the field itself: the ground is the whole screen,
     // and every control the game needs sits on top of it.
     root.innerHTML = `
@@ -379,7 +364,7 @@ export class HUD {
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
         <div id="speed-gun" class="speed-gun" aria-hidden="true"><b id="speed"></b><i>KM/H</i></div><div class="arena-bottom"><span><span id="side-left">LEG SIDE</span> <span class="direction-line"></span></span><span><span class="direction-line"></span> <span id="side-right">OFF SIDE</span></span></div>
-${touch ? coverIntro(best, top) : panelIntro(best, top)}
+${coverIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
@@ -1419,7 +1404,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    */
   leader(top: number, best: number) {
     if (best > 0 || top <= 0) return;
-    this.$('best-label').textContent = document.getElementById('cover-board') ? 'TOP OF THE BOARD' : 'TOP 50 BOARD';
+    this.$('best-label').textContent = 'TOP OF THE BOARD';
     this.$('best').innerHTML = `${top} <small>RUNS</small>`;
   }
   /** Puts the sheet away and hands the screen back to whatever was under it. */
@@ -1823,7 +1808,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // The trophy line was quoting the board's leader while there was no best of
     // your own. There is one now, so it goes back to quoting yours.
     if (best > 0) {
-      this.$('best-label').textContent = document.getElementById('cover-board') ? 'BEST' : 'PERSONAL BEST';
+      this.$('best-label').textContent = 'BEST';
       this.$('best').innerHTML = `${best} <small>RUNS</small>`;
     }
     this.$('again').focus();

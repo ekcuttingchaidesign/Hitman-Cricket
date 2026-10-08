@@ -635,7 +635,7 @@ export class Game {
       event.preventDefault();
       void this.sendClaim();
     });
-    if (!SURVIVE_ONLY) this.hud.on(document.getElementById('cover-board') ? 'cover-board' : 'panel-board', this.showBoard);
+    if (!SURVIVE_ONLY) this.hud.on('cover-board', this.showBoard);
     this.hud.on('help', () => { trackOnce('help-open', 'Instructions opened'); if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
       if (document.fullscreenElement) void document.exitFullscreen();

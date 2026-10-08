@@ -51,19 +51,31 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
-/** How colourful a patch of a screenshot is: mean HSV saturation, 0 to 1. */
+/**
+ * How colourful a patch of the grass is: mean HSV saturation, 0 to 1, over the
+ * pixels that could be grass. The fire the big moments send up the edges, and
+ * the doodles' stars, are orange and red drawn over the picture; in a 9:16
+ * column the fire reaches into the patch, and counted it kept the "grey" grass
+ * at half its colour. So warm, strong pixels are left out — grass is green
+ * before and grey after, and neither is ever that.
+ */
 async function saturation(page, png, box) {
   return page.evaluate(async ({ data, box }) => {
     const image = new Image(); image.src = data; await image.decode();
     const canvas = document.createElement('canvas'); canvas.width = box.w; canvas.height = box.h;
     const ctx = canvas.getContext('2d'); ctx.drawImage(image, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
     const { data: px } = ctx.getImageData(0, 0, box.w, box.h);
-    let total = 0;
+    let total = 0, counted = 0;
     for (let i = 0; i < px.length; i += 4) {
-      const max = Math.max(px[i], px[i + 1], px[i + 2]), min = Math.min(px[i], px[i + 1], px[i + 2]);
-      total += max ? (max - min) / max : 0;
+      const [r, g, b] = [px[i], px[i + 1], px[i + 2]];
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), sat = max ? (max - min) / max : 0;
+      // Hue in degrees, for the warm test only.
+      const hue = max === min ? 0 : max === r ? (60 * ((g - b) / (max - min)) + 360) % 360
+        : max === g ? 60 * ((b - r) / (max - min)) + 120 : 60 * ((r - g) / (max - min)) + 240;
+      if (sat > .35 && (hue < 55 || hue > 320)) continue;
+      total += sat; counted++;
     }
-    return total / (px.length / 4);
+    return counted ? total / counted : 0;
   }, { data: `data:image/png;base64,${png.toString('base64')}`, box });
 }
 
@@ -157,8 +169,10 @@ for (const [name, options] of [
   check(seen === 'READY', 'an innings is under way', seen);
 
   // A strip of outfield either side of the pitch, below the boards.
-  const { width, height } = options.viewport;
-  const grass = { x: Math.round(width * .04), y: Math.round(height * .62), w: Math.round(width * .18), h: Math.round(height * .1) };
+  // The game's own column: the whole window on a phone, 9:16 down the middle
+  // of a desktop's. The ground is measured in it, not in the window round it.
+  const game = await page.evaluate(() => { const r = document.getElementById('app').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+  const grass = { x: Math.round(game.x + game.width * .04), y: Math.round(game.y + game.height * .62), w: Math.round(game.width * .18), h: Math.round(game.height * .1) };
   const before = await saturation(page, await page.screenshot(), grass);
 
   // Then a ball, left alone, and the moment it is dead — which is when the
@@ -227,14 +241,14 @@ for (const [name, options] of [
     check(['SIX 6s', 'YUVI', 'is that you?'].every(w => up.words.includes(w)) && up.words.filter(w => w === 'YUVI').length === 1,
       'saying SIX 6s, YUVI once, and is that you?', JSON.stringify(up.words));
     check(up.ask.top > up.yuvi.top + up.yuvi.height * .5, 'with the question under YUVI', JSON.stringify({ yuvi: up.yuvi, ask: up.ask }));
-    const inside = r => r.left >= 0 && r.right <= options.viewport.width && r.top >= 0 && r.bottom <= options.viewport.height;
+    const inside = r => r.left >= game.x && r.right <= game.x + game.width && r.top >= game.y && r.bottom <= game.y + game.height;
     check(inside(up.yuvi) && inside(up.ask), 'and both of them on the screen', JSON.stringify({ yuvi: up.yuvi, ask: up.ask }));
   }
   const during = await page.screenshot({ path: `test-results/${moment.kind}-${name}.png` });
   if (moment.cover) {
     // Taken from the page at 650ms rather than off the screenshot: in
     // software the screenshot lands seconds later, after the poster is down.
-    const { width: w, height: h } = options.viewport, sheet = up.sheet;
+    const { width: w, height: h } = game, sheet = up.sheet;
     check(!!sheet && sheet.width >= w - 1 && sheet.height >= h - 1 && sheet.fill === '#1b1f4a' && sheet.opacity === '1',
       'the poster covers the whole picture, under him', JSON.stringify(sheet));
   } else {

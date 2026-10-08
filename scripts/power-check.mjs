@@ -100,8 +100,10 @@ for (const [name, options] of [
   for (let i = 0; i < 60 && seen !== 'READY'; i++) { await page.waitForTimeout(250); seen = (await snap()).phase; }
   check(seen === 'READY', 'an innings is under way', seen);
 
-  const { width, height } = options.viewport;
-  const grass = { x: Math.round(width * .04), y: Math.round(height * .62), w: Math.round(width * .18), h: Math.round(height * .1) };
+  // The game's own column: the whole window on a phone, 9:16 down the middle
+  // of a desktop's. The ground is measured in it, not in the window round it.
+  const game = await page.evaluate(() => { const r = document.getElementById('app').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+  const grass = { x: Math.round(game.x + game.width * .04), y: Math.round(game.y + game.height * .62), w: Math.round(game.width * .18), h: Math.round(game.height * .1) };
   const before = await saturation(page, await page.screenshot(), grass);
   check((await snap()).muted === 0, 'the ground in colour to begin with');
 
