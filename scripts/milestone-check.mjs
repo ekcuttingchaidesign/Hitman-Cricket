@@ -157,8 +157,10 @@ for (const [name, options] of [
   check(seen === 'READY', 'an innings is under way', seen);
 
   // A strip of outfield either side of the pitch, below the boards.
-  const { width, height } = options.viewport;
-  const grass = { x: Math.round(width * .04), y: Math.round(height * .62), w: Math.round(width * .18), h: Math.round(height * .1) };
+  // The game's own column: the whole window on a phone, 9:16 down the middle
+  // of a desktop's. The ground is measured in it, not in the window round it.
+  const game = await page.evaluate(() => { const r = document.getElementById('app').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+  const grass = { x: Math.round(game.x + game.width * .04), y: Math.round(game.y + game.height * .62), w: Math.round(game.width * .18), h: Math.round(game.height * .1) };
   const before = await saturation(page, await page.screenshot(), grass);
 
   // Then a ball, left alone, and the moment it is dead — which is when the
@@ -227,14 +229,14 @@ for (const [name, options] of [
     check(['SIX 6s', 'YUVI', 'is that you?'].every(w => up.words.includes(w)) && up.words.filter(w => w === 'YUVI').length === 1,
       'saying SIX 6s, YUVI once, and is that you?', JSON.stringify(up.words));
     check(up.ask.top > up.yuvi.top + up.yuvi.height * .5, 'with the question under YUVI', JSON.stringify({ yuvi: up.yuvi, ask: up.ask }));
-    const inside = r => r.left >= 0 && r.right <= options.viewport.width && r.top >= 0 && r.bottom <= options.viewport.height;
+    const inside = r => r.left >= game.x && r.right <= game.x + game.width && r.top >= game.y && r.bottom <= game.y + game.height;
     check(inside(up.yuvi) && inside(up.ask), 'and both of them on the screen', JSON.stringify({ yuvi: up.yuvi, ask: up.ask }));
   }
   const during = await page.screenshot({ path: `test-results/${moment.kind}-${name}.png` });
   if (moment.cover) {
     // Taken from the page at 650ms rather than off the screenshot: in
     // software the screenshot lands seconds later, after the poster is down.
-    const { width: w, height: h } = options.viewport, sheet = up.sheet;
+    const { width: w, height: h } = game, sheet = up.sheet;
     check(!!sheet && sheet.width >= w - 1 && sheet.height >= h - 1 && sheet.fill === '#1b1f4a' && sheet.opacity === '1',
       'the poster covers the whole picture, under him', JSON.stringify(sheet));
   } else {
