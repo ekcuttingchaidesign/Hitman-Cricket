@@ -175,6 +175,20 @@ the check, so it is not a substitute for the full run.
 cannot reach. It walks all three boards, the Marathon's two ladders from one
 post among them, and the Marathon's career runs ladder. Point it at a preview deployment, never at production.
 
+## Desktop is the phone, in a column
+
+On a desktop — a fine pointer and a window wider than 3:4 — the game is the
+phone's game in a 9:16 column the full height of the window, with a note
+beside it (`.desk-note` in `index.html`): made for your phone, a QR code for
+`hitmancricket.in`, and the keys for whoever bats on here. The keyboard still
+plays every shot. There is one layout: the viewport units in `styles.css` are
+container units (`cqw`, `cqh`) and the size rules are `@container app` queries,
+so everything measures `#app` rather than the window and the column lays out
+exactly as a phone that wide does. Write new sizes the same way — a `vw` or a
+`@media (max-width…)` measures the desktop window, not the game. Touch still
+decides the hints (swipe or keys); it no longer decides the layout, and the
+cover is the phone's cover everywhere.
+
 ## The move to hitmancricket.in
 
 `hitman-cricket.vercel.app` hands each visitor to `hitmancricket.in` with their

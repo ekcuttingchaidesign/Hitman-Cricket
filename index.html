@@ -12,5 +12,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script data-goatcounter="https://ekcuttingchaidesign.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
   </head>
-  <body><div id="app"></div><script type="module" src="/src/main.ts"></script></body>
+  <body>
+    <div id="app"></div>
+    <!-- Beside the game on a desktop, where there is room (see .desk-note in styles.css). -->
+    <aside class="desk-note" aria-label="Play on your phone">
+      <h2>Made for your phone</h2>
+      <p>Hitman Cricket is built to be swiped. Scan to bat on your phone.</p>
+      <div class="desk-qr"><img src="play-qr.svg" alt="QR code for hitmancricket.in" width="148" height="148" /><span>hitmancricket.in</span></div>
+      <p>Or bat here on the keyboard:</p>
+      <div class="desk-keys"><span class="desk-keyset"><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></span><span>or</span><span class="desk-keyset"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
