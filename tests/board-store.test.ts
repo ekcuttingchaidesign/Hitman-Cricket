@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { BOARD_SIZE, LAUNCH_MS, packScore, plausible, unpackScore, type Innings } from '../src/game/leaderboard';
 import {
-  AVATARS, CLASSIC_LADDER, NAME_MAX, RATE_LIMIT, cleanName, foldName, readBoard, submitScore,
+  AVATARS, CLASSIC_LADDER, NAME_MAX, RATE_LIMIT, claimOnly, cleanName, foldName, readBoard, submitScore,
   type BoardStore, type Submission,
 } from '../src/server/board-store';
 import { memoryStore } from '../src/server/memory-store';
@@ -371,5 +371,37 @@ describe('the rules a new name is held to', () => {
     const names = new Map([['ab', ID]]);
     const store = memoryStore(names);
     expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Ab' }))).ok).toBe(true);
+  });
+});
+
+describe('a name claimed with no innings', () => {
+  const claim = (over: Partial<{ playerId: string; name: string; avatar: number }> = {}) =>
+    ({ playerId: ID, name: 'Rohit45', avatar: 1, address: '1.2.3.4', ...over });
+
+  it('holds the name and puts nothing on the board', async () => {
+    const names = new Map<string, string>();
+    const store = memoryStore(names);
+    expect(await claimOnly(store, claim({ name: '  Rohit   45 ' }))).toEqual({ ok: true, name: 'Rohit 45' });
+    expect(names.get('rohit45')).toBe(ID);
+    expect((await readBoard(store, CLASSIC_LADDER)).rows).toEqual([]);
+  });
+
+  it('is held to the same gate as a claim on the board', async () => {
+    const store = memoryStore();
+    expect(await claimOnly(store, claim({ name: 'Ab' }))).toMatchObject({ ok: false, status: 400 });
+    expect(await claimOnly(store, claim({ playerId: 'nope' }))).toMatchObject({ ok: false, status: 400 });
+    await claimOnly(store, claim({ name: 'Virat' }));
+    expect(await claimOnly(store, claim({ playerId: OTHER, name: 'virat' }))).toMatchObject({ ok: false, status: 409, held: 'virat' });
+    expect(await claimOnly(store, claim({ playerId: OTHER, name: 'Virat 2' }))).toMatchObject({ ok: false, status: 409, held: 'Virat' });
+  });
+
+  it('shares its registry and its siblings with the board', async () => {
+    const names = new Map<string, string>();
+    const store = memoryStore(names);
+    await claimOnly(store, claim({ name: 'Shubman' }));
+    const onBoard = await submitScore(memoryStore(names), CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Shubman7' }));
+    expect(onBoard).toMatchObject({ ok: false, status: 409, held: 'Shubman' });
+    // And the name it holds is the player's own to bat under on the board.
+    expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Shubman' }))).ok).toBe(true);
   });
 });

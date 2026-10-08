@@ -171,6 +171,17 @@ in the unit tests; a new mode goes in `NEW_MODES` and gets its follow-ups in
 renderer too slow to bat — it says nothing about when, which is the point of
 the check, so it is not a substitute for the full run.
 
+`scripts/name-check.mjs` is "Claim your name": a player with no name is asked
+for one after any finished innings, not only one that earned a place, and the
+name is claimed on its own through `/api/name` — nothing goes on a board, the
+key comes back. It bats a Test innings of no runs, holds the form to the rules
+for a new name (`nameProblem` in `src/server/name-rules.ts`, checked in the
+browser before a round trip and again on the server), claims a made-up name,
+and then from a second browser tries the same name with a number on it and is
+pointed back at the one that is held: a name and its siblings — the same but
+for a number on the end — are one person's for a day after the first is
+claimed. Names already held are never put to the new rules again.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one
 post among them, and the Marathon's career runs ladder. Point it at a preview deployment, never at production.

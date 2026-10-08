@@ -1917,7 +1917,7 @@ ${coverIntro(best, top)}
     // rather than a toggle at each of the three places the form opens and
     // closes: the footnote then cannot fall out of step with the key it is
     // under, because the same state draws both.
-    this.$('card-board').classList.toggle('is-asking', offer.kind === 'claim');
+    this.$('card-board').classList.toggle('is-asking', offer.kind === 'claim' || offer.kind === 'name');
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
@@ -1940,6 +1940,15 @@ ${coverIntro(best, top)}
       this.$('card-board-head').innerHTML = `${icon('trophy')}<span>${say.best(offer)}</span>`;
       this.$('card-peek').innerHTML = say.held(offer.place);
       key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'name') {
+      // No place on a board this time, and no name yet. The name is the thing
+      // worth having anyway: it is what keeps a career on a new phone and puts
+      // it on the career boards. Asked the way a place is asked for — the same
+      // form, the same light across the key — because it is the same choice.
+      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Claim your name</span>`;
+      this.$('card-peek').innerHTML = '<p class="peek-note">Keep your runs, rank and career on any phone.</p>';
+      key.textContent = 'CLAIM YOUR NAME';
+      key.classList.add('is-offer');
     } else {
       this.$('card-board-head').innerHTML = offer.place
         ? `${icon('trophy')}<span>Congrats! You secured <b>${ordinal(offer.place)}</b> position on leaderboard</span>`
@@ -2049,7 +2058,9 @@ ${coverIntro(best, top)}
   claimSending(sending: boolean) {
     const send = this.$('claim-send') as HTMLButtonElement;
     send.disabled = sending;
-    send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
+    send.textContent = sending ? 'SENDING…'
+      : this.offer.kind === 'name' ? 'CLAIM MY NAME'
+      : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
   }
 
   /**

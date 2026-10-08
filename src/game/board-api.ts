@@ -196,6 +196,42 @@ async function offer(
   };
 }
 
+/** What claiming a name on its own answers: the name as held, and the key where this claim minted it. */
+export interface NameResult {
+  ok: boolean;
+  name?: string;
+  key?: string;
+  reason?: string;
+  taken?: boolean;
+  held?: string;
+}
+
+/**
+ * A name claimed with no innings for a board: the end card's offer to a player
+ * with no name whose innings earned no place. The same gate a board claim
+ * passes, and the same key back — see `api/name.ts`.
+ */
+export async function claimName(playerId: string, name: string, avatar: number): Promise<NameResult> {
+  const answer = await ask<{ name?: string; key?: string; error?: string; retry?: boolean; status?: number; held?: string }>(
+    `${API}/api/name`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, name, avatar }),
+    },
+  );
+  if (!answer) return { ok: false, reason: 'The board could not be reached. Try again in a moment.' };
+  if (answer.error) {
+    return {
+      ok: false,
+      reason: answer.error,
+      taken: answer.status === 409,
+      held: typeof answer.held === 'string' ? answer.held : undefined,
+    };
+  }
+  return { ok: true, name: answer.name, key: answer.key };
+}
+
 /** Throws away the board held from last time, so the next open asks again. */
 export function forgetBoard() { delete cached.classic; delete cached.survive; delete cached.marathon; }
 

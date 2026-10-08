@@ -311,6 +311,34 @@ async function admit<I>(
   return { ok: true, name };
 }
 
+/** A name asked for on its own, with no innings to put on a board. */
+export interface NameClaim {
+  playerId: string;
+  name: string;
+  avatar: number;
+  /** Whoever the edge says is asking. Used to rate limit, never as identity. */
+  address: string;
+}
+
+/**
+ * A name claimed without an innings: the end card's "Claim your name", for a
+ * player whose innings earned no place. The same gate a board claim passes —
+ * the rate limit, the player, the kit, the rules for a new name, the day a
+ * sibling waits, one name to one player — with nothing written but the name.
+ * Answers with the name as it will be kept.
+ */
+export async function claimOnly(
+  store: Pick<BoardStore<unknown>, 'hits' | 'claimName' | 'nameOwner' | 'recentSibling' | 'markSibling'>,
+  input: NameClaim,
+): Promise<{ ok: true; name: string } | SubmitRefusal> {
+  return admit(store, () => true, { ...input, innings: null });
+}
+
+/** Whether a name claim was turned down — a predicate, for the reason `refused` is one. */
+export function nameRefused(outcome: { ok: true; name: string } | SubmitRefusal): outcome is SubmitRefusal {
+  return !outcome.ok;
+}
+
 /** The two Marathon boards, as one answer. */
 export interface MarathonBoards {
   team: BoardPayload<TeamInnings>;

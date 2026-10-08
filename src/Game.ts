@@ -34,7 +34,7 @@ import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nea
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, Hurt } from './entities/Batter';
 import {
-  fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
+  claimName, fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
@@ -1238,7 +1238,12 @@ export class Game {
    * a private window. An innings with nothing to offer stays quiet either way.
    */
   private shownOffer(offer: CardOffer): CardOffer {
-    if (offer.kind === 'silent') return offer;
+    // An innings with nothing for the boards still offers a name to a player
+    // who has none — not from a private window, which cannot keep one, nor
+    // practice, nor a Rival Match, whose card is the match's.
+    if (offer.kind === 'silent') {
+      return !readPlayer() && this.canRegister && !this.practising && !this.challenge.playing ? { kind: 'name' } : offer;
+    }
     if (this.practising) return { kind: 'practice' };
     return this.canRegister ? offer : { kind: 'private' };
   }
@@ -2712,6 +2717,7 @@ export class Game {
       }
     }
     this.hud.claimSending(true);
+    if (this.hud.offerKind === 'name') return this.sendName(entry.name, entry.avatar);
     // Each mode offers its own innings to its own ladder. The store keeps the
     // two under separate keys, so the mode travels with the figures rather than
     // being inferred from their shape at the far end.
@@ -2789,6 +2795,39 @@ export class Game {
     this.boardActions = true;
     this.offerFirstKey();
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
+  }
+
+  /**
+   * A name on its own, for a player whose innings earned no place on a board.
+   * Nothing goes on a board, so none is opened: the card stays where it is,
+   * the strip goes, and the key comes up over it — the name is what the key
+   * opens, and this is the moment there is one.
+   */
+  private async sendName(name: string, avatar: number) {
+    const result = await claimName(this.player!, name, avatar);
+    if (this.disposed) return;
+    if (!result.ok) {
+      this.mark(result.taken ? 'claim-name-taken' : 'claim-failed',
+        result.taken ? 'Name already held' : 'Name claim rejected');
+      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true, result.held);
+    }
+    this.mark('name-claimed', 'Name claimed without a board place');
+    writePlayer({ name: result.name ?? name.trim(), avatar });
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    // Every career counted so far is on the career boards under the name now,
+    // so the copies held from before it — the card's among them — are stale.
+    this.careerBoards = {};
+    this.myCareer = {};
+    forgetCareer();
+    this.hud.claimDone();
+    // The card's one slot: it was offering a way back to a player with no
+    // name, and holds the key to the name they have now.
+    this.hud.offerRestorePanel = this.offerRestoreOnCard();
+    this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+    this.offerFirstKey();
   }
 
   /**
