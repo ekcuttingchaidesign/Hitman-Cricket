@@ -1616,6 +1616,8 @@ ${coverIntro(best, top)}
       const words = [...target.querySelectorAll<HTMLElement>('.confidence-label, .injury-cap')]
         .filter(node => !node.hidden && node.textContent?.trim()).map(node => node.textContent!.trim());
       spot.insertAdjacentHTML('beforeend', `<b>${words[0] ?? ''}</b>${words[1] ? `<em>${words[1]}</em>` : ''}`);
+      // Confidence is told by filling: a bar that fills and turns gold.
+      if (id === 'confidence') spot.insertAdjacentHTML('beforeend', '<span class="mi-meter"><i></i></span>');
     }
     spot.classList.toggle('is-round', round);
     spot.classList.remove('hidden');

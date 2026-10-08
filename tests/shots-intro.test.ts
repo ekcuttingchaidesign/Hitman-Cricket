@@ -1,26 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { playedBefore, shotsCompass, shotsDue } from '../src/ui/ShotsIntro';
+import { CONFIDENCE_STEP, howToDue, playedBefore, SHOTS_STEP, shotsCompass } from '../src/ui/ShotsIntro';
 
 /** A browser's storage, as `read` sees it. */
 const held = (store: Record<string, string>) => (key: string) => store[key] ?? null;
 const DAY = '2026-10-08';
 
 describe('how to hit, before a first innings', () => {
-  it('is shown to a browser that has never batted here', () => {
-    expect(shotsDue(held({}), DAY)).toBe(true);
+  const titles = (meter: boolean, store: Record<string, string>) => howToDue(meter, held(store), DAY).map(step => step.title);
+
+  it('is the swipes and then the confidence meter, to a browser that has never batted here', () => {
+    expect(howToDue(true, held({}), DAY)).toEqual([SHOTS_STEP, CONFIDENCE_STEP]);
+    expect(CONFIDENCE_STEP.spot).toBe('confidence');
     // Today's visit is written on load, before the first ball: still new.
-    expect(shotsDue(held({ 'hitman-visits': JSON.stringify({ first: DAY, last: DAY, days: 1 }) }), DAY)).toBe(true);
+    expect(titles(true, { 'hitman-visits': JSON.stringify({ first: DAY, last: DAY, days: 1 }) })).toHaveLength(2);
+  });
+
+  it('is the swipes alone where the scoreboard has no confidence meter', () => {
+    expect(howToDue(false, held({}), DAY)).toEqual([SHOTS_STEP]);
+  });
+
+  it('leaves the meter for later when only the swipes were shown', () => {
+    expect(howToDue(true, held({ 'hitman-shots-intro': 'swipes', 'hitman-best': '12' }), DAY)).toEqual([CONFIDENCE_STEP]);
+    expect(howToDue(false, held({ 'hitman-shots-intro': 'swipes' }), DAY)).toEqual([]);
   });
 
   it('is shown once', () => {
-    expect(shotsDue(held({ 'hitman-shots-intro': 'done' }), DAY)).toBe(false);
+    expect(titles(true, { 'hitman-shots-intro': 'done' })).toEqual([]);
   });
 
   it('is not shown to anybody who has batted here before', () => {
-    expect(shotsDue(held({ 'hitman-best': '0' }), DAY)).toBe(false);
-    expect(shotsDue(held({ 'hitman-career-key': '{"code":"abc"}' }), DAY)).toBe(false);
-    expect(shotsDue(held({ 'hitman-marathon-intro': '1' }), DAY)).toBe(false);
-    expect(shotsDue(held({ 'hitman-visits': JSON.stringify({ first: '2026-09-30', last: '2026-10-01', days: 2 }) }), DAY)).toBe(false);
+    expect(titles(true, { 'hitman-best': '0' })).toEqual([]);
+    expect(titles(true, { 'hitman-career-key': '{"code":"abc"}' })).toEqual([]);
+    expect(titles(true, { 'hitman-marathon-intro': '1' })).toEqual([]);
+    expect(titles(true, { 'hitman-visits': JSON.stringify({ first: '2026-09-30', last: '2026-10-01', days: 2 }) })).toEqual([]);
   });
 
   it('takes a visits record that does not parse as no record', () => {
@@ -28,7 +40,7 @@ describe('how to hit, before a first innings', () => {
   });
 
   it('is not shown where nothing can be remembered, or it would be every innings', () => {
-    expect(shotsDue(() => { throw new Error('blocked'); }, DAY)).toBe(false);
+    expect(howToDue(true, () => { throw new Error('blocked'); }, DAY)).toEqual([]);
   });
 });
 

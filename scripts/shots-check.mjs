@@ -1,10 +1,13 @@
 /**
- * How to hit, before a first innings: the coachmark with the six swipes.
+ * How to hit, before a first innings: the coachmark with the six swipes, and
+ * after it the confidence meter lit on the scoreboard.
  *
- * A first innings in the Blast opens with it and bowls nothing until it is put
- * away; it is not shown again, nor to a browser that has batted here before; a
- * keyboard's card carries the keys; and a Test Marathon's coachmarks open with
- * the same card, drawn for whichever hand is in. Everything is reached the way
+ * A first innings in the Blast opens with both and bowls nothing until they
+ * are put away; they are not shown again, nor to a browser that has batted
+ * here before; a keyboard's card carries the keys; a Test Survival shows the
+ * swipes alone and leaves the meter for the first Blast; and a Test
+ * Marathon's coachmarks open with the same swipes card, drawn for whichever
+ * hand is in. Everything is reached the way
  * a player reaches it — the play key, the picker — and nothing is seeded but
  * what says this browser is not a private window.
  *
@@ -91,18 +94,24 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   check(JSON.stringify(names) === JSON.stringify(['Pull', 'On drive', 'Straight drive', 'Cover drive', 'Cut', 'Block']), 'six swipes, named', JSON.stringify(names));
   check(!(await page.locator('.hb-label kbd').first().isVisible()), 'and no keys on a touch screen');
   check(await page.locator('.touch-only', { hasText: 'Swipe the way' }).isVisible(), 'told to swipe');
-  check(!(await page.locator('#mi-skip').isVisible()) && await page.locator('#mi-next').textContent() === "Let's bat", 'one card: no skip, and Let\'s bat');
+  check(await page.locator('#mi-skip').isVisible() && await page.locator('#mi-next').textContent() === 'Next', 'the first of two: Skip and Next');
   // Every label on the screen and clear of the next.
   const boxes = await page.locator('.hb-label').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
   const app = await page.locator('#app').evaluate(n => n.getBoundingClientRect().toJSON());
   check(boxes.every(b => b.left >= app.left && b.right <= app.right), 'every name inside the screen', JSON.stringify(boxes.map(b => [Math.round(b.left), Math.round(b.right)])));
   const overlap = boxes.some((a, i) => boxes.some((b, j) => i < j && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
   check(!overlap, 'and none over another');
-  // The streak runs: the green moves on from one arrow to the next.
-  const lit = () => page.locator('.hb-run').evaluateAll(nodes => nodes.map(n => Number(getComputedStyle(n).opacity)));
-  const a = await lit(); await page.waitForTimeout(900); const b = await lit();
-  check(JSON.stringify(a) !== JSON.stringify(b), 'and the arrows are moving', `${a} / ${b}`);
+  // The hand goes round: one ray's hand is up at a time, and a moment later another's.
+  const hands = () => page.locator('.hb-hand').evaluateAll(nodes => nodes.map(n => Number(getComputedStyle(n).opacity) > .5));
+  const a = await hands(); await page.waitForTimeout(1300); const b = await hands();
+  check(JSON.stringify(a) !== JSON.stringify(b), 'and a hand swipes them in turn', `${a} / ${b}`);
   await page.screenshot({ path: `${out}/phone.png` });
+  await page.locator('#mi-next').click({ force: true });
+  await advance(page, 50);
+  check(await page.locator('#mi-title').textContent() === 'Fill your confidence', 'then the confidence meter', await page.locator('#mi-title').textContent());
+  check(await page.locator('#mi-spot').isVisible() && await page.locator('#mi-spot .mi-meter').isVisible(), 'lit on the scoreboard, with a bar filling under it');
+  check(!(await page.locator('#mi-skip').isVisible()) && await page.locator('#mi-next').textContent() === "Let's bat", 'the last: no skip, and Let\'s bat');
+  await page.screenshot({ path: `${out}/phone-confidence.png` });
   await advance(page, 4000);
   const held = await snap(page);
   check(held.phase === 'READY' && held.balls === 0, 'nothing bowled while it is up', held.phase);
@@ -138,7 +147,16 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   const keys = await page.locator('.hb-label kbd').allTextContents();
   check(JSON.stringify(keys) === JSON.stringify(['A', 'A+W', 'W', 'W+D', 'D', 'S']), 'a keyboard\'s card carries the keys', JSON.stringify(keys));
   check(await page.locator('.hb-label kbd').first().isVisible() && await page.locator('.keyboard-only', { hasText: 'Press the way' }).isVisible(), 'and says press, not swipe');
+  check(!(await page.locator('#mi-skip').isVisible()), 'and no confidence card after it: Survival\'s meter is the injury');
   await page.screenshot({ path: `${out}/desk.png` });
+  await page.locator('#mi-next').click({ force: true });
+  await advance(page, 50);
+  // The meter's card waits for the first innings that has the meter.
+  await walkOut(page, 'classic');
+  check(await upWithin(page) && await page.locator('#mi-title').textContent() === 'Fill your confidence', 'the first Blast after it opens with the meter alone');
+  await page.locator('#mi-next').click({ force: true });
+  await advance(page, 50);
+  check(await page.evaluate(() => localStorage.getItem('hitman-shots-intro')) === 'done', 'and then both are remembered');
   await context.close();
 }
 
@@ -162,7 +180,7 @@ for (const lefty of [0, 1]) {
     await advance(page, 50);
   }
   check(titles[0] === 'Swipe to hit' && titles.length === 5 && titles[4] === 'Every innings counts', 'the swipes first, then the four rules', JSON.stringify(titles));
-  check(await page.evaluate(() => localStorage.getItem('hitman-shots-intro')) === 'done', 'and a Blast after it has nothing more to tell');
+  check(await page.evaluate(() => localStorage.getItem('hitman-shots-intro')) === 'swipes', 'and a Blast after it has only the meter to tell');
   await context.close();
 }
 

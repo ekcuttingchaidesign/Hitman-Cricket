@@ -3,7 +3,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro } from './ui/MarathonIntro';
-import { noteShots, SHOTS_STEP, shotsDue } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHanderOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
@@ -1179,8 +1179,8 @@ export class Game {
   private introduce() {
     if (this.demoing || !introDue()) return;
     noteIntro('shown');
-    // They open with how to hit, so a first innings anywhere else has nothing left to tell.
-    noteShots();
+    // They open with how to hit, so a first innings anywhere else has only the meter left to tell.
+    noteHowTo(false);
     this.mark('intro', 'Rules shown');
     this.bannerUntil = Number.POSITIVE_INFINITY;
     this.hud.marathonIntro(how => {
@@ -1191,18 +1191,20 @@ export class Game {
   }
   /**
    * How to hit, before the first ball a browser ever faces outside a
-   * Marathon: the same coachmark, one card, and the bowler at his mark until
-   * it is put away. Not for a browser that has batted here before.
+   * Marathon, and then the confidence meter where the scoreboard has one: the
+   * same coachmarks, and the bowler at his mark until they are put away. Not
+   * for a browser that has batted here before.
    */
   private teachShots() {
-    if (this.demoing || !shotsDue()) return;
-    noteShots();
+    const steps = this.demoing ? [] : howToDue(!this.hurts);
+    if (!steps.length) return;
+    noteHowTo(steps.includes(CONFIDENCE_STEP));
     this.mark('shots-intro', 'How to hit shown');
     this.bannerUntil = Number.POSITIVE_INFINITY;
-    this.hud.marathonIntro(() => {
-      this.mark('shots-intro-done', 'How to hit put away');
+    this.hud.marathonIntro(how => {
+      this.mark(how === 'skipped' ? 'shots-intro-skipped' : 'shots-intro-done', how === 'skipped' ? 'How to hit skipped' : 'How to hit put away');
       this.bannerUntil = this.elapsed;
-    }, [SHOTS_STEP]);
+    }, steps);
   }
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
@@ -2374,7 +2376,7 @@ export class Game {
       this.celebrating = 0; this.afterBallUntil = -Infinity;
       if (this.lesson >= 0) {
         this.lesson++;
-        if (this.lesson >= TUTORIAL.length) { this.lesson = -1; noteShots(); track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
+        if (this.lesson >= TUTORIAL.length) { this.lesson = -1; noteHowTo(false); track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
         else { this.setPhase('READY'); this.hud.coach(TUTORIAL[this.lesson], this.lesson + 1, TUTORIAL.length); }
       } else if (this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended) this.end();
       else {

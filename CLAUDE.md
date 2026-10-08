@@ -153,13 +153,15 @@ and the ended nets innings offering none — it is practice. Its career card is
 `stats-check`'s, second on the rail and green. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
-`scripts/shots-check.mjs` is how to hit, the coachmark before a browser's
-first innings (`src/ui/ShotsIntro.ts`): the six swipes as arrows with a streak
-of green running round them, the strokes' names at their tips and the keys
-beside them on a keyboard, nothing bowled until it is put away, never a second
-time, and never for a browser that has batted here before (`playedBefore`). In
-a Test Marathon it is the first of the rules cards, drawn the other way round
-for a left-hander. Every other browser check seeds `hitman-shots-intro` past
+`scripts/shots-check.mjs` is how to hit, the coachmarks before a browser's
+first innings (`src/ui/ShotsIntro.ts`): the six swipes as arrows with a hand
+swiping each in turn, the strokes' names at their tips and the keys beside
+them on a keyboard, then — where the scoreboard has a confidence meter — the
+meter lit with a bar filling under it; nothing bowled until they are put away,
+never a second time, and never for a browser that has batted here before
+(`playedBefore`). A Test Survival shows the swipes alone and leaves the meter
+for the first Blast. In a Test Marathon the swipes are the first of the rules
+cards, drawn the other way round for a left-hander. Every other browser check seeds `hitman-shots-intro` past
 it, so a new one that bats should too.
 
 `scripts/pause-check.mjs` is the pause sheet, in the Blast and in a Test
