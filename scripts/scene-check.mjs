@@ -73,6 +73,8 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
 ]) {
   console.log(`${ground} · ${time} · ${name}`);
   const page = await browser.newPage(options);
+  // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+  await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   // A resource that fails to load is the network's business, and the analytics

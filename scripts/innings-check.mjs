@@ -3,6 +3,8 @@ import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+// Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 const snapshot = () => page.evaluate(() => window.__cricket.snapshot());

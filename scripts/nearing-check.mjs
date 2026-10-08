@@ -45,6 +45,8 @@ for (const [name, options] of [
 ]) {
   console.log(name);
   const page = await browser.newPage(options);
+  // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+  await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
