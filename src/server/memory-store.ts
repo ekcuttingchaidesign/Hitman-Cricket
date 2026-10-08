@@ -33,6 +33,13 @@ function siblingsOf(names: Map<string, string>) {
   return SIBLINGS.get(names)!;
 }
 
+/** The last new name each player took, beside the registry for the same reason. */
+const NAMED = new WeakMap<Map<string, string>, Map<string, { name: string; at: number }>>();
+function namedOf(names: Map<string, string>) {
+  if (!NAMED.has(names)) NAMED.set(names, new Map());
+  return NAMED.get(names)!;
+}
+
 export function memoryStore<I = Innings>(
   names = new Map<string, string>(),
 ): BoardStore<I> & { clear(): void } {
@@ -68,6 +75,12 @@ export function memoryStore<I = Innings>(
     async markSibling(base, id, name, windowSeconds) {
       siblingsOf(names).set(base, { id, name, until: Date.now() + windowSeconds * 1000 });
     },
+    async lastNamed(id) { return namedOf(names).get(id) ?? null; },
+    async markNamed(id, name, at) { namedOf(names).set(id, { name, at }); },
+    async rename(id, name) {
+      const row = rows.get(id);
+      if (row) rows.set(id, { ...row, name });
+    },
     async hits(address, windowSeconds) {
       const now = Date.now();
       const held = rate.get(address);
@@ -78,7 +91,7 @@ export function memoryStore<I = Innings>(
       held.count++;
       return held.count;
     },
-    clear() { ranking.clear(); rows.clear(); names.clear(); siblingsOf(names).clear(); rate.clear(); },
+    clear() { ranking.clear(); rows.clear(); names.clear(); siblingsOf(names).clear(); namedOf(names).clear(); rate.clear(); },
   };
 }
 

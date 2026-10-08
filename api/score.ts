@@ -4,7 +4,7 @@ import {
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
 import { foldName } from '../src/server/board-store.js';
-import { keyOnClaim } from '../src/server/recovery-store.js';
+import { carryKey, keyOnClaim } from '../src/server/recovery-store.js';
 import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
@@ -101,7 +101,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // and by the key screen after that.
     let key: string | null = null;
     try {
-      key = await keyOnClaim(upstashRecovery(redisFromEnv()), foldName(cleanName(who.name)));
+      // A name changed on the way in keeps the key the player already has.
+      const recovery = upstashRecovery(redisFromEnv());
+      const folded = foldName(cleanName(who.name));
+      await carryKey(recovery, { from: body.previous, to: folded, playerId: who.playerId });
+      key = await keyOnClaim(recovery, folded);
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }

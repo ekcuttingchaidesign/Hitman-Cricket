@@ -41,6 +41,12 @@ export interface KeyView {
   state: KeyState;
   /** The key itself, absent where this device does not hold it. */
   code?: string | null;
+  /**
+   * The name it opens. A key is only ever half of the way back, and on the
+   * card that keeps it the other half is said beside it — with the way to
+   * change it, which is the one place a player looks for their name.
+   */
+  name?: string | null;
 }
 
 /** Three words and two digits, as it is written everywhere it appears. */
@@ -78,6 +84,8 @@ export function keyCardMarkup(view: KeyView): string {
         <button id="key-save" class="key-save" type="button">${
           lost ? 'MAKE MY KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
         ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
+        ${view.name ? `<p class="key-who"><span>Batting as <b>${escape(view.name)}</b></span>
+          <button id="name-change" class="key-who-change" type="button">Change name</button></p>` : ''}
       </div>
     </section>`;
 }

@@ -34,7 +34,7 @@ import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nea
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, Hurt } from './entities/Batter';
 import {
-  claimName, fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
+  claimName, fetchBoard, fetchMarathonBoard, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
 } from './game/board-api';
 import { readPlayer, writePlayer } from './game/player';
@@ -613,6 +613,7 @@ export class Game {
     this.hud.onRestoreOpen = from => this.openRestore(from);
     this.hud.keyNow = () => this.careerKeyHeld();
     this.hud.onNewKey = () => void this.makeNewKey();
+    this.hud.onRename = name => void this.rename(name);
     this.hud.onRestoreShown = () => {
       restoreOfferShown();
       trackOnce('restore-offered-card', 'Offered the way back at the end of an innings');
@@ -775,7 +776,10 @@ export class Game {
    * phone with a few innings on it. All four were once handed a key, because
    * the rule was written in a comment and nowhere else.
    */
-  private careerKeyHeld() { return keyView(!!readPlayer()); }
+  private careerKeyHeld() {
+    const player = readPlayer(), view = keyView(!!player);
+    return view && player ? { ...view, name: player.name } : view;
+  }
 
   /**
    * Whether the end of this innings offers the way back instead of a key.
@@ -1042,6 +1046,47 @@ export class Game {
     // reads "make a new key" over a browser that now holds one.
     this.redrawKeyPlacements();
     this.hud.openKeySheet();
+  }
+
+  /**
+   * A new name for a player who has one, from the key card on My Stats.
+   *
+   * The same rules a first name is held to, said here before a round trip,
+   * and the month the store holds a change to. What comes back is the name as
+   * kept; everything drawn under the old one — the careers, the boards, the
+   * card — is dropped so the next look draws it under the new.
+   */
+  private async rename(typed: string) {
+    const mine = readPlayer();
+    if (!mine || !this.player) return this.hud.closeRename();
+    const name = cleanName(typed), folded = foldName(name);
+    if (folded !== foldName(mine.name)) {
+      const problem = nameProblem(name, folded);
+      if (problem) return this.hud.renameFailed(problem);
+    }
+    this.hud.renameSending(true);
+    const result = await claimName(this.player, name, mine.avatar, mine.name);
+    if (this.disposed) return;
+    if (!result.ok) {
+      track('rename-refused', 'Name change turned down');
+      return this.hud.renameFailed(result.reason ?? 'That did not go through.');
+    }
+    track('rename-done', 'Name changed');
+    writePlayer({ name: result.name ?? name, avatar: mine.avatar });
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    forgetCareer();
+    forgetBoard();
+    this.careerBoards = {};
+    this.myCareer = {};
+    this.boardSeen = false;
+    this.surviveSeen = false;
+    this.boardEpoch++;
+    this.surviveEpoch++;
+    this.hud.renameDone(result.name ?? name);
+    this.redrawKeyPlacements();
   }
 
   /**

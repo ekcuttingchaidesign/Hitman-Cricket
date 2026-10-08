@@ -180,7 +180,13 @@ browser before a round trip and again on the server), claims a made-up name,
 and then from a second browser tries the same name with a number on it and is
 pointed back at the one that is held: a name and its siblings — the same but
 for a number on the end — are one person's for a day after the first is
-claimed. Names already held are never put to the new rules again.
+claimed. Names already held are never put to the new rules again. Then it
+changes the name from My Stats' key card: a player takes a new name once every
+30 days (`RENAME_WINDOW_MS`, kept per player in `${SCOPE}named`), going back to
+a name they already hold is free and never released to anybody else, and the
+key they saved comes across to the new name (`carryKey`) rather than a second
+one being minted. The month cannot be waited out in a browser, so the check
+proves the refusal against the real store and stands in for the yes.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one

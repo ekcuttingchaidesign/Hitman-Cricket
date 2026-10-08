@@ -7,7 +7,9 @@ import {
   type MarathonFigures, type SoloInnings, type TeamInnings,
 } from '../game/marathon-board.js';
 import { MARATHON } from '../config/marathon.js';
-import { nameProblem, siblingBase, siblingReason, SIBLING_WINDOW_MS } from './name-rules.js';
+import {
+  nameProblem, renameReason, RENAME_WINDOW_MS, siblingBase, siblingReason, SIBLING_WINDOW_MS,
+} from './name-rules.js';
 
 /**
  * What the board is, on the store's side of the wire.
@@ -139,6 +141,19 @@ export interface BoardStore<I = Innings> {
   recentSibling(base: string): Promise<{ id: string; name: string } | null>;
   /** Notes a name newly claimed under this base, for `windowSeconds`. */
   markSibling(base: string, id: string, name: string, windowSeconds: number): Promise<void>;
+  /**
+   * The last new name this player took, and when, or null for a player who
+   * has taken none since this was kept: see `RENAME_WINDOW_MS`.
+   */
+  lastNamed(id: string): Promise<{ name: string; at: number } | null>;
+  /** Notes a new name taken by this player. */
+  markNamed(id: string, name: string, at: number): Promise<void>;
+  /**
+   * Puts a new name on the row this player holds, where they hold one, and
+   * leaves the figures and the ranking alone. Nothing is written for a player
+   * with no row.
+   */
+  rename(id: string, name: string): Promise<void>;
   /** How many submissions this address has made inside the window, counting this one. */
   hits(address: string, windowSeconds: number): Promise<number>;
 }
@@ -241,7 +256,7 @@ export interface Submission<I = Innings> {
 export async function submitScore<I>(
   store: BoardStore<I>, ladder: Ladder<I>, input: Submission<I>, now = Date.now(),
 ): Promise<SubmitOutcome<I>> {
-  const admitted = await admit(store, ladder.plausible, input);
+  const admitted = await admit(store, ladder.plausible, input, now);
   if (turnedAway(admitted)) return admitted;
   const score = ladder.pack(input.innings, now);
   const improved = await store.record(input.playerId, score, {
@@ -263,9 +278,11 @@ interface Admitted { ok: true; name: string }
  * the compiler Vercel builds `api/` with does not narrow on the flag.
  */
 function turnedAway(admitted: Admitted | SubmitRefusal): admitted is SubmitRefusal { return !admitted.ok; }
+/** What of a board the gate for a name needs. */
+type NameGate = Pick<BoardStore<unknown>,
+  'hits' | 'claimName' | 'nameOwner' | 'recentSibling' | 'markSibling' | 'lastNamed' | 'markNamed'>;
 async function admit<I>(
-  store: Pick<BoardStore<unknown>, 'hits' | 'claimName' | 'nameOwner' | 'recentSibling' | 'markSibling'>,
-  plausibleInnings: (innings: I) => boolean, input: Submission<I>,
+  store: NameGate, plausibleInnings: (innings: I) => boolean, input: Submission<I>, now: number,
 ): Promise<Admitted | SubmitRefusal> {
   if (await store.hits(input.address, RATE_WINDOW_SECONDS) > RATE_LIMIT) {
     return { ok: false, status: 429, reason: 'Too many innings from here. Try again in an hour.' };
@@ -299,6 +316,11 @@ async function admit<I>(
   if (fresh) {
     const problem = nameProblem(name, folded);
     if (problem) return { ok: false, status: 400, reason: problem };
+    // A new name once a month. A player's first is never held back — the store
+    // has no record of one — and nor is going back to a name already theirs,
+    // which is not fresh and never reaches here.
+    const last = await store.lastNamed(input.playerId);
+    if (last && now - last.at < RENAME_WINDOW_MS) return { ok: false, status: 429, reason: renameReason(last.at) };
     const recent = await store.recentSibling(siblingBase(folded));
     if (recent && recent.id !== input.playerId) {
       return { ok: false, status: 409, reason: siblingReason(recent.name), held: recent.name };
@@ -307,7 +329,12 @@ async function admit<I>(
   if (await store.claimName(folded, input.playerId) !== input.playerId) {
     return { ok: false, status: 409, reason: 'Somebody already bats under that name.', held: name };
   }
-  if (fresh) await store.markSibling(siblingBase(folded), input.playerId, name, SIBLING_WINDOW_MS / 1000);
+  if (fresh) {
+    await Promise.all([
+      store.markSibling(siblingBase(folded), input.playerId, name, SIBLING_WINDOW_MS / 1000),
+      store.markNamed(input.playerId, name, now),
+    ]);
+  }
   return { ok: true, name };
 }
 
@@ -328,10 +355,9 @@ export interface NameClaim {
  * Answers with the name as it will be kept.
  */
 export async function claimOnly(
-  store: Pick<BoardStore<unknown>, 'hits' | 'claimName' | 'nameOwner' | 'recentSibling' | 'markSibling'>,
-  input: NameClaim,
+  store: NameGate, input: NameClaim, now = Date.now(),
 ): Promise<{ ok: true; name: string } | SubmitRefusal> {
-  return admit(store, () => true, { ...input, innings: null });
+  return admit(store, () => true, { ...input, innings: null }, now);
 }
 
 /** Whether a name claim was turned down — a predicate, for the reason `refused` is one. */
@@ -376,7 +402,7 @@ export async function submitMarathon(
   stores: { team: BoardStore<TeamInnings>; solo: BoardStore<SoloInnings> },
   input: Submission<MarathonFigures>, now = Date.now(),
 ): Promise<MarathonOutcome> {
-  const admitted = await admit(stores.team, marathonPlausible, input);
+  const admitted = await admit(stores.team, marathonPlausible, input, now);
   if (turnedAway(admitted)) return admitted;
   const owner = { name: (admitted as Admitted).name, avatar: input.avatar, at: now };
   const team = teamOf(input.innings), solo = soloOf(input.innings);

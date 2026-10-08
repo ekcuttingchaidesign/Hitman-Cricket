@@ -1,5 +1,6 @@
 import { inventedBoard } from './board-fixture';
 import type { BoardRow, Innings } from './leaderboard';
+import { readPlayer } from './player';
 import type { SurviveInnings, SurviveRow } from './survive-board';
 import type { MarathonFigures, SoloRow, TeamRow } from './marathon-board';
 
@@ -173,7 +174,9 @@ async function offer(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerId, name, avatar, innings, mode }),
+      // The name this browser batted under before, for a claim that changes
+      // it: the key already saved for that name comes across to this one.
+      body: JSON.stringify({ playerId, name, avatar, innings, mode, previous: readPlayer()?.name }),
     },
   );
   // Nothing came back at all: a timeout, a dropped connection, or a crash with
@@ -211,13 +214,15 @@ export interface NameResult {
  * with no name whose innings earned no place. The same gate a board claim
  * passes, and the same key back — see `api/name.ts`.
  */
-export async function claimName(playerId: string, name: string, avatar: number): Promise<NameResult> {
+export async function claimName(playerId: string, name: string, avatar: number, previous?: string): Promise<NameResult> {
   const answer = await ask<{ name?: string; key?: string; error?: string; retry?: boolean; status?: number; held?: string }>(
     `${API}/api/name`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerId, name, avatar }),
+      // The name this browser bats under now, so the key already saved for it
+      // opens the new one too. The store checks it is this player's.
+      body: JSON.stringify({ playerId, name, avatar, previous }),
     },
   );
   if (!answer) return { ok: false, reason: 'The board could not be reached. Try again in a moment.' };

@@ -188,6 +188,33 @@ export async function keyOnClaim(
   return key;
 }
 
+/**
+ * The key a player already has, put behind the name they have just changed to.
+ *
+ * A new name minted a new key, which left a player who had saved theirs holding
+ * one that opened only the name they had stopped using — and being told to save
+ * a second key a month after being told the first was the only way back. So the
+ * one they have comes with them, and `keyOnClaim` after it finds the name
+ * already keyed and mints nothing.
+ *
+ * Only between two names the same player holds, which is the whole check: the
+ * old name is the browser's word, and taking somebody else's key across would
+ * hand them a way into this record. The old name keeps its key too — a name
+ * once held is never released, and a key written down beside it goes on
+ * opening the same career.
+ */
+export async function carryKey(
+  store: RecoveryStore, input: { from: unknown; to: string; playerId: string },
+): Promise<void> {
+  const from = typeof input.from === 'string' ? foldName(cleanName(input.from)) : '';
+  if (!from || from === input.to) return;
+  const [held, already, oldHolder, newHolder] = await Promise.all([
+    store.keyFor(from), store.keyFor(input.to), store.holderOf(from), store.holderOf(input.to),
+  ]);
+  if (!held || already || oldHolder !== input.playerId || newHolder !== input.playerId) return;
+  await store.putKey(input.to, held);
+}
+
 /** Whether an outcome is a refusal, for callers that have to narrow it. */
 export function refusedRecovery<T>(
   outcome: RecoveryOutcome<T>,

@@ -5531,7 +5531,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .whatsnew-bar.is-held>i{animation:none;transform:none}
 /* The sheets the key opens stand over the story it was opened from. */
 .whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,
-.whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal{z-index:13}
+.whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal,
+.whatsnew-overlay:not(.hidden)~#rename-overlay>.key-modal{z-index:13}
 .whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
 .whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
 
@@ -5701,6 +5702,32 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   letter-spacing:.04em
 }
 .key-save:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge),0 4px 9px #00000047}
+/* The other half of the way back, said beside the key, and the way to change it. */
+.key-who{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:12px 0 0;
+  padding:10px 0 0;
+  border-top:1px solid #ffffff1f;
+  font-family:var(--card);
+  font-size:12px;
+  color:#ffffffb3
+}
+.key-who b{color:#fff;font-weight:700}
+.key-who-change{
+  flex:none;
+  padding:3px;
+  border:0;
+  background:none;
+  color:#fff;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:600;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
 .key-ghost{
   display:block;
   width:100%;

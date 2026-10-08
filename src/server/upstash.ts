@@ -87,6 +87,8 @@ function careerKeysFor(scope: string) {
 const RATE = `${SCOPE}rate:`;
 /** A name's sibling base to the one claimed under it in the last day: see `name-rules.ts`. Shared, like the names. */
 const SIBLING = `${SCOPE}sibling:`;
+/** Player id to the last new name they took and when: see `RENAME_WINDOW_MS`. Shared, like the names. */
+const NAMED = `${SCOPE}named`;
 /** The questionnaire's own counter, kept apart from the board's. */
 const FEEDBACK_RATE = `${SCOPE}frate:`;
 /**
@@ -185,6 +187,21 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
       // A key of its own that expires by itself, so nothing about a name
       // claimed today is still kept tomorrow.
       await redis.set(SIBLING + base, { id, name }, { ex: windowSeconds });
+    },
+
+    async lastNamed(id) {
+      return (await redis.hget<{ name: string; at: number }>(NAMED, id)) ?? null;
+    },
+
+    async markNamed(id, name, at) {
+      // One hash across every board, beside the registry: a name is a person,
+      // not a ladder, so the month runs once whichever board it was taken on.
+      await redis.hset(NAMED, { [id]: { name, at } });
+    },
+
+    async rename(id, name) {
+      const row = await redis.hget<StoredRow<I>>(KEY.rows, id);
+      if (row && row.name !== name) await redis.hset(KEY.rows, { [id]: { ...row, name } });
     },
 
     async hits(address, windowSeconds) {

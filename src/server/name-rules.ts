@@ -67,6 +67,27 @@ export function nameProblem(name: string, folded: string): string | null {
   return null;
 }
 
+/**
+ * How long after taking a new name a player waits to take another.
+ *
+ * A name is how the board, the career boards and a friend's Rivals link know
+ * somebody, so one that changes every day is no name at all — and changing it
+ * freely was the other way to stand on the board as somebody new. Going back
+ * to a name the player already holds is not a change and is never held back:
+ * every name a player has taken stays theirs.
+ */
+export const RENAME_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** "7 Nov": a day and a month, in the one time zone the store keeps. */
+function day(at: number): string {
+  return new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/** What a second new name inside the window says: when the last was taken, and when the next can be. */
+export function renameReason(lastAt: number): string {
+  return `You took your name on ${day(lastAt)}. You can change it again from ${day(lastAt + RENAME_WINDOW_MS)}.`;
+}
+
 /** What a sibling claimed in the last day says, naming the one that is held. */
 export function siblingReason(held: string): string {
   return `${held} was claimed in the last day. Is it you? Bring your career back with your key.`;

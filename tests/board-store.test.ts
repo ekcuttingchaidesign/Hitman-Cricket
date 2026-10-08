@@ -50,6 +50,8 @@ const innings = (runs = 50, wickets = 1): Innings => {
 
 const ID = 'abcdef-abcdefghijkl';
 const OTHER = 'abcdeg-mnopqrstuvwx';
+/** Past the month a new name waits, so a test about something else can change one. */
+const MONTH = 31 * 24 * 60 * 60 * 1000;
 const submission = (over: Partial<Submission> = {}): Submission =>
   ({ playerId: ID, name: 'Rohit', avatar: 0, innings: innings(), address: '1.2.3.4', ...over });
 
@@ -163,7 +165,7 @@ describe('submitting an innings', () => {
     const { store } = fakeStore();
     await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
     const better = await submitScore(
-      store, CLASSIC_LADDER, submission({ name: 'Sharma', avatar: 3, innings: innings(141) }), LAUNCH_MS + 2000,
+      store, CLASSIC_LADDER, submission({ name: 'Sharma', avatar: 3, innings: innings(141) }), LAUNCH_MS + MONTH,
     );
     expect(better.ok).toBe(true);
     if (!better.ok) return;
@@ -195,7 +197,7 @@ describe('submitting an innings', () => {
     const { store } = fakeStore();
     await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit', avatar: 0, innings: innings(140) }), LAUNCH_MS + 1000);
     const worse = await submitScore(
-      store, CLASSIC_LADDER, submission({ name: 'Sharma', avatar: 3, innings: innings(120) }), LAUNCH_MS + 2000,
+      store, CLASSIC_LADDER, submission({ name: 'Sharma', avatar: 3, innings: innings(120) }), LAUNCH_MS + MONTH,
     );
     expect(worse.ok).toBe(true);
     if (!worse.ok) return;
@@ -354,7 +356,7 @@ describe('the rules a new name is held to', () => {
   it('lets the same player take a sibling of their own name', async () => {
     const { store } = fakeStore();
     await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit' }), LAUNCH_MS + 1000);
-    expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit2' }), LAUNCH_MS + 2000)).ok).toBe(true);
+    expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit2' }), LAUNCH_MS + MONTH)).ok).toBe(true);
   });
 
   it('lets a sibling be claimed by somebody else once the day is out', async () => {
@@ -403,5 +405,54 @@ describe('a name claimed with no innings', () => {
     expect(onBoard).toMatchObject({ ok: false, status: 409, held: 'Shubman' });
     // And the name it holds is the player's own to bat under on the board.
     expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Shubman' }))).ok).toBe(true);
+  });
+});
+
+describe('a new name once a month', () => {
+  it('turns a second new name down inside the month, saying when the next can be', async () => {
+    const { store } = fakeStore();
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit' }), Date.UTC(2026, 9, 8));
+    const again = await submitScore(store, CLASSIC_LADDER, submission({ name: 'Sharma' }), Date.UTC(2026, 9, 20));
+    expect(again).toMatchObject({ ok: false, status: 429, reason: 'You took your name on 8 Oct. You can change it again from 7 Nov.' });
+    expect(await claimOnly(store, { playerId: ID, name: 'Sharma', avatar: 1, address: 'x' }, Date.UTC(2026, 9, 20)))
+      .toMatchObject({ ok: false, status: 429 });
+  });
+
+  it('takes it once the month is out', async () => {
+    const { store } = fakeStore();
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit' }), Date.UTC(2026, 9, 8));
+    expect((await claimOnly(store, { playerId: ID, name: 'Sharma', avatar: 1, address: 'x' }, Date.UTC(2026, 10, 7))).ok).toBe(true);
+  });
+
+  it('never holds back going back to a name already theirs', async () => {
+    const names = new Map<string, string>();
+    const store = memoryStore(names);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit' }), LAUNCH_MS + 1000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Sharma' }), LAUNCH_MS + MONTH);
+    expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit' }), LAUNCH_MS + MONTH + 1000)).ok).toBe(true);
+  });
+
+  it('lets a player who took their name before this was kept change it once', async () => {
+    // The registry knows them; the record of when does not, so the first change is theirs.
+    const store = memoryStore(new Map([['rohit', ID]]));
+    expect((await claimOnly(store, { playerId: ID, name: 'Sharma', avatar: 1, address: 'x' }, LAUNCH_MS)).ok).toBe(true);
+    expect((await claimOnly(store, { playerId: ID, name: 'Gill', avatar: 1, address: 'x' }, LAUNCH_MS + 1000)).ok).toBe(false);
+  });
+
+  it('runs one month across every board that shares the registry', async () => {
+    const names = new Map<string, string>();
+    await submitScore(memoryStore(names), CLASSIC_LADDER, submission({ name: 'Rohit' }), LAUNCH_MS + 1000);
+    const elsewhere = await claimOnly(memoryStore(names), { playerId: ID, name: 'Sharma', avatar: 1, address: 'x' }, LAUNCH_MS + 2000);
+    expect(elsewhere).toMatchObject({ ok: false, status: 429 });
+  });
+
+  it('renames the row a player holds and nothing else', async () => {
+    const { store } = fakeStore();
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit', innings: innings(140) }), LAUNCH_MS + 1000);
+    await store.rename(ID, 'Sharma');
+    await store.rename(OTHER, 'Nobody');
+    const board = await readBoard(store, CLASSIC_LADDER);
+    expect(board.rows).toHaveLength(1);
+    expect(board.rows[0]).toMatchObject({ playerId: ID, name: 'Sharma', runs: 140 });
   });
 });

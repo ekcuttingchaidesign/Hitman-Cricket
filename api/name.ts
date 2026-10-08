@@ -1,6 +1,8 @@
-import { claimOnly, foldName, nameRefused } from '../src/server/board-store.js';
+import {
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, claimOnly, foldName, nameRefused,
+} from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
-import { keyOnClaim } from '../src/server/recovery-store.js';
+import { carryKey, keyOnClaim } from '../src/server/recovery-store.js';
 import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
@@ -19,6 +21,12 @@ import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../s
  * `claimOnly`, the gate a board claim passes. What follows a yes is what
  * follows one on `/api/score`: the careers already counted go onto the career
  * boards under it, and the key that brings them back is minted, once.
+ *
+ * It is also how a player with a name changes it, from My Stats: the same gate,
+ * which holds a new name to once a month, and then the new name on every row
+ * and career they hold, with the key they already have carried across rather
+ * than a second one minted. `previous` is the name the browser bats under now,
+ * and is only ever used to find that key: `carryKey` checks it is theirs.
  */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
@@ -40,10 +48,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return res.status(outcome.status).json({ error: outcome.reason, retry: false, status: outcome.status, held: outcome.held });
     }
     const name = (outcome as { ok: true; name: string }).name;
-    // The careers counted so far, under the name. It must not be able to fail
-    // the claim: the name is what was asked for and it is already held.
+    // The careers counted so far, and the rows on the boards, under the name.
+    // It must not be able to fail the claim: the name is what was asked for
+    // and it is already held. A player with no rows has nothing renamed.
     try {
+      const write = redisFromEnv();
       await Promise.all([
+        ...[CLASSIC_LADDER, SURVIVE_LADDER, MARATHON_TEAM_LADDER, MARATHON_SOLO_LADDER]
+          .map(ladder => upstashStore(write, ladder.scope).rename(who.playerId, name)),
         nameCareer(upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope), BLAST_CAREER, who.playerId, name, who.avatar),
         nameCareer(upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope), SURVIVE_CAREER, who.playerId, name, who.avatar),
         nameCareer(upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope), MARATHON_CAREER, who.playerId, name, who.avatar),
@@ -54,7 +66,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // The key, minted the first time this name is claimed and handed over once.
     let key: string | null = null;
     try {
-      key = await keyOnClaim(upstashRecovery(redisFromEnv()), foldName(name));
+      const recovery = upstashRecovery(redisFromEnv());
+      await carryKey(recovery, { from: body.previous, to: foldName(name), playerId: who.playerId });
+      key = await keyOnClaim(recovery, foldName(name));
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }

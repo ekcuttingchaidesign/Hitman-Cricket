@@ -16,7 +16,7 @@ import {
 import { memoryCareer } from './src/server/memory-career';
 import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
-import { firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
+import { carryKey, firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
 import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
   type BlastCareer, type MarathonCareer, type SurviveCareer,
@@ -209,10 +209,12 @@ function boardEndpoints(): Plugin {
             if (nameRefused(claimed)) return turnedDown(claimed);
             const name = (claimed as { ok: true; name: string }).name;
             await Promise.all([
+              ...[boards[''], boards['survive:'], marathon.team, marathon.solo].map(board => board.rename(who.playerId, name)),
               nameCareer(careers.classic, BLAST_CAREER, who.playerId, name, who.avatar),
               nameCareer(careers.survive, SURVIVE_CAREER, who.playerId, name, who.avatar),
               nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, name, who.avatar),
             ]);
+            await carryKey(recovery, { from: asked.previous, to: foldName(name), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(name));
             return send(200, key ? { ok: true, name, key } : { ok: true, name });
           }
@@ -244,6 +246,7 @@ function boardEndpoints(): Plugin {
             const taken = await submitMarathon(marathon, { ...who, innings: readMarathonFigures(body.innings) });
             if (refused(taken)) return turnedDown(taken);
             await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
+            await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
             return send(200, key ? { ...taken, key } : taken);
           }
@@ -260,6 +263,7 @@ function boardEndpoints(): Plugin {
             : nameCareer(careers.classic, BLAST_CAREER, who.playerId, cleanName(who.name), who.avatar));
           // And the key, minted the first time this name is claimed and handed
           // over once, exactly as the deployed endpoint does it.
+          await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
           const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
           return send(200, key ? { ...outcome, key } : outcome);
         } catch (error) {

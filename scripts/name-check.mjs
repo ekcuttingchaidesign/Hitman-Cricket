@@ -17,6 +17,9 @@
  * of their own, trying the same name with a number on the end within the day,
  * and being pointed at the name that is held and a way back to it.
  *
+ * Then the name changed from My Stats: said beside the key, held to once a
+ * month by the real store, and a change it takes drawn under the new name.
+ *
  * The dev server's database is in memory, so the name is made up fresh each
  * run: a name claimed by an earlier run is held for as long as the server is up.
  */
@@ -142,6 +145,53 @@ async function send(page, advance, name) {
   check(await page.evaluate(() => Boolean(localStorage.getItem('hitman-career-key'))),
     'the career key is kept in this browser');
   check(await page.locator('#card-key').isVisible(), 'and the card carries it');
+
+  // — Changing it, from the key card on My Stats.
+  await page.locator('#card-career').click({ force: true });
+  await advance(400);
+  await page.waitForTimeout(2500);
+  const who = page.locator('#stats-overlay .key-who');
+  check(await who.isVisible(), 'My Stats says the name beside the key');
+  check((await who.innerText()).includes(fresh), 'which is the name just claimed', await who.innerText().catch(() => ''));
+  await page.locator('#name-change').click({ force: true });
+  await advance(300);
+  await page.waitForTimeout(500);
+  check(await page.locator('#rename-name').inputValue() === fresh, 'Change name opens on the name held now');
+  check((await page.locator('#rename-overlay .key-fine').innerText()).includes('once every 30 days'),
+    'and says how often before anybody types');
+  await page.locator('#rename-name').fill(`${fresh}x`);
+  await page.locator('#rename-send').click({ force: true });
+  await advance(300);
+  await page.waitForTimeout(900);
+  const month = await page.locator('#rename-error').innerText().catch(() => '');
+  check(/You took your name on .+\. You can change it again from .+\./.test(month),
+    'a second new name inside the month is turned down, with the day it opens', month);
+  const still = await page.evaluate(() => JSON.parse(localStorage.getItem('hitman-batter') ?? 'null'));
+  check(still?.name === fresh, 'and nothing changes', JSON.stringify(still));
+
+  // The store's month cannot be waited out here, so the answer to a change it
+  // takes is stood in for: what is checked is what the game does with a yes.
+  // The rows, the careers and the key moving are the unit tests'.
+  const renamed = `${fresh}y`;
+  let sent = null;
+  await page.route('**/api/name', route => {
+    sent = JSON.parse(route.request().postData() ?? '{}');
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, name: renamed }) });
+  });
+  await page.locator('#rename-name').fill(renamed);
+  await page.locator('#rename-send').click({ force: true });
+  await advance(300);
+  await page.waitForTimeout(900);
+  check(sent?.previous === fresh, 'a change sends the old name, so the key comes across', JSON.stringify(sent));
+  // Read off the text, not the screen: the heading is set in capitals.
+  check((await page.locator('#rename-done-title').textContent().catch(() => '') ?? '').includes(renamed), 'and says it worked');
+  await page.locator('#rename-done').click({ force: true });
+  await advance(300);
+  await page.waitForTimeout(1500);
+  const now = await page.evaluate(() => JSON.parse(localStorage.getItem('hitman-batter') ?? 'null'));
+  check(now?.name === renamed, 'this browser bats under the new name', JSON.stringify(now));
+  check((await who.innerText().catch(() => '')).includes(renamed), 'and the key card says so', await who.innerText().catch(() => ''));
+  check(await page.evaluate(() => Boolean(localStorage.getItem('hitman-career-key'))), 'with the same key still kept');
   check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
   await context.close();
 }

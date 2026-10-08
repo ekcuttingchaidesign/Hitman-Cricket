@@ -51,6 +51,7 @@ import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
+import { renameMarkup, type RenameView } from './Rename';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -370,6 +371,7 @@ ${coverIntro(best, top)}
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
+        <div id="rename-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
           <div id="pause-sheet" class="pause-sheet" data-tone="blast">
             <div class="pause-head">
@@ -847,6 +849,8 @@ ${coverIntro(best, top)}
     if (about) about.onclick = () => this.openKeySheet(true);
     const fresh = document.getElementById('key-new');
     if (fresh) fresh.onclick = () => this.onNewKey?.();
+    const rename = document.getElementById('name-change');
+    if (rename) rename.onclick = () => this.openRename(this.keyView?.name ?? '');
     this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
@@ -2130,6 +2134,77 @@ ${coverIntro(best, top)}
   }
 
   get restoreOpen() { return !this.$('restore-overlay').classList.contains('hidden'); }
+
+  /**
+   * The sheet that changes a name, opened from the key card. Held open while
+   * the store is asked, for the reason the restore sheet is: a name turned down
+   * is corrected, not started again.
+   */
+  openRename(name: string) {
+    track('rename-open', 'Change name opened');
+    this.renameView = { name };
+    this.drawRename();
+  }
+
+  renameSending(sending: boolean) {
+    if (!this.renameView) return;
+    this.renameView = { ...this.renameView, sending, error: sending ? null : this.renameView.error };
+    this.drawRename();
+  }
+
+  renameFailed(reason: string) {
+    if (!this.renameView) return;
+    this.renameView = { ...this.renameView, sending: false, error: reason };
+    this.drawRename();
+  }
+
+  renameDone(name: string) {
+    this.renameView = { name, done: name };
+    this.drawRename();
+  }
+
+  closeRename() {
+    this.renameView = null;
+    this.$('rename-overlay').classList.add('hidden');
+    this.$('rename-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  /** What the game does with a new name. The store is the game's. */
+  onRename: ((name: string) => void) | null = null;
+
+  private renameView: RenameView | null = null;
+
+  /** Drawn whole, like the restore sheet, with what was typed carried across. */
+  private drawRename() {
+    const overlay = this.$('rename-overlay');
+    if (!this.renameView) return this.closeRename();
+    const typed = !overlay.classList.contains('hidden') && document.getElementById('rename-name')
+      ? (this.$('rename-name') as HTMLInputElement).value
+      : null;
+    overlay.innerHTML = renameMarkup(this.renameView);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const scrim = overlay.firstElementChild as HTMLElement | null;
+    if (scrim) scrim.onclick = event => { if (event.target === scrim) this.closeRename(); };
+    if (this.renameView.done) {
+      const away = this.$('rename-done');
+      away.onclick = () => this.closeRename();
+      away.focus();
+      return;
+    }
+    const field = this.$('rename-name') as HTMLInputElement;
+    if (typed !== null) field.value = typed;
+    this.$('rename-close').onclick = () => this.closeRename();
+    (this.$('rename-form') as HTMLFormElement).onsubmit = event => {
+      event.preventDefault();
+      if (this.renameView?.sending) return;
+      this.onRename?.(field.value);
+    };
+    if (!this.renameView.sending) field.focus();
+  }
 
   /** What the game does with a name and a key. The store is the game's. */
   onRestore: ((entry: { name: string; key: string }) => void) | null = null;
