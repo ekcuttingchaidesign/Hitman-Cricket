@@ -4125,6 +4125,10 @@ body.marathon-mode #end :is(#challenge-set,#card-share){display:none}
    AGAIN. Shown only on that card, so the Blast's is exactly what it was. */
 #end:not(.is-marathon) :is(.mcard-worm,.mcard-score,.mcard-keys){display:none}
 #end.is-marathon :is(#final-balls,#end-message,.card-stats){display:none}
+/* The Blast's pair under PLAY AGAIN is Challenge a friend and Change mode; the
+   Marathon has no friend to challenge and carries its own Change mode beside
+   SHARE, so the pair goes, or Change mode is on the card twice. */
+#end.is-marathon .card-next{display:none}
 .mcard-worm{margin:12px -4px 0}
 .worm{display:block;width:100%;height:auto;overflow:visible}
 .worm-grid{stroke:var(--rule);stroke-width:1}
