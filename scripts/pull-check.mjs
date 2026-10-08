@@ -36,6 +36,8 @@ const browser = await chromium.launch({ executablePath });
 /** A page past the notices, on a clock wound by hand, at the mode picker. */
 async function open(options) {
   const page = await browser.newPage(options);
+  // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+  await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) errors.push(message.text()); });

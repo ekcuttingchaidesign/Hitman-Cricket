@@ -33,6 +33,8 @@ const base = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
 const S = process.env.SHOTS ?? null;
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+// Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const errs = []; page.on('pageerror', e => errs.push(e.message));
 let bad = 0;
 const ok = (c, what, d) => { if (!c) bad++; console.log(`${c ? '  ok  ' : ' FAIL '} ${what}${c || d === undefined ? '' : `\n        ${d}`}`); };

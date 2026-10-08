@@ -1767,6 +1767,26 @@ body.start-screen #sound{pointer-events:auto}
 @keyframes mi-in{from{opacity:0}to{opacity:1}}
 @keyframes mi-pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot{animation:none}}
+.mi-dots[hidden]{display:flex;visibility:hidden}
+/* How to hit (`ShotsIntro.ts`): the six swipes from where the thumb lands, dim,
+   with a streak of green running out along each in turn and its stroke's name
+   lighting as it arrives — round from leg to off, then the block. */
+.mi-art.is-shots{position:relative;width:min(58cqw,36cqh,250px);height:auto;aspect-ratio:1;margin-bottom:30px}
+.hb-compass{position:absolute;inset:0;display:block;--hb-beat:4.8s}
+.hb-compass svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;stroke-linecap:round;stroke-linejoin:round}
+.hb-shaft,.hb-head{stroke:#ffffff6b;stroke-width:3}
+.hb-head{animation:hb-tip var(--hb-beat) ease-out infinite;animation-delay:calc(var(--i) * var(--hb-beat) / 6)}
+.hb-run{stroke:var(--mi-accent);stroke-width:3.6;stroke-dasharray:14 70;stroke-dashoffset:14;opacity:0;animation:hb-run var(--hb-beat) ease-out infinite;animation-delay:calc(var(--i) * var(--hb-beat) / 6)}
+.hb-hub{fill:#fff}
+.hb-ring{stroke:#fff;stroke-width:1.6;transform-box:fill-box;transform-origin:center;animation:hb-ring 1.6s ease-out infinite}
+.hb-label{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;padding:3px 4px;white-space:nowrap;color:#ffffffb3;animation:hb-name var(--hb-beat) ease-out infinite;animation-delay:calc(var(--i) * var(--hb-beat) / 6)}
+.hb-label b{font-family:var(--card);font-size:14px;font-weight:700;line-height:1.1}
+.hb-label kbd{min-width:22px;padding:2px 5px;border:1px solid #ffffff59;border-radius:5px;font-family:var(--card);font-size:11px;font-weight:800;line-height:1.2;text-align:center;color:#fff}
+@keyframes hb-run{0%{stroke-dashoffset:14;opacity:0}3%{opacity:1}14%{stroke-dashoffset:-44;opacity:1}17%,100%{stroke-dashoffset:-44;opacity:0}}
+@keyframes hb-tip{0%,9%{stroke:#ffffff6b;transform:none}14%{stroke:var(--mi-accent);transform:translateY(-3px)}30%,100%{stroke:#ffffff6b;transform:none}}
+@keyframes hb-name{0%,10%{color:#ffffffb3}15%,24%{color:var(--mi-accent)}34%,100%{color:#ffffffb3}}
+@keyframes hb-ring{from{transform:scale(1);opacity:.6}to{transform:scale(2.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){.hb-run,.hb-ring{display:none}.hb-head,.hb-label{animation:none}}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */
 /* The card does not grow to hold this. It is already 349px tall on a landscape

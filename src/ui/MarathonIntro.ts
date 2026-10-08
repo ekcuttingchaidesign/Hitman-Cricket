@@ -6,16 +6,20 @@
  * instead: the screen itself, dimmed, with the thing a rule is about popping
  * out of it and a dotted arrow from the words to it.
  *
- * Only what changes how the mode is played. Not the five-hundred-ball stop,
- * which a player reaches perhaps once and which reads as a target if it is the
- * first thing they are told; not the levels by name, which are told on the
- * screen when they come. Two of the four point at the thing they are about —
- * the Focus meter on the scoreboard, and the pause key the declaration lives
- * behind — so the rule is learned where it will be used.
+ * They open with how to hit (`ShotsIntro.ts`), the card every mode's first
+ * innings starts with, and then only what changes how the mode is played. Not
+ * the five-hundred-ball stop, which a player reaches perhaps once and which
+ * reads as a target if it is the first thing they are told; not the levels by
+ * name, which are told on the screen when they come. Two of the rules point at
+ * the thing they are about — the Focus meter on the scoreboard, and the pause
+ * key the declaration lives behind — so the rule is learned where it will be
+ * used.
  *
  * Shown the first two times a Marathon starts, because the first is often
  * skipped by a thumb already reaching for the pitch; SKIP ends it for good.
  */
+
+import { SHOTS_STEP, shotsCompass } from './ShotsIntro';
 
 export interface IntroStep {
   title: string;
@@ -23,6 +27,8 @@ export interface IntroStep {
   art: string;
   /** The element on the screen this card is about, lit in the dark around it. */
   spot?: string;
+  /** The swipes card: its drawing is `shotsCompass`, which depends on the batter's hand. */
+  shots?: boolean;
 }
 
 // White line drawings with the one thing that moves picked out in green, as
@@ -30,6 +36,9 @@ export interface IntroStep {
 const svg = (body: string) => `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 export const INTRO_STEPS: readonly IntroStep[] = [
+  // How to hit, first: the card a first innings in any mode opens with, so a
+  // Marathon's cards and a Blast's start the same way (`ShotsIntro.ts`).
+  SHOTS_STEP,
   {
     title: 'Three batters',
     line: 'Bat until all three are gone',
@@ -62,9 +71,9 @@ export const INTRO_STEPS: readonly IntroStep[] = [
 ];
 
 /** The words for one step: the drawing, the title and the line under it. */
-export function introCardMarkup(step: IntroStep): string {
+export function introCardMarkup(step: IntroStep, left = false): string {
   return `
-      <span class="mi-art">${step.art}</span>
+      <span class="mi-art${step.shots ? ' is-shots' : ''}">${step.shots ? shotsCompass(left) : step.art}</span>
       <h2 id="mi-title" class="mi-title">${step.title}</h2>
       <p class="mi-line">${step.line}</p>`;
 }
@@ -74,7 +83,7 @@ export function introKeysMarkup(index: number, count: number): string {
   const last = index === count - 1;
   return `
       <button id="mi-skip" class="mi-skip" type="button"${last ? ' hidden' : ''}>Skip</button>
-      <span class="mi-dots" aria-hidden="true">${Array.from({ length: count }, (_, i) => `<i${i === index ? ' class="is-on"' : ''}></i>`).join('')}</span>
+      <span class="mi-dots" aria-hidden="true"${count < 2 ? ' hidden' : ''}>${Array.from({ length: count }, (_, i) => `<i${i === index ? ' class="is-on"' : ''}></i>`).join('')}</span>
       <button id="mi-next" class="mi-next" type="button">${last ? "Let's bat" : 'Next'}</button>`;
 }
 

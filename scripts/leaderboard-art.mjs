@@ -76,6 +76,8 @@ const html = `<!doctype html><html><head><style>
 
 const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT } });
+// Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 await page.setContent(html, { waitUntil: 'load' });
 const png = await page.screenshot({ type: 'png' });
 // WebP, through the browser's own encoder — the same way the stories' pictures

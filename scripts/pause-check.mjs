@@ -79,6 +79,8 @@ const sheet = page => page.evaluate(() => {
 for (const [mode, name, tone] of [['classic', 'The Blast', 'rgb(8, 123, 255)'], ['marathon', 'Test Marathon', 'rgb(18, 180, 95)']]) {
   console.log(name);
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+  await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error' && !/Failed to load resource|ERR_TUNNEL/.test(message.text())) errors.push(message.text()); });
