@@ -5,6 +5,7 @@ import { SeededRandom } from './SeededRandom.js';
 import type { MarathonFigures } from './marathon-board.js';
 import { HEALTH } from '../config/survive.js';
 import type { ShotOutcome } from './types.js';
+import type { Hand } from './player.js';
 
 /**
  * A Marathon innings: three batters, one after another, and the rules for when
@@ -59,6 +60,22 @@ export function leftHanderOf(seed: number, search = ''): number | null {
   return Math.floor(new SeededRandom((seed ^ 0x9e3779b9) >>> 0).next() * MARATHON.batters);
 }
 
+/**
+ * Which of the three bat left-handed, for a player who bats one way or the
+ * other. One bats the other way round from them in either case, at the place
+ * `leftHanderOf` draws: a right-hander's side has the one left-hander it always
+ * had, and a left-hander's has two, with that one batting right.
+ *
+ * `?lefty=0` asks for nobody batting left, which means nothing to a left-handed
+ * player's side; it still has its one right-hander, drawn off the seed.
+ */
+export function leftHandersOf(seed: number, search: string, hand: Hand): number[] {
+  const odd = leftHanderOf(seed, search);
+  if (hand === 'right') return odd === null ? [] : [odd];
+  const right = odd ?? leftHanderOf(seed, '')!;
+  return Array.from({ length: MARATHON.batters }, (_, i) => i).filter(i => i !== right);
+}
+
 /** What a ball did to the order: nothing, or the man in is gone. */
 export type Change = 'OUT' | 'RETIRED' | null;
 
@@ -98,12 +115,12 @@ export class MarathonInnings {
   /** The last ball was the one that settled the man who played it. */
   justSettled = false;
   /**
-   * `leftHanded` is which of the three bats left-handed, or null for none: see
-   * `leftHanderOf`. `settled` walks every batter out settled and full of
+   * `leftHanded` is which of the three bat left-handed, by place in the
+   * order: see `leftHandersOf`. `settled` walks every batter out settled and full of
    * confidence, for trying the special strokes (`?settled=1`).
    */
-  constructor(private readonly leftHanded: number | null = null, private readonly settled = false) {
-    this.batters = [walkOut(0, leftHanded === 0, settled)];
+  constructor(private readonly leftHanded: readonly number[] = [], private readonly settled = false) {
+    this.batters = [walkOut(0, leftHanded.includes(0), settled)];
   }
   /** The man in has a full meter: a special stroke is his to play. */
   get confident() { return (this.current.confidence ?? 0) >= CONFIDENCE.full; }
@@ -154,7 +171,7 @@ export class MarathonInnings {
     if (change === 'OUT') man.out = true;
     if (change === 'RETIRED') man.retired = true;
     if (change && this.batters.length < MARATHON.batters && this.balls < MARATHON.maxBalls) {
-      this.batters.push(walkOut(this.batters.length, this.leftHanded === this.batters.length, this.settled));
+      this.batters.push(walkOut(this.batters.length, this.leftHanded.includes(this.batters.length), this.settled));
     }
     return change;
   }

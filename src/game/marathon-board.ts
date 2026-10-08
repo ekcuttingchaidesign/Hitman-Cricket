@@ -224,7 +224,9 @@ export function marathonPlausible(innings: MarathonFigures): boolean {
   }
   if (sum(b => b.runs) !== runs || sum(b => b.balls) !== balls) return false;
   if (sum(b => b.fours) !== fours || sum(b => b.sixes) !== sixes) return false;
-  if (batters.filter(b => b.left).length > 1) return false;
+  // One left-hander in a right-hander's side, two in a left-hander's: see
+  // `leftHandersOf`. Never all three, since one always bats the other way.
+  if (batters.filter(b => b.left).length > MARATHON.batters - 1) return false;
 
   const before = batters.slice(0, -1), last = batters[batters.length - 1];
   if (before.some(b => !b.out && !b.retired)) return false;

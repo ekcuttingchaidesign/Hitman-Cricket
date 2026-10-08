@@ -181,12 +181,35 @@ and then from a second browser tries the same name with a number on it and is
 pointed back at the one that is held: a name and its siblings — the same but
 for a number on the end — are one person's for a day after the first is
 claimed. Names already held are never put to the new rules again. Then it
-changes the name from My Stats' key card: a player takes a new name once every
-30 days (`RENAME_WINDOW_MS`, kept per player in `${SCOPE}named`), going back to
-a name they already hold is free and never released to anybody else, and the
-key they saved comes across to the new name (`carryKey`) rather than a second
-one being minted. The month cannot be waited out in a browser, so the check
-proves the refusal against the real store and stands in for the yes.
+edits the details from the head of My Stats: a player takes a new name once
+every 30 days (`RENAME_WINDOW_MS`, kept per player in `${SCOPE}named`), going
+back to a name they already hold is free and never released to anybody else,
+the key they saved comes across to the new name (`carryKey`) rather than a
+second one being minted, and the kit and batting hand change at once. Then
+the gate before the first innings, for a new player and for one who already
+has a name.
+
+## Who's batting: the gate before the first innings
+
+Before the first innings in a browser — a new player's or an old one's — the
+game asks for a name, a kit and the hand they bat with (`src/ui/Profile.ts`,
+`saveProfile` in `src/Game.ts`), with no way past but answering. An old
+player's are filled in and carry on in one tap. The name is claimed through
+`/api/name` either way, which is also what claims a name typed into a Rivals
+sheet, which until then lived only in the browser. It is asked once
+(`hitman-profile`); after that the same sheet opens from the edit key at the
+head of My Stats. If the board cannot be reached the gate opens anyway — a
+player is never held at the crease for an outage — and asks again next time. A
+private window keeps the name in the browser and sends nothing.
+
+The hand (`hitman-hand`) is the batter in the Blast and Test Survival; in the
+Test Marathon one of the three bats the other way round from the player
+(`leftHandersOf`), so a left-hander's side has two left-handers, and the board
+takes up to two.
+
+**`?debug=1` skips the gate**, because every browser check drives that link and
+each would otherwise have to answer it. `?profile=1` asks it there anyway, and
+`name-check.mjs` is the check that does.
 
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one

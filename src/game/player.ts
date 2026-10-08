@@ -37,3 +37,36 @@ export function readPlayer(): Player | null {
 export function writePlayer(player: Player) {
   try { localStorage.setItem(KEY, JSON.stringify(player)); } catch { /* A session remains playable without it. */ }
 }
+
+/** Which way round the player bats. */
+export type Hand = 'right' | 'left';
+
+const HAND = 'hitman-hand';
+
+/**
+ * The hand the player bats with, asked on the form before their first innings.
+ * Right until they say otherwise, which is how every innings was batted before
+ * the question was asked.
+ */
+export function readHand(): Hand {
+  try { return localStorage.getItem(HAND) === 'left' ? 'left' : 'right'; } catch { return 'right'; }
+}
+
+export function writeHand(hand: Hand) {
+  try { localStorage.setItem(HAND, hand); } catch { /* Right-handed next time, which still plays. */ }
+}
+
+const PROFILE = 'hitman-profile';
+
+/**
+ * Whether this browser has been through the form before an innings — name,
+ * kit and hand — new player or old. Kept apart from the name, because a player
+ * who already had one is still shown the form once, to see it and carry on.
+ */
+export function profileDone(): boolean {
+  try { return localStorage.getItem(PROFILE) === '1'; } catch { return false; }
+}
+
+export function markProfileDone() {
+  try { localStorage.setItem(PROFILE, '1'); } catch { /* Then it asks again, and is answered again. */ }
+}

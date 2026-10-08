@@ -4822,6 +4822,53 @@ body.private-window{overflow:hidden}
   text-transform:uppercase;
   color:#9fb2bd
 }
+/* Who the card is: the kit, the name, and the key to change either. */
+.stats-who{display:flex;align-items:center;gap:10px;margin:8px 2px 10px}
+.stats-who .board-kit{width:34px;height:34px;flex:none}
+.stats-who-name{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:var(--card);
+  font-size:17px;
+  font-weight:800;
+  color:#fff
+}
+.stats-who-edit{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex:none;
+  min-height:34px;
+  padding:0 12px;
+  border:1px solid #ffffff3d;
+  border-radius:999px;
+  background:#0f2738;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.6px;
+  color:#f4f8fa
+}
+.stats-who-edit:hover{background:#1b3d54}
+.stats-who-edit svg{width:15px;height:15px}
+/* The batting hand, two keys side by side on the details sheet. */
+.profile-picker{margin:0 0 6px}
+.profile-hand{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}
+.profile-hand-option{
+  min-height:40px;
+  border:2px solid #ffffff2e;
+  border-radius:11px;
+  background:#ffffff0f;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.8px;
+  color:#fff
+}
+.profile-hand-option.is-chosen{border-color:var(--cta-orange);background:#f2814f2e}
 /* The way out sits above the picture rather than on it. On it, the × lands in
    whatever the card's top-right corner happens to be — here that is the mark —
    and a close key you have to hunt for on a screen whose whole job is to be
@@ -5532,7 +5579,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* The sheets the key opens stand over the story it was opened from. */
 .whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,
 .whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal,
-.whatsnew-overlay:not(.hidden)~#rename-overlay>.key-modal{z-index:13}
+.whatsnew-overlay:not(.hidden)~#profile-overlay>.key-modal{z-index:13}
 .whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
 .whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
 
@@ -5702,32 +5749,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   letter-spacing:.04em
 }
 .key-save:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 var(--key-ledge),0 4px 9px #00000047}
-/* The other half of the way back, said beside the key, and the way to change it. */
-.key-who{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  margin:12px 0 0;
-  padding:10px 0 0;
-  border-top:1px solid #ffffff1f;
-  font-family:var(--card);
-  font-size:12px;
-  color:#ffffffb3
-}
-.key-who b{color:#fff;font-weight:700}
-.key-who-change{
-  flex:none;
-  padding:3px;
-  border:0;
-  background:none;
-  color:#fff;
-  font-family:var(--card);
-  font-size:12px;
-  font-weight:600;
-  text-decoration:underline;
-  text-underline-offset:3px
-}
 .key-ghost{
   display:block;
   width:100%;

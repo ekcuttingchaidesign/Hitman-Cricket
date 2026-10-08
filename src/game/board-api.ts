@@ -207,6 +207,8 @@ export interface NameResult {
   reason?: string;
   taken?: boolean;
   held?: string;
+  /** No answer, or the store itself failing: nothing the player typed was wrong. */
+  offline?: boolean;
 }
 
 /**
@@ -225,11 +227,12 @@ export async function claimName(playerId: string, name: string, avatar: number, 
       body: JSON.stringify({ playerId, name, avatar, previous }),
     },
   );
-  if (!answer) return { ok: false, reason: 'The board could not be reached. Try again in a moment.' };
+  if (!answer) return { ok: false, reason: 'The board could not be reached. Try again in a moment.', offline: true };
   if (answer.error) {
     return {
       ok: false,
       reason: answer.error,
+      offline: answer.retry === true,
       taken: answer.status === 409,
       held: typeof answer.held === 'string' ? answer.held : undefined,
     };

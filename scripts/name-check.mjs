@@ -17,8 +17,13 @@
  * of their own, trying the same name with a number on the end within the day,
  * and being pointed at the name that is held and a way back to it.
  *
- * Then the name changed from My Stats: said beside the key, held to once a
- * month by the real store, and a change it takes drawn under the new name.
+ * Then the details from the head of My Stats: a new name held to once a month
+ * by the real store, and the kit and the batting hand changed at once.
+ *
+ * Then the form before the first innings (`?profile=1`, since `?debug=1` skips
+ * it for every other check): a new player asked before a ball is bowled, held
+ * to the rules, and sent out left-handed as they said; and a player who
+ * already had a name, shown theirs and carrying on in one tap.
  *
  * The dev server's database is in memory, so the name is made up fresh each
  * run: a name claimed by an earlier run is held for as long as the server is up.
@@ -40,8 +45,11 @@ const fresh = `Nm${Array.from({ length: 6 }, () => String.fromCharCode(97 + Math
 
 const browser = await chromium.launch({ executablePath });
 
-/** A Test innings batted to its end by a player with no name, on its own browser. */
-async function endedInnings() {
+/**
+ * A browser of its own, on the mode picker. `query` is added to the link, and
+ * `player` is a name this browser already bats under, where it has one.
+ */
+async function toPicker({ query = '', player = null } = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
@@ -50,10 +58,13 @@ async function endedInnings() {
   const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
   // A visit remembered from an earlier day, so a headless browser is not taken
   // for a private window — which counts nothing and is offered no name.
-  await page.addInitScript(() => {
+  await page.addInitScript(held => {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
-    try { localStorage.setItem('hitman-seen', day); } catch { /* Then the notice stands. */ }
-  });
+    try {
+      localStorage.setItem('hitman-seen', day);
+      if (held && !localStorage.getItem('hitman-batter')) localStorage.setItem('hitman-batter', JSON.stringify(held));
+    } catch { /* Then the notice stands. */ }
+  }, player);
   // A full Test ladder nobody batting for a ball could get onto, so the strip
   // is the one for an innings with no place — which on an empty ladder, where
   // any innings is first, it would not be. Only the Test board's answer is
@@ -69,7 +80,7 @@ async function endedInnings() {
     }),
   }));
   await page.clock.install();
-  await page.goto(`${base}/?debug=1&seed=222`, { waitUntil: 'load' });
+  await page.goto(`${base}/?debug=1&seed=222${query}`, { waitUntil: 'load' });
   await advance(2500);
   await page.waitForTimeout(800);
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
@@ -77,13 +88,19 @@ async function endedInnings() {
   await page.locator('#start').click({ force: true });
   await advance(400);
   await page.waitForTimeout(300);
-  for (let i = 0; i < 8; i++) {
+  // The update's stories come up before the picker on a first visit: wait for the picker itself.
+  for (let i = 0; i < 20 && !(await page.locator('#mode-survive').isVisible()); i++) {
     const done = page.locator('#whatsnew-done');
-    if (!(await done.count()) || !(await done.isVisible())) break;
-    await done.click({ force: true, timeout: 3000 }).catch(() => {});
+    if (await done.isVisible().catch(() => false)) await done.click({ force: true, timeout: 3000 }).catch(() => {});
     await advance(400);
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(300);
   }
+  return { context, page, errors, advance, snap };
+}
+
+/** A Test innings batted to its end by a player with no name, on its own browser. */
+async function endedInnings() {
+  const { context, page, errors, advance, snap } = await toPicker();
   await page.locator('#mode-survive').click({ force: true });
   await advance(600);
   await page.waitForTimeout(400);
@@ -97,7 +114,7 @@ async function endedInnings() {
   check((await snap()).phase === 'INNINGS_END', 'the innings ends', JSON.stringify(await snap()));
   await advance(1500);
   await page.waitForTimeout(600);
-  return { context, page, errors, advance };
+  return { context, page, errors, advance, snap };
 }
 
 /** The form opened off the strip, with a name typed and sent. */
@@ -146,52 +163,44 @@ async function send(page, advance, name) {
     'the career key is kept in this browser');
   check(await page.locator('#card-key').isVisible(), 'and the card carries it');
 
-  // — Changing it, from the key card on My Stats.
+  // — Changing it, from the head of My Stats.
   await page.locator('#card-career').click({ force: true });
   await advance(400);
   await page.waitForTimeout(2500);
-  const who = page.locator('#stats-overlay .key-who');
-  check(await who.isVisible(), 'My Stats says the name beside the key');
+  const who = page.locator('#stats-overlay .stats-who');
+  check(await who.isVisible(), 'My Stats is headed with the player\'s name');
   check((await who.innerText()).includes(fresh), 'which is the name just claimed', await who.innerText().catch(() => ''));
-  await page.locator('#name-change').click({ force: true });
+  check(!(await page.locator('#stats-overlay .key-pass #name-change').count()), 'and the key card no longer carries it');
+  await page.locator('#stats-edit').click({ force: true });
   await advance(300);
   await page.waitForTimeout(500);
-  check(await page.locator('#rename-name').inputValue() === fresh, 'Change name opens on the name held now');
-  check((await page.locator('#rename-overlay .key-fine').innerText()).includes('once every 30 days'),
+  check(await page.locator('#profile-name').inputValue() === fresh, 'its edit key opens the details on the name held now');
+  check(await page.locator('#profile-close').isVisible(), 'with a way out, since it is no gate');
+  check((await page.locator('#profile-overlay .key-fine').innerText()).includes('once every 30 days'),
     'and says how often before anybody types');
-  await page.locator('#rename-name').fill(`${fresh}x`);
-  await page.locator('#rename-send').click({ force: true });
+  await page.locator('#profile-name').fill(`${fresh}x`);
+  await page.locator('#profile-send').click({ force: true });
   await advance(300);
   await page.waitForTimeout(900);
-  const month = await page.locator('#rename-error').innerText().catch(() => '');
+  const month = await page.locator('#profile-error').innerText().catch(() => '');
   check(/You took your name on .+\. You can change it again from .+\./.test(month),
     'a second new name inside the month is turned down, with the day it opens', month);
   const still = await page.evaluate(() => JSON.parse(localStorage.getItem('hitman-batter') ?? 'null'));
   check(still?.name === fresh, 'and nothing changes', JSON.stringify(still));
 
-  // The store's month cannot be waited out here, so the answer to a change it
-  // takes is stood in for: what is checked is what the game does with a yes.
-  // The rows, the careers and the key moving are the unit tests'.
-  const renamed = `${fresh}y`;
-  let sent = null;
-  await page.route('**/api/name', route => {
-    sent = JSON.parse(route.request().postData() ?? '{}');
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, name: renamed }) });
-  });
-  await page.locator('#rename-name').fill(renamed);
-  await page.locator('#rename-send').click({ force: true });
+  // The kit and the hand change whenever: the same name, a new kit, left-handed.
+  await page.locator('#profile-name').fill(fresh);
+  await page.locator('#profile-overlay .kit-option:not(.is-chosen)').first().click({ force: true });
+  await page.locator('#profile-overlay [data-hand="left"]').click({ force: true });
+  const kitPicked = Number(await page.locator('#profile-overlay .kit-option.is-chosen').getAttribute('data-kit'));
+  await page.locator('#profile-send').click({ force: true });
   await advance(300);
-  await page.waitForTimeout(900);
-  check(sent?.previous === fresh, 'a change sends the old name, so the key comes across', JSON.stringify(sent));
-  // Read off the text, not the screen: the heading is set in capitals.
-  check((await page.locator('#rename-done-title').textContent().catch(() => '') ?? '').includes(renamed), 'and says it worked');
-  await page.locator('#rename-done').click({ force: true });
-  await advance(300);
-  await page.waitForTimeout(1500);
-  const now = await page.evaluate(() => JSON.parse(localStorage.getItem('hitman-batter') ?? 'null'));
-  check(now?.name === renamed, 'this browser bats under the new name', JSON.stringify(now));
-  check((await who.innerText().catch(() => '')).includes(renamed), 'and the key card says so', await who.innerText().catch(() => ''));
-  check(await page.evaluate(() => Boolean(localStorage.getItem('hitman-career-key'))), 'with the same key still kept');
+  await page.waitForTimeout(1200);
+  check(await page.locator('#profile-overlay .key-modal').isHidden(), 'the same name with a new kit and hand is saved at once');
+  const kitted = await page.evaluate(() => ({
+    player: JSON.parse(localStorage.getItem('hitman-batter') ?? 'null'), hand: localStorage.getItem('hitman-hand'),
+  }));
+  check(kitted.player?.avatar === kitPicked && kitted.hand === 'left', 'and remembered', JSON.stringify(kitted));
   check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
   await context.close();
 }
@@ -212,6 +221,76 @@ async function send(page, advance, name) {
   const filled = await page.locator('#restore-name').inputValue().catch(() => '');
   check(filled === fresh, 'which starts from the name that is held, not the one typed', filled);
   check(await page.evaluate(() => localStorage.getItem('hitman-batter')) === null, 'and nothing was claimed');
+  check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
+  await context.close();
+}
+
+// — The gate before the first innings: a new player, asked before a ball.
+{
+  const { context, page, errors, advance, snap } = await toPicker({ query: '&profile=1' });
+  await page.locator('#mode-survive').click({ force: true });
+  await advance(600);
+  await page.waitForTimeout(500);
+  // The sheet, not its holder: the holder has no size of its own.
+  const sheet = page.locator('#profile-overlay .key-modal');
+  check(await sheet.isVisible(), 'a new player is asked who is batting before the first innings');
+  check((await page.locator('#profile-title').innerText()).toLowerCase().includes('who'), 'as a new player',
+    await page.locator('#profile-title').innerText().catch(() => ''));
+  check(!(await page.locator('#profile-close').count()), 'with no way past but answering');
+  check((await snap()).phase === 'START', 'and nothing bowled meanwhile', (await snap()).phase);
+  check((await page.locator('#profile-overlay .key-fine').innerText()).includes('once every 30 days'),
+    'told the name changes once every 30 days');
+  await page.locator('#profile-name').fill('Ab');
+  await page.locator('#profile-send').click({ force: true });
+  await advance(300);
+  await page.waitForTimeout(500);
+  check((await page.locator('#profile-error').innerText().catch(() => '')).includes('At least 3'), 'held to the rules for a name');
+  const gated = `${fresh}g`;
+  await page.locator('#profile-name').fill(gated);
+  await page.locator('#profile-overlay [data-hand="left"]').click({ force: true });
+  await page.locator('#profile-send').click({ force: true });
+  await advance(300);
+  await page.waitForTimeout(1500);
+  check(await sheet.isHidden(), 'and LET\'S BAT sends them out to bat');
+  const held = await page.evaluate(() => ({
+    player: JSON.parse(localStorage.getItem('hitman-batter') ?? 'null'), hand: localStorage.getItem('hitman-hand'),
+    done: localStorage.getItem('hitman-profile'), key: !!localStorage.getItem('hitman-career-key'),
+  }));
+  check(held.player?.name === gated && held.done === '1', 'under the name claimed', JSON.stringify(held));
+  check(held.key, 'with the career key kept');
+  await advance(1500);
+  const playing = await snap();
+  check(playing.phase !== 'START', 'the innings starts', playing.phase);
+  check(playing.mirrored === true, 'with a left-handed batter, as they said they bat', JSON.stringify({ mirrored: playing.mirrored }));
+  // The next innings is not held up again.
+  await page.evaluate(() => window.__cricket.hurt());
+  for (let i = 0; i < 60 && (await snap()).phase !== 'INNINGS_END'; i++) await advance(1500);
+  await page.locator('#survive-again').click({ force: true });
+  await advance(600);
+  await page.waitForTimeout(500);
+  check(await sheet.isHidden(), 'and the next innings is not asked again');
+  check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
+  await context.close();
+}
+
+// — The gate for a player who already has a name: theirs, filled in, and on.
+{
+  const known = `${fresh}k`;
+  const { context, page, errors, advance, snap } = await toPicker({ query: '&profile=1', player: { name: known, avatar: 2 } });
+  await page.locator('#mode-classic').click({ force: true });
+  await advance(600);
+  await page.waitForTimeout(500);
+  check(await page.locator('#profile-overlay .key-modal').isVisible(), 'a player with a name is shown the form once too');
+  check(await page.locator('#profile-name').inputValue() === known, 'with their name filled in');
+  check(await page.locator('#profile-overlay .kit-option.is-chosen').getAttribute('data-kit') === '2', 'and their kit');
+  await page.locator('#profile-send').click({ force: true });
+  await advance(300);
+  await page.waitForTimeout(1500);
+  check(await page.locator('#profile-overlay .key-modal').isHidden(), 'carrying on in one tap');
+  await advance(1500);
+  const playing = await snap();
+  check(playing.phase !== 'START' && playing.mirrored === false, 'into a right-handed Blast, the hand it was always batted with',
+    JSON.stringify({ phase: playing.phase, mirrored: playing.mirrored }));
   check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
   await context.close();
 }

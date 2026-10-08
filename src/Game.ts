@@ -4,7 +4,7 @@ import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { introDue, noteIntro } from './ui/MarathonIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
-import { MarathonInnings, leftHanderOf, marathonFigures, type Change } from './game/Marathon';
+import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
 import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
@@ -37,7 +37,7 @@ import {
   claimName, fetchBoard, fetchMarathonBoard, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
 } from './game/board-api';
-import { readPlayer, writePlayer } from './game/player';
+import { markProfileDone, profileDone, readHand, readPlayer, writeHand, writePlayer, type Hand } from './game/player';
 import {
   offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
 } from './game/restore-offer';
@@ -612,8 +612,11 @@ export class Game {
     this.hud.onRestore = entry => void this.sendRestore(entry);
     this.hud.onRestoreOpen = from => this.openRestore(from);
     this.hud.keyNow = () => this.careerKeyHeld();
+    this.hud.whoNow = () => readPlayer();
     this.hud.onNewKey = () => void this.makeNewKey();
-    this.hud.onRename = name => void this.rename(name);
+    this.hud.onProfile = entry => void this.saveProfile(entry);
+    this.hud.onProfileSkip = entry => this.skipProfile(entry);
+    this.hud.onProfileEdit = () => this.askProfile(false);
     this.hud.onRestoreShown = () => {
       restoreOfferShown();
       trackOnce('restore-offered-card', 'Offered the way back at the end of an innings');
@@ -776,10 +779,7 @@ export class Game {
    * phone with a few innings on it. All four were once handed a key, because
    * the rule was written in a comment and nowhere else.
    */
-  private careerKeyHeld() {
-    const player = readPlayer(), view = keyView(!!player);
-    return view && player ? { ...view, name: player.name } : view;
-  }
+  private careerKeyHeld() { return keyView(!!readPlayer()); }
 
   /**
    * Whether the end of this innings offers the way back instead of a key.
@@ -853,6 +853,9 @@ export class Game {
     this.becomeRestored(answer.playerId, entry.name);
     this.hud.closeRestore();
     this.hud.restoreDone(entry.name);
+    // Brought back from the details sheet: it is drawn again under the name
+    // that came back, for the player to carry on with.
+    if (this.hud.profileOpen) this.askProfile(this.afterProfile !== null);
   }
 
   /**
@@ -1049,44 +1052,106 @@ export class Game {
   }
 
   /**
-   * A new name for a player who has one, from the key card on My Stats.
+   * Who is batting, asked before the first innings — of a new player and an
+   * old one alike, the old one's filled in — and from My Stats whenever they
+   * want to change it.
    *
-   * The same rules a first name is held to, said here before a round trip,
-   * and the month the store holds a change to. What comes back is the name as
-   * kept; everything drawn under the old one — the careers, the boards, the
-   * card — is dropped so the next look draws it under the new.
+   * Not asked of the scripted browser the checks drive (`?debug=1`), which
+   * would otherwise have to answer it in every one of them; `?profile=1` asks
+   * it there too, for the check that walks it. Nor of the attract mode, which
+   * nobody is playing.
    */
-  private async rename(typed: string) {
+  private get profileDue() {
+    if (profileDone() || this.demoing) return false;
+    return !this.debug || new URLSearchParams(location.search).get('profile') === '1';
+  }
+  /** What the gate is holding up: the innings it was put in front of. */
+  private afterProfile: (() => void) | null = null;
+  private askProfile(gate: boolean) {
     const mine = readPlayer();
-    if (!mine || !this.player) return this.hud.closeRename();
-    const name = cleanName(typed), folded = foldName(name);
-    if (folded !== foldName(mine.name)) {
+    const deal = kitDeal(this.player);
+    this.hud.openProfile({
+      name: mine?.name ?? '', avatar: mine?.avatar ?? deal.opening, hand: readHand(), order: deal.order,
+      gate, fresh: !mine,
+    });
+  }
+
+  /**
+   * The answer. The name goes to the store whether or not it changed: a name
+   * typed into a Rivals sheet lives only in this browser, and this is where it
+   * is claimed. The store holds a new name to the rules and to once a month,
+   * and a name the player already holds to nothing, so saying the same name
+   * again costs nothing — and brings the key, where they have none.
+   */
+  private async saveProfile(entry: { name: string; avatar: number; hand: Hand }) {
+    const mine = readPlayer();
+    const name = cleanName(entry.name), folded = foldName(name);
+    if (!folded) return this.hud.profileFailed('Your name, up to 14 letters or numbers.');
+    const changed = !mine || foldName(mine.name) !== folded;
+    if (changed) {
       const problem = nameProblem(name, folded);
-      if (problem) return this.hud.renameFailed(problem);
+      if (problem) return this.hud.profileFailed(problem);
     }
-    this.hud.renameSending(true);
-    const result = await claimName(this.player, name, mine.avatar, mine.name);
+    writeHand(entry.hand);
+    // A private window can keep nothing, so the name stays in it and goes nowhere.
+    if (!this.canRegister || !this.player) {
+      writePlayer({ name, avatar: entry.avatar });
+      return this.profileSaved(false);
+    }
+    this.hud.profileSending(true);
+    const result = await claimName(this.player, name, entry.avatar, mine?.name);
     if (this.disposed) return;
     if (!result.ok) {
-      track('rename-refused', 'Name change turned down');
-      return this.hud.renameFailed(result.reason ?? 'That did not go through.');
+      this.mark(result.taken ? 'profile-name-taken' : result.offline ? 'profile-offline' : 'profile-refused',
+        result.taken ? 'Name already held' : result.offline ? 'Board unreachable from the form' : 'Name turned down');
+      return this.hud.profileFailed(result.reason ?? 'That did not go through.', {
+        held: result.taken ? (result.held ?? name) : null, offline: result.offline,
+      });
     }
-    track('rename-done', 'Name changed');
-    writePlayer({ name: result.name ?? name, avatar: mine.avatar });
+    this.mark(changed ? 'profile-named' : 'profile-confirmed', changed ? 'Name claimed or changed' : 'Details confirmed');
+    writePlayer({ name: result.name ?? name, avatar: entry.avatar });
     if (result.key) {
       keepKey(result.key);
       track('key-issued', 'Career key issued');
     }
-    forgetCareer();
-    forgetBoard();
-    this.careerBoards = {};
-    this.myCareer = {};
-    this.boardSeen = false;
-    this.surviveSeen = false;
-    this.boardEpoch++;
-    this.surviveEpoch++;
-    this.hud.renameDone(result.name ?? name);
+    this.profileSaved(changed);
+  }
+
+  /**
+   * The board could not be reached, and the player bats anyway: a gate that
+   * held somebody at the crease for an outage would be the game's fault, not
+   * theirs. What they typed is kept here and the form asks again next time.
+   */
+  private skipProfile(entry: { name: string; avatar: number; hand: Hand }) {
+    this.mark('profile-skipped', 'Batted without the board');
+    writeHand(entry.hand);
+    if (!readPlayer() && cleanName(entry.name)) writePlayer({ name: cleanName(entry.name), avatar: entry.avatar });
+    this.hud.closeProfile();
+    this.continueAfterProfile();
+  }
+
+  private profileSaved(changed: boolean) {
+    markProfileDone();
+    // Everything drawn under the old name is dropped, so the next look draws it under the new.
+    if (changed) {
+      forgetCareer();
+      forgetBoard();
+      this.careerBoards = {};
+      this.myCareer = {};
+      this.boardSeen = false;
+      this.surviveSeen = false;
+      this.boardEpoch++;
+      this.surviveEpoch++;
+    }
+    this.hud.closeProfile();
     this.redrawKeyPlacements();
+    this.continueAfterProfile();
+  }
+
+  private continueAfterProfile() {
+    const then = this.afterProfile;
+    this.afterProfile = null;
+    then?.();
   }
 
   /**
@@ -1162,6 +1227,11 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    // Who is batting, first: once, before the first innings there is.
+    if (this.profileDue) {
+      this.afterProfile = () => this.start();
+      return this.askProfile(true);
+    }
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
     if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) this.mark('innings-restart', 'Innings restarted');
@@ -1193,7 +1263,7 @@ export class Game {
     // `?settled=1` walks every batter out settled with a full meter, for trying
     // the special strokes without batting six overs to earn each one.
     this.marathon = this.marathoning
-      ? new MarathonInnings(leftHanderOf(this.seed, location.search), new URLSearchParams(location.search).get('settled') === '1')
+      ? new MarathonInnings(leftHandersOf(this.seed, location.search, readHand()), new URLSearchParams(location.search).get('settled') === '1')
       : null;
     if (this.marathon) this.health = this.marathon.current.health;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
@@ -2552,7 +2622,9 @@ export class Game {
    */
   private hand() {
     const man = this.marathon?.current ?? null;
-    const left = !!man?.left;
+    // The Marathon's three are each their own; the one batter of the Blast and
+    // the Test match bats the way the player said they do.
+    const left = man ? man.left : readHand() === 'left';
     this.scene.leftHanded(left);
     this.hud.sides(left);
     this.hud.walkingOut(man?.batter.title ?? null);
@@ -3701,7 +3773,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      marathon: this.marathon ? this.marathonState() : null };
+      mirrored: this.scene.mirrored, marathon: this.marathon ? this.marathonState() : null };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
   private marathonState() {

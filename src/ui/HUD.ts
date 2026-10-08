@@ -13,7 +13,7 @@ import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
 import { playFilm, type Film, type Playing } from './Lottie';
-import type { Player } from '../game/player';
+import type { Hand, Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
   BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, flatTab, kitMarkup, peekMarkup, pickerMarkup,
@@ -51,7 +51,7 @@ import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
-import { renameMarkup, type RenameView } from './Rename';
+import { profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -369,9 +369,9 @@ ${coverIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
+        <div id="profile-overlay" class="hidden"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="rename-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
           <div id="pause-sheet" class="pause-sheet" data-tone="blast">
             <div class="pause-head">
@@ -794,7 +794,7 @@ ${coverIntro(best, top)}
   statsTab(view: StatsSheetView) {
     this.holdStats(view);
     this.sheet(statsSheetMarkup({
-      ...view, careerKey: this.keyView, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
+      ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
     }), 'mine', 'best');
     this.wireRestoreLink();
     this.wireStatsKeys();
@@ -808,7 +808,7 @@ ${coverIntro(best, top)}
     const opening = overlay.classList.contains('hidden');
     this.holdStats(view);
     overlay.innerHTML = statsSheetMarkup({
-      ...view, careerKey: this.keyView, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
+      ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
     });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -849,8 +849,8 @@ ${coverIntro(best, top)}
     if (about) about.onclick = () => this.openKeySheet(true);
     const fresh = document.getElementById('key-new');
     if (fresh) fresh.onclick = () => this.onNewKey?.();
-    const rename = document.getElementById('name-change');
-    if (rename) rename.onclick = () => this.openRename(this.keyView?.name ?? '');
+    const edit = document.getElementById('stats-edit');
+    if (edit) edit.onclick = () => this.onProfileEdit?.();
     this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
@@ -2136,74 +2136,102 @@ ${coverIntro(best, top)}
   get restoreOpen() { return !this.$('restore-overlay').classList.contains('hidden'); }
 
   /**
-   * The sheet that changes a name, opened from the key card. Held open while
-   * the store is asked, for the reason the restore sheet is: a name turned down
-   * is corrected, not started again.
+   * Who is batting: the gate before an innings, or the same sheet from My
+   * Stats. Held open while the store is asked, for the reason the restore sheet
+   * is: a name turned down is corrected, not started again.
    */
-  openRename(name: string) {
-    track('rename-open', 'Change name opened');
-    this.renameView = { name };
-    this.drawRename();
+  openProfile(view: ProfileView) {
+    track(view.gate ? 'profile-gate' : 'profile-edit', view.gate ? 'Asked who is batting before an innings' : 'Details opened from My Stats');
+    this.profileView = view;
+    this.drawProfile();
   }
 
-  renameSending(sending: boolean) {
-    if (!this.renameView) return;
-    this.renameView = { ...this.renameView, sending, error: sending ? null : this.renameView.error };
-    this.drawRename();
+  profileSending(sending: boolean) {
+    if (!this.profileView) return;
+    this.profileView = { ...this.profileView, ...this.profileEntry, sending, error: sending ? null : this.profileView.error, held: null };
+    this.drawProfile();
   }
 
-  renameFailed(reason: string) {
-    if (!this.renameView) return;
-    this.renameView = { ...this.renameView, sending: false, error: reason };
-    this.drawRename();
+  profileFailed(reason: string, how: { held?: string | null; offline?: boolean } = {}) {
+    if (!this.profileView) return;
+    this.profileView = {
+      ...this.profileView, ...this.profileEntry, sending: false, error: reason, held: how.held ?? null,
+      offline: this.profileView.offline || !!how.offline,
+    };
+    this.drawProfile();
   }
 
-  renameDone(name: string) {
-    this.renameView = { name, done: name };
-    this.drawRename();
-  }
-
-  closeRename() {
-    this.renameView = null;
-    this.$('rename-overlay').classList.add('hidden');
-    this.$('rename-overlay').innerHTML = '';
+  closeProfile() {
+    this.profileView = null;
+    this.$('profile-overlay').classList.add('hidden');
+    this.$('profile-overlay').innerHTML = '';
     const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
       .some(id => !this.$(id).classList.contains('hidden'));
     this.viewport.classList.toggle('modal-open', stacked);
   }
 
-  /** What the game does with a new name. The store is the game's. */
-  onRename: ((name: string) => void) | null = null;
+  get profileOpen() { return !!this.profileView; }
 
-  private renameView: RenameView | null = null;
+  /** What the player is offering: the name typed, and the kit and hand picked. */
+  get profileEntry() {
+    const field = document.getElementById('profile-name') as HTMLInputElement | null;
+    const view = this.profileView;
+    return { name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand };
+  }
+
+  /** What the game does with the answer, and with "bat now" when the board is away. The store is the game's. */
+  onProfile: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
+  onProfileSkip: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
+  /** The edit key on My Stats. The game knows who the player is. */
+  onProfileEdit: (() => void) | null = null;
+
+  private profileView: ProfileView | null = null;
 
   /** Drawn whole, like the restore sheet, with what was typed carried across. */
-  private drawRename() {
-    const overlay = this.$('rename-overlay');
-    if (!this.renameView) return this.closeRename();
-    const typed = !overlay.classList.contains('hidden') && document.getElementById('rename-name')
-      ? (this.$('rename-name') as HTMLInputElement).value
-      : null;
-    overlay.innerHTML = renameMarkup(this.renameView);
+  private drawProfile() {
+    const overlay = this.$('profile-overlay');
+    const view = this.profileView;
+    if (!view) return this.closeProfile();
+    overlay.innerHTML = profileMarkup(view);
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
+    // The gate has no way past but answering, so its ground does nothing.
     const scrim = overlay.firstElementChild as HTMLElement | null;
-    if (scrim) scrim.onclick = event => { if (event.target === scrim) this.closeRename(); };
-    if (this.renameView.done) {
-      const away = this.$('rename-done');
-      away.onclick = () => this.closeRename();
-      away.focus();
-      return;
-    }
-    const field = this.$('rename-name') as HTMLInputElement;
-    if (typed !== null) field.value = typed;
-    this.$('rename-close').onclick = () => this.closeRename();
-    (this.$('rename-form') as HTMLFormElement).onsubmit = event => {
+    if (scrim && !view.gate) scrim.onclick = event => { if (event.target === scrim) this.closeProfile(); };
+    const close = document.getElementById('profile-close');
+    if (close) close.onclick = () => this.closeProfile();
+    overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
+      option.onclick = () => {
+        const kit = Number(option.dataset.kit);
+        if (this.profileView) this.profileView = { ...this.profileView, avatar: kit };
+        overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(one => {
+          const mine = Number(one.dataset.kit) === kit;
+          one.classList.toggle('is-chosen', mine);
+          one.setAttribute('aria-checked', String(mine));
+        });
+      };
+    });
+    overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(option => {
+      option.onclick = () => {
+        const hand = option.dataset.hand === 'left' ? 'left' : 'right';
+        if (this.profileView) this.profileView = { ...this.profileView, hand };
+        overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(one => {
+          const mine = one.dataset.hand === hand;
+          one.classList.toggle('is-chosen', mine);
+          one.setAttribute('aria-checked', String(mine));
+        });
+      };
+    });
+    const restore = document.getElementById('profile-restore');
+    if (restore) restore.onclick = () => this.openRestore(view.held ?? this.profileEntry.name);
+    const skip = document.getElementById('profile-skip');
+    if (skip) skip.onclick = () => this.onProfileSkip?.(this.profileEntry);
+    (this.$('profile-form') as HTMLFormElement).onsubmit = event => {
       event.preventDefault();
-      if (this.renameView?.sending) return;
-      this.onRename?.(field.value);
+      if (this.profileView?.sending) return;
+      this.onProfile?.(this.profileEntry);
     };
-    if (!this.renameView.sending) field.focus();
+    if (!view.sending && view.fresh) (this.$('profile-name') as HTMLInputElement).focus();
   }
 
   /** What the game does with a name and a key. The store is the game's. */
@@ -2502,6 +2530,8 @@ ${coverIntro(best, top)}
    * stale is the one read when the question is asked.
    */
   keyNow: (() => KeyView | null) | null = null;
+  /** Who the player bats as, asked when My Stats is drawn, for the reason `keyNow` is asked. */
+  whoNow: (() => Player | null) | null = null;
 
   private get keyView(): KeyView | null { return this.keyNow?.() ?? null; }
   /** What the modal's two keys do. The game owns the saving. */
