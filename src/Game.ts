@@ -2175,9 +2175,11 @@ export class Game {
     // The stars and the questionnaire take their own keys. Enter on a star
     // gives it, and Enter on an answer picks it — and on the end card Enter is
     // also Play Again, so without this a keyboard rating started an innings
-    // behind the prompt. Escape on the questionnaire is its own, too.
+    // behind the prompt. Escape on the questionnaire is its own, too. Only the
+    // stars' own keys, though: R from a star still walks out to bat, which it
+    // did not while every key pressed on one was swallowed.
     if (document.querySelector('.feedback-screen')) return;
-    if (event.target instanceof Element && event.target.closest('.rate-pop')) return;
+    if (event.target instanceof Element && event.target.closest('.rate-pop') && STAR_KEYS.has(event.key)) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
     // them, so they answer first. Without this Enter started an innings behind
@@ -3659,6 +3661,8 @@ const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
  * has them only after dark, which `GameScene.fireworks` sees to.
  */
 const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
+/** The keys the star prompt answers itself: give a star, and walk between them. */
+const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
 /** The games by name, as the pause sheet's chip says them. */
 const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
