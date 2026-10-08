@@ -153,6 +153,13 @@ and the ended nets innings offering none — it is practice. Its career card is
 `stats-check`'s, second on the rail and green. It writes most of
 the innings through `__cricket.marathon` and bats the rest.
 
+`scripts/pause-check.mjs` is the pause sheet, in the Blast and in a Test
+Marathon: the chip naming the game in its colour, the score under the title,
+the keys each game has and not the other's, and the two sound switches — the
+crowd's cheers and groans, and the ambience under them — each flipping only
+itself, kept across a reload (`hitman-crowd`, `hitman-ambience`), and the
+murmur staying away once the innings goes on.
+
 `scripts/rating-check.mjs` is the star prompt under the end card, and like
 `career-count-check` its rule is about *when*: it finishes innings to prove the
 first asks nothing, the second asks about its mode, and a third that visit asks
@@ -234,6 +241,20 @@ holds the bowler at his mark until it is over; with a ball on its way it waits
 for that ball to be dead, which is when a real one goes up. It is the same
 celebration with none of the innings: no runs, nothing counted, nothing sent.
 Add `&mode=marathon` for the Test kit and ground.
+
+## `?actions=1`
+
+Two rows of keys along the foot of the picture — ADMIRE, LEAN, WATCH, TWIRL,
+BRUSH, SHADOW, SCRUB, SKY, DOWN, RIBS, HAND, HELMET — one a thing the batter does once a ball is done with (`AfterBall` in
+`src/entities/Batter.ts`), for looking at each on a phone without waiting for
+the ball that brings it, which for most of them is only some of the balls that
+call for one (`afterBall` in `src/game/afterBall.ts`). A tap between balls plays the stroke
+it follows, at no ball, and then it, and the bowler waits at his mark until he
+is back in his guard; with a ball on its way it waits for that ball to be dead.
+FALL is the retired-hurt fall, on the helmet, the ribs, the glove and the thigh
+in turn; he gets up again for the next ball, which a real one never does.
+Nothing is bowled, scored or counted, so it is not practice
+(`tests/practice.test.ts` names it). `scripts/actions-check.mjs` walks it.
 
 ## `?rate=1`
 

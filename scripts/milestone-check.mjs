@@ -99,14 +99,22 @@ for (const [name, options] of [
   // would never draw on and the pictures would show a bare field. The
   // private-window notice that a first visit gets is answered below instead.
   await page.addInitScript(() => {
-    // How long each crowd clip was scheduled for, from start to stop: the cheer
-    // is the one clip three and a half seconds long.
+    // The crowd's cheer: each one is a clip eight seconds long, started once,
+    // and let fall away on an exponential whose time constant is set by the
+    // moment (`milestoneCheer` in src/game/crowd.ts). So the clips started are
+    // counted, and the falls to silence slower than a second are noted: no
+    // fade, groan or murmur in a celebration falls that slowly.
     window.__cheers = [];
-    const start = AudioBufferSourceNode.prototype.start, stop = AudioBufferSourceNode.prototype.stop;
-    AudioBufferSourceNode.prototype.start = function (when = 0, ...rest) { this.__at = when; return start.call(this, when, ...rest); };
-    AudioBufferSourceNode.prototype.stop = function (when = 0) {
-      if (this.buffer && this.buffer.duration > 3.3 && this.buffer.duration < 3.7) window.__cheers.push(Math.round((when - this.__at) * 10) / 10);
-      return stop.call(this, when);
+    window.__falls = [];
+    const start = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (...args) {
+      if (this.buffer && this.buffer.duration > 7.5 && this.buffer.duration < 8.5) window.__cheers.push(Math.round(this.buffer.duration));
+      return start.apply(this, args);
+    };
+    const toward = AudioParam.prototype.setTargetAtTime;
+    AudioParam.prototype.setTargetAtTime = function (target, when, constant) {
+      if (target === 0 && constant >= 1) window.__falls.push(Math.round(constant * 100) / 100);
+      return toward.call(this, target, when, constant);
     };
     window.__draws = 0;
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
@@ -211,8 +219,10 @@ for (const [name, options] of [
     check(moment.words.every(w => up.words.includes(w)) && (moment.words.length > 0 || up.words.length === 0),
       moment.words.length ? `saying ${moment.words.join(', ')}` : 'with the number alone and no word under it', JSON.stringify(up.words));
   }
-  const cheers = await page.evaluate(() => window.__cheers);
-  check(cheers.length === 1 && cheers[0] === moment.cheer, `and the crowd cheers, dying away over ${moment.cheer}s`, JSON.stringify(cheers));
+  const { cheers, falls } = await page.evaluate(() => ({ cheers: window.__cheers, falls: window.__falls }));
+  // A celebration of `cheer` seconds falls away on a curve of 1 + cheer / 2.
+  const fall = Math.round((1 + moment.cheer / 2) * 100) / 100;
+  check(cheers.length === 1 && falls.includes(fall), `and the crowd cheers once, falling away on a ${fall}s curve`, JSON.stringify({ cheers, falls }));
   if (moment.kind === 'six-sixes') {
     check(['SIX 6s', 'YUVI', 'is that you?'].every(w => up.words.includes(w)) && up.words.filter(w => w === 'YUVI').length === 1,
       'saying SIX 6s, YUVI once, and is that you?', JSON.stringify(up.words));

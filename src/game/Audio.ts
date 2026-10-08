@@ -1,5 +1,6 @@
 import type { ShotOutcome } from './types';
-type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'cheer' | 'stumps';
+import { GROAN_SHAPE, type Cheer, type CheerSize, type Groan } from './crowd';
+type Sound = 'hit' | 'boundary' | 'bounce' | 'wicket' | 'sledge' | 'edge' | 'stumps';
 /**
  * The music, and the screen each piece belongs to.
  *
@@ -67,6 +68,35 @@ const SOUND_KEY = 'hitman-sound';
 function settingBefore(): SoundSetting {
   try { const held = localStorage.getItem(SOUND_KEY); return held === 'effects' || held === 'off' ? held : 'on'; } catch { return 'on'; }
 }
+/**
+ * The crowd's clips (see `assets/crowd/CREDITS.txt`): a murmur that loops, the
+ * same ground in both games and let through at a level of each one's own; a
+ * groan; and two cheers of each size, cut from Gregor Quendel's Free Crowd
+ * Cheering Sounds (CC BY 4.0), each starting just short of its peak.
+ */
+const MURMUR_CLIP = 'murmur', GROAN_CLIP = 'groan';
+const CROWD_FILES: readonly [string, URL][] = [
+  [MURMUR_CLIP, new URL('../assets/crowd/murmur.mp3', import.meta.url)],
+  [GROAN_CLIP, new URL('../assets/crowd/groan.mp3', import.meta.url)],
+  ['soft-1', new URL('../assets/crowd/cheer-soft-1.mp3', import.meta.url)], ['soft-2', new URL('../assets/crowd/cheer-soft-2.mp3', import.meta.url)],
+  ['mid-1', new URL('../assets/crowd/cheer-mid-1.mp3', import.meta.url)], ['mid-2', new URL('../assets/crowd/cheer-mid-2.mp3', import.meta.url)],
+  ['big-1', new URL('../assets/crowd/cheer-big-1.mp3', import.meta.url)], ['big-2', new URL('../assets/crowd/cheer-big-2.mp3', import.meta.url)],
+];
+/**
+ * Stops whatever a level was doing at `when`, keeping the value it had got to.
+ * Cancelling alone sends it back to the last value it was set to, which in
+ * the middle of a fade is a jump.
+ */
+function holdAt(param: AudioParam, when: number) {
+  if (typeof param.cancelAndHoldAtTime === 'function') { param.cancelAndHoldAtTime(when); return; }
+  const value = param.value;
+  param.cancelScheduledValues(when);
+  param.setValueAtTime(value, when);
+}
+/** A cheer is held at its peak this long before it starts to fall. */
+const CHEER_HOLD = .5;
+/** How quickly the murmur comes and goes with the innings. */
+const MURMUR_FADE = 1.2;
 export function outcomeSound(
   outcome: Pick<ShotOutcome, 'isWicket' | 'madeBatContact' | 'runs'> & { edged?: boolean; wicketType?: ShotOutcome['wicketType'] },
 ): Sound | null {
@@ -83,12 +113,38 @@ export function outcomeSound(
 }
 /** The wickets that end with the bails flying, and so with the stumps' rattle. */
 export const breaksStumps = (wicketType: ShotOutcome['wicketType'] | undefined) => wicketType === 'BOWLED' || wicketType === 'STUMPED';
+/**
+ * The pause sheet's two switches, kept between visits like the sound key: the
+ * crowd (its cheers and groans) and the ambience (the murmur under them). Each
+ * is on until it is turned off, and is only a choice within the sound key's,
+ * which still silences everything.
+ */
+const CROWD_KEY = 'hitman-crowd', AMBIENCE_KEY = 'hitman-ambience';
+function switchedOn(key: string) { try { return localStorage.getItem(key) !== 'off'; } catch { return true; } }
+function keepSwitch(key: string, on: boolean) { try { if (on) localStorage.removeItem(key); else localStorage.setItem(key, 'off'); } catch { /* Not kept: on again next visit. */ } }
 export class GameAudio {
   private context: AudioContext | null = null;
+  /** The crowd's cheers and groans: see `setCrowd`. */
+  crowdOn = switchedOn(CROWD_KEY);
+  /** The murmur: see `setAmbience`. */
+  ambienceOn = switchedOn(AMBIENCE_KEY);
   private buffers = new Map<Sound, AudioBuffer>();
   private sources = new Set<AudioBufferSourceNode>();
-  /** The crowd, on a line of its own: see `cheer`. */
-  private roar: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
+  /** The crowd's clips, decoded: see `CROWD_FILES`. Fetched at the first tap, not with the page. */
+  private crowdClips = new Map<string, AudioBuffer>();
+  private crowdLoading: Promise<void> | null = null;
+  /** The murmur, while an innings is on. */
+  private murmur: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
+  /** Its level, and nought for no innings. */
+  private murmurLevel = 0;
+  /** Paused: the murmur held at nothing until the game goes on. */
+  private crowdHeld = false;
+  /** Cheers still sounding, which a wicket cuts short. */
+  private cheers = new Set<{ source: AudioBufferSourceNode; gain: GainNode }>();
+  /** Groans still sounding: kept apart from the cheers, which a wicket cuts short and its own groan it must not. */
+  private groans = new Set<{ source: AudioBufferSourceNode; gain: GainNode }>();
+  /** The clip each size last played, so the next is the other one. */
+  private lastClip = new Map<CheerSize, string>();
   private loading: Promise<void> | null = null;
   private disposed = false;
   setting = settingBefore();
@@ -119,7 +175,6 @@ export class GameAudio {
     ['boundary', new URL('../assets/boundary-hit.mp3', import.meta.url)],
     ['sledge', new URL('../assets/sledge.mp3', import.meta.url)],
     ['edge', new URL('../assets/bat-edge.mp3', import.meta.url)],
-    ['cheer', new URL('../assets/crowd-cheer.mp3', import.meta.url)],
     ['stumps', new URL('../assets/stumps-rattle.aac', import.meta.url)],
   ] as const;
   // The setting a returning player left behind applies before anything plays.
@@ -140,6 +195,7 @@ export class GameAudio {
       silent.buffer = this.context!.createBuffer(1, 1, this.context!.sampleRate);
       silent.connect(this.context!.destination); silent.start(); silent.onended = () => silent.disconnect();
       this.loading ??= this.load();
+      this.crowdLoading ??= this.loadCrowd();
     } catch { /* Unsupported audio must not stop the innings. */ }
   }
   /** The context, opened the first time anything needs one. Null where there is none. */
@@ -156,6 +212,17 @@ export class GameAudio {
       catch { /* Keep the synthesized impact as an offline fallback. */ }
     }
   }
+  private async loadCrowd() {
+    await Promise.all(CROWD_FILES.map(async ([name, url]) => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok || !this.context || this.disposed) return;
+        this.crowdClips.set(name, await this.context.decodeAudioData(await response.arrayBuffer()));
+      } catch { /* A crowd that will not load stays quiet. */ }
+    }));
+    // An innings that started before the murmur arrived gets it now.
+    if (this.murmurLevel > 0) this.startMurmur();
+  }
   stop() { this.sources.forEach(source => { try { source.stop(); } catch { /* Already ended. */ } }); this.sources.clear(); }
   /** The key's next setting: on, then the music off, then everything off. */
   step() { this.set(SETTINGS[(SETTINGS.indexOf(this.setting) + 1) % SETTINGS.length]); }
@@ -168,7 +235,7 @@ export class GameAudio {
     // asked to hear the opening bar again.
     if (this.musicOff) this.hush(false); else this.resume();
     if (this.muted) {
-      this.stop(); this.hushCrowd();
+      this.stop(); this.silenceCrowd();
       // And lets go of the speaker, which `unlock` takes back when it is on.
       try { void this.context?.suspend().catch(() => {}); } catch { /* Already closed. */ }
     }
@@ -196,6 +263,8 @@ export class GameAudio {
    * instead of it, so nothing tells the music to stop and it does not.
    */
   music(track: Track | null) {
+    // Music means a screen that is not the innings, so the crowd goes.
+    if (track) this.crowd(null);
     if (this.disposed || track === this.wanted) return;
     this.hush(true);
     this.wanted = track;
@@ -231,6 +300,8 @@ export class GameAudio {
     if (this.disposed || hidden === this.backgrounded) return;
     this.backgrounded = hidden;
     if (hidden) this.hush(false); else this.resume();
+    // The crowd too: a tab nobody is looking at should not be a stadium.
+    if (hidden) this.silenceCrowd(); else this.startMurmur();
   }
   /**
    * Starts the wanted track, if there is one and anything is willing to play it.
@@ -369,45 +440,179 @@ export class GameAudio {
       clips: this.buffers.size, struck: this.struck, lastStrike: this.lastStrike,
       music: this.playing?.track ?? '—', fallback: [...this.plain].join(',') || '—',
       session: session ? `${session.type}/${session.state ?? '?'}` : 'none',
+      // The crowd: its clips decoded, the murmur's level as it is this
+      // moment, and how many cheers are sounding.
+      crowdClips: this.crowdClips.size, murmur: this.murmur ? +this.murmur.gain.gain.value.toFixed(3) : 0, cheering: this.cheers.size, groaning: this.groans.size, crowdOn: this.crowdOn, ambienceOn: this.ambienceOn,
     };
   }
   /**
-   * The crowd, for a fifty, a hundred or six sixes: at its loudest from the
-   * first moment and dying away to nothing over `seconds` — a roar that goes
-   * up with the bat and settles as he does, not one that builds.
-   *
-   * The clip is cut to start just short of the crowd's peak, so the fall is
-   * all that is left to do, and the fall is done here: exponential, which is
-   * how a crowd sounds going quiet, where a straight line down sounds like a
-   * fader. Its own line rather than the impacts': every impact stops the one
-   * before it, and the next ball's bat should not cut the crowd off, nor the
-   * crowd the bat. There is no synthesized stand-in: a crowd without its clip
-   * stays quiet.
+   * The crowd for an innings: the murmur at `level` (see `MURMUR`), faded in,
+   * or nothing, faded out. Every screen that is not the innings asks for
+   * music, and asking for music sends the crowd home.
    */
-  cheer(seconds: number) {
-    const buffer = this.buffers.get('cheer');
-    if (!this.context || !buffer || this.muted || this.disposed) return;
-    const ctx = this.context;
-    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
-    this.hushCrowd();
-    const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime;
-    const lasts = Math.min(seconds, buffer.duration);
-    source.buffer = buffer;
-    // A few hundredths up from silence first, or the cut into the middle of a
-    // roar clicks.
-    gain.gain.setValueAtTime(.0001, now);
-    gain.gain.exponentialRampToValueAtTime(.8, now + .04);
-    gain.gain.exponentialRampToValueAtTime(.001, now + lasts);
-    source.connect(gain); gain.connect(ctx.destination);
-    source.start(now); source.stop(now + lasts + .02);
-    const roar = { source, gain };
-    source.onended = () => { source.disconnect(); gain.disconnect(); if (this.roar === roar) this.roar = null; };
-    this.roar = roar;
+  crowd(level: number | null) {
+    this.murmurLevel = level ?? 0;
+    if (level && this.murmur && this.context) {
+      // Already there: just its level.
+      this.crowdHeld = false;
+      holdAt(this.murmur.gain.gain, this.context.currentTime);
+      this.murmur.gain.gain.setTargetAtTime(level, this.context.currentTime, MURMUR_FADE / 3);
+      return;
+    }
+    this.fadeMurmur();
+    if (level) { this.crowdHeld = false; this.startMurmur(); return; }
+    this.fadeCheers(.4);
   }
-  private hushCrowd() {
-    if (!this.roar) return;
-    try { this.roar.source.stop(); } catch { /* Already ended. */ }
-    this.roar = null;
+  private fadeMurmur() {
+    const murmur = this.murmur, ctx = this.context;
+    this.murmur = null;
+    if (murmur && ctx) {
+      const now = ctx.currentTime;
+      holdAt(murmur.gain.gain, now);
+      murmur.gain.gain.setTargetAtTime(0, now, MURMUR_FADE / 3);
+      try { murmur.source.stop(now + MURMUR_FADE * 1.5); } catch { /* Already stopped. */ }
+    }
+  }
+  /** The crowd's cheers and groans on or off, kept for the next visit; off cuts short any still sounding. */
+  setCrowd(on: boolean) {
+    this.crowdOn = on;
+    keepSwitch(CROWD_KEY, on);
+    if (!on) this.fadeCheers(.3);
+  }
+  /** The murmur on or off, kept likewise: off fades it, on brings it back if an innings wants it. */
+  setAmbience(on: boolean) {
+    this.ambienceOn = on;
+    keepSwitch(AMBIENCE_KEY, on);
+    if (on) this.startMurmur(); else this.fadeMurmur();
+  }
+  /** Paused, and on again: the stands hold their breath while the card is up. */
+  holdCrowd(held: boolean) {
+    this.crowdHeld = held;
+    const murmur = this.murmur, ctx = this.context;
+    if (!murmur || !ctx) return;
+    const now = ctx.currentTime;
+    holdAt(murmur.gain.gain, now);
+    murmur.gain.gain.setTargetAtTime(held ? 0 : this.murmurLevel, now, .25);
+    if (held) this.fadeCheers(.2);
+  }
+  private startMurmur() {
+    const ctx = this.context, buffer = this.crowdClips.get(MURMUR_CLIP);
+    if (this.murmur || !ctx || !buffer || this.muted || !this.ambienceOn || this.disposed || this.backgrounded || this.murmurLevel <= 0) return;
+    const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime;
+    // The file is its own loop, its tail crossfaded into its head. The ends are
+    // trimmed a touch inside it anyway, for a decoder that leaves the encoder's
+    // few milliseconds of silence at the front.
+    source.buffer = buffer; source.loop = true;
+    source.loopStart = .05; source.loopEnd = buffer.duration - .05;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.setTargetAtTime(this.crowdHeld ? 0 : this.murmurLevel, now, MURMUR_FADE / 3);
+    source.connect(gain); gain.connect(ctx.destination);
+    source.start(now, Math.random() * (buffer.duration - 1));
+    this.murmur = { source, gain };
+  }
+  /**
+   * The murmur lifted to `times` its level, on a curve of time constant `rise`, held for `hold` seconds
+   * and let back down on an exponential over about `settle`: the bowler running
+   * in, or a cheer's swell.
+   */
+  swellCrowd(times: number, hold: number, settle: number, at = 0, rise = .12) {
+    const murmur = this.murmur, ctx = this.context;
+    if (!murmur || !ctx || this.crowdHeld) return;
+    const now = ctx.currentTime + at, gain = murmur.gain.gain;
+    holdAt(gain, now);
+    gain.setTargetAtTime(this.murmurLevel * times, now, rise);
+    gain.setTargetAtTime(this.murmurLevel, now + hold, settle);
+  }
+  /**
+   * A cheer (see `crowd.ts`'s `Cheer`), `at` seconds from now: a clip of its
+   * size, the other one from last time, up to its peak in a tenth of a second
+   * from silence — the clip is cut in just before its own peak — held, and
+   * falling away on an exponential. It is laid over whatever is already going
+   * rather than stopping it, so the cheers of a streak run into each other.
+   */
+  cheer(cheer: Cheer, at = 0) {
+    const ctx = this.context;
+    if (!ctx || this.muted || !this.crowdOn || this.disposed || this.crowdHeld) return;
+    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
+    const name = this.lastClip.get(cheer.size) === `${cheer.size}-1` ? `${cheer.size}-2` : `${cheer.size}-1`;
+    const buffer = this.crowdClips.get(name);
+    if (!buffer) return;
+    this.lastClip.set(cheer.size, name);
+    const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime + at;
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(.0001, now);
+    gain.gain.exponentialRampToValueAtTime(Math.max(.001, cheer.peak), now + .1);
+    gain.gain.setTargetAtTime(0, now + .1 + CHEER_HOLD, cheer.decay);
+    source.connect(gain); gain.connect(ctx.destination);
+    source.start(now); source.stop(now + Math.min(buffer.duration, .1 + CHEER_HOLD + cheer.decay * 5));
+    const voice = { source, gain };
+    this.cheers.add(voice);
+    source.onended = () => { source.disconnect(); gain.disconnect(); this.cheers.delete(voice); };
+    this.swellCrowd(1 + cheer.swell, CHEER_HOLD + 1.2, cheer.decay * 1.6, at);
+  }
+  /**
+   * A wicket: the murmur down to `depth` of itself almost at once, any cheer
+   * still going cut short with it, and the murmur back over `recover` seconds
+   * after `hold`. With a groan, `at` seconds from now: as the groan dies away,
+   * so the stands go from the groan into the quiet rather than the groan
+   * playing over a silence that is not its own.
+   */
+  hushCrowd(depth: number, hold: number, recover: number, at = 0) {
+    const murmur = this.murmur, ctx = this.context;
+    this.fadeVoices(this.cheers, .25);
+    if (!murmur || !ctx || this.crowdHeld) return;
+    const now = ctx.currentTime + at, gain = murmur.gain.gain;
+    holdAt(gain, now);
+    gain.setTargetAtTime(this.murmurLevel * depth, now, .3);
+    gain.setTargetAtTime(this.murmurLevel, now + hold, recover);
+  }
+  /**
+   * The groan (`crowd.ts`'s `Groan`), `at` seconds from now: a wicket, or in a
+   * Test a ball that only just missed the bat. It is the same crowd as the
+   * murmur and has to sound it, so the two are crossfaded: the groan comes up
+   * over a fifth of a second as the murmur gives way to it, and goes as the
+   * murmur comes back. Switched on at full over a murmur that stayed where it
+   * was, or that had already dropped away, it was a second recording laid on.
+   */
+  groan(groan: Groan, at = 0) {
+    const ctx = this.context, buffer = this.crowdClips.get(GROAN_CLIP);
+    if (!ctx || !buffer || this.muted || !this.crowdOn || this.disposed || this.crowdHeld) return;
+    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* Closed. */ } }
+    const { rise, falls, fall } = GROAN_SHAPE;
+    const source = ctx.createBufferSource(), gain = ctx.createGain(), now = ctx.currentTime + at;
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.setTargetAtTime(Math.max(0, Math.min(1, groan.level)), now, rise);
+    gain.gain.setTargetAtTime(0, now + falls, fall);
+    source.connect(gain); gain.connect(ctx.destination);
+    source.start(now); source.stop(now + Math.min(buffer.duration, falls + fall * 5));
+    const voice = { source, gain };
+    this.groans.add(voice);
+    source.onended = () => { source.disconnect(); gain.disconnect(); this.groans.delete(voice); };
+    const murmur = this.murmur;
+    if (!murmur) return;
+    holdAt(murmur.gain.gain, now);
+    murmur.gain.gain.setTargetAtTime(this.murmurLevel * groan.under, now, rise * 1.5);
+    murmur.gain.gain.setTargetAtTime(this.murmurLevel, now + falls, fall * 1.5);
+  }
+  private fadeCheers(over: number) { this.fadeVoices(this.cheers, over); this.fadeVoices(this.groans, over); }
+  private fadeVoices(voices: Set<{ source: AudioBufferSourceNode; gain: GainNode }>, over: number) {
+    const ctx = this.context;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    voices.forEach(({ source, gain }) => {
+      holdAt(gain.gain, now);
+      gain.gain.setTargetAtTime(0, now, over / 3);
+      try { source.stop(now + over * 1.5); } catch { /* Already stopped. */ }
+    });
+  }
+  /** Everything from the stands stopped where it stands: the sound off, the tab gone, the page closing. */
+  private silenceCrowd() {
+    if (this.murmur) { try { this.murmur.source.stop(); } catch { /* Already ended. */ } this.murmur = null; }
+    for (const voices of [this.cheers, this.groans]) {
+      voices.forEach(({ source }) => { try { source.stop(); } catch { /* Already ended. */ } });
+      voices.clear();
+    }
   }
   play(kind: Sound) {
     if (!this.context || this.muted || this.disposed) return;
@@ -430,7 +635,7 @@ export class GameAudio {
     }
     // The synthesized fallback is an impact, not a voice: there is nothing
     // sensible to make of a sledge without its clip, so it stays silent.
-    if (kind === 'sledge' || kind === 'cheer') return;
+    if (kind === 'sledge') return;
     const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = kind === 'hit' || kind === 'edge' ? 'triangle' : 'sine';
     osc.frequency.setValueAtTime(kind === 'edge' ? 1550 : kind === 'hit' ? 720 : kind === 'wicket' || kind === 'stumps' ? 170 : kind === 'boundary' ? 540 : 240, now);
@@ -440,7 +645,7 @@ export class GameAudio {
     osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
   dispose() {
-    this.disposed = true; this.stop(); this.hushCrowd(); this.hush(true);
+    this.disposed = true; this.stop(); this.silenceCrowd(); this.hush(true);
     // Whatever is still arriving is arriving for a page that is going away.
     this.elements.forEach(element => { element.pause(); element.removeAttribute('src'); element.load(); });
     this.elements.clear();

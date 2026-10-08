@@ -30,6 +30,11 @@ export function bladeGeometry() {
   }
   const geometry=new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  const uv: number[] = [];
+  for (let row=0;row<stations.length;row++) for(let col=0;col<count;col++) {
+    uv.push((positions[(row*count+col)*3] + .068) / .136, (-stations[row][0]-.134)/.7);
+  }
+  geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
   geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingBox();
   return geometry;
 }

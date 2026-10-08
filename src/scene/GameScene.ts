@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength } from '../entities/Batter';
+import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -16,6 +16,11 @@ import { perimeterBoards } from './boards';
 import { box, colors, cylinder, forgetMaterials, mat, soft } from './build';
 import { buildGround, groundFrom, ownFloodlights, type GroundName } from './grounds';
 import { buildWicket } from './wicket';
+import type { CrowdCelebration, CrowdMoment } from './CrowdCelebration';
+import { PerformanceReadout } from './performance';
+import { grassBlades } from './grassBlades';
+import { grassDetail } from './grassDetail';
+import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
 
@@ -123,9 +128,13 @@ const BALL = {
 
 export class GameScene {
   readonly renderer: THREE.WebGLRenderer;
+  /** Frame rate and draw calls on screen, for judging the graphics on a phone: `?perf=1`. */
+  private performanceReadout?: PerformanceReadout;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(53, 1, 0.1, 180);
   private world = new THREE.Group();
+  /** Fireworks in the sky behind the far stand: see `fireworks`. */
+  private bursts = new Fireworks(this.world);
   private batter = new Batter();
   private bowler = new Bowler();
   /**
@@ -240,6 +249,8 @@ export class GameScene {
   /** How grey everything but the batter is: see `MUTE`. */
   private mute = { value: 0 };
   private celebratedAt = -Infinity;
+  /** The stands on their feet for a boundary or a milestone; the stadium's only, the bowl has none. */
+  private crowd?: CrowdCelebration;
   /** How long the celebration under way greys the ground for. */
   private celebratedFor = CELEBRATION_MS;
   private poweredAt = -Infinity;
@@ -331,6 +342,7 @@ export class GameScene {
     this.swish = this.createSwish();
     this.reset();
     this.resizeObserver = new ResizeObserver(this.resize); this.resizeObserver.observe(container); this.resize();
+    if (new URLSearchParams(location.search).get('perf') === '1') this.performanceReadout = new PerformanceReadout(container);
   }
   /**
    * The band for the swoosh: rows of three points across it — an edge, the
@@ -441,7 +453,10 @@ export class GameScene {
   private createGround() {
     const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     const grass = grassTexture(70, 10, GAME.boundaryRadius, anisotropy);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
+    // Relief only, the colour left to the turf: a blade's light and shade,
+    // tiled, and fading into the flat as the mipmaps take over.
+    const blades = grassDetail(140, anisotropy);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(70, 96), new THREE.MeshStandardMaterial({ map: grass, normalMap: blades, normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95 })); ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, -0.035, 10); ground.receiveShadow = true; this.world.add(ground);
     // The strip, its wear painted on rather than built from boxes.
     const surface = pitchTexture(2.8, 32, 4.3, anisotropy, { batting: 0, bowling: 18.7 });
@@ -449,7 +464,9 @@ export class GameScene {
     this.dryPitch = surface; this.anisotropy = anisotropy;
     const strip = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.025, 32), this.pitch);
     strip.position.set(0, 0, 4.3); strip.receiveShadow = true; this.world.add(strip);
-    this.textures.push(grass, surface);
+    this.textures.push(grass, blades, surface);
+    // And standing blades either side of the strip near the bat, one draw.
+    this.world.add(grassBlades(grass));
     // Popping creases, 1.2m in front of each wicket, with return creases running
     // back past the stumps.
     [GAME.creaseZ, 18.7 - GAME.creaseZ].forEach(z => {
@@ -485,6 +502,8 @@ export class GameScene {
     const theMoon = moon(this.camera.position);
     this.scene.add(theMoon.sprite); this.night.push(theMoon.sprite); this.textures.push(theMoon.texture);
     if (lights) {
+      this.crowd = lights.createCrowd?.(this.reducedMotion);
+      if (this.crowd) { this.textures.push(...this.crowd.textures); this.crowd.setNight(this.now === 'night'); }
       this.lamps = lights.lamps;
       const glow = glows(lights.roof, lights.towers);
       this.world.add(...glow.points); this.night.push(...glow.points); this.textures.push(glow.texture);
@@ -528,6 +547,9 @@ export class GameScene {
   time(time: SkyTime) {
     if (time === this.now) return;
     this.now = time;
+    this.crowd?.setNight(time === 'night');
+    // Day breaking on a show takes it down: there are none by day.
+    if (time !== 'night') this.bursts.stop();
     const palette = this.sky.time(time), light = LIGHTING[time];
     this.scene.fog = new THREE.Fog(palette.horizon, 48, 125);
     this.renderer.setClearColor(palette.horizon);
@@ -569,7 +591,7 @@ export class GameScene {
   /** Whether the ground is lit for night. For the checks. */
   get lit() { return this.now; }
   /** He has taken one too many. Nothing stands him back up but a new innings. */
-  fall(now: number) { this.batter.fall(now); }
+  fall(now: number, where?: Hurt) { this.batter.fall(now, where); }
   /**
    * A left-hander at the crease. The stage is mirrored once already so that a
    * right-hander's leg side reads left; this takes the mirror off, and the
@@ -587,6 +609,36 @@ export class GameScene {
   get mirrored() { return this.world.scale.x > 0; }
   /** The next man in, at his guard. The last one may be lying where he fell. */
   newBatter() { this.batter.reset(); }
+  /** What the batter does once the ball is done with (`Batter.afterBall`), and when he will be back in his guard. */
+  afterBall(kind: AfterBall, now: number) { return this.batter.afterBall(kind, now); }
+  /**
+   * `?actions=1`: the stroke that earns `kind` played at no ball, and then
+   * `kind` itself. When he will be back in his guard.
+   */
+  rehearse(kind: AfterBall, now: number) {
+    const [shot, height, lofted, swept] = REHEARSED[kind];
+    this.batter.swing(shot, now, 0, height, GAME.contactZ, false, lofted, swept);
+    return this.batter.afterBall(kind, now);
+  }
+  /** The stroke he played, for choosing what he does after it. */
+  get stroke() { return this.batter.played; }
+  /**
+   * The stands for a four or six struck, or a milestone: arms up and placards
+   * across the far end. A boundary does not cut short a bigger moment still
+   * up, and the next ball sits them down (`reset`) rather than waiting on them.
+   */
+  /**
+   * Fireworks for `ms` from `now`, in the sky beyond the far stand: one burst
+   * over the middle on a screen taller than it is wide, one either side on a
+   * wide one. Only after dark, in whatever game asks; none with reduced motion.
+   */
+  fireworks(now: number, ms: number) {
+    if (this.reducedMotion || this.now !== 'night') return;
+    this.bursts.show(now, ms, this.camera.aspect >= 1);
+  }
+  get fireworksUp() { return this.bursts.up; }
+  cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') { this.crowd?.trigger(kind, now, mark, streak, name); }
+  get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone
    * grey round him; or his fifty, `mild`, the bat raised and the colours left
@@ -813,11 +865,13 @@ export class GameScene {
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
 
-  reset() {
+  /** A new ball. `carryOn`: see `Batter.reset`. */
+  reset(carryOn = false) {
     this.cutout();
+    this.crowd?.settle(this.clock);
     this.celebratedAt = -Infinity; this.poweredAt = -Infinity; this.mute.value = 0; this.blaze = null; this.swishedAt = -Infinity; this.swish.visible = false;
     this.hitOutcome = null; this.bailsBrokeAt = 0; this.flightMs = GAME.hitAnimationMs; this.hitHeight = 0; this.dropAt = 0; this.bounceAt = 0; this.takeAt = 1; this.ball.visible = false; this.shadow.visible = false; this.bounceRing.visible = false; this.catchRing.visible = false; this.chargeRing.visible = false;
-    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset();
+    this.trail.forEach(t => t.visible = false); this.fire.forEach(f => f.visible = false); this.batter.reset(carryOn);
     this.bails.forEach((b, i) => { b.position.set(i ? 0.073 : -0.073, GAME.stumpHeight + 0.02, 0); b.rotation.set(0, 0, 0); });
     this.batter.root.visible = true;
     this.field.reset(); this.released = false; this.gathered = false;
@@ -1117,6 +1171,8 @@ export class GameScene {
     // the field has is timed on the old one: put them back on their marks.
     if (now + 1 < this.clock) this.field.home();
     this.clock = now;
+    this.crowd?.update(now);
+    this.bursts.update(now);
     this.batter.update(now);
     this.field.update(now);
     // Held, the ball goes where his hands go: through the slide, and up with
@@ -1149,8 +1205,10 @@ export class GameScene {
       this.clouding(THREE.MathUtils.lerp(this.cover.from, this.cover.to, k * k * (3 - 2 * k)), k >= 1);
     }
     this.mute.value = Math.max(muteAt(now - this.celebratedAt, this.celebratedFor), powerAt(now - this.poweredAt));
+    this.batter.drape(); this.bowler.figure.drape();
     if (this.cut) this.drawCutout();
     this.renderer.render(this.scene, this.camera);
+    this.performanceReadout?.update(this.renderer);
   }
   inspectBatter() { return this.batter.inspect(); }
   /**
@@ -1191,9 +1249,13 @@ export class GameScene {
       x: this.bowlerHolder.scale.x * this.bowler.root.position.x, releaseX: this.releaseX, side: this.bowlerSide };
   }
   dispose() {
+    this.performanceReadout?.dispose();
     this.resizeObserver.disconnect();
     const geometries = new Set<THREE.BufferGeometry>(); const mats = new Set<THREE.Material>();
-    this.scene.traverse(object => { if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m)); } });
+    this.scene.traverse(object => { if (object instanceof THREE.Mesh) {
+      if (object instanceof THREE.InstancedMesh) object.dispose();
+      geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => mats.add(m));
+    } });
     // The shared character primitives outlive any one scene; the rest is ours.
     // That now covers the figures too — bowler and fielders are built from one
     // set of geometries and one set of materials, and freeing either would take
@@ -1207,3 +1269,11 @@ export class GameScene {
     geometries.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); forgetMaterials(); this.renderer.dispose();
   }
 }
+
+/** The stroke `?actions=1` plays for each: the one each follows in an innings. */
+const REHEARSED: Record<AfterBall, [ShotType, number, boolean, boolean]> = {
+  admire: ['COVER_LONG_OFF', .54, false, false], watch: ['STRAIGHT', .54, true, false], twirl: ['LEG', 1.1, false, false],
+  brush: ['LEG', .48, false, true], shadow: ['COVER_LONG_OFF', .54, false, false], scrub: ['COVER_LONG_OFF', .54, false, false],
+  sky: ['COVER_LONG_OFF', .54, false, false], lean: ['STRAIGHT', .54, false, false], down: ['COVER_LONG_OFF', .54, false, false],
+  ribs: ['DEFEND', .54, false, false], sting: ['DEFEND', .54, false, false], dazed: ['DEFEND', .54, false, false],
+};

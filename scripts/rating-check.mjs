@@ -113,6 +113,10 @@ await page.addInitScript(() => {
 await page.addInitScript(() => {
   const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
   try { localStorage.setItem('hitman-seen', day); } catch { /* Then nothing counts. */ }
+  // And the notice for a batter one blow from being carried off told already:
+  // `hurt()` below puts him there, and the notice pauses the innings until it
+  // is answered, which this check never does — so the innings never ended.
+  try { localStorage.setItem('hitman-hurt-seen', '1'); } catch { /* Then it pauses. */ }
 });
 
 note('launching');

@@ -21,9 +21,10 @@ describe('the ground', () => {
     expect(groundFrom('?ground=pavilion')).toBe('stadium');
   });
 
-  it('builds the stadium from a mesh a colour and one crowd', () => {
+  it('batches the stadium by colour and the entire crowd into bodies and heads', () => {
     const { crowd, scenery } = built('stadium');
-    expect(crowd).toHaveLength(1);
+    expect(crowd).toHaveLength(2);
+    expect(crowd[1].count).toBe(crowd[0].count);
     expect(crowd[0].count).toBeGreaterThan(2500);
     // Merged: a mesh for each colour, not a mesh for each box.
     expect(scenery.length).toBeLessThan(16);

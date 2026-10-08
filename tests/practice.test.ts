@@ -40,6 +40,7 @@ describe('every switch the game reads', () => {
     lefty: 'where the left-hander bats; the browser checks claim places with it',
     moments: 'celebrations on demand, adding no runs and counting nothing',
     rate: 'the star rating on demand, sending and remembering nothing',
+    actions: 'what the batter does after a ball, on demand, at no ball and counting nothing',
     demo: 'made-up rows on the boards, in this browser only',
     feedback: 'the feedback sheet',
     fresh: 'clearing this browser, asked first',
@@ -50,6 +51,7 @@ describe('every switch the game reads', () => {
     view: 'which screen opens',
     shot: 'a shot preview page',
     pullpen: 'the colour of the pull\'s flash',
+    perf: 'the frame-rate readout, measuring and sending nothing',
   };
 
   it('is either practice or named as not practice', () => {

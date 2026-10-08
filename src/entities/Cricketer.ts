@@ -1,4 +1,10 @@
 import * as THREE from 'three';
+import { compactRigidParts } from './compactParts';
+import { BendingLimb } from './BendingLimb';
+import { ConnectedJersey } from './ConnectedJersey';
+import { ConnectedTrousers } from './ConnectedTrousers';
+import { clothMaterial } from './characterMaterials';
+import { jerseyGeometry } from './garment';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Point, UP, segment, solveJoint } from './rig';
 
@@ -92,13 +98,16 @@ const SHAPES = {
   limb: new THREE.CylinderGeometry(.5, .62, 1, 24, 1),
   tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
   soft: new RoundedBoxGeometry(1, 1, 1, 5, .3),
-  /** Shoulders down to the waist, and up into the neck, in one piece. */
-  trunk: lathe([
-    [-.34, .02], [-.325, .112], [-.27, .142], [-.17, .163], [-.05, .190],
-    [.055, .201], [.125, .186], [.170, .140], [.200, .098],
-    [.245, .072], [.300, .067], [.325, .02],
-  ], .74),
-  /** The pelvis, wide enough at the top for the trunk to tuck inside it. */
+  /** Thin sewn details, for the connected figure: six faces is all they need. */
+  detail: new THREE.BoxGeometry(1, 1, 1),
+  collar: new THREE.TorusGeometry(.071, .012, 6, 24).rotateX(Math.PI / 2),
+  /**
+   * Shoulders down to the waist, and up into the neck, in one piece: the
+   * batter's own shirt, held rigid, so a fielder is cut the same as the man
+   * he is bowling to.
+   */
+  shirt: jerseyGeometry(16, 24),
+  /** The pelvis, wide enough at the top for the shirt to tuck inside it. */
   pelvis: lathe([
     [-.20, .02], [-.185, .098], [-.125, .146], [-.02, .170], [.075, .167],
     [.150, .150], [.200, .092], [.225, .02],
@@ -133,6 +142,8 @@ function material(color: number, roughness: number) {
   if (!cache.has(key)) cache.set(key, new THREE.MeshStandardMaterial({ color, roughness }));
   return cache.get(key)!;
 }
+/** Shirt and trousers: the same, with the batter's faint weave on them. */
+function cloth(color: number, roughness: number) { return clothMaterial(material(color, roughness)); }
 
 /**
  * How wide each limb is, and the joint balls that close its ends. The taper is
@@ -161,12 +172,21 @@ export class Cricketer {
 
   /** Every mesh that wears a kit colour, and what it is wearing it as. */
   private dressable: THREE.Mesh[] = [];
+  /**
+   * The bowler's clothes, when he wears the batter's kind: one shirt and one
+   * pair of trousers bent to the rig rather than tubes meeting in joint balls.
+   * Absent for the fielders, who are too far off for it to show and would pay
+   * for it every frame. See `drape`.
+   */
+  private garments?: { jersey: ConnectedJersey; trousers: ConnectedTrousers; sleeves: BendingLimb[]; legs: BendingLimb[] };
+  private draped = true;
+  private limbStart = new THREE.Vector3();
   private palette: { role: DressRole; mat: THREE.Material }[] = [];
 
-  constructor(kit: Kit = KIT) {
+  constructor(kit: Kit = KIT, { connected = false } = {}) {
     const skin = material(kit.skin, .86);
-    const shirt = material(kit.shirt, .82);
-    const trousers = material(kit.trousers, .8);
+    const shirt = cloth(kit.shirt, .82);
+    const trousers = cloth(kit.trousers, .8);
     const trim = material(kit.trim, .78);
     const shoe = material(kit.shoe, .7);
     const sole = material(0x3d4046, .85);
@@ -181,15 +201,19 @@ export class Cricketer {
     this.root.name = 'Articulated cricketer';
     this.root.add(this.hips, this.torso, this.head);
 
-    // Trunk and pelvis are one lathed skin each, and they overlap at the waist
-    // with the trunk tucked inside the wider pelvis, so the join is buried
-    // rather than shown. The neck is part of the trunk for the same reason.
-    this.mesh(this.torso, shirt, [1, 1, 1], 'trunk');
-    this.mesh(this.hips, trousers, [1, 1, 1], 'pelvis');
-    // Collar and placket, so a turning body reads as turning.
-    this.mesh(this.torso, trim, [.172, .036, .166], 'tube').position.y = .196;
-    this.mesh(this.torso, trim, [.034, .26, .012], 'soft').position.set(0, .01, .142);
-    this.mesh(this.torso, skin, [.128, .10, .118], 'tube').position.y = .27;
+    if (!connected) {
+      // The shirt in one rigid piece, its hem tucked into the pelvis so the
+      // join is buried rather than shown.
+      this.mesh(this.torso, shirt, [1, 1, 1], 'shirt');
+      this.mesh(this.hips, trousers, [1, 1, 1], 'pelvis');
+    }
+    // The batter's collar, neck, placket, badge and the sewn number on the
+    // back, on either kind of shirt: they are cut the same.
+    this.mesh(this.torso, trim, [1, 1, .93], 'collar').position.y = .154;
+    this.mesh(this.torso, trim, [.024, .06, .008], 'detail').position.set(0, .105, .123);
+    this.mesh(this.torso, skin, [.115, .17, .115], 'tube').position.y = .205;
+    this.mesh(this.torso, trim, [.035, .043, .008], 'detail').position.set(-.087, .015, .134);
+    for (const x of [-.055, .055]) this.mesh(this.torso, trim, [.028, .125, .008], 'detail').position.set(x, -.04, -.143);
 
     // Head: one shape, with the cap sitting on it.
     this.mesh(this.head, skin, [1, 1, 1], 'head');
@@ -235,6 +259,28 @@ export class Cricketer {
         end: foot,
       });
     }
+    // The parts that never move against each other — the cap on the head, a
+    // shoe's sole on its upper — are drawn as one mesh a material in each
+    // group. Built once, so the saving in draws costs nothing per frame; the
+    // limbs, which the rig moves, stay as they are.
+    for (const group of [this.torso, this.hips, this.head, ...this.hands, ...this.legs.map(l => l.end)]) {
+      const merged = compactRigidParts(group);
+      this.dressable = this.dressable.filter(mesh => mesh.parent !== null);
+      this.dressable.push(...merged.filter(mesh => mesh.userData.role));
+    }
+    if (connected) {
+      // The tubes and joint balls stay as the rig's controls, unseen; the
+      // clothes are drawn over them.
+      for (const limb of [...this.arms, ...this.legs]) for (const control of [limb.upper, limb.lower, limb.joint, limb.cap]) control.visible = false;
+      const jersey = new ConnectedJersey([shirt, skin], true), pants = new ConnectedTrousers(trousers);
+      pants.mesh.userData.role = 'trousers'; this.dressable.push(pants.mesh);
+      this.garments = {
+        jersey, trousers: pants,
+        sleeves: [0, 1].map(() => new BendingLimb([shirt, skin], [.087, .061, .045], 24)),
+        legs: [0, 1].map(() => new BendingLimb(trousers, [.109, .072, .057], 16, true)),
+      };
+      this.root.add(jersey.mesh, pants.mesh);
+    }
     this.pose = this.stand();
     this.apply(this.pose);
   }
@@ -264,7 +310,7 @@ export class Cricketer {
    */
   dress(kit: Kit) {
     const swatch: Record<DressRole, THREE.Material> = {
-      skin: material(kit.skin, .86), shirt: material(kit.shirt, .82), trousers: material(kit.trousers, .8),
+      skin: material(kit.skin, .86), shirt: cloth(kit.shirt, .82), trousers: cloth(kit.trousers, .8),
       trim: material(kit.trim, .78), shoe: material(kit.shoe, .7), cap: material(kit.cap, .74),
       flash: material(kit.shirt, .7),
     };
@@ -272,6 +318,8 @@ export class Cricketer {
       const role = mesh.userData.role as DressRole | undefined;
       if (role) mesh.material = swatch[role];
     }
+    if (this.garments) this.garments.jersey.mesh.material = [swatch.shirt, swatch.skin];
+    if (this.garments) for (const sleeve of this.garments.sleeves) sleeve.mesh.material = [swatch.shirt, swatch.skin];
   }
 
   /**
@@ -371,6 +419,7 @@ export class Cricketer {
       segment(arm.lower, elbow, hand, ARM_LOWER, ARM_LOWER * 1.04);
       arm.joint.position.copy(elbow);
       arm.cap.position.copy(shoulder);
+      this.garments?.sleeves[i].aim(shoulder, elbow, hand, this.garments.jersey.reference(i, this.torso));
       // The hand keeps the forearm's own direction, so the wrist never snaps.
       arm.end.position.copy(hand);
       const wrist = hand.clone().sub(elbow);
@@ -387,14 +436,35 @@ export class Cricketer {
       segment(leg.lower, knee, foot, LEG_LOWER, LEG_LOWER * 1.04);
       leg.joint.position.copy(knee);
       leg.cap.position.copy(hipJoint);
+      if (this.garments) {
+        this.limbStart.copy(hipJoint).lerp(hip, .5).addScaledVector(up, .065);
+        this.garments.legs[i].aim(this.limbStart, knee, foot, this.garments.trousers.reference(i, this.hips));
+      }
       leg.end.position.copy(foot);
       // The foot points along the shin's own fall, so a lifted leg shows a
       // pointed toe and a planted one sits flat.
       const shin = foot.clone().sub(knee);
       const pitch = shin.lengthSq() > .000001 ? Math.asin(THREE.MathUtils.clamp(-shin.clone().normalize().dot(forward), -1, 1)) : 0;
       leg.end.quaternion.setFromAxisAngle(UP, pose.yaw);
-      leg.end.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.clamp(pitch, -.9, .9)));
+      // Flat on the turf while it is planted; tipping with the shin only once lifted.
+      const lifted = THREE.MathUtils.smoothstep(foot.y, .065, .20);
+      leg.end.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.clamp(pitch, -.9, .9) * lifted));
     }
+    this.draped = false;
+  }
+
+  /**
+   * The bowler's shirt and trousers fitted to the pose last applied, as the
+   * batter's are (`Batter.drape`): once, just before a frame is drawn, however
+   * many times the pose was set. Nothing to do for a figure in the plain kit.
+   */
+  drape() {
+    if (this.draped || !this.garments) return;
+    this.draped = true;
+    const { jersey, trousers, sleeves, legs } = this.garments;
+    sleeves.forEach(sleeve => sleeve.draw()); legs.forEach(leg => leg.draw());
+    jersey.update(this.torso, sleeves);
+    trousers.update(this.hips, legs, this.torso);
   }
 
   /** The pose last applied, for handing a figure from one kind of control to another. */

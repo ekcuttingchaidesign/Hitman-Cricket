@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS } from '../src/entities/Batter';
+import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -276,6 +276,173 @@ describe('the bat and the body', () => {
       }
       expect(worst.value, `${shot} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
     }
+  });
+
+  // Once the ball is done with he may do something before he settles back:
+  // tap the bat after a drive, watch a loft go, twirl the bat after a pull,
+  // brush his pad after a sweep, rehearse a stroke he missed. Each starts
+  // where the stroke ends and ends in the guard, never takes the bat through
+  // him or into the turf, and moves no faster than the strokes are held to.
+  const AFTER: [AfterBall, ShotType, (b: Batter) => void][] = [
+    ['admire', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
+    ['admire', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['admire', 'LONG_ON', b => b.swing('LONG_ON', 0, 0, .54)],
+    ['watch', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54, GAME.contactZ, false, true)],
+    ['watch', 'LONG_ON', b => b.swing('LONG_ON', 0, 0, .54, GAME.contactZ, false, true)],
+    ['twirl', 'LEG', b => b.swing('LEG', 0, 0, 1.1)],
+    ['brush', 'LEG', b => b.swing('LEG', 0, 0, .48, GAME.contactZ, false, false, true)],
+    ['brush', 'REVERSE_SCOOP', b => b.swing('REVERSE_SCOOP', 0, 0, .54)],
+    ['shadow', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
+    ['shadow', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['shadow', 'LONG_ON', b => b.swing('LONG_ON', 0, 0, .54)],
+    ['scrub', 'LONG_ON', b => b.swing('LONG_ON', 0, 0, .54)],
+    ['scrub', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
+    ['shadow', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['scrub', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['scrub', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['sky', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['down', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+    ['down', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['ribs', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['sting', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['dazed', 'DEFEND', b => b.swing('DEFEND', 0, 0, .54)],
+    ['ribs', 'LEG', b => b.swing('LEG', 0, 0, 1.1)],
+    ['lean', 'STRAIGHT', b => b.swing('STRAIGHT', 0, 0, .54)],
+    ['lean', 'COVER_LONG_OFF', b => b.swing('COVER_LONG_OFF', 0, 0, .54)],
+  ];
+  for (const [kind, shot, play] of AFTER) it(`${kind}s after a ${shot.toLowerCase()} and settles back without a jump`, () => {
+    const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); play(batter);
+    // A drive's hold has to be asked for before the finish; the rest once the ball is dead.
+    const asked = kind === 'admire' || kind === 'lean' ? 150 : 600;
+    for (let t = 0; t < asked; t += 2) batter.update(t);
+    batter.afterBall(kind, asked);
+    const guard = new Batter(); guard.reset(); guard.update(0);
+    let previous = batter.inspect(), stood = 0;
+    const end = STROKE_DURATION_MS + AFTER_BALL_MS + 400;
+    for (let t = asked; t <= end; t += 2) {
+      batter.update(t); const pose = batter.inspect();
+      const where = `${kind} ${shot} @${t}`;
+      for (let i = 0; i < 2; i++) {
+        expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+        expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+      }
+      if (t >= STROKE_DURATION_MS) {
+        const chest = new Vector3(...pose.chest), hip = new Vector3(...pose.hip);
+        const spine = chest.clone().sub(hip).normalize();
+        const yaw = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), pose.yaw);
+        const torso = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), spine).multiply(yaw);
+        const head = chest.clone().addScaledVector(spine, .31).add(new Vector3(.01, .01, .025));
+        const bat: [Vector3, Vector3] = [new Vector3(...pose.grip), new Vector3(...pose.bladeTip).sub(root)];
+        for (const [part, centre, radii, turn] of [
+          ['trunk', chest.clone().addScaledVector(spine, -.075), new Vector3(.205, .275, .145), torso],
+          ['hips', hip, new Vector3(.185, .145, .135), yaw],
+          ['helmet', head, new Vector3(.188, .19, .195), torso],
+        ] as [string, Vector3, Vector3, Quaternion][]) expect(deepest(...bat, centre, radii, turn), `${where} ${part}`).toBeGreaterThan(1);
+        expect(pose.bladeTip[1], where).toBeGreaterThan(0);
+        stood = Math.max(stood, pose.hip[1] - guard.inspect().hip[1]);
+      }
+      previous = pose;
+    }
+    // Stood up for the ones that stand him up, and back in his guard at the end.
+    if (kind !== 'brush' && kind !== 'shadow' && kind !== 'scrub') expect(stood, kind).toBeGreaterThan(.04);
+    const last = batter.inspect(), still = guard.inspect();
+    for (let i = 0; i < 3; i++) expect(Math.abs(last.grip[i] - still.grip[i]), kind).toBeLessThan(.01);
+  });
+
+  for (const [kind, shot, play] of AFTER) it(`${kind} after a ${shot.toLowerCase()} finishes through the next run-up and leaves him ready`, () => {
+    // The bowler runs in while he finishes: the new ball's reset is asked for
+    // a run-up before he is done, and is taken once he is, with the bat
+    // coming up for the ball the whole time and nothing jumping.
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); play(batter);
+    const asked = kind === 'admire' || kind === 'lean' ? 150 : 600;
+    for (let t = 0; t < asked; t += 2) batter.update(t);
+    const done = batter.afterBall(kind, asked), runup = done - GAME.runupMs;
+    for (let t = asked; t < runup; t += 2) batter.update(t);
+    let previous = batter.inspect();
+    batter.reset(true);
+    for (let t = runup; t <= done + 200; t += 2) {
+      batter.prepare(Math.min(1, (t - runup) / GAME.runupMs)); batter.update(t);
+      const pose = batter.inspect(), where = `${kind} ${shot} @${t}`;
+      for (let i = 0; i < 2; i++) {
+        expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), where).toBeLessThan(.032);
+        expect(new Quaternion(...pose.gripRotation[i]).angleTo(new Quaternion(...previous.gripRotation[i])), where).toBeLessThan(.30);
+      }
+      expect(new Vector3(...pose.grip).distanceTo(new Vector3(...previous.grip)), where).toBeLessThan(.02);
+      previous = pose;
+    }
+    // Waiting for the ball as a man who had stood still all along would be,
+    // and the stroke he played put away with the last ball.
+    const ready = new Batter(); ready.reset(); ready.prepare(1); ready.update(done + 200);
+    for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - ready.inspect().grip[i]), kind).toBeLessThan(.01);
+    expect(batter.played, kind).toMatchObject({ pulled: false, swept: false, lofted: false });
+  });
+
+  for (const kind of ['sky', 'down'] as AfterBall[]) it(`${kind} off a ball left alone: from the leave, without a jump, and back in his guard`, () => {
+    // Shouldering arms on 99 and bowled: there is no stroke, and the bat is
+    // still up from waiting for the ball when he starts.
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); batter.update(900);
+    const done = batter.afterBall(kind, 1000);
+    expect(done, kind).toBeGreaterThan(1000);
+    const guard = new Batter(); guard.reset(); guard.update(0);
+    let previous = batter.inspect(), moved = 0;
+    for (let t = 1000; t <= done + 300; t += 2) {
+      batter.update(t); const pose = batter.inspect();
+      for (let i = 0; i < 2; i++) expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), `${kind} @${t}`).toBeLessThan(.032);
+      expect(new Vector3(...pose.grip).distanceTo(new Vector3(...previous.grip)), `${kind} @${t}`).toBeLessThan(.02);
+      moved = Math.max(moved, Math.abs(pose.yaw - guard.inspect().yaw));
+      previous = pose;
+    }
+    expect(moved, kind).toBeGreaterThan(.5);
+    for (let i = 0; i < 3; i++) expect(Math.abs(batter.inspect().grip[i] - guard.inspect().grip[i]), kind).toBeLessThan(.01);
+  });
+
+  for (const where of ['HELMET', 'RIBS', 'GLOVES', 'THIGH'] as const) it(`retired hurt by a blow on the ${where.toLowerCase()}: down onto his knees without a jump, and stays there`, () => {
+    // From his guard, and from the middle of a pull, which is where a bouncer
+    // finds him.
+    for (const from of ['guard', 'pull'] as const) {
+      const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);
+      if (from === 'pull') { batter.swing('LEG', 0, 0, 1.1); for (let t = 0; t <= 200; t += 2) batter.update(t); }
+      const at = from === 'pull' ? 200 : 0;
+      batter.fall(at, where);
+      let previous = batter.inspect();
+      for (let t = at; t <= at + 2600; t += 2) {
+        batter.update(t); const pose = batter.inspect(), here = `${where} from ${from} @${t - at}`;
+        for (let i = 0; i < 2; i++) expect(new Vector3(...pose.elbows[i]).distanceTo(new Vector3(...previous.elbows[i])), here).toBeLessThan(.05);
+        expect(new Vector3(...pose.grip).distanceTo(new Vector3(...previous.grip)), here).toBeLessThan(.03);
+        expect(pose.bladeTip[1], here).toBeGreaterThan(-.03);
+        previous = pose;
+      }
+      // On his knees, not sitting and not standing, and still there.
+      const down = batter.inspect();
+      expect(down.hip[1], `${where} from ${from}`).toBeGreaterThan(.4);
+      expect(down.hip[1], `${where} from ${from}`).toBeLessThan(.6);
+      expect(batter.felled).toBe(true);
+    }
+  });
+
+  it('holds an admired drive at its finish, and only if asked before it gets there', () => {
+    const held = new Batter(); held.reset(); held.prepare(1); held.update(0); held.swing('STRAIGHT', 0, 0, .54);
+    held.update(150); held.afterBall('admire', 150);
+    held.update(480); const at = held.inspect().grip;
+    held.update(480 + ADMIRE_MS - 20); expect(held.inspect().grip).toEqual(at);
+    const late = new Batter(); late.reset(); late.prepare(1); late.update(0); late.swing('STRAIGHT', 0, 0, .54);
+    late.update(600); late.afterBall('admire', 600); late.update(700);
+    const plain = new Batter(); plain.reset(); plain.prepare(1); plain.update(0); plain.swing('STRAIGHT', 0, 0, .54); plain.update(700);
+    expect(late.inspect().grip).toEqual(plain.inspect().grip);
+  });
+
+  it('does nothing after a charge, and a new ball cancels it', () => {
+    const charged = new Batter(); charged.reset(); charged.prepare(1); charged.update(0);
+    charged.swing('STRAIGHT', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true);
+    charged.update(500); charged.afterBall('watch', 500); charged.update(STROKE_DURATION_MS + 300);
+    const walking = new Batter(); walking.reset(); walking.prepare(1); walking.update(0);
+    walking.swing('STRAIGHT', 0, 0, .54, GAME.contactZ + CHARGE_MEETS_AT, true); walking.update(STROKE_DURATION_MS + 300);
+    expect(charged.inspect().hip).toEqual(walking.inspect().hip);
+    const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0); batter.swing('STRAIGHT', 0, 0, .54);
+    batter.update(500); batter.afterBall('watch', 500); batter.reset(); batter.update(STROKE_DURATION_MS + 300);
+    const guard = new Batter(); guard.reset(); guard.update(STROKE_DURATION_MS + 300);
+    expect(batter.inspect().hip).toEqual(guard.inspect().hip);
   });
 });
 

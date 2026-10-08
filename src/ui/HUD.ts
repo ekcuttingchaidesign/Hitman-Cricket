@@ -74,6 +74,8 @@ const ordinal = (n: number) => {
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
   return `${n}${suffix}`;
 };
+/** The colour the pause sheet wears for the game it pauses: the Blast's blue, a Test's green, a Rival Match's orange. */
+export type PauseTone = 'blast' | 'test' | 'rivals';
 /** Each setting of the sound key: its picture, what it is, and what a press does. */
 const SOUND_SETTINGS: Record<SoundSetting, [string, string, string]> = {
   on: ['sound', 'Sound on', 'Turn the music off'],
@@ -108,6 +110,12 @@ const icon = (name: string) => {
     /* Day and night, for the pause card's switch. */
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
+    /* The pause sheet's keys and settings. */
+    restart: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/>',
+    modes: '<rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/>',
+    flag: '<path d="M6 21V4m0 1h11l-2.5 4L17 13H6"/>',
+    crowd: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.3a4.5 4.5 0 0 1 4.9 4.7"/>',
+    ambience: '<path d="M3 9.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/><path d="M3 14.5c1.5-1.6 3-1.6 4.5 0s3 1.6 4.5 0 3-1.6 4.5 0 3 1.6 4.5 0"/>',
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
@@ -377,7 +385,44 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
-        <div id="pause-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="scorecard pause-card"><p class="pause-eyebrow">TAKE A BREATHER</p><h2 id="pause-title">Innings paused.</h2><p class="pause-line">The next shot can wait.</p><button id="resume" class="key-button">RESUME INNINGS</button><div class="card-shares"><button id="restart" class="story-key">RESTART</button><button id="change-mode" class="story-key">CHANGE MODE</button></div><button id="declare" class="story-key declare-key hidden" type="button">DECLARE THE INNINGS</button><p id="declare-line" class="declare-line hidden">Ends the innings here and keeps your score</p><div id="lights-toggle" class="lights-toggle hidden" role="radiogroup" aria-label="Day or night"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>DAY</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>NIGHT</span></button></div><button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button><span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span></div><p class="pause-foot">Only finished innings count towards your career. Start again and this score is gone.</p></div>
+        <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <div id="pause-sheet" class="pause-sheet" data-tone="blast">
+            <div class="pause-head">
+              <span id="pause-mode" class="pause-mode">The Blast</span>
+              <h2 id="pause-title" class="pause-title">Paused</h2>
+              <p id="pause-state" class="pause-state"></p>
+            </div>
+            <button id="resume" class="key-button pause-resume" type="button">RESUME INNINGS</button>
+            <div class="pause-keys">
+              <button id="restart" class="pause-key" type="button">${icon('restart')}<span>Restart</span></button>
+              <button id="change-mode" class="pause-key" type="button">${icon('modes')}<span>Change mode</span></button>
+            </div>
+            <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
+            <p class="pause-counts">Only finished innings count towards your career.</p>
+            <p class="pause-group-label" id="pause-settings">Settings</p>
+            <div class="pause-group" role="group" aria-labelledby="pause-settings">
+              <button id="crowd-switch" class="pause-row" type="button" role="switch" aria-checked="true">
+                <span class="pause-row-icon is-crowd">${icon('crowd')}</span>
+                <span class="pause-row-say"><b>Crowd</b><em>Cheers and groans</em></span>
+                <span class="pause-switch" aria-hidden="true"></span>
+              </button>
+              <button id="ambience-switch" class="pause-row" type="button" role="switch" aria-checked="true">
+                <span class="pause-row-icon is-ambience">${icon('ambience')}</span>
+                <span class="pause-row-say"><b>Ambience</b><em>The stadium in the background</em></span>
+                <span class="pause-switch" aria-hidden="true"></span>
+              </button>
+              <div id="lights-row" class="pause-row is-static hidden">
+                <span class="pause-row-icon is-lights">${icon('moon')}</span>
+                <span class="pause-row-say"><b id="lights-label">Lights</b></span>
+                <div id="lights-toggle" class="lights-toggle" role="radiogroup" aria-labelledby="lights-label"><button id="lights-day" class="lights-option" type="button" role="radio" aria-checked="false">${icon('sun')}<span>Day</span></button><button id="lights-night" class="lights-option" type="button" role="radio" aria-checked="true">${icon('moon')}<span>Night</span></button></div>
+              </div>
+            </div>
+            <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
+            <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
+            <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+          </div>
+          <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
+        </div>
         <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div class="scorecard">
             <h2 id="end-title">Innings complete.</h2>
@@ -415,10 +460,12 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
             </button>
             <div id="card-key" class="card-key hidden"></div>
             <div class="card-keys">
-              <button id="challenge-set" class="key-button challenge-key">CHALLENGE A FRIEND<em>with this innings</em></button>
               <button id="again" class="key-button">PLAY AGAIN</button>
               <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
-              <button id="card-share" class="share-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
+              <div class="card-next">
+                <button id="challenge-set" class="card-next-key challenge-key" type="button">${icon('versus')}<span class="card-next-say">Challenge a friend<em>with this innings</em></span></button>
+                <button id="card-change" class="card-next-key modes-key" type="button">${icon('modes')}<span class="card-next-say">Change mode</span></button>
+              </div>
             </div>
             <div class="card-shares mcard-keys">
               <button id="mcard-modes" class="story-key" type="button">CHANGE MODE</button>
@@ -619,7 +666,6 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
-    this.$('card-share').addEventListener('click', () => void this.shareScore());
     this.$('card-career').addEventListener('click', () => { this.markCareerSeen(); this.onStatsOpen?.(); });
     const dialog = this.$('help-dialog') as HTMLDialogElement;
     this.$('help-done').onclick = () => dialog.close();
@@ -1675,15 +1721,47 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
    * played by day. Two halves, a sun and a moon, with the one in play lit.
    */
   lightsSwitch(now: 'day' | 'night' | null) {
-    this.$('lights-toggle').classList.toggle('hidden', now === null);
+    this.$('lights-row').classList.toggle('hidden', now === null);
     if (!now) return;
+    this.$('lights-row').querySelector('.pause-row-icon')!.innerHTML = icon(now === 'day' ? 'sun' : 'moon');
     for (const time of ['day', 'night'] as const) {
       const option = this.$(`lights-${time}`);
       option.classList.toggle('is-on', time === now);
       option.setAttribute('aria-checked', String(time === now));
     }
   }
-  pause(value: boolean) { this.viewport.classList.toggle('modal-open', value); this.$('pause-overlay').classList.toggle('hidden', !value); if (value) this.$('resume').focus(); }
+  /**
+   * The pause sheet, up or down. Up, it says which game this is, in that
+   * game's colour, and where the innings stands, read off the score bar that
+   * the sheet covers: the chase in Test Survival, runs, wickets and overs in
+   * the others.
+   */
+  pause(value: boolean, game?: { name: string; tone: PauseTone }) {
+    this.viewport.classList.toggle('modal-open', value);
+    this.$('pause-overlay').classList.toggle('hidden', !value);
+    if (!value) return;
+    if (game) {
+      this.$('pause-mode').textContent = game.name;
+      this.$('pause-sheet').dataset.tone = game.tone;
+    }
+    const text = (id: string) => this.$(id).textContent?.trim() ?? '';
+    const chasing = !this.$('survive-card').classList.contains('hidden');
+    this.$('pause-state').textContent = chasing
+      ? `${text('sc-score')} · ${text('sc-need')} to win · ${text('sc-balls')} balls left`
+      : `${text('runs') || '0'}/${text('wickets') || '0'} · ${text('overs') || '0.0'} overs`;
+    this.$('resume').focus();
+  }
+  /**
+   * The pause sheet's sound switches: the crowd's cheers and groans, and the
+   * murmur under everything. Each its own; with all sound off at the speaker
+   * key they still say what they are set to, and a line under them says why
+   * nothing is heard.
+   */
+  crowdSwitches(crowd: boolean, ambience: boolean, silent: boolean) {
+    this.$('crowd-switch').setAttribute('aria-checked', String(crowd));
+    this.$('ambience-switch').setAttribute('aria-checked', String(ambience));
+    this.$('pause-sound-note').classList.toggle('hidden', !silent);
+  }
   end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
     this.$('end').classList.remove('is-marathon');
     this.viewport.classList.add('modal-open');
@@ -2620,6 +2698,7 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
     // link to that mode wherever the player is standing when they ask.
     this.$('change-mode').classList.add('hidden');
     this.$('mcard-modes').classList.add('hidden');
+    this.$('card-change').classList.add('hidden');
     // A build with no board behind it should not offer a way to one. The key is
     // on the cover under two different ids depending on whether the screen got
     // the phone layout or the desktop one.
@@ -2689,6 +2768,25 @@ ${touch ? coverIntro(best, top) : panelIntro(best, top)}
       key.type = 'button'; key.className = 'moment-key'; key.textContent = label;
       key.setAttribute('aria-label', `Play the ${label} celebration`);
       key.addEventListener('click', () => pick(moment));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
+   * `?actions=1`'s keys: one a thing the batter does after a ball, along the
+   * foot of the picture, kept from the bat underneath the way the moments' are.
+   */
+  actionKeys<K extends string>(keys: readonly { label: string; kind: K }[], pick: (kind: K) => void) {
+    const row = document.createElement('div');
+    row.className = 'action-keys';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Play what the batter does after a ball');
+    for (const { label, kind } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'action-key'; key.dataset.kind = kind; key.textContent = label;
+      key.setAttribute('aria-label', `Play the ${label.toLowerCase()} after a ball`);
+      key.addEventListener('click', () => pick(kind));
       row.append(key);
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());

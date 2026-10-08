@@ -37,20 +37,25 @@ const executablePath = process.env.CHROMIUM_PATH || undefined;
  * about 825 once the perimeter boards were one ring; the stadium, its stands
  * merged into one mesh a colour and left out of the shadow pass, came in at
  * 647 by day and 678 by night, when the floodlights behind the batter's end
- * cast the fielders' shadows the sun had not. Lower this whenever a
- * change brings it down, so the saving stays banked.
+ * cast the fielders' shadows the sun had not. The figures' fixed parts
+ * merged into one mesh a material, and the batter's limbs drawn as one
+ * shirt and one pair of trousers rather than tubes and joint balls, brought
+ * that to 494 by day and 518 by night, his gloves merged the same way to 458
+ * and 482, and the bowler dressed as the batter is to 424 and 448. Lower this
+ * whenever a change brings it down, so the saving stays banked.
  */
-const BUDGET = 680;
+const BUDGET = 460;
 /**
  * The bowl, the ground before it, is kept and can still be asked for with
  * `?ground=bowl`, so it is still drawn here and held to the budget it shipped
- * under: built a box at a time, it costs about 800.
+ * under: built a box at a time, it costs about 800, and about 580 with the
+ * figures' parts merged.
  */
 const GROUNDS = [
   ['stadium', 'day', '&lights=day', BUDGET],
   // The Blast's night: the same stadium, the moon and two clouds of glow added.
   ['stadium', 'night', '&lights=night', BUDGET],
-  ['bowl', 'day', '&ground=bowl&lights=day', 870],
+  ['bowl', 'day', '&ground=bowl&lights=day', 590],
 ];
 
 let failures = 0;
@@ -95,15 +100,22 @@ for (const [ground, time, query, budget] of GROUNDS) for (const [name, options] 
   const anyway = page.getByRole('button', { name: /PLAY ANYWAY/i });
   if (await anyway.count()) { await anyway.first().click(); await page.waitForTimeout(800); }
   await page.locator('#start').click({ force: true });
-  await page.waitForTimeout(700);
-  for (let i = 0; i < 8; i++) {
-    const done = page.locator('#whatsnew-done');
-    if (!(await done.count()) || !(await done.isVisible())) break;
-    // Gone between the look and the tap is gone: the stories close themselves.
-    await done.click({ force: true, timeout: 3000 }).catch(() => {});
+  // Wait on the screens rather than a sleep, and give each click fifteen
+  // seconds, as milestone-check does: with the ground drawn in software a
+  // forced click can take five to land, and one cut off at three never does,
+  // so the stories stayed up and Select Mode never came.
+  for (let i = 0; i < 30; i++) {
+    const mode = page.locator('#mode-classic'), done = page.locator('#whatsnew-done');
+    if (await mode.isVisible().catch(() => false)) {
+      await page.waitForTimeout(500);
+      await mode.click({ force: true, timeout: 15_000 }).catch(() => {});
+      await page.waitForTimeout(800);
+      if (!(await mode.isVisible().catch(() => false))) break;
+      continue;
+    }
+    if (await done.isVisible().catch(() => false)) await done.click({ force: true, timeout: 15_000 }).catch(() => {});
     await page.waitForTimeout(500);
   }
-  await page.locator('#mode-classic').click({ force: true });
 
   let phase = '';
   for (let i = 0; i < 40 && !/BALL|RUNUP|READY/.test(phase); i++) {

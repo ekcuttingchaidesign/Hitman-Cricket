@@ -26,10 +26,13 @@ import { type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
-import type { Primed } from './ui/HUD';
+import type { PauseTone, Primed } from './ui/HUD';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
+import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
+import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
+import type { AfterBall, Hurt } from './entities/Batter';
 import {
   fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
@@ -259,6 +262,12 @@ export class Game {
   private lastSledge = 0;
   private rng = new SeededRandom(1); private generator = new DeliveryGenerator(this.rng);
   private delivery: Delivery | null = null; private attempt: ShotAttempt | null = null; private outcome: ShotOutcome | null = null;
+  /** What the batter last did once a ball was done with, so he does not do it twice running. */
+  private lastAfterBall: AfterBall | null = null;
+  /** Balls since he last did any of them, and sweeps and scoops scored off: see `Habit`. */
+  private afterBallSince = Infinity; private sweepsScored = 0;
+  /** A dismissed batter's reaction, which the result is held open for: see `resultMs`. */
+  private afterBallUntil = -Infinity;
   private best = 0; private bounced = false; private seed = 0;
   /** Innings begun this session, for telling a replay from a first go. */
   private innings = 0;
@@ -381,6 +390,20 @@ export class Game {
    */
   private readonly momentKeys = new URLSearchParams(location.search).get('moments') === '1';
   /**
+   * `?actions=1`: a row of keys on the screen, one a thing the batter does once
+   * a ball is done with (`AfterBall`) — the crease tap, watching a loft go, the
+   * twirl, brushing the pad, the stroke rehearsed, the pitch scrubbed, the
+   * look to the sky — so each can be looked at
+   * on a phone without waiting for the ball that brings it, which is only half
+   * of them. A tap plays the stroke it follows, at no ball, and then it. Nothing
+   * is bowled, scored or counted.
+   */
+  private readonly actionKeys = new URLSearchParams(location.search).get('actions') === '1';
+  /** One asked for while a ball was in play, for when it is dead. */
+  private actionAsked: ActionKey | null = null;
+  /** Where `?actions=1`'s FALL key has him hit next: each in turn. */
+  private fallShown = 0;
+  /**
    * `?rate=1`: a row of keys on the screen, one a thing the stars are asked
    * about — the game and each mode — so the sticker can be looked at and played
    * with on a phone without finishing the innings that would earn it. The same
@@ -465,6 +488,7 @@ export class Game {
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
+    if (this.actionKeys) this.hud.actionKeys(ACTION_KEYS, kind => this.askAction(kind));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
       bowler => { this.nets = { ...this.nets, bowler }; this.applyNets(); },
       () => { this.nets = { ...this.nets, round: !this.nets.round }; this.applyNets(); });
@@ -542,6 +566,7 @@ export class Game {
     this.hud.on('card-modes', () => { this.hud.hideScorecard(); this.leaveRoom(); });
     // The Marathon card's own two keys under its play-again key.
     this.hud.on('mcard-modes', () => { if (this.phase === 'INNINGS_END') this.modes(); });
+    this.hud.on('card-change', () => { if (this.phase === 'INNINGS_END') this.modes(); });
     this.hud.on('mcard-share', () => { void this.hud.shareMarathon(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
     this.hud.on('tutorial', this.startTutorial); this.hud.on('tutorial-play', this.walkOut);
@@ -553,6 +578,9 @@ export class Game {
     this.hud.sound(this.audio.setting);
     this.hud.on('restart', this.start);
     this.hud.on('declare', this.declare);
+    // The pause sheet's sound switches: the crowd, and the ambience under it.
+    this.hud.on('crowd-switch', () => { this.audio.setCrowd(!this.audio.crowdOn); this.soundSwitches(); });
+    this.hud.on('ambience-switch', () => { this.audio.setAmbience(!this.audio.ambienceOn); this.soundSwitches(); });
     // Out of a paused innings and back to the picker. The picker is a screen
     // rather than a card, so it covers the pause card rather than replacing
     // it: pick a mode and the innings is walked out on, back out of it and the
@@ -643,6 +671,11 @@ export class Game {
       snapshot: () => this.snapshot(), batter: () => this.scene.inspectBatter(), bowler: () => this.scene.inspectBowler(),
       // Where every fielder is and what he is doing, for `field-check.mjs`.
       field: () => this.scene.fieldState,
+      // What the stands are doing, for `crowd-check.mjs`.
+      crowd: () => this.scene.crowdState,
+      fireworks: () => this.scene.fireworksUp,
+      // And what it sounds like: see `GameAudio.describe`.
+      sound: () => this.audio.describe(),
       // Where this ball is drawn `progress` of the way through its flight: from
       // the hand round the wicket, for `marathon-check.mjs`.
       drawn: (progress: number) => this.delivery ? this.scene.drawnBall(this.delivery, progress) : null,
@@ -1095,10 +1128,13 @@ export class Game {
     // bat and the crowd. The card's music is fetched now instead, so that the
     // card does not go up in silence waiting for a megabyte to arrive.
     this.audio.stop(); this.audio.music(null); this.audio.warm('result'); this.audio.unlock();
+    // And the crowd comes in with him: see `crowd.ts`.
+    this.audio.crowd(this.test ? MURMUR.test : MURMUR.blast);
     this.score = new ScoreManager(this.limits); this.confidence = new Confidence(); this.health = new Health();
     this.sledger = new Sledger(); this.sledgeDue = false; this.lastSledge = 0; this.ending = null;
     this.playedFrom = 0; this.changed = null; this.felled = false;
     this.wasCritical = false; this.noticeDue = false;
+    this.lastAfterBall = null; this.afterBallSince = Infinity; this.sweepsScored = 0;
     const param = new URLSearchParams(location.search).get('seed');
     this.seed = param !== null && Number.isFinite(Number(param)) ? Number(param) >>> 0 : crypto.getRandomValues(new Uint32Array(1))[0];
     this.rng = new SeededRandom(this.seed);
@@ -1155,7 +1191,7 @@ export class Game {
     track('tutorial-start', 'Tutorial started');
     this.mode = 'CLASSIC';
     this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
-    this.audio.stop(); this.audio.music(null); this.audio.unlock(); this.score = new ScoreManager();
+    this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
     this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
@@ -1275,8 +1311,9 @@ export class Game {
     // The ball that puts him on the floor is held open long enough for him to
     // get there. Every other ball is the usual beat.
     if (this.felled) return base + SURVIVE.felledMs;
-    // A hundred holds the next ball for the celebration and nothing more.
-    return Math.max(base, this.celebrating);
+    // A hundred holds the next ball for the celebration and nothing more, and
+    // a man out in his nineties for his look at the sky.
+    return Math.max(base, this.celebrating, this.afterBallUntil - this.phaseStart);
   }
   /** How long after the ideal moment a swing still counts as a swing at all. */
   private get swingWindow() {
@@ -1315,6 +1352,7 @@ export class Game {
     this.phase = phase; this.phaseStart = this.elapsed; this.hud.phase(phase, this.isPrimed, this.specials);
     if (phase === 'READY' && this.marathon) this.tellLevel();
     if (phase === 'READY' && this.momentAsked) { const moment = this.momentAsked; this.momentAsked = null; this.askMoment(moment); }
+    if (phase === 'READY' && this.actionAsked) { const kind = this.actionAsked; this.actionAsked = null; this.askAction(kind); }
   }
   /**
    * A moment asked for with `?moments=1`'s keys. Between balls it goes up at
@@ -1327,6 +1365,22 @@ export class Game {
       this.celebrate(moment, true);
       this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + this.celebrating);
     } else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.momentAsked = moment;
+  }
+  /**
+   * One of `?actions=1`'s keys. Between balls he plays it at once and the
+   * bowler waits at his mark until he is back in his guard; with a ball on its
+   * way it waits for that ball to be dead, as a moment does.
+   */
+  private askAction(kind: ActionKey) {
+    if (this.phase === 'READY') {
+      // Down, held there a moment, and up again for the next ball, which is
+      // the one thing a real one does not do.
+      if (kind === 'fall') {
+        this.scene.fall(this.elapsed, FALLS[this.fallShown++ % FALLS.length]);
+        this.bannerUntil = Math.max(this.bannerUntil, this.elapsed + FALL_SHOWN_MS);
+      } else this.bannerUntil = Math.max(this.bannerUntil, this.scene.rehearse(kind, this.elapsed));
+    }
+    else if (['BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'].includes(this.phase)) this.actionAsked = kind;
   }
   /**
    * At the top of an over, whether it is the one the innings changes in: the
@@ -1435,12 +1489,19 @@ export class Game {
     if (this.hurts) return this.hud.injury(this.health.injury, this.health.critical);
     this.hud.confidence(this.confidence.fraction, this.isPrimed);
   }
-  private toggleSound = () => { this.audio.step(); this.audio.unlock(); this.hud.sound(this.audio.setting, true); };
+  private toggleSound = () => { this.audio.step(); this.audio.unlock(); this.hud.sound(this.audio.setting, true); this.soundSwitches(); };
+  private soundSwitches() { this.hud.crowdSwitches(this.audio.crowdOn, this.audio.ambienceOn, this.audio.setting === 'off'); }
+  /** What the pause sheet calls the game it pauses, and the colour it wears for it. */
+  private get pauseGame(): { name: string; tone: PauseTone } {
+    if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
+    return { name: PAUSE_NAMES[this.mode], tone: this.test ? 'test' : 'blast' };
+  }
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;
-    if (this.phase === 'PAUSED') { this.audio.unlock(); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
+    if (this.phase === 'PAUSED') { this.audio.unlock(); this.audio.holdCrowd(false); this.phase = this.previousPhase; this.hud.pause(false); (document.activeElement as HTMLElement | null)?.blur(); }
     else {
-      this.input.cancel(); this.audio.stop(); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true);
+      this.input.cancel(); this.audio.stop(); this.audio.holdCrowd(true); this.previousPhase = this.phase; this.phase = 'PAUSED'; this.hud.pause(true, this.pauseGame);
+      this.soundSwitches();
       this.hud.lightsSwitch(this.test ? null : this.scene.lit);
       // Twenty overs in, the Marathon can be declared — from here, and from
       // nowhere else, so it is never pressed by accident mid-ball. Before
@@ -2114,9 +2175,11 @@ export class Game {
     // The stars and the questionnaire take their own keys. Enter on a star
     // gives it, and Enter on an answer picks it — and on the end card Enter is
     // also Play Again, so without this a keyboard rating started an innings
-    // behind the prompt. Escape on the questionnaire is its own, too.
+    // behind the prompt. Escape on the questionnaire is its own, too. Only the
+    // stars' own keys, though: R from a star still walks out to bat, which it
+    // did not while every key pressed on one was swallowed.
     if (document.querySelector('.feedback-screen')) return;
-    if (event.target instanceof Element && event.target.closest('.rate-pop')) return;
+    if (event.target instanceof Element && event.target.closest('.rate-pop') && STAR_KEYS.has(event.key)) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
     // them, so they answer first. Without this Enter started an innings behind
@@ -2248,12 +2311,16 @@ export class Game {
         scoopable(this.delivery) && scoopLine(this.delivery, 'REVERSE_SCOOP') && 'REVERSE',
       ] as const).filter((special): special is NonNullable<Primed> => !!special);
       this.primed = this.specials[0] ?? null;
-      this.scene.reset(); this.input.reset();
+      // He may still be finishing what he did after the last ball: the bowler
+      // runs in while he does (see `presentResult`).
+      this.scene.reset(true); this.input.reset();
       // After the reset, which hands the ball back to the quick bowler.
       this.scene.spinner(spun(this.delivery));
       this.scene.express(!!this.delivery.express);
       this.scene.round(!!this.delivery.round);
       this.showConfidence(); this.setPhase('BOWLER_RUNUP');
+      // The stands lift as he runs in, and settle once the ball has gone.
+      this.audio.swellCrowd(1 + RUNUP.swell, GAME.runupMs / 1000, RUNUP.settle, 0, GAME.runupMs / 3000);
     } else if (this.phase === 'BOWLER_RUNUP') {
       this.scene.runup(Math.min(1, age / GAME.runupMs));
       if (age >= GAME.runupMs) {
@@ -2286,7 +2353,7 @@ export class Game {
         if (this.sledgeDue) { this.sledgeDue = false; this.audio.play('sledge'); }
       }
     } else if (this.phase === 'RESULT' && age >= this.resultMs) {
-      this.celebrating = 0;
+      this.celebrating = 0; this.afterBallUntil = -Infinity;
       if (this.lesson >= 0) {
         this.lesson++;
         if (this.lesson >= TUTORIAL.length) { this.lesson = -1; track('tutorial-complete', 'Tutorial completed'); this.setPhase('START'); this.hud.tutorialComplete(); }
@@ -2460,6 +2527,8 @@ export class Game {
     this.scene.power(this.elapsed);
     this.scene.cutout();
     this.hud.power(this.scene.batterOnScreen(), POWER_DOODLE_MS, style);
+    // The Blast's ground lets the fireworks off for one: see `FIREWORKS_MS`.
+    if (this.mode === 'CLASSIC') this.scene.fireworks(this.elapsed, FIREWORKS_MS.special);
     track('special-shot', 'Played a special stroke on a full meter');
   }
   /**
@@ -2492,13 +2561,15 @@ export class Game {
     const pose: Celebration = kind === 'fifty' || kind === 'raise' ? 'fifty' : kind === 'century' || kind === 'six-sixes' ? 'hundred' : kind;
     this.celebrating = celebrationLength(pose);
     this.scene.celebrate(this.elapsed, pose);
+    // And for a milestone, as long as he celebrates it.
+    if (this.mode === 'CLASSIC') this.scene.fireworks(this.elapsed, Math.max(FIREWORKS_MS.milestone, this.celebrating));
     const { back, cutout } = this.hud.milestone(moment, this.scene.batterOnScreen(), this.celebrating);
     this.scene.cutout(back, cutout, this.celebrating);
-    // The crowd with it, falling away: the fifty's is the shorter, though
-    // long enough to be heard as applause rather than a blip; the hundred's
-    // carries on a little past him into the next ball's run-up; and the big
-    // ones take the whole of the clip.
-    this.audio.cheer(CHEER[kind]);
+    this.scene.cheer(kind, this.elapsed, moment.mark, 1, this.batter.name);
+    // The crowd with it, the biggest cheer there is, in a Test too, falling
+    // away: the fifty's the sooner, the hundred's on past him into the next
+    // ball's run-up, and the big ones the longest.
+    this.audio.cheer(milestoneCheer(CHEER[kind]));
     // Named for the mode it was reached in, and the raised bat for its mark:
     // 150, 250 and 350 are one celebration and three different innings.
     if (!asked) this.mark(kind === 'raise' ? `raise-${moment.mark}` : kind, MOMENT_SAID[kind]);
@@ -2516,10 +2587,58 @@ export class Game {
       // The one that finishes him puts him on the ground. It is the only blow
       // that does, which is what makes it read as the end rather than as
       // another dent in the meter.
-      if (this.felled) this.scene.fall(this.elapsed);
+      if (this.felled) this.scene.fall(this.elapsed, outcome.hit.where);
     }
     const sound = outcomeSound(outcome);
     if (sound && !(outcome.aerial && sound === 'hit')) this.audio.play(sound);
+    // What he does once the ball is done with, on some of the balls that call
+    // for it (`afterBall`): looking at the bat after a classic drive, and so on.
+    // A ball left alone has no stroke, and only a milestone missed off it is
+    // taken at all: bowled shouldering arms on 99 is the worst of them.
+    {
+      const stroke = this.attempt ? this.scene.stroke : null, scored = outcome.madeBatContact && outcome.runs > 0;
+      const kind = afterBall(stroke, {
+        scored, four: outcome.runs === 4,
+        beaten: (!outcome.madeBatContact || !!outcome.edged) && !outcome.hit,
+        wicket: outcome.isWicket, milestone: !!this.milestoneDue,
+        heartbreak: this.lesson < 0 && !this.felled ? disappointment(this.batterHistory) : null,
+        hurt: this.felled ? null : outcome.hit?.where ?? null,
+        last: this.lesson < 0 && !!(this.marathon ? this.marathon.ended : this.surviving ? this.ending : this.score.ended),
+      }, {
+        last: this.lastAfterBall, since: this.afterBallSince, sweeps: this.sweepsScored,
+        history: this.batterHistory, pace: PACES[this.mode],
+        favourites: this.marathon ? HABITS[(this.marathon.batters.length - 1) % HABITS.length] : undefined,
+      }, Math.random());
+      if (scored && stroke && !stroke.charging && (stroke.swept || stroke.shot === 'SCOOP' || stroke.shot === 'REVERSE_SCOOP')) this.sweepsScored++;
+      this.afterBallSince++;
+      // The bowler waits at his mark only as long as he must: he runs in while
+      // the batter finishes, and the ball leaves his hand as the batter is back
+      // in his guard, not a run-up later. Out, the result is held for him, so
+      // that neither the next man nor the end of the innings comes in over it.
+      if (kind) {
+        const until = this.scene.afterBall(kind, this.elapsed);
+        this.bannerUntil = Math.max(this.bannerUntil, until - GAME.runupMs);
+        if (outcome.isWicket) this.afterBallUntil = until;
+        this.lastAfterBall = kind; this.afterBallSince = 0;
+      }
+    }
+    // The stands for a boundary, once the call is made and not when the ball
+    // leaves the bat: a skied one may yet be caught.
+    if (!outcome.isWicket && (outcome.runs === 4 || outcome.runs === 6)) {
+      // Bigger, and more of the stands up, the more of them have come in a row (`crowd.ts`).
+      const streak = boundaryStreak(this.batterHistory);
+      this.scene.cheer(outcome.runs === 6 ? 'hit-six' : 'hit-four', this.elapsed, 0, streak, this.batter.name);
+      this.audio.cheer(boundaryCheer(outcome.runs, streak, this.test));
+    }
+    // A wicket goes quiet under a groan; one that cost him a milestone, or a
+    // man carried off, is sent off with a softer cheer once it has.
+    if (outcome.isWicket || this.felled) {
+      this.audio.groan(this.test ? GROAN.outTest : GROAN.out);
+      this.audio.hushCrowd(HUSH.depth, HUSH.hold, HUSH.recover, HUSH.after);
+      if (this.felled || (this.lesson < 0 && outNearMilestone(this.batterHistory))) this.audio.cheer(SEND_OFF, SEND_OFF.after);
+    } else if (nearMiss({ test: this.test, express: !!this.delivery?.express, attempted: !!this.attempt, outcome })) {
+      this.audio.groan(GROAN.near);
+    }
   }
   /**
    * What the board has to say about the innings just played, answered from the
@@ -3514,6 +3633,19 @@ const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
   { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
 ];
+/** `?actions=1`'s keys. */
+/** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */
+type ActionKey = AfterBall | 'fall';
+/** The places FALL has him hit, in turn. */
+const FALLS: readonly Hurt[] = ['HELMET', 'RIBS', 'GLOVES', 'THIGH'];
+/** How long FALL holds the bowler: down, and a while on his knees. */
+const FALL_SHOWN_MS = 3200;
+const ACTION_KEYS: readonly { label: string; kind: ActionKey }[] = [
+  { label: 'ADMIRE', kind: 'admire' }, { label: 'LEAN', kind: 'lean' }, { label: 'WATCH', kind: 'watch' }, { label: 'TWIRL', kind: 'twirl' },
+  { label: 'BRUSH', kind: 'brush' }, { label: 'SHADOW', kind: 'shadow' }, { label: 'SCRUB', kind: 'scrub' }, { label: 'SKY', kind: 'sky' },
+  { label: 'DOWN', kind: 'down' }, { label: 'RIBS', kind: 'ribs' }, { label: 'HAND', kind: 'sting' }, { label: 'HELMET', kind: 'dazed' },
+  { label: 'FALL', kind: 'fall' },
+];
 /** `?moments=1`'s keys, in the order an innings reaches them. */
 const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
   { label: '50', moment: { kind: 'fifty', mark: 50 } }, { label: '100', moment: { kind: 'century', mark: 100 } },
@@ -3522,6 +3654,17 @@ const MOMENT_KEYS: readonly { label: string; moment: Moment }[] = [
   { label: '300', moment: { kind: 'triple', mark: 300 } }, { label: '350', moment: { kind: 'raise', mark: 350 } },
   { label: '400', moment: { kind: 'four', mark: 400 } },
 ];
+/**
+ * How long the Blast's fireworks stay up: a special stroke's for one go of the
+ * film, and a milestone's for at least that and as long as he celebrates.
+ * The Test modes have none: a Test ground is not a T20 night. And the Blast
+ * has them only after dark, which `GameScene.fireworks` sees to.
+ */
+const FIREWORKS_MS = { special: 3000, milestone: 3600 } as const;
+/** The keys the star prompt answers itself: give a star, and walk between them. */
+const STAR_KEYS = new Set(['Enter', ' ', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+/** The games by name, as the pause sheet's chip says them. */
+const PAUSE_NAMES: Record<GameMode, string> = { CLASSIC: 'The Blast', SURVIVE: 'Test Survival', MARATHON: 'Test Marathon' };
 const CHEER: Record<Milestone, number> = { fifty: 2.3, raise: 2.3, century: 2.8, 'six-sixes': 2.8, double: 3.1, triple: 3.3, four: 3.5 };
 const MOMENT_SAID: Record<Milestone, string> = {
   fifty: 'Reached fifty', raise: 'Reached another fifty', century: 'Reached a hundred', 'six-sixes': 'Six sixes in a row',

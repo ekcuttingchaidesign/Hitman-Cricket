@@ -23,6 +23,8 @@ describe('who gets counted', () => {
     expect(at('hitman-cricket.vercel.app', '?seed=7')).toBe(false);
     expect(at('hitman-cricket.vercel.app', '?debug=1')).toBe(false);
     expect(at('hitman-cricket.vercel.app', '?debug=0')).toBe(true);
+    expect(at('hitman-cricket.vercel.app', '?perf=1')).toBe(false);
+    expect(at('hitman-cricket.vercel.app', '?perf=0')).toBe(true);
   });
 
   it('counts production, and a build off Vercel, but not a preview', () => {

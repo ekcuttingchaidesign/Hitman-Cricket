@@ -1,0 +1,26 @@
+Crowd sounds
+
+The cheer-*.mp3 clips in this folder are cut, levelled and converted to
+mono from "Free Crowd Cheering Sounds" by Gregor Quendel
+(https://gregor-quendel.itch.io/free-crowd-cheering-sounds), licensed under
+Creative Commons Attribution 4.0 International
+(https://creativecommons.org/licenses/by/4.0/).
+
+  cheer-soft-1.mp3  from "06 - Soft cheering - II", from 6.5s
+  cheer-soft-2.mp3  from "05 - Soft cheering - I", from 8s
+  cheer-mid-1.mp3   from "07 - Soft cheering and chatter", from 19.5s
+  cheer-mid-2.mp3   from "09 - Ambience and cheering", from 13.5s
+  cheer-big-1.mp3   from "04 - Strong cheering - II - Short", from 5.25s
+  cheer-big-2.mp3   from "03 - Strong cheering - I", from 5.5s
+
+murmur.mp3, both games' ground, is from "Cricket Stadium Ambience Crowd
+Sound 2", supplied for the game: 9s to 39s, mono, looped by crossfading its
+last 2.5 seconds into its first.
+
+groan.mp3, for a wicket and a near thing, is "near_miss", supplied for the
+game: two seconds, mono, its last fifth of a second faded, and its low
+middle (150-500Hz) cut by about ten decibels to match the murmur's, which
+was recorded further from the crowd.
+
+Each cheer is eight seconds, faded out over its last two and a half; all are
+levelled to -16 LUFS, the groan too, and the game sets their loudness itself.

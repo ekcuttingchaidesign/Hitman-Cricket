@@ -224,7 +224,7 @@ function frame(now: number) {
   const follow = pose.downPitch * .8;
   camera.position.z += follow - followed; controls.target.z += follow - followed; followed = follow;
   controls.update();
-  renderer.render(scene, camera);
+  batter.drape(); renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 let followed = 0;
