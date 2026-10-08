@@ -51,19 +51,31 @@ const check = (ok, what, detail) => {
 await mkdir('test-results', { recursive: true });
 const browser = await chromium.launch({ executablePath });
 
-/** How colourful a patch of a screenshot is: mean HSV saturation, 0 to 1. */
+/**
+ * How colourful a patch of the grass is: mean HSV saturation, 0 to 1, over the
+ * pixels that could be grass. The fire the big moments send up the edges, and
+ * the doodles' stars, are orange and red drawn over the picture; in a 9:16
+ * column the fire reaches into the patch, and counted it kept the "grey" grass
+ * at half its colour. So warm, strong pixels are left out — grass is green
+ * before and grey after, and neither is ever that.
+ */
 async function saturation(page, png, box) {
   return page.evaluate(async ({ data, box }) => {
     const image = new Image(); image.src = data; await image.decode();
     const canvas = document.createElement('canvas'); canvas.width = box.w; canvas.height = box.h;
     const ctx = canvas.getContext('2d'); ctx.drawImage(image, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
     const { data: px } = ctx.getImageData(0, 0, box.w, box.h);
-    let total = 0;
+    let total = 0, counted = 0;
     for (let i = 0; i < px.length; i += 4) {
-      const max = Math.max(px[i], px[i + 1], px[i + 2]), min = Math.min(px[i], px[i + 1], px[i + 2]);
-      total += max ? (max - min) / max : 0;
+      const [r, g, b] = [px[i], px[i + 1], px[i + 2]];
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), sat = max ? (max - min) / max : 0;
+      // Hue in degrees, for the warm test only.
+      const hue = max === min ? 0 : max === r ? (60 * ((g - b) / (max - min)) + 360) % 360
+        : max === g ? 60 * ((b - r) / (max - min)) + 120 : 60 * ((r - g) / (max - min)) + 240;
+      if (sat > .35 && (hue < 55 || hue > 320)) continue;
+      total += sat; counted++;
     }
-    return total / (px.length / 4);
+    return counted ? total / counted : 0;
   }, { data: `data:image/png;base64,${png.toString('base64')}`, box });
 }
 
