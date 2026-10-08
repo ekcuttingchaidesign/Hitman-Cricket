@@ -89,6 +89,8 @@ import {
 } from './game/challenge-api';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
+import { nameProblem } from './server/name-rules';
+import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings } from './game/ball-string';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
@@ -2697,6 +2699,18 @@ export class Game {
     const entry = this.hud.claimEntry.name ? this.hud.claimEntry : readPlayer();
     if (!this.canRegister || this.practising) return this.showBoard();
     if (!entry || !this.player) return this.hud.openClaim();
+    // A new name is held to the rules here as well as on the board, so a name
+    // that cannot be claimed says why at once rather than after a round trip.
+    // The name this browser already bats under is the board's to judge: it was
+    // claimed under whatever the rules were then, and goes on working.
+    const typed = cleanName(entry.name), mine = readPlayer();
+    if (!mine || foldName(mine.name) !== foldName(typed)) {
+      const problem = nameProblem(typed, foldName(typed));
+      if (problem) {
+        this.mark('claim-name-refused', 'Name failed the rules');
+        return this.hud.claimFailed(problem);
+      }
+    }
     this.hud.claimSending(true);
     // Each mode offers its own innings to its own ladder. The store keeps the
     // two under separate keys, so the mode travels with the figures rather than
@@ -2710,7 +2724,7 @@ export class Game {
     if (!result.ok) {
       this.mark(result.taken ? 'claim-name-taken' : 'claim-failed',
         result.taken ? 'Name already held' : 'Claim rejected');
-      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true);
+      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true, result.held);
     }
     this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });

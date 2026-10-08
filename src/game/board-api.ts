@@ -71,6 +71,12 @@ export interface SubmitResult<P = BoardPayload> {
    */
   taken?: boolean;
   /**
+   * Which name is held, where that is not the one typed: "Rohit 2" refused
+   * because "Rohit" was claimed in the last day comes back with "Rohit", so
+   * the way back starts from the name the record is under.
+   */
+  held?: string;
+  /**
    * The career key, where this claim is the one that minted it. Handed over
    * once and kept nowhere on our side but a salted hash, so the browser that
    * reads this answer is the only thing in the world holding it.
@@ -161,7 +167,7 @@ async function offer(
 ): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload>> {
   const answer = await ask<{
     improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload;
-    error?: string; retry?: boolean; status?: number; key?: string;
+    error?: string; retry?: boolean; status?: number; key?: string; held?: string;
   }>(
     `${API}/api/score`,
     {
@@ -181,6 +187,7 @@ async function offer(
       ok: false,
       reason: answer.retry ? `${answer.error} ${STILL_COUNTS}` : answer.error,
       taken: answer.status === 409,
+      held: typeof answer.held === 'string' ? answer.held : undefined,
     };
   }
   cached[mode] = { at: Date.now(), payload: answer.board };

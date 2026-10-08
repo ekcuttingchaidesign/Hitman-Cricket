@@ -85,6 +85,8 @@ function careerKeysFor(scope: string) {
   };
 }
 const RATE = `${SCOPE}rate:`;
+/** A name's sibling base to the one claimed under it in the last day: see `name-rules.ts`. Shared, like the names. */
+const SIBLING = `${SCOPE}sibling:`;
 /** The questionnaire's own counter, kept apart from the board's. */
 const FEEDBACK_RATE = `${SCOPE}frate:`;
 /**
@@ -169,6 +171,20 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
       const claimed = await redis.hsetnx(KEY.names, folded, id);
       if (claimed) return id;
       return (await redis.hget<string>(KEY.names, folded)) ?? id;
+    },
+
+    async nameOwner(folded) {
+      return (await redis.hget<string>(KEY.names, folded)) ?? null;
+    },
+
+    async recentSibling(base) {
+      return (await redis.get<{ id: string; name: string }>(SIBLING + base)) ?? null;
+    },
+
+    async markSibling(base, id, name, windowSeconds) {
+      // A key of its own that expires by itself, so nothing about a name
+      // claimed today is still kept tomorrow.
+      await redis.set(SIBLING + base, { id, name }, { ex: windowSeconds });
     },
 
     async hits(address, windowSeconds) {

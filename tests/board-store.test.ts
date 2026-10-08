@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { BOARD_SIZE, LAUNCH_MS, packScore, plausible, unpackScore, type Innings } from '../src/game/leaderboard';
 import {
@@ -236,8 +236,8 @@ describe('submitting an innings', () => {
 describe('one name, one player', () => {
   it('keeps a name for whoever claimed it first', async () => {
     const { store } = fakeStore();
-    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman' }), LAUNCH_MS + 1000);
-    const stolen = await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Hitman' }), LAUNCH_MS + 2000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman45' }), LAUNCH_MS + 1000);
+    const stolen = await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Hitman45' }), LAUNCH_MS + 2000);
     expect(stolen).toMatchObject({ ok: false, status: 409 });
   });
 
@@ -252,8 +252,8 @@ describe('one name, one player', () => {
 
   it('lets the holder go on using their own name', async () => {
     const { store } = fakeStore();
-    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman' }), LAUNCH_MS + 1000);
-    const again = await submitScore(store, CLASSIC_LADDER, submission({ name: 'hitman', innings: innings(80) }), LAUNCH_MS + 2000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman45' }), LAUNCH_MS + 1000);
+    const again = await submitScore(store, CLASSIC_LADDER, submission({ name: 'hitman45', innings: innings(80) }), LAUNCH_MS + 2000);
     expect(again.ok).toBe(true);
   });
 
@@ -261,9 +261,9 @@ describe('one name, one player', () => {
     // A name once held stays held. Letting one go free would let the next
     // person pick up somebody else's reputation.
     const { store } = fakeStore();
-    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman', innings: innings(90) }), LAUNCH_MS + 1000);
-    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman', innings: innings(10, GAME.maxWickets) }), LAUNCH_MS + 2000);
-    expect(await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Hitman' }), LAUNCH_MS + 3000))
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman45', innings: innings(90) }), LAUNCH_MS + 1000);
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Hitman45', innings: innings(10, GAME.maxWickets) }), LAUNCH_MS + 2000);
+    expect(await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Hitman45' }), LAUNCH_MS + 3000))
       .toMatchObject({ ok: false, status: 409 });
   });
 });
@@ -322,5 +322,54 @@ describe('cleaning up a name', () => {
     expect(foldName('Big Show')).toBe(foldName('bigshow'));
     expect(foldName('José')).toBe(foldName('Jose'));
     expect(foldName('Rohit')).not.toBe(foldName('Rohan'));
+  });
+});
+
+describe('the rules a new name is held to', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('turns a new name down that breaks a rule, saying which', async () => {
+    const { store } = fakeStore();
+    for (const name of ['Ab', '12345', 'Rohit9876543', 'रोहित', 'Admin', 'Hitman Cricket']) {
+      const outcome = await submitScore(store, CLASSIC_LADDER, submission({ name }));
+      expect(outcome, name).toMatchObject({ ok: false, status: 400 });
+    }
+  });
+
+  it('takes numbers in a name, and accents, and the four marks', async () => {
+    const { store } = fakeStore();
+    for (const [i, name] of ['Virat18', 'Hitman45', "D'Souza", 'Zoë_7', 'M.S-Dhoni'].entries()) {
+      const id = `abcde${i}-${'q'.repeat(12)}${i}`;
+      expect((await submitScore(store, CLASSIC_LADDER, submission({ playerId: id, name })))).toMatchObject({ ok: true });
+    }
+  });
+
+  it('turns a sibling down for a day, pointing at the name that is held', async () => {
+    const { store } = fakeStore();
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit' }), LAUNCH_MS + 1000);
+    const copy = await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Rohit 2' }), LAUNCH_MS + 2000);
+    expect(copy).toMatchObject({ ok: false, status: 409, held: 'Rohit' });
+  });
+
+  it('lets the same player take a sibling of their own name', async () => {
+    const { store } = fakeStore();
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit' }), LAUNCH_MS + 1000);
+    expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Rohit2' }), LAUNCH_MS + 2000)).ok).toBe(true);
+  });
+
+  it('lets a sibling be claimed by somebody else once the day is out', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(LAUNCH_MS + 1000));
+    const { store } = fakeStore();
+    await submitScore(store, CLASSIC_LADDER, submission({ name: 'Virat' }), LAUNCH_MS + 1000);
+    vi.setSystemTime(new Date(LAUNCH_MS + 1000 + 25 * 60 * 60 * 1000));
+    expect((await submitScore(store, CLASSIC_LADDER, submission({ playerId: OTHER, name: 'Virat18' }))).ok).toBe(true);
+  });
+
+  it('never puts a name already held to the new rules', async () => {
+    // "Ab" was claimed before names had to be three long. It goes on working.
+    const names = new Map([['ab', ID]]);
+    const store = memoryStore(names);
+    expect((await submitScore(store, CLASSIC_LADDER, submission({ name: 'Ab' }))).ok).toBe(true);
   });
 });

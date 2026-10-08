@@ -2062,14 +2062,15 @@ ${coverIntro(best, top)}
    * way back rather than a wall — with the name they typed carried over, since
    * retyping it ten seconds later would read as the screen not listening.
    */
-  claimFailed(reason: string, taken = false) {
+  claimFailed(reason: string, taken = false, held?: string) {
     this.claimSending(false);
     this.$('claim-error').textContent = reason;
     this.$('claim-error').classList.remove('hidden');
     const back = this.$('claim-back');
     back.classList.toggle('hidden', !taken);
     back.innerHTML = taken ? restoreLinkMarkup('claim-restore', RESTORE_TAKEN) : '';
-    if (taken) this.$('claim-restore').onclick = () => this.openRestore(this.claimEntry.name);
+    // From the name that is held: for "Rohit 2" refused as a sibling, "Rohit".
+    if (taken) this.$('claim-restore').onclick = () => this.openRestore(held ?? this.claimEntry.name);
   }
 
   /**

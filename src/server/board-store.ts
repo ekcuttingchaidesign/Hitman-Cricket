@@ -7,6 +7,7 @@ import {
   type MarathonFigures, type SoloInnings, type TeamInnings,
 } from '../game/marathon-board.js';
 import { MARATHON } from '../config/marathon.js';
+import { nameProblem, siblingBase, siblingReason, SIBLING_WINDOW_MS } from './name-rules.js';
 
 /**
  * What the board is, on the store's side of the wire.
@@ -129,6 +130,15 @@ export interface BoardStore<I = Innings> {
    * both read "free" and both write.
    */
   claimName(folded: string, id: string): Promise<string>;
+  /** Who holds this folded name, or null when nobody does. */
+  nameOwner(folded: string): Promise<string | null>;
+  /**
+   * The sibling claimed most recently under this base, inside the last day, or
+   * null: see `name-rules.ts`. Kept for the day and then forgotten by itself.
+   */
+  recentSibling(base: string): Promise<{ id: string; name: string } | null>;
+  /** Notes a name newly claimed under this base, for `windowSeconds`. */
+  markSibling(base: string, id: string, name: string, windowSeconds: number): Promise<void>;
   /** How many submissions this address has made inside the window, counting this one. */
   hits(address: string, windowSeconds: number): Promise<number>;
 }
@@ -183,6 +193,8 @@ export interface SubmitRefusal {
   ok: false;
   status: number;
   reason: string;
+  /** For a name refused as somebody else's: the name that is held, so restoring starts from it. */
+  held?: string;
 }
 
 /**
@@ -252,7 +264,8 @@ interface Admitted { ok: true; name: string }
  */
 function turnedAway(admitted: Admitted | SubmitRefusal): admitted is SubmitRefusal { return !admitted.ok; }
 async function admit<I>(
-  store: Pick<BoardStore<unknown>, 'hits' | 'claimName'>, plausibleInnings: (innings: I) => boolean, input: Submission<I>,
+  store: Pick<BoardStore<unknown>, 'hits' | 'claimName' | 'nameOwner' | 'recentSibling' | 'markSibling'>,
+  plausibleInnings: (innings: I) => boolean, input: Submission<I>,
 ): Promise<Admitted | SubmitRefusal> {
   if (await store.hits(input.address, RATE_WINDOW_SECONDS) > RATE_LIMIT) {
     return { ok: false, status: 429, reason: 'Too many innings from here. Try again in an hour.' };
@@ -272,9 +285,29 @@ async function admit<I>(
   // or not the innings improves, so a player keeps their name across a bad day.
   // A name once held is never released either: letting one go free would let the
   // next person pick up somebody else's reputation.
-  if (await store.claimName(foldName(name), input.playerId) !== input.playerId) {
-    return { ok: false, status: 409, reason: 'Somebody already bats under that name.' };
+  const folded = foldName(name);
+  const owner = await store.nameOwner(folded);
+  if (owner && owner !== input.playerId) {
+    return { ok: false, status: 409, reason: 'Somebody already bats under that name.', held: name };
   }
+  // A name this player already holds is theirs whatever the rules have become
+  // since. Only a name being claimed for the first time is held to them, and to
+  // the day a sibling of it waits: "Rohit 2" ten minutes after somebody else's
+  // "Rohit" is the same person standing on the board twice, or the same person
+  // who has lost their phone — and either way the answer is their key.
+  const fresh = !owner;
+  if (fresh) {
+    const problem = nameProblem(name, folded);
+    if (problem) return { ok: false, status: 400, reason: problem };
+    const recent = await store.recentSibling(siblingBase(folded));
+    if (recent && recent.id !== input.playerId) {
+      return { ok: false, status: 409, reason: siblingReason(recent.name), held: recent.name };
+    }
+  }
+  if (await store.claimName(folded, input.playerId) !== input.playerId) {
+    return { ok: false, status: 409, reason: 'Somebody already bats under that name.', held: name };
+  }
+  if (fresh) await store.markSibling(siblingBase(folded), input.playerId, name, SIBLING_WINDOW_MS / 1000);
   return { ok: true, name };
 }
 

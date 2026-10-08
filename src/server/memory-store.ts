@@ -22,6 +22,17 @@ import {
  * innings, and the same one must not belong to two people across the two
  * ladders. Left out, a store keeps its own, which is what a test wants.
  */
+/**
+ * The siblings claimed in the last day, kept beside the name registry they
+ * belong to — so two ladders that share a registry share these too, without
+ * every caller having to hand both maps over.
+ */
+const SIBLINGS = new WeakMap<Map<string, string>, Map<string, { id: string; name: string; until: number }>>();
+function siblingsOf(names: Map<string, string>) {
+  if (!SIBLINGS.has(names)) SIBLINGS.set(names, new Map());
+  return SIBLINGS.get(names)!;
+}
+
 export function memoryStore<I = Innings>(
   names = new Map<string, string>(),
 ): BoardStore<I> & { clear(): void } {
@@ -49,6 +60,14 @@ export function memoryStore<I = Innings>(
       if (!names.has(folded)) names.set(folded, id);
       return names.get(folded)!;
     },
+    async nameOwner(folded) { return names.get(folded) ?? null; },
+    async recentSibling(base) {
+      const held = siblingsOf(names).get(base);
+      return held && held.until > Date.now() ? { id: held.id, name: held.name } : null;
+    },
+    async markSibling(base, id, name, windowSeconds) {
+      siblingsOf(names).set(base, { id, name, until: Date.now() + windowSeconds * 1000 });
+    },
     async hits(address, windowSeconds) {
       const now = Date.now();
       const held = rate.get(address);
@@ -59,7 +78,7 @@ export function memoryStore<I = Innings>(
       held.count++;
       return held.count;
     },
-    clear() { ranking.clear(); rows.clear(); names.clear(); rate.clear(); },
+    clear() { ranking.clear(); rows.clear(); names.clear(); siblingsOf(names).clear(); rate.clear(); },
   };
 }
 

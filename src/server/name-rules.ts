@@ -1,3 +1,5 @@
+import { nameBlocked } from './name-filter.js';
+
 /**
  * The rules a name is held to, beyond being unique.
  *
@@ -30,4 +32,42 @@ export function siblingBase(folded: string): string {
 /** Whether two folded names are siblings: different names, the same but for the number on the end. */
 export function areSiblings(a: string, b: string): boolean {
   return a !== b && siblingBase(a) === siblingBase(b);
+}
+
+/** The least a name can be: three letters or numbers, once spaces and punctuation are set aside. */
+export const NAME_MIN = 3;
+/**
+ * Names the game keeps for itself, matched whole: a row called "Admin" or
+ * "Hitman Cricket" looks official, and a row that looks official is a row
+ * somebody will believe. Whole, not on the sibling base — the game is named
+ * for Rohit Sharma's nickname, and "Hitman45" is a fan, not an impostor.
+ */
+const RESERVED = new Set(['hitman', 'hitmancricket', 'admin', 'administrator', 'official', 'moderator', 'support']);
+
+/**
+ * What is wrong with a name somebody is claiming for the first time, in one line
+ * they can act on, or null when nothing is. Held names are never put to this
+ * again: a name claimed under older rules goes on working.
+ *
+ * Letters (accents too), numbers, spaces and `.` `_` `-` `'` — Latin letters,
+ * because the registry compares names in folded Latin and a name in another
+ * script folds to nothing, which would make two different names one. At least
+ * one letter, so a name is a name and not a number. No run of seven digits: a
+ * phone number on a public board is somebody's, and nearly always a mistake.
+ */
+export function nameProblem(name: string, folded: string): string | null {
+  // The characters first: a name in another script folds to nothing, and being
+  // told it is too short would be the wrong thing to fix.
+  if (!/^[\p{Script=Latin}\p{M}0-9 ._'-]+$/u.test(name)) return 'Use letters, numbers, spaces, or . _ - \' only.';
+  if (folded.length < NAME_MIN) return `At least ${NAME_MIN} letters or numbers.`;
+  if (!/\p{Script=Latin}/u.test(name)) return 'Put at least one letter in it.';
+  if (/\d{7,}/.test(name)) return 'Too many numbers in a row. Keep your phone number off the board.';
+  if (RESERVED.has(folded)) return 'That name is kept for the game. Pick another.';
+  if (nameBlocked(name)) return "That name isn't allowed here. Pick something your friends will recognise.";
+  return null;
+}
+
+/** What a sibling claimed in the last day says, naming the one that is held. */
+export function siblingReason(held: string): string {
+  return `${held} was claimed in the last day. Is it you? Bring your career back with your key.`;
 }
