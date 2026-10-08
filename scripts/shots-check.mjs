@@ -101,10 +101,19 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   check(boxes.every(b => b.left >= app.left && b.right <= app.right), 'every name inside the screen', JSON.stringify(boxes.map(b => [Math.round(b.left), Math.round(b.right)])));
   const overlap = boxes.some((a, i) => boxes.some((b, j) => i < j && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
   check(!overlap, 'and none over another');
-  // The hand goes round: one ray's hand is up at a time, and a moment later another's.
-  const hands = () => page.locator('.hb-hand').evaluateAll(nodes => nodes.map(n => Number(getComputedStyle(n).opacity) > .5));
-  const a = await hands(); await page.waitForTimeout(1300); const b = await hands();
-  check(JSON.stringify(a) !== JSON.stringify(b), 'and a hand swipes them in turn', `${a} / ${b}`);
+  // The hand goes round: one ray's hand up at a time, and a beat later the
+  // next one's. Read on the animations' own clock, wound to each moment: a
+  // headless browser drawing in software can hold a CSS animation at its
+  // first frame, and two looks a second apart would see the same picture.
+  const handsAt = t => page.evaluate(t => {
+    const swipes = document.getAnimations().filter(a => a.effect?.target?.classList?.contains('hb-hand'));
+    swipes.forEach(a => { a.pause(); a.currentTime = t; });
+    const up = [...document.querySelectorAll('.hb-hand')].map(n => Number(getComputedStyle(n).opacity) > .5);
+    swipes.forEach(a => a.play());
+    return up.flatMap((on, i) => on ? [i] : []);
+  }, t);
+  const a = await handsAt(1000), b = await handsAt(2200);
+  check(a.length === 1 && b.length === 1 && b[0] === a[0] + 1, 'and a hand swipes them in turn, one at a time', `${a} / ${b}`);
   await page.screenshot({ path: `${out}/phone.png` });
   await page.locator('#mi-next').click({ force: true });
   await advance(page, 50);
