@@ -790,34 +790,6 @@ body.start-screen #sound{pointer-events:auto}
   max-height:calc(100% - 2 * var(--pad-top));
   overflow-y:auto
 }
-.brand{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:10px;
-  font-family:var(--display);
-  font-size:23px;
-  font-weight:750;
-  letter-spacing:.5px;
-  margin-bottom:18px
-}
-.brand-mark{
-  font-family:var(--display);
-  font-size:38px;
-  line-height:1;
-  color:var(--orange);
-  border-left:3px solid var(--orange);
-  padding-left:8px
-}
-.brand-sub{
-  display:block;
-  font-family:'Segoe UI',sans-serif;
-  font-size:9px;
-  letter-spacing:5px;
-  font-weight:650;
-  color:#9fb6bb;
-  margin-top:2px
-}
 .challenge-tag{
   display:inline-block;
   font-size:9px;
@@ -862,77 +834,12 @@ body.start-screen #sound{pointer-events:auto}
 }
 .primary-button:hover{background:#f2814f}
 .primary-button svg{width:17px;height:17px}
-.secondary-button{
-  width:100%;
-  min-height:44px;
-  border:1px solid #ffffff40;
-  border-radius:8px;
-  color:#fff;
-  background:transparent;
-  font-size:11px;
-  font-weight:750;
-  letter-spacing:1.4px;
-  margin-top:10px
-}
-.secondary-button:hover{background:#ffffff14}
 .start-hint{
   display:block;
   margin-top:12px;
   font-size:11px;
   color:#a9bfc3;
   line-height:1.6
-}
-.shot-keys{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  margin-top:14px;
-  flex-wrap:wrap
-}
-.shot-keys b{color:#ffb277;font-size:14px}
-.swipe-symbols{
-  display:block;
-  color:#ffac86;
-  font-size:24px;
-  letter-spacing:10px;
-  margin-top:9px
-}
-/* Same line, same job, on the desktop panel: the board opens from it. */
-.personal-best{
-  border:0;
-  background:none;
-  width:100%;
-  font-family:inherit;
-  color:inherit;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:12px;
-  margin-top:20px;
-  padding-top:18px;
-  border-top:1px solid #ffffff1a
-}
-.personal-best>svg{width:24px;height:24px;color:#e0ab5f}
-.personal-best>svg:last-child{width:18px;height:18px;color:#9fb6bb;margin-left:auto}
-.personal-best span{
-  font-size:8px;
-  letter-spacing:1.6px;
-  font-weight:700;
-  display:block;
-  color:#9fb6bb
-}
-.personal-best strong{
-  display:block;
-  font-family:var(--display);
-  font-size:26px;
-  line-height:1.1;
-  margin-top:3px
-}
-.personal-best small{
-  font:650 8px 'Segoe UI',sans-serif;
-  letter-spacing:1px;
-  color:#9fb6bb
 }
 
 /* ── Modals ────────────────────────────────────────────────────────────── */
@@ -2464,8 +2371,6 @@ dialog .primary-button{margin-top:18px}
   .panel{padding:22px 20px 24px}
   .panel h2{font-size:33px}
   .panel p{font-size:12px}
-  .brand{font-size:20px}
-  .brand-mark{font-size:32px}
 }
 @container app (max-height:560px){
   .coach{bottom:calc(var(--pad-bottom) + 12px);width:min(420px,calc(100% - 2 * var(--pad)))}
@@ -2473,7 +2378,7 @@ dialog .primary-button{margin-top:18px}
   .cue-dot{animation-name:cue-short}
   #coach-brief{font-size:12px;margin-top:5px}
   .ghost-button{margin-top:6px;padding:6px 14px}
-  /* Landscape phones: the start card shrinks and drops clear of the controls. */
+  /* Landscape phones: the one card left on that panel — WebGL unavailable — shrinks and drops clear of the controls. */
   .intro-panel{width:min(340px,calc(100% - 2 * var(--pad)));top:calc(50% + 14px)}
   /* A portrait cover crops to nothing useful across a landscape phone, so the
      live ground stands in for it and the lockup sits over the real thing. */
@@ -2487,21 +2392,14 @@ dialog .primary-button{margin-top:18px}
   .cover-best{font-size:9px;margin-bottom:0}
   .cover-best strong{font-size:16px}
   .touch-device .primary-button{min-height:40px}
-  .brand{font-size:17px;margin-bottom:6px}
-  .brand-mark{font-size:26px;padding-left:6px}
-  .brand-sub{font-size:8px;letter-spacing:4px}
   .start-hint,.touch-device .start-hint{margin-top:8px;font-size:11px}
-  .personal-best>svg{width:19px;height:19px}
-  .personal-best strong{font-size:20px}
   .cell-wide .cell-value{height:23px}
   .panel{padding:16px 22px 18px}
-  .brand{margin-bottom:10px}
   .panel h2{font-size:26px;margin-bottom:8px}
   .panel h2 br{display:none}
   .panel p{font-size:12px;line-height:1.5;margin-bottom:12px}
   .panel p br{display:none}
   .challenge-tag{margin-bottom:9px}
-  .personal-best{margin-top:12px;padding-top:11px}
   /* Landscape phone: the card loses its breathing room, not its hierarchy. */
   .scorecard{padding:16px 18px 18px;width:min(360px,100%)}
   .card-runs{font-size:clamp(44px,11cqw,54px);letter-spacing:-2.4px}
@@ -2569,7 +2467,6 @@ dialog .primary-button{margin-top:18px}
   .key-long{display:none}
   .key-short{display:inline}
   .whatsapp-key svg,.story-key svg{width:15px;height:15px}
-  .swipe-symbols,.shot-keys{display:none}
   .result{top:14%}
 }
 @keyframes cue-short{
