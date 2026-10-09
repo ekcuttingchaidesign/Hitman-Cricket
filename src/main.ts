@@ -36,6 +36,13 @@ void (async () => {
     feedbackPage(root);
     return;
   }
+  // `?ui=1`: UI v1's parts laid out for looking at, which is a page and not
+  // the game, for the same reason.
+  if (new URLSearchParams(location.search).get('ui') === '1') {
+    const { kitGallery } = await import('./ui/KitGallery');
+    kitGallery(root);
+    return;
+  }
   // Before anything reads who is playing, because that is the point: `Game` is
   // imported below and asks for the player id on the way up, so a slate cleared
   // after that would be a slate the game had already seen the old version of.

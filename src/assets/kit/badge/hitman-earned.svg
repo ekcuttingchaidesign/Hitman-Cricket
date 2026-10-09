@@ -1,0 +1,54 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="99.68" height="112" viewBox="0 0 99.68 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Tier badge">
+<circle id="Glow" cx="49.84" cy="52" r="48" fill="url(#paint0_radial_0_52)"/>
+<g id="Rim" filter="url(#filter0_d_0_52)">
+<path d="M49.84 6L89.68 29V75L49.84 98L10 75V29L49.84 6Z" fill="url(#paint1_linear_0_52)"/>
+</g>
+<path id="Face" d="M49.84 14L82.75 33V71L49.84 90L16.93 71V33L49.84 14Z" fill="url(#paint2_linear_0_52)" stroke-linejoin="round" stroke="white" stroke-opacity="0.18"/>
+<path id="Inner foil" d="M49.84 20L77.55 36V68L49.84 84L22.13 68V36L49.84 20Z" stroke-linejoin="round" stroke="#F3D27A" stroke-opacity="0.35"/>
+<g id="Icon">
+<path id="Vector" d="M57.3162 46.1864L59.6802 48.0334L54.1393 55.1255L55.5798 58.1545L43.5744 73.5207C42.3431 75.0967 40.9394 75.269 39.3634 74.0377L36.9994 72.1907C35.4233 70.9594 35.251 69.5557 36.4823 67.9797L48.4877 52.6135L51.7752 53.2785L57.3162 46.1864Z" fill="#FFE08A" stroke="black"/>
+<path id="Vector_2" d="M36.9998 48.0354L39.3638 46.1884L44.9048 53.2805L48.1923 52.6155L60.1977 67.9817C61.429 69.5578 61.2567 70.9614 59.6806 72.1927L57.3166 74.0397C55.7406 75.2711 54.3369 75.0987 53.1056 73.5227L41.1002 58.1565L42.5407 55.1275L36.9998 48.0354Z" fill="#FFE08A" stroke="black"/>
+<path id="Vector_3" d="M32.3398 44.1128L35.3398 30.1128L42.3398 37.1128L48.3398 28.1128L54.3398 37.1128L61.3398 30.1128L64.3398 44.1128H32.3398Z" fill="url(#paint3_linear_0_52)" stroke="black"/>
+<path id="Star" d="M25.8398 46.1128L26.706 48.7466L29.3398 49.6128L26.706 50.479L25.8398 53.1128L24.9736 50.479L22.3398 49.6128L24.9736 48.7466L25.8398 46.1128Z" fill="#FFE08A"/>
+<path id="Star_2" d="M73.8398 46.1128L74.7061 48.7466L77.3398 49.6128L74.7061 50.479L73.8398 53.1128L72.9736 50.479L70.3398 49.6128L72.9736 48.7466L73.8398 46.1128Z" fill="#FFE08A"/>
+</g>
+<path id="Sheen" d="M49.84 14L82.75 33V71L49.84 90L16.93 71V33L49.84 14Z" fill="url(#paint4_linear_0_52)"/>
+</g>
+<defs>
+<filter id="filter0_d_0_52" x="0" y="0" width="99.68" height="112" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="4"/>
+<feGaussianBlur stdDeviation="5"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.5 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_52"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_52" result="shape"/>
+</filter>
+<radialGradient id="paint0_radial_0_52" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(49.84 52) scale(48)">
+<stop stop-color="#F3D27A" stop-opacity="0.35"/>
+<stop offset="1" stop-color="#F3D27A" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="paint1_linear_0_52" x1="10" y1="6" x2="101.057" y2="84.8635" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF0B8"/>
+<stop offset="0.3" stop-color="#B8862B"/>
+<stop offset="0.55" stop-color="#FFE08A"/>
+<stop offset="0.8" stop-color="#8C6418"/>
+<stop offset="1" stop-color="#F7D774"/>
+</linearGradient>
+<linearGradient id="paint2_linear_0_52" x1="49.84" y1="14" x2="49.84" y2="90" gradientUnits="userSpaceOnUse">
+<stop stop-color="#2A1F08"/>
+<stop offset="1" stop-color="#070503"/>
+</linearGradient>
+<linearGradient id="paint3_linear_0_52" x1="48.3398" y1="28.1128" x2="48.3398" y2="44.1128" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF0B8"/>
+<stop offset="0.5" stop-color="#E3B04B"/>
+<stop offset="1" stop-color="#FFE08A"/>
+</linearGradient>
+<linearGradient id="paint4_linear_0_52" x1="22.415" y1="20.3333" x2="85.099" y2="74.621" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0.22"/>
+<stop offset="0.45" stop-color="white" stop-opacity="0"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</linearGradient>
+</defs>
+</svg>

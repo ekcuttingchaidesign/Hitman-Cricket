@@ -1,3 +1,5 @@
+/* The parts the redrawn screens are built from (UI v1). First, as an import has to be. */
+@import './kit.css';
 /* Jaro, by Agyei Archer, Céline Hurka and Mirko Velimirović. SIL Open Font
    License 1.1 — the notice ships beside the file in src/assets/jaro-OFL.txt. */
 @font-face{
@@ -27,15 +29,60 @@
   color:#172b3b;
   background:#0f1f2b;
   font-synthesis:none;
+  /* ── UI v1: the handover's foundations ──────────────────────────────────
+     The design's colours, type and measures, by name, for the screens being
+     rebuilt from it (`kit.css` holds the parts they are built from, and
+     `?ui=1` shows every one). Nothing older reads these yet: the names below
+     them are the game as it stands, and they move onto these one screen at a
+     time, so a screen nobody has redrawn does not change colour under it. */
+  --c-page:#0a0b0d;
+  --c-card-top:#1b2027;
+  --c-card-bottom:#111419;
+  /* The ground a ticket stub is punched out of, and the notches through it. */
+  --c-surface:#152b3c;
+  --c-line:#ffffff14;
+  --c-text:#f5efe6;
+  --c-text-2:#a3b3bd;
+  /* The swatch, not the variable bound on the frames (#6c7f8b): that one is
+     4.4:1 on a card and 3.5:1 on navy, and faint type has to read too. */
+  --c-text-3:#8494a0;
+  --c-ink:#0b0f14;
+  --c-accent:#ed7044;
+  --c-accent-soft:#ffb08f;
+  --c-cta-ledge:#e9582b;
+  --c-cta-face:#fff;
+  --c-cta-ink:#152b3c;
+  --c-mode:#2b5f8f;
+  --c-mode-ledge:#173a5a;
+  --c-share:#12924a;
+  --c-share-ledge:#0a5c2d;
+  --c-challenge:#1e7bea;
+  --c-challenge-ledge:#0f4ea8;
+  --c-blast:#3f88f2;
+  --c-marathon:#004225;
+  --c-survival:#ff5a4e;
+  --c-win:#5bd08f;
+  --c-draw:#f2b544;
+  --c-loss:#ff6b5e;
+  --c-gold:#f5b83d;
+  --f-ui:Satoshi,'Segoe UI',Arial,sans-serif;
+  --f-display:Jaro,'Arial Narrow',Impact,sans-serif;
+  /* One pixel of the design, which is drawn on a 402-wide phone: everything
+     the kit measures is a multiple of it, so the design's numbers go in as
+     they are and the column on a desktop scales them the way a wider phone
+     would. Held between bounds so a very narrow phone stays readable and a
+     tall desktop window does not blow the buttons up past a thumb. */
+  --u:clamp(.82px,calc(100cqw / 402),1.2px);
+  --tap:44px;
   --navy:#152b3c;
   --muted:#65747b;
-  --orange:#ed7044;
+  --orange:var(--c-accent);
   --display:Display,'Arial Narrow',Impact,sans-serif;
   --cta:Jaro,Display,'Arial Narrow',Impact,sans-serif;
   /* The orange off the cover art, which is a shade deeper than the interface's. */
-  --cta-orange:#e9582b;
-  --cta-ink:#152b3c;
-  --card:Satoshi,'Segoe UI',Arial,sans-serif;
+  --cta-orange:var(--c-cta-ledge);
+  --cta-ink:var(--c-cta-ink);
+  --card:var(--f-ui);
   --pad:max(16px,env(safe-area-inset-left));
   --pad-right:max(16px,env(safe-area-inset-right));
   --pad-top:max(14px,env(safe-area-inset-top));

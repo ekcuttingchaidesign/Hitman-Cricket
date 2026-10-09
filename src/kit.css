@@ -1,0 +1,268 @@
+/* ── UI v1: the parts ───────────────────────────────────────────────────────
+   The components on the handover's Foundations page, each measured off its
+   Figma master, in the design's own pixels (`--u`, one of them, defined with
+   the colours in styles.css). The markup that goes with each is in
+   src/ui/Kit.ts, and `?ui=1` lays every one out in every state it has.
+
+   Prefixed `k-` so nothing here can catch a screen that has not been redrawn,
+   and nothing there can catch these. */
+
+/* ── Type ─────────────────────────────────────────────────────────────────── */
+/* The handover's text styles. Its "Satoshi/…" styles are set in Outfit on the
+   frames only because Satoshi would not load in Figma; Satoshi is the face. */
+.k-t-overline{font:700 calc(var(--u) * 11)/1.2 var(--f-ui);letter-spacing:.14em;text-transform:uppercase}
+.k-t-tag{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;text-transform:uppercase}
+.k-t-body{font:500 calc(var(--u) * 14)/1.4 var(--f-ui)}
+.k-t-small{font:500 calc(var(--u) * 12)/1.3 var(--f-ui)}
+.k-t-label{font:700 calc(var(--u) * 14)/1.3 var(--f-ui)}
+.k-t-lead{font:700 calc(var(--u) * 18)/1.2 var(--f-ui)}
+.k-t-title{font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em}
+.k-t-num{font:900 calc(var(--u) * 30)/1 var(--f-ui);letter-spacing:-.033em}
+.k-t-num-xl{font:900 calc(var(--u) * 80)/.9 var(--f-ui);letter-spacing:-.05em}
+
+/* Jaro has an optical-size axis, and the handover sets every Jaro line at its
+   smallest (opsz 6): the browser's own choice would follow the font size and
+   draw the 22 on PLAY AGAIN narrower than the design. */
+.k-t-title,.k-cta-face,.k-ticket-pill,.k-pit-mode,.k-pit-label,.k-road-title,.kg-title{font-optical-sizing:none;font-variation-settings:'opsz' 6}
+
+/* ── Icons ────────────────────────────────────────────────────────────────── */
+/* Lucide strokes, recoloured by `color`, sized by the part that holds them. */
+.k-icon{display:block;width:calc(var(--u) * 20);height:calc(var(--u) * 20);flex-shrink:0}
+
+/* ── CTAs ─────────────────────────────────────────────────────────────────── */
+/* A face sitting on a ledge of a darker shade: the live game's PLAY key, and
+   every key in the kit is the same object in another colour. The ledge is the
+   key's own background showing under the face, so a press that drops the face
+   onto it is one transform. */
+.k-cta{
+  --ledge:var(--c-mode-ledge);
+  --face:var(--c-mode);
+  --ink:var(--c-text);
+  display:inline-flex;
+  flex-direction:column;
+  align-items:stretch;
+  height:calc(var(--u) * 56);
+  min-height:var(--tap);
+  margin:0;
+  padding:0 0 calc(var(--u) * 5);
+  border:0;
+  position:relative;
+  border-radius:calc(var(--u) * 16);
+  background:var(--ledge);
+  color:var(--ink);
+  text-decoration:none
+}
+.k-cta-face{
+  display:flex;
+  flex:1;
+  align-items:center;
+  justify-content:center;
+  gap:calc(var(--u) * 8);
+  padding:0 calc(var(--u) * 16);
+  border:2px solid var(--ledge);
+  border-radius:calc(var(--u) * 12);
+  background:var(--face);
+  font:400 calc(var(--u) * 14)/1 var(--f-display);
+  letter-spacing:.07em;
+  white-space:nowrap;
+  transition:transform .08s
+}
+.k-cta:active:not(:disabled) .k-cta-face{transform:translateY(calc(var(--u) * 3))}
+.k-cta:focus-visible{outline-color:var(--c-accent-soft)}
+.k-cta.is-wide{display:flex;width:100%}
+
+/* PLAY AGAIN: white face, orange ledge, the face inset all round. */
+.k-cta--primary{--ledge:var(--c-cta-ledge);--face:var(--c-cta-face);--ink:var(--c-cta-ink);padding:calc(var(--u) * 3) calc(var(--u) * 3) calc(var(--u) * 6)}
+.k-cta--primary{min-width:calc(var(--u) * 210)}
+.k-cta--primary .k-cta-face{border:0;font-size:calc(var(--u) * 22);letter-spacing:.08em}
+/* MODE: the blue key with the grid. */
+.k-cta--mode{width:calc(var(--u) * 96)}
+.k-cta--mode .k-cta-face{padding:0 calc(var(--u) * 12)}
+.k-cta--share{--ledge:var(--c-share-ledge);--face:var(--c-share)}
+.k-cta--challenge{--ledge:var(--c-challenge-ledge);--face:var(--c-challenge)}
+.k-cta--share,.k-cta--challenge{width:calc(var(--u) * 56);min-width:var(--tap)}
+.k-cta--share .k-cta-face,.k-cta--challenge .k-cta-face{padding:0}
+/* PLAY on a mode card: the primary, small. Its ink takes the mode's colour. */
+.k-cta--play-small{
+  --ledge:var(--c-cta-ledge);--face:var(--c-cta-face);--ink:var(--c-cta-ink);
+  height:auto;min-height:0;
+  padding:calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 5);
+  border-radius:calc(var(--u) * 14)
+}
+.k-cta--play-small .k-cta-face{flex:none;height:calc(var(--u) * 36);padding:0 calc(var(--u) * 18);border:0;border-radius:calc(var(--u) * 11);font-size:calc(var(--u) * 16);letter-spacing:.08em}
+/* HOW TO PLAY and BRAG ABOUT MY STATS: full width, the 18 size. */
+.k-cta--secondary .k-cta-face,.k-cta--share-wide .k-cta-face{font-size:calc(var(--u) * 18);letter-spacing:.08em}
+.k-cta--share-wide{--ledge:var(--c-share-ledge);--face:var(--c-share)}
+.k-cta--share-wide .k-cta-face{gap:calc(var(--u) * 10)}
+/* SAVE on the key ticket: white on a grey ledge. */
+.k-cta--save{
+  --ledge:#6c7f8b;--face:var(--c-cta-face);--ink:var(--c-cta-ink);
+  height:auto;min-height:0;padding-bottom:calc(var(--u) * 4);border-radius:calc(var(--u) * 12)
+}
+.k-cta--save .k-cta-face{flex:none;height:calc(var(--u) * 36);border-radius:calc(var(--u) * 9)}
+/* The two small keys are drawn under a thumb; their targets are grown to it. */
+.k-cta--play-small::after,.k-cta--save::after{content:'';position:absolute;inset:-3px -2px}
+
+/* ── Icon button ──────────────────────────────────────────────────────────── */
+.k-icon-button{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:var(--tap);height:var(--tap);margin:0;padding:0;
+  border:1px solid #ffffff1a;border-radius:14px;
+  background:var(--c-card-top);color:var(--c-text)
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+.k-pill{
+  --dot:var(--c-blast);
+  display:inline-flex;align-items:center;gap:calc(var(--u) * 8);
+  min-width:calc(var(--u) * 170);height:var(--tap);margin:0;
+  padding:0 calc(var(--u) * 12) 0 calc(var(--u) * 14);
+  border:1px solid #ffffff1a;border-radius:22px;
+  background:#1a1e24e6;color:var(--c-text);
+  font:700 calc(var(--u) * 14)/1.3 var(--f-ui);text-align:left
+}
+.k-pill-dot{width:8px;height:8px;border-radius:50%;background:var(--dot);flex-shrink:0}
+.k-pill-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.k-pill .k-icon{width:16px;height:16px;color:var(--c-text-3);transition:transform .16s}
+.k-pill:active:not(:disabled),.k-pill.is-pressed{background:#272d35}
+.k-pill:focus-visible,.k-pill.is-focus{outline:0;border:2px solid var(--c-accent-soft);padding-left:calc(var(--u) * 14 - 1px);padding-right:calc(var(--u) * 12 - 1px)}
+.k-pill[aria-expanded="true"]{background:var(--c-text);border-color:transparent;color:var(--c-ink)}
+.k-pill[aria-expanded="true"] .k-icon{color:var(--c-ink);transform:rotate(180deg)}
+
+/* Tabs and chips are drawn under a thumb (36 and 34 high); the hit area is
+   grown past the drawing to the 44 the build notes ask of every target. */
+.k-tabs,.k-chips{display:flex;gap:calc(var(--u) * 8);align-items:center}
+.k-tab,.k-chip{position:relative;margin:0;border:0;font:700 calc(var(--u) * 14)/1.3 var(--f-ui);white-space:nowrap}
+.k-tab::after,.k-chip::after{content:'';position:absolute;inset:-5px -2px}
+.k-tab{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:calc(var(--u) * 110);height:calc(var(--u) * 36);padding:0 calc(var(--u) * 12);
+  border-radius:12px;background:transparent;color:var(--c-text-2)
+}
+.k-tab[aria-selected="true"]{background:var(--c-text);color:var(--c-ink)}
+.k-chip{
+  display:inline-flex;align-items:center;
+  height:calc(var(--u) * 34);padding:0 calc(var(--u) * 14);
+  border:1px solid #ffffff14;border-radius:17px;
+  background:var(--c-card-top);color:var(--c-text-2)
+}
+.k-chip[aria-pressed="true"]{border-color:var(--c-accent);background:#ed704429;color:var(--c-accent-soft)}
+
+/* ── Player card: rank header, actions ───────────────────────────────────── */
+.k-rank{display:flex;align-items:flex-start;gap:calc(var(--u) * 12);padding:calc(var(--u) * 12) calc(var(--u) * 16);color:var(--c-text);font-family:var(--f-ui)}
+.k-rank-avatar{display:block;width:calc(var(--u) * 48);height:calc(var(--u) * 48);border-radius:50%;flex-shrink:0;object-fit:cover}
+.k-rank-text{display:flex;flex:1;flex-direction:column;gap:calc(var(--u) * 4);min-width:0}
+.k-rank-who{display:flex;align-items:center;gap:calc(var(--u) * 6);min-width:0;color:var(--c-text-2)}
+.k-rank-who > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.k-rank-first{flex-shrink:0;padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:6px;background:#5bd08f26;color:var(--c-win)}
+.k-rank-line{margin:0}
+.k-rank-line b{color:var(--c-accent);font-weight:inherit}
+.k-rank-best{display:flex;align-items:center;gap:calc(var(--u) * 6);color:var(--c-win);white-space:pre}
+.k-rank-best .k-icon{width:calc(var(--u) * 14);height:calc(var(--u) * 14)}
+
+.k-actions{display:flex;height:calc(var(--u) * 52);border-top:1px solid var(--c-line)}
+.k-action{
+  display:flex;flex:1;align-items:center;justify-content:center;gap:calc(var(--u) * 8);
+  min-width:0;margin:0;padding:0;border:0;background:none;color:var(--c-text);
+  font:700 calc(var(--u) * 14)/1.3 var(--f-ui)
+}
+.k-action + .k-action{border-left:1px solid var(--c-line)}
+.k-action .k-icon{width:calc(var(--u) * 18);height:calc(var(--u) * 18)}
+.k-action .k-icon.is-chevron{width:calc(var(--u) * 14);height:calc(var(--u) * 14);color:#6c7f8b}
+.k-action.is-board .k-icon:first-child{color:var(--c-win)}
+.k-action.is-career .k-icon:first-child{color:var(--c-accent)}
+
+/* ── Career key ticket ────────────────────────────────────────────────────── */
+/* A stub torn off at the perforation. The notches are the page showing
+   through, so they take whatever ground the ticket is set on (`--k-notch`). */
+.k-ticket{display:flex;align-items:center;border-radius:16px;background:var(--c-surface);font-family:var(--f-ui)}
+.k-ticket-key{display:flex;flex:1;flex-direction:column;gap:calc(var(--u) * 6);min-width:0;padding:calc(var(--u) * 12) calc(var(--u) * 14) calc(var(--u) * 12) calc(var(--u) * 16)}
+.k-ticket-label{display:flex;align-items:center;gap:calc(var(--u) * 6);color:var(--c-text-3)}
+.k-ticket-label .k-icon{width:calc(var(--u) * 13);height:calc(var(--u) * 13)}
+.k-ticket-pill{
+  display:flex;align-items:center;height:calc(var(--u) * 26);padding:0 calc(var(--u) * 10);border-radius:7px;
+  background:linear-gradient(90deg,#fff 0%,#ece6f8 45%,#b4f1de 70%,#f6c9e6 85%,#c6f1ff 100%);
+  color:var(--c-cta-ink);font:400 calc(var(--u) * 15)/1 var(--f-display);letter-spacing:.03em;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis
+}
+.k-ticket-perf{position:relative;align-self:stretch;width:0;border-left:2px dashed #ffffff29;margin:calc(var(--u) * 12) 0}
+.k-ticket-perf::before,.k-ticket-perf::after{
+  content:'';position:absolute;left:-10px;width:18px;height:18px;border-radius:50%;background:var(--k-notch,var(--c-page))
+}
+.k-ticket-perf::before{top:calc(var(--u) * -12 - 9px)}
+.k-ticket-perf::after{bottom:calc(var(--u) * -12 - 9px)}
+.k-ticket-save{display:flex;align-items:center;padding:0 calc(var(--u) * 12) 0 calc(var(--u) * 14)}
+
+/* ── Pit header ───────────────────────────────────────────────────────────── */
+/* The black strip a pit-wall widget is headed with: mode, a label, sound. */
+.k-pit{display:flex;align-items:center;gap:calc(var(--u) * 10);height:calc(var(--u) * 52);padding:0 calc(var(--u) * 10) 0 calc(var(--u) * 20);background:#05070a;color:#fff}
+.k-pit-mode{flex:1;min-width:0;margin:0;font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-pit-label{font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;color:#ffffff8c;white-space:nowrap}
+/* Drawn at 36; the target round it is the 44 every key gets. */
+.k-pit-sound{position:relative;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;margin:0;padding:0;border:0;border-radius:50%;background:#ffffff14;color:#ffffffe6}
+.k-pit-sound::after{content:'';position:absolute;inset:-4px}
+.k-pit-sound .k-icon{width:17px;height:17px}
+
+/* ── Tier badge ───────────────────────────────────────────────────────────── */
+/* The medallion's art runs past its box — the rim's shadow below, the glow
+   round it — so the picture is set out from the box by the art's own margins,
+   and the box is what lays out. */
+.k-badge{--size:calc(var(--u) * 96);position:relative;display:inline-block;width:var(--size);height:var(--size);flex-shrink:0}
+.k-badge img{position:absolute;left:-1.92%;top:-4.17%;width:103.84%;height:116.67%;max-width:none}
+
+/* ── Road to Hitman ───────────────────────────────────────────────────────── */
+.k-road{
+  position:relative;display:flex;flex-direction:column;gap:calc(var(--u) * 14);
+  padding:calc(var(--u) * 16) calc(var(--u) * 18) calc(var(--u) * 18);
+  border:1px solid #ffffff14;border-radius:24px;
+  background:linear-gradient(#20252c,#13161a);box-shadow:inset 0 1px 0 #ffffff0f;
+  color:var(--c-text);font-family:var(--f-ui);overflow:hidden
+}
+.k-road-head{display:flex;flex-direction:column;gap:calc(var(--u) * 2)}
+.k-road-title{font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;color:var(--c-text-2)}
+.k-road-goal{margin:0;font:700 calc(var(--u) * 14)/1.3 var(--f-ui)}
+/* The track runs between the first medallion's centre and the last's. */
+.k-road-track{--edge:calc(var(--u) * 14);position:relative;height:calc(var(--u) * 94)}
+.k-road-line,.k-road-fill{position:absolute;left:var(--edge);top:calc(var(--u) * 24);height:4px;border-radius:2px}
+.k-road-line{right:var(--edge);background:#ffffff14}
+.k-road-fill{width:calc((100% - 2 * var(--edge)) * var(--at));background:linear-gradient(90deg,#9dbbe0 0%,#f0c79e 17.05%,#f2f5f8 34.1%,#ffe08a 51.667%)}
+.k-road-rung{
+  --x:0;
+  position:absolute;top:0;left:calc(var(--edge) + (100% - 2 * var(--edge)) * var(--x));
+  display:flex;flex-direction:column;align-items:center;transform:translateX(-50%)
+}
+.k-road-rung .k-badge{--size:calc(var(--u) * 36);margin-top:calc(var(--u) * 8)}
+.k-road-rung.is-here .k-badge{--size:calc(var(--u) * 46);margin:calc(var(--u) * 3) 0 calc(var(--u) * -5)}
+.k-road-name{margin-top:calc(var(--u) * 8);font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;color:var(--c-text-3)}
+.k-road-rung.is-reached .k-road-name{color:var(--c-text-2)}
+.k-road-rung.is-here .k-road-name{color:var(--c-text)}
+.k-road-at{margin-top:calc(var(--u) * 5);font:500 calc(var(--u) * 10)/1.2 var(--f-ui);color:var(--c-text-3)}
+/* The player's own figure, pinned where the fill stops. */
+.k-road-you{
+  position:absolute;top:calc(var(--u) * -6);left:calc(var(--edge) + (100% - 2 * var(--edge)) * var(--at));
+  display:flex;flex-direction:column;align-items:center;transform:translateX(-50%)
+}
+.k-road-you span{padding:calc(var(--u) * 2) calc(var(--u) * 7);border-radius:8px;background:var(--c-text);color:var(--c-ink)}
+.k-road-you::after{content:'';width:2px;height:calc(var(--u) * 10);background:var(--c-text)}
+
+/* ── `?ui=1`: the page the parts are laid out on (KitGallery.ts) ──────────── */
+.kg{
+  position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;
+  padding:calc(var(--u) * 48) calc(var(--u) * 20) calc(var(--u) * 60);
+  background:var(--c-page);color:var(--c-text);font-family:var(--f-ui);
+  --k-notch:var(--c-page)
+}
+.kg-title{margin:0;font:400 calc(var(--u) * 36)/1 var(--f-display);letter-spacing:.02em}
+.kg-note{margin:calc(var(--u) * 6) 0 0;color:var(--c-text-3)}
+.kg-section{display:flex;flex-direction:column;gap:calc(var(--u) * 12);margin-top:calc(var(--u) * 36)}
+.kg-head{margin:0;color:var(--c-gold)}
+.kg-section p{margin:0}
+.kg-row{display:flex;align-items:center;gap:calc(var(--u) * 12)}
+.kg-wrap{flex-wrap:wrap}
+.kg-stack{display:flex;flex-direction:column;gap:calc(var(--u) * 12)}
+.kg-swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--u) * 10)}
+.kg-swatch{margin:0}
+.kg-swatch span{display:block;height:calc(var(--u) * 44);border-radius:10px;border:1px solid #ffffff14}
+.kg-swatch figcaption{margin-top:4px;color:var(--c-text-2);font-size:calc(var(--u) * 10)}
+.kg-swatch code{color:var(--c-text-3);font-size:calc(var(--u) * 9)}
+.kg-card{border-radius:16px;background:linear-gradient(var(--c-card-top),var(--c-card-bottom));overflow:hidden}

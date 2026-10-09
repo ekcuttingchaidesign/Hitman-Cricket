@@ -356,3 +356,26 @@ The rules for a name are the real ones; the store's answer is stood in for
 sent and nothing is kept, and each can be tried again with one tap. It changes
 nothing about the batting, so it is not practice (`tests/practice.test.ts`
 names it).
+
+## UI v1: the handover and `?ui=1`
+
+The game is being redrawn from a Figma handover (file `JhIdkSdtMSriYe3W5y3NAa`,
+canvas `125:4590`), a phase at a time. The foundations come first and change
+nothing on screen: the design's colours, faces and measures are named in the
+`:root` block of `src/styles.css` (`--c-*`, `--f-ui`, `--f-display`, and `--u`,
+one design pixel of the 402-wide phone it was drawn on), and its components are
+in `src/kit.css` under a `k-` prefix with their markup in `src/ui/Kit.ts`. A
+screen moves onto them when it is redrawn; until then nothing older reads them,
+so an untouched screen cannot change colour under it. Write new sizes in `--u`
+(it is container units underneath, so the desktop column scales it too).
+
+`?ui=1` is every part in every state on one page, decided in `main.ts` before
+the game is imported, for holding against the Foundations page on a phone. It
+changes nothing about the batting, so it is not practice
+(`tests/practice.test.ts` names it). `scripts/ui-check.mjs` holds each part to
+its Figma master's size, checks both faces load and every target is 44, and
+photographs the page at a phone's width and in the desktop column.
+
+Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
+evenly, so the fill is a whole rung per tier climbed and the share of the gap
+across the last, not a fraction of the top figure.
