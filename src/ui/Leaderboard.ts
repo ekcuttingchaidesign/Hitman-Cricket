@@ -488,9 +488,7 @@ export type CardOffer =
    * the place is the one worked out against the board on screen, and the one
    * the store answers with replaces it.
    */
-  | { kind: 'placed'; place: number | null; posting: boolean }
-  /** A full board this innings did not get onto, for a player with a name. `runs` where runs are what it ranks on. */
-  | { kind: 'short'; runs: number | null };
+  | { kind: 'placed'; place: number | null; posting: boolean };
 
 export function cardOffer(
   reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,

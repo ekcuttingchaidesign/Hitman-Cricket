@@ -450,7 +450,7 @@ ${coverIntro(best, top)}
               <button id="again" class="key-button">PLAY AGAIN</button>
               <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               <div class="card-next">
-                <button id="challenge-set" class="card-next-key challenge-key" type="button" aria-label="Challenge a friend with this innings">${icon('versus')}<span class="card-next-say">Challenge</span></button>
+                <button id="challenge-set" class="card-next-key challenge-key" type="button">${icon('versus')}<span class="card-next-say">Challenge a friend<em>with this innings</em></span></button>
                 <button id="card-change" class="card-next-key modes-key" type="button">${icon('modes')}<span class="card-next-say">Change mode</span></button>
               </div>
             </div>
@@ -1958,14 +1958,6 @@ ${coverIntro(best, top)}
       this.$('card-peek').innerHTML = !offer.place ? ''
         : offer.posting ? say.peek(offer.place, known?.name) : say.held(offer.place);
       key.textContent = 'VIEW LEADERBOARD';
-    } else if (offer.kind === 'short') {
-      // A full board and this innings under its last row. Said plainly, with
-      // the mark to beat where there is one number that is the mark.
-      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Not in the top 50 this time</span>`;
-      this.$('card-peek').innerHTML = offer.runs !== null
-        ? `<p class="peek-note">The top 50 starts at <b>${offer.runs}</b> runs.</p>`
-        : '<p class="peek-note">Bat again to climb onto the board.</p>';
-      key.textContent = 'VIEW LEADERBOARD';
     } else if (offer.kind === 'name') {
       // No place on a board this time, and no name yet. The name is the thing
       // worth having anyway: it is what keeps a career on a new phone and puts
@@ -2586,9 +2578,6 @@ ${coverIntro(best, top)}
     const panel = this.$('card-key');
     const bar = this.$('mode-key');
     const show = !!view && view.state !== 'lost';
-    // On the innings card the key stands until it has been saved once; after
-    // that it lives on My Stats, and the card has one thing fewer to read.
-    const panelShow = show && view!.state === 'unsaved';
     // One slot, three occupants, never two at once. A key for whoever holds
     // one; the way to make one for whoever holds a name without one; and the
     // way back for whoever holds neither. They are decided by the same two
@@ -2600,9 +2589,9 @@ ${coverIntro(best, top)}
     // players finished an innings and was shown nothing.
     const missing = !!view && view.state === 'lost' && where.panel;
     const offering = !show && !missing && where.panel && this.offerRestorePanel;
-    panel.classList.toggle('hidden', !((panelShow && where.panel) || missing || offering));
+    panel.classList.toggle('hidden', !((show && where.panel) || missing || offering));
     bar.classList.toggle('hidden', !(show && where.bar));
-    if (panelShow && where.panel) {
+    if (show && where.panel) {
       panel.innerHTML = keyPanelMarkup(view!);
       this.$('key-panel-save').onclick = () => this.openKeySheet(false, 'card');
     } else if (missing) {
@@ -2627,7 +2616,7 @@ ${coverIntro(best, top)}
     // end cards and moved between them, so a slot left holding what it held
     // last time is a widget waiting to reappear on a screen that never asked
     // for it — which is exactly how the key ended up on the Blast card.
-    if (!((panelShow && where.panel) || missing || offering)) panel.innerHTML = '';
+    if (!((show && where.panel) || missing || offering)) panel.innerHTML = '';
     if (!(show && where.bar)) bar.innerHTML = '';
   }
 

@@ -6,7 +6,7 @@ import { INTRO_STEPS, introDue, noteIntro } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
-import { MARATHON_BOARD_SIZE, soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
+import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
 import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
@@ -72,10 +72,10 @@ import {
   type RatedMode, type RatedThing, type RatingMoment,
 } from './game/rating';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
-import { SURVIVE_BOARD_SIZE, type SurviveRow } from './game/survive-board';
+import type { SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
-import { BOARD_SIZE, type BoardRow } from './game/leaderboard';
+import type { BoardRow } from './game/leaderboard';
 import {
   ballsBand, blowsBand, counting, inningsBand, injuryBand, marathonBestBand, marathonOversBand, marathonTotalBand, marksPassed,
   restoreFailure, roomBand, scoreBand,
@@ -2855,8 +2855,7 @@ export class Game {
     // An innings that had nothing to offer stays quiet in a private window too:
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
-    const edge = this.board.length >= BOARD_SIZE ? this.board[BOARD_SIZE - 1] : null;
-    this.hud.offerClaim(this.postedOffer(offer, edge ? { runs: edge.runs } : null), readPlayer(), this.board, played, this.player);
+    this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.board, played, this.player);
   }
 
   /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
@@ -2864,18 +2863,14 @@ export class Game {
     const played = marathonFigures(this.marathon!);
     const rows = this.marathonShown ?? { team: [], solo: [] };
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
-    const edge = rows.team.length >= MARATHON_BOARD_SIZE ? rows.team[MARATHON_BOARD_SIZE - 1] : null;
-    this.hud.offerMarathonClaim(this.postedOffer(offer, edge ? { runs: edge.runs } : null), readPlayer(), rows.team, this.player);
+    this.hud.offerMarathonClaim(this.postedOffer(offer), readPlayer(), rows.team, this.player);
   }
 
   /** The same, asked of the Test ladder and answered on the Test card. */
   private offerSurvive() {
     const played = this.survived();
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
-    // The Test ladder ranks on how the innings ended before it ranks on runs,
-    // so there is no one number that is the mark to beat.
-    const full = this.surviveRows.length >= SURVIVE_BOARD_SIZE ? { runs: null } : null;
-    this.hud.offerSurviveClaim(this.postedOffer(offer, full), readPlayer(), this.surviveRows, played, this.player);
+    this.hud.offerSurviveClaim(this.postedOffer(offer), readPlayer(), this.surviveRows, played, this.player);
   }
 
   /**
@@ -2890,7 +2885,7 @@ export class Game {
    */
   private startClaim = () => {
     // A private window has no place to claim, and nor does practice, so the key is the board's.
-    if (['standing', 'private', 'practice', 'placed', 'short'].includes(this.hud.offerKind)) return this.showBoard();
+    if (['standing', 'private', 'practice', 'placed'].includes(this.hud.offerKind)) return this.showBoard();
     this.mark('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
@@ -3046,18 +3041,16 @@ export class Game {
   private postFailed = 0;
 
   /**
-   * The offer as the card shows it. A place earned is posted and said as
-   * taken; a full board missed is said as missed, with the mark to beat where
-   * there is one (`full`); everything else is `shownOffer`'s.
+   * The offer as the card shows it: a place earned is posted and said as
+   * taken; everything else is `shownOffer`'s.
    */
-  private postedOffer(offer: CardOffer, full: { runs: number | null } | null): CardOffer {
+  private postedOffer(offer: CardOffer): CardOffer {
     if (!this.autoPosting || this.postFailed === this.innings) return this.shownOffer(offer);
     if (this.posted?.innings === this.innings) return { kind: 'placed', place: this.posted.place, posting: this.posted.posting };
     if (offer.kind === 'claim') {
       void this.autoPost(offer.place);
       return { kind: 'placed', place: offer.place, posting: true };
     }
-    if (offer.kind === 'silent' && full) return { kind: 'short', runs: full.runs };
     return this.shownOffer(offer);
   }
 

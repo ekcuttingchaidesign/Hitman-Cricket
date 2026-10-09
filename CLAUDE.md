@@ -220,8 +220,7 @@ takes up to two.
 
 A player with a name has nothing to press at the end of an innings: a place
 earned is posted by itself (`autoPost` in `src/Game.ts`, once an innings) and
-the card says where it landed, with the board one tap away; a full board
-missed says so, with the mark to beat. Only a player with no name, a private
+the card says where it landed, with the board one tap away. Only a player with no name, a private
 window, practice and a Rival Match keep the old offers — and a post that fails
 falls back to the register key, so nothing is lost to an outage.
 
