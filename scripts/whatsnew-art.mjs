@@ -78,6 +78,8 @@ const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage({
   viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
 });
+// Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 
 await page.route('**/api/board**', route => route.fulfill({
   status: 200, contentType: 'application/json',

@@ -40,6 +40,8 @@ const errors = [];
 /** A phone. Its clock is its own: two of them have to agree about the time. */
 async function phone(name) {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+  await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
   page.on('pageerror', error => errors.push(`${name}: ${error.message}`));
   await page.addInitScript(() => {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);

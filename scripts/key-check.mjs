@@ -30,6 +30,8 @@ const WHO = `Keyed${Math.floor(Math.random() * 9000) + 1000}`;
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+// Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const errs = []; page.on('pageerror', e => errs.push(`PAGEERROR ${e.message}`));
 let bad = 0;
 const ok = (c, w, d) => (c || bad++, console.log(`${c ? '  ok  ' : ' FAIL '} ${w}${c || d === undefined ? '' : `\n        ${d}`}`));

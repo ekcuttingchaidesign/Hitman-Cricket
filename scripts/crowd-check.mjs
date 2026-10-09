@@ -130,6 +130,8 @@ for (const [name, width, height, reduce] of [['phone', 390, 844, false], ['deskt
 console.log('in the game');
 {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+  await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/board**', route => route.fulfill({

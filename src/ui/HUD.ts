@@ -32,7 +32,7 @@ import {
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
-import { INTRO_STEPS, introCardMarkup, introKeysMarkup } from './MarathonIntro';
+import { INTRO_STEPS, introCardMarkup, introKeysMarkup, type IntroStep } from './MarathonIntro';
 import { fallsOf, marathonShareText, scorecardMarkup, wormMarkup, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
@@ -1565,20 +1565,22 @@ ${coverIntro(best, top)}
     this.bannerDown = window.setTimeout(() => { banner.className = 'level-banner hidden'; }, lasts);
   }
   /**
-   * The Marathon's rules, a card at a time over the ground, with the thing a
-   * card is about lit in the dark round it. `done` hears whether the player
-   * went through to the end or skipped.
+   * Coachmarks over the ground, a card at a time, with the thing a card is
+   * about lit in the dark round it: the Marathon's rules, or how to hit on its
+   * own before a first innings in any other mode. `left` draws the swipes the
+   * way a left-hander's ground has them. `done` hears whether the player went
+   * through to the end or skipped.
    */
-  marathonIntro(done: (how: 'finished' | 'skipped') => void) {
+  marathonIntro(done: (how: 'finished' | 'skipped') => void, steps: readonly IntroStep[] = INTRO_STEPS, left = false) {
     const overlay = this.$('marathon-intro');
     let index = 0;
     const show = () => {
-      const step = INTRO_STEPS[index];
-      this.$('mi-card').innerHTML = introCardMarkup(step);
-      this.$('mi-keys').innerHTML = introKeysMarkup(index, INTRO_STEPS.length);
+      const step = steps[index];
+      this.$('mi-card').innerHTML = introCardMarkup(step, left);
+      this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length);
       this.spotlight(step.spot ?? null);
       this.$('mi-next').onclick = () => {
-        if (++index < INTRO_STEPS.length) return show();
+        if (++index < steps.length) return show();
         this.closeIntro(); done('finished');
       };
       this.$('mi-skip').onclick = () => { this.closeIntro(); done('skipped'); };
@@ -1618,6 +1620,8 @@ ${coverIntro(best, top)}
       const words = [...target.querySelectorAll<HTMLElement>('.confidence-label, .injury-cap')]
         .filter(node => !node.hidden && node.textContent?.trim()).map(node => node.textContent!.trim());
       spot.insertAdjacentHTML('beforeend', `<b>${words[0] ?? ''}</b>${words[1] ? `<em>${words[1]}</em>` : ''}`);
+      // Confidence is told by filling: a bar that fills and turns gold.
+      if (id === 'confidence') spot.insertAdjacentHTML('beforeend', '<span class="mi-meter"><i></i></span>');
     }
     spot.classList.toggle('is-round', round);
     spot.classList.remove('hidden');

@@ -33,6 +33,8 @@ const check = (ok, what, detail) => {
 
 const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+// Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 // Anything that keeps a score: the boards, the careers, the innings counter.
@@ -121,22 +123,23 @@ await advance(600);
 await page.waitForTimeout(300);
 
 // ── The rules, the first time ──────────────────────────────────────────────
-// Four cards over the ground, the bowler at his mark until the last is put
-// away, and the two that are about something on the screen lighting it.
+// How to hit and then four rules, over the ground, the bowler at his mark
+// until the last is put away, and the two that are about something on the
+// screen lighting it. The swipes card itself is `shots-check`'s.
 const intro = page.locator('#marathon-intro');
 for (let i = 0; i < 20 && !(await intro.isVisible()); i++) { await advance(300); await page.waitForTimeout(100); }
 check(await intro.isVisible(), 'the first Marathon starts with its rules over the ground');
 const cards = [];
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 5; i++) {
   cards.push({ title: await page.locator('#mi-title').textContent(), spot: await page.locator('#mi-spot').isVisible() });
   await advance(2000);
-  if (i === 3) check((await snap()).phase === 'READY' && (await snap()).balls === 0, 'and nothing is bowled while they are up', (await snap()).phase);
+  if (i === 4) check((await snap()).phase === 'READY' && (await snap()).balls === 0, 'and nothing is bowled while they are up', (await snap()).phase);
   await page.locator('#mi-next').click({ force: true });
   await advance(50);
 }
-check(JSON.stringify(cards.map(c => c.title)) === JSON.stringify(['Three batters', 'Focus to settle', 'The pitch wears', 'Every innings counts']),
-  'four of them: three batters, focus, the pitch wearing, declaring', JSON.stringify(cards.map(c => c.title)));
-check(!cards[0].spot && cards[1].spot && !cards[2].spot && cards[3].spot, 'the focus meter and the pause key lit on the cards about them', JSON.stringify(cards));
+check(JSON.stringify(cards.map(c => c.title)) === JSON.stringify(['Swipe to hit', 'Three batters', 'Focus to settle', 'The pitch wears', 'Every innings counts']),
+  'five of them: how to hit, then three batters, focus, the pitch wearing, declaring', JSON.stringify(cards.map(c => c.title)));
+check(!cards[0].spot && !cards[1].spot && cards[2].spot && !cards[3].spot && cards[4].spot, 'the focus meter and the pause key lit on the cards about them', JSON.stringify(cards));
 check(!(await intro.isVisible()) && await page.evaluate(() => localStorage.getItem('hitman-marathon-intro')) === '1', 'put away by the last, and remembered as shown once');
 // Twice at most, and the rest of this check is not about them.
 await page.evaluate(() => localStorage.setItem('hitman-marathon-intro', 'done'));

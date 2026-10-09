@@ -1767,6 +1767,48 @@ body.start-screen #sound{pointer-events:auto}
 @keyframes mi-in{from{opacity:0}to{opacity:1}}
 @keyframes mi-pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot{animation:none}}
+.mi-dots[hidden]{display:flex;visibility:hidden}
+/* How to hit (`ShotsIntro.ts`): six arrows out from the middle, and a hand
+   swiping them one at a time — down on the glass, out along an arrow with a
+   green trail behind the fingertip, and off — the arrow and its stroke's name
+   lit as it goes. Each ray has a sixth of the beat; every animation below is
+   one ray's, offset by its place. */
+.mi-art.is-shots{position:relative;width:min(62cqw,38cqh,270px);height:auto;aspect-ratio:1;margin-bottom:30px}
+.hb-compass{position:absolute;inset:0;display:block;--hb-beat:7.2s}
+.hb-compass svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;stroke-linecap:round;stroke-linejoin:round}
+.hb-head,.hb-trail,.hb-hand,.hb-ripple,.hb-label{animation-duration:var(--hb-beat);animation-iteration-count:infinite;animation-delay:calc(var(--i) * var(--hb-beat) / 6 - .4s)}
+.hb-hub{fill:#ffffff8c}
+.hb-shaft{fill:url(#hb-fade);stroke:url(#hb-fade);stroke-width:1.5}
+.hb-head{fill:#ffffffd9;stroke:#ffffffd9;stroke-width:3;animation-name:hb-lit}
+.hb-trail{stroke:var(--mi-accent);stroke-width:7;stroke-dasharray:50 50;stroke-dashoffset:50;opacity:0;animation-name:hb-trail;animation-timing-function:linear}
+.hb-hand{opacity:0;animation-name:hb-swipe}
+.hb-ripple{stroke:#fff;stroke-width:1.6;opacity:0;transform-box:fill-box;transform-origin:center;animation-name:hb-ripple;animation-timing-function:ease-out}
+.hb-ink>*{fill:#0b1622;stroke:#0b1622;stroke-width:4.4}
+.hb-skin>*{fill:#fff}
+.hb-crease{stroke:#b9c6d0;stroke-width:1.4}
+.hb-shadow{opacity:.3}.hb-shadow>*{fill:#000}
+.hb-label{position:absolute;display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:#ffffff1f;box-shadow:inset 0 0 0 1px #ffffff26;white-space:nowrap;color:#fff;animation-name:hb-name}
+.hb-label b{font-family:var(--card);font-size:14px;font-weight:700;line-height:1.1}
+.hb-label kbd{min-width:20px;padding:1px 5px;border-radius:5px;background:#ffffff2e;font-family:var(--card);font-size:11px;font-weight:800;line-height:1.3;text-align:center;color:inherit}
+/* One ray's sixth, as a share of the whole beat: down at 0–3%, out by 11%, off by 14%. */
+@keyframes hb-swipe{
+  0%{opacity:0;transform:translateY(0) scale(1.18)}
+  2%{opacity:1;transform:translateY(0) scale(1)}
+  3.5%{opacity:1;transform:translateY(0) scale(.9);animation-timing-function:cubic-bezier(.5,0,.3,1)}
+  11%{opacity:1;transform:translateY(-46px) scale(.9)}
+  13%{opacity:1;transform:translateY(-50px) scale(1.06)}
+  15%,100%{opacity:0;transform:translateY(-50px) scale(1.06)}}
+@keyframes hb-trail{0%,3.5%{stroke-dashoffset:50;opacity:.95}11%{stroke-dashoffset:4;opacity:.95}17%,100%{stroke-dashoffset:4;opacity:0}}
+@keyframes hb-ripple{0%,3%{opacity:0;transform:scale(1)}3.5%{opacity:.9;transform:scale(1)}8%,100%{opacity:0;transform:scale(3)}}
+@keyframes hb-lit{0%,8%{fill:#ffffffd9;stroke:#ffffffd9;transform:none}11%,16%{fill:var(--mi-accent);stroke:var(--mi-accent);transform:translateY(-3px)}22%,100%{fill:#ffffffd9;stroke:#ffffffd9;transform:none}}
+@keyframes hb-name{0%,8%{background:#ffffff1f;color:#fff}11%,17%{background:var(--mi-accent);color:#0b1622}23%,100%{background:#ffffff1f;color:#fff}}
+@media (prefers-reduced-motion:reduce){.hb-head,.hb-trail,.hb-hand,.hb-ripple,.hb-label{animation:none}.hb-hand,.hb-trail{display:none}}
+/* Confidence, lit on the scoreboard: a bar under the meter's own words that
+   fills and turns gold when full, which is the whole of the rule. */
+.mi-meter{position:relative;width:56px;height:8px;border-radius:4px;background:#0b16222e;overflow:hidden}
+.mi-meter i{position:absolute;inset:0;border-radius:4px;background:#6cc070;transform-origin:left;animation:mi-fill 3.2s ease-in-out infinite}
+@keyframes mi-fill{0%{transform:scaleX(0);background:#6cc070}55%{transform:scaleX(1);background:#6cc070}62%,85%{transform:scaleX(1);background:#ffc766;box-shadow:0 0 10px #ffc766}100%{transform:scaleX(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.mi-meter i{animation:none;background:#ffc766}}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */
 /* The card does not grow to hold this. It is already 349px tall on a landscape
