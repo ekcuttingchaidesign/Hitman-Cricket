@@ -103,6 +103,8 @@ export interface Tier {
   key: string;
   /** The word on the badge. */
   name: string;
+  /** The word under a medallion on Road to Hitman, where the badge's is too long to sit. */
+  short: string;
   /**
    * What it takes to get here, per mode, in that mode's own lead figure.
    *
@@ -177,6 +179,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'debutant',
     name: 'DEBUTANT',
+    short: 'Debutant',
     at: { classic: 0, survive: 0, marathon: 0 },
     blurb: 'First time out there.',
     // The game's own navy, which is the card everybody starts on and the only
@@ -195,6 +198,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'emerging',
     name: 'EMERGING PLAYER',
+    short: 'Emerging',
     at: { classic: 350, survive: 100, marathon: 750 },
     blurb: 'Making a name out there.',
     // Bronze, and dark. A warm ground rather than navy tinted brown, or the
@@ -215,6 +219,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'star',
     name: 'STAR',
+    short: 'Star',
     at: { classic: 3600, survive: 1000, marathon: 7500 },
     blurb: 'People turn up to watch.',
     // Black and silver, in that order. The ground is a neutral near-black with
@@ -235,6 +240,7 @@ export const TIERS: readonly Tier[] = [
   {
     key: 'hitman',
     name: 'HITMAN',
+    short: 'Hitman',
     at: { classic: 15000, survive: 4250, marathon: 30000 },
     blurb: 'The one the game is named for.',
     // Black and gold, and the only card in the game that gets to be either.
@@ -375,6 +381,41 @@ export function nextLine(mode: CareerMode, standing: Standing): string {
   if (standing.granted) return standing.granted.reason;
   if (!standing.next || standing.toNext === null) return 'Top of the ladder.';
   return `${standing.toNext.toLocaleString()} ${measureName(mode)} to ${standing.next.name}`;
+}
+
+/**
+ * Road to Hitman: the whole ladder as one track, and how far along it a career is.
+ *
+ * The medallions stand evenly along the track whatever the figures between them
+ * — the rungs are a quarter of the way apart on the screen and nowhere near it
+ * in runs — so the fill is a position, not a fraction of fifteen thousand: a
+ * whole rung for each one climbed, and the share of the gap to the next one
+ * across the last. Read straight off the measure, a player with two thousand
+ * runs would sit a seventh of the way along with two medallions lit behind
+ * them, which is a track that disagrees with its own badges.
+ */
+export interface Road {
+  /** Nought at the first medallion, one at the last. */
+  position: number;
+  rungs: { key: string; short: string; at: number; reached: boolean }[];
+  /** The one sentence over the track. */
+  goal: string;
+}
+
+export function roadOf(mode: CareerMode, standing: Standing): Road {
+  const held = TIERS.findIndex(one => one.key === standing.tier.key);
+  const last = TIERS.length - 1;
+  const position = standing.next ? Math.min(1, (held + standing.progress) / last) : 1;
+  const unit = measureName(mode);
+  let goal: string;
+  if (!standing.next || standing.toNext === null) goal = `${standing.tier.short}. Top of the game.`;
+  else if (held === 0) goal = `${mode === 'survive' ? 'Face' : 'Score'} ${standing.toNext.toLocaleString('en-US')} ${unit} to reach ${standing.next.short}`;
+  else goal = `${standing.toNext.toLocaleString('en-US')} ${unit} to ${standing.next.short}`;
+  return {
+    position,
+    rungs: TIERS.map((tier, i) => ({ key: tier.key, short: tier.short, at: tier.at[mode], reached: i <= held })),
+    goal,
+  };
 }
 
 /**

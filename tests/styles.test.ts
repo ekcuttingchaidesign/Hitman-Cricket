@@ -9,5 +9,6 @@ describe('the stylesheet', () => {
   // browser check finding no play key on a page with no styles.
   it('parses', () => {
     expect(() => postcss.parse(readFileSync(join(__dirname, '../src/styles.css'), 'utf8'))).not.toThrow();
+    expect(() => postcss.parse(readFileSync(join(__dirname, '../src/kit.css'), 'utf8'))).not.toThrow();
   });
 });
