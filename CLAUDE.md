@@ -224,6 +224,12 @@ the card says where it landed, with the board one tap away. Only a player with n
 window, practice and a Rival Match keep the old offers — and a post that fails
 falls back to the register key, so nothing is lost to an outage.
 
+`scripts/post-check.mjs` walks that in about a minute: a Test Marathon
+written ball by ball and bowled out, for a named left-handed player — posted
+once, by itself, with two left-handers in the side and the store taking it,
+the card saying where it landed — and for a player with no name, for whom
+nothing is sent and the card still asks.
+
 **`?debug=1` skips the gate**, because every browser check drives that link and
 each would otherwise have to answer it. `?profile=1` asks it there anyway, and
 `name-check.mjs` is the check that does.
