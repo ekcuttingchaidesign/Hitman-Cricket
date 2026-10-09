@@ -450,7 +450,7 @@ ${coverIntro(best, top)}
               <button id="again" class="key-button">PLAY AGAIN</button>
               <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               <div class="card-next">
-                <button id="challenge-set" class="card-next-key challenge-key" type="button">${icon('versus')}<span class="card-next-say">Challenge a friend<em>with this innings</em></span></button>
+                <button id="challenge-set" class="card-next-key challenge-key" type="button" aria-label="Challenge a friend with this innings">${icon('versus')}<span class="card-next-say">Challenge</span></button>
                 <button id="card-change" class="card-next-key modes-key" type="button">${icon('modes')}<span class="card-next-say">Change mode</span></button>
               </div>
             </div>
@@ -1847,8 +1847,8 @@ ${coverIntro(best, top)}
   ) {
     this.strip(offer, known, playerId, false, {
       best: standing => `Your best score is still <b>${standing.runs}</b>`,
-      peek: place => (rows.length ? peekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
-      held: place => (rows.length ? standingPeek(rows, place) : ''),
+      peek: (place, name) => (rows.length ? peekMarkup(rows, place, yours, known?.avatar ?? null, name) : ''),
+      held: place => (rows[place - 1] ? standingPeek(rows, place) : ''),
     });
   }
 
@@ -1868,8 +1868,8 @@ ${coverIntro(best, top)}
   ) {
     this.strip(offer, known, playerId, true, {
       best: standing => `Your best still stands &mdash; <b>${surviveBest(rows, standing.place)}</b>`,
-      peek: place => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
-      held: place => (rows.length ? surviveStandingPeek(rows, place) : ''),
+      peek: (place, name) => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null, name) : ''),
+      held: place => (rows[place - 1] ? surviveStandingPeek(rows, place) : ''),
     });
   }
 
@@ -1903,7 +1903,7 @@ ${coverIntro(best, top)}
     surviving: boolean,
     say: {
       best(standing: { runs: number; place: number }): string;
-      peek(place: number): string;
+      peek(place: number, name?: string): string;
       held(place: number): string;
     },
   ) {
@@ -1943,6 +1943,24 @@ ${coverIntro(best, top)}
       // stands, and the only thing left to offer is the board it stands on.
       this.$('card-board-head').innerHTML = `${icon('trophy')}<span>${say.best(offer)}</span>`;
       this.$('card-peek').innerHTML = say.held(offer.place);
+      key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'placed') {
+      // On the board already, with nothing to press: the place, the rows
+      // either side, and the way to the board. While the store is asked the
+      // row is drawn from this innings; once it answers, from the board.
+      this.$('card-board-head').innerHTML = offer.place
+        ? `${icon('trophy')}<span>You&rsquo;re <b>${ordinal(offer.place)}</b> on the leaderboard</span>`
+        : `${icon('trophy')}<span>Your innings is on the leaderboard</span>`;
+      this.$('card-peek').innerHTML = !offer.place ? ''
+        : offer.posting ? say.peek(offer.place, known?.name) : say.held(offer.place);
+      key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'short') {
+      // A full board and this innings under its last row. Said plainly, with
+      // the mark to beat where there is one number that is the mark.
+      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Not in the top 50 this time</span>`;
+      this.$('card-peek').innerHTML = offer.runs !== null
+        ? `<p class="peek-note">The top 50 starts at <b>${offer.runs}</b> runs.</p>`
+        : '<p class="peek-note">Bat again to climb onto the board.</p>';
       key.textContent = 'VIEW LEADERBOARD';
     } else if (offer.kind === 'name') {
       // No place on a board this time, and no name yet. The name is the thing
@@ -2564,6 +2582,9 @@ ${coverIntro(best, top)}
     const panel = this.$('card-key');
     const bar = this.$('mode-key');
     const show = !!view && view.state !== 'lost';
+    // On the innings card the key stands until it has been saved once; after
+    // that it lives on My Stats, and the card has one thing fewer to read.
+    const panelShow = show && view!.state === 'unsaved';
     // One slot, three occupants, never two at once. A key for whoever holds
     // one; the way to make one for whoever holds a name without one; and the
     // way back for whoever holds neither. They are decided by the same two
@@ -2575,9 +2596,9 @@ ${coverIntro(best, top)}
     // players finished an innings and was shown nothing.
     const missing = !!view && view.state === 'lost' && where.panel;
     const offering = !show && !missing && where.panel && this.offerRestorePanel;
-    panel.classList.toggle('hidden', !((show && where.panel) || missing || offering));
+    panel.classList.toggle('hidden', !((panelShow && where.panel) || missing || offering));
     bar.classList.toggle('hidden', !(show && where.bar));
-    if (show && where.panel) {
+    if (panelShow && where.panel) {
       panel.innerHTML = keyPanelMarkup(view!);
       this.$('key-panel-save').onclick = () => this.openKeySheet(false, 'card');
     } else if (missing) {
@@ -2602,7 +2623,7 @@ ${coverIntro(best, top)}
     // end cards and moved between them, so a slot left holding what it held
     // last time is a widget waiting to reappear on a screen that never asked
     // for it — which is exactly how the key ended up on the Blast card.
-    if (!((show && where.panel) || missing || offering)) panel.innerHTML = '';
+    if (!((panelShow && where.panel) || missing || offering)) panel.innerHTML = '';
     if (!(show && where.bar)) bar.innerHTML = '';
   }
 

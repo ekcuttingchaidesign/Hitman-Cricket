@@ -207,6 +207,13 @@ Test Marathon one of the three bats the other way round from the player
 (`leftHandersOf`), so a left-hander's side has two left-handers, and the board
 takes up to two.
 
+A player with a name has nothing to press at the end of an innings: a place
+earned is posted by itself (`autoPost` in `src/Game.ts`, once an innings) and
+the card says where it landed, with the board one tap away; a full board
+missed says so, with the mark to beat. Only a player with no name, a private
+window, practice and a Rival Match keep the old offers — and a post that fails
+falls back to the register key, so nothing is lost to an outage.
+
 **`?debug=1` skips the gate**, because every browser check drives that link and
 each would otherwise have to answer it. `?profile=1` asks it there anyway, and
 `name-check.mjs` is the check that does.

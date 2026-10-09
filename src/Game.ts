@@ -5,7 +5,7 @@ import { HEALTH, SURVIVE } from './config/survive';
 import { introDue, noteIntro } from './ui/MarathonIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
-import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
+import { MARATHON_BOARD_SIZE, soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
 import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
@@ -71,10 +71,10 @@ import {
   type RatedMode, type RatedThing, type RatingMoment,
 } from './game/rating';
 import { asSurvive, surviveOffer } from './ui/SurviveBoard';
-import type { SurviveRow } from './game/survive-board';
+import { SURVIVE_BOARD_SIZE, type SurviveRow } from './game/survive-board';
 import { playerId } from './game/identity';
 import { asInnings } from './ui/Leaderboard';
-import type { BoardRow } from './game/leaderboard';
+import { BOARD_SIZE, type BoardRow } from './game/leaderboard';
 import {
   ballsBand, blowsBand, counting, inningsBand, injuryBand, marathonBestBand, marathonOversBand, marathonTotalBand, marksPassed,
   restoreFailure, roomBand, scoreBand,
@@ -717,6 +717,8 @@ export class Game {
       // Leaves him one blow from the floor, so the fall can be looked at without
       // waiting for an innings that retires hurt to come round on its own.
       hurt: () => { this.health.value = 1; this.showConfidence(); },
+      // The innings ended where it stands, for looking at the card it ends on.
+      finish: () => { if (!['START', 'INNINGS_END'].includes(this.phase)) this.end(); },
       // A moment on demand, for `milestone-check.mjs`: getting to a real
       // hundred in a headless browser is thirty balls of perfect timing.
       milestone: (kind: Milestone = 'century', mark?: number) => this.celebrate({ kind, mark: mark ?? MARK_OF[kind] }),
@@ -2832,7 +2834,8 @@ export class Game {
     // An innings that had nothing to offer stays quiet in a private window too:
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
-    this.hud.offerClaim(this.shownOffer(offer), readPlayer(), this.board, played, this.player);
+    const edge = this.board.length >= BOARD_SIZE ? this.board[BOARD_SIZE - 1] : null;
+    this.hud.offerClaim(this.postedOffer(offer, edge ? { runs: edge.runs } : null), readPlayer(), this.board, played, this.player);
   }
 
   /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
@@ -2840,14 +2843,18 @@ export class Game {
     const played = marathonFigures(this.marathon!);
     const rows = this.marathonShown ?? { team: [], solo: [] };
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
-    this.hud.offerMarathonClaim(this.shownOffer(offer), readPlayer(), rows.team, this.player);
+    const edge = rows.team.length >= MARATHON_BOARD_SIZE ? rows.team[MARATHON_BOARD_SIZE - 1] : null;
+    this.hud.offerMarathonClaim(this.postedOffer(offer, edge ? { runs: edge.runs } : null), readPlayer(), rows.team, this.player);
   }
 
   /** The same, asked of the Test ladder and answered on the Test card. */
   private offerSurvive() {
     const played = this.survived();
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
-    this.hud.offerSurviveClaim(this.shownOffer(offer), readPlayer(), this.surviveRows, played, this.player);
+    // The Test ladder ranks on how the innings ended before it ranks on runs,
+    // so there is no one number that is the mark to beat.
+    const full = this.surviveRows.length >= SURVIVE_BOARD_SIZE ? { runs: null } : null;
+    this.hud.offerSurviveClaim(this.postedOffer(offer, full), readPlayer(), this.surviveRows, played, this.player);
   }
 
   /**
@@ -2862,7 +2869,7 @@ export class Game {
    */
   private startClaim = () => {
     // A private window has no place to claim, and nor does practice, so the key is the board's.
-    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private' || this.hud.offerKind === 'practice') return this.showBoard();
+    if (['standing', 'private', 'practice', 'placed', 'short'].includes(this.hud.offerKind)) return this.showBoard();
     this.mark('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
@@ -3000,6 +3007,102 @@ export class Game {
     this.hud.offerRestorePanel = this.offerRestoreOnCard();
     this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
     this.offerFirstKey();
+  }
+
+  /**
+   * The innings put on the board by itself, for a player with a name: the
+   * name was asked for before the first ball and said it goes on the boards,
+   * so a place earned is a place taken, with nothing left to press. Not from
+   * a private window, nor practice, nor a Rival Match, whose card is the
+   * match's — those keep the offers they always had.
+   */
+  private get autoPosting() {
+    return !!readPlayer() && !!this.player && this.canRegister && !this.practising && !this.challenge.playing && !this.demoing;
+  }
+  /** Which innings has been posted, or is being, and where it landed. */
+  private posted: { innings: number; place: number | null; posting: boolean } | null = null;
+  /** The innings whose post failed: its card goes back to asking, by hand. */
+  private postFailed = 0;
+
+  /**
+   * The offer as the card shows it. A place earned is posted and said as
+   * taken; a full board missed is said as missed, with the mark to beat where
+   * there is one (`full`); everything else is `shownOffer`'s.
+   */
+  private postedOffer(offer: CardOffer, full: { runs: number | null } | null): CardOffer {
+    if (!this.autoPosting || this.postFailed === this.innings) return this.shownOffer(offer);
+    if (this.posted?.innings === this.innings) return { kind: 'placed', place: this.posted.place, posting: this.posted.posting };
+    if (offer.kind === 'claim') {
+      void this.autoPost(offer.place);
+      return { kind: 'placed', place: offer.place, posting: true };
+    }
+    if (offer.kind === 'silent' && full) return { kind: 'short', runs: full.runs };
+    return this.shownOffer(offer);
+  }
+
+  /**
+   * Once an innings, whatever redraws the card meanwhile. What the store
+   * answers with is the board with the player on it, and the place is read off
+   * that rather than the one guessed from the board on screen.
+   */
+  private async autoPost(guess: number | null) {
+    const mine = readPlayer(), innings = this.innings;
+    if (!mine || !this.player) return;
+    this.posted = { innings, place: guess, posting: true };
+    const result = this.marathoning && this.marathon
+      ? await submitMarathon(this.player, mine.name, mine.avatar, marathonFigures(this.marathon))
+      : this.surviving
+      ? await submitSurvive(this.player, mine.name, mine.avatar, this.survived())
+      : await submitInnings(this.player, mine.name, mine.avatar, asInnings(this.score));
+    if (this.disposed || this.innings !== innings) return;
+    if (!result.ok) {
+      // Back to asking, by hand: the key and the form say what went wrong.
+      this.mark('auto-post-failed', 'Innings could not be posted by itself');
+      this.posted = null;
+      this.postFailed = innings;
+      return this.reoffer();
+    }
+    this.mark('auto-posted', 'Innings put on the board by itself');
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    let rows: readonly { playerId: string }[] = [];
+    if (this.marathoning) {
+      if (result.board) this.marathonRows = result.board as MarathonPayload;
+      const team = this.marathonShown?.team ?? [];
+      rows = team.some(row => row.playerId === this.player) ? team : this.marathonShown?.solo ?? [];
+    } else if (this.surviving) {
+      if (result.board) {
+        this.surviveEpoch++;
+        this.surviveSeen = true;
+        this.surviveRows = (result.board as SurvivePayload).rows;
+      }
+      rows = this.surviveRows;
+    } else {
+      if (result.board) {
+        this.boardEpoch++;
+        this.boardSeen = true;
+        this.board = (result.board as BoardPayload).rows;
+      }
+      rows = this.board;
+    }
+    // The career boards carry the name now, so the copies from before are stale.
+    delete this.careerBoards[this.careerMode];
+    delete this.myCareer[this.careerMode];
+    forgetCareer();
+    const at = rows.findIndex(row => row.playerId === this.player);
+    this.posted = { innings, place: at >= 0 ? at + 1 : guess, posting: false };
+    this.reoffer();
+    this.redrawKeyPlacements();
+  }
+
+  /** The strip drawn again for the innings on the card, from what is held now. */
+  private reoffer() {
+    if (this.phase !== 'INNINGS_END') return;
+    if (this.marathoning) this.offerMarathon();
+    else if (this.surviving) this.offerSurvive();
+    else this.offerBoard();
   }
 
   /**
