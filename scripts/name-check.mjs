@@ -62,6 +62,8 @@ async function toPicker({ query = '', player = null } = {}) {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
+      // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
+      localStorage.setItem('hitman-shots-intro', 'done');
       if (held && !localStorage.getItem('hitman-batter')) localStorage.setItem('hitman-batter', JSON.stringify(held));
     } catch { /* Then the notice stands. */ }
   }, player);

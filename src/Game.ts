@@ -1378,7 +1378,8 @@ export class Game {
     this.hud.marathonIntro(how => {
       this.mark(how === 'skipped' ? 'shots-intro-skipped' : 'shots-intro-done', how === 'skipped' ? 'How to hit skipped' : 'How to hit put away');
       this.bannerUntil = this.elapsed;
-    }, steps);
+    // Drawn the way round the player bats: a left-hander's swipes are mirrored, so are the arrows.
+    }, steps, this.scene.mirrored);
   }
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
