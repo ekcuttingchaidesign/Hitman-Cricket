@@ -6,7 +6,8 @@
 // beside it, and Vite and Vitest resolve it the same way, so this costs the rest
 // of the project nothing. `scripts/function-check.mjs` is what keeps it honest.
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, readBoard, readMarathon,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, isPlayerId, readBoard, readMarathon,
+  readMarathonStanding, readStanding,
 } from '../src/server/board-store.js';
 import { NoDatabase, redisFromEnv, upstashStore } from '../src/server/upstash.js';
 import { cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
@@ -34,6 +35,12 @@ import { modeAsked } from '../src/server/mode.js';
  * `?mode=marathon` answers with both of the Test Marathon's ladders at once,
  * `{ team, solo }`: one sheet shows both behind a toggle, and two requests for
  * one tab would be two edge-cache misses for one look.
+ *
+ * `?player=<id>` asks a different question: where that one player stands on
+ * the whole board — their place however far below the fifty, out of how many,
+ * and their row — for the cover and the board to say "you are seventy-third"
+ * to somebody who has not just batted. It is about who is asking, so it is
+ * never cached anywhere, and the fifty above stay the same for everybody.
  */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
@@ -41,6 +48,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const mode = modeAsked(req.query?.mode);
     const read = redisFromEnv(true);
+    const player = req.query?.player;
+    if (player !== undefined) {
+      if (!isPlayerId(player)) return failed(res, 400, 'That is not a player.');
+      const standing = mode === 'marathon'
+        ? await readMarathonStanding({
+          team: upstashStore(read, MARATHON_TEAM_LADDER.scope), solo: upstashStore(read, MARATHON_SOLO_LADDER.scope),
+        }, player)
+        : mode === 'survive'
+          ? await readStanding(upstashStore(read, SURVIVE_LADDER.scope), SURVIVE_LADDER, player)
+          : await readStanding(upstashStore(read, CLASSIC_LADDER.scope), CLASSIC_LADDER, player);
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.status(200).json(standing);
+    }
     const board = mode === 'marathon'
       ? await readMarathon({
         team: upstashStore(read, MARATHON_TEAM_LADDER.scope), solo: upstashStore(read, MARATHON_SOLO_LADDER.scope),

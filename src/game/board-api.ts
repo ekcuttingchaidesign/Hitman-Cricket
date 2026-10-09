@@ -54,6 +54,27 @@ export interface MarathonPayload {
 /** What the sheet knows about the board it is drawing. */
 export type BoardState = 'ready' | 'loading' | 'offline';
 
+/**
+ * Where a player stands on a whole board — not the fifty, all of it — as the
+ * store counts it: the place from one, the score holding it, and how many are
+ * on it. A place of null is a player the board has never seen.
+ */
+export interface Standing {
+  rank: number | null;
+  score: number | null;
+  total: number;
+}
+
+/** Where an innings left its player, and where they stood before it (null: nowhere). */
+export interface PostStanding extends Standing {
+  was: { rank: number; score: number } | null;
+}
+
+/** A player's place, asked for without an innings, with the row that holds it. */
+export interface PlayerStanding<R = Record<string, unknown>> extends Standing {
+  row: R | null;
+}
+
 export interface SubmitResult<P = BoardPayload> {
   ok: boolean;
   /** For the Marathon, one flag a ladder: `{ team, solo }`. */
@@ -61,6 +82,11 @@ export interface SubmitResult<P = BoardPayload> {
   score?: number | { team: number; solo: number };
   /** The board as it stands with this innings on it, so nothing has to guess. */
   board?: P;
+  /**
+   * Where the player stands on the whole board now, and stood before this
+   * innings — however far below the fifty. For the Marathon, `{ team, solo }`.
+   */
+  standing?: PostStanding | { team: PostStanding; solo: PostStanding };
   /** Why it was turned down, in words the player can act on. */
   reason?: string;
   /**
@@ -168,7 +194,7 @@ async function offer(
 ): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload>> {
   const answer = await ask<{
     improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload;
-    error?: string; retry?: boolean; status?: number; key?: string; held?: string;
+    standing?: SubmitResult['standing']; error?: string; retry?: boolean; status?: number; key?: string; held?: string;
   }>(
     `${API}/api/score`,
     {
@@ -194,9 +220,36 @@ async function offer(
     };
   }
   cached[mode] = { at: Date.now(), payload: answer.board };
+  // The place held from before is now the place before this innings.
+  delete standings[mode];
   return {
-    ok: true, improved: answer.improved, score: answer.score, board: answer.board, key: answer.key,
+    ok: true, improved: answer.improved, score: answer.score, board: answer.board, standing: answer.standing,
+    key: answer.key,
   };
+}
+
+/** One held place a mode, for the reason the boards are held: two looks in a few seconds are one question. */
+const standings: Partial<Record<BoardMode, { at: number; player: string; payload: unknown }>> = {};
+
+/**
+ * Where this browser's player stands on a mode's whole board, for a screen
+ * opened without an innings just played — the cover's "you are #73". Asked of
+ * the store directly and never cached at the edge: it is about who is asking.
+ * Null with no player id yet, no answer, or no board behind the game.
+ */
+export async function fetchStanding(player: string | null, mode: 'classic' | 'survive'): Promise<PlayerStanding | null>;
+export async function fetchStanding(
+  player: string | null, mode: 'marathon',
+): Promise<{ team: PlayerStanding; solo: PlayerStanding } | null>;
+export async function fetchStanding(player: string | null, mode: BoardMode): Promise<unknown> {
+  if (!player) return null;
+  const held = standings[mode];
+  if (held && held.player === player && Date.now() - held.at < FRESH_MS) return held.payload;
+  const query = `?player=${encodeURIComponent(player)}${mode === 'classic' ? '' : `&mode=${mode}`}`;
+  const answer = await ask<{ error?: string }>(`${API}/api/board${query}`);
+  if (!answer || answer.error) return null;
+  standings[mode] = { at: Date.now(), player, payload: answer };
+  return answer;
 }
 
 /** What claiming a name on its own answers: the name as held, and the key where this claim minted it. */
@@ -241,7 +294,9 @@ export async function claimName(playerId: string, name: string, avatar: number, 
 }
 
 /** Throws away the board held from last time, so the next open asks again. */
-export function forgetBoard() { delete cached.classic; delete cached.survive; delete cached.marathon; }
+export function forgetBoard() {
+  for (const mode of ['classic', 'survive', 'marathon'] as const) { delete cached[mode]; delete standings[mode]; }
+}
 
 /**
  * One request, with a timeout and no way to throw. A rejected fetch, a timeout

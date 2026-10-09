@@ -158,6 +158,20 @@ export function upstashStore<I>(redis: Redis, scope = ''): BoardStore<I> {
       return ids.map(id => found?.[id] ?? null);
     },
 
+    async standing(id) {
+      // Three commands in one round trip: the place, the score that holds it,
+      // and how many are on the board. The ranking is never trimmed, so the
+      // place is a true one however far below the fifty it is.
+      const [rank, score, total] = await redis.pipeline()
+        .zrevrank(KEY.ranking, id).zscore(KEY.ranking, id).zcard(KEY.ranking)
+        .exec<[number | null, number | string | null, number]>();
+      return {
+        rank: rank === null || rank === undefined ? null : Number(rank) + 1,
+        score: score === null || score === undefined ? null : Number(score),
+        total: Number(total) || 0,
+      };
+    },
+
     async record(id, score, row) {
       // GT writes only when the new score is higher; CH makes the reply say
       // whether anything changed, which is the only way to know from one call.

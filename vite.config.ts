@@ -2,7 +2,8 @@ import { defineConfig, type Plugin } from 'vite';
 import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
 import {
-  CLASSIC_LADDER, SURVIVE_LADDER, claimOnly, cleanName, nameRefused, readBoard, readMarathon, refused, submitMarathon,
+  CLASSIC_LADDER, SURVIVE_LADDER, claimOnly, cleanName, isPlayerId, nameRefused, readBoard, readMarathon,
+  readMarathonStanding, readStanding, refused, submitMarathon,
   submitScore, type SubmitRefusal,
 } from './src/server/board-store';
 import { readMarathonFigures, type SoloInnings, type TeamInnings } from './src/game/marathon-board';
@@ -220,6 +221,15 @@ function boardEndpoints(): Plugin {
           }
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
+            // One player's place on the whole board, as the deployed endpoint answers it.
+            const player = query.get('player');
+            if (player !== null) {
+              if (!isPlayerId(player)) return send(400, { error: 'That is not a player.' });
+              if (mode === 'marathon') return send(200, await readMarathonStanding(marathon, player), 'private, no-store');
+              return send(200, survive
+                ? await readStanding(boards['survive:'], SURVIVE_LADDER, player)
+                : await readStanding(boards[''], CLASSIC_LADDER, player), 'private, no-store');
+            }
             if (mode === 'marathon') return send(200, await readMarathon(marathon), 'public, s-maxage=10, stale-while-revalidate=59');
             if (survive) {
               return send(200, await readBoard(boards['survive:'], SURVIVE_LADDER),

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GAME } from '../src/config/gameplay';
 import { BOARD_SIZE, LAUNCH_MS, packScore, plausible, unpackScore, type Innings } from '../src/game/leaderboard';
 import {
-  AVATARS, CLASSIC_LADDER, NAME_MAX, RATE_LIMIT, claimOnly, cleanName, foldName, readBoard, submitScore,
+  AVATARS, CLASSIC_LADDER, NAME_MAX, RATE_LIMIT, claimOnly, cleanName, foldName, readBoard, readStanding, submitScore,
   type BoardStore, type Submission,
 } from '../src/server/board-store';
 import { memoryStore } from '../src/server/memory-store';
@@ -454,5 +454,58 @@ describe('a new name once a month', () => {
     const board = await readBoard(store, CLASSIC_LADDER);
     expect(board.rows).toHaveLength(1);
     expect(board.rows[0]).toMatchObject({ playerId: ID, name: 'Sharma', runs: 140 });
+  });
+});
+
+describe('where a player stands', () => {
+  // Sixty players above, so the fifty stop well short of anybody batting today.
+  const crowd = async (store: BoardStore, n = 60) => {
+    for (let i = 0; i < n; i++) await seed(store, `crowd${String(i).padStart(2, '0')}-${'c'.repeat(12)}`, 20 + i);
+  };
+
+  it('counts a place off the bottom of the fifty, out of everybody on the board', async () => {
+    const { store } = fakeStore();
+    await crowd(store);
+    const outcome = await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(10) }), LAUNCH_MS + 60_000);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.board.rows).toHaveLength(BOARD_SIZE);
+    expect(outcome.board.rows.some(row => row.playerId === ID)).toBe(false);
+    expect(outcome.standing).toMatchObject({ rank: 61, total: 61, score: outcome.score, was: null });
+  });
+
+  it('says where the player stood before an innings that moved them', async () => {
+    const { store } = fakeStore();
+    await crowd(store);
+    await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(10) }), LAUNCH_MS + 60_000);
+    const outcome = await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(70) }), LAUNCH_MS + 120_000);
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.improved).toBe(true);
+    expect(outcome.standing.was?.rank).toBe(61);
+    // Nine of the crowd made more than seventy, 71 to 79, and the one who made
+    // seventy made it first, which is the tiebreak.
+    expect(outcome.standing.rank).toBe(11);
+  });
+
+  it('leaves the place where it was after an innings that did not beat the best', async () => {
+    const { store } = fakeStore();
+    await crowd(store);
+    const first = await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(70) }), LAUNCH_MS + 60_000);
+    const second = await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(12) }), LAUNCH_MS + 120_000);
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(second.improved).toBe(false);
+    expect(second.standing.rank).toBe(first.standing.rank);
+    expect(second.standing.was).toEqual({ rank: first.standing.rank, score: first.score });
+  });
+
+  it('answers a player who has not just batted with their place and their row', async () => {
+    const { store } = fakeStore();
+    await crowd(store);
+    await submitScore(store, CLASSIC_LADDER, submission({ innings: innings(10) }), LAUNCH_MS + 60_000);
+    const mine = await readStanding(store, CLASSIC_LADDER, ID);
+    expect(mine).toMatchObject({ rank: 61, total: 61, row: { name: 'Rohit', runs: 10 } });
+    expect(await readStanding(store, CLASSIC_LADDER, OTHER)).toEqual({ rank: null, score: null, total: 61, row: null });
   });
 });
