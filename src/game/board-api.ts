@@ -1,5 +1,6 @@
 import { inventedBoard } from './board-fixture';
 import type { BoardRow, Innings } from './leaderboard';
+import { readPlayer } from './player';
 import type { SurviveInnings, SurviveRow } from './survive-board';
 import type { MarathonFigures, SoloRow, TeamRow } from './marathon-board';
 
@@ -70,6 +71,12 @@ export interface SubmitResult<P = BoardPayload> {
    * to be recognised from the sentence.
    */
   taken?: boolean;
+  /**
+   * Which name is held, where that is not the one typed: "Rohit 2" refused
+   * because "Rohit" was claimed in the last day comes back with "Rohit", so
+   * the way back starts from the name the record is under.
+   */
+  held?: string;
   /**
    * The career key, where this claim is the one that minted it. Handed over
    * once and kept nowhere on our side but a salted hash, so the browser that
@@ -161,13 +168,15 @@ async function offer(
 ): Promise<SubmitResult<BoardPayload | SurvivePayload | MarathonPayload>> {
   const answer = await ask<{
     improved: SubmitResult['improved']; score: SubmitResult['score']; board: BoardPayload | SurvivePayload | MarathonPayload;
-    error?: string; retry?: boolean; status?: number; key?: string;
+    error?: string; retry?: boolean; status?: number; key?: string; held?: string;
   }>(
     `${API}/api/score`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerId, name, avatar, innings, mode }),
+      // The name this browser batted under before, for a claim that changes
+      // it: the key already saved for that name comes across to this one.
+      body: JSON.stringify({ playerId, name, avatar, innings, mode, previous: readPlayer()?.name }),
     },
   );
   // Nothing came back at all: a timeout, a dropped connection, or a crash with
@@ -181,12 +190,54 @@ async function offer(
       ok: false,
       reason: answer.retry ? `${answer.error} ${STILL_COUNTS}` : answer.error,
       taken: answer.status === 409,
+      held: typeof answer.held === 'string' ? answer.held : undefined,
     };
   }
   cached[mode] = { at: Date.now(), payload: answer.board };
   return {
     ok: true, improved: answer.improved, score: answer.score, board: answer.board, key: answer.key,
   };
+}
+
+/** What claiming a name on its own answers: the name as held, and the key where this claim minted it. */
+export interface NameResult {
+  ok: boolean;
+  name?: string;
+  key?: string;
+  reason?: string;
+  taken?: boolean;
+  held?: string;
+  /** No answer, or the store itself failing: nothing the player typed was wrong. */
+  offline?: boolean;
+}
+
+/**
+ * A name claimed with no innings for a board: the end card's offer to a player
+ * with no name whose innings earned no place. The same gate a board claim
+ * passes, and the same key back — see `api/name.ts`.
+ */
+export async function claimName(playerId: string, name: string, avatar: number, previous?: string): Promise<NameResult> {
+  const answer = await ask<{ name?: string; key?: string; error?: string; retry?: boolean; status?: number; held?: string }>(
+    `${API}/api/name`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // The name this browser bats under now, so the key already saved for it
+      // opens the new one too. The store checks it is this player's.
+      body: JSON.stringify({ playerId, name, avatar, previous }),
+    },
+  );
+  if (!answer) return { ok: false, reason: 'The board could not be reached. Try again in a moment.', offline: true };
+  if (answer.error) {
+    return {
+      ok: false,
+      reason: answer.error,
+      offline: answer.retry === true,
+      taken: answer.status === 409,
+      held: typeof answer.held === 'string' ? answer.held : undefined,
+    };
+  }
+  return { ok: true, name: answer.name, key: answer.key };
 }
 
 /** Throws away the board held from last time, so the next open asks again. */

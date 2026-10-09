@@ -13,7 +13,7 @@ import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
 import { playFilm, type Film, type Playing } from './Lottie';
-import type { Player } from '../game/player';
+import type { Hand, Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
   BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, flatTab, kitMarkup, peekMarkup, pickerMarkup,
@@ -51,10 +51,11 @@ import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
+import { named, profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
-import { AVATARS, kitDeal } from '../config/board';
+import { AVATARS, avatarSrc, kitColour, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
@@ -368,6 +369,7 @@ ${coverIntro(best, top)}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
+        <div id="profile-overlay" class="hidden"></div>
         <div id="key-overlay" class="hidden"></div>
         <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
@@ -792,7 +794,7 @@ ${coverIntro(best, top)}
   statsTab(view: StatsSheetView) {
     this.holdStats(view);
     this.sheet(statsSheetMarkup({
-      ...view, careerKey: this.keyView, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
+      ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'sheet', offerRestore: this.offerRestore,
     }), 'mine', 'best');
     this.wireRestoreLink();
     this.wireStatsKeys();
@@ -806,7 +808,7 @@ ${coverIntro(best, top)}
     const opening = overlay.classList.contains('hidden');
     this.holdStats(view);
     overlay.innerHTML = statsSheetMarkup({
-      ...view, careerKey: this.keyView, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
+      ...view, careerKey: this.keyView, who: this.whoNow?.() ?? null, at: this.statsAt, where: 'page', offerRestore: this.offerRestore,
     });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -847,6 +849,8 @@ ${coverIntro(best, top)}
     if (about) about.onclick = () => this.openKeySheet(true);
     const fresh = document.getElementById('key-new');
     if (fresh) fresh.onclick = () => this.onNewKey?.();
+    const edit = document.getElementById('stats-edit');
+    if (edit) edit.onclick = () => this.onProfileEdit?.();
     this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
@@ -1847,8 +1851,8 @@ ${coverIntro(best, top)}
   ) {
     this.strip(offer, known, playerId, false, {
       best: standing => `Your best score is still <b>${standing.runs}</b>`,
-      peek: place => (rows.length ? peekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
-      held: place => (rows.length ? standingPeek(rows, place) : ''),
+      peek: (place, name) => (rows.length ? peekMarkup(rows, place, yours, known?.avatar ?? null, name) : ''),
+      held: place => (rows[place - 1] ? standingPeek(rows, place) : ''),
     });
   }
 
@@ -1868,8 +1872,8 @@ ${coverIntro(best, top)}
   ) {
     this.strip(offer, known, playerId, true, {
       best: standing => `Your best still stands &mdash; <b>${surviveBest(rows, standing.place)}</b>`,
-      peek: place => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null) : ''),
-      held: place => (rows.length ? surviveStandingPeek(rows, place) : ''),
+      peek: (place, name) => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null, name) : ''),
+      held: place => (rows[place - 1] ? surviveStandingPeek(rows, place) : ''),
     });
   }
 
@@ -1903,7 +1907,7 @@ ${coverIntro(best, top)}
     surviving: boolean,
     say: {
       best(standing: { runs: number; place: number }): string;
-      peek(place: number): string;
+      peek(place: number, name?: string): string;
       held(place: number): string;
     },
   ) {
@@ -1921,7 +1925,7 @@ ${coverIntro(best, top)}
     // rather than a toggle at each of the three places the form opens and
     // closes: the footnote then cannot fall out of step with the key it is
     // under, because the same state draws both.
-    this.$('card-board').classList.toggle('is-asking', offer.kind === 'claim');
+    this.$('card-board').classList.toggle('is-asking', offer.kind === 'claim' || offer.kind === 'name');
     if (offer.kind === 'private') {
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
@@ -1944,6 +1948,25 @@ ${coverIntro(best, top)}
       this.$('card-board-head').innerHTML = `${icon('trophy')}<span>${say.best(offer)}</span>`;
       this.$('card-peek').innerHTML = say.held(offer.place);
       key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'placed') {
+      // On the board already, with nothing to press: the place, the rows
+      // either side, and the way to the board. While the store is asked the
+      // row is drawn from this innings; once it answers, from the board.
+      this.$('card-board-head').innerHTML = offer.place
+        ? `${icon('trophy')}<span>You&rsquo;re <b>${ordinal(offer.place)}</b> on the leaderboard</span>`
+        : `${icon('trophy')}<span>Your innings is on the leaderboard</span>`;
+      this.$('card-peek').innerHTML = !offer.place ? ''
+        : offer.posting ? say.peek(offer.place, known?.name) : say.held(offer.place);
+      key.textContent = 'VIEW LEADERBOARD';
+    } else if (offer.kind === 'name') {
+      // No place on a board this time, and no name yet. The name is the thing
+      // worth having anyway: it is what keeps a career on a new phone and puts
+      // it on the career boards. Asked the way a place is asked for — the same
+      // form, the same light across the key — because it is the same choice.
+      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Claim your name</span>`;
+      this.$('card-peek').innerHTML = '<p class="peek-note">Keep your runs, rank and career on any phone.</p>';
+      key.textContent = 'CLAIM YOUR NAME';
+      key.classList.add('is-offer');
     } else {
       this.$('card-board-head').innerHTML = offer.place
         ? `${icon('trophy')}<span>Congrats! You secured <b>${ordinal(offer.place)}</b> position on leaderboard</span>`
@@ -2053,7 +2076,9 @@ ${coverIntro(best, top)}
   claimSending(sending: boolean) {
     const send = this.$('claim-send') as HTMLButtonElement;
     send.disabled = sending;
-    send.textContent = sending ? 'SENDING…' : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
+    send.textContent = sending ? 'SENDING…'
+      : this.offer.kind === 'name' ? 'CLAIM MY NAME'
+      : this.onBoard ? 'UPDATE MY RANK' : 'PUT ME ON THE BOARD';
   }
 
   /**
@@ -2066,14 +2091,15 @@ ${coverIntro(best, top)}
    * way back rather than a wall — with the name they typed carried over, since
    * retyping it ten seconds later would read as the screen not listening.
    */
-  claimFailed(reason: string, taken = false) {
+  claimFailed(reason: string, taken = false, held?: string) {
     this.claimSending(false);
     this.$('claim-error').textContent = reason;
     this.$('claim-error').classList.remove('hidden');
     const back = this.$('claim-back');
     back.classList.toggle('hidden', !taken);
     back.innerHTML = taken ? restoreLinkMarkup('claim-restore', RESTORE_TAKEN) : '';
-    if (taken) this.$('claim-restore').onclick = () => this.openRestore(this.claimEntry.name);
+    // From the name that is held: for "Rohit 2" refused as a sibling, "Rohit".
+    if (taken) this.$('claim-restore').onclick = () => this.openRestore(held ?? this.claimEntry.name);
   }
 
   /**
@@ -2122,6 +2148,122 @@ ${coverIntro(best, top)}
   }
 
   get restoreOpen() { return !this.$('restore-overlay').classList.contains('hidden'); }
+
+  /**
+   * Who is batting: the gate before an innings, or the same sheet from My
+   * Stats. Held open while the store is asked, for the reason the restore sheet
+   * is: a name turned down is corrected, not started again.
+   */
+  openProfile(view: ProfileView) {
+    track(view.gate ? 'profile-gate' : 'profile-edit', view.gate ? 'Asked who is batting before an innings' : 'Details opened from My Stats');
+    this.profileView = view;
+    this.drawProfile();
+  }
+
+  profileSending(sending: boolean) {
+    if (!this.profileView) return;
+    this.profileView = { ...this.profileView, ...this.profileEntry, sending, error: sending ? null : this.profileView.error, held: null };
+    this.drawProfile();
+  }
+
+  profileFailed(reason: string, how: { held?: string | null; offline?: boolean } = {}) {
+    if (!this.profileView) return;
+    this.profileView = {
+      ...this.profileView, ...this.profileEntry, sending: false, error: reason, held: how.held ?? null,
+      offline: this.profileView.offline || !!how.offline,
+    };
+    this.drawProfile();
+  }
+
+  closeProfile() {
+    this.profileView = null;
+    this.$('profile-overlay').classList.add('hidden');
+    this.$('profile-overlay').innerHTML = '';
+    const stacked = ['board-overlay', 'stats-overlay', 'whatsnew-overlay', 'end', 'end-survive', 'modes', 'pause-overlay']
+      .some(id => !this.$(id).classList.contains('hidden'));
+    this.viewport.classList.toggle('modal-open', stacked);
+  }
+
+  get profileOpen() { return !!this.profileView; }
+
+  /** What the player is offering: the name typed, and the kit and hand picked. */
+  get profileEntry() {
+    const field = document.getElementById('profile-name') as HTMLInputElement | null;
+    const view = this.profileView;
+    return { name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand };
+  }
+
+  /** What the game does with the answer, and with "bat now" when the board is away. The store is the game's. */
+  onProfile: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
+  onProfileSkip: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
+  /** The edit key on My Stats. The game knows who the player is. */
+  onProfileEdit: (() => void) | null = null;
+
+  private profileView: ProfileView | null = null;
+
+  /** Drawn whole, like the restore sheet, with what was typed carried across. */
+  private drawProfile() {
+    const overlay = this.$('profile-overlay');
+    const view = this.profileView;
+    if (!view) return this.closeProfile();
+    overlay.innerHTML = profileMarkup(view);
+    overlay.classList.remove('hidden');
+    this.viewport.classList.add('modal-open');
+    const close = document.getElementById('profile-close');
+    if (close) close.onclick = () => this.closeProfile();
+    // The big face at the top is the avatar picked, in a glow of its colour
+    // that the whole screen takes on.
+    const screen = overlay.querySelector<HTMLElement>('.welcome');
+    const face = overlay.querySelector<HTMLElement>('.welcome-face');
+    const field = this.$('profile-name') as HTMLInputElement;
+    // The key to go wakes with the first letter typed, and sleeps again if the
+    // name is cleared.
+    const go = this.$('profile-send') as HTMLButtonElement;
+    field.oninput = () => {
+      if (this.profileView?.sending) return;
+      go.disabled = !named(field.value);
+      go.classList.toggle('is-idle', go.disabled);
+    };
+    overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
+      option.onclick = () => {
+        const kit = Number(option.dataset.kit);
+        (this.$('welcome-face') as HTMLImageElement).src = avatarSrc(kit);
+        screen?.style.setProperty('--kit', kitColour(kit));
+        face?.classList.remove('is-picked');
+        void face?.offsetWidth;
+        face?.classList.add('is-picked');
+        if (this.profileView) this.profileView = { ...this.profileView, avatar: kit };
+        overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(one => {
+          const mine = Number(one.dataset.kit) === kit;
+          one.classList.toggle('is-chosen', mine);
+          one.setAttribute('aria-checked', String(mine));
+        });
+      };
+    });
+    overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(option => {
+      option.onclick = () => {
+        const hand = option.dataset.hand === 'left' ? 'left' : 'right';
+        if (this.profileView) this.profileView = { ...this.profileView, hand };
+        overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(one => {
+          const mine = one.dataset.hand === hand;
+          one.classList.toggle('is-chosen', mine);
+          one.setAttribute('aria-checked', String(mine));
+        });
+      };
+    });
+    const restore = document.getElementById('profile-restore');
+    if (restore) restore.onclick = () => this.openRestore(view.held ?? this.profileEntry.name);
+    const skip = document.getElementById('profile-skip');
+    if (skip) skip.onclick = () => this.onProfileSkip?.(this.profileEntry);
+    (this.$('profile-form') as HTMLFormElement).onsubmit = event => {
+      event.preventDefault();
+      if (this.profileView?.sending || !named(field.value)) return;
+      this.onProfile?.(this.profileEntry);
+    };
+    // Not focused on a phone: the keyboard would come up over the card the
+    // player has not seen yet. A fine pointer has no keyboard to raise.
+    if (!view.sending && view.fresh && matchMedia('(pointer: fine)').matches) field.focus();
+  }
 
   /** What the game does with a name and a key. The store is the game's. */
   onRestore: ((entry: { name: string; key: string }) => void) | null = null;
@@ -2419,6 +2561,8 @@ ${coverIntro(best, top)}
    * stale is the one read when the question is asked.
    */
   keyNow: (() => KeyView | null) | null = null;
+  /** Who the player bats as, asked when My Stats is drawn, for the reason `keyNow` is asked. */
+  whoNow: (() => Player | null) | null = null;
 
   private get keyView(): KeyView | null { return this.keyNow?.() ?? null; }
   /** What the modal's two keys do. The game owns the saving. */
@@ -2798,6 +2942,28 @@ ${coverIntro(best, top)}
       row.append(key);
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
+   * `?welcome=1`'s keys: one a way the welcome can go, along the top of the
+   * picture and over the welcome itself, so one scenario can follow another.
+   */
+  welcomeKeys<S extends string>(keys: readonly { label: string; scenario: S }[], pick: (scenario: S) => void) {
+    const row = document.createElement('div');
+    row.className = 'welcome-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview the welcome');
+    for (const { label, scenario } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'welcome-preview-key'; key.dataset.scenario = scenario; key.textContent = label;
+      key.addEventListener('click', () => {
+        row.querySelectorAll('.welcome-preview-key').forEach(one => one.classList.toggle('is-on', one === key));
+        pick(scenario);
+      });
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.classList.add('has-welcome-keys');
     this.viewport.append(row);
   }
   /**

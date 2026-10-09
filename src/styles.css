@@ -4864,6 +4864,38 @@ body.private-window{overflow:hidden}
   text-transform:uppercase;
   color:#9fb2bd
 }
+/* Who the card is: the kit, the name, and the key to change either. */
+.stats-who{display:flex;align-items:center;gap:10px;margin:8px 2px 10px}
+.stats-who .board-kit{width:34px;height:34px;flex:none}
+.stats-who-name{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:var(--card);
+  font-size:17px;
+  font-weight:800;
+  color:#fff
+}
+.stats-who-edit{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex:none;
+  min-height:34px;
+  padding:0 12px;
+  border:1px solid #ffffff3d;
+  border-radius:999px;
+  background:#0f2738;
+  font-family:var(--card);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.6px;
+  color:#f4f8fa
+}
+.stats-who-edit:hover{background:#1b3d54}
+.stats-who-edit svg{width:15px;height:15px}
 /* The way out sits above the picture rather than on it. On it, the × lands in
    whatever the card's top-right corner happens to be — here that is the mark —
    and a close key you have to hunt for on a screen whose whole job is to be
@@ -5573,7 +5605,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .whatsnew-bar.is-held>i{animation:none;transform:none}
 /* The sheets the key opens stand over the story it was opened from. */
 .whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,
-.whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal{z-index:13}
+.whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal,
+.whatsnew-overlay:not(.hidden)~#profile-overlay>.welcome{z-index:13}
 .whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
 .whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
 
@@ -6807,3 +6840,296 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .pw-frame+.pw-frame{display:none}
   .pw-burst,.pw-burst.is-flame,.pw-burst.is-bolt,.pw-burst.is-puff,.pw-burst.is-star{animation:none;transform:none}
 }
+
+/* ── Who's batting: the welcome before the first innings ─────────────────
+   The game's front door rather than a form stood in front of it, read top to
+   bottom in the order it is answered: the face, the name, the hand, and the
+   cover's own key to go. Everything measures #app, so the desktop column lays
+   it out as a phone that wide does. */
+.welcome{
+  --kit:#f55b11;
+  position:absolute;
+  inset:0;
+  z-index:12;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad);
+  background:#07141e;
+  color:#f7f0e5;
+  font-family:var(--card);
+  animation:welcome-in .45s ease-out both
+}
+/* Night, lit softly: two wide pools of floodlight from beyond the top
+   corners, a glow in the colour of the avatar picked behind the face, and
+   nothing with an edge. Each is a gradient that fades to nothing well before
+   it meets another, so they blend rather than overlap. */
+.welcome-sky{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(58% 30% at 50% 30%,color-mix(in srgb,var(--kit) 34%,transparent) 0%,color-mix(in srgb,var(--kit) 10%,transparent) 55%,transparent 100%),
+    radial-gradient(75% 42% at -10% -6%,#3d6f9452 0%,#3d6f9414 50%,transparent 100%),
+    radial-gradient(75% 42% at 110% -6%,#3d6f9452 0%,#3d6f9414 50%,transparent 100%),
+    linear-gradient(180deg,#0f2a3e 0%,#0a1c2a 45%,#06111a 100%);
+  transition:background .5s
+}
+.welcome-back{
+  position:absolute;
+  top:var(--pad-top);
+  left:var(--pad);
+  z-index:2;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  min-height:36px;
+  padding:0 13px 0 8px;
+  border:1px solid #ffffff2e;
+  border-radius:999px;
+  background:#ffffff0f;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.6px;
+  color:#fff
+}
+.welcome-back svg{width:16px;height:16px}
+.welcome-body{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  width:100%;
+  max-width:420px;
+  margin:auto 0;
+  padding:clamp(4px,1.5cqh,16px) 0 0
+}
+.welcome.is-edit .welcome-body{padding-top:44px}
+.welcome-title{
+  align-self:center;
+  width:min(46%,220px);
+  height:auto;
+  margin:0 0 clamp(8px,2cqh,18px);
+  filter:drop-shadow(0 6px 14px #0007)
+}
+.welcome-eyebrow{
+  align-self:center;
+  margin:0 0 8px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:3px;
+  color:#ff9a6c
+}
+.welcome-heading{
+  margin:0 0 clamp(14px,3cqh,26px);
+  font-family:var(--cta);
+  font-size:clamp(25px,8cqw,34px);
+  font-weight:400;
+  line-height:1.05;
+  letter-spacing:.5px;
+  text-align:center
+}
+.welcome-step{margin:0 0 clamp(16px,3cqh,24px)}
+/* The face: the avatar picked, large, in a ring of its own colour, with the
+   five to choose from in a row under it. */
+.welcome-avatar{display:flex;flex-direction:column;align-items:center}
+.welcome-face{
+  width:clamp(96px,30cqw,124px);
+  aspect-ratio:1;
+  margin:0 0 clamp(12px,2.4cqh,18px);
+  padding:4px;
+  border-radius:50%;
+  background:linear-gradient(160deg,#fff,var(--kit) 55%);
+  box-shadow:0 0 0 5px #ffffff0d,0 12px 40px color-mix(in srgb,var(--kit) 55%,transparent);
+  transition:box-shadow .4s
+}
+.welcome-face img{
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  background:var(--kit);
+  object-fit:cover
+}
+.welcome-face.is-picked{animation:welcome-pop .4s cubic-bezier(.3,1.6,.5,1)}
+.welcome-kits{width:100%}
+/* The picker's own label is still read out, but the face says it already. */
+.welcome-kits .claim-label{
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip-path:inset(50%);
+  white-space:nowrap
+}
+.welcome-kits .kit-picker{display:flex;justify-content:center;gap:clamp(8px,3cqw,14px)}
+.welcome-kits .kit-option{
+  width:clamp(44px,13cqw,54px);
+  padding:2px;
+  border:2px solid transparent;
+  border-radius:50%;
+  background:none;
+  opacity:.55;
+  transition:opacity .2s,border-color .2s,transform .2s
+}
+.welcome-kits .kit-option:hover{opacity:.85}
+.welcome-kits .kit-option.is-chosen{opacity:1;border-color:#fff;transform:translateY(-2px)}
+.welcome-label{
+  display:block;
+  margin:0 0 8px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:1.8px;
+  text-transform:uppercase;
+  color:#8fa6b4
+}
+.welcome-field{display:block}
+.welcome-field input{
+  box-sizing:border-box;
+  width:100%;
+  min-height:52px;
+  padding:0 16px;
+  border:1.5px solid #ffffff1f;
+  border-radius:14px;
+  background:#ffffff0d;
+  font:700 18px var(--card);
+  color:#fff;
+  transition:border-color .2s,background .2s
+}
+.welcome-field input::placeholder{color:#ffffff4d;font-weight:500;font-size:15px}
+.welcome-field input:focus{outline:none;border-color:#ffffff73;background:#ffffff14}
+.welcome-hands{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.welcome-hand-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:50px;
+  border:1.5px solid #ffffff1f;
+  border-radius:14px;
+  background:#ffffff0d;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:1.2px;
+  color:#ffffffa6;
+  transition:border-color .2s,background .2s,color .2s
+}
+.welcome-bat{width:20px;height:20px;flex:none}
+.welcome-hand-key.is-left .welcome-bat{transform:scaleX(-1)}
+.welcome-hand-key.is-chosen{border-color:#fff;background:#ffffff1f;color:#fff}
+.welcome-error{
+  margin:-6px 0 12px;
+  padding:10px 12px;
+  border:1px solid #e5473a66;
+  border-radius:12px;
+  background:#e5473a1f;
+  font-size:13px;
+  font-weight:600;
+  line-height:1.4;
+  color:#ffd6d1
+}
+.welcome-back-link{margin:-4px 0 14px;text-align:center}
+.welcome-foot{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4px}
+/* The cover's own key: white, stood on an orange base. */
+.welcome-go{
+  width:100%;
+  min-height:58px;
+  border:3px solid var(--cta-orange);
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 7px 0 var(--cta-orange),0 14px 26px #0008;
+  font-family:var(--cta);
+  font-size:21px;
+  font-weight:400;
+  letter-spacing:2.4px;
+  color:var(--cta-ink)
+}
+.welcome-go:active:not(:disabled){transform:translateY(6px);box-shadow:0 1px 0 var(--cta-orange),0 4px 8px #0006}
+.welcome-go:disabled{opacity:.7}
+/* Asleep until there is a name: the key's shape, with none of its colour, so
+   it reads as the thing to press once the name is in. */
+.welcome-go.is-idle{
+  opacity:1;
+  border-color:#ffffff1f;
+  background:#ffffff14;
+  box-shadow:0 7px 0 #ffffff0d;
+  color:#ffffff59;
+  cursor:not-allowed
+}
+.welcome-skip{
+  padding:4px;
+  border:0;
+  background:none;
+  font:600 13px var(--card);
+  color:#fff;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+.welcome-fine{margin:4px 0 0;font-size:11.5px;line-height:1.5;text-align:center;color:#8fa6b4}
+/* `?welcome=1`: a key a scenario along the top, over the welcome itself, and
+   the welcome stood down below it. */
+.welcome-preview{
+  position:absolute;
+  top:calc(6px + env(safe-area-inset-top,0px));
+  left:50%;
+  transform:translateX(-50%);
+  z-index:14;
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:4px;
+  width:min(100% - 16px,460px);
+  padding:5px;
+  border-radius:14px;
+  background:#071219e6
+}
+.welcome-preview-key{
+  min-width:0;
+  height:32px;
+  padding:0;
+  border:1px solid #ffffff2e;
+  border-radius:9px;
+  background:#152b3c;
+  color:#f4efe2;
+  font:700 10px/1 var(--card,system-ui);
+  letter-spacing:.3px;
+  white-space:nowrap;
+  cursor:pointer
+}
+.welcome-preview-key.is-on{background:#e9582b;border-color:#e9582b}
+.has-welcome-keys .welcome{padding-top:calc(var(--pad-top) + 46px)}
+.has-welcome-keys .welcome-back{top:calc(var(--pad-top) + 46px)}
+/* A short column gives the title's room to the form. */
+@container app (max-height:700px){
+  .welcome-title,.welcome-eyebrow{display:none}
+  .welcome-face{width:clamp(80px,24cqw,100px)}
+}
+@keyframes welcome-in{from{opacity:0}to{opacity:1}}
+@keyframes welcome-pop{0%{transform:scale(.88)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){
+  .welcome,.welcome-face.is-picked{animation:none}
+}
+
+/* The welcome's quiet keys — the way back to a record, and batting on when
+   the board cannot be reached — are small outlined pills in their own colour
+   rather than lines of underlined text. */
+.welcome .restore-link,.welcome-skip{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:fit-content;
+  max-width:100%;
+  min-height:34px;
+  margin-left:auto;
+  margin-right:auto;
+  padding:0 16px;
+  border:1px solid color-mix(in srgb,currentColor 30%,transparent);
+  border-radius:999px;
+  background:color-mix(in srgb,currentColor 7%,transparent);
+  text-decoration:none;
+  text-align:center;
+  line-height:1.2
+}
+.welcome .restore-link:hover,.welcome-skip:hover{background:color-mix(in srgb,currentColor 14%,transparent)}

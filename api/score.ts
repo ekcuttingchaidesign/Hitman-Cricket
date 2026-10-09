@@ -4,7 +4,7 @@ import {
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
 import { foldName } from '../src/server/board-store.js';
-import { keyOnClaim } from '../src/server/recovery-store.js';
+import { carryKey, keyOnClaim } from '../src/server/recovery-store.js';
 import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
@@ -63,7 +63,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         CLASSIC_LADDER,
         { ...who, innings: figures(body.innings) } satisfies Submission<Innings>,
       );
-    if (refused(outcome)) return failed(res, outcome.status, outcome.reason);
+    if (refused(outcome)) {
+      // A name refused as somebody else's says which name is held, so the
+      // restore screen it offers starts from that one rather than from the copy.
+      if (!outcome.held) return failed(res, outcome.status, outcome.reason);
+      return res.status(outcome.status).json({ error: outcome.reason, retry: false, status: outcome.status, held: outcome.held });
+    }
     // The name is now this player's, so the career they have already been
     // building under no name at all goes onto the career boards — rather than
     // waiting for the next innings to carry the name across, which is precisely
@@ -96,7 +101,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     // and by the key screen after that.
     let key: string | null = null;
     try {
-      key = await keyOnClaim(upstashRecovery(redisFromEnv()), foldName(cleanName(who.name)));
+      // A name changed on the way in keeps the key the player already has.
+      const recovery = upstashRecovery(redisFromEnv());
+      const folded = foldName(cleanName(who.name));
+      await carryKey(recovery, { from: body.previous, to: folded, playerId: who.playerId });
+      key = await keyOnClaim(recovery, folded);
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }

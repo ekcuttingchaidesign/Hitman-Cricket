@@ -171,8 +171,9 @@ describe('what could have happened', () => {
     no(hurt({ out: true, retired: true }), 'out and retired');
   });
 
-  it('refuses two left-handers, or none of the right shape', () => {
-    no(innings('ALL_OUT', batter(40, 60, 'out', true), batter(30, 50, 'out', true), batter(9, 20)), 'two left-handers');
+  it('takes two left-handers, a left-handed player\'s side, and refuses three, or none of the right shape', () => {
+    ok(innings('ALL_OUT', batter(40, 60, 'out', true), batter(30, 50, 'out', true), batter(9, 20)));
+    no(innings('ALL_OUT', batter(40, 60, 'out', true), batter(30, 50, 'out', true), batter(9, 20, 'out', true)), 'three left-handers');
     no({ ...allOut(), batters: [] }, 'no batters');
     no(innings('ALL_OUT', batter(1, 1), batter(1, 1), batter(1, 1), batter(1, 1)), 'four batters');
   });

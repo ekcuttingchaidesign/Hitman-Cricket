@@ -474,7 +474,21 @@ export type CardOffer =
   /** A private window: the innings was worth a place and cannot be given one. */
   | { kind: 'private' }
   /** Played with a switch in the link that changes the game: see `practice.ts`. */
-  | { kind: 'practice' };
+  | { kind: 'practice' }
+  /**
+   * Nothing on a board for this innings, and no name to the player's career
+   * yet: claiming one is offered anyway, because the name is what keeps a
+   * career — on a new phone, on the career boards — and a place in a full top
+   * fifty was the only way to be asked, which most players never earn.
+   */
+  | { kind: 'name' }
+  /**
+   * Put on the board by itself: the player has a name, so a place earned is a
+   * place taken, with nothing to press. `posting` while the store is asked —
+   * the place is the one worked out against the board on screen, and the one
+   * the store answers with replaces it.
+   */
+  | { kind: 'placed'; place: number | null; posting: boolean };
 
 export function cardOffer(
   reached: boolean, rows: readonly BoardRow[], yours: Innings, atMs: number, youId: string | null = null,

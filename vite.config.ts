@@ -2,7 +2,8 @@ import { defineConfig, type Plugin } from 'vite';
 import { memoryChallenges, memoryStore } from './src/server/memory-store';
 import type { SurviveInnings } from './src/game/survive-board';
 import {
-  CLASSIC_LADDER, SURVIVE_LADDER, cleanName, readBoard, readMarathon, refused, submitMarathon, submitScore,
+  CLASSIC_LADDER, SURVIVE_LADDER, claimOnly, cleanName, nameRefused, readBoard, readMarathon, refused, submitMarathon,
+  submitScore, type SubmitRefusal,
 } from './src/server/board-store';
 import { readMarathonFigures, type SoloInnings, type TeamInnings } from './src/game/marathon-board';
 import { FEEDBACK_KEPT, feedbackCsv, refusedFeedback, takeFeedback } from './src/server/feedback-store';
@@ -15,7 +16,7 @@ import {
 import { memoryCareer } from './src/server/memory-career';
 import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
-import { firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
+import { carryKey, firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
 import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
   type BlastCareer, type MarathonCareer, type SurviveCareer,
@@ -75,8 +76,13 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore', '/api/challenge'];
+          '/api/restore', '/api/challenge', '/api/name'];
         if (!known.includes(path)) return next();
+        // A refusal as the deployed endpoints write one, carrying the name
+        // that is held when it is not the one typed.
+        const turnedDown = (outcome: SubmitRefusal) => send(outcome.status, outcome.held
+          ? { error: outcome.reason, retry: false, status: outcome.status, held: outcome.held }
+          : { error: outcome.reason });
         const send = (status: number, body: unknown, cache = 'no-store') => {
           res.statusCode = status;
           res.setHeader('Content-Type', 'application/json');
@@ -191,6 +197,27 @@ function boardEndpoints(): Plugin {
               ? send(brought.status, { error: brought.reason })
               : send(200, { playerId: brought.playerId });
           }
+          if (path === '/api/name') {
+            // A name on its own, as `api/name.ts` claims one: the gate a board
+            // claim passes, then the careers under it and the key, once.
+            if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
+            const asked = JSON.parse(await read(req)) as Record<string, unknown>;
+            const who = {
+              playerId: String(asked.playerId ?? ''), name: String(asked.name ?? ''), avatar: Number(asked.avatar), address: 'dev',
+            };
+            const claimed = await claimOnly(boards[''], who);
+            if (nameRefused(claimed)) return turnedDown(claimed);
+            const name = (claimed as { ok: true; name: string }).name;
+            await Promise.all([
+              ...[boards[''], boards['survive:'], marathon.team, marathon.solo].map(board => board.rename(who.playerId, name)),
+              nameCareer(careers.classic, BLAST_CAREER, who.playerId, name, who.avatar),
+              nameCareer(careers.survive, SURVIVE_CAREER, who.playerId, name, who.avatar),
+              nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, name, who.avatar),
+            ]);
+            await carryKey(recovery, { from: asked.previous, to: foldName(name), playerId: who.playerId });
+            const key = await keyOnClaim(recovery, foldName(name));
+            return send(200, key ? { ok: true, name, key } : { ok: true, name });
+          }
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
             if (mode === 'marathon') return send(200, await readMarathon(marathon), 'public, s-maxage=10, stale-while-revalidate=59');
@@ -217,8 +244,9 @@ function boardEndpoints(): Plugin {
             // Both Marathon rows from one innings, and the career it has been
             // building onto the boards under the name, as the deployed one does.
             const taken = await submitMarathon(marathon, { ...who, innings: readMarathonFigures(body.innings) });
-            if (refused(taken)) return send(taken.status, { error: taken.reason });
+            if (refused(taken)) return turnedDown(taken);
             await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
+            await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
             return send(200, key ? { ...taken, key } : taken);
           }
@@ -226,7 +254,7 @@ function boardEndpoints(): Plugin {
           const outcome = asked
             ? await submitScore(boards['survive:'], SURVIVE_LADDER, { ...who, innings: surviveFigures(body.innings) })
             : await submitScore(boards[''], CLASSIC_LADDER, { ...who, innings: figures(body.innings) });
-          if (refused(outcome)) return send(outcome.status, { error: outcome.reason });
+          if (refused(outcome)) return turnedDown(outcome);
           // The same stamp the deployed endpoint makes: a name just claimed
           // puts the career already counted under it onto the career boards,
           // rather than waiting for an innings the player has not played yet.
@@ -235,6 +263,7 @@ function boardEndpoints(): Plugin {
             : nameCareer(careers.classic, BLAST_CAREER, who.playerId, cleanName(who.name), who.avatar));
           // And the key, minted the first time this name is claimed and handed
           // over once, exactly as the deployed endpoint does it.
+          await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
           const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
           return send(200, key ? { ...outcome, key } : outcome);
         } catch (error) {

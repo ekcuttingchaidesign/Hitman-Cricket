@@ -5,7 +5,7 @@ import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
-import { MarathonInnings, leftHanderOf, marathonFigures, type Change } from './game/Marathon';
+import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
 import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
@@ -35,10 +35,10 @@ import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nea
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, Hurt } from './entities/Batter';
 import {
-  fetchBoard, fetchMarathonBoard, fetchSurviveBoard, submitInnings, submitMarathon, submitSurvive,
+  claimName, fetchBoard, fetchMarathonBoard, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon, submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload,
 } from './game/board-api';
-import { readPlayer, writePlayer } from './game/player';
+import { markProfileDone, profileDone, readHand, readPlayer, writeHand, writePlayer, type Hand } from './game/player';
 import {
   offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
 } from './game/restore-offer';
@@ -90,6 +90,8 @@ import {
 } from './game/challenge-api';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
+import { nameProblem, renameReason, siblingReason } from './server/name-rules';
+import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings } from './game/ball-string';
 import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
@@ -413,6 +415,16 @@ export class Game {
    */
   private readonly rateKeys = new URLSearchParams(location.search).get('rate') === '1';
   /**
+   * `?welcome=1`: a row of keys, one a way the welcome before the first
+   * innings can go — a new player, one coming back, the edit from My Stats,
+   * and the four answers the store can turn a name down with. The real screen
+   * and the real rules for a name, with the store's answer stood in for:
+   * nothing is sent and nothing is kept, so each can be tried again and again.
+   */
+  private readonly welcomeKeys = new URLSearchParams(location.search).get('welcome') === '1';
+  /** The way `?welcome=1` has the welcome up, or null when it is the real one. */
+  private welcomeScenario: WelcomeScenario | null = null;
+  /**
    * `?nets=1`, in a Marathon: every bowler round the wicket from the first
    * ball, and a row of keys to change him — the seamer, the swing bowler, the
    * spinner, the express bowler — with one more to go back over the wicket
@@ -488,6 +500,7 @@ export class Game {
     // The stars' keys first, so the moments' keys come after them in the page
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
+    if (this.welcomeKeys) this.hud.welcomeKeys(WELCOME_KEYS, scenario => this.previewWelcome(scenario));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
     if (this.actionKeys) this.hud.actionKeys(ACTION_KEYS, kind => this.askAction(kind));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
@@ -611,7 +624,11 @@ export class Game {
     this.hud.onRestore = entry => void this.sendRestore(entry);
     this.hud.onRestoreOpen = from => this.openRestore(from);
     this.hud.keyNow = () => this.careerKeyHeld();
+    this.hud.whoNow = () => readPlayer();
     this.hud.onNewKey = () => void this.makeNewKey();
+    this.hud.onProfile = entry => void this.saveProfile(entry);
+    this.hud.onProfileSkip = entry => this.skipProfile(entry);
+    this.hud.onProfileEdit = () => this.askProfile(false);
     this.hud.onRestoreShown = () => {
       restoreOfferShown();
       trackOnce('restore-offered-card', 'Offered the way back at the end of an innings');
@@ -701,6 +718,8 @@ export class Game {
       // Leaves him one blow from the floor, so the fall can be looked at without
       // waiting for an innings that retires hurt to come round on its own.
       hurt: () => { this.health.value = 1; this.showConfidence(); },
+      // The innings ended where it stands, for looking at the card it ends on.
+      finish: () => { if (!['START', 'INNINGS_END'].includes(this.phase)) this.end(); },
       // A moment on demand, for `milestone-check.mjs`: getting to a real
       // hundred in a headless browser is thirty balls of perfect timing.
       milestone: (kind: Milestone = 'century', mark?: number) => this.celebrate({ kind, mark: mark ?? MARK_OF[kind] }),
@@ -848,6 +867,9 @@ export class Game {
     this.becomeRestored(answer.playerId, entry.name);
     this.hud.closeRestore();
     this.hud.restoreDone(entry.name);
+    // Brought back from the details sheet: it is drawn again under the name
+    // that came back, for the player to carry on with.
+    if (this.hud.profileOpen) this.askProfile(this.afterProfile !== null);
   }
 
   /**
@@ -1044,6 +1066,153 @@ export class Game {
   }
 
   /**
+   * Who is batting, asked before the first innings — of a new player and an
+   * old one alike, the old one's filled in — and from My Stats whenever they
+   * want to change it.
+   *
+   * Not asked of the scripted browser the checks drive (`?debug=1`), which
+   * would otherwise have to answer it in every one of them; `?profile=1` asks
+   * it there too, for the check that walks it. Nor of the attract mode, which
+   * nobody is playing.
+   */
+  private get profileDue() {
+    if (profileDone() || this.demoing) return false;
+    return !this.debug || new URLSearchParams(location.search).get('profile') === '1';
+  }
+  /** What the gate is holding up: the innings it was put in front of. */
+  private afterProfile: (() => void) | null = null;
+  private askProfile(gate: boolean) {
+    this.welcomeScenario = null;
+    const mine = readPlayer();
+    const deal = kitDeal(this.player);
+    this.hud.openProfile({
+      name: mine?.name ?? '', avatar: mine?.avatar ?? deal.opening, hand: readHand(), order: deal.order,
+      gate, fresh: !mine,
+    });
+  }
+
+  /**
+   * The answer. The name goes to the store whether or not it changed: a name
+   * typed into a Rivals sheet lives only in this browser, and this is where it
+   * is claimed. The store holds a new name to the rules and to once a month,
+   * and a name the player already holds to nothing, so saying the same name
+   * again costs nothing — and brings the key, where they have none.
+   */
+  private async saveProfile(entry: { name: string; avatar: number; hand: Hand }) {
+    const mine = readPlayer();
+    const name = cleanName(entry.name), folded = foldName(name);
+    if (!folded) return this.hud.profileFailed('Your name, up to 14 letters or numbers.');
+    const changed = !mine || foldName(mine.name) !== folded;
+    if (changed) {
+      const problem = nameProblem(name, folded);
+      if (problem) return this.hud.profileFailed(problem);
+    }
+    if (this.welcomeScenario) return this.answerPreview(this.welcomeScenario, name, changed);
+    writeHand(entry.hand);
+    // A private window can keep nothing, so the name stays in it and goes nowhere.
+    if (!this.canRegister || !this.player) {
+      writePlayer({ name, avatar: entry.avatar });
+      return this.profileSaved(false);
+    }
+    this.hud.profileSending(true);
+    const result = await claimName(this.player, name, entry.avatar, mine?.name);
+    if (this.disposed) return;
+    if (!result.ok) {
+      this.mark(result.taken ? 'profile-name-taken' : result.offline ? 'profile-offline' : 'profile-refused',
+        result.taken ? 'Name already held' : result.offline ? 'Board unreachable from the form' : 'Name turned down');
+      return this.hud.profileFailed(result.reason ?? 'That did not go through.', {
+        held: result.taken ? (result.held ?? name) : null, offline: result.offline,
+      });
+    }
+    this.mark(changed ? 'profile-named' : 'profile-confirmed', changed ? 'Name claimed or changed' : 'Details confirmed');
+    writePlayer({ name: result.name ?? name, avatar: entry.avatar });
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    this.profileSaved(changed);
+  }
+
+  /**
+   * The board could not be reached, and the player bats anyway: a gate that
+   * held somebody at the crease for an outage would be the game's fault, not
+   * theirs. What they typed is kept here and the form asks again next time.
+   */
+  private skipProfile(entry: { name: string; avatar: number; hand: Hand }) {
+    if (this.welcomeScenario) return this.hud.closeProfile();
+    this.mark('profile-skipped', 'Batted without the board');
+    writeHand(entry.hand);
+    if (!readPlayer() && cleanName(entry.name)) writePlayer({ name: cleanName(entry.name), avatar: entry.avatar });
+    this.hud.closeProfile();
+    this.continueAfterProfile();
+  }
+
+  /**
+   * The welcome as `?welcome=1` puts it up: the screen a player in that spot
+   * would see, filled in the way theirs would be.
+   */
+  private previewWelcome(scenario: WelcomeScenario) {
+    const mine = readPlayer(), deal = kitDeal(this.player);
+    const known = mine?.name ?? 'Virat18';
+    const names: Record<WelcomeScenario, string> = {
+      new: '', offline: '', back: known, edit: known, month: known, taken: 'Rohit', sibling: 'Rohit 2',
+    };
+    this.afterProfile = null;
+    this.hud.openProfile({
+      name: names[scenario], avatar: mine?.avatar ?? deal.opening, hand: readHand(), order: deal.order,
+      gate: scenario !== 'edit' && scenario !== 'month',
+      fresh: scenario === 'new' || scenario === 'taken' || scenario === 'sibling' || scenario === 'offline',
+    });
+    this.welcomeScenario = scenario;
+  }
+
+  /**
+   * What the store would have said, said after the moment it takes to ask it.
+   * The words are the store's own: the same functions write them.
+   */
+  private answerPreview(scenario: WelcomeScenario, name: string, changed: boolean) {
+    this.hud.profileSending(true);
+    window.setTimeout(() => {
+      if (this.disposed || this.welcomeScenario !== scenario) return;
+      if (scenario === 'taken') return this.hud.profileFailed('Somebody already bats under that name.', { held: name });
+      if (scenario === 'sibling') {
+        const held = name.replace(/\s*\d+$/, '') || name;
+        return this.hud.profileFailed(siblingReason(held), { held });
+      }
+      // The month holds back only a new name: the one already held is never refused.
+      if (scenario === 'month' && changed) return this.hud.profileFailed(renameReason(Date.now() - 12 * 24 * 60 * 60 * 1000));
+      if (scenario === 'offline') {
+        return this.hud.profileFailed('The board could not be reached. Try again in a moment.', { offline: true });
+      }
+      this.hud.closeProfile();
+    }, 600);
+  }
+
+  private profileSaved(changed: boolean) {
+    markProfileDone();
+    // Everything drawn under the old name is dropped, so the next look draws it under the new.
+    if (changed) {
+      forgetCareer();
+      forgetBoard();
+      this.careerBoards = {};
+      this.myCareer = {};
+      this.boardSeen = false;
+      this.surviveSeen = false;
+      this.boardEpoch++;
+      this.surviveEpoch++;
+    }
+    this.hud.closeProfile();
+    this.redrawKeyPlacements();
+    this.continueAfterProfile();
+  }
+
+  private continueAfterProfile() {
+    const then = this.afterProfile;
+    this.afterProfile = null;
+    then?.();
+  }
+
+  /**
    * This browser is that player now.
    *
    * The id is the whole of who somebody is here, so adopting it is the entire
@@ -1116,6 +1285,11 @@ export class Game {
    */
   private walkOut = () => this.start();
   start = () => {
+    // Who is batting, first: once, before the first innings there is.
+    if (this.profileDue) {
+      this.afterProfile = () => this.start();
+      return this.askProfile(true);
+    }
     // A restart is an innings walked out on, and reads as nothing else: it is
     // the only way here that is not the cover, the tutorial, or the card.
     if (!['START', 'INNINGS_END'].includes(this.phase) && this.lesson < 0) this.mark('innings-restart', 'Innings restarted');
@@ -1147,7 +1321,7 @@ export class Game {
     // `?settled=1` walks every batter out settled with a full meter, for trying
     // the special strokes without batting six overs to earn each one.
     this.marathon = this.marathoning
-      ? new MarathonInnings(leftHanderOf(this.seed, location.search), new URLSearchParams(location.search).get('settled') === '1')
+      ? new MarathonInnings(leftHandersOf(this.seed, location.search, readHand()), new URLSearchParams(location.search).get('settled') === '1')
       : null;
     if (this.marathon) this.health = this.marathon.current.health;
     this.generator = new DeliveryGenerator(this.rng, this.plan);
@@ -1204,7 +1378,8 @@ export class Game {
     this.hud.marathonIntro(how => {
       this.mark(how === 'skipped' ? 'shots-intro-skipped' : 'shots-intro-done', how === 'skipped' ? 'How to hit skipped' : 'How to hit put away');
       this.bannerUntil = this.elapsed;
-    }, steps);
+    // Drawn the way round the player bats: a left-hander's swipes are mirrored, so are the arrows.
+    }, steps, this.scene.mirrored);
   }
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
@@ -1256,7 +1431,12 @@ export class Game {
    * a private window. An innings with nothing to offer stays quiet either way.
    */
   private shownOffer(offer: CardOffer): CardOffer {
-    if (offer.kind === 'silent') return offer;
+    // An innings with nothing for the boards still offers a name to a player
+    // who has none — not from a private window, which cannot keep one, nor
+    // practice, nor a Rival Match, whose card is the match's.
+    if (offer.kind === 'silent') {
+      return !readPlayer() && this.canRegister && !this.practising && !this.challenge.playing ? { kind: 'name' } : offer;
+    }
     if (this.practising) return { kind: 'practice' };
     return this.canRegister ? offer : { kind: 'private' };
   }
@@ -2520,7 +2700,9 @@ export class Game {
    */
   private hand() {
     const man = this.marathon?.current ?? null;
-    const left = !!man?.left;
+    // The Marathon's three are each their own; the one batter of the Blast and
+    // the Test match bats the way the player said they do.
+    const left = man ? man.left : readHand() === 'left';
     this.scene.leftHanded(left);
     this.hud.sides(left);
     this.hud.walkingOut(man?.batter.title ?? null);
@@ -2673,7 +2855,7 @@ export class Game {
     // An innings that had nothing to offer stays quiet in a private window too:
     // the strip is there to say what is being missed, and a two-run innings was
     // missing nothing.
-    this.hud.offerClaim(this.shownOffer(offer), readPlayer(), this.board, played, this.player);
+    this.hud.offerClaim(this.postedOffer(offer), readPlayer(), this.board, played, this.player);
   }
 
   /** The same, asked of both Marathon ladders and answered on the Marathon's card. */
@@ -2681,14 +2863,14 @@ export class Game {
     const played = marathonFigures(this.marathon!);
     const rows = this.marathonShown ?? { team: [], solo: [] };
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
-    this.hud.offerMarathonClaim(this.shownOffer(offer), readPlayer(), rows.team, this.player);
+    this.hud.offerMarathonClaim(this.postedOffer(offer), readPlayer(), rows.team, this.player);
   }
 
   /** The same, asked of the Test ladder and answered on the Test card. */
   private offerSurvive() {
     const played = this.survived();
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
-    this.hud.offerSurviveClaim(this.shownOffer(offer), readPlayer(), this.surviveRows, played, this.player);
+    this.hud.offerSurviveClaim(this.postedOffer(offer), readPlayer(), this.surviveRows, played, this.player);
   }
 
   /**
@@ -2703,7 +2885,7 @@ export class Game {
    */
   private startClaim = () => {
     // A private window has no place to claim, and nor does practice, so the key is the board's.
-    if (this.hud.offerKind === 'standing' || this.hud.offerKind === 'private' || this.hud.offerKind === 'practice') return this.showBoard();
+    if (['standing', 'private', 'practice', 'placed'].includes(this.hud.offerKind)) return this.showBoard();
     this.mark('claim-open', 'Claim form opened');
     this.hud.openClaim();
   };
@@ -2717,7 +2899,20 @@ export class Game {
     const entry = this.hud.claimEntry.name ? this.hud.claimEntry : readPlayer();
     if (!this.canRegister || this.practising) return this.showBoard();
     if (!entry || !this.player) return this.hud.openClaim();
+    // A new name is held to the rules here as well as on the board, so a name
+    // that cannot be claimed says why at once rather than after a round trip.
+    // The name this browser already bats under is the board's to judge: it was
+    // claimed under whatever the rules were then, and goes on working.
+    const typed = cleanName(entry.name), mine = readPlayer();
+    if (!mine || foldName(mine.name) !== foldName(typed)) {
+      const problem = nameProblem(typed, foldName(typed));
+      if (problem) {
+        this.mark('claim-name-refused', 'Name failed the rules');
+        return this.hud.claimFailed(problem);
+      }
+    }
     this.hud.claimSending(true);
+    if (this.hud.offerKind === 'name') return this.sendName(entry.name, entry.avatar);
     // Each mode offers its own innings to its own ladder. The store keeps the
     // two under separate keys, so the mode travels with the figures rather than
     // being inferred from their shape at the far end.
@@ -2730,7 +2925,7 @@ export class Game {
     if (!result.ok) {
       this.mark(result.taken ? 'claim-name-taken' : 'claim-failed',
         result.taken ? 'Name already held' : 'Claim rejected');
-      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true);
+      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true, result.held);
     }
     this.mark('claim-done', 'Innings put on the board');
     writePlayer({ name: entry.name.trim(), avatar: entry.avatar });
@@ -2795,6 +2990,133 @@ export class Game {
     this.boardActions = true;
     this.offerFirstKey();
     this.hud.board({ rows: this.board, youId: this.player, state: 'ready', actions: true });
+  }
+
+  /**
+   * A name on its own, for a player whose innings earned no place on a board.
+   * Nothing goes on a board, so none is opened: the card stays where it is,
+   * the strip goes, and the key comes up over it — the name is what the key
+   * opens, and this is the moment there is one.
+   */
+  private async sendName(name: string, avatar: number) {
+    const result = await claimName(this.player!, name, avatar);
+    if (this.disposed) return;
+    if (!result.ok) {
+      this.mark(result.taken ? 'claim-name-taken' : 'claim-failed',
+        result.taken ? 'Name already held' : 'Name claim rejected');
+      return this.hud.claimFailed(result.reason ?? 'That did not go through.', result.taken === true, result.held);
+    }
+    this.mark('name-claimed', 'Name claimed without a board place');
+    writePlayer({ name: result.name ?? name.trim(), avatar });
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    // Every career counted so far is on the career boards under the name now,
+    // so the copies held from before it — the card's among them — are stale.
+    this.careerBoards = {};
+    this.myCareer = {};
+    forgetCareer();
+    this.hud.claimDone();
+    // The card's one slot: it was offering a way back to a player with no
+    // name, and holds the key to the name they have now.
+    this.hud.offerRestorePanel = this.offerRestoreOnCard();
+    this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });
+    this.offerFirstKey();
+  }
+
+  /**
+   * The innings put on the board by itself, for a player with a name: the
+   * name was asked for before the first ball and said it goes on the boards,
+   * so a place earned is a place taken, with nothing left to press. Not from
+   * a private window, nor practice, nor a Rival Match, whose card is the
+   * match's — those keep the offers they always had.
+   */
+  private get autoPosting() {
+    return !!readPlayer() && !!this.player && this.canRegister && !this.practising && !this.challenge.playing && !this.demoing;
+  }
+  /** Which innings has been posted, or is being, and where it landed. */
+  private posted: { innings: number; place: number | null; posting: boolean } | null = null;
+  /** The innings whose post failed: its card goes back to asking, by hand. */
+  private postFailed = 0;
+
+  /**
+   * The offer as the card shows it: a place earned is posted and said as
+   * taken; everything else is `shownOffer`'s.
+   */
+  private postedOffer(offer: CardOffer): CardOffer {
+    if (!this.autoPosting || this.postFailed === this.innings) return this.shownOffer(offer);
+    if (this.posted?.innings === this.innings) return { kind: 'placed', place: this.posted.place, posting: this.posted.posting };
+    if (offer.kind === 'claim') {
+      void this.autoPost(offer.place);
+      return { kind: 'placed', place: offer.place, posting: true };
+    }
+    return this.shownOffer(offer);
+  }
+
+  /**
+   * Once an innings, whatever redraws the card meanwhile. What the store
+   * answers with is the board with the player on it, and the place is read off
+   * that rather than the one guessed from the board on screen.
+   */
+  private async autoPost(guess: number | null) {
+    const mine = readPlayer(), innings = this.innings;
+    if (!mine || !this.player) return;
+    this.posted = { innings, place: guess, posting: true };
+    const result = this.marathoning && this.marathon
+      ? await submitMarathon(this.player, mine.name, mine.avatar, marathonFigures(this.marathon))
+      : this.surviving
+      ? await submitSurvive(this.player, mine.name, mine.avatar, this.survived())
+      : await submitInnings(this.player, mine.name, mine.avatar, asInnings(this.score));
+    if (this.disposed || this.innings !== innings) return;
+    if (!result.ok) {
+      // Back to asking, by hand: the key and the form say what went wrong.
+      this.mark('auto-post-failed', 'Innings could not be posted by itself');
+      this.posted = null;
+      this.postFailed = innings;
+      return this.reoffer();
+    }
+    this.mark('auto-posted', 'Innings put on the board by itself');
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    let rows: readonly { playerId: string }[] = [];
+    if (this.marathoning) {
+      if (result.board) this.marathonRows = result.board as MarathonPayload;
+      const team = this.marathonShown?.team ?? [];
+      rows = team.some(row => row.playerId === this.player) ? team : this.marathonShown?.solo ?? [];
+    } else if (this.surviving) {
+      if (result.board) {
+        this.surviveEpoch++;
+        this.surviveSeen = true;
+        this.surviveRows = (result.board as SurvivePayload).rows;
+      }
+      rows = this.surviveRows;
+    } else {
+      if (result.board) {
+        this.boardEpoch++;
+        this.boardSeen = true;
+        this.board = (result.board as BoardPayload).rows;
+      }
+      rows = this.board;
+    }
+    // The career boards carry the name now, so the copies from before are stale.
+    delete this.careerBoards[this.careerMode];
+    delete this.myCareer[this.careerMode];
+    forgetCareer();
+    const at = rows.findIndex(row => row.playerId === this.player);
+    this.posted = { innings, place: at >= 0 ? at + 1 : guess, posting: false };
+    this.reoffer();
+    this.redrawKeyPlacements();
+  }
+
+  /** The strip drawn again for the innings on the card, from what is held now. */
+  private reoffer() {
+    if (this.phase !== 'INNINGS_END') return;
+    if (this.marathoning) this.offerMarathon();
+    else if (this.surviving) this.offerSurvive();
+    else this.offerBoard();
   }
 
   /**
@@ -3623,7 +3945,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      marathon: this.marathon ? this.marathonState() : null };
+      mirrored: this.scene.mirrored, marathon: this.marathon ? this.marathonState() : null };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
   private marathonState() {
@@ -3652,6 +3974,14 @@ export class Game {
 const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
   { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+];
+/** A way `?welcome=1` puts the welcome up. */
+type WelcomeScenario = 'new' | 'back' | 'edit' | 'taken' | 'sibling' | 'month' | 'offline';
+/** `?welcome=1`'s keys: the three ways in, then the store's four refusals. */
+const WELCOME_KEYS: readonly { label: string; scenario: WelcomeScenario }[] = [
+  { label: 'NEW', scenario: 'new' }, { label: 'BACK', scenario: 'back' }, { label: 'EDIT', scenario: 'edit' },
+  { label: 'TAKEN', scenario: 'taken' }, { label: 'SIBLING', scenario: 'sibling' }, { label: 'MONTH', scenario: 'month' },
+  { label: 'OFFLINE', scenario: 'offline' },
 ];
 /** `?actions=1`'s keys. */
 /** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */

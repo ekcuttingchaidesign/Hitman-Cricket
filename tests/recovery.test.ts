@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { foldKey, keepKey, keyMatches, keyShaped, mintKey } from '../src/server/career-key';
 import { memoryRecovery } from '../src/server/memory-recovery';
 import {
-  RESTORE_TRIES_AT, RESTORE_TRIES_FROM, firstKey, keyOnClaim, newKey, refusedRecovery, restore,
+  RESTORE_TRIES_AT, RESTORE_TRIES_FROM, carryKey, firstKey, keyOnClaim, newKey, refusedRecovery, restore,
 } from '../src/server/recovery-store';
 import { KEY_WORDS } from '../src/game/key-words';
 import { keyShareText, keyWhatsappLink } from '../src/game/Share';
@@ -316,5 +316,41 @@ describe('the key a name never had', () => {
     expect(refusedRecovery(await firstKey(store, { name: 'Rohit', playerId: '' })) ).toBe(true);
     expect(refusedRecovery(await firstKey(store, { name: '', playerId: 'p-rohit' })) ).toBe(true);
     expect(refusedRecovery(await firstKey(store, { name: 'Rohit', playerId: 42 })) ).toBe(true);
+  });
+});
+
+describe('the key a changed name keeps', () => {
+  const asking = { address: 'here' };
+
+  it('opens the new name with the key already saved, and mints none', async () => {
+    const store = held([['rohit', 'p-rohit'], ['sharma', 'p-rohit']]);
+    const key = await keyOnClaim(store, 'rohit');
+    await carryKey(store, { from: 'Rohit', to: 'sharma', playerId: 'p-rohit' });
+    expect(await keyOnClaim(store, 'sharma')).toBeNull();
+    expect(await restore(store, { name: 'Sharma', key: key!, ...asking })).toEqual({ ok: true, playerId: 'p-rohit' });
+    // And the old name, which is still theirs, goes on opening the same career.
+    expect(await restore(store, { name: 'Rohit', key: key!, ...asking })).toEqual({ ok: true, playerId: 'p-rohit' });
+  });
+
+  it('takes nobody else\'s key across', async () => {
+    const store = held([['rohit', 'p-rohit'], ['sharma', 'p-sharma']]);
+    await keyOnClaim(store, 'rohit');
+    await carryKey(store, { from: 'Rohit', to: 'sharma', playerId: 'p-sharma' });
+    expect(await store.keyFor('sharma')).toBeNull();
+  });
+
+  it('never puts one over a key the new name already has', async () => {
+    const store = held([['rohit', 'p-rohit'], ['sharma', 'p-rohit']]);
+    await keyOnClaim(store, 'rohit');
+    const own = await keyOnClaim(store, 'sharma');
+    await carryKey(store, { from: 'Rohit', to: 'sharma', playerId: 'p-rohit' });
+    expect((await restore(store, { name: 'Sharma', key: own!, ...asking })).ok).toBe(true);
+  });
+
+  it('does nothing with no old name, or an old name with no key', async () => {
+    const store = held([['rohit', 'p-rohit'], ['sharma', 'p-rohit']]);
+    await carryKey(store, { from: undefined, to: 'sharma', playerId: 'p-rohit' });
+    await carryKey(store, { from: 'Rohit', to: 'sharma', playerId: 'p-rohit' });
+    expect(await store.keyFor('sharma')).toBeNull();
   });
 });

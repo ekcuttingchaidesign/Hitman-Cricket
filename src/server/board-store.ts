@@ -7,6 +7,9 @@ import {
   type MarathonFigures, type SoloInnings, type TeamInnings,
 } from '../game/marathon-board.js';
 import { MARATHON } from '../config/marathon.js';
+import {
+  nameProblem, renameReason, RENAME_WINDOW_MS, siblingBase, siblingReason, SIBLING_WINDOW_MS,
+} from './name-rules.js';
 
 /**
  * What the board is, on the store's side of the wire.
@@ -129,6 +132,28 @@ export interface BoardStore<I = Innings> {
    * both read "free" and both write.
    */
   claimName(folded: string, id: string): Promise<string>;
+  /** Who holds this folded name, or null when nobody does. */
+  nameOwner(folded: string): Promise<string | null>;
+  /**
+   * The sibling claimed most recently under this base, inside the last day, or
+   * null: see `name-rules.ts`. Kept for the day and then forgotten by itself.
+   */
+  recentSibling(base: string): Promise<{ id: string; name: string } | null>;
+  /** Notes a name newly claimed under this base, for `windowSeconds`. */
+  markSibling(base: string, id: string, name: string, windowSeconds: number): Promise<void>;
+  /**
+   * The last new name this player took, and when, or null for a player who
+   * has taken none since this was kept: see `RENAME_WINDOW_MS`.
+   */
+  lastNamed(id: string): Promise<{ name: string; at: number } | null>;
+  /** Notes a new name taken by this player. */
+  markNamed(id: string, name: string, at: number): Promise<void>;
+  /**
+   * Puts a new name on the row this player holds, where they hold one, and
+   * leaves the figures and the ranking alone. Nothing is written for a player
+   * with no row.
+   */
+  rename(id: string, name: string): Promise<void>;
   /** How many submissions this address has made inside the window, counting this one. */
   hits(address: string, windowSeconds: number): Promise<number>;
 }
@@ -183,6 +208,8 @@ export interface SubmitRefusal {
   ok: false;
   status: number;
   reason: string;
+  /** For a name refused as somebody else's: the name that is held, so restoring starts from it. */
+  held?: string;
 }
 
 /**
@@ -229,7 +256,7 @@ export interface Submission<I = Innings> {
 export async function submitScore<I>(
   store: BoardStore<I>, ladder: Ladder<I>, input: Submission<I>, now = Date.now(),
 ): Promise<SubmitOutcome<I>> {
-  const admitted = await admit(store, ladder.plausible, input);
+  const admitted = await admit(store, ladder.plausible, input, now);
   if (turnedAway(admitted)) return admitted;
   const score = ladder.pack(input.innings, now);
   const improved = await store.record(input.playerId, score, {
@@ -251,8 +278,11 @@ interface Admitted { ok: true; name: string }
  * the compiler Vercel builds `api/` with does not narrow on the flag.
  */
 function turnedAway(admitted: Admitted | SubmitRefusal): admitted is SubmitRefusal { return !admitted.ok; }
+/** What of a board the gate for a name needs. */
+type NameGate = Pick<BoardStore<unknown>,
+  'hits' | 'claimName' | 'nameOwner' | 'recentSibling' | 'markSibling' | 'lastNamed' | 'markNamed'>;
 async function admit<I>(
-  store: Pick<BoardStore<unknown>, 'hits' | 'claimName'>, plausibleInnings: (innings: I) => boolean, input: Submission<I>,
+  store: NameGate, plausibleInnings: (innings: I) => boolean, input: Submission<I>, now: number,
 ): Promise<Admitted | SubmitRefusal> {
   if (await store.hits(input.address, RATE_WINDOW_SECONDS) > RATE_LIMIT) {
     return { ok: false, status: 429, reason: 'Too many innings from here. Try again in an hour.' };
@@ -272,10 +302,67 @@ async function admit<I>(
   // or not the innings improves, so a player keeps their name across a bad day.
   // A name once held is never released either: letting one go free would let the
   // next person pick up somebody else's reputation.
-  if (await store.claimName(foldName(name), input.playerId) !== input.playerId) {
-    return { ok: false, status: 409, reason: 'Somebody already bats under that name.' };
+  const folded = foldName(name);
+  const owner = await store.nameOwner(folded);
+  if (owner && owner !== input.playerId) {
+    return { ok: false, status: 409, reason: 'Somebody already bats under that name.', held: name };
+  }
+  // A name this player already holds is theirs whatever the rules have become
+  // since. Only a name being claimed for the first time is held to them, and to
+  // the day a sibling of it waits: "Rohit 2" ten minutes after somebody else's
+  // "Rohit" is the same person standing on the board twice, or the same person
+  // who has lost their phone — and either way the answer is their key.
+  const fresh = !owner;
+  if (fresh) {
+    const problem = nameProblem(name, folded);
+    if (problem) return { ok: false, status: 400, reason: problem };
+    // A new name once a month. A player's first is never held back — the store
+    // has no record of one — and nor is going back to a name already theirs,
+    // which is not fresh and never reaches here.
+    const last = await store.lastNamed(input.playerId);
+    if (last && now - last.at < RENAME_WINDOW_MS) return { ok: false, status: 429, reason: renameReason(last.at) };
+    const recent = await store.recentSibling(siblingBase(folded));
+    if (recent && recent.id !== input.playerId) {
+      return { ok: false, status: 409, reason: siblingReason(recent.name), held: recent.name };
+    }
+  }
+  if (await store.claimName(folded, input.playerId) !== input.playerId) {
+    return { ok: false, status: 409, reason: 'Somebody already bats under that name.', held: name };
+  }
+  if (fresh) {
+    await Promise.all([
+      store.markSibling(siblingBase(folded), input.playerId, name, SIBLING_WINDOW_MS / 1000),
+      store.markNamed(input.playerId, name, now),
+    ]);
   }
   return { ok: true, name };
+}
+
+/** A name asked for on its own, with no innings to put on a board. */
+export interface NameClaim {
+  playerId: string;
+  name: string;
+  avatar: number;
+  /** Whoever the edge says is asking. Used to rate limit, never as identity. */
+  address: string;
+}
+
+/**
+ * A name claimed without an innings: the end card's "Claim your name", for a
+ * player whose innings earned no place. The same gate a board claim passes —
+ * the rate limit, the player, the kit, the rules for a new name, the day a
+ * sibling waits, one name to one player — with nothing written but the name.
+ * Answers with the name as it will be kept.
+ */
+export async function claimOnly(
+  store: NameGate, input: NameClaim, now = Date.now(),
+): Promise<{ ok: true; name: string } | SubmitRefusal> {
+  return admit(store, () => true, { ...input, innings: null }, now);
+}
+
+/** Whether a name claim was turned down — a predicate, for the reason `refused` is one. */
+export function nameRefused(outcome: { ok: true; name: string } | SubmitRefusal): outcome is SubmitRefusal {
+  return !outcome.ok;
 }
 
 /** The two Marathon boards, as one answer. */
@@ -315,7 +402,7 @@ export async function submitMarathon(
   stores: { team: BoardStore<TeamInnings>; solo: BoardStore<SoloInnings> },
   input: Submission<MarathonFigures>, now = Date.now(),
 ): Promise<MarathonOutcome> {
-  const admitted = await admit(stores.team, marathonPlausible, input);
+  const admitted = await admit(stores.team, marathonPlausible, input, now);
   if (turnedAway(admitted)) return admitted;
   const owner = { name: (admitted as Admitted).name, avatar: input.avatar, at: now };
   const team = teamOf(input.innings), solo = soloOf(input.innings);

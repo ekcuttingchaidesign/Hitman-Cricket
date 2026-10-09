@@ -1,6 +1,6 @@
 import { keyCardMarkup, type KeyView } from './CareerKey';
 import { restoreLinkMarkup } from './Restore';
-import { escape } from './Leaderboard';
+import { escape, kitMarkup } from './Leaderboard';
 import { statsAlt, statsExplain, statsHitBoxes, type StatsFacts } from '../game/StatsCard';
 import { recordMarkup, type RivalsRecord } from './Record';
 
@@ -87,6 +87,23 @@ export interface StatsSheetView {
    * that are about to change.
    */
   rivals?: RivalsRecord | null;
+  /**
+   * Who these figures are, at the head of the card, with the way to change it.
+   * Absent for a player with no name, who has nothing yet to change.
+   */
+  who?: { name: string; avatar: number } | null;
+}
+
+const PENCIL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="1.8"/></svg>`;
+
+/** The player's kit and name, and the key that opens the details sheet. */
+function whoMarkup(who: { name: string; avatar: number }): string {
+  return `
+      <div class="stats-who">
+        ${kitMarkup(who.avatar, who.name)}
+        <span class="stats-who-name">${escape(who.name)}</span>
+        <button id="stats-edit" class="stats-who-edit" type="button" aria-label="Edit your name, kit and batting hand">${PENCIL}<span>EDIT</span></button>
+      </div>`;
 }
 
 export function statsSheetMarkup(view: StatsSheetView): string {
@@ -97,7 +114,7 @@ export function statsSheetMarkup(view: StatsSheetView): string {
       <div class="stats-head">
         <button id="stats-back" class="stats-back" type="button">${backMark()}<span>Back</span></button>
         <p class="stats-head-title">Career stats</p>
-      </div>` : ''}
+      </div>` : ''}${view.who ? whoMarkup(view.who) : ''}
 ${many ? dotsMarkup(cards, at) : ''}
       <div id="stats-rail" class="stats-stage${many ? ' is-rail' : ''}"${
   many ? ' role="group" aria-label="Your cards, one a game"' : ''}>${

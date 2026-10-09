@@ -182,6 +182,58 @@ in the unit tests; a new mode goes in `NEW_MODES` and gets its follow-ups in
 renderer too slow to bat — it says nothing about when, which is the point of
 the check, so it is not a substitute for the full run.
 
+`scripts/name-check.mjs` is "Claim your name": a player with no name is asked
+for one after any finished innings, not only one that earned a place, and the
+name is claimed on its own through `/api/name` — nothing goes on a board, the
+key comes back. It bats a Test innings of no runs, holds the form to the rules
+for a new name (`nameProblem` in `src/server/name-rules.ts`, checked in the
+browser before a round trip and again on the server), claims a made-up name,
+and then from a second browser tries the same name with a number on it and is
+pointed back at the one that is held: a name and its siblings — the same but
+for a number on the end — are one person's for a day after the first is
+claimed. Names already held are never put to the new rules again. Then it
+edits the details from the head of My Stats: a player takes a new name once
+every 30 days (`RENAME_WINDOW_MS`, kept per player in `${SCOPE}named`), going
+back to a name they already hold is free and never released to anybody else,
+the key they saved comes across to the new name (`carryKey`) rather than a
+second one being minted, and the kit and batting hand change at once. Then
+the gate before the first innings, for a new player and for one who already
+has a name.
+
+## Who's batting: the gate before the first innings
+
+Before the first innings in a browser — a new player's or an old one's — the
+game asks for a name, a kit and the hand they bat with (`src/ui/Profile.ts`,
+`saveProfile` in `src/Game.ts`), with no way past but answering. An old
+player's are filled in and carry on in one tap. The name is claimed through
+`/api/name` either way, which is also what claims a name typed into a Rivals
+sheet, which until then lived only in the browser. It is asked once
+(`hitman-profile`); after that the same sheet opens from the edit key at the
+head of My Stats. If the board cannot be reached the gate opens anyway — a
+player is never held at the crease for an outage — and asks again next time. A
+private window keeps the name in the browser and sends nothing.
+
+The hand (`hitman-hand`) is the batter in the Blast and Test Survival; in the
+Test Marathon one of the three bats the other way round from the player
+(`leftHandersOf`), so a left-hander's side has two left-handers, and the board
+takes up to two.
+
+A player with a name has nothing to press at the end of an innings: a place
+earned is posted by itself (`autoPost` in `src/Game.ts`, once an innings) and
+the card says where it landed, with the board one tap away. Only a player with no name, a private
+window, practice and a Rival Match keep the old offers — and a post that fails
+falls back to the register key, so nothing is lost to an outage.
+
+`scripts/post-check.mjs` walks that in about a minute: a Test Marathon
+written ball by ball and bowled out, for a named left-handed player — posted
+once, by itself, with two left-handers in the side and the store taking it,
+the card saying where it landed — and for a player with no name, for whom
+nothing is sent and the card still asks.
+
+**`?debug=1` skips the gate**, because every browser check drives that link and
+each would otherwise have to answer it. `?profile=1` asks it there anyway, and
+`name-check.mjs` is the check that does.
+
 `scripts/board-check.mjs` needs a live database and is the one path the others
 cannot reach. It walks all three boards, the Marathon's two ladders from one
 post among them, and the Marathon's career runs ladder. Point it at a preview deployment, never at production.
@@ -290,3 +342,17 @@ It is the real sticker and the real follow-up, and nothing is sent or
 remembered: the stars go nowhere, the follow-up's last screen says so, and
 asking again is one tap. It changes nothing about the batting, so it is not
 practice (`tests/practice.test.ts` names it). `rating-check` walks it.
+
+## `?welcome=1`
+
+A row of keys along the top of the picture — NEW, BACK, EDIT, TAKEN, SIBLING,
+MONTH, OFFLINE — each putting the welcome before the first innings up the way
+a player in that spot would see it: a new player, one coming back with their
+name filled in, the edit from My Stats, and the four answers the store can turn
+a name down with (somebody else's name, a sibling claimed in the last day, a
+second new name inside the month, and no board at all, which opens the gate).
+The rules for a name are the real ones; the store's answer is stood in for
+(`answerPreview` in `src/Game.ts`, in the store's own words), so nothing is
+sent and nothing is kept, and each can be tried again with one tap. It changes
+nothing about the batting, so it is not practice (`tests/practice.test.ts`
+names it).

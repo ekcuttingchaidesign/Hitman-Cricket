@@ -5,7 +5,7 @@ import { STYLES as SURVIVE_STYLES, SURVIVE } from '../src/config/survive';
 import { shownKph } from '../src/game/speed-gun';
 import { ballPosition, drawnAt } from '../src/game/DeliveryTrajectory';
 import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, NETS_BOWLERS, SPIN_STYLES, SURVIVE_PLAN, drawBlock, marathonFastWear, marathonOnly, roundEvery } from '../src/game/DeliveryGenerator';
-import { MarathonInnings, leftHanderOf } from '../src/game/Marathon';
+import { MarathonInnings, leftHanderOf, leftHandersOf } from '../src/game/Marathon';
 import { mapKeys, mapSwipe, mirrorKey } from '../src/game/InputManager';
 import { SeededRandom } from '../src/game/SeededRandom';
 import { surviveBall } from '../src/game/Survive';
@@ -503,8 +503,20 @@ describe('the left-hander', () => {
     expect(leftHanderOf(5, '?lefty=two')).toBe(null);
   });
 
+  it('is the one the other way round from the player: one left-hander for a right-hander, two for a left-hander', () => {
+    const odd = leftHanderOf(77)!;
+    expect(leftHandersOf(77, '', 'right')).toEqual([odd]);
+    const left = leftHandersOf(77, '', 'left');
+    expect(left).toHaveLength(2);
+    expect(left).not.toContain(odd);
+    expect(leftHandersOf(77, '?lefty=2', 'left')).toEqual([0, 2]);
+    // Nobody left-handed means nothing to a left-hander's side: it still has its one right-hander.
+    expect(leftHandersOf(77, '?lefty=0', 'right')).toEqual([]);
+    expect(leftHandersOf(77, '?lefty=0', 'left')).toHaveLength(2);
+  });
+
   it('walks out at his place in the order, and only there', () => {
-    const innings = new MarathonInnings(1);
+    const innings = new MarathonInnings([1]);
     expect(innings.current.left).toBe(false);
     innings.record(out);
     expect(innings.current.left).toBe(true);
@@ -608,7 +620,7 @@ describe('settling in, and the confidence that comes of it', () => {
   });
 
   it('?settled=1 walks every batter out settled and full, for trying the special strokes', () => {
-    const innings = new MarathonInnings(null, true);
+    const innings = new MarathonInnings([], true);
     expect(innings.confident).toBe(true);
     innings.record(out);
     expect(innings.confident).toBe(true);
