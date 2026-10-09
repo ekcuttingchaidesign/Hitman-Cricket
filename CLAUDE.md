@@ -319,3 +319,17 @@ It is the real sticker and the real follow-up, and nothing is sent or
 remembered: the stars go nowhere, the follow-up's last screen says so, and
 asking again is one tap. It changes nothing about the batting, so it is not
 practice (`tests/practice.test.ts` names it). `rating-check` walks it.
+
+## `?welcome=1`
+
+A row of keys along the top of the picture — NEW, BACK, EDIT, TAKEN, SIBLING,
+MONTH, OFFLINE — each putting the welcome before the first innings up the way
+a player in that spot would see it: a new player, one coming back with their
+name filled in, the edit from My Stats, and the four answers the store can turn
+a name down with (somebody else's name, a sibling claimed in the last day, a
+second new name inside the month, and no board at all, which opens the gate).
+The rules for a name are the real ones; the store's answer is stood in for
+(`answerPreview` in `src/Game.ts`, in the store's own words), so nothing is
+sent and nothing is kept, and each can be tried again with one tap. It changes
+nothing about the batting, so it is not practice (`tests/practice.test.ts`
+names it).

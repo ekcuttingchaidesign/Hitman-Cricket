@@ -53,6 +53,7 @@ describe('every switch the game reads', () => {
     pullpen: 'the colour of the pull\'s flash',
     perf: 'the frame-rate readout, measuring and sending nothing',
     profile: 'asks who is batting under ?debug=1, for the check that walks it; the batting is unchanged',
+    welcome: 'the welcome in each way it can go, on demand, sending and keeping nothing',
   };
 
   it('is either practice or named as not practice', () => {

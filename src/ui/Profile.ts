@@ -39,8 +39,7 @@ export interface ProfileView {
   offline?: boolean;
 }
 
-/** The cover's own plate and title, so the welcome is the game's front door and not a form over it. */
-const PLATE = new URL('../assets/cover-drive.webp', import.meta.url).href;
+/** The cover's own title, so the welcome is the game's front door and not a form over it. */
 const TITLE = new URL('../assets/title.webp', import.meta.url).href;
 
 /** A bat, blade down and to the right: a right-hander's. A left-hander's is the same, mirrored. */
@@ -66,7 +65,7 @@ export function profileMarkup(view: ProfileView): string {
   return `
     <section class="welcome ${gate ? 'is-gate' : 'is-edit'}" role="dialog" aria-modal="true" aria-labelledby="profile-title"
       style="--kit:${kitColour(avatar)}">
-      <div class="welcome-plate" aria-hidden="true"><img src="${PLATE}" alt="" decoding="async"></div>
+      <div class="welcome-sky" aria-hidden="true"><i class="welcome-beam is-left"></i><i class="welcome-beam is-right"></i></div>
       ${gate ? '' : `<button id="profile-close" class="welcome-back" type="button" aria-label="Back to My Stats">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span></button>`}
       <img class="welcome-title" src="${TITLE}" alt="Hitman Cricket" decoding="async">

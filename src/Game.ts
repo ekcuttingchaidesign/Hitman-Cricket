@@ -89,7 +89,7 @@ import {
 } from './game/challenge-api';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
-import { nameProblem } from './server/name-rules';
+import { nameProblem, renameReason, siblingReason } from './server/name-rules';
 import { cleanName, foldName } from './server/board-store';
 import { kitDeal } from './config/board';
 import { encodeInnings } from './game/ball-string';
@@ -414,6 +414,16 @@ export class Game {
    */
   private readonly rateKeys = new URLSearchParams(location.search).get('rate') === '1';
   /**
+   * `?welcome=1`: a row of keys, one a way the welcome before the first
+   * innings can go — a new player, one coming back, the edit from My Stats,
+   * and the four answers the store can turn a name down with. The real screen
+   * and the real rules for a name, with the store's answer stood in for:
+   * nothing is sent and nothing is kept, so each can be tried again and again.
+   */
+  private readonly welcomeKeys = new URLSearchParams(location.search).get('welcome') === '1';
+  /** The way `?welcome=1` has the welcome up, or null when it is the real one. */
+  private welcomeScenario: WelcomeScenario | null = null;
+  /**
    * `?nets=1`, in a Marathon: every bowler round the wicket from the first
    * ball, and a row of keys to change him — the seamer, the swing bowler, the
    * spinner, the express bowler — with one more to go back over the wicket
@@ -489,6 +499,7 @@ export class Game {
     // The stars' keys first, so the moments' keys come after them in the page
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
+    if (this.welcomeKeys) this.hud.welcomeKeys(WELCOME_KEYS, scenario => this.previewWelcome(scenario));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
     if (this.actionKeys) this.hud.actionKeys(ACTION_KEYS, kind => this.askAction(kind));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
@@ -1068,6 +1079,7 @@ export class Game {
   /** What the gate is holding up: the innings it was put in front of. */
   private afterProfile: (() => void) | null = null;
   private askProfile(gate: boolean) {
+    this.welcomeScenario = null;
     const mine = readPlayer();
     const deal = kitDeal(this.player);
     this.hud.openProfile({
@@ -1092,6 +1104,7 @@ export class Game {
       const problem = nameProblem(name, folded);
       if (problem) return this.hud.profileFailed(problem);
     }
+    if (this.welcomeScenario) return this.answerPreview(this.welcomeScenario, name, changed);
     writeHand(entry.hand);
     // A private window can keep nothing, so the name stays in it and goes nowhere.
     if (!this.canRegister || !this.player) {
@@ -1123,11 +1136,53 @@ export class Game {
    * theirs. What they typed is kept here and the form asks again next time.
    */
   private skipProfile(entry: { name: string; avatar: number; hand: Hand }) {
+    if (this.welcomeScenario) return this.hud.closeProfile();
     this.mark('profile-skipped', 'Batted without the board');
     writeHand(entry.hand);
     if (!readPlayer() && cleanName(entry.name)) writePlayer({ name: cleanName(entry.name), avatar: entry.avatar });
     this.hud.closeProfile();
     this.continueAfterProfile();
+  }
+
+  /**
+   * The welcome as `?welcome=1` puts it up: the screen a player in that spot
+   * would see, filled in the way theirs would be.
+   */
+  private previewWelcome(scenario: WelcomeScenario) {
+    const mine = readPlayer(), deal = kitDeal(this.player);
+    const known = mine?.name ?? 'Virat18';
+    const names: Record<WelcomeScenario, string> = {
+      new: '', offline: '', back: known, edit: known, month: known, taken: 'Rohit', sibling: 'Rohit 2',
+    };
+    this.afterProfile = null;
+    this.hud.openProfile({
+      name: names[scenario], avatar: mine?.avatar ?? deal.opening, hand: readHand(), order: deal.order,
+      gate: scenario !== 'edit' && scenario !== 'month',
+      fresh: scenario === 'new' || scenario === 'taken' || scenario === 'sibling' || scenario === 'offline',
+    });
+    this.welcomeScenario = scenario;
+  }
+
+  /**
+   * What the store would have said, said after the moment it takes to ask it.
+   * The words are the store's own: the same functions write them.
+   */
+  private answerPreview(scenario: WelcomeScenario, name: string, changed: boolean) {
+    this.hud.profileSending(true);
+    window.setTimeout(() => {
+      if (this.disposed || this.welcomeScenario !== scenario) return;
+      if (scenario === 'taken') return this.hud.profileFailed('Somebody already bats under that name.', { held: name });
+      if (scenario === 'sibling') {
+        const held = name.replace(/\s*\d+$/, '') || name;
+        return this.hud.profileFailed(siblingReason(held), { held });
+      }
+      // The month holds back only a new name: the one already held is never refused.
+      if (scenario === 'month' && changed) return this.hud.profileFailed(renameReason(Date.now() - 12 * 24 * 60 * 60 * 1000));
+      if (scenario === 'offline') {
+        return this.hud.profileFailed('The board could not be reached. Try again in a moment.', { offline: true });
+      }
+      this.hud.closeProfile();
+    }, 600);
   }
 
   private profileSaved(changed: boolean) {
@@ -3802,6 +3857,14 @@ export class Game {
 const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
   { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+];
+/** A way `?welcome=1` puts the welcome up. */
+type WelcomeScenario = 'new' | 'back' | 'edit' | 'taken' | 'sibling' | 'month' | 'offline';
+/** `?welcome=1`'s keys: the three ways in, then the store's four refusals. */
+const WELCOME_KEYS: readonly { label: string; scenario: WelcomeScenario }[] = [
+  { label: 'NEW', scenario: 'new' }, { label: 'BACK', scenario: 'back' }, { label: 'EDIT', scenario: 'edit' },
+  { label: 'TAKEN', scenario: 'taken' }, { label: 'SIBLING', scenario: 'sibling' }, { label: 'MONTH', scenario: 'month' },
+  { label: 'OFFLINE', scenario: 'offline' },
 ];
 /** `?actions=1`'s keys. */
 /** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */

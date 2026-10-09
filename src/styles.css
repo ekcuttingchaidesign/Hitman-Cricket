@@ -6821,33 +6821,44 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-family:var(--card);
   animation:welcome-in .45s ease-out both
 }
-.welcome-plate{
-  position:absolute;
-  inset:0 0 auto;
-  height:58cqh;
-  overflow:hidden;
-  pointer-events:none
-}
-.welcome-plate img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  object-position:50% 18%;
-  transform-origin:60% 30%;
-  animation:welcome-drift 18s ease-in-out infinite alternate
-}
-/* Into the night under the floodlights: the ground fades into the panel the
-   form stands on, and a glow in the player's own kit colour sits behind the
-   card, so the whole screen takes on the colour they pick. */
-.welcome-plate::after{
-  content:'';
+/* Night under the floodlights, drawn rather than photographed: two beams
+   thrown down across the screen from lights beyond its top corners, and a glow in
+   the colour of the avatar picked rising behind the card, so the whole screen
+   takes on the colour the player chooses. */
+.welcome-sky{
   position:absolute;
   inset:0;
+  overflow:hidden;
+  pointer-events:none;
   background:
-    radial-gradient(70% 40% at 50% 100%,color-mix(in srgb,var(--kit) 34%,transparent),transparent 70%),
-    linear-gradient(180deg,#07141e33 0%,#07141e00 22%,#07141eb8 62%,#07141e 100%);
+    radial-gradient(90% 46% at 50% 44%,color-mix(in srgb,var(--kit) 30%,transparent),transparent 70%),
+    radial-gradient(130% 60% at 50% -8%,#1d4766,transparent 70%),
+    linear-gradient(180deg,#0c2233 0%,#07141e 58%,#050e15 100%);
   transition:background .4s
 }
+/* A low ring of light where the ground would be: the edge of the outfield. */
+.welcome-sky::after{
+  content:'';
+  position:absolute;
+  left:-20%;
+  right:-20%;
+  bottom:-38cqh;
+  height:62cqh;
+  border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--kit) 16%,transparent),transparent)
+}
+.welcome-beam{
+  position:absolute;
+  top:-6cqh;
+  width:70cqw;
+  height:95cqh;
+  background:linear-gradient(180deg,#fff6dc38,#fff6dc0d 55%,transparent 85%);
+  filter:blur(6px);
+  opacity:.9;
+  animation:welcome-beam 7s ease-in-out infinite alternate
+}
+.welcome-beam.is-left{left:-28cqw;transform-origin:50% 0;transform:rotate(-24deg);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%)}
+.welcome-beam.is-right{right:-28cqw;transform-origin:50% 0;transform:rotate(24deg);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%);animation-delay:-3.5s}
 .welcome-back{
   position:absolute;
   top:var(--pad-top);
@@ -7076,14 +7087,46 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   text-underline-offset:3px
 }
 .welcome-fine{margin:4px 0 0;font-size:11.5px;line-height:1.45;text-align:center;color:#9fb2bd}
+/* `?welcome=1`: a key a scenario along the top, over the welcome itself, and
+   the welcome stood down below it. */
+.welcome-preview{
+  position:absolute;
+  top:calc(6px + env(safe-area-inset-top,0px));
+  left:50%;
+  transform:translateX(-50%);
+  z-index:14;
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:4px;
+  width:min(100% - 16px,460px);
+  padding:5px;
+  border-radius:14px;
+  background:#071219e6
+}
+.welcome-preview-key{
+  min-width:0;
+  height:32px;
+  padding:0;
+  border:1px solid #ffffff2e;
+  border-radius:9px;
+  background:#152b3c;
+  color:#f4efe2;
+  font:700 10px/1 var(--card,system-ui);
+  letter-spacing:.3px;
+  white-space:nowrap;
+  cursor:pointer
+}
+.welcome-preview-key.is-on{background:#e9582b;border-color:#e9582b}
+.has-welcome-keys .welcome{padding-top:calc(var(--pad-top) + 46px)}
+.has-welcome-keys .welcome-back{top:calc(var(--pad-top) + 46px)}
 /* A short column gives the title's room to the form. */
 @container app (max-height:680px){
   .welcome-title{width:min(44%,240px);margin-top:4px}
   .welcome-eyebrow{display:none}
 }
 @keyframes welcome-in{from{opacity:0}to{opacity:1}}
-@keyframes welcome-drift{from{transform:scale(1.04)}to{transform:scale(1.12) translate(-1.5%,1%)}}
+@keyframes welcome-beam{from{opacity:.65}to{opacity:1}}
 @keyframes welcome-pop{0%{transform:scale(.86)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){
-  .welcome,.welcome-plate img,.welcome-card.is-picked .welcome-face{animation:none}
+  .welcome,.welcome-beam,.welcome-card.is-picked .welcome-face{animation:none}
 }

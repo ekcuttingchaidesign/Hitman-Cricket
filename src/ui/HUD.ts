@@ -2929,6 +2929,28 @@ ${coverIntro(best, top)}
     this.viewport.append(row);
   }
   /**
+   * `?welcome=1`'s keys: one a way the welcome can go, along the top of the
+   * picture and over the welcome itself, so one scenario can follow another.
+   */
+  welcomeKeys<S extends string>(keys: readonly { label: string; scenario: S }[], pick: (scenario: S) => void) {
+    const row = document.createElement('div');
+    row.className = 'welcome-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview the welcome');
+    for (const { label, scenario } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'welcome-preview-key'; key.dataset.scenario = scenario; key.textContent = label;
+      key.addEventListener('click', () => {
+        row.querySelectorAll('.welcome-preview-key').forEach(one => one.classList.toggle('is-on', one === key));
+        pick(scenario);
+      });
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.classList.add('has-welcome-keys');
+    this.viewport.append(row);
+  }
+  /**
    * `?nets=1`'s keys: a bowler each, and the side of the stumps. Built hidden,
    * and shown by `netsShow` once there is a Marathon for them to work on.
    */
