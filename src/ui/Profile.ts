@@ -45,48 +45,36 @@ const TITLE = new URL('../assets/title.webp', import.meta.url).href;
 /** A bat, blade down and to the right: a right-hander's. A left-hander's is the same, mirrored. */
 const BAT = `<svg class="welcome-bat" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14.2 8.4 19.6 3a1.4 1.4 0 0 1 2 2l-5.4 5.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m14.6 7.6 1.8 1.8a1 1 0 0 1 0 1.4l-8.9 8.9a3 3 0 0 1-2.8.8l-1.9-.5-.5-1.9a3 3 0 0 1 .8-2.8l8.9-8.9a1 1 0 0 1 1.4 0Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 
-/** The line under the name on the card. */
-export function handLine(hand: Hand): string {
-  return `${BAT}<span>${hand === 'left' ? 'LEFT' : 'RIGHT'}-HANDED BAT</span>`;
-}
-
-/** What the card shows for a name, as it is typed. */
-export function cardName(name: string): string {
-  return name.trim() || 'YOUR NAME';
-}
-
 export function profileMarkup(view: ProfileView): string {
   const { name, avatar, hand, order, gate, fresh, sending = false, error = null, held = null, offline = false } = view;
   const handKey = (which: Hand, label: string) => `
               <button type="button" class="welcome-hand-key profile-hand-option is-${which}${hand === which ? ' is-chosen' : ''}"
                 role="radio" aria-checked="${hand === which}" data-hand="${which}">${BAT}<span>${label}</span></button>`;
-  const eyebrow = fresh ? 'WELCOME' : gate ? 'WELCOME BACK' : 'YOUR DETAILS';
-  const heading = fresh ? 'Who\u2019s walking out to bat?' : gate ? 'Is this still you?' : 'Change your details';
+  const eyebrow = fresh ? 'WELCOME' : gate ? 'WELCOME BACK' : '';
+  const heading = fresh ? 'Who\u2019s walking out to bat?' : gate ? 'Is this still you?' : 'Your details';
   return `
     <section class="welcome ${gate ? 'is-gate' : 'is-edit'}" role="dialog" aria-modal="true" aria-labelledby="profile-title"
       style="--kit:${kitColour(avatar)}">
-      <div class="welcome-sky" aria-hidden="true"><i class="welcome-beam is-left"></i><i class="welcome-beam is-right"></i></div>
+      <div class="welcome-sky" aria-hidden="true"></div>
       ${gate ? '' : `<button id="profile-close" class="welcome-back" type="button" aria-label="Back to My Stats">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span></button>`}
-      <img class="welcome-title" src="${TITLE}" alt="Hitman Cricket" decoding="async">
       <form id="profile-form" class="welcome-body" novalidate>
-        <p class="welcome-eyebrow">${eyebrow}</p>
+        <img class="welcome-title" src="${TITLE}" alt="Hitman Cricket" decoding="async">
+        ${eyebrow ? `<p class="welcome-eyebrow">${eyebrow}</p>` : ''}
         <h2 id="profile-title" class="welcome-heading">${heading}</h2>
-        <div class="welcome-card${name.trim() ? '' : ' is-empty'}${hand === 'left' ? ' is-left' : ''}" aria-hidden="true">
+        <section class="welcome-step welcome-avatar" aria-label="Your avatar">
           <span class="welcome-face"><img id="welcome-face" src="${avatarSrc(avatar)}" alt=""></span>
-          <span class="welcome-card-say">
-            <b id="welcome-who" class="welcome-who">${escape(cardName(name))}</b>
-            <span id="welcome-hand" class="welcome-hand-line">${handLine(hand)}</span>
-          </span>
-        </div>
-        <label class="welcome-field"><span class="welcome-label">What\u2019s your name?</span>
+          <div id="profile-picker" class="welcome-kits">${pickerMarkup(avatar, order)}</div>
+        </section>
+        <label class="welcome-step welcome-field"><span class="welcome-label">Your name</span>
           <input id="profile-name" type="text" maxlength="14" autocomplete="nickname" autocapitalize="words"
             enterkeyhint="done" placeholder="Up to 14 letters or numbers" value="${escape(name)}" required>
         </label>
-        <div id="profile-picker" class="welcome-kits">${pickerMarkup(avatar, order)}</div>
-        <p class="welcome-label" id="profile-hand-label">How do you bat?</p>
-        <div class="welcome-hands" role="radiogroup" aria-labelledby="profile-hand-label">${
+        <div class="welcome-step">
+          <p class="welcome-label" id="profile-hand-label">How do you bat?</p>
+          <div class="welcome-hands" role="radiogroup" aria-labelledby="profile-hand-label">${
   handKey('right', 'RIGHT-HANDED')}${handKey('left', 'LEFT-HANDED')}
+          </div>
         </div>
         ${error ? `<p id="profile-error" class="welcome-error" role="alert">${escape(error)}</p>` : ''}
         ${held ? `<p class="welcome-back-link">${restoreLinkMarkup('profile-restore', RESTORE_TAKEN)}</p>` : ''}

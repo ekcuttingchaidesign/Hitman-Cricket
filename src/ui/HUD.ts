@@ -51,7 +51,7 @@ import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
-import { cardName, handLine, profileMarkup, type ProfileView } from './Profile';
+import { profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -2197,23 +2197,19 @@ ${coverIntro(best, top)}
     this.viewport.classList.add('modal-open');
     const close = document.getElementById('profile-close');
     if (close) close.onclick = () => this.closeProfile();
-    // The card at the top is the player as they will walk out: it follows the
-    // name as it is typed, and the face and the bat as they are picked.
+    // The big face at the top is the avatar picked, in a glow of its colour
+    // that the whole screen takes on.
     const screen = overlay.querySelector<HTMLElement>('.welcome');
-    const card = overlay.querySelector<HTMLElement>('.welcome-card');
+    const face = overlay.querySelector<HTMLElement>('.welcome-face');
     const field = this.$('profile-name') as HTMLInputElement;
-    field.oninput = () => {
-      this.$('welcome-who').textContent = cardName(field.value);
-      card?.classList.toggle('is-empty', !field.value.trim());
-    };
     overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
       option.onclick = () => {
         const kit = Number(option.dataset.kit);
         (this.$('welcome-face') as HTMLImageElement).src = avatarSrc(kit);
         screen?.style.setProperty('--kit', kitColour(kit));
-        card?.classList.remove('is-picked');
-        void card?.offsetWidth;
-        card?.classList.add('is-picked');
+        face?.classList.remove('is-picked');
+        void face?.offsetWidth;
+        face?.classList.add('is-picked');
         if (this.profileView) this.profileView = { ...this.profileView, avatar: kit };
         overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(one => {
           const mine = Number(one.dataset.kit) === kit;
@@ -2225,8 +2221,6 @@ ${coverIntro(best, top)}
     overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(option => {
       option.onclick = () => {
         const hand = option.dataset.hand === 'left' ? 'left' : 'right';
-        this.$('welcome-hand').innerHTML = handLine(hand);
-        card?.classList.toggle('is-left', hand === 'left');
         if (this.profileView) this.profileView = { ...this.profileView, hand };
         overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(one => {
           const mine = one.dataset.hand === hand;
