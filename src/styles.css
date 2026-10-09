@@ -4854,21 +4854,6 @@ body.private-window{overflow:hidden}
 }
 .stats-who-edit:hover{background:#1b3d54}
 .stats-who-edit svg{width:15px;height:15px}
-/* The batting hand, two keys side by side on the details sheet. */
-.profile-picker{margin:0 0 6px}
-.profile-hand{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}
-.profile-hand-option{
-  min-height:40px;
-  border:2px solid #ffffff2e;
-  border-radius:11px;
-  background:#ffffff0f;
-  font-family:var(--card);
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:.8px;
-  color:#fff
-}
-.profile-hand-option.is-chosen{border-color:var(--cta-orange);background:#f2814f2e}
 /* The way out sits above the picture rather than on it. On it, the × lands in
    whatever the card's top-right corner happens to be — here that is the mark —
    and a close key you have to hunt for on a screen whose whole job is to be
@@ -5579,7 +5564,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* The sheets the key opens stand over the story it was opened from. */
 .whatsnew-overlay:not(.hidden)~#key-overlay>.key-modal,
 .whatsnew-overlay:not(.hidden)~#restore-overlay>.key-modal,
-.whatsnew-overlay:not(.hidden)~#profile-overlay>.key-modal{z-index:13}
+.whatsnew-overlay:not(.hidden)~#profile-overlay>.welcome{z-index:13}
 .whatsnew-foot{position:relative;z-index:1;flex:none;padding-top:14px}
 .whatsnew-key{width:100%;min-height:52px;margin:0;font-size:15px}
 
@@ -6812,4 +6797,293 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .pw-frame{animation:none}
   .pw-frame+.pw-frame{display:none}
   .pw-burst,.pw-burst.is-flame,.pw-burst.is-bolt,.pw-burst.is-puff,.pw-burst.is-star{animation:none;transform:none}
+}
+
+/* ── Who's batting: the welcome before the first innings ─────────────────
+   The game's front door rather than a form stood in front of it: the cover's
+   own ground and title at the top, the player as they will walk out on a card
+   that follows every pick, and the cover's own key to go. Everything measures
+   #app, so the desktop column lays it out as a phone that wide does. */
+.welcome{
+  --kit:#f55b11;
+  position:absolute;
+  inset:0;
+  z-index:12;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad);
+  background:#07141e;
+  color:#f7f0e5;
+  font-family:var(--card);
+  animation:welcome-in .45s ease-out both
+}
+.welcome-plate{
+  position:absolute;
+  inset:0 0 auto;
+  height:58cqh;
+  overflow:hidden;
+  pointer-events:none
+}
+.welcome-plate img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:50% 18%;
+  transform-origin:60% 30%;
+  animation:welcome-drift 18s ease-in-out infinite alternate
+}
+/* Into the night under the floodlights: the ground fades into the panel the
+   form stands on, and a glow in the player's own kit colour sits behind the
+   card, so the whole screen takes on the colour they pick. */
+.welcome-plate::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(70% 40% at 50% 100%,color-mix(in srgb,var(--kit) 34%,transparent),transparent 70%),
+    linear-gradient(180deg,#07141e33 0%,#07141e00 22%,#07141eb8 62%,#07141e 100%);
+  transition:background .4s
+}
+.welcome-back{
+  position:absolute;
+  top:var(--pad-top);
+  left:var(--pad);
+  z-index:2;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  min-height:36px;
+  padding:0 13px 0 8px;
+  border:1px solid #ffffff3d;
+  border-radius:999px;
+  background:#07141eb3;
+  backdrop-filter:blur(6px);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.6px;
+  color:#fff
+}
+.welcome-back svg{width:16px;height:16px}
+.welcome-title{
+  position:relative;
+  flex:none;
+  width:min(58%,330px);
+  height:auto;
+  margin:clamp(6px,3cqh,30px) 0 0;
+  filter:drop-shadow(0 6px 14px #0008)
+}
+.welcome.is-edit .welcome-title{margin-top:clamp(44px,7cqh,64px)}
+.welcome-body{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  max-width:440px;
+  margin:auto 0 0;
+  padding-top:clamp(10px,2.5cqh,26px)
+}
+.welcome-eyebrow{
+  align-self:center;
+  margin:0 0 6px;
+  padding:4px 11px;
+  border-radius:999px;
+  background:var(--cta-orange);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:2.4px;
+  color:#fff;
+  box-shadow:0 4px 14px #e9582b66
+}
+.welcome-heading{
+  margin:0 0 clamp(10px,2cqh,18px);
+  font-family:var(--cta);
+  font-size:clamp(25px,8.2cqw,36px);
+  font-weight:400;
+  line-height:1.02;
+  letter-spacing:.5px;
+  text-align:center;
+  text-shadow:0 3px 12px #000a
+}
+/* The player as they will walk out: their face in a ring of their kit's
+   colour, their name in the cover's letters, and the bat they hold. */
+.welcome-card{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin:0 0 clamp(12px,2.4cqh,20px);
+  padding:12px 14px;
+  border:1px solid color-mix(in srgb,var(--kit) 60%,#ffffff26);
+  border-radius:20px;
+  background:
+    linear-gradient(115deg,color-mix(in srgb,var(--kit) 30%,transparent),transparent 62%),
+    #0d2232d9;
+  box-shadow:0 14px 34px #0009,0 0 0 4px color-mix(in srgb,var(--kit) 14%,transparent);
+  backdrop-filter:blur(8px);
+  transition:border-color .35s,box-shadow .35s,background .35s
+}
+.welcome-face{
+  position:relative;
+  flex:none;
+  width:clamp(64px,19cqw,86px);
+  aspect-ratio:1;
+  padding:3px;
+  border-radius:50%;
+  background:conic-gradient(from 210deg,var(--kit),#fff8,var(--kit));
+  box-shadow:0 0 0 3px #0d2232,0 0 26px color-mix(in srgb,var(--kit) 70%,transparent)
+}
+.welcome-face img{
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  background:var(--kit);
+  object-fit:cover
+}
+.welcome-card.is-picked .welcome-face{animation:welcome-pop .38s cubic-bezier(.3,1.6,.5,1)}
+.welcome-card-say{display:flex;flex-direction:column;gap:5px;min-width:0}
+.welcome-who{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:var(--cta);
+  font-size:clamp(24px,7.6cqw,34px);
+  font-weight:400;
+  line-height:1;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color:#fff
+}
+.welcome-card.is-empty .welcome-who{color:#ffffff59}
+.welcome-hand-line{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:1.6px;
+  color:#ffd9c7
+}
+.welcome-bat{width:17px;height:17px;flex:none}
+.welcome-card.is-left .welcome-hand-line .welcome-bat,.welcome-hand-key.is-left .welcome-bat{transform:scaleX(-1)}
+.welcome-label{
+  display:block;
+  margin:0 0 7px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:1.8px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
+.welcome-field{display:block;margin:0 0 clamp(10px,2cqh,16px)}
+.welcome-field input{
+  box-sizing:border-box;
+  width:100%;
+  min-height:52px;
+  padding:0 16px;
+  border:2px solid #ffffff24;
+  border-radius:14px;
+  background:#ffffff0f;
+  font:700 18px var(--card);
+  color:#fff;
+  transition:border-color .2s,background .2s
+}
+.welcome-field input::placeholder{color:#ffffff4d;font-weight:500;font-size:15px}
+.welcome-field input:focus{outline:none;border-color:var(--kit);background:#ffffff17}
+/* The five faces: the picker's own row, set on the night panel. */
+.welcome-kits{margin:0 0 clamp(10px,2cqh,16px)}
+.welcome-kits .claim-label{
+  margin:0 0 7px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:1.8px;
+  text-transform:uppercase;
+  color:#9fb2bd
+}
+.welcome-kits .kit-picker{display:grid;grid-template-columns:repeat(5,1fr);gap:clamp(6px,2.4cqw,12px)}
+.welcome-kits .kit-option{
+  padding:3px;
+  border:2px solid transparent;
+  border-radius:50%;
+  background:none;
+  transition:transform .2s,border-color .2s,opacity .2s;
+  opacity:.72
+}
+.welcome-kits .kit-option.is-chosen{border-color:#fff;opacity:1;transform:scale(1.08)}
+.welcome-kits .kit-option:hover{opacity:1}
+.welcome-hands{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 clamp(12px,2.4cqh,20px)}
+.welcome-hand-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:50px;
+  border:2px solid #ffffff24;
+  border-radius:14px;
+  background:#ffffff0f;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:1.2px;
+  color:#ffffffb3;
+  transition:border-color .2s,background .2s,color .2s
+}
+.welcome-hand-key .welcome-bat{width:20px;height:20px}
+.welcome-hand-key.is-chosen{
+  border-color:var(--cta-orange);
+  background:linear-gradient(180deg,#e9582b40,#e9582b1f);
+  color:#fff;
+  box-shadow:0 6px 18px #e9582b33
+}
+.welcome-error{
+  margin:0 0 10px;
+  padding:9px 12px;
+  border-radius:12px;
+  background:#e5473a26;
+  border:1px solid #e5473a73;
+  font-size:13px;
+  font-weight:600;
+  line-height:1.35;
+  color:#ffd6d1
+}
+.welcome-back-link{margin:-2px 0 12px;text-align:center}
+.welcome-foot{display:flex;flex-direction:column;align-items:center;gap:10px}
+/* The cover's own key: white, stood on an orange base. */
+.welcome-go{
+  width:100%;
+  min-height:58px;
+  border:3px solid var(--cta-orange);
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 7px 0 var(--cta-orange),0 14px 22px #0007;
+  font-family:var(--cta);
+  font-size:21px;
+  font-weight:400;
+  letter-spacing:2.4px;
+  color:var(--cta-ink)
+}
+.welcome-go:active:not(:disabled){transform:translateY(6px);box-shadow:0 1px 0 var(--cta-orange),0 4px 8px #0006}
+.welcome-go:disabled{opacity:.7}
+.welcome-skip{
+  padding:4px;
+  border:0;
+  background:none;
+  font:600 13px var(--card);
+  color:#fff;
+  text-decoration:underline;
+  text-underline-offset:3px
+}
+.welcome-fine{margin:4px 0 0;font-size:11.5px;line-height:1.45;text-align:center;color:#9fb2bd}
+/* A short column gives the title's room to the form. */
+@container app (max-height:680px){
+  .welcome-title{width:min(44%,240px);margin-top:4px}
+  .welcome-eyebrow{display:none}
+}
+@keyframes welcome-in{from{opacity:0}to{opacity:1}}
+@keyframes welcome-drift{from{transform:scale(1.04)}to{transform:scale(1.12) translate(-1.5%,1%)}}
+@keyframes welcome-pop{0%{transform:scale(.86)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){
+  .welcome,.welcome-plate img,.welcome-card.is-picked .welcome-face{animation:none}
 }

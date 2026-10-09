@@ -176,7 +176,7 @@ async function send(page, advance, name) {
   await page.waitForTimeout(500);
   check(await page.locator('#profile-name').inputValue() === fresh, 'its edit key opens the details on the name held now');
   check(await page.locator('#profile-close').isVisible(), 'with a way out, since it is no gate');
-  check((await page.locator('#profile-overlay .key-fine').innerText()).includes('once every 30 days'),
+  check((await page.locator('#profile-overlay .welcome-fine').innerText()).includes('once every 30 days'),
     'and says how often before anybody types');
   await page.locator('#profile-name').fill(`${fresh}x`);
   await page.locator('#profile-send').click({ force: true });
@@ -196,7 +196,7 @@ async function send(page, advance, name) {
   await page.locator('#profile-send').click({ force: true });
   await advance(300);
   await page.waitForTimeout(1200);
-  check(await page.locator('#profile-overlay .key-modal').isHidden(), 'the same name with a new kit and hand is saved at once');
+  check(await page.locator('#profile-overlay .welcome').isHidden(), 'the same name with a new kit and hand is saved at once');
   const kitted = await page.evaluate(() => ({
     player: JSON.parse(localStorage.getItem('hitman-batter') ?? 'null'), hand: localStorage.getItem('hitman-hand'),
   }));
@@ -232,13 +232,13 @@ async function send(page, advance, name) {
   await advance(600);
   await page.waitForTimeout(500);
   // The sheet, not its holder: the holder has no size of its own.
-  const sheet = page.locator('#profile-overlay .key-modal');
+  const sheet = page.locator('#profile-overlay .welcome');
   check(await sheet.isVisible(), 'a new player is asked who is batting before the first innings');
   check((await page.locator('#profile-title').innerText()).toLowerCase().includes('who'), 'as a new player',
     await page.locator('#profile-title').innerText().catch(() => ''));
   check(!(await page.locator('#profile-close').count()), 'with no way past but answering');
   check((await snap()).phase === 'START', 'and nothing bowled meanwhile', (await snap()).phase);
-  check((await page.locator('#profile-overlay .key-fine').innerText()).includes('once every 30 days'),
+  check((await page.locator('#profile-overlay .welcome-fine').innerText()).includes('once every 30 days'),
     'told the name changes once every 30 days');
   await page.locator('#profile-name').fill('Ab');
   await page.locator('#profile-send').click({ force: true });
@@ -280,13 +280,13 @@ async function send(page, advance, name) {
   await page.locator('#mode-classic').click({ force: true });
   await advance(600);
   await page.waitForTimeout(500);
-  check(await page.locator('#profile-overlay .key-modal').isVisible(), 'a player with a name is shown the form once too');
+  check(await page.locator('#profile-overlay .welcome').isVisible(), 'a player with a name is shown the form once too');
   check(await page.locator('#profile-name').inputValue() === known, 'with their name filled in');
   check(await page.locator('#profile-overlay .kit-option.is-chosen').getAttribute('data-kit') === '2', 'and their kit');
   await page.locator('#profile-send').click({ force: true });
   await advance(300);
   await page.waitForTimeout(1500);
-  check(await page.locator('#profile-overlay .key-modal').isHidden(), 'carrying on in one tap');
+  check(await page.locator('#profile-overlay .welcome').isHidden(), 'carrying on in one tap');
   await advance(1500);
   const playing = await snap();
   check(playing.phase !== 'START' && playing.mirrored === false, 'into a right-handed Blast, the hand it was always batted with',

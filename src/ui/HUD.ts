@@ -51,11 +51,11 @@ import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
-import { profileMarkup, type ProfileView } from './Profile';
+import { cardName, handLine, profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
-import { AVATARS, kitDeal } from '../config/board';
+import { AVATARS, avatarSrc, kitColour, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
@@ -2195,14 +2195,25 @@ ${coverIntro(best, top)}
     overlay.innerHTML = profileMarkup(view);
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
-    // The gate has no way past but answering, so its ground does nothing.
-    const scrim = overlay.firstElementChild as HTMLElement | null;
-    if (scrim && !view.gate) scrim.onclick = event => { if (event.target === scrim) this.closeProfile(); };
     const close = document.getElementById('profile-close');
     if (close) close.onclick = () => this.closeProfile();
+    // The card at the top is the player as they will walk out: it follows the
+    // name as it is typed, and the face and the bat as they are picked.
+    const screen = overlay.querySelector<HTMLElement>('.welcome');
+    const card = overlay.querySelector<HTMLElement>('.welcome-card');
+    const field = this.$('profile-name') as HTMLInputElement;
+    field.oninput = () => {
+      this.$('welcome-who').textContent = cardName(field.value);
+      card?.classList.toggle('is-empty', !field.value.trim());
+    };
     overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
       option.onclick = () => {
         const kit = Number(option.dataset.kit);
+        (this.$('welcome-face') as HTMLImageElement).src = avatarSrc(kit);
+        screen?.style.setProperty('--kit', kitColour(kit));
+        card?.classList.remove('is-picked');
+        void card?.offsetWidth;
+        card?.classList.add('is-picked');
         if (this.profileView) this.profileView = { ...this.profileView, avatar: kit };
         overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(one => {
           const mine = Number(one.dataset.kit) === kit;
@@ -2214,6 +2225,8 @@ ${coverIntro(best, top)}
     overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(option => {
       option.onclick = () => {
         const hand = option.dataset.hand === 'left' ? 'left' : 'right';
+        this.$('welcome-hand').innerHTML = handLine(hand);
+        card?.classList.toggle('is-left', hand === 'left');
         if (this.profileView) this.profileView = { ...this.profileView, hand };
         overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(one => {
           const mine = one.dataset.hand === hand;
@@ -2231,7 +2244,9 @@ ${coverIntro(best, top)}
       if (this.profileView?.sending) return;
       this.onProfile?.(this.profileEntry);
     };
-    if (!view.sending && view.fresh) (this.$('profile-name') as HTMLInputElement).focus();
+    // Not focused on a phone: the keyboard would come up over the card the
+    // player has not seen yet. A fine pointer has no keyboard to raise.
+    if (!view.sending && view.fresh && matchMedia('(pointer: fine)').matches) field.focus();
   }
 
   /** What the game does with a name and a key. The store is the game's. */
