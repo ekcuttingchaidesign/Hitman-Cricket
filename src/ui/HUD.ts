@@ -51,7 +51,7 @@ import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
-import { profileMarkup, type ProfileView } from './Profile';
+import { named, profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -2202,6 +2202,14 @@ ${coverIntro(best, top)}
     const screen = overlay.querySelector<HTMLElement>('.welcome');
     const face = overlay.querySelector<HTMLElement>('.welcome-face');
     const field = this.$('profile-name') as HTMLInputElement;
+    // The key to go wakes with the first letter typed, and sleeps again if the
+    // name is cleared.
+    const go = this.$('profile-send') as HTMLButtonElement;
+    field.oninput = () => {
+      if (this.profileView?.sending) return;
+      go.disabled = !named(field.value);
+      go.classList.toggle('is-idle', go.disabled);
+    };
     overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
       option.onclick = () => {
         const kit = Number(option.dataset.kit);
@@ -2235,7 +2243,7 @@ ${coverIntro(best, top)}
     if (skip) skip.onclick = () => this.onProfileSkip?.(this.profileEntry);
     (this.$('profile-form') as HTMLFormElement).onsubmit = event => {
       event.preventDefault();
-      if (this.profileView?.sending) return;
+      if (this.profileView?.sending || !named(field.value)) return;
       this.onProfile?.(this.profileEntry);
     };
     // Not focused on a phone: the keyboard would come up over the card the

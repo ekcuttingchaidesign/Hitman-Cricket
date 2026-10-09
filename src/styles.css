@@ -7007,6 +7007,16 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .welcome-go:active:not(:disabled){transform:translateY(6px);box-shadow:0 1px 0 var(--cta-orange),0 4px 8px #0006}
 .welcome-go:disabled{opacity:.7}
+/* Asleep until there is a name: the key's shape, with none of its colour, so
+   it reads as the thing to press once the name is in. */
+.welcome-go.is-idle{
+  opacity:1;
+  border-color:#ffffff1f;
+  background:#ffffff14;
+  box-shadow:0 7px 0 #ffffff0d;
+  color:#ffffff59;
+  cursor:not-allowed
+}
 .welcome-skip{
   padding:4px;
   border:0;
