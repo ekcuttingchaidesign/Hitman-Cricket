@@ -7781,11 +7781,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card.tier-star{--metal:linear-gradient(135.6deg,#3a3f46 0%,#1b1e22 55%,#0b0c0e 100%);--edge:#c9d1d9;--quiet:#b8c1ca;--pill:#ffffff1f;--pill-ink:#e7ecf1;--figure:#eef2f6}
 .st-card.tier-star{box-shadow:0 16px 32px #0000008c,inset 0 0 0 1px #ffffff40}
 .st-card.tier-star .st-card-grain{background:linear-gradient(105deg,#fff0 30%,#ffffff12 44%,#fff0 58%)}
-.st-card.tier-hitman{--metal:linear-gradient(135.6deg,#2a2416 0%,#0d0b07 60%,#050505 100%);--edge:var(--c-gold);--quiet:#d9c79a;--pill:var(--c-gold);--pill-ink:#1a1206;--figure:var(--c-gold)}
-.st-card.tier-hitman .st-card-grain{background:
-  repeating-radial-gradient(circle at 100% 0%,#f5b83d1f 0 1px,#fff0 1px 9px),
-  linear-gradient(120deg,#fff0 35%,#ff7ad91a 45%,#7af0ff1a 52%,#fff0 62%)}
-.st-card.tier-hitman{box-shadow:0 16px 32px #0000008c,0 0 0 1px #f5b83d33,inset 0 0 18px #f5b83d1a}
 
 /* The six figures. */
 .st-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u) * 10)}
@@ -7898,9 +7893,17 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card-progress small{flex:1;min-width:0;text-align:right;font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--quiet);white-space:nowrap}
 .st-card-foot{display:flex;flex-direction:column;gap:calc(var(--u) * 8)}
 .st-card-foot .st-card-progress{margin-top:0}
-/* The Hitman card's helmet on fire: gold foil laid into the black, screened
-   so it lights the card rather than sitting on it, and fading out towards the
-   name and the figure. */
-.st-card-helmet{position:absolute;pointer-events:none;right:calc(var(--u) * -66);bottom:calc(var(--u) * -14);width:calc(var(--u) * 268);height:auto;transform:rotate(-6deg);
-  opacity:.62;mix-blend-mode:screen;
-  -webkit-mask-image:linear-gradient(100deg,transparent 0%,#000 38%);mask-image:linear-gradient(100deg,transparent 0%,#000 38%)}
+/* The Hitman card as drawn (Figma 154:18404): near-black warmed with gold,
+   a pale gold edge and an inner foil rim, a holographic sheen, the gold badge
+   and gold on the name and figure, and a batsman in gold line behind them. */
+.st-card.tier-hitman{--metal:linear-gradient(149.4deg,#1c1608 0%,#0a0805 50%,#050403 100%);--edge:#fff0b8;--quiet:#bfa15a;
+  --pill:linear-gradient(90deg,#fff0b8,#c99a35 45%,#f7d774);--pill-ink:#1a1204;box-shadow:0 16px 32px #0000008c}
+.st-card.tier-hitman .st-card-grain{background:none}
+.st-card.tier-hitman .st-card-sheen{background:linear-gradient(135.4deg,#fff0 18.75%,#ffe08a1a 45%,#ff9cd012 50%,#8fe3ff12 55%,#fff0 61.25%)}
+.st-card-batsman{position:absolute;pointer-events:none;left:57.46%;right:-2.07%;top:11.21%;bottom:-44.86%;width:auto;height:auto}
+.st-card-rim{position:absolute;inset:calc(var(--u) * 5.5);border:1px solid #f3d27a47;border-radius:18px;pointer-events:none}
+.st-card.tier-hitman .st-card-name b,.st-card.tier-hitman .st-card-figure b{
+  background:linear-gradient(180deg,#fff0b8 0%,#e3b04b 45%,#ffe08a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.st-card.tier-hitman .st-card-track{background:#f3d27a26}
+.st-card.tier-hitman .st-card-track i{background:#f3d27a}
+.st-card.tier-hitman .st-card-who .board-kit{box-shadow:0 0 0 2px #f3d27a}

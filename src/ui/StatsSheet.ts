@@ -65,8 +65,8 @@ const TITLE = new URL('../assets/title.webp', import.meta.url).href;
 
 /** The Star card's one big star, top right and turned (Figma 152:18122). */
 const STAR = new URL('../assets/kit/card-star.svg', import.meta.url).href;
-/** The Hitman card's helmet on fire, in gold foil, blended into the card. */
-const HITMAN = new URL('../assets/kit/card-hitman.svg', import.meta.url).href;
+/** The Hitman card's batsman, in gold line, behind the figures (Figma 154:18404). */
+const BATSMAN = new URL('../assets/kit/card-batsman.svg', import.meta.url).href;
 
 const PENCIL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="1.8"/></svg>`;
 
@@ -123,10 +123,10 @@ export function cardMarkup(facts: StatsFacts, who: { name: string; avatar: numbe
   const measure = facts.ladder.measure.toLocaleString('en-US');
   const unit = facts.mode === 'survive' ? 'balls faced' : `career ${measureName(facts.mode)}`;
   return `<article class="st-card tier-${escape(tier)} is-${escape(facts.mode)}" aria-label="${escape(`${who?.name ?? 'Guest'}, ${facts.tier.name}, ${facts.modeName}: ${measure} ${unit}`)}">
-          <i class="st-card-grain" aria-hidden="true"></i>${tier === 'star' ? `<img class="st-card-star" src="${STAR}" alt="" aria-hidden="true">` : ''}${tier === 'hitman' ? `<img class="st-card-helmet" src="${HITMAN}" alt="" aria-hidden="true">` : ''}<i class="st-card-sheen" aria-hidden="true"></i>
+          <i class="st-card-grain" aria-hidden="true"></i>${tier === 'star' ? `<img class="st-card-star" src="${STAR}" alt="" aria-hidden="true">` : ''}${tier === 'hitman' ? `<img class="st-card-batsman" src="${BATSMAN}" alt="" aria-hidden="true"><i class="st-card-rim" aria-hidden="true"></i>` : ''}<i class="st-card-sheen" aria-hidden="true"></i>
           <div class="st-card-top"><img class="st-card-logo" src="${TITLE}" alt="" decoding="async"><span class="st-card-tier">${escape(facts.tier.name)}</span></div>
           <div class="st-card-who">${face}<span class="st-card-name"><b>${escape(who?.name ?? 'Guest')}</b><small>${escape(facts.modeName.toUpperCase())} &middot; CAREER</small></span>${edit}</div>
-          <div class="st-card-foot"><div class="st-card-figure"><b>${measure}</b><span>${unit}</span></div>${tier === 'star' ? progressMarkup(facts) : ''}</div>
+          <div class="st-card-foot"><div class="st-card-figure"><b>${measure}</b><span>${unit}</span></div>${tier === 'star' || tier === 'hitman' ? progressMarkup(facts) : ''}</div>
         </article>`;
 }
 
@@ -158,10 +158,12 @@ function tilesMarkup(card: StatsSlide): string {
   }).join('')}</div>`;
 }
 
-/** The Star card's line to the next rung, under the figure, as drawn. */
+/** The line to the next rung under the figure, as the Star and Hitman cards draw it; full at the top. */
 function progressMarkup(facts: StatsFacts): string {
   const { progress, toNext, next } = facts.ladder;
-  if (!next || toNext === null) return '';
+  if (!next || toNext === null) {
+    return '<div class="st-card-progress"><span class="st-card-track"><i style="width:100%"></i></span><small>Top of the game</small></div>';
+  }
   return `<div class="st-card-progress"><span class="st-card-track"><i style="width:${Math.round(progress * 100)}%"></i></span>
           <small>${toNext.toLocaleString('en-US')} ${measureName(facts.mode)} to ${escape(next.short)}</small></div>`;
 }
