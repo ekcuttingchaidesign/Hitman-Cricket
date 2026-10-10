@@ -109,12 +109,12 @@ if (onStats) {
   // a clipboard slot the next copy takes.
   ok((await page.locator('.key-hero').innerText()).toLowerCase().startsWith('screenshot this screen'),
     'leading with the one thing every phone can do');
-  const keys = await page.locator('.key-sheet .key-sheet-key').evaluateAll(
+  const keys = await page.locator('.key-sheet .k-cta').evaluateAll(
     all => all.map(one => one.id));
   ok(JSON.stringify(keys) === JSON.stringify(['key-image', 'key-whatsapp', 'key-copy']),
     'and offering the three ways under it, in that order', JSON.stringify(keys));
-  ok((await page.locator('#key-whatsapp').innerText()).trim() === 'WHATSAPP TO SELF',
-    'the message being one a player sends themselves');
+  ok((await page.locator('#key-whatsapp').innerText()).trim() === 'WHATSAPP',
+    'the message being one a player sends themselves, on WhatsApp');
 
   // The picture the save key hands over, painted here rather than trusted: a
   // key that cannot be read back out of it is a key that was never saved, and

@@ -2831,11 +2831,12 @@ ${modeSelectMarkup()}
     this.keySheetKind = about ? 'about' : 'save';
     this.keySheetSaved = false;
     const overlay = this.$('key-overlay');
-    overlay.innerHTML = about ? keyAboutMarkup() : keyModalMarkup(this.keyView);
+    overlay.innerHTML = about ? keyAboutMarkup(this.keyView?.code ?? null) : keyModalMarkup(this.keyView);
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     const shut = () => this.closeKeySheet();
     this.$(about ? 'key-about-close' : 'key-modal-close').onclick = shut;
+    for (const cross of overlay.querySelectorAll<HTMLElement>('[data-close]')) cross.onclick = shut;
     // The ground around the sheet closes it, which is what every other modal
     // on this game does and what a thumb reaches for first. Only the ground:
     // the test is that the press landed on the scrim itself rather than
@@ -2850,13 +2851,14 @@ ${modeSelectMarkup()}
     this.$('key-image').onclick = async () => {
       const key = this.$('key-image') as HTMLButtonElement;
       if (key.disabled) return;
-      const was = key.textContent;
+      const words = key.querySelector<HTMLElement>('.k-cta-face span') ?? key;
+      const was = words.textContent;
       key.disabled = true;
-      key.textContent = 'SAVING…';
+      words.textContent = 'SAVING…';
       const done = await this.onKeySave?.('image');
       if (done !== false) this.keySheetSaved = true;
       key.disabled = false;
-      key.textContent = was;
+      words.textContent = was;
       if (done === false) {
         this.keyTrouble('Could not save the picture. Screenshot this screen instead.');
       }
@@ -2883,11 +2885,12 @@ ${modeSelectMarkup()}
       // closed was the only answer somebody got — indistinguishable from a key
       // that did nothing, which is what the last one actually was. Standing
       // also leaves the screen up for the screenshot recommended above it.
-      key.textContent = 'COPIED';
+      const words = key.querySelector<HTMLElement>('.k-cta-face span') ?? key;
+      words.textContent = 'COPIED';
       key.classList.add('is-done');
       window.clearTimeout(this.copySaid);
       this.copySaid = window.setTimeout(() => {
-        key.textContent = 'COPY';
+        words.textContent = 'COPY';
         key.classList.remove('is-done');
       }, 2200);
     };
