@@ -436,7 +436,8 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             <button id="feedback-card" class="ghost-link ec-feedback hidden" type="button">Tell me what you think</button>
             <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
-            <div class="card-keys ec-keys">
+          </div>
+          <div class="card-keys ec-keys">
               ${cta({ kind: 'mode', label: 'MODE', id: 'card-change' })}
               ${cta({ kind: 'mode', label: 'MODE', id: 'mcard-modes' })}
               ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'again' })}
@@ -444,7 +445,6 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               ${cta({ kind: 'challenge', label: 'Challenge a friend with this innings', id: 'challenge-set' })}
               ${cta({ kind: 'share', label: 'Share on WhatsApp', id: 'mcard-share' })}
             </div>
-          </div>
         </div>
 ${modeSelectMarkup()}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
@@ -559,12 +559,12 @@ ${modeSelectMarkup()}
             </section>
             <div id="survive-strip" class="survive-strip"></div>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
+          </div>
             <div class="ec-keys">
               ${cta({ kind: 'mode', label: 'MODE', id: 'survive-modes' })}
               ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'survive-again' })}
               ${cta({ kind: 'share', label: 'Share on WhatsApp', id: 'survive-share' })}
             </div>
-          </div>
         </div>
         <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"></div>
         <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
@@ -1966,7 +1966,7 @@ ${modeSelectMarkup()}
    * far it climbed, or how far off the fifty a place below it is. Cleared for
    * every new innings; a best that still stands is the card's own to say.
    */
-  cardNote: { first: boolean; sub: { tone: 'new' | 'off'; text: string } | null } | null = null;
+  cardNote: { first: boolean; sub: { tone: 'new' | 'off' | 'stands'; text: string } | null } | null = null;
 
   /** Which card the strip is living in at the moment. */
   private stripHost: 'end' | 'end-survive' = 'end';

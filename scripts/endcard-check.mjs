@@ -80,6 +80,7 @@ const settle = async (page, done) => { for (let i = 0; i < 30 && !(await done())
   check(await page.locator('#final-balls .ec-over').count() === 5, 'five overs on the chart', String(await page.locator('#final-balls .ec-over').count()));
   check(await page.locator('#final-balls .ec-bar.is-out').count() === 2, 'with a red bar for each wicket');
   check((await page.locator('#final-wickets').textContent()) === '2', 'and the wickets among the figures');
+  for (let i = 0; i < 20 && !/You are #\d+/.test(await page.locator('#card-board-head').textContent()); i++) await page.waitForTimeout(300);
   check(/You are #\d+ on the leaderboard/.test(await page.locator('#card-board-head').textContent()), 'the player card says where it landed', await page.locator('#card-board-head').textContent());
   check((await page.locator('#claim').innerText()).trim() === 'Leaderboard', 'with the board one door away', await page.locator('#claim').innerText());
   const [mode, again, challenge, mmodes, share] = await visible(page, ['#card-change', '#again', '#challenge-set', '#mcard-modes', '#mcard-share']);
@@ -115,9 +116,18 @@ const settle = async (page, done) => { for (let i = 0; i < 30 && !(await done())
   const [mode, again, share, challenge] = await visible(page, ['#mcard-modes', '#again', '#mcard-share', '#challenge-set']);
   check(mode && again && share && !challenge, 'MODE, PLAY AGAIN and SHARE along the foot', JSON.stringify({ mode, again, share, challenge }));
   await page.screenshot({ path: 'test-results/endcard/marathon.png' });
-  await page.locator('.ec-content').first().evaluate(el => el.scrollTo({ top: 9999 }));
+  await page.locator('#end .ec-content').evaluate(el => el.scrollTo({ top: 9999 }));
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'test-results/endcard/marathon-scrolled.png' });
+  // Scrolled to the foot, the last of the card clears the keys: they stand
+  // still over it, and it scrolls up from under them.
+  const clear = await page.evaluate(() => {
+    const keys = document.querySelector('#end .ec-keys').getBoundingClientRect();
+    const key = document.querySelector('#card-key').getBoundingClientRect();
+    return { keyBottom: Math.round(key.bottom), keysTop: Math.round(keys.top), keysBottom: Math.round(keys.bottom), height: innerHeight };
+  });
+  check(clear.keyBottom <= clear.keysTop && clear.keysBottom <= clear.height + 1,
+    'scrolled to the foot, the career key clears the keys, which stay at the bottom', JSON.stringify(clear));
   check(errors.length === 0, 'with nothing thrown', errors.join(' | '));
   await context.close();
 }

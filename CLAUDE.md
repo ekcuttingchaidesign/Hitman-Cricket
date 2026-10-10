@@ -228,26 +228,25 @@ the card says where it landed, with the board one tap away. Only a player with n
 window, practice and a Rival Match keep the old offers — and a post that fails
 falls back to the register key, so nothing is lost to an outage.
 
-Every other finished innings by a named player is posted too, quietly, with
-the card left as it was (`quietPost`), so the store can say where they stand
+Every other finished innings by a named player is posted too (`quietPost`), so the store can say where they stand
 however far below the fifty: the ranking sorted sets have never been trimmed,
 so a place is one `ZREVRANK` away. `/api/score` answers each post with
 `standing` — the place now, out of how many, and the place before (`was`) —
 and `GET /api/board?player=<id>` answers it for a player who has not just
-batted, uncached, beside the fifty that stay the same for everybody. The
-quiet post waits for the board to come in: posted before it, an innings worth
-a place would be on the board before the card could claim it. One post an
+batted, uncached, beside the fifty that stay the same for everybody. The card
+goes by that answer, not by the board on screen, so it does not matter which
+arrives first; until it answers, the card says the innings is going up. One post an
 innings whichever way it is asked for (`postOnce`). An innings is two hits on
 the address's counter now — the post and the career count — so `RATE_LIMIT`
-is 240. Nothing draws the place yet; it is in `snapshot().standing` for the
-redrawn end card and board.
+is 240. The redrawn end card draws the place (`placeNow`), and it is in
+`snapshot().standing` for the checks.
 
 `scripts/post-check.mjs` walks that in about a minute: a Test Marathon
 written ball by ball and bowled out, for a named left-handed player — posted
 once, by itself, with two left-handers in the side and the store taking it,
 the card saying where it landed — then a named player's duck against a board
-filled to fifty, posted once with the card unchanged and placed last on the
-whole board, and asked again through `?player=` — and for a player with no
+filled to fifty, posted once and placed last on the whole board, the card
+saying that place, and asked again through `?player=` — and for a player with no
 name, for whom nothing is sent and the card still asks. `board-check.mjs` holds
 the same places to a real deployment, where the Redis adapter's pipeline runs.
 
@@ -390,6 +389,19 @@ the tier's material and Rivals, its figures drawn into keys bound once so ids
 never go stale (`modesFill`); and the name screen (`Profile.ts`). No sound key
 on Choose a mode: that corner is the avatar. `scripts/entry-check.mjs` walks all
 three for a new player and a returning one and photographs them.
+
+The end of an innings is redrawn (phase 4, the handover's section 05): one
+card for every mode, its parts in `src/ui/EndCard.ts` — the Blast's
+over-by-over chart, the Marathon's worm and batting card, Survival's injury
+ring — and the player card under them. A named player's card says the place
+the store answered with (`placeNow` in `src/Game.ts`), on the fifty or below
+it, new best or best still standing, never a guess off the board on screen;
+every named innings is posted, so it always has one. The keys along the foot
+stand on the overlay, outside what scrolls (`.ec-screen>.ec-keys`), so the
+card scrolls up from under them to its last line, the career key included —
+inside the scroller they rode over it. `scripts/endcard-check.mjs` writes an
+innings in each mode through the debug hooks (`__cricket.blast` for the
+Blast, `marathon`, `finish`), photographs each card and scrolls one to its foot.
 
 The game is being redrawn from a Figma handover (file `JhIdkSdtMSriYe3W5y3NAa`,
 canvas `125:4590`), a phase at a time. The foundations come first and change

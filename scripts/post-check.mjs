@@ -9,7 +9,7 @@
  * earned is posted once, by itself, and the card says where it landed with
  * the board one door away (Leaderboard) in place of the register key. An innings that earns no
  * place — a duck, against a board the page is shown full — is posted too,
- * quietly, with the card left as it was: the store keeps
+ * and the card says the place the store gives it: the store keeps
  * only a best, and what it answers is where the player stands on the whole
  * board — a place below the fifty as readily as in it (`snapshot().standing`,
  * and `GET /api/board?player=`). A player with no name is still asked, and
@@ -147,15 +147,16 @@ const FULL = {
   await context.close();
 }
 
-// — A player with a name whose innings earns no place: posted all the same, and the card as it was.
+// — A player with a name whose innings earns no place: posted all the same, and the card says where it went.
 {
   const { context, page, errors, posts, snap } = await bowledOut({ name: `Duck${Math.random().toString(36).slice(2, 7)}`, hand: 'right' }, DUCKS, true);
   check(posts.length === 1 && posts[0].status === 200, 'an innings with no place is posted too, once', JSON.stringify(posts.map(one => one.status)));
   const head = await page.locator('#card-board-head').textContent().catch(() => '');
-  check(!/You are #\d+ on the leaderboard/.test(head ?? ''), 'and the card does not claim a place for it', head);
   const standing = (await snap()).standing?.standing;
   check(standing?.team?.rank >= 1 && standing.team.rank === standing.team.total,
     'the store puts it last on the whole board, wherever that is', JSON.stringify(standing));
+  check(head?.includes(`You are #${standing?.team?.rank} on the leaderboard`),
+    'and the card says that place, as the store gave it', head);
   const asked = await askStanding(page, posts[0]?.sent?.playerId);
   check(asked.status === 200 && asked.body?.team?.rank === standing?.team?.rank && asked.body?.team?.row?.runs === 0,
     'and says the same place when asked without an innings', JSON.stringify(asked.body));

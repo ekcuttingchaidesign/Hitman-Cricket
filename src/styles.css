@@ -7472,3 +7472,18 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ec-batting td:not(.is-runs),.ec-batting thead th:not(:first-child):not(.is-runs){padding-left:calc(var(--u) * 10)}
 .ec-screen .ec-chart.card-balls{flex-direction:column;align-items:stretch}
 #end.ec-screen .ec-total{color:#fff}
+/* The card's header carries its own sound key, so the game's floating one
+   steps aside while a result is up, rather than sitting on top of it. */
+.stage.result-open #sound,.stage.result-open #sound-note{display:none}
+/* The keys stand on the overlay, outside what scrolls, so the card scrolls
+   under them all the way to its last line. */
+.ec-screen>.ec-keys{position:absolute;left:0;right:0;bottom:0}
+.ec-screen.is-claiming .card-board.is-asking .claim-why{display:none}
+/* A Rival Match's card: BACK TO RESULT in PLAY AGAIN's place, the same key. */
+#end.ec-screen.is-match #card-result{
+  flex:1;min-height:calc(var(--u) * 56);margin:0;padding:0;
+  border:calc(var(--u) * 3) solid var(--c-cta-ledge);border-bottom-width:calc(var(--u) * 6);border-radius:16px;
+  background:var(--c-cta-face);color:var(--c-cta-ink);box-shadow:none;
+  font:400 calc(var(--u) * 20)/1 var(--f-display);letter-spacing:.08em;font-optical-sizing:none;font-variation-settings:'opsz' 6
+}
+#end.ec-screen.is-match #card-modes{align-self:center;color:var(--c-text-2)}

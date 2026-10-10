@@ -2991,9 +2991,14 @@ export class Game {
       const best = this.careerMode === 'classic' && this.best > 0 ? ` · best ${this.best}` : '';
       return { first, sub: { tone: 'off', text: short && short > 0 ? `${short} runs off the top 50${best}` : `Outside the top 50${best}` } };
     }
-    if (standing.was && standing.rank < standing.was.rank) {
+    if (this.standing?.improved && standing.was && standing.rank < standing.was.rank) {
       const up = standing.was.rank - standing.rank;
       return { first, sub: { tone: 'new', text: `New best · up ${up} ${up === 1 ? 'place' : 'places'}` } };
+    }
+    if (this.standing?.improved && standing.was) return { first, sub: { tone: 'new', text: 'New best' } };
+    if (!this.standing?.improved && standing.was && !first) {
+      const best = this.careerMode === 'classic' && this.best > 0 ? `  \u00b7  ${this.best}` : '';
+      return { first, sub: { tone: 'stands', text: `Best still stands${best}` } };
     }
     return { first, sub: null };
   }
@@ -3198,7 +3203,9 @@ export class Game {
    * and where they stood before it — a place however far below the fifty.
    * Nothing draws it yet; the redrawn end card and board read it (UI v1).
    */
-  private standing: { innings: number; mode: CareerMode; standing: NonNullable<SubmitResult['standing']> } | null = null;
+  private standing: {
+    innings: number; mode: CareerMode; standing: NonNullable<SubmitResult['standing']>; improved: boolean;
+  } | null = null;
 
   /**
    * The offer as the card shows it: a place earned is posted and said as
@@ -3206,10 +3213,12 @@ export class Game {
    */
   private postedOffer(offer: CardOffer): CardOffer {
     if (!this.autoPosting || this.postFailed === this.innings) return this.shownOffer(offer);
+    // Once the store has said where this innings left the player, that is what
+    // the card says — on the fifty or below it, a new best or a best still
+    // standing — whatever the board on screen would have guessed.
+    const placed = this.placeNow();
+    if (placed) return { kind: 'placed', place: placed, posting: false };
     if (this.posted?.innings === this.innings) return { kind: 'placed', place: this.posted.place, posting: this.posted.posting };
-    // Off the bottom of the fifty: the quiet post said where, and the card says it.
-    const below = this.belowFifty();
-    if (below) return { kind: 'placed', place: below, posting: false };
     if (offer.kind === 'claim') {
       void this.autoPost(offer.place);
       return { kind: 'placed', place: offer.place, posting: true };
@@ -3219,12 +3228,11 @@ export class Game {
     // answers is where the player stands — off the bottom of the fifty as
     // readily as on it. The card is the one it always was.
     //
-    // Only once the board is in. Before it, an innings worth a place reads as
-    // nothing to offer, and posting it then would put it on the board ahead of
-    // the board arriving — which then shows it as a best already standing, and
-    // the place it earned is never claimed on the card.
-    if (this.boardKnown) void this.quietPost();
-    return this.shownOffer(offer);
+    // Posted whether or not the board is in: the card goes by what the store
+    // answers, so a board arriving after the post cannot turn this innings into
+    // a best already standing. Until it answers, the card says it is going up.
+    void this.quietPost();
+    return readPlayer() ? { kind: 'placed', place: null, posting: true } : this.shownOffer(offer);
   }
 
   /**
@@ -3247,10 +3255,6 @@ export class Game {
     return result;
   }
 
-  /** Whether this mode's board has come in, so the card's offer is the board's answer and not a guess. */
-  private get boardKnown() {
-    return this.marathoning ? !!this.marathonRows : this.surviving ? this.surviveSeen : this.boardSeen;
-  }
 
   /** What every post does with a good answer: the key it may carry, and where it left the player. */
   private tookPost(innings: number, result: SubmitResult<unknown>) {
@@ -3258,7 +3262,8 @@ export class Game {
       keepKey(result.key);
       track('key-issued', 'Career key issued');
     }
-    if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing };
+    const improved = typeof result.improved === 'object' ? result.improved.team || result.improved.solo : !!result.improved;
+    if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved };
   }
 
   /**
@@ -3272,14 +3277,14 @@ export class Game {
     const result = await this.postOnce();
     if (this.disposed || this.innings !== innings || !result.ok) return;
     this.tookPost(innings, result);
-    if (this.belowFifty()) this.reoffer();
+    this.reoffer();
   }
 
-  /** This innings' place, where the post put it below the board's fifty; null otherwise. */
-  private belowFifty(): number | null {
+  /** Where the store put the player after this innings, once it has said; null until then. */
+  private placeNow(): number | null {
     const held = this.standing?.innings === this.innings ? this.standing.standing : null;
     const standing = held ? ('team' in held ? held.team : held) : null;
-    return standing?.rank && standing.rank > 50 ? standing.rank : null;
+    return standing?.rank ?? null;
   }
 
   /**

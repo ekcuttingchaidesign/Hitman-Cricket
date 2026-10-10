@@ -222,7 +222,7 @@ await b.appears('#challenge-room', 15_000);
 await b.settle(2500);
 check(await b.page.locator('#challenge-room').isVisible(), 'Rahul\'s innings over, the room shows the result');
 const result = await b.page.locator('#room-lead').innerText();
-check(/wins|dead heat/i.test(result), 'with a winner named', result);
+check(/bwins?b|dead heat/i.test(result), 'with a winner named', result);
 check(/dead heat/i.test(result) || await b.page.locator('#room-anim svg').count() > 0, 'and the fire burning round the winner');
 check((await b.page.locator('#room-scoreline .verdict-row').count()) === 2, 'and both innings as rows');
 await b.shot('11-result');
@@ -241,13 +241,13 @@ if (await cardLink.count()) {
     'and no PLAY AGAIN or CHALLENGE A FRIEND, which belong to a Blast innings');
   await b.page.locator('#card-result').click();
   await b.settle(900);
-  check(await shows('#challenge-room') && !(await shows('#end')) && /wins|dead heat/i.test(await b.page.locator('#room-lead').innerText()),
+  check(await shows('#challenge-room') && !(await shows('#end')) && /bwins?b|dead heat/i.test(await b.page.locator('#room-lead').innerText()),
     'BACK TO RESULT goes back to the result');
 }
 
 await a.settle(5000);
 const aResult = await a.page.locator('#room-lead').innerText();
-check(/wins|dead heat/i.test(aResult), 'Shashank\'s room turns into the result on its own', aResult);
+check(/bwins?b|dead heat/i.test(aResult), 'Shashank\'s room turns into the result on its own', aResult);
 await a.shot('12-result-live');
 
 const final = await fetch(`${base}/api/challenge?code=${code}`).then(r => r.json());
