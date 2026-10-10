@@ -51,7 +51,9 @@ Those last two are split by whose screen it is, and that is the point. A check
 that registers and then deletes its way back to nameless is testing its own
 teardown: the key card was missing from My Stats for every registered player
 and three browser checks walked past it, because all three reached that screen
-by finishing an innings and none by opening the board from the cover.
+by finishing an innings and none by opening the board from the cover. (Both
+now reach My Stats by the cover's profile chip, the board having lost its My
+Stats tab in the redraw.)
 
 That last one holds a rule about *when* something happens rather than what a
 function answers, so no unit test can reach it. A career is a sum, so an
@@ -421,6 +423,27 @@ changes nothing about the batting, so it is not practice
 (`tests/practice.test.ts` names it). `scripts/ui-check.mjs` holds each part to
 its Figma master's size, checks both faces load and every target is 44, and
 photographs the page at a phone's width and in the desktop column.
+
+The leaderboard is redrawn (phase 5, the handover's section 06): one screen
+for every board, drawn by `src/ui/Board.ts` from one description
+(`BoardScreen`) that each board is turned into — `blastBody`, `surviveBody`,
+`marathonBody` (Team and Batters) and `careerBody`. A top bar, the mode and
+ladder pills (the mode menu with each mode's place, the ladder sheet, and
+How ranking works under the (i), with What's new beneath it), a pager, a
+podium of three under spotlights that folds to chips as the list scrolls,
+the list in a sheet tinted to the mode, and a dock: the player's line, which
+steps aside while their own row is on screen, and PLAY AGAIN after an
+innings of that mode, the mode's own PLAY from anywhere else, none
+mid-innings. A swipe sideways or the arrow keys go to the next mode. After an
+innings the board says what it did (entered at #N, up N places, best still
+holds, outside the top 50) from the store's answer to the post
+(`boardFrame` in `src/Game.ts`), tags the row and opens on it; a guest's
+innings stands where it would, green and dashed, with Add name. My Stats is
+no longer a tab on the board: it is the cover's profile chip and the end
+card's door, and the page's "Played before?" link is wired there now.
+`scripts/board-ui-check.mjs` walks it on `?demo=1` and photographs every
+state, the empty and offline boards stubbed at the network (offline on Test
+Survival: in development a Blast board out of reach stands in invented rows).
 
 The orange key is redrawn (Figma `149:18107`, and `149:18112` for the one that
 moves): an orange rim lit from above round a face warming from white to peach,

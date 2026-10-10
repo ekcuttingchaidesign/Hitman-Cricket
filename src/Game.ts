@@ -27,7 +27,8 @@ import { type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
-import type { PauseTone, Primed } from './ui/HUD';
+import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
+import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
@@ -629,6 +630,13 @@ export class Game {
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
     this.hud.onLadderTab = this.tabLadder;
+    this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
+    this.hud.onBoardPlay = mode => {
+      this.hud.closeBoard();
+      this.choose(mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
+    };
+    this.hud.onBoardRetry = () => this.reopenBoard();
+    this.hud.onBoardName = () => this.askProfile(false);
     this.hud.onStatsOpen = this.showStats;
     // Either key in the sheet counts as saved. Which one was used is worth
     // knowing — one of them finishes the job and the other leaves homework —
@@ -2215,6 +2223,69 @@ export class Game {
     });
   }
 
+  /** The board on screen, asked for again: TRY AGAIN, after it could not be reached. */
+  private reopenBoard() {
+    if (this.sheetTab === 'marathon') return this.openMarathon(this.marathonLadder);
+    this.openBoard(this.boardTab, this.boardLadder);
+  }
+
+  /** Where the store has this player on each mode's whole board, as last asked. */
+  private modeRanks: Partial<Record<CareerMode, number | null>> = {};
+  private ranksAsked = 0;
+
+  /** Asked once a minute at most, and the board redrawn if it is still up. */
+  private refreshRanks() {
+    if (!readPlayer() || !this.player || Date.now() - this.ranksAsked < 60_000) return;
+    this.ranksAsked = Date.now();
+    void Promise.all([
+      fetchStanding(this.player, 'classic'), fetchStanding(this.player, 'survive'), fetchStanding(this.player, 'marathon'),
+    ]).then(([blast, survive, marathon]) => {
+      if (this.disposed) return;
+      this.modeRanks = { classic: blast?.rank ?? null, survive: survive?.rank ?? null, marathon: marathon?.team?.rank ?? null };
+    });
+  }
+
+  /**
+   * What the board needs from the game at every draw: who is looking, where
+   * the store has them, the innings just posted on this board, and which key
+   * the foot carries — PLAY AGAIN for the innings just played, the mode's own
+   * PLAY from anywhere else, and none mid-innings, where it is a look and the
+   * innings is waiting underneath.
+   */
+  private boardFrame(mode: CareerMode, ladder: string): BoardFrame {
+    this.refreshRanks();
+    const me = readPlayer();
+    const ended = this.phase === 'INNINGS_END' && this.careerMode === mode && !this.challenge.playing;
+    const innings = ladder === 'best' || ladder === 'team' || ladder === 'solo';
+    const held = ended && innings && !this.practising && this.standing?.innings === this.innings && this.standing.mode === mode
+      ? this.standing : null;
+    let posted: BoardContext['posted'] = null;
+    if (held) {
+      const raw = held.standing;
+      const one = 'team' in raw ? (ladder === 'solo' ? raw.solo : raw.team) : raw;
+      const improved = held.by ? (ladder === 'solo' ? held.by.solo : held.by.team) : held.improved;
+      if (one.rank) {
+        posted = {
+          rank: one.rank, total: one.total, was: one.was ?? null, improved, first: heldCareer(mode).innings <= 1,
+        };
+      }
+    }
+    const midInnings = !['START', 'INNINGS_END'].includes(this.phase) && !(this.phase === 'PAUSED' && ['START', 'INNINGS_END'].includes(this.previousPhase));
+    return {
+      ctx: {
+        you: me ? { name: me.name, avatar: me.avatar } : null,
+        kit: me?.avatar ?? null,
+        rank: innings && ladder !== 'solo' ? this.modeRanks[mode] ?? null : null,
+        posted,
+        played: heldCareer(mode).innings > 0,
+        restore: false,
+        modeName: BOARD_MODES[mode].name.replace(/^The /, ''),
+      },
+      ranks: this.modeRanks,
+      play: ended ? 'again' : midInnings ? null : 'mode',
+    };
+  }
+
   /** Another ladder of the same mode, from the row of tabs under the first. */
   private tabLadder = (ladder: LadderTab) => {
     if (ladder === this.boardLadder) return;
@@ -3205,6 +3276,8 @@ export class Game {
    */
   private standing: {
     innings: number; mode: CareerMode; standing: NonNullable<SubmitResult['standing']>; improved: boolean;
+    /** The Marathon's two ladders, each improved or not. */
+    by?: { team: boolean; solo: boolean } | null;
   } | null = null;
 
   /**
@@ -3263,7 +3336,8 @@ export class Game {
       track('key-issued', 'Career key issued');
     }
     const improved = typeof result.improved === 'object' ? result.improved.team || result.improved.solo : !!result.improved;
-    if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved };
+    const by = typeof result.improved === 'object' ? { team: !!result.improved.team, solo: !!result.improved.solo } : null;
+    if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing, improved, by };
   }
 
   /**

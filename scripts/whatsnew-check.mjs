@@ -173,8 +173,11 @@ await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#cover-board');
 await tick(1200, 400);
+// Since the board was redrawn the key sits under How ranking works, the (i).
+await page.click('#board-info');
+await tick(400);
 const key = await page.$('#board-new');
-check(!!key, 'the board carries a What\'s new key beside its close key');
+check(!!key, 'the board carries a What\'s new key, under its (i)');
 if (key) {
   await key.click();
   const back = await page.waitForSelector('.whatsnew-sheet', { timeout: 10_000 })

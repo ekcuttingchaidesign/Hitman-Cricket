@@ -16,9 +16,11 @@ import { type Standing, roadOf } from '../game/tier';
 import { escape } from './Leaderboard';
 import arrowLeft from '../assets/kit/icon-arrow-left.svg?raw';
 import chart from '../assets/kit/icon-chart.svg?raw';
+import check from '../assets/kit/icon-check.svg?raw';
 import chevronDown from '../assets/kit/chevron-down.svg?raw';
 import chevronRight from '../assets/kit/icon-chevron-right.svg?raw';
 import grid from '../assets/kit/icon-grid.svg?raw';
+import info from '../assets/kit/icon-info.svg?raw';
 import key from '../assets/kit/icon-key.svg?raw';
 import share from '../assets/kit/icon-share.svg?raw';
 import swords from '../assets/kit/icon-swords.svg?raw';
@@ -28,7 +30,7 @@ import volume from '../assets/kit/icon-volume.svg?raw';
 import whatsapp from '../assets/kit/icon-whatsapp.svg?raw';
 
 const ICONS = {
-  'arrow-left': arrowLeft, chart, 'chevron-down': chevronDown, 'chevron-right': chevronRight, grid, key,
+  'arrow-left': arrowLeft, chart, check, 'chevron-down': chevronDown, 'chevron-right': chevronRight, grid, info, key,
   share, swords, trophy, user, volume, whatsapp,
 } as const;
 
