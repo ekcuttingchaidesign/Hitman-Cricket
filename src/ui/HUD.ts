@@ -439,7 +439,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
           <div class="card-keys ec-keys">
               ${cta({ kind: 'mode', label: 'MODE', id: 'card-change' })}
               ${cta({ kind: 'mode', label: 'MODE', id: 'mcard-modes' })}
-              ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'again' })}
+              ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'again', moving: true })}
               <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               ${cta({ kind: 'challenge', label: 'Challenge a friend with this innings', id: 'challenge-set' })}
               ${cta({ kind: 'share', label: 'Share on WhatsApp', id: 'mcard-share' })}
@@ -561,7 +561,7 @@ ${modeSelectMarkup()}
           </div>
             <div class="ec-keys">
               ${cta({ kind: 'mode', label: 'MODE', id: 'survive-modes' })}
-              ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'survive-again' })}
+              ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'survive-again', moving: true })}
               ${cta({ kind: 'share', label: 'Share on WhatsApp', id: 'survive-share' })}
             </div>
         </div>

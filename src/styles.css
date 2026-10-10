@@ -56,6 +56,13 @@
   --c-cta-ledge:#e9582b;
   --c-cta-face:#fff;
   --c-cta-ink:#152b3c;
+  /* The orange key as redrawn (Figma 149:18107): an orange rim lit from above
+     round a face that warms from white at its middle to peach at its foot. */
+  --c-cta-rim-top:#ff764b;
+  --c-cta-rim-bottom:#c74821;
+  --c-cta-face-bottom:#ffc2af;
+  --g-cta-rim:linear-gradient(180deg,var(--c-cta-rim-top),var(--c-cta-rim-bottom));
+  --g-cta-face:linear-gradient(180deg,#fff 50%,var(--c-cta-face-bottom));
   --c-mode:#2b5f8f;
   --c-mode-ledge:#173a5a;
   --c-share:#12924a;
@@ -847,12 +854,13 @@ body.start-screen #sound{
 /* A white key stood on an orange base: the one thing here to press. */
 .play-button{
   min-height:60px;
-  border:3px solid var(--cta-orange);
-  background:#fff;
-  box-shadow:0 8px 0 var(--cta-orange),0 12px 14px #7a4a1e33
+  border:3px solid #0000;
+  border-radius:14px;
+  background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;
+  box-shadow:0 8px 0 var(--c-cta-rim-bottom),0 12px 14px #7a4a1e33
 }
-.play-button:hover:not(:disabled){box-shadow:0 9px 0 var(--cta-orange),0 14px 16px #7a4a1e3d}
-.play-button:active:not(:disabled){transform:translateY(6px);box-shadow:0 2px 0 var(--cta-orange),0 4px 8px #7a4a1e2e}
+.play-button:hover:not(:disabled){box-shadow:0 9px 0 var(--c-cta-rim-bottom),0 14px 16px #7a4a1e3d}
+.play-button:active:not(:disabled){transform:translateY(6px);box-shadow:0 2px 0 var(--c-cta-rim-bottom),0 4px 8px #7a4a1e2e}
 /* The same key, one step back. A bare outline on sand reads as a hole rather
    than a control, and it borrows the primary's weight to say so; a solid plate
    in the batter's own navy has presence of its own and stays legible over any
@@ -1123,17 +1131,17 @@ body.start-screen #sound{pointer-events:auto}
 .card-shares>*{flex:1;min-width:0;margin-top:0}
 .key-button{
   min-height:54px;
-  border:3px solid var(--cta-orange);
-  border-radius:10px;
-  background:#fff;
+  border:3px solid #0000;
+  border-radius:14px;
+  background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;
   color:var(--cta-ink);
   font-size:17px;
   letter-spacing:2px;
   text-indent:2px;
-  box-shadow:0 6px 0 var(--cta-orange),0 10px 12px #7a4a1e2e
+  box-shadow:0 6px 0 var(--c-cta-rim-bottom),0 10px 12px #7a4a1e2e
 }
-.key-button:hover:not(:disabled){box-shadow:0 7px 0 var(--cta-orange),0 12px 14px #7a4a1e38}
-.key-button:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--cta-orange),0 4px 7px #7a4a1e24}
+.key-button:hover:not(:disabled){box-shadow:0 7px 0 var(--c-cta-rim-bottom),0 12px 14px #7a4a1e38}
+.key-button:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--c-cta-rim-bottom),0 4px 7px #7a4a1e24}
 .whatsapp-key{
   min-height:46px;
   border:0;
@@ -3708,12 +3716,12 @@ body.survive-mode #scoreboard{display:none}
 }
 .rival-key.is-green{background:#0a914b;border:2px solid #00411f;box-shadow:0 7px 0 #00411f,0 12px 14px #00000040}
 .rival-key.is-green:hover{background:#0c9f53}
-.rival-key.is-play{background:#fff;color:#000;border:3px solid var(--cta-orange);box-shadow:0 6px 0 var(--cta-orange),0 12px 14px #00000040}
+.rival-key.is-play{background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;color:#000;border:3px solid #0000;border-radius:14px;box-shadow:0 6px 0 var(--c-cta-rim-bottom),0 12px 14px #00000040}
 .rival-key.is-steel{background:#386fa0;border:2px solid #000;box-shadow:0 6px 0 #000,0 12px 14px #00000040}
 .rival-key.is-white{background:#fff;color:#000;border:2px solid #000;box-shadow:0 6px 0 #000}
 .rival-key:active{transform:translateY(4px)}
 .rival-key.is-green:active{box-shadow:0 3px 0 #00411f}
-.rival-key.is-play:active{box-shadow:0 2px 0 var(--cta-orange)}
+.rival-key.is-play:active{box-shadow:0 2px 0 var(--c-cta-rim-bottom)}
 .rival-key.is-steel:active,.rival-key.is-white:active{box-shadow:0 2px 0 #000}
 .rival-key:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .room-screen:focus,.sheet-overlay:focus{outline:none}
@@ -4737,15 +4745,16 @@ body.private-window{overflow:hidden}
   box-shadow:0 4px 0 var(--turf-deep)
 }
 .rate-more{
-  border:3px solid var(--cta-orange);
-  background:#fff;
+  border:3px solid #0000;
+  border-radius:14px;
+  background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;
   color:#1d1408;
-  box-shadow:0 4px 0 var(--cta-orange),0 8px 12px #0000004d
+  box-shadow:0 4px 0 var(--c-cta-rim-bottom),0 8px 12px #0000004d
 }
 .rate-done:hover{background:#00000045;border-color:#ffffff66}
-.rate-more:hover{box-shadow:0 5px 0 var(--cta-orange),0 10px 14px #0000004d}
+.rate-more:hover{box-shadow:0 5px 0 var(--c-cta-rim-bottom),0 10px 14px #0000004d}
 .rate-done:active{transform:translateY(3px);box-shadow:0 1px 0 var(--turf-deep)}
-.rate-more:active{transform:translateY(3px);box-shadow:0 1px 0 var(--cta-orange)}
+.rate-more:active{transform:translateY(3px);box-shadow:0 1px 0 var(--c-cta-rim-bottom)}
 .rate-keys>button:focus-visible{outline:2.5px solid var(--ink);outline-offset:3px}
 
 /* What is thrown in the air. Positioned by the script at the star that landed,
@@ -7481,8 +7490,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* A Rival Match's card: BACK TO RESULT in PLAY AGAIN's place, the same key. */
 #end.ec-screen.is-match #card-result{
   flex:1;min-height:calc(var(--u) * 56);margin:0;padding:0;
-  border:calc(var(--u) * 3) solid var(--c-cta-ledge);border-bottom-width:calc(var(--u) * 6);border-radius:16px;
-  background:var(--c-cta-face);color:var(--c-cta-ink);box-shadow:none;
+  border:calc(var(--u) * 2) solid #0000;border-bottom-width:calc(var(--u) * 12);border-radius:calc(var(--u) * 14);
+  background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;color:var(--c-cta-ink);box-shadow:none;
   font:400 calc(var(--u) * 20)/1 var(--f-display);letter-spacing:.08em;font-optical-sizing:none;font-variation-settings:'opsz' 6
 }
 #end.ec-screen.is-match #card-modes{align-self:center;color:var(--c-text-2)}

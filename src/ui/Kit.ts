@@ -62,6 +62,8 @@ export interface Cta {
   /** The face's ink, where a mode card tints PLAY its own colour. */
   ink?: string;
   disabled?: boolean;
+  /** The primary's moving face: two faint chevrons crossing it, end to end. */
+  moving?: boolean;
 }
 
 /** The square keys show only their icon, and say what they are to a screen reader. */
@@ -80,7 +82,8 @@ export function cta(view: Cta): string {
     ink ? `style="--ink:${escape(ink)}"` : '',
     disabled ? 'disabled' : '',
   ].filter(Boolean).join(' ');
-  const face = `${glyph ? icon(glyph) : ''}${square ? '' : `<span>${escape(label)}</span>`}`;
+  const chevrons = view.moving ? '<i class="k-cta-chevrons" aria-hidden="true"></i>' : '';
+  const face = `${chevrons}${glyph ? icon(glyph) : ''}${square ? '' : `<span>${escape(label)}</span>`}`;
   return `<button ${attrs}><span class="k-cta-face">${face}</span></button>`;
 }
 

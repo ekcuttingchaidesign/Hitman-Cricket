@@ -420,6 +420,14 @@ changes nothing about the batting, so it is not practice
 its Figma master's size, checks both faces load and every target is 44, and
 photographs the page at a phone's width and in the desktop column.
 
+The orange key is redrawn (Figma `149:18107`, and `149:18112` for the one that
+moves): an orange rim lit from above round a face warming from white to peach,
+named `--g-cta-rim` and `--g-cta-face`, at the sizes it already had. The older
+white-on-orange keys (`.play-button`, `.key-button`, `.rate-more`, the Rivals
+PLAY) wear the same colours until their screens are redrawn. `cta({ moving:
+true })` adds the two faint chevrons crossing the face — the cover's PLAY and
+both PLAY AGAINs — and leaves them at rest under reduced motion.
+
 Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
 across the last, not a fraction of the top figure.
