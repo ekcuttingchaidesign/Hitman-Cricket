@@ -753,12 +753,16 @@ body.start-screen #sound{
   width:var(--tap);height:var(--tap);border:1px solid #ffffff1a;border-radius:14px;
   background:var(--c-card-top);color:var(--c-text);box-shadow:none
 }
-/* The motion poster (the handover's section 11): the batter never moves; only
-   light, air and the screen round him do. Asked for less motion, none of it is
-   there and the poster is a still. */
+/* The motion poster (the handover's section 11): the floodlights stand still;
+   what moves is the air and the depth. The scene is three layers — the poster
+   with the light in it, the smoke, the dust nearest — each sliding by its
+   depth as `coverParallax` moves --px and --py. Asked for less motion, none of
+   it is there and the poster is a still. */
 .cover-motion,.cover-shine{display:none}
 .cover-best-text{transition:opacity .2s ease}
 .cover-best-text.is-turning{opacity:0}
+.cover-art{transform:translate3d(calc(var(--px,0) * -10px * .3),calc(var(--py,0) * -8px * .3),0) scale(1.06)}
+.cover-layer{position:absolute;inset:-4%;transform:translate3d(calc(var(--px,0) * -10px * var(--depth)),calc(var(--py,0) * -8px * var(--depth)),0)}
 @media (prefers-reduced-motion:no-preference){
   .cover-intro .cover-motion{display:block;position:absolute;inset:0;pointer-events:none}
   .cover-intro .cover-shine{
@@ -771,43 +775,62 @@ body.start-screen #sound{
   /* PLAY: a soft orange halo breathing behind the ledge. */
   .cover-intro #start{animation:cover-halo 2.4s ease-in-out infinite}
 }
-/* Each beam turns about its lamp, the narrow end, and the translate puts it
-   back where the frame has it — the frame turns it about its middle. Six
-   seconds round, the two a second and a half apart. */
-.cover-beam{
-  position:absolute;mix-blend-mode:screen;transform-origin:var(--ox) 0;
-  transform:translate(var(--tx),var(--ty)) rotate(var(--tilt));
-  animation:cover-sweep 6s ease-in-out infinite
+@media (prefers-reduced-motion:reduce){
+  .cover-art,.cover-layer{transform:none}
 }
-.cover-beam.is-left{--ox:6.58%;--tx:-9.83%;--ty:4.59%;--tilt:-8deg;left:calc(100% * -23 / 402);top:calc(100% * -59 / 874);width:calc(100% * 380 / 402);height:calc(100% * 560 / 874)}
-.cover-beam.is-right{--ox:92.42%;--tx:11.4%;--ty:3.97%;--tilt:8deg;left:calc(100% * 319 / 402);top:calc(100% * -10 / 874);width:calc(100% * 330 / 402);height:calc(100% * 560 / 874);animation-delay:-1.5s}
-@keyframes cover-sweep{
-  0%,100%{transform:translate(var(--tx),var(--ty)) rotate(calc(var(--tilt) - 8deg))}
-  50%{transform:translate(var(--tx),var(--ty)) rotate(calc(var(--tilt) + 8deg))}
-}
+/* The layer boxes are grown a little past the screen so a slide never shows an
+   edge; positions inside are on the design's 402 x 874 frame within that. */
+.cover-layer>*{position:absolute}
+/* The floodlights, where frame 1 has them, and still. */
+.cover-beam{mix-blend-mode:screen;transform-origin:var(--ox) 0;transform:translate(var(--tx),var(--ty)) rotate(var(--tilt))}
+.cover-beam.is-left{--ox:6.58%;--tx:-9.83%;--ty:4.59%;--tilt:-8deg;left:calc(3.7% + 92.6% * -23 / 402);top:calc(3.7% + 92.6% * -59 / 874);width:calc(92.6% * 380 / 402);height:calc(92.6% * 560 / 874)}
+.cover-beam.is-right{--ox:92.42%;--tx:11.4%;--ty:3.97%;--tilt:8deg;left:calc(3.7% + 92.6% * 319 / 402);top:calc(3.7% + 92.6% * -10 / 874);width:calc(92.6% * 330 / 402);height:calc(92.6% * 560 / 874)}
 /* Camera flashes in the stands: a sixth of a second each, three clocks. */
 .cover-flash{
-  position:absolute;left:calc(100% * var(--x) / 402);top:calc(100% * var(--y) / 874);width:calc(100% * 56 / 402);
+  left:calc(3.7% + 92.6% * var(--x) / 402);top:calc(3.7% + 92.6% * var(--y) / 874);width:calc(92.6% * 56 / 402);
   opacity:0;animation:cover-flash var(--every) linear infinite;animation-delay:var(--delay)
 }
 .cover-flash img{display:block;width:100%}
 .cover-flash .cover-flash-dot{position:absolute;left:45.5%;top:45.5%;width:9%}
 @keyframes cover-flash{0%{opacity:1}7%{opacity:0}100%{opacity:0}}
-/* Dust drifting up through the light: eight seconds, thirty pixels, fading at the top. */
-.cover-mote{
-  position:absolute;left:calc(100% * (var(--x) + var(--size) / 2 - 8) / 402);top:calc(100% * (var(--y) + var(--size) / 2 - 8) / 874);
-  width:calc(100% * 16 / 402);
-  opacity:0;animation:cover-mote 8s linear infinite;animation-delay:var(--delay)
-}
-@keyframes cover-mote{0%{opacity:0;transform:translateY(0)}12%{opacity:1}70%{opacity:.85}100%{opacity:0;transform:translateY(calc(var(--u) * -30))}}
 /* A light running along the trail: nine tenths of a second, every four. */
 .cover-glint{
-  position:absolute;left:calc(100% * 208.5 / 402);top:calc(100% * 418.5 / 874);width:calc(100% * 153 / 402);
+  left:calc(3.7% + 92.6% * 208.5 / 402);top:calc(3.7% + 92.6% * 418.5 / 874);width:calc(92.6% * 153 / 402);
   -webkit-mask:linear-gradient(90deg,#0000 0%,#000 12%,#000 22%,#0000 34%) 0 0/300% 100% no-repeat;
   mask:linear-gradient(90deg,#0000 0%,#000 12%,#000 22%,#0000 34%) 0 0/300% 100% no-repeat;
   animation:cover-glint 4s linear infinite
 }
 @keyframes cover-glint{0%,77.5%{-webkit-mask-position:100% 0;mask-position:100% 0;opacity:0}78%{opacity:1}100%{-webkit-mask-position:-50% 0;mask-position:-50% 0;opacity:1}}
+/* Smoke: soft banks of haze lit from above, drifting slowly across the stands
+   and round the lamps and breathing as they go. */
+.cover-puff{
+  left:calc(3.7% + 92.6% * var(--x) / 402);top:calc(3.7% + 92.6% * var(--y) / 874);
+  width:calc(92.6% * var(--w) / 402);height:calc(92.6% * var(--h) / 874);
+  border-radius:50%;
+  background:radial-gradient(closest-side,#f3f0e8 0%,#e6e8eea8 40%,#dfe7f800 100%);
+  filter:blur(12px);opacity:.5;mix-blend-mode:screen;
+  animation:cover-smoke var(--every) ease-in-out infinite alternate;animation-delay:var(--at)
+}
+@keyframes cover-smoke{
+  0%{transform:translateX(0) scale(1);opacity:.38}
+  50%{opacity:.62}
+  100%{transform:translateX(calc(var(--travel) * 1px)) scale(1.2);opacity:.42}
+}
+/* Dust: specks rising through the light, swaying as they go, fading at the top. */
+.cover-mote{
+  left:calc(3.7% + 92.6% * var(--x) / 402);top:calc(3.7% + 92.6% * var(--y) / 874);
+  width:calc(var(--size) * 1px);height:calc(var(--size) * 1px);border-radius:50%;
+  background:radial-gradient(circle,#fff6dc 0%,#fff6dccc 35%,#fff6dc00 72%);
+  box-shadow:0 0 calc(var(--size) * 1.6px) #ffe9b0b3;
+  opacity:0;animation:cover-mote var(--rise) linear infinite;animation-delay:var(--at)
+}
+@keyframes cover-mote{
+  0%{opacity:0;transform:translate(0,0)}
+  12%{opacity:.95}
+  55%{transform:translate(calc(var(--sway) * 1px),calc(var(--u) * -40))}
+  80%{opacity:.7}
+  100%{opacity:0;transform:translate(calc(var(--sway) * -.4px),calc(var(--u) * -80))}
+}
 /* The shine: 1.2 seconds, eased out, every five. */
 @keyframes cover-shine{0%{background-position:150% 0;animation-timing-function:ease-out}24%,100%{background-position:-50% 0}}
 @keyframes cover-halo{0%,100%{filter:drop-shadow(0 0 0 #e8592b00)}50%{filter:drop-shadow(0 0 11px #e8592b8c)}}
@@ -7143,14 +7166,42 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ms-stat{padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:8px;background:#05070a8c;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;color:#fffffff2;white-space:nowrap}
 .ms-play.k-cta{align-self:stretch;min-height:0}
 .ms-play .k-cta-face{border:2px solid var(--ledge)}
-/* Survival's banner: shorter, the art behind a dark sweep from the left. */
-.ms-banner{flex-shrink:0;width:100%;height:calc(var(--u) * 128);padding:0 calc(var(--u) * 14) calc(var(--u) * 14) calc(var(--u) * 16);border:1.5px solid #ff7a6ecc;border-radius:24px}
-.ms-banner::before{background:linear-gradient(90deg,#0a0b0dd9 0%,#0a0b0d00 55%),linear-gradient(180deg,#0000000d 0%,#0000001a 45%,#0a0b0deb 100%)}
-.ms-banner .ms-tag{left:calc(var(--u) * 14.5)}
+/* Survival's banner: a match in the evening light. The art sits to the right
+   with the bowler in it; the colour of the mode — a deep blood red — comes in
+   from the left under the name, a red glow sits round the card, and its PLAY
+   is the one key on the screen that is red all through: Survival is the mode
+   where one ball ends it. */
+.ms-banner{
+  flex-shrink:0;width:100%;height:calc(var(--u) * 140);
+  padding:0 calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 18);
+  border:1.5px solid #ff7a6ecc;border-radius:24px;
+  box-shadow:0 14px 30px #00000080,0 0 26px #ff5a4e2e,inset 0 1px 0 #ffffff1a
+}
+.ms-banner .ms-art{object-position:72% 30%;transform:scale(1.08);transform-origin:80% 40%}
+.ms-banner::before{
+  background:
+    linear-gradient(90deg,#3e080ef5 0%,#5e0c17cc 34%,#5e0c1766 56%,#5e0c1700 74%),
+    linear-gradient(180deg,#00000000 30%,#0a0b0da6 100%)
+}
+/* A thin light along the top edge, the way a floodlit card catches it. */
+.ms-banner::after{content:'';position:absolute;left:12%;right:12%;top:0;height:1px;background:linear-gradient(90deg,#ff9b9000,#ffb3aa,#ff9b9000);opacity:.7}
+.ms-banner .ms-tag{left:calc(var(--u) * 16.5);top:calc(var(--u) * 14)}
 .ms-banner-foot{display:flex;align-items:flex-end;gap:calc(var(--u) * 12);align-self:stretch}
-.ms-banner-text{display:flex;flex:1;flex-direction:column;gap:calc(var(--u) * 2);min-width:0;white-space:nowrap}
-.ms-banner-name{font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
-.ms-banner .ms-play.k-cta{align-self:auto}
+.ms-banner-text{display:flex;flex:1;flex-direction:column;gap:calc(var(--u) * 4);min-width:0;white-space:nowrap}
+.ms-banner-name{font:400 calc(var(--u) * 26)/1 var(--f-display);letter-spacing:.04em;text-shadow:0 2px 12px #00000080;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ms-banner .ms-desc{color:#ffe7e3e6;overflow:hidden;text-overflow:ellipsis}
+/* Its PLAY: red through, white type, on a ledge of the darkest red. */
+.ms-banner .ms-play.k-cta{
+  --ledge:#6a0d18;align-self:auto;flex-shrink:0;min-width:calc(var(--u) * 104);
+  padding:0 0 calc(var(--u) * 5);border-radius:14px;
+  box-shadow:0 6px 16px #ff5a4e40
+}
+.ms-banner .ms-play .k-cta-face{
+  height:calc(var(--u) * 42);padding:0 calc(var(--u) * 22);border:0;border-radius:12px;
+  background:linear-gradient(180deg,#ff7a6c 0%,#f0473a 55%,#d8352a 100%);
+  box-shadow:inset 0 1px 0 #ffffff66,inset 0 -2px 0 #0000001f;
+  color:#fff;font-size:calc(var(--u) * 18);letter-spacing:.1em;text-shadow:0 1px 0 #00000040
+}
 
 /* The bento: the boards, and My Stats in the tier's own material. */
 .ms-bento{display:flex;gap:calc(var(--u) * 12);flex-shrink:0}

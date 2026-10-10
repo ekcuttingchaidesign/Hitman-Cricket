@@ -65,7 +65,7 @@ import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, type Granted } from './game/tier';
 import type { ModeSelectView } from './ui/ModeSelect';
-import { RECENT_MS, type CoverBoard } from './ui/Cover';
+import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
 import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
 import type { SurviveInnings } from './game/survive-board';
@@ -482,6 +482,8 @@ export class Game {
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best, { player: readPlayer() });
     this.hud.coverPlayer = () => readPlayer();
+    // The cover's depth: the poster, the smoke and the dust sliding at their own speeds.
+    coverParallax(this.hud.viewport.querySelector<HTMLElement>('#intro')!);
     // Neither of these is allowed to hold up an innings. Settling the id touches
     // three stores, one of which can hang; the board is a network call that may
     // never answer. Both run alongside the game, and the cover's trophy line
