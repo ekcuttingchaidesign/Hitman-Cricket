@@ -62,24 +62,22 @@ export const MARK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><pa
 export function keyCardMarkup(view: KeyView): string {
   const lost = view.state === 'lost';
   const saved = view.state === 'saved';
+  // UI v1's ticket stub, as on the innings card: the key on its holographic
+  // strip, the perforation, and SAVE beyond it. Lost, the strip says there is
+  // no key on this phone and the key makes one.
   return `
-    <section class="key-pass is-${view.state}" aria-labelledby="key-card-title">
-      <div class="key-face">
-        <div class="key-stamp">
-          <span class="key-mark" aria-hidden="true">${MARK}</span>
-          <h3 id="key-card-title">Your career key</h3>
-          <button id="key-info" class="key-info" type="button" aria-label="What is a career key?">
-            <span aria-hidden="true">i</span>
-          </button>
+    <section class="key-pass k-ticket is-${view.state}" aria-labelledby="key-card-title">
+      <div class="k-ticket-key">
+        <div class="k-ticket-label k-t-overline">${icon('key')}<span id="key-card-title">Career key</span>
+          <button id="key-info" class="key-info" type="button" aria-label="What is a career key?"><span aria-hidden="true">i</span></button>
         </div>
-        ${lost ? '' : `<p class="key-serial"><span>${escape(view.code ?? '')}</span></p>`}
-        <p class="key-line">${lost
-          ? 'There is no key on this phone. Make one now \u2014 it takes a second, and it is what brings this record back if this browser ever forgets you.'
-          : 'The only way back to your record if this browser forgets you'}</p>
-        <button id="key-save" class="key-save" type="button">${
-          lost ? 'MAKE MY KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
+        ${lost
+          ? '<p class="key-line">No key on this phone. Make one: it is what brings this record back.</p>'
+          : `<p class="key-serial k-ticket-pill"><span>${escape(view.code ?? '')}</span></p>`}
         ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
       </div>
+      <span class="k-ticket-perf" aria-hidden="true"></span>
+      <div class="k-ticket-save">${cta({ kind: 'save', label: lost ? 'MAKE IT' : 'SAVE', id: 'key-save' })}</div>
     </section>`;
 }
 

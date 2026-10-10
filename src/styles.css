@@ -7718,3 +7718,114 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   -webkit-mask-image:linear-gradient(180deg,rgb(0 0 0 / calc(1 - var(--fade,0))) 0,rgb(0 0 0 / calc(1 - var(--fade,0))) calc(var(--u) * 34),#000 calc(var(--u) * 84));
   mask-image:linear-gradient(180deg,rgb(0 0 0 / calc(1 - var(--fade,0))) 0,rgb(0 0 0 / calc(1 - var(--fade,0))) calc(var(--u) * 34),#000 calc(var(--u) * 84))
 }
+
+/* ── My Stats (UI v1, the handover's section 07) ─────────────────────────────
+   The tier card leads, in the material of the rung: matte navy, brushed
+   bronze, black with a chrome edge, black and gold foil. Road to Hitman under
+   it, six figures, the key as a ticket, and the share key pinned to the foot.
+   Sizes in --u. */
+#stats-overlay:has(.st-page){display:block;padding:0;overflow:hidden;background:
+  radial-gradient(calc(var(--u) * 310) calc(var(--u) * 240) at 50% calc(var(--u) * 120),#ed70441a,transparent 70%),var(--c-page)}
+#stats-overlay:has(.st-page)::before{content:'';position:absolute;inset:0;opacity:.5;pointer-events:none;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
+.stats-sheet-inner.st-page{
+  position:relative;width:100%;height:100%;max-height:none;margin:0;gap:calc(var(--u) * 14);
+  padding:var(--top-gap) calc(var(--u) * 20) 0;overflow-y:auto;overflow-x:hidden;color:var(--c-text);font-family:var(--f-ui)
+}
+.st-head{display:flex;align-items:center;gap:calc(var(--u) * 10);flex:none}
+.st-head .k-icon-button{flex:none;background:var(--c-card-top)}
+.st-title{flex:1;min-width:0;margin:0;font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;white-space:nowrap;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.st-switch{display:flex;gap:2px;flex:none;margin:0;padding:3px;border:1px solid #ffffff14;border-radius:14px;background:#1a1e24}
+.st-switch .stats-dot{display:grid;place-items:center;height:calc(var(--u) * 38);min-width:0;margin:0;padding:0 calc(var(--u) * 9);border:0;border-radius:11px;background:none;
+  color:var(--c-text-2);font:700 calc(var(--u) * 11)/1.2 var(--f-ui);letter-spacing:.1em}
+.st-switch .stats-dot.is-on{background:var(--c-text);color:var(--c-ink)}
+.st-switch .stats-dot span{display:block}
+
+.st-page .stats-stage{display:flex;align-items:flex-start;min-height:0;flex:none}
+.st-page .stats-stage.is-rail{gap:calc(var(--u) * 20);overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.st-page .stats-slide{flex:0 0 100%;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:calc(var(--u) * 14);scroll-snap-align:start}
+.st-page .stats-slide:last-child{scroll-snap-align:start}
+.st-page .k-road{width:100%;box-sizing:border-box}
+
+/* The card. */
+.st-card{
+  --ink:var(--c-text);--quiet:var(--c-text-2);--pill:#ffffff1f;--pill-ink:var(--c-text);
+  position:relative;display:flex;flex-direction:column;justify-content:space-between;height:calc(var(--u) * 214);overflow:hidden;
+  padding:calc(var(--u) * 16) calc(var(--u) * 20) calc(var(--u) * 18);border:1.5px solid var(--edge,#ffffff33);border-radius:24px;
+  background:var(--metal);color:var(--ink);box-shadow:0 16px 32px #0000008c
+}
+.st-card>*{position:relative}
+.st-card-grain,.st-card-sheen{position:absolute;inset:0;pointer-events:none}
+.st-card-sheen{background:linear-gradient(135.4deg,#fff0 18.75%,#ffffff14 46.875%,#fff0 56.25%)}
+.st-card-top{display:flex;align-items:center;justify-content:space-between}
+.st-card-logo{width:calc(var(--u) * 70);height:calc(var(--u) * 25);object-fit:contain;object-position:left center}
+.st-card-tier{padding:calc(var(--u) * 4) calc(var(--u) * 10);border-radius:8px;background:var(--pill);color:var(--pill-ink);
+  font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;white-space:nowrap;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.st-card-who{display:flex;align-items:center;gap:calc(var(--u) * 12)}
+.st-card-who .board-kit{flex:none;width:calc(var(--u) * 44);height:calc(var(--u) * 44);box-shadow:0 0 0 2px #ffffff40}
+.st-card-who .board-kit.is-empty{box-shadow:none;border:1.5px solid #ffffff40;background:#00000033}
+.st-card-name{display:flex;flex-direction:column;min-width:0}
+.st-card-name b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 calc(var(--u) * 18)/1.2 var(--f-ui)}
+.st-card-name small{color:var(--quiet);font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
+.st-edit{display:grid;place-items:center;flex:none;width:var(--tap);height:var(--tap);margin:0 calc(var(--u) * -10) 0 auto;padding:0;border:0;border-radius:50%;background:none;color:var(--quiet)}
+.st-edit svg{width:calc(var(--u) * 18);height:calc(var(--u) * 18)}
+.st-card-figure{display:flex;align-items:baseline;gap:calc(var(--u) * 8);white-space:nowrap}
+.st-card-figure b{font:900 calc(var(--u) * 40)/1 var(--f-ui);letter-spacing:-.033em;color:var(--figure,var(--ink))}
+.st-card-figure span{color:var(--quiet);font:500 calc(var(--u) * 12)/1.3 var(--f-ui)}
+
+.st-card.tier-debutant{--metal:linear-gradient(135.6deg,#2b4c78 0%,#1a3352 55%,#0f1f36 100%);--edge:#b9cde680;--quiet:#a9bfd8;--pill:#5c83b540;--pill-ink:#bfd3ec}
+.st-card.tier-debutant .st-card-grain{background:repeating-linear-gradient(115deg,#ffffff05 0 2px,#fff0 2px 9px)}
+.st-card.tier-emerging{--metal:linear-gradient(149.4deg,#e8b98c 0%,#b9784a 28%,#f0c79e 50%,#9a5a2f 72%,#c98b5a 100%);--edge:#ffe2c4;
+  --ink:#2a1608;--quiet:#5a3218;--pill:#2a1608d9;--pill-ink:#f0c79e}
+.st-card.tier-emerging .st-card-grain{background:repeating-linear-gradient(180deg,#3a1e0c0d 0 1px,#fff0 1px 4px,#ffffff0f 4px 5px,#fff0 5px 8px)}
+.st-card.tier-emerging .st-card-who .board-kit{box-shadow:0 0 0 2px #2a160840}
+.st-card.tier-star{--metal:linear-gradient(135.6deg,#3a3f46 0%,#1b1e22 55%,#0b0c0e 100%);--edge:#c9d1d9;--quiet:#b8c1ca;--pill:#ffffff1f;--pill-ink:#e7ecf1;--figure:#eef2f6}
+.st-card.tier-star{box-shadow:0 16px 32px #0000008c,inset 0 0 0 1px #ffffff40}
+.st-card.tier-star .st-card-grain{background:linear-gradient(105deg,#fff0 30%,#ffffff12 44%,#fff0 58%)}
+.st-card.tier-hitman{--metal:linear-gradient(135.6deg,#2a2416 0%,#0d0b07 60%,#050505 100%);--edge:var(--c-gold);--quiet:#d9c79a;--pill:var(--c-gold);--pill-ink:#1a1206;--figure:var(--c-gold)}
+.st-card.tier-hitman .st-card-grain{background:
+  repeating-radial-gradient(circle at 100% 0%,#f5b83d1f 0 1px,#fff0 1px 9px),
+  linear-gradient(120deg,#fff0 35%,#ff7ad91a 45%,#7af0ff1a 52%,#fff0 62%)}
+.st-card.tier-hitman{box-shadow:0 16px 32px #0000008c,0 0 0 1px #f5b83d33,inset 0 0 18px #f5b83d1a}
+
+/* The six figures. */
+.st-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--u) * 10)}
+.st-tile{display:flex;flex-direction:column;gap:2px;min-width:0;margin:0;padding:calc(var(--u) * 12) calc(var(--u) * 14);border:1px solid #ffffff14;border-radius:18px;
+  background:linear-gradient(180deg,#20252c,#13161a);box-shadow:inset 0 1px 0 #ffffff0f;color:var(--c-text);text-align:left}
+.st-tile b{font:900 calc(var(--u) * 20)/1.2 var(--f-ui);white-space:nowrap}
+.st-tile span{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-3)}
+.st-tile.is-rank b{color:var(--c-accent)}
+
+/* The key ticket, the record, the restore line, and the share key pinned below. */
+.st-page .key-pass{margin:0;flex:none}
+.st-page .key-pass .k-ticket-label{display:flex;align-items:center;gap:calc(var(--u) * 6)}
+.st-page .key-info{display:grid;place-items:center;width:calc(var(--u) * 18);height:calc(var(--u) * 18);margin:0 0 0 auto;padding:0;border:1px solid #ffffff3d;border-radius:50%;
+  background:none;color:var(--c-text-2);font:700 calc(var(--u) * 10)/1 var(--f-ui)}
+.st-page .key-info::after{content:'';position:absolute;inset:-12px}
+.st-page .key-info{position:relative}
+.st-page .key-pass .key-line{margin:0;font:500 calc(var(--u) * 12)/1.35 var(--f-ui);color:var(--c-text-2)}
+.st-page .key-pass .key-ghost{align-self:flex-start;margin:0;padding:0;border:0;background:none;color:var(--c-text-3);font:500 calc(var(--u) * 11)/1.3 var(--f-ui);text-decoration:underline}
+.st-page .rival-record.is-stats{margin:0}
+.st-page .stats-note{margin:0;text-align:center;color:var(--c-text-3);font:500 calc(var(--u) * 12)/1.4 var(--f-ui)}
+.st-foot{position:sticky;bottom:0;z-index:2;flex:none;margin:auto calc(var(--u) * -20) 0;padding:calc(var(--u) * 32) calc(var(--u) * 20) max(calc(var(--u) * 30),env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,#0a0b0d00 0%,#0a0b0df7 30%,#0a0b0d 100%)}
+.st-foot .k-cta{width:100%}
+.st-page .stats-toast{bottom:calc(var(--u) * 120)}
+/* The ticket wears the kit's plate, not the older key's charcoal. */
+.st-page .key-pass.k-ticket{border:0;border-radius:16px;background:linear-gradient(180deg,#20252c,#13161a);box-shadow:inset 0 0 0 1px #ffffff14;color:var(--c-text);font-family:var(--f-ui)}
+.st-page .key-pass .k-ticket-perf::before,.st-page .key-pass .k-ticket-perf::after{background:var(--c-page)}
+/* The Rivals record, in the tiles' material. */
+.st-page .rival-record.is-stats .rival-section-head{margin:0 0 calc(var(--u) * 8);color:var(--c-text-2);font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;font-variation-settings:'opsz' 6}
+.st-page .rival-record-row{gap:calc(var(--u) * 10);border:0;background:none;box-shadow:none;padding:0}
+.st-page .rival-record-cell{border:1px solid #ffffff14!important;border-radius:18px;background:linear-gradient(180deg,#20252c,#13161a);box-shadow:inset 0 1px 0 #ffffff0f;padding:calc(var(--u) * 12) calc(var(--u) * 14);align-items:flex-start}
+.st-page .rival-record-cell b{font:900 calc(var(--u) * 20)/1.2 var(--f-ui)}
+.st-page .rival-record-cell i{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);font-style:normal;letter-spacing:0;text-transform:none;color:var(--c-text-3)}
+/* The Test Marathon's card is British Racing Green at every rung, crimson
+   rising from the foot, as its painted card is (cardTheme); the tier still
+   shows in the pill, the edge and the figure. */
+.st-card.is-marathon{--metal:radial-gradient(120% 75% at 85% 115%,#c8102e5c,#c8102e00 62%),linear-gradient(160deg,#0b3a24 0%,#052015 55%,#021009 100%);
+  --edge:#3f7d5a;--ink:var(--c-text);--quiet:#b5c7bc;--pill:#ffffff1f;--pill-ink:#e7f0ea;--figure:var(--c-text)}
+.st-card.is-marathon .st-card-grain{background:none}
+.st-card.is-marathon.tier-emerging{--pill:#2a1608d9;--pill-ink:#f0c79e;--edge:#d9a877}
+.st-card.is-marathon.tier-star{--edge:#c9d1d9}
+.st-card.is-marathon.tier-hitman{--edge:var(--c-gold);--pill:var(--c-gold);--pill-ink:#1a1206;--figure:var(--c-gold)}
+.st-card.is-marathon .st-card-who .board-kit{box-shadow:0 0 0 2px #ffffff40}

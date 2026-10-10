@@ -10,7 +10,9 @@
  */
 
 import { avatarSrc } from '../config/board';
-import type { CareerMode } from '../game/career';
+import { emptyBlast, type CareerMode } from '../game/career';
+import { statsFacts } from '../game/StatsCard';
+import { cardMarkup } from './StatsSheet';
 import { TIERS, standingOf } from '../game/tier';
 import {
   cardActions, chips, cta, dropdownPill, iconButton, keyTicket, pitHeader, rankHeader, roadToHitman, tabs, tierBadge,
@@ -77,6 +79,11 @@ export function galleryMarkup(): string {
   const badges = TIERS.map(tier => tierBadge(tier.key, true, tier.short)).join('')
     + TIERS.slice(1).map(tier => tierBadge(tier.key, false, tier.short)).join('');
   const roads = [road('classic', 0), road('classic', 2140), road('classic', 16450), road('survive', 420), road('marathon', 9000)].join('');
+  // One career card a tier, the Blast's, at the runs each rung is reached on.
+  const careers = [0, 2140, 4800, 16450].map(runs => {
+    const facts = statsFacts('classic', { ...emptyBlast(), runs, innings: runs ? 20 : 0 }, { name: 'Shashank', avatar: 0 });
+    return cardMarkup(facts, runs ? { name: 'Shashank', avatar: 0 } : null, false);
+  }).join('');
   return `<main class="kg" aria-label="UI kit">
     <h1 class="kg-title">FOUNDATIONS</h1>
     <p class="kg-note k-t-small">UI v1 · every part, every state · figures made up</p>
@@ -87,6 +94,7 @@ export function galleryMarkup(): string {
     ${section('player', 'Player card, rank and key', player)}
     ${section('badges', 'Tier badges', `<div class="kg-row kg-wrap">${badges}</div>`)}
     ${section('road', 'Road to Hitman', `<div class="kg-stack">${roads}</div>`)}
+    ${section('careers', 'Career cards', `<div class="kg-stack">${careers}</div>`)}
   </main>`;
 }
 

@@ -638,6 +638,10 @@ export class Game {
     this.hud.onBoardRetry = () => this.reopenBoard();
     this.hud.onBoardName = () => this.askProfile(false);
     this.hud.onStatsOpen = this.showStats;
+    this.hud.onStatsPlay = mode => {
+      this.hud.closeStats();
+      this.choose(mode === 'classic' ? 'CLASSIC' : mode === 'marathon' ? 'MARATHON' : 'SURVIVE');
+    };
     // Either key in the sheet counts as saved. Which one was used is worth
     // knowing — one of them finishes the job and the other leaves homework —
     // so they are counted apart even though they retire the same prompts.
@@ -2174,6 +2178,8 @@ export class Game {
    * somebody else's card.
    */
   private railStats(open: CareerMode, draw: (view: StatsSheetView) => void) {
+    // Each card's Best rank reads the innings boards' places too.
+    this.refreshRanks();
     // The Test Marathon's card comes second, between the Blast's and Test
     // Survival's, wherever the mode can be played.
     const marathon: CareerMode[] = MARATHON_OPEN ? ['marathon'] : [];
@@ -2193,7 +2199,7 @@ export class Game {
         // rail is its full length from the first draw, which is what keeps the
         // player's place when the second one lands.
         draw({
-          cards: modes.map(one => this.mineSlides[one] ?? { facts, picture: null, failed: false }),
+          cards: modes.map(one => ({ ...(this.mineSlides[one] ?? { facts, picture: null, failed: false }), rank: this.bestRank(one) })),
           at,
           rivals: this.rooms?.record ?? null,
         });
@@ -2210,6 +2216,17 @@ export class Game {
         if (cards.length === modes.length) draw({ cards, at, rivals: list.record });
       });
     }
+  }
+
+  /**
+   * The best place this player holds on any of a mode's ladders: its innings
+   * board, as the store last said, and each career ladder from the rows held.
+   */
+  private bestRank(mode: CareerMode): number | null {
+    const places = Object.values(placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
+    const innings = this.modeRanks[mode];
+    const all = [...places, ...(innings ? [innings] : [])].filter(place => place > 0);
+    return all.length ? Math.min(...all) : null;
   }
 
   private openMine() {
