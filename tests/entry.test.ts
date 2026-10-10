@@ -18,15 +18,22 @@ describe('the cover', () => {
   });
 
   it('keeps the ids the game and its checks press', () => {
-    const cover = coverMarkup({ player: null, board: { kind: 'none' }, returning: false });
+    const cover = coverMarkup({ player: null, board: { kind: 'none' } });
     for (const id of ['intro', 'start', 'tutorial', 'cover-board', 'feedback-open', 'best-label', 'best', 'cover-profile']) {
       expect(cover).toContain(`id="${id}"`);
     }
   });
 
-  it('moves only for somebody who has batted here before', () => {
-    expect(coverMarkup({ player: null, board: { kind: 'none' }, returning: true })).toContain('cover-intro is-returning');
-    expect(coverMarkup({ player: null, board: { kind: 'none' }, returning: false })).not.toContain('is-returning');
+  it('is a motion poster for everybody, with three flashes in the stands', () => {
+    const cover = coverMarkup({ player: null, board: { kind: 'none' } });
+    expect(cover).toContain('cover-motion');
+    expect(cover.match(/class="cover-flash"/g)).toHaveLength(3);
+  });
+
+  it('says a big score made lately out loud: just now, or today', () => {
+    expect(coverBoardLines({ kind: 'recent', runs: 112, name: 'Rohit', ago: 60_000 })).toContain('JUST NOW · THE BLAST');
+    expect(coverBoardLines({ kind: 'recent', runs: 112, name: 'Rohit', ago: 60_000 })).toContain('Rohit just scored 112');
+    expect(coverBoardLines({ kind: 'recent', runs: 112, name: 'Rohit', ago: 5 * 3_600_000 })).toContain('Rohit scored 112 today');
   });
 });
 

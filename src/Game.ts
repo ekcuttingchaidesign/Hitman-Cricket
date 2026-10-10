@@ -3,7 +3,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
@@ -65,6 +65,7 @@ import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, type Granted } from './game/tier';
 import type { ModeSelectView } from './ui/ModeSelect';
+import { RECENT_MS, type CoverBoard } from './ui/Cover';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
 import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
 import type { SurviveInnings } from './game/survive-board';
@@ -479,10 +480,7 @@ export class Game {
     // number, so while it is on, the board says so above the tabs.
     if (this.demo) document.documentElement.setAttribute('data-demo', '1');
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
-    // A browser that has batted here gets the cover that moves; a first visit, the still.
-    let returning = false;
-    try { returning = !!readPlayer() || playedBefore(key => localStorage.getItem(key)); } catch { /* A first visit, then. */ }
-    this.hud = new HUD(root, this.best, { player: readPlayer(), returning });
+    this.hud = new HUD(root, this.best, { player: readPlayer() });
     this.hud.coverPlayer = () => readPlayer();
     // Neither of these is allowed to hold up an innings. Settling the id touches
     // three stores, one of which can hang; the board is a network call that may
@@ -1822,15 +1820,22 @@ export class Game {
    */
   private async quoteOnCover(rows: readonly BoardRow[]) {
     const top = rows[0];
-    if (this.best <= 0) {
-      if (top) this.hud.coverBoard({ kind: 'top', runs: top.runs, name: top.name });
-      return;
+    const lines: CoverBoard[] = [];
+    if (this.best > 0) {
+      const at = rows.findIndex(row => row.playerId === this.player);
+      let rank: number | null = at >= 0 ? at + 1 : null;
+      if (rank === null && readPlayer()) rank = (await fetchStanding(this.player, 'classic'))?.rank ?? null;
+      if (this.disposed) return;
+      lines.push({ kind: 'best', runs: this.best, rank });
     }
-    const at = rows.findIndex(row => row.playerId === this.player);
-    let rank: number | null = at >= 0 ? at + 1 : null;
-    if (rank === null && readPlayer()) rank = (await fetchStanding(this.player, 'classic'))?.rank ?? null;
-    if (this.disposed) return;
-    this.hud.coverBoard({ kind: 'best', runs: this.best, rank });
+    if (top && top.playerId !== this.player) lines.push({ kind: 'top', runs: top.runs, name: top.name });
+    // The latest score on the board made in the last day, by somebody else:
+    // the line that says the board is alive.
+    const now = Date.now();
+    const recent = rows.filter(row => row.at && now - row.at < RECENT_MS && row.playerId !== this.player)
+      .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0];
+    if (recent) lines.push({ kind: 'recent', runs: recent.runs, name: recent.name, ago: now - (recent.at ?? now) });
+    if (lines.length) this.hud.coverBoard(lines);
   }
 
   /** The Test fifty, the same way. The cover quotes the other one, not this. */

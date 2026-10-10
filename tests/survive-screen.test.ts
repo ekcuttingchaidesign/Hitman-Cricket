@@ -266,9 +266,10 @@ describe('the two ladders, through the store the endpoints run', () => {
     const store = memoryStore<SurviveInnings>();
     await submitScore(store, SURVIVE_LADDER, offer(), AT);
     const board = await readBoard(store, SURVIVE_LADDER);
-    // Nothing the browser sent beyond the five gets written down.
+    // Nothing the browser sent beyond the five gets written down. `at` is the
+    // store's own stamp, never the browser's.
     expect(Object.keys(board.rows[0]).sort())
-      .toEqual(['avatar', 'balls', 'blows', 'health', 'name', 'playerId', 'runs', 'score', 'wickets']);
+      .toEqual(['at', 'avatar', 'balls', 'blows', 'health', 'name', 'playerId', 'runs', 'score', 'wickets']);
   });
 
   it('puts a win above a draw above a loss, whatever the runs say', async () => {

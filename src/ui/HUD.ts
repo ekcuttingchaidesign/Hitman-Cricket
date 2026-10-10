@@ -228,7 +228,7 @@ export class HUD {
   /** Whether the player is on the board already, which the submit key says. */
   private onBoard = false;
   private $ = (id: string) => document.getElementById(id)!;
-  constructor(root: HTMLElement, best: number, cover: { player?: Player | null; returning?: boolean } = {}) {
+  constructor(root: HTMLElement, best: number, cover: { player?: Player | null } = {}) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
     // The cover fills the screen — on a desktop too, where the screen is the
     // phone-shaped column — so the scoreboard, the meter, the field labels and
@@ -324,7 +324,7 @@ export class HUD {
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
         <div id="speed-gun" class="speed-gun" aria-hidden="true"><b id="speed"></b><i>KM/H</i></div><div class="arena-bottom"><span><span id="side-left">LEG SIDE</span> <span class="direction-line"></span></span><span><span class="direction-line"></span> <span id="side-right">OFF SIDE</span></span></div>
-${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best), returning: !!cover.returning })}
+${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
@@ -1309,9 +1309,44 @@ ${modeSelectMarkup()}
    * and place once they have — rewritten in place, without the screen being
    * rebuilt.
    */
-  coverBoard(view: CoverBoard) {
-    const text = this.viewport.querySelector('.cover-best-text');
-    if (text) text.innerHTML = coverBoardLines(view);
+  coverBoard(view: CoverBoard | CoverBoard[]) {
+    this.coverLines = (Array.isArray(view) ? view : [view]).filter(Boolean);
+    this.coverLine = 0;
+    this.drawCoverLine(false);
+    this.turnCoverLines();
+  }
+  /**
+   * The live line: the widget turns over to its next line every three and a
+   * half seconds, crossfading, and holds still while a finger is on it. Not
+   * while the cover is away, nor for a page asked to keep still — that gets
+   * the first line and nothing else.
+   */
+  private coverLines: CoverBoard[] = [];
+  private coverLine = 0;
+  private coverTurning = 0;
+  private coverHeld = false;
+  private turnCoverLines() {
+    if (this.coverTurning || this.coverLines.length < 2) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const widget = this.viewport.querySelector('#cover-board');
+    widget?.addEventListener('pointerdown', () => { this.coverHeld = true; });
+    for (const end of ['pointerup', 'pointercancel', 'pointerleave']) widget?.addEventListener(end, () => { this.coverHeld = false; });
+    this.coverTurning = window.setInterval(() => {
+      if (this.coverHeld || document.hidden || this.coverLines.length < 2 || this.$('intro').classList.contains('hidden')) return;
+      this.coverLine = (this.coverLine + 1) % this.coverLines.length;
+      this.drawCoverLine(true);
+    }, 3500);
+  }
+  private drawCoverLine(fade: boolean) {
+    const text = this.viewport.querySelector<HTMLElement>('.cover-best-text');
+    const line = this.coverLines[this.coverLine];
+    if (!text || !line) return;
+    if (!fade) { text.innerHTML = coverBoardLines(line); return; }
+    text.classList.add('is-turning');
+    window.setTimeout(() => {
+      text.innerHTML = coverBoardLines(line);
+      text.classList.remove('is-turning');
+    }, 200);
   }
   /** The cover's profile chip, redrawn for the player as they are now: named, re-kitted, or a guest. */
   coverProfile(player: Player | null) {
@@ -2696,7 +2731,10 @@ ${modeSelectMarkup()}
     // hud keys goes with it. They sit above the overlay and were being drawn
     // straight across the title.
     this.viewport.classList.add('picking-mode');
-    (this.$('mode-challenge') as HTMLButtonElement).focus();
+    // Focus for a keyboard, without scrolling to it: on a short screen the
+    // key is at the foot, and the screen would open scrolled past its title.
+    (this.$('mode-challenge') as HTMLButtonElement).focus({ preventScroll: true });
+    this.viewport.querySelector('.ms-content')?.scrollTo({ top: 0 });
   }
   closeModes() {
     this.$('modes').classList.add('hidden');

@@ -88,8 +88,7 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   check(await page.locator('#intro').isVisible(), 'a first visit opens on the cover');
   check((await page.locator('#cover-profile').innerText()).replace(/\s+/g, ' ').trim() === 'GUEST My stats', 'whose chip says GUEST, My stats',
     await page.locator('#cover-profile').textContent());
-  const still = await page.locator('.cover-motion').isVisible();
-  check(!still, 'and whose poster stands still');
+  check(await page.locator('.cover-motion').isVisible(), 'and whose poster moves: it is a motion poster for everybody');
   const widget = await page.locator('#cover-board').textContent();
   check(/LEADERBOARD · THE BLAST|TOP OF THE BOARD · THE BLAST/.test(widget ?? ''), 'the board widget leads to the board', widget);
   for (const [id, label] of [['#start', 'PLAY'], ['#tutorial', 'HOW TO PLAY']]) {
@@ -108,6 +107,7 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   check(chip === 'SHASHANK My stats', 'a returning player\'s chip carries their name', chip);
   check(await page.locator('#cover-profile img').count() === 1, 'and their kit');
   check(await page.locator('.cover-motion').isVisible(), 'and their poster moves');
+  check(await page.locator('#start').evaluate(el => getComputedStyle(el).animationName) === 'cover-halo', 'with a halo breathing behind PLAY');
   for (let i = 0; i < 20 && !/YOUR BEST/.test(await page.locator('#cover-board').textContent() ?? ''); i++) await page.waitForTimeout(250);
   const widget = (await page.locator('#cover-board').innerText()).replace(/\s+/g, ' ').trim();
   check(/YOUR BEST · THE BLAST 158 runs/.test(widget ?? ''), 'the widget quotes their best', widget);
@@ -181,6 +181,27 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   const stored = await page.evaluate(() => localStorage.getItem('hitman-batter'));
   check(stored === null, 'and no name kept: nobody bats without one', stored);
   check(errors.length === 0, 'with nothing thrown', errors.join(' | '));
+  await context.close();
+}
+
+// — A phone's browser, where the window is shorter than the design's frame and
+// there is no status bar to clear: the top bar sits near the top, and the title
+// clears the batter's helmet.
+{
+  const context = await browser.newContext({ viewport: { width: 400, height: 680 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  await page.addInitScript(held => { try { for (const [k, v] of Object.entries(held)) localStorage.setItem(k, v); } catch { /* */ } }, BACK);
+  await page.goto(`${base}/?seed=222`, { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  const chip = await page.locator('#cover-profile').boundingBox();
+  check(chip && chip.y < 24, "in a phone's browser the chip sits near the top, with no status bar to clear", JSON.stringify(chip));
+  const title = await page.locator('.cover-title').boundingBox();
+  check(title && title.y + title.height <= 680 * 0.25, "and the title clears the batter's helmet, a quarter of the way down", JSON.stringify(title));
+  await page.screenshot({ path: 'test-results/entry/cover-browser.png' });
+  await toModes(page);
+  const back = await page.locator('#modes-cancel').boundingBox();
+  check(back && back.y >= 0 && back.y < 24, "and Choose a mode opens at its top, the back key near it", JSON.stringify(back));
+  await page.screenshot({ path: 'test-results/entry/modes-browser.png' });
   await context.close();
 }
 

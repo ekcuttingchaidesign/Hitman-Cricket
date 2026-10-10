@@ -25,6 +25,10 @@
   font-display:swap
 }
 :root{
+  /* How far the redrawn screens' top bars sit from the top. The handover's 48
+     is the iPhone status bar it draws over; a browser has none, so it is the
+     safe area where there is one, and a sliver where there is not. */
+  --top-gap:max(env(safe-area-inset-top,0px),calc(var(--u) * 14));
   font-family:'Segoe UI',Arial,sans-serif;
   color:#172b3b;
   background:#0f1f2b;
@@ -683,7 +687,7 @@ kbd{
   display:flex;
   flex-direction:column;
   align-items:center;
-  padding:calc(var(--u) * 48) calc(var(--u) * 20) calc(var(--u) * 34);
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 34);
   background:var(--c-page);
   font-family:var(--f-ui);
   text-align:center
@@ -695,7 +699,10 @@ kbd{
 }
 .cover-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
 .cover-top{align-self:stretch;display:flex;align-items:center;height:var(--tap)}
-.cover-title-wrap{position:relative;width:calc(var(--u) * 300);margin-top:calc(var(--u) * 20)}
+/* The title is sized to the height as well as the width: the poster is, and in
+   a phone's browser — shorter than the design's frame — a title sized to the
+   width alone comes down over the batter's helmet. */
+.cover-title-wrap{position:relative;width:min(calc(var(--u) * 300),34cqh);margin-top:min(calc(var(--u) * 20),2cqh)}
 .cover-title{display:block;width:100%;height:auto}
 .cover-actions{
   display:flex;
@@ -740,53 +747,70 @@ kbd{
 .k-profile-what{font:700 calc(var(--u) * 14)/1.3 var(--f-ui);white-space:nowrap}
 /* The sound key on the cover is the kit's icon button, in the chip's row:
    the row's glass comes off, and the row drops to the chip's line. */
-body.start-screen .hud-top{top:calc(var(--u) * 48);right:calc(var(--u) * 20)}
+body.start-screen .hud-top{top:var(--top-gap);right:calc(var(--u) * 20)}
 body.start-screen .hud-actions{background:none;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
 body.start-screen #sound{
   width:var(--tap);height:var(--tap);border:1px solid #ffffff1a;border-radius:14px;
   background:var(--c-card-top);color:var(--c-text);box-shadow:none
 }
-/* The motion poster: a returning player's cover moves. The layers sit where
-   the handover's frame 1 has them; asked for less motion, they are not there
-   at all and the poster is a still, as the build notes ask. */
-.cover-motion{display:none}
-.cover-shine{display:none}
+/* The motion poster (the handover's section 11): the batter never moves; only
+   light, air and the screen round him do. Asked for less motion, none of it is
+   there and the poster is a still. */
+.cover-motion,.cover-shine{display:none}
+.cover-best-text{transition:opacity .2s ease}
+.cover-best-text.is-turning{opacity:0}
 @media (prefers-reduced-motion:no-preference){
-  .cover-intro.is-returning .cover-motion{display:block;position:absolute;inset:0;pointer-events:none}
-  .cover-intro.is-returning .cover-shine{
+  .cover-intro .cover-motion{display:block;position:absolute;inset:0;pointer-events:none}
+  .cover-intro .cover-shine{
     display:block;position:absolute;inset:0;mix-blend-mode:overlay;pointer-events:none;
     background:linear-gradient(129.5deg,#fff0 40%,#ffffff8c 50%,#fff0 60%) no-repeat;
     background-size:300% 100%;background-position:150% 0;
     -webkit-mask:url('./assets/title.webp') center/contain no-repeat;mask:url('./assets/title.webp') center/contain no-repeat;
-    animation:cover-shine 5s ease-in-out infinite
+    animation:cover-shine 5s infinite
   }
+  /* PLAY: a soft orange halo breathing behind the ledge. */
+  .cover-intro #start{animation:cover-halo 2.4s ease-in-out infinite}
 }
+/* Each beam turns about its lamp, the narrow end, and the translate puts it
+   back where the frame has it — the frame turns it about its middle. Six
+   seconds round, the two a second and a half apart. */
 .cover-beam{
   position:absolute;mix-blend-mode:screen;transform-origin:var(--ox) 0;
   transform:translate(var(--tx),var(--ty)) rotate(var(--tilt));
-  animation:cover-sweep 6s ease-in-out infinite alternate
+  animation:cover-sweep 6s ease-in-out infinite
 }
-/* Each beam turns about its lamp, the narrow end, and the translate puts it
-   back where the frame has it — the frame turns it about its middle. */
 .cover-beam.is-left{--ox:6.58%;--tx:-9.83%;--ty:4.59%;--tilt:-8deg;left:calc(100% * -23 / 402);top:calc(100% * -59 / 874);width:calc(100% * 380 / 402);height:calc(100% * 560 / 874)}
-.cover-beam.is-right{--ox:92.42%;--tx:11.4%;--ty:3.97%;--tilt:8deg;left:calc(100% * 319 / 402);top:calc(100% * -10 / 874);width:calc(100% * 330 / 402);height:calc(100% * 560 / 874);animation-delay:-3s}
+.cover-beam.is-right{--ox:92.42%;--tx:11.4%;--ty:3.97%;--tilt:8deg;left:calc(100% * 319 / 402);top:calc(100% * -10 / 874);width:calc(100% * 330 / 402);height:calc(100% * 560 / 874);animation-delay:-1.5s}
 @keyframes cover-sweep{
-  from{transform:translate(var(--tx),var(--ty)) rotate(calc(var(--tilt) - 8deg))}
-  to{transform:translate(var(--tx),var(--ty)) rotate(calc(var(--tilt) + 8deg))}
+  0%,100%{transform:translate(var(--tx),var(--ty)) rotate(calc(var(--tilt) - 8deg))}
+  50%{transform:translate(var(--tx),var(--ty)) rotate(calc(var(--tilt) + 8deg))}
 }
-.cover-flash,.cover-flash-dot{position:absolute;opacity:0;animation:cover-flash 7s steps(1,end) infinite}
-.cover-flash{left:calc(100% * 70 / 402);top:calc(100% * 240 / 874);width:calc(100% * 56 / 402)}
-.cover-flash-dot{left:calc(100% * 95.5 / 402);top:calc(100% * 265.5 / 874);width:calc(100% * 5 / 402)}
-@keyframes cover-flash{0%{opacity:0}31%{opacity:1}33%{opacity:0}71%{opacity:1}73%{opacity:0}}
+/* Camera flashes in the stands: a sixth of a second each, three clocks. */
+.cover-flash{
+  position:absolute;left:calc(100% * var(--x) / 402);top:calc(100% * var(--y) / 874);width:calc(100% * 56 / 402);
+  opacity:0;animation:cover-flash var(--every) linear infinite;animation-delay:var(--delay)
+}
+.cover-flash img{display:block;width:100%}
+.cover-flash .cover-flash-dot{position:absolute;left:45.5%;top:45.5%;width:9%}
+@keyframes cover-flash{0%{opacity:1}7%{opacity:0}100%{opacity:0}}
+/* Dust drifting up through the light: eight seconds, thirty pixels, fading at the top. */
 .cover-mote{
   position:absolute;left:calc(100% * (var(--x) + var(--size) / 2 - 8) / 402);top:calc(100% * (var(--y) + var(--size) / 2 - 8) / 874);
   width:calc(100% * 16 / 402);
-  opacity:0;animation:cover-mote 8s ease-in-out infinite;animation-delay:var(--delay)
+  opacity:0;animation:cover-mote 8s linear infinite;animation-delay:var(--delay)
 }
-@keyframes cover-mote{0%{opacity:0;transform:translateY(0)}20%{opacity:1}80%{opacity:.8}100%{opacity:0;transform:translateY(calc(var(--u) * -30))}}
-.cover-glint{position:absolute;left:calc(100% * 208.5 / 402);top:calc(100% * 418.5 / 874);width:calc(100% * 153 / 402);opacity:0;animation:cover-glint 4s ease-in-out infinite}
-@keyframes cover-glint{0%,70%{opacity:0}80%{opacity:1}100%{opacity:0}}
-@keyframes cover-shine{0%,76%{background-position:150% 0}100%{background-position:-50% 0}}
+@keyframes cover-mote{0%{opacity:0;transform:translateY(0)}12%{opacity:1}70%{opacity:.85}100%{opacity:0;transform:translateY(calc(var(--u) * -30))}}
+/* A light running along the trail: nine tenths of a second, every four. */
+.cover-glint{
+  position:absolute;left:calc(100% * 208.5 / 402);top:calc(100% * 418.5 / 874);width:calc(100% * 153 / 402);
+  -webkit-mask:linear-gradient(90deg,#0000 0%,#000 12%,#000 22%,#0000 34%) 0 0/300% 100% no-repeat;
+  mask:linear-gradient(90deg,#0000 0%,#000 12%,#000 22%,#0000 34%) 0 0/300% 100% no-repeat;
+  animation:cover-glint 4s linear infinite
+}
+@keyframes cover-glint{0%,77.5%{-webkit-mask-position:100% 0;mask-position:100% 0;opacity:0}78%{opacity:1}100%{-webkit-mask-position:-50% 0;mask-position:-50% 0;opacity:1}}
+/* The shine: 1.2 seconds, eased out, every five. */
+@keyframes cover-shine{0%{background-position:150% 0;animation-timing-function:ease-out}24%,100%{background-position:-50% 0}}
+@keyframes cover-halo{0%,100%{filter:drop-shadow(0 0 0 #e8592b00)}50%{filter:drop-shadow(0 0 11px #e8592b8c)}}
 .play-button,.learn-button{
   width:clamp(196px,54cqw,300px);
   border-radius:13px;
@@ -6895,7 +6919,15 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .welcome-haze,.welcome-lights,.welcome-grain{position:absolute;pointer-events:none}
 .welcome-haze{left:calc(var(--u) * -60);top:calc(var(--u) * 40);width:calc(var(--u) * 520);height:calc(var(--u) * 420);max-width:none}
-.welcome-lights{left:0;top:0;width:calc(var(--u) * 402);height:calc(var(--u) * 874);max-width:none}
+/* Bright at the lamps, fading to nothing a little over halfway down: the
+   beams' own edges blurred off, and a mask that falls away faster than the
+   art's own gradient, so the light is strongest where it starts. */
+.welcome-lights{
+  left:0;top:0;width:calc(var(--u) * 402);height:calc(var(--u) * 874);max-width:none;
+  filter:blur(10px) brightness(2.6);
+  -webkit-mask:linear-gradient(180deg,#000 0%,#000d 18%,#0007 38%,#0002 56%,#0000 70%);
+  mask:linear-gradient(180deg,#000 0%,#000d 18%,#0007 38%,#0002 56%,#0000 70%)
+}
 .welcome-grain{inset:0;opacity:.5;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
 .welcome-body{
   position:relative;
@@ -6903,7 +6935,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   flex-direction:column;
   align-items:center;
   min-height:100%;
-  padding:calc(var(--u) * 48) calc(var(--u) * 20) calc(var(--u) * 34)
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 34)
 }
 .welcome-top{align-self:stretch;display:flex;height:var(--tap)}
 .welcome-heading{
@@ -7008,7 +7040,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   cursor:pointer
 }
 .welcome-preview-key.is-on{background:#e9582b;border-color:#e9582b}
-.has-welcome-keys .welcome-body{padding-top:calc(var(--u) * 48 + 46px)}
+.has-welcome-keys .welcome-body{padding-top:calc(var(--top-gap) + 46px)}
 /* A short column: the walk-out loses its glow rings and closes up. */
 @container app (max-height:700px){
   .welcome-walkout{transform:scale(.8);margin:calc(var(--u) * -10) 0 calc(var(--u) * -30)}
@@ -7065,7 +7097,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ms-content{
   position:relative;display:flex;flex-direction:column;gap:calc(var(--u) * 12);
   height:100%;overflow-y:auto;overscroll-behavior:contain;
-  padding:calc(var(--u) * 48) calc(var(--u) * 20) calc(var(--u) * 34)
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 34)
 }
 .ms-top{display:flex;align-items:center;gap:calc(var(--u) * 10);flex-shrink:0}
 .ms-title{flex:1;min-width:0;margin:0;font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
@@ -7090,7 +7122,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ms-poster.is-blast{border:1.5px solid #7fb2ffe6}
 .ms-art{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover}
 .ms-poster::before,.ms-banner::before{content:'';position:absolute;inset:0;z-index:-1}
-.ms-poster.is-marathon::before{background:linear-gradient(180deg,#0000 0%,#0000 42%,#004225d1 72%,#004225 100%)}
+.ms-poster.is-marathon::before{background:linear-gradient(180deg,#0000 0%,#00422500 30%,#004225b3 52%,#004225f2 70%,#004225 100%)}
+/* The helmet sits where the title goes, so the art is grown from its foot:
+   the helmet rises clear and the ball and the turf stay where they were. */
+.ms-poster.is-marathon .ms-art{transform:scale(1.14);transform-origin:50% 100%}
+.ms-poster .ms-name{text-shadow:0 2px 12px #00000073}
 .ms-poster.is-blast::before{background:linear-gradient(180deg,#0000 0%,#0000 42%,#123b85c7 72%,#123b85fa 100%)}
 .ms-tag{
   position:absolute;top:calc(var(--u) * 12.5);left:calc(var(--u) * 12.5);
