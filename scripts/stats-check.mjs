@@ -48,8 +48,10 @@ await page.waitForTimeout(1000);
 // The board people already know is the one it opens on. Every other ladder is
 // a pill away, and none of them is ever what greets somebody who taps the
 // leaderboard — including after they have been looking at one of the others.
-const live = () => page.$eval('.ladder-tab.is-on', tab => tab.textContent.trim()).catch(() => '');
+const live = () => page.$eval('#board-ladder .k-pill-label', pill => pill.textContent.trim()).catch(() => '');
 check(await live() === 'Top score', 'the board opens on the one that was already there', await live());
+await page.click('#board-ladder');
+await page.waitForTimeout(300);
 const runs = await page.$('#board-ladder-runs');
 if (runs) {
   await runs.click();
@@ -62,16 +64,18 @@ if (runs) {
   check(await live() === 'Top score', 'and the next open is back on it', await live());
 }
 
-const mine = await page.$('#board-tab-mine');
-check(!!mine, 'the board carries a My Stats tab');
-if (mine) await mine.click();
+// My Stats is the cover's profile chip since the board was redrawn; the board
+// is the boards, and nothing else.
+check(!(await page.$('#board-tab-mine')), 'the board carries no My Stats tab');
+await page.click('#board-close');
+await page.waitForTimeout(500);
+await page.click('#cover-profile');
 
 // The picture, which is the thing the two bugs above both stopped arriving.
 const drew = await page.waitForSelector('.stats-shot', { timeout: 20_000 }).then(() => true).catch(() => false);
 check(drew, 'the card is painted rather than left drawing', await page.$eval('.stats-stage', n => n.textContent.trim()).catch(() => ''));
 
-const tabs = await page.$$eval('.board-tabs button', keys => keys.map(key => key.textContent.trim()));
-check(tabs.length >= 2, 'the card keeps a way back to the board on the tab row', tabs.join(' | '));
+check(await page.locator('#stats-back').isVisible(), 'the card has its way back');
 
 // The rail: a card a game the build plays, the Blast in front, and
 // the next one showing at the edge so there is something to swipe towards.

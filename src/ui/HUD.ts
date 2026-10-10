@@ -16,29 +16,33 @@ import { playFilm, type Film, type Playing } from './Lottie';
 import type { Hand, Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
-  BOARD_TABS, actionsMarkup, boardMarkup, boardTabsMarkup, escape, flatTab, kitMarkup, peekMarkup, pickerMarkup,
+  BOARD_TABS, boardTabsMarkup, escape, flatTab, kitMarkup, peekMarkup, pickerMarkup,
   standingPeek,
   type BoardTab, type BoardView, type CardOffer, type SheetTab,
 } from './Leaderboard';
 import {
-  surviveActions, surviveBest, surviveBoardMarkup, survivePeekMarkup, surviveStandingPeek,
+  surviveBest, survivePeekMarkup, surviveStandingPeek,
   type SurviveBoardView,
 } from './SurviveBoard';
 import type { BoardRow, Innings } from '../game/leaderboard';
 import type { SurviveInnings, SurviveRow } from '../game/survive-board';
 import {
-  careerBoardMarkup, ladderTabsMarkup, laddersOf,
+  careerBoardOf, ladderTabsMarkup, laddersOf,
   type CareerBoardView, type LadderTab,
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
 import { INTRO_STEPS, introCardMarkup, introKeysMarkup, type IntroStep } from './MarathonIntro';
 import { fallsOf, marathonShareText, type CardBatter, type CardTotal } from './MarathonCard';
-import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
+import { MARATHON_LADDERS, marathonBest, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, icon as kitIcon } from './Kit';
+import {
+  BOARD_MODES, MODE_ORDER, NO_CONTEXT, blastBody, blurbOf, boardScreenMarkup, careerBody, ladderSheetMarkup, marathonBody, menuRank,
+  modeMenuMarkup, rulesSheetMarkup, surviveBody, type BoardBody, type BoardContext, type BoardMode, type BoardScreen,
+} from './Board';
 import { battingCardMarkup, injuryRingMarkup, injuryWord, overChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
@@ -78,6 +82,12 @@ const ordinal = (n: number) => {
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
   return `${n}${suffix}`;
 };
+/** What the game hands the board at each draw: see `onBoardFrame`. */
+export interface BoardFrame {
+  ctx: BoardContext;
+  ranks: Partial<Record<BoardMode, number | null>>;
+  play: 'again' | 'mode' | null;
+}
 /** The colour the pause sheet wears for the game it pauses: the Blast's blue, a Test's green, a Rival Match's orange. */
 export type PauseTone = 'blast' | 'test' | 'rivals';
 /** Each setting of the sound key: its picture, what it is, and what a press does. */
@@ -595,60 +605,236 @@ ${modeSelectMarkup()}
    * a fresh sheet is always the rows it was handed.
    */
   board(view: BoardView) {
-    this.sheet(boardMarkup(view), 'classic', 'best', this.actions('classic', !!view.actions));
+    this.drawBoard('classic', 'best', ctx => blastBody(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
   }
 
-  /**
-   * The Test board. The same overlay and the same keys — only the rows and the
-   * ladder they are ordered by differ, and those are the markup's business.
-   */
+  /** The Test board: the same screen, its rows read for a result and a margin. */
   surviveBoard(view: SurviveBoardView) {
-    this.sheet(surviveBoardMarkup(view), 'survive', 'best', this.actions('survive', !!view.actions));
+    this.drawBoard('survive', 'best', ctx => surviveBody(view.rows, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
   }
 
-  /**
-   * A career board. The same overlay, the same keys and the same rows — what
-   * differs is that it is ranking a total rather than an innings, and which
-   * total is the board's own business rather than this method's.
-   */
+  /** A career board: one big figure a row, and the rest under the name. */
   careerBoard(view: CareerBoardView & { actions?: boolean }) {
-    this.sheet(
-      careerBoardMarkup(view), view.mode, view.board.key,
-      this.actions(view.mode, !!view.actions),
-    );
+    this.drawBoard(view.mode, view.board.key, ctx => careerBody(view.board, view.rows, view.youId ?? null, ctx, view.size), view.state ?? 'ready', !!view.actions);
   }
 
-  /** The Test Marathon's board, on whichever of its two ladders is up. */
+  /** The Test Marathon's board, on its Team or Batters ladder. */
   marathonBoard(view: MarathonBoardView & { actions?: boolean }) {
-    this.sheet(marathonBoardMarkup(view), 'marathon', view.ladder, this.actions('marathon', !!view.actions));
+    const ladder = view.ladder === 'solo' ? 'solo' : 'team';
+    this.drawBoard('marathon', ladder, ctx => marathonBody(ladder, view.team, view.solo, view.youId ?? null, view.yours ?? null, ctx, view.atMs), view.state ?? 'ready', !!view.actions);
   }
-
 
   /**
-   * The innings-end keys, under the sheet that is standing in for the card.
-   * Each mode's own, because the Test card offers the mode picker where the
-   * Blast's offers the way of sending an innings out.
-   *
-   * Called whether or not there are keys to draw, because the two rows that
-   * can ride above them do not depend on there being any. The board opened
-   * from the cover carries no PLAY AGAIN — and that is exactly the board a
-   * returning player opens first, so an offer that came only with the keys was
-   * an offer absent from the one screen it was added for.
+   * What the game knows that the rows do not: who is looking, where the store
+   * has them, the innings just posted, and which key the foot carries. Asked
+   * at every draw, so the screen is never a beat behind the game.
    */
-  private actions(mode: BoardTab | 'marathon', keyed: boolean) {
-    // The Test match's two keys suit the Marathon as they stand.
-    const keys = keyed ? (mode === 'classic' ? actionsMarkup() : surviveActions()) : '';
-    // The first key rides above them in the same column. Floating it over the
-    // foot of the board put it on top of these keys, which kept the focus they
-    // had — so the ring of a key nobody could see showed around the widget
-    // covering it, and a return press still reached it.
-    // A key just minted outranks an offer to bring one back: somebody holding
-    // a brand new key is plainly not the player who lost one.
-    if (this.keyPending) return `${keyToastMarkup(this.keyPending)}${keys}`;
-    // And the board is the other place worth asking. Somebody with no name is
-    // looking at a ladder they are not on — which is exactly the screen a
-    // returning player opens first to find out their record is gone.
-    return `${this.offerRestoreOnBoard ? restorePanelMarkup('board-restore') : ''}${keys}`;
+  onBoardFrame: ((mode: BoardMode, ladder: string) => BoardFrame) | null = null;
+  /** PLAY THE BLAST and its kind: the board opened away from an innings of that mode. */
+  onBoardPlay: ((mode: BoardMode) => void) | null = null;
+  /** TRY AGAIN, on a board that could not be reached. */
+  onBoardRetry: (() => void) | null = null;
+  /** Add name, from a guest's dock with no innings card to go back to. */
+  onBoardName: (() => void) | null = null;
+  /** Which board is drawn, so a redraw of the same one keeps its scroll. */
+  private boardShown: { mode: BoardMode; ladder: string } | null = null;
+
+  /** The ladders a mode offers, with the picker's short lines. */
+  private laddersFor(mode: BoardMode): BoardScreen['ladders'] {
+    if (mode === 'marathon') {
+      return [{ key: 'team', name: 'Team' }, { key: 'solo', name: 'Batters' }, { key: 'runs', name: 'Runs' }]
+        .map(one => ({ ...one, blurb: blurbOf('marathon', one.key) }));
+    }
+    return laddersOf(mode).map(one => ({ ...one, blurb: blurbOf(mode, one.key, careerBoardOf(mode, one.key)?.blurb ?? '') }));
+  }
+
+  /** The modes this build plays, in the pager's order, and always the one on screen. */
+  private boardModes(current: BoardMode): BoardMode[] {
+    return MODE_ORDER.filter(mode => mode === current
+      || (mode === 'marathon' ? this.marathonTab : this.bothModes || mode === this.lastGame));
+  }
+
+  private drawBoard(
+    mode: BoardMode, ladder: string, body: (ctx: BoardContext) => BoardBody, state: BoardScreen['state'], actions: boolean,
+  ) {
+    const overlay = this.$('board-overlay');
+    if (mode === 'classic' || mode === 'survive') this.lastGame = mode;
+    const frame = this.onBoardFrame?.(mode, ladder)
+      ?? { ctx: { ...NO_CONTEXT, modeName: BOARD_MODES[mode].name }, ranks: {}, play: actions ? 'again' as const : null };
+    const ctx = { ...frame.ctx, restore: this.offerRestoreOnBoard && !frame.ctx.you };
+    const drawn = body(ctx);
+    const play = actions || frame.play === 'again'
+      ? { id: 'board-again' as const, label: 'PLAY AGAIN' }
+      : frame.play === 'mode' ? { id: 'board-play' as const, label: BOARD_MODES[mode].play } : null;
+    const screen: BoardScreen = {
+      mode, ladder, ladders: this.laddersFor(mode), state, play,
+      // The board on screen knows the player's place better than the last answer
+      // about it: a row is a row.
+      modes: this.boardModes(mode).map(one => ({
+        mode: one,
+        rank: menuRank(one === mode ? drawn.rows.find(row => row.you)?.place ?? frame.ranks[one] : frame.ranks[one], !!ctx.you),
+      })),
+      rows: drawn.rows, banner: drawn.banner, dock: drawn.dock, focus: drawn.focus, rules: drawn.rules,
+      extra: this.keyPending ? keyToastMarkup(this.keyPending) : '',
+    };
+    const same = this.boardShown?.mode === mode && this.boardShown.ladder === ladder && this.boardOpen;
+    const kept = same ? document.getElementById('board-body')?.scrollTop ?? 0 : null;
+    overlay.className = 'modal-overlay lb-overlay';
+    overlay.innerHTML = boardScreenMarkup(screen);
+    this.viewport.classList.add('modal-open');
+    this.boardShown = { mode, ladder };
+    this.wireBoard(screen);
+    const scroller = this.$('board-body');
+    if (kept !== null) scroller.scrollTop = kept;
+    else if (screen.focus === 'you') {
+      const row = overlay.querySelector<HTMLElement>('.lb-row.is-you, .lb-row.is-ghost');
+      if (row) scroller.scrollTop = Math.max(0, row.offsetTop - scroller.clientHeight / 2 + row.offsetHeight / 2);
+    }
+    this.foldBoard();
+    if (!same) document.getElementById('board-close')?.focus({ preventScroll: true });
+  }
+
+  /** The screen's keys, its menus, its swipe, and the podium folding as the list scrolls. */
+  private wireBoard(screen: BoardScreen) {
+    const overlay = this.$('board-overlay');
+    const shell = overlay.querySelector<HTMLElement>('.lb-screen')!;
+    const close = () => this.closeBoard();
+    this.$('board-close').onclick = close;
+    overlay.onclick = event => { if (event.target === overlay) close(); };
+    // The sound key is the game's own, pressed from here, wearing its picture.
+    const sound = this.$('board-sound');
+    const mirror = () => {
+      sound.innerHTML = this.$('sound').innerHTML;
+      sound.setAttribute('aria-label', this.$('sound').getAttribute('aria-label') ?? 'Sound');
+    };
+    mirror();
+    sound.onclick = () => { this.$('sound').click(); mirror(); };
+    const popup = (markup: string, pill: HTMLElement | null) => {
+      shell.querySelector('.lb-pop')?.remove();
+      const layer = document.createElement('div');
+      layer.className = 'lb-pop';
+      layer.innerHTML = markup;
+      shell.append(layer);
+      pill?.setAttribute('aria-expanded', 'true');
+      pill?.classList.add('is-open');
+      // Escape puts the menu away and not the board, wherever the focus is:
+      // caught on the way down, before the game's own keys hear it.
+      const escape = (event: KeyboardEvent) => {
+        if (event.key !== 'Escape') return;
+        event.stopPropagation();
+        event.preventDefault();
+        shut();
+      };
+      const shut = () => {
+        document.removeEventListener('keydown', escape, true);
+        layer.remove();
+        pill?.setAttribute('aria-expanded', 'false');
+        pill?.classList.remove('is-open');
+        pill?.focus({ preventScroll: true });
+      };
+      document.addEventListener('keydown', escape, true);
+      layer.querySelector<HTMLElement>('[data-close]')!.onclick = shut;
+      (layer.querySelector<HTMLElement>('.is-on') ?? layer.querySelector<HTMLElement>('button') ?? layer.querySelector<HTMLElement>('[tabindex]'))?.focus({ preventScroll: true });
+      return { layer, shut };
+    };
+    const modePill = this.$('board-mode');
+    modePill.onclick = () => {
+      const { layer, shut } = popup(modeMenuMarkup(screen.mode, screen.modes), modePill);
+      for (const item of layer.querySelectorAll<HTMLElement>('[data-mode]')) {
+        item.onclick = () => { shut(); const to = item.dataset.mode as BoardMode; if (to !== screen.mode) this.onBoardTab?.(to); };
+      }
+    };
+    const ladderPill = this.$('board-ladder');
+    ladderPill.onclick = () => {
+      const { layer, shut } = popup(ladderSheetMarkup(screen.mode, screen.ladder, screen.ladders), ladderPill);
+      for (const item of layer.querySelectorAll<HTMLElement>('[data-ladder]')) {
+        item.onclick = () => { shut(); const to = item.dataset.ladder!; if (to !== screen.ladder) this.onLadderTab?.(to); };
+      }
+    };
+    // How ranking works, and under it the way back into the update's stories,
+    // which had a key of its own beside the old board's close key.
+    this.$('board-info').onclick = () => {
+      const { layer, shut } = popup(rulesSheetMarkup(screen.rules), this.$('board-info'));
+      layer.querySelector<HTMLElement>('#board-new')!.onclick = () => { shut(); this.onBoardStories?.(); };
+    };
+    document.getElementById('board-retry')?.addEventListener('click', () => this.onBoardRetry?.());
+    const again = document.getElementById('board-again');
+    if (again) again.onclick = () => { close(); this.$(screen.mode === 'survive' ? 'survive-again' : 'again').click(); };
+    const play = document.getElementById('board-play');
+    if (play) play.onclick = () => this.onBoardPlay?.(screen.mode);
+    const claim = document.getElementById('board-claim');
+    if (claim) {
+      claim.onclick = () => {
+        close();
+        const key = document.getElementById('claim');
+        if (key && key.offsetParent && /REGISTER|CLAIM/.test(key.textContent ?? '')) key.click();
+        else this.onBoardName?.();
+      };
+    }
+    const backGo = document.getElementById('board-restore-go');
+    if (backGo) backGo.onclick = () => this.onRestoreOpen?.('board');
+    const keySave = document.getElementById('key-toast-save');
+    if (keySave) keySave.onclick = () => this.openKeySheet(false, 'toast');
+    const keyShut = document.getElementById('key-toast-close');
+    if (keyShut) keyShut.onclick = () => this.keyToast(null);
+    // Swiped sideways, the next mode along; held to the vertical, the list scrolls.
+    const body = this.$('board-body');
+    const modes = screen.modes.map(one => one.mode);
+    let from: { x: number; y: number; id: number } | null = null;
+    let sideways = false;
+    body.onpointerdown = event => { from = { x: event.clientX, y: event.clientY, id: event.pointerId }; sideways = false; event.stopPropagation(); };
+    body.onpointermove = event => {
+      if (!from || event.pointerId !== from.id) return;
+      const dx = event.clientX - from.x, dy = event.clientY - from.y;
+      if (!sideways && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5 && modes.length > 1) sideways = true;
+      if (sideways) shell.style.setProperty('--drag', `${Math.round(dx * 0.4)}px`);
+      event.stopPropagation();
+    };
+    const end = (event: PointerEvent) => {
+      if (!from || event.pointerId !== from.id) return;
+      const dx = event.clientX - from.x;
+      from = null;
+      shell.style.removeProperty('--drag');
+      event.stopPropagation();
+      if (!sideways || Math.abs(dx) < 64) return;
+      const at = modes.indexOf(screen.mode);
+      const to = modes[at + (dx < 0 ? 1 : -1)];
+      if (to) this.onBoardTab?.(to);
+    };
+    body.onpointerup = end;
+    body.onpointercancel = end;
+    body.onscroll = () => this.foldBoard();
+    shell.onkeydown = event => {
+      if (shell.querySelector('.lb-pop') || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      const at = modes.indexOf(screen.mode);
+      const to = modes[at + (event.key === 'ArrowRight' ? 1 : -1)];
+      event.stopPropagation();
+      if (to) { event.preventDefault(); this.onBoardTab?.(to); }
+    };
+  }
+
+  /**
+   * The podium folds to three chips once the list has scrolled up under it,
+   * and the player's card in the dock steps aside while their own row is on
+   * the screen — it would be saying the same thing twice.
+   */
+  private foldBoard() {
+    const shell = document.querySelector<HTMLElement>('#board-overlay .lb-screen');
+    const body = document.getElementById('board-body');
+    if (!shell || !body) return;
+    const podium = shell.querySelector<HTMLElement>('.lb-podium');
+    shell.classList.toggle('is-folded', !!podium && body.scrollTop > podium.offsetHeight - 56);
+    // The blurred art behind the podium goes down to the page colour as the
+    // list rises, so what scrolls up meets a plain ground rather than a picture.
+    const reach = podium ? Math.max(1, podium.offsetHeight - 56) : 1;
+    shell.style.setProperty('--fade', Math.min(1, body.scrollTop / reach).toFixed(3));
+    // The chips stand over the top of the list, wherever the header ends.
+    shell.style.setProperty('--head', `${shell.querySelector<HTMLElement>('.lb-head')?.offsetHeight ?? 0}px`);
+    const row = shell.querySelector<HTMLElement>('.lb-row.is-you');
+    const dock = shell.querySelector<HTMLElement>('.lb-dock');
+    if (!row || !dock) { shell.classList.remove('is-you-seen'); return; }
+    const box = body.getBoundingClientRect(), mine = row.getBoundingClientRect(), foot = dock.getBoundingClientRect();
+    shell.classList.toggle('is-you-seen', mine.top >= box.top && mine.bottom <= Math.min(box.bottom, foot.top + 60));
   }
 
   /**
@@ -729,6 +915,9 @@ ${modeSelectMarkup()}
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     this.wireStatsKeys();
+    // The page is the way to the card now that the board has no My Stats tab,
+    // and its "Played before?" link was only ever wired on the tab.
+    this.wireRestoreLink();
     const back = this.$('stats-back');
     back.onclick = () => this.closeStats();
     if (opening) back.focus();
@@ -1369,8 +1558,9 @@ ${modeSelectMarkup()}
   }
   /** Puts the sheet away and hands the screen back to whatever was under it. */
   closeBoard() {
-    this.$('board-overlay').classList.add('hidden');
     this.$('board-overlay').innerHTML = '';
+    this.$('board-overlay').className = 'modal-overlay hidden';
+    this.boardShown = null;
     // The first key is laid over the board and belongs to it. Left behind it
     // would stand on the cover with nothing underneath it to explain it.
     this.keyToast(null);
@@ -2292,7 +2482,8 @@ ${modeSelectMarkup()}
    * The node is removed the same way its own cross removes it.
    */
   dropBoardRestore() {
-    document.getElementById('board-restore-go')?.closest('.restore-panel')?.remove();
+    const go = document.getElementById('board-restore-go');
+    (go?.closest('.restore-panel') ?? go)?.remove();
   }
 
   /** The link on an empty card, which is drawn with the card and so rewired with it. */
@@ -3625,6 +3816,8 @@ ${modeSelectMarkup()}
     const [art, says, next] = SOUND_SETTINGS[setting];
     this.$('sound').innerHTML = icon(art);
     this.$('sound').setAttribute('aria-label', `${says}. ${next}`);
+    const board = document.getElementById('board-sound');
+    if (board) { board.innerHTML = icon(art); board.setAttribute('aria-label', `${says}. ${next}`); }
     if (!pressed) return;
     const note = this.$('sound-note');
     note.textContent = says;

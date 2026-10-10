@@ -84,11 +84,10 @@ await page.evaluate(([who, key]) => {
 }, [WHO, claimed.key]);
 await page.evaluate(() => { const st = document.createElement('style'); st.textContent = '#debug{display:none!important}'; document.head.append(st); });
 
-// The report: open the board and switch to My Stats, having registered and
-// never since finished an innings or opened the picker.
-await page.locator('#cover-board').click({ force: true });
-await wait(2500);
-await page.locator('#board-tab-mine').click({ force: true });
+// The report: open My Stats from the cover's profile chip, having registered
+// and never since finished an innings or opened the picker. (It was a tab on
+// the board until the board was redrawn; the chip is the way in now.)
+await page.locator('#cover-profile').click({ force: true });
 await wait(3000);
 const onStats = await page.locator('.key-pass').count();
 ok(onStats === 1, 'My Stats carries the key card for a registered player', `${onStats} of them`);
@@ -150,9 +149,9 @@ if (onStats) {
 // the making; it is that nothing behind the modal was redrawn, so this presses
 // the key and then looks at what it was pressed on.
 await page.evaluate(() => { try { localStorage.removeItem('hitman-career-key'); } catch { /* then nothing is proved */ } });
-await page.locator('#board-tab-classic').click({ force: true });
+await page.locator('#stats-back').click({ force: true });
 await wait(1200);
-await page.locator('#board-tab-mine').click({ force: true });
+await page.locator('#cover-profile').click({ force: true });
 await wait(2500);
 await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; }).catch(() => {});
 await wait(400);
