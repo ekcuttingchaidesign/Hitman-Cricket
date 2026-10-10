@@ -8189,6 +8189,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* The crown is the winner card's, on its face; the big picture keeps only the fire. */
 #challenge-room .room-hero::after{display:none}
 #challenge-room .verdict-face{position:relative;flex:none;display:block}
-#challenge-room .verdict-face.is-crowned::after{content:'';position:absolute;left:50%;top:calc(var(--u) * -13);width:calc(var(--u) * 22);height:calc(var(--u) * 12);transform:translateX(-50%) rotate(-8deg);
+#challenge-room .verdict-face.is-crowned::after{content:'';position:absolute;left:calc(var(--u) * -4);top:calc(var(--u) * -9);width:calc(var(--u) * 22);height:calc(var(--u) * 12);transform:rotate(-30deg);transform-origin:50% 100%;
   background:url('./assets/board/crown.svg') center/contain no-repeat}
 #challenge-room .verdict-row{overflow:visible}
