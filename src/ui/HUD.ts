@@ -90,6 +90,8 @@ export interface BoardFrame {
   ranks: Partial<Record<BoardMode, number | null>>;
   play: 'again' | 'mode' | null;
 }
+/** The winner's crown, its base an arc on the face's own ring so it sits flush on the curve. */
+const CROWN_ARC = `<svg class="verdict-crown" viewBox="0 0 40 40" aria-hidden="true"><path d="M9.83 0.04 L5.25 -8.96 L13.58 -6.74 L20.00 -15.50 L26.42 -6.74 L34.75 -8.96 L30.17 0.04 A22.4 22.4 0 0 0 9.83 0.04Z" fill="#F5B83D" stroke="#1a1204" stroke-width="1" stroke-linejoin="round"/><path d="M9.43 -2.66 A25.0 25.0 0 0 1 30.57 -2.66" fill="none" stroke="#c98a1e" stroke-width="1.2" stroke-linecap="round"/><g fill="#F5B83D" stroke="#1a1204" stroke-width=".8"><circle cx="4.75" cy="-9.94" r="1.5"/><circle cx="20.00" cy="-16.70" r="1.5"/><circle cx="35.25" cy="-9.94" r="1.5"/></g></svg>`;
 const WIFI_OFF = wifiOff.replace(/stroke="#FFB08F"/g, 'stroke="currentColor"');
 /** The colour the pause sheet wears for the game it pauses: the Blast's blue, a Test's green, a Rival Match's orange. */
 export type PauseTone = 'blast' | 'test' | 'rivals';
@@ -4127,7 +4129,7 @@ function resultRow(row: ChallengeRow, result: ResultView): string {
   const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : '';
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   return `<div class="verdict-row ${tone}${mine ? ' is-you' : ''}">
-    <span class="verdict-face${won ? ' is-crowned' : ''}">${kitMarkup(row.avatar, row.name)}</span>
+    <span class="verdict-face${won ? ' is-crowned' : ''}">${kitMarkup(row.avatar, row.name)}${won ? CROWN_ARC : ''}</span>
     <span class="verdict-who">
       <span class="verdict-name"><b>${mine ? 'You' : escapeName(row.name)}</b>${pill ? `<i class="verdict-pill">${pill}</i>` : ''}</span>
       <span class="verdict-stats">${plural(row.sixes, 'six', 'sixes')} \u00b7 ${plural(row.fours, 'four', 'fours')} \u00b7 ${plural(row.balls, 'ball', 'balls')}</span>
