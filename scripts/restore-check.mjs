@@ -57,9 +57,7 @@ for (let i = 0; i < 8; i++) {
 }
 await page.locator('#modes-cancel').click({ force: true });
 await wait(800);
-await page.locator('#cover-board').click({ force: true });
-await wait(2500);
-await page.locator('#board-tab-mine').click({ force: true });
+await page.locator('#cover-profile').click({ force: true });
 await wait(3000);
 
 // 1. the empty card offers the way back, and offers no key with it
@@ -74,13 +72,14 @@ ok(await page.locator('#mode-key .key-bar').count() === 0, 'nor one on the picke
 // player opens first to find out their record is gone. It carries no PLAY
 // AGAIN when it is opened from the cover, so an offer drawn only alongside
 // those keys was absent from exactly the board it was added for.
-await page.locator('#board-tab-classic').click({ force: true });
+await page.locator('#stats-back').click({ force: true });
+await wait(800);
+await page.locator('#cover-board').click({ force: true });
 await wait(1500);
-ok(await page.locator('#board-restore-go').count() === 1, 'the board offers the way back as well');
-await page.locator('#board-restore-close').click({ force: true });
+ok(await page.locator('#board-restore-go').count() === 1, 'the board offers the way back as well, in its dock');
+await page.locator('#board-close').click({ force: true });
 await wait(600);
-ok(await page.locator('#board-restore-go').count() === 0, 'and the cross takes it off the board');
-await page.locator('#board-tab-mine').click({ force: true });
+await page.locator('#cover-profile').click({ force: true });
 await wait(2500);
 await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; });
 await wait(400);
@@ -92,12 +91,14 @@ ok(await page.locator('.restore-losing').count() === 0, 'with nothing said about
 // A real key, minted the way a player's is: claim a name against the same
 // store the browser is talking to and read the key out of the answer. A
 // fixture would prove the screens and nothing about the store behind them.
-const WHO = `Check${Math.floor(Math.random() * 9000) + 1000}`;
+/* A new id a run: a player takes a new name once every 30 days, so one fixed id is refused on the second run. */
+const CHECK_ID = `chk123-${Array.from({ length: 12 }, () => 'abcdefghijkmnpqrstuvwxyz0123456789'[Math.floor(Math.random() * 34)]).join('')}`;
+const WHO = `Check${Array.from({ length: 6 }, () => 'abcdefghijkmnpqrstuvwxyz'[Math.floor(Math.random() * 24)]).join('')}` /* letters: a digit suffix is a sibling of the last run's name */;
 const claimed = await fetch(`${base}/api/score`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    playerId: 'chk123-checkplayer01', name: WHO, avatar: 1, mode: 'classic',
+    playerId: CHECK_ID, name: WHO, avatar: 1, mode: 'classic',
     innings: { runs: 70, sixes: 3, fours: 5, wickets: 1, dots: 9, balls: 30 },
   }),
 }).then(r => r.json()).catch(() => null);
@@ -139,14 +140,15 @@ ok(await page.locator('#restore-form').count() === 0, 'a press on the ground aro
 // board under a player who restored from it is never redrawn at all, and the
 // panel sat there asking whether they would like the record back.
 //
-// The cross above put the offer away for good, so the preference it wrote is
-// cleared here — that is a setting being reset, not the thing under test.
+// The board's offer has no cross since the redraw — it is a line in the dock —
+// so there is nothing to un-dismiss; the preference is cleared all the same,
+// in case an older card put it away.
 await page.evaluate(() => { try { localStorage.removeItem('hitman-restore-offer'); } catch { /* then it stays dismissed */ } });
-await page.locator('#board-tab-mine').click({ force: true });
-await wait(1200);
-await page.locator('#board-tab-classic').click({ force: true });
+await page.locator('#stats-back').click({ force: true }).catch(() => {});
+await wait(800);
+await page.locator('#cover-board').click({ force: true });
 await wait(2000);
-ok(await page.locator('#board-restore-go').count() === 1, 'the board offers it again once un-dismissed');
+ok(await page.locator('#board-restore-go').count() === 1, 'the board offers it in its dock');
 await page.locator('#board-restore-go').click({ force: true });
 await wait(800);
 await page.locator('#restore-name').fill(WHO);
@@ -161,7 +163,9 @@ ok(await page.locator('#board-restore-go').count() === 0,
 
 // 6. the key the store actually minted, from My Stats
 await page.evaluate(() => { try { localStorage.removeItem('hitman-batter'); } catch { /* noop */ } });
-await page.locator('#board-tab-mine').click({ force: true });
+await page.locator('#board-close').click({ force: true }).catch(() => {});
+await wait(600);
+await page.locator('#cover-profile').click({ force: true });
 await wait(2000);
 await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; }).catch(() => {});
 await wait(400);

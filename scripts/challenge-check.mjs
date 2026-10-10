@@ -197,7 +197,7 @@ await a.shot('10-waiting');
 // Rahul bats against the recorded innings and meets it in the gaps.
 await b.settle(2500);
 const chase = await b.page.locator('#room-lead').innerText();
-check(/has batted/.test(chase), 'Rahul\'s room says Shashank has batted, and nothing about the score', chase);
+check(/has batted/i.test(chase), 'Rahul\'s room says Shashank has batted, and nothing about the score', chase);
 await b.shot('09b-room-chase');
 await b.act('play');
 await b.page.evaluate(() => {
@@ -222,7 +222,7 @@ await b.appears('#challenge-room', 15_000);
 await b.settle(2500);
 check(await b.page.locator('#challenge-room').isVisible(), 'Rahul\'s innings over, the room shows the result');
 const result = await b.page.locator('#room-lead').innerText();
-check(/wins|dead heat/i.test(result), 'with a winner named', result);
+check(/\bwins?\b|dead heat/i.test(result), 'with a winner named', result);
 check(/dead heat/i.test(result) || await b.page.locator('#room-anim svg').count() > 0, 'and the fire burning round the winner');
 check((await b.page.locator('#room-scoreline .verdict-row').count()) === 2, 'and both innings as rows');
 await b.shot('11-result');
@@ -239,15 +239,16 @@ if (await cardLink.count()) {
     'which carries BACK TO RESULT and a way to mode selection');
   check(!(await shows('#again')) && !(await shows('#challenge-set')),
     'and no PLAY AGAIN or CHALLENGE A FRIEND, which belong to a Blast innings');
+  await b.shot('scorecard');
   await b.page.locator('#card-result').click();
   await b.settle(900);
-  check(await shows('#challenge-room') && !(await shows('#end')) && /wins|dead heat/i.test(await b.page.locator('#room-lead').innerText()),
+  check(await shows('#challenge-room') && !(await shows('#end')) && /\bwins?\b|dead heat/i.test(await b.page.locator('#room-lead').innerText()),
     'BACK TO RESULT goes back to the result');
 }
 
 await a.settle(5000);
 const aResult = await a.page.locator('#room-lead').innerText();
-check(/wins|dead heat/i.test(aResult), 'Shashank\'s room turns into the result on its own', aResult);
+check(/\bwins?\b|dead heat/i.test(aResult), 'Shashank\'s room turns into the result on its own', aResult);
 await a.shot('12-result-live');
 
 const final = await fetch(`${base}/api/challenge?code=${code}`).then(r => r.json());
@@ -264,7 +265,7 @@ check(await b.page.locator('#modes').isVisible(), 'the back key leaves the resul
 await b.page.locator('#modes-challenges').click({ force: true });
 check(await b.appears('#challenge-list'), 'Rival Matches opens');
 const list = await b.page.locator('#challenge-sections').innerText();
-check(/past challenges/i.test(list) && /Shashank/.test(list), 'with the match under Past challenges, against Shashank', list);
+check(/challenges/i.test(list) && /vs Shashank/.test(list) && /(You|Shashank) won|Drawn/.test(list), 'with the match among the challenges, against Shashank, and how it went', list);
 await b.shot('13-list');
 await b.page.locator('[data-rival]').first().click({ force: true });
 await b.settle();

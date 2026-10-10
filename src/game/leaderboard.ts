@@ -82,6 +82,8 @@ export interface BoardRow extends Innings {
   avatar: number;
   /** The packed number this row is sorted on. */
   score: number;
+  /** When the store took it: the cover says a score made in the last day out loud. */
+  at?: number;
 }
 
 /** The six figures, read off an innings the game just finished. */

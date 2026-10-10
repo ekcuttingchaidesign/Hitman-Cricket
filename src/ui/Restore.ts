@@ -22,6 +22,7 @@
  */
 
 import { escape } from './Leaderboard';
+import { cta, icon } from './Kit';
 
 /** Innings sitting on this device that no record has counted yet. */
 export interface LocalCareer {
@@ -58,30 +59,32 @@ export interface RestoreView {
 export function restoreMarkup(view: RestoreView): string {
   const { name = '', local = null, sending = false, error = null, done = null } = view;
   if (done) return doneMarkup(done);
+  // UI v1's sheet from the foot (133:6875, and 133:6901 for a key that does
+  // not open the name): the two fields, what this phone would stop counting,
+  // and the key that brings it back.
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-title">
-      <div class="key-sheet restore-sheet">
-        <form id="restore-form" class="key-face">
-          <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
-          <h2 id="restore-title">Bring your record back</h2>
-          <p class="key-sheet-say">Your name and your career key, together. The key is the three
-            words and two numbers you saved — paste it in whole.</p>
-          <label class="restore-field"><span>The name you bat under</span>
+      <div class="key-sheet restore-sheet ks-sheet">
+        <i class="ks-grab" aria-hidden="true"></i>
+        <form id="restore-form" class="rs-form">
+          <div class="ks-head">
+            <span class="ks-mark" aria-hidden="true">${icon('key')}</span>
+            <h2 id="restore-title" class="ks-title">BRING YOUR RECORD BACK</h2>
+            <button id="restore-close" class="ks-close" type="button" aria-label="Close">${icon('close')}</button>
+          </div>
+          <p class="ks-say">Your name and your career key, together. Paste the key in whole: three words and two numbers.</p>
+          <label class="restore-field rs-field"><span>The name you bat under</span>
             <input id="restore-name" type="text" maxlength="14" autocomplete="nickname"
               enterkeyhint="next" placeholder="Up to 14 characters" value="${escape(name)}" required>
           </label>
-          <label class="restore-field"><span>Your career key</span>
+          <label class="restore-field rs-field${error ? ' is-wrong' : ''}"><span>Your career key</span>
             <input id="restore-key" type="text" autocomplete="off" autocapitalize="none"
               autocorrect="off" spellcheck="false" enterkeyhint="done"
-              placeholder="yorker-sprint-cover-47" required>
+              placeholder="yorker-sprint-cover-47" required${error ? ' aria-invalid="true" aria-describedby="restore-error"' : ''}>
           </label>
+          ${error ? `<p id="restore-error" class="claim-error rs-error" role="alert">${escape(error)}</p>` : ''}
           ${local ? losingMarkup(local) : ''}
-          ${error ? `<p id="restore-error" class="claim-error" role="alert">${escape(error)}</p>` : ''}
-          <button id="restore-send" type="submit" class="key-sheet-key is-whatsapp"${
-  sending ? ' disabled' : ''}>${sending ? 'CHECKING…' : 'BRING IT BACK'}</button>
-          <p class="key-fine">A key on its own is no use to anybody who finds it — it only opens
-            the name it was made for.</p>
-          <button id="restore-close" class="key-ghost" type="button">Close</button>
+          <button id="restore-send" type="submit" class="k-cta k-cta--primary is-wide"${sending ? ' disabled' : ''}><span class="k-cta-face"><span>${sending ? 'CHECKING…' : 'BRING IT BACK'}</span></span></button>
         </form>
       </div>
     </div>`;
@@ -91,14 +94,14 @@ export function restoreMarkup(view: RestoreView): string {
 function doneMarkup(done: { name: string }): string {
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-done-title">
-      <div class="key-sheet restore-sheet is-done">
-        <div class="key-face">
-          <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
-          <h2 id="restore-done-title">Welcome back, ${escape(done.name)}</h2>
-          <p class="key-sheet-say">Your record is yours again \u2014 every innings, every run, your
-            tier and your place on the board.</p>
-          <button id="restore-done" class="key-sheet-key is-whatsapp" type="button">SEE MY RECORD</button>
+      <div class="key-sheet restore-sheet ks-sheet is-done">
+        <i class="ks-grab" aria-hidden="true"></i>
+        <div class="ks-head">
+          <span class="ks-mark" aria-hidden="true">${icon('key')}</span>
+          <h2 id="restore-done-title" class="ks-title">WELCOME BACK, ${escape(done.name.toUpperCase())}</h2>
         </div>
+        <p class="ks-say is-lead">Your record is yours again: every innings, every run, your tier and your place on the board.</p>
+        ${cta({ kind: 'primary', label: 'SEE MY RECORD', id: 'restore-done', wide: true })}
       </div>
     </div>`;
 }

@@ -25,6 +25,8 @@ import { cardTheme, nextLine, standingOf, type Granted, type Standing, type Them
  * looking at when they decided to.
  */
 
+import { TIER_CARD, paintTierCard, prepareTierCard } from './TierCard';
+
 const titleArt = new URL('../assets/title.webp', import.meta.url).href;
 const coverArt = new URL('../assets/cover.webp', import.meta.url).href;
 
@@ -820,39 +822,47 @@ function surface(width: number, height: number, scale: number) {
   return { canvas, ctx };
 }
 
-/** The card on its own, on the ground it was won on, ready to go in a chat. */
+/** Who the card is about, from its facts: nobody for a career with no name to it. */
+const whoOf = (facts: StatsFacts) => (facts.name && facts.name !== 'You' ? { name: facts.name, avatar: facts.avatar } : null);
+
+/**
+ * The card on its own, on a mat of the page's black, with the address and
+ * BEAT MY NUMBERS under it: the career card as My Stats draws it (UI v1).
+ */
 export async function statsCardImage(facts: StatsFacts, link: string, scale = 3) {
-  await prepareStatsAssets();
-  // Just enough mat to hold the card's own ledge and the glow off its edge, and
-  // no more. It used to be twenty-two, which looked considered on its own and
-  // wrong in the sheet: the picture is shown at the width of the two keys under
-  // it, so every pixel of mat made the card itself narrower than its own
-  // buttons — which reads as a thumbnail of something rather than the thing.
-  const margin = STATS_MAT;
-  const { width: frameW, height } = statsCardFrame(facts);
-  const { canvas, ctx } = surface(frameW, height, scale);
-  // The mat is the tier's too. A black-and-gold card on the navy mat looked
-  // like a card sitting on a different card.
-  ctx.fillStyle = facts.tier.theme.mat;
-  ctx.fillRect(0, 0, frameW, height);
-  await paintStatsCard(ctx, facts, margin, margin, link);
+  await Promise.all([prepareStatsAssets(), prepareTierCard()]);
+  const margin = 18, foot = 40;
+  const frameW = TIER_CARD.width + margin * 2, frameH = TIER_CARD.height + margin * 2 + foot;
+  const { canvas, ctx } = surface(frameW, frameH, scale);
+  ctx.fillStyle = '#0a0b0d';
+  ctx.fillRect(0, 0, frameW, frameH);
+  await paintTierCard(ctx, facts, whoOf(facts), margin, margin);
+  const y = margin + TIER_CARD.height + 30;
+  ctx.font = font(600, 12);
+  ctx.fillStyle = '#8494a0';
+  ctx.fillText(link ? link.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'Hitman Cricket', margin + 4, y);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#ed7044';
+  ctx.font = font(700, 12);
+  ctx.fillText('BEAT MY NUMBERS', frameW - margin - 4, y);
   return blob(canvas);
 }
 
 /**
- * The story: the cover art the game opens on, the card standing on it, and the
- * address underneath in type big enough to read off a phone screen.
+ * The story: the cover art the game opens on, the career card standing on it
+ * as My Stats draws it, and the address and the mode's line underneath in type
+ * big enough to read off a phone screen.
  *
  * The address has to be painted on, because a picture handed to Instagram is a
  * picture. Link stickers are added inside those apps, not by whoever sent the
  * image, so the only link that survives the trip is one you can read.
  */
 export async function statsStoryImage(facts: StatsFacts, link: string, scale = 1) {
-  await prepareStatsAssets();
+  await Promise.all([prepareStatsAssets(), prepareTierCard()]);
   const { width, height } = STORY;
   const { canvas, ctx } = surface(width, height, scale);
 
-  ctx.fillStyle = facts.tier.theme.mat;
+  ctx.fillStyle = '#0a0b0d';
   ctx.fillRect(0, 0, width, height);
   const cover = await load(coverArt).catch(() => null);
   if (cover) {
@@ -861,36 +871,32 @@ export async function statsStoryImage(facts: StatsFacts, link: string, scale = 1
     ctx.drawImage(cover, (width - w) / 2, (height - h) / 2, w, h);
   }
   const wash = ctx.createLinearGradient(0, 0, 0, height);
-  wash.addColorStop(0, '#07121970');
-  wash.addColorStop(0.45, '#071219ad');
-  wash.addColorStop(1, '#071219e8');
+  wash.addColorStop(0, '#0a0b0d70');
+  wash.addColorStop(0.45, '#0a0b0dad');
+  wash.addColorStop(1, '#0a0b0de8');
   ctx.fillStyle = wash;
   ctx.fillRect(0, 0, width, height);
 
-  // Card and address are one block, centred together. Story apps put their own
-  // chrome across the top and bottom of the frame, so what matters is that the
-  // whole thing sits in the middle where nothing of theirs lands on it.
-  const cardScale = (width * 0.84) / STATS_CARD.width;
-  const drawnH = statsCardHeight(facts) * cardScale;
+  // Card and address are one block, centred together, clear of the chrome
+  // story apps lay across the top and bottom of the frame.
+  const cardScale = (width * 0.86) / TIER_CARD.width;
+  const drawnH = TIER_CARD.height * cardScale;
   const footer = 150;
   const top = Math.round((height - (drawnH + footer)) / 2);
   ctx.save();
-  ctx.translate((width - STATS_CARD.width * cardScale) / 2, top);
+  ctx.translate((width - TIER_CARD.width * cardScale) / 2, top);
   ctx.scale(cardScale, cardScale);
-  await paintStatsCard(ctx, facts, 0, 0, link);
+  await paintTierCard(ctx, facts, whoOf(facts), 0, 0);
   ctx.restore();
 
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#f7f0e5';
+  ctx.fillStyle = '#f5efe6';
   ctx.font = font(700, 34);
   ctx.globalAlpha = 0.92;
-  ctx.fillText(link.replace(/^https?:\/\//, '').replace(/\/$/, ''), width / 2, top + drawnH + 86);
+  ctx.fillText(link.replace(/^https?:\/\//, '').replace(/\/$/, ''), width / 2, top + drawnH + 96);
   ctx.globalAlpha = 0.66;
   ctx.font = font(500, 26);
-  ctx.fillText(
-    SHARE_LINES[facts.mode],
-    width / 2, top + drawnH + 128,
-  );
+  ctx.fillText(SHARE_LINES[facts.mode], width / 2, top + drawnH + 138);
   ctx.globalAlpha = 1;
   // A photograph with type on it: JPEG at this quality is a fifth of the PNG
   // and the apps it is going to will re-encode it anyway.

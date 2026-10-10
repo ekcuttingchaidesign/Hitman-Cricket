@@ -7,23 +7,21 @@ const row = (over: Partial<RivalsRow> = {}): RivalsRow =>
   ({ playerId: 'abc124-zzzzzzzzzzzz', name: 'Rohit', avatar: 1, won: 3, lost: 1, runs: 1204, ...over });
 
 describe('the Rivals board', () => {
-  it('shows three figures a row, in the order the board ranks on', () => {
+  it('shows wins, losses and runs a row, in the table columns', () => {
     const html = rivalsRowMarkup(row(), 0, false);
-    const figures = [...html.matchAll(/<em class="is-(\w+)">([\d,]+)<small>(\w+)<\/small><\/em>/g)]
-      .map(m => [m[2], m[3], m[1]]);
-    // Each column carries its own class, which is what colours wins green and
-    // losses red.
-    expect(figures).toEqual([['3', 'won', 'won'], ['1', 'lost', 'lost'], ['1,204', 'runs', 'runs']]);
+    expect(html).toContain('<span class="rv-rank-w">3</span>');
+    expect(html).toContain('<span class="rv-rank-l">1</span>');
+    expect(html).toContain('<span class="rv-rank-runs">1,204</span>');
   });
 
-  it('lights your row and says where you stand', () => {
+  it('lights your row, and calls it You', () => {
     const html = rivalsRankingMarkup({ rows: [row(), row({ playerId: ME, name: 'Virat', won: 1 })], youId: ME });
-    expect(html).toContain('You are <b>2nd</b> with 1 win.');
     expect(html.match(/is-you/g)).toHaveLength(1);
+    expect(html).toContain('<b>You</b>');
+    expect(html).toContain('Top 50 by matches won, then fewest lost, then runs.');
   });
 
-  it('names the leader when you are not on it, and says so when nobody is', () => {
-    expect(rivalsRankingMarkup({ rows: [row()], youId: ME })).toContain('Rohit leads with <b>3 wins</b>.');
+  it('says so when nobody is on it, and while it is fetching', () => {
     const empty = rivalsRankingMarkup({ rows: [], youId: ME });
     expect(empty).toContain('Nobody is on it yet');
     expect(rivalsRankingMarkup({ rows: [], state: 'loading' })).toContain('Fetching the board');

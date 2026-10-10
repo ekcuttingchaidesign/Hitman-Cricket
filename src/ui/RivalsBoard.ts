@@ -1,5 +1,6 @@
 import type { RivalsRow } from '../game/challenge-api';
 import { escape, kitMarkup } from './Leaderboard';
+import { cta, icon } from './Kit';
 import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals';
 
 /**
@@ -31,58 +32,38 @@ export interface RivalsBoardView {
 
 export function rivalsRankingMarkup(view: RivalsBoardView): string {
   const { rows, youId = null, state = 'ready', size = 50 } = view;
-  const place = rows.findIndex(row => row.playerId === youId);
   return `
-    <section class="rival-ranking" aria-labelledby="rivals-ranking-title">
-      <div class="rival-ranking-head">
-        <h2 id="rivals-ranking-title">Rivals Ranking<small>top ${size}, all time</small></h2>
-        <button id="rivals-ranking-close" class="rival-ranking-close" type="button" aria-label="Close">×</button>
+    <section class="rival-ranking rv-ranking" aria-labelledby="rivals-ranking-title">
+      <div class="rv-top">
+        <button id="rivals-ranking-close" class="k-icon-button" type="button" aria-label="Back">${icon('arrow-left')}</button>
+        <h2 id="rivals-ranking-title" class="rv-title">RIVALS RANKING</h2>
       </div>
-      <p class="rival-ranking-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
+      <p class="rival-ranking-line rv-line"${state === 'loading' ? ' aria-live="polite"' : ''}>${
         state === 'loading' ? 'Fetching the board…'
         : state === 'offline' ? 'The board could not be reached.'
-        : standing(rows, place)}</p>
-      <div class="rival-ranking-scroll">
+        : `Top ${size} by matches won, then fewest lost, then runs.`}</p>
+      <div class="rival-ranking-scroll rv-table">
+        <div class="rv-table-head" aria-hidden="true"><span>#</span><span>PLAYER</span><span>W</span><span>L</span><span>RUNS</span></div>
       ${rows.length ? `<ol class="board-list rival-ranking-list">${rows.map((row, i) => rivalsRowMarkup(row, i, row.playerId === youId)).join('')}
       </ol>` : ''}
       ${state === 'ready' && !rows.length
-        ? '<p class="board-cut">Nobody is on it yet. Win a Rivals match and the top is yours.</p>' : ''}
+        ? '<p class="board-cut rv-empty">Nobody is on it yet. Win a Rivals match and the top is yours.</p>' : ''}
       </div>
-      <p class="rival-ranking-foot">Ranked on matches won, then fewest lost, then runs.${
-        RIVALS_NEED_REGISTERED_RIVAL ? ' A match counts when somebody you played in it has a registered name.' : ''
-      } Register a name to appear here.</p>
+      <p class="rival-ranking-foot rv-foot">${
+        RIVALS_NEED_REGISTERED_RIVAL ? 'A match counts when somebody you played in it has a registered name. ' : ''
+      }Register a name to appear here.</p>
+      <div class="rv-keys">${cta({ kind: 'primary', label: 'START A NEW MATCH', id: 'rivals-ranking-new', wide: true })}</div>
     </section>`;
 }
 
 export function rivalsRowMarkup(row: RivalsRow, index: number, you: boolean): string {
   return `
-          <li class="board-row is-career is-rivals${you ? ' is-you' : ''}" style="--i:${index}"${
+          <li class="board-row is-career is-rivals rv-rank-row${you ? ' is-you' : ''}" style="--i:${index}"${
   you ? ' aria-current="true"' : ''}>
             <span class="board-place">${index + 1}</span>
-            ${kitMarkup(row.avatar, row.name)}
-            <span class="board-who"><b>${escape(row.name)}</b></span>
-            <span class="board-hits">${column(row.won, 'won')}${column(row.lost, 'lost')}${column(row.runs, 'runs')}</span>
+            <span class="rv-rank-who">${kitMarkup(row.avatar, row.name)}<b>${escape(you ? 'You' : row.name)}</b></span>
+            <span class="rv-rank-w">${row.won.toLocaleString('en-US')}</span>
+            <span class="rv-rank-l">${row.lost.toLocaleString('en-US')}</span>
+            <span class="rv-rank-runs">${row.runs.toLocaleString('en-US')}</span>
           </li>`;
-}
-
-/** A figure with its label under it. Grouped, because runs reach four digits. */
-function column(value: number, label: 'won' | 'lost' | 'runs'): string {
-  return `<em class="is-${label}">${value.toLocaleString('en-US')}<small>${label}</small></em>`;
-}
-
-/** The line under the title: where the player stands, or who leads. */
-function standing(rows: readonly RivalsRow[], place: number): string {
-  if (place >= 0) return `You are <b>${ordinal(place + 1)}</b> with ${wins(rows[place].won)}.`;
-  if (!rows.length) return 'Nobody is on this one yet. First win takes the top.';
-  return `${escape(rows[0].name)} leads with <b>${wins(rows[0].won)}</b>.`;
-}
-
-function wins(n: number): string {
-  return `${n.toLocaleString('en-US')} ${n === 1 ? 'win' : 'wins'}`;
-}
-
-function ordinal(n: number): string {
-  const tens = n % 100;
-  const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
-  return `${n}${suffix}`;
 }

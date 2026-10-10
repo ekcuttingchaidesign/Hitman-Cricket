@@ -143,7 +143,9 @@ await page.locator('#claim').click({ force: true });
 await advance(400);
 await page.waitForTimeout(300);
 check(!(await why.isVisible()), 'which steps aside with the key when the form opens');
-await page.locator('#claim-cancel').click({ force: true });
+// Pressed in the page rather than at a point on the screen: the keys stand
+// over the foot of the card, and a forced click lands on whatever is on top.
+await page.locator('#claim-cancel').evaluate(el => el.click());
 await advance(400);
 await page.waitForTimeout(300);
 check(await why.isVisible(), 'and comes back when the form is backed out of');
@@ -153,7 +155,7 @@ check(await why.isVisible(), 'and comes back when the form is backed out of');
 const widget = page.locator('#card-career');
 check(await widget.isVisible(), 'the card carries the career widget');
 if (await widget.isVisible()) {
-  await widget.click({ force: true });
+  await widget.evaluate(el => el.click());
   await page.waitForTimeout(2500);
   const slides = await page.locator('#stats-overlay .stats-slide').count();
   // A card a game: the Blast and the Test match, and off production the Test

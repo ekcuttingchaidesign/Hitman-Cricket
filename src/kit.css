@@ -71,10 +71,27 @@
 .k-cta:focus-visible{outline-color:var(--c-accent-soft)}
 .k-cta.is-wide{display:flex;width:100%}
 
-/* PLAY AGAIN: white face, orange ledge, the face inset all round. */
-.k-cta--primary{--ledge:var(--c-cta-ledge);--face:var(--c-cta-face);--ink:var(--c-cta-ink);padding:calc(var(--u) * 3) calc(var(--u) * 3) calc(var(--u) * 6)}
+/* PLAY AGAIN (Figma 149:18107): an orange rim lit from above, the face inset
+   two all round and standing on twelve of it, white warming to peach. */
+.k-cta--primary{
+  --ledge:var(--c-cta-rim-bottom);--face:var(--g-cta-face);--ink:var(--c-cta-ink);
+  padding:calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 12);
+  border-radius:calc(var(--u) * 14);background:var(--g-cta-rim)
+}
 .k-cta--primary{min-width:calc(var(--u) * 210)}
-.k-cta--primary .k-cta-face{border:0;font-size:calc(var(--u) * 22);letter-spacing:.08em}
+.k-cta--primary .k-cta-face{position:relative;overflow:hidden;border:0;font-size:calc(var(--u) * 22);letter-spacing:.08em}
+.k-cta--primary .k-cta-face>span{position:relative}
+/* The moving one (Figma 149:18112): two faint chevrons crossing the face from
+   one end to the other, and resting where the drawing has them for anybody who
+   asked for less motion. */
+.k-cta-chevrons{
+  position:absolute;top:-26%;left:57.8%;height:150%;aspect-ratio:73/63;pointer-events:none;
+  background:url('./assets/kit/cta-chevron-6.svg') 0 0/63% 100% no-repeat,url('./assets/kit/cta-chevron-10.svg') 100% 0/63% 100% no-repeat
+}
+@media (prefers-reduced-motion:no-preference){
+  .k-cta-chevrons{left:-40%;animation:k-cta-chevrons 3.6s cubic-bezier(.45,0,.55,1) infinite}
+}
+@keyframes k-cta-chevrons{0%{left:-40%}70%,100%{left:105%}}
 /* MODE: the blue key with the grid. */
 .k-cta--mode{width:calc(var(--u) * 96)}
 .k-cta--mode .k-cta-face{padding:0 calc(var(--u) * 12)}

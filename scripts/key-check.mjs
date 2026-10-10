@@ -26,7 +26,7 @@
 
 import { chromium } from '@playwright/test';
 const BASE = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
-const WHO = `Keyed${Math.floor(Math.random() * 9000) + 1000}`;
+const WHO = `Keyed${Array.from({ length: 6 }, () => 'abcdefghijkmnpqrstuvwxyz'[Math.floor(Math.random() * 24)]).join('')}` /* letters: a digit suffix is a sibling of the last run's name */;
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
@@ -84,11 +84,10 @@ await page.evaluate(([who, key]) => {
 }, [WHO, claimed.key]);
 await page.evaluate(() => { const st = document.createElement('style'); st.textContent = '#debug{display:none!important}'; document.head.append(st); });
 
-// The report: open the board and switch to My Stats, having registered and
-// never since finished an innings or opened the picker.
-await page.locator('#cover-board').click({ force: true });
-await wait(2500);
-await page.locator('#board-tab-mine').click({ force: true });
+// The report: open My Stats from the cover's profile chip, having registered
+// and never since finished an innings or opened the picker. (It was a tab on
+// the board until the board was redrawn; the chip is the way in now.)
+await page.locator('#cover-profile').click({ force: true });
 await wait(3000);
 const onStats = await page.locator('.key-pass').count();
 ok(onStats === 1, 'My Stats carries the key card for a registered player', `${onStats} of them`);
@@ -110,12 +109,12 @@ if (onStats) {
   // a clipboard slot the next copy takes.
   ok((await page.locator('.key-hero').innerText()).toLowerCase().startsWith('screenshot this screen'),
     'leading with the one thing every phone can do');
-  const keys = await page.locator('.key-sheet .key-sheet-key').evaluateAll(
+  const keys = await page.locator('.key-sheet .k-cta').evaluateAll(
     all => all.map(one => one.id));
   ok(JSON.stringify(keys) === JSON.stringify(['key-image', 'key-whatsapp', 'key-copy']),
     'and offering the three ways under it, in that order', JSON.stringify(keys));
-  ok((await page.locator('#key-whatsapp').innerText()).trim() === 'WHATSAPP TO SELF',
-    'the message being one a player sends themselves');
+  ok((await page.locator('#key-whatsapp').innerText()).trim() === 'WHATSAPP',
+    'the message being one a player sends themselves, on WhatsApp');
 
   // The picture the save key hands over, painted here rather than trusted: a
   // key that cannot be read back out of it is a key that was never saved, and
@@ -150,9 +149,9 @@ if (onStats) {
 // the making; it is that nothing behind the modal was redrawn, so this presses
 // the key and then looks at what it was pressed on.
 await page.evaluate(() => { try { localStorage.removeItem('hitman-career-key'); } catch { /* then nothing is proved */ } });
-await page.locator('#board-tab-classic').click({ force: true });
+await page.locator('#stats-back').click({ force: true });
 await wait(1200);
-await page.locator('#board-tab-mine').click({ force: true });
+await page.locator('#cover-profile').click({ force: true });
 await wait(2500);
 await page.locator('.stats-sheet-inner').evaluate(el => { el.scrollTop = el.scrollHeight; }).catch(() => {});
 await wait(400);

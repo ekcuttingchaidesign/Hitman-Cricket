@@ -16,10 +16,14 @@ import { type Standing, roadOf } from '../game/tier';
 import { escape } from './Leaderboard';
 import arrowLeft from '../assets/kit/icon-arrow-left.svg?raw';
 import chart from '../assets/kit/icon-chart.svg?raw';
+import check from '../assets/kit/icon-check.svg?raw';
+import close from '../assets/kit/icon-close.svg?raw';
 import chevronDown from '../assets/kit/chevron-down.svg?raw';
 import chevronRight from '../assets/kit/icon-chevron-right.svg?raw';
 import grid from '../assets/kit/icon-grid.svg?raw';
+import info from '../assets/kit/icon-info.svg?raw';
 import key from '../assets/kit/icon-key.svg?raw';
+import scan from '../assets/kit/icon-scan.svg?raw';
 import share from '../assets/kit/icon-share.svg?raw';
 import swords from '../assets/kit/icon-swords.svg?raw';
 import trophy from '../assets/kit/icon-trophy.svg?raw';
@@ -28,8 +32,8 @@ import volume from '../assets/kit/icon-volume.svg?raw';
 import whatsapp from '../assets/kit/icon-whatsapp.svg?raw';
 
 const ICONS = {
-  'arrow-left': arrowLeft, chart, 'chevron-down': chevronDown, 'chevron-right': chevronRight, grid, key,
-  share, swords, trophy, user, volume, whatsapp,
+  'arrow-left': arrowLeft, chart, check, close, 'chevron-down': chevronDown, 'chevron-right': chevronRight, grid, info, key,
+  scan, share, swords, trophy, user, volume, whatsapp,
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -62,6 +66,8 @@ export interface Cta {
   /** The face's ink, where a mode card tints PLAY its own colour. */
   ink?: string;
   disabled?: boolean;
+  /** The primary's moving face: two faint chevrons crossing it, end to end. */
+  moving?: boolean;
 }
 
 /** The square keys show only their icon, and say what they are to a screen reader. */
@@ -80,7 +86,8 @@ export function cta(view: Cta): string {
     ink ? `style="--ink:${escape(ink)}"` : '',
     disabled ? 'disabled' : '',
   ].filter(Boolean).join(' ');
-  const face = `${glyph ? icon(glyph) : ''}${square ? '' : `<span>${escape(label)}</span>`}`;
+  const chevrons = view.moving ? '<i class="k-cta-chevrons" aria-hidden="true"></i>' : '';
+  const face = `${chevrons}${glyph ? icon(glyph) : ''}${square ? '' : `<span>${escape(label)}</span>`}`;
   return `<button ${attrs}><span class="k-cta-face">${face}</span></button>`;
 }
 

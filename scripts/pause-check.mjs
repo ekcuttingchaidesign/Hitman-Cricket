@@ -65,7 +65,8 @@ const sheet = page => page.evaluate(() => {
   return {
     up: shown('pause-overlay') && window.__cricket.snapshot().phase === 'PAUSED',
     chip: document.getElementById('pause-mode').textContent,
-    tone: getComputedStyle(document.getElementById('pause-mode')).backgroundColor,
+    // The game's colour is the dot by its name since the redraw.
+    tone: getComputedStyle(document.getElementById('pause-mode'), '::before').backgroundColor,
     state: document.getElementById('pause-state').textContent,
     restart: shown('restart'), modes: shown('change-mode'), declare: shown('declare'), lights: shown('lights-row'),
     crowd: document.getElementById('crowd-switch').getAttribute('aria-checked'),
@@ -76,7 +77,7 @@ const sheet = page => page.evaluate(() => {
   };
 });
 
-for (const [mode, name, tone] of [['classic', 'The Blast', 'rgb(8, 123, 255)'], ['marathon', 'Test Marathon', 'rgb(18, 180, 95)']]) {
+for (const [mode, name, tone] of [['classic', 'The Blast', 'rgb(63, 136, 242)'], ['marathon', 'Test Marathon', 'rgb(91, 208, 143)']]) {
   console.log(name);
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.

@@ -27,8 +27,8 @@
 
 import { chromium } from '@playwright/test';
 const BASE = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
-const ID = 'frs123-freshplayer01';
-const WHO = `Fresh${Math.floor(Math.random() * 9000) + 1000}`;
+const ID = `frs123-${Array.from({ length: 12 }, () => 'abcdefghijkmnpqrstuvwxyz0123456789'[Math.floor(Math.random() * 34)]).join('')}`;
+const WHO = `Fresh${Array.from({ length: 6 }, () => 'abcdefghijkmnpqrstuvwxyz'[Math.floor(Math.random() * 24)]).join('')}` /* letters: a digit suffix is a sibling of the last run's name */;
 const claimed = await fetch(`${BASE}/api/score`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ playerId: ID, name: WHO, avatar: 1, mode: 'classic',
@@ -84,18 +84,21 @@ await page.goto(`${BASE}/?debug=1&seed=222&fresh=1`, { waitUntil: 'load' });
 await wait(2000);
 await page.locator('#fresh-go').click({ force: true });
 await wait(2500);
-const left = await page.evaluate(() => ({
+const left = await page.evaluate(old => ({
+  // The player id is the one copy a fresh boot writes straight back: a new
+  // player is given a new id on their first load. What must not survive is
+  // the old one — so the id left, if any, is held to being somebody else.
   who: ['hitman-player', 'hitman-batter', 'hitman-career-key', 'hitman-best']
-    .filter(k => localStorage.getItem(k) !== null),
+    .filter(k => k === 'hitman-player' ? (localStorage.getItem(k) ?? '').includes(old) : localStorage.getItem(k) !== null),
   keys: Object.keys(localStorage).filter(k => k.startsWith('hitman-')),
   cookie: document.cookie,
-}));
+}), ID);
 // Not "no keys at all": the game boots straight afterwards and writes a fresh
 // visit record, which is exactly what a new player's first load should leave.
 // What has to be gone is every trace of who they were.
 ok(left.who.length === 0, 'clearing takes everything that says who they were', JSON.stringify(left.who));
 ok(!left.keys.includes('hitman-restore-offer'), 'and the memory of having been asked', JSON.stringify(left.keys));
-ok(!left.cookie.includes('hitman-player='), 'and the cookie with it', left.cookie || '(none)');
+ok(!left.cookie.includes(`hitman-player=${ID}`), 'and the cookie with it: any id left is a new one', left.cookie || '(none)');
 
 // And the game now treats them as new.
 await page.reload({ waitUntil: 'load' });

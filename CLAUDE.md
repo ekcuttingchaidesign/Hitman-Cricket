@@ -51,7 +51,9 @@ Those last two are split by whose screen it is, and that is the point. A check
 that registers and then deletes its way back to nameless is testing its own
 teardown: the key card was missing from My Stats for every registered player
 and three browser checks walked past it, because all three reached that screen
-by finishing an innings and none by opening the board from the cover.
+by finishing an innings and none by opening the board from the cover. (Both
+now reach My Stats by the cover's profile chip, the board having lost its My
+Stats tab in the redraw.)
 
 That last one holds a rule about *when* something happens rather than what a
 function answers, so no unit test can reach it. A career is a sum, so an
@@ -213,6 +215,10 @@ head of My Stats. If the board cannot be reached the gate opens anyway — a
 player is never held at the crease for an outage — and asks again next time. A
 private window keeps the name in the browser and sends nothing.
 
+The gate has a back key (`#profile-leave`) and it goes to the cover, letting
+the innings it was asked for go: there is no playing without a name. From My
+Stats the same screen's back key is `#profile-close` and goes back there.
+
 The hand (`hitman-hand`) is the batter in the Blast and Test Survival; in the
 Test Marathon one of the three bats the other way round from the player
 (`leftHandersOf`), so a left-hander's side has two left-handers, and the board
@@ -224,26 +230,25 @@ the card says where it landed, with the board one tap away. Only a player with n
 window, practice and a Rival Match keep the old offers — and a post that fails
 falls back to the register key, so nothing is lost to an outage.
 
-Every other finished innings by a named player is posted too, quietly, with
-the card left as it was (`quietPost`), so the store can say where they stand
+Every other finished innings by a named player is posted too (`quietPost`), so the store can say where they stand
 however far below the fifty: the ranking sorted sets have never been trimmed,
 so a place is one `ZREVRANK` away. `/api/score` answers each post with
 `standing` — the place now, out of how many, and the place before (`was`) —
 and `GET /api/board?player=<id>` answers it for a player who has not just
-batted, uncached, beside the fifty that stay the same for everybody. The
-quiet post waits for the board to come in: posted before it, an innings worth
-a place would be on the board before the card could claim it. One post an
+batted, uncached, beside the fifty that stay the same for everybody. The card
+goes by that answer, not by the board on screen, so it does not matter which
+arrives first; until it answers, the card says the innings is going up. One post an
 innings whichever way it is asked for (`postOnce`). An innings is two hits on
 the address's counter now — the post and the career count — so `RATE_LIMIT`
-is 240. Nothing draws the place yet; it is in `snapshot().standing` for the
-redrawn end card and board.
+is 240. The redrawn end card draws the place (`placeNow`), and it is in
+`snapshot().standing` for the checks.
 
 `scripts/post-check.mjs` walks that in about a minute: a Test Marathon
 written ball by ball and bowled out, for a named left-handed player — posted
 once, by itself, with two left-handers in the side and the store taking it,
 the card saying where it landed — then a named player's duck against a board
-filled to fifty, posted once with the card unchanged and placed last on the
-whole board, and asked again through `?player=` — and for a player with no
+filled to fifty, posted once and placed last on the whole board, the card
+saying that place, and asked again through `?player=` — and for a player with no
 name, for whom nothing is sent and the card still asks. `board-check.mjs` holds
 the same places to a real deployment, where the Redis adapter's pipeline runs.
 
@@ -376,6 +381,32 @@ names it).
 
 ## UI v1: the handover and `?ui=1`
 
+The way in is redrawn (phase 3): the cover (`src/ui/Cover.ts`) — the poster,
+the profile chip that always opens My Stats, the board widget quoting your best
+and place (asked of the store below the fifty), the leader, or a big score made
+in the last day, turning over every few seconds — and a poster that moves, the
+handover's section 11 motion poster, and stands still under reduced motion; Choose a mode (`src/ui/ModeSelect.ts`) — the Marathon and Blast
+posters with best and place, Survival's banner, the boards' podium, My Stats in
+the tier's material and Rivals, its figures drawn into keys bound once so ids
+never go stale (`modesFill`); and the name screen (`Profile.ts`). No sound key
+on Choose a mode: that corner is the avatar. `scripts/entry-check.mjs` walks all
+three for a new player and a returning one and photographs them.
+
+The end of an innings is redrawn (phase 4, the handover's section 05): one
+card for every mode, its parts in `src/ui/EndCard.ts` — the Blast's
+over-by-over chart, the Marathon's worm and batting card, Survival's injury
+ring — and the player card under them. A named player's card says the place
+the store answered with (`placeNow` in `src/Game.ts`), on the fifty or below
+it, new best or best still standing, never a guess off the board on screen;
+every named innings is posted, so it always has one. The keys along the foot
+stand on the overlay, outside what scrolls (`.ec-screen>.ec-keys`), so the
+card scrolls up from under them to its last line, the career key included —
+inside the scroller they rode over it. `scripts/endcard-check.mjs` writes a
+Blast and a Marathon through the debug hooks (`__cricket.blast`, `marathon`)
+and lets a Test end itself — `finish` stops one mid-innings, lost with no
+wicket down, which the store turns away as impossible — then photographs each
+card and scrolls one to its foot.
+
 The game is being redrawn from a Figma handover (file `JhIdkSdtMSriYe3W5y3NAa`,
 canvas `125:4590`), a phase at a time. The foundations come first and change
 nothing on screen: the design's colours, faces and measures are named in the
@@ -392,6 +423,87 @@ changes nothing about the batting, so it is not practice
 (`tests/practice.test.ts` names it). `scripts/ui-check.mjs` holds each part to
 its Figma master's size, checks both faces load and every target is 44, and
 photographs the page at a phone's width and in the desktop column.
+
+The leaderboard is redrawn (phase 5, the handover's section 06): one screen
+for every board, drawn by `src/ui/Board.ts` from one description
+(`BoardScreen`) that each board is turned into — `blastBody`, `surviveBody`,
+`marathonBody` (Team and Batters) and `careerBody`. A top bar, the mode and
+ladder pills (the mode menu with each mode's place, the ladder sheet, and
+How ranking works under the (i), with What's new beneath it), a pager, a
+podium of three under spotlights that folds to chips as the list scrolls,
+the list in a sheet tinted to the mode, and a dock: the player's line, which
+steps aside while their own row is on screen, and PLAY AGAIN after an
+innings of that mode, the mode's own PLAY from anywhere else, none
+mid-innings. A swipe sideways or the arrow keys go to the next mode. After an
+innings the board says what it did (entered at #N, up N places, best still
+holds, outside the top 50) from the store's answer to the post
+(`boardFrame` in `src/Game.ts`), tags the row and opens on it; a guest's
+innings stands where it would, green and dashed, with Add name. My Stats is
+no longer a tab on the board: it is the cover's profile chip and the end
+card's door, and the page's "Played before?" link is wired there now.
+`scripts/board-ui-check.mjs` walks it on `?demo=1` and photographs every
+state, the empty and offline boards stubbed at the network (offline on Test
+Survival: in development a Blast board out of reach stands in invented rows).
+
+My Stats is redrawn (phase 6, the handover's section 07): `src/ui/StatsSheet.ts`
+draws the career card in the page, in the material of the tier (matte navy,
+brushed bronze, black with a chrome edge, black and gold foil; the
+Marathon's in its green with crimson rising at every rung, as `cardTheme`
+paints it), then Road to Hitman, six figures a mode with Best rank
+(`bestRank` in `src/Game.ts`: the innings board's place and every career
+ladder's, the best of them), and the key as a ticket stub. A switch at the
+head moves between the modes; the cards are still a rail, one a mode, so a
+swipe does too. SHARE MY CARD is pinned to the foot, or PLAY YOUR FIRST
+INNINGS before anything is counted. The painted card (`StatsCard.ts`) is no
+longer shown — it is painted behind the screen as before and is what the
+share key sends, a picture as it always was. The four tier cards are on
+`?ui=1`. The key's two sheets and Bring your record back are bottom sheets
+now (`CareerKey.ts`, `Restore.ts`), their ids as they were.
+
+Rivals is redrawn (phase 7, the handover's section 08) over the same logic
+and the same ids: every screen stands on BG / Rivals (your blue bloom top
+left, theirs orange bottom right, a halftone, `src/assets/rivals/`). Rival
+Matches has the record as drawn (`rivalsRecordMarkup` in `src/ui/Record.ts`:
+won, lost, drawn, the last four results as chips from `recentForm`, a win
+share bar) and one card of challenges, each row two faces, "You vs …", the
+verdict or what it waits on with its age (`ageOf`), and a W / L / … chip; an
+empty list says NO RIVALS YET. The room's faces carry a ring in their side's
+colour and a JOINED / NOT BATTED / BATTED chip, a hidden score is `???`; the
+result puts the winner under a crown with the two innings as cards. The
+invite and the head-to-head (now with fours) are sheets from the foot, the
+ranking a table, joining from a link a card over the stadium, and can't reach
+the match a screen of its own. `challenge-check.mjs` walks all of it (with
+`SHOTS=dir` it photographs each step); `?room=won` and its siblings put any
+room face up.
+
+In play (phase 8, the handover's section 09): the pause sheet as drawn — a
+black strip with the game's name by a dot in its colour and where the
+innings stands, PAUSED, RESUME INNINGS, RESTART and CHANGE MODE side by
+side, and Crowd, Ambience and Lights as one card of rows; the declare key
+and the lights stay in the modes that have them (`pause-check` reads the
+game's colour off the dot). The physio card is headed BATSMAN CRITICALLY
+INJURED, with the injury ring and the real figure beside PHYSIO ON, and
+`__cricket.physio()` puts it up by name. HOW TO PLAY on the cover opens the
+coachmarks a first innings shows (`howToPlay` in `src/Game.ts`), ending on
+CHOOSE A MODE and PLAY NOW, which starts a Blast; the three-ball tutorial is
+no longer reached from there. The rating prompt and the feedback form are
+untouched: they are redrawn together, last. SHARE MY CARD paints the new
+tier card (`src/game/TierCard.ts`), on the cover with the address and the
+mode's line for the story, or on black with the address and BEAT MY
+NUMBERS.
+
+Checks that create players name them with letters and give each run a new
+id: a name with a number on the end is a sibling of the last run's for a
+day, and a player takes a new name once in thirty days, so a fixed id or a
+digit suffix fails the second run on the same server.
+
+The orange key is redrawn (Figma `149:18107`, and `149:18112` for the one that
+moves): an orange rim lit from above round a face warming from white to peach,
+named `--g-cta-rim` and `--g-cta-face`, at the sizes it already had. The older
+white-on-orange keys (`.play-button`, `.key-button`, `.rate-more`, the Rivals
+PLAY) wear the same colours until their screens are redrawn. `cta({ moving:
+true })` adds the two faint chevrons crossing the face — the cover's PLAY and
+both PLAY AGAINs — and leaves them at rest under reduced motion.
 
 Road to Hitman's fill is `roadOf` in `src/game/tier.ts`: the medallions stand
 evenly, so the fill is a whole rung per tier climbed and the share of the gap
