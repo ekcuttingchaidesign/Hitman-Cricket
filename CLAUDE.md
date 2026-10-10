@@ -382,9 +382,9 @@ names it).
 
 The way in is redrawn (phase 3): the cover (`src/ui/Cover.ts`) — the poster,
 the profile chip that always opens My Stats, the board widget quoting your best
-and place (asked of the store below the fifty) or the leader, and a poster that
-moves for a returning browser and stands still for a first visit or under
-reduced motion; Choose a mode (`src/ui/ModeSelect.ts`) — the Marathon and Blast
+and place (asked of the store below the fifty), the leader, or a big score made
+in the last day, turning over every few seconds — and a poster that moves, the
+handover's section 11 motion poster, and stands still under reduced motion; Choose a mode (`src/ui/ModeSelect.ts`) — the Marathon and Blast
 posters with best and place, Survival's banner, the boards' podium, My Stats in
 the tier's material and Rivals, its figures drawn into keys bound once so ids
 never go stale (`modesFill`); and the name screen (`Profile.ts`). No sound key
