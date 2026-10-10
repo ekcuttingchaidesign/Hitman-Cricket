@@ -445,6 +445,21 @@ card's door, and the page's "Played before?" link is wired there now.
 state, the empty and offline boards stubbed at the network (offline on Test
 Survival: in development a Blast board out of reach stands in invented rows).
 
+My Stats is redrawn (phase 6, the handover's section 07): `src/ui/StatsSheet.ts`
+draws the career card in the page, in the material of the tier (matte navy,
+brushed bronze, black with a chrome edge, black and gold foil; the
+Marathon's in its green with crimson rising at every rung, as `cardTheme`
+paints it), then Road to Hitman, six figures a mode with Best rank
+(`bestRank` in `src/Game.ts`: the innings board's place and every career
+ladder's, the best of them), and the key as a ticket stub. A switch at the
+head moves between the modes; the cards are still a rail, one a mode, so a
+swipe does too. SHARE MY CARD is pinned to the foot, or PLAY YOUR FIRST
+INNINGS before anything is counted. The painted card (`StatsCard.ts`) is no
+longer shown — it is painted behind the screen as before and is what the
+share key sends, a picture as it always was. The four tier cards are on
+`?ui=1`. The key's two sheets and Bring your record back are bottom sheets
+now (`CareerKey.ts`, `Restore.ts`), their ids as they were.
+
 The orange key is redrawn (Figma `149:18107`, and `149:18112` for the one that
 moves): an orange rim lit from above round a face warming from white to peach,
 named `--g-cta-rim` and `--g-cta-face`, at the sizes it already had. The older

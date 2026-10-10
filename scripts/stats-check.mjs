@@ -71,14 +71,15 @@ await page.click('#board-close');
 await page.waitForTimeout(500);
 await page.click('#cover-profile');
 
-// The picture, which is the thing the two bugs above both stopped arriving.
-const drew = await page.waitForSelector('.stats-shot', { timeout: 20_000 }).then(() => true).catch(() => false);
-check(drew, 'the card is painted rather than left drawing', await page.$eval('.stats-stage', n => n.textContent.trim()).catch(() => ''));
+// The card, drawn in the page in its tier's material (UI v1); the painted
+// picture of it is only what the share key sends now.
+const drew = await page.waitForSelector('.stats-slide .st-card, .stats-stage .st-card', { timeout: 20_000 }).then(() => true).catch(() => false);
+check(drew, 'the career card is drawn', await page.$eval('.stats-stage', n => n.textContent.trim().slice(0, 80)).catch(() => ''));
 
 check(await page.locator('#stats-back').isVisible(), 'the card has its way back');
 
-// The rail: a card a game the build plays, the Blast in front, and
-// the next one showing at the edge so there is something to swipe towards.
+// The rail: a card a game the build plays, the Blast in front, a mode switch
+// at the head to say which (there is no peek at the edge since the redraw).
 const slides = await page.$$eval('.stats-slide', all => all.map(one => one.dataset.mode));
 if (slides.length > 1) {
   check(slides[0] === 'classic', 'the rail opens on the Blast', slides.join(' | '));
@@ -92,7 +93,6 @@ if (slides.length > 1) {
       scroll: Math.round(track.scrollLeft),
     };
   });
-  check(rail.peek > 12 && rail.peek < 80, 'the card behind shows at the edge', JSON.stringify(rail));
   check(rail.inside && rail.scroll === 0, 'and the front one is whole and at the front', JSON.stringify(rail));
 
   // A swipe, and what the share keys would send after it.
@@ -102,51 +102,37 @@ if (slides.length > 1) {
     track.scrollTo({ left: cards[1].offsetLeft - track.offsetLeft, behavior: 'instant' });
   });
   await page.waitForTimeout(700);
-  const now = await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim());
+  const now = await page.$eval('.stats-dot.is-on', dot => dot.getAttribute('aria-label'));
   const second = { survive: 'Test Survival', marathon: 'Test Marathon' }[slides[1]];
   check(now === second, 'swiping moves which card is in front', `${now}, not ${second}`);
   await page.click('.stats-dot[data-slide="0"]');
   // Waited for rather than slept on: in software rendering a frame can take a
   // second, and the rail eases back over several of them.
-  await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
-  check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'The Blast',
+  await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.getAttribute('aria-label') === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
+  check(await page.$eval('.stats-dot.is-on', dot => dot.getAttribute('aria-label')) === 'The Blast',
     'and the dots take you back without a swipe');
   // Wherever the Test Marathon can be played — every build off production —
   // its card is the second, between the Blast's and Test Survival's.
   if (slides.includes('marathon')) {
     check(slides.join(' | ') === 'classic | marathon | survive', 'the Test Marathon\'s card comes second', slides.join(' | '));
     await page.click(`.stats-dot[data-slide="${slides.indexOf('marathon')}"]`);
-    await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'Test Marathon', null, { timeout: 10_000 }).catch(() => {});
-    // The figures, as the picture's own words say them: a canvas has no text.
-    await page.waitForSelector('.stats-slide[data-mode="marathon"] .stats-shot', { timeout: 20_000 }).catch(() => {});
-    const marathon = await page.$eval('.stats-slide[data-mode="marathon"]',
-      slide => slide.querySelector('.stats-shot')?.getAttribute('alt') ?? slide.textContent);
-    check(await page.$eval('.stats-dot.is-on', dot => dot.textContent.trim()) === 'Test Marathon'
-      && /Highest/.test(marathon) && /Best ind/.test(marathon) && /Per inns/.test(marathon),
-    'and leads with the highest total and the best individual score, runs per innings under them', marathon.replace(/\s+/g, ' ').slice(0, 160));
-    // British Racing Green, with red rising from the foot: read off the
-    // picture's own pixels, near the top and near the bottom right.
-    const ground = await page.$eval('.stats-slide[data-mode="marathon"] .stats-shot', async img => {
-      await img.decode().catch(() => {});
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const pick = (fx, fy) => [...ctx.getImageData(Math.round(img.naturalWidth * fx), Math.round(img.naturalHeight * fy), 1, 1).data].slice(0, 3);
-      return { top: pick(0.12, 0.08), foot: pick(0.75, 0.86) };
-    }).catch(error => ({ error: String(error) }));
-    const [r, g, b] = ground.top ?? [0, 0, 0];
-    check(g > r * 1.6 && g > b * 1.2, 'on a green card', JSON.stringify(ground));
-    const [fr, fg] = ground.foot ?? [0, 0];
-    check(fr > r && fr > fg * 0.6, 'with red coming up through it at the foot', JSON.stringify(ground));
+    await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.getAttribute('aria-label') === 'Test Marathon', null, { timeout: 10_000 }).catch(() => {});
+    const marathon = await page.$eval('.stats-slide[data-mode="marathon"]', slide => slide.textContent);
+    check(await page.$eval('.stats-dot.is-on', dot => dot.getAttribute('aria-label')) === 'Test Marathon'
+      && /Highest/.test(marathon) && /Best ind/.test(marathon) && /Hundreds/.test(marathon),
+    'and shows the highest total, the best individual score and the hundreds', marathon.replace(/\s+/g, ' ').slice(0, 160));
+    // British Racing Green, with red rising from the foot, as the painted card is.
+    const ground = await page.$eval('.stats-slide[data-mode="marathon"] .st-card', card => getComputedStyle(card).backgroundImage);
+    check(/rgb\(11, 58, 36\)/.test(ground), 'on a green card', ground.slice(0, 120));
+    check(/rgba\(200, 16, 46/.test(ground), 'with red coming up through it at the foot', ground.slice(0, 120));
     await page.click('.stats-dot[data-slide="0"]');
-    await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.textContent.trim() === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelector('.stats-dot.is-on')?.getAttribute('aria-label') === 'The Blast', null, { timeout: 10_000 }).catch(() => {});
   }
 }
 
-const taps = await page.$$('.stats-tap');
-const figures = await page.$$eval('.stats-tap', keys => keys.map(key => key.dataset.stat));
-check(taps.length > 0, 'every figure on the picture carries a key to press', figures.join(', '));
+const taps = await page.$$('.st-tile[data-stat]');
+const figures = await page.$$eval('.st-tile[data-stat]', keys => keys.map(key => key.dataset.stat));
+check(taps.length > 0, 'every figure under the card carries a key to press', figures.join(', '));
 
 if (taps.length) {
   // Whether the toast rose is watched for as it happens rather than sampled

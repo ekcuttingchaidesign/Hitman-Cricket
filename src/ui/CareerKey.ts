@@ -62,24 +62,22 @@ export const MARK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><pa
 export function keyCardMarkup(view: KeyView): string {
   const lost = view.state === 'lost';
   const saved = view.state === 'saved';
+  // UI v1's ticket stub, as on the innings card: the key on its holographic
+  // strip, the perforation, and SAVE beyond it. Lost, the strip says there is
+  // no key on this phone and the key makes one.
   return `
-    <section class="key-pass is-${view.state}" aria-labelledby="key-card-title">
-      <div class="key-face">
-        <div class="key-stamp">
-          <span class="key-mark" aria-hidden="true">${MARK}</span>
-          <h3 id="key-card-title">Your career key</h3>
-          <button id="key-info" class="key-info" type="button" aria-label="What is a career key?">
-            <span aria-hidden="true">i</span>
-          </button>
+    <section class="key-pass k-ticket is-${view.state}" aria-labelledby="key-card-title">
+      <div class="k-ticket-key">
+        <div class="k-ticket-label k-t-overline">${icon('key')}<span id="key-card-title">Career key</span>
+          <button id="key-info" class="key-info" type="button" aria-label="What is a career key?"><span aria-hidden="true">i</span></button>
         </div>
-        ${lost ? '' : `<p class="key-serial"><span>${escape(view.code ?? '')}</span></p>`}
-        <p class="key-line">${lost
-          ? 'There is no key on this phone. Make one now \u2014 it takes a second, and it is what brings this record back if this browser ever forgets you.'
-          : 'The only way back to your record if this browser forgets you'}</p>
-        <button id="key-save" class="key-save" type="button">${
-          lost ? 'MAKE MY KEY' : saved ? 'SAVE IT AGAIN' : 'SAVE YOUR KEY'}</button>
+        ${lost
+          ? '<p class="key-line">No key on this phone. Make one: it is what brings this record back.</p>'
+          : `<p class="key-serial k-ticket-pill"><span>${escape(view.code ?? '')}</span></p>`}
         ${saved ? '<button id="key-new" class="key-ghost" type="button">Make a new key</button>' : ''}
       </div>
+      <span class="k-ticket-perf" aria-hidden="true"></span>
+      <div class="k-ticket-save">${cta({ kind: 'save', label: lost ? 'MAKE IT' : 'SAVE', id: 'key-save' })}</div>
     </section>`;
 }
 
@@ -184,51 +182,55 @@ export function keyToastMarkup(view: KeyView): string {
  * from on a phone they do not own yet.
  */
 export function keyModalMarkup(view: KeyView): string {
+  // UI v1's save sheet (133:6560): from the foot, the key on its holographic
+  // strip, the screenshot first, then the picture, WhatsApp and a copy.
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-modal-title">
-      <div class="key-sheet">
-        <div class="key-face">
-        <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
-        <h2 id="key-modal-title">Save your career key</h2>
-        <p class="key-serial is-big"><span>${escape(view.code ?? '')}</span></p>
-        <p class="key-sheet-say">This and your name bring your record back — every run, every
-          innings, your tier and your place on the board. Without it, a new phone or a cleared
-          browser starts you at nought.</p>
-        <p class="key-hero"><b>Screenshot this screen.</b><span>The surest way to keep it, and
-          your phone already knows how.</span></p>
-        <p class="key-or">or</p>
-        <button id="key-image" class="key-sheet-key is-image" type="button">SAVE AS IMAGE</button>
-        <button id="key-whatsapp" class="key-sheet-key is-second" type="button">WHATSAPP TO SELF</button>
-        <button id="key-copy" class="key-sheet-key is-copy" type="button">COPY</button>
-        <p id="key-trouble" class="key-trouble hidden" role="alert"></p>
-        <p class="key-fine">Put it somewhere you will still have in a year. A copied key only
-          lasts until the next thing you copy, and a picture outlives both.</p>
-        <button id="key-modal-close" class="key-ghost" type="button">Close</button>
+      <div class="key-sheet ks-sheet">
+        <i class="ks-grab" aria-hidden="true"></i>
+        <div class="ks-head">
+          <span class="ks-mark" aria-hidden="true">${icon('key')}</span>
+          <h2 id="key-modal-title" class="ks-title">SAVE YOUR CAREER KEY</h2>
+          <button id="key-modal-close" class="ks-close" type="button" aria-label="Close">${icon('close')}</button>
         </div>
+        <p class="key-serial ks-key"><span>${escape(view.code ?? '')}</span></p>
+        <p class="ks-say">This and your name bring your record back: every run, every innings, your tier and your place on the board. Without it, a new phone or a cleared browser starts you at nought.</p>
+        <p class="key-hero ks-hint">${icon('scan')}<span><b>Screenshot this screen</b><small>The surest way to keep it. Your phone already knows how.</small></span></p>
+        ${cta({ kind: 'primary', label: 'SAVE AS IMAGE', id: 'key-image', wide: true })}
+        <div class="ks-more">
+          ${cta({ kind: 'share-wide', label: 'WHATSAPP', id: 'key-whatsapp' })}
+          ${cta({ kind: 'secondary', label: 'COPY', id: 'key-copy' })}
+        </div>
+        <p id="key-trouble" class="key-trouble hidden" role="alert"></p>
+        <p class="ks-fine">Put it somewhere you’ll still have in a year. A copied key lasts until the next thing you copy; a picture outlives both.</p>
       </div>
     </div>`;
 }
 
-/** What the modal explains when it is opened to explain rather than to save. */
-export function keyAboutMarkup(): string {
+/** What the sheet explains when it is opened to explain rather than to save (133:6719). */
+export function keyAboutMarkup(code: string | null = null): string {
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="key-about-title">
-      <div class="key-sheet">
-        <div class="key-face">
-        <span class="key-mark is-big" aria-hidden="true">${MARK}</span>
-        <h2 id="key-about-title">What is a career key?</h2>
-        <p class="key-sheet-say">This game has no accounts. Who you are is kept by your browser,
-          and browsers forget — after a week away, on a new phone, or the moment somebody
-          clears their history.</p>
-        <p class="key-sheet-say">Your career key is three words and two numbers that survive that.
-          Type it with the name you bat under and your whole record comes back.</p>
-        <p class="key-fine">It only works with your name, so a key on its own is no use to
-          anybody who finds it.</p>
-        <button id="key-about-close" class="key-ghost" type="button">Close</button>
+      <div class="key-sheet ks-sheet">
+        <i class="ks-grab" aria-hidden="true"></i>
+        <div class="ks-head">
+          <span class="ks-mark" aria-hidden="true">${icon('key')}</span>
+          <h2 id="key-about-title" class="ks-title">WHAT IS A CAREER KEY?</h2>
+          <button class="ks-close" type="button" data-close aria-label="Close">${icon('close')}</button>
         </div>
+        <p class="ks-say is-lead">This game has no accounts. Who you are is kept by your browser, and browsers forget: after a week away, on a new phone, or the moment somebody clears their history.</p>
+        <div class="ks-example">
+          <span class="k-t-overline">Three words and two numbers</span>
+          <p class="key-serial ks-key is-small"><span>${escape(code ?? 'stamina-lofted-fielder-30')}</span></p>
+          <p class="ks-say">Type it with the name you bat under and your whole record comes back.</p>
+        </div>
+        <p class="ks-safe"><span aria-hidden="true">${SHIELD}</span>It only works with your name, so a key on its own is no use to anybody who finds it.</p>
+        ${cta({ kind: 'primary', label: 'GOT IT', id: 'key-about-close', wide: true })}
       </div>
     </div>`;
 }
+
+const SHIELD = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.4 3.1 8.2 7.5 9.5 4.4-1.3 7.5-5.1 7.5-9.5V6L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.8 12.2 2.2 2.2 4.2-4.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 /**
  * What is left under Career Stats once the panel has done its job.

@@ -74,6 +74,7 @@ import { HEALTH, SURVIVE } from '../config/survive';
 import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
+import type { CareerMode } from '../game/career';
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -847,6 +848,8 @@ ${modeSelectMarkup()}
 
   /** What the card key does. The game decides: the figures are the game's. */
   onStatsOpen: (() => void) | null = null;
+  /** PLAY YOUR FIRST INNINGS on My Stats, for the mode in front. */
+  onStatsPlay: ((mode: CareerMode) => void) | null = null;
 
   /**
    * The Career stats door under the innings card, and whose career it is.
@@ -943,7 +946,13 @@ ${modeSelectMarkup()}
    * one place rather than each remembering to do it.
    */
   private wireStatsKeys() {
-    this.$('stats-brag').onclick = () => void this.shareStats();
+    // SHARE MY CARD once there is a card worth sending; before the first
+    // innings the foot is PLAY YOUR FIRST INNINGS, for the mode in front.
+    const brag = document.getElementById('stats-brag');
+    if (brag) brag.onclick = () => void this.shareStats();
+    const play = document.getElementById('stats-play');
+    if (play) play.onclick = () => this.onStatsPlay?.(this.statsCards[this.statsAt]?.facts.mode ?? 'classic');
+    for (const pencil of document.querySelectorAll<HTMLElement>('.st-edit')) pencil.onclick = () => this.onProfileEdit?.();
     // The key card is only on the sheet where the player has one.
     const save = document.getElementById('key-save');
     // On `lost` that one key asks for a new one instead of saving a key this
@@ -954,8 +963,6 @@ ${modeSelectMarkup()}
     if (about) about.onclick = () => this.openKeySheet(true);
     const fresh = document.getElementById('key-new');
     if (fresh) fresh.onclick = () => this.onNewKey?.();
-    const edit = document.getElementById('stats-edit');
-    if (edit) edit.onclick = () => this.onProfileEdit?.();
     this.wireStatsRail();
     // Every figure on the card, and every figure in the text fallback under it.
     // One selector for both, because what a tap does is the same either way and
@@ -2824,11 +2831,12 @@ ${modeSelectMarkup()}
     this.keySheetKind = about ? 'about' : 'save';
     this.keySheetSaved = false;
     const overlay = this.$('key-overlay');
-    overlay.innerHTML = about ? keyAboutMarkup() : keyModalMarkup(this.keyView);
+    overlay.innerHTML = about ? keyAboutMarkup(this.keyView?.code ?? null) : keyModalMarkup(this.keyView);
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     const shut = () => this.closeKeySheet();
     this.$(about ? 'key-about-close' : 'key-modal-close').onclick = shut;
+    for (const cross of overlay.querySelectorAll<HTMLElement>('[data-close]')) cross.onclick = shut;
     // The ground around the sheet closes it, which is what every other modal
     // on this game does and what a thumb reaches for first. Only the ground:
     // the test is that the press landed on the scrim itself rather than
@@ -2843,13 +2851,14 @@ ${modeSelectMarkup()}
     this.$('key-image').onclick = async () => {
       const key = this.$('key-image') as HTMLButtonElement;
       if (key.disabled) return;
-      const was = key.textContent;
+      const words = key.querySelector<HTMLElement>('.k-cta-face span') ?? key;
+      const was = words.textContent;
       key.disabled = true;
-      key.textContent = 'SAVING…';
+      words.textContent = 'SAVING…';
       const done = await this.onKeySave?.('image');
       if (done !== false) this.keySheetSaved = true;
       key.disabled = false;
-      key.textContent = was;
+      words.textContent = was;
       if (done === false) {
         this.keyTrouble('Could not save the picture. Screenshot this screen instead.');
       }
@@ -2876,11 +2885,12 @@ ${modeSelectMarkup()}
       // closed was the only answer somebody got — indistinguishable from a key
       // that did nothing, which is what the last one actually was. Standing
       // also leaves the screen up for the screenshot recommended above it.
-      key.textContent = 'COPIED';
+      const words = key.querySelector<HTMLElement>('.k-cta-face span') ?? key;
+      words.textContent = 'COPIED';
       key.classList.add('is-done');
       window.clearTimeout(this.copySaid);
       this.copySaid = window.setTimeout(() => {
-        key.textContent = 'COPY';
+        words.textContent = 'COPY';
         key.classList.remove('is-done');
       }, 2200);
     };
