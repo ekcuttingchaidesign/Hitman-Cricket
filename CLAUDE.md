@@ -476,6 +476,27 @@ the match a screen of its own. `challenge-check.mjs` walks all of it (with
 `SHOTS=dir` it photographs each step); `?room=won` and its siblings put any
 room face up.
 
+In play (phase 8, the handover's section 09): the pause sheet as drawn — a
+black strip with the game's name by a dot in its colour and where the
+innings stands, PAUSED, RESUME INNINGS, RESTART and CHANGE MODE side by
+side, and Crowd, Ambience and Lights as one card of rows; the declare key
+and the lights stay in the modes that have them (`pause-check` reads the
+game's colour off the dot). The physio card is headed BATSMAN CRITICALLY
+INJURED, with the injury ring and the real figure beside PHYSIO ON, and
+`__cricket.physio()` puts it up by name. HOW TO PLAY on the cover opens the
+coachmarks a first innings shows (`howToPlay` in `src/Game.ts`), ending on
+CHOOSE A MODE and PLAY NOW, which starts a Blast; the three-ball tutorial is
+no longer reached from there. The rating prompt and the feedback form are
+untouched: they are redrawn together, last. SHARE MY CARD paints the new
+tier card (`src/game/TierCard.ts`), on the cover with the address and the
+mode's line for the story, or on black with the address and BEAT MY
+NUMBERS.
+
+Checks that create players name them with letters and give each run a new
+id: a name with a number on the end is a sibling of the last run's for a
+day, and a player takes a new name once in thirty days, so a fixed id or a
+digit suffix fails the second run on the same server.
+
 The orange key is redrawn (Figma `149:18107`, and `149:18112` for the one that
 moves): an orange rim lit from above round a face warming from white to peach,
 named `--g-cta-rim` and `--g-cta-face`, at the sizes it already had. The older

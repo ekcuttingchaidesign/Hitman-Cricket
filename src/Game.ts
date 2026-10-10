@@ -48,7 +48,7 @@ import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Le
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from './ui/CareerBoard';
-import { statsCardImage, statsFacts, type StatsFacts } from './game/StatsCard';
+import { statsFacts, type StatsFacts } from './game/StatsCard';
 import { gameLink, keyWhatsappLink } from './game/Share';
 import { keyImage, keyImageName, prepareKeyAssets } from './game/KeyImage';
 import {
@@ -2485,18 +2485,10 @@ export class Game {
       mode, mine.career, { name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null }, standing,
     );
     this.statsDrawn[mode] = facts;
+    // The page draws the card itself now (UI v1), so nothing is painted behind
+    // it: SHARE MY CARD paints its own picture when it is pressed. Painting one
+    // here only redrew the rail when it landed, which could snap a swipe back.
     draw(facts, null, false);
-    void statsCardImage(facts, gameLink()).then(picture => {
-      // A card painted for figures the player has already moved past belongs to
-      // a screen that is no longer the one they are looking at.
-      if (this.disposed || this.statsDrawn[mode] !== facts) return;
-      const url = URL.createObjectURL(picture);
-      this.hud.holdStatsPicture(url);
-      draw(facts, url, false);
-    }).catch(() => {
-      if (this.disposed || this.statsDrawn[mode] !== facts) return;
-      draw(facts, null, true);
-    });
   }
 
   /** Whether the innings just played was this mode's, which is what the keys are for. */
