@@ -34,8 +34,13 @@ export const AVATARS = 5;
  * under a minute, so this is far above what a person can reach and far below
  * what a script wants — and it is deliberately generous because an address is
  * shared: a school, an office and anyone behind CGNAT all arrive as one.
+ *
+ * Every finished innings by a named player is posted now, not only the ones
+ * that make the fifty, and counting it into the career is a hit on the same
+ * counter — so an innings costs two, and this is twice the 120 it was, to
+ * leave a shared address the same number of innings an hour it always had.
  */
-export const RATE_LIMIT = 120;
+export const RATE_LIMIT = 240;
 export const RATE_WINDOW_SECONDS = 3600;
 
 /**
@@ -112,8 +117,37 @@ export type StoredRow<I = Innings> = I & {
   at: number;
 };
 
+/**
+ * Where one player stands on a board: their place counted from one, the score
+ * that holds it, and how many players the board holds in all.
+ *
+ * All of them, not the fifty shown. The ranking has never been trimmed — every
+ * best ever posted is still in it — so a place off the bottom of the fifty is
+ * one command away rather than a thing to estimate. That is what lets a
+ * player seventy-third be told they are seventy-third.
+ */
+export interface Standing {
+  rank: number | null;
+  score: number | null;
+  total: number;
+}
+
+/** A place a player held: what an innings is measured against. */
+export interface Place {
+  rank: number;
+  score: number;
+}
+
+/** Where an innings left its player, and where they stood before it. */
+export interface PostStanding extends Standing {
+  /** Null for a player the board had never seen. */
+  was: Place | null;
+}
+
 /** Everything the board needs from whatever is keeping it. */
 export interface BoardStore<I = Innings> {
+  /** Where this player stands on the whole board, not only its top. */
+  standing(id: string): Promise<Standing>;
   /** The best `n` player ids with their packed scores, best first. */
   top(n: number): Promise<{ id: string; score: number }[]>;
   /** The rows for these ids, in the order asked; anything missing comes back null. */
@@ -201,6 +235,8 @@ export interface SubmitAccepted<I = Innings> {
   score: number;
   at: number;
   board: BoardPayload<I>;
+  /** Where the player stands now and stood before, however far down. */
+  standing: PostStanding;
 }
 
 /** An innings the board turned down, and what to tell the player. */
@@ -259,11 +295,55 @@ export async function submitScore<I>(
   const admitted = await admit(store, ladder.plausible, input, now);
   if (turnedAway(admitted)) return admitted;
   const score = ladder.pack(input.innings, now);
+  const was = await store.standing(input.playerId);
   const improved = await store.record(input.playerId, score, {
     ...ladder.figures(input.innings), name: (admitted as Admitted).name, avatar: input.avatar, at: now,
   });
+  const [board, standing] = await Promise.all([readBoard(store, ladder), standingAfter(store, input.playerId, was, improved)]);
+  return { ok: true, improved, score, at: now, board, standing };
+}
 
-  return { ok: true, improved, score, at: now, board: await readBoard(store, ladder) };
+/**
+ * Where a post left its player. Read again only when the innings moved them:
+ * one that did not beat their best changed nothing about where they stand, so
+ * the place read before it is still the answer.
+ */
+async function standingAfter(
+  store: Pick<BoardStore<unknown>, 'standing'>, id: string, was: Standing, improved: boolean,
+): Promise<PostStanding> {
+  const before = was.rank !== null && was.score !== null ? { rank: was.rank, score: was.score } : null;
+  return { ...(improved ? await store.standing(id) : was), was: before };
+}
+
+/** One player's place on a board, and the row that holds it, for a player who has not just batted. */
+export interface PlayerStanding<I> extends Standing {
+  row: (I & { name: string; avatar: number }) | null;
+}
+
+/**
+ * Where a player stands, asked for by the player rather than learned from an
+ * innings: the cover and the board say "you are seventy-third" to somebody who
+ * opened them without batting. It is the one read that is about who is asking,
+ * so it is its own question and never folded into the board's answer, which is
+ * the same for everybody and sits in the edge cache because it is.
+ */
+export async function readStanding<I>(
+  store: BoardStore<I>, ladder: Ladder<I>, id: string,
+): Promise<PlayerStanding<I>> {
+  const standing = await store.standing(id);
+  if (standing.rank === null) return { ...standing, row: null };
+  const [row] = await store.rows([id]);
+  return { ...standing, row: row ? { ...ladder.figures(row), name: row.name, avatar: row.avatar } : null };
+}
+
+/** Both of the Marathon's places for one player. */
+export async function readMarathonStanding(
+  stores: { team: BoardStore<TeamInnings>; solo: BoardStore<SoloInnings> }, id: string,
+): Promise<{ team: PlayerStanding<TeamInnings>; solo: PlayerStanding<SoloInnings> }> {
+  const [team, solo] = await Promise.all([
+    readStanding(stores.team, MARATHON_TEAM_LADDER, id), readStanding(stores.solo, MARATHON_SOLO_LADDER, id),
+  ]);
+  return { team, solo };
 }
 
 /**
@@ -388,6 +468,7 @@ export interface MarathonAccepted {
   score: { team: number; solo: number };
   at: number;
   board: MarathonBoards;
+  standing: { team: PostStanding; solo: PostStanding };
 }
 /** Named for the same reason `SubmitOutcome` is: see above. */
 export type MarathonOutcome = MarathonAccepted | SubmitRefusal;
@@ -407,11 +488,20 @@ export async function submitMarathon(
   const owner = { name: (admitted as Admitted).name, avatar: input.avatar, at: now };
   const team = teamOf(input.innings), solo = soloOf(input.innings);
   const score = { team: packTeam(team, now), solo: packSolo(solo, now) };
+  const [wasTeam, wasSolo] = await Promise.all([stores.team.standing(input.playerId), stores.solo.standing(input.playerId)]);
   const [teamImproved, soloImproved] = await Promise.all([
     stores.team.record(input.playerId, score.team, { ...MARATHON_TEAM_LADDER.figures(team), ...owner }),
     stores.solo.record(input.playerId, score.solo, { ...MARATHON_SOLO_LADDER.figures(solo), ...owner }),
   ]);
-  return { ok: true, improved: { team: teamImproved, solo: soloImproved }, score, at: now, board: await readMarathon(stores) };
+  const [board, teamStanding, soloStanding] = await Promise.all([
+    readMarathon(stores),
+    standingAfter(stores.team, input.playerId, wasTeam, teamImproved),
+    standingAfter(stores.solo, input.playerId, wasSolo, soloImproved),
+  ]);
+  return {
+    ok: true, improved: { team: teamImproved, solo: soloImproved }, score, at: now, board,
+    standing: { team: teamStanding, solo: soloStanding },
+  };
 }
 
 /**
@@ -442,7 +532,7 @@ export function foldName(name: string): string {
 }
 
 /** The ids this game mints: a base-36 stamp, a dash, and a random tail. */
-function isPlayerId(value: unknown): value is string {
+export function isPlayerId(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-z]{6,10}-[0-9a-z]{12,}$/.test(value);
 }
 

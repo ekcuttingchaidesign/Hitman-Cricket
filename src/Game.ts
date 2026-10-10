@@ -36,7 +36,7 @@ import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './ga
 import type { AfterBall, Hurt } from './entities/Batter';
 import {
   claimName, fetchBoard, fetchMarathonBoard, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon, submitSurvive,
-  type BoardPayload, type SurvivePayload, type MarathonPayload,
+  type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
 } from './game/board-api';
 import { markProfileDone, profileDone, readHand, readPlayer, writeHand, writePlayer, type Hand } from './game/player';
 import {
@@ -3039,6 +3039,14 @@ export class Game {
   private posted: { innings: number; place: number | null; posting: boolean } | null = null;
   /** The innings whose post failed: its card goes back to asking, by hand. */
   private postFailed = 0;
+  /** The one post an innings gets, however many ways it is asked for: see `postOnce`. */
+  private postFor: { innings: number; result: Promise<SubmitResult<unknown>> } | null = null;
+  /**
+   * Where the last innings posted left the player on its mode's whole board,
+   * and where they stood before it — a place however far below the fifty.
+   * Nothing draws it yet; the redrawn end card and board read it (UI v1).
+   */
+  private standing: { innings: number; mode: CareerMode; standing: NonNullable<SubmitResult['standing']> } | null = null;
 
   /**
    * The offer as the card shows it: a place earned is posted and said as
@@ -3051,7 +3059,60 @@ export class Game {
       void this.autoPost(offer.place);
       return { kind: 'placed', place: offer.place, posting: true };
     }
+    // Every other innings goes up too, and says nothing: the store keeps only
+    // a best, so one that does not beat it changes nothing there, and what it
+    // answers is where the player stands — off the bottom of the fifty as
+    // readily as on it. The card is the one it always was.
+    //
+    // Only once the board is in. Before it, an innings worth a place reads as
+    // nothing to offer, and posting it then would put it on the board ahead of
+    // the board arriving — which then shows it as a best already standing, and
+    // the place it earned is never claimed on the card.
+    if (this.boardKnown) void this.quietPost();
     return this.shownOffer(offer);
+  }
+
+  /**
+   * An innings posted once, whichever way it is asked for. The card can be
+   * drawn before the board arrives — no place to offer, so it is posted
+   * quietly — and drawn again once it does, with a place to claim; the two
+   * share the one post, or the second would find the first already standing
+   * and report it as the place the player had before.
+   */
+  private postOnce(): Promise<SubmitResult<unknown>> {
+    const innings = this.innings;
+    if (this.postFor?.innings === innings) return this.postFor.result;
+    const mine = readPlayer()!, player = this.player!;
+    const result: Promise<SubmitResult<unknown>> = this.marathoning && this.marathon
+      ? submitMarathon(player, mine.name, mine.avatar, marathonFigures(this.marathon))
+      : this.surviving
+      ? submitSurvive(player, mine.name, mine.avatar, this.survived())
+      : submitInnings(player, mine.name, mine.avatar, asInnings(this.score));
+    this.postFor = { innings, result };
+    return result;
+  }
+
+  /** Whether this mode's board has come in, so the card's offer is the board's answer and not a guess. */
+  private get boardKnown() {
+    return this.marathoning ? !!this.marathonRows : this.surviving ? this.surviveSeen : this.boardSeen;
+  }
+
+  /** What every post does with a good answer: the key it may carry, and where it left the player. */
+  private tookPost(innings: number, result: SubmitResult<unknown>) {
+    if (result.key) {
+      keepKey(result.key);
+      track('key-issued', 'Career key issued');
+    }
+    if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing };
+  }
+
+  /** An innings that earned no place, posted for where it leaves the player. Nothing on the card moves. */
+  private async quietPost() {
+    const innings = this.innings;
+    if (this.postFor?.innings === innings || !readPlayer() || !this.player) return;
+    const result = await this.postOnce();
+    if (this.disposed || this.innings !== innings || !result.ok) return;
+    this.tookPost(innings, result);
   }
 
   /**
@@ -3063,11 +3124,7 @@ export class Game {
     const mine = readPlayer(), innings = this.innings;
     if (!mine || !this.player) return;
     this.posted = { innings, place: guess, posting: true };
-    const result = this.marathoning && this.marathon
-      ? await submitMarathon(this.player, mine.name, mine.avatar, marathonFigures(this.marathon))
-      : this.surviving
-      ? await submitSurvive(this.player, mine.name, mine.avatar, this.survived())
-      : await submitInnings(this.player, mine.name, mine.avatar, asInnings(this.score));
+    const result = await this.postOnce();
     if (this.disposed || this.innings !== innings) return;
     if (!result.ok) {
       // Back to asking, by hand: the key and the form say what went wrong.
@@ -3077,10 +3134,7 @@ export class Game {
       return this.reoffer();
     }
     this.mark('auto-posted', 'Innings put on the board by itself');
-    if (result.key) {
-      keepKey(result.key);
-      track('key-issued', 'Career key issued');
-    }
+    this.tookPost(innings, result);
     let rows: readonly { playerId: string }[] = [];
     if (this.marathoning) {
       if (result.board) this.marathonRows = result.board as MarathonPayload;
@@ -3945,7 +3999,8 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, marathon: this.marathon ? this.marathonState() : null };
+      mirrored: this.scene.mirrored, marathon: this.marathon ? this.marathonState() : null,
+      standing: this.standing };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
   private marathonState() {

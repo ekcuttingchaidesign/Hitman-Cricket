@@ -54,6 +54,14 @@ export function memoryStore<I = Innings>(
         .slice(0, n);
     },
     async rows(ids) { return ids.map(id => rows.get(id) ?? null); },
+    async standing(id) {
+      // ZREVRANK: one more than the scores above this one. Ties go the way
+      // Redis puts them, member against member, rather than sharing a place.
+      const score = ranking.get(id);
+      if (score === undefined) return { rank: null, score: null, total: ranking.size };
+      const ahead = [...ranking.entries()].filter(([other, s]) => s > score || (s === score && other > id)).length;
+      return { rank: ahead + 1, score, total: ranking.size };
+    },
     async record(id, score, row) {
       // GT: a worse innings cannot displace a better one, and the row is only
       // written when the score actually moved.

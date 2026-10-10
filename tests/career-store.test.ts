@@ -7,7 +7,7 @@ import {
   countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
 } from '../src/server/career-store';
 import { memoryCareer } from '../src/server/memory-career';
-import { foldName } from '../src/server/board-store';
+import { RATE_LIMIT, foldName } from '../src/server/board-store';
 import { LAUNCH_MS } from '../src/game/leaderboard';
 
 const ROHIT = 'abc123-defghijklmno';
@@ -166,7 +166,7 @@ describe('counting an innings', () => {
   it('turns an address away once it has sent too many', async () => {
     const store = fake({ Rohit: ROHIT });
     let last = await countInnings(store, BLAST_CAREER, { ...sending(), tally: blast() });
-    for (let i = 0; i < 200 && !refusedCareer(last); i++) {
+    for (let i = 0; i < RATE_LIMIT + 20 && !refusedCareer(last); i++) {
       last = await countInnings(store, BLAST_CAREER, { ...sending({ nonce: `spam${String(i).padStart(8, '0')}` }), tally: blast() });
     }
     expect(refusedCareer(last)).toBe(true);

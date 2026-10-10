@@ -133,6 +133,14 @@ check(
   'and hands back a board with the innings on it',
   good.body?.board?.rows?.slice(0, 3),
 );
+// Where it put them on the whole board — the three commands the Redis adapter
+// pipelines, which only a real deployment runs.
+check(
+  good.body?.standing?.rank >= 1 && good.body.standing.total >= good.body.standing.rank
+    && good.body.standing.score === good.body.score && good.body.standing.was === null,
+  'and says where it put them, out of how many, from nowhere',
+  good.body?.standing,
+);
 
 // ── It is really there ─────────────────────────────────────────────────────
 // Asked for on a cache key of its own. `/api/board` is served with ten seconds
@@ -160,6 +168,22 @@ check(
   'holding the better innings, not the latest one',
   worse.body?.board?.rows?.find(r => r.playerId === me),
 );
+check(
+  worse.body?.standing?.was?.score === good.body?.score && worse.body?.standing?.score === good.body?.score,
+  'and says the place is the one the better innings holds',
+  worse.body?.standing,
+);
+
+// ── One player's place, asked without an innings ───────────────────────────
+const mine = await call(`/api/board?player=${me}`);
+check(mine.status === 200 && mine.body?.rank >= 1 && mine.body?.row?.runs === 72 && mine.body?.row?.name === name,
+  `GET /api/board?player= answers the place and the row (${mine.status})`, mine.body ?? mine.text.slice(0, 200));
+check(/no-store/.test(mine.headers?.get?.('cache-control') ?? ''), 'and is never cached', mine.headers?.get?.('cache-control'));
+const stranger = await call(`/api/board?player=${other}`);
+check(stranger.body?.rank === null && stranger.body?.row === null && stranger.body?.total >= 1,
+  'a player the board has never seen has no place, out of everybody', stranger.body);
+const notPlayer = await call('/api/board?player=nobody');
+check(notPlayer.status === 400, `and something that is not a player is refused (${notPlayer.status})`, notPlayer.body);
 
 // ── The refusals ───────────────────────────────────────────────────────────
 const taken = await post({ playerId: other, name, avatar: 0, innings: innings(60) });
@@ -258,6 +282,11 @@ check(batted.body?.board?.team?.rows?.some(r => r.playerId === marathoner && r.r
   'and puts the side on the team ladder', batted.body?.board?.team?.rows?.slice(0, 3));
 check(batted.body?.board?.solo?.rows?.some(r => r.playerId === marathoner && r.runs === 143 && r.order === 1),
   'and the opener\'s 143 on the individual one', batted.body?.board?.solo?.rows?.slice(0, 3));
+check(batted.body?.standing?.team?.rank >= 1 && batted.body?.standing?.solo?.rank >= 1,
+  'and says where it put the side and the batter', batted.body?.standing);
+const marathonPlace = await call(`/api/board?mode=marathon&player=${marathoner}`);
+check(marathonPlace.body?.team?.row?.runs === 216 && marathonPlace.body?.solo?.row?.runs === 143,
+  'GET /api/board?mode=marathon&player= answers both places', marathonPlace.body);
 
 const unadded = await post({
   playerId: marathoner, name: marathonName, avatar: 2, mode: 'marathon',

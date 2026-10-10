@@ -224,11 +224,28 @@ the card says where it landed, with the board one tap away. Only a player with n
 window, practice and a Rival Match keep the old offers — and a post that fails
 falls back to the register key, so nothing is lost to an outage.
 
+Every other finished innings by a named player is posted too, quietly, with
+the card left as it was (`quietPost`), so the store can say where they stand
+however far below the fifty: the ranking sorted sets have never been trimmed,
+so a place is one `ZREVRANK` away. `/api/score` answers each post with
+`standing` — the place now, out of how many, and the place before (`was`) —
+and `GET /api/board?player=<id>` answers it for a player who has not just
+batted, uncached, beside the fifty that stay the same for everybody. The
+quiet post waits for the board to come in: posted before it, an innings worth
+a place would be on the board before the card could claim it. One post an
+innings whichever way it is asked for (`postOnce`). An innings is two hits on
+the address's counter now — the post and the career count — so `RATE_LIMIT`
+is 240. Nothing draws the place yet; it is in `snapshot().standing` for the
+redrawn end card and board.
+
 `scripts/post-check.mjs` walks that in about a minute: a Test Marathon
 written ball by ball and bowled out, for a named left-handed player — posted
 once, by itself, with two left-handers in the side and the store taking it,
-the card saying where it landed — and for a player with no name, for whom
-nothing is sent and the card still asks.
+the card saying where it landed — then a named player's duck against a board
+filled to fifty, posted once with the card unchanged and placed last on the
+whole board, and asked again through `?player=` — and for a player with no
+name, for whom nothing is sent and the card still asks. `board-check.mjs` holds
+the same places to a real deployment, where the Redis adapter's pipeline runs.
 
 **`?debug=1` skips the gate**, because every browser check drives that link and
 each would otherwise have to answer it. `?profile=1` asks it there anyway, and

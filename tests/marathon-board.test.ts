@@ -219,6 +219,24 @@ describe('one submission, both rows', () => {
     expect(read.solo.rows[0].runs).toBe(150);
   });
 
+  it('says where the player stands on each board, and stood before', async () => {
+    const both = stores();
+    const first = await submitMarathon(both, send(allOut()), AT);
+    if (refused(first)) throw new Error(first.reason);
+    expect(first.standing.team).toMatchObject({ rank: 1, total: 1, was: null });
+    const other = await submitMarathon(both, send(allOut(), 'mfj2k0-zzzzzzzzzzzz', 'Dravid'), AT + 1000);
+    if (refused(other)) throw new Error(other.reason);
+    // The same innings a second later packs to the same score, and a tie falls
+    // to the order Redis keeps members in, which puts this id second.
+    expect(other.standing.team).toMatchObject({ rank: 2, total: 2, was: null });
+    expect(other.standing.solo).toMatchObject({ rank: 2, total: 2 });
+    const later = innings('ALL_OUT', batter(150, 220), batter(1, 4), batter(0, 1));
+    const again = await submitMarathon(both, send(later, 'mfj2k0-zzzzzzzzzzzz', 'Dravid'), AT + 86_400_000);
+    if (refused(again)) throw new Error(again.reason);
+    expect(again.standing.solo).toMatchObject({ rank: 1, was: { rank: 2 } });
+    expect(again.standing.team).toMatchObject({ rank: 2, was: { rank: 2 } });
+  });
+
   it('refuses both rows at once, and writes neither', async () => {
     const both = stores();
     const taken = await submitMarathon(both, send({ ...allOut(), runs: 9999 }), AT);

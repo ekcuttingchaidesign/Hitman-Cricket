@@ -7,8 +7,12 @@
  *
  * A player with a name has nothing to press at the end of an innings: a place
  * earned is posted once, by itself, and the card says where it landed with
- * VIEW LEADERBOARD in place of the register key. A player with no name is
- * still asked, and nothing is sent for them.
+ * VIEW LEADERBOARD in place of the register key. An innings that earns no
+ * place is posted too, quietly, with the card left as it was: the store keeps
+ * only a best, and what it answers is where the player stands on the whole
+ * board — a place below the fifty as readily as in it (`snapshot().standing`,
+ * and `GET /api/board?player=`). A player with no name is still asked, and
+ * nothing is sent for them.
  *
  * Walked in a Test Marathon because it is the quickest innings the store will
  * take as real: written ball by ball through `__cricket.marathon` and bowled
@@ -33,11 +37,13 @@ const check = (ok, what, detail) => {
 
 /** A big innings and three wickets: enough for a place on any board the dev server holds. */
 const INNINGS = [...Array(80).fill(6), 'W', 4, 'W', 1, 'W'];
+/** Three balls, three wickets, no runs: a place on no board worth the name. */
+const DUCKS = ['W', 'W', 'W'];
 
 const browser = await chromium.launch({ executablePath });
 
 /** A Marathon innings written to its end, by a player who has `player`'s name, or none. */
-async function bowledOut(player) {
+async function bowledOut(player, innings = INNINGS) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
@@ -73,34 +79,88 @@ async function bowledOut(player) {
     await page.waitForTimeout(400);
   }
   check((await snap()).phase === 'READY', `${player ? 'a named player' : 'a player with no name'} walks out in a Test Marathon`, (await snap()).phase);
-  await page.evaluate(innings => window.__cricket.marathon(innings), INNINGS);
+  await page.evaluate(balls => window.__cricket.marathon(balls), innings);
   for (let i = 0; i < 30 && (await snap()).phase !== 'INNINGS_END'; i++) await page.waitForTimeout(300);
   check((await snap()).phase === 'INNINGS_END', 'and is bowled out', (await snap()).phase);
   // The strip goes up once the boards are fetched, and the post answers after that.
   for (let i = 0; i < 40; i++) {
     const head = await page.locator('#card-board-head').textContent().catch(() => '');
-    if (player ? /on the leaderboard/.test(head ?? '') && posts.length : (await page.locator('#claim').isVisible())) break;
+    const placed = innings === INNINGS ? /on the leaderboard/.test(head ?? '') : true;
+    if (player ? placed && posts.length && (await snap()).standing : (await page.locator('#claim').isVisible())) break;
     await page.waitForTimeout(500);
   }
   await page.waitForTimeout(1500);
-  return { context, page, errors, posts };
+  return { context, page, errors, posts, snap };
+}
+
+/** Where the store says a player stands, asked the way the cover will ask it. */
+const askStanding = (page, id) => page.evaluate(async player => {
+  const answer = await fetch(`/api/board?mode=marathon&player=${encodeURIComponent(player)}`);
+  return { status: answer.status, cache: answer.headers.get('cache-control'), body: await answer.json() };
+}, id);
+
+/** The big innings as the store was sent it, for filling the board with copies of it. */
+let big = null;
+
+/**
+ * The dev server's Marathon board filled to fifty with copies of the big
+ * innings, so a duck finds a full board and no place on it. Through the store
+ * itself, so the copies are packed and ranked the way any innings is.
+ */
+async function fillMarathon() {
+  const letters = n => Array.from({ length: n }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
+  const board = await (await fetch(`${base}/api/board?mode=marathon`)).json();
+  for (let i = board.team.rows.length; i < 50; i++) {
+    const answer = await fetch(`${base}/api/score`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId: `${letters(8)}-${letters(14)}`, name: `Fill ${letters(6)}`, avatar: 1, innings: big, mode: 'marathon' }),
+    });
+    if (!answer.ok) return false;
+  }
+  return true;
 }
 
 // — A player with a name, batting left-handed.
 {
-  const { context, page, errors, posts } = await bowledOut({ name: `Post${Math.random().toString(36).slice(2, 7)}`, hand: 'left' });
+  const { context, page, errors, posts, snap } = await bowledOut({ name: `Post${Math.random().toString(36).slice(2, 7)}`, hand: 'left' });
   check(posts.length === 1, 'the innings is posted by itself, once', JSON.stringify(posts.map(one => one.status)));
   const lefties = posts[0]?.sent?.innings?.batters?.filter(b => b.left).length;
   check(posts[0]?.sent?.mode === 'marathon' && lefties === 2, 'a left-hander\'s side, with two left-handers in it', `mode ${posts[0]?.sent?.mode}, ${lefties} left-handed`);
   check(posts[0]?.status === 200, 'and the store takes it', String(posts[0]?.status));
+  big = posts[0]?.sent?.innings ?? null;
   const head = await page.locator('#card-board-head').textContent();
   check(/You.re \d+\w\w on the leaderboard/.test(head ?? ''), 'the card says where it landed', head);
   check((await page.locator('#claim').textContent())?.trim() === 'VIEW LEADERBOARD', 'with the board one tap away, and nothing to register',
     await page.locator('#claim').textContent());
   check(!(await page.locator('#claim-why').isVisible()), 'and no line about registering');
+  const standing = (await snap()).standing?.standing;
+  check(standing?.team?.rank >= 1 && standing.team.total >= standing.team.rank && standing.team.was === null,
+    'the store says where the innings put them, out of how many, from nowhere', JSON.stringify(standing));
   await page.locator('#claim').click({ force: true });
   await page.waitForTimeout(1500);
   check(await page.locator('#board-overlay').isVisible(), 'which opens the board');
+  check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
+  await context.close();
+}
+
+// — A player with a name whose innings earns no place: posted all the same, and the card as it was.
+if (!big || !(await fillMarathon())) check(false, 'the board fills to fifty, for an innings to miss it');
+else {
+  const { context, page, errors, posts, snap } = await bowledOut({ name: `Duck${Math.random().toString(36).slice(2, 7)}`, hand: 'right' }, DUCKS);
+  check(posts.length === 1 && posts[0].status === 200, 'an innings with no place is posted too, once', JSON.stringify(posts.map(one => one.status)));
+  const head = await page.locator('#card-board-head').textContent().catch(() => '');
+  check(!/You.re \d+\w\w on the leaderboard/.test(head ?? ''), 'and the card does not claim a place for it', head);
+  const standing = (await snap()).standing?.standing;
+  check(standing?.team?.rank >= 1 && standing.team.rank === standing.team.total,
+    'the store puts it last on the whole board, wherever that is', JSON.stringify(standing));
+  const asked = await askStanding(page, posts[0]?.sent?.playerId);
+  check(asked.status === 200 && asked.body?.team?.rank === standing?.team?.rank && asked.body?.team?.row?.runs === 0,
+    'and says the same place when asked without an innings', JSON.stringify(asked.body));
+  check(/no-store/.test(asked.cache ?? ''), 'an answer about one player, never cached', asked.cache);
+  const nobody = await askStanding(page, 'zzzzzz-zzzzzzzzzzzz');
+  check(nobody.body?.team?.rank === null && nobody.body?.team?.row === null, 'and a player the board has never seen has no place', JSON.stringify(nobody.body));
+  const junk = await askStanding(page, 'not a player');
+  check(junk.status === 400, 'and anything that is not a player is turned away', String(junk.status));
   check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
   await context.close();
 }
