@@ -351,18 +351,19 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
         <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
           <div id="pause-sheet" class="pause-sheet" data-tone="blast">
-            <div class="pause-head">
+            <div class="pause-strip">
               <span id="pause-mode" class="pause-mode">The Blast</span>
-              <h2 id="pause-title" class="pause-title">Paused</h2>
               <p id="pause-state" class="pause-state"></p>
             </div>
-            <button id="resume" class="key-button pause-resume" type="button">RESUME INNINGS</button>
+            <div class="pause-body">
+            <h2 id="pause-title" class="pause-title">PAUSED</h2>
+            <button id="resume" class="k-cta k-cta--primary is-wide pause-resume" type="button"><span class="k-cta-face"><span>RESUME INNINGS</span></span></button>
             <div class="pause-keys">
-              <button id="restart" class="pause-key" type="button">${icon('restart')}<span>Restart</span></button>
-              <button id="change-mode" class="pause-key" type="button">${icon('modes')}<span>Change mode</span></button>
+              <button id="restart" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>RESTART</span></span></button>
+              <button id="change-mode" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>CHANGE MODE</span></span></button>
             </div>
             <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
-            <p class="pause-counts">Only finished innings count towards your career.</p>
+            <p class="pause-counts">Only finished innings count toward your career.</p>
             <p class="pause-group-label" id="pause-settings">Settings</p>
             <div class="pause-group" role="group" aria-labelledby="pause-settings">
               <button id="crowd-switch" class="pause-row" type="button" role="switch" aria-checked="true">
@@ -384,6 +385,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
             <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+            </div>
           </div>
           <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
         </div>
