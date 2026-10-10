@@ -7,10 +7,11 @@
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/endcard-check.mjs http://127.0.0.1:5201
  *
- * The innings are written ball by ball through the debug hooks
- * (`__cricket.blast`, `__cricket.marathon`, `__cricket.finish`) rather than
- * batted, so the check is about the card and not the batting. Pictures land in
- * test-results/endcard/.
+ * The Blast and the Marathon are written ball by ball through the debug hooks
+ * (`__cricket.blast`, `__cricket.marathon`) rather than batted, so the check is
+ * about the card and not the batting. The Test is left to end itself with the
+ * batter standing still: stopped early it could not have happened, and the
+ * store would turn it away. Pictures land in test-results/endcard/.
  */
 
 import { chromium } from '@playwright/test';
@@ -43,6 +44,7 @@ async function crease(mode, named) {
       localStorage.setItem('hitman-seen', new Date(Date.now() - 172_800_000).toISOString().slice(0, 10));
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-marathon-intro', 'done');
+      localStorage.setItem('hitman-hurt-seen', '1');
       localStorage.setItem('hitman-profile', '1');
       if (who) localStorage.setItem('hitman-batter', JSON.stringify({ name: who, avatar: 1 }));
     } catch { /* Then the screens it skips stand in the way. */ }
@@ -134,14 +136,20 @@ const settle = async (page, done) => { for (let i = 0; i < 30 && !(await done())
 
 // — Test Survival.
 {
-  const { context, page, errors } = await crease('survive', true);
-  await page.evaluate(() => window.__cricket.finish());
+  const { context, page, errors, snap } = await crease('survive', true);
+  // Left to end on its own, bowled or carried off with nothing played: the
+  // debug hook's ending stops a Test mid-innings, lost with no wicket down
+  // and health left, which could not have happened — the store turns it away
+  // and the card goes back to asking, as it does after any post that fails.
+  for (let i = 0; i < 240 && (await snap()).phase !== 'INNINGS_END'; i++) await page.waitForTimeout(500);
   await settle(page, () => page.locator('#end-survive').isVisible());
   check(await page.locator('#end-survive').isVisible(), 'a Test ends on its own card');
   check(/MATCH (LOST|WON|DRAWN)/.test(await page.locator('#survive-stamp').textContent()), 'headed with the result', await page.locator('#survive-stamp').textContent());
   check(await page.locator('#survive-plate').evaluate(img => img.complete && img.naturalWidth > 0), 'over the result\'s photograph');
   check(/\d+\/\d+/.test(await page.locator('#survive-score').textContent()) && (await page.locator('#survive-overs').textContent()).length > 0, 'with the score and the balls as chips');
   check(await page.locator('#survive-ring .ec-ring').count() === 1 && /^Injury · (Light|High|Severe)$/.test(await page.locator('#survive-health').textContent()), 'and the injury as a ring and a word', await page.locator('#survive-health').textContent());
+  for (let i = 0; i < 20 && !/You are #\d+/.test(await page.locator('#card-board-head').textContent()); i++) await page.waitForTimeout(300);
+  check(/You are #\d+ on the leaderboard/.test(await page.locator('#card-board-head').textContent()), 'a named player is placed, with nothing to register', await page.locator('#card-board-head').textContent());
   const [mode, again] = await visible(page, ['#survive-modes', '#survive-again']);
   check(mode && again, 'MODE and PLAY AGAIN along the foot');
   await page.screenshot({ path: 'test-results/endcard/survival.png' });

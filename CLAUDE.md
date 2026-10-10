@@ -399,9 +399,11 @@ it, new best or best still standing, never a guess off the board on screen;
 every named innings is posted, so it always has one. The keys along the foot
 stand on the overlay, outside what scrolls (`.ec-screen>.ec-keys`), so the
 card scrolls up from under them to its last line, the career key included —
-inside the scroller they rode over it. `scripts/endcard-check.mjs` writes an
-innings in each mode through the debug hooks (`__cricket.blast` for the
-Blast, `marathon`, `finish`), photographs each card and scrolls one to its foot.
+inside the scroller they rode over it. `scripts/endcard-check.mjs` writes a
+Blast and a Marathon through the debug hooks (`__cricket.blast`, `marathon`)
+and lets a Test end itself — `finish` stops one mid-innings, lost with no
+wicket down, which the store turns away as impossible — then photographs each
+card and scrolls one to its foot.
 
 The game is being redrawn from a Figma handover (file `JhIdkSdtMSriYe3W5y3NAa`,
 canvas `125:4590`), a phase at a time. The foundations come first and change
