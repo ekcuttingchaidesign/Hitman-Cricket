@@ -8264,3 +8264,12 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .hurt-note-card h2{margin:0;color:var(--c-text);font:400 calc(var(--u) * 22)/1.05 var(--f-display);letter-spacing:.04em;text-transform:uppercase;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .hurt-note-card .hurt-note-line{margin:0;color:var(--c-text-2);font:500 calc(var(--u) * 14)/1.45 var(--f-ui)}
 .hurt-note-card .k-cta{margin:calc(var(--u) * 2) 0 0;width:100%}
+/* HOW TO PLAY from the cover: the coachmarks over the cover, the last card
+   ending on CHOOSE A MODE and PLAY NOW side by side. */
+#marathon-intro.is-howto{z-index:40}
+.mi-finish{display:flex;gap:calc(var(--u) * 10);width:100%}
+.mi-finish .k-cta{flex:1;min-width:0;width:auto}
+#mi-keys:has(.mi-finish){flex-direction:column;align-items:stretch;gap:calc(var(--u) * 14)}
+#mi-keys:has(.mi-finish) .mi-dots{align-self:center}
+#mi-keys:has(.mi-finish) .mi-skip{display:none}
+#marathon-intro.is-howto{background:#05070ae0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}

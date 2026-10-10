@@ -1737,13 +1737,19 @@ ${modeSelectMarkup()}
    * way a left-hander's ground has them. `done` hears whether the player went
    * through to the end or skipped.
    */
-  marathonIntro(done: (how: 'finished' | 'skipped') => void, steps: readonly IntroStep[] = INTRO_STEPS, left = false) {
+  marathonIntro(
+    done: (how: 'finished' | 'skipped' | 'modes') => void, steps: readonly IntroStep[] = INTRO_STEPS, left = false,
+    finish = false,
+  ) {
     const overlay = this.$('marathon-intro');
+    overlay.classList.toggle('is-howto', finish);
     let index = 0;
     const show = () => {
       const step = steps[index];
       this.$('mi-card').innerHTML = introCardMarkup(step, left);
-      this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length);
+      this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length, finish);
+      const modes = document.getElementById('mi-modes');
+      if (modes) modes.onclick = () => { this.closeIntro(); done('modes'); };
       this.spotlight(step.spot ?? null);
       this.$('mi-next').onclick = () => {
         if (++index < steps.length) return show();
