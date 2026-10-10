@@ -91,7 +91,7 @@ import {
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
-import { ChallengeRun, emptyList, noteResult, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
+import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
   CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, seenHere, whatsapp, type Challenge, type RivalsRow,
 } from './game/challenge-api';
@@ -3878,7 +3878,7 @@ export class Game {
       case 'invite':
       case 'share':
         this.challenge.sent = true;
-        this.hud.inviteSheet();
+        this.hud.inviteSheet(code ? challengeLink(code) : '');
         return;
       case 'nudge':
         window.open(whatsapp(copy.nudge(challengeLink(code))), '_blank', 'noopener');
@@ -4195,7 +4195,7 @@ export class Game {
       drawn = said;
       this.hud.challengesOpen(shown.yourMove.length, shown.waitingOnThem.length);
       this.hud.closeModes();
-      this.hud.challengeList(sections, shown.record, this.rivalsRanking());
+      this.hud.challengeList(sections, shown.record, this.rivalsRanking(), { form: recentForm(), me: readPlayer()?.avatar ?? null });
     };
     if (this.rooms) draw(this.rooms);
     // The ranking under the record, fetched alongside the list and drawn in
@@ -4203,7 +4203,7 @@ export class Game {
     if (!this.demo) void fetchRivalsBoard().then(rows => {
       if (rows) this.rivalsRows = rows;
       if (!this.hud.listOpen || !this.rooms) return;
-      this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(rows || this.rivalsRows ? 'ready' : 'offline'));
+      this.hud.challengeList(listSections(this.rooms, me), this.rooms.record, this.rivalsRanking(rows || this.rivalsRows ? 'ready' : 'offline'), { form: recentForm(), me: readPlayer()?.avatar ?? null });
     });
     const wasShowing = !!drawn;
     const list = await ChallengeRun.mine(me);
@@ -4222,7 +4222,7 @@ export class Game {
       const shown = this.rooms ?? emptyList();
       const rest = (rows: Challenge[]) => rows.filter(room => room.code !== code);
       this.rooms = { yourMove: rest(shown.yourMove), waitingOnThem: rest(shown.waitingOnThem), done: rest(shown.done), unseen: shown.unseen, record: shown.record };
-      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record, this.rivalsRanking());
+      this.hud.challengeList(listSections(this.rooms, this.player), this.rooms.record, this.rivalsRanking(), { form: recentForm(), me: readPlayer()?.avatar ?? null });
       return;
     }
     const room = [...(this.rooms?.yourMove ?? []), ...(this.rooms?.waitingOnThem ?? []), ...(this.rooms?.done ?? [])]
@@ -4233,7 +4233,7 @@ export class Game {
       if (!view) return;
       this.rival = view.them;
       track('rivals-head-to-head', 'Head-to-head opened');
-      this.hud.rivalry(view);
+      this.hud.rivalry(view, readPlayer()?.avatar ?? null);
       return;
     }
     if (room) this.challenge.room = room;
@@ -4354,7 +4354,8 @@ function listSections(list: ListView, me: string): ListSections {
     const others = room.players.filter(one => one.playerId !== me);
     const lead = view.result?.them ?? others.find(one => one.status === 'done' || one.status === 'batting') ?? others[0] ?? null;
     const them = lead ? { playerId: lead.playerId, name: lead.name, avatar: lead.avatar } : null;
-    const base = { code: room.code, them, others: others.length };
+    const moved = Math.max(room.at, ...room.players.map(one => one.at ?? 0));
+    const base = { code: room.code, them, others: others.length, age: ageOf(moved) };
     const host = room.players.find(one => one.host);
     const fromThem = !!host && host.playerId !== me;
     switch (view.kind) {
@@ -4367,12 +4368,13 @@ function listSections(list: ListView, me: string): ListSections {
           ? { ...base, actionable: fromThem, note: fromThem ? 'challenged you' : 'in the room \u00b7 not batted' }
           : { ...base, note: 'nobody has joined yet' };
       case 'resume': return { ...base, note: `you were on ball ${view.mine?.balls ?? 0} \u00b7 resume` };
-      case 'waiting': return { ...base, note: `you made ${view.mine?.runs ?? 0} \u00b7 ${view.closes}` };
+      case 'waiting': return { ...base, note: lead ? `Waiting for ${lead.name} to bat` : 'Waiting for a rival' };
       case 'spectate': return { ...base, note: `${view.live?.row.name} ${view.live?.needs}` };
       case 'result': {
         const result = view.result!;
         const margin = Math.abs((view.mine?.runs ?? 0) - (result.them?.runs ?? 0));
-        const won = result.outcome === 'W' ? 'Won' : 'Lost';
+        // Said from where the player sits: "You won by 4 runs", "Riya won by 12 runs".
+        const won = result.outcome === 'W' ? 'You won' : `${result.them?.name ?? 'They'} won`;
         // Level on runs and still decided: the tiebreak did it, and says so
         // rather than claiming a margin of nothing.
         const tiebreak = (view.mine?.sixes ?? 0) !== (result.them?.sixes ?? 0) ? 'sixes' : 'fours';

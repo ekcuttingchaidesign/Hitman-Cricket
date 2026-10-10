@@ -36,7 +36,7 @@ import { INTRO_STEPS, introCardMarkup, introKeysMarkup, type IntroStep } from '.
 import { fallsOf, marathonShareText, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
-import { recordMarkup, type RivalsRecord } from './Record';
+import { rivalsRecordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
 import { cta, icon as kitIcon } from './Kit';
 import {
@@ -75,6 +75,7 @@ import { BATTERS, type LevelBanner } from '../config/marathon';
 import { resultOf, type Result } from '../game/Survive';
 import type { SoundSetting } from '../game/Audio';
 import type { CareerMode } from '../game/career';
+import wifiOff from '../assets/board/wifi-off.svg?raw';
 /** OPENER to Opener and NO. 3 to No. 3: the batters' titles as a scorecard writes them. */
 const titleCase = (title: string) => title.charAt(0) + title.slice(1).toLowerCase();
 /** 1st, 2nd, 3rd, 12th. The board sheet spells them the same way. */
@@ -89,6 +90,7 @@ export interface BoardFrame {
   ranks: Partial<Record<BoardMode, number | null>>;
   play: 'again' | 'mode' | null;
 }
+const WIFI_OFF = wifiOff.replace(/stroke="#FFB08F"/g, 'stroke="currentColor"');
 /** The colour the pause sheet wears for the game it pauses: the Blast's blue, a Test's green, a Rival Match's orange. */
 export type PauseTone = 'blast' | 'test' | 'rivals';
 /** Each setting of the sound key: its picture, what it is, and what a press does. */
@@ -460,9 +462,9 @@ ${modeSelectMarkup()}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
           <div class="room-sheet">
             <div class="mode-top room-top">
-              <button id="room-back" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
+              <button id="room-back" class="k-icon-button" aria-label="Back" title="Back">${kitIcon('arrow-left')}</button>
               <h2 id="room-title" class="mode-heading">Match Room</h2>
-              <button id="room-card" class="room-card-link hidden" type="button">Your scorecard</button>
+              <button id="room-card" class="room-card-link hidden" type="button">Scorecard</button>
             </div>
             <div class="room-stage">
               <div id="room-hero" class="room-hero hidden" aria-hidden="true"><div id="room-anim" class="room-anim"></div><span id="room-hero-kit" class="room-hero-kit"></span></div>
@@ -477,21 +479,21 @@ ${modeSelectMarkup()}
           </div>
         </div>
         <div id="challenge-share" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-share-title">
-          <div class="rival-sheet is-invite"><img class="rival-sheet-ball" src="${fireball}" alt="" decoding="async" />
-            <h2 id="challenge-share-title" class="rival-sheet-title">Challenge<br>your friend</h2>
-            <p class="rival-sheet-label">HOW IT WORKS</p>
-            <ol class="rival-steps">
-              <li>Share the link with a friend</li>
-              <li>Play now or later: you'll see their runs on every ball</li>
-              <li>Most runs wins. Tied? Most sixes, then most fours</li>
+          <div class="rival-sheet rv-sheet is-invite">
+            <i class="rv-grab" aria-hidden="true"></i>
+            <h2 id="challenge-share-title" class="rv-sheet-title">CHALLENGE A FRIEND</h2>
+            <ol class="rival-steps rv-steps">
+              <li><b>Share the link</b><small>Send it in any chat.</small></li>
+              <li><b>Bat now or later</b><small>You'll see their runs on every ball once both have batted.</small></li>
+              <li><b>Most runs wins</b><small>Tied? Most sixes, then most fours.</small></li>
             </ol>
+            <div class="rv-link"><span id="challenge-link" class="rv-link-text"></span><button id="challenge-copy" class="rv-copy" type="button">Copy</button></div>
             <div class="rival-sheet-keys">
-              <button id="challenge-more" class="rival-key is-green" type="button">SHARE</button>
-              <button id="challenge-copy" class="rival-key is-white" type="button">COPY LINK</button>
+              <button id="challenge-more" class="k-cta k-cta--share-wide is-wide" type="button"><span class="k-cta-face">${kitIcon('share')}<span>SHARE THE LINK</span></span></button>
             </div>
             <p id="challenge-preview" class="rival-sheet-copied" aria-live="polite"></p>
+            <button id="challenge-share-done" class="ks-close rv-close" type="button" aria-label="Close">${kitIcon('close')}</button>
           </div>
-          <button id="challenge-share-done" class="sheet-close" type="button" aria-label="Close">${icon('close')}</button>
         </div>
         <div id="challenge-join" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-join-title">
           <div class="rival-sheet is-received"><img class="rival-sheet-ball" src="${fireball}" alt="" decoding="async" />
@@ -502,47 +504,51 @@ ${modeSelectMarkup()}
             <label id="challenge-name-field" class="rival-field hidden"><span>YOUR NAME</span><input id="challenge-name" name="challenge-name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="go" placeholder=""></label>
             <p id="challenge-join-error" class="claim-error hidden" role="alert"></p>
             <div class="rival-sheet-keys">
-              <button id="challenge-bat" class="rival-key is-play" type="button">LET'S GO</button>
-              <button id="challenge-solo" class="rival-key is-steel" type="button">DECLINE &amp; ACCEPT DEFEAT</button>
+              <button id="challenge-bat" class="k-cta k-cta--primary is-wide" type="button"><span class="k-cta-face"><span>LET'S GO</span></span></button>
+              <button id="challenge-solo" class="ghost-link rv-decline" type="button">Decline and accept defeat</button>
             </div>
           </div>
         </div>
         <div id="challenge-list" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-list-title">
           <div class="room-sheet">
             <div class="mode-top room-top">
-              <button id="challenge-list-done" class="mode-back" type="button" aria-label="Back" title="Back">${icon('back')}</button>
+              <button id="challenge-list-done" class="k-icon-button" type="button" aria-label="Back" title="Back">${kitIcon('arrow-left')}</button>
               <h2 id="challenge-list-title" class="mode-heading">Rival Matches</h2>
-              <button id="challenge-list-ranking" class="mode-back rival-rank-key" type="button" aria-label="Rivals ranking" title="Rivals ranking">${icon('trophy')}</button>
+              <button id="challenge-list-ranking" class="k-icon-button rival-rank-key" type="button" aria-label="Rivals ranking" title="Rivals ranking">${kitIcon('trophy')}</button>
             </div>
             <div id="challenge-sections" class="rival-sections"></div>
             <p id="challenge-list-copy" class="room-note"></p>
-            <div class="room-keys"><button id="challenge-list-new" class="key-button" type="button">START A NEW MATCH</button></div>
+            <div class="room-keys"><button id="challenge-list-new" class="k-cta k-cta--primary is-wide" type="button"><span class="k-cta-face"><span>START A NEW MATCH</span></span></button></div>
           </div>
         </div>
         <div id="rivals-ranking" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivals-ranking-title">
           <div id="rivals-ranking-sheet" class="ranking-sheet"></div>
         </div>
         <div id="challenge-rivalry" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rivalry-tally">
-          <div class="rival-sheet">
-            <p id="rivalry-who" class="challenge-from"></p>
-            <h2 id="rivalry-tally" class="rival-sheet-title"></h2>
-            <p id="rivalry-sub" class="rival-sheet-sub is-left"></p>
-            <div id="rivalry-form" class="rivalry-form" aria-label="Last five"></div>
-            <dl id="rivalry-facts" class="rivalry-facts"></dl>
-            <div class="rival-sheet-keys">
-              <button id="rivalry-again" class="rival-key is-play" type="button">CHALLENGE AGAIN</button>
+          <div class="rival-sheet rv-sheet is-h2h">
+            <i class="rv-grab" aria-hidden="true"></i>
+            <div class="rv-h2h-head">
+              <span id="rivalry-me" class="rv-h2h-face is-you"></span>
+              <div class="rv-h2h-mid"><h2 id="rivalry-tally" class="rv-tally"></h2><p id="rivalry-who" class="rv-count"></p></div>
+              <span id="rivalry-them" class="rv-h2h-face is-them"></span>
             </div>
+            <p id="rivalry-sub" class="rival-sheet-sub rv-say"></p>
+            <div id="rivalry-form" class="rivalry-form" aria-label="Last five"></div>
+            <dl id="rivalry-facts" class="rivalry-facts rv-facts"></dl>
+            <div class="rival-sheet-keys">
+              <button id="rivalry-again" class="k-cta k-cta--primary is-wide" type="button"><span class="k-cta-face"><span>CHALLENGE AGAIN</span></span></button>
+            </div>
+            <button id="rivalry-back" class="ks-close rv-close" type="button" aria-label="Close">${kitIcon('close')}</button>
           </div>
-          <button id="rivalry-back" class="sheet-close" type="button" aria-label="Close">${icon('close')}</button>
         </div>
         <div id="challenge-offline" class="modal-overlay sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="challenge-offline-title">
-          <div class="rival-sheet">
-            <p class="rival-sheet-label">NO SIGNAL</p>
-            <h2 id="challenge-offline-title" class="rival-sheet-title">Can't reach<br>the match.</h2>
-            <p id="challenge-offline-copy" class="rival-sheet-sub is-left">A match needs a connection to swap scores with your friend. A solo innings works anywhere.</p>
-            <div class="rival-sheet-keys">
-              <button id="challenge-offline-retry" class="rival-key is-play" type="button">TRY AGAIN</button>
-              <button id="challenge-offline-solo" class="rival-key is-steel" type="button">BAT SOLO INSTEAD</button>
+          <div class="rival-sheet rv-offline">
+            <span class="rv-offline-icon" aria-hidden="true">${WIFI_OFF}</span>
+            <h2 id="challenge-offline-title" class="rv-sheet-title">CAN\u2019T REACH THE MATCH</h2>
+            <p id="challenge-offline-copy" class="rival-sheet-sub">No signal. The match is saved; try again when you\u2019re back online, or bat solo meanwhile.</p>
+            <div class="rival-sheet-keys rv-offline-keys">
+              <button id="challenge-offline-solo" class="k-cta k-cta--secondary" type="button"><span class="k-cta-face"><span>BAT SOLO</span></span></button>
+              <button id="challenge-offline-retry" class="k-cta k-cta--primary" type="button"><span class="k-cta-face"><span>TRY AGAIN</span></span></button>
             </div>
           </div>
         </div>
@@ -3505,7 +3511,7 @@ ${modeSelectMarkup()}
     this.shut();
     this.$('intro').classList.add('hidden');
     this.$('challenge-offline-copy').textContent = reason
-      ?? 'A match needs a connection to swap scores with your friend. A solo innings works anywhere.';
+      ?? 'No signal. The match is saved; try again when you\u2019re back online, or bat solo meanwhile.';
     this.open('challenge-offline');
     this.settle('challenge-offline');
   }
@@ -3547,11 +3553,18 @@ ${modeSelectMarkup()}
    * itself is the taunt and it is not previewed here — the sheet says how the
    * match works, and the key says share.
    */
-  inviteSheet() {
+  inviteSheet(link = '') {
     this.shutSheets();
     this.$('challenge-preview').textContent = '';
+    this.$('challenge-link').textContent = link.replace(/^https?:\/\//, '');
     this.open('challenge-share');
     this.settle('challenge-share');
+  }
+
+  /** A kit key's words, changed on its face so the face itself is kept. */
+  private ctaWords(id: string, words: string) {
+    const key = this.$(id);
+    (key.querySelector<HTMLElement>('.k-cta-face span') ?? key).textContent = words;
   }
 
   /** A word under the keys, for a copy that worked or did not. */
@@ -3579,8 +3592,8 @@ ${modeSelectMarkup()}
     this.$('challenge-join-copy').textContent = batted
       ? `30 balls each. ${from?.name ?? 'They'} already batted — you’ll see it ball by ball, and the score on your last.`
       : '30 balls each. Winner takes the bragging rights';
-    this.$('challenge-bat').textContent = "LET'S GO";
-    this.$('challenge-solo').textContent = 'DECLINE & ACCEPT DEFEAT';
+    this.ctaWords('challenge-bat', "LET'S GO");
+    this.$('challenge-solo').textContent = 'Decline and accept defeat';
     this.$('challenge-solo').classList.remove('hidden');
     void closes;
     this.identify(player);
@@ -3598,7 +3611,7 @@ ${modeSelectMarkup()}
     this.$('challenge-from-name').textContent = 'Who should';
     this.$('challenge-join-verb').textContent = 'they be scared of?';
     this.$('challenge-join-copy').textContent = 'Your friend sees this name on the match. No sign-up, no password.';
-    this.$('challenge-bat').textContent = 'OPEN THE ROOM';
+    this.ctaWords('challenge-bat', 'OPEN THE ROOM');
     this.$('challenge-solo').classList.add('hidden');
     this.identify(player);
   }
@@ -3699,23 +3712,30 @@ ${modeSelectMarkup()}
     const sheet = this.$('rivals-ranking-sheet');
     sheet.innerHTML = rivalsRankingMarkup(this.ranking);
     sheet.querySelector<HTMLButtonElement>('#rivals-ranking-close')!.onclick = () => this.closeRanking();
+    const start = sheet.querySelector<HTMLButtonElement>('#rivals-ranking-new');
+    if (start) start.onclick = () => { this.closeRanking(); this.$('challenge-list-new').click(); };
     sheet.querySelector('.is-you')?.scrollIntoView({ block: 'center' });
   }
-  challengeList(sections: ListSections, record?: RivalsRecord, ranking?: RivalsBoardView) {
+  challengeList(
+    sections: ListSections, record?: RivalsRecord, ranking?: RivalsBoardView,
+    extra: { form?: readonly ('W' | 'L' | 'D')[]; me?: number | null } = {},
+  ) {
     this.shutSheets();
     if (this.roomOpen) this.closeRoom();
     this.$('intro').classList.add('hidden');
     const total = sections.received.length + sections.waiting.length + sections.past.length;
-    const section = (title: string, rows: ListRowView[]) => rows.length
-      ? `<h3 class="rival-section-head">${title}</h3><ul class="rival-rows">${rows.map(listRow).join('')}</ul>`
-      : '';
+    // One card of challenges, as drawn (133:7064): your move first, then the
+    // ones waiting on them, then the settled ones.
+    const all = [...sections.received, ...sections.waiting, ...sections.past];
+    const me = extra.me ?? null;
     this.ranking = ranking ?? null;
     this.$('challenge-list-ranking').classList.toggle('hidden', !ranking);
     if (this.rankingShown) this.drawRanking();
-    this.$('challenge-sections').innerHTML = (record ? recordMarkup(record) : '') + (total
-      ? section('NEW RECEIVED', sections.received) + section('WAITING ON THEM', sections.waiting) + section('PAST CHALLENGES', sections.past)
-      : `<ul class="rival-rows"><li class="rival-row is-empty">Nothing here yet. Open a match and send the link to someone who thinks they can bat.</li></ul>`);
-    this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it. Tap a face for the head-to-head.' : '';
+    this.$('challenge-sections').innerHTML = (record ? rivalsRecordMarkup(record, extra.form ?? []) : '') + (total
+      ? `<h3 class="rival-section-head rv-head">CHALLENGES</h3><ul class="rival-rows rv-rows">${all.map(row => listRow(row, me)).join('')}</ul>`
+      : `<div class="rv-empty-card"><span class="rv-faces is-big">${me === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(me, '')}<span class="board-kit is-empty is-rival" aria-hidden="true">?</span></span>
+          <h3>NO RIVALS YET</h3><p>Start a match and send the link to someone who thinks they can bat.</p></div>`);
+    this.$('challenge-list-copy').textContent = total ? 'Tap a match to open it, a face for the head-to-head.' : '';
     this.viewport.classList.add('modal-open', 'picking-mode');
     this.$('challenge-list').classList.remove('hidden');
     this.enter(this.$('challenge-sections').querySelectorAll('.rival-row'), 50);
@@ -3741,9 +3761,12 @@ ${modeSelectMarkup()}
   }
 
   /** The head-to-head against one person. */
-  rivalry(view: RivalryView) {
+  rivalry(view: RivalryView, me: number | null = null) {
     this.shutSheets();
-    this.$('rivalry-who').innerHTML = `${kitMarkup(view.them.avatar, view.them.name)}<span class="challenge-from-who"><b>You vs ${escapeName(view.them.name)}</b><em>${view.wins + view.losses + view.draws} match${view.wins + view.losses + view.draws === 1 ? '' : 'es'}${view.draws ? ` · ${view.draws} drawn` : ''}</em></span>`;
+    const played = view.wins + view.losses + view.draws;
+    this.$('rivalry-me').innerHTML = `${me === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(me, '')}<b>You</b>`;
+    this.$('rivalry-them').innerHTML = `${kitMarkup(view.them.avatar, view.them.name)}<b>${escapeName(view.them.name)}</b>`;
+    this.$('rivalry-who').textContent = `${played} match${played === 1 ? '' : 'es'}${view.draws ? ` \u00b7 ${view.draws} drawn` : ''}`;
     this.$('rivalry-tally').textContent = `${view.wins} – ${view.losses}`;
     this.$('rivalry-sub').textContent = view.wins === view.losses
       ? 'All square. Somebody has to blink.'
@@ -3751,13 +3774,14 @@ ${modeSelectMarkup()}
     this.$('rivalry-form').innerHTML = view.form.length
       ? `<span class="rivalry-form-label">Last ${view.form.length}</span>${view.form.map(one => `<i class="is-${one}">${one}</i>`).join('')}`
       : '';
-    this.$('rivalry-facts').innerHTML = [
-      ['Best score', `You ${view.bestMine} · ${escapeName(view.them.name)} ${view.bestTheirs}`],
-      ['Sixes', `You ${view.sixesMine} · ${escapeName(view.them.name)} ${view.sixesTheirs}`],
-    ].map(([what, said]) => `<div><dt>${what}</dt><dd>${said}</dd></div>`).join('');
+    // Yours on the left, theirs on the right, the bigger of the two lit in its side's colour.
+    this.$('rivalry-facts').innerHTML = ([
+      ['Best score', view.bestMine, view.bestTheirs],
+      ['Sixes', view.sixesMine, view.sixesTheirs],
+      ['Fours', view.foursMine, view.foursTheirs],
+    ] as const).map(([what, mine, theirs]) => `<div><dd class="is-mine${mine > theirs ? ' is-ahead' : ''}">${mine}</dd><dt>${what}</dt><dd class="is-theirs${theirs > mine ? ' is-ahead' : ''}">${theirs}</dd></div>`).join('');
     // No name on the key: a long one ran it off both edges. The name is in
     // the heading above, where there is room for it.
-    this.$('rivalry-again').textContent = 'CHALLENGE AGAIN';
     this.open('challenge-rivalry');
     this.settle('challenge-rivalry');
   }
@@ -4043,7 +4067,7 @@ function roomGrid(view: RoomView): string {
   const seats = ordered.map(row => roomSeat(row, view));
   const showEmpty = ordered.length < 2 && (view.kind === 'lobby' || view.kind === 'waiting');
   if (showEmpty) {
-    seats.push(`<div class="room-seat is-empty"><span class="room-face is-empty"><i>?</i></span><b class="room-name">Rival</b><span class="room-pill is-waiting">WAITING</span></div>`);
+    seats.push(`<div class="room-seat is-empty"><span class="room-face is-empty"><i>?</i></span><b class="room-name">Rival</b><span class="room-pill is-idle">WAITING</span></div>`);
   }
   const many = seats.length > 2;
   return `<div class="room-seats${many ? ' is-many' : ''}${seats.length === 3 ? ' is-three' : ''}">${seats.join('')}<span class="room-vs" aria-hidden="true">VS</span></div>`;
@@ -4060,9 +4084,9 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
   let progress = '';
   switch (row.status) {
     case 'joined':
-      under = view.kind === 'lobby' || view.kind === 'waiting' || view.kind === 'chase'
-        ? (view.kind === 'lobby' ? `<span class="room-pill is-joined">JOINED</span>` : `<span class="room-under">not batted yet</span>`)
-        : `<span class="room-pill is-joined">JOINED</span>`;
+      under = view.kind === 'waiting' || view.kind === 'chase'
+        ? '<span class="room-pill is-idle">NOT BATTED</span><span class="room-under rv-sr">not batted yet</span>'
+        : '<span class="room-pill is-joined">JOINED</span>';
       break;
     case 'batting':
       under = `<span class="room-under is-live">batting ball ${row.balls} of ${GAME.totalBalls}</span>`;
@@ -4076,8 +4100,8 @@ function roomSeat(row: ChallengeRow, view: RoomView): string {
       break;
     default:
       under = hide
-        ? `<span class="room-under">batted · ${row.balls} balls</span>`
-        : `<span class="room-score">${row.runs}<em>/${row.wickets}</em></span>`;
+        ? `<span class="room-pill is-batted">BATTED</span><span class="room-under rv-sr">batted · ${row.balls} balls</span><span class="room-score is-hidden" aria-hidden="true">???</span>`
+        : `<span class="room-pill is-batted">BATTED</span><span class="room-score">${row.runs}<em>/${row.wickets}</em></span>`;
   }
   const ring = row.status === 'batting'
     ? `<svg class="room-ring" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="ring-${row.playerId}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd3ff"/><stop offset=".55" stop-color="#ffb347"/><stop offset="1" stop-color="#ff7a2a"/></linearGradient></defs><circle class="room-ring-track" cx="60" cy="60" r="${RING_R}"/><circle class="room-ring-arc" cx="60" cy="60" r="${RING_R}" stroke="url(#ring-${row.playerId})" data-length="${RING_LENGTH}" stroke-dasharray="${RING_LENGTH}" stroke-dashoffset="${RING_LENGTH}"/></svg>`
@@ -4100,12 +4124,13 @@ function resultRow(row: ChallengeRow, result: ResultView): string {
   const draw = !result.winner && row.score === top;
   const won = !!result.winner && row.playerId === result.winner.playerId;
   const tone = draw ? 'is-draw' : won ? 'is-won' : 'is-lost';
-  const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : 'LOSER';
+  const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : '';
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   return `<div class="verdict-row ${tone}${mine ? ' is-you' : ''}">
     ${kitMarkup(row.avatar, row.name)}
     <span class="verdict-who">
-      <span class="verdict-name"><b>${mine ? 'You' : escapeName(row.name)}</b><i class="verdict-pill">${pill}</i></span>
-      <span class="verdict-stats"><em class="is-six">6s:</em> ${row.sixes} <em class="is-four">4s:</em> ${row.fours} <small>${row.balls} ball${row.balls === 1 ? '' : 's'}</small></span>
+      <span class="verdict-name"><b>${mine ? 'You' : escapeName(row.name)}</b>${pill ? `<i class="verdict-pill">${pill}</i>` : ''}</span>
+      <span class="verdict-stats">${plural(row.sixes, 'six', 'sixes')} \u00b7 ${plural(row.fours, 'four', 'fours')} \u00b7 ${plural(row.balls, 'ball', 'balls')}</span>
     </span>
     <span class="verdict-score">${row.runs}<em>/${row.wickets}</em></span>
   </div>`;
@@ -4140,6 +4165,8 @@ export interface ListRowView {
   /** For a settled row: how it went for this person, and in how many words. */
   outcome?: 'W' | 'L' | 'D' | '—';
   verdict?: string;
+  /** How long ago it last moved: now, 12m, 5h, 3d. */
+  age?: string;
 }
 
 /**
@@ -4147,19 +4174,21 @@ export interface ListRowView {
  * own — the head-to-head lives behind it — and the rest of the row opens the
  * room. A received row carries accept and decline; a past row its letter.
  */
-function listRow(row: ListRowView): string {
-  const who = row.them
+function listRow(row: ListRowView, me: number | null = null): string {
+  // Two faces, yours under theirs, as drawn; theirs is the key to the head-to-head.
+  const mine = me === null ? '<span class="board-kit is-empty" aria-hidden="true"></span>' : kitMarkup(me, '');
+  const theirs = row.them
     ? `<button class="rival-row-kit" type="button" data-rival="${row.them.playerId}" data-code="${row.code}" aria-label="Head to head with ${escapeName(row.them.name)}">${kitMarkup(row.them.avatar, row.them.name)}</button>`
-    : `<span class="rival-row-kit"><span class="board-kit is-empty" aria-hidden="true">?</span></span>`;
-  const name = row.them ? `${escapeName(row.them.name)}${row.others > 1 ? ` <i>+${row.others - 1}</i>` : ''}` : 'Nobody yet';
+    : '<span class="rival-row-kit"><span class="board-kit is-empty" aria-hidden="true">?</span></span>';
+  const name = row.them ? `You vs ${escapeName(row.them.name)}${row.others > 1 ? ` <i>+${row.others - 1}</i>` : ''}` : 'Nobody yet';
+  const line = [row.outcome ? row.verdict ?? '' : row.note, row.age].filter(Boolean).join(' \u00b7 ');
+  const tone = row.outcome ? (row.outcome === '—' ? 'none' : row.outcome) : 'wait';
   const right = row.actionable
     ? `<span class="rival-row-acts"><button class="rival-act is-accept" type="button" data-accept="${row.code}">ACCEPT</button><button class="rival-act is-decline" type="button" data-decline="${row.code}">DECLINE</button></span>`
-    : row.outcome
-      ? `<span class="rival-row-verdict is-${row.outcome === '—' ? 'none' : row.outcome}">${row.verdict ?? ''}</span><span class="rival-row-badge is-${row.outcome === '—' ? 'none' : row.outcome}">${row.outcome === '—' ? '–' : row.outcome}</span>`
-      : `<span class="rival-row-go" aria-hidden="true">${icon('arrow')}</span>`;
+    : `<span class="rival-row-badge is-${tone}">${row.outcome ? (row.outcome === '—' ? '–' : row.outcome) : '\u2026'}</span>`;
   return `<li class="rival-row" data-code="${row.code}">
-    ${who}
-    <button class="rival-row-open" type="button" data-open="${row.code}"><b>${name}</b><em>${row.note}</em></button>
+    <span class="rv-faces">${mine}${theirs}</span>
+    <button class="rival-row-open" type="button" data-open="${row.code}"><b>${name}</b><em>${line}</em></button>
     ${right}
   </li>`;
 }

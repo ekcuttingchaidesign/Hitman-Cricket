@@ -7907,3 +7907,275 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card.tier-hitman .st-card-track{background:#f3d27a26}
 .st-card.tier-hitman .st-card-track i{background:#f3d27a}
 .st-card.tier-hitman .st-card-who .board-kit{box-shadow:0 0 0 2px #f3d27a}
+
+/* ── Rivals (UI v1, the handover's section 08) ───────────────────────────────
+   Every Rivals screen stands on BG / Rivals: your blue bloom top left, their
+   orange bloom bottom right, a faint violet glow between, and a halftone dot
+   field densest in those corners. Sizes in --u. */
+:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking){
+  --rv-bg:radial-gradient(calc(var(--u) * 280) calc(var(--u) * 280) at calc(var(--u) * 30) calc(var(--u) * 80),#2f6fe080,#2f6fe02d 55%,#2f6fe000 100%),
+    radial-gradient(calc(var(--u) * 280) calc(var(--u) * 280) at calc(var(--u) * 370) calc(var(--u) * 840),#ed70446b,#ed704425 55%,#ed704400 100%),
+    radial-gradient(calc(var(--u) * 210) calc(var(--u) * 150) at 50% calc(var(--u) * 330),#b8a6ff12,#b8a6ff00 100%),var(--c-page);
+  background:var(--rv-bg);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:0;overflow:hidden
+}
+:is(#challenge-list,#challenge-room,#challenge-offline,#rivals-ranking)::before{
+  content:'';position:absolute;inset:0;pointer-events:none;opacity:.6;mix-blend-mode:screen;
+  background:url('./assets/rivals/halftone.webp') center/cover no-repeat
+}
+:is(#challenge-list,#challenge-room) .room-sheet{
+  position:relative;display:flex;flex-direction:column;width:100%;height:100%;max-width:none;margin:0;
+  padding:var(--top-gap) calc(var(--u) * 20) 0;overflow-y:auto;background:none;border:0;box-shadow:none;color:var(--c-text);font-family:var(--f-ui)
+}
+:is(#challenge-list,#challenge-room) .room-top{display:flex;align-items:center;gap:calc(var(--u) * 10);margin:0 0 calc(var(--u) * 14)}
+:is(#challenge-list,#challenge-room) .room-top .k-icon-button{flex:none;background:var(--c-card-top)}
+:is(#challenge-list,#challenge-room) .room-top .mode-heading{flex:1;min-width:0;margin:0;font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;font-optical-sizing:none;font-variation-settings:'opsz' 6;color:var(--c-text)}
+.room-card-link{flex:none;height:calc(var(--u) * 36);margin:0;padding:0 calc(var(--u) * 12);border:1px solid #ffffff1a;border-radius:12px;background:var(--c-card-top);color:var(--c-text);font:700 calc(var(--u) * 12)/1 var(--f-ui);text-decoration:none}
+
+/* The keys, as the kit draws them. */
+:is(#challenge-list,#challenge-room) .room-keys{
+  position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;gap:calc(var(--u) * 10);margin:auto calc(var(--u) * -20) 0;
+  padding:calc(var(--u) * 32) calc(var(--u) * 20) max(calc(var(--u) * 28),env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,#0a0b0d00 0%,#0a0b0df2 32%,#0a0b0d 100%)
+}
+:is(#challenge-list,#challenge-room) .room-keys>.k-cta{flex:1 1 100%}
+#challenge-room .rival-key{
+  flex:1 1 0;min-width:0;display:grid;place-items:center;height:calc(var(--u) * 56);margin:0;padding:0 calc(var(--u) * 10);
+  border-radius:16px;font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.08em;text-decoration:none;font-optical-sizing:none;font-variation-settings:'opsz' 6
+}
+#challenge-room .rival-key.is-green{border:2px solid #0a5c2d;background:#12924a;color:var(--c-text);box-shadow:0 5px 0 #0a5c2d}
+#challenge-room .rival-key.is-steel{border:2px solid #173a5a;background:#2b5f8f;color:var(--c-text);box-shadow:0 5px 0 #173a5a}
+#challenge-room .rival-key.is-play{border:3px solid #0000;border-radius:14px;background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;color:var(--c-cta-ink);box-shadow:0 6px 0 var(--c-cta-rim-bottom)}
+#challenge-room .rival-key:active{transform:translateY(4px);box-shadow:none}
+#challenge-room .room-keys .ghost-link{flex:1 1 100%;margin:calc(var(--u) * 2) 0 0;text-align:center;color:var(--c-text);font:500 calc(var(--u) * 14)/1.3 var(--f-ui)}
+
+/* The room: the heading, the two faces with VS between, a chip under each name. */
+#challenge-room .room-stage{display:flex;flex-direction:column;align-items:center;text-align:center;gap:0;padding:0}
+#challenge-room .room-lead{margin:0;font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;font-optical-sizing:none;font-variation-settings:'opsz' 6;color:var(--c-text)}
+#challenge-room .room-sub{margin:calc(var(--u) * 6) 0 0;font:500 calc(var(--u) * 14)/1.4 var(--f-ui);color:var(--c-text-2)}
+#challenge-room .challenge-tag{margin:0 0 calc(var(--u) * 10)}
+#challenge-room .room-grid{width:100%;margin-top:calc(var(--u) * 22)}
+#challenge-room .room-seats{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u) * 24) calc(var(--u) * 10);align-items:start}
+#challenge-room .room-seat{position:relative;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 6)}
+#challenge-room .room-face{--ring:var(--c-orange,#ed7044);position:relative;display:block;width:calc(var(--u) * 112);height:calc(var(--u) * 112);border-radius:50%;box-shadow:0 0 0 3px var(--ring)}
+#challenge-room .room-seat.is-you .room-face{--ring:#3f88f2}
+#challenge-room .room-face::before{content:'';position:absolute;inset:calc(var(--u) * -29);border-radius:50%;z-index:-1;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--ring) 38%,transparent),transparent)}
+#challenge-room .room-face .board-kit{width:100%;height:100%}
+#challenge-room .room-face.is-empty{display:grid;place-items:center;box-shadow:none;border:1.5px dashed #ffffff59;background:#ed70441a}
+#challenge-room .room-face.is-empty i{font:400 calc(var(--u) * 34)/1 var(--f-display);font-style:normal;color:#ffffff59;font-variation-settings:'opsz' 6}
+#challenge-room .room-name{margin-top:calc(var(--u) * 8);font:700 calc(var(--u) * 18)/1.2 var(--f-ui);color:var(--c-text)}
+#challenge-room .room-vs{position:absolute;left:50%;top:calc(var(--u) * 30);transform:translateX(-50%);display:grid;place-items:center;width:calc(var(--u) * 52);height:calc(var(--u) * 52);
+  border:1.5px solid #ffffff40;border-radius:50%;background:#0b0f14;color:var(--c-text);font:400 calc(var(--u) * 22)/1 var(--f-display);font-style:normal;letter-spacing:.04em;font-variation-settings:'opsz' 6}
+#challenge-room .room-seats.is-many .room-vs{display:none}
+.room-pill{display:inline-flex;align-items:center;gap:calc(var(--u) * 5);padding:calc(var(--u) * 4) calc(var(--u) * 9);border:1px solid;border-radius:10px;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
+.room-pill.is-joined{color:var(--c-win);border-color:#5bd08f66;background:#5bd08f1f}
+.room-pill.is-joined::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.room-pill.is-idle{color:var(--c-text-3);border-color:#8494a066;background:#8494a024}
+.room-pill.is-batted{color:var(--c-text);border-color:#f5efe666;background:#f5efe624}
+#challenge-room .room-under{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-2)}
+#challenge-room .room-under.is-live{color:var(--c-accent)}
+.rv-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#challenge-room .room-score{font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;color:var(--c-text);font-variation-settings:'opsz' 6}
+#challenge-room .room-score em{font-style:normal}
+#challenge-room .room-score.is-hidden{letter-spacing:.2em}
+#challenge-room .room-note:not(.hidden){display:flex;align-items:center;gap:calc(var(--u) * 8);width:100%;margin:calc(var(--u) * 18) 0 0;padding:calc(var(--u) * 11) calc(var(--u) * 12);
+  border:1px solid #ffffff14;border-radius:12px;background:#ffffff0a;color:var(--c-text-2);font:500 calc(var(--u) * 12)/1.35 var(--f-ui);text-align:left}
+#challenge-room .room-note::before{content:'';flex:none;width:calc(var(--u) * 16);height:calc(var(--u) * 16);background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") center/contain no-repeat}
+
+/* The result: the winner's face under a crown, the verdict, and the two innings as cards. */
+#challenge-room .room-hero{position:relative;width:calc(var(--u) * 112);height:calc(var(--u) * 112);margin:calc(var(--u) * 22) auto calc(var(--u) * 18)}
+#challenge-room .room-hero .room-anim{display:none}
+#challenge-room .room-hero-kit{display:block;width:100%;height:100%;border-radius:50%;box-shadow:0 0 0 3px var(--c-win)}
+#challenge-room .room-hero-kit .board-kit{width:100%;height:100%}
+#challenge-room .room-hero::before{content:'';position:absolute;inset:calc(var(--u) * -40);border-radius:50%;background:radial-gradient(closest-side,#5bd08f4d,#5bd08f00)}
+#challenge-room .room-hero::after{content:'';position:absolute;left:50%;top:calc(var(--u) * -24);width:calc(var(--u) * 30);height:calc(var(--u) * 16);transform:translateX(-50%);
+  background:url('./assets/board/crown.svg') center/contain no-repeat}
+#challenge-room .room-lead.is-result{font-size:calc(var(--u) * 30)}
+#challenge-room .room-results{display:flex;flex-direction:column;gap:calc(var(--u) * 10);width:100%;margin-top:calc(var(--u) * 18)}
+#challenge-room .verdict-row{display:flex;align-items:center;gap:calc(var(--u) * 12);padding:calc(var(--u) * 14) calc(var(--u) * 16);border:1px solid #ffffff14;border-radius:16px;
+  background:linear-gradient(180deg,#20252c,#13161a);box-shadow:none;text-align:left}
+#challenge-room .verdict-row.is-won{border-color:#5bd08f73;background:linear-gradient(180deg,#1b2b24,#121a17)}
+#challenge-room .verdict-row .board-kit{flex:none;width:calc(var(--u) * 40);height:calc(var(--u) * 40);box-shadow:0 0 0 2px #ed7044}
+#challenge-room .verdict-row.is-you .board-kit{box-shadow:0 0 0 2px #3f88f2}
+#challenge-room .verdict-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+#challenge-room .verdict-name{display:flex;align-items:center;gap:calc(var(--u) * 8)}
+#challenge-room .verdict-name b{font:700 calc(var(--u) * 16)/1.2 var(--f-ui);color:var(--c-text)}
+#challenge-room .verdict-pill{padding:calc(var(--u) * 2) calc(var(--u) * 6);border:1px solid #5bd08f66;border-radius:6px;background:#5bd08f24;color:var(--c-win);font:700 calc(var(--u) * 9)/1.2 var(--f-ui);font-style:normal;letter-spacing:.1em}
+#challenge-room .verdict-row.is-draw .verdict-pill{border-color:#f2b54466;background:#f2b54424;color:var(--c-draw)}
+#challenge-room .verdict-stats{font:500 calc(var(--u) * 11)/1.3 var(--f-ui);color:var(--c-text-3)}
+#challenge-room .verdict-score{flex:none;font:400 calc(var(--u) * 30)/1 var(--f-display);color:var(--c-text);font-variation-settings:'opsz' 6}
+#challenge-room .verdict-score em{font-style:normal;font-size:.5em;color:var(--c-text-3)}
+#challenge-room .verdict-row.is-won .verdict-score{color:var(--c-win)}
+
+/* Rival Matches: the record, the challenges, the empty card. */
+.rv-record{display:flex;flex-direction:column;gap:calc(var(--u) * 14);padding:calc(var(--u) * 16) calc(var(--u) * 18);border:1px solid #ffffff14;border-radius:24px;
+  background:linear-gradient(180deg,#20252c,#13161a);box-shadow:inset 0 1px 0 #ffffff0f}
+.rv-scoreline{display:flex;align-items:flex-end}
+.rv-score{flex:1;display:flex;gap:calc(var(--u) * 14);align-items:flex-end}
+.rv-n{display:flex;flex-direction:column;align-items:center}
+.rv-n b{font:400 calc(var(--u) * 46)/1 var(--f-display);letter-spacing:.02em;color:var(--c-text);font-variation-settings:'opsz' 6}
+.rv-n.is-drawn b{color:var(--c-text-2)}
+.rv-n i,.rv-form>span:first-child{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);font-style:normal;letter-spacing:.1em;color:var(--c-text-3)}
+.rv-form{display:flex;flex-direction:column;align-items:flex-end;gap:calc(var(--u) * 6)}
+.rv-chips{display:flex;gap:calc(var(--u) * 4)}
+.rv-chip{display:grid;place-items:center;width:calc(var(--u) * 26);height:calc(var(--u) * 26);border-radius:7px;color:var(--c-ink);font:700 calc(var(--u) * 9)/1 var(--f-ui);font-style:normal;letter-spacing:.1em}
+.rv-chip.is-W{background:var(--c-win)}.rv-chip.is-L{background:var(--c-loss)}.rv-chip.is-D{background:var(--c-draw)}
+.rv-chip.is-empty{border:1px solid #ffffff26}
+.rv-share{display:flex;gap:3px}
+.rv-share i{height:4px;min-width:4px;border-radius:2px}
+.rv-share .is-won{background:var(--c-win)}.rv-share .is-lost{background:var(--c-loss)}.rv-share .is-none{background:#ffffff14}
+#challenge-list .rival-sections{display:flex;flex-direction:column;gap:0}
+.rv-head{margin:calc(var(--u) * 20) 0 calc(var(--u) * 10);color:var(--c-text-3);font:700 calc(var(--u) * 11)/1.2 var(--f-ui);letter-spacing:.14em}
+.rv-rows{margin:0;padding:0;list-style:none;overflow:hidden;border:1px solid #ffffff14;border-radius:24px;background:linear-gradient(180deg,#20252c,#13161a)}
+#challenge-list .rv-rows .rival-row{display:flex;align-items:center;gap:calc(var(--u) * 12);min-height:calc(var(--u) * 64);margin:0;padding:0 calc(var(--u) * 14);border:0;border-radius:0;background:none;box-shadow:none}
+#challenge-list .rv-rows .rival-row+.rival-row{border-top:1px solid #ffffff0f}
+.rv-faces{position:relative;flex:none;display:block;width:calc(var(--u) * 58);height:calc(var(--u) * 36)}
+.rv-faces>.board-kit,.rv-faces>.rival-row-kit{position:absolute;top:0;width:calc(var(--u) * 36);height:calc(var(--u) * 36)}
+.rv-faces>:first-child{left:0;box-shadow:0 0 0 2px #3f88f2}
+.rv-faces>:last-child{left:calc(var(--u) * 22)}
+.rv-faces .rival-row-kit{margin:0;padding:0;border:0;border-radius:50%;background:none}
+.rv-faces .rival-row-kit .board-kit{width:100%;height:100%;box-shadow:0 0 0 2px #ed7044}
+#challenge-list .rival-row-open{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;margin:0;padding:calc(var(--u) * 12) 0;border:0;background:none;text-align:left;color:var(--c-text)}
+#challenge-list .rival-row-open b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 calc(var(--u) * 14)/1.3 var(--f-ui)}
+#challenge-list .rival-row-open em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:500 calc(var(--u) * 12)/1.3 var(--f-ui);font-style:normal;color:var(--c-text-3)}
+#challenge-list .rival-row-badge{flex:none;display:grid;place-items:center;width:calc(var(--u) * 30);height:calc(var(--u) * 30);border-radius:9px;font:700 calc(var(--u) * 14)/1 var(--f-ui)}
+#challenge-list .rival-row-badge.is-W{background:#5bd08f29;color:var(--c-win)}
+#challenge-list .rival-row-badge.is-L{background:#ff6b5e29;color:var(--c-loss)}
+#challenge-list .rival-row-badge.is-D,#challenge-list .rival-row-badge.is-wait{background:#f2b54429;color:var(--c-draw)}
+#challenge-list .rival-row-badge.is-none{background:#ffffff14;color:var(--c-text-3)}
+#challenge-list .rival-row-acts{display:flex;gap:calc(var(--u) * 6)}
+#challenge-list .rival-act{height:calc(var(--u) * 32);margin:0;padding:0 calc(var(--u) * 10);border-radius:10px;font:700 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.06em}
+#challenge-list .rival-act.is-accept{border:0;background:var(--c-win);color:var(--c-ink)}
+#challenge-list .rival-act.is-decline{border:1px solid #ffffff26;background:none;color:var(--c-text-2)}
+#challenge-list #challenge-list-copy{margin:calc(var(--u) * 12) 0 0;text-align:left;color:var(--c-text-3);font:500 calc(var(--u) * 12)/1.4 var(--f-ui)}
+.rv-empty-card{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 12);margin-top:calc(var(--u) * 14);padding:calc(var(--u) * 26) calc(var(--u) * 22);
+  border:1px solid #ffffff14;border-radius:24px;background:linear-gradient(180deg,#20252c,#13161a);text-align:center}
+.rv-faces.is-big{width:calc(var(--u) * 92);height:calc(var(--u) * 52)}
+.rv-faces.is-big>*{width:calc(var(--u) * 52);height:calc(var(--u) * 52)}
+.rv-faces.is-big>:last-child{left:calc(var(--u) * 40);display:grid;place-items:center;border:1.5px dashed #ffffff59;background:#0e1013;color:#ffffff73;font:400 calc(var(--u) * 22)/1 var(--f-display)}
+.rv-empty-card h3{margin:0;font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;font-variation-settings:'opsz' 6}
+.rv-empty-card p{margin:0;font:500 calc(var(--u) * 14)/1.4 var(--f-ui);color:var(--c-text-2)}
+
+/* The ranking, a screen with a table. */
+#rivals-ranking .ranking-sheet{position:relative;width:100%;height:100%;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+.rv-ranking{display:flex;flex-direction:column;height:100%;padding:var(--top-gap) calc(var(--u) * 20) 0;color:var(--c-text);font-family:var(--f-ui)}
+.rv-top{display:flex;align-items:center;gap:calc(var(--u) * 10)}
+.rv-top .k-icon-button{flex:none;background:var(--c-card-top)}
+.rv-title{margin:0;font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;font-variation-settings:'opsz' 6}
+.rv-line{margin:calc(var(--u) * 14) 0 calc(var(--u) * 10);color:var(--c-text-3);font:500 calc(var(--u) * 12)/1.4 var(--f-ui)}
+.rv-table{flex:1 1 auto;min-height:0;overflow-y:auto;border:1px solid #ffffff14;border-radius:24px;background:linear-gradient(180deg,#20252c,#13161a)}
+.rv-table-head,.rv-rank-row{display:grid;grid-template-columns:calc(var(--u) * 26) 1fr calc(var(--u) * 36) calc(var(--u) * 36) calc(var(--u) * 54);align-items:center;gap:calc(var(--u) * 6);padding:0 calc(var(--u) * 14)}
+.rv-table-head{position:sticky;top:0;z-index:1;height:calc(var(--u) * 36);background:#1d2128;border-bottom:1px solid #ffffff0f;color:var(--c-text-3);font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.1em}
+.rv-table-head span:nth-child(n+3),.rv-rank-row>span:nth-child(n+3){text-align:right}
+.rv-table .rival-ranking-list{margin:0;padding:0;list-style:none}
+.rv-rank-row{height:calc(var(--u) * 46);margin:0;border:0;border-radius:0;background:none;box-shadow:none}
+.rv-rank-row .board-place{color:var(--c-text-3);font:700 calc(var(--u) * 14)/1 var(--f-ui)}
+.rv-rank-who{display:flex;align-items:center;gap:calc(var(--u) * 10);min-width:0}
+.rv-rank-who .board-kit{flex:none;width:calc(var(--u) * 26);height:calc(var(--u) * 26)}
+.rv-rank-who b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 calc(var(--u) * 14)/1.3 var(--f-ui)}
+.rv-rank-w{color:var(--c-win);font:700 calc(var(--u) * 14)/1 var(--f-ui)}
+.rv-rank-l{color:var(--c-loss);font:700 calc(var(--u) * 14)/1 var(--f-ui)}
+.rv-rank-runs{color:var(--c-text-2);font:700 calc(var(--u) * 13)/1 var(--f-ui)}
+.rv-rank-row.is-you{background:#ed704421}
+.rv-rank-row.is-you .board-place{color:var(--c-accent)}
+.rv-empty{margin:0;padding:calc(var(--u) * 24) calc(var(--u) * 16);text-align:center;color:var(--c-text-2)}
+.rv-foot{margin:calc(var(--u) * 10) 0 0;color:var(--c-text-3);font:500 calc(var(--u) * 11)/1.4 var(--f-ui)}
+.rv-keys{margin:0 calc(var(--u) * -20);padding:calc(var(--u) * 16) calc(var(--u) * 20) max(calc(var(--u) * 28),env(safe-area-inset-bottom,0px))}
+
+/* The two sheets from the foot: the invite and the head-to-head. */
+:is(#challenge-share,#challenge-rivalry){justify-content:flex-end;align-items:stretch;padding:0;background:#0a0b0d99;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.rv-sheet{display:flex;flex-direction:column;gap:calc(var(--u) * 14);width:100%;max-width:none;margin:0;padding:calc(var(--u) * 12) calc(var(--u) * 20) max(calc(var(--u) * 30),env(safe-area-inset-bottom,0px));
+  border:1px solid #ffffff1a;border-bottom:0;border-radius:32px 32px 0 0;background:linear-gradient(180deg,#22272e,#121519);box-shadow:inset 0 1px 0 #ffffff12;color:var(--c-text);text-align:left;font-family:var(--f-ui)}
+.rv-grab{display:block;width:calc(var(--u) * 40);height:4px;border-radius:2px;background:#ffffff40}
+.rv-sheet-title{margin:0;font:400 calc(var(--u) * 26)/1 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6;color:var(--c-text)}
+:is(#challenge-share,#challenge-rivalry) .sheet-close{position:absolute;top:calc(var(--u) * 14);right:calc(var(--u) * 16);z-index:2}
+.rv-steps{display:flex;flex-direction:column;gap:calc(var(--u) * 12);margin:0;padding:0;list-style:none;counter-reset:step}
+.rv-steps li{position:relative;display:flex;flex-direction:column;gap:2px;padding-left:calc(var(--u) * 36);counter-increment:step}
+.rv-steps li::before{content:counter(step);position:absolute;left:0;top:0;display:grid;place-items:center;width:calc(var(--u) * 24);height:calc(var(--u) * 24);border-radius:50%;
+  background:#3f88f233;color:#8fb8ff;font:700 calc(var(--u) * 12)/1 var(--f-ui)}
+.rv-steps b{font:700 calc(var(--u) * 14)/1.3 var(--f-ui)}
+.rv-steps small{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-3)}
+.rv-link{display:flex;align-items:center;gap:calc(var(--u) * 8);height:calc(var(--u) * 52);padding:0 calc(var(--u) * 6) 0 calc(var(--u) * 14);border:1px solid #ffffff1a;border-radius:14px;background:#0e1013}
+.rv-link-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--c-text-2);font:500 calc(var(--u) * 13)/1 var(--f-ui)}
+.rv-copy{flex:none;height:calc(var(--u) * 38);margin:0;padding:0 calc(var(--u) * 12);border:0;border-radius:10px;background:#ffffff14;color:var(--c-text);font:700 calc(var(--u) * 13)/1 var(--f-ui)}
+.rv-sheet .rival-sheet-keys{display:flex;flex-direction:column;gap:calc(var(--u) * 10);margin:0}
+.rv-sheet .rival-sheet-copied{margin:0;text-align:center;color:var(--c-win);font:500 calc(var(--u) * 12)/1.3 var(--f-ui)}
+.rv-h2h-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:calc(var(--u) * 10)}
+.rv-h2h-face{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 6)}
+.rv-h2h-face .board-kit{width:calc(var(--u) * 56);height:calc(var(--u) * 56);box-shadow:0 0 0 2px #ed7044}
+.rv-h2h-face.is-you .board-kit{box-shadow:0 0 0 2px #3f88f2}
+.rv-h2h-face b{font:700 calc(var(--u) * 12)/1.2 var(--f-ui)}
+.rv-h2h-mid{display:flex;flex-direction:column;align-items:center}
+.rv-tally{margin:0;font:400 calc(var(--u) * 46)/1 var(--f-display);letter-spacing:.02em;font-variation-settings:'opsz' 6}
+.rv-count{margin:calc(var(--u) * 4) 0 0;color:var(--c-text-3);font:500 calc(var(--u) * 11)/1.3 var(--f-ui)}
+.rv-say{margin:0;text-align:center;color:var(--c-text-2);font:500 calc(var(--u) * 14)/1.4 var(--f-ui)}
+.rv-sheet.is-h2h .rivalry-form{display:none}
+.rv-facts{margin:0;overflow:hidden;border:1px solid #ffffff14;border-radius:16px;background:#ffffff08}
+.rv-facts>div{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:calc(var(--u) * 46);padding:0 calc(var(--u) * 16)}
+.rv-facts>div+div{border-top:1px solid #ffffff0f}
+.rv-facts dt{color:var(--c-text-3);font:500 calc(var(--u) * 12)/1 var(--f-ui)}
+.rv-facts dd{margin:0;font:700 calc(var(--u) * 16)/1 var(--f-ui);color:var(--c-text)}
+.rv-facts dd.is-theirs{text-align:right}
+.rv-facts dd.is-mine.is-ahead{color:#6fa8ff}
+.rv-facts dd.is-theirs.is-ahead{color:var(--c-accent)}
+
+/* Joining from a link: the challenger over the stadium, and the name to bat under. */
+#challenge-join{justify-content:center;align-items:stretch;padding:0;background:linear-gradient(180deg,#0a0b0d73,#0a0b0dd9),url('./assets/cover.webp') center/cover no-repeat}
+#challenge-join::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:screen;background:url('./assets/rivals/halftone.webp') center/cover}
+#challenge-join .rival-sheet{position:relative;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 12);width:100%;max-width:none;margin:0;padding:0 calc(var(--u) * 20);
+  border:0;background:none;box-shadow:none;color:var(--c-text);text-align:center}
+#challenge-join .rival-sheet-ball{display:none}
+#challenge-join .rival-sheet-kit:not(.hidden){display:block;width:calc(var(--u) * 80);height:calc(var(--u) * 80);border-radius:50%;box-shadow:0 0 0 3px #ed7044,0 0 30px #ed704466}
+#challenge-join .rival-sheet-kit .board-kit{width:100%;height:100%}
+#challenge-join .rival-sheet-title{margin:0;font:400 calc(var(--u) * 24)/1.1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;font-variation-settings:'opsz' 6;color:var(--c-text)}
+#challenge-join .rival-sheet-title b{font-weight:400}
+#challenge-join .rival-sheet-title span{margin-left:.3em}
+#challenge-join .rival-sheet-sub{margin:0;color:var(--c-text-2);font:500 calc(var(--u) * 13)/1.4 var(--f-ui)}
+#challenge-join .challenge-as:not(.hidden),#challenge-join .rival-field:not(.hidden),#challenge-join .rival-sheet-keys{width:100%}
+#challenge-join .rival-field:not(.hidden){display:flex;flex-direction:column;gap:calc(var(--u) * 8);margin:calc(var(--u) * 8) 0 0;padding:calc(var(--u) * 16) calc(var(--u) * 16) 0;
+  border:1px solid #ffffff14;border-bottom:0;border-radius:24px 24px 0 0;background:#14171bf2;text-align:left}
+#challenge-join .rival-field span{color:var(--c-text-3);font:700 calc(var(--u) * 11)/1.2 var(--f-ui);letter-spacing:.14em}
+#challenge-join .rival-field input{height:calc(var(--u) * 52);padding:0 calc(var(--u) * 14);border:1.5px solid #ffffff14;border-radius:14px;background:#0e1013;color:var(--c-text);font:700 calc(var(--u) * 15)/1 var(--f-ui);outline:0}
+#challenge-join .rival-field input:focus{border-color:var(--c-accent)}
+#challenge-join:has(#challenge-join-error:not(.hidden)) .rival-field input{border-color:var(--c-loss)}
+#challenge-join #challenge-join-error{width:100%;margin:0;padding:calc(var(--u) * 6) calc(var(--u) * 16) 0;background:#14171bf2;border:1px solid #ffffff14;border-top:0;border-bottom:0;text-align:left;color:var(--c-loss);font:500 calc(var(--u) * 12)/1.4 var(--f-ui)}
+#challenge-join .rival-sheet-keys{display:flex;flex-direction:column;gap:calc(var(--u) * 12);margin:0;padding:calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 18);
+  border:1px solid #ffffff14;border-top:0;border-radius:0 0 24px 24px;background:#14171bf2}
+#challenge-join .rival-field.hidden~#challenge-join-error.hidden~.rival-sheet-keys{border-top:1px solid #ffffff14;border-radius:24px}
+#challenge-join .rv-decline{margin:0;color:var(--c-text);font:500 calc(var(--u) * 14)/1.3 var(--f-ui);text-decoration:underline;text-underline-offset:3px}
+
+/* Can't reach the match: the mark, the words, and the two ways on. */
+#challenge-offline .rv-offline{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 12);width:100%;max-width:none;height:100%;margin:0;
+  padding:0 calc(var(--u) * 32) calc(var(--u) * 110);border:0;background:none;box-shadow:none;text-align:center;color:var(--c-text)}
+.rv-offline-icon{display:grid;place-items:center;width:calc(var(--u) * 64);height:calc(var(--u) * 64);border-radius:50%;background:#3f88f22e;color:#8fb8ff}
+.rv-offline-icon svg{width:calc(var(--u) * 30);height:calc(var(--u) * 30)}
+#challenge-offline .rival-sheet-sub{margin:0;color:var(--c-text-2);font:500 calc(var(--u) * 14)/1.4 var(--f-ui)}
+.rv-offline-keys{position:absolute;left:0;right:0;bottom:0;display:flex;gap:calc(var(--u) * 10);margin:0;padding:0 calc(var(--u) * 20) max(calc(var(--u) * 28),env(safe-area-inset-bottom,0px))}
+.rv-offline-keys .k-cta{flex:1;min-width:0;width:auto}
+/* Two keys side by side and the quiet link under them, as drawn. */
+:is(#challenge-list,#challenge-room) .room-keys{flex-direction:row;align-items:center}
+#challenge-room .room-keys.is-pair{display:flex;gap:calc(var(--u) * 10)}
+#challenge-room .room-hero-kit{box-shadow:none}
+#challenge-room .room-hero{margin-bottom:calc(var(--u) * 26)}
+/* What the older Rivals sheets brought with them, put away. */
+.rv-sheet{position:relative}
+.rv-close{position:absolute;top:calc(var(--u) * 16);right:calc(var(--u) * 16)}
+.rv-steps li{margin:0;padding-top:0;padding-bottom:0;border:0;background:none}
+.rv-steps li::after{display:none!important}
+.rv-sheet .rival-sheet-sub::before,.rv-sheet .rival-sheet-sub::after,#challenge-join .rival-sheet-sub::before,#challenge-join .rival-sheet-sub::after,
+#challenge-offline .rival-sheet-sub::before,#challenge-offline .rival-sheet-sub::after{display:none}
+.rv-sheet .rival-sheet-sub,#challenge-join .rival-sheet-sub,#challenge-offline .rival-sheet-sub{padding:0}
+.rv-facts{display:block}
+.rv-facts>div{margin:0;border-radius:0;background:none;box-shadow:none}
+#challenge-join .rival-sheet{gap:0;margin-top:0;padding-top:0}
+#challenge-join .rival-sheet-kit:not(.hidden){position:relative;left:auto;top:auto;transform:none}
+#challenge-join .rival-sheet-kit .board-kit{box-shadow:none}
+#challenge-join .rival-sheet-title{margin-top:calc(var(--u) * 18);display:block}
+#challenge-join .rival-sheet-title b,#challenge-join .rival-sheet-title span{font-size:inherit}
+#challenge-join .rival-sheet-sub{margin-top:calc(var(--u) * 8)}
+#challenge-join .challenge-as:not(.hidden),#challenge-join .rival-field:not(.hidden){margin-top:calc(var(--u) * 22)}
+#challenge-join .rival-field.hidden~.rival-sheet-keys{margin-top:calc(var(--u) * 22)}
+.rv-rank-row.is-you{margin:0;padding:0 calc(var(--u) * 14);border-radius:0;background:#ed704421}
+.rv-rank-row.is-you::before{display:none}

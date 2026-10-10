@@ -5,7 +5,7 @@ import {
   POLL_MS, challengeLink, clearUnsent, codeFromLocation, copy, createRoom, fetchChallenge, fetchMine,
   hiddenChallenges, holdUnsent, joinRoom, markSeenHere, readUnsent, recordResult, rivalryWith, seenHere,
   sendBalls, sendDecline, sendSeen, whatsapp,
-  type Challenge, type ChallengeResult, type ChallengeRow, type RivalryEntry,
+  type Challenge, type ChallengeResult, type ChallengeRow, type RivalryEntry, rivalryEntries,
 } from './challenge-api';
 
 /**
@@ -108,6 +108,8 @@ export interface RivalryView {
   sixesMine: number;
   sixesTheirs: number;
   tally: string;
+  foursMine: number;
+  foursTheirs: number;
 }
 
 export class ChallengeRun {
@@ -582,8 +584,24 @@ export function rivalryView(playerId: string, fallback?: { name: string; avatar:
     bestTheirs: Math.max(0, ...entries.map(one => one.theirs.runs)),
     sixesMine: entries.reduce((sum, one) => sum + one.mine.sixes, 0),
     sixesTheirs: entries.reduce((sum, one) => sum + one.theirs.sixes, 0),
+    foursMine: entries.reduce((sum, one) => sum + one.mine.fours, 0),
+    foursTheirs: entries.reduce((sum, one) => sum + one.theirs.fours, 0),
     tally,
   };
+}
+
+/** The last few results against anybody, newest first, for the record's form chips. */
+export function recentForm(count = 4): ('W' | 'L' | 'D')[] {
+  return [...rivalryEntries()].sort((a, b) => b.at - a.at).slice(0, count).map(one => one.outcome);
+}
+
+/** How long ago, in the fewest characters: now, 12m, 5h, 3d. */
+export function ageOf(at: number, now = Date.now()): string {
+  const gone = Math.max(0, now - at);
+  if (gone < 60_000) return 'now';
+  if (gone < 3_600_000) return `${Math.floor(gone / 60_000)}m`;
+  if (gone < 86_400_000) return `${Math.floor(gone / 3_600_000)}h`;
+  return `${Math.floor(gone / 86_400_000)}d`;
 }
 
 /** The message a rematch goes out with. */
