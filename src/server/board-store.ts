@@ -194,7 +194,8 @@ export interface BoardStore<I = Innings> {
 
 /** What `GET /api/board` answers with. */
 export interface BoardPayload<I = Innings> {
-  rows: (I & { playerId: string; name: string; avatar: number; score: number })[];
+  /** `at` is when the store took the row, which the cover's live line reads as "just now". */
+  rows: (I & { playerId: string; name: string; avatar: number; score: number; at?: number })[];
   /** The packed score the fiftieth row is holding, or null while the board fills. */
   cutoff: number | null;
   size: number;
@@ -222,7 +223,7 @@ export async function readBoard<I>(
     // A ranked id with no row behind it is a half-written submission, not a
     // player. Leaving it out is better than drawing a blank line.
     return row
-      ? [{ ...ladder.figures(row), playerId: entry.id, name: row.name, avatar: row.avatar, score: entry.score }]
+      ? [{ ...ladder.figures(row), playerId: entry.id, name: row.name, avatar: row.avatar, score: entry.score, at: row.at }]
       : [];
   });
   return { rows, cutoff: rows.length >= size ? rows[size - 1].score : null, size };

@@ -25,6 +25,10 @@
   font-display:swap
 }
 :root{
+  /* How far the redrawn screens' top bars sit from the top. The handover's 48
+     is the iPhone status bar it draws over; a browser has none, so it is the
+     safe area where there is one, and a sliver where there is not. */
+  --top-gap:max(env(safe-area-inset-top,0px),calc(var(--u) * 14));
   font-family:'Segoe UI',Arial,sans-serif;
   color:#172b3b;
   background:#0f1f2b;
@@ -670,11 +674,12 @@ kbd{
   padding:26px 30px 28px;
   text-align:center
 }
-/* ── The start screen on a phone ───────────────────────────────── */
-/* The cover art fills the screen, the title sits in the sky, and the two calls
-   to action sit on the pitch in thumb's reach. Proportions are the artwork's
-   own: a button is 54% of the width, and the pair end a twentieth off the foot
-   of the screen. */
+/* ── The cover (UI v1) ─────────────────────────────────────────── */
+/* The handover's cover: the poster full bleed under a dark fade top and foot,
+   the profile chip and the sound key along the top, the title in the sky, and
+   the board widget over PLAY and HOW TO PLAY in thumb's reach. Measured in the
+   design's pixels (`--u`), so the desktop column lays it out as a phone that
+   wide would. */
 .cover-intro{
   position:absolute;
   inset:0;
@@ -682,86 +687,153 @@ kbd{
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:space-between;
-  padding:7.3cqh var(--pad-right) calc(var(--pad-bottom) + 3.6cqh) var(--pad);
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 34);
+  background:var(--c-page);
+  font-family:var(--f-ui);
   text-align:center
 }
-/* The cover does not sit still. Three plates of the same ground stacked in one
-   window, each held about seven seconds and handed to the next in a little under
-   a second, drifting in the whole time. Twenty-one seconds round, which is long
-   enough that it reads as a scene rather than a slideshow.
-   It is three CSS animations and no timer, so there is nothing to start, stop or
-   leak, and the whole thing stops existing the moment the innings hides the
-   cover. */
-.cover-plate{
-  position:absolute;
-  inset:0;
-  z-index:-1;
-  overflow:hidden
+.cover-plate{position:absolute;inset:0;z-index:-1;overflow:hidden}
+.cover-plate::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,#05070a99 0%,#05070a00 20%,#0b0c0e00 52%,#0b0c0ee0 74%,#0b0c0e 100%)
 }
-.cover-art{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  /* Cropped towards the pitch: a landscape phone keeps the sand under the keys. */
-  object-fit:cover;
-  object-position:50% 58%;
-  opacity:1
-}
-@media (prefers-reduced-motion:no-preference){
-  .cover-art{
-    animation-duration:21s;
-    animation-timing-function:linear;
-    animation-iteration-count:infinite;
-    animation-fill-mode:both
-  }
-  /* Three plates, three timelines, because a crossfade needs an opaque plate
-     underneath it at every instant or the live ground shows through the middle
-     of the dissolve. So the first plate never fades: it is the floor. The second
-     comes up over it, the third comes up over the second, and then the third
-     fades back off to leave the floor bare again. The second drops out under the
-     opaque third, where nobody can see it go. */
-  .cover-art:nth-child(1){animation-name:cover-one}
-  .cover-art:nth-child(2){animation-name:cover-two}
-  .cover-art:nth-child(3){animation-name:cover-three}
-}
-/* Asked for stillness, the cover is one plate again, and it is the first one. */
-@media (prefers-reduced-motion:reduce){
-  .cover-art:nth-child(n+2){display:none}
-}
-/* Percentages are seconds out of twenty-one: 6, 6.9, 13, 13.9, 20.1. Each plate
-   holds for about seven of them and takes nine tenths of a second to hand over. */
-@keyframes cover-one{
-  0%{opacity:1;transform:scale(1)}
-  32.857%{transform:scale(1.05)}
-  61.905%{transform:scale(1.05)}
-  85%{transform:scale(1)}
-  100%{opacity:1;transform:scale(1)}
-}
-@keyframes cover-two{
-  0%{opacity:0;transform:scale(1)}
-  28.571%{opacity:0;transform:scale(1)}
-  32.857%{opacity:1}
-  66.190%{opacity:1;transform:scale(1.05)}
-  66.5%{opacity:0}
-  85%{transform:scale(1)}
-  100%{opacity:0;transform:scale(1)}
-}
-@keyframes cover-three{
-  0%{opacity:0;transform:scale(1)}
-  61.905%{opacity:0;transform:scale(1)}
-  66.190%{opacity:1}
-  95.714%{opacity:1}
-  100%{opacity:0;transform:scale(1.05)}
-}
-.cover-title{width:min(74%,440px);height:auto}
+.cover-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+.cover-top{align-self:stretch;display:flex;align-items:center;height:var(--tap)}
+/* The title is sized to the height as well as the width: the poster is, and in
+   a phone's browser — shorter than the design's frame — a title sized to the
+   width alone comes down over the batter's helmet. */
+.cover-title-wrap{position:relative;width:min(calc(var(--u) * 300),34cqh);margin-top:min(calc(var(--u) * 20),2cqh)}
+.cover-title{display:block;width:100%;height:auto}
 .cover-actions{
   display:flex;
   flex-direction:column;
-  align-items:center;
-  gap:13px
+  align-items:stretch;
+  gap:calc(var(--u) * 12);
+  width:100%;
+  margin-top:auto
 }
+/* The board widget: the way onto the board, and what it would say about you. */
+.cover-best{
+  display:flex;align-items:center;gap:calc(var(--u) * 12);
+  width:100%;margin:0;padding:calc(var(--u) * 10) calc(var(--u) * 14) calc(var(--u) * 10) calc(var(--u) * 12);
+  border:1px solid #ffffff1a;border-radius:20px;
+  background:linear-gradient(var(--c-card-top),var(--c-card-bottom));
+  backdrop-filter:blur(8px);
+  color:var(--c-text);font-family:var(--f-ui);text-align:left
+}
+.cover-best-trophy{
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  width:calc(var(--u) * 40);height:calc(var(--u) * 40);border-radius:50%;
+  background:#f5b83d26;color:var(--c-gold)
+}
+.cover-best-text{display:flex;flex:1;flex-direction:column;gap:calc(var(--u) * 2);min-width:0}
+#best-label{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;color:var(--c-text-3);white-space:nowrap}
+#best{font:700 calc(var(--u) * 14)/1.3 var(--f-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#best big{font-size:calc(var(--u) * 18)}
+#best b{color:var(--c-accent);font-weight:inherit}
+.cover-best-chevron{width:calc(var(--u) * 18);height:calc(var(--u) * 18);color:var(--c-text-3)}
+/* The profile chip: always the way to My Stats. */
+.k-profile{
+  display:inline-flex;align-items:center;gap:calc(var(--u) * 8);
+  height:var(--tap);margin:0;padding:0 calc(var(--u) * 14) 0 4px;
+  border:1px solid #ffffff1a;border-radius:22px;background:var(--c-card-top);
+  color:var(--c-text);font-family:var(--f-ui);text-align:left
+}
+.k-profile-face{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;flex-shrink:0}
+.k-profile-face.is-guest{background:#2a313b;color:var(--c-text-3)}
+.k-profile-face.is-guest .k-icon{width:18px;height:18px}
+.k-profile-text{display:flex;flex-direction:column;min-width:0}
+.k-profile-who{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;color:#7e8f9a;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(var(--u) * 120)}
+.k-profile-what{font:700 calc(var(--u) * 14)/1.3 var(--f-ui);white-space:nowrap}
+/* The sound key on the cover is the kit's icon button, in the chip's row:
+   the row's glass comes off, and the row drops to the chip's line. */
+body.start-screen .hud-top{top:var(--top-gap);right:calc(var(--u) * 20)}
+body.start-screen .hud-actions{background:none;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+body.start-screen #sound{
+  width:var(--tap);height:var(--tap);border:1px solid #ffffff1a;border-radius:14px;
+  background:var(--c-card-top);color:var(--c-text);box-shadow:none
+}
+/* The motion poster (the handover's section 11): the floodlights stand still;
+   what moves is the air and the depth. The scene is three layers — the poster
+   with the light in it, the smoke, the dust nearest — each sliding by its
+   depth as `coverParallax` moves --px and --py. Asked for less motion, none of
+   it is there and the poster is a still. */
+.cover-motion,.cover-shine{display:none}
+.cover-best-text{transition:opacity .2s ease}
+.cover-best-text.is-turning{opacity:0}
+.cover-art{transform:translate3d(calc(var(--px,0) * -10px * .3),calc(var(--py,0) * -8px * .3),0) scale(1.06)}
+.cover-layer{position:absolute;inset:-4%;transform:translate3d(calc(var(--px,0) * -10px * var(--depth)),calc(var(--py,0) * -8px * var(--depth)),0)}
+@media (prefers-reduced-motion:no-preference){
+  .cover-intro .cover-motion{display:block;position:absolute;inset:0;pointer-events:none}
+  .cover-intro .cover-shine{
+    display:block;position:absolute;inset:0;mix-blend-mode:overlay;pointer-events:none;
+    background:linear-gradient(129.5deg,#fff0 40%,#ffffff8c 50%,#fff0 60%) no-repeat;
+    background-size:300% 100%;background-position:150% 0;
+    -webkit-mask:url('./assets/title.webp') center/contain no-repeat;mask:url('./assets/title.webp') center/contain no-repeat;
+    animation:cover-shine 5s infinite
+  }
+  /* PLAY: a soft orange halo breathing behind the ledge. */
+  .cover-intro #start{animation:cover-halo 2.4s ease-in-out infinite}
+}
+@media (prefers-reduced-motion:reduce){
+  .cover-art,.cover-layer{transform:none}
+}
+/* The layer boxes are grown a little past the screen so a slide never shows an
+   edge; positions inside are on the design's 402 x 874 frame within that. */
+.cover-layer>*{position:absolute}
+/* The floodlights, where frame 1 has them, and still. */
+.cover-beam{mix-blend-mode:screen;transform-origin:var(--ox) 0;transform:translate(var(--tx),var(--ty)) rotate(var(--tilt))}
+.cover-beam.is-left{--ox:6.58%;--tx:-9.83%;--ty:4.59%;--tilt:-8deg;left:calc(3.7% + 92.6% * -23 / 402);top:calc(3.7% + 92.6% * -59 / 874);width:calc(92.6% * 380 / 402);height:calc(92.6% * 560 / 874)}
+.cover-beam.is-right{--ox:92.42%;--tx:11.4%;--ty:3.97%;--tilt:8deg;left:calc(3.7% + 92.6% * 319 / 402);top:calc(3.7% + 92.6% * -10 / 874);width:calc(92.6% * 330 / 402);height:calc(92.6% * 560 / 874)}
+/* Camera flashes in the stands: a sixth of a second each, three clocks. */
+.cover-flash{
+  left:calc(3.7% + 92.6% * var(--x) / 402);top:calc(3.7% + 92.6% * var(--y) / 874);width:calc(92.6% * 56 / 402);
+  opacity:0;animation:cover-flash var(--every) linear infinite;animation-delay:var(--delay)
+}
+.cover-flash img{display:block;width:100%}
+.cover-flash .cover-flash-dot{position:absolute;left:45.5%;top:45.5%;width:9%}
+@keyframes cover-flash{0%{opacity:1}7%{opacity:0}100%{opacity:0}}
+/* A light running along the trail: nine tenths of a second, every four. */
+.cover-glint{
+  left:calc(3.7% + 92.6% * 208.5 / 402);top:calc(3.7% + 92.6% * 418.5 / 874);width:calc(92.6% * 153 / 402);
+  -webkit-mask:linear-gradient(90deg,#0000 0%,#000 12%,#000 22%,#0000 34%) 0 0/300% 100% no-repeat;
+  mask:linear-gradient(90deg,#0000 0%,#000 12%,#000 22%,#0000 34%) 0 0/300% 100% no-repeat;
+  animation:cover-glint 4s linear infinite
+}
+@keyframes cover-glint{0%,77.5%{-webkit-mask-position:100% 0;mask-position:100% 0;opacity:0}78%{opacity:1}100%{-webkit-mask-position:-50% 0;mask-position:-50% 0;opacity:1}}
+/* Smoke: soft banks of haze lit from above, drifting slowly across the stands
+   and round the lamps and breathing as they go. */
+.cover-puff{
+  left:calc(3.7% + 92.6% * var(--x) / 402);top:calc(3.7% + 92.6% * var(--y) / 874);
+  width:calc(92.6% * var(--w) / 402);height:calc(92.6% * var(--h) / 874);
+  border-radius:50%;
+  background:radial-gradient(closest-side,#f3f0e8 0%,#e6e8eea8 40%,#dfe7f800 100%);
+  filter:blur(12px);opacity:.5;mix-blend-mode:screen;
+  animation:cover-smoke var(--every) ease-in-out infinite alternate;animation-delay:var(--at)
+}
+@keyframes cover-smoke{
+  0%{transform:translateX(0) scale(1);opacity:.38}
+  50%{opacity:.62}
+  100%{transform:translateX(calc(var(--travel) * 1px)) scale(1.2);opacity:.42}
+}
+/* Dust: specks rising through the light, swaying as they go, fading at the top. */
+.cover-mote{
+  left:calc(3.7% + 92.6% * var(--x) / 402);top:calc(3.7% + 92.6% * var(--y) / 874);
+  width:calc(var(--size) * 1px);height:calc(var(--size) * 1px);border-radius:50%;
+  background:radial-gradient(circle,#fff6dc 0%,#fff6dccc 35%,#fff6dc00 72%);
+  box-shadow:0 0 calc(var(--size) * 1.6px) #ffe9b0b3;
+  opacity:0;animation:cover-mote var(--rise) linear infinite;animation-delay:var(--at)
+}
+@keyframes cover-mote{
+  0%{opacity:0;transform:translate(0,0)}
+  12%{opacity:.95}
+  55%{transform:translate(calc(var(--sway) * 1px),calc(var(--u) * -40))}
+  80%{opacity:.7}
+  100%{opacity:0;transform:translate(calc(var(--sway) * -.4px),calc(var(--u) * -80))}
+}
+/* The shine: 1.2 seconds, eased out, every five. */
+@keyframes cover-shine{0%{background-position:150% 0;animation-timing-function:ease-out}24%,100%{background-position:-50% 0}}
+@keyframes cover-halo{0%,100%{filter:drop-shadow(0 0 0 #e8592b00)}50%{filter:drop-shadow(0 0 11px #e8592b8c)}}
 .play-button,.learn-button{
   width:clamp(196px,54cqw,300px);
   border-radius:13px;
@@ -795,27 +867,6 @@ kbd{
 }
 .learn-button:hover:not(:disabled){background:#1d4160;box-shadow:0 5px 0 #0c1f31,0 10px 16px #7a4a1e38}
 .learn-button:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #0c1f31,0 3px 7px #7a4a1e26}
-/* A button rather than a caption: it is the way onto the board from a cover
-   that hides every other control. Nothing about how it looks changes. */
-.cover-best{
-  border:0;
-  background:none;
-  padding:0;
-  font-family:inherit;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  margin:0 0 2px;
-  font-size:10px;
-  font-weight:750;
-  letter-spacing:2px;
-  color:#1a3a51;
-  text-shadow:0 1px 0 #ffffff80
-}
-.cover-best>svg{width:17px;height:17px;color:#c2762c}
-.cover-best strong{font-family:var(--display);font-size:20px;letter-spacing:.5px}
-.cover-best small{font-size:9px;letter-spacing:1.4px;font-weight:650}
 /* Nothing else on the cover: the board and the buttons return with the innings.
    The sound key is the exception, for the reason the picker and the card keep
    it: the cover has music, and on a phone it is the only screen where the first
@@ -2469,17 +2520,12 @@ dialog .primary-button{margin-top:18px}
   .ghost-button{margin-top:6px;padding:6px 14px}
   /* Landscape phones: the one card left on that panel — WebGL unavailable — shrinks and drops clear of the controls. */
   .intro-panel{width:min(340px,calc(100% - 2 * var(--pad)));top:calc(50% + 14px)}
-  /* A portrait cover crops to nothing useful across a landscape phone, so the
-     live ground stands in for it and the lockup sits over the real thing. */
-  .cover-plate{display:none}
-  .cover-intro{padding-top:4cqh;padding-bottom:calc(var(--pad-bottom) + 10px)}
-  .cover-title{width:min(46%,300px)}
-  .cover-actions{gap:9px}
+  /* A landscape phone: the title smaller and the keys closer, so all of it fits. */
+  .cover-title-wrap{width:min(46%,300px);margin-top:0}
+  .cover-actions{gap:8px}
   .play-button,.learn-button{width:clamp(190px,34cqw,280px)}
   .play-button{min-height:46px}
   .learn-button{min-height:44px}
-  .cover-best{font-size:9px;margin-bottom:0}
-  .cover-best strong{font-size:16px}
   .touch-device .primary-button{min-height:40px}
   .start-hint,.touch-device .start-hint{margin-top:8px;font-size:11px}
   .cell-wide .cell-value{height:23px}
@@ -4487,24 +4533,13 @@ body.private-window{overflow:hidden}
    no ground behind it to darken — the sheet stands on the game's own navy. */
 .feedback-page{background:#0c1e2a}
 .feedback-screen.is-standalone{background:#0c1e2a}
-/* The quiet way in, on the cover. Deliberately the smallest thing on a screen
-   whose whole job is the Play key. */
+/* The quiet way in, on the cover: an underlined line under the keys. */
 .cover-feedback{
-  margin-top:10px;
-  padding:6px;
-  border:0;
-  background:none;
-  /* The ink the PLAY key is set in, and for the same reason: what the cover
-     puts this line on is the pitch — cream, and lit — so white type lies on it
-     almost invisibly. Dark on light, the way everything else on the artwork is. */
-  color:var(--cta-ink);
-  font-family:var(--cta);
-  font-size:12.5px;
-  letter-spacing:1.2px;
-  text-decoration:underline;
-  text-underline-offset:4px
+  margin:0;padding:calc(var(--u) * 4);border:0;background:none;
+  color:var(--c-text-2);font:500 calc(var(--u) * 12)/1.3 var(--f-ui);
+  text-decoration:underline;text-underline-offset:3px
 }
-.cover-feedback:hover{color:#000}
+.cover-feedback:hover{color:var(--c-text)}
 /* The board's close key is placed against the board sheet, which is a
    full-height screen with its own header rail. Here it sits in a row with the
    eyebrow, so it takes the same shape back out of the flow it was pulled from. */
@@ -6888,234 +6923,116 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   .pw-burst,.pw-burst.is-flame,.pw-burst.is-bolt,.pw-burst.is-puff,.pw-burst.is-star{animation:none;transform:none}
 }
 
-/* ── Who's batting: the welcome before the first innings ─────────────────
-   The game's front door rather than a form stood in front of it, read top to
-   bottom in the order it is answered: the face, the name, the hand, and the
-   cover's own key to go. Everything measures #app, so the desktop column lays
-   it out as a phone that wide does. */
+/* ── Who's batting: the name screen (UI v1) ─────────────────────────────
+   The handover's name entry: the batter walking out in rings of light under
+   two floodlights, the name being typed in capitals over the hand and the
+   tier, the tray of kits, the name, the hand, and LET'S BAT. Read top to
+   bottom in the order it is answered. Measured in the design's pixels. */
 .welcome{
-  --kit:#f55b11;
   position:absolute;
   inset:0;
   z-index:12;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
   overflow-x:hidden;
   overflow-y:auto;
   overscroll-behavior:contain;
-  padding:var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad);
-  background:#07141e;
-  color:#f7f0e5;
-  font-family:var(--card);
+  background:var(--c-page);
+  color:var(--c-text);
+  font-family:var(--f-ui);
   animation:welcome-in .45s ease-out both
 }
-/* Night, lit softly: two wide pools of floodlight from beyond the top
-   corners, a glow in the colour of the avatar picked behind the face, and
-   nothing with an edge. Each is a gradient that fades to nothing well before
-   it meets another, so they blend rather than overlap. */
-.welcome-sky{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  background:
-    radial-gradient(58% 30% at 50% 30%,color-mix(in srgb,var(--kit) 34%,transparent) 0%,color-mix(in srgb,var(--kit) 10%,transparent) 55%,transparent 100%),
-    radial-gradient(75% 42% at -10% -6%,#3d6f9452 0%,#3d6f9414 50%,transparent 100%),
-    radial-gradient(75% 42% at 110% -6%,#3d6f9452 0%,#3d6f9414 50%,transparent 100%),
-    linear-gradient(180deg,#0f2a3e 0%,#0a1c2a 45%,#06111a 100%);
-  transition:background .5s
+.welcome-haze,.welcome-lights,.welcome-grain{position:absolute;pointer-events:none}
+.welcome-haze{left:calc(var(--u) * -60);top:calc(var(--u) * 40);width:calc(var(--u) * 520);height:calc(var(--u) * 420);max-width:none}
+/* Bright at the lamps, fading to nothing a little over halfway down: the
+   beams' own edges blurred off, and a mask that falls away faster than the
+   art's own gradient, so the light is strongest where it starts. */
+.welcome-lights{
+  left:0;top:0;width:calc(var(--u) * 402);height:calc(var(--u) * 874);max-width:none;
+  filter:blur(10px) brightness(2.6);
+  -webkit-mask:linear-gradient(180deg,#000 0%,#000d 18%,#0007 38%,#0002 56%,#0000 70%);
+  mask:linear-gradient(180deg,#000 0%,#000d 18%,#0007 38%,#0002 56%,#0000 70%)
 }
-.welcome-back{
-  position:absolute;
-  top:var(--pad-top);
-  left:var(--pad);
-  z-index:2;
-  display:flex;
-  align-items:center;
-  gap:4px;
-  min-height:36px;
-  padding:0 13px 0 8px;
-  border:1px solid #ffffff2e;
-  border-radius:999px;
-  background:#ffffff0f;
-  font-size:12px;
-  font-weight:700;
-  letter-spacing:.6px;
-  color:#fff
-}
-.welcome-back svg{width:16px;height:16px}
+.welcome-grain{inset:0;opacity:.5;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
 .welcome-body{
   position:relative;
   display:flex;
   flex-direction:column;
-  align-items:stretch;
-  width:100%;
-  max-width:420px;
-  margin:auto 0;
-  padding:clamp(4px,1.5cqh,16px) 0 0
-}
-.welcome.is-edit .welcome-body{padding-top:44px}
-.welcome-title{
-  align-self:center;
-  width:min(46%,220px);
-  height:auto;
-  margin:0 0 clamp(8px,2cqh,18px);
-  filter:drop-shadow(0 6px 14px #0007)
-}
-.welcome-eyebrow{
-  align-self:center;
-  margin:0 0 8px;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:3px;
-  color:#ff9a6c
-}
-.welcome-heading{
-  margin:0 0 clamp(14px,3cqh,26px);
-  font-family:var(--cta);
-  font-size:clamp(25px,8cqw,34px);
-  font-weight:400;
-  line-height:1.05;
-  letter-spacing:.5px;
-  text-align:center
-}
-.welcome-step{margin:0 0 clamp(16px,3cqh,24px)}
-/* The face: the avatar picked, large, in a ring of its own colour, with the
-   five to choose from in a row under it. */
-.welcome-avatar{display:flex;flex-direction:column;align-items:center}
-.welcome-face{
-  width:clamp(96px,30cqw,124px);
-  aspect-ratio:1;
-  margin:0 0 clamp(12px,2.4cqh,18px);
-  padding:4px;
-  border-radius:50%;
-  background:linear-gradient(160deg,#fff,var(--kit) 55%);
-  box-shadow:0 0 0 5px #ffffff0d,0 12px 40px color-mix(in srgb,var(--kit) 55%,transparent);
-  transition:box-shadow .4s
-}
-.welcome-face img{
-  display:block;
-  width:100%;
-  height:100%;
-  border-radius:50%;
-  background:var(--kit);
-  object-fit:cover
-}
-.welcome-face.is-picked{animation:welcome-pop .4s cubic-bezier(.3,1.6,.5,1)}
-.welcome-kits{width:100%}
-/* The picker's own label is still read out, but the face says it already. */
-.welcome-kits .claim-label{
-  position:absolute;
-  width:1px;
-  height:1px;
-  overflow:hidden;
-  clip-path:inset(50%);
-  white-space:nowrap
-}
-.welcome-kits .kit-picker{display:flex;justify-content:center;gap:clamp(8px,3cqw,14px)}
-.welcome-kits .kit-option{
-  width:clamp(44px,13cqw,54px);
-  padding:2px;
-  border:2px solid transparent;
-  border-radius:50%;
-  background:none;
-  opacity:.55;
-  transition:opacity .2s,border-color .2s,transform .2s
-}
-.welcome-kits .kit-option:hover{opacity:.85}
-.welcome-kits .kit-option.is-chosen{opacity:1;border-color:#fff;transform:translateY(-2px)}
-.welcome-label{
-  display:block;
-  margin:0 0 8px;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:1.8px;
-  text-transform:uppercase;
-  color:#8fa6b4
-}
-.welcome-field{display:block}
-.welcome-field input{
-  box-sizing:border-box;
-  width:100%;
-  min-height:52px;
-  padding:0 16px;
-  border:1.5px solid #ffffff1f;
-  border-radius:14px;
-  background:#ffffff0d;
-  font:700 18px var(--card);
-  color:#fff;
-  transition:border-color .2s,background .2s
-}
-.welcome-field input::placeholder{color:#ffffff4d;font-weight:500;font-size:15px}
-.welcome-field input:focus{outline:none;border-color:#ffffff73;background:#ffffff14}
-.welcome-hands{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.welcome-hand-key{
-  display:flex;
   align-items:center;
-  justify-content:center;
-  gap:8px;
-  min-height:50px;
-  border:1.5px solid #ffffff1f;
-  border-radius:14px;
-  background:#ffffff0d;
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:1.2px;
-  color:#ffffffa6;
-  transition:border-color .2s,background .2s,color .2s
+  min-height:100%;
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 34)
 }
-.welcome-bat{width:20px;height:20px;flex:none}
-.welcome-hand-key.is-left .welcome-bat{transform:scaleX(-1)}
-.welcome-hand-key.is-chosen{border-color:#fff;background:#ffffff1f;color:#fff}
-.welcome-error{
-  margin:-6px 0 12px;
-  padding:10px 12px;
-  border:1px solid #e5473a66;
-  border-radius:12px;
-  background:#e5473a1f;
-  font-size:13px;
-  font-weight:600;
-  line-height:1.4;
-  color:#ffd6d1
+.welcome-top{align-self:stretch;display:flex;height:var(--tap)}
+.welcome-heading{
+  margin:0;font:400 calc(var(--u) * 26)/1 var(--f-display);letter-spacing:.03em;text-align:center;
+  font-optical-sizing:none;font-variation-settings:'opsz' 6
 }
-.welcome-back-link{margin:-4px 0 14px;text-align:center}
-.welcome-foot{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4px}
-/* The cover's own key: white, stood on an orange base. */
-.welcome-go{
-  width:100%;
-  min-height:58px;
-  border:3px solid var(--cta-orange);
-  border-radius:14px;
-  background:#fff;
-  box-shadow:0 7px 0 var(--cta-orange),0 14px 26px #0008;
-  font-family:var(--cta);
-  font-size:21px;
-  font-weight:400;
-  letter-spacing:2.4px;
-  color:var(--cta-ink)
+/* The walk-out: the kit in a ring of the cover's orange, two fainter rings
+   and a glow round it, and the name and the chips under. */
+.welcome-walkout{position:relative;flex-shrink:0;width:calc(var(--u) * 362);height:calc(var(--u) * 214);margin-top:calc(var(--u) * 18)}
+.welcome-ring{position:absolute;max-width:none}
+.welcome-ring.is-glow{left:calc(var(--u) * 71);top:calc(var(--u) * -14);width:calc(var(--u) * 220);height:calc(var(--u) * 220)}
+.welcome-ring.is-outer{left:calc(var(--u) * 96);top:calc(var(--u) * -7);width:calc(var(--u) * 170);height:calc(var(--u) * 170)}
+.welcome-ring.is-inner{left:calc(var(--u) * 106);top:calc(var(--u) * 3);width:calc(var(--u) * 150);height:calc(var(--u) * 150)}
+.welcome-ring.is-kit{left:calc(var(--u) * 113);top:calc(var(--u) * 10);width:calc(var(--u) * 136);height:calc(var(--u) * 136)}
+.welcome-face{position:absolute;left:calc(var(--u) * 119);top:calc(var(--u) * 16);width:calc(var(--u) * 124);height:calc(var(--u) * 124);border-radius:50%;overflow:hidden}
+.welcome-face img{display:block;width:100%;height:100%}
+.welcome-face.is-picked{animation:welcome-pop .28s cubic-bezier(.2,1.4,.4,1)}
+.welcome-plate{position:absolute;left:0;right:0;top:calc(var(--u) * 156);display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 2)}
+.welcome-name{
+  margin:0;max-width:100%;font:400 calc(var(--u) * 36)/1 var(--f-display);letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-optical-sizing:none;font-variation-settings:'opsz' 6
 }
-.welcome-go:active:not(:disabled){transform:translateY(6px);box-shadow:0 1px 0 var(--cta-orange),0 4px 8px #0006}
-.welcome-go:disabled{opacity:.7}
-/* Asleep until there is a name: the key's shape, with none of its colour, so
-   it reads as the thing to press once the name is in. */
-.welcome-go.is-idle{
-  opacity:1;
-  border-color:#ffffff1f;
-  background:#ffffff14;
-  box-shadow:0 7px 0 #ffffff0d;
-  color:#ffffff59;
-  cursor:not-allowed
+.welcome-name.is-empty{color:#ffffff40}
+.welcome-chips{display:flex;gap:calc(var(--u) * 6)}
+.welcome-chip{padding:calc(var(--u) * 3) calc(var(--u) * 8);border-radius:8px;background:#ffffff1a;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;white-space:nowrap}
+.welcome-chip.is-tier{background:#5c83b540;color:#bfd3ec}
+.welcome-chip.tier-emerging{background:#f0c79e33;color:#f0c79e}
+.welcome-chip.tier-star{background:#ffffff1f;color:#e7ecf1}
+.welcome-chip.tier-hitman{background:#f5b83d2e;color:var(--c-gold)}
+/* The tray of kits: a pill, the chosen one ringed in cream, the rest dimmed. */
+.welcome-kits{
+  display:flex;align-items:center;justify-content:space-between;align-self:stretch;
+  margin-top:calc(var(--u) * 16);padding:calc(var(--u) * 10) calc(var(--u) * 14);
+  border:1px solid #ffffff1a;border-radius:999px;
+  background:linear-gradient(#262b33d9,#171a1fd9);box-shadow:inset 0 1px 0 #ffffff0f
 }
-.welcome-skip{
-  padding:4px;
-  border:0;
-  background:none;
-  font:600 13px var(--card);
-  color:#fff;
-  text-decoration:underline;
-  text-underline-offset:3px
+.welcome-kits .kit-option{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:calc(var(--u) * 52);height:calc(var(--u) * 52);margin:0;padding:0;border:0;border-radius:50%;background:none
 }
-.welcome-fine{margin:4px 0 0;font-size:11.5px;line-height:1.5;text-align:center;color:#8fa6b4}
+.welcome-kits .kit-option img{width:calc(var(--u) * 46);height:calc(var(--u) * 46);border-radius:50%;opacity:.7}
+.welcome-kits .kit-option.is-chosen img{width:calc(var(--u) * 44);height:calc(var(--u) * 44);opacity:1}
+.welcome-kits .kit-option.is-chosen::after{content:'';position:absolute;inset:0;border:2.5px solid var(--c-text);border-radius:50%}
+.welcome-label{margin:0;font:700 calc(var(--u) * 11)/1.2 var(--f-ui);letter-spacing:.14em;color:var(--c-text-3)}
+.welcome-field{display:flex;flex-direction:column;gap:calc(var(--u) * 8);align-self:stretch;margin-top:calc(var(--u) * 20)}
+.welcome-field input{
+  width:100%;height:calc(var(--u) * 56);margin:0;padding:0 calc(var(--u) * 16) 0 calc(var(--u) * 18);
+  border:1.5px solid #ffffff1a;border-radius:16px;outline:0;
+  background:linear-gradient(#262b33d9,#171a1fd9);box-shadow:inset 0 1px 0 #ffffff0f;
+  color:var(--c-text);caret-color:var(--c-accent);font:700 calc(var(--u) * 18)/1.2 var(--f-ui)
+}
+.welcome-field input::placeholder{color:#ffffff4d}
+.welcome-field input:focus{border-color:var(--c-accent)}
+.welcome-step{display:flex;flex-direction:column;gap:calc(var(--u) * 8);align-self:stretch;margin-top:calc(var(--u) * 18)}
+.welcome-hands{display:flex;gap:calc(var(--u) * 10)}
+.welcome-hand-key{
+  display:flex;flex:1 1 0;align-items:center;justify-content:center;gap:calc(var(--u) * 10);
+  min-width:0;height:calc(var(--u) * 52);margin:0;padding:0;
+  border:1px solid #ffffff1a;border-radius:16px;
+  background:linear-gradient(#262b33d9,#171a1fd9);box-shadow:inset 0 1px 0 #ffffff0f;
+  color:var(--c-text-2);font:700 calc(var(--u) * 14)/1.3 var(--f-ui);white-space:nowrap
+}
+.welcome-hand-key.is-chosen{border-color:transparent;background:var(--c-text);color:var(--c-ink);box-shadow:none}
+/* A bat, blade up: a blade and a handle, tilted the way the hand holds it. */
+.welcome-bat{position:relative;display:block;width:18px;height:18px;flex-shrink:0;transform:rotate(-35deg)}
+.welcome-bat.is-left{transform:rotate(35deg)}
+.welcome-bat i,.welcome-bat b{position:absolute;background:currentColor}
+.welcome-bat i{left:6.5px;top:5px;width:5px;height:13px;border-radius:2px}
+.welcome-bat b{left:8px;top:0;width:2px;height:6px}
+.welcome-error{align-self:stretch;margin:calc(var(--u) * 14) 0 0;padding:10px 12px;border-radius:12px;background:#ff6b5e1f;color:#ffb3ab;font:600 calc(var(--u) * 13)/1.4 var(--f-ui);text-align:center}
+.welcome-back-link{margin:10px 0 0;color:var(--c-accent-soft);font:600 13px var(--f-ui)}
+.welcome-foot{display:flex;flex-direction:column;align-items:stretch;gap:calc(var(--u) * 12);align-self:stretch;margin-top:calc(var(--u) * 22)}
+.welcome-skip{margin:0;border:0;color:var(--c-text-2);font:600 13px var(--f-ui)}
+.welcome-fine{margin:0;font:500 calc(var(--u) * 12)/1.5 var(--f-ui);text-align:center;color:var(--c-text-3)}
 /* `?welcome=1`: a key a scenario along the top, over the welcome itself, and
    the welcome stood down below it. */
 .welcome-preview{
@@ -7146,12 +7063,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   cursor:pointer
 }
 .welcome-preview-key.is-on{background:#e9582b;border-color:#e9582b}
-.has-welcome-keys .welcome{padding-top:calc(var(--pad-top) + 46px)}
-.has-welcome-keys .welcome-back{top:calc(var(--pad-top) + 46px)}
-/* A short column gives the title's room to the form. */
+.has-welcome-keys .welcome-body{padding-top:calc(var(--top-gap) + 46px)}
+/* A short column: the walk-out loses its glow rings and closes up. */
 @container app (max-height:700px){
-  .welcome-title,.welcome-eyebrow{display:none}
-  .welcome-face{width:clamp(80px,24cqw,100px)}
+  .welcome-walkout{transform:scale(.8);margin:calc(var(--u) * -10) 0 calc(var(--u) * -30)}
 }
 @keyframes welcome-in{from{opacity:0}to{opacity:1}}
 @keyframes welcome-pop{0%{transform:scale(.88)}100%{transform:scale(1)}}
@@ -7180,3 +7095,172 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   line-height:1.2
 }
 .welcome .restore-link:hover,.welcome-skip:hover{background:color-mix(in srgb,currentColor 14%,transparent)}
+
+/* ── Choose a mode (UI v1) ─────────────────────────────────────────────────
+   The hub between the cover and an innings (ModeSelect.ts): the two posters,
+   Survival's banner, the boards and My Stats side by side, and Rivals. Black,
+   with a green glow off the Marathon and a blue one off the Blast, the faint
+   ground under the bento, and film grain over everything but the content. */
+.ms-screen{
+  display:block;padding:0;overflow:hidden;
+  background:var(--c-page);font-family:var(--f-ui);color:var(--c-text)
+}
+.ms-glow img,.ms-ground,.ms-grain{position:absolute;pointer-events:none}
+.ms-glow img{width:calc(var(--u) * 560);height:calc(var(--u) * 460)}
+.ms-glow .is-left{left:calc(var(--u) * -180);top:calc(var(--u) * -160)}
+.ms-glow .is-right{left:calc(var(--u) * 120);top:calc(var(--u) * -140)}
+.ms-ground{left:0;top:calc(var(--u) * 380);width:calc(var(--u) * 402);height:calc(var(--u) * 874);overflow:hidden}
+.ms-ground img{
+  position:absolute;max-width:none;
+  left:calc(var(--u) * var(--l));top:calc(var(--u) * var(--t));width:calc(var(--u) * var(--w));height:calc(var(--u) * var(--h))
+}
+.ms-strip{position:absolute;left:calc(var(--u) * 317);top:calc(var(--u) * 75);width:calc(var(--u) * 26);height:calc(var(--u) * 150);background:#ffffff08;border:1px solid #ffffff0f}
+.ms-crease{position:absolute;left:calc(var(--u) * 310);top:calc(var(--u) * var(--t));width:calc(var(--u) * 40);height:1px;background:#ffffff14}
+.ms-grain{inset:0;opacity:.5;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
+.ms-content{
+  position:relative;display:flex;flex-direction:column;gap:calc(var(--u) * 12);
+  height:100%;overflow-y:auto;overscroll-behavior:contain;
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 34)
+}
+.ms-top{display:flex;align-items:center;gap:calc(var(--u) * 10);flex-shrink:0}
+.ms-title{flex:1;min-width:0;margin:0;font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ms-profile{
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  width:var(--tap);height:var(--tap);margin:0;padding:0;
+  border:1px solid #ffffff1a;border-radius:50%;background:var(--c-card-top);color:var(--c-text-3)
+}
+.modes-profile-face{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%}
+.modes-profile-face.is-guest{background:#2a313b}
+.modes-profile-face .k-icon,.mr-face .k-icon{width:18px;height:18px}
+
+/* The posters: the art full bleed, the mode's colour coming up from the foot. */
+.ms-posters{display:flex;gap:calc(var(--u) * 12);flex-shrink:0}
+.ms-poster,.ms-banner{
+  position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;
+  margin:0;overflow:hidden;color:#fff;text-align:left;font-family:var(--f-ui);
+  box-shadow:0 14px 30px #00000080;isolation:isolate
+}
+.ms-poster{flex:1 1 0;min-width:0;height:calc(var(--u) * 318);gap:calc(var(--u) * 6);padding:0 calc(var(--u) * 14) calc(var(--u) * 14);border-radius:28px}
+.ms-poster.is-marathon{border:1.5px solid #2fa36be6}
+.ms-poster.is-blast{border:1.5px solid #7fb2ffe6}
+.ms-art{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover}
+.ms-poster::before,.ms-banner::before{content:'';position:absolute;inset:0;z-index:-1}
+.ms-poster.is-marathon::before{background:linear-gradient(180deg,#0000 0%,#00422500 30%,#004225b3 52%,#004225f2 70%,#004225 100%)}
+/* The helmet sits where the title goes, so the art is grown from its foot:
+   the helmet rises clear and the ball and the turf stay where they were. */
+.ms-poster.is-marathon .ms-art{transform:scale(1.14);transform-origin:50% 100%}
+.ms-poster .ms-name{text-shadow:0 2px 12px #00000073}
+.ms-poster.is-blast::before{background:linear-gradient(180deg,#0000 0%,#0000 42%,#123b85c7 72%,#123b85fa 100%)}
+.ms-tag{
+  position:absolute;top:calc(var(--u) * 12.5);left:calc(var(--u) * 12.5);
+  padding:calc(var(--u) * 3) calc(var(--u) * 8);border-radius:8px;
+  font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;color:#fff;white-space:nowrap
+}
+.ms-tag.is-new,.ms-tag.is-survival{background:var(--c-survival)}
+.ms-tag.is-blast{background:var(--c-blast)}
+.ms-poster.is-played .ms-tag.is-new{display:none}
+.ms-name{display:flex;flex-direction:column;font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;white-space:nowrap;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ms-name>span+span{margin-top:calc(var(--u) * -6)}
+.ms-desc{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:#ffffffdb}
+.ms-foot{display:flex;flex-direction:column;align-items:flex-start;gap:calc(var(--u) * 10);align-self:stretch}
+.ms-stat{padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:8px;background:#05070a8c;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;color:#fffffff2;white-space:nowrap}
+.ms-play.k-cta{align-self:stretch;min-height:0}
+.ms-play .k-cta-face{border:2px solid var(--ledge)}
+/* Survival's banner: a match in the evening light. The art sits to the right
+   with the bowler in it; the colour of the mode — a deep blood red — comes in
+   from the left under the name, and a red glow sits round the card. */
+.ms-banner{
+  flex-shrink:0;width:100%;height:calc(var(--u) * 140);
+  padding:0 calc(var(--u) * 14) calc(var(--u) * 16) calc(var(--u) * 18);
+  border:1.5px solid #ff7a6ecc;border-radius:24px;
+  box-shadow:0 14px 30px #00000080,0 0 26px #ff5a4e2e,inset 0 1px 0 #ffffff1a
+}
+.ms-banner .ms-art{object-position:72% 30%;transform:scale(1.08);transform-origin:80% 40%}
+.ms-banner::before{
+  background:
+    linear-gradient(90deg,#3e080ef5 0%,#5e0c17cc 34%,#5e0c1766 56%,#5e0c1700 74%),
+    linear-gradient(180deg,#00000000 30%,#0a0b0da6 100%)
+}
+/* A thin light along the top edge, the way a floodlit card catches it. */
+.ms-banner::after{content:'';position:absolute;left:12%;right:12%;top:0;height:1px;background:linear-gradient(90deg,#ff9b9000,#ffb3aa,#ff9b9000);opacity:.7}
+.ms-banner .ms-tag{left:calc(var(--u) * 16.5);top:calc(var(--u) * 14)}
+.ms-banner-foot{display:flex;align-items:flex-end;gap:calc(var(--u) * 12);align-self:stretch}
+.ms-banner-text{display:flex;flex:1;flex-direction:column;gap:calc(var(--u) * 4);min-width:0;white-space:nowrap}
+.ms-banner-name{font:400 calc(var(--u) * 26)/1 var(--f-display);letter-spacing:.04em;text-shadow:0 2px 12px #00000080;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ms-banner .ms-desc{color:#ffe7e3e6;overflow:hidden;text-overflow:ellipsis}
+/* Its PLAY is the posters' own: the same white face on a ledge of the mode's
+   darkest shade, so no mode's key weighs more than another's. */
+.ms-banner .ms-play.k-cta{align-self:auto;flex-shrink:0}
+
+/* The bento: the boards, and My Stats in the tier's own material. */
+.ms-bento{display:flex;gap:calc(var(--u) * 12);flex-shrink:0}
+.ms-card{
+  position:relative;display:flex;flex-direction:column;margin:0;padding:calc(var(--u) * 12) calc(var(--u) * 14);
+  border:1px solid #ffffff17;border-radius:24px;
+  background:linear-gradient(#23282feb,#15181deb);box-shadow:0 12px 28px #00000073,inset 0 1px 0 #ffffff0f;
+  color:var(--c-text);font-family:var(--f-ui);text-align:left
+}
+.ms-bento .ms-card{flex:1 1 0;min-width:0;height:calc(var(--u) * 172)}
+.ms-card-head{display:flex;align-items:center;justify-content:space-between;align-self:stretch;font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ms-card-head .k-icon{width:calc(var(--u) * 14);height:calc(var(--u) * 14);color:var(--c-text-3)}
+.ms-boards{gap:calc(var(--u) * 6)}
+.ms-note{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms-podium{position:relative;display:block;width:calc(var(--u) * 146.5);height:calc(var(--u) * 104);flex-shrink:0}
+.mp-plinth,.mp-n,.mp-face,.mp-crown{position:absolute}
+.mp-plinth.is-2{left:calc(var(--u) * 3.25);top:calc(var(--u) * 42.4);width:calc(var(--u) * 48);height:calc(var(--u) * 61.6)}
+.mp-plinth.is-3{left:calc(var(--u) * 95.25);top:calc(var(--u) * 46.4);width:calc(var(--u) * 48);height:calc(var(--u) * 57.6)}
+.mp-plinth.is-1{left:calc(var(--u) * 44.25);top:calc(var(--u) * 32.4);width:calc(var(--u) * 58);height:calc(var(--u) * 71.6)}
+.mp-n{font:400 calc(var(--u) * 18)/1 var(--f-display);font-optical-sizing:none;font-variation-settings:'opsz' 6;transform:translateX(-50%)}
+.mp-n.is-2{left:calc(var(--u) * 27.25);top:calc(var(--u) * 85);color:#c9d1d9}
+.mp-n.is-3{left:calc(var(--u) * 119.25);top:calc(var(--u) * 85);color:#c98b5a}
+.mp-n.is-1{left:calc(var(--u) * 73.25);top:calc(var(--u) * 80);font-size:calc(var(--u) * 22);color:var(--c-gold)}
+/* A medal ring round each kit, in the place's metal. */
+.mp-face{border-radius:50%;border:2px solid var(--ring);box-sizing:content-box}
+.mp-face.is-1{--ring:var(--c-gold);left:calc(var(--u) * 51.25 - 2px);top:calc(var(--u) * 6 - 2px);width:calc(var(--u) * 44);height:calc(var(--u) * 44)}
+.mp-face.is-2{--ring:#c9d1d9;left:calc(var(--u) * 10.25 - 2px);top:calc(var(--u) * 22 - 2px);width:calc(var(--u) * 34);height:calc(var(--u) * 34)}
+.mp-face.is-3{--ring:#c98b5a;left:calc(var(--u) * 102.25 - 2px);top:calc(var(--u) * 26 - 2px);width:calc(var(--u) * 34);height:calc(var(--u) * 34)}
+.mp-crown{left:calc(var(--u) * 62.6);top:calc(var(--u) * -7);width:calc(var(--u) * 21.25);height:calc(var(--u) * 11.55)}
+.ms-stats{justify-content:space-between}
+.ms-stats-body{display:flex;flex-direction:column;white-space:nowrap}
+.ms-stats-body b{font:900 calc(var(--u) * 32)/1.1 var(--f-ui);letter-spacing:-.021em}
+.ms-stats-body span{font:500 calc(var(--u) * 12)/1.3 var(--f-ui)}
+.ms-stats-tier{align-self:flex-start;padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:8px;font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;white-space:nowrap;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+/* The materials. Emerging is the handover's copper; Debutant its navy; Star
+   and Hitman the career cards' graphite-and-silver and black-and-gold. */
+.ms-stats.tier-debutant{border:1.5px solid #b9cde680;background:linear-gradient(135.6deg,#2b4c78 0%,#1a3352 55%,#0f1f36 100%)}
+.ms-stats.tier-debutant .ms-stats-body span{color:var(--c-text-2)}
+.ms-stats.tier-debutant .ms-stats-tier{background:#5c83b540;color:#bfd3ec}
+.ms-stats.tier-emerging{border:1.5px solid #ffe2c4;background:linear-gradient(135.6deg,#e8b98c 0%,#b9784a 30%,#f0c79e 55%,#9a5a2f 100%);color:#2a1608}
+.ms-stats.tier-emerging .ms-card-head .k-icon{color:#2a1608}
+.ms-stats.tier-emerging .ms-stats-body span{color:#5a3218}
+.ms-stats.tier-emerging .ms-stats-tier{background:#2a1608d9;color:#f0c79e}
+.ms-stats.tier-star{border:1.5px solid #c9d1d9;background:linear-gradient(135.6deg,#3a3f46 0%,#1b1e22 55%,#0b0c0e 100%)}
+.ms-stats.tier-star .ms-stats-body span{color:var(--c-text-2)}
+.ms-stats.tier-star .ms-stats-tier{background:#ffffff1f;color:#e7ecf1}
+.ms-stats.tier-hitman{border:1.5px solid var(--c-gold);background:linear-gradient(135.6deg,#2a2416 0%,#0d0b07 60%,#050505 100%)}
+.ms-stats.tier-hitman .ms-stats-body span{color:#d9c79a}
+.ms-stats.tier-hitman .ms-stats-tier{background:#f5b83d2e;color:var(--c-gold)}
+
+/* Rivals: two faces and VS, the record, and the challenge key. The whole card
+   opens Rival Matches; the key on it starts a new match. */
+.ms-rivals{flex-direction:row;align-items:center;gap:calc(var(--u) * 14);flex-shrink:0;padding:calc(var(--u) * 12) calc(var(--u) * 12) calc(var(--u) * 12) calc(var(--u) * 14)}
+.ms-rivals-open{position:absolute;inset:0;margin:0;border:0;border-radius:inherit;background:none}
+.ms-versus{position:relative;display:block;width:calc(var(--u) * 84);height:calc(var(--u) * 48);flex-shrink:0;pointer-events:none}
+.mr-face{position:absolute;top:calc(var(--u) * 2);left:0;display:flex;align-items:center;justify-content:center;width:calc(var(--u) * 44);height:calc(var(--u) * 44);border-radius:50%}
+.mr-face.is-guest{background:#2a313b;color:var(--c-text-3)}
+.mr-face.is-them{left:calc(var(--u) * 40)}
+.ms-vs{
+  position:absolute;left:calc(var(--u) * 44);top:calc(var(--u) * 28);display:flex;align-items:center;justify-content:center;
+  width:calc(var(--u) * 24);height:calc(var(--u) * 24);border:2px solid #15181d;border-radius:50%;
+  background:var(--c-accent);color:var(--c-ink);font:700 calc(var(--u) * 9)/1 var(--f-ui);letter-spacing:.1em;pointer-events:none
+}
+.ms-rivals-text{display:flex;flex:1;flex-direction:column;gap:calc(var(--u) * 2);min-width:0;pointer-events:none}
+.ms-rivals-name{display:flex;align-items:center;gap:6px;font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.08em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ms-rivals .ms-note{color:var(--c-text-3)}
+.ms-flag{padding:2px 6px;border-radius:6px;background:var(--c-blast);color:#fff;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);font-style:normal;letter-spacing:.1em}
+.ms-flag.is-move{background:var(--c-accent);color:var(--c-ink)}
+.ms-rivals .k-cta{position:relative}
+.ms-screen .key-slot{margin:0}
+/* No sound key on this screen: the corner is the player's avatar, the way to
+   My Stats. The cover keeps it, and so does every screen after an innings. */
+.stage.picking-mode #sound,.stage.picking-mode #sound-note{display:none}

@@ -213,6 +213,10 @@ head of My Stats. If the board cannot be reached the gate opens anyway — a
 player is never held at the crease for an outage — and asks again next time. A
 private window keeps the name in the browser and sends nothing.
 
+The gate has a back key (`#profile-leave`) and it goes to the cover, letting
+the innings it was asked for go: there is no playing without a name. From My
+Stats the same screen's back key is `#profile-close` and goes back there.
+
 The hand (`hitman-hand`) is the batter in the Blast and Test Survival; in the
 Test Marathon one of the three bats the other way round from the player
 (`leftHandersOf`), so a left-hander's side has two left-handers, and the board
@@ -375,6 +379,17 @@ nothing about the batting, so it is not practice (`tests/practice.test.ts`
 names it).
 
 ## UI v1: the handover and `?ui=1`
+
+The way in is redrawn (phase 3): the cover (`src/ui/Cover.ts`) — the poster,
+the profile chip that always opens My Stats, the board widget quoting your best
+and place (asked of the store below the fifty), the leader, or a big score made
+in the last day, turning over every few seconds — and a poster that moves, the
+handover's section 11 motion poster, and stands still under reduced motion; Choose a mode (`src/ui/ModeSelect.ts`) — the Marathon and Blast
+posters with best and place, Survival's banner, the boards' podium, My Stats in
+the tier's material and Rivals, its figures drawn into keys bound once so ids
+never go stale (`modesFill`); and the name screen (`Profile.ts`). No sound key
+on Choose a mode: that corner is the avatar. `scripts/entry-check.mjs` walks all
+three for a new player and a returning one and photographs them.
 
 The game is being redrawn from a Figma handover (file `JhIdkSdtMSriYe3W5y3NAa`,
 canvas `125:4590`), a phase at a time. The foundations come first and change

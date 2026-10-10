@@ -13,8 +13,9 @@
  */
 
 import type { Hand } from '../game/player';
-import { avatarSrc, kitColour } from '../config/board';
-import { escape, pickerMarkup } from './Leaderboard';
+import { avatarSrc, kitName } from '../config/board';
+import { escape } from './Leaderboard';
+import { cta, icon } from './Kit';
 import { RESTORE_TAKEN, restoreLinkMarkup } from './Restore';
 
 export interface ProfileView {
@@ -37,13 +38,14 @@ export interface ProfileView {
    * about, so the gate opens for it: they bat, and are asked again next time.
    */
   offline?: boolean;
+  /** The rung their Blast career is on, for the chip under the name. Debutant unless told. */
+  tier?: { key: string; name: string };
 }
 
-/** The cover's own title, so the welcome is the game's front door and not a form over it. */
-const TITLE = new URL('../assets/title.webp', import.meta.url).href;
+const art = (file: string) => new URL(`../assets/entry/${file}`, import.meta.url).href;
 
-/** A bat, blade down and to the right: a right-hander's. A left-hander's is the same, mirrored. */
-const BAT = `<svg class="welcome-bat" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14.2 8.4 19.6 3a1.4 1.4 0 0 1 2 2l-5.4 5.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m14.6 7.6 1.8 1.8a1 1 0 0 1 0 1.4l-8.9 8.9a3 3 0 0 1-2.8.8l-1.9-.5-.5-1.9a3 3 0 0 1 .8-2.8l8.9-8.9a1 1 0 0 1 1.4 0Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+/** A bat, blade up, turned the way the hand it stands for holds it. */
+const bat = (hand: Hand) => `<span class="welcome-bat is-${hand}" aria-hidden="true"><i></i><b></b></span>`;
 
 /**
  * Whether there is a name to go with yet: a letter or a number in it. Until
@@ -54,43 +56,72 @@ export function named(name: string): boolean {
   return /[\p{L}\p{N}]/u.test(name);
 }
 
+/** The name as the plate over the avatar shows it: in capitals, or a placeholder until there is one. */
+export function plateName(name: string): string {
+  return named(name) ? name.trim().toUpperCase() : 'YOUR NAME';
+}
+
+/** "LEFT-HANDED" or "RIGHT-HANDED", for the chip and the keys. */
+export const handWord = (hand: Hand) => (hand === 'left' ? 'LEFT-HANDED' : 'RIGHT-HANDED');
+
+/**
+ * The name screen, as UI v1 draws it: the batter walking out — the kit in
+ * rings of light, the name in capitals with the hand and the tier under it —
+ * the tray of kits, the name, the hand, and LET'S BAT.
+ *
+ * Before an innings it is a gate with a way back to the cover and no way past
+ * but answering (`#profile-leave`): nobody bats without a name. From My Stats
+ * it is the same screen with a way back there (`#profile-close`).
+ */
 export function profileMarkup(view: ProfileView): string {
   const { name, avatar, hand, order, gate, fresh, sending = false, error = null, held = null, offline = false } = view;
-  const handKey = (which: Hand, label: string) => `
+  const tier = view.tier ?? { key: 'debutant', name: 'DEBUTANT' };
+  const heading = fresh ? 'WHO’S WALKING OUT TO BAT?' : gate ? 'IS THIS STILL YOU?' : 'YOUR DETAILS';
+  const handKey = (which: Hand) => `
               <button type="button" class="welcome-hand-key profile-hand-option is-${which}${hand === which ? ' is-chosen' : ''}"
-                role="radio" aria-checked="${hand === which}" data-hand="${which}">${BAT}<span>${label}</span></button>`;
-  const eyebrow = fresh ? 'WELCOME' : gate ? 'WELCOME BACK' : '';
-  const heading = fresh ? 'Who\u2019s walking out to bat?' : gate ? 'Is this still you?' : 'Your details';
+                role="radio" aria-checked="${hand === which}" data-hand="${which}">${bat(which)}<span>${handWord(which)}</span></button>`;
+  const kits = order.map(kit => `
+            <button type="button" class="kit-option${kit === avatar ? ' is-chosen' : ''}" role="radio" aria-checked="${kit === avatar}" data-kit="${kit}" aria-label="${escape(kitName(kit))}">
+              <img src="${avatarSrc(kit)}" alt="" draggable="false">
+            </button>`).join('');
+  const back = gate
+    ? `<button id="profile-leave" class="k-icon-button welcome-back" type="button" aria-label="Back to the cover">${icon('arrow-left')}</button>`
+    : `<button id="profile-close" class="k-icon-button welcome-back" type="button" aria-label="Back to My Stats">${icon('arrow-left')}</button>`;
+  const go = cta({ kind: 'primary', label: sending ? 'SAVING…' : gate ? 'LET’S BAT' : 'SAVE', id: 'profile-send', wide: true, disabled: sending || !named(name) });
   return `
-    <section class="welcome ${gate ? 'is-gate' : 'is-edit'}" role="dialog" aria-modal="true" aria-labelledby="profile-title"
-      style="--kit:${kitColour(avatar)}">
-      <div class="welcome-sky" aria-hidden="true"></div>
-      ${gate ? '' : `<button id="profile-close" class="welcome-back" type="button" aria-label="Back to My Stats">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span></button>`}
+    <section class="welcome ${gate ? 'is-gate' : 'is-edit'}" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+      <img class="welcome-haze" src="${art('haze.svg')}" alt="" aria-hidden="true">
+      <img class="welcome-lights" src="${art('floodlights.svg')}" alt="" aria-hidden="true">
+      <span class="welcome-grain" aria-hidden="true"></span>
       <form id="profile-form" class="welcome-body" novalidate>
-        <img class="welcome-title" src="${TITLE}" alt="Hitman Cricket" decoding="async">
-        ${eyebrow ? `<p class="welcome-eyebrow">${eyebrow}</p>` : ''}
+        <div class="welcome-top">${back}</div>
         <h2 id="profile-title" class="welcome-heading">${heading}</h2>
-        <section class="welcome-step welcome-avatar" aria-label="Your avatar">
+        <div class="welcome-walkout" aria-hidden="true">
+          <img class="welcome-ring is-glow" src="${art('ring-220.svg')}" alt="">
+          <img class="welcome-ring is-outer" src="${art('ring-170.svg')}" alt="">
+          <img class="welcome-ring is-inner" src="${art('ring-150.svg')}" alt="">
+          <img class="welcome-ring is-kit" src="${art('ring-136.svg')}" alt="">
           <span class="welcome-face"><img id="welcome-face" src="${avatarSrc(avatar)}" alt=""></span>
-          <div id="profile-picker" class="welcome-kits">${pickerMarkup(avatar, order)}</div>
-        </section>
-        <label class="welcome-step welcome-field"><span class="welcome-label">Your name</span>
+          <div class="welcome-plate">
+            <p id="welcome-name" class="welcome-name${named(name) ? '' : ' is-empty'}">${escape(plateName(name))}</p>
+            <div class="welcome-chips"><span id="welcome-hand" class="welcome-chip">${handWord(hand)}</span><span class="welcome-chip is-tier tier-${escape(tier.key)}">${escape(tier.name)}</span></div>
+          </div>
+        </div>
+        <div id="profile-picker" class="welcome-kits" role="radiogroup" aria-label="Choose your avatar">${kits}
+        </div>
+        <label class="welcome-field"><span class="welcome-label">YOUR NAME</span>
           <input id="profile-name" type="text" maxlength="14" autocomplete="nickname" autocapitalize="words"
             enterkeyhint="done" placeholder="Enter your name" value="${escape(name)}" required>
         </label>
         <div class="welcome-step">
-          <p class="welcome-label" id="profile-hand-label">How do you bat?</p>
-          <div class="welcome-hands" role="radiogroup" aria-labelledby="profile-hand-label">${
-  handKey('right', 'RIGHT-HANDED')}${handKey('left', 'LEFT-HANDED')}
+          <p class="welcome-label" id="profile-hand-label">HOW DO YOU BAT?</p>
+          <div class="welcome-hands" role="radiogroup" aria-labelledby="profile-hand-label">${handKey('right')}${handKey('left')}
           </div>
         </div>
         ${error ? `<p id="profile-error" class="welcome-error" role="alert">${escape(error)}</p>` : ''}
         ${held ? `<p class="welcome-back-link">${restoreLinkMarkup('profile-restore', RESTORE_TAKEN)}</p>` : ''}
         <div class="welcome-foot">
-          <button id="profile-send" type="submit" class="welcome-go${named(name) ? '' : ' is-idle'}"${
-  sending || !named(name) ? ' disabled' : ''}>${
-  sending ? 'SAVING\u2026' : gate ? 'LET\u2019S BAT' : 'SAVE'}</button>
+          ${go.replace('type="button"', 'type="submit"')}
           ${gate && offline ? '<button id="profile-skip" class="welcome-skip" type="button">Bat now, save my name next time</button>' : ''}
           <p class="welcome-fine">You can change your name once every 30 days.<br>Your avatar and the way you bat, whenever you like.</p>
         </div>

@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" width="153.001" height="21.8176" viewBox="0 0 153.001 21.8176" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path id="Motion &#194;&#183; ball trail glint (every 4s)" d="M1.50037 20.3172C41.5004 2.31725 91.5004 -3.68275 151.5 6.31725" stroke-width="3" stroke-linecap="round" stroke="url(#paint0_linear_0_62)"/>
+<defs>
+<linearGradient id="paint0_linear_0_62" x1="1.50037" y1="10.9086" x2="151.5" y2="10.9086" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFB08F" stop-opacity="0"/>
+<stop offset="0.01" stop-color="#FFB08F" stop-opacity="0"/>
+<stop stop-color="#FFE0C8" stop-opacity="0.95"/>
+<stop offset="1" stop-color="#FFB08F" stop-opacity="0"/>
+</linearGradient>
+</defs>
+</svg>

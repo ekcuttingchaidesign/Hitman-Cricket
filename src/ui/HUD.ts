@@ -37,6 +37,8 @@ import { fallsOf, marathonShareText, scorecardMarkup, wormMarkup, type CardBatte
 import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
 import { recordMarkup, type RivalsRecord } from './Record';
+import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
+import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
@@ -51,11 +53,11 @@ import {
   RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
-import { named, profileMarkup, type ProfileView } from './Profile';
+import { handWord, named, plateName, profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
-import { AVATARS, avatarSrc, kitColour, kitDeal } from '../config/board';
+import { AVATARS, avatarSrc, kitDeal } from '../config/board';
 import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
@@ -120,29 +122,10 @@ const icon = (name: string) => {
   };
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 };
-/* Three plates of the same ground. The first is the one the game has always
-   opened on, so it is the one that is already there when the screen appears. */
-const coverPlates = [
-  new URL('../assets/cover.webp', import.meta.url).href,
-  new URL('../assets/cover-drive.webp', import.meta.url).href,
-  new URL('../assets/cover-bowled.webp', import.meta.url).href,
-];
-const coverTitle = new URL('../assets/title.webp', import.meta.url).href;
-/* The mode cards' plates. The Blast borrows the cover's drive — the same shot,
-   the same kit — and the Test match has its own, in whites with a red ball. */
-const blastPlate = new URL('../assets/cover-drive.webp', import.meta.url).href;
-const survivePlate = new URL('../assets/survive-cover.webp', import.meta.url).href;
-// The Marathon's kit laid out on the square, from the mode screen's design.
-const marathonPlate = new URL('../assets/marathon-plate.webp', import.meta.url).href;
-/* The challenge plate ships in `public/` rather than `src/assets/`, so it is a
-   bare relative path for the same reason the kits are: the browser resolves it
-   against the page, which is right under a GitHub Pages subdirectory and at a
-   domain root alike. A leading slash would look at the top of github.io. */
-const challengePlate = 'challenge_mode.png';
+/* Ships in `public/` rather than `src/assets/`, so it is a bare relative path
+   for the same reason the kits are: the browser resolves it against the page,
+   which is right under a GitHub Pages subdirectory and at a domain root alike. */
 const fireball = 'fireball.webp';
-const rivalsCover = 'rivals_cover.webp';
-/** The podium on the mode screen's way to the boards. Drawn by `scripts/leaderboard-art.mjs`. */
-const leadersCover = 'leaderboard_cover.webp';
 /* The three plates the result card stands on. The loss is used twice: a man
    carried off and a man bowled twelve short are the same picture of the same
    over, and what separates them is the line above it, not the art. */
@@ -161,35 +144,11 @@ const RESULT_SAID: Record<Result, { title: string; line: string; stamp: string }
   ALMOST: { title: 'You almost did it', line: 'Few balls more and it would\u2019ve been legendary', stamp: 'MATCH LOST' },
   LOST: { title: 'They got you', line: 'One wicket was all they needed', stamp: 'MATCH LOST' },
 };
-/**
- * A phone gets the cover art: the illustration, the title lockup and two calls
- * to action, with nothing else on the screen. A desktop keeps the card over the
- * live ground, where there is room for the keys and the pitch behind them.
- */
-/* The trophy line is the way onto the board from the cover, so it is always
+/* The board widget is the way onto the board from the cover, so it is always
    there. What it quotes is not: a best of nought is a sentence about nobody, so
    until there is one it quotes the board's leader instead — and the board is
-   fetched, so until that arrives it quotes nothing and says only where it goes. */
-const trophyLine = (best: number, top: number) =>
-  best > 0 ? { label: 'BEST', runs: best } : top > 0 ? { label: 'TOP OF THE BOARD', runs: top } : null;
-const trophyFigure = (best: number, top: number) => {
-  const line = trophyLine(best, top);
-  return line
-    ? `<span id="best-label">${line.label}</span><strong id="best">${line.runs} <small>RUNS</small></strong>`
-    : `<span id="best-label">TOP 50</span><strong id="best"></strong>`;
-};
-const coverIntro = (best: number, top: number) => `
-        <div id="intro" class="intro cover-intro">
-          <div class="cover-plate" aria-hidden="true">${coverPlates.map((src, i) =>
-            `<img class="cover-art" src="${src}" alt="" decoding="async"${i ? '' : ' fetchpriority="high"'}>`).join('')}</div>
-          <img class="cover-title" src="${coverTitle}" alt="Hitman Cricket" decoding="async">
-          <div class="cover-actions">
-            <button id="cover-board" class="cover-best">${icon('trophy')}${trophyFigure(best, top)}</button>
-            <button id="start" class="play-button">PLAY</button>
-            <button id="tutorial" class="learn-button">HOW TO PLAY</button>
-            <button id="feedback-open" class="cover-feedback hidden" type="button">WHAT DO YOU THINK?</button>
-          </div>
-        </div>`;
+   fetched, so until that arrives it says only where it leads. */
+const coverBoardOf = (best: number): CoverBoard => best > 0 ? { kind: 'best', runs: best, rank: null } : { kind: 'none' };
 /** Which special stroke the ball on its way is for, when the meter is full to play it. */
 export type Primed = 'CHARGE' | 'SWEEP' | 'SCOOP' | 'REVERSE' | null;
 /** The call for each, over the meter and down the pitch. */
@@ -269,7 +228,7 @@ export class HUD {
   /** Whether the player is on the board already, which the submit key says. */
   private onBoard = false;
   private $ = (id: string) => document.getElementById(id)!;
-  constructor(root: HTMLElement, best: number, top = 0) {
+  constructor(root: HTMLElement, best: number, cover: { player?: Player | null } = {}) {
     document.documentElement.classList.toggle('touch-device', matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
     // The cover fills the screen — on a desktop too, where the screen is the
     // phone-shaped column — so the scoreboard, the meter, the field labels and
@@ -365,7 +324,7 @@ export class HUD {
         </div>
         <div id="tutorial-done" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-done-title"><div class="panel"><span class="challenge-tag">TUTORIAL COMPLETE</span><h2 id="tutorial-done-title">Middle it every time.</h2><p>Straight, leg side, square cut. Read the line, swing as the ball reaches your bat, and the timing does the rest.</p><button id="tutorial-play" class="primary-button">START INNINGS ${icon('arrow')}</button></div></div>
         <div id="speed-gun" class="speed-gun" aria-hidden="true"><b id="speed"></b><i>KM/H</i></div><div class="arena-bottom"><span><span id="side-left">LEG SIDE</span> <span class="direction-line"></span></span><span><span class="direction-line"></span> <span id="side-right">OFF SIDE</span></span></div>
-${coverIntro(best, top)}
+${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
         <div id="board-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="board-title"></div>
         <div id="stats-overlay" class="modal-overlay stats-overlay hidden" role="dialog" aria-modal="true" aria-label="Your career card"></div>
         <div id="whatsnew-overlay" class="modal-overlay whatsnew-overlay hidden" role="dialog" aria-modal="true" aria-label="What's new"></div>
@@ -463,64 +422,7 @@ ${coverIntro(best, top)}
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
         </div>
-        <div id="modes" class="modal-overlay mode-screen hidden" role="dialog" aria-modal="true" aria-labelledby="modes-title">
-          <div class="mode-sheet">
-            <div class="mode-top">
-              <button id="modes-cancel" class="mode-back" aria-label="Back" title="Back">${icon('back')}</button>
-              <h2 id="modes-title" class="mode-heading">Select Mode</h2>
-            </div>
-            <button id="mode-marathon" class="mode-hero mode-hero-marathon" type="button">
-              <span class="mode-hero-plate"><img src="${marathonPlate}" alt="" decoding="async" /></span>
-              <span class="mode-hero-body">
-                <span class="mode-flag">NEW</span>
-                <span class="mode-hero-name">Test Marathon</span>
-                <span class="mode-hero-sub">Play a marathon innings</span>
-                <span class="mode-key">PLAY</span>
-              </span>
-            </button>
-            <div class="mode-grid">
-              <button id="mode-classic" class="mode-card" type="button">
-                <span class="mode-plate"><img src="${blastPlate}" alt="" decoding="async" /></span>
-                <span class="mode-body">
-                  <span class="mode-name">The Blast</span>
-                  <span class="mode-copy">5 overs. 3 wickets. Find the gaps, clear the ropes, set the record.</span>
-                </span>
-              </button>
-              <button id="mode-survive" class="mode-card mode-survive" type="button">
-                <span class="mode-plate"><img src="${survivePlate}" alt="" decoding="async" /></span>
-                <span class="mode-body">
-                  <span class="mode-name">Test Survival</span>
-                  <span class="mode-copy">Last man standing. Survive 60 balls. Chase the target or hold out for the draw.</span>
-                </span>
-              </button>
-            </div>
-            <div id="mode-key" class="key-slot hidden"></div>
-            <div class="mode-tiles">
-              <button id="mode-challenge" class="mode-tile mode-tile-rivals" type="button">
-                <span class="mode-tile-art" aria-hidden="true"><img src="${challengePlate}" alt="" decoding="async" /></span>
-                <span class="mode-tile-say">
-                  <span id="mode-challenge-flag" class="mode-flag">NEW</span>
-                  <b class="mode-tile-name">Rivals <i class="mode-tile-go">${icon('arrow')}</i></b>
-                  <em>Play with friends</em>
-                </span>
-              </button>
-              <button id="modes-challenges" class="mode-tile mode-tile-matches" type="button">
-                <span class="mode-tile-art" aria-hidden="true"><img src="${rivalsCover}" alt="" decoding="async" /></span>
-                <span class="mode-tile-say">
-                  <b class="mode-tile-name">Rival <i class="mode-tile-go">${icon('arrow')}</i><br>matches</b>
-                  <em id="modes-challenges-note" class="mode-tile-note">See who you've played</em>
-                </span>
-              </button>
-              <button id="modes-board" class="mode-tile mode-tile-board" type="button">
-                <span class="mode-tile-art" aria-hidden="true"><img src="${leadersCover}" alt="" decoding="async" /></span>
-                <span class="mode-tile-say">
-                  <b class="mode-tile-name">Leaderboards <i class="mode-tile-go">${icon('arrow')}</i></b>
-                  <em>See where you rank</em>
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
+${modeSelectMarkup()}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
           <div class="room-sheet">
             <div class="mode-top room-top">
@@ -1402,14 +1304,54 @@ ${coverIntro(best, top)}
   }
   get boardOpen() { return !this.$('board-overlay').classList.contains('hidden'); }
   /**
-   * The board's leader, once it has been fetched. The cover quotes it while the
-   * player has no best of their own — so the line goes from naming only where it
-   * leads to naming a score to chase, without the screen being rebuilt.
+   * What the cover's board widget says, once there is something to say: the
+   * board's leader while the player has no best of their own, and their best
+   * and place once they have — rewritten in place, without the screen being
+   * rebuilt.
    */
-  leader(top: number, best: number) {
-    if (best > 0 || top <= 0) return;
-    this.$('best-label').textContent = 'TOP OF THE BOARD';
-    this.$('best').innerHTML = `${top} <small>RUNS</small>`;
+  coverBoard(view: CoverBoard | CoverBoard[]) {
+    this.coverLines = (Array.isArray(view) ? view : [view]).filter(Boolean);
+    this.coverLine = 0;
+    this.drawCoverLine(false);
+    this.turnCoverLines();
+  }
+  /**
+   * The live line: the widget turns over to its next line every three and a
+   * half seconds, crossfading, and holds still while a finger is on it. Not
+   * while the cover is away, nor for a page asked to keep still — that gets
+   * the first line and nothing else.
+   */
+  private coverLines: CoverBoard[] = [];
+  private coverLine = 0;
+  private coverTurning = 0;
+  private coverHeld = false;
+  private turnCoverLines() {
+    if (this.coverTurning || this.coverLines.length < 2) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const widget = this.viewport.querySelector('#cover-board');
+    widget?.addEventListener('pointerdown', () => { this.coverHeld = true; });
+    for (const end of ['pointerup', 'pointercancel', 'pointerleave']) widget?.addEventListener(end, () => { this.coverHeld = false; });
+    this.coverTurning = window.setInterval(() => {
+      if (this.coverHeld || document.hidden || this.coverLines.length < 2 || this.$('intro').classList.contains('hidden')) return;
+      this.coverLine = (this.coverLine + 1) % this.coverLines.length;
+      this.drawCoverLine(true);
+    }, 3500);
+  }
+  private drawCoverLine(fade: boolean) {
+    const text = this.viewport.querySelector<HTMLElement>('.cover-best-text');
+    const line = this.coverLines[this.coverLine];
+    if (!text || !line) return;
+    if (!fade) { text.innerHTML = coverBoardLines(line); return; }
+    text.classList.add('is-turning');
+    window.setTimeout(() => {
+      text.innerHTML = coverBoardLines(line);
+      text.classList.remove('is-turning');
+    }, 200);
+  }
+  /** The cover's profile chip, redrawn for the player as they are now: named, re-kitted, or a guest. */
+  coverProfile(player: Player | null) {
+    const chip = this.viewport.querySelector('#cover-profile');
+    if (chip) chip.outerHTML = profileChip(player);
   }
   /** Puts the sheet away and hands the screen back to whatever was under it. */
   closeBoard() {
@@ -1813,12 +1755,9 @@ ${coverIntro(best, top)}
     this.$('end-message').textContent = isRecord
       ? best > 0 ? `${faced}, past your old best of ${best}.` : `${faced}. First score on the board.`
       : best > 0 ? `${faced}. Your best stands at ${best}.` : `${faced}.`;
-    // The trophy line was quoting the board's leader while there was no best of
+    // The widget was quoting the board's leader while there was no best of
     // your own. There is one now, so it goes back to quoting yours.
-    if (best > 0) {
-      this.$('best-label').textContent = 'BEST';
-      this.$('best').innerHTML = `${best} <small>RUNS</small>`;
-    }
+    if (best > 0) this.coverBoard({ kind: 'best', runs: best, rank: null });
     this.$('again').focus();
     // The href is the floor, not the plan: a wa.me link carries text and nothing
     // else, so it is what a browser that cannot hand a file to another app falls
@@ -2198,6 +2137,8 @@ ${coverIntro(best, top)}
   onProfileSkip: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
   /** The edit key on My Stats. The game knows who the player is. */
   onProfileEdit: (() => void) | null = null;
+  /** The gate's back key: the game lets the innings go and puts the cover up. */
+  onProfileLeave: (() => void) | null = null;
 
   private profileView: ProfileView | null = null;
 
@@ -2211,24 +2152,28 @@ ${coverIntro(best, top)}
     this.viewport.classList.add('modal-open');
     const close = document.getElementById('profile-close');
     if (close) close.onclick = () => this.closeProfile();
-    // The big face at the top is the avatar picked, in a glow of its colour
-    // that the whole screen takes on.
-    const screen = overlay.querySelector<HTMLElement>('.welcome');
+    // Back to the cover from the gate: no innings without a name, so the way
+    // out is the way in, and the innings it was asked for is let go.
+    const leave = document.getElementById('profile-leave');
+    if (leave) leave.onclick = () => this.onProfileLeave?.();
+    // The big face at the top is the avatar picked, the name over it the one
+    // being typed, and the chip under it the hand chosen.
     const face = overlay.querySelector<HTMLElement>('.welcome-face');
+    const plate = this.$('welcome-name');
     const field = this.$('profile-name') as HTMLInputElement;
     // The key to go wakes with the first letter typed, and sleeps again if the
     // name is cleared.
     const go = this.$('profile-send') as HTMLButtonElement;
     field.oninput = () => {
+      plate.textContent = plateName(field.value);
+      plate.classList.toggle('is-empty', !named(field.value));
       if (this.profileView?.sending) return;
       go.disabled = !named(field.value);
-      go.classList.toggle('is-idle', go.disabled);
     };
     overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
       option.onclick = () => {
         const kit = Number(option.dataset.kit);
         (this.$('welcome-face') as HTMLImageElement).src = avatarSrc(kit);
-        screen?.style.setProperty('--kit', kitColour(kit));
         face?.classList.remove('is-picked');
         void face?.offsetWidth;
         face?.classList.add('is-picked');
@@ -2244,6 +2189,7 @@ ${coverIntro(best, top)}
       option.onclick = () => {
         const hand = option.dataset.hand === 'left' ? 'left' : 'right';
         if (this.profileView) this.profileView = { ...this.profileView, hand };
+        this.$('welcome-hand').textContent = handWord(hand);
         overlay.querySelectorAll<HTMLButtonElement>('.profile-hand-option').forEach(one => {
           const mine = one.dataset.hand === hand;
           one.classList.toggle('is-chosen', mine);
@@ -2785,7 +2731,10 @@ ${coverIntro(best, top)}
     // hud keys goes with it. They sit above the overlay and were being drawn
     // straight across the title.
     this.viewport.classList.add('picking-mode');
-    (this.$('mode-challenge') as HTMLButtonElement).focus();
+    // Focus for a keyboard, without scrolling to it: on a short screen the
+    // key is at the foot, and the screen would open scrolled past its title.
+    (this.$('mode-challenge') as HTMLButtonElement).focus({ preventScroll: true });
+    this.viewport.querySelector('.ms-content')?.scrollTo({ top: 0 });
   }
   closeModes() {
     this.$('modes').classList.add('hidden');
@@ -3556,17 +3505,22 @@ ${coverIntro(best, top)}
     this.settle('challenge-rivalry');
   }
 
-  /** What the hero card and the Rival Matches widget say about the matches waiting. */
+  /** What the Rivals widget's flag says about the matches waiting: your move, or how many are live. */
   challengesOpen(received: number, waiting: number) {
     const flag = this.$('mode-challenge-flag');
-    flag.textContent = received > 0 ? 'YOUR MOVE' : waiting > 0 ? `${waiting} LIVE` : 'NEW';
-    flag.classList.toggle('is-open', received > 0 || waiting > 0);
+    flag.textContent = received > 0 ? 'YOUR MOVE' : waiting > 0 ? `${waiting} LIVE` : '';
+    flag.classList.toggle('hidden', received === 0 && waiting === 0);
     flag.classList.toggle('is-move', received > 0);
-    const note = this.$('modes-challenges-note');
-    note.textContent = received > 0
-      ? `${received} Challenge${received === 1 ? '' : 's'} Received`
-      : waiting > 0 ? `${waiting} waiting on them` : "See who you've played";
-    note.classList.toggle('is-hot', received > 0);
+  }
+  /** Choose a mode's figures for this player: the bests and places, the podium, the tier, the record. */
+  modesFill(view: ModeSelectView) {
+    for (const [id, html] of Object.entries(modeSelectParts(view))) {
+      const at = document.getElementById(id);
+      if (at) at.innerHTML = html;
+    }
+    this.$('mode-marathon').classList.toggle('is-played', !!view.marathon.best);
+    const stats = this.$('modes-stats');
+    stats.className = stats.className.replace(/tier-\S+/g, '').trim() + ` tier-${view.stats.tier.key}`;
   }
 
   /** Puts one of the challenge sheets up, and the overlay state with it. */
@@ -3576,7 +3530,12 @@ ${coverIntro(best, top)}
   }
 
   /** Puts the cover back, for a joiner who chose to bat alone instead. */
-  showCover() { this.$('intro').classList.remove('hidden'); }
+  /** Who the cover's chip is for, asked each time it is shown: a name claimed meanwhile is on it. */
+  coverPlayer: (() => Player | null) | null = null;
+  showCover() {
+    this.$('intro').classList.remove('hidden');
+    if (this.coverPlayer) this.coverProfile(this.coverPlayer());
+  }
 
   /** Takes every challenge screen down. Called before putting one up. */
   shut() {
