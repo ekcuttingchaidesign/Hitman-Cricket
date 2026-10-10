@@ -7,7 +7,7 @@
  *
  * A player with a name has nothing to press at the end of an innings: a place
  * earned is posted once, by itself, and the card says where it landed with
- * VIEW LEADERBOARD in place of the register key. An innings that earns no
+ * the board one door away (Leaderboard) in place of the register key. An innings that earns no
  * place — a duck, against a board the page is shown full — is posted too,
  * quietly, with the card left as it was: the store keeps
  * only a best, and what it answers is where the player stands on the whole
@@ -123,8 +123,8 @@ const FULL = {
   check(posts[0]?.sent?.mode === 'marathon' && lefties === 2, 'a left-hander\'s side, with two left-handers in it', `mode ${posts[0]?.sent?.mode}, ${lefties} left-handed`);
   check(posts[0]?.status === 200, 'and the store takes it', String(posts[0]?.status));
   const head = await page.locator('#card-board-head').textContent();
-  check(/You.re \d+\w\w on the leaderboard/.test(head ?? ''), 'the card says where it landed', head);
-  check((await page.locator('#claim').textContent())?.trim() === 'VIEW LEADERBOARD', 'with the board one tap away, and nothing to register',
+  check(/You are #\d+ on the leaderboard/.test(head ?? ''), 'the card says where it landed', head);
+  check((await page.locator('#claim').textContent())?.trim() === 'Leaderboard', 'with the board one tap away, and nothing to register',
     await page.locator('#claim').textContent());
   check(!(await page.locator('#claim-why').isVisible()), 'and no line about registering');
   const standing = (await snap()).standing?.standing;
@@ -152,7 +152,7 @@ const FULL = {
   const { context, page, errors, posts, snap } = await bowledOut({ name: `Duck${Math.random().toString(36).slice(2, 7)}`, hand: 'right' }, DUCKS, true);
   check(posts.length === 1 && posts[0].status === 200, 'an innings with no place is posted too, once', JSON.stringify(posts.map(one => one.status)));
   const head = await page.locator('#card-board-head').textContent().catch(() => '');
-  check(!/You.re \d+\w\w on the leaderboard/.test(head ?? ''), 'and the card does not claim a place for it', head);
+  check(!/You are #\d+ on the leaderboard/.test(head ?? ''), 'and the card does not claim a place for it', head);
   const standing = (await snap()).standing?.standing;
   check(standing?.team?.rank >= 1 && standing.team.rank === standing.team.total,
     'the store puts it last on the whole board, wherever that is', JSON.stringify(standing));

@@ -7264,3 +7264,211 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 /* No sound key on this screen: the corner is the player's avatar, the way to
    My Stats. The cover keeps it, and so does every screen after an innings. */
 .stage.picking-mode #sound,.stage.picking-mode #sound-note{display:none}
+
+/* ── The innings-end card (UI v1) ──────────────────────────────────────────
+   One skeleton for every mode (the handover's section 05): a card headed by a
+   black pit-wall strip with the mode's name, a band in the mode's colour with
+   the total — or, for Survival, the result's photograph — then the figures;
+   under it the player card saying where the innings put them, the career key,
+   and the keys pinned along the foot. Black, with the mode's colour blooming
+   in from the top corner. Scoped under .ec-screen so the old card's rules do
+   not reach it. */
+.ec-screen{
+  --mode:var(--c-blast);
+  --band-a:#3f88f2;--band-b:#1a3a8c;--chev:#9cc8ff;--chev-a:.18;--chev-b:.32;
+  --track:#3f88f21a;
+  --k-notch:#0b0c0e;
+  display:block;padding:0;overflow:hidden;background:#0b0c0e;color:var(--c-text);font-family:var(--f-ui)
+}
+#end.ec-screen.is-marathon{--mode:#1f8a55;--band-a:#13643e;--band-b:#033a22;--chev:#c8283a;--chev-a:.35;--chev-b:.55}
+.ec-bloom{
+  position:absolute;left:calc(var(--u) * -110);top:calc(var(--u) * -170);width:calc(var(--u) * 620);height:calc(var(--u) * 460);
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--mode) 30%,transparent),transparent);pointer-events:none
+}
+.ec-screen .ec-content{
+  position:relative;display:flex;flex-direction:column;gap:calc(var(--u) * 12);
+  width:100%;height:100%;margin:0;overflow-y:auto;overscroll-behavior:contain;
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 128);
+  border-radius:0;background:none;box-shadow:none;text-align:left;color:var(--c-text)
+}
+/* The cards: the kit's card ground, rounder. */
+.ec-screen .ec-hero,.ec-screen .ec-player,.ec-screen .mcard-score:not(:empty){
+  position:relative;flex-shrink:0;overflow:hidden;
+  border:1px solid #ffffff14;border-radius:28px;
+  background:linear-gradient(var(--c-card-top),var(--c-card-bottom));
+  box-shadow:0 12px 28px #0000008c,inset 0 1px 0 #ffffff0d
+}
+.ec-screen .ec-pit{width:100%}
+.ec-screen .ec-pit .k-pit-mode{font:400 calc(var(--u) * 18)/1 var(--f-display)}
+/* The band: the total, in the mode's colour, with two chevrons running on. */
+.ec-screen .ec-band{
+  position:relative;display:flex;align-items:flex-end;overflow:hidden;
+  padding:calc(var(--u) * 14) calc(var(--u) * 20) calc(var(--u) * 16);
+  background:linear-gradient(161deg,var(--band-a) 0%,var(--band-b) 100%)
+}
+.ec-chevrons{position:absolute;left:calc(var(--u) * 196);top:calc(var(--u) * -6);width:calc(var(--u) * 166);height:calc(var(--u) * 144);fill:var(--chev)}
+.ec-chevrons path:first-child{opacity:var(--chev-a)}
+.ec-chevrons path:last-child{opacity:var(--chev-b)}
+.ec-screen .ec-score{position:relative;display:flex;flex:1;flex-direction:column;min-width:0}
+.ec-screen h2.ec-word{margin:0;font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;color:#ffffffeb;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ec-screen .ec-total{margin:0;font:900 calc(var(--u) * 80)/.9 var(--f-ui);letter-spacing:-.05em;color:#fff}
+.ec-screen .ec-total .card-wickets{margin-left:2px;font-size:calc(var(--u) * 24);line-height:1.1;letter-spacing:-.02em;color:#ffffffb3}
+.ec-screen .ec-overs{position:relative;display:flex;flex-direction:column;align-items:flex-end;margin:0;padding-bottom:calc(var(--u) * 8)}
+.ec-screen .ec-overs span{font:900 calc(var(--u) * 30)/1 var(--f-ui);letter-spacing:-.033em;color:#fff}
+.ec-screen .ec-overs small{font:700 calc(var(--u) * 11)/1.2 var(--f-ui);letter-spacing:.14em;color:#ffffffcc}
+#end.is-marathon .ec-overs{display:flex}
+.ec-screen .ec-body{display:flex;flex-direction:column;gap:calc(var(--u) * 10);padding:calc(var(--u) * 12) calc(var(--u) * 20) calc(var(--u) * 14)}
+.ec-screen #end-message{display:none}
+/* Over by over: six bars an over in the mode's light, a six full, a wicket red. */
+.ec-screen .ec-chart{display:flex;flex-direction:column;gap:calc(var(--u) * 10);height:auto;margin:0}
+.ec-chart-head{display:flex;align-items:center;gap:calc(var(--u) * 8);font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-3)}
+.ec-chart-head .k-icon{width:calc(var(--u) * 15);height:calc(var(--u) * 15);color:var(--c-win)}
+.ec-chart-title{flex:1;color:#ffffffd9}
+.ec-key{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.ec-key i{width:7px;height:7px;border-radius:50%}
+.ec-key i.is-six{background:#4da3ff}.ec-key i.is-four{background:#a9cfffd9}.ec-key i.is-out{background:var(--c-loss)}
+.ec-key.is-best i{width:14px;height:0;border-radius:0;border-top:1.5px dashed var(--c-win)}
+.ec-columns{display:flex;justify-content:space-between;align-items:flex-start}
+.ec-over{display:flex;flex-direction:column;gap:calc(var(--u) * 6)}
+.ec-bars{display:flex;align-items:flex-end;gap:calc(var(--u) * 3)}
+.ec-bar{position:relative;display:block;width:calc(var(--u) * 7);height:calc(var(--u) * 42);border-radius:4px;background:var(--track);overflow:hidden}
+.ec-bar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:calc(var(--u) * var(--h,0));border-radius:4px;background:var(--fill,transparent)}
+.ec-bar.is-six{--fill:#4da3ff}.ec-bar.is-four{--fill:#a9cfffd9}.ec-bar.is-run{--fill:#a9cfff4d}.ec-bar.is-out{--fill:var(--c-loss)}
+.ec-bar.is-unfaced{opacity:.45}
+.ec-over-label{display:flex;justify-content:space-between;align-items:center}
+.ec-over-label span{font:500 calc(var(--u) * 10)/1.2 var(--f-ui);color:var(--c-text-3)}
+.ec-over-label b{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;color:var(--c-text)}
+/* The figures under it. */
+.ec-screen .ec-stats{display:flex;margin:0;padding:calc(var(--u) * 10) 0 0;border-top:1px solid #ffffff12;gap:0}
+.ec-screen .ec-stats>div{display:flex;flex:1;flex-direction:column;min-width:0;padding:0 0 0 calc(var(--u) * 12);border:0;background:none}
+.ec-screen .ec-stats>div:first-child{padding-left:0}
+.ec-screen .ec-stats dd{order:0;margin:0;font:900 calc(var(--u) * 20)/1.2 var(--f-ui);color:var(--c-text)}
+.ec-screen .ec-stats dt{order:1;margin:0;font:500 calc(var(--u) * 12)/1.3 var(--f-ui);letter-spacing:0;text-transform:none;color:var(--c-text-3)}
+/* The Marathon's worm: the run progression in gold, a red ball for each man gone. */
+.ec-screen .mcard-worm{display:flex;flex-direction:column;gap:calc(var(--u) * 8);margin:0}
+.ec-screen .worm{display:block;width:100%;height:auto;overflow:visible}
+.worm-grid{stroke:#ffffff14;stroke-width:1;stroke-dasharray:2 4}
+.worm-base{stroke:#ffffff29;stroke-width:1}
+.worm-best{stroke:var(--c-win);stroke-width:1.5;stroke-dasharray:4 4;opacity:.8}
+.ec-screen .worm-area{fill:url(#worm-wash);stroke:none}
+.ec-screen .worm-line{fill:none;stroke:#f5b83d;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.ec-screen .worm-fall{fill:#ff5a4e;stroke:#0b0f14;stroke-width:2}
+.worm-halo{fill:#ff5a4e;opacity:.2}
+.worm-halo.is-on{fill:#f5b83d}
+.worm-end.is-on{fill:#f5b83d;stroke:#0b0f14;stroke-width:2}
+.ec-screen .worm-x{font:500 10px var(--f-ui);fill:var(--c-text-3)}
+/* The Marathon's batting card: its own card under the band. */
+.ec-screen .mcard-score{margin:0;padding:0 0 calc(var(--u) * 6)}
+.ec-batting{width:100%;border-collapse:collapse;font-family:var(--f-ui)}
+.ec-batting th,.ec-batting td{padding:0;text-align:right;white-space:nowrap}
+.ec-batting thead th{padding:calc(var(--u) * 10) 0 calc(var(--u) * 8);font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-3)}
+.ec-batting thead th:first-child{padding-left:calc(var(--u) * 20);text-align:left;font:400 calc(var(--u) * 16)/1 var(--f-display);letter-spacing:.08em;color:#fff;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ec-batting th:last-child,.ec-batting td:last-child{padding-right:calc(var(--u) * 20)}
+.ec-batting .is-runs{width:calc(var(--u) * 40)}
+.ec-batting td:not(.is-runs),.ec-batting thead th:not(:first-child):not(.is-runs){width:calc(var(--u) * 28)}
+.ec-batting tbody tr{height:calc(var(--u) * 36);border-top:1px solid #ffffff0f}
+.ec-batting tbody th{display:flex;align-items:center;gap:calc(var(--u) * 10);height:calc(var(--u) * 36);padding-left:calc(var(--u) * 20);text-align:left}
+.ec-bat-n{width:calc(var(--u) * 12);font:500 calc(var(--u) * 12)/1 var(--f-ui);color:var(--c-text-3)}
+.ec-bat-name{font:700 calc(var(--u) * 14)/1.3 var(--f-ui);color:var(--c-text)}
+.ec-chip{padding:calc(var(--u) * 2) calc(var(--u) * 6);border-radius:6px;background:#ffffff1a;color:var(--c-text-2);font:700 calc(var(--u) * 9)/1.2 var(--f-ui);font-style:normal;letter-spacing:.1em}
+.ec-chip.is-milestone{background:#f5b83d2e;color:var(--c-gold)}
+.ec-chip.is-milestone.is-ton{background:var(--c-gold);color:var(--c-ink)}
+.ec-batting td.is-runs{font:900 calc(var(--u) * 20)/1.2 var(--f-ui);color:var(--c-text)}
+.ec-batting td:not(.is-runs){font:500 calc(var(--u) * 12)/1 var(--f-ui);color:var(--c-text-2)}
+/* The player card: who, where the innings put them, and the two doors. */
+.ec-screen .card-board{margin:0;padding:0;border:0;background:none;box-shadow:none}
+.ec-screen .ec-rank{display:flex;align-items:flex-start;gap:calc(var(--u) * 12);padding:calc(var(--u) * 12) calc(var(--u) * 16)}
+.ec-face{flex-shrink:0}
+.ec-face .k-rank-avatar{display:flex;align-items:center;justify-content:center}
+.ec-face .k-rank-avatar.is-guest{background:#2a313b;color:var(--c-text-3)}
+.ec-face .k-rank-avatar.is-guest .k-icon{width:22px;height:22px}
+.ec-screen .card-board-head{display:block;margin:0;padding:0;font:700 calc(var(--u) * 18)/1.2 var(--f-ui);letter-spacing:0;text-transform:none;color:var(--c-text)}
+.ec-screen .card-board-head b{color:var(--c-accent);font-weight:inherit}
+.k-rank-best.is-stands{color:var(--c-win)}
+.k-rank-best.is-new{color:var(--c-gold)}
+.k-rank-best.is-off{color:var(--c-text-2)}
+.ec-screen .k-rank-best{margin:0}
+.ec-screen .card-board:not(.is-asking) #card-peek{display:none}
+.ec-screen #card-peek{margin-top:calc(var(--u) * 6)}
+.ec-screen .claim-why{display:none}
+.ec-screen .card-board.is-asking .claim-why{display:block;margin:0;padding:0 calc(var(--u) * 16) calc(var(--u) * 10);font:500 calc(var(--u) * 12)/1.4 var(--f-ui);color:var(--c-text-3)}
+.ec-screen .card-claim{padding:0 calc(var(--u) * 16) calc(var(--u) * 14)}
+.ec-screen .ec-doors{flex-wrap:wrap;height:auto;min-height:calc(var(--u) * 52)}
+.ec-screen .ec-doors .k-action{height:calc(var(--u) * 52);border-radius:0;box-shadow:none;background:none;letter-spacing:0;text-transform:none}
+.ec-screen .card-board.hidden+.ec-doors #claim{display:none}
+.ec-screen .card-board.hidden+.ec-doors .k-action+.k-action{border-left:0}
+/* Asking — a place to claim, or a name — the board's door is the one key to
+   press: the cover's orange, across the card, above the career door. */
+.ec-screen .card-board.is-asking+.ec-doors #claim{
+  flex:1 1 100%;height:auto;min-height:var(--tap);margin:0 calc(var(--u) * 16) calc(var(--u) * 12);
+  border:2px solid var(--c-accent);border-radius:14px;background:#ed704424;color:var(--c-text);
+  font:400 calc(var(--u) * 15)/1 var(--f-display);letter-spacing:.06em
+}
+.ec-screen .card-board.is-asking+.ec-doors #card-career{flex:1 1 100%;border-top:1px solid var(--c-line);border-left:0}
+.ec-screen .career-widget{margin:0;padding:0;border:0;border-radius:0;min-height:0}
+.ec-screen .career-words{display:inline-flex;align-items:center;gap:6px}
+.ec-screen .career-new{position:static;margin:0}
+.ec-screen .card-key{margin:0}
+.ec-screen .card-key .k-ticket{box-shadow:0 12px 28px #0000008c,inset 0 0 0 1px #ffffff14;background:linear-gradient(var(--c-card-top),var(--c-card-bottom))}
+.ec-screen .ec-feedback{align-self:center;margin:0;color:var(--c-text-2);font:500 calc(var(--u) * 12)/1.3 var(--f-ui);text-decoration:underline}
+/* The keys, pinned to the foot over a fade: MODE, PLAY AGAIN, and the mode's
+   third — the Blast's challenge, the Marathon's share, a won Test's share. */
+.ec-screen .ec-keys{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:flex-end;gap:calc(var(--u) * 8);
+  margin:0;padding:calc(var(--u) * 28) calc(var(--u) * 20) max(calc(var(--u) * 30),env(safe-area-inset-bottom));
+  background:linear-gradient(#0b0c0e00,#0b0c0ef5 30%,#0b0c0e)
+}
+.ec-screen .ec-keys>.k-cta--primary{flex:1;min-width:0}
+#end:not(.is-marathon) :is(#mcard-modes,#mcard-share){display:none}
+#end.is-marathon :is(#card-change,#challenge-set){display:none}
+#end.is-match :is(#card-change,#challenge-set,#mcard-modes,#mcard-share){display:none}
+#end.is-match #card-result{display:flex;flex:1}
+#end-survive:not(.result-won) #survive-share{display:none}
+/* Test Survival: the result's photograph in place of the band, in the
+   result's colour — red for a loss, green for a win, amber for a draw. */
+#end-survive{--res:#ff5a4e;--mode:#ff5a4e}
+#end-survive.result-won{--res:#5bd08f;--mode:#5bd08f}
+#end-survive.result-drawn{--res:#f2b544;--mode:#f2b544}
+#end-survive .ec-stamp{color:var(--res)}
+.ec-photo{
+  position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:calc(var(--u) * 6);
+  height:calc(var(--u) * 232);padding:0 calc(var(--u) * 20) calc(var(--u) * 18);overflow:hidden;isolation:isolate
+}
+.ec-photo-art{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover}
+.ec-photo::before{
+  content:'';position:absolute;inset:0;z-index:-1;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--res) 28%,transparent) 0%,transparent 60%),
+    linear-gradient(180deg,#0a0d1100 0%,#0a0d110d 40%,#0a0d11c7 72%,#0a0d11f7 100%)
+}
+.ec-chips{display:flex;gap:calc(var(--u) * 6);flex-wrap:wrap}
+#end-survive .ec-chip{padding:calc(var(--u) * 3) calc(var(--u) * 8);border-radius:8px;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
+#end-survive .ec-chip.is-score{background:var(--res);color:#0a0d11}
+#end-survive .ec-chip.is-score .card-wickets{font-size:inherit;color:inherit;margin:0}
+#end-survive .ec-chip.is-info{border:1px solid #ffffff24;background:#05070ac7;color:#fffffff2}
+.ec-headline{margin:0;font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;color:var(--res);font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.ec-subline{margin:0;font:500 calc(var(--u) * 14)/1.4 var(--f-ui);color:#ffffffe0}
+.ec-innings{display:flex;align-items:center;margin:0;padding:calc(var(--u) * 14) calc(var(--u) * 8) calc(var(--u) * 16)}
+.ec-innings>div{display:flex;flex:1;flex-direction:column;align-items:center;gap:calc(var(--u) * 2);min-width:0}
+.ec-innings>div+div{border-left:1px solid #ffffff14}
+.ec-innings dd{margin:0;font:900 calc(var(--u) * 30)/1 var(--f-ui);letter-spacing:-.033em;color:var(--c-text)}
+.ec-innings dt{font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-3)}
+#end-survive.result-hurt #survive-blows{color:var(--c-loss)}
+.ec-ring{display:block;width:calc(var(--u) * 44);height:calc(var(--u) * 44)}
+.ec-ring-track{fill:none;stroke:#ffffff14;stroke-width:4.4}
+.ec-ring-arc{fill:none;stroke:var(--ring,#ff6b5e);stroke-width:4.4;stroke-linecap:round}
+.ec-ring-dot{fill:#fff;stroke:var(--ring,#ff6b5e);stroke-width:2}
+.ec-ring-cross{fill:var(--ring,#ff6b5e)}
+#end-survive.result-won{--ring:var(--c-win)}
+#end-survive .survive-strip{display:flex;flex-direction:column;gap:calc(var(--u) * 12);margin:0;padding:0}
+/* What the old card's rules would otherwise reach into. */
+.ec-screen .ec-chart.card-balls{display:flex;grid-template-columns:none;height:auto;gap:calc(var(--u) * 10)}
+.ec-screen .ec-chart .ec-bar{height:calc(var(--u) * 42);opacity:1;background:var(--track);border-radius:4px;transform:none}
+.ec-screen .ec-chart .ec-bar.is-unfaced{opacity:.45}
+.ec-screen .ec-chart i.ec-bar::after{position:absolute;left:0;right:0;bottom:0;top:auto;width:auto;translate:none;height:calc(var(--u) * var(--h,0));border:0;border-radius:4px;background:var(--fill,transparent);box-shadow:none}
+.ec-screen .ec-keys.card-keys{flex-direction:row;align-items:flex-end;gap:calc(var(--u) * 8)}
+.ec-screen .card-board-head{border-radius:0;background:none;box-shadow:none;gap:0}
+.ec-screen .career-words{white-space:nowrap}
+.ec-screen .career-new{padding:1px 5px;font-size:8px}
+.ec-batting td:not(.is-runs),.ec-batting thead th:not(:first-child):not(.is-runs){padding-left:calc(var(--u) * 10)}
+.ec-screen .ec-chart.card-balls{flex-direction:column;align-items:stretch}
+#end.ec-screen .ec-total{color:#fff}

@@ -600,6 +600,10 @@ export class Game {
     // and the ball would go on being bowled, heard, behind them.
     this.hud.on('skip-tutorial', this.start);
     this.hud.on('sound', this.toggleSound);
+    // The end card's own sound key, in its header.
+    this.hud.on('end-sound', this.toggleSound);
+    this.hud.on('survive-sound', this.toggleSound);
+    this.hud.on('survive-share', () => { void this.hud.shareSurvive(); });
     // The switch as it was left last visit.
     this.hud.sound(this.audio.setting);
     this.hud.on('restart', this.start);
@@ -768,6 +772,8 @@ export class Game {
       // Each entry is bowled, so the plan moves on with it, and the next man
       // walks out at once. An entry that ends the innings ends it, card and all.
       marathon: (balls: (number | 'W' | 'H')[]) => this.writeMarathon(balls),
+      // A Blast innings written ball by ball, the same way, for looking at its card.
+      blast: (balls: (number | 'W')[]) => this.writeBlast(balls),
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
@@ -2742,6 +2748,22 @@ export class Game {
     this.nearing = nearingOf(history);
     this.hud.nearing(this.nearing, end);
   }
+  /** The Blast's version of `writeMarathon`: the balls written straight into the score, and the card if it ends. */
+  private writeBlast(balls: (number | 'W')[]) {
+    if (this.marathon || this.surviving || this.phase !== 'READY') return false;
+    for (const ball of balls) {
+      if (this.score.ended) break;
+      this.delivery = this.generator.next(0);
+      const outcome = {
+        runs: typeof ball === 'number' ? ball : 0, isWicket: ball === 'W', quality: 0, feedback: '',
+        timingGrade: 'MISS', timingDeltaMs: null, compatibility: 0, madeBatContact: false, aerial: false,
+      } as ShotOutcome;
+      this.score.record(outcome); this.generator.record(outcome);
+    }
+    this.hud.score(this.score);
+    if (this.score.ended) this.end(); else this.setPhase('READY');
+    return true;
+  }
   private writeMarathon(balls: (number | 'W' | 'H')[]) {
     const marathon = this.marathon;
     if (!marathon || this.phase !== 'READY') return false;
@@ -2954,8 +2976,31 @@ export class Game {
    * nothing: the store ranks it properly either way, and the worst case is an
    * offer that turns out to be a place in the sixties.
    */
+  /**
+   * What the rank header says under the place: a first innings in this mode,
+   * how far a new best climbed, or how far off the fifty a place below it is —
+   * read off where the post left the player, however far down.
+   */
+  private cardNoteFor(rows: readonly { runs: number }[], runs: number): HUD['cardNote'] {
+    const first = (heldCareer(this.careerMode).innings ?? 0) <= 1;
+    const held = this.standing?.innings === this.innings ? this.standing.standing : null;
+    const standing = held ? ('team' in held ? held.team : held) : null;
+    if (!standing?.rank) return { first, sub: null };
+    if (standing.rank > rows.length && rows.length >= 50) {
+      const short = this.careerMode === 'classic' && rows[49] ? rows[49].runs - runs + 1 : null;
+      const best = this.careerMode === 'classic' && this.best > 0 ? ` · best ${this.best}` : '';
+      return { first, sub: { tone: 'off', text: short && short > 0 ? `${short} runs off the top 50${best}` : `Outside the top 50${best}` } };
+    }
+    if (standing.was && standing.rank < standing.was.rank) {
+      const up = standing.was.rank - standing.rank;
+      return { first, sub: { tone: 'new', text: `New best · up ${up} ${up === 1 ? 'place' : 'places'}` } };
+    }
+    return { first, sub: null };
+  }
+
   private offerBoard() {
     const played = asInnings(this.score);
+    this.hud.cardNote = this.cardNoteFor(this.board, played.runs);
     const offer = cardOffer(this.boardSeen, this.board, played, Date.now(), this.player);
     // An innings that had nothing to offer stays quiet in a private window too:
     // the strip is there to say what is being missed, and a two-run innings was
@@ -2968,6 +3013,7 @@ export class Game {
     const played = marathonFigures(this.marathon!);
     const rows = this.marathonShown ?? { team: [], solo: [] };
     const offer = marathonOffer(!!this.marathonRows, rows, { team: teamOf(played), solo: soloOf(played) }, Date.now(), this.player);
+    this.hud.cardNote = this.cardNoteFor(rows.team, played.runs);
     this.hud.offerMarathonClaim(this.postedOffer(offer), readPlayer(), rows.team, this.player);
   }
 
@@ -2975,6 +3021,7 @@ export class Game {
   private offerSurvive() {
     const played = this.survived();
     const offer = surviveOffer(this.surviveSeen, this.surviveRows, played, Date.now(), this.player);
+    this.hud.cardNote = this.cardNoteFor(this.surviveRows, played.runs);
     this.hud.offerSurviveClaim(this.postedOffer(offer), readPlayer(), this.surviveRows, played, this.player);
   }
 
@@ -3160,6 +3207,9 @@ export class Game {
   private postedOffer(offer: CardOffer): CardOffer {
     if (!this.autoPosting || this.postFailed === this.innings) return this.shownOffer(offer);
     if (this.posted?.innings === this.innings) return { kind: 'placed', place: this.posted.place, posting: this.posted.posting };
+    // Off the bottom of the fifty: the quiet post said where, and the card says it.
+    const below = this.belowFifty();
+    if (below) return { kind: 'placed', place: below, posting: false };
     if (offer.kind === 'claim') {
       void this.autoPost(offer.place);
       return { kind: 'placed', place: offer.place, posting: true };
@@ -3211,13 +3261,25 @@ export class Game {
     if (result.standing) this.standing = { innings, mode: this.careerMode, standing: result.standing };
   }
 
-  /** An innings that earned no place, posted for where it leaves the player. Nothing on the card moves. */
+  /**
+   * An innings that earned no place, posted for where it leaves the player.
+   * The card moves only for a place below the fifty, which it now says: "You
+   * are #73". A best that still stands is already on the card.
+   */
   private async quietPost() {
     const innings = this.innings;
     if (this.postFor?.innings === innings || !readPlayer() || !this.player) return;
     const result = await this.postOnce();
     if (this.disposed || this.innings !== innings || !result.ok) return;
     this.tookPost(innings, result);
+    if (this.belowFifty()) this.reoffer();
+  }
+
+  /** This innings' place, where the post put it below the board's fifty; null otherwise. */
+  private belowFifty(): number | null {
+    const held = this.standing?.innings === this.innings ? this.standing.standing : null;
+    const standing = held ? ('team' in held ? held.team : held) : null;
+    return standing?.rank && standing.rank > 50 ? standing.rank : null;
   }
 
   /**
@@ -3415,7 +3477,7 @@ export class Game {
       this.mark(marathonTotalBand(this.score.runs), 'Total');
       this.mark(marathonBestBand(Math.max(0, ...marathonFigures(marathon).batters.map(one => one.runs))), 'Best individual score');
       this.mark(marathonOversBand(this.score.balls), 'Overs batted');
-      this.hud.endMarathon(this.score, marathon);
+      this.hud.endMarathon(this.score, marathon, (heldCareer('marathon') as MarathonCareer).highest || null);
       this.hud.career(this.canRegister, readPlayer()?.avatar ?? null);
       this.hud.offerRestorePanel = this.offerRestoreOnCard();
       this.hud.careerKey(this.careerKeyHeld(), { panel: true, bar: false });

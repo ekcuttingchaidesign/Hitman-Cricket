@@ -245,18 +245,16 @@ const declared = await snap();
 check(declared.phase === 'INNINGS_END' && declared.marathon.ending === 'DECLARED', 'declaring ends the innings', JSON.stringify(declared.marathon));
 check(await page.locator('#end').isVisible(), 'on the card');
 check((await page.locator('#end-title').textContent())?.includes('Declared'), 'which says it was declared', await page.locator('#end-title').textContent());
-// The batting card: a row a batter, the total under them; and the worm over
-// it, with a red ball where each man was out.
+// The batting card: a row a batter, numbered, with runs, balls, fours and
+// sixes; and the worm over it, with a red ball where each man was out.
 const scored = await page.locator('#mcard-score').evaluate(node => ({
   rows: [...node.querySelectorAll('tbody tr')].map(row => [...row.children].map(cell => cell.textContent.replace(/\s+/g, ' ').trim())),
-  total: node.querySelector('tfoot tr')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
 }));
-check(scored.rows.length === 3 && scored.rows[0][0].startsWith('Opener') && scored.rows[0][1] === '39' && scored.rows[2][0].startsWith('Tailender'),
-  'with all three batters on the batting card, runs, balls, fours, sixes and strike rate', JSON.stringify(scored));
-check(scored.total.startsWith('Total'), 'and the total under them', scored.total);
+check(scored.rows.length === 3 && /^1 ?OPENER/.test(scored.rows[0][0]) && scored.rows[0][1] === '39' && /^3 ?TAILENDER/.test(scored.rows[2][0]),
+  'with all three batters on the batting card, runs, balls, fours and sixes', JSON.stringify(scored));
 const worm = await page.locator('#mcard-worm').evaluate(node => ({ line: !!node.querySelector('.worm-line'), falls: node.querySelectorAll('.worm-fall').length }));
 check(worm.line && worm.falls === declared.marathon.gone, 'the worm over it, a ball on the line for each man gone', JSON.stringify(worm));
-check((await page.locator('#mcard-modes').isVisible()) && (await page.locator('#mcard-share').isVisible()), 'and CHANGE MODE and SHARE side by side under PLAY AGAIN');
+check((await page.locator('#mcard-modes').isVisible()) && (await page.locator('#mcard-share').isVisible()), 'and MODE and SHARE side by side under PLAY AGAIN');
 // The boards are asked again at the end of an innings this long, and the
 // strip goes up when they answer: a declared innings is a place on a board
 // with room on it.
@@ -406,7 +404,7 @@ check(await sides() === 'LEG SIDE / OFF SIDE', 'with the sides back where they w
 await write([...Array(60).fill(4), 'W']);
 for (let i = 0; i < 20 && !(await page.locator('#claim').isVisible()); i++) { await advance(250); await page.waitForTimeout(150); }
 const practiceHead = await page.locator('#card-board-head').textContent();
-check(practiceHead?.includes('Practice innings') && (await page.locator('#claim').textContent())?.trim() === 'VIEW LEADERBOARD',
+check(practiceHead?.includes('Practice innings') && (await page.locator('#claim').textContent())?.trim() === 'Leaderboard',
   'an innings from the nets is practice: the card offers no place, only the board', `${practiceHead} / ${await page.locator('#claim').textContent()}`);
 
 await page.clock.resume();

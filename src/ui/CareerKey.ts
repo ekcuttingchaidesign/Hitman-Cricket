@@ -21,6 +21,7 @@
  */
 
 import { escape } from './Leaderboard';
+import { cta, icon } from './Kit';
 
 /** What this browser can say about the player's key. */
 export type KeyState =
@@ -89,16 +90,16 @@ export function keyCardMarkup(view: KeyView): string {
  * came to look at, and this is not allowed to push the keys off the bottom.
  */
 export function keyPanelMarkup(view: KeyView): string {
+  // UI v1's ticket stub: the key on its holographic strip, the perforation,
+  // and SAVE on the far side of it.
   return `
-    <section class="key-panel" aria-labelledby="key-panel-title">
-      <div class="key-panel-face">
-        <span class="key-mark" aria-hidden="true">${MARK}</span>
-        <div class="key-panel-say">
-          <h3 id="key-panel-title">Your career key</h3>
-          <p class="key-serial is-inline"><span>${escape(view.code ?? '')}</span></p>
-        </div>
-        <button id="key-panel-save" class="key-panel-key" type="button">SAVE</button>
+    <section class="key-panel k-ticket" aria-labelledby="key-panel-title">
+      <div class="k-ticket-key">
+        <div class="k-ticket-label k-t-overline">${icon('key')}<span id="key-panel-title">Career key</span></div>
+        <p class="key-serial k-ticket-pill"><span>${escape(view.code ?? '')}</span></p>
       </div>
+      <span class="k-ticket-perf" aria-hidden="true"></span>
+      <div class="k-ticket-save">${cta({ kind: 'save', label: 'SAVE', id: 'key-panel-save' })}</div>
     </section>`;
 }
 
