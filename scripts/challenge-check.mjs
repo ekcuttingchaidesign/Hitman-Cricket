@@ -197,7 +197,7 @@ await a.shot('10-waiting');
 // Rahul bats against the recorded innings and meets it in the gaps.
 await b.settle(2500);
 const chase = await b.page.locator('#room-lead').innerText();
-check(/has batted/.test(chase), 'Rahul\'s room says Shashank has batted, and nothing about the score', chase);
+check(/has batted/i.test(chase), 'Rahul\'s room says Shashank has batted, and nothing about the score', chase);
 await b.shot('09b-room-chase');
 await b.act('play');
 await b.page.evaluate(() => {
@@ -264,7 +264,7 @@ check(await b.page.locator('#modes').isVisible(), 'the back key leaves the resul
 await b.page.locator('#modes-challenges').click({ force: true });
 check(await b.appears('#challenge-list'), 'Rival Matches opens');
 const list = await b.page.locator('#challenge-sections').innerText();
-check(/past challenges/i.test(list) && /Shashank/.test(list), 'with the match under Past challenges, against Shashank', list);
+check(/challenges/i.test(list) && /vs Shashank/.test(list) && /(You|Shashank) won|Drawn/.test(list), 'with the match among the challenges, against Shashank, and how it went', list);
 await b.shot('13-list');
 await b.page.locator('[data-rival]').first().click({ force: true });
 await b.settle();

@@ -460,6 +460,22 @@ share key sends, a picture as it always was. The four tier cards are on
 `?ui=1`. The key's two sheets and Bring your record back are bottom sheets
 now (`CareerKey.ts`, `Restore.ts`), their ids as they were.
 
+Rivals is redrawn (phase 7, the handover's section 08) over the same logic
+and the same ids: every screen stands on BG / Rivals (your blue bloom top
+left, theirs orange bottom right, a halftone, `src/assets/rivals/`). Rival
+Matches has the record as drawn (`rivalsRecordMarkup` in `src/ui/Record.ts`:
+won, lost, drawn, the last four results as chips from `recentForm`, a win
+share bar) and one card of challenges, each row two faces, "You vs …", the
+verdict or what it waits on with its age (`ageOf`), and a W / L / … chip; an
+empty list says NO RIVALS YET. The room's faces carry a ring in their side's
+colour and a JOINED / NOT BATTED / BATTED chip, a hidden score is `???`; the
+result puts the winner under a crown with the two innings as cards. The
+invite and the head-to-head (now with fours) are sheets from the foot, the
+ranking a table, joining from a link a card over the stadium, and can't reach
+the match a screen of its own. `challenge-check.mjs` walks all of it (with
+`SHOTS=dir` it photographs each step); `?room=won` and its siblings put any
+room face up.
+
 The orange key is redrawn (Figma `149:18107`, and `149:18112` for the one that
 moves): an orange rim lit from above round a face warming from white to peach,
 named `--g-cta-rim` and `--g-cta-face`, at the sizes it already had. The older
