@@ -789,6 +789,8 @@ export class Game {
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
+      // The physio's card, up by name, for looking at it without batting to it.
+      physio: (injury = 90) => this.hud.hurtNote(() => {}, injury),
       // Whether it is up.
       ratingOpen: () => !!this.ratingPrompt?.open,
     } });
@@ -3479,7 +3481,7 @@ export class Game {
     markHurtNoteSeen();
     this.setPhase('READY');
     this.togglePause();
-    this.hud.hurtNote(() => { if (this.phase === 'PAUSED') this.togglePause(); });
+    this.hud.hurtNote(() => { if (this.phase === 'PAUSED') this.togglePause(); }, this.health.injury);
   }
 
   /**

@@ -589,10 +589,13 @@ ${modeSelectMarkup()}
         <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"></div>
         <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
           <div class="hurt-note-card">
-            <p class="hurt-note-eyebrow">PHYSIO ON</p>
-            <h2 id="hurt-note-title">He's not going to take much more.</h2>
+            <div class="hurt-note-head">
+              <span id="hurt-note-ring" class="hurt-note-ring" aria-hidden="true"></span>
+              <span class="hurt-note-say"><b class="hurt-note-eyebrow">PHYSIO ON</b><small id="hurt-note-injury">One more blow retires you</small></span>
+            </div>
+            <h2 id="hurt-note-title">BATSMAN CRITICALLY INJURED</h2>
             <p class="hurt-note-line">Block and the ball keeps hitting you. Play at it and you risk the edge. There's no safe option left &mdash; pick which way you'd rather go out.</p>
-            <button id="hurt-note-done" class="key-button">BAT ON</button>
+            <button id="hurt-note-done" class="k-cta k-cta--primary is-wide" type="button"><span class="k-cta-face"><span>BAT ON</span></span></button>
           </div>
         </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
@@ -2714,8 +2717,12 @@ ${modeSelectMarkup()}
    * more often than one who keeps playing. So it names both costs and leaves
    * the choice where it belongs.
    */
-  hurtNote(onClose: () => void) {
+  hurtNote(onClose: () => void, injury: number | null = null) {
     const note = this.$('hurt-note');
+    // How bad, on the ring and in the line beside it.
+    const hurt = injury === null ? 90 : Math.max(0, Math.min(100, Math.round(injury)));
+    this.$('hurt-note-ring').innerHTML = injuryRingMarkup(hurt);
+    this.$('hurt-note-injury').textContent = `Injury ${hurt}% · one more blow retires you`;
     note.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     const done = () => {
@@ -2724,7 +2731,8 @@ ${modeSelectMarkup()}
       onClose();
     };
     (this.$('hurt-note-done') as HTMLButtonElement).onclick = done;
-    (this.$('hurt-note-done') as HTMLButtonElement).focus();
+    // On the card rather than the key: a ring round BAT ON nobody tabbed to reads as a state.
+    this.settle('hurt-note');
   }
   get hurtNoteOpen() { return !this.$('hurt-note').classList.contains('hidden'); }
 
