@@ -828,6 +828,8 @@ ${modeSelectMarkup()}
     // list rises, so what scrolls up meets a plain ground rather than a picture.
     const reach = podium ? Math.max(1, podium.offsetHeight - 56) : 1;
     shell.style.setProperty('--fade', Math.min(1, body.scrollTop / reach).toFixed(3));
+    // The chips stand over the top of the list, wherever the header ends.
+    shell.style.setProperty('--head', `${shell.querySelector<HTMLElement>('.lb-head')?.offsetHeight ?? 0}px`);
     const row = shell.querySelector<HTMLElement>('.lb-row.is-you');
     const dock = shell.querySelector<HTMLElement>('.lb-dock');
     if (!row || !dock) { shell.classList.remove('is-you-seen'); return; }

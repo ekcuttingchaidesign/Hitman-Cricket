@@ -156,14 +156,14 @@ export function boardScreenMarkup(s: BoardScreen): string {
       </header>
       <div class="lb-body" id="board-body">
         ${offline ? '' : `
-        <div class="lb-podium${loading ? ' is-loading' : ''}">${podiumMarkup(top, s.mode, loading)}</div>
-        <div class="lb-chips" aria-hidden="true">${top.map(row => chipMarkup(row)).join('')}</div>`}
+        <div class="lb-podium${loading ? ' is-loading' : ''}">${podiumMarkup(top, s.mode, loading)}</div>`}
         <section class="lb-sheet${offline ? ' is-offline' : ''}" aria-label="${escape(`${meta.name}, ${ladder?.name ?? ''}`)}">
           ${offline ? offlineMarkup() : loading ? skeletonRows() : empty || s.rows.length < 3 ? fewMarkup(s.rows.length) : ''}
           ${s.banner && !offline && !loading ? bannerMarkup(s.banner) : ''}
           ${rest.length ? `<ol class="lb-list">${rest.map(row => rowMarkup(row)).join('')}</ol>` : ''}
         </section>
       </div>
+      ${offline ? '' : `<div class="lb-chips" aria-hidden="true">${top.map(row => chipMarkup(row)).join('')}</div>`}
       <div class="lb-dock">
         ${s.extra ?? ''}
         ${s.dock ? dockMarkup(s.dock) : ''}

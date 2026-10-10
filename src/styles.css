@@ -7710,6 +7710,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
    being cut off at a hard edge. */
 .lb-bg img{opacity:calc(.5 * (1 - var(--fade,0)))}
 .lb-glow{opacity:calc(1 - var(--fade,0))}
-.lb-chips::before{content:'';position:absolute;left:0;right:0;top:calc(var(--u) * -2);height:calc(var(--u) * 92);pointer-events:none;
-  background:linear-gradient(180deg,var(--c-page) 0%,var(--c-page) 58%,#0a0b0d00 100%)}
-.lb-chip{position:relative;z-index:1}
+/* The chips stand over the list rather than in it, and the list itself fades
+   out at the top as it rises: what shows through is the screen's own ground,
+   grain and all, so there is no painted band to match it to. */
+.lb-chips{position:absolute;left:0;right:0;top:var(--head,0px);height:auto;z-index:3}
+.lb-body{
+  -webkit-mask-image:linear-gradient(180deg,rgb(0 0 0 / calc(1 - var(--fade,0))) 0,rgb(0 0 0 / calc(1 - var(--fade,0))) calc(var(--u) * 34),#000 calc(var(--u) * 84));
+  mask-image:linear-gradient(180deg,rgb(0 0 0 / calc(1 - var(--fade,0))) 0,rgb(0 0 0 / calc(1 - var(--fade,0))) calc(var(--u) * 34),#000 calc(var(--u) * 84))
+}
