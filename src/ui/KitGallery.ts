@@ -47,6 +47,7 @@ export function galleryMarkup(): string {
   const type = TYPE.map(([cls, name]) => `<p class="${cls}">${name} · 158</p>`).join('');
   const ctas = [
     cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'kg-play-again' }),
+    cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'kg-play-again-moving', moving: true }),
     cta({ kind: 'mode', label: 'MODE' }),
     cta({ kind: 'share', label: 'Share on WhatsApp' }),
     cta({ kind: 'challenge', label: 'Challenge a friend' }),

@@ -182,7 +182,7 @@ export function coverMarkup(view: CoverView): string {
               <span class="cover-best-text">${coverBoardLines(view.board)}</span>
               ${icon('chevron-right', 'cover-best-chevron')}
             </button>
-            ${cta({ kind: 'primary', label: 'PLAY', id: 'start', wide: true })}
+            ${cta({ kind: 'primary', label: 'PLAY', id: 'start', wide: true, moving: true })}
             ${cta({ kind: 'secondary', label: 'HOW TO PLAY', id: 'tutorial' })}
             <button id="feedback-open" class="cover-feedback hidden" type="button">What do you think of the game?</button>
           </div>

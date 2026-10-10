@@ -33,11 +33,13 @@ import {
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
 import { INTRO_STEPS, introCardMarkup, introKeysMarkup, type IntroStep } from './MarathonIntro';
-import { fallsOf, marathonShareText, scorecardMarkup, wormMarkup, type CardBatter, type CardTotal } from './MarathonCard';
+import { fallsOf, marathonShareText, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonBoardMarkup, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
 import { recordMarkup, type RivalsRecord } from './Record';
 import { coverBoardLines, coverMarkup, profileChip, type CoverBoard } from './Cover';
+import { cta, icon as kitIcon } from './Kit';
+import { battingCardMarkup, injuryRingMarkup, injuryWord, overChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
 import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
@@ -58,7 +60,6 @@ import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, avatarSrc, kitDeal } from '../config/board';
-import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import type { NetsBowler } from '../game/DeliveryGenerator';
@@ -138,12 +139,14 @@ const resultPlates: Record<Result, string> = {
 };
 /* What each card says, and the word it puts on the result line. */
 const RESULT_SAID: Record<Result, { title: string; line: string; stamp: string }> = {
-  WON: { title: 'You did the impossible!', line: 'thats a legendary knock from a tailender', stamp: 'MATCH WON' },
-  DRAWN: { title: 'Thats warrior instincts!', line: 'Survived the fiery attack and saved the match', stamp: 'MATCH DRAWN' },
-  HURT: { title: 'Ouch! that hurts', line: 'Thats too many blows on the body', stamp: 'MATCH LOST' },
+  WON: { title: 'You did the impossible!', line: 'That\u2019s a legendary knock from a tailender', stamp: 'MATCH WON' },
+  DRAWN: { title: 'That\u2019s warrior instincts!', line: 'Survived the fiery attack and saved the match', stamp: 'MATCH DRAWN' },
+  HURT: { title: 'Ouch! That hurts', line: 'That\u2019s too many blows on the body', stamp: 'MATCH LOST' },
   ALMOST: { title: 'You almost did it', line: 'Few balls more and it would\u2019ve been legendary', stamp: 'MATCH LOST' },
   LOST: { title: 'They got you', line: 'One wicket was all they needed', stamp: 'MATCH LOST' },
 };
+/* The band's two chevrons, pointing on: a pale tint of the mode's colour. */
+const BAND_CHEVRONS = `<svg class="ec-chevrons" viewBox="0 0 166 144" aria-hidden="true"><path d="M0 0H46L104 72L46 144H0L58 72Z" opacity=".18"/><path d="M62 0H108L166 72L108 144H62L120 72Z" opacity=".32"/></svg>`;
 /* The board widget is the way onto the board from the cover, so it is always
    there. What it quotes is not: a best of nought is a sentence about nobody, so
    until there is one it quotes the board's leader instead — and the board is
@@ -369,58 +372,78 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
           </div>
           <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
         </div>
-        <div id="end" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
-          <div class="scorecard">
-            <h2 id="end-title">Innings complete.</h2>
-            <div class="card-figures">
-              <p class="card-runs" id="final-score" role="img"></p>
-              <p class="card-overs"><span id="final-overs"></span><small>Overs</small></p>
-            </div>
-            <div class="card-balls" id="final-balls" aria-hidden="true"></div>
-            <div id="mcard-worm" class="mcard-worm"></div>
-            <div id="mcard-score" class="mcard-score"></div>
-            <p id="end-message" class="card-line"></p>
-            <dl class="card-stats">
-              <div><dt>Fours</dt><dd id="final-fours"></dd></div>
-              <div><dt>Sixes</dt><dd id="final-sixes"></dd></div>
-              <div><dt>Strike rate</dt><dd id="final-rate"></dd></div>
-            </dl>
-            <div id="card-board" class="card-board hidden">
-              <p class="card-board-head" id="card-board-head"></p>
-              <div id="card-peek"></div>
-              <button id="claim" class="key-button claim-key">REGISTER SCORE ON LEADERBOARD</button>
-              <p id="claim-why" class="claim-why">Registering is also how your career survives a new phone.</p>
-              <form id="card-claim" class="card-claim hidden">
-                <div id="claim-picker"></div>
-                <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
-                <p id="claim-error" class="claim-error hidden" role="alert"></p>
-                <p id="claim-back" class="claim-back hidden"></p>
-                <button id="claim-send" type="submit" class="key-button claim-key">PUT ME ON THE BOARD</button>
-                <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
-              </form>
-            </div>
-            <button id="card-career" class="career-widget hidden" type="button">
-              <span id="career-kit" class="career-kit"></span>
-              <span class="career-words">Career Stats<em id="career-new" class="career-new">NEW</em></span>
-              <span class="career-go" aria-hidden="true">${icon('arrow')}</span>
-            </button>
-            <div id="card-key" class="card-key hidden"></div>
-            <div class="card-keys">
-              <button id="again" class="key-button">PLAY AGAIN</button>
-              <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
-              <div class="card-next">
-                <button id="challenge-set" class="card-next-key challenge-key" type="button">${icon('versus')}<span class="card-next-say">Challenge a friend<em>with this innings</em></span></button>
-                <button id="card-change" class="card-next-key modes-key" type="button">${icon('modes')}<span class="card-next-say">Change mode</span></button>
+        <div id="end" class="modal-overlay ec-screen hidden" role="dialog" aria-modal="true" aria-labelledby="end-title">
+          <span class="ec-bloom" aria-hidden="true"></span>
+          <div class="scorecard ec-content">
+            <section class="ec-hero">
+              <div class="k-pit ec-pit">
+                <span id="end-mode" class="k-pit-mode">THE BLAST</span>
+                <span id="end-label" class="k-pit-label">5 OVERS</span>
+                <button id="end-sound" class="k-pit-sound" type="button" aria-label="Sound">${kitIcon('volume')}</button>
               </div>
-            </div>
-            <div class="card-shares mcard-keys">
-              <button id="mcard-modes" class="story-key" type="button">CHANGE MODE</button>
-              <button id="mcard-share" class="whatsapp-key" type="button">${icon('whatsapp')}<span>SHARE</span></button>
-            </div>
+              <div class="ec-band">
+                ${BAND_CHEVRONS}
+                <div class="ec-score">
+                  <h2 id="end-title" class="ec-word">Innings complete</h2>
+                  <p class="card-runs ec-total" id="final-score" role="img"></p>
+                </div>
+                <p class="card-overs ec-overs"><span id="final-overs"></span><small>OVERS</small></p>
+              </div>
+              <div class="ec-body">
+                <div class="card-balls ec-chart" id="final-balls" aria-hidden="true"></div>
+                <div id="mcard-worm" class="mcard-worm"></div>
+                <p id="end-message" class="card-line"></p>
+                <dl class="card-stats ec-stats">
+                  <div><dd id="final-fours"></dd><dt>Fours</dt></div>
+                  <div><dd id="final-sixes"></dd><dt>Sixes</dt></div>
+                  <div><dd id="final-rate"></dd><dt>Strike rate</dt></div>
+                  <div class="ec-wickets"><dd id="final-wickets"></dd><dt>Wickets</dt></div>
+                </dl>
+              </div>
+            </section>
+            <div id="mcard-score" class="mcard-score"></div>
+            <section class="ec-player">
+              <div id="card-board" class="card-board hidden">
+                <div class="ec-rank">
+                  <span id="card-board-face" class="ec-face"></span>
+                  <div class="k-rank-text">
+                    <div class="k-rank-who k-t-overline"><span id="card-board-who"></span><span id="card-board-first" class="k-rank-first k-t-tag hidden">First innings</span></div>
+                    <p class="card-board-head k-rank-line k-t-lead" id="card-board-head"></p>
+                    <p id="card-board-sub" class="k-rank-best k-t-small hidden"></p>
+                    <div id="card-peek"></div>
+                  </div>
+                </div>
+                <p id="claim-why" class="claim-why">Registering is also how your career survives a new phone.</p>
+                <form id="card-claim" class="card-claim hidden">
+                  <div id="claim-picker"></div>
+                  <label class="claim-field"><span>Name</span><input id="claim-name" name="name" type="text" maxlength="14" autocomplete="nickname" enterkeyhint="done" placeholder="Up to 14 characters" required></label>
+                  <p id="claim-error" class="claim-error hidden" role="alert"></p>
+                  <p id="claim-back" class="claim-back hidden"></p>
+                  <button id="claim-send" type="submit" class="key-button claim-key">PUT ME ON THE BOARD</button>
+                  <button id="claim-cancel" type="button" class="ghost-link">Not now</button>
+                </form>
+              </div>
+              <div class="k-actions ec-doors">
+                <button id="claim" class="k-action is-board claim-key" type="button">REGISTER SCORE ON LEADERBOARD</button>
+                <button id="card-career" class="k-action is-career career-widget hidden" type="button">
+                  ${kitIcon('user')}<span class="career-words">Career stats</span>${kitIcon('chevron-right', 'is-chevron')}
+                  <span id="career-kit" class="career-kit hidden"></span>
+                </button>
+              </div>
+            </section>
+            <div id="card-key" class="card-key hidden"></div>
+            <button id="feedback-card" class="ghost-link ec-feedback hidden" type="button">Tell me what you think</button>
             <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
-            <button id="feedback-card" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
+          <div class="card-keys ec-keys">
+              ${cta({ kind: 'mode', label: 'MODE', id: 'card-change' })}
+              ${cta({ kind: 'mode', label: 'MODE', id: 'mcard-modes' })}
+              ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'again', moving: true })}
+              <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
+              ${cta({ kind: 'challenge', label: 'Challenge a friend with this innings', id: 'challenge-set' })}
+              ${cta({ kind: 'share', label: 'Share on WhatsApp', id: 'mcard-share' })}
+            </div>
         </div>
 ${modeSelectMarkup()}
         <div id="challenge-room" class="modal-overlay room-screen hidden" role="dialog" aria-modal="true" aria-labelledby="room-title">
@@ -512,33 +535,35 @@ ${modeSelectMarkup()}
             </div>
           </div>
         </div>
-        <div id="end-survive" class="modal-overlay result-screen hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
-          <div class="result-card">
-            <span class="result-plate"><img id="survive-plate" src="" alt="" decoding="async" /></span>
-            <div class="result-body">
-              <h2 id="survive-title" class="result-headline"></h2>
-              <p id="survive-message" class="result-sub"></p>
-              <hr class="result-rule" />
-              <div class="result-band">
-                <div class="result-figures">
-                  <p class="result-stamp" id="survive-stamp"></p>
-                  <p class="result-score" id="survive-score" role="img"></p>
-                  <p class="result-balls" id="survive-overs"></p>
-                </div>
-                <dl class="result-stats">
-                  <div><dt>Runs</dt><dd id="survive-runs"></dd></div>
-                  <div><dt>Blows taken</dt><dd id="survive-blows"></dd></div>
-                  <div><dt>Injury</dt><dd id="survive-health"></dd></div>
-                </dl>
+        <div id="end-survive" class="modal-overlay ec-screen is-survive hidden" role="dialog" aria-modal="true" aria-labelledby="survive-title">
+          <span class="ec-bloom" aria-hidden="true"></span>
+          <div class="ec-content">
+            <section class="ec-hero">
+              <div class="k-pit ec-pit">
+                <span class="k-pit-mode">SURVIVAL</span>
+                <span id="survive-stamp" class="k-pit-label ec-stamp"></span>
+                <button id="survive-sound" class="k-pit-sound" type="button" aria-label="Sound">${kitIcon('volume')}</button>
               </div>
-              <div id="survive-strip" class="survive-strip"></div>
-              <div class="result-keys">
-                <button id="survive-again" class="play-button">PLAY AGAIN</button>
-                <button id="survive-modes" class="learn-button change-key">CHANGE MODE</button>
+              <div class="ec-photo">
+                <img id="survive-plate" class="ec-photo-art" src="" alt="" decoding="async" />
+                <div class="ec-chips"><span id="survive-score" class="ec-chip is-score" role="img"></span><span id="survive-overs" class="ec-chip is-info"></span></div>
+                <h2 id="survive-title" class="ec-headline"></h2>
+                <p id="survive-message" class="ec-subline"></p>
               </div>
-              <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
-            </div>
+              <dl class="ec-innings">
+                <div><dd id="survive-runs"></dd><dt>Runs</dt></div>
+                <div><dd id="survive-blows"></dd><dt>Blows taken</dt></div>
+                <div class="ec-injury"><dd id="survive-ring"></dd><dt id="survive-health"></dt></div>
+              </dl>
+            </section>
+            <div id="survive-strip" class="survive-strip"></div>
+            <span class="start-hint keyboard-only">Press <kbd>R</kbd> to bat again</span>
           </div>
+            <div class="ec-keys">
+              ${cta({ kind: 'mode', label: 'MODE', id: 'survive-modes' })}
+              ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'survive-again', moving: true })}
+              ${cta({ kind: 'share', label: 'Share on WhatsApp', id: 'survive-share' })}
+            </div>
         </div>
         <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"></div>
         <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
@@ -555,7 +580,7 @@ ${modeSelectMarkup()}
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
-    this.$('card-career').addEventListener('click', () => { this.markCareerSeen(); this.onStatsOpen?.(); });
+    this.$('card-career').addEventListener('click', () => this.onStatsOpen?.());
     const dialog = this.$('help-dialog') as HTMLDialogElement;
     this.$('help-done').onclick = () => dialog.close();
     dialog.querySelector<HTMLButtonElement>('.close-help')!.onclick = () => dialog.close();
@@ -638,25 +663,14 @@ ${modeSelectMarkup()}
   onStatsOpen: (() => void) | null = null;
 
   /**
-   * The Career Stats widget under the innings card: whose career it is, and
-   * whether it is still news.
-   *
-   * The NEW pill comes off the moment it is opened, once, for good. A badge
-   * that says NEW on the fortieth innings is a badge nobody reads any more,
-   * and worse, it teaches the player that the flags on this screen mean
-   * nothing.
+   * The Career stats door under the innings card, and whose career it is.
+   * No NEW pill: the redrawn card keeps its doors to a word and a chevron.
    */
   career(show: boolean, kit: number | null) {
     const widget = this.$('card-career');
     widget.classList.toggle('hidden', !show);
     if (!show) return;
     this.$('career-kit').innerHTML = kit === null ? '' : kitMarkup(kit, '');
-    this.$('career-new').classList.toggle('hidden', careerSeen());
-  }
-
-  private markCareerSeen() {
-    this.$('career-new').classList.add('hidden');
-    rememberCareerSeen();
   }
   /** The facts the card on screen was drawn from, held for the share keys. */
   private statsShown: StatsFacts | null = null;
@@ -1699,6 +1713,8 @@ ${modeSelectMarkup()}
   }
   end(score: ScoreManager, best: number, isRecord: boolean, track$: number = GAME.totalBalls) {
     this.$('end').classList.remove('is-marathon');
+    this.$('end-mode').textContent = 'THE BLAST';
+    this.$('end-label').textContent = `${Math.round(track$ / 6)} OVERS`;
     this.viewport.classList.add('modal-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
@@ -1712,6 +1728,7 @@ ${modeSelectMarkup()}
     this.$('final-fours').textContent = String(score.fours);
     this.$('final-sixes').textContent = String(score.sixes);
     this.$('final-rate').textContent = String(score.strikeRate);
+    this.$('final-wickets').textContent = String(score.wickets);
     // Every ball of the innings, in order: a bar as tall as the runs off it, and
     // a mark over the ball that got him out. It says nothing the figures do not,
     // so it speaks to nobody who cannot see it, but it is the only thing on the
@@ -1720,13 +1737,7 @@ ${modeSelectMarkup()}
     // on it as gaps: three wickets inside two overs looks like three wickets
     // inside two overs. Each bar carries its own place in the order, which is
     // what lets the stylesheet play them back in it.
-    const track = this.$('final-balls');
-    track.style.setProperty('--balls', String(track$));
-    track.innerHTML = Array.from({ length: track$ }, (_, i) => {
-      const ball = score.history[i];
-      if (!ball) return `<i class="ball-unfaced" style="--i:${i}"></i>`;
-      return `<i class="${ball.isWicket ? 'ball-out' : ''}" style="--r:${Math.min(6, ball.runs)};--i:${i}"></i>`;
-    }).join('');
+    this.$('final-balls').innerHTML = overChartMarkup(score.history, track$);
     this.$('end').classList.toggle('is-record', isRecord);
     // Last innings' claim does not carry over to this one, and neither does what
     // the board had to say about it: the strip is silent until this innings has
@@ -1745,7 +1756,9 @@ ${modeSelectMarkup()}
     // What happened, then the number that makes it mean something. A best is
     // already banked by the time this runs, so it is only worth quoting back
     // when the innings did not set it.
-    this.$('end-title').textContent = isRecord ? 'New personal best' : score.wickets >= 3 ? 'All out' : 'Innings complete';
+    // The band says how it ended; whether it was a best is the player card's to say.
+    this.$('end-title').textContent = score.wickets >= GAME.maxWickets ? 'All out' : 'Innings complete';
+    this.cardNote = null;
     // The number is already the largest thing on the card, so the line under it
     // does not repeat it. It adds what the figures cannot: how long the innings
     // lasted, and where it stands against the last one. A best is only worth
@@ -1789,7 +1802,7 @@ ${modeSelectMarkup()}
     playerId: string | null = null,
   ) {
     this.strip(offer, known, playerId, false, {
-      best: standing => `Your best score is still <b>${standing.runs}</b>`,
+      best: standing => String(standing.runs),
       peek: (place, name) => (rows.length ? peekMarkup(rows, place, yours, known?.avatar ?? null, name) : ''),
       held: place => (rows[place - 1] ? standingPeek(rows, place) : ''),
     });
@@ -1810,7 +1823,7 @@ ${modeSelectMarkup()}
     playerId: string | null = null,
   ) {
     this.strip(offer, known, playerId, true, {
-      best: standing => `Your best still stands &mdash; <b>${surviveBest(rows, standing.place)}</b>`,
+      best: standing => surviveBest(rows, standing.place),
       peek: (place, name) => (rows.length ? survivePeekMarkup(rows, place, yours, known?.avatar ?? null, name) : ''),
       held: place => (rows[place - 1] ? surviveStandingPeek(rows, place) : ''),
     });
@@ -1826,7 +1839,7 @@ ${modeSelectMarkup()}
     offer: CardOffer, known: { name: string; avatar: number } | null, team: readonly TeamRow[], playerId: string | null = null,
   ) {
     this.strip(offer, known, playerId, false, {
-      best: standing => `Your best still stands &mdash; <b>${team[standing.place - 1] ? marathonBest(team[standing.place - 1]) : standing.runs}</b>`,
+      best: standing => (team[standing.place - 1] ? marathonBest(team[standing.place - 1]) : String(standing.runs)),
       peek: () => '',
       held: () => '',
     });
@@ -1857,6 +1870,20 @@ ${modeSelectMarkup()}
     this.hostStrip(surviving);
     this.onBoard = offer.kind === 'standing';
     const key = this.$('claim');
+    // Who the card is about: their kit and name, or a guest's.
+    this.$('card-board-face').innerHTML = known
+      ? `<img class="k-rank-avatar" src="${avatarSrc(known.avatar)}" alt="" width="48" height="48">`
+      : `<span class="k-rank-avatar is-guest">${kitIcon('user')}</span>`;
+    this.$('card-board-who').textContent = known ? known.name : 'GUEST';
+    const note = this.cardNote;
+    this.$('card-board-first').classList.toggle('hidden', !note?.first || offer.kind === 'standing');
+    const sub = this.$('card-board-sub');
+    const said = offer.kind === 'standing' ? { tone: 'stands', text: `Best still stands  \u00b7  ${say.best(offer)}` } : note?.sub ?? null;
+    sub.classList.toggle('hidden', !said);
+    sub.className = `k-rank-best k-t-small${said ? ` is-${said.tone}` : ' hidden'}`;
+    sub.innerHTML = said ? `${kitIcon('trophy')}<span>${escapeName(said.text)}</span>` : '';
+    const door = `${kitIcon('chart')}<span>Leaderboard</span>${kitIcon('chevron-right', 'is-chevron')}`;
+    const place = (n: number) => `You are <b>#${n}</b> on the leaderboard`;
     // Cleared up front, so the two "view leaderboard" states cannot inherit a
     // shimmer from an offer the player has already answered.
     key.classList.remove('is-offer');
@@ -1869,47 +1896,44 @@ ${modeSelectMarkup()}
       // The innings was good enough and the window cannot keep a player id, so
       // the strip says so plainly rather than offering a form that would file a
       // row nobody could ever come back to. The board is still worth a look.
-      this.$('card-board-head').innerHTML =
-        `${icon('trophy')}<span>Private window — this innings can’t go on the board</span>`;
+      this.$('card-board-head').innerHTML = 'Private window — this innings can’t go on the board';
       this.$('card-peek').innerHTML =
         '<p class="peek-note">Open the game in a normal tab to register a score.</p>';
-      key.textContent = 'VIEW LEADERBOARD';
+      key.innerHTML = door;
     } else if (offer.kind === 'practice') {
       // Played with a switch in the link — the nets, a full meter, one bowler
       // all innings — so not an innings anybody else could have played.
-      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Practice innings — not for the leaderboard</span>`;
+      this.$('card-board-head').innerHTML = 'Practice innings — not for the leaderboard';
       this.$('card-peek').innerHTML =
         '<p class="peek-note">Played with a test switch in the link. Open the plain link to register a score.</p>';
-      key.textContent = 'VIEW LEADERBOARD';
+      key.innerHTML = door;
     } else if (offer.kind === 'standing') {
       // Their own row is the news, not this innings. What it says is what still
       // stands, and the only thing left to offer is the board it stands on.
-      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>${say.best(offer)}</span>`;
+      this.$('card-board-head').innerHTML = place(offer.place);
       this.$('card-peek').innerHTML = say.held(offer.place);
-      key.textContent = 'VIEW LEADERBOARD';
+      key.innerHTML = door;
     } else if (offer.kind === 'placed') {
       // On the board already, with nothing to press: the place, the rows
       // either side, and the way to the board. While the store is asked the
       // row is drawn from this innings; once it answers, from the board.
-      this.$('card-board-head').innerHTML = offer.place
-        ? `${icon('trophy')}<span>You&rsquo;re <b>${ordinal(offer.place)}</b> on the leaderboard</span>`
-        : `${icon('trophy')}<span>Your innings is on the leaderboard</span>`;
+      this.$('card-board-head').innerHTML = offer.place ? place(offer.place) : 'Your innings is on the leaderboard';
       this.$('card-peek').innerHTML = !offer.place ? ''
         : offer.posting ? say.peek(offer.place, known?.name) : say.held(offer.place);
-      key.textContent = 'VIEW LEADERBOARD';
+      key.innerHTML = door;
     } else if (offer.kind === 'name') {
       // No place on a board this time, and no name yet. The name is the thing
       // worth having anyway: it is what keeps a career on a new phone and puts
       // it on the career boards. Asked the way a place is asked for — the same
       // form, the same light across the key — because it is the same choice.
-      this.$('card-board-head').innerHTML = `${icon('trophy')}<span>Claim your name</span>`;
+      this.$('card-board-head').innerHTML = 'Claim your name';
       this.$('card-peek').innerHTML = '<p class="peek-note">Keep your runs, rank and career on any phone.</p>';
       key.textContent = 'CLAIM YOUR NAME';
       key.classList.add('is-offer');
     } else {
       this.$('card-board-head').innerHTML = offer.place
-        ? `${icon('trophy')}<span>Congrats! You secured <b>${ordinal(offer.place)}</b> position on leaderboard</span>`
-        : `${icon('trophy')}<span>Put this innings on the board</span>`;
+        ? `Congrats! You secured <b>${ordinal(offer.place)}</b> position on leaderboard`
+        : 'Put this innings on the board';
       // With no board fetched there is nothing to sit between, so the strip is
       // the banner and the key alone rather than three empty rows.
       this.$('card-peek').innerHTML = offer.place ? say.peek(offer.place) : '';
@@ -1923,6 +1947,14 @@ ${modeSelectMarkup()}
     }
     this.$('card-board').classList.remove('hidden');
   }
+
+  /**
+   * What the rank header says under the place, which the game knows and the
+   * card does not: a first innings (the chip by the name), a new best and how
+   * far it climbed, or how far off the fifty a place below it is. Cleared for
+   * every new innings; a best that still stands is the card's own to say.
+   */
+  cardNote: { first: boolean; sub: { tone: 'new' | 'off' | 'stands'; text: string } | null } | null = null;
 
   /** Which card the strip is living in at the moment. */
   private stripHost: 'end' | 'end-survive' = 'end';
@@ -1944,12 +1976,13 @@ ${modeSelectMarkup()}
     // which card it is standing in. The career key rides along for the same
     // reason — it was left behind on the Blast card at first, so a Test innings
     // ended on a card with no key on it and nothing said why.
-    const moving = [this.$('card-board'), this.$('card-career'), this.$('card-key')];
+    const player = this.viewport.querySelector('.ec-player')!;
+    const moving = [player, this.$('card-key')];
     if (surviving) this.$('survive-strip').append(...moving);
     else {
       const card = this.$('end').querySelector('.scorecard')!;
-      const keys = this.$('end').querySelector('.card-keys');
-      for (const one of moving) card.insertBefore(one, keys);
+      const after = this.$('end').querySelector('#feedback-card');
+      for (const one of moving) card.insertBefore(one, after);
     }
     this.stripHost = host;
   }
@@ -2984,9 +3017,11 @@ ${modeSelectMarkup()}
    * the total, the three batters under it, and none of the board. The track is
    * the balls bowled rather than a fixed length — there is no fixed length.
    */
-  endMarathon(score: ScoreManager, innings: MarathonInnings) {
+  endMarathon(score: ScoreManager, innings: MarathonInnings, best: number | null = null) {
     this.end(score, 0, false, Math.max(1, score.balls));
     this.$('end').classList.add('is-marathon');
+    this.$('end-mode').textContent = 'TEST MARATHON';
+    this.$('end-label').textContent = 'INNINGS';
     this.$('end-title').textContent = {
       ALL_OUT: 'All out', RETIRED: 'Retired hurt', BALLS: 'Five hundred balls', DECLARED: 'Declared',
     }[innings.ending ?? 'ALL_OUT'];
@@ -2998,9 +3033,23 @@ ${modeSelectMarkup()}
     }));
     const total: CardTotal = { runs: score.runs, balls: score.balls, fours: score.fours, sixes: score.sixes, wickets: innings.gone, overs: score.overs };
     const didNotBat = BATTERS.slice(innings.batters.length).map(b => titleCase(b.title));
-    this.$('mcard-worm').innerHTML = wormMarkup(score.history.map(ball => ball.runs), fallsOf(batters));
-    this.$('mcard-score').innerHTML = scorecardMarkup(batters, total, didNotBat);
+    void didNotBat;
+    this.$('mcard-worm').innerHTML = wormChartMarkup(score.history.map(ball => ball.runs), fallsOf(batters), best && best > score.runs ? best : null);
+    this.$('mcard-score').innerHTML = battingCardMarkup(batters.map(b => ({ ...b, title: b.title.toUpperCase() })));
     this.marathonShare = marathonShareText(total, batters, gameLink());
+  }
+  /** What Test Survival's share key sends: only a win has one. */
+  private surviveShare = '';
+  /** Test Survival's share: the chase as a line of text, through the phone's sheet or WhatsApp. */
+  async shareSurvive() {
+    if (!this.surviveShare) return;
+    track('share-innings', 'Shared the innings');
+    if (navigator.share) {
+      try { await navigator.share({ text: this.surviveShare }); return; } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(this.surviveShare)}`, '_blank', 'noopener');
   }
   /** What the Marathon card's share key sends, written when the card goes up. */
   private marathonShare = '';
@@ -3047,23 +3096,30 @@ ${modeSelectMarkup()}
     const runs = this.$('survive-score');
     runs.innerHTML = `${total}<span class="card-wickets">/${down}</span>`;
     runs.setAttribute('aria-label', `${total} for ${down}`);
-    // The drawn card is the one that counts up rather than down. Surviving the
-    // ten overs *was* the job, so it says what was seen off; every other card
-    // says what was left, because that is the size of the miss.
-    this.$('survive-overs').textContent = result === 'DRAWN'
-      ? `${score.balls} balls survived`
-      : `${left} ${left === 1 ? 'ball' : 'balls'} remaining`;
+    // What the balls left say about it: the size of the miss, the margin of
+    // the chase, the whole sixty seen off, or what he was carried off with.
+    const balls = `${left} ${left === 1 ? 'BALL' : 'BALLS'}`;
+    this.$('survive-overs').textContent = result === 'DRAWN' ? 'SURVIVED TO THE LAST BALL'
+      : result === 'WON' ? `TARGET CHASED, ${balls} TO SPARE`
+      : result === 'HURT' ? `RETIRED HURT \u00b7 ${balls} LEFT`
+      : `${balls} REMAINING`;
     // Cricket's star: not out unless they actually got him. It is the whole
     // point of the won card — a hundred not out from a number eleven.
-    this.$('survive-runs').textContent = `${score.runs}${score.wickets ? '' : '*'}`;
+    this.$('survive-runs').textContent = String(score.runs);
     this.$('survive-blows').textContent = String(health.blows.length);
     // Stated as the bar states it, so the card does not invert the one number a
     // player just spent an innings watching. Off the meter's own full rather
     // than a literal hundred: the two have to agree, and a retirement has to
     // read as 100% however much punishment the meter is set to hold.
     const injury = Math.round((1 - Math.max(0, health.value) / HEALTH.full) * 100);
-    this.$('survive-health').textContent = `${injury}%`;
-    this.$('end-survive').className = `modal-overlay result-screen result-${result.toLowerCase()}`;
+    this.$('survive-health').textContent = `Injury \u00b7 ${injuryWord(injury)}`;
+    this.$('survive-health').setAttribute('aria-label', `Injury ${injury}%`);
+    this.$('survive-ring').innerHTML = injuryRingMarkup(injury);
+    this.$('end-survive').className = `modal-overlay ec-screen is-survive result-${result.toLowerCase()}`;
+    // The share is for a win: the one result worth sending somebody.
+    this.surviveShare = result === 'WON'
+      ? `Chased it down: ${total}/${down}, ${score.runs} not out off ${score.balls} balls in Test Survival on Hitman Cricket. Your turn. ${gameLink()}`
+      : '';
     this.viewport.classList.add('modal-open', 'result-open');
     this.viewport.classList.remove('hurt-on');
     this.$('survive-again').focus();
