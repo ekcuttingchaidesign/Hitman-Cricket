@@ -1,0 +1,29 @@
+<svg preserveAspectRatio="none" overflow="visible" width="402" height="874" viewBox="0 0 402 874" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="BG / Floodlights" clip-path="url(#clip0_0_54)">
+<path id="Beam" d="M20 -20H-40L220 600H380L20 -20Z" fill="url(#paint0_linear_0_54)"/>
+<path id="Beam_2" d="M680 -20H740L580 600H380L680 -20Z" fill="url(#paint1_linear_0_54)"/>
+<circle id="Ellipse" cy="-6" r="30" fill="url(#paint2_radial_0_54)"/>
+<circle id="Ellipse_2" cx="402" cy="-6" r="30" fill="url(#paint3_radial_0_54)"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_54" x1="170" y1="-20" x2="170" y2="600" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0.14"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</linearGradient>
+<linearGradient id="paint1_linear_0_54" x1="560" y1="-20" x2="560" y2="600" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0.14"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</linearGradient>
+<radialGradient id="paint2_radial_0_54" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 -6) scale(30)">
+<stop stop-color="white" stop-opacity="0.5"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<radialGradient id="paint3_radial_0_54" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(402 -6) scale(30)">
+<stop stop-color="white" stop-opacity="0.5"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+<clipPath id="clip0_0_54">
+<rect width="402" height="874" fill="white"/>
+</clipPath>
+</defs>
+</svg>

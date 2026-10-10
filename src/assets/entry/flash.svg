@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle id="Motion &#194;&#183; crowd camera flash (random, 0.15s)" cx="28" cy="28" r="28" fill="url(#paint0_radial_0_30)"/>
+<defs>
+<radialGradient id="paint0_radial_0_30" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 28) scale(28)">
+<stop stop-color="white" stop-opacity="0.9"/>
+<stop offset="1" stop-color="white" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

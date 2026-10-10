@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" width="520" height="420" viewBox="0 0 520 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<ellipse id="Haze" cx="260" cy="210" rx="260" ry="210" fill="url(#paint0_radial_0_47)"/>
+<defs>
+<radialGradient id="paint0_radial_0_47" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 210) scale(260 210)">
+<stop stop-color="#2F6FD8" stop-opacity="0.35"/>
+<stop offset="1" stop-color="#2F6FD8" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

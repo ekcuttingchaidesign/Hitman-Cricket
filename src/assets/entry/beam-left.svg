@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" overflow="visible" width="380" height="560" viewBox="0 0 380 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Motion &#194;&#183; floodlight beam (sweep &#194;&#177;8&#194;&#176;, 6s loop)" style="mix-blend-mode:screen">
+<path d="M50 0H0L230 560H380L50 0Z" fill="url(#paint0_linear_0_65)"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_65" x1="190" y1="0" x2="190" y2="560" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FFF4D6" stop-opacity="0.55"/>
+<stop offset="1" stop-color="#FFF4D6" stop-opacity="0"/>
+</linearGradient>
+</defs>
+</svg>

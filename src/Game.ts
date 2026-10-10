@@ -3,7 +3,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
@@ -35,7 +35,8 @@ import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nea
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
 import type { AfterBall, Hurt } from './entities/Batter';
 import {
-  claimName, fetchBoard, fetchMarathonBoard, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon, submitSurvive,
+  claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
+  submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
 } from './game/board-api';
 import { markProfileDone, profileDone, readHand, readPlayer, writeHand, writePlayer, type Hand } from './game/player';
@@ -62,7 +63,11 @@ import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
-import { climbedTo, type Granted } from './game/tier';
+import { climbedTo, standingOf, type Granted } from './game/tier';
+import type { ModeSelectView } from './ui/ModeSelect';
+import { surviveLine as surviveResult } from './ui/SurviveBoard';
+import type { BlastCareer, MarathonCareer, SurviveCareer } from './game/career';
+import type { SurviveInnings } from './game/survive-board';
 import { openFeedback } from './ui/Feedback';
 import { feedbackGiven, type FeedbackContext } from './game/feedback';
 import { sendFeedback } from './game/feedback-api';
@@ -474,7 +479,11 @@ export class Game {
     // number, so while it is on, the board says so above the tabs.
     if (this.demo) document.documentElement.setAttribute('data-demo', '1');
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
-    this.hud = new HUD(root, this.best);
+    // A browser that has batted here gets the cover that moves; a first visit, the still.
+    let returning = false;
+    try { returning = !!readPlayer() || playedBefore(key => localStorage.getItem(key)); } catch { /* A first visit, then. */ }
+    this.hud = new HUD(root, this.best, { player: readPlayer(), returning });
+    this.hud.coverPlayer = () => readPlayer();
     // Neither of these is allowed to hold up an innings. Settling the id touches
     // three stores, one of which can hang; the board is a network call that may
     // never answer. Both run alongside the game, and the cover's trophy line
@@ -531,6 +540,9 @@ export class Game {
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
+    // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
+    this.hud.on('modes-profile', this.showStats);
+    this.hud.on('modes-stats', this.showStats);
     // The boards, from the mode screen: the same sheet the cover's trophy
     // opens, laid over the picker, which is still there when it is put away.
     if (SURVIVE_ONLY) document.getElementById('modes-board')?.remove();
@@ -629,6 +641,15 @@ export class Game {
     this.hud.onProfile = entry => void this.saveProfile(entry);
     this.hud.onProfileSkip = entry => this.skipProfile(entry);
     this.hud.onProfileEdit = () => this.askProfile(false);
+    // Back from the gate goes to the cover, and the innings it was asked for
+    // goes with it: nobody bats without a name.
+    this.hud.onProfileLeave = () => {
+      this.afterProfile = null;
+      this.welcomeScenario = null;
+      this.hud.closeProfile();
+      this.hud.closeModes();
+      if (this.phase === 'START') this.hud.showCover();
+    };
     this.hud.onRestoreShown = () => {
       restoreOfferShown();
       trackOnce('restore-offered-card', 'Offered the way back at the end of an innings');
@@ -654,6 +675,11 @@ export class Game {
       void this.sendClaim();
     });
     if (!SURVIVE_ONLY) this.hud.on('cover-board', this.showBoard);
+    // The chip on the cover is always the way to My Stats. Delegated, because
+    // the chip is redrawn whenever the player behind it changes.
+    this.hud.viewport.addEventListener('click', event => {
+      if ((event.target as HTMLElement).closest('#cover-profile')) this.showStats();
+    });
     this.hud.on('help', () => { trackOnce('help-open', 'Instructions opened'); if (!['START', 'PAUSED', 'INNINGS_END'].includes(this.phase)) this.togglePause(); this.hud.help(); });
     this.hud.on('fullscreen', () => {
       if (document.fullscreenElement) void document.exitFullscreen();
@@ -767,11 +793,64 @@ export class Game {
     // The picker replaces the card, and the stars were asked of the card.
     this.putRatingAway();
     this.hud.modes();
-    // What the hero card wears is the last sync's word, and a sync is asked
+    // What this browser already knows goes up with the screen, and the places
+    // the store keeps are asked for behind it.
+    const view = this.modeSelectView();
+    this.hud.modesFill(view);
+    void this.placeOnModes(view);
+    // What the Rivals widget wears is the last sync's word, and a sync is asked
     // for behind it so the next look is fresher.
     if (this.rooms) this.hud.challengesOpen(this.rooms.yourMove.length, this.rooms.waitingOnThem.length);
     void this.refreshCount();
   };
+
+  /**
+   * Choose a mode's figures from what this browser holds: the bests off the
+   * career mirrors and the Blast's own best, the Blast's top three off the
+   * board last fetched, the tier the Blast career is on, and the Rivals record
+   * from the last sync. Places come after, from the store.
+   */
+  private modeSelectView(): ModeSelectView {
+    const blast = heldCareer('classic') as BlastCareer;
+    const marathon = heldCareer('marathon') as MarathonCareer;
+    const survive = heldCareer('survive') as SurviveCareer;
+    const at = this.board.findIndex(row => row.playerId === this.player);
+    const tier = standingOf('classic', blast).tier;
+    // Survival's best is a result, not a score: the best the career has had.
+    const surviveBest = survive.wins > 0 ? 'Won a chase' : survive.draws > 0 ? SURVIVED : survive.innings > 0 ? 'Bowled out' : null;
+    return {
+      player: readPlayer(),
+      marathon: { best: marathon.innings > 0 && marathon.highest > 0 ? String(marathon.highest) : null, rank: null },
+      blast: { best: this.best > 0 ? String(this.best) : null, rank: at >= 0 ? at + 1 : null },
+      survive: { best: surviveBest, rank: null },
+      podium: this.board.slice(0, 3).map(row => row.avatar),
+      blastRank: at >= 0 ? at + 1 : null,
+      stats: { runs: blast.runs, tier: { key: tier.key, name: tier.name } },
+      rivals: this.rooms?.record ?? null,
+    };
+  }
+
+  /**
+   * Where the player stands on each mode's whole board, asked of the store and
+   * drawn onto the posters as each answers: below the fifty as readily as on it.
+   * Only for a player with a name; nobody else is on a board to stand anywhere.
+   */
+  private async placeOnModes(view: ModeSelectView) {
+    if (!readPlayer() || !this.player) return;
+    const [blast, survive, marathon] = await Promise.all([
+      fetchStanding(this.player, 'classic'), fetchStanding(this.player, 'survive'), fetchStanding(this.player, 'marathon'),
+    ]);
+    if (this.disposed || !this.hud.modesOpen) return;
+    const row = survive?.row as SurviveInnings | null | undefined;
+    const team = marathon?.team?.row as { runs?: number } | null | undefined;
+    this.hud.modesFill({
+      ...view,
+      blast: { best: view.blast.best, rank: blast?.rank ?? view.blast.rank },
+      blastRank: blast?.rank ?? view.blastRank,
+      survive: row ? { best: surviveResult(row) === 'Drew the match' ? SURVIVED : surviveResult(row), rank: survive?.rank ?? null } : view.survive,
+      marathon: team?.runs ? { best: String(team.runs), rank: marathon?.team?.rank ?? null } : view.marathon,
+    });
+  }
 
   /** The count on the hero card, refreshed without putting anything up. */
   private async refreshCount() {
@@ -1085,9 +1164,10 @@ export class Game {
     this.welcomeScenario = null;
     const mine = readPlayer();
     const deal = kitDeal(this.player);
+    const tier = standingOf('classic', heldCareer('classic') as BlastCareer).tier;
     this.hud.openProfile({
       name: mine?.name ?? '', avatar: mine?.avatar ?? deal.opening, hand: readHand(), order: deal.order,
-      gate, fresh: !mine,
+      gate, fresh: !mine, tier: { key: tier.key, name: tier.name },
     });
   }
 
@@ -1729,10 +1809,28 @@ export class Game {
     // written either way. The held rows are not: a later fetch, or the rows a
     // claim answered with, are the newer truth and this one must not land on
     // top of them.
-    this.hud.leader(payload.rows[0]?.runs ?? 0, this.best);
+    void this.quoteOnCover(payload.rows);
     if (epoch !== this.boardEpoch) return;
     this.boardSeen = true;
     this.board = payload.rows;
+  }
+
+  /**
+   * The cover's board widget: the player's best and where it stands — read off
+   * the fifty when they are on it, and asked of the store when they are below
+   * it — or, with no best yet, the board's leader and their score to chase.
+   */
+  private async quoteOnCover(rows: readonly BoardRow[]) {
+    const top = rows[0];
+    if (this.best <= 0) {
+      if (top) this.hud.coverBoard({ kind: 'top', runs: top.runs, name: top.name });
+      return;
+    }
+    const at = rows.findIndex(row => row.playerId === this.player);
+    let rank: number | null = at >= 0 ? at + 1 : null;
+    if (rank === null && readPlayer()) rank = (await fetchStanding(this.player, 'classic'))?.rank ?? null;
+    if (this.disposed) return;
+    this.hud.coverBoard({ kind: 'best', runs: this.best, rank });
   }
 
   /** The Test fifty, the same way. The cover quotes the other one, not this. */
@@ -4025,6 +4123,8 @@ export class Game {
 
 
 /** How long the crowd keeps it up for each moment, in seconds; the clip is three and a half. */
+/** A drawn Test Survival, as Choose a mode says it. */
+const SURVIVED = 'Survived all 60 · drew';
 /** `?rate=1`'s keys: the game, then each mode in the order the picker shows them. */
 const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
