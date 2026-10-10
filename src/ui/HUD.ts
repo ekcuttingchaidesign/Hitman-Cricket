@@ -1931,7 +1931,9 @@ ${modeSelectMarkup()}
     this.$('end').classList.remove('is-marathon');
     this.$('end-mode').textContent = 'THE BLAST';
     this.$('end-label').textContent = `${Math.round(track$ / 6)} OVERS`;
-    this.viewport.classList.add('modal-open');
+    // As on the Test card: the card carries its own sound key, so the game's
+    // floating one steps aside rather than sitting on the header.
+    this.viewport.classList.add('modal-open', 'result-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
     // The innings reads as one number. Runs carry the card; the wickets ride the
