@@ -63,6 +63,15 @@ const SHORT: Record<string, string> = { classic: 'Blast', survive: 'Survival', m
 
 const TITLE = new URL('../assets/title.webp', import.meta.url).href;
 
+/**
+ * The faint mark behind the two top cards, drawn the way the handover's trophy
+ * art is: flat, each shape split into a lit half and a shaded half. A faceted
+ * star for Star, a two-handled cup on its plinth for Hitman.
+ */
+const STAR_MARK = `<svg viewBox="0 0 200 190" aria-hidden="true"><g class="is-lit"><path d="M100 100L76.5 67.6L100 4ZM100 100L123.5 67.6L191.3 70.3ZM100 100L138 112.4L156.4 177.7ZM100 100L100 140L43.6 177.7ZM100 100L62 112.4L8.7 70.3Z"/></g><g class="is-shade"><path d="M100 100L100 4L123.5 67.6ZM100 100L191.3 70.3L138 112.4ZM100 100L156.4 177.7L100 140ZM100 100L43.6 177.7L62 112.4ZM100 100L8.7 70.3L76.5 67.6Z"/></g></svg>`;
+const CUP_MARK = `<svg viewBox="0 0 200 240" aria-hidden="true"><g class="is-lit"><path d="M40 20H160V70C160 115 130 140 100 145C70 140 40 115 40 70Z"/><path d="M88 145H112L118 185H82Z"/><rect x="60" y="185" width="80" height="16" rx="3"/><rect x="48" y="201" width="104" height="28" rx="4"/></g><g class="is-shade"><path d="M100 20H160V70C160 115 130 140 100 145Z"/><path d="M100 145H112L118 185H100Z"/><rect x="100" y="185" width="40" height="16"/><rect x="100" y="201" width="52" height="28"/></g><g class="is-handle" fill="none" stroke-width="11" stroke-linecap="round"><path d="M42 36C8 36 6 92 48 100"/><path d="M158 36C192 36 194 92 152 100"/></g><path class="is-gleam" d="M60 34C58 72 66 100 82 120" fill="none" stroke-width="7" stroke-linecap="round"/></svg>`;
+const MARKS: Record<string, string> = { star: STAR_MARK, hitman: CUP_MARK };
+
 const PENCIL = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m13.5 6.5 4 4" stroke="currentColor" stroke-width="1.8"/></svg>`;
 
 export function statsSheetMarkup(view: StatsSheetView): string {
@@ -118,7 +127,7 @@ export function cardMarkup(facts: StatsFacts, who: { name: string; avatar: numbe
   const measure = facts.ladder.measure.toLocaleString('en-US');
   const unit = facts.mode === 'survive' ? 'balls faced' : `career ${measureName(facts.mode)}`;
   return `<article class="st-card tier-${escape(tier)} is-${escape(facts.mode)}" aria-label="${escape(`${who?.name ?? 'Guest'}, ${facts.tier.name}, ${facts.modeName}: ${measure} ${unit}`)}">
-          <i class="st-card-grain" aria-hidden="true"></i><i class="st-card-sheen" aria-hidden="true"></i>
+          <i class="st-card-grain" aria-hidden="true"></i>${MARKS[tier] ? `<i class="st-card-mark" aria-hidden="true">${MARKS[tier]}</i>` : ''}<i class="st-card-sheen" aria-hidden="true"></i>
           <div class="st-card-top"><img class="st-card-logo" src="${TITLE}" alt="" decoding="async"><span class="st-card-tier">${escape(facts.tier.name)}</span></div>
           <div class="st-card-who">${face}<span class="st-card-name"><b>${escape(who?.name ?? 'Guest')}</b><small>${escape(facts.modeName.toUpperCase())} &middot; CAREER</small></span>${edit}</div>
           <div class="st-card-figure"><b>${measure}</b><span>${unit}</span></div>

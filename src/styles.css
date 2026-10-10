@@ -7882,3 +7882,15 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ks-sheet .restore-losing{margin:0;padding:calc(var(--u) * 12) calc(var(--u) * 14);border:1px solid #f2b54459;border-radius:12px;background:#f2b5440f}
 .ks-sheet .restore-losing-say{margin:0;font:500 calc(var(--u) * 12)/1.45 var(--f-ui);color:var(--c-text-2)}
 .ks-sheet .restore-losing-say b{font-weight:500;color:inherit}
+/* The faint mark behind Star and Hitman: a faceted star in chrome, a cup in
+   gold foil, both cropped by the card's right edge like the chevrons on the
+   innings card's band. */
+.st-card-mark{position:absolute;pointer-events:none;right:calc(var(--u) * -34);top:50%;width:calc(var(--u) * 210);transform:translateY(-50%) rotate(-12deg);opacity:.13}
+.st-card-mark svg{display:block;width:100%;height:auto;overflow:visible}
+.st-card.tier-star .st-card-mark .is-lit{fill:#ffffff}
+.st-card.tier-star .st-card-mark .is-shade{fill:#8f99a4}
+.st-card.tier-hitman .st-card-mark{right:calc(var(--u) * -18);width:calc(var(--u) * 190);transform:translateY(-46%) rotate(8deg);opacity:.16}
+.st-card.tier-hitman .st-card-mark .is-lit{fill:#ffd36b}
+.st-card.tier-hitman .st-card-mark .is-shade{fill:#a8761c}
+.st-card.tier-hitman .st-card-mark .is-handle{stroke:#d9a234}
+.st-card.tier-hitman .st-card-mark .is-gleam{stroke:#fff3cf}
