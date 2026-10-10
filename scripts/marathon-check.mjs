@@ -37,12 +37,17 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, devi
 await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
-// Anything that keeps a score: the boards, the careers, the innings counter.
-// Nobody here claims a place, so nothing at all should go.
+// Anything that puts an innings on a board. Nobody here claims a place, so
+// nothing should go there. The career counter (/api/innings) is not one of
+// them: every finished innings counts toward a career whether or not a place
+// is claimed (CLAUDE.md, career-count-check), and the Marathon has a career.
 const kept = [];
+const counted = [];
 page.on('request', request => {
   const { pathname } = new URL(request.url());
-  if (/^\/api\/(score|innings|career|survive)/.test(pathname) && request.method() !== 'GET') kept.push(pathname);
+  if (request.method() === 'GET') return;
+  if (/^\/api\/(score|career|survive)/.test(pathname)) kept.push(pathname);
+  if (pathname === '/api/innings') counted.push(pathname);
 });
 
 const snap = () => page.evaluate(() => window.__cricket.snapshot());
@@ -477,7 +482,7 @@ check(following.marathon.bowler !== 'EXPRESS' && following.marathon.action === '
 await block();
 
 await page.waitForTimeout(1500);
-check(!kept.length, 'and no innings, finished or not, was sent anywhere that keeps one without being claimed', kept.join(', '));
+check(!kept.length, 'and no innings, finished or not, was put on a board without being claimed', kept.join(', '));
 check(!errors.length, 'nothing threw on the way', errors.join('\n        '));
 console.log(failures ? `\n${failures} failed` : '\nall good');
 await browser.close();

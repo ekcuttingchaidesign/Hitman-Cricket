@@ -3,7 +3,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
@@ -48,7 +48,7 @@ import { cardOffer, type BoardTab, type CardOffer, type SheetTab } from './ui/Le
 import {
   bestStanding, careerBoardOf, placesOf, type AnyCareer, type LadderTab,
 } from './ui/CareerBoard';
-import { statsCardImage, statsFacts, type StatsFacts } from './game/StatsCard';
+import { statsFacts, type StatsFacts } from './game/StatsCard';
 import { gameLink, keyWhatsappLink } from './game/Share';
 import { keyImage, keyImageName, prepareKeyAssets } from './game/KeyImage';
 import {
@@ -596,7 +596,7 @@ export class Game {
     this.hud.on('card-change', () => { if (this.phase === 'INNINGS_END') this.modes(); });
     this.hud.on('mcard-share', () => { void this.hud.shareMarathon(); });
     this.hud.on('again', this.start); this.hud.on('pause', this.togglePause); this.hud.on('resume', this.togglePause);
-    this.hud.on('tutorial', this.startTutorial); this.hud.on('tutorial-play', this.walkOut);
+    this.hud.on('tutorial', this.howToPlay); this.hud.on('tutorial-play', this.walkOut);
     // Not the covers from a skip: that is pressed with a lesson ball on its way,
     // and the ball would go on being bowled, heard, behind them.
     this.hud.on('skip-tutorial', this.start);
@@ -789,6 +789,8 @@ export class Game {
       // The star prompt on demand, for `rating-check.mjs`: which thing, asked
       // as the end of an innings would ask it, and nothing about when.
       rating: (thing: RatedThing = 'game') => this.showRating(thing, thing === 'game' ? 'innings' : 'mode'),
+      // The physio's card, up by name, for looking at it without batting to it.
+      physio: (injury = 90) => this.hud.hurtNote(() => {}, injury),
       // Whether it is up.
       ratingOpen: () => !!this.ratingPrompt?.open,
     } });
@@ -1479,6 +1481,22 @@ export class Game {
     // Drawn the way round the player bats: a left-hander's swipes are mirrored, so are the arrows.
     }, steps, this.scene.mirrored);
   }
+  /**
+   * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how
+   * to hit, then the confidence meter), over the cover, ending on the two ways
+   * on — PLAY NOW, which starts a Blast, and CHOOSE A MODE. Seen this way they
+   * count as seen, so the Blast that follows does not show them again.
+   */
+  private howToPlay = () => {
+    track('how-to-play', 'How to play opened from the cover');
+    noteHowTo(true);
+    this.hud.marathonIntro(how => {
+      if (how === 'skipped') return;
+      if (how === 'modes') return this.locked ? this.walkOut() : this.modes();
+      this.choose('CLASSIC');
+    }, [SHOTS_STEP, CONFIDENCE_STEP], readPlayer() ? readHand() === 'left' : false, true);
+  };
+
   /** Three scripted balls, no wickets, and a way out at any point. */
   startTutorial = () => {
     track('tutorial-start', 'Tutorial started');
@@ -2467,18 +2485,10 @@ export class Game {
       mode, mine.career, { name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null }, standing,
     );
     this.statsDrawn[mode] = facts;
+    // The page draws the card itself now (UI v1), so nothing is painted behind
+    // it: SHARE MY CARD paints its own picture when it is pressed. Painting one
+    // here only redrew the rail when it landed, which could snap a swipe back.
     draw(facts, null, false);
-    void statsCardImage(facts, gameLink()).then(picture => {
-      // A card painted for figures the player has already moved past belongs to
-      // a screen that is no longer the one they are looking at.
-      if (this.disposed || this.statsDrawn[mode] !== facts) return;
-      const url = URL.createObjectURL(picture);
-      this.hud.holdStatsPicture(url);
-      draw(facts, url, false);
-    }).catch(() => {
-      if (this.disposed || this.statsDrawn[mode] !== facts) return;
-      draw(facts, null, true);
-    });
   }
 
   /** Whether the innings just played was this mode's, which is what the keys are for. */
@@ -3479,7 +3489,7 @@ export class Game {
     markHurtNoteSeen();
     this.setPhase('READY');
     this.togglePause();
-    this.hud.hurtNote(() => { if (this.phase === 'PAUSED') this.togglePause(); });
+    this.hud.hurtNote(() => { if (this.phase === 'PAUSED') this.togglePause(); }, this.health.injury);
   }
 
   /**

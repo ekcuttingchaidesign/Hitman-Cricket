@@ -65,10 +65,18 @@ const career = async () => page.evaluate(() => {
   } catch { return { innings: 0, runs: 0 }; }
 });
 
-/** Some runs, without finishing. Enough that counting them would show. */
+/**
+ * Some runs, without finishing. Enough that counting them would show. A Test
+ * has one wicket, and the scripted bat now and then misses a short one: an
+ * innings over on its own is over, so the helper stops there rather than
+ * waiting on a ball that will never come.
+ */
 const playOn = async balls => {
   for (let i = 0; i < balls; i++) {
-    const ball = await until('BALL_IN_FLIGHT');
+    let ball = await snap();
+    for (let t = 0; t < 60 && ball.phase !== 'BALL_IN_FLIGHT' && ball.phase !== 'INNINGS_END'; t++) { await advance(300); ball = await snap(); }
+    if (ball.phase === 'INNINGS_END') break;
+    if (ball.phase !== 'BALL_IN_FLIGHT') throw new Error(`Never reached BALL_IN_FLIGHT: ${JSON.stringify(ball)}`);
     const key = ball.effectiveLine === 'MIDDLE' ? 'w' : Number(ball.finalX) < 0 ? 'a' : 'd';
     await advance(ball.contactAt - ball.elapsed - 65);
     await page.keyboard.press(key);

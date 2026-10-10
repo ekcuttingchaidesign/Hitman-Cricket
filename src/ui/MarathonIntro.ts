@@ -79,8 +79,19 @@ export function introCardMarkup(step: IntroStep, left = false): string {
 }
 
 /** The foot of the screen: where the player is in the four, SKIP, and NEXT. */
-export function introKeysMarkup(index: number, count: number): string {
+export function introKeysMarkup(index: number, count: number, finish = false): string {
   const last = index === count - 1;
+  // Opened from HOW TO PLAY on the cover there is no innings waiting behind
+  // the cards, so the last one offers the two ways on: a Blast now, or a mode.
+  if (last && finish) {
+    return `
+      <span class="mi-dots" aria-hidden="true"${count < 2 ? ' hidden' : ''}>${Array.from({ length: count }, (_, i) => `<i${i === index ? ' class="is-on"' : ''}></i>`).join('')}</span>
+      <div class="mi-finish">
+        <button id="mi-modes" class="k-cta k-cta--secondary" type="button"><span class="k-cta-face"><span>CHOOSE A MODE</span></span></button>
+        <button id="mi-next" class="k-cta k-cta--primary" type="button"><span class="k-cta-face"><span>PLAY NOW</span></span></button>
+      </div>
+      <button id="mi-skip" class="mi-skip" type="button" hidden>Skip</button>`;
+  }
   return `
       <button id="mi-skip" class="mi-skip" type="button"${last ? ' hidden' : ''}>Skip</button>
       <span class="mi-dots" aria-hidden="true"${count < 2 ? ' hidden' : ''}>${Array.from({ length: count }, (_, i) => `<i${i === index ? ' class="is-on"' : ''}></i>`).join('')}</span>

@@ -351,18 +351,19 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
         <div id="restore-overlay" class="hidden"></div>
         <div id="pause-overlay" class="modal-overlay pause-screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
           <div id="pause-sheet" class="pause-sheet" data-tone="blast">
-            <div class="pause-head">
+            <div class="pause-strip">
               <span id="pause-mode" class="pause-mode">The Blast</span>
-              <h2 id="pause-title" class="pause-title">Paused</h2>
               <p id="pause-state" class="pause-state"></p>
             </div>
-            <button id="resume" class="key-button pause-resume" type="button">RESUME INNINGS</button>
+            <div class="pause-body">
+            <h2 id="pause-title" class="pause-title">PAUSED</h2>
+            <button id="resume" class="k-cta k-cta--primary is-wide pause-resume" type="button"><span class="k-cta-face"><span>RESUME INNINGS</span></span></button>
             <div class="pause-keys">
-              <button id="restart" class="pause-key" type="button">${icon('restart')}<span>Restart</span></button>
-              <button id="change-mode" class="pause-key" type="button">${icon('modes')}<span>Change mode</span></button>
+              <button id="restart" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>RESTART</span></span></button>
+              <button id="change-mode" class="k-cta k-cta--secondary pause-key" type="button"><span class="k-cta-face"><span>CHANGE MODE</span></span></button>
             </div>
             <button id="declare" class="pause-key pause-declare hidden" type="button" aria-describedby="declare-line"><span class="pause-declare-name">${icon('flag')}<span>Declare the innings</span></span><small id="declare-line" class="pause-declare-line hidden">Ends the innings here and keeps your score</small></button>
-            <p class="pause-counts">Only finished innings count towards your career.</p>
+            <p class="pause-counts">Only finished innings count toward your career.</p>
             <p class="pause-group-label" id="pause-settings">Settings</p>
             <div class="pause-group" role="group" aria-labelledby="pause-settings">
               <button id="crowd-switch" class="pause-row" type="button" role="switch" aria-checked="true">
@@ -384,6 +385,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             <p id="pause-sound-note" class="pause-note hidden">All sound is off. The speaker key at the top turns it back on.</p>
             <button id="feedback-pause" class="ghost-link hidden" type="button">Tell me what you think</button>
             <span class="start-hint keyboard-only"><kbd>Esc</kbd> to resume · <kbd>R</kbd> to restart</span>
+            </div>
           </div>
           <p class="pause-credit">Crowd sounds by <a href="https://gregor-quendel.itch.io/free-crowd-cheering-sounds" target="_blank" rel="noopener">Gregor Quendel</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
         </div>
@@ -587,10 +589,13 @@ ${modeSelectMarkup()}
         <div id="ghost-flash" class="ghost-flash hidden" role="status" aria-live="polite"></div>
         <div id="hurt-note" class="hurt-note hidden" role="alertdialog" aria-labelledby="hurt-note-title">
           <div class="hurt-note-card">
-            <p class="hurt-note-eyebrow">PHYSIO ON</p>
-            <h2 id="hurt-note-title">He's not going to take much more.</h2>
+            <div class="hurt-note-head">
+              <span id="hurt-note-ring" class="hurt-note-ring" aria-hidden="true"></span>
+              <span class="hurt-note-say"><b class="hurt-note-eyebrow">PHYSIO ON</b><small id="hurt-note-injury">One more blow retires you</small></span>
+            </div>
+            <h2 id="hurt-note-title">BATSMAN CRITICALLY INJURED</h2>
             <p class="hurt-note-line">Block and the ball keeps hitting you. Play at it and you risk the edge. There's no safe option left &mdash; pick which way you'd rather go out.</p>
-            <button id="hurt-note-done" class="key-button">BAT ON</button>
+            <button id="hurt-note-done" class="k-cta k-cta--primary is-wide" type="button"><span class="k-cta-face"><span>BAT ON</span></span></button>
           </div>
         </div>
         <div id="share-status" class="share-status hidden" role="status"></div>
@@ -1732,13 +1737,19 @@ ${modeSelectMarkup()}
    * way a left-hander's ground has them. `done` hears whether the player went
    * through to the end or skipped.
    */
-  marathonIntro(done: (how: 'finished' | 'skipped') => void, steps: readonly IntroStep[] = INTRO_STEPS, left = false) {
+  marathonIntro(
+    done: (how: 'finished' | 'skipped' | 'modes') => void, steps: readonly IntroStep[] = INTRO_STEPS, left = false,
+    finish = false,
+  ) {
     const overlay = this.$('marathon-intro');
+    overlay.classList.toggle('is-howto', finish);
     let index = 0;
     const show = () => {
       const step = steps[index];
       this.$('mi-card').innerHTML = introCardMarkup(step, left);
-      this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length);
+      this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length, finish);
+      const modes = document.getElementById('mi-modes');
+      if (modes) modes.onclick = () => { this.closeIntro(); done('modes'); };
       this.spotlight(step.spot ?? null);
       this.$('mi-next').onclick = () => {
         if (++index < steps.length) return show();
@@ -1920,7 +1931,9 @@ ${modeSelectMarkup()}
     this.$('end').classList.remove('is-marathon');
     this.$('end-mode').textContent = 'THE BLAST';
     this.$('end-label').textContent = `${Math.round(track$ / 6)} OVERS`;
-    this.viewport.classList.add('modal-open');
+    // As on the Test card: the card carries its own sound key, so the game's
+    // floating one steps aside rather than sitting on the header.
+    this.viewport.classList.add('modal-open', 'result-open');
     this.$('result').classList.add('hidden'); this.$('end').classList.remove('hidden');
     this.$('phase-label').textContent = ''; (this.$('pause') as HTMLButtonElement).disabled = true;
     // The innings reads as one number. Runs carry the card; the wickets ride the
@@ -2712,8 +2725,12 @@ ${modeSelectMarkup()}
    * more often than one who keeps playing. So it names both costs and leaves
    * the choice where it belongs.
    */
-  hurtNote(onClose: () => void) {
+  hurtNote(onClose: () => void, injury: number | null = null) {
     const note = this.$('hurt-note');
+    // How bad, on the ring and in the line beside it.
+    const hurt = injury === null ? 90 : Math.max(0, Math.min(100, Math.round(injury)));
+    this.$('hurt-note-ring').innerHTML = injuryRingMarkup(hurt);
+    this.$('hurt-note-injury').textContent = `Injury ${hurt}% · one more blow retires you`;
     note.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
     const done = () => {
@@ -2722,7 +2739,8 @@ ${modeSelectMarkup()}
       onClose();
     };
     (this.$('hurt-note-done') as HTMLButtonElement).onclick = done;
-    (this.$('hurt-note-done') as HTMLButtonElement).focus();
+    // On the card rather than the key: a ring round BAT ON nobody tabbed to reads as a state.
+    this.settle('hurt-note');
   }
   get hurtNoteOpen() { return !this.$('hurt-note').classList.contains('hidden'); }
 

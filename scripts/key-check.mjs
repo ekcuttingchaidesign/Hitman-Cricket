@@ -26,7 +26,7 @@
 
 import { chromium } from '@playwright/test';
 const BASE = (process.argv[2] ?? 'http://127.0.0.1:5201').replace(/\/$/, '');
-const WHO = `Keyed${Math.floor(Math.random() * 9000) + 1000}`;
+const WHO = `Keyed${Array.from({ length: 6 }, () => 'abcdefghijkmnpqrstuvwxyz'[Math.floor(Math.random() * 24)]).join('')}` /* letters: a digit suffix is a sibling of the last run's name */;
 
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });

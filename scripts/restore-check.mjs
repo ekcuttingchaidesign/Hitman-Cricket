@@ -91,12 +91,14 @@ ok(await page.locator('.restore-losing').count() === 0, 'with nothing said about
 // A real key, minted the way a player's is: claim a name against the same
 // store the browser is talking to and read the key out of the answer. A
 // fixture would prove the screens and nothing about the store behind them.
-const WHO = `Check${Math.floor(Math.random() * 9000) + 1000}`;
+/* A new id a run: a player takes a new name once every 30 days, so one fixed id is refused on the second run. */
+const CHECK_ID = `chk123-${Array.from({ length: 12 }, () => 'abcdefghijkmnpqrstuvwxyz0123456789'[Math.floor(Math.random() * 34)]).join('')}`;
+const WHO = `Check${Array.from({ length: 6 }, () => 'abcdefghijkmnpqrstuvwxyz'[Math.floor(Math.random() * 24)]).join('')}` /* letters: a digit suffix is a sibling of the last run's name */;
 const claimed = await fetch(`${base}/api/score`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    playerId: 'chk123-checkplayer01', name: WHO, avatar: 1, mode: 'classic',
+    playerId: CHECK_ID, name: WHO, avatar: 1, mode: 'classic',
     innings: { runs: 70, sixes: 3, fours: 5, wickets: 1, dots: 9, balls: 30 },
   }),
 }).then(r => r.json()).catch(() => null);
