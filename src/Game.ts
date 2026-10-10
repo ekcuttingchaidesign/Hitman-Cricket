@@ -107,6 +107,8 @@ const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESO
 
 /** How long a counted innings waits before its second and final attempt. */
 const RETRY_MS = 4000;
+/** The longest the name sheet says SAVING… before it treats the board as away. */
+const PROFILE_PATIENCE_MS = 8000;
 /**
  * How long the end card stands on its own before the stars rise under it. Long
  * enough to read the score, which is what the player is looking at first.
@@ -1215,7 +1217,15 @@ export class Game {
       return this.profileSaved(false);
     }
     this.hud.profileSending(true);
-    const result = await claimName(this.player, name, entry.avatar, mine?.name);
+    // The request carries its own timeout, and a phone's first visit has still
+    // left this key saying SAVING… until a reload. So the sheet keeps a clock
+    // of its own: past it, the answer is the outage's, which lets them bat.
+    const result = await Promise.race([
+      claimName(this.player, name, entry.avatar, mine?.name),
+      new Promise<Awaited<ReturnType<typeof claimName>>>(settle => window.setTimeout(() => settle({
+        ok: false, reason: 'The board could not be reached. Try again in a moment.', offline: true,
+      }), PROFILE_PATIENCE_MS)),
+    ]);
     if (this.disposed) return;
     if (!result.ok) {
       this.mark(result.taken ? 'profile-name-taken' : result.offline ? 'profile-offline' : 'profile-refused',

@@ -239,6 +239,7 @@ if (await cardLink.count()) {
     'which carries BACK TO RESULT and a way to mode selection');
   check(!(await shows('#again')) && !(await shows('#challenge-set')),
     'and no PLAY AGAIN or CHALLENGE A FRIEND, which belong to a Blast innings');
+  await b.shot('scorecard');
   await b.page.locator('#card-result').click();
   await b.settle(900);
   check(await shows('#challenge-room') && !(await shows('#end')) && /\bwins?\b|dead heat/i.test(await b.page.locator('#room-lead').innerText()),

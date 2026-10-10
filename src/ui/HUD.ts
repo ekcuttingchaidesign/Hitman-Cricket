@@ -200,6 +200,26 @@ const SWIPE_SPOKES: readonly { dir: string; angle: number }[] = [
 const SPECIAL_SPOKES: Record<NonNullable<Primed>, readonly string[]> = {
   CHARGE: ['STRAIGHT', 'LONG_ON', 'COVER'], SWEEP: ['LEG', 'LONG_ON'], SCOOP: ['SCOOP'], REVERSE: ['REVERSE'],
 };
+
+/**
+ * A picture that failed to load asks again, three times, further apart each
+ * time and past whatever the browser kept of the failure. Inline pictures
+ * cannot fail that way and are left alone.
+ */
+function retryImage(img: HTMLImageElement) {
+  const src = img.getAttribute('src') ?? '';
+  if (!src || src.startsWith('data:')) return;
+  img.onerror = () => {
+    const tries = Number(img.dataset.tries ?? 0);
+    if (tries >= 3 || !img.isConnected) return;
+    img.dataset.tries = String(tries + 1);
+    const plain = (img.getAttribute('src') ?? src).replace(/[?&]retry=\d+$/, '');
+    window.setTimeout(() => {
+      if (img.isConnected) img.src = `${plain}${plain.includes('?') ? '&' : '?'}retry=${tries + 1}`;
+    }, 700 * (tries + 1));
+  };
+}
+
 function swipeGuide() {
   const from = 22, to = 84;
   const gradients: string[] = [], spokes: string[] = [];
@@ -450,13 +470,13 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
             </section>
             <div id="card-key" class="card-key hidden"></div>
             <button id="feedback-card" class="ghost-link ec-feedback hidden" type="button">Tell me what you think</button>
-            <button id="card-modes" class="ghost-link card-match-key" type="button">Back to mode selection</button>
             <span class="start-hint keyboard-only">Press <kbd>R</kbd> to play again</span>
           </div>
           <div class="card-keys ec-keys">
               ${cta({ kind: 'mode', label: 'MODE', id: 'card-change' })}
               ${cta({ kind: 'mode', label: 'MODE', id: 'mcard-modes' })}
               ${cta({ kind: 'primary', label: 'PLAY AGAIN', id: 'again', moving: true })}
+              ${cta({ kind: 'mode', label: 'MODE', id: 'card-modes' })}
               <button id="card-result" class="key-button card-match-key" type="button">BACK TO RESULT</button>
               ${cta({ kind: 'challenge', label: 'Challenge a friend with this innings', id: 'challenge-set' })}
               ${cta({ kind: 'share', label: 'Share on WhatsApp', id: 'mcard-share' })}
@@ -2401,6 +2421,11 @@ ${modeSelectMarkup()}
     overlay.innerHTML = profileMarkup(view);
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
+    // The faces are the one thing on this sheet fetched rather than bundled,
+    // and a phone's first visit has dropped them all at once — a sheet of
+    // broken pictures that only a reload mended. So a face that fails asks
+    // again, a moment later each time, on a request of its own.
+    for (const img of overlay.querySelectorAll<HTMLImageElement>('img')) retryImage(img);
     const close = document.getElementById('profile-close');
     if (close) close.onclick = () => this.closeProfile();
     // Back to the cover from the gate: no innings without a name, so the way
@@ -2424,7 +2449,9 @@ ${modeSelectMarkup()}
     overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
       option.onclick = () => {
         const kit = Number(option.dataset.kit);
-        (this.$('welcome-face') as HTMLImageElement).src = avatarSrc(kit);
+        const big = this.$('welcome-face') as HTMLImageElement;
+        big.dataset.tries = '0';
+        big.src = avatarSrc(kit);
         face?.classList.remove('is-picked');
         void face?.offsetWidth;
         face?.classList.add('is-picked');
