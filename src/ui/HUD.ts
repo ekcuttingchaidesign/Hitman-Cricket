@@ -60,7 +60,6 @@ import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
 import { AVATARS, avatarSrc, kitDeal } from '../config/board';
-import { careerSeen, markCareerSeen as rememberCareerSeen } from '../game/private-mode';
 import type { TutorialStep } from '../game/Tutorial';
 import type { Ending, GamePhase, ShotOutcome, ShotType } from '../game/types';
 import type { NetsBowler } from '../game/DeliveryGenerator';
@@ -427,7 +426,7 @@ ${coverMarkup({ player: cover.player ?? null, board: coverBoardOf(best) })}
               <div class="k-actions ec-doors">
                 <button id="claim" class="k-action is-board claim-key" type="button">REGISTER SCORE ON LEADERBOARD</button>
                 <button id="card-career" class="k-action is-career career-widget hidden" type="button">
-                  ${kitIcon('user')}<span class="career-words">Career stats<em id="career-new" class="career-new">NEW</em></span>${kitIcon('chevron-right', 'is-chevron')}
+                  ${kitIcon('user')}<span class="career-words">Career stats</span>${kitIcon('chevron-right', 'is-chevron')}
                   <span id="career-kit" class="career-kit hidden"></span>
                 </button>
               </div>
@@ -581,7 +580,7 @@ ${modeSelectMarkup()}
       <dialog id="help-dialog"><button class="close-help hud-button" aria-label="Close instructions">×</button><p class="eyebrow">WELCOME TO HITMAN OVAL</p><h2>Make every ball count.</h2><p>Face 30 balls, with three wickets to spare. Read the ball's position as it approaches the crease and press a shot key just as it reaches your bat.</p><div class="touch-only"><p>Swipe directly on the field when the ball reaches your bat. A short, decisive swipe is enough.</p><ul><li>← Left: leg-side shot</li><li>↖ Up-left: long-on drive</li><li>↑ Up: straight drive</li><li>↗ Up-right: cover drive</li><li>→ Right: square cut, behind point</li><li>↓ Down: forward defensive</li><li>↙ Down-left: the scoop, over the keeper (meter full)</li><li>↘ Down-right: the reverse scoop, over the slips (meter full)</li></ul><p>One swipe per ball. A tap plays no shot. The same timing and wicket rules apply.</p></div><ul class="keyboard-only"><li><kbd>A</kbd> plays left to leg; <kbd>D</kbd> cuts it square off the back foot.</li><li><kbd>W</kbd> drives straight back toward the bowler.</li><li>Press <kbd>A</kbd> + <kbd>W</kbd> or <kbd>W</kbd> + <kbd>D</kbd> within 100 ms for a diagonal drive.</li><li><kbd>S</kbd> blocks it: bat down, no runs, and nothing can be caught off it. With the meter full, <kbd>S</kbd> + <kbd>A</kbd> scoops it over the keeper and <kbd>S</kbd> + <kbd>D</kbd> reverse-scoops it over the slips.</li><li>The arrow keys play the same shots: <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, and pair up the same way.</li><li>One swing per ball. Wait for the ball to come to you.</li><li>Perfect timing can score four or six. Mistimed contact can be caught; missing the stumps' line can mean Bowled or LBW.</li></ul><p class="help-note"><b>The square cut.</b> Swipe out to the off (or press <kbd>D</kbd>) and he rocks onto the back foot and cuts square of the wicket, behind point. It wants width: the further outside off the ball is, the better it plays, and there is nothing in it against a ball at the stumps. It is also the one stroke that answers a bouncer outside off — the ball sits up with room to free the arms at it. Middled, it goes behind point for six or four. Anything else feathers the edge through to the keeper, and a bouncer outside off is exactly where that happens.</p><p class="help-note"><b>Defending.</b> Swipe down (or press <kbd>S</kbd>) and the batter blocks it: the ball dies at his feet for a dot, and a dead bat cannot be caught. Leave it too late, though, and the ball goes past — on the stumps, that bowls you. Blocking costs your confidence nothing, but go three balls without scoring and you will hear about it from the field.</p><p class="help-note"><b>The confidence meter.</b> Boundaries, twos and threes fill it; a ball that beats the bat drains it, a single or a block leaves it where it stands, and a wicket empties it. Full, it pulses — and when a ball you can walk at is coming, the whole field lights up gold from the bowler's run-up. Drive that one — straight, or either diagonal — and time it well, and you charge down the pitch and hit it out of the ground. Miss it and the call tells you which half you got wrong, with the meter still charged.</p><p class="help-note"><b>The scoops.</b> With the meter full, swipe down and to the left (or press <kbd>S</kbd> + <kbd>A</kbd>) at a ball on middle or leg and he crouches, gets the face under it and ramps it over the keeper's shoulder; swipe down and to the right (<kbd>S</kbd> + <kbd>D</kbd>) at one on or outside off and he kneels and reverses it over the slips. Timed perfectly it is six, a shade under is four, held back is ones and twos. Poor timing is a top edge to the keeper, and a ball missed altogether has only your pads between it and the stumps. Neither works on a bouncer, and playing one at the wrong line is playing at air. Either way the meter is spent.</p><p class="help-note">Play with swipes on a phone, or A, W, D, S — or the arrow keys — on a keyboard. Use Pause to take a break or restart.</p><button id="help-done" class="primary-button">GOT IT ${icon('arrow')}</button></dialog>`;
     this.viewport = this.$('viewport'); this.score(new ScoreManager());
     if (!document.fullscreenEnabled) this.$('fullscreen').classList.add('hidden');
-    this.$('card-career').addEventListener('click', () => { this.markCareerSeen(); this.onStatsOpen?.(); });
+    this.$('card-career').addEventListener('click', () => this.onStatsOpen?.());
     const dialog = this.$('help-dialog') as HTMLDialogElement;
     this.$('help-done').onclick = () => dialog.close();
     dialog.querySelector<HTMLButtonElement>('.close-help')!.onclick = () => dialog.close();
@@ -664,25 +663,14 @@ ${modeSelectMarkup()}
   onStatsOpen: (() => void) | null = null;
 
   /**
-   * The Career Stats widget under the innings card: whose career it is, and
-   * whether it is still news.
-   *
-   * The NEW pill comes off the moment it is opened, once, for good. A badge
-   * that says NEW on the fortieth innings is a badge nobody reads any more,
-   * and worse, it teaches the player that the flags on this screen mean
-   * nothing.
+   * The Career stats door under the innings card, and whose career it is.
+   * No NEW pill: the redrawn card keeps its doors to a word and a chevron.
    */
   career(show: boolean, kit: number | null) {
     const widget = this.$('card-career');
     widget.classList.toggle('hidden', !show);
     if (!show) return;
     this.$('career-kit').innerHTML = kit === null ? '' : kitMarkup(kit, '');
-    this.$('career-new').classList.toggle('hidden', careerSeen());
-  }
-
-  private markCareerSeen() {
-    this.$('career-new').classList.add('hidden');
-    rememberCareerSeen();
   }
   /** The facts the card on screen was drawn from, held for the share keys. */
   private statsShown: StatsFacts | null = null;
