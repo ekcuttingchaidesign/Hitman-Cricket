@@ -7986,7 +7986,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 
 /* The result: the winner's face under a crown, the verdict, and the two innings as cards. */
 #challenge-room .room-hero{position:relative;width:calc(var(--u) * 112);height:calc(var(--u) * 112);margin:calc(var(--u) * 22) auto calc(var(--u) * 18)}
-#challenge-room .room-hero .room-anim{display:none}
 #challenge-room .room-hero-kit{display:block;width:100%;height:100%;border-radius:50%;box-shadow:0 0 0 3px var(--c-win)}
 #challenge-room .room-hero-kit .board-kit{width:100%;height:100%}
 #challenge-room .room-hero::before{content:'';position:absolute;inset:calc(var(--u) * -40);border-radius:50%;background:radial-gradient(closest-side,#5bd08f4d,#5bd08f00)}
@@ -8179,3 +8178,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 #challenge-join .rival-field.hidden~.rival-sheet-keys{margin-top:calc(var(--u) * 22)}
 .rv-rank-row.is-you{margin:0;padding:0 calc(var(--u) * 14);border-radius:0;background:#ed704421}
 .rv-rank-row.is-you::before{display:none}
+/* The result's hero: the face where the frame is, the production fire behind
+   it (the film's face slot scaled to the 112 face), the crown just above. */
+#challenge-room .room-hero{margin-top:calc(var(--u) * 92)}
+#challenge-room .room-hero-kit .board-kit{position:static;left:auto;top:auto;transform:none;width:100%;height:100%;box-shadow:0 0 0 3px var(--c-win),0 6px 16px #00000080}
+#challenge-room .room-hero .room-anim{display:block;position:absolute;left:calc(var(--u) * -40);top:calc(var(--u) * -88);width:calc(var(--u) * 192);height:calc(var(--u) * 221);transform:none;z-index:0;pointer-events:none}
+#challenge-room .room-hero-kit{position:relative;z-index:1}
+#challenge-room .room-hero::after{top:calc(var(--u) * -20);z-index:2}
+#challenge-room .room-hero::before{z-index:-1}
