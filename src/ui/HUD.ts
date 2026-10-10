@@ -4127,7 +4127,7 @@ function resultRow(row: ChallengeRow, result: ResultView): string {
   const pill = draw ? 'DRAW' : won ? 'WINNER' : row.status === 'declined' ? 'DECLINED' : row.status === 'forfeit' ? 'WALKED' : '';
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   return `<div class="verdict-row ${tone}${mine ? ' is-you' : ''}">
-    ${kitMarkup(row.avatar, row.name)}
+    <span class="verdict-face${won ? ' is-crowned' : ''}">${kitMarkup(row.avatar, row.name)}</span>
     <span class="verdict-who">
       <span class="verdict-name"><b>${mine ? 'You' : escapeName(row.name)}</b>${pill ? `<i class="verdict-pill">${pill}</i>` : ''}</span>
       <span class="verdict-stats">${plural(row.sixes, 'six', 'sixes')} \u00b7 ${plural(row.fours, 'four', 'fours')} \u00b7 ${plural(row.balls, 'ball', 'balls')}</span>
