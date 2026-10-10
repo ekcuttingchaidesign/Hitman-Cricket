@@ -7882,15 +7882,19 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ks-sheet .restore-losing{margin:0;padding:calc(var(--u) * 12) calc(var(--u) * 14);border:1px solid #f2b54459;border-radius:12px;background:#f2b5440f}
 .ks-sheet .restore-losing-say{margin:0;font:500 calc(var(--u) * 12)/1.45 var(--f-ui);color:var(--c-text-2)}
 .ks-sheet .restore-losing-say b{font-weight:500;color:inherit}
-/* The faint mark behind Star and Hitman: a faceted star in chrome, a cup in
-   gold foil, both cropped by the card's right edge like the chevrons on the
-   innings card's band. */
-.st-card-mark{position:absolute;pointer-events:none;right:calc(var(--u) * -34);top:50%;width:calc(var(--u) * 210);transform:translateY(-50%) rotate(-12deg);opacity:.13}
-.st-card-mark svg{display:block;width:100%;height:auto;overflow:visible}
-.st-card.tier-star .st-card-mark .is-lit{fill:#ffffff}
-.st-card.tier-star .st-card-mark .is-shade{fill:#8f99a4}
-.st-card.tier-hitman .st-card-mark{right:calc(var(--u) * -18);width:calc(var(--u) * 190);transform:translateY(-46%) rotate(8deg);opacity:.16}
-.st-card.tier-hitman .st-card-mark .is-lit{fill:#ffd36b}
-.st-card.tier-hitman .st-card-mark .is-shade{fill:#a8761c}
-.st-card.tier-hitman .st-card-mark .is-handle{stroke:#d9a234}
-.st-card.tier-hitman .st-card-mark .is-gleam{stroke:#fff3cf}
+/* The Star card as drawn (Figma 152:18122): graphite, a white edge, one big
+   star turned in the top right, a chrome badge, and chrome on the name and
+   the figure. */
+.st-card.tier-star{--metal:linear-gradient(149.4deg,#2a2e35 0%,#121418 45%,#07080a 100%);--edge:#fff;--quiet:#a9b2bc;
+  --pill:linear-gradient(90deg,#f6f8fa,#9aa3ac 50%,#e3e8ed);--pill-ink:#111316;box-shadow:0 16px 32px #0000008c}
+.st-card.tier-star .st-card-grain{background:none}
+.st-card.tier-star .st-card-sheen{background:linear-gradient(135.4deg,#fff0 18.75%,#ffffff1f 46.875%,#fff0 56.25%)}
+.st-card-star{position:absolute;pointer-events:none;left:calc(var(--u) * 134.5);top:calc(var(--u) * -13);width:calc(var(--u) * 285.3);height:auto;transform:rotate(12deg)}
+.st-card.tier-star .st-card-name b,.st-card.tier-star .st-card-figure b{
+  background:linear-gradient(180deg,#fff 0%,#b8c0c8 50%,#f2f5f8 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.st-card-progress{display:flex;align-items:center;gap:calc(var(--u) * 10);margin-top:calc(var(--u) * 8)}
+.st-card-track{position:relative;flex:none;width:calc(var(--u) * 150);height:4px;overflow:hidden;border-radius:2px;background:#ffffff1f}
+.st-card-track i{position:absolute;inset:0 auto 0 0;border-radius:2px;background:#dde3e8}
+.st-card-progress small{flex:1;min-width:0;text-align:right;font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--quiet);white-space:nowrap}
+.st-card-foot{display:flex;flex-direction:column;gap:calc(var(--u) * 8)}
+.st-card-foot .st-card-progress{margin-top:0}
