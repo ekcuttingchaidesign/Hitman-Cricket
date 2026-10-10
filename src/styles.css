@@ -7705,3 +7705,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .lb-rules-new{align-self:flex-start;margin:calc(var(--u) * 6) calc(var(--u) * 4) 0;font:600 calc(var(--u) * 14)/1.4 var(--f-ui)}
 .lb-step.is-ghost .lb-face{border-color:#5bd08f99}
 .lb-step.is-ghost .lb-name,.lb-step.is-ghost .lb-score{color:var(--c-win)}
+/* Scrolled, the art fades to the page colour, and the folded chips stand on a
+   fade of their own, so rows going up under them soften away rather than
+   being cut off at a hard edge. */
+.lb-bg img{opacity:calc(.5 * (1 - var(--fade,0)))}
+.lb-glow{opacity:calc(1 - var(--fade,0))}
+.lb-chips::before{content:'';position:absolute;left:0;right:0;top:calc(var(--u) * -2);height:calc(var(--u) * 92);pointer-events:none;
+  background:linear-gradient(180deg,var(--c-page) 0%,var(--c-page) 58%,#0a0b0d00 100%)}
+.lb-chip{position:relative;z-index:1}

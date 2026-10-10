@@ -824,6 +824,10 @@ ${modeSelectMarkup()}
     if (!shell || !body) return;
     const podium = shell.querySelector<HTMLElement>('.lb-podium');
     shell.classList.toggle('is-folded', !!podium && body.scrollTop > podium.offsetHeight - 56);
+    // The blurred art behind the podium goes down to the page colour as the
+    // list rises, so what scrolls up meets a plain ground rather than a picture.
+    const reach = podium ? Math.max(1, podium.offsetHeight - 56) : 1;
+    shell.style.setProperty('--fade', Math.min(1, body.scrollTop / reach).toFixed(3));
     const row = shell.querySelector<HTMLElement>('.lb-row.is-you');
     const dock = shell.querySelector<HTMLElement>('.lb-dock');
     if (!row || !dock) { shell.classList.remove('is-you-seen'); return; }
