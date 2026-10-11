@@ -6,7 +6,9 @@ function shellPoint(angle: number, t: number) {
   const front = Math.max(0, Math.cos(angle)), back = Math.max(0, -Math.cos(angle));
   // A shallow smile from behind: low at the centre, high at either corner.
   // Keep the whole rear edge clear of the neck rather than cutting an arch into it.
-  const rimY = .035 * front ** 2 - .04 * (1 - front ** 2) - .035 * back ** 2;
+  // At the front the shell comes down to the brow, where the peak and the
+  // grille's top bar meet it: higher, a band of forehead showed between them.
+  const rimY = .008 * front ** 2 - .04 * (1 - front ** 2) - .035 * back ** 2;
   const phi = t * Math.acos((rimY - .024) / .184);
   return new THREE.Vector3(.183 * Math.sin(phi) * Math.sin(angle),
     .024 + .184 * Math.cos(phi), -.02 + .202 * Math.sin(phi) * Math.cos(angle));
@@ -58,7 +60,9 @@ export function helmetPeakGeometry() {
     const rim = shellPoint(angle, 1), out = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
     const depth = PEAK.depth * fade ** .7, thick = PEAK.thick * (.35 + .65 * fade);
     for (const [v, w] of section) {
-      const p = rim.clone().addScaledVector(out, depth * v - .006);
+      // The root starts well inside the shell, so the peak grows out of it
+      // rather than standing on its edge with a seam to see through.
+      const p = rim.clone().addScaledVector(out, depth * v - .016 * (1 - v));
       p.y += .004 - depth * v * PEAK.droop - thick * w;
       positions.push(p.x, p.y, p.z);
     }
@@ -105,13 +109,13 @@ export function helmetGrilleGeometry(radius = .0065) {
     return points;
   };
   const curves: THREE.Vector3[][] = [
-    hoop(0, -.034, .208), hoop(.33, -.1, .214), hoop(.66, -.164, .2), hoop(1, -.234, .17),
+    hoop(0, -.016, .21), hoop(.33, -.1, .214), hoop(.66, -.164, .2), hoop(1, -.234, .17),
     Array.from({ length: 9 }, (_, i) => side(1, i / 8)),
     Array.from({ length: 9 }, (_, i) => side(-1, i / 8)),
   ];
   // The uprights: from the top hoop down the front to the bottom one.
   for (const x of [-.042, .042]) curves.push([
-    new THREE.Vector3(x, -.036, .206), new THREE.Vector3(x, -.102, .212),
+    new THREE.Vector3(x, -.018, .208), new THREE.Vector3(x, -.102, .212),
     new THREE.Vector3(x * .92, -.166, .198), new THREE.Vector3(x * .8, -.232, .168),
   ]);
   const tubes = curves.map(points => new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), points.length * 4, radius, 6, false));

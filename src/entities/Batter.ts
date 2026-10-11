@@ -1888,7 +1888,9 @@ export class Batter {
     // the kit does, and in whites a cream one read as a bald head.
     // Matte: a helmet's shell is covered in fabric, so it takes the light the
     // way the cap would rather than shining like a motorbike lid.
-    helmet: new THREE.MeshStandardMaterial({ color: 0x2a527c, roughness: .92 }),
+    // Both sides drawn: from below, the inside of the shell is what closes the
+    // view up under the peak, where a one-sided shell showed straight through.
+    helmet: new THREE.MeshStandardMaterial({ color: 0x2a527c, roughness: .92, side: THREE.DoubleSide }),
     trousers: clothMaterial(new THREE.MeshStandardMaterial({ color: 0xf4f0e4, roughness: .82 })),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
@@ -1931,7 +1933,7 @@ export class Batter {
     this.mesh(this.torso, this.palette.accent, [.028, .034, .008], 'soft').position.set(-.087, .015, .133);
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.number, [.028, .125, .008], 'soft').position.set(x, -.04, -.143);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
-    this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
+    // No nose, no chin: behind the grille the face is one smooth shape.
     this.mesh(this.head, this.palette.helmet, [1, 1, 1], 'helmet');
     this.mesh(this.head, this.palette.handle, [1, 1, 1], 'helmetRim');
     // A cricket helmet: the peak following the shell round the front, the
@@ -2036,7 +2038,7 @@ export class Batter {
       // Keep the established IK controls and measurements, but do not draw
       // their separate cylinders or ball joints. The surface spans the chain.
       for (const control of [arm.upper, arm.lower, arm.elbow, arm.cap, leg.thigh, leg.shin, leg.knee, leg.cap]) control.visible = false;
-      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.09, .062, .046], 24);
+      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.09, .062, .046], 24, false, true);
       const trouser = new BendingLimb(this.palette.trousers, [.109, .072, .059], 16, true);
       this.sleeves.push(sleeve); this.trouserLegs.push(trouser);
     }

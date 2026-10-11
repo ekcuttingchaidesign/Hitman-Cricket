@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 
+/**
+ * Where a shirt's short sleeve ends, as a share of the arm from the shoulder:
+ * most of the way down the upper arm, clear of the elbow. The jersey switches
+ * from shirt to skin at the same ring, so the two always agree.
+ */
+export const SLEEVE_HEM = 8;
+
 /** One continuous surface over an existing two-segment IK chain.
  * Reuses buffers and vectors; bends the surface without visible joint balls.
  */
@@ -19,8 +26,14 @@ export class BendingLimb {
   private faced = false;
   private readonly profile: number[][];
 
+  /**
+   * `sleeved`: an arm in a short sleeve. The sleeve keeps its own width down to
+   * the hem and stands a little proud of the arm there, which then carries on
+   * at the arm's own width: a hem, rather than one tube that thins from the
+   * shoulder to the wrist and puts the shirt's edge across the elbow.
+   */
   constructor(material: THREE.Material | THREE.Material[], private radii: [number, number, number], private readonly sides = 16,
-    private readonly tailored = false) {
+    private readonly tailored = false, private readonly sleeved = false) {
     this.profile = [[0, radii[0]], [.15, radii[0] + .003], [.5, radii[1]], [.70, radii[1] + .003], [1, radii[2]]];
     const geometry = new THREE.BufferGeometry(), count = (this.rows + 1) * (this.sides + 1);
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
@@ -37,7 +50,7 @@ export class BendingLimb {
     }
     geometry.setIndex(indices);
     if (Array.isArray(material)) {
-      const seam = 11 * this.sides * 6;
+      const seam = (SLEEVE_HEM + 1) * this.sides * 6;
       geometry.addGroup(0, seam, 0); geometry.addGroup(seam, indices.length - seam, 1);
     }
     this.angles = Array.from({ length: this.sides + 1 }, (_, i) => [Math.cos(i / this.sides * Math.PI * 2), Math.sin(i / this.sides * Math.PI * 2)]);
@@ -63,7 +76,10 @@ export class BendingLimb {
     const u = this.first.subVectors(joint, a), v = this.second.subVectors(b, joint);
     const l1 = u.length(), l2 = v.length(), length = l1 + l2;
     u.multiplyScalar(1 / Math.max(l1, .00001)); v.multiplyScalar(1 / Math.max(l2, .00001));
-    const bend = Math.min(.05, l1 * .2, l2 * .2);
+    // The bend is spread over enough of the arm that its inside never folds
+    // into itself: the curve's radius stays wider than the limb at the joint
+    // however far the joint is bent.
+    const bend = Math.min(.085, l1 * .3, l2 * .3);
     this.binormal.crossVectors(u, reference ?? v);
     if (this.binormal.lengthSq() < .0001) {
       this.binormal.set(0, 0, 1).cross(u);
@@ -99,6 +115,13 @@ export class BendingLimb {
         const u = (t - from) / (to - from), eased = u * u * (3 - 2 * u);
         radius = r0 + (r1 - r0) * eased;
         slope = (r1 - r0) * 6 * u * (1 - u) / (to - from);
+      }
+      if (this.sleeved) {
+        // To the hem the sleeve, its opening a touch wider than the arm under it;
+        // from the next ring on, the bare arm, tapering from the elbow to the wrist.
+        const hem = SLEEVE_HEM / this.rows, opening = this.radii[1] * 1.12, arm = this.radii[1] * .84;
+        if (t <= hem + 1e-6) { radius = THREE.MathUtils.lerp(this.radii[0], opening, t / hem); slope = (opening - this.radii[0]) / hem; }
+        else { const u = (t - hem) / (1 - hem); radius = THREE.MathUtils.lerp(arm, this.radii[2], u); slope = (this.radii[2] - arm) / (1 - hem); }
       }
       slope /= Math.max(length, .00001);
       const { x: px, y: py, z: pz } = this.point, { x: ax, y: ay, z: az } = this.across;

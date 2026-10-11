@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { jerseyGeometry } from './garment';
-import type { BendingLimb } from './BendingLimb';
+import { SLEEVE_HEM, type BendingLimb } from './BendingLimb';
 
 /** Torso, shoulder gussets and arms share vertices: no inserted tubes or joint caps. */
 export class ConnectedJersey {
@@ -22,7 +22,7 @@ export class ConnectedJersey {
   constructor(materials: THREE.Material[], fieldDetail = false) {
     // Distant figures keep the same shoulder topology and elbow/cuff landmarks,
     // with fewer rings along straight stretches of the arm.
-    this.sourceRows = fieldDetail ? [0, 1, 2, 3, 4, 6, 8, 10, 11, 13, 15, 17, 20]
+    this.sourceRows = fieldDetail ? [0, 1, 2, 3, 4, 6, 8, 9, 11, 13, 15, 17, 20]
       : Array.from({ length: 21 }, (_, i) => i);
     this.rows = this.sourceRows.length - 1;
     const shirt: number[] = [], skin: number[] = [];
@@ -43,7 +43,7 @@ export class ConnectedJersey {
       const at = (row: number, i: number) => row === 0 ? loop[i % 24] : this.armOffset(arm) + (row - 1) * 24 + i % 24;
       for (let row = 0; row < this.rows; row++) for (let i = 0; i < 24; i++) {
         const a = at(row, i), b = at(row + 1, i), c = at(row, i + 1), d = at(row + 1, i + 1);
-        (this.sourceRows[row] < 11 ? shirt : skin).push(a, c, b, c, d, b);
+        (this.sourceRows[row] <= SLEEVE_HEM ? shirt : skin).push(a, c, b, c, d, b);
       }
     }
     const geometry = new THREE.BufferGeometry(), count = this.torsoCount + 2 * this.rows * 24;
