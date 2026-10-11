@@ -6956,7 +6956,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .welcome-kits .kit-option{
   position:relative;display:flex;align-items:center;justify-content:center;
-  width:calc(var(--u) * 52);height:calc(var(--u) * 52);margin:0;padding:0;border:0;border-radius:50%;background:none
+  width:calc(var(--u) * 52);height:calc(var(--u) * 52);margin:0;padding:0;border:0;border-radius:50%;background:none;
+  /* Not the claim card's picker cap: a short screen (a phone with its keyboard
+     up) took it to 44 wide and left the chosen one's ring an oval. */
+  flex:none;max-width:none
 }
 .welcome-kits .kit-option img{width:calc(var(--u) * 46);height:calc(var(--u) * 46);border-radius:50%;opacity:.7}
 .welcome-kits .kit-option.is-chosen img{width:calc(var(--u) * 44);height:calc(var(--u) * 44);opacity:1}
