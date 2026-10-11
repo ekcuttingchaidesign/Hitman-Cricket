@@ -131,8 +131,8 @@ steps of a script.
 
 `scripts/marathon-check.mjs` is Test Marathon, entered first by its card on
 Select Mode (there off production only) and then twice by `?mode=marathon`: the
-swipes card and the four rules cards a first Marathon opens with, the two that light the Focus
-meter and the pause key, and nothing bowled until they are put away — it is
+swipes card and the four rules cards a first Marathon opens with, the three that outline the
+wickets, the Focus meter and the pause key and the one that marks the pitch, and nothing bowled until they are put away — it is
 the only check that sees them, and it seeds `hitman-marathon-intro` past them
 for the rest; then the batter
 named as he walks out, the next one standing after the last was carried off,
@@ -156,10 +156,13 @@ and the ended nets innings offering none — it is practice. Its career card is
 the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/shots-check.mjs` is how to hit, the coachmarks before a browser's
-first innings (`src/ui/ShotsIntro.ts`): the six swipes as arrows with a hand
-swiping each in turn, the strokes' names at their tips and the keys beside
-them on a keyboard, then — where the scoreboard has a confidence meter — the
-meter lit with a bar filling under it; nothing bowled until they are put away,
+first innings (`src/ui/ShotsIntro.ts`), redrawn from the handover (Figma
+128:4759 on): five lanes of light fanned from the bat (`batterOnScreen`), lit
+in turn in the game's colour with a thumb swiping each and the block a caption,
+the strokes' names at their ends and the keys beside them on a keyboard, the
+words on one card at the foot (SKIP and NEXT, BACK and LET'S BAT on the last);
+then — where the scoreboard has a confidence meter — the meter outlined in a
+hole cut in the scrim, with its name on a tag; nothing bowled until they are put away,
 never a second time, and never for a browser that has batted here before
 (`playedBefore`). A Test Survival shows the swipes alone and leaves the meter
 for the first Blast. In a Test Marathon the swipes are the first of the rules

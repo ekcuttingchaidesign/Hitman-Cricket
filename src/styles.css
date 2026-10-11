@@ -1835,86 +1835,106 @@ body.start-screen #sound{pointer-events:auto}
 .marathon-list .board-total small{font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--quiet);font-variant-numeric:tabular-nums}
 .marathon-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
-/* ── The Marathon's rules, the first time ─────────────────────────────────
-   A coachmark: the screen itself under a dark scrim, the words in white on
-   it, a line drawing over them with its moving part in green, and the widget
-   a rule is about popping out of the dark with a dotted arrow to it. */
-.mi-overlay{--mi-scrim:#000000c7;--mi-accent:#6cc070;position:absolute;inset:0;z-index:30;background:var(--mi-scrim);color:#fff;font-family:var(--card);animation:mi-in .25s ease both}
+/* ── Coachmarks (Figma 128:4759, 128:4800, 133:12311 to 133:12413) ─────────
+   The ground under the design's scrim, darker at the head and the foot; what
+   a card is about drawn over it — the swipes fanned from the bat, the pitch
+   marked, or a widget outlined in a hole cut in the scrim with its name on a
+   tag — and the words on one card at the foot, in the game's colour. */
+.mi-overlay{--mi-tone:var(--c-blast);position:absolute;inset:0;z-index:30;color:#fff;font-family:var(--f-ui);animation:mi-in .25s ease both}
+.mi-overlay[data-tone=marathon]{--mi-tone:#2fa36b}
+.mi-overlay[data-tone=survival]{--mi-tone:var(--c-survival)}
+.mi-overlay[data-tone=rivals]{--mi-tone:var(--c-accent)}
 .mi-overlay.hidden{display:none}
-.mi-overlay.is-spot{background:transparent}
-.mi-spot{position:absolute;display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:30px;background:#fff;color:#0b1622;box-shadow:0 8px 24px #0009,0 0 0 9999px var(--mi-scrim);pointer-events:none;white-space:nowrap;animation:mi-pop .35s cubic-bezier(.2,1.6,.4,1) both}
-.mi-spot svg{width:24px;height:24px;stroke-width:2.6}
-.mi-spot b{font-family:var(--card);font-size:17px;font-weight:800;letter-spacing:.08em}
-.mi-spot em{font-family:var(--card);font-style:normal;font-size:17px;font-weight:700;color:#4a6273;font-variant-numeric:tabular-nums}
-.mi-spot.hidden{display:none}
-/* A key of its own: a white disc in front of the dark, the icon drawn bigger in it. */
-.mi-spot.is-round{justify-content:center;padding:0;border-radius:50%}
-.mi-spot.is-round svg{width:46%;height:46%;stroke-width:2.4}
-.mi-arrow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-.mi-arrow.hidden{display:none}
-.mi-arrow path:not([fill]){fill:none;stroke:var(--mi-accent);stroke-width:2.2;stroke-linecap:round;stroke-dasharray:.1 6}
-.mi-card{position:absolute;left:24px;right:24px;top:50%;transform:translateY(-60%);display:flex;flex-direction:column;align-items:center;text-align:center;pointer-events:none}
-.mi-overlay.is-spot .mi-card{transform:none}
-.mi-art{width:84px;height:84px;margin-bottom:14px;color:#fff}
-.mi-art svg{width:100%;height:100%}
-.mi-art .acc{stroke:var(--mi-accent)}
-.mi-overlay.is-spot .mi-art{display:none}
-.mi-title{margin:0;font-family:var(--card);font-weight:800;font-size:28px;line-height:1.15;letter-spacing:-.01em;color:#fff}
-.mi-line{margin:8px 0 0;max-width:30ch;font-size:18px;font-weight:500;line-height:1.35;color:#ffffffa6}
-.mi-overlay::after{content:'';position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(180deg,#0000,#000000e6 60%);pointer-events:none}
-.mi-keys{position:absolute;z-index:1;left:20px;right:20px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:12px}
-.mi-skip{min-width:84px;min-height:44px;padding:0 8px;border:0;background:none;color:#ffffffa6;font-family:var(--card);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
+.mi-scrim{position:absolute;inset:0;width:100%;height:100%}
+.mi-spot{position:absolute;box-sizing:border-box;border:1.5px solid #ffffffe6;pointer-events:none;animation:mi-pop .35s cubic-bezier(.2,1.6,.4,1) both}
+.mi-tag{position:absolute;display:flex;padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 12);background:#fff;color:var(--c-ink);white-space:nowrap;pointer-events:none;animation:mi-in .3s .1s ease both}
+.mi-tag b{font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.mi-tag i{position:absolute;left:var(--point);top:calc(var(--u) * -7);width:calc(var(--u) * 12);height:calc(var(--u) * 6);margin-left:calc(var(--u) * -6);background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.mi-spot.hidden,.mi-tag.hidden{display:none}
+.mi-stage{position:absolute;inset:0;pointer-events:none}
+
+/* The card. */
+.mi-card{
+  position:absolute;left:calc(var(--u) * 16);right:calc(var(--u) * 16);bottom:calc(var(--u) * 28 + env(safe-area-inset-bottom));
+  max-width:calc(var(--u) * 370);margin:0 auto;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:calc(var(--u) * 10);
+  padding:calc(var(--u) * 18) calc(var(--u) * 20) calc(var(--u) * 16);
+  border:1px solid #ffffff1a;border-radius:calc(var(--u) * 28);
+  background:linear-gradient(180deg,#20252cf5,#121519fa);
+  box-shadow:inset 0 1px 0 #ffffff12,0 16px 36px #00000080
+}
+.mi-words{display:flex;flex-direction:column;gap:calc(var(--u) * 10)}
+.mi-head{display:flex;align-items:center;justify-content:space-between}
+.mi-mode{display:flex;align-items:center;gap:calc(var(--u) * 6);color:#a3b3bd;font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.mi-mode i{width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:var(--mi-tone)}
+.mi-dots{display:flex;gap:calc(var(--u) * 4)}
+.mi-dots[hidden]{display:none}
+.mi-dots i{width:calc(var(--u) * 8);height:calc(var(--u) * 6);border-radius:calc(var(--u) * 3);background:#ffffff33;transition:width .2s ease}
+.mi-dots i.is-done,.mi-dots i.is-on{background:var(--mi-tone)}
+.mi-dots i.is-on{width:calc(var(--u) * 20)}
+.mi-title{margin:0;color:#f5efe6;font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.mi-line{margin:0;color:#a3b3bd;font:500 calc(var(--u) * 14)/1.45 var(--f-ui)}
+.mi-keys{display:flex;align-items:center;gap:calc(var(--u) * 12);padding-top:calc(var(--u) * 6)}
+.mi-skip{flex:none;width:calc(var(--u) * 80);min-height:max(var(--tap),calc(var(--u) * 48));padding:0;border:0;background:none;color:#a3b3bd;font:700 calc(var(--u) * 14)/1.3 var(--f-ui);cursor:pointer}
 .mi-skip[hidden]{display:block;visibility:hidden}
-.mi-dots{display:flex;gap:6px}
-.mi-dots i{width:6px;height:6px;border-radius:3px;background:#ffffff4d;transition:width .2s ease}
-.mi-dots i.is-on{width:18px;background:var(--mi-accent)}
-.mi-next{min-width:112px;min-height:46px;padding:0 22px;border:0;border-radius:23px;background:#fff;color:#0b1622;font-family:var(--card);font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px #00000066}
-.mi-next:active{transform:translateY(1px)}
+.mi-keys>.k-cta--primary{flex:1;min-width:0}
+.mi-finish{display:flex;gap:calc(var(--u) * 10);width:100%}
+.mi-finish .k-cta{flex:1;min-width:0;width:auto}
+.mi-keys:has(.mi-finish) .mi-skip{display:none}
+
+/* How to hit: five lanes of light from the bat, in the design's own corners,
+   the lit one in the game's colour; their names at the far ends; the thumb
+   below, its trail and the two ghosts it leaves; and the captions under it. */
+.hb-fan{position:absolute;inset:0;display:block}
+.hb-lanes{position:absolute;left:calc(var(--x) - var(--u) * 240);top:calc(var(--y) - var(--u) * 240);width:calc(var(--u) * 480);height:calc(var(--u) * 480);overflow:visible}
+.hb-lane.is-lit{opacity:0;transition:opacity .35s ease}
+.hb-contact{fill:#fff;stroke:var(--mi-tone);stroke-width:3}
+.hb-label{
+  position:absolute;left:calc(var(--x) + var(--dx) * var(--u));top:calc(var(--y) + var(--dy) * var(--u));transform:translate(-50%,-50%);
+  display:flex;align-items:center;gap:calc(var(--u) * 5);padding:calc(var(--u) * 5) calc(var(--u) * 10);
+  border:1px solid #ffffff29;border-radius:calc(var(--u) * 12);background:#11151ad9;color:#e6eaee;white-space:nowrap;
+  transition:background-color .35s ease,border-color .35s ease,color .35s ease
+}
+.hb-label b{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
+.hb-label kbd{padding:0 calc(var(--u) * 4);border-radius:calc(var(--u) * 4);background:#ffffff2e;font:800 calc(var(--u) * 9)/1.4 var(--f-ui);color:inherit}
+.hb-fan[data-lit="0"] .is-lit[data-i="0"],.hb-fan[data-lit="1"] .is-lit[data-i="1"],.hb-fan[data-lit="2"] .is-lit[data-i="2"],
+.hb-fan[data-lit="3"] .is-lit[data-i="3"],.hb-fan[data-lit="4"] .is-lit[data-i="4"]{opacity:1}
+.hb-fan[data-lit="0"] .hb-label[data-i="0"],.hb-fan[data-lit="1"] .hb-label[data-i="1"],.hb-fan[data-lit="2"] .hb-label[data-i="2"],
+.hb-fan[data-lit="3"] .hb-label[data-i="3"],.hb-fan[data-lit="4"] .hb-label[data-i="4"]{border-color:transparent;background:var(--mi-tone);color:#fff}
+/* The swipe, turned to the lit lane about where the thumb comes to rest
+   eighty under the bat: in its own frame the thumb travels up, and the trail
+   and the ghosts lie behind it. */
+.hb-swipe{position:absolute;left:var(--x);top:calc(var(--y) + var(--u) * 80 - var(--lift,0px));width:0;height:0;transform:rotate(var(--a))}
+.hb-swipe i{position:absolute;display:block;border-radius:50%}
+.hb-trail{left:calc(var(--u) * -9);top:0;width:calc(var(--u) * 18);height:calc(var(--u) * 78);border-radius:calc(var(--u) * 9) !important;background:linear-gradient(180deg,color-mix(in srgb,var(--mi-tone) 90%,transparent),transparent);transform-origin:bottom}
+.hb-ghost{left:calc(var(--u) * -17);top:calc(var(--u) * 55);width:calc(var(--u) * 34);height:calc(var(--u) * 34);background:#ffffff2e}
+.hb-ghost.is-near{top:calc(var(--u) * 31);background:#ffffff4d}
+.hb-thumb{left:calc(var(--u) * -20);top:calc(var(--u) * -20);width:calc(var(--u) * 40);height:calc(var(--u) * 40);box-sizing:border-box;border:calc(var(--u) * 3) solid var(--mi-tone);background:#ffffffeb;box-shadow:0 0 calc(var(--u) * 16) color-mix(in srgb,var(--mi-tone) 60%,transparent)}
+.hb-swipe.is-going .hb-thumb{animation:hb-thumb 1.7s ease-out both}
+.hb-swipe.is-going .hb-trail{animation:hb-trail 1.7s ease-out both}
+.hb-swipe.is-going .hb-ghost{animation:hb-ghost 1.7s ease-out both}
+@keyframes hb-thumb{0%{transform:translateY(calc(var(--u) * 78));opacity:0}10%{opacity:1}40%,85%{transform:none;opacity:1}100%{transform:none;opacity:0}}
+@keyframes hb-trail{0%{transform:scaleY(0);opacity:1}40%,80%{transform:none;opacity:1}100%{transform:none;opacity:0}}
+@keyframes hb-ghost{0%,22%{opacity:0}42%,80%{opacity:1}100%{opacity:0}}
+.hb-caption{
+  position:absolute;top:calc(var(--y) + var(--u) * 106 - var(--lift,0px));display:flex;align-items:center;gap:calc(var(--u) * 4);
+  padding:calc(var(--u) * 6) calc(var(--u) * 10);border:1px solid #ffffff24;border-radius:calc(var(--u) * 12);
+  background:#11151ae6;color:#e6eaee;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;white-space:nowrap
+}
+.hb-caption b{font:inherit}
+.hb-caption.is-block{right:calc(100% - var(--x) + var(--u) * 30)}
+.hb-caption.is-lane{left:calc(var(--x) + var(--u) * 30)}
+.hb-caption.is-lane b{color:var(--mi-tone)}
+/* The pitch wears: the strip cracking, in a glow of the game's colour just up the pitch from him. */
+.mi-pitch{position:absolute;left:calc(var(--pitch-x) - var(--u) * 60);top:calc(var(--y) - var(--u) * 138);width:calc(var(--u) * 120);height:calc(var(--u) * 120);display:grid;place-items:center;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--mi-tone) 40%,transparent),transparent)}
+.mi-pitch svg{width:calc(var(--u) * 56);height:calc(var(--u) * 56)}
+/* HOW TO PLAY from the cover: over the cover rather than the ground, the last
+   card ending on CHOOSE A MODE and PLAY NOW side by side. */
+#marathon-intro.is-howto{z-index:40;background:#05070ae0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#marathon-intro.is-howto .mi-scrim{display:none}
 @keyframes mi-in{from{opacity:0}to{opacity:1}}
-@keyframes mi-pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot{animation:none}}
-.mi-dots[hidden]{display:flex;visibility:hidden}
-/* How to hit (`ShotsIntro.ts`): six arrows out from the middle, and a hand
-   swiping them one at a time — down on the glass, out along an arrow with a
-   green trail behind the fingertip, and off — the arrow and its stroke's name
-   lit as it goes. Each ray has a sixth of the beat; every animation below is
-   one ray's, offset by its place. */
-.mi-art.is-shots{position:relative;width:min(62cqw,38cqh,270px);height:auto;aspect-ratio:1;margin-bottom:30px}
-.hb-compass{position:absolute;inset:0;display:block;--hb-beat:7.2s}
-.hb-compass svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;stroke-linecap:round;stroke-linejoin:round}
-.hb-head,.hb-trail,.hb-hand,.hb-ripple,.hb-label{animation-duration:var(--hb-beat);animation-iteration-count:infinite;animation-delay:calc(var(--i) * var(--hb-beat) / 6 - .4s)}
-.hb-hub{fill:#ffffff8c}
-.hb-shaft{fill:url(#hb-fade);stroke:url(#hb-fade);stroke-width:1.5}
-.hb-head{fill:#ffffffd9;stroke:#ffffffd9;stroke-width:3;animation-name:hb-lit}
-.hb-trail{stroke:var(--mi-accent);stroke-width:7;stroke-dasharray:50 50;stroke-dashoffset:50;opacity:0;animation-name:hb-trail;animation-timing-function:linear}
-.hb-hand{opacity:0;animation-name:hb-swipe}
-.hb-ripple{stroke:#fff;stroke-width:1.6;opacity:0;transform-box:fill-box;transform-origin:center;animation-name:hb-ripple;animation-timing-function:ease-out}
-.hb-ink>*{fill:#0b1622;stroke:#0b1622;stroke-width:4.4}
-.hb-skin>*{fill:#fff}
-.hb-crease{stroke:#b9c6d0;stroke-width:1.4}
-.hb-shadow{opacity:.3}.hb-shadow>*{fill:#000}
-.hb-label{position:absolute;display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:#ffffff1f;box-shadow:inset 0 0 0 1px #ffffff26;white-space:nowrap;color:#fff;animation-name:hb-name}
-.hb-label b{font-family:var(--card);font-size:14px;font-weight:700;line-height:1.1}
-.hb-label kbd{min-width:20px;padding:1px 5px;border-radius:5px;background:#ffffff2e;font-family:var(--card);font-size:11px;font-weight:800;line-height:1.3;text-align:center;color:inherit}
-/* One ray's sixth, as a share of the whole beat: down at 0–3%, out by 11%, off by 14%. */
-@keyframes hb-swipe{
-  0%{opacity:0;transform:translateY(0) scale(1.18)}
-  2%{opacity:1;transform:translateY(0) scale(1)}
-  3.5%{opacity:1;transform:translateY(0) scale(.9);animation-timing-function:cubic-bezier(.5,0,.3,1)}
-  11%{opacity:1;transform:translateY(-46px) scale(.9)}
-  13%{opacity:1;transform:translateY(-50px) scale(1.06)}
-  15%,100%{opacity:0;transform:translateY(-50px) scale(1.06)}}
-@keyframes hb-trail{0%,3.5%{stroke-dashoffset:50;opacity:.95}11%{stroke-dashoffset:4;opacity:.95}17%,100%{stroke-dashoffset:4;opacity:0}}
-@keyframes hb-ripple{0%,3%{opacity:0;transform:scale(1)}3.5%{opacity:.9;transform:scale(1)}8%,100%{opacity:0;transform:scale(3)}}
-@keyframes hb-lit{0%,8%{fill:#ffffffd9;stroke:#ffffffd9;transform:none}11%,16%{fill:var(--mi-accent);stroke:var(--mi-accent);transform:translateY(-3px)}22%,100%{fill:#ffffffd9;stroke:#ffffffd9;transform:none}}
-@keyframes hb-name{0%,8%{background:#ffffff1f;color:#fff}11%,17%{background:var(--mi-accent);color:#0b1622}23%,100%{background:#ffffff1f;color:#fff}}
-@media (prefers-reduced-motion:reduce){.hb-head,.hb-trail,.hb-hand,.hb-ripple,.hb-label{animation:none}.hb-hand,.hb-trail{display:none}}
-/* Confidence, lit on the scoreboard: a bar under the meter's own words that
-   fills and turns gold when full, which is the whole of the rule. */
-.mi-meter{position:relative;width:56px;height:8px;border-radius:4px;background:#0b16222e;overflow:hidden}
-.mi-meter i{position:absolute;inset:0;border-radius:4px;background:#6cc070;transform-origin:left;animation:mi-fill 3.2s ease-in-out infinite}
-@keyframes mi-fill{0%{transform:scaleX(0);background:#6cc070}55%{transform:scaleX(1);background:#6cc070}62%,85%{transform:scaleX(1);background:#ffc766;box-shadow:0 0 10px #ffc766}100%{transform:scaleX(1);opacity:0}}
-@media (prefers-reduced-motion:reduce){.mi-meter i{animation:none;background:#ffc766}}
+@keyframes mi-pop{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot,.mi-tag{animation:none}}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */
 /* The card does not grow to hold this. It is already 349px tall on a landscape
@@ -8265,12 +8285,3 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .hurt-note-card h2{margin:0;color:var(--c-text);font:400 calc(var(--u) * 22)/1.05 var(--f-display);letter-spacing:.04em;text-transform:uppercase;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .hurt-note-card .hurt-note-line{margin:0;color:var(--c-text-2);font:500 calc(var(--u) * 14)/1.45 var(--f-ui)}
 .hurt-note-card .k-cta{margin:calc(var(--u) * 2) 0 0;width:100%}
-/* HOW TO PLAY from the cover: the coachmarks over the cover, the last card
-   ending on CHOOSE A MODE and PLAY NOW side by side. */
-#marathon-intro.is-howto{z-index:40}
-.mi-finish{display:flex;gap:calc(var(--u) * 10);width:100%}
-.mi-finish .k-cta{flex:1;min-width:0;width:auto}
-#mi-keys:has(.mi-finish){flex-direction:column;align-items:stretch;gap:calc(var(--u) * 14)}
-#mi-keys:has(.mi-finish) .mi-dots{align-self:center}
-#mi-keys:has(.mi-finish) .mi-skip{display:none}
-#marathon-intro.is-howto{background:#05070ae0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
