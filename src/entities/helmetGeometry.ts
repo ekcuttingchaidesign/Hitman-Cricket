@@ -108,15 +108,17 @@ export function helmetGrilleGeometry(radius = .0065) {
     }
     return points;
   };
+  // The top bar stands well clear of the peak: the slot between them is
+  // what the batter sees through, as on a real helmet.
   const curves: THREE.Vector3[][] = [
-    hoop(0, -.016, .21), hoop(.33, -.1, .214), hoop(.66, -.164, .2), hoop(1, -.234, .17),
+    hoop(.16, -.068, .214), hoop(.44, -.122, .214), hoop(.72, -.176, .198), hoop(1, -.234, .17),
     Array.from({ length: 9 }, (_, i) => side(1, i / 8)),
     Array.from({ length: 9 }, (_, i) => side(-1, i / 8)),
   ];
   // The uprights: from the top hoop down the front to the bottom one.
   for (const x of [-.042, .042]) curves.push([
-    new THREE.Vector3(x, -.018, .208), new THREE.Vector3(x, -.102, .212),
-    new THREE.Vector3(x * .92, -.166, .198), new THREE.Vector3(x * .8, -.232, .168),
+    new THREE.Vector3(x, -.068, .213), new THREE.Vector3(x, -.122, .213),
+    new THREE.Vector3(x * .92, -.176, .197), new THREE.Vector3(x * .8, -.232, .168),
   ]);
   const tubes = curves.map(points => new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), points.length * 4, radius, 6, false));
   const geometry = mergeGeometries(tubes);
