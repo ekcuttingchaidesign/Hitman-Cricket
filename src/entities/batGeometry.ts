@@ -64,32 +64,98 @@ function section(w: number, face: number, edge: number, spine: number): [number,
   ];
 }
 
-/** Reference-based willow profile. +Z is the striking face; the raised spine
- * lives on -Z. Dimensions and grip origin match the animation/contact rig. */
+/**
+ * The sticker sheet a bat skin is painted into, in pixels at 1 px = 0.5 mm:
+ * the four canvases of the Figma template side by side, face, edge L, back,
+ * edge R, with a gap of bare willow between them so one never bleeds into
+ * the next. Each side of the blade is mapped onto its own panel (`uv1`).
+ */
+export const SKIN = {
+  width: 720, height: 1400,
+  face: { x: 8, width: 252 },
+  edgeLeft: { x: 268, width: 88 },
+  back: { x: 364, width: 252 },
+  edgeRight: { x: 624, width: 88 },
+} as const;
+/** Pixels per metre on the sheet. */
+const PX = 2000;
+/** The blade's half-width, which the face and back panels span. */
+const HALF = .063;
+
+/**
+ * Reference-based willow profile. +Z is the striking face; the raised spine
+ * lives on -Z. Dimensions and grip origin match the animation/contact rig.
+ *
+ * Two sets of coordinates: `uv` across the whole blade from the front, which
+ * the wood grain is laid along, and `uv1` onto the sticker sheet. The face is
+ * mapped as seen from the bowler, the back as seen from behind the batter,
+ * and each edge as seen from its own side; so every side of the sheet reads
+ * the right way round on the bat, the way it reads in the template.
+ */
 export function bladeGeometry() {
   const heights = [...new Set([...OUTLINE, ...PROFILE].map(row => row[0]))].sort((a, b) => b - a);
   const rings = heights.map(y => section(along(OUTLINE, y, 1), along(PROFILE, y, 1), along(PROFILE, y, 2), along(PROFILE, y, 3)));
   const count = rings[0].length;
-  const positions: number[] = [], uv: number[] = [], indices: number[] = [];
+  // The blade as one closed surface first, for its normals: a seam between
+  // two sides of the sheet must not become a crease in the shading.
+  const welded: number[] = [], weldedUv: number[] = [], weldedIndex: number[] = [];
   rings.forEach((ring, row) => {
     for (const [x, z] of ring) {
-      positions.push(x, heights[row], z);
-      uv.push((x + .063) / .126, (-heights[row] - .134) / .7);
+      welded.push(x, heights[row], z);
+      weldedUv.push((x + HALF) / (2 * HALF), (-heights[row] - .134) / .7);
     }
   });
   for (let row = 0; row < rings.length - 1; row++) for (let col = 0; col < count; col++) {
     const a = row * count + col, b = a + count, c = row * count + (col + 1) % count, d = c + count;
-    indices.push(a, b, d, a, d, c);
+    weldedIndex.push(a, b, d, a, d, c);
   }
-  const end = (rings.length - 1) * count;
-  for (let col = 1; col < count - 1; col++) {
-    indices.push(0, col, col + 1);
-    indices.push(end, end + col + 1, end + col);
+  const last = (rings.length - 1) * count;
+  for (let col = 1; col < count - 1; col++) weldedIndex.push(0, col, col + 1, last, last + col + 1, last + col);
+  const solid = new THREE.BufferGeometry();
+  solid.setAttribute('position', new THREE.Float32BufferAttribute(welded, 3));
+  solid.setIndex(weldedIndex); solid.computeVertexNormals();
+  const normals = solid.getAttribute('normal');
+
+  // Then split along the four seams, each side carrying its own panel. The
+  // section runs face corner to face corner (0–5), down the right edge
+  // (5–6), round the back (6–18) and up the left edge (18–0).
+  const positions: number[] = [], normal: number[] = [], uv: number[] = [], uv1: number[] = [], indices: number[] = [];
+  const add = (row: number, col: number, u: number) => {
+    const i = row * count + col;
+    positions.push(welded[i * 3], welded[i * 3 + 1], welded[i * 3 + 2]);
+    normal.push(normals.getX(i), normals.getY(i), normals.getZ(i));
+    uv.push(weldedUv[i * 2], weldedUv[i * 2 + 1]);
+    uv1.push(u / SKIN.width, 1 - (-heights[row] - .134) * PX / SKIN.height);
+    return positions.length / 3 - 1;
+  };
+  const side = (cols: number[], u: (x: number, z: number, row: number) => number) => {
+    const first = positions.length / 3;
+    rings.forEach((ring, row) => cols.forEach(col => add(row, col, u(ring[col][0], ring[col][1], row))));
+    for (let row = 0; row < rings.length - 1; row++) for (let k = 0; k < cols.length - 1; k++) {
+      const a = first + row * cols.length + k, b = a + cols.length, c = a + 1, d = b + 1;
+      indices.push(a, b, d, a, d, c);
+    }
+  };
+  const middle = (row: number) => along(PROFILE, heights[row], 1) - along(PROFILE, heights[row], 2) / 2;
+  const span = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  side(span(0, 5), x => SKIN.face.x + (x + HALF) * PX);
+  side([5, 6], (_, z, row) => SKIN.edgeRight.x + SKIN.edgeRight.width / 2 - (z - middle(row)) * PX);
+  side(span(6, 18), x => SKIN.back.x + (HALF - x) * PX);
+  side([18, 0], (_, z, row) => SKIN.edgeLeft.x + SKIN.edgeLeft.width / 2 + (z - middle(row)) * PX);
+  // The ends — inside the handle at the top, under the toe at the bottom — on
+  // the bare willow of the first gap.
+  for (const row of [0, rings.length - 1]) {
+    const first = positions.length / 3;
+    for (let col = 0; col < count; col++) add(row, col, SKIN.face.x / 2);
+    for (let col = 1; col < count - 1; col++) indices.push(...(row === 0 ? [first, first + col, first + col + 1] : [first, first + col + 1, first + col]));
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normal, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingBox();
+  geometry.setAttribute('uv1', new THREE.Float32BufferAttribute(uv1, 2));
+  geometry.setIndex(indices); geometry.computeBoundingBox();
+  solid.dispose();
   return geometry;
 }
 
