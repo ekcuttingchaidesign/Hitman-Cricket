@@ -2021,7 +2021,6 @@ export class Batter {
       this.mesh(pad, this.palette.pad, [.18, .042, .026], 'soft').position.set(0, -.179, .083);
       const shoe = new THREE.Group(); this.root.add(shoe);
       this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
-      this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);
       this.mesh(shoe, this.palette.handle, [.185, .035, .33], 'soft').position.set(0, -.055, .055);
       this.mesh(shoe, this.palette.accent, [.19, .022, .09], 'soft').position.set(0, .015, .12);
       for (const z of [.065, .093, .121]) this.mesh(shoe, this.palette.pad, [.075, .009, .013], 'flat').position.set(0, .063, z);

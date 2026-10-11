@@ -73,6 +73,22 @@ export class ConnectedJersey {
       .sub(this.point.set(arm === 0 ? -.20 : .20, .025, 0)).applyQuaternion(torso.quaternion);
   }
 
+  /** The turn of the sleeve's first ring that lies closest, point for point, to the armhole. */
+  private turnOf(arm: number, positions: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, limb: THREE.BufferAttribute | THREE.InterleavedBufferAttribute) {
+    const loop = this.loops[arm], p = positions.array as Float32Array, l = limb.array as Float32Array;
+    let best = 0, least = Infinity;
+    for (let turn = 0; turn < 24; turn++) {
+      let sum = 0;
+      for (let i = 0; i < 24; i++) {
+        const a = loop[i] * 3, b = (4 * 25 + (i + turn) % 24) * 3;
+        const dx = p[a] - l[b], dy = p[a + 1] - l[b + 1], dz = p[a + 2] - l[b + 2];
+        sum += dx * dx + dy * dy + dz * dz;
+      }
+      if (sum < least) { least = sum; best = turn; }
+    }
+    return best;
+  }
+
   update(torso: THREE.Object3D, arms: BendingLimb[]) {
     const positions = this.mesh.geometry.getAttribute('position'), source = this.base.getAttribute('position');
     const normals = this.base.getAttribute('normal');
@@ -82,17 +98,24 @@ export class ConnectedJersey {
     }
     for (let arm = 0; arm < 2; arm++) {
       const limb = arms[arm].mesh.geometry.getAttribute('position');
+      // Which way round the sleeve's rings meet the armhole. The rings start
+      // wherever the arm's own frame puts them, and an arm swung across the
+      // chest turns that start away from the armhole's: joined point to point,
+      // the shoulder twisted like a wrung towel. Turned to the closest match,
+      // every seam runs straight from the armhole down the sleeve.
+      const turn = this.turnOf(arm, positions, limb);
       for (let row = 1; row <= this.rows; row++) for (let i = 0; i < 24; i++) {
-        if (row >= 4) this.point.fromBufferAttribute(limb, this.sourceRows[row] * 25 + i);
+        const k = (i + turn) % 24;
+        if (row >= 4) this.point.fromBufferAttribute(limb, this.sourceRows[row] * 25 + k);
         else {
           const id = this.loops[arm][i], j = Math.floor(id / 24), side = id % 24;
           this.start.fromBufferAttribute(positions, id);
-          this.end.fromBufferAttribute(limb, 4 * 25 + i);
+          this.end.fromBufferAttribute(limb, 4 * 25 + k);
           this.normal.fromBufferAttribute(normals, j * 25 + side).applyQuaternion(torso.quaternion);
           // Leave the torso along its surface; arrive tangent to the upper arm.
           this.tangent.subVectors(this.end, this.start);
           this.tangent.addScaledVector(this.normal, -this.tangent.dot(this.normal)).normalize().multiplyScalar(.12);
-          this.axis.fromBufferAttribute(limb, 5 * 25 + i).sub(this.end).multiplyScalar(4);
+          this.axis.fromBufferAttribute(limb, 5 * 25 + k).sub(this.end).multiplyScalar(4);
           const t = row / 4, t2 = t * t, t3 = t2 * t;
           this.point.copy(this.start).multiplyScalar(2 * t3 - 3 * t2 + 1)
             .addScaledVector(this.tangent, t3 - 2 * t2 + t)

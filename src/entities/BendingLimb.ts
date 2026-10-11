@@ -91,7 +91,7 @@ export class BendingLimb {
     // figure on every frame, and the attribute and vector helpers were most
     // of what it cost.
     const p = positions.array as Float32Array, n = normals.array as Float32Array;
-    const bx = this.binormal.x, by = this.binormal.y, bz = this.binormal.z;
+    const b0x = this.binormal.x, b0y = this.binormal.y, b0z = this.binormal.z;
     for (let row = 0; row <= this.rows; row++) {
       const t = row / this.rows, d = t * length;
       if (d < l1 - bend) {
@@ -103,7 +103,13 @@ export class BendingLimb {
         this.point.copy(joint).addScaledVector(u, -bend * (1 - f) ** 2).addScaledVector(v, bend * f * f);
         this.tangent.copy(u).multiplyScalar(1 - f).addScaledVector(v, f).normalize();
       }
-      this.across.crossVectors(this.binormal, this.tangent).normalize();
+      // Each ring square to its own stretch of the limb. The binormal is square
+      // to the upper segment only; laid across a lower segment that bends out
+      // of that plane, the ring stood at a slant and the forearm came out flat.
+      const along = b0x * this.tangent.x + b0y * this.tangent.y + b0z * this.tangent.z;
+      let bx = b0x - along * this.tangent.x, by = b0y - along * this.tangent.y, bz = b0z - along * this.tangent.z;
+      const bl = Math.sqrt(bx * bx + by * by + bz * bz) || 1; bx /= bl; by /= bl; bz /= bl;
+      this.across.set(by * this.tangent.z - bz * this.tangent.y, bz * this.tangent.x - bx * this.tangent.z, bx * this.tangent.y - by * this.tangent.x).normalize();
       let radius = t < .5 ? THREE.MathUtils.lerp(this.radii[0], this.radii[1], t * 2)
         : THREE.MathUtils.lerp(this.radii[1], this.radii[2], (t - .5) * 2);
       let slope = 2 * (t < .5 ? this.radii[1] - this.radii[0] : this.radii[2] - this.radii[1]);
