@@ -60,7 +60,7 @@ export const RATED_NAME: Record<RatedThing, string> = {
  * a star means what that question's answer meant and the two columns can be
  * read side by side.
  */
-export const STAR_WORDS = ['Not for me', 'It’s okay', 'Good fun', 'Loved it', 'Couldn’t stop'] as const;
+export const STAR_WORDS = ['Not really', 'It’s okay', 'Good fun', 'Loved it', 'Couldn’t stop'] as const;
 
 /** Finished innings before the game itself is asked about. */
 export const GAME_AFTER = 3;

@@ -32,7 +32,8 @@ import {
 } from './CareerBoard';
 import { statsSheetMarkup, type StatsSheetView, type StatsSlide } from './StatsSheet';
 import { rivalsRankingMarkup, type RivalsBoardView } from './RivalsBoard';
-import { INTRO_STEPS, introCardMarkup, introKeysMarkup, type IntroStep } from './MarathonIntro';
+import { INTRO_STEPS, introCardMarkup, introKeysMarkup, introStageMarkup, type IntroGame, type IntroStep } from './MarathonIntro';
+import { LANE_ORDER, captionMarkup, laneFor } from './ShotsIntro';
 import { fallsOf, marathonShareText, type CardBatter, type CardTotal } from './MarathonCard';
 import { MARATHON_LADDERS, marathonBest, marathonLaddersMarkup, type MarathonBoardView, type MarathonLadder } from './MarathonBoard';
 import type { TeamRow } from '../game/marathon-board';
@@ -93,6 +94,29 @@ export interface BoardFrame {
 /** The winner's crown, its base an arc on the face's own ring so it sits flush on the curve. */
 const CROWN_ARC = `<svg class="verdict-crown" viewBox="0 0 40 40" aria-hidden="true"><path d="M9.83 0.04 L5.25 -8.96 L13.58 -6.74 L20.00 -15.50 L26.42 -6.74 L34.75 -8.96 L30.17 0.04 A22.4 22.4 0 0 0 9.83 0.04Z" fill="#F5B83D" stroke="#1a1204" stroke-width="1" stroke-linejoin="round"/><path d="M9.43 -2.66 A25.0 25.0 0 0 1 30.57 -2.66" fill="none" stroke="#c98a1e" stroke-width="1.2" stroke-linecap="round"/><g fill="#F5B83D" stroke="#1a1204" stroke-width=".8"><circle cx="4.75" cy="-9.94" r="1.5"/><circle cx="20.00" cy="-16.70" r="1.5"/><circle cx="35.25" cy="-9.94" r="1.5"/></g></svg>`;
 const WIFI_OFF = wifiOff.replace(/stroke="#FFB08F"/g, 'stroke="currentColor"');
+/** One design pixel, as `--u` works it out: the 402-wide phone, held between bounds. */
+const introUnit = (width: number) => Math.min(Math.max(width / 402, .82), 1.2);
+/**
+ * HOW TO PLAY from the cover stands on a picture of the Blast before its first
+ * ball (`howto-ground.webp`, the game's own screen on a 402 by 874 phone), so
+ * the swipes are taught over the screen they are played on. Where the bat and
+ * the confidence meter are in it, in its own pixels; it is laid over the
+ * screen whole, as `background-size: contain` lays it — a wider screen, the
+ * desktop column, filling its sides with the picture blurred — and so are these.
+ */
+const HOWTO_GROUND = {
+  w: 402, h: 874,
+  bat: { x: 200.1, y: 474.2 },
+  spots: { confidence: { x: 17, y: 59, w: 176.5, h: 19.5 } } as Record<string, { x: number; y: number; w: number; h: number }>,
+};
+/** A point of the picture, where it lands on a screen `w` by `h`. */
+const onGround = (w: number, h: number) => {
+  const scale = Math.min(w / HOWTO_GROUND.w, h / HOWTO_GROUND.h);
+  const dx = (w - HOWTO_GROUND.w * scale) / 2, dy = (h - HOWTO_GROUND.h * scale) / 2;
+  return { scale, x: (x: number) => dx + x * scale, y: (y: number) => dy + y * scale };
+};
+/** How long the swipes card lights each lane. */
+const LANE_BEAT = 1700;
 /** The colour the pause sheet wears for the game it pauses: the Blast's blue, a Test's green, a Rival Match's orange. */
 export type PauseTone = 'blast' | 'test' | 'rivals';
 /** Each setting of the sound key: its picture, what it is, and what a press does. */
@@ -348,7 +372,7 @@ export class HUD {
         <div id="result" class="result hidden" aria-live="polite"><strong id="result-text"></strong><span id="timing"></span></div>
         ${swipeGuide()}
         <div id="phase-label" class="phase-label hidden">TAKE YOUR GUARD</div>
-        <div id="marathon-intro" class="mi-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="mi-title"><span id="mi-spot" class="mi-spot hidden" aria-hidden="true"></span><svg id="mi-arrow" class="mi-arrow" aria-hidden="true"><defs><marker id="mi-head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 7 5 1 9" fill="none" stroke="#6cc070" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><path id="mi-arrow-path" marker-end="url(#mi-head)"/></svg><div id="mi-card" class="mi-card"></div><div id="mi-keys" class="mi-keys"></div></div>
+        <div id="marathon-intro" class="mi-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="mi-title"><svg id="mi-scrim" class="mi-scrim" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="mi-scrim-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05070a" stop-opacity=".72"/><stop offset=".55" stop-color="#05070a" stop-opacity=".6"/><stop offset="1" stop-color="#05070a" stop-opacity=".9"/></linearGradient></defs><path id="mi-scrim-path" fill="url(#mi-scrim-fill)" fill-rule="evenodd"/></svg><span id="mi-spot" class="mi-spot hidden" aria-hidden="true"></span><span id="mi-tag" class="mi-tag hidden" aria-hidden="true"></span><div id="mi-stage" class="mi-stage" aria-hidden="true"></div><div id="mi-card" class="mi-card"><div id="mi-words" class="mi-words"></div><div id="mi-keys" class="mi-keys"></div></div></div>
         <div id="level-banner" class="level-banner hidden" role="status" aria-live="polite"><span class="lb-eyebrow" id="lb-eyebrow"></span><strong id="lb-title"></strong><span class="lb-line" id="lb-line"></span></div>
         <div id="coach" class="coach hidden">
           <span class="coach-step" id="coach-step">BALL 1 OF 3</span>
@@ -1751,90 +1775,148 @@ ${modeSelectMarkup()}
     this.bannerDown = window.setTimeout(() => { banner.className = 'level-banner hidden'; }, lasts);
   }
   /**
-   * Coachmarks over the ground, a card at a time, with the thing a card is
-   * about lit in the dark round it: the Marathon's rules, or how to hit on its
-   * own before a first innings in any other mode. `left` draws the swipes the
-   * way a left-hander's ground has them. `done` hears whether the player went
+   * Coachmarks over the ground, a card at a time (Figma 128:4759 and on): the
+   * Marathon's rules, or how to hit before a first innings in any other mode.
+   * The card at the foot names the game in its colour; over the ground each
+   * card draws what it is about — the swipes fanned from the bat, the pitch
+   * marked, or a widget outlined in the dark. `left` draws the swipes the way a
+   * left-hander's ground has them, and `at` says where the batter stands, or
+   * nothing when he is not on the screen. `done` hears whether the player went
    * through to the end or skipped.
    */
   marathonIntro(
-    done: (how: 'finished' | 'skipped' | 'modes') => void, steps: readonly IntroStep[] = INTRO_STEPS, left = false,
-    finish = false,
+    done: (how: 'finished' | 'skipped' | 'modes') => void, steps: readonly IntroStep[] = INTRO_STEPS,
+    { left = false, finish = false, game = { name: 'The Blast', tone: 'blast' }, at }: {
+      left?: boolean; finish?: boolean; game?: IntroGame; at?: () => BatterOnScreen | null;
+    } = {},
   ) {
     const overlay = this.$('marathon-intro');
     overlay.classList.toggle('is-howto', finish);
+    overlay.dataset.tone = game.tone;
     let index = 0;
     const show = () => {
       const step = steps[index];
-      this.$('mi-card').innerHTML = introCardMarkup(step, left);
+      this.$('mi-words').innerHTML = introCardMarkup(step, index, steps.length, game);
       this.$('mi-keys').innerHTML = introKeysMarkup(index, steps.length, finish);
-      const modes = document.getElementById('mi-modes');
-      if (modes) modes.onclick = () => { this.closeIntro(); done('modes'); };
-      this.spotlight(step.spot ?? null);
-      this.$('mi-next').onclick = () => {
+      this.$('mi-stage').innerHTML = introStageMarkup(step, left);
+      const key = (id: string, then: () => void) => { const node = document.getElementById(id); if (node) node.onclick = then; };
+      key('mi-modes', () => { this.closeIntro(); done('modes'); });
+      key('mi-skip', () => { this.closeIntro(); done('skipped'); });
+      key('mi-back', () => { index--; show(); });
+      key('mi-next', () => {
         if (++index < steps.length) return show();
         this.closeIntro(); done('finished');
-      };
-      this.$('mi-skip').onclick = () => { this.closeIntro(); done('skipped'); };
+      });
+      this.stage(step, left, finish ? null : at?.() ?? null);
       this.$('mi-next').focus({ preventScroll: true });
     };
     overlay.classList.remove('hidden');
     show();
   }
-  closeIntro() { this.$('marathon-intro').classList.add('hidden'); }
+  closeIntro() {
+    this.$('marathon-intro').classList.add('hidden');
+    window.clearInterval(this.laneWalk);
+  }
   get introOpen() { return !this.$('marathon-intro').classList.contains('hidden'); }
+  private laneWalk = 0;
   /**
-   * The widget a rule is about, popped out of the dark and drawn bigger: a
-   * key comes up as a white disc with its icon in it, and a meter as a white
-   * pill with its icon and its words. The words go under it, and
-   * a dotted arrow runs from them up to it. With nothing to point at, the
-   * words sit in the middle of the screen.
+   * Sets a card's drawing down on the ground. The swipes go at the bat, or
+   * where the design has it when the batter is not on the screen (HOW TO PLAY
+   * from the cover); the pitch's mark goes just up the strip from him; and a
+   * widget is outlined with a hole cut for it in the scrim, a tag under it
+   * saying what it is. A widget not on the screen is not pointed at. Opened
+   * from the cover, it all stands on the picture of the ground instead.
    */
-  private spotlight(id: string | null) {
+  private stage(step: IntroStep, left: boolean, bat: BatterOnScreen | null) {
+    window.clearInterval(this.laneWalk);
     const overlay = this.$('marathon-intro');
-    const spot = this.$('mi-spot');
-    const card = this.$('mi-card');
-    const arrow = this.$('mi-arrow');
-    const target = id ? document.getElementById(id) : null;
-    const box = target?.getBoundingClientRect();
-    spot.innerHTML = '';
-    if (!target || !box || !box.width) {
-      spot.classList.add('hidden'); arrow.classList.add('hidden');
-      overlay.classList.remove('is-spot'); card.style.top = '';
+    const frame = overlay.getBoundingClientRect();
+    const u = introUnit(frame.width);
+    // Where the ball meets the bat: in front of him, half his height up. The
+    // scene measures him in the picture's pixels, which the doodles stand in
+    // too. Over the cover, the bat in the picture of the ground; otherwise,
+    // where the design has it: 214 by 468 on its phone.
+    const view = this.viewport.getBoundingClientRect();
+    const tall = bat ? bat.feet.y - bat.head.y : 0;
+    const ground = overlay.classList.contains('is-howto') ? onGround(frame.width, frame.height) : null;
+    const contact = ground ? { x: ground.x(HOWTO_GROUND.bat.x), y: ground.y(HOWTO_GROUND.bat.y) }
+      : bat ? { x: view.left - frame.left + bat.feet.x + (left ? -1 : 1) * tall * .2, y: view.top - frame.top + bat.feet.y - tall * .5 }
+        : { x: frame.width * 214 / 402, y: frame.height * 468 / 874 };
+    overlay.style.setProperty('--x', `${contact.x}px`);
+    overlay.style.setProperty('--y', `${contact.y}px`);
+    overlay.style.setProperty('--pitch-x', `${contact.x + (left ? 13 : -13) * u}px`);
+    // The captions stand 128 under the bat; where the card would cover them
+    // (a tall column, a short phone) the thumb and they come up to clear it.
+    const card = this.$('mi-card').getBoundingClientRect();
+    overlay.style.setProperty('--lift', `${Math.max(0, contact.y + 136 * u - (card.top - frame.top))}px`);
+    this.$('mi-stage').querySelectorAll<HTMLElement>('.hb-label, .hb-caption').forEach(node => this.keepInside(node));
+    if (step.shots) this.walkLanes(left);
+    this.spotlight(step, frame, u);
+  }
+  /** A name the drawing puts up, slid back inside the screen if it runs off an edge. */
+  private keepInside(node: HTMLElement) {
+    node.style.translate = '';
+    const frame = this.$('marathon-intro').getBoundingClientRect(), box = node.getBoundingClientRect();
+    const margin = 12 * introUnit(frame.width);
+    const shift = Math.max(0, frame.left + margin - box.left) - Math.max(0, box.right - (frame.right - margin));
+    if (shift) node.style.translate = `${shift}px 0`;
+  }
+  /** The lit lane walked round the five, the thumb swiping each, the caption saying which; still, as drawn, for anybody who asked for less motion. */
+  private walkLanes(left: boolean) {
+    const fan = this.$('mi-stage').querySelector<HTMLElement>('.hb-fan');
+    const swipe = fan?.querySelector<HTMLElement>('.hb-swipe');
+    const caption = fan?.querySelector<HTMLElement>('.hb-caption.is-lane');
+    if (!fan || !swipe || !caption) return;
+    const go = () => { swipe.classList.remove('is-going'); void swipe.offsetWidth; swipe.classList.add('is-going'); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let step = 0;
+    go();
+    this.laneWalk = window.setInterval(() => {
+      step = (step + 1) % LANE_ORDER.length;
+      const lane = laneFor(LANE_ORDER[step], left);
+      fan.dataset.lit = String(LANE_ORDER[step]);
+      swipe.style.setProperty('--a', `${lane.angle}deg`);
+      caption.innerHTML = captionMarkup(lane.swipe, lane.keys, lane.name.toLowerCase());
+      this.keepInside(caption);
+      go();
+    }, LANE_BEAT);
+  }
+  /** The widget a rule is about, outlined in a hole cut in the scrim, with its name on a tag under it. */
+  private spotlight(step: IntroStep, frame: DOMRect, u: number) {
+    const spot = this.$('mi-spot'), tag = this.$('mi-tag'), scrim = this.$('mi-scrim');
+    const w = frame.width, h = frame.height;
+    // The widget on the screen, or over the cover the one in the picture of the ground.
+    let box: { x: number; y: number; w: number; h: number } | null = null;
+    if (this.$('marathon-intro').classList.contains('is-howto')) {
+      const held = step.spot ? HOWTO_GROUND.spots[step.spot] : undefined;
+      const ground = onGround(w, h);
+      if (held) box = { x: ground.x(held.x), y: ground.y(held.y), w: held.w * ground.scale, h: held.h * ground.scale };
+    } else {
+      const seen = step.spot ? document.getElementById(step.spot)?.getBoundingClientRect() : undefined;
+      if (seen?.width && seen.height) box = { x: seen.left - frame.left, y: seen.top - frame.top, w: seen.width, h: seen.height };
+    }
+    scrim.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    let d = `M0 0H${w}V${h}H0Z`;
+    if (!box) {
+      spot.classList.add('hidden'); tag.classList.add('hidden');
+      this.$('mi-scrim-path').setAttribute('d', d);
       return;
     }
-    const frame = overlay.getBoundingClientRect();
-    const round = box.width / box.height < 1.4;
-    const icon = target.querySelector('svg')?.cloneNode(true) as SVGElement | undefined;
-    if (icon) { icon.removeAttribute('id'); spot.append(icon); }
-    if (!round) {
-      // The meter's own words, as it says them now.
-      const words = [...target.querySelectorAll<HTMLElement>('.confidence-label, .injury-cap')]
-        .filter(node => !node.hidden && node.textContent?.trim()).map(node => node.textContent!.trim());
-      spot.insertAdjacentHTML('beforeend', `<b>${words[0] ?? ''}</b>${words[1] ? `<em>${words[1]}</em>` : ''}`);
-      // Confidence is told by filling: a bar that fills and turns gold.
-      if (id === 'confidence') spot.insertAdjacentHTML('beforeend', '<span class="mi-meter"><i></i></span>');
-    }
-    spot.classList.toggle('is-round', round);
+    const pad = 8 * u;
+    const x = box.x - pad, y = box.y - pad, sw = box.w + pad * 2, sh = box.h + pad * 2;
+    const r = Math.min(20 * u, sh / 2, sw / 2);
+    d += `M${x + r} ${y}H${x + sw - r}A${r} ${r} 0 0 1 ${x + sw} ${y + r}V${y + sh - r}A${r} ${r} 0 0 1 ${x + sw - r} ${y + sh}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + sh - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+    this.$('mi-scrim-path').setAttribute('d', d);
+    Object.assign(spot.style, { left: `${x}px`, top: `${y}px`, width: `${sw}px`, height: `${sh}px`, borderRadius: `${r}px` });
     spot.classList.remove('hidden');
-    const cx = box.left - frame.left + box.width / 2, cy = box.top - frame.top + box.height / 2;
-    const w = round ? Math.max(box.width, box.height) * 1.5 : spot.offsetWidth;
-    const h = round ? w : spot.offsetHeight;
-    // Kept on the screen: a meter in the corner would push half its pill off it.
-    const left = Math.min(Math.max(cx - w / 2, 12), frame.width - w - 12);
-    Object.assign(spot.style, round ? { left: `${left}px`, top: `${cy - h / 2}px`, width: `${w}px`, height: `${h}px` } : { left: `${left}px`, top: `${cy - h / 2}px`, width: '', height: '' });
-    overlay.classList.add('is-spot');
-    // The words a little under the widget, and the arrow from them to it.
-    const bottom = cy + h / 2;
-    card.style.top = `${bottom + 64}px`;
-    const words = card.getBoundingClientRect();
-    const fromX = Math.min(Math.max(cx, words.left - frame.left + 24), words.right - frame.left - 24);
-    const fromY = bottom + 56;
-    const toY = bottom + 8;
-    const bend = (fromX - cx) * 0.4;
-    arrow.setAttribute('viewBox', `0 0 ${frame.width} ${frame.height}`);
-    this.$('mi-arrow-path').setAttribute('d', `M${fromX} ${fromY} C${fromX - bend} ${(fromY + toY) / 2} ${cx + bend} ${(fromY + toY) / 2} ${cx} ${toY}`);
-    arrow.classList.remove('hidden');
+    // The tag hangs under the outline on a pointer, kept inside the screen.
+    tag.innerHTML = `<i></i><b>${step.tag ?? ''}</b>`;
+    tag.classList.remove('hidden');
+    const cx = x + sw / 2;
+    const width = tag.offsetWidth;
+    const left = Math.min(Math.max(cx - width / 2, 12 * u), w - width - 12 * u);
+    Object.assign(tag.style, { left: `${left}px`, top: `${y + sh + 14 * u}px` });
+    tag.style.setProperty('--point', `${cx - left}px`);
   }
   /** The pause card's declaration, offered in a Marathon from twenty overs. */
   /**

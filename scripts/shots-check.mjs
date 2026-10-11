@@ -1,6 +1,6 @@
 /**
- * How to hit, before a first innings: the coachmark with the six swipes, and
- * after it the confidence meter lit on the scoreboard.
+ * How to hit, before a first innings: the coachmark with the swipes fanned
+ * from the bat, and after it the confidence meter outlined on the scoreboard.
  *
  * A first innings in the Blast opens with both and bowls nothing until they
  * are put away; they are not shown again, nor to a browser that has batted
@@ -91,43 +91,47 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   check(await upWithin(page), 'a first Blast opens with how to hit');
   check(await page.locator('#mi-title').textContent() === 'Swipe to hit', 'titled for it', await page.locator('#mi-title').textContent());
   const names = await page.locator('.hb-label b').allTextContents();
-  check(JSON.stringify(names) === JSON.stringify(['Pull', 'On drive', 'Straight drive', 'Cover drive', 'Cut', 'Block']), 'six swipes, named', JSON.stringify(names));
+  check(JSON.stringify(names) === JSON.stringify(['Pull', 'On drive', 'Straight drive', 'Cover drive', 'Cut']), 'five lanes, named', JSON.stringify(names));
+  check(await page.locator('.hb-caption.is-block .touch-only').textContent() === 'Swipe down', 'and the block a swipe down');
   check(!(await page.locator('.hb-label kbd').first().isVisible()), 'and no keys on a touch screen');
   check(await page.locator('.touch-only', { hasText: 'Swipe the way' }).isVisible(), 'told to swipe');
-  check(await page.locator('#mi-skip').isVisible() && await page.locator('#mi-next').textContent() === 'Next', 'the first of two: Skip and Next');
+  check(await page.locator('#mi-skip').isVisible() && await page.locator('#mi-next').textContent() === 'NEXT', 'the first of two: Skip and NEXT');
+  check(await page.locator('#mi-mode').textContent() === 'The Blast', 'named for the Blast', await page.locator('#mi-mode').textContent());
   // Every label on the screen and clear of the next.
-  const boxes = await page.locator('.hb-label').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
+  const boxes = await page.locator('.hb-label, .hb-caption').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().toJSON()));
   const app = await page.locator('#app').evaluate(n => n.getBoundingClientRect().toJSON());
   check(boxes.every(b => b.left >= app.left && b.right <= app.right), 'every name inside the screen', JSON.stringify(boxes.map(b => [Math.round(b.left), Math.round(b.right)])));
   const overlap = boxes.some((a, i) => boxes.some((b, j) => i < j && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
   check(!overlap, 'and none over another');
-  // The hand goes round: one ray's hand up at a time, and a beat later the
-  // next one's. Read on the animations' own clock, wound to each moment: a
-  // headless browser drawing in software can hold a CSS animation at its
-  // first frame, and two looks a second apart would see the same picture.
-  const handsAt = t => page.evaluate(t => {
-    const swipes = document.getAnimations().filter(a => a.effect?.target?.classList?.contains('hb-hand'));
-    swipes.forEach(a => { a.pause(); a.currentTime = t; });
-    const up = [...document.querySelectorAll('.hb-hand')].map(n => Number(getComputedStyle(n).opacity) > .5);
-    swipes.forEach(a => a.play());
-    return up.flatMap((on, i) => on ? [i] : []);
-  }, t);
-  const a = await handsAt(1000), b = await handsAt(2200);
-  check(a.length === 1 && b.length === 1 && b[0] === a[0] + 1, 'and a hand swipes them in turn, one at a time', `${a} / ${b}`);
+  // The light goes round: the straight drive lit first, as drawn, and a beat
+  // later the cover drive, the caption under the thumb following it.
+  const lit = () => page.evaluate(() => [document.querySelector('.hb-fan')?.dataset.lit, document.querySelector('.hb-caption.is-lane span')?.textContent]);
+  const [a, aSays] = await lit();
+  await advance(page, 1750);
+  const [b, bSays] = await lit();
+  check(a === '2' && b === '3' && /straight drive/.test(aSays) && /cover drive/.test(bSays), 'and the lanes are lit in turn, the caption saying which', `${a} ${aSays} / ${b} ${bSays}`);
   await page.screenshot({ path: `${out}/phone.png` });
   await page.locator('#mi-next').click({ force: true });
   await advance(page, 50);
   check(await page.locator('#mi-title').textContent() === 'Fill your confidence', 'then the confidence meter', await page.locator('#mi-title').textContent());
-  check(await page.locator('#mi-spot').isVisible() && await page.locator('#mi-spot .mi-meter').isVisible(), 'lit on the scoreboard, with a bar filling under it');
-  check(!(await page.locator('#mi-skip').isVisible()) && await page.locator('#mi-next').textContent() === "Let's bat", 'the last: no skip, and Let\'s bat');
+  check(await page.locator('#mi-spot').isVisible() && await page.locator('#mi-tag').textContent() === 'Confidence meter', 'outlined on the scoreboard, and named');
+  await page.waitForTimeout(600);
+  const meter = await page.locator('#confidence').boundingBox(), ring = await page.locator('#mi-spot').boundingBox();
+  check(ring.x < meter.x && ring.y < meter.y && ring.x + ring.width > meter.x + meter.width && ring.y + ring.height > meter.y + meter.height, 'round the meter itself', JSON.stringify({ meter, ring }));
+  check(!(await page.locator('#mi-skip').count()) && await page.locator('#mi-back').isVisible() && await page.locator('#mi-next').textContent() === 'LET’S BAT', 'the last: Back, and LET’S BAT');
   await page.screenshot({ path: `${out}/phone-confidence.png` });
   await advance(page, 4000);
   const held = await snap(page);
   check(held.phase === 'READY' && held.balls === 0, 'nothing bowled while it is up', held.phase);
   check(await page.evaluate(() => localStorage.getItem('hitman-shots-intro')) === 'done', 'remembered as shown');
+  await page.locator('#mi-back').click({ force: true });
+  await advance(page, 50);
+  check(await page.locator('#mi-title').textContent() === 'Swipe to hit', 'Back goes back to the swipes');
   await page.locator('#mi-next').click({ force: true });
   await advance(page, 50);
-  check(!(await intro(page).isVisible()), 'put away by Let\'s bat');
+  await page.locator('#mi-next').click({ force: true });
+  await advance(page, 50);
+  check(!(await intro(page).isVisible()), 'put away by LET’S BAT');
   let bowled = false;
   for (let i = 0; i < 30 && !bowled; i++) { await advance(page, 300); bowled = (await snap(page)).phase === 'BALL_IN_FLIGHT'; }
   check(bowled, 'and then the bowler comes in');
@@ -154,9 +158,11 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   await walkOut(page, 'survive');
   check(await upWithin(page), 'a first Test Survival opens with it too');
   const keys = await page.locator('.hb-label kbd').allTextContents();
-  check(JSON.stringify(keys) === JSON.stringify(['A', 'A+W', 'W', 'W+D', 'D', 'S']), 'a keyboard\'s card carries the keys', JSON.stringify(keys));
+  check(JSON.stringify(keys) === JSON.stringify(['A', 'A+W', 'W', 'W+D', 'D']), 'a keyboard\'s card carries the keys', JSON.stringify(keys));
+  check(await page.locator('.hb-caption.is-block .keyboard-only').isVisible(), 'and the block is S');
   check(await page.locator('.hb-label kbd').first().isVisible() && await page.locator('.keyboard-only', { hasText: 'Press the way' }).isVisible(), 'and says press, not swipe');
-  check(!(await page.locator('#mi-skip').isVisible()), 'and no confidence card after it: Survival\'s meter is the injury');
+  check(!(await page.locator('#mi-skip').count()) && !(await page.locator('#mi-back').isVisible()) && await page.locator('#mi-next').textContent() === 'LET’S BAT', 'and no confidence card after it: Survival\'s meter is the injury');
+  check(/survive every ball for the draw/.test(await page.locator('.mi-line .keyboard-only').textContent()) && await page.locator('#mi-mode').textContent() === 'Test Survival', 'named for Test Survival, and saying how to win it');
   await page.screenshot({ path: `${out}/desk.png` });
   await page.locator('#mi-next').click({ force: true });
   await advance(page, 50);
