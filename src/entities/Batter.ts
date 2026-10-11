@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ADVANCE, CUT, GAME, SQUARE_DRIVE as SQUARE_DRIVE_BALL } from '../config/gameplay';
 import { solveJoint } from './rig';
-import { bladeGeometry, gripGeometry, toeGuardGeometry } from './batGeometry';
+import { bladeGeometry, gripGeometry } from './batGeometry';
 import { BendingLimb } from './BendingLimb';
 import { ConnectedJersey } from './ConnectedJersey';
 import { ConnectedTrousers } from './ConnectedTrousers';
@@ -1880,7 +1880,6 @@ export class Batter {
     tube: new THREE.CylinderGeometry(.5, .5, 1, 20, 1),
     flat: new THREE.BoxGeometry(1, 1, 1),
     blade: bladeGeometry(),
-    toeGuard: toeGuardGeometry(),
   };
   private palette = {
     shirt: clothMaterial(new THREE.MeshStandardMaterial({ color: 0x2f5a88, roughness: .88 })),
@@ -1952,10 +1951,10 @@ export class Batter {
     rubber.castShadow=true; rubber.receiveShadow=true; this.bat.add(rubber);
     this.mesh(this.bat,this.palette.handle,[.046,.018,.046],'tube').position.y=-.117;
     this.mesh(this.bat, this.palette.bat, [1, 1, 1], 'blade');
-    // Inset bat label and toe guard: the blade silhouette and contact face stay put.
+    // Inset bat label: the blade silhouette and contact face stay put. No toe
+    // guard: its straight top edge across the face cut the toe's curve off flat.
     this.mesh(this.bat, this.palette.helmet, [.075, .12, .002], 'flat').position.set(0, -.25, .0228);
     this.mesh(this.bat, this.palette.accent, [.054, .016, .003], 'flat').position.set(0, -.28, .024);
-    this.mesh(this.bat, this.palette.handle, [1, 1, 1], 'toeGuard');
     for (let i = 0; i < 2; i++) {
       // Photo reference IMG_4073: the LEFT top hand closes OVER the handle;
       // its padded knuckles face the spine. The RIGHT bottom hand wraps under

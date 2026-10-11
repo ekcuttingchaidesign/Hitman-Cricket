@@ -9,8 +9,9 @@ import * as THREE from 'three';
  * 126 mm wide over its 700.
  *
  * The shoulders stay close to the handle for 20 mm, then sweep out to square
- * corners 37 mm down; the blade then runs at full width to within 12 mm of the bottom,
- * where the toe rounds off into a curve. It does not taper from higher up.
+ * corners 37 mm down; the blade then runs at full width to within 12 mm of the
+ * bottom. The toe is a shallow smile: level across the middle, rising 3 mm a
+ * fifth of the way out and 12 mm at the corners, as photographed.
  */
 const OUTLINE = [
   [-.134, .023], [-.144, .0255], [-.152, .030], [-.159, .034], [-.162, .0375],
@@ -63,16 +64,11 @@ function section(w: number, face: number, edge: number, spine: number): [number,
   ];
 }
 
-/** Where the toe guard starts: it covers the last 11 mm, where the toe rounds off. */
-const GUARD_TOP = -.823;
-
-/**
- * The blade's surface through the given heights, each section grown by
- * `swell` all round, and closed at both ends.
- */
-function loft(heights: number[], swell = 0) {
-  const rings = heights.map(y => section(along(OUTLINE, y, 1) + swell, along(PROFILE, y, 1) + swell,
-    along(PROFILE, y, 2) + swell * 2, along(PROFILE, y, 3) + swell * 2));
+/** Reference-based willow profile. +Z is the striking face; the raised spine
+ * lives on -Z. Dimensions and grip origin match the animation/contact rig. */
+export function bladeGeometry() {
+  const heights = [...new Set([...OUTLINE, ...PROFILE].map(row => row[0]))].sort((a, b) => b - a);
+  const rings = heights.map(y => section(along(OUTLINE, y, 1), along(PROFILE, y, 1), along(PROFILE, y, 2), along(PROFILE, y, 3)));
   const count = rings[0].length;
   const positions: number[] = [], uv: number[] = [], indices: number[] = [];
   rings.forEach((ring, row) => {
@@ -95,25 +91,6 @@ function loft(heights: number[], swell = 0) {
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingBox();
   return geometry;
-}
-
-/** Every height either table names, top to bottom. */
-const HEIGHTS = [...new Set([...OUTLINE, ...PROFILE].map(row => row[0]))].sort((a, b) => b - a);
-
-/** Reference-based willow profile. +Z is the striking face; the raised spine
- * lives on -Z. Dimensions and grip origin match the animation/contact rig. */
-export function bladeGeometry() {
-  return loft(HEIGHTS);
-}
-
-/**
- * The rubber over the toe: the blade's own last 11 mm, a little proud of it,
- * and carried just past the bottom so it closes under the toe. It follows the
- * rounded toe where a box would stand off its corners.
- */
-export function toeGuardGeometry() {
-  const below = HEIGHTS.filter(y => y < GUARD_TOP);
-  return loft([GUARD_TOP, ...below, below[below.length - 1] - .0012], .0012);
 }
 
 /** Ribbed rubber grip in one draw call, with a flared end cap. */
