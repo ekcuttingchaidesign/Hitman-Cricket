@@ -96,6 +96,25 @@ const CROWN_ARC = `<svg class="verdict-crown" viewBox="0 0 40 40" aria-hidden="t
 const WIFI_OFF = wifiOff.replace(/stroke="#FFB08F"/g, 'stroke="currentColor"');
 /** One design pixel, as `--u` works it out: the 402-wide phone, held between bounds. */
 const introUnit = (width: number) => Math.min(Math.max(width / 402, .82), 1.2);
+/**
+ * HOW TO PLAY from the cover stands on a picture of the Blast before its first
+ * ball (`howto-ground.webp`, the game's own screen on a 402 by 874 phone), so
+ * the swipes are taught over the screen they are played on. Where the bat and
+ * the confidence meter are in it, in its own pixels; it is laid over the
+ * screen whole, as `background-size: contain` lays it — a wider screen, the
+ * desktop column, filling its sides with the picture blurred — and so are these.
+ */
+const HOWTO_GROUND = {
+  w: 402, h: 874,
+  bat: { x: 200.1, y: 474.2 },
+  spots: { confidence: { x: 17, y: 59, w: 176.5, h: 19.5 } } as Record<string, { x: number; y: number; w: number; h: number }>,
+};
+/** A point of the picture, where it lands on a screen `w` by `h`. */
+const onGround = (w: number, h: number) => {
+  const scale = Math.min(w / HOWTO_GROUND.w, h / HOWTO_GROUND.h);
+  const dx = (w - HOWTO_GROUND.w * scale) / 2, dy = (h - HOWTO_GROUND.h * scale) / 2;
+  return { scale, x: (x: number) => dx + x * scale, y: (y: number) => dy + y * scale };
+};
 /** How long the swipes card lights each lane. */
 const LANE_BEAT = 1700;
 /** The colour the pause sheet wears for the game it pauses: the Blast's blue, a Test's green, a Rival Match's orange. */
@@ -1805,7 +1824,8 @@ ${modeSelectMarkup()}
    * where the design has it when the batter is not on the screen (HOW TO PLAY
    * from the cover); the pitch's mark goes just up the strip from him; and a
    * widget is outlined with a hole cut for it in the scrim, a tag under it
-   * saying what it is. A widget not on the screen is not pointed at.
+   * saying what it is. A widget not on the screen is not pointed at. Opened
+   * from the cover, it all stands on the picture of the ground instead.
    */
   private stage(step: IntroStep, left: boolean, bat: BatterOnScreen | null) {
     window.clearInterval(this.laneWalk);
@@ -1814,12 +1834,14 @@ ${modeSelectMarkup()}
     const u = introUnit(frame.width);
     // Where the ball meets the bat: in front of him, half his height up. The
     // scene measures him in the picture's pixels, which the doodles stand in
-    // too. Off the screen, where the design has it: 214 by 468 on its phone.
+    // too. Over the cover, the bat in the picture of the ground; otherwise,
+    // where the design has it: 214 by 468 on its phone.
     const view = this.viewport.getBoundingClientRect();
     const tall = bat ? bat.feet.y - bat.head.y : 0;
-    const contact = bat
-      ? { x: view.left - frame.left + bat.feet.x + (left ? -1 : 1) * tall * .2, y: view.top - frame.top + bat.feet.y - tall * .5 }
-      : { x: frame.width * 214 / 402, y: frame.height * 468 / 874 };
+    const ground = overlay.classList.contains('is-howto') ? onGround(frame.width, frame.height) : null;
+    const contact = ground ? { x: ground.x(HOWTO_GROUND.bat.x), y: ground.y(HOWTO_GROUND.bat.y) }
+      : bat ? { x: view.left - frame.left + bat.feet.x + (left ? -1 : 1) * tall * .2, y: view.top - frame.top + bat.feet.y - tall * .5 }
+        : { x: frame.width * 214 / 402, y: frame.height * 468 / 874 };
     overlay.style.setProperty('--x', `${contact.x}px`);
     overlay.style.setProperty('--y', `${contact.y}px`);
     overlay.style.setProperty('--pitch-x', `${contact.x + (left ? 13 : -13) * u}px`);
@@ -1862,18 +1884,26 @@ ${modeSelectMarkup()}
   /** The widget a rule is about, outlined in a hole cut in the scrim, with its name on a tag under it. */
   private spotlight(step: IntroStep, frame: DOMRect, u: number) {
     const spot = this.$('mi-spot'), tag = this.$('mi-tag'), scrim = this.$('mi-scrim');
-    const target = step.spot ? document.getElementById(step.spot) : null;
-    const box = target?.getBoundingClientRect();
     const w = frame.width, h = frame.height;
+    // The widget on the screen, or over the cover the one in the picture of the ground.
+    let box: { x: number; y: number; w: number; h: number } | null = null;
+    if (this.$('marathon-intro').classList.contains('is-howto')) {
+      const held = step.spot ? HOWTO_GROUND.spots[step.spot] : undefined;
+      const ground = onGround(w, h);
+      if (held) box = { x: ground.x(held.x), y: ground.y(held.y), w: held.w * ground.scale, h: held.h * ground.scale };
+    } else {
+      const seen = step.spot ? document.getElementById(step.spot)?.getBoundingClientRect() : undefined;
+      if (seen?.width && seen.height) box = { x: seen.left - frame.left, y: seen.top - frame.top, w: seen.width, h: seen.height };
+    }
     scrim.setAttribute('viewBox', `0 0 ${w} ${h}`);
     let d = `M0 0H${w}V${h}H0Z`;
-    if (!target || !box || !box.width || !box.height || this.$('marathon-intro').classList.contains('is-howto')) {
+    if (!box) {
       spot.classList.add('hidden'); tag.classList.add('hidden');
       this.$('mi-scrim-path').setAttribute('d', d);
       return;
     }
     const pad = 8 * u;
-    const x = box.left - frame.left - pad, y = box.top - frame.top - pad, sw = box.width + pad * 2, sh = box.height + pad * 2;
+    const x = box.x - pad, y = box.y - pad, sw = box.w + pad * 2, sh = box.h + pad * 2;
     const r = Math.min(20 * u, sh / 2, sw / 2);
     d += `M${x + r} ${y}H${x + sw - r}A${r} ${r} 0 0 1 ${x + sw} ${y + r}V${y + sh - r}A${r} ${r} 0 0 1 ${x + sw - r} ${y + sh}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + sh - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
     this.$('mi-scrim-path').setAttribute('d', d);

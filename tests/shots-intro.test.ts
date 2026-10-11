@@ -33,9 +33,12 @@ describe('how to hit, before a first innings', () => {
 
   it('is not shown to anybody who has batted here before', () => {
     expect(titles(true, { 'hitman-best': '0' })).toEqual([]);
-    expect(titles(true, { 'hitman-career-key': '{"code":"abc"}' })).toEqual([]);
     expect(titles(true, { 'hitman-marathon-intro': '1' })).toEqual([]);
     expect(titles(true, { 'hitman-visits': JSON.stringify({ first: '2026-09-30', last: '2026-10-01', days: 2 }) })).toEqual([]);
+  });
+
+  it('is shown to a new player who has just claimed a name, and with it a career key', () => {
+    expect(titles(true, { 'hitman-career-key': '{"code":"abc"}', 'hitman-profile': '1' })).toHaveLength(2);
   });
 
   it('takes a visits record that does not parse as no record', () => {

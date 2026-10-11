@@ -148,13 +148,17 @@ const KEY = 'hitman-shots-intro';
 
 /**
  * Whether this browser has batted here before. Anything only a player leaves
- * behind will do: a best score, a career key, the Marathon's cards, or a visit
- * on an earlier day than this one. None of it is proof of a new player — a
- * cleared browser looks new — but these cards, once, cost a returning player a
- * tap or two.
+ * behind will do: a best score, the Marathon's cards, or a visit on an earlier
+ * day than this one. None of it is proof of a new player — a cleared browser
+ * looks new — but these cards, once, cost a returning player a tap or two.
+ *
+ * Not the career key. It used to be something only a player who had batted
+ * could hold, but the name asked before the first innings is claimed with one,
+ * so every new player now has a key before their first ball — and was shown
+ * nothing.
  */
 export function playedBefore(read: (key: string) => string | null, day = today()): boolean {
-  if (read('hitman-best') !== null || read('hitman-career-key') || read('hitman-marathon-intro')) return true;
+  if (read('hitman-best') !== null || read('hitman-marathon-intro')) return true;
   try {
     const visits = JSON.parse(read('hitman-visits') ?? 'null') as { first?: unknown } | null;
     return typeof visits?.first === 'string' && visits.first < day;

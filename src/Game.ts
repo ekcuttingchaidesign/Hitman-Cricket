@@ -1493,7 +1493,8 @@ export class Game {
   }
   /**
    * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how
-   * to hit, then the confidence meter), over the cover, ending on the two ways
+   * to hit, then the confidence meter), over a picture of the Blast's ground
+   * before its first ball, ending on the two ways
    * on — PLAY NOW, which starts a Blast, and CHOOSE A MODE. Seen this way they
    * count as seen, so the Blast that follows does not show them again.
    */
@@ -1504,7 +1505,8 @@ export class Game {
       if (how === 'skipped') return;
       if (how === 'modes') return this.locked ? this.walkOut() : this.modes();
       this.choose('CLASSIC');
-    }, [SHOTS_STEP, CONFIDENCE_STEP], { left: readPlayer() ? readHand() === 'left' : false, finish: true });
+    // Drawn for the right-hander the picture of the ground shows.
+    }, [SHOTS_STEP, CONFIDENCE_STEP], { finish: true });
   };
 
   /** Three scripted balls, no wickets, and a way out at any point. */

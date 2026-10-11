@@ -1928,10 +1928,14 @@ body.start-screen #sound{pointer-events:auto}
 /* The pitch wears: the strip cracking, in a glow of the game's colour just up the pitch from him. */
 .mi-pitch{position:absolute;left:calc(var(--pitch-x) - var(--u) * 60);top:calc(var(--y) - var(--u) * 138);width:calc(var(--u) * 120);height:calc(var(--u) * 120);display:grid;place-items:center;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--mi-tone) 40%,transparent),transparent)}
 .mi-pitch svg{width:calc(var(--u) * 56);height:calc(var(--u) * 56)}
-/* HOW TO PLAY from the cover: over the cover rather than the ground, the last
-   card ending on CHOOSE A MODE and PLAY NOW side by side. */
-#marathon-intro.is-howto{z-index:40;background:#05070ae0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-#marathon-intro.is-howto .mi-scrim{display:none}
+/* HOW TO PLAY from the cover: over the cover, but on a picture of the Blast
+   before its first ball, so the swipes are shown over the screen they are
+   played on (the HUD lays its drawings on the picture the same way); the last
+   card ends on CHOOSE A MODE and PLAY NOW side by side. */
+#marathon-intro.is-howto{z-index:40;overflow:hidden;background:#0a0b0d}
+#marathon-intro.is-howto::before,#marathon-intro.is-howto::after{content:'';position:absolute;inset:0;z-index:-1;background:url('./assets/howto-ground.webp') center/contain no-repeat}
+/* Whole, and where the screen is wider than the picture, its sides filled with it blurred. */
+#marathon-intro.is-howto::before{inset:-40px;background-size:cover;filter:blur(24px) brightness(.55)}
 @keyframes mi-in{from{opacity:0}to{opacity:1}}
 @keyframes mi-pop{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot,.mi-tag{animation:none}}
