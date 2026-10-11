@@ -489,11 +489,22 @@ INJURED, with the injury ring and the real figure beside PHYSIO ON, and
 `__cricket.physio()` puts it up by name. HOW TO PLAY on the cover opens the
 coachmarks a first innings shows (`howToPlay` in `src/Game.ts`), ending on
 CHOOSE A MODE and PLAY NOW, which starts a Blast; the three-ball tutorial is
-no longer reached from there. The rating prompt and the feedback form are
-untouched: they are redrawn together, last. SHARE MY CARD paints the new
+no longer reached from there. SHARE MY CARD paints the new
 tier card (`src/game/TierCard.ts`), on the cover with the address and the
 mode's line for the story, or on black with the address and BEAT MY
 NUMBERS.
+
+The last of the redraw (the handover's sections 09 and 10): the coachmarks
+(`ShotsIntro.ts`, `MarathonIntro.ts`, drawn by `marathonIntro` in the HUD)
+are one card at the foot in the game's colour, over the ground under the
+design's scrim, with whatever a card is about drawn on the ground — the
+swipes fanned from the bat, a widget outlined in a hole cut in the scrim and
+named on a tag, the pitch marked. The star prompt (`Rating.ts`) and the
+questionnaire (`Feedback.ts`) are the same card over the screen dimmed and
+softened: the stars in the design's gold, the answers rows with a mark each,
+the kit's keys for the ways on. The free-text screen the design leaves out is
+kept, last, in the same material; the shared link is the new black with the
+orange bloom, the grain and the logo over the card.
 
 Checks that create players name them with letters and give each run a new
 id: a name with a number on the end is a sibling of the last run's for a
