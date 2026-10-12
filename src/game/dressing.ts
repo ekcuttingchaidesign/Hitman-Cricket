@@ -40,7 +40,8 @@ export interface BatSkin {
 }
 
 export const OUTFITS: readonly Outfit[] = [
-  { id: 'home', name: 'OG Navy', shirt: '#1E3A66', helmet: '#2A4170', trousers: '#F2EEE6', pads: '#F4EFE6', trim: '#E8692E', number: '#ED7044', glow: '#ED7044', line: 'Your kit from day one.', short: 'Free' },
+  // Production's kit to the last colour (`BATTER_KITS.home`): the room is where it is shown off, not changed.
+  { id: 'home', name: 'OG Navy', shirt: '#2F5A88', helmet: '#2A527C', trousers: '#F4F0E4', pads: '#FDFCF4', trim: '#ED7044', number: '#ED7044', glow: '#ED7044', line: 'Your kit from day one.', short: 'Free' },
   { id: 'crimson', name: 'Crimson', shirt: '#C51C25', helmet: '#B8171D', trousers: '#EFE3CF', pads: '#E9DCC6', trim: '#8F1D22', number: '#FFFFFF', glow: '#FF3B3B', line: '25 finished innings.', short: '25 innings' },
   { id: 'forest', name: 'British Racing Green', shirt: '#0A4A3E', helmet: '#135045', trousers: '#F1E5D5', pads: '#ECE0CC', trim: '#0A4A3E', number: '#FFFFFF', glow: '#25C28A', line: 'Emerging Player in all three modes.', short: 'Emerging in every mode' },
   { id: 'gold', name: 'Bumblebee', shirt: '#F2A31B', helmet: '#F2A31B', trousers: '#13284A', pads: '#1E3560', trim: '#F2A31B', number: '#13284A', glow: '#FFB52E', line: '10 Rival wins against 5 different players.', short: '10 Rival wins' },
