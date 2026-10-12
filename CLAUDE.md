@@ -207,10 +207,11 @@ its stage `src/scene/DressingStage.ts`): reached by its card on Choose a mode,
 under Rivals; the shelf's pictures drawn off the models, a locked kit tried on
 with the key to the game it is won in, a kit and a bat put on, and the batter
 then going out to bat in them (`snapshot().look`), or in OG Navy and Plain when
-the pick is no longer earned. Boom is not free: walking into the room earns it,
-and its unlock goes up over the room on the first visit (`WELCOME_BAT` in
-`src/Game.ts`, never noted quietly with an old career's unlocks, so every player
-is handed it once). What is earned is worked out from the careers
+the pick is no longer earned. Boom is not free and nothing goes off on the way
+in: it waits on the bat shelf (`WELCOME_BAT` and `ready` in `dressing.ts`), a
+dot on the BAT tab and a light round its tile, until the player picks it and
+presses UNLOCK BOOM, which plays its unlock over the room. It counts as
+unlocked once `bat:boom` is in the seen list, so every player sets it off once. What is earned is worked out from the careers
 every time (`dressing.ts`, in the unit tests), so history counts and nothing is
 stored but the pick; the pick travels with a Rival Match innings, where each
 player bats in their own kit now rather than their seat's. The shelf is a rail

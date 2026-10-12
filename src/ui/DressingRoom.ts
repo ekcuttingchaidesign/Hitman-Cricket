@@ -1,7 +1,7 @@
 import { cta, icon, iconButton } from './Kit';
 import { escape } from './Leaderboard';
 import {
-  BATS, OUTFITS, batSteps, done, nextUp, outfitSteps, shareOf,
+  BATS, OUTFITS, batSteps, done, nextUp, outfitSteps, ready, shareOf,
   type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId, type Step, type StepMode,
 } from '../game/dressing';
 import type { DressingStage } from '../scene/DressingStage';
@@ -61,10 +61,12 @@ export function shelfMarkup(view: DressingView): string {
   const ids = view.shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
   const picked = view.shelf === 'kit' ? view.kit : view.bat, worn = view.shelf === 'kit' ? view.wearing : view.holding;
   return ids.map(id => {
-    const item = itemOf(view.shelf, id), owned = (stepsOf(view.shelf, id, view.record) ?? []).every(done);
+    const item = itemOf(view.shelf, id), owned = (stepsOf(view.shelf, id, view.record) ?? []).every(done), waiting = ready(view.shelf, id, view.record);
     const picture = view.pictures[`${view.shelf}:${id}`];
-    const badge = id === worn ? `<span class="dr-badge is-on" aria-hidden="true">${TICK}</span>` : owned ? '' : `<span class="dr-badge is-lock" aria-hidden="true">${LOCK}</span>`;
-    return `<button type="button" role="listitem" class="dr-item${id === picked ? ' is-picked' : ''}${owned ? '' : ' is-locked'}" data-id="${id}" aria-pressed="${id === picked}" aria-label="${escape(item.name)}${owned ? '' : ', locked'}${id === worn ? ', on' : ''}">`
+    // One waiting to be unlocked has a dot where the lock would be, and a light round it: tap me.
+    const badge = id === worn ? `<span class="dr-badge is-on" aria-hidden="true">${TICK}</span>` : owned ? ''
+      : waiting ? '<span class="dr-badge is-ready" aria-hidden="true"></span>' : `<span class="dr-badge is-lock" aria-hidden="true">${LOCK}</span>`;
+    return `<button type="button" role="listitem" class="dr-item${id === picked ? ' is-picked' : ''}${owned ? '' : ' is-locked'}${waiting ? ' is-ready' : ''}" data-id="${id}" aria-pressed="${id === picked}" aria-label="${escape(item.name)}${waiting ? ', ready to unlock' : owned ? '' : ', locked'}${id === worn ? ', on' : ''}">`
       + `${picture ? `<img src="${picture}" alt="">` : '<i class="dr-item-blank"></i>'}${badge}</button>`;
   }).join('');
 }
@@ -84,21 +86,27 @@ export function footMarkup(view: DressingView): string {
   if (!steps || steps.every(done)) {
     const on = id === (shelf === 'kit' ? view.wearing : view.holding);
     const ids = shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
-    const next = nextUp<string>(ids, one => stepsOf(shelf, one, record));
+    // One waiting to be unlocked comes before anything still to be played for.
+    const waiting = ids.find(one => ready(shelf, one, record));
+    const next = waiting ?? nextUp<string>(ids, one => stepsOf(shelf, one, record));
     let card = '';
     if (next) {
       const nextSteps = stepsOf(shelf, next, record)!, line = nextSteps.find(step => !done(step))!, picture = view.pictures[`${shelf}:${next}`];
-      card = `<button type="button" class="dr-next" id="dressing-next" data-id="${next}">`
+      card = `<button type="button" class="dr-next${waiting ? ' is-ready' : ''}" id="dressing-next" data-id="${next}">`
         + `${picture ? `<img src="${picture}" alt="">` : '<i class="dr-item-blank"></i>'}`
-        + `<span class="dr-next-text"><span class="dr-eye">Next up</span><b>${escape(itemOf(shelf, next).name)}</b><span class="dr-next-step">${escape(line.text)}</span>`
-        + `<span class="dr-track"><i style="width:${Math.round(shareOf(nextSteps) * 100)}%"></i></span></span>`
-        + `<span class="dr-next-value">${valueOf(line)}</span>${icon('chevron-right')}</button>`;
+        + `<span class="dr-next-text"><span class="dr-eye">${waiting ? 'Ready to unlock' : 'Next up'}</span><b>${escape(itemOf(shelf, next).name)}</b><span class="dr-next-step">${escape(waiting ? 'Tap to take a look' : line.text)}</span>`
+        + `${waiting ? '' : `<span class="dr-track"><i style="width:${Math.round(shareOf(nextSteps) * 100)}%"></i></span>`}</span>`
+        + `<span class="dr-next-value">${waiting ? '' : valueOf(line)}</span>${icon('chevron-right')}</button>`;
     }
     const key = on
       ? `<button type="button" class="dr-worn" id="dressing-key" disabled>${shelf === 'kit' ? 'WEARING' : 'IN HAND'}</button>`
       : cta({ kind: 'primary', label: shelf === 'kit' ? 'WEAR IT' : 'PICK IT UP', id: 'dressing-key', wide: true });
     return `<div class="dr-had"><span class="dr-eye">${steps ? 'Earned' : 'Free'}</span><p>${escape(item.line)}</p></div>${card}${key}`;
   }
+  // Waiting in the room: nothing to play for, only its key.
+  if (ready(shelf, id, record))
+    return `<div class="dr-had"><span class="dr-eye dr-eye-ready">Ready to unlock</span><p>${escape(item.line)}</p></div>`
+      + cta({ kind: 'primary', label: `UNLOCK ${item.name.toUpperCase()}`, id: 'dressing-key', wide: true, moving: true });
   const first = steps.find(step => !done(step))!;
   let body: string;
   if (steps.length === 1) {
@@ -119,6 +127,8 @@ export interface DressingHandlers {
   wear(shelf: Shelf, id: string): void;
   /** A locked item's key: go and play for it. */
   play(mode: StepMode | null): void;
+  /** The key of one waiting in the room (`ready`): its unlock goes up. */
+  claim(shelf: Shelf, id: string): void;
   close(): void;
 }
 
@@ -185,6 +195,11 @@ export class DressingRoom {
     const view = this.view, kit = view.shelf === 'kit';
     this.root.querySelector('#dressing-tab-kit')!.setAttribute('aria-pressed', String(kit));
     this.root.querySelector('#dressing-tab-bat')!.setAttribute('aria-pressed', String(!kit));
+    // A dot on a shelf's tab while something on it waits to be unlocked.
+    for (const shelf of ['kit', 'bat'] as const) {
+      const ids: readonly string[] = shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
+      this.root.querySelector(`#dressing-tab-${shelf}`)!.classList.toggle('has-dot', ids.some(one => ready(shelf, one, view.record)));
+    }
     const item = kit ? this.outfit(view.kit) : this.bat(view.bat);
     const name = this.root.querySelector<HTMLElement>('#dressing-name')!;
     name.textContent = item.name.toUpperCase(); name.classList.toggle('is-long', item.name.length > 12);
@@ -266,6 +281,7 @@ export class DressingRoom {
     if (target.classList.contains('dr-item') || target.id === 'dressing-next') { this.pick(target.dataset.id!); return; }
     if (target.id === 'dressing-key') {
       const id = view.shelf === 'kit' ? view.kit : view.bat, steps = stepsOf(view.shelf, id, view.record);
+      if (ready(view.shelf, id, view.record)) { this.handlers.claim(view.shelf, id); return; }
       if (steps && !steps.every(done)) { this.handlers.play(steps.find(step => !done(step))?.mode ?? null); return; }
       this.handlers.wear(view.shelf, id);
       this.view = view.shelf === 'kit' ? { ...view, wearing: id as OutfitId } : { ...view, holding: id as BatId };

@@ -8324,6 +8324,16 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .dr-badge.is-on svg{width:calc(var(--u) * 20);height:calc(var(--u) * 20)}
 .dr-badge.is-lock{background:#0a0b0dd9;color:var(--c-text);border:calc(var(--u) * 1) solid #3a434e}
 .dr-badge.is-lock svg{width:calc(var(--u) * 11);height:calc(var(--u) * 11)}
+/* Waiting to be unlocked in the room: a red dot where the lock would be, and the tile breathing in its light. */
+.dr-badge.is-ready{top:calc(var(--u) * -3);right:calc(var(--u) * -3);width:calc(var(--u) * 12);height:calc(var(--u) * 12);background:#ff3b30;border:calc(var(--u) * 2) solid #0a0b0d}
+.dr-item.is-ready{border-color:#ff2e88;animation:dr-ready 1.6s ease-in-out infinite}
+.dr-item.is-ready img{opacity:1;filter:none}
+@keyframes dr-ready{0%,100%{box-shadow:0 0 0 0 #ff2e8800}50%{box-shadow:0 0 calc(var(--u) * 16) calc(var(--u) * 2) #ff2e8866}}
+.dr-tabs button{position:relative}
+.dr-tabs button.has-dot::after{content:"";position:absolute;top:calc(var(--u) * 5);right:calc(var(--u) * 8);width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:#ff3b30}
+.dr-eye-ready{color:#ff5a8a}
+.dr-next.is-ready{border-color:#ff2e8866}
+@media (prefers-reduced-motion:reduce){.dr-item.is-ready{animation:none;box-shadow:0 0 calc(var(--u) * 12) #ff2e8866}}
 /* One height for every item, the content standing on its foot: the shelf and the
    camera above it never move when something else is picked. Electric's goal sets it. */
 .dr-foot{flex:none;height:calc(var(--u) * 188);margin:calc(var(--u) * 12) calc(var(--u) * 24) 0;display:flex;flex-direction:column;justify-content:flex-end;gap:calc(var(--u) * 16)}

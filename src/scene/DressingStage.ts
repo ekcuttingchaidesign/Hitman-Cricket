@@ -35,33 +35,61 @@ const CAMERA = { distance: 8.1, eye: 1.3 };
 const ROOM_BACKDROP = new URL('../assets/dressing/room.webp', import.meta.url).href;
 const NEAREST_FOCAL = 437 / Math.tan(THREE.MathUtils.degToRad(15));
 
+/**
+ * A white texture whose only change is how see-through it is, made straight
+ * into memory. The room's lights used to be drawn through a canvas, which
+ * keeps colour already multiplied by its alpha and dithers its gradients; at
+ * the soft edge of a glow, where alpha is a level or two, the colour came back
+ * out of that black or tinted, and a phone's GPU drew it as speckle all
+ * through the light. Here the colour is white everywhere and nothing is
+ * multiplied, so there is nothing to come back wrong.
+ */
+function alphaTexture(size: number, alpha: (x: number, y: number) => number) {
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = (y * size + x) * 4;
+    data[i] = data[i + 1] = data[i + 2] = 255;
+    data[i + 3] = Math.round(Math.min(1, Math.max(0, alpha((x + .5) / size * 2 - 1, (y + .5) / size * 2 - 1))) * 255);
+  }
+  const texture = new THREE.DataTexture(data, size, size);
+  texture.colorSpace = THREE.SRGBColorSpace; texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearMipmapLinearFilter; texture.generateMipmaps = true; texture.needsUpdate = true;
+  return texture;
+}
+/** A gradient's value `at` along it, from stops of [where, value], straight between them and flat beyond. */
+function along(stops: readonly (readonly [number, number])[], at: number) {
+  if (at <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    const [a, va] = stops[i - 1], [b, vb] = stops[i];
+    if (at <= b) return va + (vb - va) * (at - a) / (b - a);
+  }
+  return stops[stops.length - 1][1];
+}
+
+/** A soft round light: `inner` at the middle to `outer` at the edge; or, `ring`, a band of light round an empty middle. */
 function glowTexture(inner = 1, outer = 0, ring = false) {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
-  const g = canvas.getContext('2d')!;
-  const gradient = g.createRadialGradient(128, 128, ring ? 70 : 0, 128, 128, 128);
-  if (ring) {
-    gradient.addColorStop(0, 'rgba(255,255,255,0)'); gradient.addColorStop(.35, 'rgba(255,255,255,.9)');
-    gradient.addColorStop(.55, 'rgba(255,255,255,.25)'); gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  } else { gradient.addColorStop(0, `rgba(255,255,255,${inner})`); gradient.addColorStop(1, `rgba(255,255,255,${outer})`); }
-  g.fillStyle = gradient; g.fillRect(0, 0, 256, 256);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
+  // The ring's band runs from 70 of 128 out to the edge, brightest a third of the way across it.
+  const stops = ring ? [[0, 0], [.35, .9], [.55, .25], [1, 0]] as const : [[0, inner], [1, outer]] as const;
+  return alphaTexture(256, (x, y) => {
+    const r = Math.hypot(x, y);
+    if (!ring) return along(stops, r);
+    return r < 70 / 128 ? 0 : along(stops, (r - 70 / 128) / (1 - 70 / 128));
+  });
 }
 
 /** Light breaking out behind an unlock: eighteen rays, soft where they meet and soft at their ends. */
 function raysTexture() {
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
-  const g = canvas.getContext('2d')!; g.translate(256, 256);
-  for (let i = 0; i < 18; i++) {
-    g.rotate(Math.PI * 2 / 18);
-    const gradient = g.createLinearGradient(0, 0, 256, 0); gradient.addColorStop(0, 'rgba(255,255,255,.55)'); gradient.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = gradient; g.beginPath(); g.moveTo(0, 0); g.lineTo(256, -22); g.lineTo(256, 22); g.closePath(); g.fill();
-  }
-  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-in';
-  const fade = g.createRadialGradient(256, 256, 0, 256, 256, 256);
-  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(.14, 'rgba(0,0,0,.6)'); fade.addColorStop(.3, 'rgba(0,0,0,1)');
-  fade.addColorStop(.62, 'rgba(0,0,0,.7)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = fade; g.fillRect(0, 0, 512, 512);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
+  const fade = [[0, 0], [.14, .6], [.3, 1], [.62, .7], [1, 0]] as const, rays = 18, half = 22 / 256;
+  return alphaTexture(512, (x, y) => {
+    const r = Math.hypot(x, y);
+    if (r >= 1) return 0;
+    // Into the nearest ray's own frame: along it, and across it.
+    const a = Math.atan2(y, x), step = Math.PI * 2 / rays, turn = Math.round(a / step) * step;
+    const along_ = r * Math.cos(a - turn), across = Math.abs(r * Math.sin(a - turn));
+    // Inside the wedge, its edge softened over a pixel; brightest at the middle and gone at the rim.
+    const inside = Math.min(1, Math.max(0, (half * along_ - across) * 256 + .5));
+    return inside * .55 * (1 - along_) * along(fade, r);
+  });
 }
 
 /**

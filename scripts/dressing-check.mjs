@@ -86,15 +86,24 @@ await shoot(page, '1-modes');
 console.log('The room');
 await card.click({ force: true });
 await page.waitForSelector('#dressing-overlay .dr-stage', { timeout: 20_000 });
-// Walking in earns Boom, handed over before anything else.
-await page.waitForSelector('#unlock-overlay', { timeout: 30_000 }).catch(() => {});
-check(await page.evaluate(() => window.__cricket.unlocking()) === 'bat:boom', 'the first visit hands over Boom', await page.evaluate(() => window.__cricket.unlocking()));
+// Boom waits in the room for its key: nothing goes off on the way in.
+await page.waitForTimeout(1500);
+check(await page.evaluate(() => window.__cricket.unlocking()) === null, 'nothing is unlocked on the way in');
+check(await page.locator('#dressing-tab-bat.has-dot').count() === 1 && await page.locator('#dressing-tab-kit.has-dot').count() === 0, 'a dot on the bat tab, where something waits');
+await page.locator('#dressing-tab-bat').click();
+await page.waitForTimeout(400);
+check(await page.locator('.dr-item.is-ready').count() === 1 && await page.locator('.dr-item[data-id="boom"].is-ready .dr-badge.is-ready').count() === 1, 'and on the bat shelf, Boom waiting to be unlocked');
+await page.locator('.dr-item[data-id="boom"]').click();
+await page.waitForTimeout(300);
+check((await text(page, '#dressing-key')).includes('UNLOCK BOOM'), 'tapped, its key unlocks it', await text(page, '#dressing-key'));
+await page.locator('#dressing-key').click();
 await page.waitForSelector('#unlock-overlay.is-revealed', { timeout: 30_000 }).catch(() => {});
+check(await page.evaluate(() => window.__cricket.unlocking()) === 'bat:boom', 'and its unlock goes up', await page.evaluate(() => window.__cricket.unlocking()));
 await shoot(page, '2-boom');
 await page.locator('#unlock-take').click();
 await page.waitForTimeout(500);
 check(await page.locator('#unlock-overlay').count() === 0 && await text(page, '#dressing-name') === 'BOOM', 'TAKE IT IN puts it in his hand, in the room', await text(page, '#dressing-name'));
-check(await page.locator('.dr-item[data-id="boom"] .dr-badge.is-on').count() === 1, 'with the tick on it');
+check(await page.locator('.dr-item[data-id="boom"] .dr-badge.is-on').count() === 1 && await page.locator('#dressing-tab-bat.has-dot').count() === 0, 'with the tick on it, and the dot gone');
 await page.locator('#dressing-tab-kit').click();
 await page.waitForTimeout(300);
 check(await text(page, '#dressing-name') === 'OG NAVY', 'the kits open on the one he wears', await text(page, '#dressing-name'));

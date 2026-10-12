@@ -201,12 +201,10 @@ for (let i = 0; i < 40 && !room; i++) { await tick(250, 250); room = !!(await pa
 check(room, 'which puts the stories away and opens the Dressing Room');
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')), 'with the stories gone from under it');
 if (room) {
-  // A first visit: walking in earns Boom, which the story promised, and it is handed over first.
-  let handed = false;
-  for (let i = 0; i < 60 && !handed; i++) { await tick(250, 250); handed = !!(await page.$('#unlock-overlay.is-revealed')); }
-  check(handed && (await page.$eval('#unlock-words', node => node.textContent)).includes('BOOM'), 'where Boom is handed over, as the story said');
-  if (handed) { await page.click('#unlock-take'); await tick(500); }
-  check(!(await page.$('#unlock-overlay')), 'and taken');
+  // A first visit: Boom, which the story promised, waits on the bat shelf for its key.
+  let waiting = false;
+  for (let i = 0; i < 20 && !waiting; i++) { await tick(250, 250); waiting = !!(await page.$('#dressing-tab-bat.has-dot')); }
+  check(waiting && !(await page.$('#unlock-overlay')), 'where Boom waits on the bat shelf, as the story said');
   await page.click('#dressing-back');
   await tick(500);
   check(await page.$eval('#modes', node => !node.classList.contains('hidden')), 'and its back key lands on Choose a mode');

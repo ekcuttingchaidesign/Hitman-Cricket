@@ -51,7 +51,7 @@ export const OUTFITS: readonly Outfit[] = [
 
 export const BATS: readonly BatSkin[] = [
   { id: 'plain', name: 'Plain', grip: '#777E80', glow: '#E0B77A', line: 'Bare English willow.', short: 'Free', stickers: false },
-  { id: 'boom', name: 'Boom', grip: '#FF2E88', glow: '#FF2E88', line: 'Yours for walking in. Every batter starts with a Boom.', short: 'Open the Dressing Room', stickers: true },
+  { id: 'boom', name: 'Boom', grip: '#FF2E88', glow: '#FF2E88', line: 'Yours for walking in. Every batter starts with a Boom.', short: 'Unlock it in the Dressing Room', stickers: true },
   { id: 'icecold', name: 'Ice Cold', grip: '#46D2FF', glow: '#46D2FF', line: '250 career sixes. Cool head, hot hands.', short: '250 sixes', stickers: true },
   { id: 'savage', name: 'Savage', grip: '#FF2BD6', glow: '#C04BFF', line: 'A hundred in every mode. Nobody messes with Savage.', short: 'A hundred in every mode', stickers: true },
   { id: 'inferno', name: 'Inferno', grip: '#FF5A1F', glow: '#FF6A1F', line: 'Star everywhere. Then prove it again.', short: 'Star in every mode', stickers: true },
@@ -60,6 +60,15 @@ export const BATS: readonly BatSkin[] = [
 
 export const FREE_OUTFIT: OutfitId = 'home';
 export const FREE_BAT: BatId = 'plain';
+/**
+ * The bat waiting in the Dressing Room for every player. Nothing has to be
+ * played for it: it is unlocked in the room, by its own key, so the player
+ * finds it there and sets off its unlock rather than having it go off at them.
+ */
+export const WELCOME_BAT: BatId = 'boom';
+
+/** Whether an item is waiting to be unlocked in the room by its key, rather than earned by playing. */
+export const ready = (shelf: 'kit' | 'bat', id: string, r: DressingRecord) => shelf === 'bat' && id === WELCOME_BAT && !r.welcomed;
 
 export const outfitOf = (id: string | null | undefined): Outfit => OUTFITS.find(o => o.id === id) ?? OUTFITS[0];
 export const batOf = (id: string | null | undefined): BatSkin => BATS.find(b => b.id === id) ?? BATS.find(b => b.id === FREE_BAT)!;
@@ -85,8 +94,8 @@ export interface DressingRecord {
    * for the tier itself but not twice. A new player's are all nought.
    */
   launch: Record<CareerMode, number>;
-  /** Whether the Dressing Room has been opened: Boom is waiting there, and walking in earns it. */
-  visited: boolean;
+  /** Whether Boom has been unlocked, which is done in the Dressing Room itself with its key. */
+  welcomed: boolean;
 }
 
 const MODES: readonly CareerMode[] = ['classic', 'survive', 'marathon'];
@@ -119,12 +128,12 @@ export function outfitSteps(id: OutfitId, r: DressingRecord): Step[] | null {
   }
 }
 
-/** What a bat takes; null for the one that comes free. Boom is earned by opening the room, so its unlock is the room's welcome. */
+/** What a bat takes; null for the one that comes free. Boom takes its key in the room: see `WELCOME_BAT`. */
 export function batSteps(id: BatId, r: DressingRecord): Step[] | null {
   const c = r.careers;
   switch (id) {
     case 'plain': return null;
-    case 'boom': return [{ text: 'Open the Dressing Room', now: r.visited ? 1 : 0, of: 1 }];
+    case 'boom': return [{ text: 'Unlock it here, in the Dressing Room', now: r.welcomed ? 1 : 0, of: 1 }];
     case 'icecold': return [{ text: 'Hit 250 career sixes', now: sixes(r), of: 250, mode: 'blast' }];
     case 'savage': return [
       { text: 'A hundred in the Blast', now: c.classic.highest, of: 100, best: true, mode: 'blast' },

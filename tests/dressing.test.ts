@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, emptyMarathon, emptySurvive } from '../src/game/career';
-import { BATS, OUTFITS, batOwned, batSteps, done, earned, nextUp, outfitOwned, outfitSteps, shareOf, type DressingRecord } from '../src/game/dressing';
+import { BATS, OUTFITS, batOwned, batSteps, done, earned, nextUp, outfitOwned, outfitSteps, ready, shareOf, type DressingRecord } from '../src/game/dressing';
 
 const record = (patch: {
   classic?: Partial<ReturnType<typeof emptyBlast>>; survive?: Partial<ReturnType<typeof emptySurvive>>; marathon?: Partial<ReturnType<typeof emptyMarathon>>;
-  rivals?: { won: number; beaten: number }; launch?: Partial<DressingRecord['launch']>; visited?: boolean;
+  rivals?: { won: number; beaten: number }; launch?: Partial<DressingRecord['launch']>; welcomed?: boolean;
 } = {}): DressingRecord => ({
   careers: { classic: { ...emptyBlast(), ...patch.classic }, survive: { ...emptySurvive(), ...patch.survive }, marathon: { ...emptyMarathon(), ...patch.marathon } },
   rivals: patch.rivals ?? { won: 0, beaten: 0 },
   launch: { classic: 0, survive: 0, marathon: 0, ...patch.launch },
-  visited: patch.visited ?? false,
+  welcomed: patch.welcomed ?? false,
 });
 
 describe('the Dressing Room shelves', () => {
@@ -23,10 +23,13 @@ describe('the Dressing Room shelves', () => {
     expect(earned(record())).toEqual({ outfits: ['home'], bats: ['plain'] });
   });
 
-  it('hands over Boom for opening the Dressing Room, and for nothing else', () => {
-    expect(batSteps('boom', record())).toEqual([{ text: 'Open the Dressing Room', now: 0, of: 1 }]);
+  it('keeps Boom waiting in the Dressing Room for its key, whatever has been played', () => {
+    expect(batSteps('boom', record())).toEqual([{ text: 'Unlock it here, in the Dressing Room', now: 0, of: 1 }]);
     expect(batOwned('boom', record({ classic: { innings: 400, sixes: 900, highest: 160 } }))).toBe(false);
-    expect(earned(record({ visited: true })).bats).toEqual(['plain', 'boom']);
+    expect(ready('bat', 'boom', record())).toBe(true);
+    expect(ready('bat', 'icecold', record())).toBe(false);
+    expect(earned(record({ welcomed: true })).bats).toEqual(['plain', 'boom']);
+    expect(ready('bat', 'boom', record({ welcomed: true }))).toBe(false);
   });
 });
 
