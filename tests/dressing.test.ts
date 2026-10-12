@@ -4,11 +4,12 @@ import { BATS, OUTFITS, batOwned, batSteps, done, earned, nextUp, outfitOwned, o
 
 const record = (patch: {
   classic?: Partial<ReturnType<typeof emptyBlast>>; survive?: Partial<ReturnType<typeof emptySurvive>>; marathon?: Partial<ReturnType<typeof emptyMarathon>>;
-  rivals?: { won: number; beaten: number }; launch?: Partial<DressingRecord['launch']>;
+  rivals?: { won: number; beaten: number }; launch?: Partial<DressingRecord['launch']>; visited?: boolean;
 } = {}): DressingRecord => ({
   careers: { classic: { ...emptyBlast(), ...patch.classic }, survive: { ...emptySurvive(), ...patch.survive }, marathon: { ...emptyMarathon(), ...patch.marathon } },
   rivals: patch.rivals ?? { won: 0, beaten: 0 },
   launch: { classic: 0, survive: 0, marathon: 0, ...patch.launch },
+  visited: patch.visited ?? false,
 });
 
 describe('the Dressing Room shelves', () => {
@@ -18,8 +19,14 @@ describe('the Dressing Room shelves', () => {
     expect(new Set(OUTFITS.map(o => o.name)).size).toBe(7);
   });
 
-  it('gives a new player OG Navy, Plain and Boom and nothing else', () => {
-    expect(earned(record())).toEqual({ outfits: ['home'], bats: ['plain', 'boom'] });
+  it('gives a new player OG Navy and Plain and nothing else', () => {
+    expect(earned(record())).toEqual({ outfits: ['home'], bats: ['plain'] });
+  });
+
+  it('hands over Boom for opening the Dressing Room, and for nothing else', () => {
+    expect(batSteps('boom', record())).toEqual([{ text: 'Open the Dressing Room', now: 0, of: 1 }]);
+    expect(batOwned('boom', record({ classic: { innings: 400, sixes: 900, highest: 160 } }))).toBe(false);
+    expect(earned(record({ visited: true })).bats).toEqual(['plain', 'boom']);
   });
 });
 

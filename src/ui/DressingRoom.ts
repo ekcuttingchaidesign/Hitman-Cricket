@@ -160,6 +160,7 @@ export class DressingRoom {
   /** The stage told where the open space is, whenever the screen's shape changes. */
   private readonly layout = new ResizeObserver(() => this.place());
   private place() {
+    this.peek(); this.ends();
     const stage = this.stage; if (!stage) return;
     const box = stage.canvas.getBoundingClientRect();
     const name = this.root.querySelector('#dressing-name')!.getBoundingClientRect();
@@ -175,8 +176,10 @@ export class DressingRoom {
   }
 
   private outfit = (id: string) => OUTFITS.find(o => o.id === id) ?? OUTFITS[0];
-  private bat = (id: string) => BATS.find(b => b.id === id) ?? BATS[1];
+  private bat = (id: string) => BATS.find(b => b.id === id) ?? BATS[0];
 
+  /** The shelf last drawn, so a new one opens on its pick. */
+  private shown: Shelf | null = null;
   /** Draws the parts; `stage` puts the pick on the pedestal too, which a new set of pictures does not. */
   private draw(stage = true) {
     const view = this.view, kit = view.shelf === 'kit';
@@ -190,6 +193,13 @@ export class DressingRoom {
     this.root.querySelector('#dressing-foot')!.innerHTML = footMarkup(view);
     this.ends();
     this.place();
+    // A shelf just opened shows its pick: the rail goes no further than it takes to.
+    if (this.shown !== view.shelf) {
+      this.shown = view.shelf;
+      const picked = shelf.querySelector<HTMLElement>('.is-picked');
+      shelf.scrollTop = picked ? Math.max(0, picked.offsetTop + picked.offsetHeight - shelf.clientHeight + parseFloat(getComputedStyle(shelf).paddingBottom)) : 0;
+      this.ends();
+    }
     if (!stage || !this.stage) return;
     if (kit) this.stage.dress(this.outfit(view.kit), this.bat(view.holding));
     else this.stage.showcase(this.bat(view.bat));
@@ -213,6 +223,23 @@ export class DressingRoom {
     const stop = () => { from = -1; };
     shelf.addEventListener('pointerup', stop); shelf.addEventListener('pointerleave', stop);
     shelf.addEventListener('click', event => { if (dragged) { event.stopPropagation(); event.preventDefault(); dragged = false; } }, true);
+  }
+
+  /**
+   * The rail cut short half-way down a tile when they do not all fit, so the
+   * one half seen under the fade says there are more; all of the space when
+   * they do.
+   */
+  private peek() {
+    const rail = this.root.querySelector<HTMLElement>('#dressing-items')!, space = rail.parentElement!.clientHeight;
+    const tiles = rail.querySelectorAll<HTMLElement>('.dr-item');
+    rail.style.height = ''; rail.style.bottom = '';
+    if (tiles.length < 2) return;
+    const style = getComputedStyle(rail), pad = parseFloat(style.paddingTop), gap = parseFloat(style.rowGap) || 0;
+    const tile = tiles[0].offsetHeight, pitch = tile + gap;
+    if (pad * 2 + tiles.length * pitch - gap <= space) return;
+    const whole = Math.max(1, Math.floor((space - pad - tile / 2) / pitch));
+    rail.style.bottom = 'auto'; rail.style.height = `${pad + whole * pitch + tile / 2}px`;
   }
 
   /** The fade at either end of the rail, where there is more that way. */

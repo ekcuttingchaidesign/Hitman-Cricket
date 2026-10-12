@@ -75,7 +75,7 @@ await page.waitForTimeout(1500);
 check(await page.evaluate(() => window.__cricket.unlocking()) === null, 'a career arriving in the room is noted, not celebrated');
 const card = page.locator('#modes-dressing');
 check(await card.isVisible(), 'carries the Dressing Room card');
-check(await text(page, '#modes-dressing-line') === '6 of 13 earned', 'which says how much of the room is earned', await text(page, '#modes-dressing-line'));
+check(await text(page, '#modes-dressing-line') === '5 of 13 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
 check(await card.locator('.ms-tag').isVisible(), 'with NEW on it before the room is opened');
 const order = await page.locator('.ms-content > *').evaluateAll(all => all.map(one => one.id || one.className.split(' ')[0]));
 check(order.indexOf('mode-survive') < order.indexOf('ms-card') && order.indexOf('ms-card') < order.indexOf('modes-dressing') && order.indexOf('modes-dressing') < order.indexOf('ms-bento'),
@@ -86,22 +86,35 @@ await shoot(page, '1-modes');
 console.log('The room');
 await card.click({ force: true });
 await page.waitForSelector('#dressing-overlay .dr-stage', { timeout: 20_000 });
-check(await text(page, '#dressing-name') === 'OG NAVY', 'opens on the kit he wears', await text(page, '#dressing-name'));
+// Walking in earns Boom, handed over before anything else.
+await page.waitForSelector('#unlock-overlay', { timeout: 30_000 }).catch(() => {});
+check(await page.evaluate(() => window.__cricket.unlocking()) === 'bat:boom', 'the first visit hands over Boom', await page.evaluate(() => window.__cricket.unlocking()));
+await page.waitForSelector('#unlock-overlay.is-revealed', { timeout: 30_000 }).catch(() => {});
+await shoot(page, '2-boom');
+await page.locator('#unlock-take').click();
+await page.waitForTimeout(500);
+check(await page.locator('#unlock-overlay').count() === 0 && await text(page, '#dressing-name') === 'BOOM', 'TAKE IT IN puts it in his hand, in the room', await text(page, '#dressing-name'));
+check(await page.locator('.dr-item[data-id="boom"] .dr-badge.is-on').count() === 1, 'with the tick on it');
+await page.locator('#dressing-tab-kit').click();
+await page.waitForTimeout(300);
+check(await text(page, '#dressing-name') === 'OG NAVY', 'the kits open on the one he wears', await text(page, '#dressing-name'));
 await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 7, null, { timeout: 30_000 }).catch(() => {});
 const pictures = await page.locator('#dressing-items img').evaluateAll(all => all.map(one => one.src.length));
 check(pictures.length === 7 && pictures.every(size => size > 4000), 'with a picture of every kit, drawn off the model', JSON.stringify(pictures));
 check(await page.locator('.dr-item[data-id="home"] .dr-badge.is-on').count() === 1, 'a tick on the one he wears');
 check(await page.locator('.dr-item.is-locked').count() === 4, 'and a lock on each of the four not earned');
+const rail = await page.locator('#dressing-items').evaluate(one => ({ shown: one.clientHeight, all: one.scrollHeight }));
+check(rail.shown >= rail.all || (rail.shown + 20 < rail.all), 'the rail shows them all, or stops part-way down one', JSON.stringify(rail));
 check((await text(page, '#dressing-key')).includes('WEARING'), 'which is WEARING at the foot');
 check(await page.locator('#dressing-next').isVisible(), 'over Next up');
-await shoot(page, '2-room');
+await shoot(page, '3-room');
 
 await page.locator('.dr-item[data-id="electric"]').click();
 await page.waitForTimeout(300);
 check(await text(page, '#dressing-name') === 'ELECTRIC', 'a locked kit is tried on');
 check((await text(page, '#dressing-foot')).includes('Win 50 Test Survivals'), 'and says what it takes');
 check((await text(page, '#dressing-key')).includes('PLAY TEST SURVIVAL'), 'with the key to the game it is won in');
-await shoot(page, '3-locked');
+await shoot(page, '4-locked');
 
 await page.locator('.dr-item[data-id="forest"]').click();
 await page.waitForTimeout(300);
@@ -120,7 +133,7 @@ check((await text(page, '#dressing-key')).includes('PICK IT UP'), 'Savage is ear
 await page.locator('#dressing-key').click();
 await page.waitForTimeout(300);
 check((await text(page, '#dressing-key')).includes('IN HAND'), 'and is');
-await shoot(page, '4-bat');
+await shoot(page, '5-bat');
 
 await page.locator('#dressing-back').click();
 await page.waitForTimeout(400);
@@ -131,16 +144,16 @@ console.log('Out to bat');
 await page.locator('#mode-classic').click({ force: true });
 const ready = await until(page, 'READY');
 check(ready.look === 'forest/savage', 'he goes out in British Racing Green with Savage', ready.look);
-await shoot(page, '5-batting');
+await shoot(page, '6-batting');
 check(page.errors.length === 0, 'with nothing in the console', page.errors.join(' | '));
 await page.close();
 
 console.log('A pick no longer earned');
-const other = await open({ outfit: 'lagoon', bat: 'hitman', launch: null, seen: [], visited: true });
+const other = await open({ outfit: 'lagoon', bat: 'hitman', launch: null, seen: ['kit:home', 'kit:crimson', 'kit:forest', 'bat:plain', 'bat:boom', 'bat:savage'], visited: true });
 check(!(await other.locator('#modes-dressing .ms-tag').isVisible()), 'a room already opened has no NEW');
 await other.locator('#mode-classic').click({ force: true });
 const fallback = await until(other, 'READY');
-check(fallback.look === 'home/boom', 'goes out in OG Navy with Boom instead', fallback.look);
+check(fallback.look === 'home/plain', 'goes out in OG Navy with Plain instead', fallback.look);
 await other.close();
 
 console.log('An unlock');
@@ -151,7 +164,7 @@ await third.waitForSelector('#unlock-overlay', { timeout: 30_000 }).catch(() => 
 check(await third.evaluate(() => window.__cricket.unlocking()) === 'kit:crimson', 'goes up over Choose a mode for what was earned and not yet celebrated', await third.evaluate(() => window.__cricket.unlocking()));
 await third.waitForSelector('#unlock-overlay.is-revealed', { timeout: 30_000 }).catch(() => {});
 check((await text(third, '#unlock-words')).includes('NEW KIT UNLOCKED') && (await text(third, '#unlock-words')).includes('CRIMSON'), 'and says what it is');
-await shoot(third, '6-unlock');
+await shoot(third, '7-unlock');
 await third.locator('#unlock-take').click();
 await third.waitForTimeout(500);
 check(await third.locator('#unlock-overlay').count() === 0, 'WEAR IT NOW puts it away');

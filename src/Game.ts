@@ -925,12 +925,14 @@ export class Game {
         },
         close: () => this.closeDressing(),
       }, () => new DressingStage());
+      // Walking in for the first time earns Boom: its unlock goes up over the room.
+      if (!this.dressingPreview) this.celebrateUnlocks();
     });
   }
   /** One of `?dressing=1`'s keys. */
   private previewDressing(scenario: DressingScenario) {
     if (scenario === 'kit' || scenario === 'bat' || scenario === 'two') {
-      const kits = OUTFITS.filter(o => o.id !== FREE_OUTFIT), bats = BATS.filter(b => b.id !== 'plain' && b.id !== FREE_BAT);
+      const kits = OUTFITS.filter(o => o.id !== FREE_OUTFIT), bats = BATS.filter(b => b.id !== FREE_BAT);
       const items: UnlockItem[] = [];
       const look = this.myLook();
       if (scenario !== 'bat') {
@@ -948,6 +950,8 @@ export class Game {
     this.closeDressing();
     this.dressingPreview = previewRecord(scenario);
     this.openDressing();
+    // A new player's first visit: Boom is earned by walking in, and handed over at once.
+    if (scenario === 'new') { this.unlock?.close(); this.unlock = null; this.playUnlocks([{ moment: { kind: 'bat', bat: batOf('boom') } }], true); }
   }
   /** Puts the unlocks up; a preview's wear nothing and mark nothing. */
   private playUnlocks(items: UnlockItem[], preview = false) {
@@ -960,6 +964,8 @@ export class Game {
           writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
           const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
           this.mark('dressing-wear', `Put on ${shelf} ${id}`);
+          // Over the room, the room puts it on too.
+          this.dressing?.update(shelf === 'kit' ? { kit: id as OutfitId, wearing: id as OutfitId, shelf } : { bat: id as BatId, holding: id as BatId, shelf });
         },
         done: () => { this.unlock?.close(); this.unlock = null; if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView()); },
       });
@@ -993,23 +999,27 @@ export class Game {
    */
   private freshUnlocks(): UnlockItem[] {
     const got = earned(this.dressingRecord()), held = readDressing();
-    const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))];
-    if (!held.seen.length) { writeDressing({ ...held, seen: keys }); return []; }
+    const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.filter(id => id !== WELCOME_BAT).map(id => seenKey('bat', id))];
+    if (!held.seen.length) {
+      writeDressing({ ...held, seen: keys });
+      if (!got.bats.includes(WELCOME_BAT)) return [];
+    }
     const look = this.myLook();
     const items: UnlockItem[] = [];
-    for (const id of got.outfits) if (!held.seen.includes(seenKey('kit', id)))
+    const seen = held.seen.length ? held.seen : keys;
+    for (const id of got.outfits) if (!seen.includes(seenKey('kit', id)))
       items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat } });
-    for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id)))
+    for (const id of got.bats) if (!seen.includes(seenKey('bat', id)))
       items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
   }
   /** Plays whatever has been earned and not celebrated; each is marked seen as it goes up, so none is played twice. */
   private celebrateUnlocks() {
-    if (this.unlock || this.dressing || this.practising || this.demoing) return;
+    if (this.unlock || this.practising || this.demoing) return;
     const items = this.freshUnlocks();
     if (!items.length) return;
     const held = readDressing();
-    writeDressing({ ...held, seen: [...held.seen, ...items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id))] });
+    writeDressing({ ...held, seen: [...new Set([...held.seen, ...items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id))])] });
     this.putRatingAway();
     this.mark('dressing-unlock', `Unlocked ${items.length}`);
     this.playUnlocks(items);
@@ -4358,6 +4368,7 @@ export class Game {
       careers,
       rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.playerId)).size },
       launch: readDressing().launch ?? now,
+      visited: readDressing().visited,
     };
   }
   /** What the batter goes out in: the player's pick, or the free one where the pick is not (or no longer) theirs. */
@@ -4385,7 +4396,7 @@ export class Game {
       ...held,
       launch: { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) },
       // What a career already holds when the room arrives is noted, not celebrated: see `freshUnlocks`.
-      seen: held.seen.length ? held.seen : [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))],
+      seen: held.seen.length ? held.seen : [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.filter(id => id !== WELCOME_BAT).map(id => seenKey('bat', id))],
     });
   }
   private pending: Challenge[] = [];
@@ -4555,16 +4566,19 @@ function previewRecord(scenario: 'new' | 'half' | 'all'): DressingRecord {
     Object.assign(blast, { innings: 30, runs: 4000, balls: 2500, sixes: 182, highest: 112, hundreds: 1 });
     Object.assign(survive, { innings: 20, runs: 900, balls: 640, sixes: 20, wins: 18, draws: 1, losses: 1 });
     Object.assign(marathon, { innings: 6, runs: 900, balls: 1100, sixes: 10, highest: 142, hundreds: 1 });
-    return { careers: { classic: blast, survive, marathon }, rivals: { won: 3, beaten: 2 }, launch: { classic: 4000, survive: 640, marathon: 900 } };
+    return { careers: { classic: blast, survive, marathon }, rivals: { won: 3, beaten: 2 }, launch: { classic: 4000, survive: 640, marathon: 900 }, visited: true };
   }
   if (scenario === 'all') {
     Object.assign(blast, { innings: 400, runs: 19000, balls: 12000, sixes: 900, highest: 160, hundreds: 20 });
     Object.assign(survive, { innings: 120, runs: 9000, balls: 5400, sixes: 100, wins: 60, draws: 20, losses: 40 });
     Object.assign(marathon, { innings: 40, runs: 9500, balls: 12000, sixes: 60, highest: 230, hundreds: 12, doubles: 2 });
-    return { careers: { classic: blast, survive, marathon }, rivals: { won: 14, beaten: 7 }, launch: { classic: 0, survive: 0, marathon: 0 } };
+    return { careers: { classic: blast, survive, marathon }, rivals: { won: 14, beaten: 7 }, launch: { classic: 0, survive: 0, marathon: 0 }, visited: true };
   }
-  return { careers: { classic: blast, survive, marathon }, rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0 } };
+  // Shown as it stands the moment a new player walks in: Boom just earned.
+  return { careers: { classic: blast, survive, marathon }, rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0 }, visited: true };
 }
+/** The bat walking into the Dressing Room earns: never noted quietly, so every player is handed it once. */
+const WELCOME_BAT: BatId = 'boom';
 /** `?actions=1`'s keys. */
 /** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */
 type ActionKey = AfterBall | 'fall';
