@@ -65,7 +65,7 @@ import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, type Granted } from './game/tier';
-import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, batOf, batOwned, batSteps, earned, nextUp, outfitOf, outfitOwned, outfitSteps, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
 import { seenKey } from './game/dressing-store';
@@ -811,8 +811,8 @@ export class Game {
       unlock: (shelf: 'kit' | 'bat', id: string) => {
         if (this.unlock) return;
         const look = this.myLook();
-        const item: UnlockItem = shelf === 'bat' ? { moment: { kind: 'bat', bat: batOf(id) }, next: null }
-          : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat }, next: null };
+        const item: UnlockItem = shelf === 'bat' ? { moment: { kind: 'bat', bat: batOf(id) } }
+          : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat } };
         this.playUnlocks([item], true);
       },
       unlocking: () => this.unlock?.showing ? (this.unlock.showing.moment.kind === 'bat' ? `bat:${this.unlock.showing.moment.bat.id}` : `kit:${this.unlock.showing.moment.to.id}`) : null,
@@ -934,12 +934,11 @@ export class Game {
       const items: UnlockItem[] = [];
       const look = this.myLook();
       if (scenario !== 'bat') {
-        const to = kits[this.previewTurn.kit++ % kits.length], next = kits[this.previewTurn.kit % kits.length];
-        items.push({ moment: { kind: 'kit', from: look.outfit.id === to.id ? outfitOf(FREE_OUTFIT) : look.outfit, to, bat: look.bat }, next });
+        const to = kits[this.previewTurn.kit++ % kits.length];
+        items.push({ moment: { kind: 'kit', from: look.outfit.id === to.id ? outfitOf(FREE_OUTFIT) : look.outfit, to, bat: look.bat } });
       }
       if (scenario !== 'kit') {
-        const bat = bats[this.previewTurn.bat++ % bats.length], next = bats[this.previewTurn.bat % bats.length];
-        items.push({ moment: { kind: 'bat', bat }, next });
+        items.push({ moment: { kind: 'bat', bat: bats[this.previewTurn.bat++ % bats.length] } });
       }
       this.unlock?.close(); this.unlock = null;
       this.playUnlocks(items, true);
@@ -993,19 +992,15 @@ export class Game {
    * not a run of unlocks, and the What's new stories are its welcome.
    */
   private freshUnlocks(): UnlockItem[] {
-    const record = this.dressingRecord(), got = earned(record), held = readDressing();
+    const got = earned(this.dressingRecord()), held = readDressing();
     const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))];
     if (!held.seen.length) { writeDressing({ ...held, seen: keys }); return []; }
     const look = this.myLook();
     const items: UnlockItem[] = [];
-    for (const id of got.outfits) if (!held.seen.includes(seenKey('kit', id))) {
-      const next = nextUp(OUTFITS.map(o => o.id), one => outfitSteps(one, record));
-      items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat }, next: next ? outfitOf(next) : null });
-    }
-    for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id))) {
-      const next = nextUp(BATS.map(b => b.id), one => batSteps(one, record));
-      items.push({ moment: { kind: 'bat', bat: batOf(id) }, next: next ? batOf(next) : null });
-    }
+    for (const id of got.outfits) if (!held.seen.includes(seenKey('kit', id)))
+      items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat } });
+    for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id)))
+      items.push({ moment: { kind: 'bat', bat: batOf(id) } });
     return items;
   }
   /** Plays whatever has been earned and not celebrated; each is marked seen as it goes up, so none is played twice. */

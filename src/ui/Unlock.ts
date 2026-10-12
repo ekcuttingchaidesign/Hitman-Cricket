@@ -11,8 +11,6 @@ import type { DressingStage, Moment } from '../scene/DressingStage';
  */
 export interface UnlockItem {
   moment: Moment;
-  /** What comes after it on the same shelf, for the line under the keys. */
-  next: { name: string; short: string } | null;
 }
 
 export interface UnlockHandlers {
@@ -24,7 +22,7 @@ export interface UnlockHandlers {
 
 type Bit = { x: number; y: number; vx: number; vy: number; r: number; vr: number; w: number; h: number; c: string; life: number };
 
-export function unlockWords(item: UnlockItem): { eyebrow: string; name: string; line: string; key: string; glow: string; next: string } {
+export function unlockWords(item: UnlockItem): { eyebrow: string; name: string; line: string; key: string; glow: string } {
   const thing: Outfit | BatSkin = item.moment.kind === 'bat' ? item.moment.bat : item.moment.to;
   return {
     eyebrow: item.moment.kind === 'bat' ? 'New bat unlocked' : 'New kit unlocked',
@@ -32,7 +30,6 @@ export function unlockWords(item: UnlockItem): { eyebrow: string; name: string; 
     line: thing.line,
     key: item.moment.kind === 'bat' ? 'TAKE IT IN' : 'WEAR IT NOW',
     glow: thing.glow,
-    next: item.next ? `Next: ${item.next.name} · ${item.next.short}` : '',
   };
 }
 
@@ -56,14 +53,16 @@ export class UnlockMoment {
     this.fx = this.root.querySelector('.ul-fx')!;
     this.root.addEventListener('click', this.click);
     this.raf = requestAnimationFrame(this.tick);
+    this.layout.observe(this.root);
     this.start();
   }
+  private readonly layout = new ResizeObserver(() => this.place());
 
   /** The one on show, for the checks. */
   get showing() { return this.items[this.index]; }
 
   close() {
-    cancelAnimationFrame(this.raf);
+    cancelAnimationFrame(this.raf); this.layout.disconnect();
     this.stage.dispose();
     this.root.remove();
   }
@@ -75,10 +74,18 @@ export class UnlockMoment {
     this.root.setAttribute('aria-label', words.eyebrow);
     this.root.querySelector('#unlock-words')!.innerHTML = `<span class="ul-eyebrow">${escape(words.eyebrow)}</span><h2 class="ul-name${words.name.length > 12 ? ' is-long' : ''}">${escape(words.name)}</h2>`
       + `<p class="ul-line">${escape(words.line)}</p>${cta({ kind: 'primary', label: words.key, id: 'unlock-take', wide: true })}`
-      + `<button type="button" class="ul-later" id="unlock-later">${this.index < this.items.length - 1 ? 'NEXT' : 'LATER'}</button>${words.next ? `<span class="ul-next">${escape(words.next)}</span>` : ''}`;
+      + `<button type="button" class="ul-later" id="unlock-later">${this.index < this.items.length - 1 ? 'NEXT' : 'LATER'}</button>`;
     this.bits = [];
     this.stage.play(item.moment, () => this.reveal(words.glow, item));
+    this.place();
   }
+
+  /** The moment stands under UNLOCKING… and over its words, which may brush it and no more. */
+  private place = () => {
+    const box = this.stage.canvas.getBoundingClientRect();
+    const label = this.root.querySelector('.ul-scanning')!.getBoundingClientRect(), words = this.root.querySelector('#unlock-words')!.getBoundingClientRect();
+    if (box.height) this.stage.frameMoment(label.bottom - box.top + 6, words.top - box.top + 10);
+  };
 
   private reveal(glow: string, item: UnlockItem) {
     this.root.classList.add('is-revealed');

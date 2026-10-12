@@ -161,9 +161,10 @@ export class DressingRoom {
   private place() {
     const stage = this.stage; if (!stage) return;
     const box = stage.canvas.getBoundingClientRect();
-    const name = this.root.querySelector('#dressing-name')!.getBoundingClientRect(), shelf = this.root.querySelector('#dressing-items')!.getBoundingClientRect();
-    // The shelf's padding is above its tiles; the pedestal stands just over them.
-    stage.frame(name.bottom - box.top + 8, shelf.top - box.top + 6);
+    const name = this.root.querySelector('#dressing-name')!.getBoundingClientRect();
+    const tiles = (this.root.querySelector('#dressing-items .dr-item') ?? this.root.querySelector('#dressing-items')!).getBoundingClientRect();
+    // The pedestal stands whole over the tiles, none of it behind them.
+    stage.frame(name.bottom - box.top + 8, tiles.top - box.top - 10);
   }
 
   close() {

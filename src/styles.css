@@ -8385,7 +8385,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ul-line{margin:0;color:#a3b3bd;font-size:calc(var(--u) * 15)}
 .ul-words .k-cta{width:100%;margin-top:calc(var(--u) * 10)}
 .ul-later{background:none;border:0;color:#a3b3bd;font:400 calc(var(--u) * 16)/1 var(--f-display);letter-spacing:.12em;padding:calc(var(--u) * 12);cursor:pointer;min-height:calc(var(--u) * 44)}
-.ul-next{font-size:calc(var(--u) * 11);color:#8494a0}
 @media (prefers-reduced-motion:reduce){.ul-words>*{opacity:1;transform:none}.ul-overlay.is-revealed .ul-words>*{animation:none}}
 /* `?dressing=1`: the same row as the welcome's, over the room and its unlocks, which stand down below it. */
 .dressing-preview{z-index:60;grid-template-columns:repeat(6,minmax(0,1fr))}
