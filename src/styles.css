@@ -8323,7 +8323,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .dr-badge.is-on svg{width:calc(var(--u) * 20);height:calc(var(--u) * 20)}
 .dr-badge.is-lock{background:#0a0b0dd9;color:var(--c-text);border:calc(var(--u) * 1) solid #3a434e}
 .dr-badge.is-lock svg{width:calc(var(--u) * 11);height:calc(var(--u) * 11)}
-.dr-foot{flex:none;margin:calc(var(--u) * 20) calc(var(--u) * 24) 0;display:flex;flex-direction:column;gap:calc(var(--u) * 16)}
+/* One height for every item, the content standing on its foot: the shelf and the
+   camera above it never move when something else is picked. Electric's goal sets it. */
+.dr-foot{flex:none;height:calc(var(--u) * 188);margin:calc(var(--u) * 20) calc(var(--u) * 24) 0;display:flex;flex-direction:column;justify-content:flex-end;gap:calc(var(--u) * 16)}
+.dr-foot:has(.dr-had){gap:calc(var(--u) * 10)}
+.dr-foot:has(.dr-had) .dr-next{padding-top:calc(var(--u) * 8);padding-bottom:calc(var(--u) * 8)}
 .dr-eye{font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.18em;text-transform:uppercase;color:#8494a0}
 .dr-goal,.dr-had{display:flex;flex-direction:column;gap:calc(var(--u) * 10)}
 .dr-had{gap:calc(var(--u) * 6)}
@@ -8383,3 +8387,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ul-later{background:none;border:0;color:#a3b3bd;font:400 calc(var(--u) * 16)/1 var(--f-display);letter-spacing:.12em;padding:calc(var(--u) * 12);cursor:pointer;min-height:calc(var(--u) * 44)}
 .ul-next{font-size:calc(var(--u) * 11);color:#8494a0}
 @media (prefers-reduced-motion:reduce){.ul-words>*{opacity:1;transform:none}.ul-overlay.is-revealed .ul-words>*{animation:none}}
+/* `?dressing=1`: the same row as the welcome's, over the room and its unlocks, which stand down below it. */
+.dressing-preview{z-index:60;grid-template-columns:repeat(6,minmax(0,1fr))}
+.has-dressing-keys .dr-screen{padding-top:calc(var(--u) * 48 + 44px)}
+.has-dressing-keys .ul-scanning{top:calc(var(--u) * 120 + 44px)}

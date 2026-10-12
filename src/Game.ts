@@ -55,7 +55,7 @@ import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
   type CareerBoards, type CareerRow,
 } from './game/career-api';
-import { blastTally, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
+import { blastTally, emptyBlast, emptyMarathon, emptySurvive, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
 import { firstCareerKey, newCareerKey, restoreRecord } from './game/recovery-api';
@@ -441,6 +441,18 @@ export class Game {
   /** The way `?welcome=1` has the welcome up, or null when it is the real one. */
   private welcomeScenario: WelcomeScenario | null = null;
   /**
+   * `?dressing=1`: a row of keys for the Dressing Room — the room as a new
+   * player sees it, halfway through, and with everything earned; and the
+   * unlocks, a kit, a bat and two in a row, each tap the next one. The real
+   * room and the real moments over a made-up record: nothing is earned, worn
+   * or remembered, so any of it can be tried again with one tap.
+   */
+  private readonly dressingKeys = new URLSearchParams(location.search).get('dressing') === '1';
+  /** The record `?dressing=1` has the room read, or null for the player's own. */
+  private dressingPreview: DressingRecord | null = null;
+  /** Which kit and bat `?dressing=1`'s unlock keys play next. */
+  private previewTurn = { kit: 0, bat: 0 };
+  /**
    * `?nets=1`, in a Marathon: every bowler round the wicket from the first
    * ball, and a row of keys to change him — the seamer, the swing bowler, the
    * spinner, the express bowler — with one more to go back over the wicket
@@ -521,6 +533,7 @@ export class Game {
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
     if (this.welcomeKeys) this.hud.welcomeKeys(WELCOME_KEYS, scenario => this.previewWelcome(scenario));
+    if (this.dressingKeys) this.hud.dressingKeys(DRESSING_KEYS, scenario => this.previewDressing(scenario));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
     if (this.actionKeys) this.hud.actionKeys(ACTION_KEYS, kind => this.askAction(kind));
     if (this.netsKeys) this.hud.netsKeys(NETS_BOWLERS,
@@ -800,9 +813,7 @@ export class Game {
         const look = this.myLook();
         const item: UnlockItem = shelf === 'bat' ? { moment: { kind: 'bat', bat: batOf(id) }, next: null }
           : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat }, next: null };
-        void Promise.all([import('./ui/Unlock'), import('./scene/DressingStage')]).then(([{ UnlockMoment }, { DressingStage }]) => {
-          this.unlock = new UnlockMoment(this.hud.viewport, [item], new DressingStage(), { wear: () => {}, done: () => { this.unlock?.close(); this.unlock = null; } });
-        });
+        this.playUnlocks([item], true);
       },
       unlocking: () => this.unlock?.showing ? (this.unlock.showing.moment.kind === 'bat' ? `bat:${this.unlock.showing.moment.bat.id}` : `kit:${this.unlock.showing.moment.to.id}`) : null,
       // A Marathon written out ball by ball between deliveries — runs, 'W' for
@@ -891,7 +902,7 @@ export class Game {
     if (this.dressing) return;
     this.mark('dressing-open', 'The Dressing Room opened');
     const held = readDressing();
-    writeDressing({ ...held, visited: true });
+    if (!this.dressingPreview) writeDressing({ ...held, visited: true });
     const look = this.myLook();
     void Promise.all([import('./ui/DressingRoom'), import('./scene/DressingStage')]).then(([{ DressingRoom }, { DressingStage }]) => {
       if (this.dressing || this.disposed) return;
@@ -900,6 +911,7 @@ export class Game {
         record: this.dressingRecord(), pictures: {},
       }, {
         wear: (shelf, id) => {
+          if (this.dressingPreview) return;
           const now = readDressing();
           writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
           const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
@@ -915,8 +927,51 @@ export class Game {
       }, () => new DressingStage());
     });
   }
+  /** One of `?dressing=1`'s keys. */
+  private previewDressing(scenario: DressingScenario) {
+    if (scenario === 'kit' || scenario === 'bat' || scenario === 'two') {
+      const kits = OUTFITS.filter(o => o.id !== FREE_OUTFIT), bats = BATS.filter(b => b.id !== 'plain' && b.id !== FREE_BAT);
+      const items: UnlockItem[] = [];
+      const look = this.myLook();
+      if (scenario !== 'bat') {
+        const to = kits[this.previewTurn.kit++ % kits.length], next = kits[this.previewTurn.kit % kits.length];
+        items.push({ moment: { kind: 'kit', from: look.outfit.id === to.id ? outfitOf(FREE_OUTFIT) : look.outfit, to, bat: look.bat }, next });
+      }
+      if (scenario !== 'kit') {
+        const bat = bats[this.previewTurn.bat++ % bats.length], next = bats[this.previewTurn.bat % bats.length];
+        items.push({ moment: { kind: 'bat', bat }, next });
+      }
+      this.unlock?.close(); this.unlock = null;
+      this.playUnlocks(items, true);
+      return;
+    }
+    // Over whatever is on screen, and back to it when the room is put away.
+    this.closeDressing();
+    this.dressingPreview = previewRecord(scenario);
+    this.openDressing();
+  }
+  /** Puts the unlocks up; a preview's wear nothing and mark nothing. */
+  private playUnlocks(items: UnlockItem[], preview = false) {
+    void Promise.all([import('./ui/Unlock'), import('./scene/DressingStage')]).then(([{ UnlockMoment }, { DressingStage }]) => {
+      if (this.unlock || this.disposed) return;
+      this.unlock = new UnlockMoment(this.hud.viewport, items, new DressingStage(), {
+        wear: (shelf, id) => {
+          if (preview) return;
+          const now = readDressing();
+          writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
+          const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
+          this.mark('dressing-wear', `Put on ${shelf} ${id}`);
+        },
+        done: () => { this.unlock?.close(); this.unlock = null; if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView()); },
+      });
+    });
+  }
   private closeDressing() {
+    const was = !!this.dressing;
     this.dressing?.close(); this.dressing = null;
+    // A preview's record goes with the room it was shown in.
+    this.dressingPreview = null;
+    if (!was) return;
     // The card's line and its NEW tag, as they now stand.
     this.hud.modesFill(this.modeSelectView());
     document.getElementById('modes-dressing')?.focus();
@@ -962,18 +1017,7 @@ export class Game {
     writeDressing({ ...held, seen: [...held.seen, ...items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id))] });
     this.putRatingAway();
     this.mark('dressing-unlock', `Unlocked ${items.length}`);
-    void Promise.all([import('./ui/Unlock'), import('./scene/DressingStage')]).then(([{ UnlockMoment }, { DressingStage }]) => {
-      if (this.unlock || this.disposed) return;
-      this.unlock = new UnlockMoment(this.hud.viewport, items, new DressingStage(), {
-        wear: (shelf, id) => {
-          const now = readDressing();
-          writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
-          const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
-          this.mark('dressing-wear', `Put on ${shelf} ${id}`);
-        },
-        done: () => { this.unlock?.close(); this.unlock = null; if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView()); },
-      });
-    });
+    this.playUnlocks(items);
   }
 
   /** The Dressing Room card's line: how much of both shelves is earned. */
@@ -4311,6 +4355,7 @@ export class Game {
    * in them, and each mode's figure at launch — or now, until it is known.
    */
   private dressingRecord(): DressingRecord {
+    if (this.dressingPreview) return this.dressingPreview;
     const careers = { classic: heldCareer('classic') as BlastCareer, survive: heldCareer('survive') as SurviveCareer, marathon: heldCareer('marathon') as MarathonCareer };
     const wins = rivalryEntries().filter(one => one.outcome === 'W');
     const now = { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) };
@@ -4502,6 +4547,29 @@ const WELCOME_KEYS: readonly { label: string; scenario: WelcomeScenario }[] = [
   { label: 'TAKEN', scenario: 'taken' }, { label: 'SIBLING', scenario: 'sibling' }, { label: 'MONTH', scenario: 'month' },
   { label: 'OFFLINE', scenario: 'offline' },
 ];
+/** A way `?dressing=1` shows the Dressing Room: the room at three points in a career, or an unlock. */
+type DressingScenario = 'new' | 'half' | 'all' | 'kit' | 'bat' | 'two';
+const DRESSING_KEYS: readonly { label: string; scenario: DressingScenario }[] = [
+  { label: 'NEW', scenario: 'new' }, { label: 'HALFWAY', scenario: 'half' }, { label: 'ALL', scenario: 'all' },
+  { label: 'KIT UNLOCK', scenario: 'kit' }, { label: 'BAT UNLOCK', scenario: 'bat' }, { label: 'TWO', scenario: 'two' },
+];
+/** The made-up careers `?dressing=1`'s room reads: nothing played, some of each shelf earned, and all of it. */
+function previewRecord(scenario: 'new' | 'half' | 'all'): DressingRecord {
+  const blast = emptyBlast(), survive = emptySurvive(), marathon = emptyMarathon();
+  if (scenario === 'half') {
+    Object.assign(blast, { innings: 30, runs: 4000, balls: 2500, sixes: 182, highest: 112, hundreds: 1 });
+    Object.assign(survive, { innings: 20, runs: 900, balls: 640, sixes: 20, wins: 18, draws: 1, losses: 1 });
+    Object.assign(marathon, { innings: 6, runs: 900, balls: 1100, sixes: 10, highest: 142, hundreds: 1 });
+    return { careers: { classic: blast, survive, marathon }, rivals: { won: 3, beaten: 2 }, launch: { classic: 4000, survive: 640, marathon: 900 } };
+  }
+  if (scenario === 'all') {
+    Object.assign(blast, { innings: 400, runs: 19000, balls: 12000, sixes: 900, highest: 160, hundreds: 20 });
+    Object.assign(survive, { innings: 120, runs: 9000, balls: 5400, sixes: 100, wins: 60, draws: 20, losses: 40 });
+    Object.assign(marathon, { innings: 40, runs: 9500, balls: 12000, sixes: 60, highest: 230, hundreds: 12, doubles: 2 });
+    return { careers: { classic: blast, survive, marathon }, rivals: { won: 14, beaten: 7 }, launch: { classic: 0, survive: 0, marathon: 0 } };
+  }
+  return { careers: { classic: blast, survive, marathon }, rivals: { won: 0, beaten: 0 }, launch: { classic: 0, survive: 0, marathon: 0 } };
+}
 /** `?actions=1`'s keys. */
 /** A `?actions=1` key: one of the things he does after a ball, or the retired-hurt fall. */
 type ActionKey = AfterBall | 'fall';
