@@ -31,6 +31,8 @@ const CAMERA = { distance: 8.1, eye: 1.3 };
  * across the 874-high phone the room was drawn on. A taller space than that
  * leaves the batter at this size rather than drawing him bigger.
  */
+/** The Dressing Room's corridor, already lifted, softened and faded by depth. */
+const ROOM_BACKDROP = new URL('../assets/dressing/room.webp', import.meta.url).href;
 const NEAREST_FOCAL = 437 / Math.tan(THREE.MathUtils.degToRad(15));
 
 function glowTexture(inner = 1, outer = 0, ring = false) {
@@ -162,7 +164,13 @@ export class DressingStage {
   /** The bat on the stand, upright over the pedestal's middle and turning: from just over it to the batter's crown. */
   private readonly batShow: { y: number; scale: number };
 
-  constructor() {
+  /**
+   * `room`: the stage stands in the Dressing Room itself, in front of its
+   * corridor of lockers (`src/assets/dressing/room.webp`, baked by
+   * `scripts/dressing-backdrop.mjs`) rather than the warm wall the unlocks
+   * play against.
+   */
+  constructor({ room = false }: { room?: boolean } = {}) {
     this.canvas = document.createElement('canvas'); this.canvas.className = 'dr-stage';
     this.canvas.setAttribute('aria-label', 'Your batter on a turning pedestal; drag to turn him, tap to play a shot');
     const renderer = this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false });
@@ -176,6 +184,13 @@ export class DressingStage {
     back.position.set(0, 1.6, -3.2); scene.add(back);
     const floor = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshStandardMaterial({ color: '#0b0e12', roughness: .55, metalness: .2 }));
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+    if (room) {
+      // The corridor is painted behind everything; the floor only catches his shadow on it.
+      back.visible = false;
+      (floor as THREE.Mesh).material = new THREE.ShadowMaterial({ opacity: .6 });
+      this.backdrop.src = ROOM_BACKDROP;
+      this.backdrop.onload = () => this.paintBackdrop();
+    }
     const pool = new THREE.Mesh(new THREE.CircleGeometry(2.6, 64), new THREE.MeshBasicMaterial({ map: glowTexture(.32, 0), transparent: true, depthWrite: false, color: '#ffe2bd' }));
     pool.rotation.x = -Math.PI / 2; pool.position.y = .002; scene.add(pool);
 
@@ -349,6 +364,7 @@ export class DressingStage {
 
   dispose() {
     cancelAnimationFrame(this.raf); this.resize.disconnect();
+    (this.scene.background as THREE.Texture | null)?.dispose?.();
     this.renderer.dispose(); this.renderer.forceContextLoss();
     this.canvas.remove();
   }
@@ -365,9 +381,29 @@ export class DressingStage {
   frame(top: number, floor: number, left: number, right: number) { this.room = { top, floor, left, right }; this.fit(); }
   private room: { top: number; floor: number; left: number; right: number } | null = null;
 
+  /** The room's corridor, once it has loaded; nothing for the unlocks. */
+  private readonly backdrop = new Image();
+  /**
+   * The corridor painted to the canvas's size, covering it as the drawing
+   * does its phone: centred, cropped on whichever side is the longer. Painted
+   * again whenever the canvas changes shape, never stretched.
+   */
+  private paintBackdrop() {
+    const w = this.canvas.clientWidth, h = this.canvas.clientHeight, img = this.backdrop;
+    if (!w || !h || !img.complete || !img.naturalWidth) return;
+    const ratio = Math.min(2, devicePixelRatio), c = document.createElement('canvas');
+    c.width = Math.round(w * ratio); c.height = Math.round(h * ratio);
+    const k = Math.max(c.width / img.naturalWidth, c.height / img.naturalHeight), g = c.getContext('2d')!;
+    g.drawImage(img, (c.width - img.naturalWidth * k) / 2, (c.height - img.naturalHeight * k) / 2, img.naturalWidth * k, img.naturalHeight * k);
+    const texture = new THREE.CanvasTexture(c); texture.colorSpace = THREE.SRGBColorSpace;
+    (this.scene.background as THREE.Texture | null)?.dispose?.();
+    this.scene.background = texture;
+  }
+
   private fit() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
+    if (this.backdrop.src) this.paintBackdrop();
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h;
     // Drawn on an 874-high phone with the name ending at 140 and the shelf at
     // 556: those, scaled, until the screen says where they are.

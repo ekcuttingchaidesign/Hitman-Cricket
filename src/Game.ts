@@ -924,7 +924,7 @@ export class Game {
           this.choose(mode === 'survival' ? 'SURVIVE' : mode === 'marathon' ? 'MARATHON' : 'CLASSIC');
         },
         close: () => this.closeDressing(),
-      }, () => new DressingStage());
+      }, () => new DressingStage({ room: true }));
       // Walking in for the first time earns Boom: its unlock goes up over the room.
       if (!this.dressingPreview) this.celebrateUnlocks();
     });

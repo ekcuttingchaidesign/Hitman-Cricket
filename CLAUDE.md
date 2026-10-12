@@ -218,6 +218,10 @@ down the right of the stage, not a row under it, so the pedestal has the
 screen's height down to the foot; the camera fits the batter's crown to the
 pedestal's front edge in that space, never nearer than the 874-high phone it
 was drawn on, so a short phone gets the most it can and a tall one the design.
+The room stands in a corridor of lockers (`src/assets/dressing/room.svg`),
+baked into `room.webp` — lifted, softened and darkened by depth — by
+`scripts/dressing-backdrop.mjs`; change the drawing and run it again. Only the
+room has it (`new DressingStage({ room: true })`); the unlocks keep their rays.
 
 ## Who's batting: the gate before the first innings
 
