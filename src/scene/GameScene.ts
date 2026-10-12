@@ -887,6 +887,8 @@ export class GameScene {
     });
   }
   private look: { outfit: Outfit; bat: BatSkin } | null = null;
+  /** What he went out in, `kit/bat`, for the checks. */
+  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}` : null; }
   private inWhites = false;
   /** Which bat was asked for last, so a sheet arriving late cannot put back the one before. */
   private batAsked = 0;

@@ -19,9 +19,11 @@ export interface Dressing {
   launch: Record<CareerMode, number> | null;
   /** Everything the player has been shown as theirs, so an unlock is celebrated once. */
   seen: string[];
+  /** Whether the room has been opened, which takes the NEW tag off its card. */
+  visited: boolean;
 }
 
-const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, launch: null, seen: [] });
+const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, launch: null, seen: [], visited: false });
 
 export function readDressing(): Dressing {
   try {
@@ -36,6 +38,7 @@ export function readDressing(): Dressing {
       bat: isBat(held.bat) ? held.bat : FREE_BAT,
       launch,
       seen: Array.isArray(held.seen) ? held.seen.filter((s): s is string => typeof s === 'string') : [],
+      visited: held.visited === true,
     };
   } catch {
     return fresh();

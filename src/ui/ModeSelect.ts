@@ -23,6 +23,7 @@ import { cta, icon } from './Kit';
 const POSTER_MARATHON = new URL('../assets/entry/poster-marathon.webp', import.meta.url).href;
 const POSTER_BLAST = new URL('../assets/cover-drive.webp', import.meta.url).href;
 const BANNER_SURVIVAL = new URL('../assets/survive-cover.webp', import.meta.url).href;
+const DRESSING_CARD = new URL('../assets/entry/dressing-card.webp', import.meta.url).href;
 const art = (file: string) => new URL(`../assets/entry/${file}`, import.meta.url).href;
 
 /** One poster's figures: nothing played yet, or the best and where it stands. */
@@ -43,6 +44,8 @@ export interface ModeSelectView {
   blastRank: number | null;
   stats: { runs: number; tier: { key: string; name: string } };
   rivals: RivalsRecord | null;
+  /** The Dressing Room: how many of the kits and bats are earned, of how many, and whether it has been opened yet. */
+  dressing: { earned: number; of: number; visited: boolean };
 }
 
 /** "Best 158 · #2", or "Not played". */
@@ -93,6 +96,7 @@ export function modeSelectParts(view: ModeSelectView): Record<string, string> {
     'modes-stats-tier': escape(view.stats.tier.name),
     'modes-rivals-faces': `${face(view.player, 'mr-face')}<img class="mr-face is-them" src="${avatarSrc(rival)}" alt="">`,
     'modes-rivals-line': escape(rivalsLine(view.rivals)),
+    'modes-dressing-line': `${view.dressing.earned} of ${view.dressing.of} earned`,
   };
 }
 
@@ -144,6 +148,18 @@ export function modeSelectMarkup(): string {
                 ${play('#8e1424', '#5e0c17')}
               </span>
             </button>
+            <div class="ms-card ms-rivals">
+              <button id="modes-challenges" class="ms-rivals-open" type="button" aria-label="Rival matches"></button>
+              <span id="modes-rivals-faces" class="ms-versus" aria-hidden="true"></span>
+              <b class="ms-vs" aria-hidden="true">VS</b>
+              <span class="ms-rivals-text"><span class="ms-rivals-name">RIVALS <i id="mode-challenge-flag" class="ms-flag hidden"></i></span><span id="modes-rivals-line" class="ms-note">Same balls. Best score wins.</span></span>
+              ${cta({ kind: 'challenge', label: 'Challenge a friend', id: 'mode-challenge' })}
+            </div>
+            <button id="modes-dressing" class="ms-dressing" type="button">
+              <img class="ms-art" src="${DRESSING_CARD}" alt="" decoding="async">
+              <span class="ms-tag is-new">NEW</span>
+              <span class="ms-dressing-text"><span class="ms-dressing-name">DRESSING ROOM${icon('chevron-right')}</span><span id="modes-dressing-line" class="ms-dressing-line">3 of 13 earned</span></span>
+            </button>
             <div class="ms-bento">
               <button id="modes-board" class="ms-card ms-boards" type="button">
                 <span class="ms-card-head"><span>LEADERBOARDS</span>${icon('chevron-right')}</span>
@@ -161,13 +177,6 @@ export function modeSelectMarkup(): string {
                 <span class="ms-stats-body"><b id="modes-stats-runs">0</b><span>career runs</span></span>
                 <span id="modes-stats-tier" class="ms-stats-tier">DEBUTANT</span>
               </button>
-            </div>
-            <div class="ms-card ms-rivals">
-              <button id="modes-challenges" class="ms-rivals-open" type="button" aria-label="Rival matches"></button>
-              <span id="modes-rivals-faces" class="ms-versus" aria-hidden="true"></span>
-              <b class="ms-vs" aria-hidden="true">VS</b>
-              <span class="ms-rivals-text"><span class="ms-rivals-name">RIVALS <i id="mode-challenge-flag" class="ms-flag hidden"></i></span><span id="modes-rivals-line" class="ms-note">Same balls. Best score wins.</span></span>
-              ${cta({ kind: 'challenge', label: 'Challenge a friend', id: 'mode-challenge' })}
             </div>
             <div id="mode-key" class="key-slot hidden"></div>
           </div>

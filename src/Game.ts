@@ -65,7 +65,8 @@ import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, type Granted } from './game/tier';
-import { FREE_BAT, FREE_OUTFIT, batOf, batOwned, outfitOf, outfitOwned, type BatSkin, type DressingRecord, type Outfit } from './game/dressing';
+import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import type { DressingRoom } from './ui/DressingRoom';
 import { readDressing, writeDressing } from './game/dressing-store';
 import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
@@ -546,6 +547,7 @@ export class Game {
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
+    this.hud.on('modes-dressing', () => this.openDressing());
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-stats', this.showStats);
@@ -854,7 +856,55 @@ export class Game {
       blastRank: at >= 0 ? at + 1 : null,
       stats: { runs: blast.runs, tier: { key: tier.key, name: tier.name } },
       rivals: this.rooms?.record ?? null,
+      dressing: this.dressingCount(),
     };
+  }
+  /** The Dressing Room, laid over Choose a mode; null while it is shut. */
+  private dressing: DressingRoom | null = null;
+  /**
+   * Opens the Dressing Room over Choose a mode, which is still there when it
+   * is put away. The screen and its stage are loaded the first time, so the
+   * game itself never waits on them.
+   */
+  private openDressing() {
+    if (this.dressing) return;
+    this.mark('dressing-open', 'The Dressing Room opened');
+    const held = readDressing();
+    writeDressing({ ...held, visited: true });
+    const look = this.myLook();
+    void Promise.all([import('./ui/DressingRoom'), import('./scene/DressingStage')]).then(([{ DressingRoom }, { DressingStage }]) => {
+      if (this.dressing || this.disposed) return;
+      this.dressing = new DressingRoom(this.hud.viewport, {
+        shelf: 'kit', kit: look.outfit.id, bat: look.bat.id, wearing: look.outfit.id, holding: look.bat.id,
+        record: this.dressingRecord(), pictures: {},
+      }, {
+        wear: (shelf, id) => {
+          const now = readDressing();
+          writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
+          const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
+          this.mark('dressing-wear', `Put on ${shelf} ${id}`);
+        },
+        play: mode => {
+          this.closeDressing();
+          this.hud.closeModes();
+          if (mode === 'rivals') { void this.showChallenges(); return; }
+          this.choose(mode === 'survival' ? 'SURVIVE' : mode === 'marathon' ? 'MARATHON' : 'CLASSIC');
+        },
+        close: () => this.closeDressing(),
+      }, () => new DressingStage());
+    });
+  }
+  private closeDressing() {
+    this.dressing?.close(); this.dressing = null;
+    // The card's line and its NEW tag, as they now stand.
+    this.hud.modesFill(this.modeSelectView());
+    document.getElementById('modes-dressing')?.focus();
+  }
+
+  /** The Dressing Room card's line: how much of both shelves is earned. */
+  private dressingCount() {
+    const got = earned(this.dressingRecord());
+    return { earned: got.outfits.length + got.bats.length, of: OUTFITS.length + BATS.length, visited: readDressing().visited };
   }
 
   /**
@@ -4327,7 +4377,7 @@ export class Game {
       confidence: this.confidence.value, primed: this.isPrimed, chargeMiss: this.chargeMiss ?? '—', chargeable: this.delivery ? chargeable(this.delivery) : '—', advance: this.outcome?.advance ?? false, celebrating: this.celebrating > 0, muted: Math.round(this.scene.muted * 100) / 100,
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
-      mirrored: this.scene.mirrored, marathon: this.marathon ? this.marathonState() : null,
+      mirrored: this.scene.mirrored, look: this.scene.wearing, marathon: this.marathon ? this.marathonState() : null,
       standing: this.standing };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */

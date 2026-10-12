@@ -7154,6 +7154,23 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ms-poster.is-blast{border:1.5px solid #7fb2ffe6}
 .ms-art{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover}
 .ms-poster::before,.ms-banner::before{content:'';position:absolute;inset:0;z-index:-1}
+/* The Dressing Room's card (Figma "DR / Dressing room card"): the locker edge
+   to edge, dark from the left under the words, a rim from blue to copper. */
+.ms-dressing{
+  position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;flex-shrink:0;
+  width:100%;height:calc(var(--u) * 120);margin:0;padding:0 calc(var(--u) * 16) calc(var(--u) * 20);overflow:hidden;isolation:isolate;
+  border:1px solid #0000;border-radius:24px;color:var(--c-text);text-align:left;font-family:var(--f-ui);cursor:pointer;
+  background:linear-gradient(#06080b,#06080b) padding-box,linear-gradient(90deg,#3f5ab2,#a56647) border-box;
+  box-shadow:0 14px 30px #00000080
+}
+.ms-dressing .ms-art{object-position:50% 50%}
+.ms-dressing::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#1a1515 0%,#1a1515f2 28%,#1b1c1f5c 100%)}
+.ms-dressing .ms-tag{left:calc(var(--u) * 16);top:calc(var(--u) * 14);padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:999px;background:var(--c-accent);color:#0b0f14;font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.14em}
+.ms-dressing.is-visited .ms-tag{display:none}
+.ms-dressing-text{display:flex;flex-direction:column;gap:calc(var(--u) * 2)}
+.ms-dressing-name{display:flex;align-items:center;gap:calc(var(--u) * 6);font:400 calc(var(--u) * 24)/1.25 var(--f-display);letter-spacing:.03em;font-optical-sizing:none;font-variation-settings:'opsz' 6;white-space:nowrap}
+.ms-dressing-name .k-icon{width:calc(var(--u) * 16);height:calc(var(--u) * 16)}
+.ms-dressing-line{font:500 calc(var(--u) * 12)/1.25 var(--f-ui);color:#c9d2d8}
 .ms-poster.is-marathon::before{background:linear-gradient(180deg,#0000 0%,#00422500 30%,#004225b3 52%,#004225f2 70%,#004225 100%)}
 /* The helmet sits where the title goes, so the art is grown from its foot:
    the helmet rises clear and the ball and the turf stay where they were. */
@@ -8274,3 +8291,66 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 #mi-keys:has(.mi-finish) .mi-dots{align-self:center}
 #mi-keys:has(.mi-finish) .mi-skip{display:none}
 #marathon-intro.is-howto{background:#05070ae0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+
+/* ── The Dressing Room (src/ui/DressingRoom.ts, the stage in src/scene/DressingStage.ts) ──
+   The batter on a turning pedestal under a spotlight, the shelf under him, what
+   the one picked takes at the foot. Laid out on the 402-wide phone it was drawn
+   on, in --u, so the desktop column scales it as it does every other screen. */
+.dr-overlay{position:absolute;inset:0;z-index:40;background:#06080b;color:var(--c-text);font-family:var(--f-ui);overflow:hidden}
+.dr-screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:calc(var(--u) * 48) 0 calc(var(--u) * 24 + env(safe-area-inset-bottom, 0px))}
+.dr-screen>*{position:relative}
+.dr-space{flex:1;min-height:calc(var(--u) * 120);pointer-events:none}
+.dr-screen>.dr-stage{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.dr-top{margin:0 calc(var(--u) * 20);height:calc(var(--u) * 44);display:flex;align-items:center;flex:none}
+.dr-tabs{position:absolute;left:50%;top:0;transform:translateX(-50%);height:calc(var(--u) * 44);display:flex;align-items:center;gap:calc(var(--u) * 2);padding:calc(var(--u) * 4);border-radius:calc(var(--u) * 22);background:#12161bb8;border:calc(var(--u) * 1) solid #2a313a;-webkit-backdrop-filter:blur(calc(var(--u) * 8));backdrop-filter:blur(calc(var(--u) * 8))}
+.dr-tabs button{height:calc(var(--u) * 34);min-width:calc(var(--u) * 64);padding:0 calc(var(--u) * 16);border:0;border-radius:calc(var(--u) * 17);background:transparent;color:#8494a0;font:800 calc(var(--u) * 12)/1 var(--f-ui);letter-spacing:.14em;cursor:pointer}
+.dr-tabs button[aria-pressed="true"]{background:var(--c-text);color:#0a0b0d}
+.dr-name{flex:none;margin:calc(var(--u) * 12) 0 0;text-align:center;font:400 calc(var(--u) * 38)/1 var(--f-display);letter-spacing:.03em;text-shadow:0 calc(var(--u) * 4) calc(var(--u) * 24) #0009;pointer-events:none}
+.dr-name.is-long{font-size:calc(var(--u) * 30);line-height:calc(var(--u) * 38)}
+.dr-items{flex:none;display:flex;gap:calc(var(--u) * 10);overflow-x:auto;padding:calc(var(--u) * 10) calc(var(--u) * 20) calc(var(--u) * 8);scrollbar-width:none;scroll-snap-type:x proximity;scroll-padding-inline:calc(var(--u) * 20);overscroll-behavior-x:contain;touch-action:pan-x;
+  --l:0px;--r:0px;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--l),#000 calc(100% - var(--r)),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 var(--l),#000 calc(100% - var(--r)),transparent 100%)}
+.dr-items.more-left{--l:calc(var(--u) * 36)}
+.dr-items.more-right{--r:calc(var(--u) * 48)}
+.dr-items::-webkit-scrollbar{display:none}
+.dr-item{flex:none;width:calc(var(--u) * 60);height:calc(var(--u) * 60);scroll-snap-align:start;border-radius:calc(var(--u) * 16);background:linear-gradient(#171c22,#0f1216);border:calc(var(--u) * 1) solid #232a33;position:relative;display:grid;place-items:center;padding:0;cursor:pointer}
+.dr-item img,.dr-item-blank{width:calc(var(--u) * 54);height:calc(var(--u) * 54);display:block;pointer-events:none;-webkit-user-drag:none;user-select:none}
+.dr-item.is-locked img{opacity:.7;filter:saturate(.9)}
+.dr-item.is-picked{border:calc(var(--u) * 2) solid var(--c-text);box-shadow:0 0 calc(var(--u) * 20) #f5efe61f}
+.dr-badge{position:absolute;top:-6px;right:-6px;width:calc(var(--u) * 20);height:calc(var(--u) * 20);border-radius:50%;display:grid;place-items:center}
+.dr-badge.is-on{color:var(--c-win)}
+.dr-badge.is-on svg{width:calc(var(--u) * 20);height:calc(var(--u) * 20)}
+.dr-badge.is-lock{background:#0a0b0dd9;color:var(--c-text);border:calc(var(--u) * 1) solid #3a434e}
+.dr-badge.is-lock svg{width:calc(var(--u) * 11);height:calc(var(--u) * 11)}
+.dr-foot{flex:none;margin:calc(var(--u) * 20) calc(var(--u) * 24) 0;display:flex;flex-direction:column;gap:calc(var(--u) * 16)}
+.dr-eye{font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.18em;text-transform:uppercase;color:#8494a0}
+.dr-goal,.dr-had{display:flex;flex-direction:column;gap:calc(var(--u) * 10)}
+.dr-had{gap:calc(var(--u) * 6)}
+.dr-had p,.dr-one{margin:0;font:400 calc(var(--u) * 15)/1.3 var(--f-ui);color:var(--c-text)}
+.dr-one{font-size:calc(var(--u) * 17)}
+.dr-big{display:flex;align-items:baseline;justify-content:space-between;margin-top:calc(var(--u) * 2)}
+.dr-big b{font:400 calc(var(--u) * 46)/1 var(--f-display);letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.dr-big b span{font-size:calc(var(--u) * 22);color:#8494a0}
+.dr-big em{font:400 calc(var(--u) * 14)/1 var(--f-ui);font-style:normal;color:#a3b3bd}
+.dr-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:calc(var(--u) * 12)}
+.dr-steps li{display:flex;align-items:center;gap:calc(var(--u) * 10);font:400 calc(var(--u) * 15)/1.25 var(--f-ui);color:var(--c-text)}
+.dr-steps li svg{width:calc(var(--u) * 16);height:calc(var(--u) * 16);flex:none;color:#5b6672}
+.dr-steps li span{flex:1;min-width:0}
+.dr-steps b{font:600 calc(var(--u) * 14)/1 var(--f-ui);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dr-steps b span,.dr-next-value span{color:#8494a0;font-weight:400}
+.dr-steps li.is-done{color:#8494a0}
+.dr-steps li.is-done svg,.dr-steps li.is-done b{color:var(--c-win)}
+.dr-track{display:block;height:calc(var(--u) * 4);border-radius:calc(var(--u) * 2);background:#f5efe61a;overflow:hidden}
+.dr-track.is-big{height:calc(var(--u) * 6);border-radius:calc(var(--u) * 3)}
+.dr-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--c-cta-rim-bottom),#ffb23d)}
+.dr-next{display:flex;align-items:center;gap:calc(var(--u) * 12);padding:calc(var(--u) * 10) calc(var(--u) * 12) calc(var(--u) * 10) calc(var(--u) * 10);border-radius:calc(var(--u) * 16);border:calc(var(--u) * 1) solid #232a33;background:linear-gradient(#141920,#0f1318);color:var(--c-text);text-align:left;cursor:pointer;font-family:var(--f-ui)}
+.dr-next img,.dr-next .dr-item-blank{width:calc(var(--u) * 48);height:calc(var(--u) * 48);border-radius:calc(var(--u) * 12);background:#0b0e12;flex:none;opacity:.8}
+.dr-next-text{flex:1;min-width:0;display:grid;gap:calc(var(--u) * 4)}
+.dr-next-text .dr-eye{font-size:calc(var(--u) * 9)}
+.dr-next-text b{font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase}
+.dr-next-step{font:400 calc(var(--u) * 13)/1.2 var(--f-ui);color:#a3b3bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-next .dr-track{height:calc(var(--u) * 3);margin-top:calc(var(--u) * 2)}
+.dr-next-value{font:600 calc(var(--u) * 13)/1 var(--f-ui);font-variant-numeric:tabular-nums;white-space:nowrap;align-self:flex-start;margin-top:calc(var(--u) * 16)}
+.dr-next .k-icon{width:calc(var(--u) * 14);height:calc(var(--u) * 14);color:#8494a0;flex:none}
+.dr-worn,.dr-worn:disabled{opacity:1;cursor:default}
+.dr-worn{height:calc(var(--u) * 52);border-radius:calc(var(--u) * 18);border:calc(var(--u) * 1.5) solid #2e3640;background:transparent;color:var(--c-win);font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.08em}
+.dr-foot .k-cta{width:100%}
