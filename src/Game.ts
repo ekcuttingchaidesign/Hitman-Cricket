@@ -64,7 +64,9 @@ import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
-import { climbedTo, standingOf, type Granted } from './game/tier';
+import { climbedTo, standingOf, tierMeasure, type Granted } from './game/tier';
+import { FREE_BAT, FREE_OUTFIT, batOf, batOwned, outfitOf, outfitOwned, type BatSkin, type DressingRecord, type Outfit } from './game/dressing';
+import { readDressing, writeDressing } from './game/dressing-store';
 import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
@@ -93,7 +95,7 @@ import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
 import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
-  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, seenHere, whatsapp, type Challenge, type RivalsRow,
+  CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, rivalryEntries, seenHere, whatsapp, type Challenge, type RivalsRow,
 } from './game/challenge-api';
 import type { GhostBall, ListRowView, ListSections, RoomAct } from './ui/HUD';
 import { NAME_BLOCKED_REASON, nameBlocked } from './server/name-filter';
@@ -485,6 +487,7 @@ export class Game {
     try { this.best = Math.max(0, Math.min(180, Number(localStorage.getItem('hitman-best')) || 0)); } catch { /* Storage may be disabled. */ }
     this.hud = new HUD(root, this.best, { player: readPlayer() });
     this.hud.coverPlayer = () => readPlayer();
+    this.noteLaunch();
     // The cover's depth: the poster, the smoke and the dust sliding at their own speeds.
     coverParallax(this.hud.viewport.querySelector<HTMLElement>('#intro')!);
     // Neither of these is allowed to hold up an innings. Settling the id touches
@@ -780,6 +783,8 @@ export class Game {
       // Dresses him in a Rivals kit on the spot, so the four can be looked at
       // without four friends.
       kit: (kit: BatterKit) => this.scene.kit(kit),
+      /** Puts any kit and bat from the Dressing Room on him, earned or not: for looking at them in play. */
+      dress: (outfit: string, bat: string) => this.scene.dressBatter(outfitOf(outfit), batOf(bat)),
       // A Marathon written out ball by ball between deliveries — runs, 'W' for
       // a wicket, 'H' for a blow that carries him off — for `marathon-check.mjs`,
       // which cannot bat its way to over twenty in a software-rendered browser.
@@ -1437,7 +1442,9 @@ export class Game {
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.applyNets();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
-    this.input.reset(); this.scene.reset(); this.scene.whites(this.test);
+    this.input.reset(); this.scene.reset();
+    const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat);
+    this.scene.whites(this.test);
     // A Test by day; the Blast by the player's clock, or their own choice.
     this.scene.time(this.test ? 'day' : blastLights());
     // Under a clear sky, with nothing yet told.
@@ -4169,6 +4176,45 @@ export class Game {
     }
   }
   private rooms: ListView | null = null;
+  /**
+   * Everything the Dressing Room's unlocks are read off: the three careers
+   * this browser holds, the Rival Matches won (the store's count or this
+   * browser's, whichever is more) and how many different players were beaten
+   * in them, and each mode's figure at launch — or now, until it is known.
+   */
+  private dressingRecord(): DressingRecord {
+    const careers = { classic: heldCareer('classic') as BlastCareer, survive: heldCareer('survive') as SurviveCareer, marathon: heldCareer('marathon') as MarathonCareer };
+    const wins = rivalryEntries().filter(one => one.outcome === 'W');
+    const now = { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) };
+    return {
+      careers,
+      rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.playerId)).size },
+      launch: readDressing().launch ?? now,
+    };
+  }
+  /** What the batter goes out in: the player's pick, or the free one where the pick is not (or no longer) theirs. */
+  private myLook(): { outfit: Outfit; bat: BatSkin } {
+    const record = this.dressingRecord(), held = readDressing();
+    return {
+      outfit: outfitOf(outfitOwned(held.outfit, record) ? held.outfit : FREE_OUTFIT),
+      bat: batOf(batOwned(held.bat, record) ? held.bat : FREE_BAT),
+    };
+  }
+  /**
+   * Where each mode stood when the Dressing Room arrived, written once. Only
+   * from a browser that holds its careers, or has never batted: a player on a
+   * new device would otherwise start from nought and be handed a quarter of a
+   * tier for play that came before. Until then "since launch" counts from now.
+   */
+  private noteLaunch() {
+    const held = readDressing();
+    if (held.launch) return;
+    let mirrored = false;
+    try { mirrored = localStorage.getItem('hitman-career') !== null; } catch { /* No storage: nothing is kept anyway. */ }
+    if (!mirrored && profileDone()) return;
+    const careers = this.dressingRecord().careers;
+    writeDressing({ ...held, launch: { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) } });
+  }
   private pending: Challenge[] = [];
   private pendingTotal = 0;
 
