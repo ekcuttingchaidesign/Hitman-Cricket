@@ -8389,5 +8389,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 @media (prefers-reduced-motion:reduce){.ul-words>*{opacity:1;transform:none}.ul-overlay.is-revealed .ul-words>*{animation:none}}
 /* `?dressing=1`: the same row as the welcome's, over the room and its unlocks, which stand down below it. */
 .dressing-preview{z-index:60;grid-template-columns:repeat(6,minmax(0,1fr))}
+.dressing-preview .welcome-preview-key{white-space:normal;line-height:1.1;padding:0 2px}
 .has-dressing-keys .dr-screen{padding-top:calc(var(--u) * 48 + 44px)}
 .has-dressing-keys .ul-scanning{top:calc(var(--u) * 120 + 44px)}
