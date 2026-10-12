@@ -33,6 +33,35 @@ function glowTexture(inner = 1, outer = 0, ring = false) {
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
 }
 
+/** Light breaking out behind an unlock: eighteen rays, soft where they meet and soft at their ends. */
+function raysTexture() {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
+  const g = canvas.getContext('2d')!; g.translate(256, 256);
+  for (let i = 0; i < 18; i++) {
+    g.rotate(Math.PI * 2 / 18);
+    const gradient = g.createLinearGradient(0, 0, 256, 0); gradient.addColorStop(0, 'rgba(255,255,255,.55)'); gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gradient; g.beginPath(); g.moveTo(0, 0); g.lineTo(256, -22); g.lineTo(256, 22); g.closePath(); g.fill();
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-in';
+  const fade = g.createRadialGradient(256, 256, 0, 256, 256, 256);
+  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(.14, 'rgba(0,0,0,.6)'); fade.addColorStop(.3, 'rgba(0,0,0,1)');
+  fade.addColorStop(.62, 'rgba(0,0,0,.7)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = fade; g.fillRect(0, 0, 512, 512);
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; return texture;
+}
+
+/**
+ * An unlock on the stage. A bat comes up off the stand and across the screen,
+ * bare willow, and a scan runs down it handle to toe leaving its stickers
+ * behind; a kit is a ring of light that runs down the batter from helmet to
+ * boots, the new kit above it and the old one below. Then the reveal.
+ */
+export type Moment = { kind: 'bat'; bat: BatSkin } | { kind: 'kit'; from: Outfit; to: Outfit; bat: BatSkin };
+/** When each moment's reveal comes, from its start. */
+export const REVEAL_MS = { bat: 1650, kit: 2280 } as const;
+/** The turn of the pedestal at which the celebration faces the camera. */
+const KIT_FACE = -1.5;
+
 /** A bat standing on its own: the grip, the collar and a blade wearing its sheet. */
 class ShowBat {
   readonly root = new THREE.Group();
@@ -43,8 +72,39 @@ class ShowBat {
     const grip = new THREE.Mesh(gripGeometry(), this.grip); grip.castShadow = true; this.root.add(grip);
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, 1, 24), new THREE.MeshStandardMaterial({ color: '#1a1d21', roughness: .9 }));
     tube.scale.set(.046, .018, .046); tube.position.y = -.117; this.root.add(tube);
-    const blade = new THREE.Mesh(bladeGeometry(), this.blade); blade.castShadow = true; this.root.add(blade);
+    const blade = this.bladeMesh = new THREE.Mesh(bladeGeometry(), this.blade); blade.castShadow = true; this.root.add(blade);
   }
+  /** The scan, where it has got to down the blade: nought at the handle, one at the toe; past one, all revealed. */
+  readonly reveal = { uReveal: { value: 2 }, uGlow: { value: new THREE.Color('#46D2FF') }, uWillow: { value: new THREE.Color('#e0b77a') } };
+  private bladeMesh!: THREE.Mesh;
+  /** The blade bare willow above nothing and its stickers behind a moving scan line, with a honeycomb of light on the line. */
+  readonly revealing = (() => {
+    const material = willowMaterial(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .5 }));
+    material.onBeforeCompile = shader => {
+      Object.assign(shader.uniforms, this.reveal);
+      shader.fragmentShader = 'uniform float uReveal; uniform vec3 uGlow; uniform vec3 uWillow;\n' + shader.fragmentShader
+        .replace('#include <map_fragment>', `
+          vec4 sampledDiffuseColor = texture2D(map, vMapUv);
+          float toe = 1.0 - vMapUv.y;
+          float shown = smoothstep(uReveal + .004, uReveal - .004, toe);
+          diffuseColor.rgb *= mix(uWillow, sampledDiffuseColor.rgb, shown);
+          vec2 hp = vec2(vMapUv.x * 720.0, vMapUv.y * 1400.0) / 30.0;
+          vec2 hr = vec2(1.0, 1.7320508), hh = hr * .5;
+          vec2 ha = mod(hp, hr) - hh, hb = mod(hp - hh, hr) - hh;
+          vec2 hg = dot(ha, ha) < dot(hb, hb) ? ha : hb;
+          float hd = max(dot(abs(hg), normalize(vec2(1.0, 1.7320508))), abs(hg.x));
+          float lines = smoothstep(.40, .47, hd);
+          float dist = toe - uReveal;
+          float band = smoothstep(.16, 0.0, dist) * smoothstep(-.05, 0.0, dist);
+          float trail = smoothstep(-.22, 0.0, dist) * step(dist, 0.0);
+          float scanGlow = band * (.25 + 1.6 * lines) + trail * lines * .35 + smoothstep(.012, 0.0, abs(dist)) * 2.0;`)
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uGlow * scanGlow;');
+    };
+    return material;
+  })();
+  /** The blade worn for an unlock (the scan), or its own again. */
+  scanning(on: boolean) { this.bladeMesh.material = on ? this.revealing : this.blade; }
+  setGrip(colour: string) { this.grip.color.set(colour); }
   /** Takes up a bat; its sheet arrives when it has loaded, unless another bat was asked for first. */
   hold(bat: BatSkin): Promise<void> {
     const asked = ++this.asked;
@@ -52,6 +112,7 @@ class ShowBat {
     return batSheet(bat.id).then(sheet => {
       if (asked !== this.asked) return;
       this.blade.map = sheet; this.blade.color.set(sheet ? 0xffffff : 0xe0b77a); this.blade.needsUpdate = true;
+      this.revealing.map = sheet; this.revealing.needsUpdate = true;
     });
   }
 }
@@ -75,6 +136,15 @@ export class DressingStage {
   private clock = 0; private swingEnd = 0; private flashAt = -1e9; private last = 0; private raf = 0;
   private readonly reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly resize = new ResizeObserver(() => this.fit());
+  private readonly pedestalParts: THREE.Object3D[] = [];
+  private readonly rays: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+  private readonly revealKey = new THREE.DirectionalLight('#fff4e6', 0);
+  private readonly revealRim = new THREE.DirectionalLight('#46D2FF', 0);
+  /** The kit scan: where the ring is, its colour, and each material's old colour below it. */
+  private readonly scan = { uScanY: { value: -10 }, uScanGlow: { value: new THREE.Color('#25C28A') } };
+  private readonly scanRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>;
+  private readonly scanDisc: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+  private moment: { what: Moment; at: number; revealed: boolean; onReveal: () => void } | null = null;
 
   constructor() {
     this.canvas = document.createElement('canvas'); this.canvas.className = 'dr-stage';
@@ -96,12 +166,13 @@ export class DressingStage {
     // The pedestal, its rim lit in the colour of whatever is on it.
     scene.add(this.turntable);
     const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(.66, .72, .16, 96), new THREE.MeshStandardMaterial({ color: '#171c22', roughness: .32, metalness: .75 }));
-    pedestal.position.y = .08; pedestal.castShadow = pedestal.receiveShadow = true; this.turntable.add(pedestal);
+    pedestal.position.y = .08; pedestal.castShadow = pedestal.receiveShadow = true; this.turntable.add(pedestal); this.pedestalParts.push(pedestal);
     const top = new THREE.Mesh(new THREE.CylinderGeometry(.6, .6, .012, 96), new THREE.MeshStandardMaterial({ color: '#232a33', roughness: .45, metalness: .5 }));
-    top.position.y = .166; top.receiveShadow = true; this.turntable.add(top);
+    top.position.y = .166; top.receiveShadow = true; this.turntable.add(top); this.pedestalParts.push(top);
     const rim = new THREE.Mesh(new THREE.TorusGeometry(.645, .009, 8, 160), this.rimMaterial); rim.rotation.x = Math.PI / 2; rim.position.y = .163; scene.add(rim);
     this.ringMaterial = new THREE.MeshBasicMaterial({ map: glowTexture(1, 0, true), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: '#ED7044' });
     const ring = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.1), this.ringMaterial); ring.rotation.x = -Math.PI / 2; ring.position.y = .03; scene.add(ring);
+    this.pedestalParts.push(rim, ring);
     this.halo = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), new THREE.MeshBasicMaterial({ map: glowTexture(.5, 0), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: '#ED7044', opacity: .45 }));
     this.halo.position.set(0, 1.0, -1.2); scene.add(this.halo);
 
@@ -124,6 +195,32 @@ export class DressingStage {
     const points: number[] = [];
     for (let i = 0; i < 90; i++) { const r = Math.random() * .9, a = Math.random() * Math.PI * 2; points.push(Math.cos(a) * r, .3 + Math.random() * 3.2, Math.sin(a) * r * .6); }
     this.motes.geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3)); scene.add(this.motes);
+
+    // For the unlocks: lights for a bat out of the spotlight, rays behind, the ring that scans a kit.
+    this.revealKey.position.set(1.6, 4.2, 7.5); this.revealKey.target.position.set(.3, 1.3, 2.6); scene.add(this.revealKey, this.revealKey.target);
+    this.revealRim.position.set(-2.5, 2.5, -1); this.revealRim.target.position.set(.3, 1.3, 2.6); scene.add(this.revealRim, this.revealRim.target);
+    this.rays = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 5.5), new THREE.MeshBasicMaterial({ map: raysTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+    this.rays.position.set(0, 1.1, -.8); scene.add(this.rays);
+    // Gone before they reach the floor, which would otherwise cut them off in a hard line.
+    this.rays.material.onBeforeCompile = shader => {
+      shader.vertexShader = 'varying float vWorldY;\n' + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vWorldY = (modelMatrix * vec4(transformed, 1.0)).y;');
+      shader.fragmentShader = 'varying float vWorldY;\n' + shader.fragmentShader.replace('#include <opaque_fragment>', 'diffuseColor.a *= smoothstep(.15, 1.1, vWorldY);\n#include <opaque_fragment>');
+    };
+    this.scanRing = new THREE.Mesh(new THREE.TorusGeometry(.46, .007, 8, 120), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.scanRing.rotation.x = Math.PI / 2; scene.add(this.scanRing);
+    this.scanDisc = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: glowTexture(1, 0, true), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    this.scanDisc.rotation.x = -Math.PI / 2; scene.add(this.scanDisc);
+    for (const material of this.batter.kitMaterials) {
+      const uOld = { value: new THREE.Color() }; material.userData.old = uOld.value;
+      material.onBeforeCompile = shader => {
+        Object.assign(shader.uniforms, this.scan, { uOld });
+        shader.vertexShader = 'varying float vScanY;\n' + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vScanY = (modelMatrix * vec4(transformed, 1.0)).y;');
+        shader.fragmentShader = 'uniform float uScanY; uniform vec3 uScanGlow; uniform vec3 uOld; varying float vScanY;\n' + shader.fragmentShader
+          .replace('#include <color_fragment>', '#include <color_fragment>\n float scanD = vScanY - uScanY; diffuseColor.rgb = mix(uOld, diffuseColor.rgb, smoothstep(-.006, .006, scanD));')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uScanGlow * (smoothstep(.16, 0.0, scanD) * step(0.0, scanD) * .45 + smoothstep(.018, 0.0, abs(scanD)) * 2.2);');
+      };
+      material.needsUpdate = true;
+    }
 
     // The batter, standing on the pedestal as he stands at the crease; and the bat on its own.
     this.turntable.add(this.holder); this.holder.add(this.batter.root);
@@ -149,9 +246,49 @@ export class DressingStage {
   showcase(bat: BatSkin) { void this.showBat.hold(bat); }
   /** Which of the two is on the pedestal, and the colour the room is lit in. */
   show(view: StageView, glow: string) {
+    this.endMoment();
     this.view = view; this.glow.set(glow);
     this.holder.visible = view === 'kit'; this.showBat.root.visible = view === 'bat';
     this.flashAt = performance.now();
+  }
+
+  /**
+   * Plays an unlock. `onReveal` is called the moment it lands, for the words
+   * and the confetti over the stage. The stage stays in the moment until the
+   * room is shown again.
+   */
+  play(what: Moment, onReveal: () => void) {
+    this.moment = { what, at: performance.now(), revealed: false, onReveal };
+    this.spin = 0; this.spinV = 0; this.glow.set(what.kind === 'bat' ? what.bat.glow : what.from.glow);
+    this.batter.reset();
+    if (what.kind === 'bat') {
+      this.holder.visible = false; this.showBat.root.visible = true;
+      void this.showBat.hold(what.bat);
+      this.showBat.scanning(true); this.showBat.setGrip('#B9C2CA');
+      this.showBat.reveal.uReveal.value = -.08; this.showBat.reveal.uGlow.value.set(what.bat.glow);
+    } else {
+      this.holder.visible = true; this.showBat.root.visible = false;
+      this.batter.wear(what.to);
+      void batSheet(what.bat.id).then(sheet => this.batter.holdBat(what.bat.grip, sheet));
+      const [shirt, helmet, trousers, pads, trim, number] = this.batter.kitMaterials;
+      const from = what.from;
+      for (const [material, colour] of [[shirt, from.shirt], [helmet, from.helmet], [trousers, from.trousers], [pads, from.pads], [trim, from.trim], [number, from.number]] as const)
+        (material.userData.old as THREE.Color).set(colour);
+      this.scan.uScanY.value = 10; this.scan.uScanGlow.value.set(what.to.glow);
+      this.scanRing.material.color.set(what.to.glow); this.scanDisc.material.color.set(what.to.glow);
+    }
+  }
+
+  /** Back from a moment to the room. */
+  private endMoment() {
+    if (!this.moment) return;
+    this.moment = null;
+    this.showBat.scanning(false);
+    this.showBat.root.rotation.set(0, 0, 0); this.showBat.root.scale.setScalar(BAT_SHOW_SCALE);
+    for (const part of this.pedestalParts) part.visible = true;
+    this.scan.uScanY.value = -10; this.scanRing.material.opacity = 0; this.scanDisc.material.opacity = 0;
+    this.rays.material.opacity = 0; this.revealKey.intensity = 0; this.revealRim.intensity = 0;
+    this.fit();
   }
 
   /**
@@ -235,11 +372,11 @@ export class DressingStage {
   private up = () => {
     if (!this.dragging) return;
     this.dragging = false;
-    if (this.moved < 6 && performance.now() - this.downAt < 350) this.play();
+    if (this.moved < 6 && performance.now() - this.downAt < 350) this.playShot();
   };
   /** A tap on the batter: a shot, so the bat's face comes round to be seen. */
-  private play() {
-    if (this.view !== 'kit') return;
+  private playShot() {
+    if (this.view !== 'kit' || this.moment) return;
     const shots: [ShotType, number, number][] = [['STRAIGHT', .54, 0], ['COVER_LONG_OFF', .54, .1], ['LEG', 1.12, 0]];
     const [shot, y, x] = shots[Math.floor(Math.random() * shots.length)];
     this.batter.reset(); this.batter.prepare(1); this.batter.swing(shot, this.clock, x, y, GAME.contactZ);
@@ -255,8 +392,11 @@ export class DressingStage {
       if (now - this.idleAt > 1600) this.spinV += (rest - this.spinV) * .03; else this.spinV *= .94;
       this.spin += this.spinV * dt / 1000;
     }
-    this.turntable.rotation.y = this.spin + (this.view === 'kit' ? -.9 : 0);
-    this.showBat.root.position.y = BAT_SHOW_Y + (this.reducedMotion ? 0 : Math.sin(now / 900) * .03);
+    if (this.moment) this.animate(now);
+    else {
+      this.turntable.rotation.y = this.spin + (this.view === 'kit' ? -.9 : 0);
+      this.showBat.root.position.y = BAT_SHOW_Y + (this.reducedMotion ? 0 : Math.sin(now / 900) * .03);
+    }
     if (this.swingEnd && this.clock > this.swingEnd) { this.batter.reset(); this.swingEnd = 0; }
     this.batter.update(this.clock); this.batter.drape();
     // The rim and the light ease to the colour on show; a pick flashes them.
@@ -270,4 +410,72 @@ export class DressingStage {
     }
     this.renderer.render(this.scene, this.camera);
   };
+
+  /** Where the rays meet: on their plane, straight behind `point` as the camera sees it. */
+  private raysBehind(point: THREE.Vector3) {
+    const direction = point.clone().sub(this.camera.position).normalize();
+    const k = (this.rays.position.z - this.camera.position.z) / direction.z;
+    this.rays.position.set(this.camera.position.x + direction.x * k, this.camera.position.y + direction.y * k, this.rays.position.z);
+  }
+
+  /** One frame of the moment on the stage. */
+  private animate(now: number) {
+    const moment = this.moment!, t = now - moment.at, what = moment.what;
+    const clamp = (x: number) => Math.min(1, Math.max(0, x));
+    const ease = (x: number) => 1 - Math.pow(1 - clamp(x), 3);
+    const smooth = (x: number) => { x = clamp(x); return x * x * (3 - 2 * x); };
+    const reveal = REVEAL_MS[what.kind];
+    if (!moment.revealed && t > reveal) {
+      moment.revealed = true;
+      if (what.kind === 'bat') { this.showBat.setGrip(what.bat.grip); this.glow.set(what.bat.glow); }
+      else { this.scan.uScanY.value = -10; this.glow.set(what.to.glow); this.batter.reset(); this.batter.celebrate(this.clock, 'hundred'); }
+      this.flashAt = now;
+      moment.onReveal();
+    }
+    const after = moment.revealed ? t - reveal : -1;
+    // A short shake as it lands.
+    const shake = moment.revealed && !this.reducedMotion ? Math.max(0, 1 - after / 380) : 0;
+    const jolt = () => (Math.random() - .5) * .06 * shake;
+    this.camera.clearViewOffset(); this.camera.fov = 30;
+    if (what.kind === 'bat') {
+      // Up off the stand and into the screen, laid across it.
+      const back = (x: number) => { x = clamp(x); const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+      const rise = back(t / 650), bat = this.showBat.root;
+      bat.rotation.order = 'ZYX';
+      bat.position.set(.4 * rise, THREE.MathUtils.lerp(BAT_SHOW_Y, 1.4, rise) + Math.sin(now / 800) * .02 * rise, 2.6 * rise);
+      bat.scale.setScalar(THREE.MathUtils.lerp(BAT_SHOW_SCALE, 1.78, rise));
+      const turn = moment.revealed ? ease(after / 1100) * Math.PI * 2 : 0;
+      bat.rotation.set(0, Math.PI + turn + Math.sin(now / 1300) * .12 * rise, -.62 * rise);
+      for (const part of this.pedestalParts) part.visible = rise < .35;
+      this.turntable.rotation.y = 0;
+      this.showBat.reveal.uReveal.value = THREE.MathUtils.lerp(-.08, 1.12, clamp((t - 600) / 1050) ** 1.15);
+      this.camera.position.set(jolt(), 1.3 + jolt(), 8.1); this.camera.lookAt(0, .56, 0);
+      bat.updateMatrixWorld(true); this.raysBehind(bat.localToWorld(new THREE.Vector3(0, -.42, 0)));
+    } else {
+      // He turns slowly while the ring goes down him; on the reveal, once round and into the hundred's celebration, facing the camera.
+      const from = 700, scan = 1500;
+      const turn = moment.revealed ? ease(after / 1200) * Math.PI * 2 : 0;
+      this.turntable.rotation.y = moment.revealed ? KIT_FACE - Math.PI * 2 + turn : -.9 + Math.min(t, reveal) / reveal * .55;
+      const u = (t - from) / scan, y = THREE.MathUtils.lerp(2.14, .14, smooth(u));
+      if (!moment.revealed) this.scan.uScanY.value = t < from ? 10 : y;
+      const ringOn = t > from - 200 && !moment.revealed ? Math.min(1, (t - from + 200) / 200) * Math.min(1, (reveal - t) / 150) : 0;
+      this.scanRing.material.opacity = ringOn; this.scanDisc.material.opacity = ringOn * .9;
+      this.scanRing.position.y = this.scanDisc.position.y = Math.min(2.14, y);
+      this.scanRing.scale.setScalar(.85 + .3 * Math.sin(clamp(u) * Math.PI)); this.scanDisc.scale.copy(this.scanRing.scale);
+      // In a little while he is scanned; back on the reveal, framing him above the words.
+      const push = smooth(t / reveal), back = moment.revealed ? smooth(after / 600) : 0;
+      const z = THREE.MathUtils.lerp(THREE.MathUtils.lerp(8.1, 7.7, push), 8.4, back), at = THREE.MathUtils.lerp(THREE.MathUtils.lerp(.56, .62, push), .41, back);
+      this.camera.position.set(jolt(), 1.3 + jolt(), z); this.camera.lookAt(0, at, 0);
+      this.raysBehind(new THREE.Vector3(0, 1.3, 0));
+    }
+    this.camera.updateProjectionMatrix();
+    // Rays faint while it is scanned, full on the reveal and turning; the bat's own lights while it is out of the spot.
+    const rays = this.rays.material, want = moment.revealed ? (what.kind === 'bat' ? .85 : .7) : what.kind === 'bat' ? .18 : .1;
+    rays.opacity += (want - rays.opacity) * (moment.revealed ? .2 : .06); rays.color.copy(this.glow);
+    this.rays.rotation.z = now / 9000 + (moment.revealed ? Math.max(0, 1 - after / 1500) * 1.2 : 0);
+    this.rays.scale.setScalar(moment.revealed ? 1.1 + Math.max(0, 1 - after / 600) * .5 : 1);
+    const lit = what.kind === 'bat' ? 1 : 0;
+    this.revealKey.intensity += (lit * 2.1 - this.revealKey.intensity) * .08;
+    this.revealRim.intensity += (lit * 2.2 - this.revealRim.intensity) * .08; this.revealRim.color.copy(this.glow);
+  }
 }

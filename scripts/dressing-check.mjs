@@ -71,6 +71,8 @@ const until = async (page, phase) => {
 
 console.log('Choose a mode');
 const page = await open(null);
+await page.waitForTimeout(1500);
+check(await page.evaluate(() => window.__cricket.unlocking()) === null, 'a career arriving in the room is noted, not celebrated');
 const card = page.locator('#modes-dressing');
 check(await card.isVisible(), 'carries the Dressing Room card');
 check(await text(page, '#modes-dressing-line') === '6 of 13 earned', 'which says how much of the room is earned', await text(page, '#modes-dressing-line'));
@@ -140,6 +142,30 @@ await other.locator('#mode-classic').click({ force: true });
 const fallback = await until(other, 'READY');
 check(fallback.look === 'home/boom', 'goes out in OG Navy with Boom instead', fallback.look);
 await other.close();
+
+console.log('An unlock');
+// Crimson is earned by this career and not yet celebrated; everything else has been.
+const seen = ['kit:home', 'kit:forest', 'bat:plain', 'bat:boom', 'bat:savage'];
+const third = await open({ outfit: 'home', bat: 'boom', launch: { classic: 4000, survive: 640, marathon: 900 }, seen, visited: true });
+await third.waitForSelector('#unlock-overlay', { timeout: 30_000 }).catch(() => {});
+check(await third.evaluate(() => window.__cricket.unlocking()) === 'kit:crimson', 'goes up over Choose a mode for what was earned and not yet celebrated', await third.evaluate(() => window.__cricket.unlocking()));
+await third.waitForSelector('#unlock-overlay.is-revealed', { timeout: 30_000 }).catch(() => {});
+check((await text(third, '#unlock-words')).includes('NEW KIT UNLOCKED') && (await text(third, '#unlock-words')).includes('CRIMSON'), 'and says what it is');
+await shoot(third, '6-unlock');
+await third.locator('#unlock-take').click();
+await third.waitForTimeout(500);
+check(await third.locator('#unlock-overlay').count() === 0, 'WEAR IT NOW puts it away');
+const after = await third.evaluate(() => JSON.parse(localStorage.getItem('hitman-dressing')));
+check(after.outfit === 'crimson' && after.seen.includes('kit:crimson'), 'and puts it on, never to be celebrated again', JSON.stringify(after));
+await third.reload({ waitUntil: 'load' });
+await third.waitForTimeout(1200);
+const again = third.getByRole('button', { name: /PLAY ANYWAY/i }); if (await again.count()) { await again.first().click(); await third.waitForTimeout(500); }
+await third.locator('#start').click({ force: true });
+await third.waitForSelector('#modes:not(.hidden)', { timeout: 20_000 });
+await third.waitForTimeout(1500);
+check(await third.locator('#unlock-overlay').count() === 0, 'not on the next visit either');
+check(third.errors.length === 0, 'with nothing in the console', third.errors.join(' | '));
+await third.close();
 
 await browser.close();
 console.log(failures ? `\n${failures} failed` : '\nall passed');

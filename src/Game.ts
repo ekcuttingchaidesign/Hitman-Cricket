@@ -65,8 +65,10 @@ import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, type Granted } from './game/tier';
-import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
+import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, batOf, batOwned, batSteps, earned, nextUp, outfitOf, outfitOwned, outfitSteps, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
+import type { UnlockItem, UnlockMoment } from './ui/Unlock';
+import { seenKey } from './game/dressing-store';
 import { readDressing, writeDressing } from './game/dressing-store';
 import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
@@ -117,6 +119,8 @@ const PROFILE_PATIENCE_MS = 8000;
  * enough to read the score, which is what the player is looking at first.
  */
 const RATING_DELAY_MS = 1600;
+/** How long the end card stands before an unlock goes over it. */
+const UNLOCK_DELAY_MS = 1100;
 /** Which innings is being played. The two share a loop and almost nothing else. */
 export type { GameMode } from './game/modes';
 
@@ -787,6 +791,17 @@ export class Game {
       kit: (kit: BatterKit) => this.scene.kit(kit),
       /** Puts any kit and bat from the Dressing Room on him, earned or not: for looking at them in play. */
       dress: (outfit: string, bat: string) => this.scene.dressBatter(outfitOf(outfit), batOf(bat)),
+      /** Celebrates an unlock as if it had just been earned, by name: `unlock('bat', 'icecold')`. Nothing is put on or marked seen. */
+      unlock: (shelf: 'kit' | 'bat', id: string) => {
+        if (this.unlock) return;
+        const look = this.myLook();
+        const item: UnlockItem = shelf === 'bat' ? { moment: { kind: 'bat', bat: batOf(id) }, next: null }
+          : { moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat }, next: null };
+        void Promise.all([import('./ui/Unlock'), import('./scene/DressingStage')]).then(([{ UnlockMoment }, { DressingStage }]) => {
+          this.unlock = new UnlockMoment(this.hud.viewport, [item], new DressingStage(), { wear: () => {}, done: () => { this.unlock?.close(); this.unlock = null; } });
+        });
+      },
+      unlocking: () => this.unlock?.showing ? (this.unlock.showing.moment.kind === 'bat' ? `bat:${this.unlock.showing.moment.bat.id}` : `kit:${this.unlock.showing.moment.to.id}`) : null,
       // A Marathon written out ball by ball between deliveries — runs, 'W' for
       // a wicket, 'H' for a blow that carries him off — for `marathon-check.mjs`,
       // which cannot bat its way to over twenty in a software-rendered browser.
@@ -831,6 +846,9 @@ export class Game {
     // for behind it so the next look is fresher.
     if (this.rooms) this.hud.challengesOpen(this.rooms.yourMove.length, this.rooms.waitingOnThem.length);
     void this.refreshCount();
+    // Anything earned away from an innings's end — a Rival Match settled while
+    // the player was elsewhere — is celebrated here instead.
+    this.celebrateUnlocks();
   };
 
   /**
@@ -899,6 +917,60 @@ export class Game {
     // The card's line and its NEW tag, as they now stand.
     this.hud.modesFill(this.modeSelectView());
     document.getElementById('modes-dressing')?.focus();
+  }
+
+  /** The unlock on show, if one is. */
+  private unlock: UnlockMoment | null = null;
+  /** Once this innings is counted: its unlocks, over its card, a moment after it is up. */
+  private unlocksAfter(innings: number) {
+    window.setTimeout(() => {
+      if (this.disposed || this.innings !== innings || this.phase !== 'INNINGS_END') return;
+      this.celebrateUnlocks();
+    }, UNLOCK_DELAY_MS);
+  }
+  /**
+   * What has been earned and not yet celebrated, in the order the shelves
+   * run, kits first. The first time this browser asks, everything earned so
+   * far is noted as seen without a fuss: an old career arriving in the room is
+   * not a run of unlocks, and the What's new stories are its welcome.
+   */
+  private freshUnlocks(): UnlockItem[] {
+    const record = this.dressingRecord(), got = earned(record), held = readDressing();
+    const keys = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))];
+    if (!held.seen.length) { writeDressing({ ...held, seen: keys }); return []; }
+    const look = this.myLook();
+    const items: UnlockItem[] = [];
+    for (const id of got.outfits) if (!held.seen.includes(seenKey('kit', id))) {
+      const next = nextUp(OUTFITS.map(o => o.id), one => outfitSteps(one, record));
+      items.push({ moment: { kind: 'kit', from: look.outfit.id === id ? outfitOf(FREE_OUTFIT) : look.outfit, to: outfitOf(id), bat: look.bat }, next: next ? outfitOf(next) : null });
+    }
+    for (const id of got.bats) if (!held.seen.includes(seenKey('bat', id))) {
+      const next = nextUp(BATS.map(b => b.id), one => batSteps(one, record));
+      items.push({ moment: { kind: 'bat', bat: batOf(id) }, next: next ? batOf(next) : null });
+    }
+    return items;
+  }
+  /** Plays whatever has been earned and not celebrated; each is marked seen as it goes up, so none is played twice. */
+  private celebrateUnlocks() {
+    if (this.unlock || this.dressing || this.practising || this.demoing) return;
+    const items = this.freshUnlocks();
+    if (!items.length) return;
+    const held = readDressing();
+    writeDressing({ ...held, seen: [...held.seen, ...items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id))] });
+    this.putRatingAway();
+    this.mark('dressing-unlock', `Unlocked ${items.length}`);
+    void Promise.all([import('./ui/Unlock'), import('./scene/DressingStage')]).then(([{ UnlockMoment }, { DressingStage }]) => {
+      if (this.unlock || this.disposed) return;
+      this.unlock = new UnlockMoment(this.hud.viewport, items, new DressingStage(), {
+        wear: (shelf, id) => {
+          const now = readDressing();
+          writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
+          const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
+          this.mark('dressing-wear', `Put on ${shelf} ${id}`);
+        },
+        done: () => { this.unlock?.close(); this.unlock = null; if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView()); },
+      });
+    });
   }
 
   /** The Dressing Room card's line: how much of both shelves is earned. */
@@ -2052,6 +2124,8 @@ export class Game {
       // Still on this innings' card. Played again, or gone to the picker, and
       // the moment has passed; it is asked at the next one instead.
       if (this.disposed || this.innings !== innings || this.phase !== 'INNINGS_END') return;
+      // An unlock is this innings' moment; the stars wait for another.
+      if (this.unlock) return;
       this.showRating(ask.thing, ask.moment);
     }, RATING_DELAY_MS);
   }
@@ -3588,6 +3662,7 @@ export class Game {
       : this.surviving ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
       : blastTally(this.score);
     const nonce = mintNonce();
+    const innings = this.innings;
     const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
       if (this.disposed) return true;
       if (!mine?.career) return false;
@@ -3603,6 +3678,7 @@ export class Game {
       // The boards held from before this innings no longer have it on them, so
       // the next open asks again rather than drawing a career one innings old.
       delete this.careerBoards[mode];
+      this.unlocksAfter(innings);
       return true;
     });
     void send().then(landed => {
@@ -4261,8 +4337,13 @@ export class Game {
     let mirrored = false;
     try { mirrored = localStorage.getItem('hitman-career') !== null; } catch { /* No storage: nothing is kept anyway. */ }
     if (!mirrored && profileDone()) return;
-    const careers = this.dressingRecord().careers;
-    writeDressing({ ...held, launch: { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) } });
+    const record = this.dressingRecord(), careers = record.careers, got = earned(record);
+    writeDressing({
+      ...held,
+      launch: { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) },
+      // What a career already holds when the room arrives is noted, not celebrated: see `freshUnlocks`.
+      seen: held.seen.length ? held.seen : [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))],
+    });
   }
   private pending: Challenge[] = [];
   private pendingTotal = 0;

@@ -1968,6 +1968,12 @@ export class Batter {
    */
   mirrorStickers(mirrored: boolean) { this.blade.scale.x = mirrored ? -1 : 1; }
 
+  /** The materials a kit colours, for the Dressing Room's scan that changes one kit into another. */
+  get kitMaterials(): THREE.MeshStandardMaterial[] {
+    const p = this.palette;
+    return [p.shirt, p.helmet, p.trousers, p.legPad, p.accent, p.number];
+  }
+
   constructor() {
     this.root.name = 'Articulated right-handed batter';
     this.root.add(this.torso, this.hips, this.head, this.bat);
