@@ -20,8 +20,10 @@ export type StageView = 'kit' | 'bat';
 
 /** The pedestal's front edge on the floor: the lowest thing on the stage as the camera sees it. */
 const PEDESTAL_FOOT = new THREE.Vector3(0, 0, .72);
-/** The bat on the stand, upright over the pedestal's middle, turning with it. */
-const BAT_SHOW = { y: 1.53, scale: 1.45 };
+/** The bat's size in the shelf's pictures, whatever its size on the stand. */
+const BAT_PICTURE_SCALE = 1.45;
+/** How high the bat on the stand floats over the floor, at its toe: just over the pedestal's top. */
+const BAT_TOE = .21;
 /** The room's camera: level, eye high, this far out. */
 const CAMERA = { distance: 8.1, eye: 1.3 };
 /**
@@ -157,6 +159,8 @@ export class DressingStage {
   private moment: { what: Moment; at: number; revealed: boolean; onReveal: () => void } | null = null;
   /** The top of the batter at his guard, with a little air over it: what the camera fits under the name. */
   private readonly crown: number;
+  /** The bat on the stand, upright over the pedestal's middle and turning: from just over it to the batter's crown. */
+  private readonly batShow: { y: number; scale: number };
 
   constructor() {
     this.canvas = document.createElement('canvas'); this.canvas.className = 'dr-stage';
@@ -241,8 +245,10 @@ export class DressingStage {
     this.batter.reset(); this.batter.update(0); this.batter.drape();
     this.scene.updateMatrixWorld(true);
     this.crown = new THREE.Box3().setFromObject(this.holder).max.y + .06;
-    this.showBat.root.rotation.order = 'ZYX';
-    scene.add(this.showBat.root); this.showBat.root.scale.setScalar(BAT_SHOW.scale); this.showBat.root.visible = false;
+    this.showBat.root.rotation.order = 'ZYX'; this.showBat.root.updateMatrixWorld(true);
+    const bat = new THREE.Box3().setFromObject(this.showBat.root), scale = (this.crown - .03 - BAT_TOE) / (bat.max.y - bat.min.y);
+    this.batShow = { scale, y: BAT_TOE - bat.min.y * scale };
+    scene.add(this.showBat.root); this.showBat.root.scale.setScalar(scale); this.showBat.root.visible = false;
 
     this.canvas.addEventListener('pointerdown', this.down);
     this.canvas.addEventListener('pointermove', this.move);
@@ -299,7 +305,7 @@ export class DressingStage {
     if (!this.moment) return;
     this.moment = null;
     this.showBat.scanning(false);
-    this.showBat.root.scale.setScalar(BAT_SHOW.scale);
+    this.showBat.root.scale.setScalar(this.batShow.scale);
     for (const part of this.pedestalParts) part.visible = true;
     this.scan.uScanY.value = -10; this.scanRing.material.opacity = 0; this.scanDisc.material.opacity = 0;
     this.rays.material.opacity = 0; this.revealKey.intensity = 0; this.revealRim.intensity = 0;
@@ -333,9 +339,9 @@ export class DressingStage {
     // moves the bat every frame, and a wait between two pictures let it.
     await Promise.all(bats.map(bat => batSheet(bat.id)));
     const was = { visible: this.showBat.root.visible, y: this.showBat.root.position.y };
-    this.showBat.root.visible = true; this.showBat.root.position.set(0, 0, 0); this.showBat.root.rotation.set(0, 0, -.72); 
+    this.showBat.root.visible = true; this.showBat.root.position.set(0, 0, 0); this.showBat.root.rotation.set(0, 0, -.72); this.showBat.root.scale.setScalar(BAT_PICTURE_SCALE);
     for (const bat of bats) { await this.showBat.hold(bat); this.showBat.root.position.set(0, 0, 0); out[`bat:${bat.id}`] = shot(this.showBat.root, new THREE.Vector3(-.3, -.42, 0), 3.0, 0); }
-    this.showBat.root.rotation.set(0, 0, 0); this.showBat.root.position.y = was.y; this.showBat.root.visible = was.visible;
+    this.showBat.root.rotation.set(0, 0, 0); this.showBat.root.scale.setScalar(this.batShow.scale); this.showBat.root.position.y = was.y; this.showBat.root.visible = was.visible;
     this.turntable.rotation.y = spin;
     renderer.dispose(); renderer.forceContextLoss();
     return out;
@@ -453,7 +459,7 @@ export class DressingStage {
     else {
       this.turntable.rotation.y = this.spin + (this.view === 'kit' ? -.9 : 0);
       this.showBat.root.rotation.set(0, this.spin, 0);
-      this.showBat.root.position.set(0, BAT_SHOW.y + (this.reducedMotion ? 0 : Math.sin(now / 900) * .03), 0);
+      this.showBat.root.position.set(0, this.batShow.y + (this.reducedMotion ? 0 : Math.sin(now / 900) * .03), 0);
     }
     if (this.swingEnd && this.clock > this.swingEnd) { this.batter.reset(); this.swingEnd = 0; }
     this.batter.update(this.clock); this.batter.drape();
@@ -502,8 +508,8 @@ export class DressingStage {
       const back = (x: number) => { x = clamp(x); const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
       const rise = back(t / 650), bat = this.showBat.root;
       bat.rotation.order = 'ZYX';
-      bat.position.set(.4 * rise, THREE.MathUtils.lerp(BAT_SHOW.y, 1.4, rise) + Math.sin(now / 800) * .02 * rise, 2.6 * rise);
-      bat.scale.setScalar(THREE.MathUtils.lerp(BAT_SHOW.scale, 1.78, rise));
+      bat.position.set(.4 * rise, THREE.MathUtils.lerp(this.batShow.y, 1.4, rise) + Math.sin(now / 800) * .02 * rise, 2.6 * rise);
+      bat.scale.setScalar(THREE.MathUtils.lerp(this.batShow.scale, 1.78, rise));
       const turn = moment.revealed ? ease(after / 1100) * Math.PI * 2 : 0;
       bat.rotation.set(0, Math.PI + turn + Math.sin(now / 1300) * .12 * rise, -.62 * rise);
       for (const part of this.pedestalParts) part.visible = rise < .35;

@@ -163,9 +163,9 @@ export class DressingRoom {
     const stage = this.stage; if (!stage) return;
     const box = stage.canvas.getBoundingClientRect();
     const name = this.root.querySelector('#dressing-name')!.getBoundingClientRect();
-    const rail = this.root.querySelector('#dressing-items')!.getBoundingClientRect(), foot = this.root.querySelector('#dressing-foot')!.getBoundingClientRect();
-    // Under the name, over the foot, and clear of the rail.
-    stage.frame(name.bottom - box.top + 8, foot.top - box.top - 6, 0, rail.left - box.left);
+    const foot = this.root.querySelector('#dressing-foot')!.getBoundingClientRect();
+    // Under the name and over the foot, in the middle of the screen: the rail stands over the stage's edge.
+    stage.frame(name.bottom - box.top + 8, foot.top - box.top - 6, 0, box.width);
   }
 
   close() {
