@@ -8,6 +8,12 @@ import type { BatId } from '../game/dressing';
  */
 const SHEETS: Partial<Record<BatId, string>> = {
   boom: new URL('../assets/bats/boom.webp', import.meta.url).href,
+  rage: new URL('../assets/bats/rage.webp', import.meta.url).href,
+  venom: new URL('../assets/bats/venom.webp', import.meta.url).href,
+  lonewolf: new URL('../assets/bats/lonewolf.webp', import.meta.url).href,
+  meg: new URL('../assets/bats/meg.webp', import.meta.url).href,
+  roar: new URL('../assets/bats/roar.webp', import.meta.url).href,
+  reign: new URL('../assets/bats/reign.webp', import.meta.url).href,
   icecold: new URL('../assets/bats/icecold.webp', import.meta.url).href,
   savage: new URL('../assets/bats/savage.webp', import.meta.url).href,
   inferno: new URL('../assets/bats/inferno.webp', import.meta.url).href,

@@ -2,7 +2,7 @@ import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from './c
 import { TIERS, tierMeasure } from './tier';
 
 /**
- * The Dressing Room's shelves: seven kits and six bats.
+ * The Dressing Room's shelves: seven kits and twelve bats.
  *
  * "Kit" already means the avatar picture elsewhere in the game (`KITS` in
  * `config/board.ts`), so what the batter wears is an outfit here. Nothing on
@@ -53,8 +53,15 @@ export const OUTFITS: readonly Outfit[] = [
 export const BATS: readonly BatSkin[] = [
   { id: 'plain', name: 'Plain', grip: '#777E80', glow: '#E0B77A', line: 'Bare English willow.', short: 'Free', stickers: false },
   { id: 'boom', name: 'Boom', grip: '#FF2E88', glow: '#FF2E88', line: 'Yours for walking in. Every batter starts with a Boom.', short: 'Unlock it in the Dressing Room', stickers: true },
+  // The six from the second set of skins, ranked among the first by what they take.
+  { id: 'rage', name: 'Rage', grip: '#B8327E', glow: '#B347FF', line: '100 career sixes. Head down, horns out.', short: '100 sixes', stickers: true },
+  { id: 'venom', name: 'Venom', grip: '#6FE02A', glow: '#57E31F', line: '1,000 career runs. One bite is all it takes.', short: '1,000 runs', stickers: true },
+  { id: 'lonewolf', name: 'Lone Wolf', grip: '#2FD8C8', glow: '#22D3C5', line: '10 Test Survival wins. Out there on your own.', short: '10 Survival wins', stickers: true },
+  { id: 'meg', name: 'Meg', grip: '#3FDDB2', glow: '#8E5CFF', line: '5 Rival Match wins. Something big in the water.', short: '5 Rival wins', stickers: true },
   { id: 'icecold', name: 'Ice Cold', grip: '#46D2FF', glow: '#46D2FF', line: '250 career sixes. Cool head, hot hands.', short: '250 sixes', stickers: true },
+  { id: 'roar', name: 'Roar', grip: '#D4A23A', glow: '#FFB02E', line: 'Star in a mode. King Edition.', short: 'Star in any mode', stickers: true },
   { id: 'savage', name: 'Savage', grip: '#FF2BD6', glow: '#C04BFF', line: 'A hundred in every mode. Nobody messes with Savage.', short: 'A hundred in every mode', stickers: true },
+  { id: 'reign', name: 'Reign', grip: '#1E3A8A', glow: '#F5C542', line: '10,000 career runs. Long may it last.', short: '10,000 runs', stickers: true },
   { id: 'inferno', name: 'Inferno', grip: '#FF5A1F', glow: '#FF6A1F', line: 'Star everywhere. Then prove it again.', short: 'Star in every mode', stickers: true },
   { id: 'hitman', name: 'Hitman', grip: '#C8FF1E', glow: '#B6FF2E', line: 'Top of the game.', short: 'Hitman tier', stickers: true },
 ];
@@ -108,6 +115,7 @@ const measure = (r: DressingRecord, mode: CareerMode) => Math.max(0, Math.floor(
 const since = (r: DressingRecord, mode: CareerMode) => Math.max(0, measure(r, mode) - Math.max(0, r.launch[mode] ?? 0));
 const innings = (r: DressingRecord) => r.careers.classic.innings + r.careers.survive.innings + r.careers.marathon.innings;
 const sixes = (r: DressingRecord) => r.careers.classic.sixes + r.careers.survive.sixes + r.careers.marathon.sixes;
+const runs = (r: DressingRecord) => r.careers.classic.runs + r.careers.survive.runs + r.careers.marathon.runs;
 
 export const done = (s: Step) => s.now >= s.of;
 /** How far along a list is, all its lines together, nought to one. */
@@ -135,7 +143,17 @@ export function batSteps(id: BatId, r: DressingRecord): Step[] | null {
   switch (id) {
     case 'plain': return null;
     case 'boom': return [{ text: 'Unlock it here, in the Dressing Room', now: r.welcomed ? 1 : 0, of: 1 }];
+    case 'rage': return [{ text: 'Hit 100 career sixes', now: sixes(r), of: 100, mode: 'blast' }];
+    case 'venom': return [{ text: 'Score 1,000 career runs', now: runs(r), of: 1000, mode: 'blast' }];
+    case 'lonewolf': return [{ text: 'Win 10 Test Survivals', now: c.survive.wins, of: 10, mode: 'survival' }];
+    case 'meg': return [{ text: 'Win 5 Rival Matches', now: r.rivals.won, of: 5, mode: 'rivals' }];
     case 'icecold': return [{ text: 'Hit 250 career sixes', now: sixes(r), of: 250, mode: 'blast' }];
+    case 'roar': {
+      // Any one mode will do, shown in the one nearest its Star.
+      const m = [...MODES].sort((a, b) => measure(r, b) / at('star', b) - measure(r, a) / at('star', a))[0];
+      return [{ text: `Reach Star in ${MODE_NAME[m]}`, now: measure(r, m), of: at('star', m), mode: STEP_MODE[m] }];
+    }
+    case 'reign': return [{ text: 'Score 10,000 career runs', now: runs(r), of: 10000, mode: 'blast' }];
     case 'savage': return [
       { text: 'A hundred in the Blast', now: c.classic.highest, of: 100, best: true, mode: 'blast' },
       // Survival keeps no top score: a hundred there is a chase completed, a win.

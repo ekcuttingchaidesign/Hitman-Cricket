@@ -223,6 +223,12 @@ The room stands in a corridor of lockers (`src/assets/dressing/room.svg`),
 baked into `room.webp` — lifted, softened and darkened by depth — by
 `scripts/dressing-backdrop.mjs`; change the drawing and run it again. Only the
 room has it (`new DressingStage({ room: true })`); the unlocks keep their rays.
+A bat skin comes from the Figma template as four panels (`bat-<name>-face`,
+`-edge-left`, `-back`, `-edge-right`); `scripts/bat-sheets.mjs <folder>
+name=id …` packs them into the sheet the blade reads (`SKIN` in
+`batGeometry.ts`), then the bat goes into `SHEETS` in `batSkins.ts`, `BATS`
+and `batSteps` in `dressing.ts` and `BAT_IDS` in `dressing-ids.ts`, in its
+place on the ladder: the shelf runs easiest to Hitman, which is always last.
 
 A named player's Dressing Room follows them to another device: `/api/dressing`
 keeps a copy per player id (one field in `${SCOPE}dressing`), which is what a

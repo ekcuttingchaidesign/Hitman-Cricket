@@ -22,7 +22,7 @@ describe('the Dressing Room screen', () => {
     expect(shelf.match(/class="dr-item[ "]/g)).toHaveLength(7);
     expect(shelf).toMatch(/data-id="home"[^>]*aria-label="OG Navy, on"/);
     expect(shelf).toMatch(/data-id="lagoon"[^>]*aria-label="Lagoon, locked"/);
-    expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(6);
+    expect(shelfMarkup(view({ shelf: 'bat' })).match(/class="dr-item[ "]/g)).toHaveLength(12);
   });
 
   it('shows one goal large, and the key to the game it is won in', () => {

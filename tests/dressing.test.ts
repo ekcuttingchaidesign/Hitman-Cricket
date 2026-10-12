@@ -13,9 +13,10 @@ const record = (patch: {
 });
 
 describe('the Dressing Room shelves', () => {
-  it('has seven kits and six bats, each named once', () => {
+  it('has seven kits and twelve bats, each named once, the bats from the easiest to Hitman', () => {
     expect(OUTFITS.map(o => o.id)).toEqual(['home', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon']);
-    expect(BATS.map(b => b.id)).toEqual(['plain', 'boom', 'icecold', 'savage', 'inferno', 'hitman']);
+    expect(BATS.map(b => b.id)).toEqual(['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman']);
+    expect(new Set(BATS.map(b => b.name)).size).toBe(12);
     expect(new Set(OUTFITS.map(o => o.name)).size).toBe(7);
   });
 
@@ -30,6 +31,22 @@ describe('the Dressing Room shelves', () => {
     expect(ready('bat', 'icecold', record())).toBe(false);
     expect(earned(record({ welcomed: true })).bats).toEqual(['plain', 'boom']);
     expect(ready('bat', 'boom', record({ welcomed: true }))).toBe(false);
+  });
+});
+
+describe('what the second set of bats takes', () => {
+  it('counts sixes and runs across every mode, Survival wins, Rival wins', () => {
+    const r = record({ classic: { sixes: 60, runs: 700 }, survive: { sixes: 25, runs: 200, wins: 9 }, marathon: { sixes: 15, runs: 100 }, rivals: { won: 4, beaten: 2 } });
+    expect(batOwned('rage', r)).toBe(true);
+    expect(batOwned('venom', r)).toBe(true);
+    expect(batSteps('lonewolf', r)![0]).toMatchObject({ now: 9, of: 10, mode: 'survival' });
+    expect(batSteps('meg', r)![0]).toMatchObject({ now: 4, of: 5, mode: 'rivals' });
+    expect(batSteps('reign', r)![0]).toMatchObject({ now: 1000, of: 10000 });
+  });
+
+  it('gives Roar for a Star in any one mode, shown in the mode nearest it', () => {
+    expect(batSteps('roar', record({ survive: { balls: 600 } }))![0]).toMatchObject({ text: 'Reach Star in Test Survival', now: 600, of: 1000, mode: 'survival' });
+    expect(batOwned('roar', record({ marathon: { runs: 7500 } }))).toBe(true);
   });
 });
 

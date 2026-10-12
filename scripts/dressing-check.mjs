@@ -27,12 +27,19 @@ const check = (ok, what, detail) => {
   if (!ok) failures++;
 };
 
-/** A career that has earned some of each shelf and not the rest: Crimson, British Racing Green and Savage, not Electric or Ice Cold. */
+/**
+ * A career that has earned some of each shelf and not the rest: Crimson,
+ * British Racing Green, and Rage, Venom, Lone Wolf, Roar and Savage; not
+ * Electric, Ice Cold, Meg or Reign.
+ */
 const CAREER = {
   classic: { innings: 30, runs: 4000, balls: 2500, sixes: 182, fours: 300, wickets: 60, dots: 400, highest: 112, notOut: 2, individual: 112, hundreds: 1 },
   survive: { innings: 20, runs: 900, balls: 640, sixes: 20, fours: 60, blows: 10, wins: 18, draws: 1, losses: 1 },
   marathon: { innings: 6, runs: 900, balls: 1100, fours: 80, sixes: 10, highest: 142, individual: 142, fifties: 4, hundreds: 1, doubles: 0, longest: 300 },
 };
+
+/** Every bat that career has earned, Boom unlocked as well: seen, so none goes up over Choose a mode. */
+const EARNED_BATS = ['bat:plain', 'bat:boom', 'bat:rage', 'bat:venom', 'bat:lonewolf', 'bat:roar', 'bat:savage'];
 
 const browser = await chromium.launch({ executablePath, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
 
@@ -75,7 +82,7 @@ await page.waitForTimeout(1500);
 check(await page.evaluate(() => window.__cricket.unlocking()) === null, 'a career arriving in the room is noted, not celebrated');
 const card = page.locator('#modes-dressing');
 check(await card.isVisible(), 'carries the Dressing Room card');
-check(await text(page, '#modes-dressing-line') === '5 of 13 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
+check(await text(page, '#modes-dressing-line') === '9 of 19 earned', 'which says how much of the room is earned, Boom not yet among it', await text(page, '#modes-dressing-line'));
 check(await card.locator('.ms-tag').isVisible(), 'with NEW on it before the room is opened');
 const order = await page.locator('.ms-content > *').evaluateAll(all => all.map(one => one.id || one.className.split(' ')[0]));
 check(order.indexOf('mode-survive') < order.indexOf('ms-card') && order.indexOf('ms-card') < order.indexOf('modes-dressing') && order.indexOf('modes-dressing') < order.indexOf('ms-bento'),
@@ -133,9 +140,9 @@ await page.waitForTimeout(300);
 check((await text(page, '#dressing-key')).includes('WEARING') && await page.locator('.dr-item[data-id="forest"] .dr-badge.is-on').count() === 1, 'and is, the tick moving with it');
 
 await page.locator('#dressing-tab-bat').click();
-await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 6, null, { timeout: 30_000 }).catch(() => {});
+await page.waitForFunction(() => document.querySelectorAll('#dressing-items img').length === 12, null, { timeout: 30_000 }).catch(() => {});
 const bats = await page.locator('#dressing-items img').evaluateAll(all => all.map(one => one.src.length));
-check(bats.length === 6 && bats.every(size => size > 4000), 'the bat shelf has a picture of every bat', JSON.stringify(bats));
+check(bats.length === 12 && bats.every(size => size > 4000), 'the bat shelf has a picture of every bat', JSON.stringify(bats));
 await page.locator('.dr-item[data-id="savage"]').click();
 await page.waitForTimeout(300);
 check((await text(page, '#dressing-key')).includes('PICK IT UP'), 'Savage is earned and can be taken up');
@@ -158,7 +165,7 @@ check(page.errors.length === 0, 'with nothing in the console', page.errors.join(
 await page.close();
 
 console.log('A pick no longer earned');
-const other = await open({ outfit: 'lagoon', bat: 'hitman', launch: null, seen: ['kit:home', 'kit:crimson', 'kit:forest', 'bat:plain', 'bat:boom', 'bat:savage'], visited: true });
+const other = await open({ outfit: 'lagoon', bat: 'hitman', launch: null, seen: ['kit:home', 'kit:crimson', 'kit:forest', ...EARNED_BATS], visited: true });
 check(!(await other.locator('#modes-dressing .ms-tag').isVisible()), 'a room already opened has no NEW');
 await other.locator('#mode-classic').click({ force: true });
 const fallback = await until(other, 'READY');
@@ -167,7 +174,7 @@ await other.close();
 
 console.log('An unlock');
 // Crimson is earned by this career and not yet celebrated; everything else has been.
-const seen = ['kit:home', 'kit:forest', 'bat:plain', 'bat:boom', 'bat:savage'];
+const seen = ['kit:home', 'kit:forest', ...EARNED_BATS];
 const third = await open({ outfit: 'home', bat: 'boom', launch: { classic: 4000, survive: 640, marathon: 900 }, seen, visited: true });
 await third.waitForSelector('#unlock-overlay', { timeout: 30_000 }).catch(() => {});
 check(await third.evaluate(() => window.__cricket.unlocking()) === 'kit:crimson', 'goes up over Choose a mode for what was earned and not yet celebrated', await third.evaluate(() => window.__cricket.unlocking()));

@@ -75,7 +75,7 @@ export const STORIES: readonly Story[] = [
     key: 'earn-your-willow',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
     title: 'EARN YOUR WILLOW',
-    body: 'Five bats, from Boom to Hitman. Boom is yours for walking in. Hitman takes everything you’ve got.',
+    body: 'Eleven bats, from Boom to Hitman. Boom is yours for walking in. Hitman takes everything you’ve got.',
     art: art('dressing-earn-your-willow.webp'),
     alt: 'Five bats standing in a row under a spotlight: Boom, Ice Cold, Savage, Inferno and Hitman, each in its own stickers.',
     width: 370, height: 426,

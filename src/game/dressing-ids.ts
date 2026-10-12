@@ -4,7 +4,7 @@
  * catalogue and the careers behind it (`dressing.ts` has the rest).
  */
 export const OUTFIT_IDS = ['home', 'crimson', 'forest', 'gold', 'violet', 'electric', 'lagoon'] as const;
-export const BAT_IDS = ['plain', 'boom', 'icecold', 'savage', 'inferno', 'hitman'] as const;
+export const BAT_IDS = ['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'icecold', 'roar', 'savage', 'reign', 'inferno', 'hitman'] as const;
 export type OutfitId = typeof OUTFIT_IDS[number];
 export type BatId = typeof BAT_IDS[number];
 
