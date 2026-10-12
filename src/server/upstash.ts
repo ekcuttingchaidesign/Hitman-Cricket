@@ -3,6 +3,8 @@ import type { BoardStore, StoredRow } from './board-store.js';
 import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
 import type { RecoveryStore } from './recovery-store.js';
+import type { DressingStore } from './dressing-save.js';
+import type { SavedDressing } from '../game/dressing-sync.js';
 import { FEEDBACK_KEPT, type FeedbackStore, type StoredFeedback } from './feedback-store.js';
 import {
   packResult, unpackResult,
@@ -511,6 +513,25 @@ export function upstashChallenges(redis: Redis): ChallengeStore {
       if (!ids.length) return [];
       const found = await redis.hmget<Record<string, StoredRivalsRow>>(rows, ...ids);
       return ids.flatMap(id => (found?.[id] ? [{ playerId: id, ...found[id] }] : []));
+    },
+  };
+}
+
+/**
+ * Each player's Dressing Room, one field a player in one hash: a read is one
+ * `HGET` and a save one `HGET` and one `HSET`, on a key no board reads. Its
+ * own rate counter, because a pick is not an innings and should not spend a
+ * player's allowance for them.
+ */
+export function upstashDressing(redis: Redis): DressingStore {
+  const key = `${SCOPE}dressing`, rate = `${SCOPE}drate:`;
+  return {
+    async read(playerId) { return (await redis.hget<SavedDressing>(key, playerId)) ?? null; },
+    async write(playerId, saved) { await redis.hset(key, { [playerId]: saved }); },
+    async hits(address, windowSeconds) {
+      const count = await redis.incr(rate + address);
+      if (count === 1) await redis.expire(rate + address, windowSeconds);
+      return count;
     },
   };
 }

@@ -1,5 +1,5 @@
-import type { CareerMode } from './career';
-import { FREE_BAT, FREE_OUTFIT, isBat, isOutfit, type BatId, type OutfitId } from './dressing';
+import { FREE_BAT, FREE_OUTFIT } from './dressing';
+import { cleanDressing, type SavedDressing } from './dressing-sync';
 
 /**
  * What this browser remembers of the Dressing Room: what the player wears and
@@ -9,44 +9,45 @@ import { FREE_BAT, FREE_OUTFIT, isBat, isOutfit, type BatId, type OutfitId } fro
  * None of it is the record. What is earned is worked out from the career every
  * time (`dressing.ts`), so clearing this costs a player their pick and nothing
  * they have earned; the pick also travels with their Rival Match innings.
+ *
+ * A named player's copy is also kept by the store and merged into this one on
+ * every device they play on (`dressing-sync.ts`), so the pick follows them.
  */
 const KEY = 'hitman-dressing';
 
-export interface Dressing {
-  outfit: OutfitId;
-  bat: BatId;
-  /** Each mode's tier figure the first time this browser saw the room; see `DressingRecord.launch`. */
-  launch: Record<CareerMode, number> | null;
-  /** Everything the player has been shown as theirs, so an unlock is celebrated once. */
-  seen: string[];
-  /** Whether the room has been opened, which takes the NEW tag off its card. */
-  visited: boolean;
-}
+/** The same shape the store keeps, so the two can be merged without translating either. */
+export type Dressing = SavedDressing;
 
-const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, launch: null, seen: [], visited: false });
+const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, pickedAt: 0, launch: null, seen: [], visited: false });
 
 export function readDressing(): Dressing {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh();
+    // A pick that is no longer on the shelves (or never was) goes back to the free ones, keeping the rest.
     const held = JSON.parse(raw) as Partial<Dressing>;
-    const launch = held.launch && typeof held.launch === 'object'
-      ? { classic: Number(held.launch.classic) || 0, survive: Number(held.launch.survive) || 0, marathon: Number(held.launch.marathon) || 0 }
-      : null;
-    return {
-      outfit: isOutfit(held.outfit) ? held.outfit : FREE_OUTFIT,
-      bat: isBat(held.bat) ? held.bat : FREE_BAT,
-      launch,
-      seen: Array.isArray(held.seen) ? held.seen.filter((s): s is string => typeof s === 'string') : [],
-      visited: held.visited === true,
-    };
+    return cleanDressing(held) ?? cleanDressing({ ...held, outfit: FREE_OUTFIT, bat: FREE_BAT }) ?? fresh();
   } catch {
     return fresh();
   }
 }
 
-export function writeDressing(dressing: Dressing) {
-  try { localStorage.setItem(KEY, JSON.stringify(dressing)); } catch { /* Worn for this visit only. */ }
+/** Told of every write but a quiet one: how a change gets sent to the store. */
+const listeners = new Set<(dressing: Dressing) => void>();
+export function onDressingWrite(listener: (dressing: Dressing) => void) { listeners.add(listener); return () => listeners.delete(listener); }
+
+/**
+ * Keeps a copy. A change of kit or bat is stamped with the time it was made,
+ * unless the copy already carries a time of its own — one merged in from the
+ * store, whose time is the other device's. `quiet` keeps it from being sent
+ * back: it is how a copy that came from the store is taken up.
+ */
+export function writeDressing(dressing: Dressing, { quiet = false } = {}) {
+  const before = readDressing();
+  const next = (dressing.outfit !== before.outfit || dressing.bat !== before.bat) && dressing.pickedAt === before.pickedAt
+    ? { ...dressing, pickedAt: Date.now() } : dressing;
+  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* Worn for this visit only. */ }
+  if (!quiet) for (const listener of listeners) listener(next);
 }
 
 /** The key an item is remembered under in `seen`: `kit:forest`, `bat:savage`. */

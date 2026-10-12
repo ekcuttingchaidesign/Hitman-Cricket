@@ -68,8 +68,9 @@ import { climbedTo, standingOf, tierMeasure, type Granted } from './game/tier';
 import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
-import { seenKey } from './game/dressing-store';
-import { readDressing, writeDressing } from './game/dressing-store';
+import { onDressingWrite, readDressing, seenKey, writeDressing } from './game/dressing-store';
+import { fetchSaved, sendSaved } from './game/dressing-api';
+import { mergeDressing, sameDressing, type SavedDressing } from './game/dressing-sync';
 import type { ModeSelectView } from './ui/ModeSelect';
 import { RECENT_MS, coverParallax, type CoverBoard } from './ui/Cover';
 import { surviveLine as surviveResult } from './ui/SurviveBoard';
@@ -121,6 +122,8 @@ const PROFILE_PATIENCE_MS = 8000;
 const RATING_DELAY_MS = 1600;
 /** How long the end card stands before an unlock goes over it. */
 const UNLOCK_DELAY_MS = 1100;
+/** How long after a change to the Dressing Room it is sent to the store: a run of taps is one save. */
+const DRESSING_SEND_MS = 1500;
 /** Which innings is being played. The two share a loop and almost nothing else. */
 export type { GameMode } from './game/modes';
 
@@ -505,6 +508,7 @@ export class Game {
     this.hud = new HUD(root, this.best, { player: readPlayer() });
     this.hud.coverPlayer = () => readPlayer();
     this.noteLaunch();
+    this.stopDressingSends = onDressingWrite(() => this.queueDressingSend());
     // The cover's depth: the poster, the smoke and the dust sliding at their own speeds.
     coverParallax(this.hud.viewport.querySelector<HTMLElement>('#intro')!);
     // Neither of these is allowed to hold up an innings. Settling the id touches
@@ -516,6 +520,7 @@ export class Game {
     // failure for an afternoon.
     void playerId().then(id => {
       this.player = id;
+      void this.pullDressing();
       void this.catchUpOnKey();
       return this.openChallenges();
     }).catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
@@ -1027,6 +1032,53 @@ export class Game {
     this.playUnlocks(items);
   }
 
+  /**
+   * Whether this browser keeps its Dressing Room with the store: a player
+   * with a name, which is what a career key brings back on another device,
+   * and not in a private window, whose id does not outlive it.
+   */
+  private keepsDressing() { return !!this.player && this.canRegister && !!readPlayer()?.name; }
+  private stopDressingSends: (() => void) | null = null;
+  private dressingTimer = 0;
+  /** A change here, sent a moment later. */
+  private queueDressingSend() {
+    if (!this.keepsDressing()) return;
+    window.clearTimeout(this.dressingTimer);
+    this.dressingTimer = window.setTimeout(() => void this.sendDressing(), DRESSING_SEND_MS);
+  }
+  /** This browser's copy sent, and the store's merged answer taken up. */
+  private async sendDressing() {
+    const player = this.player;
+    if (!player || this.disposed) return;
+    const kept = await sendSaved(player, readDressing());
+    if (kept && player === this.player) this.takeDressing(kept);
+  }
+  /**
+   * What the store keeps for this player, merged into this browser's copy —
+   * the later pick, every unlock either has shown — and sent back where the
+   * store was missing any of it. Asked once a load, after a restore, and when
+   * a name is claimed. An answer that could not be had changes nothing.
+   */
+  private async pullDressing() {
+    if (!this.keepsDressing()) return;
+    const player = this.player!;
+    const kept = await fetchSaved(player);
+    if (kept === undefined || this.disposed || player !== this.player) return;
+    const mine = readDressing();
+    const merged = kept ? mergeDressing(kept, mine) : mine;
+    this.takeDressing(merged);
+    if (!sameDressing(merged, kept)) void this.sendDressing();
+  }
+  /** A copy from the store taken up here, quietly, and whatever shows it redrawn; the batter wears it from his next innings. */
+  private takeDressing(kept: SavedDressing) {
+    const mine = readDressing(), merged = mergeDressing(kept, mine);
+    if (sameDressing(merged, mine)) return;
+    writeDressing(merged, { quiet: true });
+    const look = this.myLook();
+    this.dressing?.update({ record: this.dressingRecord(), wearing: look.outfit.id, holding: look.bat.id });
+    if (!this.hud.viewport.querySelector('#modes.hidden')) this.hud.modesFill(this.modeSelectView());
+  }
+
   /** The Dressing Room card's line: how much of both shelves is earned. */
   private dressingCount() {
     const record = this.dressingRecord(), got = earned(record);
@@ -1482,6 +1534,8 @@ export class Game {
 
   private profileSaved(changed: boolean) {
     markProfileDone();
+    // A name claimed is a Dressing Room the store can keep: this browser's goes up, merged with any it held.
+    void this.pullDressing();
     // Everything drawn under the old name is dropped, so the next look draws it under the new.
     if (changed) {
       forgetCareer();
@@ -1535,6 +1589,8 @@ export class Game {
     // card under the career widget, inviting somebody to restore the record
     // they are already looking at.
     this.redrawKeyPlacements();
+    // And their Dressing Room with it: what they wear and hold, from the device they played on.
+    void this.pullDressing();
   }
   /**
    * Out of the picker without picking. Opened from the cover that is the cover
@@ -4534,6 +4590,7 @@ export class Game {
     };
   }
   dispose() {
+    this.stopDressingSends?.(); window.clearTimeout(this.dressingTimer);
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
     window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);
   }

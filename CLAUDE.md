@@ -224,6 +224,17 @@ baked into `room.webp` — lifted, softened and darkened by depth — by
 `scripts/dressing-backdrop.mjs`; change the drawing and run it again. Only the
 room has it (`new DressingStage({ room: true })`); the unlocks keep their rays.
 
+A named player's Dressing Room follows them to another device: `/api/dressing`
+keeps a copy per player id (one field in `${SCOPE}dressing`), which is what a
+career key brings back. The browser sends its copy a moment after any change
+and, once a load, after a restore and when a name is claimed, merges in the
+store's (`mergeDressing` in `src/game/dressing-sync.ts`, the one rule both
+sides use): the later pick whole, every unlock either has shown, the earlier
+launch figures. A private window sends nothing. `scripts/dressing-sync-check.mjs`
+plays two devices for one player against the dev server's store; it passes
+`?private=0`, because headless Chromium looks like a private window and would
+otherwise keep nothing.
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the
