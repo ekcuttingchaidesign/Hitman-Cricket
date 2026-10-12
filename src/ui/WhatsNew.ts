@@ -1,6 +1,7 @@
 import { escape } from './Leaderboard';
 import { STORIES, type Story } from '../game/whats-new';
 import { MARK, type KeyView } from './CareerKey';
+import { cta } from './Kit';
 
 /**
  * The stories, as a screen.
@@ -42,7 +43,9 @@ export interface StoriesView {
 export function storiesMarkup(view: StoriesView): string {
   const { at, where, holdMs, locked = false, careerKey = null } = view;
   const story = STORIES[at] ?? STORIES[0];
-  const live = (i: number) => i !== at ? '' : story.withKey ? ' is-live is-held' : ' is-live';
+  // A card that asks for something holds still: see `Story.withKey` and `Story.opens`.
+  const holds = !!(story.withKey || story.opens);
+  const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
   const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
   // A film is the whole story: played down the sheet from the top, under the
@@ -53,7 +56,7 @@ export function storiesMarkup(view: StoriesView): string {
       <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
-  i === at && !story.withKey ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
+  i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
       </div>
       <button id="whatsnew-back" class="whatsnew-half is-back" type="button" aria-label="Previous"></button>
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
@@ -65,7 +68,8 @@ export function storiesMarkup(view: StoriesView): string {
         </div>` : ''}
         ${story.body ? `<p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>` : ''}
         ${story.withKey ? `<div id="whatsnew-keyslot" class="whatsnew-keyslot">${
-  storyKeyMarkup(careerKey)}</div>` : ''}
+  storyKeyMarkup(careerKey)}</div>` : ''}${story.opens ? `<div class="whatsnew-opens">${
+  cta({ kind: 'primary', label: 'OPEN THE DRESSING ROOM', id: 'whatsnew-open', wide: true })}</div>` : ''}
       </div>
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${

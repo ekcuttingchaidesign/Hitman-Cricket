@@ -1157,6 +1157,8 @@ ${modeSelectMarkup()}
   private storyFilm: Playing | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
+  /** The way into what the last story is about (`Story.opens`), after the stories are put away. */
+  onStoriesOpen: (() => void) | null = null;
 
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
@@ -1201,7 +1203,9 @@ ${modeSelectMarkup()}
       film.classList.add(wide ? 'is-cut' : 'is-fit');
       this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
     }
-    if (story?.withKey) return;
+    const open = document.getElementById('whatsnew-open');
+    if (open) open.onclick = () => { const go = this.onStoriesOpen; this.closeStories(); go?.(); };
+    if (story?.withKey || story?.opens) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }
 

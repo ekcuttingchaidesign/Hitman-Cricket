@@ -41,7 +41,7 @@ async function open(dressing) {
   await page.addInitScript(([career, dressing]) => {
     try {
       localStorage.setItem('hitman-shots-intro', 'done');
-      localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
+      localStorage.setItem('hitman-whatsnew', 'dressing-room:9');
       localStorage.setItem('hitman-career', JSON.stringify(career));
       if (dressing && !sessionStorage.getItem('seeded')) { localStorage.setItem('hitman-dressing', JSON.stringify(dressing)); sessionStorage.setItem('seeded', '1'); }
     } catch { /* Then it shows. */ }

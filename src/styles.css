@@ -5689,6 +5689,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The key under the picture. The body is not a control — taps go through it to
    the halves underneath — so the one thing in it that is has to say so. */
+.whatsnew-opens{width:min(330px,100%);flex:none;pointer-events:auto}
+.whatsnew-opens .k-cta{width:100%}
 .whatsnew-keyslot:empty{display:none}
 .whatsnew-keyslot{width:min(330px,100%);flex:none;pointer-events:auto;text-align:left}
 .whatsnew-keyslot .key-pass{margin:0}

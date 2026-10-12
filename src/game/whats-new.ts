@@ -7,19 +7,12 @@ import type { Film } from '../ui/Lottie';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the Test Marathon: one card for the mode, a film of it, and
- * then the key — said as a joke, with the key itself under it so the ask and
- * the means of doing it are on the same screen. The key goes last because it
- * is the one card that holds still: the film before it moves on by itself, and
- * a player tapping through lands on the card that wants something from them
- * rather than skipping past it.
+ * This update is the Dressing Room: the kits, the bats, and the free bat
+ * waiting in the room, the last card holding still with the way in under it.
+ * (The Test Marathon's film and the career key, the update before, were told
+ * twice to everybody who played then.)
  */
-
-/**
- * Served from `public/` as the file was uploaded, space and all, so the name
- * is written encoded. Relative, because the build is served from `./`.
- */
-const meme = 'save%20key%20meme.png';
+const art = (file: string) => new URL(`../assets/whatsnew/${file}`, import.meta.url).href;
 
 export interface Story {
   key: string;
@@ -61,27 +54,41 @@ export interface Story {
    * would take the key away from under a thumb on its way to it.
    */
   withKey?: boolean;
+  /**
+   * A way into the room the story is about, under its words: the last card
+   * holds still with it, so a player tapping through lands on it.
+   */
+  opens?: 'dressing';
 }
 
 export const STORIES: readonly Story[] = [
   {
-    key: 'marathon',
-    eyebrow: 'NEW MODE',
-    title: 'Test Marathon',
-    film: 'test-marathon',
-    // The film runs nine seconds, and the story holds a beat past its end.
-    holdMs: 9600,
-    alt: 'Introducing a new mode: Test Marathon. Bat all day. Then: play long innings, make a big score — the runs climb past lunch, tea and stumps to 287 not out.',
+    key: 'suit-up',
+    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
+    title: 'SUIT UP',
+    body: 'Seven kits. OG Navy is yours already; the other six are earned out in the middle.',
+    art: art('dressing-suit-up.webp'),
+    alt: 'Your batter on a pedestal under a spotlight, in the navy and orange OG Navy kit.',
+    width: 370, height: 426,
   },
   {
-    key: 'save-key',
-    eyebrow: 'CAREER KEY',
-    title: 'Save your career key',
-    art: meme,
-    alt: 'Bernie Sanders in a winter coat, captioned: I am once again asking you to save your career key.',
-    width: 370,
-    cut: true,
-    withKey: true,
+    key: 'earn-your-willow',
+    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
+    title: 'EARN YOUR WILLOW',
+    body: 'Five bats, from Boom to Hitman. Boom is free. Hitman takes everything you’ve got.',
+    art: art('dressing-earn-your-willow.webp'),
+    alt: 'Five bats standing in a row under a spotlight: Boom, Ice Cold, Savage, Inferno and Hitman, each in its own stickers.',
+    width: 370, height: 426,
+  },
+  {
+    key: 'boom',
+    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
+    title: 'BOOM IS ON THE HOUSE',
+    body: 'Your first bat is waiting in the Dressing Room. Pick it up before your next innings.',
+    art: art('dressing-boom.webp'),
+    alt: 'The Boom bat standing on the pedestal, its pink grip and green and purple stickers lit by rays of light.',
+    width: 370, height: 426,
+    opens: 'dressing',
   },
 ];
 
@@ -93,7 +100,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'marathon-launch';
+export const UPDATE = 'dressing-room';
 
 /**
  * How many times one browser is shown it unasked.

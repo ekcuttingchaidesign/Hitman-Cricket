@@ -640,6 +640,9 @@ export class Game {
     this.hud.showMarathonTab(MARATHON_OPEN);
     this.hud.onBoardTab = this.tabBoard;
     this.hud.onBoardStories = () => this.showStories('board');
+    // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
+    // over Choose a mode where the stories were on the way to it.
+    this.hud.onStoriesOpen = () => this.openDressing();
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
