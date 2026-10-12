@@ -210,7 +210,11 @@ then going out to bat in them (`snapshot().look`), or in OG Navy and Boom when
 the pick is no longer earned. What is earned is worked out from the careers
 every time (`dressing.ts`, in the unit tests), so history counts and nothing is
 stored but the pick; the pick travels with a Rival Match innings, where each
-player bats in their own kit now rather than their seat's.
+player bats in their own kit now rather than their seat's. The shelf is a rail
+down the right of the stage, not a row under it, so the pedestal has the
+screen's height down to the foot; the camera fits the batter's crown to the
+pedestal's front edge in that space, never nearer than the 874-high phone it
+was drawn on, so a short phone gets the most it can and a tall one the design.
 
 ## Who's batting: the gate before the first innings
 

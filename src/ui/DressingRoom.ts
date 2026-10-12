@@ -8,7 +8,9 @@ import type { DressingStage } from '../scene/DressingStage';
 
 /**
  * The Dressing Room: the batter on his pedestal, the shelf of kits or bats
- * under him, and at the foot what the one picked takes, or what earned it.
+ * a rail down the right of him, and at the foot what the one picked takes,
+ * or what earned it. The rail stands beside him rather than under him so the
+ * pedestal has the height of the screen down to the foot.
  *
  * Picking anything puts it on him at once, earned or not, so a locked kit
  * is tried on rather than read about. Only an earned one can be worn out to
@@ -49,8 +51,7 @@ export function dressingMarkup(): string {
       </div>
     </div>
     <h2 class="dr-name" id="dressing-name"></h2>
-    <div class="dr-space" id="dressing-space"></div>
-    <div class="dr-items" id="dressing-items" role="list" aria-label="On the shelf"></div>
+    <div class="dr-space" id="dressing-space"><div class="dr-items" id="dressing-items" role="list" aria-label="On the shelf"></div></div>
     <div class="dr-foot" id="dressing-foot"></div>
   </div>`;
 }
@@ -162,9 +163,9 @@ export class DressingRoom {
     const stage = this.stage; if (!stage) return;
     const box = stage.canvas.getBoundingClientRect();
     const name = this.root.querySelector('#dressing-name')!.getBoundingClientRect();
-    const tiles = (this.root.querySelector('#dressing-items .dr-item') ?? this.root.querySelector('#dressing-items')!).getBoundingClientRect();
-    // The pedestal stands whole over the tiles, none of it behind them.
-    stage.frame(name.bottom - box.top + 8, tiles.top - box.top - 10);
+    const rail = this.root.querySelector('#dressing-items')!.getBoundingClientRect(), foot = this.root.querySelector('#dressing-foot')!.getBoundingClientRect();
+    // Under the name, over the foot, and clear of the rail.
+    stage.frame(name.bottom - box.top + 8, foot.top - box.top - 6, 0, rail.left - box.left);
   }
 
   close() {
@@ -184,8 +185,8 @@ export class DressingRoom {
     const item = kit ? this.outfit(view.kit) : this.bat(view.bat);
     const name = this.root.querySelector<HTMLElement>('#dressing-name')!;
     name.textContent = item.name.toUpperCase(); name.classList.toggle('is-long', item.name.length > 12);
-    const shelf = this.root.querySelector<HTMLElement>('#dressing-items')!, scroll = shelf.scrollLeft;
-    shelf.innerHTML = shelfMarkup(view); shelf.scrollLeft = scroll;
+    const shelf = this.root.querySelector<HTMLElement>('#dressing-items')!, scroll = shelf.scrollTop;
+    shelf.innerHTML = shelfMarkup(view); shelf.scrollTop = scroll;
     this.root.querySelector('#dressing-foot')!.innerHTML = footMarkup(view);
     this.ends();
     this.place();
@@ -196,33 +197,29 @@ export class DressingRoom {
   }
 
   /**
-   * A finger swipes the shelf by itself; a mouse drags it, and a wheel turns
+   * A finger swipes the rail by itself, and so does a wheel; a mouse drags
    * it, on the desktop column. A drag is never taken for a tap on a tile.
    */
   private dragShelf() {
     const shelf = this.root.querySelector<HTMLElement>('#dressing-items')!;
-    let from = -1, left = 0, dragged = false;
-    shelf.addEventListener('pointerdown', event => { if (event.pointerType !== 'mouse') return; from = event.clientX; left = shelf.scrollLeft; dragged = false; });
+    let from = -1, top = 0, dragged = false;
+    shelf.addEventListener('pointerdown', event => { if (event.pointerType !== 'mouse') return; from = event.clientY; top = shelf.scrollTop; dragged = false; });
     shelf.addEventListener('pointermove', event => {
       if (from < 0) return;
-      const dx = event.clientX - from;
-      if (Math.abs(dx) > 4) dragged = true;
-      shelf.scrollLeft = left - dx;
+      const dy = event.clientY - from;
+      if (Math.abs(dy) > 4) dragged = true;
+      shelf.scrollTop = top - dy;
     });
     const stop = () => { from = -1; };
     shelf.addEventListener('pointerup', stop); shelf.addEventListener('pointerleave', stop);
     shelf.addEventListener('click', event => { if (dragged) { event.stopPropagation(); event.preventDefault(); dragged = false; } }, true);
-    shelf.addEventListener('wheel', event => {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      shelf.scrollLeft += event.deltaY; event.preventDefault();
-    }, { passive: false });
   }
 
-  /** The fade at either end of the shelf, where there is more that way. */
+  /** The fade at either end of the rail, where there is more that way. */
   private ends() {
     const shelf = this.root.querySelector<HTMLElement>('#dressing-items')!;
-    shelf.classList.toggle('more-left', shelf.scrollLeft > 4);
-    shelf.classList.toggle('more-right', shelf.scrollLeft < shelf.scrollWidth - shelf.clientWidth - 4);
+    shelf.classList.toggle('more-up', shelf.scrollTop > 4);
+    shelf.classList.toggle('more-down', shelf.scrollTop < shelf.scrollHeight - shelf.clientHeight - 4);
     shelf.onscroll = () => this.ends();
   }
 
