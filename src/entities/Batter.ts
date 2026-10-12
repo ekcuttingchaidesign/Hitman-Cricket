@@ -1794,9 +1794,9 @@ export type BatterKit = 'home' | 'whites' | 'green' | 'purple' | 'blue';
 /**
  * Shirt and helmet, trousers, and the accent that does the seam, the collar,
  * the number, the pad straps and the shoe flashes. Home is the navy and orange
- * the game has always worn; whites are the Test match; green, purple and blue
- * are the second, third and fourth seats in a Rivals room, so four friends in
- * one match are four different batters and not the same man four times.
+ * the game has always worn; whites are the Test match. Green, purple and blue
+ * were the seats of a Rivals room before each player batted in their own
+ * Dressing Room kit (`wear`); `__cricket.kit` still puts them on.
  */
 export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number; number: number }> = {
   // A mid navy: the near-black it replaced lost the shape of the shirt under the

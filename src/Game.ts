@@ -93,7 +93,7 @@ import {
 import { hurtNoteSeen, markHurtNoteSeen } from './game/private-mode';
 import { practiceSwitches } from './game/practice';
 import { readVisits, today, visiting, writeVisits } from './game/visits';
-import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, seatKit, type ListView, type Me, type RoomView } from './game/Challenge';
+import { ChallengeRun, ageOf, emptyList, noteResult, recentForm, rivalryView, roomView, type ListView, type Me, type RoomView } from './game/Challenge';
 import {
   CODE_PARAM, challengeLink, copy, fetchRivalsBoard, hideChallenge, rivalryEntries, seenHere, whatsapp, type Challenge, type RivalsRow,
 } from './game/challenge-api';
@@ -4048,9 +4048,8 @@ export class Game {
     if (!resume) track(this.challenge.ghostBatting ? 'challenge-live' : 'challenge-apart', this.challenge.ghostBatting ? 'Match batted together' : 'Match batted apart');
     this.mode = 'CLASSIC';
     this.start();
-    // After `start`, which dresses him for the mode: the room then hands him
-    // the kit for his seat, so four friends in one match are four batters.
-    this.scene.kit(seatKit(this.challenge.room, this.player));
+    // Dressed by `start` like any innings: in his own Dressing Room kit and
+    // bat, which the room keeps with his innings.
     if (resume) {
       for (const ball of this.challenge.resumeFrom(this.player)) {
         const outcome: ShotOutcome = {

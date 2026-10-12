@@ -8,8 +8,9 @@ import { TIERS, tierMeasure } from './tier';
  * `config/board.ts`), so what the batter wears is an outfit here. Nothing on
  * these shelves plays differently; they are looks, earned by playing.
  */
-export type OutfitId = 'home' | 'crimson' | 'forest' | 'gold' | 'violet' | 'electric' | 'lagoon';
-export type BatId = 'plain' | 'boom' | 'icecold' | 'savage' | 'inferno' | 'hitman';
+import { isBat, isOutfit, type BatId, type OutfitId } from './dressing-ids';
+
+export { isBat, isOutfit, type BatId, type OutfitId };
 
 export interface Outfit {
   id: OutfitId;
@@ -62,8 +63,6 @@ export const FREE_BAT: BatId = 'boom';
 
 export const outfitOf = (id: string | null | undefined): Outfit => OUTFITS.find(o => o.id === id) ?? OUTFITS[0];
 export const batOf = (id: string | null | undefined): BatSkin => BATS.find(b => b.id === id) ?? BATS[1];
-export const isOutfit = (id: unknown): id is OutfitId => typeof id === 'string' && OUTFITS.some(o => o.id === id);
-export const isBat = (id: unknown): id is BatId => typeof id === 'string' && BATS.some(b => b.id === id);
 
 /** The game a step is played in, for the key under the list. */
 export type StepMode = 'blast' | 'survival' | 'marathon' | 'rivals';
