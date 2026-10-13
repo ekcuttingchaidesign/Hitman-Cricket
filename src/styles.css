@@ -5662,16 +5662,18 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid #ffffff1f;
   box-shadow:0 22px 50px #00000073
 }
-/* A story played on the Dressing Room's stage: the stage over its picture, in
-   the picture's frame, the picture kept under it for a phone without WebGL. */
-.whatsnew-stage{position:relative;display:block;flex:none;width:min(330px,86%,calc(54cqh * 370 / 426));aspect-ratio:370/426;border-radius:16px;overflow:hidden;border:1px solid #ffffff1f;box-shadow:0 22px 50px #00000073}
-/* Sized by its own box, never the box by it: a picture sized off a box sized off the picture can come to nothing while a card is drawn. */
-.whatsnew-art .whatsnew-stage img{display:block;width:100%;height:100%;max-width:none;max-height:none;object-fit:cover;border:0;border-radius:0;box-shadow:none}
-.whatsnew-stage.is-live img{opacity:0}
-.whatsnew-stage>.dr-stage{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
-.whatsnew-chip{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 24px);box-sizing:border-box;text-align:center;text-wrap:balance;padding:7px 12px;border-radius:14px;background:#0a0b0dbf;border:1px solid #2e3640;font:800 11px/1.3 var(--f-ui);letter-spacing:.14em;color:var(--c-text);opacity:0;transition:opacity .3s}
-.whatsnew-stage.is-live .whatsnew-chip{opacity:1}
-.whatsnew-chip>span{white-space:nowrap}
+/* A story on the Dressing Room's stage is the whole screen: the stage behind
+   everything, the title over its top, the words and the keys over its foot on
+   a shade so they read on any kit, and the room between them left empty —
+   that is where the camera stands the batter (`StoryStage.ts`). */
+.whatsnew-sheet.is-stage{background:#0d0b10}
+.whatsnew-stage{position:absolute;inset:0;z-index:0;pointer-events:none}
+.whatsnew-stage>.dr-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+.whatsnew-stage::after{content:'';position:absolute;left:0;right:0;bottom:0;height:38%;background:linear-gradient(180deg,#0000,#000000b8 70%)}
+.is-stage .whatsnew-bars{position:relative;z-index:2}
+.is-stage .whatsnew-body{justify-content:flex-start}
+.whatsnew-room{flex:1 1 auto;min-height:0;width:100%;margin-top:14px}
+.is-stage .whatsnew-say{color:#dfe6ec;text-shadow:0 1px 10px #000}
 /* A picture with its corners already cut: no frame of our own, and a shadow
    that follows its outline rather than a square box's. */
 .whatsnew-art img.is-cut{

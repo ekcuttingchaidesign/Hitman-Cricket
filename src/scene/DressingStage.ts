@@ -404,10 +404,11 @@ export class DressingStage {
    * camera is sized and moved so the whole pedestal stands on the floor and the
    * batter fills the space above it, no nearer than the room was drawn, in the
    * middle of the span. It is framed the same for a bat, so changing shelves
-   * moves nothing.
+   * moves nothing. `nearer` lets the camera come that many times nearer than
+   * the room was drawn, for a screen with more height to give it.
    */
-  frame(top: number, floor: number, left: number, right: number) { this.room = { top, floor, left, right }; this.fit(); }
-  private room: { top: number; floor: number; left: number; right: number } | null = null;
+  frame(top: number, floor: number, left: number, right: number, nearer = 1) { this.room = { top, floor, left, right, nearer }; this.fit(); }
+  private room: { top: number; floor: number; left: number; right: number; nearer: number } | null = null;
 
   /** The room's corridor, once it has loaded; nothing for the unlocks. */
   private readonly backdrop = new Image();
@@ -435,12 +436,12 @@ export class DressingStage {
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h;
     // Drawn on an 874-high phone with the name ending at 140 and the shelf at
     // 556: those, scaled, until the screen says where they are.
-    const { top, floor, left, right } = this.room ?? { top: h * 140 / 874, floor: h * 652 / 874, left: 0, right: w };
+    const { top, floor, left, right, nearer } = this.room ?? { top: h * 140 / 874, floor: h * 652 / 874, left: 0, right: w, nearer: 1 };
     // Level, eye high, 8.1 m out: a point y high and z nearer falls (eye - y) / (distance - z)
     // of the focal length below the middle. The batter's crown to the pedestal's front edge
     // is the space between the name and the shelf.
     const { distance, eye } = CAMERA, below = (y: number, z: number) => (eye - y) / (distance - z);
-    const focal = Math.min(NEAREST_FOCAL * w / 402, Math.max(40, floor - top) / (below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) - below(this.crown, 0)));
+    const focal = Math.min(NEAREST_FOCAL * w / 402 * nearer, Math.max(40, floor - top) / (below(PEDESTAL_FOOT.y, PEDESTAL_FOOT.z) - below(this.crown, 0)));
     this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(h / 2 / focal));
     this.camera.position.set(0, eye, distance); this.camera.lookAt(0, eye, 0);
     // Where the pedestal's edge falls now, and how far to move the picture to stand it on the floor, in the middle of the span.

@@ -241,11 +241,15 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new stories play on the room's own stage
+The update's What's new stories play full screen on the room's own stage
 (`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, every bat on
-the stand, then Boom, a chip under each naming it and what earns it. It is the
-shelves' catalogue, so a kit or bat added later is in the stories without a new
-picture; each story keeps its webp under the stage for a phone without WebGL.
+the stand, then Boom, with the title over the top, the words over the foot, and
+the batter framed into the room left between them (`#whatsnew-room`), allowed
+nearer than the Dressing Room's camera (`NEARER`). It is the shelves'
+catalogue, so a kit or bat added later is in the stories without a new picture,
+and there is no picture to download. `whatsnew-check` refuses the stage's
+module for its clocked walk — every frame is a 3D render, seconds apiece in
+software — and lets it in at the way in to see it play.
 
 ## Who's batting: the gate before the first innings
 

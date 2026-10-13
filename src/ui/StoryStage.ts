@@ -3,28 +3,39 @@ import type { StoryStageKind } from '../game/whats-new';
 import type { DressingStage } from '../scene/DressingStage';
 
 /**
- * The Dressing Room's stage, playing in a What's new story in place of its
- * picture: every kit on the batter in turn, every bat on the stand, or Boom.
+ * The Dressing Room's stage, the whole screen of a What's new story behind its
+ * words: every kit on the batter in turn, every bat on the stand, or Boom.
  *
  * It is the room's own stage and the shelves' own catalogue, so it costs
  * nothing to download, shows the colours and stickers the game draws, and a
  * kit or bat added later is in it without anybody making a new picture. One
  * stage is kept for the whole run of stories and moved from card to card,
  * because a card is drawn afresh every time it is shown; it is let go when the
- * stories are put away. Where it cannot be drawn — no WebGL — the picture the
- * story keeps under it is what is seen.
+ * stories are put away. Where it cannot be drawn — no WebGL — the story is its
+ * words on the sheet's own dark, as it is while the stage is being made.
  */
+/**
+ * How much nearer than the Dressing Room the camera may come. A story has the
+ * whole screen and nothing down its side, so the batter is let fill it; any
+ * nearer and his bat starts to reach the edges of a phone.
+ */
+const NEARER = 1.5;
+
 export class StoryStage {
   private stage: DressingStage | null = null;
   private loading: Promise<DressingStage | null> | null = null;
   private timer = 0;
   private stopped = false;
-  /** Framed again whenever the picture's box changes, which it does as a card is laid out. */
+  /** Framed again whenever the screen or the room in it changes, which they do as a card is laid out. */
   private readonly sized = new ResizeObserver(() => this.fit?.());
   private fit: (() => void) | null = null;
 
-  /** Played in `host` (`#whatsnew-stage`), the kind its story asks for. */
-  play(host: HTMLElement, kind: StoryStageKind) {
+  /**
+   * Played in `host` (`#whatsnew-stage`, the whole sheet), the kind its story
+   * asks for, the batter or the bat stood in `room` (`#whatsnew-room`, the
+   * space left between the title and the words under it).
+   */
+  play(host: HTMLElement, room: HTMLElement, kind: StoryStageKind) {
     this.stopped = false;
     window.clearInterval(this.timer);
     void this.ready().then(stage => {
@@ -32,20 +43,16 @@ export class StoryStage {
       if (!stage || this.stopped || !host.isConnected) return;
       host.prepend(stage.canvas);
       host.classList.add('is-live');
-      // Framed in the picture's box, the batter's crown to the pedestal's edge, as the room frames him.
-      this.fit = () => { if (host.clientWidth && host.clientHeight) stage.frame(10, host.clientHeight - 10, 0, host.clientWidth); };
-      this.sized.disconnect(); this.sized.observe(host);
-      this.fit();
-      const chip = host.querySelector<HTMLElement>('#whatsnew-chip');
-      // The name and what earns it each kept whole, so a long one wraps between them.
-      const say = (name: string, what: string) => {
-        if (!chip) return;
-        const whole = (text: string) => Object.assign(document.createElement('span'), { textContent: text.toUpperCase() });
-        chip.replaceChildren(whole(`${name} ·`), ' ', whole(what));
+      // The batter's crown to the pedestal's edge in the room, as the Dressing Room frames him.
+      this.fit = () => {
+        const screen = host.getBoundingClientRect(), space = room.getBoundingClientRect();
+        if (screen.width && space.height > 40) stage.frame(space.top - screen.top, space.bottom - screen.top, 0, screen.width, NEARER);
       };
-      const kit = (outfit: Outfit) => { stage.dress(outfit, batOf(WELCOME_BAT)); stage.show('kit', outfit.glow); say(outfit.name, outfit.short); };
-      const bat = (skin: BatSkin, what = skin.short) => { stage.showcase(skin); stage.show('bat', skin.glow); say(skin.name, what); };
-      if (kind === 'boom') { bat(batOf(WELCOME_BAT), 'In your locker'); return; }
+      this.sized.disconnect(); this.sized.observe(host); this.sized.observe(room);
+      this.fit();
+      const kit = (outfit: Outfit) => { stage.dress(outfit, batOf(WELCOME_BAT)); stage.show('kit', outfit.glow); };
+      const bat = (skin: BatSkin) => { stage.showcase(skin); stage.show('bat', skin.glow); };
+      if (kind === 'boom') { bat(batOf(WELCOME_BAT)); return; }
       // The whole shelf once in the story's seven seconds.
       const shelf = kind === 'kits' ? OUTFITS : BATS.filter(one => one.id !== FREE_BAT);
       let at = 0;

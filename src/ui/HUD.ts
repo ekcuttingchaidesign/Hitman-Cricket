@@ -1207,7 +1207,8 @@ ${modeSelectMarkup()}
       this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
     }
     const stage = document.getElementById('whatsnew-stage');
-    if (story?.stage && stage) (this.storyStage ??= new StoryStage()).play(stage, story.stage);
+    const room = document.getElementById('whatsnew-room');
+    if (story?.stage && stage && room) (this.storyStage ??= new StoryStage()).play(stage, room, story.stage);
     else { this.storyStage?.stop(); this.storyStage = null; }
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => { const go = this.onStoriesOpen; this.closeStories(); go?.(); };

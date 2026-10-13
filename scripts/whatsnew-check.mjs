@@ -100,19 +100,10 @@ const first = await title();
 const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
 check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
   'the way out says where it goes', says);
-// Waited for from out here, a beat at a time: the page's own timers are the
-// ones standing still.
-async function loaded() {
-  for (let i = 0; i < 40; i++) {
-    if (await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0).catch(() => false)) return true;
-    await page.waitForTimeout(250);
-  }
-  return false;
-}
-// The Dressing Room, in three: the kits, the bats, and the free bat with the way in.
+// The Dressing Room, in three: the kits, the bats, and bat styles with the way in.
 check(first === 'SUIT UP', 'it opens on the kits', first);
-check(await loaded(), 'with its picture on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
-check(!(await page.$('#whatsnew-stage.is-live')), 'standing on it where the stage cannot be drawn');
+check(!!(await page.$('#whatsnew-stage')) && !(await page.$('.whatsnew-sheet img')), 'full screen for the stage, with no picture to load');
+check(!(await page.$('#whatsnew-stage.is-live')), 'its words standing on their own where the stage cannot be drawn');
 check(!(await page.$('#whatsnew-open')), 'and no way in on a card that asks for nothing');
 
 // Each holds a while and moves on by itself. Wound in half-second steps until
@@ -124,15 +115,14 @@ check(held >= 5000, 'holding a while', `${held}ms`);
 check(await title() === 'EARN YOUR WILLOW', 'and moving on by itself to the bats', await title());
 for (held = 0; held < 14000 && await title() === 'EARN YOUR WILLOW'; held += 500) await tick(500, 150);
 const last = await title();
-check(last === 'BOOM IS ON THE HOUSE', 'and on to the free bat, last', last);
-check(await loaded(), 'its picture loaded');
+check(last === 'BAT WITH STYLE', 'and on to bat styles, last', last);
 const way = await page.$('#whatsnew-open');
 check(!!way && (await way.textContent()).trim() === 'OPEN THE DRESSING ROOM', 'with OPEN THE DRESSING ROOM under it');
 const stack = await page.evaluate(() => {
   const top = sel => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
-  return [top('.whatsnew-art img'), top('#whatsnew-open'), top('#whatsnew-done')];
+  return [top('#whatsnew-room'), top('#whatsnew-open'), top('#whatsnew-done')];
 });
-check(stack[0] < stack[1] && stack[1] < stack[2], 'picture, then the way in, then the way out', stack.join(' < '));
+check(stack[0] < stack[1] && stack[1] < stack[2], 'the room for the stage, then the way in, then the way out', stack.join(' < '));
 
 // With a way in under it, the story holds still: one that moved itself on
 // would take the key away from under a thumb on its way to it.
@@ -200,19 +190,23 @@ await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
 await tick(800);
-// The stage, playing where it can be drawn: a kit and what earns it, then the next kit.
-const chip = () => page.$eval('#whatsnew-chip', node => node.textContent.trim()).catch(() => '');
-let live = false;
-for (let i = 0; i < 40 && !live; i++) { await tick(100, 250); live = !!(await page.$('#whatsnew-stage.is-live')) && !!(await chip()); }
-const firstKit = await chip();
-check(live && await title() === 'SUIT UP' && firstKit === 'OG NAVY · FREE', 'where it can be drawn, the kits play on the stage', firstKit);
-await tick(1100, 400);
-check(await chip() !== firstKit && (await chip()).includes(' · '), 'one after another', await chip());
+// The stage, playing where it can be drawn: the whole screen behind the words,
+// with room between the title and them for the batter to stand in.
+const staged = () => page.evaluate(() => {
+  const sheet = document.querySelector('.whatsnew-sheet')?.getBoundingClientRect();
+  const canvas = document.querySelector('#whatsnew-stage.is-live>canvas')?.getBoundingClientRect();
+  const room = document.getElementById('whatsnew-room')?.getBoundingClientRect();
+  return { full: !!sheet && !!canvas && Math.abs(sheet.width - canvas.width) < 2 && Math.abs(sheet.height - canvas.height) < 2, room: Math.round(room?.height ?? 0) };
+});
+let live = { full: false, room: 0 };
+for (let i = 0; i < 40 && !live.full; i++) { await tick(100, 250); live = await staged(); }
+check(live.full && await title() === 'SUIT UP', 'where it can be drawn, the kits play on the stage, full screen', JSON.stringify(live));
+check(live.room > 200, 'with room between the words for the batter', `${live.room}px`);
 // On to the last card, a tap at a time: the cards before it also move on by
 // themselves, so a fixed count of taps can overshoot.
 for (let i = 0; i < 4 && !(await page.$('#whatsnew-open')); i++) { await page.click('#whatsnew-next'); await tick(400); }
 check(!!(await page.$('#whatsnew-open')), 'tapping on reaches the way in', await title());
-check(await chip() === 'BOOM · IN YOUR LOCKER', 'with Boom on the stage', await chip());
+check((await staged()).full, 'and the stage still playing behind it', JSON.stringify(await staged()));
 await page.click('#whatsnew-open');
 let room = false;
 for (let i = 0; i < 40 && !room; i++) { await tick(250, 250); room = !!(await page.$('#dressing-overlay')); }

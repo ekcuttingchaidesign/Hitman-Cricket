@@ -7,13 +7,12 @@ import type { Film } from '../ui/Lottie';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the Dressing Room: the kits, the bats, and the free bat
- * waiting in the room, the last card holding still with the way in under it.
+ * This update is the Dressing Room: the kits, the bats, and bat styles, each
+ * played full screen on the room's own stage, the last card holding still with
+ * the way in under it.
  * (The Test Marathon's film and the career key, the update before, were told
  * twice to everybody who played then.)
  */
-const art = (file: string) => new URL(`../assets/whatsnew/${file}`, import.meta.url).href;
-
 export interface Story {
   key: string;
   /** The small line above the picture. */
@@ -60,10 +59,10 @@ export interface Story {
    */
   opens?: 'dressing';
   /**
-   * The Dressing Room's own stage in place of the picture, playing the real
-   * models: every kit on the batter in turn, every bat on the stand, or one
-   * bat. Nothing to download and nothing to go stale; the picture stays
-   * under it for a phone that cannot draw it (`StoryStage.ts`).
+   * The Dressing Room's own stage, the whole of the screen behind the words,
+   * playing the real models: every kit on the batter in turn, every bat on
+   * the stand, or one bat (`StoryStage.ts`). No picture to download and none
+   * to go stale — a phone that cannot draw it cannot play the game either.
    */
   stage?: StoryStageKind;
 }
@@ -75,30 +74,24 @@ export const STORIES: readonly Story[] = [
     key: 'suit-up',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
     title: 'SUIT UP',
-    body: 'Seven kits. OG Navy is yours already; the other six are earned out in the middle.',
-    art: art('dressing-suit-up.webp'),
+    body: 'Explore different kits. OG Navy is yours already; the other six are earned out in the middle.',
     alt: 'Your batter on a pedestal under a spotlight, changing from one kit to the next.',
-    width: 370, height: 426,
     stage: 'kits',
   },
   {
     key: 'earn-your-willow',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
     title: 'EARN YOUR WILLOW',
-    body: 'Eleven bats, from Boom to Hitman. Boom is yours for walking in. Hitman takes everything you’ve got.',
-    art: art('dressing-earn-your-willow.webp'),
+    body: 'Eleven bats, each in its own stickers, earned as you climb. Hitman takes everything you’ve got.',
     alt: 'A bat on a stand under a spotlight, turning into the next bat and the next, each in its own stickers.',
-    width: 370, height: 426,
     stage: 'bats',
   },
   {
     key: 'boom',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
-    title: 'BOOM IS ON THE HOUSE',
-    body: 'Your first bat is waiting in the Dressing Room. Pick it up before your next innings.',
-    art: art('dressing-boom.webp'),
-    alt: 'The Boom bat standing on the pedestal, its pink grip and green and purple stickers lit by rays of light.',
-    width: 370, height: 426,
+    title: 'BAT WITH STYLE',
+    body: 'Explore different styles of bat in the Dressing Room. Your first one is waiting there.',
+    alt: 'The Boom bat standing on the pedestal under a spotlight, its pink grip and green and purple stickers.',
     stage: 'boom',
     opens: 'dressing',
   },

@@ -31,7 +31,8 @@ describe('what the update says it did', () => {
   it('gives every card something to show, a name for it and a line under it', () => {
     for (const story of STORIES) {
       expect(story.title.length, story.key).toBeGreaterThan(6);
-      expect(story.art, story.key).toMatch(/\.webp$/);
+      // A picture, a film, or the Dressing Room's stage.
+      expect(!!(story.art || story.film || story.stage), story.key).toBe(true);
       expect(story.body?.length ?? 0, story.key).toBeGreaterThan(30);
       // A picture says nothing to a screen reader on its own.
       expect(story.alt.length, story.key).toBeGreaterThan(20);
@@ -65,8 +66,21 @@ describe('the story screen', () => {
   it('puts OPEN THE DRESSING ROOM under the last picture, over the way out', () => {
     const markup = storiesMarkup({ at: OPENS, where: 'intro', holdMs: 1 });
     expect(markup).toMatch(/id="whatsnew-open"[\s\S]*OPEN THE DRESSING ROOM/);
-    expect(markup.indexOf('whatsnew-art')).toBeLessThan(markup.indexOf('whatsnew-open'));
+    expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-open'));
     expect(markup.indexOf('whatsnew-open')).toBeLessThan(markup.indexOf('whatsnew-done'));
+  });
+
+  it('plays the Dressing Room full screen on its stage, with no picture to download', () => {
+    expect(STORIES.map(one => one.stage)).toEqual(['kits', 'bats', 'boom']);
+    for (let at = 0; at < STORIES.length; at++) {
+      const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      expect(markup).toContain('whatsnew-sheet is-stage');
+      expect(markup).toMatch(/id="whatsnew-stage"[^>]*role="img"[^>]*aria-label="[^"]{20,}"/);
+      // The room is between the title and the words: where the batter stands.
+      expect(markup.indexOf('whatsnew-title')).toBeLessThan(markup.indexOf('whatsnew-room'));
+      expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-say'));
+      expect(markup).not.toContain('<img');
+    }
   });
 
   it('asks a player with a name to save their key, and shows nobody else a card', () => {

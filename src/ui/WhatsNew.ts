@@ -46,18 +46,19 @@ export function storiesMarkup(view: StoriesView): string {
   // A card that asks for something holds still: see `Story.withKey` and `Story.opens`.
   const holds = !!(story.withKey || story.opens);
   const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
-  const picture = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
+  const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
-  // A story played on the stage keeps its picture under it, for a phone that cannot draw the stage.
-  const art = story.stage && picture
-    ? `<span class="whatsnew-stage" id="whatsnew-stage" data-stage="${story.stage}">${picture}<span class="whatsnew-chip" id="whatsnew-chip" aria-hidden="true"></span></span>`
-    : picture;
   // A film is the whole story: played down the sheet from the top, under the
   // bars and over nothing, with the way out under it. It says its own words.
+  // A story on the stage is the whole screen too, the stage behind the words,
+  // and the room left between them is where the camera stands the batter.
+  const kind = story.film ? ' is-film' : story.stage ? ' is-stage' : '';
   return `
-    <div class="whatsnew-sheet${story.film ? ' is-film' : ''}" role="document" aria-roledescription="story">${
+    <div class="whatsnew-sheet${kind}" role="document" aria-roledescription="story">${
   story.film ? `
-      <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
+      <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
+  story.stage ? `
+      <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
@@ -66,7 +67,8 @@ export function storiesMarkup(view: StoriesView): string {
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">
         ${story.film ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
-        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${art ? `
+        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage ? `
+        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true"></div>` : ''}${art ? `
         <div class="whatsnew-art">
           ${art}
         </div>` : ''}
