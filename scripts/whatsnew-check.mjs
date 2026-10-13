@@ -45,6 +45,13 @@ const page = await browser.newPage({
 await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+// The stories play on the Dressing Room's stage, and every frame of it is a 3D
+// render — seconds apiece in software, and the walk below winds the page's
+// clock on by the second. So the stage's module is refused until the way in:
+// the stories stand on their pictures meanwhile, as they do on a phone that
+// cannot draw the stage, and the stage is watched playing at the end.
+const stageModule = /\/DressingStage[^/]*\.(ts|js)(\?|$)/;
+await page.route(stageModule, route => route.abort());
 await page.clock.install();
 
 /** The page's own clock, wound on, then a beat of real time to draw in. */
@@ -105,6 +112,7 @@ async function loaded() {
 // The Dressing Room, in three: the kits, the bats, and the free bat with the way in.
 check(first === 'SUIT UP', 'it opens on the kits', first);
 check(await loaded(), 'with its picture on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
+check(!(await page.$('#whatsnew-stage.is-live')), 'standing on it where the stage cannot be drawn');
 check(!(await page.$('#whatsnew-open')), 'and no way in on a card that asks for nothing');
 
 // Each holds a while and moves on by itself. Wound in half-second steps until
@@ -187,14 +195,24 @@ if (key) {
 
 // ── The way in ─────────────────────────────────────────────────────────────
 await page.evaluate(() => localStorage.removeItem('hitman-whatsnew'));
+await page.unroute(stageModule);
 await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
 await tick(800);
+// The stage, playing where it can be drawn: a kit and what earns it, then the next kit.
+const chip = () => page.$eval('#whatsnew-chip', node => node.textContent.trim()).catch(() => '');
+let live = false;
+for (let i = 0; i < 40 && !live; i++) { await tick(100, 250); live = !!(await page.$('#whatsnew-stage.is-live')) && !!(await chip()); }
+const firstKit = await chip();
+check(live && await title() === 'SUIT UP' && firstKit === 'OG NAVY · FREE', 'where it can be drawn, the kits play on the stage', firstKit);
+await tick(1100, 400);
+check(await chip() !== firstKit && (await chip()).includes(' · '), 'one after another', await chip());
 // On to the last card, a tap at a time: the cards before it also move on by
 // themselves, so a fixed count of taps can overshoot.
 for (let i = 0; i < 4 && !(await page.$('#whatsnew-open')); i++) { await page.click('#whatsnew-next'); await tick(400); }
 check(!!(await page.$('#whatsnew-open')), 'tapping on reaches the way in', await title());
+check(await chip() === 'BOOM · IN YOUR LOCKER', 'with Boom on the stage', await chip());
 await page.click('#whatsnew-open');
 let room = false;
 for (let i = 0; i < 40 && !room; i++) { await tick(250, 250); room = !!(await page.$('#dressing-overlay')); }
