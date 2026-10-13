@@ -1,0 +1,4 @@
+# Every text file is kept with Unix line endings, whatever editor or system
+# saves it: a file turned to Windows endings shows as every line changed and
+# turns any merge across it into one conflict the length of the file.
+* text=auto eol=lf
