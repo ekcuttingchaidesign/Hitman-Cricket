@@ -61,7 +61,7 @@ describe('Choose a mode', () => {
   it('keeps the ids the game binds, drawn once', () => {
     const screen = modeSelectMarkup();
     for (const id of ['modes', 'modes-cancel', 'mode-marathon', 'mode-classic', 'mode-survive', 'mode-challenge',
-      'modes-challenges', 'modes-board', 'modes-stats', 'modes-profile', 'mode-key', 'mode-challenge-flag']) {
+      'modes-challenges', 'modes-board', 'modes-stats', 'modes-profile', 'mode-key', 'mode-challenge-flag', 'modes-dressing']) {
       expect(screen).toContain(`id="${id}"`);
     }
   });
@@ -70,7 +70,9 @@ describe('Choose a mode', () => {
     const parts = modeSelectParts({
       player: null, marathon: { best: null, rank: null }, blast: { best: null, rank: null }, survive: { best: null, rank: null },
       podium: [3, 1, 4], blastRank: null, stats: { runs: 0, tier: { key: 'debutant', name: 'DEBUTANT' } }, rivals: null,
+      dressing: { earned: 3, of: 13, visited: false },
     });
+    expect(parts['modes-dressing-line']).toBe('3 of 13 earned');
     expect(parts['modes-podium-faces']).toMatch(/is-2.*is-1.*is-3/s);
     expect(parts['modes-profile']).toContain('is-guest');
   });

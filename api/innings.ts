@@ -2,7 +2,9 @@
 // note at the top of `api/board.ts`, and `scripts/function-check.mjs`, which is
 // what keeps it honest.
 import { countInnings, refusedCareer } from '../src/server/career-store.js';
-import { NoDatabase, redisFromEnv, upstashCareer } from '../src/server/upstash.js';
+import { NoDatabase, redisFromEnv, upstashCareer, upstashRecap } from '../src/server/upstash.js';
+import { recordInnings } from '../src/server/recap-store.js';
+import { lookOf } from '../src/game/dressing-ids.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
@@ -51,24 +53,34 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   };
 
   try {
+    const tally = mode === 'survive' ? readSurviveTally(body.innings)
+      : mode === 'marathon' ? readMarathonTally(body.innings)
+      : readBlastTally(body.innings);
     const outcome = mode === 'survive'
       ? await countInnings(
         upstashCareer<SurviveCareer>(redisFromEnv(), SURVIVE_CAREER.scope),
         SURVIVE_CAREER,
-        { ...who, tally: readSurviveTally(body.innings) },
+        { ...who, tally: tally as ReturnType<typeof readSurviveTally> },
       )
       : mode === 'marathon'
       ? await countInnings(
         upstashCareer<MarathonCareer>(redisFromEnv(), MARATHON_CAREER.scope),
         MARATHON_CAREER,
-        { ...who, tally: readMarathonTally(body.innings) },
+        { ...who, tally: tally as ReturnType<typeof readMarathonTally> },
       )
       : await countInnings(
         upstashCareer<BlastCareer>(redisFromEnv(), BLAST_CAREER.scope),
         BLAST_CAREER,
-        { ...who, tally: readBlastTally(body.innings) },
+        { ...who, tally: tally as ReturnType<typeof readBlastTally> },
       );
     if (refusedCareer(outcome)) return failed(res, outcome.status, outcome.reason);
+    // The year recap takes the innings the career took, once: a repeat is
+    // answered but not counted. Never the reason an innings fails.
+    if (outcome.counted && tally) {
+      await recordInnings(upstashRecap(redisFromEnv()), {
+        playerId: who.playerId, mode, tally, look: lookOf(body.look), at: Date.now(),
+      }).catch(error => console.error('The year recap could not take an innings.', error));
+    }
     // A career is one player's own figures. Nobody else's cache may hold it.
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(outcome);

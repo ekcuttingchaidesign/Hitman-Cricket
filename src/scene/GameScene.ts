@@ -23,6 +23,8 @@ import { grassDetail } from './grassDetail';
 import { Fireworks } from './fireworks';
 import type { Delivery, ShotOutcome, ShotType } from '../game/types';
 import type { Cutout } from '../ui/Milestone';
+import type { BatSkin, Outfit } from '../game/dressing';
+import { batSheet } from '../entities/batSkins';
 
 /** How much a kit glows in its own colour under the floodlights: see `kitsUnderLights`. */
 const KIT_GLOW = 0.32;
@@ -279,7 +281,7 @@ export class GameScene {
     this.scene.environment = this.environment.texture;
     this.scene.environmentIntensity = 0.75;
     // Mirror the stage so the batter's leg side (negative X) reads left on screen.
-    this.world.scale.x = -1; this.scene.add(this.world);
+    this.world.scale.x = -1; this.scene.add(this.world); this.batter.mirrorStickers(true);
     this.camera.fov = 50;
     this.camera.position.set(0, 2.9, -5.15); this.camera.lookAt(0, 1.05, 9);
     // The sky now lights the scene through the environment map; this is what is
@@ -604,6 +606,7 @@ export class GameScene {
    */
   leftHanded(on: boolean) {
     this.world.scale.x = on ? 1 : -1;
+    this.batter.mirrorStickers(!on);
     this.bowlerHolder.scale.x = on ? -1 : 1;
   }
   get mirrored() { return this.world.scale.x > 0; }
@@ -778,7 +781,9 @@ export class GameScene {
   whites(on: boolean) {
     const kit = on ? WHITES : KIT;
     this.testLook(on);
+    this.inWhites = on;
     this.batter.dress(on ? 'whites' : 'home');
+    this.wearLook();
     this.bowler.figure.dress(kit);
     // The fielding side too. Leaving them in coloured clothing while the two
     // men in the middle wore whites read as a bug rather than as a mode.
@@ -864,6 +869,35 @@ export class GameScene {
 
   /** The batter alone, into a Rivals kit. The fielding side keeps its colours. */
   kit(kit: BatterKit) { this.batter.dress(kit); this.kitsUnderLights(); }
+  /**
+   * What the player picked in the Dressing Room: worn from the next time the
+   * batter is dressed for an innings, and the bat taken up at once. In the
+   * Test match he keeps his whites, as a Test is played, and takes the kit's
+   * helmet and his own bat out with him.
+   */
+  dressBatter(outfit: Outfit, bat: BatSkin) {
+    this.look = { outfit, bat };
+    this.wearLook();
+    const asked = ++this.batAsked;
+    this.batter.holdBat(bat.grip, null);
+    void batSheet(bat.id).then(sheet => {
+      if (asked !== this.batAsked) return;
+      this.batter.holdBat(bat.grip, sheet);
+      this.kitsUnderLights();
+    });
+  }
+  private look: { outfit: Outfit; bat: BatSkin } | null = null;
+  /** What he went out in, `kit/bat`, for the checks. */
+  get wearing() { return this.look ? `${this.look.outfit.id}/${this.look.bat.id}` : null; }
+  private inWhites = false;
+  /** Which bat was asked for last, so a sheet arriving late cannot put back the one before. */
+  private batAsked = 0;
+  private wearLook() {
+    if (!this.look) return;
+    const { outfit } = this.look;
+    this.batter.wear(this.inWhites ? { helmet: outfit.helmet } : outfit);
+    this.kitsUnderLights();
+  }
 
   /** A new ball. `carryOn`: see `Batter.reset`. */
   reset(carryOn = false) {

@@ -381,7 +381,11 @@ if (!quick) {
 
 // ── ?rate=1 ─────────────────────────────────────────────────────────────────
 // The preview: a key a thing along the foot, the real sticker and follow-up,
-// and nothing sent or remembered however it is played with.
+// and nothing sent or remembered however it is played with. The three the keys
+// gave above is sent a moment after it was given (SEND_AFTER_MS, 1.5s), so it
+// is waited out first: on real time, as QUICK runs, it would otherwise land
+// inside the preview's count, or not, as the renderer's pace has it.
+await settle(1700);
 const before$ = { posts: sent.length, memory: JSON.stringify(await memory()) };
 await page.goto(`${base}/?debug=1&rate=1`, { waitUntil: 'load' });
 await settle(2500);
@@ -409,7 +413,14 @@ await pop.locator('.rate-more').click();
 await settle(400);
 const preview = page.locator('.feedback-screen');
 check(await preview.isVisible() && !(await page.locator('.rate-preview').isVisible()), 'the follow-up opens, with the keys out of its way');
-for (let i = 0; i < 6 && !(await page.locator('#feedback-send').count()); i++) {
+for (let i = 0; i < 6; i++) {
+  // A tap on a one-answer question moves the card on by itself a beat later,
+  // and a page busy drawing the ground behind it can hold that beat past any
+  // fixed wait: so the next card is waited for — a question with nothing
+  // picked yet, or the words box with SEND.
+  await page.waitForFunction(() => document.getElementById('feedback-send')
+    || (document.querySelector('.feedback-screen .feedback-choice') && !document.querySelector('.feedback-screen .feedback-choice.is-on')));
+  if (await page.locator('#feedback-send').count()) break;
   const next = page.locator('#feedback-next');
   await preview.locator('.feedback-choice').first().click();
   if (await next.count()) await next.click();

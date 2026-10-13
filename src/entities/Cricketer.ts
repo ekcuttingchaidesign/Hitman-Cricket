@@ -276,7 +276,7 @@ export class Cricketer {
       pants.mesh.userData.role = 'trousers'; this.dressable.push(pants.mesh);
       this.garments = {
         jersey, trousers: pants,
-        sleeves: [0, 1].map(() => new BendingLimb([shirt, skin], [.087, .061, .045], 24)),
+        sleeves: [0, 1].map(() => new BendingLimb([shirt, skin], [.087, .061, .045], 24, false, true)),
         legs: [0, 1].map(() => new BendingLimb(trousers, [.109, .072, .057], 16, true)),
       };
       this.root.add(jersey.mesh, pants.mesh);

@@ -205,6 +205,88 @@ second one being minted, and the kit and batting hand change at once. Then
 the gate before the first innings, for a new player and for one who already
 has a name.
 
+`scripts/dressing-check.mjs` is the Dressing Room (`src/ui/DressingRoom.ts`,
+its stage `src/scene/DressingStage.ts`): reached by its card on Choose a mode,
+under Rivals; the shelf's pictures drawn off the models, a locked kit tried on
+with the key to the game it is won in, a kit and a bat put on, and the batter
+then going out to bat in them (`snapshot().look`), or in OG Navy and Plain when
+the pick is no longer earned. Boom is not free and nothing goes off on the way
+in: it waits on the bat shelf (`WELCOME_BAT` and `ready` in `dressing.ts`), a
+dot on the BAT tab and a light round its tile, until the player picks it and
+presses UNLOCK BOOM, which plays its unlock over the room. It counts as
+unlocked once `bat:boom` is in the seen list, so every player sets it off once. What is earned is worked out from the careers
+every time (`dressing.ts`, in the unit tests), so history counts and nothing is
+stored but the pick; the pick travels with a Rival Match innings, where each
+player bats in their own kit now rather than their seat's. The shelf is a rail
+down the right of the stage, not a row under it, so the pedestal has the
+screen's height down to the foot; the camera fits the batter's crown to the
+pedestal's front edge in that space, never nearer than the 874-high phone it
+was drawn on, so a short phone gets the most it can and a tall one the design.
+The room stands in a corridor of lockers (`src/assets/dressing/room.svg`),
+baked into `room.webp` — lifted, softened and darkened by depth — by
+`scripts/dressing-backdrop.mjs`; change the drawing and run it again. Only the
+room has it (`new DressingStage({ room: true })`); the unlocks keep their rays.
+A bat skin comes from the Figma template as four panels (`bat-<name>-face`,
+`-edge-left`, `-back`, `-edge-right`); `scripts/bat-sheets.mjs <folder>
+name=id …` packs them into the sheet the blade reads (`SKIN` in
+`batGeometry.ts`), then the bat goes into `SHEETS` in `batSkins.ts`, `BATS`
+and `batSteps` in `dressing.ts` and `BAT_IDS` in `dressing-ids.ts`, in its
+place on the ladder: the shelf runs easiest to Hitman, which is always last.
+
+A named player's Dressing Room follows them to another device: `/api/dressing`
+keeps a copy per player id (one field in `${SCOPE}dressing`), which is what a
+career key brings back. The browser sends its copy a moment after any change
+and, once a load, after a restore and when a name is claimed, merges in the
+store's (`mergeDressing` in `src/game/dressing-sync.ts`, the one rule both
+sides use): the later pick whole, every unlock either has shown, the earlier
+launch figures. A private window sends nothing. `scripts/dressing-sync-check.mjs`
+plays two devices for one player against the dev server's store; it passes
+`?private=0`, because headless Chromium looks like a private window and would
+otherwise keep nothing.
+
+The update's What's new stories play full screen on the room's own stage
+(`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, then every
+bat on the stand, with the title over the top, the words over the foot, and
+the batter framed into the room left between them (`#whatsnew-room`), allowed
+nearer than the Dressing Room's camera (`NEARER`). It is the shelves'
+catalogue, so a kit or bat added later is in the stories without a new picture,
+and there is no picture to download. Each line under them is two lines at
+most and counts nothing — the shelves only grow — and both cards end on a
+short blue SKIP beside GO TO DRESSING ROOM. Only the last holds still
+(`storyHolds`): the first moves on as any story does, its keys standing where
+the next card's are. `whatsnew-check` refuses the stage's
+module for its clocked walk — every frame is a 3D render, seconds apiece in
+software — and lets it in at the way in to see it play.
+
+## The year recap: kept now for December
+
+A recap of each player's year is planned for December, and it can only tell
+what was kept as it happened. Every innings `/api/innings` counts toward a
+career — only when it counts it (`counted`), so a repeat never doubles — is
+also folded into the player's record for its year and into the year's
+totals (`src/game/recap.ts`, `src/server/recap-store.ts`): innings, runs,
+balls, fours, sixes, best, fifties and hundreds a mode, Survival wins, the
+innings in each kit and with each bat (the look travels with the innings and
+is checked against the shelves, `lookOf`), the innings on each day and in each
+hour, and the first and last. A Dressing Room save that brings in a piece the
+store did not hold dates it (`won` from `saveDressing`), and counts it among
+everybody who won it; the free kit and bat are never won. Days, hours and the
+year are India's time, and the server's clock, never a browser's. One field a
+player in `${SCOPE}recap:<year>`, the year's counters in
+`${SCOPE}recap:<year>:all`, raised in place. Neither ever fails the innings or
+the save it rides on. The dev server answers `GET /api/recap?player=` from
+memory for the checks; nothing deployed reads it yet — the recap itself will.
+`scripts/recap-check.mjs` finishes an innings and unlocks Boom and reads both
+back.
+
+GoatCounter counts the same things across everybody, by name (it keeps the
+path, not the title, so the item is in the name): `dressing-open-modes` and
+`-story`, `dressing-wear-<kit|bat>-<id>`, `dressing-unlock-…` and
+`dressing-claim-…`, `dressing-play-<mode>` from a goal's key, and
+`whatsnew-open-<card>` for GO TO DRESSING ROOM, apart from the stories' read
+and left counts. They go through `dressingMark`, not `mark`, so the last mode
+played does not split them, and the `?dressing=1` preview counts nothing.
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

@@ -3,6 +3,7 @@ import { BALL_CHARS, MAX_BALLS, ended, figuresOf } from '../game/ball-string.js'
 import { AVATARS, NAME_MAX, cleanName, foldName } from './board-store.js';
 import { NAME_BLOCKED_REASON, nameBlocked } from './name-filter.js';
 import { RIVALS_NEED_REGISTERED_RIVAL } from '../config/rivals.js';
+import { lookOf, type Look } from '../game/dressing-ids.js';
 
 /**
  * A match room: one link, and everybody who bats under it.
@@ -115,6 +116,8 @@ export interface StoredPlayer {
   avatar: number;
   /** The innings so far, one character per ball. Empty until the first ball. */
   card: string;
+  /** What they wear and hold from their Dressing Room; none for an innings from before the room. */
+  look?: Look;
   /** When they opened the room. */
   joined: number;
   /** When they last wrote — a join, a ball. What forfeit is judged on. */
@@ -245,6 +248,8 @@ export interface ChallengeRow extends Innings {
   playerId: string;
   name: string;
   avatar: number;
+  /** Their Dressing Room kit and bat, if they batted in one. */
+  look: Look | null;
   /** The innings so far, ball by ball. Another player's copy of this is the ghost. */
   card: string;
   /** Whether this is the player who made the room. */
@@ -330,6 +335,8 @@ export interface Batter {
   playerId: string;
   name: string;
   avatar: number;
+  /** Their Dressing Room kit and bat, as sent; anything not on the shelves is dropped, never refused. */
+  look?: unknown;
   /** Whoever the edge says is asking. Used to rate limit, never as identity. */
   address: string;
 }
@@ -386,6 +393,9 @@ export function stateOf(challenge: StoredChallenge, now = Date.now()): Challenge
   return settled > 0 || batting ? 'live' : 'open';
 }
 
+/** A look worth keeping, spread into a player; nothing at all for one that is not on the shelves. */
+const worn = (raw: unknown): { look?: Look } => { const look = lookOf(raw); return look ? { look } : {}; };
+
 /** The checks every call shares: a real player, a kit that exists, a usable name. */
 function batter(input: Batter): { name: string } | ChallengeRefusal {
   if (!isPlayerId(input.playerId)) return { ok: false, status: 400, reason: 'That is not a player.' };
@@ -432,7 +442,7 @@ export async function createChallenge(
   }
   const rematchOf = cleanCode(input.rematchOf);
 
-  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card, joined: now, at: now };
+  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card, joined: now, at: now, ...worn(input.look) };
   for (let attempt = 0; attempt < CODE_TRIES; attempt++) {
     const code = newCode(random);
     const challenge: StoredChallenge = {
@@ -476,7 +486,7 @@ export async function joinChallenge(
     return { ok: false, status: 409, reason: FULL_REASON };
   }
 
-  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card: '', joined: now, at: now };
+  const player: StoredPlayer = { name: who.name, avatar: input.avatar, card: '', joined: now, at: now, ...worn(input.look) };
   await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
   // Two taps on the same forwarded link in the same moment both find a seat
   // free, and both take it. Read back, and whoever came in past the fourth —
@@ -534,7 +544,8 @@ export async function recordBalls(
   if (state === 'void') return { ok: false, status: 409, reason: 'This match was made on an older version of the game.' };
   if (state === 'expired') return { ok: false, status: 410, reason: 'This match has closed.' };
 
-  const player: StoredPlayer = { ...held, card, at: now };
+  // The look as they go on batting: picked again in the Dressing Room between two balls, it changes with them.
+  const player: StoredPlayer = { ...held, card, at: now, ...worn(input.look) };
   await store.write(key, { players: { [input.playerId]: player } }, CHALLENGE_TTL_SECONDS);
   challenge.players[input.playerId] = player;
   // The last ball of an innings may be the last ball of the match. Read back
@@ -899,6 +910,7 @@ export function challengePayload(code: string, challenge: StoredChallenge, now =
         playerId,
         name: player.name,
         avatar: player.avatar,
+        look: player.look ?? null,
         card: player.card,
         host: playerId === challenge.host,
         status,

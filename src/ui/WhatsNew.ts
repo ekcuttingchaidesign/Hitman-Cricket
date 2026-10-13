@@ -1,6 +1,7 @@
 import { escape } from './Leaderboard';
 import { STORIES, type Story } from '../game/whats-new';
 import { MARK, type KeyView } from './CareerKey';
+import { cta } from './Kit';
 
 /**
  * The stories, as a screen.
@@ -42,36 +43,61 @@ export interface StoriesView {
 export function storiesMarkup(view: StoriesView): string {
   const { at, where, holdMs, locked = false, careerKey = null } = view;
   const story = STORIES[at] ?? STORIES[0];
-  const live = (i: number) => i !== at ? '' : story.withKey ? ' is-live is-held' : ' is-live';
+  const holds = storyHolds(at);
+  const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
   const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
   // A film is the whole story: played down the sheet from the top, under the
   // bars and over nothing, with the way out under it. It says its own words.
+  // A story on the stage is the whole screen too, the stage behind the words,
+  // and the room left between them is where the camera stands the batter.
+  const kind = story.film ? ' is-film' : story.stage ? ' is-stage' : '';
   return `
-    <div class="whatsnew-sheet${story.film ? ' is-film' : ''}" role="document" aria-roledescription="story">${
+    <div class="whatsnew-sheet${kind}" role="document" aria-roledescription="story">${
   story.film ? `
-      <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
+      <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
+  story.stage ? `
+      <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
-  i === at && !story.withKey ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
+  i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
       </div>
       <button id="whatsnew-back" class="whatsnew-half is-back" type="button" aria-label="Previous"></button>
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">
         ${story.film ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
-        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${art ? `
+        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage ? `
+        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true"></div>` : ''}${art ? `
         <div class="whatsnew-art">
           ${art}
         </div>` : ''}
         ${story.body ? `<p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>` : ''}
         ${story.withKey ? `<div id="whatsnew-keyslot" class="whatsnew-keyslot">${
   storyKeyMarkup(careerKey)}</div>` : ''}
-      </div>
+      </div>${story.opens ? `
+      <div class="whatsnew-foot is-pair">
+        ${cta({ kind: 'secondary', label: where === 'board' ? 'CLOSE' : 'SKIP', id: 'whatsnew-done' })}
+        ${cta({ kind: 'primary', label: 'GO TO DRESSING ROOM', id: 'whatsnew-open' })}
+      </div>` : `
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${
   wayOut(where, locked)}</button>
-      </div>
+      </div>`}
     </div>`;
+}
+
+/**
+ * Whether a card holds still rather than moving on by itself.
+ *
+ * One carrying the key does: moving on would take it from under a thumb on its
+ * way there. So does the last card with the way in, because moving on from it
+ * puts the stories away under whoever is reaching for it. An earlier card with
+ * the way in moves on as any other — the next has the same two keys in the
+ * same place, so nothing is taken from under anybody.
+ */
+export function storyHolds(at: number, stories: readonly Story[] = STORIES): boolean {
+  const story = stories[at];
+  return !!story && (!!story.withKey || (!!story.opens && at === stories.length - 1));
 }
 
 /**
