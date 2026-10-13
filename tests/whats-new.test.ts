@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown,
+  STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
 } from '../src/game/whats-new';
-import { storiesAlt, storiesMarkup, storyKeyMarkup } from '../src/ui/WhatsNew';
+import { storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
 
 /** localStorage, as a map, so the counting can be tested without a browser. */
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -16,16 +16,13 @@ function fakeStorage(seed: Record<string, string> = {}) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** The card with the way into the room, wherever it stands in the set. */
-const OPENS = STORIES.findIndex(one => one.opens);
+/** The last card, which holds still with the way into the room. */
+const LAST = STORIES.length - 1;
 
 describe('what the update says it did', () => {
-  it('tells the Dressing Room in three, and ends on the way in', () => {
-    expect(STORIES.map(one => one.key)).toEqual(['suit-up', 'earn-your-willow', 'boom']);
-    // The way in goes last: it is the one card that holds still, so tapping
-    // through lands on it rather than past it.
-    expect(OPENS).toBe(STORIES.length - 1);
-    expect(STORIES[OPENS].opens).toBe('dressing');
+  it('tells the Dressing Room in two, each with the way in', () => {
+    expect(STORIES.map(one => one.key)).toEqual(['suit-up', 'earn-your-willow']);
+    for (const story of STORIES) expect(story.opens, story.key).toBe('dressing');
   });
 
   it('gives every card something to show, a name for it and a line under it', () => {
@@ -56,8 +53,9 @@ describe('what the update says it did', () => {
 });
 
 describe('the story screen', () => {
-  it('draws a bar a story, and holds still on the one with the way in', () => {
-    const markup = storiesMarkup({ at: OPENS, where: 'intro', holdMs: 7000 });
+  it('draws a bar a story, and holds still on the last, with the way in', () => {
+    expect(storyHolds(LAST)).toBe(true);
+    const markup = storiesMarkup({ at: LAST, where: 'intro', holdMs: 7000 });
     expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(STORIES.length);
     expect(markup.match(/is-live/g)).toHaveLength(1);
     // A card that moved on by itself would take the key from under a thumb.
@@ -65,23 +63,34 @@ describe('the story screen', () => {
     expect(markup).not.toContain('--hold:');
   });
 
-  it('moves on by itself from a card that asks for nothing', () => {
+  it('moves on by itself from an earlier card, its keys standing where the next card has them', () => {
+    expect(storyHolds(0)).toBe(false);
     const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
     expect(markup).toContain('--hold:');
     expect(markup).not.toContain('is-held');
-    expect(markup).not.toContain('whatsnew-open');
+    expect(markup).toContain('id="whatsnew-open"');
   });
 
-  it('puts the way out and OPEN DRESSING ROOM side by side under the last stage', () => {
-    const markup = storiesMarkup({ at: OPENS, where: 'intro', holdMs: 1 });
-    expect(markup).toMatch(/whatsnew-foot is-pair[\s\S]*k-cta--secondary[^>]*id="whatsnew-done"[\s\S]*>SKIP<[\s\S]*k-cta--primary[^>]*id="whatsnew-open"[\s\S]*>OPEN DRESSING ROOM</);
-    expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-done'));
-    // Opened from the board, the way out goes back there.
-    expect(storiesMarkup({ at: OPENS, where: 'board', holdMs: 1 })).toMatch(/id="whatsnew-done"[\s\S]*?>CLOSE</);
+  it('holds a card with the key on it wherever it stands, and an earlier way in nowhere', () => {
+    const story = (over: Partial<Story>): Story => ({ key: 'x', eyebrow: 'X', title: 'XXXXXXX', alt: 'x'.repeat(30), ...over });
+    expect(storyHolds(0, [story({ withKey: true }), story({})])).toBe(true);
+    expect(storyHolds(0, [story({ opens: 'dressing' }), story({})])).toBe(false);
+    expect(storyHolds(1, [story({}), story({ opens: 'dressing' })])).toBe(true);
+    expect(storyHolds(1, [story({}), story({})])).toBe(false);
+  });
+
+  it('puts SKIP and GO TO DRESSING ROOM side by side under every stage', () => {
+    for (let at = 0; at < STORIES.length; at++) {
+      const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      expect(markup).toMatch(/whatsnew-foot is-pair[\s\S]*k-cta--secondary[^>]*id="whatsnew-done"[\s\S]*>SKIP<[\s\S]*k-cta--primary[^>]*id="whatsnew-open"[\s\S]*>GO TO DRESSING ROOM</);
+      expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-done'));
+      // Opened from the board, the way out goes back there.
+      expect(storiesMarkup({ at, where: 'board', holdMs: 1 })).toMatch(/id="whatsnew-done"[\s\S]*?>CLOSE</);
+    }
   });
 
   it('plays the Dressing Room full screen on its stage, with no picture to download', () => {
-    expect(STORIES.map(one => one.stage)).toEqual(['kits', 'bats', 'boom']);
+    expect(STORIES.map(one => one.stage)).toEqual(['kits', 'bats']);
     for (let at = 0; at < STORIES.length; at++) {
       const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
       expect(markup).toContain('whatsnew-sheet is-stage');
@@ -106,13 +115,13 @@ describe('the story screen', () => {
     expect(storyKeyMarkup({ state: 'unsaved', code: '<b>x</b>' })).not.toContain('<b>x</b>');
   });
 
-  it('names the way out for where it was opened from, and where that goes', () => {
-    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).toContain('SKIP TO MODE SELECTION');
-    // A build that plays one mode has no picker to skip to, so the key cannot
-    // promise one — it is the only thing on the screen that could lie.
-    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1, locked: true }))
-      .toContain('SKIP AND START BATTING');
-    expect(storiesMarkup({ at: 0, where: 'board', holdMs: 1, locked: true })).toContain('CLOSE');
+  it('names the way out for where it was opened from', () => {
+    // Beside the way in it is short: SKIP, wherever skipping goes in this
+    // build, or CLOSE back to the board it was opened from.
+    const out = (markup: string) => markup.match(/id="whatsnew-done"[\s\S]*?<span>([^<]+)<\/span>/)?.[1];
+    expect(out(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 }))).toBe('SKIP');
+    expect(out(storiesMarkup({ at: 0, where: 'intro', holdMs: 1, locked: true }))).toBe('SKIP');
+    expect(out(storiesMarkup({ at: 0, where: 'board', holdMs: 1, locked: true }))).toBe('CLOSE');
   });
 
   it('carries both halves of the page, so a tap means back or on', () => {

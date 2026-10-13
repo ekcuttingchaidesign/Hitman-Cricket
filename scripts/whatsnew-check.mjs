@@ -94,17 +94,21 @@ check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
 const first = await title();
-// A build that plays one mode has no picker to skip to, so the key says the
-// other thing. Either is right; a key that promises the picker in a build
-// without one is not.
-const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
-check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
-  'the way out says where it goes', says);
-// The Dressing Room, in three: the kits, the bats, and bat styles with the way in.
+// The Dressing Room, in two: the kits and the bats, each with the way out and the way in.
 check(first === 'SUIT UP', 'it opens on the kits', first);
 check(!!(await page.$('#whatsnew-stage')) && !(await page.$('.whatsnew-sheet img')), 'full screen for the stage, with no picture to load');
 check(!(await page.$('#whatsnew-stage.is-live')), 'its words standing on their own where the stage cannot be drawn');
-check(!(await page.$('#whatsnew-open')), 'and no way in on a card that asks for nothing');
+// The two ways on side by side along the foot, the way out on the left, under the room for the stage.
+const keys = () => page.evaluate(() => {
+  const box = sel => document.querySelector(sel)?.getBoundingClientRect();
+  const room = box('#whatsnew-room'), open = box('#whatsnew-open'), done = box('#whatsnew-done');
+  return room && open && done ? { room: Math.round(room.bottom), outTop: Math.round(done.top), inTop: Math.round(open.top),
+    outRight: Math.round(done.right), inLeft: Math.round(open.left),
+    out: document.getElementById('whatsnew-done').textContent.trim(), in: document.getElementById('whatsnew-open').textContent.trim() } : null;
+});
+const paired = k => !!k && k.room <= k.inTop && Math.abs(k.outTop - k.inTop) < 12 && k.outRight < k.inLeft
+  && k.out === 'SKIP' && k.in === 'GO TO DRESSING ROOM';
+check(paired(await keys()), 'with SKIP and GO TO DRESSING ROOM side by side under the stage', JSON.stringify(await keys()));
 
 // Each holds a while and moves on by itself. Wound in half-second steps until
 // it does: the installed clock also runs on by itself in real time, and one
@@ -112,40 +116,31 @@ check(!(await page.$('#whatsnew-open')), 'and no way in on a card that asks for 
 let held = 0;
 for (; held < 14000 && await title() === first; held += 500) await tick(500, 150);
 check(held >= 5000, 'holding a while', `${held}ms`);
-check(await title() === 'EARN YOUR WILLOW', 'and moving on by itself to the bats', await title());
-for (held = 0; held < 14000 && await title() === 'EARN YOUR WILLOW'; held += 500) await tick(500, 150);
 const last = await title();
-check(last === 'BAT WITH STYLE', 'and on to bat styles, last', last);
-const way = await page.$('#whatsnew-open');
-check(!!way && (await way.textContent()).trim() === 'OPEN DRESSING ROOM', 'with OPEN DRESSING ROOM under it');
-// The two ways on side by side along the foot, the way out on the left, under the room for the stage.
-const pair = await page.evaluate(() => {
-  const box = sel => document.querySelector(sel)?.getBoundingClientRect();
-  const room = box('#whatsnew-room'), open = box('#whatsnew-open'), done = box('#whatsnew-done');
-  return room && open && done ? { room: Math.round(room.bottom), outTop: Math.round(done.top), inTop: Math.round(open.top),
-    outRight: Math.round(done.right), inLeft: Math.round(open.left), out: document.getElementById('whatsnew-done').textContent.trim() } : null;
-});
-check(!!pair && pair.room <= pair.inTop && Math.abs(pair.outTop - pair.inTop) < 12 && pair.outRight < pair.inLeft && pair.out === 'SKIP',
-  'side by side with SKIP on its left, under the stage', JSON.stringify(pair));
+check(last === 'EARN YOUR WILLOW', 'and moving on by itself to the bats, the last', last);
+check(paired(await keys()), 'the same two keys in the same place', JSON.stringify(await keys()));
 
 // With a way in under it, the story holds still: one that moved itself on
 // would take the key away from under a thumb on its way to it.
 await tick(9000);
-check(!!(await page.$('.whatsnew-sheet')) && await title() === last, 'the story with the way in holds still', await title());
+check(!!(await page.$('.whatsnew-sheet')) && await title() === last, 'the last story holds still', await title());
 
 // And a tap on the left half goes back.
 await page.click('#whatsnew-back');
 await tick(400);
-check(await title() === 'EARN YOUR WILLOW', 'a tap back goes back a card', await title());
+check(await title() === 'SUIT UP', 'a tap back goes back a card', await title());
 
 await page.click('#whatsnew-done');
 await tick(700);
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
   'the key puts the stories away');
-const picked = await page.$eval('#modes', node => !node.classList.contains('hidden'));
-const batting = await page.$eval('#start', node => !node.offsetParent).catch(() => true);
-check(says === 'SKIP TO MODE SELECTION' ? picked : batting,
-  'and lands where it promised', JSON.stringify({ says, picked, batting }));
+// Where skipping goes is the build's: Choose a mode where there is one to
+// choose, the innings where the build has chosen. Either way, somewhere.
+const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
+  picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
+  batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) });
+const skippedTo = await landed();
+check(skippedTo.picked || skippedTo.batting, 'and lands on Choose a mode or the innings', JSON.stringify(skippedTo));
 check(await seen() === `${UPDATE}:1`, 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────
@@ -154,15 +149,15 @@ await arrive();
 await page.click('#start');
 await tick(800);
 check(!!(await page.$('.whatsnew-sheet')), 'it comes back a second time, because once is missed');
-// Put away this time from the last card, by the short SKIP beside the way in.
-for (let i = 0; i < 4 && !(await page.$('#whatsnew-open')); i++) { await page.click('#whatsnew-next'); await tick(400); }
+// Put away this time from the last card: tapped on to it, it holds there.
+for (let i = 0; i < 4 && await title() !== last; i++) { await page.click('#whatsnew-next'); await tick(400); }
+await tick(9000);
+check(await title() === last, 'tapped on to the last card, it holds there', await title());
 await page.click('#whatsnew-done');
 await tick(700);
-const skipped = { hidden: await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
-  picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
-  batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) };
-check(skipped.hidden && (says === 'SKIP TO MODE SELECTION' ? skipped.picked : skipped.batting),
-  'SKIP on the last card lands where the long way out does', JSON.stringify(skipped));
+const skipped = await landed();
+check(skipped.hidden && skipped.picked === skippedTo.picked && skipped.batting === skippedTo.batting,
+  'and SKIP there lands where it did from the first', JSON.stringify(skipped));
 
 await page.reload({ waitUntil: 'load' });
 await arrive();
@@ -214,21 +209,18 @@ let live = { full: false, room: 0 };
 for (let i = 0; i < 40 && !live.full; i++) { await tick(100, 250); live = await staged(); }
 check(live.full && await title() === 'SUIT UP', 'where it can be drawn, the kits play on the stage, full screen', JSON.stringify(live));
 check(live.room > 200, 'with room between the words for the batter', `${live.room}px`);
-// On to the last card, a tap at a time: the cards before it also move on by
-// themselves, so a fixed count of taps can overshoot.
-for (let i = 0; i < 4 && !(await page.$('#whatsnew-open')); i++) { await page.click('#whatsnew-next'); await tick(400); }
-check(!!(await page.$('#whatsnew-open')), 'tapping on reaches the way in', await title());
-check((await staged()).full, 'and the stage still playing behind it', JSON.stringify(await staged()));
+// The way in from the first card, without reading on.
+check(paired(await keys()), 'the way in right there on the first card', JSON.stringify(await keys()));
 await page.click('#whatsnew-open');
 let room = false;
 for (let i = 0; i < 40 && !room; i++) { await tick(250, 250); room = !!(await page.$('#dressing-overlay')); }
 check(room, 'which puts the stories away and opens the Dressing Room');
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')), 'with the stories gone from under it');
 if (room) {
-  // A first visit: Boom, which the story promised, waits on the bat shelf for its key.
+  // A first visit: Boom waits on the bat shelf for its key, nothing going off on the way in.
   let waiting = false;
   for (let i = 0; i < 20 && !waiting; i++) { await tick(250, 250); waiting = !!(await page.$('#dressing-tab-bat.has-dot')); }
-  check(waiting && !(await page.$('#unlock-overlay')), 'where Boom waits on the bat shelf, as the story said');
+  check(waiting && !(await page.$('#unlock-overlay')), 'where Boom waits on the bat shelf');
   await page.click('#dressing-back');
   await tick(500);
   check(await page.$eval('#modes', node => !node.classList.contains('hidden')), 'and its back key lands on Choose a mode');

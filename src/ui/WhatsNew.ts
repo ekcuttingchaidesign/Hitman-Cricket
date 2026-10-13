@@ -43,8 +43,7 @@ export interface StoriesView {
 export function storiesMarkup(view: StoriesView): string {
   const { at, where, holdMs, locked = false, careerKey = null } = view;
   const story = STORIES[at] ?? STORIES[0];
-  // A card that asks for something holds still: see `Story.withKey` and `Story.opens`.
-  const holds = !!(story.withKey || story.opens);
+  const holds = storyHolds(at);
   const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
   const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
@@ -78,13 +77,27 @@ export function storiesMarkup(view: StoriesView): string {
       </div>${story.opens ? `
       <div class="whatsnew-foot is-pair">
         ${cta({ kind: 'secondary', label: where === 'board' ? 'CLOSE' : 'SKIP', id: 'whatsnew-done' })}
-        ${cta({ kind: 'primary', label: 'OPEN DRESSING ROOM', id: 'whatsnew-open' })}
+        ${cta({ kind: 'primary', label: 'GO TO DRESSING ROOM', id: 'whatsnew-open' })}
       </div>` : `
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${
   wayOut(where, locked)}</button>
       </div>`}
     </div>`;
+}
+
+/**
+ * Whether a card holds still rather than moving on by itself.
+ *
+ * One carrying the key does: moving on would take it from under a thumb on its
+ * way there. So does the last card with the way in, because moving on from it
+ * puts the stories away under whoever is reaching for it. An earlier card with
+ * the way in moves on as any other — the next has the same two keys in the
+ * same place, so nothing is taken from under anybody.
+ */
+export function storyHolds(at: number, stories: readonly Story[] = STORIES): boolean {
+  const story = stories[at];
+  return !!story && (!!story.withKey || (!!story.opens && at === stories.length - 1));
 }
 
 /**

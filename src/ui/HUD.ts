@@ -46,7 +46,7 @@ import {
 } from './Board';
 import { battingCardMarkup, injuryRingMarkup, injuryWord, overChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
-import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+import { storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
@@ -1212,7 +1212,7 @@ ${modeSelectMarkup()}
     else { this.storyStage?.stop(); this.storyStage = null; }
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => { const go = this.onStoriesOpen; this.closeStories(); go?.(); };
-    if (story?.withKey || story?.opens) return;
+    if (storyHolds(this.storyAt)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }
 

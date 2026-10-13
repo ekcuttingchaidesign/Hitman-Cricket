@@ -7,9 +7,9 @@ import type { Film } from '../ui/Lottie';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the Dressing Room: the kits, the bats, and bat styles, each
- * played full screen on the room's own stage, the last card holding still with
- * the way in under it.
+ * This update is the Dressing Room: the kits and the bats, each played full
+ * screen on the room's own stage, with the way out and the way in under both,
+ * the last card holding still.
  * (The Test Marathon's film and the career key, the update before, were told
  * twice to everybody who played then.)
  */
@@ -57,20 +57,21 @@ export interface Story {
    */
   withKey?: boolean;
   /**
-   * A way into the room the story is about, under its words: the last card
-   * holds still with it, so a player tapping through lands on it.
+   * A way into the room the story is about, beside the way out under its
+   * words. The last card holds still with it (`storyHolds`), so a player
+   * tapping through lands on it.
    */
   opens?: 'dressing';
   /**
    * The Dressing Room's own stage, the whole of the screen behind the words,
-   * playing the real models: every kit on the batter in turn, every bat on
-   * the stand, or one bat (`StoryStage.ts`). No picture to download and none
+   * playing the real models: every kit on the batter in turn, or every bat on
+   * the stand (`StoryStage.ts`). No picture to download and none
    * to go stale — a phone that cannot draw it cannot play the game either.
    */
   stage?: StoryStageKind;
 }
 
-export type StoryStageKind = 'kits' | 'bats' | 'boom';
+export type StoryStageKind = 'kits' | 'bats';
 
 export const STORIES: readonly Story[] = [
   {
@@ -80,6 +81,7 @@ export const STORIES: readonly Story[] = [
     body: 'Explore different kits, each one earned out in the middle.',
     alt: 'Your batter on a pedestal under a spotlight, changing from one kit to the next.',
     stage: 'kits',
+    opens: 'dressing',
   },
   {
     key: 'earn-your-willow',
@@ -88,14 +90,6 @@ export const STORIES: readonly Story[] = [
     body: 'Every bat in its own stickers, earned as you climb to Hitman.',
     alt: 'A bat on a stand under a spotlight, turning into the next bat and the next, each in its own stickers.',
     stage: 'bats',
-  },
-  {
-    key: 'boom',
-    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
-    title: 'BAT WITH STYLE',
-    body: 'Explore different styles of bat. Your first one is waiting.',
-    alt: 'The Boom bat standing on the pedestal under a spotlight, its pink grip and green and purple stickers.',
-    stage: 'boom',
     opens: 'dressing',
   },
 ];

@@ -4,7 +4,7 @@ import type { DressingStage } from '../scene/DressingStage';
 
 /**
  * The Dressing Room's stage, the whole screen of a What's new story behind its
- * words: every kit on the batter in turn, every bat on the stand, or Boom.
+ * words: every kit on the batter in turn, or every bat on the stand.
  *
  * It is the room's own stage and the shelves' own catalogue, so it costs
  * nothing to download, shows the colours and stickers the game draws, and a
@@ -54,7 +54,6 @@ export class StoryStage {
       this.fit();
       const kit = (outfit: Outfit) => { stage.dress(outfit, batOf(WELCOME_BAT)); stage.show('kit', outfit.glow); };
       const bat = (skin: BatSkin) => { stage.showcase(skin); stage.show('bat', skin.glow); };
-      if (kind === 'boom') { bat(batOf(WELCOME_BAT)); return; }
       // The whole shelf once in the story's seven seconds.
       const shelf = kind === 'kits' ? OUTFITS : BATS.filter(one => one.id !== FREE_BAT);
       let at = 0;
