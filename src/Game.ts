@@ -555,6 +555,11 @@ export class Game {
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);
+    // The update's stories open on the Dressing Room's stage, which takes a
+    // second or two to make on a phone. Where they are due, it is made while the
+    // cover is up, a moment after the game's own load, so the first story opens
+    // on the batter rather than on an empty room.
+    if (whatsNewDue()) window.setTimeout(() => { if (whatsNewDue() && this.phase === 'START' && !this.disposed) this.hud.warmStories(); }, 1500);
     this.hud.on('mode-classic', () => { this.hud.closeModes(); this.choose('CLASSIC'); });
     this.hud.on('mode-survive', () => { this.hud.closeModes(); this.choose('SURVIVE'); });
     this.hud.on('mode-marathon', () => { this.hud.closeModes(); this.choose('MARATHON'); });

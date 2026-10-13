@@ -1322,6 +1322,9 @@ ${modeSelectMarkup()}
   }
 
 
+  /** The stories' stage made ahead, while the cover is up, so the first story does not open on an empty room. */
+  warmStories() { (this.storyStage ??= new StoryStage()).warm(); }
+
   /** `open` when the way in put them away, which is counted apart from leaving. */
   closeStories(how: 'leave' | 'open' = 'leave') {
     window.clearTimeout(this.storyHold);

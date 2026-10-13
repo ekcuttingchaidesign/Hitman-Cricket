@@ -198,6 +198,9 @@ export class DressingStage {
    * `scripts/dressing-backdrop.mjs`) rather than the warm wall the unlocks
    * play against.
    */
+  /** Frames drawn in a row with the canvas off the page. */
+  private offPage = 0;
+
   constructor({ room = false }: { room?: boolean } = {}) {
     this.canvas = document.createElement('canvas'); this.canvas.className = 'dr-stage';
     this.canvas.setAttribute('aria-label', 'Your batter on a turning pedestal; drag to turn him, tap to play a shot');
@@ -513,6 +516,10 @@ export class DressingStage {
 
   private tick = (now: number) => {
     this.raf = requestAnimationFrame(this.tick);
+    // Off the page — a stage made ahead for a story (`StoryStage.warm`) — it
+    // draws its first few frames, which is what compiles its shaders, and then
+    // rests until it is put up: nothing to see, and the cover's own frames to keep.
+    if (!this.canvas.isConnected) { if (++this.offPage > 3) return; } else this.offPage = 0;
     const dt = Math.min(50, now - (this.last || now)); this.last = now; this.clock += dt;
     if (!this.dragging) {
       // Turning slowly on its own, a while after a drag lets go.
