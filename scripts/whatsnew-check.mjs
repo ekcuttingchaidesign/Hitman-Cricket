@@ -117,12 +117,16 @@ for (held = 0; held < 14000 && await title() === 'EARN YOUR WILLOW'; held += 500
 const last = await title();
 check(last === 'BAT WITH STYLE', 'and on to bat styles, last', last);
 const way = await page.$('#whatsnew-open');
-check(!!way && (await way.textContent()).trim() === 'OPEN THE DRESSING ROOM', 'with OPEN THE DRESSING ROOM under it');
-const stack = await page.evaluate(() => {
-  const top = sel => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
-  return [top('#whatsnew-room'), top('#whatsnew-open'), top('#whatsnew-done')];
+check(!!way && (await way.textContent()).trim() === 'OPEN DRESSING ROOM', 'with OPEN DRESSING ROOM under it');
+// The two ways on side by side along the foot, the way out on the left, under the room for the stage.
+const pair = await page.evaluate(() => {
+  const box = sel => document.querySelector(sel)?.getBoundingClientRect();
+  const room = box('#whatsnew-room'), open = box('#whatsnew-open'), done = box('#whatsnew-done');
+  return room && open && done ? { room: Math.round(room.bottom), outTop: Math.round(done.top), inTop: Math.round(open.top),
+    outRight: Math.round(done.right), inLeft: Math.round(open.left), out: document.getElementById('whatsnew-done').textContent.trim() } : null;
 });
-check(stack[0] < stack[1] && stack[1] < stack[2], 'the room for the stage, then the way in, then the way out', stack.join(' < '));
+check(!!pair && pair.room <= pair.inTop && Math.abs(pair.outTop - pair.inTop) < 12 && pair.outRight < pair.inLeft && pair.out === 'SKIP',
+  'side by side with SKIP on its left, under the stage', JSON.stringify(pair));
 
 // With a way in under it, the story holds still: one that moved itself on
 // would take the key away from under a thumb on its way to it.
@@ -150,7 +154,15 @@ await arrive();
 await page.click('#start');
 await tick(800);
 check(!!(await page.$('.whatsnew-sheet')), 'it comes back a second time, because once is missed');
+// Put away this time from the last card, by the short SKIP beside the way in.
+for (let i = 0; i < 4 && !(await page.$('#whatsnew-open')); i++) { await page.click('#whatsnew-next'); await tick(400); }
 await page.click('#whatsnew-done');
+await tick(700);
+const skipped = { hidden: await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
+  picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
+  batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) };
+check(skipped.hidden && (says === 'SKIP TO MODE SELECTION' ? skipped.picked : skipped.batting),
+  'SKIP on the last card lands where the long way out does', JSON.stringify(skipped));
 
 await page.reload({ waitUntil: 'load' });
 await arrive();

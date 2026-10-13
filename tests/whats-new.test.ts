@@ -39,6 +39,15 @@ describe('what the update says it did', () => {
     }
   });
 
+  it('says each in two lines at most, and never counts kits or bats, which only grow', () => {
+    for (const story of STORIES) {
+      // Two lines of a phone's width, at the story's size, is about sixty-four letters.
+      expect(story.body!.length, story.key).toBeLessThanOrEqual(64);
+      expect(story.body, story.key).not.toMatch(/\d|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b (kits?|bats?)/i);
+      expect(story.body, story.key).not.toMatch(/\b(seven|six|eleven|twelve)\b/i);
+    }
+  });
+
   it('reads out as one sentence for somebody who cannot see the pictures', () => {
     const alt = storiesAlt();
     expect(alt).toContain(String(STORIES.length));
@@ -63,11 +72,12 @@ describe('the story screen', () => {
     expect(markup).not.toContain('whatsnew-open');
   });
 
-  it('puts OPEN THE DRESSING ROOM under the last picture, over the way out', () => {
+  it('puts the way out and OPEN DRESSING ROOM side by side under the last stage', () => {
     const markup = storiesMarkup({ at: OPENS, where: 'intro', holdMs: 1 });
-    expect(markup).toMatch(/id="whatsnew-open"[\s\S]*OPEN THE DRESSING ROOM/);
-    expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-open'));
-    expect(markup.indexOf('whatsnew-open')).toBeLessThan(markup.indexOf('whatsnew-done'));
+    expect(markup).toMatch(/whatsnew-foot is-pair[\s\S]*k-cta--secondary[^>]*id="whatsnew-done"[\s\S]*>SKIP<[\s\S]*k-cta--primary[^>]*id="whatsnew-open"[\s\S]*>OPEN DRESSING ROOM</);
+    expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-done'));
+    // Opened from the board, the way out goes back there.
+    expect(storiesMarkup({ at: OPENS, where: 'board', holdMs: 1 })).toMatch(/id="whatsnew-done"[\s\S]*?>CLOSE</);
   });
 
   it('plays the Dressing Room full screen on its stage, with no picture to download', () => {

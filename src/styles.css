@@ -5673,7 +5673,7 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .is-stage .whatsnew-bars{position:relative;z-index:2}
 .is-stage .whatsnew-body{justify-content:flex-start}
 .whatsnew-room{flex:1 1 auto;min-height:0;width:100%;margin-top:14px}
-.is-stage .whatsnew-say{color:#dfe6ec;text-shadow:0 1px 10px #000}
+.is-stage .whatsnew-say{color:#dfe6ec;text-shadow:0 1px 10px #000;text-wrap:balance}
 /* A picture with its corners already cut: no frame of our own, and a shadow
    that follows its outline rather than a square box's. */
 .whatsnew-art img.is-cut{
@@ -5701,8 +5701,13 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The key under the picture. The body is not a control — taps go through it to
    the halves underneath — so the one thing in it that is has to say so. */
-.whatsnew-opens{width:min(330px,100%);flex:none;pointer-events:auto}
-.whatsnew-opens .k-cta{width:100%}
+/* The last card's two ways on, side by side: the way out in the kit's blue,
+   short, and the way in, orange, taking the rest. */
+.whatsnew-foot.is-pair{display:flex;align-items:flex-end;gap:calc(var(--u) * 10)}
+.whatsnew-foot.is-pair>.k-cta{display:flex}
+.whatsnew-foot.is-pair>.k-cta--secondary{flex:0 0 calc(var(--u) * 112)}
+.whatsnew-foot.is-pair>.k-cta--primary{flex:1 1 auto;min-width:0}
+.whatsnew-foot.is-pair>.k-cta--primary .k-cta-face{font-size:calc(var(--u) * 18)}
 .whatsnew-keyslot:empty{display:none}
 .whatsnew-keyslot{width:min(330px,100%);flex:none;pointer-events:auto;text-align:left}
 .whatsnew-keyslot .key-pass{margin:0}

@@ -247,7 +247,9 @@ the stand, then Boom, with the title over the top, the words over the foot, and
 the batter framed into the room left between them (`#whatsnew-room`), allowed
 nearer than the Dressing Room's camera (`NEARER`). It is the shelves'
 catalogue, so a kit or bat added later is in the stories without a new picture,
-and there is no picture to download. `whatsnew-check` refuses the stage's
+and there is no picture to download. Each line under them is two lines at
+most and counts nothing — the shelves only grow — and the last card's way out
+is a short blue SKIP beside OPEN DRESSING ROOM. `whatsnew-check` refuses the stage's
 module for its clocked walk — every frame is a 3D render, seconds apiece in
 software — and lets it in at the way in to see it play.
 

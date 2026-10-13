@@ -74,13 +74,16 @@ export function storiesMarkup(view: StoriesView): string {
         </div>` : ''}
         ${story.body ? `<p class="whatsnew-say" aria-live="polite">${escape(story.body)}</p>` : ''}
         ${story.withKey ? `<div id="whatsnew-keyslot" class="whatsnew-keyslot">${
-  storyKeyMarkup(careerKey)}</div>` : ''}${story.opens ? `<div class="whatsnew-opens">${
-  cta({ kind: 'primary', label: 'OPEN THE DRESSING ROOM', id: 'whatsnew-open', wide: true })}</div>` : ''}
-      </div>
+  storyKeyMarkup(careerKey)}</div>` : ''}
+      </div>${story.opens ? `
+      <div class="whatsnew-foot is-pair">
+        ${cta({ kind: 'secondary', label: where === 'board' ? 'CLOSE' : 'SKIP', id: 'whatsnew-done' })}
+        ${cta({ kind: 'primary', label: 'OPEN DRESSING ROOM', id: 'whatsnew-open' })}
+      </div>` : `
       <div class="whatsnew-foot">
         <button id="whatsnew-done" class="key-button whatsnew-key" type="button">${
   wayOut(where, locked)}</button>
-      </div>
+      </div>`}
     </div>`;
 }
 

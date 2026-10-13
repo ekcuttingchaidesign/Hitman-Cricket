@@ -17,9 +17,11 @@ import type { DressingStage } from '../scene/DressingStage';
 /**
  * How much nearer than the Dressing Room the camera may come. A story has the
  * whole screen and nothing down its side, so the batter is let fill it; any
- * nearer and his bat starts to reach the edges of a phone.
+ * nearer and, as he turns, his bat's toe and the pedestal reach the edges of
+ * the phone. The camera's limit is in the screen's width, so this holds on
+ * every phone.
  */
-const NEARER = 1.5;
+const NEARER = 1.25;
 
 export class StoryStage {
   private stage: DressingStage | null = null;

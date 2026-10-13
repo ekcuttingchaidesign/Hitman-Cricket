@@ -22,7 +22,10 @@ export interface Story {
    * already says it in bigger letters than a heading could.
    */
   title: string;
-  /** The line under the picture, where the picture needs one. */
+  /**
+   * The line under the picture, where the picture needs one: two lines at
+   * most on a phone, and no count of kits or bats, which only grow.
+   */
   body?: string;
   /** The picture, for a story that is one. */
   art?: string;
@@ -74,7 +77,7 @@ export const STORIES: readonly Story[] = [
     key: 'suit-up',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
     title: 'SUIT UP',
-    body: 'Explore different kits. OG Navy is yours already; the other six are earned out in the middle.',
+    body: 'Explore different kits, each one earned out in the middle.',
     alt: 'Your batter on a pedestal under a spotlight, changing from one kit to the next.',
     stage: 'kits',
   },
@@ -82,7 +85,7 @@ export const STORIES: readonly Story[] = [
     key: 'earn-your-willow',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
     title: 'EARN YOUR WILLOW',
-    body: 'Eleven bats, each in its own stickers, earned as you climb. Hitman takes everything you’ve got.',
+    body: 'Every bat in its own stickers, earned as you climb to Hitman.',
     alt: 'A bat on a stand under a spotlight, turning into the next bat and the next, each in its own stickers.',
     stage: 'bats',
   },
@@ -90,7 +93,7 @@ export const STORIES: readonly Story[] = [
     key: 'boom',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
     title: 'BAT WITH STYLE',
-    body: 'Explore different styles of bat in the Dressing Room. Your first one is waiting there.',
+    body: 'Explore different styles of bat. Your first one is waiting.',
     alt: 'The Boom bat standing on the pedestal under a spotlight, its pink grip and green and purple stickers.',
     stage: 'boom',
     opens: 'dressing',
