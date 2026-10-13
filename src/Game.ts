@@ -2,7 +2,7 @@ import { type GameMode, isTest } from './game/modes';
 import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
-import { INTRO_STEPS, introDue, noteIntro } from './ui/MarathonIntro';
+import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
 import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
@@ -1713,7 +1713,7 @@ export class Game {
       if (how === 'skipped') noteIntro('skipped');
       this.mark(how === 'skipped' ? 'intro-skipped' : 'intro-finished', how === 'skipped' ? 'Rules skipped' : 'Rules read to the end');
       this.bannerUntil = this.elapsed;
-    }, INTRO_STEPS, !!this.marathon?.current.left);
+    }, INTRO_STEPS, { left: !!this.marathon?.current.left, game: this.coachGame, at: () => this.scene.batterOnScreen() });
   }
   /**
    * How to hit, before the first ball a browser ever faces outside a
@@ -1730,12 +1730,13 @@ export class Game {
     this.hud.marathonIntro(how => {
       this.mark(how === 'skipped' ? 'shots-intro-skipped' : 'shots-intro-done', how === 'skipped' ? 'How to hit skipped' : 'How to hit put away');
       this.bannerUntil = this.elapsed;
-    // Drawn the way round the player bats: a left-hander's swipes are mirrored, so are the arrows.
-    }, steps, this.scene.mirrored);
+    // Drawn the way round the player bats: a left-hander's swipes are mirrored, so are the lanes.
+    }, steps, { left: this.scene.mirrored, game: this.coachGame, at: () => this.scene.batterOnScreen() });
   }
   /**
    * HOW TO PLAY on the cover: the coachmarks a first innings opens with (how
-   * to hit, then the confidence meter), over the cover, ending on the two ways
+   * to hit, then the confidence meter), over a picture of the Blast's ground
+   * before its first ball, ending on the two ways
    * on — PLAY NOW, which starts a Blast, and CHOOSE A MODE. Seen this way they
    * count as seen, so the Blast that follows does not show them again.
    */
@@ -1746,7 +1747,8 @@ export class Game {
       if (how === 'skipped') return;
       if (how === 'modes') return this.locked ? this.walkOut() : this.modes();
       this.choose('CLASSIC');
-    }, [SHOTS_STEP, CONFIDENCE_STEP], readPlayer() ? readHand() === 'left' : false, true);
+    // Drawn for the right-hander the picture of the ground shows.
+    }, [SHOTS_STEP, CONFIDENCE_STEP], { finish: true });
   };
 
   /** Three scripted balls, no wickets, and a way out at any point. */
@@ -2063,6 +2065,11 @@ export class Game {
   private get pauseGame(): { name: string; tone: PauseTone } {
     if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
     return { name: PAUSE_NAMES[this.mode], tone: this.test ? 'test' : 'blast' };
+  }
+  /** What the coachmarks call the game they come before, and the colour of its dot: the mode's own, a Rival Match's orange. */
+  private get coachGame(): IntroGame {
+    if (this.challenge.playing) return { name: 'Rival Match', tone: 'rivals' };
+    return { name: PAUSE_NAMES[this.mode], tone: this.mode === 'CLASSIC' ? 'blast' : this.mode === 'SURVIVE' ? 'survival' : 'marathon' };
   }
   private togglePause = () => {
     if (this.phase === 'START' || this.phase === 'INNINGS_END' || this.hud.helpOpen) return;

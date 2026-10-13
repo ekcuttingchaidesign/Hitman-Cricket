@@ -6,12 +6,23 @@ import {
 } from '../game/feedback';
 import type { Rating } from '../game/rating';
 import { gameLink } from '../game/Share';
+import { cta } from './Kit';
+
+const TITLE = new URL('../assets/title.webp', import.meta.url).href;
+/** The cross on the close key (Figma 133:12750). */
+const CROSS = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 4 4 12M4 4l8 8"/></svg>';
+/** The tick in a chosen answer's mark (Figma 133:12767). */
+const TICK = '<svg viewBox="0 0 22 22" fill="none" stroke="#0b0f14" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 10 9.5 14 16.5 6"/></svg>';
+/** The thank-you's tick in its green disc (Figma 133:12946). */
+const DONE_TICK = '<svg class="feedback-tick" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect width="64" height="64" rx="32" fill="#5BD08F" fill-opacity=".16"/><path d="M21 32 29 40 43 24" stroke="#5BD08F" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+/** The shared link's masthead (Figma 133:12691): the logo, and what the form costs. */
+const MASTHEAD = `<div class="feedback-masthead"><img src="${TITLE}" alt="Hitman Cricket"><p>Two minutes, ten taps. It shapes what gets built next.</p></div>`;
 
 /**
  * The questionnaire, as a screen.
  *
- * One question at a time, filling the card, with the answers as keys big enough
- * to hit without looking. Tapping one is the whole interaction: a single-answer
+ * One question at a time on a card at the foot (Figma 133:12730 and on), with
+ * the answers as rows big enough to hit without looking, each with its mark. Tapping one is the whole interaction: a single-answer
  * question records the tap and moves on by itself, so ten questions are ten taps
  * and there is no Next key to find between them. The one question that takes two
  * answers is the exception and says so, and it is the only screen with a key of
@@ -105,16 +116,19 @@ export function openFeedback(options: FeedbackOptions) {
     const question = questions().find(one => one.id === id) ?? null;
     // The gate is asked before the form knows its own length, so the pips would
     // be a promise it cannot keep. They arrive with the second screen.
-    const pips = standalone && step === 0 ? '' : pipsMarkup(all.length, step);
-    gate.innerHTML = `
+    const counted = !(standalone && step === 0);
+    const picked = question ? answers[question.id] ?? [] : [];
+    gate.innerHTML = `${standalone ? MASTHEAD : ''}
       <div class="feedback-sheet">
-        <div class="feedback-head">
-          <span class="feedback-eyebrow">${eyebrow}</span>
-          <button id="feedback-close" class="board-close" type="button" aria-label="Close">×</button>
+        <div class="feedback-top">
+          <div class="feedback-meta">
+            <p class="feedback-eyebrow-row"><span class="feedback-eyebrow">${eyebrow}</span>${counted ? `<span class="feedback-of">${step + 1} / ${all.length}</span>` : ''}</p>
+            ${counted ? pipsMarkup(all.length, step) : ''}
+          </div>
+          <button id="feedback-close" class="feedback-close" type="button" aria-label="Close">${CROSS}</button>
         </div>
-        ${pips}
-        ${question ? questionMarkup(question, touch, answers[question.id] ?? []) : suggestionMarkup(suggestion)}
-        ${step > 0 ? '<button id="feedback-back" class="ghost-link" type="button">Back</button>' : ''}
+        ${question ? questionMarkup(question, touch, picked) : suggestionMarkup(suggestion)}
+        ${actionsMarkup(question, picked, step)}
       </div>`;
     wire(question);
   }
@@ -181,7 +195,7 @@ export function openFeedback(options: FeedbackOptions) {
     sending = true;
     const key = find('feedback-send') as HTMLButtonElement;
     key.disabled = true;
-    key.textContent = 'SENDING…';
+    labelled(key, 'SENDING…');
     const sent = options.preview ? { ok: true as const, reason: undefined } : await sendFeedback({
       playerId: options.playerId ?? null,
       answers,
@@ -192,7 +206,7 @@ export function openFeedback(options: FeedbackOptions) {
     sending = false;
     if (!sent.ok) {
       key.disabled = false;
-      key.textContent = 'TRY AGAIN';
+      labelled(key, 'TRY AGAIN');
       find('feedback-error').textContent = `${sent.reason} Nothing you typed has been lost.`;
       find('feedback-error').classList.remove('hidden');
       track('feedback-failed', 'Feedback could not be sent');
@@ -211,18 +225,19 @@ export function openFeedback(options: FeedbackOptions) {
    * should not have to go and find it.
    */
   function thanks() {
-    gate.innerHTML = `
+    gate.innerHTML = `${standalone ? MASTHEAD : ''}
       <div class="feedback-sheet feedback-thanks">
-        <span class="feedback-eyebrow">${options.preview ? 'PREVIEW — NOTHING WAS SENT' : 'SENT'}</span>
-        <h2>Thank you — that is genuinely useful.</h2>
-        <p>Every answer is read. The next version is built out of these.</p>
+        ${options.preview ? '<span class="feedback-eyebrow">PREVIEW — NOTHING WAS SENT</span>' : ''}
+        ${DONE_TICK}
+        <h2>Thank you</h2>
+        <p>That is genuinely useful. Every answer is read.</p>
         ${standalone
-          ? `<a class="key-button" href="${gameLink()}">PLAY HITMAN CRICKET</a>`
-          : '<button id="feedback-done" class="key-button" type="button">BACK TO THE GAME</button>'}
+          ? `<a class="k-cta k-cta--primary is-wide" href="${gameLink()}"><span class="k-cta-face"><span>PLAY HITMAN CRICKET</span></span></a>`
+          : cta({ kind: 'primary', label: 'BACK TO THE GAME', id: 'feedback-done', wide: true })}
       </div>`;
     const done = document.getElementById('feedback-done');
     if (done) { done.onclick = () => close(true); done.focus(); }
-    else gate.querySelector<HTMLAnchorElement>('.key-button')?.focus();
+    else gate.querySelector<HTMLAnchorElement>('a.k-cta')?.focus();
   }
 
   function close(given: boolean) {
@@ -274,16 +289,53 @@ export function feedbackPage(root: HTMLElement) {
   });
 }
 
-/** One question, with its answers as keys. */
+/** One question, with its answers as rows: a round mark where one answer is taken, a square one where more are. */
 function questionMarkup(question: Question, touch: boolean, picked: readonly string[]): string {
-  const multi = (question.pick ?? 1) > 1;
+  const limit = question.pick ?? 1;
+  const multi = limit > 1;
+  // At the limit the rest go quiet, but stay live: a tap swaps the oldest out.
+  const full = multi && picked.length >= limit;
   return `
-    <h2 class="feedback-ask">${askOf(question, touch)}</h2>
-    ${multi ? `<p class="feedback-note">Pick up to ${question.pick}.</p>` : ''}
-    <div class="feedback-choices" role="group" aria-label="${askOf(question, touch)}">${question.choices.map(choice => `
-      <button class="feedback-choice${picked.includes(choice.id) ? ' is-on' : ''}" type="button" data-choice="${choice.id}" aria-pressed="${picked.includes(choice.id)}">${choice.label}</button>`).join('')}
+    <div class="feedback-q">
+      <h2 class="feedback-ask">${askOf(question, touch)}</h2>
+      ${multi ? `<p class="feedback-note">${pickNote(limit, picked.length)}</p>` : ''}
     </div>
-    ${multi ? `<button id="feedback-next" class="key-button" type="button">${picked.length ? 'NEXT' : 'SKIP'}</button>` : ''}`;
+    <div class="feedback-choices" role="group" aria-label="${askOf(question, touch)}">${question.choices.map(choice => {
+      const on = picked.includes(choice.id);
+      return `
+      <button class="feedback-choice${on ? ' is-on' : full ? ' is-quiet' : ''}" type="button" data-choice="${choice.id}" aria-pressed="${on}"><span>${choice.label}</span><i class="feedback-mark${multi ? ' is-box' : ''}">${TICK}</i></button>`;
+    }).join('')}
+    </div>`;
+}
+
+/** What the question that takes more than one says, as they are picked. */
+function pickNote(limit: number, picked: number): string {
+  if (picked >= limit) return `That’s ${limit === 2 ? 'two' : limit}. Tap one to swap it.`;
+  if (picked > 0) return `Pick up to ${limit}. ${limit - picked === 1 ? 'One more' : 'More'} if you like.`;
+  return `Pick up to ${limit}.`;
+}
+
+/**
+ * The foot of the card: Back, and then the way on. A single answer moves on by
+ * itself, so it gets a line saying so; the question that takes two gets SKIP
+ * until something is picked and NEXT after; the words box gets SEND. The first
+ * question has nothing to go back to, and needs no telling how to answer.
+ */
+function actionsMarkup(question: Question | null, picked: readonly string[], step: number): string {
+  const back = '<button id="feedback-back" class="feedback-back" type="button">Back</button>';
+  if (!question) return `<div class="feedback-actions">${back}${cta({ kind: 'primary', label: 'SEND', id: 'feedback-send' })}</div>`;
+  if ((question.pick ?? 1) > 1) {
+    return `<div class="feedback-actions">${step > 0 ? back : ''}${picked.length
+      ? cta({ kind: 'primary', label: 'NEXT', id: 'feedback-next' })
+      : cta({ kind: 'secondary', label: 'SKIP', id: 'feedback-next' })}</div>`;
+  }
+  return step > 0 ? `<div class="feedback-actions">${back}<p class="feedback-hint">Tap an answer to move on</p></div>` : '';
+}
+
+/** A kit key's words changed in place, or a plain button's. */
+function labelled(key: HTMLElement, words: string) {
+  const face = key.querySelector('.k-cta-face>span:last-child');
+  (face ?? key).textContent = words;
 }
 
 /**
@@ -294,16 +346,17 @@ function questionMarkup(question: Question, touch: boolean, picked: readonly str
  */
 function suggestionMarkup(suggestion: string): string {
   return `
-    <h2 class="feedback-ask">Anything you’d change?</h2>
-    <p class="feedback-note">One line is plenty. Skip it if you’d rather.</p>
+    <div class="feedback-q">
+      <h2 class="feedback-ask">Anything you’d change?</h2>
+      <p class="feedback-note">One line is plenty. Skip it if you’d rather.</p>
+    </div>
     <label class="feedback-field">
       <textarea id="feedback-words" maxlength="${SUGGESTION_MAX}" rows="3" enterkeyhint="done"
         placeholder="Optional"></textarea>
       <span class="feedback-count"><b id="feedback-left">${SUGGESTION_MAX - suggestion.length}</b> left</span>
     </label>
-    <p id="feedback-error" class="claim-error hidden" role="alert"></p>
-    <button id="feedback-send" class="key-button" type="button">SEND</button>
-    <p class="feedback-fine">Sent with your device type and this innings’ figures. No name, no email.</p>`;
+    <p class="feedback-fine">Sent with your device type and this innings’ figures. No name, no email.</p>
+    <p id="feedback-error" class="claim-error hidden" role="alert"></p>`;
 }
 
 function pipsMarkup(total: number, at: number): string {

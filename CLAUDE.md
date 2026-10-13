@@ -131,8 +131,8 @@ steps of a script.
 
 `scripts/marathon-check.mjs` is Test Marathon, entered first by its card on
 Select Mode (there off production only) and then twice by `?mode=marathon`: the
-swipes card and the four rules cards a first Marathon opens with, the two that light the Focus
-meter and the pause key, and nothing bowled until they are put away — it is
+swipes card and the four rules cards a first Marathon opens with, the three that outline the
+wickets, the Focus meter and the pause key and the one that marks the pitch, and nothing bowled until they are put away — it is
 the only check that sees them, and it seeds `hitman-marathon-intro` past them
 for the rest; then the batter
 named as he walks out, the next one standing after the last was carried off,
@@ -156,10 +156,13 @@ and the ended nets innings offering none — it is practice. Its career card is
 the innings through `__cricket.marathon` and bats the rest.
 
 `scripts/shots-check.mjs` is how to hit, the coachmarks before a browser's
-first innings (`src/ui/ShotsIntro.ts`): the six swipes as arrows with a hand
-swiping each in turn, the strokes' names at their tips and the keys beside
-them on a keyboard, then — where the scoreboard has a confidence meter — the
-meter lit with a bar filling under it; nothing bowled until they are put away,
+first innings (`src/ui/ShotsIntro.ts`), redrawn from the handover (Figma
+128:4759 on): five lanes of light fanned from the bat (`batterOnScreen`), lit
+in turn in the game's colour with a thumb swiping each and the block a caption,
+the strokes' names at their ends and the keys beside them on a keyboard, the
+words on one card at the foot (SKIP and NEXT, BACK and LET'S BAT on the last);
+then — where the scoreboard has a confidence meter — the meter outlined in a
+hole cut in the scrim, with its name on a tag; nothing bowled until they are put away,
 never a second time, and never for a browser that has batted here before
 (`playedBefore`). A Test Survival shows the swipes alone and leaves the meter
 for the first Blast. In a Test Marathon the swipes are the first of the rules
@@ -539,11 +542,26 @@ INJURED, with the injury ring and the real figure beside PHYSIO ON, and
 `__cricket.physio()` puts it up by name. HOW TO PLAY on the cover opens the
 coachmarks a first innings shows (`howToPlay` in `src/Game.ts`), ending on
 CHOOSE A MODE and PLAY NOW, which starts a Blast; the three-ball tutorial is
-no longer reached from there. The rating prompt and the feedback form are
-untouched: they are redrawn together, last. SHARE MY CARD paints the new
+no longer reached from there. SHARE MY CARD paints the new
 tier card (`src/game/TierCard.ts`), on the cover with the address and the
 mode's line for the story, or on black with the address and BEAT MY
 NUMBERS.
+
+The last of the redraw (the handover's sections 09 and 10): the coachmarks
+(`ShotsIntro.ts`, `MarathonIntro.ts`, drawn by `marathonIntro` in the HUD)
+are one card at the foot in the game's colour, over the ground under the
+design's scrim, with whatever a card is about drawn on the ground — the
+swipes fanned from the bat, a widget outlined in a hole cut in the scrim and
+named on a tag, the pitch marked. HOW TO PLAY from the cover stands on a
+picture of the Blast before its first ball (`howto-ground.webp`, laid whole,
+its sides blurred in a wider column), the lanes and the outline drawn on the
+picture's bat and meter (`HOWTO_GROUND` in the HUD); `scripts/howto-ground.mjs`
+takes it again, and prints those, when the in-game screen changes. The star prompt (`Rating.ts`) and the
+questionnaire (`Feedback.ts`) are the same card over the screen dimmed and
+softened: the stars in the design's gold, the answers rows with a mark each,
+the kit's keys for the ways on. The free-text screen the design leaves out is
+kept, last, in the same material; the shared link is the new black with the
+orange bloom, the grain and the logo over the card.
 
 Checks that create players name them with letters and give each run a new
 id: a name with a number on the end is a sibling of the last run's for a

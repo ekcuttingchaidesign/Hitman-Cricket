@@ -1835,86 +1835,110 @@ body.start-screen #sound{pointer-events:auto}
 .marathon-list .board-total small{font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--quiet);font-variant-numeric:tabular-nums}
 .marathon-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 
-/* ── The Marathon's rules, the first time ─────────────────────────────────
-   A coachmark: the screen itself under a dark scrim, the words in white on
-   it, a line drawing over them with its moving part in green, and the widget
-   a rule is about popping out of the dark with a dotted arrow to it. */
-.mi-overlay{--mi-scrim:#000000c7;--mi-accent:#6cc070;position:absolute;inset:0;z-index:30;background:var(--mi-scrim);color:#fff;font-family:var(--card);animation:mi-in .25s ease both}
+/* ── Coachmarks (Figma 128:4759, 128:4800, 133:12311 to 133:12413) ─────────
+   The ground under the design's scrim, darker at the head and the foot; what
+   a card is about drawn over it — the swipes fanned from the bat, the pitch
+   marked, or a widget outlined in a hole cut in the scrim with its name on a
+   tag — and the words on one card at the foot, in the game's colour. */
+.mi-overlay{--mi-tone:var(--c-blast);position:absolute;inset:0;z-index:30;color:#fff;font-family:var(--f-ui);animation:mi-in .25s ease both}
+.mi-overlay[data-tone=marathon]{--mi-tone:#2fa36b}
+.mi-overlay[data-tone=survival]{--mi-tone:var(--c-survival)}
+.mi-overlay[data-tone=rivals]{--mi-tone:var(--c-accent)}
 .mi-overlay.hidden{display:none}
-.mi-overlay.is-spot{background:transparent}
-.mi-spot{position:absolute;display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:30px;background:#fff;color:#0b1622;box-shadow:0 8px 24px #0009,0 0 0 9999px var(--mi-scrim);pointer-events:none;white-space:nowrap;animation:mi-pop .35s cubic-bezier(.2,1.6,.4,1) both}
-.mi-spot svg{width:24px;height:24px;stroke-width:2.6}
-.mi-spot b{font-family:var(--card);font-size:17px;font-weight:800;letter-spacing:.08em}
-.mi-spot em{font-family:var(--card);font-style:normal;font-size:17px;font-weight:700;color:#4a6273;font-variant-numeric:tabular-nums}
-.mi-spot.hidden{display:none}
-/* A key of its own: a white disc in front of the dark, the icon drawn bigger in it. */
-.mi-spot.is-round{justify-content:center;padding:0;border-radius:50%}
-.mi-spot.is-round svg{width:46%;height:46%;stroke-width:2.4}
-.mi-arrow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-.mi-arrow.hidden{display:none}
-.mi-arrow path:not([fill]){fill:none;stroke:var(--mi-accent);stroke-width:2.2;stroke-linecap:round;stroke-dasharray:.1 6}
-.mi-card{position:absolute;left:24px;right:24px;top:50%;transform:translateY(-60%);display:flex;flex-direction:column;align-items:center;text-align:center;pointer-events:none}
-.mi-overlay.is-spot .mi-card{transform:none}
-.mi-art{width:84px;height:84px;margin-bottom:14px;color:#fff}
-.mi-art svg{width:100%;height:100%}
-.mi-art .acc{stroke:var(--mi-accent)}
-.mi-overlay.is-spot .mi-art{display:none}
-.mi-title{margin:0;font-family:var(--card);font-weight:800;font-size:28px;line-height:1.15;letter-spacing:-.01em;color:#fff}
-.mi-line{margin:8px 0 0;max-width:30ch;font-size:18px;font-weight:500;line-height:1.35;color:#ffffffa6}
-.mi-overlay::after{content:'';position:absolute;left:0;right:0;bottom:0;height:150px;background:linear-gradient(180deg,#0000,#000000e6 60%);pointer-events:none}
-.mi-keys{position:absolute;z-index:1;left:20px;right:20px;bottom:calc(24px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:12px}
-.mi-skip{min-width:84px;min-height:44px;padding:0 8px;border:0;background:none;color:#ffffffa6;font-family:var(--card);font-size:16px;font-weight:600;text-align:left;cursor:pointer}
+.mi-scrim{position:absolute;inset:0;width:100%;height:100%}
+.mi-spot{position:absolute;box-sizing:border-box;border:1.5px solid #ffffffe6;pointer-events:none;animation:mi-pop .35s cubic-bezier(.2,1.6,.4,1) both}
+.mi-tag{position:absolute;display:flex;padding:calc(var(--u) * 7) calc(var(--u) * 12);border-radius:calc(var(--u) * 12);background:#fff;color:var(--c-ink);white-space:nowrap;pointer-events:none;animation:mi-in .3s .1s ease both}
+.mi-tag b{font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.mi-tag i{position:absolute;left:var(--point);top:calc(var(--u) * -7);width:calc(var(--u) * 12);height:calc(var(--u) * 6);margin-left:calc(var(--u) * -6);background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.mi-spot.hidden,.mi-tag.hidden{display:none}
+.mi-stage{position:absolute;inset:0;pointer-events:none}
+
+/* The card. */
+.mi-card{
+  position:absolute;left:calc(var(--u) * 16);right:calc(var(--u) * 16);bottom:calc(var(--u) * 28 + env(safe-area-inset-bottom));
+  max-width:calc(var(--u) * 370);margin:0 auto;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:calc(var(--u) * 10);
+  padding:calc(var(--u) * 18) calc(var(--u) * 20) calc(var(--u) * 16);
+  border:1px solid #ffffff1a;border-radius:calc(var(--u) * 28);
+  background:linear-gradient(180deg,#20252cf5,#121519fa);
+  box-shadow:inset 0 1px 0 #ffffff12,0 16px 36px #00000080
+}
+.mi-words{display:flex;flex-direction:column;gap:calc(var(--u) * 10)}
+.mi-head{display:flex;align-items:center;justify-content:space-between}
+.mi-mode{display:flex;align-items:center;gap:calc(var(--u) * 6);color:#a3b3bd;font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.mi-mode i{width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:var(--mi-tone)}
+.mi-dots{display:flex;gap:calc(var(--u) * 4)}
+.mi-dots[hidden]{display:none}
+.mi-dots i{width:calc(var(--u) * 8);height:calc(var(--u) * 6);border-radius:calc(var(--u) * 3);background:#ffffff33;transition:width .2s ease}
+.mi-dots i.is-done,.mi-dots i.is-on{background:var(--mi-tone)}
+.mi-dots i.is-on{width:calc(var(--u) * 20)}
+.mi-title{margin:0;color:#f5efe6;font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.mi-line{margin:0;color:#a3b3bd;font:500 calc(var(--u) * 14)/1.45 var(--f-ui)}
+.mi-keys{display:flex;align-items:center;gap:calc(var(--u) * 12);padding-top:calc(var(--u) * 6)}
+.mi-skip{flex:none;width:calc(var(--u) * 80);min-height:max(var(--tap),calc(var(--u) * 48));padding:0;border:0;background:none;color:#a3b3bd;font:700 calc(var(--u) * 14)/1.3 var(--f-ui);cursor:pointer}
 .mi-skip[hidden]{display:block;visibility:hidden}
-.mi-dots{display:flex;gap:6px}
-.mi-dots i{width:6px;height:6px;border-radius:3px;background:#ffffff4d;transition:width .2s ease}
-.mi-dots i.is-on{width:18px;background:var(--mi-accent)}
-.mi-next{min-width:112px;min-height:46px;padding:0 22px;border:0;border-radius:23px;background:#fff;color:#0b1622;font-family:var(--card);font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px #00000066}
-.mi-next:active{transform:translateY(1px)}
+.mi-keys>.k-cta--primary{flex:1;min-width:0}
+.mi-finish{display:flex;gap:calc(var(--u) * 10);width:100%}
+.mi-finish .k-cta{flex:1;min-width:0;width:auto}
+.mi-keys:has(.mi-finish) .mi-skip{display:none}
+
+/* How to hit: five lanes of light from the bat, in the design's own corners,
+   the lit one in the game's colour; their names at the far ends; the thumb
+   below, its trail and the two ghosts it leaves; and the captions under it. */
+.hb-fan{position:absolute;inset:0;display:block}
+.hb-lanes{position:absolute;left:calc(var(--x) - var(--u) * 240);top:calc(var(--y) - var(--u) * 240);width:calc(var(--u) * 480);height:calc(var(--u) * 480);overflow:visible}
+.hb-lane.is-lit{opacity:0;transition:opacity .35s ease}
+.hb-contact{fill:#fff;stroke:var(--mi-tone);stroke-width:3}
+.hb-label{
+  position:absolute;left:calc(var(--x) + var(--dx) * var(--u));top:calc(var(--y) + var(--dy) * var(--u));transform:translate(-50%,-50%);
+  display:flex;align-items:center;gap:calc(var(--u) * 5);padding:calc(var(--u) * 5) calc(var(--u) * 10);
+  border:1px solid #ffffff29;border-radius:calc(var(--u) * 12);background:#11151ad9;color:#e6eaee;white-space:nowrap;
+  transition:background-color .35s ease,border-color .35s ease,color .35s ease
+}
+.hb-label b{font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
+.hb-label kbd{padding:0 calc(var(--u) * 4);border-radius:calc(var(--u) * 4);background:#ffffff2e;font:800 calc(var(--u) * 9)/1.4 var(--f-ui);color:inherit}
+.hb-fan[data-lit="0"] .is-lit[data-i="0"],.hb-fan[data-lit="1"] .is-lit[data-i="1"],.hb-fan[data-lit="2"] .is-lit[data-i="2"],
+.hb-fan[data-lit="3"] .is-lit[data-i="3"],.hb-fan[data-lit="4"] .is-lit[data-i="4"]{opacity:1}
+.hb-fan[data-lit="0"] .hb-label[data-i="0"],.hb-fan[data-lit="1"] .hb-label[data-i="1"],.hb-fan[data-lit="2"] .hb-label[data-i="2"],
+.hb-fan[data-lit="3"] .hb-label[data-i="3"],.hb-fan[data-lit="4"] .hb-label[data-i="4"]{border-color:transparent;background:var(--mi-tone);color:#fff}
+/* The swipe, turned to the lit lane about where the thumb comes to rest
+   eighty under the bat: in its own frame the thumb travels up, and the trail
+   and the ghosts lie behind it. */
+.hb-swipe{position:absolute;left:var(--x);top:calc(var(--y) + var(--u) * 80 - var(--lift,0px));width:0;height:0;transform:rotate(var(--a))}
+.hb-swipe i{position:absolute;display:block;border-radius:50%}
+.hb-trail{left:calc(var(--u) * -9);top:0;width:calc(var(--u) * 18);height:calc(var(--u) * 78);border-radius:calc(var(--u) * 9) !important;background:linear-gradient(180deg,color-mix(in srgb,var(--mi-tone) 90%,transparent),transparent);transform-origin:bottom}
+.hb-ghost{left:calc(var(--u) * -17);top:calc(var(--u) * 55);width:calc(var(--u) * 34);height:calc(var(--u) * 34);background:#ffffff2e}
+.hb-ghost.is-near{top:calc(var(--u) * 31);background:#ffffff4d}
+.hb-thumb{left:calc(var(--u) * -20);top:calc(var(--u) * -20);width:calc(var(--u) * 40);height:calc(var(--u) * 40);box-sizing:border-box;border:calc(var(--u) * 3) solid var(--mi-tone);background:#ffffffeb;box-shadow:0 0 calc(var(--u) * 16) color-mix(in srgb,var(--mi-tone) 60%,transparent)}
+.hb-swipe.is-going .hb-thumb{animation:hb-thumb 1.7s ease-out both}
+.hb-swipe.is-going .hb-trail{animation:hb-trail 1.7s ease-out both}
+.hb-swipe.is-going .hb-ghost{animation:hb-ghost 1.7s ease-out both}
+@keyframes hb-thumb{0%{transform:translateY(calc(var(--u) * 78));opacity:0}10%{opacity:1}40%,85%{transform:none;opacity:1}100%{transform:none;opacity:0}}
+@keyframes hb-trail{0%{transform:scaleY(0);opacity:1}40%,80%{transform:none;opacity:1}100%{transform:none;opacity:0}}
+@keyframes hb-ghost{0%,22%{opacity:0}42%,80%{opacity:1}100%{opacity:0}}
+.hb-caption{
+  position:absolute;top:calc(var(--y) + var(--u) * 106 - var(--lift,0px));display:flex;align-items:center;gap:calc(var(--u) * 4);
+  padding:calc(var(--u) * 6) calc(var(--u) * 10);border:1px solid #ffffff24;border-radius:calc(var(--u) * 12);
+  background:#11151ae6;color:#e6eaee;font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em;white-space:nowrap
+}
+.hb-caption b{font:inherit}
+.hb-caption.is-block{right:calc(100% - var(--x) + var(--u) * 30)}
+.hb-caption.is-lane{left:calc(var(--x) + var(--u) * 30)}
+.hb-caption.is-lane b{color:var(--mi-tone)}
+/* The pitch wears: the strip cracking, in a glow of the game's colour just up the pitch from him. */
+.mi-pitch{position:absolute;left:calc(var(--pitch-x) - var(--u) * 60);top:calc(var(--y) - var(--u) * 138);width:calc(var(--u) * 120);height:calc(var(--u) * 120);display:grid;place-items:center;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--mi-tone) 40%,transparent),transparent)}
+.mi-pitch svg{width:calc(var(--u) * 56);height:calc(var(--u) * 56)}
+/* HOW TO PLAY from the cover: over the cover, but on a picture of the Blast
+   before its first ball, so the swipes are shown over the screen they are
+   played on (the HUD lays its drawings on the picture the same way); the last
+   card ends on CHOOSE A MODE and PLAY NOW side by side. */
+#marathon-intro.is-howto{z-index:40;overflow:hidden;background:#0a0b0d}
+#marathon-intro.is-howto::before,#marathon-intro.is-howto::after{content:'';position:absolute;inset:0;z-index:-1;background:url('./assets/howto-ground.webp') center/contain no-repeat}
+/* Whole, and where the screen is wider than the picture, its sides filled with it blurred. */
+#marathon-intro.is-howto::before{inset:-40px;background-size:cover;filter:blur(24px) brightness(.55)}
 @keyframes mi-in{from{opacity:0}to{opacity:1}}
-@keyframes mi-pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
-@media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot{animation:none}}
-.mi-dots[hidden]{display:flex;visibility:hidden}
-/* How to hit (`ShotsIntro.ts`): six arrows out from the middle, and a hand
-   swiping them one at a time — down on the glass, out along an arrow with a
-   green trail behind the fingertip, and off — the arrow and its stroke's name
-   lit as it goes. Each ray has a sixth of the beat; every animation below is
-   one ray's, offset by its place. */
-.mi-art.is-shots{position:relative;width:min(62cqw,38cqh,270px);height:auto;aspect-ratio:1;margin-bottom:30px}
-.hb-compass{position:absolute;inset:0;display:block;--hb-beat:7.2s}
-.hb-compass svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;stroke-linecap:round;stroke-linejoin:round}
-.hb-head,.hb-trail,.hb-hand,.hb-ripple,.hb-label{animation-duration:var(--hb-beat);animation-iteration-count:infinite;animation-delay:calc(var(--i) * var(--hb-beat) / 6 - .4s)}
-.hb-hub{fill:#ffffff8c}
-.hb-shaft{fill:url(#hb-fade);stroke:url(#hb-fade);stroke-width:1.5}
-.hb-head{fill:#ffffffd9;stroke:#ffffffd9;stroke-width:3;animation-name:hb-lit}
-.hb-trail{stroke:var(--mi-accent);stroke-width:7;stroke-dasharray:50 50;stroke-dashoffset:50;opacity:0;animation-name:hb-trail;animation-timing-function:linear}
-.hb-hand{opacity:0;animation-name:hb-swipe}
-.hb-ripple{stroke:#fff;stroke-width:1.6;opacity:0;transform-box:fill-box;transform-origin:center;animation-name:hb-ripple;animation-timing-function:ease-out}
-.hb-ink>*{fill:#0b1622;stroke:#0b1622;stroke-width:4.4}
-.hb-skin>*{fill:#fff}
-.hb-crease{stroke:#b9c6d0;stroke-width:1.4}
-.hb-shadow{opacity:.3}.hb-shadow>*{fill:#000}
-.hb-label{position:absolute;display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:#ffffff1f;box-shadow:inset 0 0 0 1px #ffffff26;white-space:nowrap;color:#fff;animation-name:hb-name}
-.hb-label b{font-family:var(--card);font-size:14px;font-weight:700;line-height:1.1}
-.hb-label kbd{min-width:20px;padding:1px 5px;border-radius:5px;background:#ffffff2e;font-family:var(--card);font-size:11px;font-weight:800;line-height:1.3;text-align:center;color:inherit}
-/* One ray's sixth, as a share of the whole beat: down at 0–3%, out by 11%, off by 14%. */
-@keyframes hb-swipe{
-  0%{opacity:0;transform:translateY(0) scale(1.18)}
-  2%{opacity:1;transform:translateY(0) scale(1)}
-  3.5%{opacity:1;transform:translateY(0) scale(.9);animation-timing-function:cubic-bezier(.5,0,.3,1)}
-  11%{opacity:1;transform:translateY(-46px) scale(.9)}
-  13%{opacity:1;transform:translateY(-50px) scale(1.06)}
-  15%,100%{opacity:0;transform:translateY(-50px) scale(1.06)}}
-@keyframes hb-trail{0%,3.5%{stroke-dashoffset:50;opacity:.95}11%{stroke-dashoffset:4;opacity:.95}17%,100%{stroke-dashoffset:4;opacity:0}}
-@keyframes hb-ripple{0%,3%{opacity:0;transform:scale(1)}3.5%{opacity:.9;transform:scale(1)}8%,100%{opacity:0;transform:scale(3)}}
-@keyframes hb-lit{0%,8%{fill:#ffffffd9;stroke:#ffffffd9;transform:none}11%,16%{fill:var(--mi-accent);stroke:var(--mi-accent);transform:translateY(-3px)}22%,100%{fill:#ffffffd9;stroke:#ffffffd9;transform:none}}
-@keyframes hb-name{0%,8%{background:#ffffff1f;color:#fff}11%,17%{background:var(--mi-accent);color:#0b1622}23%,100%{background:#ffffff1f;color:#fff}}
-@media (prefers-reduced-motion:reduce){.hb-head,.hb-trail,.hb-hand,.hb-ripple,.hb-label{animation:none}.hb-hand,.hb-trail{display:none}}
-/* Confidence, lit on the scoreboard: a bar under the meter's own words that
-   fills and turns gold when full, which is the whole of the rule. */
-.mi-meter{position:relative;width:56px;height:8px;border-radius:4px;background:#0b16222e;overflow:hidden}
-.mi-meter i{position:absolute;inset:0;border-radius:4px;background:#6cc070;transform-origin:left;animation:mi-fill 3.2s ease-in-out infinite}
-@keyframes mi-fill{0%{transform:scaleX(0);background:#6cc070}55%{transform:scaleX(1);background:#6cc070}62%,85%{transform:scaleX(1);background:#ffc766;box-shadow:0 0 10px #ffc766}100%{transform:scaleX(1);opacity:0}}
-@media (prefers-reduced-motion:reduce){.mi-meter i{animation:none;background:#ffc766}}
+@keyframes mi-pop{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.mi-overlay,.mi-spot,.mi-tag{animation:none}}
 
 /* ── Claiming a place ──────────────────────────────────────────────────── */
 /* The card does not grow to hold this. It is already 349px tall on a landscape
@@ -4430,117 +4454,116 @@ body.private-window{overflow:hidden}
   .private-keys .learn-button{min-height:38px;font-size:13px}
 }
 
-/* ── The questionnaire ─────────────────────────────────────────────────── */
-/* Built out of the innings-end card's own parts: the same navy slab, the same
-   lit top rule and cut ledge, the same two radii. A form that arrived in a
-   different material would read as a survey somebody bolted onto a game, which
-   is exactly what it must not read as.
-   One question fills it. The answers are keys at a thumb's size rather than a
-   list of radio buttons, because the whole promise of the thing is that it is
-   ten taps and no typing. */
+/* ── The questionnaire (Figma 133:12690, section 10) ────────────────────────
+   The coachmarks' and the star prompt's card: dark, at the foot, over the
+   screen dimmed and softened. One question fills it, the answers rows at a
+   thumb's size with a mark each — round where one is taken, square where more
+   are — and the orange of the game's keys for whatever is chosen. */
+.feedback-screen{
+  flex-direction:column;justify-content:flex-start;
+  padding:var(--pad-top) calc(var(--u) * 16) calc(var(--u) * 24 + env(safe-area-inset-bottom));
+  background:#05070abd;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)
+}
 .feedback-sheet{
-  --ink:#f7f0e5;
-  --quiet:#9fb2bd;
-  width:min(392px,100%);
-  margin:auto;
-  padding:20px 22px 18px;
-  border-radius:18px;
-  background:#0f2738;
-  font-family:var(--card);
+  --ink:#f5efe6;
+  --quiet:#a3b3bd;
+  --faint:#8494a0;
+  box-sizing:border-box;
+  width:min(calc(var(--u) * 370),100%);
+  margin:auto auto 0;
+  display:flex;flex-direction:column;gap:calc(var(--u) * 12);
+  padding:calc(var(--u) * 16);
+  border:1px solid #ffffff1a;
+  border-radius:calc(var(--u) * 28);
+  background:linear-gradient(180deg,#20252cfa,#121519fa);
+  font-family:var(--f-ui);
   color:var(--ink);
   text-align:left;
-  box-shadow:0 9px 0 #040e15,0 26px 46px #010609b3,inset 0 1px 0 #ffffff1f
+  box-shadow:inset 0 1px 0 #ffffff12,0 16px 36px #0000008c
 }
-.feedback-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.feedback-eyebrow{
-  font-size:10px;
-  font-weight:700;
-  letter-spacing:2px;
-  text-transform:uppercase;
-  color:var(--quiet)
+.feedback-top{display:flex;align-items:center;gap:calc(var(--u) * 8)}
+.feedback-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(var(--u) * 8)}
+.feedback-eyebrow-row{display:flex;align-items:center;gap:calc(var(--u) * 8);margin:0;white-space:nowrap}
+.feedback-eyebrow{color:var(--quiet);font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;font-variation-settings:'opsz' 6}
+.feedback-of{color:var(--faint);font:700 calc(var(--u) * 9)/1.2 var(--f-ui);letter-spacing:.1em}
+.feedback-close{
+  display:grid;place-items:center;flex:none;
+  width:max(var(--tap),calc(var(--u) * 40));height:max(var(--tap),calc(var(--u) * 40));padding:0;
+  border:0;border-radius:calc(var(--u) * 12);background:#ffffff0f;color:var(--ink);cursor:pointer
 }
-/* The promise that this is nearly over, and the only reason a one-question
-   screen is not alarming. Done, here, and still to come — three states, no
-   numbers: "4 of 11" is a quantity to dread and eleven small marks is not. */
-.feedback-pips{display:flex;gap:4px;margin:12px 0 2px}
-.feedback-pips>i{
-  flex:1;
-  height:3px;
-  border-radius:2px;
-  background:#ffffff1f;
-  transition:background .2s
-}
-.feedback-pips>i.is-done{background:#ffffff4d}
-.feedback-pips>i.is-on{background:var(--orange)}
-.feedback-ask{
-  font-size:21px;
-  font-weight:800;
-  letter-spacing:-.4px;
-  line-height:1.2;
-  margin:14px 0 0;
-  color:var(--ink)
-}
-.feedback-note{margin:6px 0 0;font-size:12.5px;font-weight:600;color:var(--quiet)}
-.feedback-choices{display:flex;flex-direction:column;gap:8px;margin:16px 0 0}
+.feedback-close svg{width:calc(var(--u) * 16);height:calc(var(--u) * 16)}
+.feedback-close:hover{background:#ffffff1f}
+/* The promise that this is nearly over: done, here, and still to come. */
+.feedback-pips{display:flex;gap:calc(var(--u) * 4)}
+.feedback-pips>i{flex:1;height:calc(var(--u) * 4);border-radius:2px;background:#ffffff1f;transition:background .2s}
+.feedback-pips>i.is-done{background:#ed70448c}
+.feedback-pips>i.is-on{background:var(--c-accent)}
+.feedback-q{display:flex;flex-direction:column;gap:calc(var(--u) * 4);padding-top:calc(var(--u) * 6)}
+.feedback-ask{margin:0;color:var(--ink);font:400 calc(var(--u) * 22)/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.feedback-note{margin:0;color:var(--faint);font:500 calc(var(--u) * 12)/1.3 var(--f-ui)}
+.feedback-choices{display:flex;flex-direction:column;gap:calc(var(--u) * 8)}
 .feedback-choice{
-  width:100%;
-  min-height:46px;
-  padding:11px 14px;
-  border:1px solid #ffffff24;
-  border-radius:10px;
-  background:#ffffff0a;
-  color:var(--ink);
-  font-family:var(--card);
-  font-size:15px;
-  font-weight:600;
-  text-align:left
+  display:flex;align-items:center;gap:calc(var(--u) * 12);
+  width:100%;min-height:calc(var(--u) * 52);padding:calc(var(--u) * 8) calc(var(--u) * 14) calc(var(--u) * 8) calc(var(--u) * 16);
+  border:1px solid #ffffff14;border-radius:calc(var(--u) * 14);background:#ffffff0a;
+  color:var(--ink);font:700 calc(var(--u) * 14)/1.3 var(--f-ui);text-align:left;cursor:pointer;
+  transition:background-color .15s,border-color .15s,opacity .15s
 }
-.feedback-choice:hover:not(:disabled){background:#ffffff16}
-/* The one state that matters: a key that has been chosen, and on the two-answer
-   question a key that is still chosen while the next one is picked. */
-.feedback-choice.is-on{
-  border-color:var(--orange);
-  background:#ed704426;
-  color:#ffd9c4
+.feedback-choice>span{flex:1;min-width:0}
+.feedback-choice:hover:not(:disabled,.is-on){background:#ffffff14}
+.feedback-mark{
+  flex:none;display:grid;place-items:center;box-sizing:border-box;
+  width:calc(var(--u) * 22);height:calc(var(--u) * 22);border:1.5px solid #ffffff4d;border-radius:50%
 }
-.feedback-sheet .key-button{margin-top:14px}
+.feedback-mark.is-box{border-radius:calc(var(--u) * 6)}
+.feedback-mark svg{width:100%;height:100%;opacity:0}
+/* Chosen: the row warmed and edged in orange, the mark filled with a tick. */
+.feedback-choice.is-on{border:1.5px solid var(--c-accent);background:#ed704424}
+.feedback-choice.is-on .feedback-mark{border:0;background:var(--c-accent)}
+.feedback-choice.is-on .feedback-mark svg{opacity:1}
+.feedback-choice.is-quiet{opacity:.4}
+.feedback-actions{display:flex;align-items:center;gap:calc(var(--u) * 12);padding-top:calc(var(--u) * 4)}
+.feedback-back{
+  flex:none;width:calc(var(--u) * 72);min-height:max(var(--tap),calc(var(--u) * 48));padding:0;
+  border:0;background:none;color:var(--quiet);font:700 calc(var(--u) * 14)/1.3 var(--f-ui);cursor:pointer
+}
+.feedback-hint{flex:1;margin:0;color:var(--faint);font:500 calc(var(--u) * 12)/1.3 var(--f-ui);text-align:right}
+.feedback-actions>.k-cta{flex:1;min-width:0;width:auto}
 /* The last screen, and the only one with a keyboard on it. */
-.feedback-field{display:block;position:relative;margin:14px 0 0}
+.feedback-field{display:block;position:relative}
 .feedback-field textarea{
-  width:100%;
-  padding:12px 13px;
-  border:1px solid #ffffff24;
-  border-radius:10px;
-  background:#08202f;
-  color:var(--ink);
-  font-family:var(--card);
-  font-size:15px;
-  font-weight:600;
-  line-height:1.45;
-  resize:none
+  box-sizing:border-box;width:100%;padding:calc(var(--u) * 12) calc(var(--u) * 14);
+  border:1px solid #ffffff14;border-radius:calc(var(--u) * 14);background:#ffffff0a;
+  color:var(--ink);font:600 calc(var(--u) * 15)/1.45 var(--f-ui);resize:none
 }
-.feedback-field textarea::placeholder{color:#7e919d;font-weight:500}
-.feedback-field textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-color:transparent}
-.feedback-count{
-  display:block;
-  margin-top:5px;
-  font-size:11px;
-  font-weight:600;
-  letter-spacing:.6px;
-  color:var(--quiet);
-  text-align:right
-}
+.feedback-field textarea::placeholder{color:var(--faint);font-weight:500}
+.feedback-field textarea:focus-visible{outline:none;border:1.5px solid var(--c-accent)}
+.feedback-count{display:block;margin-top:calc(var(--u) * 5);color:var(--faint);font:600 calc(var(--u) * 11)/1.2 var(--f-ui);letter-spacing:.05em;text-align:right}
 /* What goes with the answers, said plainly and where it is read rather than in
    a policy nobody opens. */
-.feedback-fine{margin:10px 0 0;font-size:11px;line-height:1.5;color:#7e919d}
-.feedback-thanks h2{font-size:21px;font-weight:800;letter-spacing:-.4px;line-height:1.25;margin:12px 0 0}
-.feedback-thanks p{margin:8px 0 0;font-size:13.5px;font-weight:600;color:var(--quiet)}
-.feedback-thanks .key-button{display:flex;align-items:center;justify-content:center;text-decoration:none}
-.feedback-sheet .ghost-link{display:block;width:100%;text-align:center}
-/* The shared link is a page rather than a screen over an innings, so there is
-   no ground behind it to darken — the sheet stands on the game's own navy. */
-.feedback-page{background:#0c1e2a}
-.feedback-screen.is-standalone{background:#0c1e2a}
+.feedback-fine{margin:0;color:var(--faint);font:500 calc(var(--u) * 11)/1.5 var(--f-ui)}
+.feedback-sheet .claim-error{margin:0}
+/* Thank you: a tick in a green disc, the words, and the way back. */
+.feedback-thanks{align-items:center;padding:calc(var(--u) * 28) calc(var(--u) * 24) calc(var(--u) * 20);text-align:center}
+.feedback-tick{width:calc(var(--u) * 64);height:calc(var(--u) * 64)}
+.feedback-thanks h2{margin:0;color:var(--ink);font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.feedback-thanks p{margin:0;color:var(--quiet);font:500 calc(var(--u) * 14)/1.4 var(--f-ui)}
+.feedback-thanks .k-cta{text-decoration:none}
+/* The shared link (Figma 133:12691) is a page rather than a screen over an
+   innings: the new black with the orange bloom top left and the film grain,
+   the logo and a line over the card, and the card high rather than low. */
+.feedback-page{background:var(--c-page,#0a0b0d)}
+.feedback-screen.is-standalone{
+  justify-content:flex-start;padding-top:calc(var(--u) * 72);backdrop-filter:none;-webkit-backdrop-filter:none;
+  background:
+    radial-gradient(calc(var(--u) * 310) calc(var(--u) * 240) at calc(var(--u) * 200) calc(var(--u) * 100),#ed704438,#ed704400),
+    url('./assets/entry/grain.webp') 0 0/50px 50px,
+    var(--c-page,#0a0b0d)
+}
+.feedback-screen.is-standalone .feedback-sheet{margin:calc(var(--u) * 26) auto 0}
+.feedback-masthead{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 16);flex:none}
+.feedback-masthead img{width:calc(var(--u) * 220);height:calc(var(--u) * 80);object-fit:contain}
+.feedback-masthead p{width:min(calc(var(--u) * 320),100%);margin:0;color:var(--quiet,#a3b3bd);font:500 calc(var(--u) * 14)/1.4 var(--f-ui);text-align:center}
 /* The quiet way in, on the cover: an underlined line under the keys. */
 .cover-feedback{
   margin:0;padding:calc(var(--u) * 4);border:0;background:none;
@@ -4548,213 +4571,140 @@ body.private-window{overflow:hidden}
   text-decoration:underline;text-underline-offset:3px
 }
 .cover-feedback:hover{color:var(--c-text)}
-/* The board's close key is placed against the board sheet, which is a
-   full-height screen with its own header rail. Here it sits in a row with the
-   eyebrow, so it takes the same shape back out of the flow it was pulled from. */
-.feedback-head .board-close{position:static;width:32px;height:32px;margin:-4px -6px 0 0;font-size:19px;flex:none}
 
-/* ── The star prompt ───────────────────────────────────────────────────────
-   Drawn in the game's own Test-match voice rather than as a form: the deep
-   cricket green the Marathon's stories stand on, mown in stripes, with the
-   cover's display type in cream, the thing asked about on the stories' cream
-   bar with its red rule under it, the logo's glossy gold in the stars, and the
-   PLAY key's white and orange for the way on. No blue: the card it rises under
-   is navy, and a second navy slab read as a form stacked on a form.
-   Above the cards (8), under every sheet the card opens (the board is 10, the
-   career card 11), so the board opened from the card covers it, not the reverse. */
+/* ── The star prompt (Figma 133:12547, 133:12577) ──────────────────────────
+   A card at the foot, in the coachmarks' material: the screen behind dimmed
+   and softened, QUICK ONE by a dot in the colour of what is asked about and
+   the card's edge in it too, the question in the display face, five stars that
+   fill gold, and the two ways on as the kit's keys. Above the cards (8), under
+   every sheet the card opens (the board is 10, the career card 11), so the
+   board opened from the card covers it, not the reverse. */
+.rate-scrim{position:absolute;inset:0;z-index:9;background:#05070abd;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);animation:mi-in .25s ease both}
+.rate-scrim.is-leaving{animation:rate-fade .24s ease-in both;pointer-events:none}
+@keyframes rate-fade{to{opacity:0}}
 .rate-pop{
-  --ink:#f6eedd;
-  --quiet:#a9c6b2;
-  --turf:#0b3a22;
-  --turf-deep:#05200f;
-  --ball:#d8263a;
+  --ink:#f5efe6;
+  --quiet:#a3b3bd;
+  --faint:#8494a0;
+  --tone:var(--c-accent);
   --star-edge:#4a2300;
   --star:#ffc93a;
   position:absolute;
   z-index:9;
   left:50%;
-  bottom:calc(var(--pad-bottom) + 10px);
-  width:min(380px,calc(100% - 32px));
-  padding:16px 18px 16px;
-  border-radius:20px;
-  background:
-    repeating-linear-gradient(104deg,#ffffff07 0 30px,#ffffff00 30px 60px),
-    radial-gradient(130% 90% at 50% 0%,#14603a 0%,#0b3a22 55%,#072a18 100%);
-  font-family:var(--card);
+  bottom:calc(var(--u) * 24 + env(safe-area-inset-bottom));
+  box-sizing:border-box;
+  width:min(calc(var(--u) * 370),calc(100% - var(--u) * 32));
+  display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 12);
+  padding:calc(var(--u) * 20) calc(var(--u) * 20) calc(var(--u) * 18);
+  border:1px solid color-mix(in srgb,var(--tone) 45%,transparent);
+  border-radius:calc(var(--u) * 28);
+  background:linear-gradient(180deg,#20252cfa,#121519fa);
+  font-family:var(--f-ui);
   color:var(--ink);
   text-align:center;
-  box-shadow:0 7px 0 var(--turf-deep),0 20px 38px #000000a6,inset 0 1px 0 #ffffff26,inset 0 0 0 1px #ffffff12;
+  box-shadow:inset 0 1px 0 #ffffff12,0 16px 36px #0000008c;
   transform:translateX(-50%);
   animation:rate-slap .5s cubic-bezier(.2,1.45,.42,1) both
 }
+.rate-pop[data-thing=classic]{--tone:var(--c-blast)}
+.rate-pop[data-thing=marathon]{--tone:#2fa36b}
+.rate-pop[data-thing=survive]{--tone:var(--c-survival)}
 .rate-pop.is-leaving{animation:rate-sink .24s ease-in both;pointer-events:none}
-/* Up from below the picture with a little overshoot, the way the stories' bars
-   land, and a hair of tilt that settles square so it can be read. */
+/* Up from below the picture with a little overshoot, and a hair of tilt that
+   settles square so it can be read. */
 @keyframes rate-slap{
   0%{opacity:0;transform:translate(-50%,46px) rotate(-3deg) scale(1.05)}
   55%{opacity:1;transform:translate(-50%,-4px) rotate(.8deg) scale(.995)}
   100%{opacity:1;transform:translate(-50%,0)}
 }
 @keyframes rate-sink{to{opacity:0;transform:translate(-50%,34px) scale(.96)}}
-/* The eyebrow the Marathon's story signs off with: a red ball, then the words. */
+.rate-head{display:flex;align-items:center;justify-content:space-between;align-self:stretch}
 .rate-eyebrow{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-  margin:0;
-  font-size:10.5px;
-  font-weight:700;
-  letter-spacing:2.2px;
-  color:var(--quiet)
+  display:flex;align-items:center;gap:calc(var(--u) * 6);margin:0;
+  color:var(--quiet);font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;font-variation-settings:'opsz' 6
 }
-.rate-eyebrow>i{
-  width:9px;
-  height:9px;
-  border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,#ff8a8a 0 15%,var(--ball) 50%,#7d0d18 100%);
-  box-shadow:0 0 6px #d8263a99
-}
+.rate-eyebrow>i{width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:var(--tone)}
 /* Holds the stars' gold, and takes up no room. */
 .rate-defs{position:absolute;width:0;height:0;overflow:hidden}
 .rate-close{
-  position:absolute;
-  top:10px;
-  right:10px;
-  display:grid;
-  place-items:center;
-  width:32px;
-  height:32px;
-  padding:0;
-  border:1.5px solid #ffffff33;
-  border-radius:50%;
-  background:#00000026;
-  color:var(--ink);
-  font-size:18px;
-  line-height:1
+  display:grid;place-items:center;flex:none;
+  width:max(var(--tap),calc(var(--u) * 40));height:max(var(--tap),calc(var(--u) * 40));
+  margin:calc(var(--u) * -4) calc(var(--u) * -4) calc(var(--u) * -4) 0;padding:0;
+  border:0;border-radius:calc(var(--u) * 12);background:#ffffff0f;color:var(--ink);cursor:pointer
 }
-.rate-close:hover{border-color:#ffffff80}
+.rate-close svg{width:calc(var(--u) * 16);height:calc(var(--u) * 16)}
+.rate-close:hover{background:#ffffff1f}
 .rate-ask{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:4px;
-  margin:8px 30px 0;
-  font-family:var(--cta);
-  font-weight:400;
-  line-height:1;
-  text-transform:uppercase
+  align-self:stretch;margin:0;color:var(--ink);font:400 calc(var(--u) * 30)/1 var(--f-display);letter-spacing:.03em;
+  text-transform:uppercase;text-wrap:balance;font-variation-settings:'opsz' 6
 }
-.rate-ask-lead{font-size:21px;letter-spacing:.8px;color:var(--ink)}
-/* The thing asked about, on the stories' cream bar with the red rule under it. */
-.rate-ask-name{
-  padding:4px 10px 3px;
-  background:var(--ink);
-  color:var(--turf);
-  font-size:25px;
-  letter-spacing:.6px;
-  box-shadow:0 3px 0 var(--ball)
-}
+.rate-ask.is-one-line{white-space:nowrap}
 .rate-stars{
-  display:flex;
-  justify-content:center;
-  gap:2px;
-  margin:14px auto 0;
-  width:max-content;
-  touch-action:none;
-  user-select:none;
-  -webkit-user-select:none
+  display:flex;justify-content:center;gap:calc(var(--u) * 10);
+  width:max-content;touch-action:none;user-select:none;-webkit-user-select:none
 }
 .rate-star{
   --i:0;
-  width:54px;
-  height:54px;
-  padding:4px;
-  border:0;
-  background:none;
-  cursor:pointer;
-  -webkit-tap-highlight-color:transparent
+  width:calc(var(--u) * 52);height:calc(var(--u) * 52);padding:0;
+  border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent
 }
 .rate-star svg{display:block;width:100%;height:100%;overflow:visible}
-/* Empty, a star is a socket sunk into the turf; lit, it is the logo's gold —
-   lit from above, inked dark, with a glint on its upper arm. */
-.rate-star-edge{fill:#00000038;stroke:#ffffff3d;stroke-width:1.4;stroke-linejoin:round}
-.rate-star-fill,.rate-star-shine{
-  transform-box:view-box;
-  transform-origin:12px 12.5px;
-  transform:scale(0);
+/* Empty, an outline; lit, the design's gold, glowing. */
+.rate-star-edge{fill:none;stroke:#ffffff4d;stroke-width:1.5}
+.rate-star-fill{
+  fill:url(#rate-gold);filter:drop-shadow(0 0 5px #f5b83d80);
+  transform-box:view-box;transform-origin:26px 26px;transform:scale(0);
   transition:transform .2s cubic-bezier(.3,1.7,.5,1)
 }
-.rate-star-fill{fill:url(#rate-gold);stroke:var(--star-edge);stroke-width:1.6;stroke-linejoin:round}
-.rate-star-shine{fill:#fffbe0}
-.rate-star.is-lit .rate-star-fill,.rate-star.is-lit .rate-star-shine{transform:scale(1)}
+.rate-star.is-lit .rate-star-fill{transform:scale(1)}
 .rate-star:focus-visible{outline:2.5px solid var(--ink);outline-offset:-3px;border-radius:12px}
 /* Given: each star pops in turn, left to right, the last one biggest. */
-.rate-pop.is-rated .rate-star.is-on .rate-star-fill,
-.rate-pop.is-rated .rate-star.is-on .rate-star-shine{transition-delay:calc(var(--i) * 55ms)}
+.rate-pop.is-rated .rate-star.is-on .rate-star-fill{transition-delay:calc(var(--i) * 55ms)}
 .rate-pop.is-rated .rate-star.is-on svg{animation:rate-pop .5s cubic-bezier(.25,1.8,.5,1) both;animation-delay:calc(var(--i) * 55ms)}
 .rate-pop.is-rated .rate-star.is-picked svg{animation-name:rate-pick;animation-duration:.62s}
 @keyframes rate-pop{0%{transform:scale(1)}40%{transform:scale(1.28) rotate(-8deg)}100%{transform:scale(1)}}
 @keyframes rate-pick{0%{transform:scale(1)}35%{transform:scale(1.5) rotate(14deg)}65%{transform:scale(.92) rotate(-4deg)}100%{transform:scale(1.08)}}
 /* One or two: nothing jumps. The gold goes dull and the stars settle, as if put down. */
 .rate-pop.is-low .rate-star.is-on svg{animation:rate-settle .6s ease both;animation-delay:calc(var(--i) * 50ms)}
-.rate-pop.is-low .rate-star-fill{fill:#b9984a}
-.rate-pop.is-low .rate-star-shine{fill:#dcc58a}
+.rate-pop.is-low .rate-star-fill{fill:#b9984a;filter:none}
 @keyframes rate-settle{0%{transform:none}35%{transform:translateY(4px) scale(.94)}100%{transform:translateY(1px)}}
-/* Three: a warm glow behind the row. Four and five keep a little of it. */
+/* Three: a warm glow behind the row. */
 .rate-pop.is-mid .rate-stars{animation:rate-glow 1s ease both}
-@keyframes rate-glow{0%{filter:none}40%{filter:drop-shadow(0 0 10px #ffc93acc)}100%{filter:drop-shadow(0 0 4px #ffc93a66)}}
-.rate-pop.is-high .rate-stars,.rate-pop.is-top .rate-stars{filter:drop-shadow(0 0 6px #ffc93a80)}
-.rate-word{
-  margin:2px 0 0;
-  min-height:19px;
-  font-size:13.5px;
-  font-weight:700;
-  letter-spacing:.3px;
-  color:var(--quiet);
-  transition:color .15s
-}
-.rate-pop.is-previewing .rate-word,.rate-pop.is-rated .rate-word{color:#ffd65a}
+@keyframes rate-glow{0%{filter:none}40%{filter:drop-shadow(0 0 10px #ffc93acc)}100%{filter:none}}
+/* The ends of the scale, and the line under them, until a star is given. */
+.rate-scale{display:flex;justify-content:space-between;align-self:stretch;margin:0;color:var(--faint);font:500 calc(var(--u) * 12)/1.3 var(--f-ui)}
+.rate-hint{margin:0;padding-top:calc(var(--u) * 4);color:var(--faint);font:500 calc(var(--u) * 12)/1.3 var(--f-ui)}
+.rate-pop.is-rated .rate-scale,.rate-pop.is-rated .rate-hint{display:none}
+/* The given star's word, in gold; in place of the hint while a thumb slides. */
+.rate-word{margin:0;color:#f5b83d;font:400 calc(var(--u) * 13)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;font-variation-settings:'opsz' 6}
+.rate-word:empty{display:none}
+.rate-pop.is-previewing:not(.is-rated) .rate-hint{display:none}
 .rate-pop.is-low .rate-word{color:#d8c08a}
-.rate-after{animation:rate-after .32s ease both}
+.rate-after{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 12);align-self:stretch;animation:rate-after .32s ease both}
 .rate-after[hidden]{display:none}
 @keyframes rate-after{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.rate-say{margin:8px 0 0;font-size:14.5px;font-weight:700;color:var(--ink)}
-/* Two ways on, side by side at half the width each — never a key and a link
-   under it. The way to say more is the PLAY key itself, white on its orange
-   ledge; Done is the quiet one, cut into the turf. */
-.rate-keys{display:flex;gap:10px;margin-top:12px}
+.rate-say{margin:0;color:var(--quiet);font:500 calc(var(--u) * 14)/1.4 var(--f-ui)}
+/* Two ways on, side by side at half the width each: DONE the kit's blue key,
+   the way to say more its orange one — a size under the design's 22, so the
+   longest of its words (TELL US MORE) fits half a narrow phone. The borders
+   match, or a flex basis of nought splits the row unevenly. */
+.rate-keys{display:flex;gap:calc(var(--u) * 10);align-self:stretch;padding-top:calc(var(--u) * 4)}
 .rate-keys>button{
-  flex:1 1 0;
-  min-width:0;
-  min-height:48px;
-  padding:0 8px;
-  border-radius:12px;
-  font-family:var(--cta);
-  font-size:15px;
-  letter-spacing:1.4px;
-  line-height:1;
-  white-space:nowrap
+  flex:1 1 0;min-width:0;height:calc(var(--u) * 51);padding:0 calc(var(--u) * 4);
+  border-radius:calc(var(--u) * 14);font-family:var(--f-display);line-height:1;white-space:nowrap;
+  font-variation-settings:'opsz' 6;cursor:pointer;transition:transform .08s
 }
 .rate-done{
-  /* The same weight of border as its neighbour's, or the pair split the row
-     unevenly: a flex basis of nought adds each key's border on top. */
-  border:3px solid #ffffff38;
-  background:#00000030;
-  color:var(--ink);
-  box-shadow:0 4px 0 var(--turf-deep)
+  border:3px solid var(--c-mode-ledge);background:var(--c-mode);color:var(--ink);
+  font-size:calc(var(--u) * 18);letter-spacing:.08em;box-shadow:0 calc(var(--u) * 5) 0 var(--c-mode-ledge)
 }
 .rate-more{
-  border:3px solid #0000;
-  border-radius:14px;
-  background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;
-  color:#1d1408;
-  box-shadow:0 4px 0 var(--c-cta-rim-bottom),0 8px 12px #0000004d
+  border:3px solid #0000;background:var(--g-cta-face) padding-box,var(--g-cta-rim) border-box;color:var(--c-cta-ink);
+  font-size:calc(var(--u) * 19);letter-spacing:.04em;box-shadow:0 calc(var(--u) * 6) 0 var(--c-cta-rim-bottom)
 }
-.rate-done:hover{background:#00000045;border-color:#ffffff66}
-.rate-more:hover{box-shadow:0 5px 0 var(--c-cta-rim-bottom),0 10px 14px #0000004d}
-.rate-done:active{transform:translateY(3px);box-shadow:0 1px 0 var(--turf-deep)}
-.rate-more:active{transform:translateY(3px);box-shadow:0 1px 0 var(--c-cta-rim-bottom)}
+.rate-done:active{transform:translateY(3px);box-shadow:0 2px 0 var(--c-mode-ledge)}
+.rate-more:active{transform:translateY(3px);box-shadow:0 2px 0 var(--c-cta-rim-bottom)}
 .rate-keys>button:focus-visible{outline:2.5px solid var(--ink);outline-offset:3px}
 
 /* What is thrown in the air. Positioned by the script at the star that landed,
@@ -7025,7 +6975,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .welcome-kits .kit-option{
   position:relative;display:flex;align-items:center;justify-content:center;
-  width:calc(var(--u) * 52);height:calc(var(--u) * 52);margin:0;padding:0;border:0;border-radius:50%;background:none
+  width:calc(var(--u) * 52);height:calc(var(--u) * 52);margin:0;padding:0;border:0;border-radius:50%;background:none;
+  /* Not the claim card's picker cap: a short screen (a phone with its keyboard
+     up) took it to 44 wide and left the chosen one's ring an oval. */
+  flex:none;max-width:none
 }
 .welcome-kits .kit-option img{width:calc(var(--u) * 46);height:calc(var(--u) * 46);border-radius:50%;opacity:.7}
 .welcome-kits .kit-option.is-chosen img{width:calc(var(--u) * 44);height:calc(var(--u) * 44);opacity:1}
@@ -8308,16 +8261,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .hurt-note-card h2{margin:0;color:var(--c-text);font:400 calc(var(--u) * 22)/1.05 var(--f-display);letter-spacing:.04em;text-transform:uppercase;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .hurt-note-card .hurt-note-line{margin:0;color:var(--c-text-2);font:500 calc(var(--u) * 14)/1.45 var(--f-ui)}
 .hurt-note-card .k-cta{margin:calc(var(--u) * 2) 0 0;width:100%}
-/* HOW TO PLAY from the cover: the coachmarks over the cover, the last card
-   ending on CHOOSE A MODE and PLAY NOW side by side. */
-#marathon-intro.is-howto{z-index:40}
-.mi-finish{display:flex;gap:calc(var(--u) * 10);width:100%}
-.mi-finish .k-cta{flex:1;min-width:0;width:auto}
-#mi-keys:has(.mi-finish){flex-direction:column;align-items:stretch;gap:calc(var(--u) * 14)}
-#mi-keys:has(.mi-finish) .mi-dots{align-self:center}
-#mi-keys:has(.mi-finish) .mi-skip{display:none}
-#marathon-intro.is-howto{background:#05070ae0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-
 /* ── The Dressing Room (src/ui/DressingRoom.ts, the stage in src/scene/DressingStage.ts) ──
    The batter on a turning pedestal under a spotlight, the shelf under him, what
    the one picked takes at the foot. Laid out on the 402-wide phone it was drawn

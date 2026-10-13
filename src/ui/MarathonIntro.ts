@@ -1,39 +1,44 @@
 /**
  * The Test Marathon's rules, the first time it is played: a coachmark over the
- * ground, one rule at a time — a line drawing, a few words, NEXT and SKIP, on
- * the dark rather than in a card. The first cut put each rule on a green and
- * gold card at the foot of the screen, and the playtest asked for a coachmark
- * instead: the screen itself, dimmed, with the thing a rule is about popping
- * out of it and a dotted arrow from the words to it.
+ * ground, one rule at a time (Figma 133:12311 to 133:12387). The ground is
+ * dimmed, and the thing a rule is about is outlined in the dark with its name
+ * on a tag. The words are on a card at the foot: the game and how far through
+ * the cards the player is, a title, a line, and SKIP and NEXT. The first cut
+ * put each rule on a green and gold card, the second on the bare dark with a
+ * dotted arrow up to what it meant; the redraw keeps the second's pointing
+ * and gives the words the first one's card back.
  *
  * They open with how to hit (`ShotsIntro.ts`), the card every mode's first
  * innings starts with, and then only what changes how the mode is played. Not
  * the five-hundred-ball stop, which a player reaches perhaps once and which
  * reads as a target if it is the first thing they are told; not the levels by
- * name, which are told on the screen when they come. Two of the rules point at
- * the thing they are about — the Focus meter on the scoreboard, and the pause
- * key the declaration lives behind — so the rule is learned where it will be
- * used.
+ * name, which are told on the screen when they come. Three of the rules point
+ * at the thing they are about — the wickets on the scoreboard, the Focus meter,
+ * and the pause key the declaration lives behind — and the fourth marks the
+ * pitch, so each rule is learned where it will be used.
  *
  * Shown the first two times a Marathon starts, because the first is often
  * skipped by a thumb already reaching for the pitch; SKIP ends it for good.
  */
 
 import { SHOTS_STEP, shotsCompass } from './ShotsIntro';
+import { cta } from './Kit';
 
 export interface IntroStep {
   title: string;
   line: string;
-  art: string;
-  /** The element on the screen this card is about, lit in the dark around it. */
+  /** The element on the screen this card is about, outlined in the dark round it. */
   spot?: string;
+  /** What the outline's tag calls it. */
+  tag?: string;
   /** The swipes card: its drawing is `shotsCompass`, which depends on the batter's hand. */
   shots?: boolean;
+  /** The pitch, marked in front of the batter where it wears. */
+  pitch?: boolean;
 }
 
-// White line drawings with the one thing that moves picked out in green, as
-// a coachmark draws its hand and the arrows beside it.
-const svg = (body: string) => `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+/** The game a set of cards is for, named at the head of each in its colour. */
+export interface IntroGame { name: string; tone: string }
 
 export const INTRO_STEPS: readonly IntroStep[] = [
   // How to hit, first: the card a first innings in any mode opens with, so a
@@ -41,61 +46,74 @@ export const INTRO_STEPS: readonly IntroStep[] = [
   SHOTS_STEP,
   {
     title: 'Three batters',
-    line: 'Bat until all three are gone',
-    // The helmet from the design (Figma, node 12-127): the shell with its peak
-    // and its vent, and the grille, all in white.
-    art: `<svg viewBox="100 66 428 384" fill="none" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M118 268C108 268 106 256 110 246C128 150 200 80 290 78C370 76 440 130 468 212L502 212C512 212 518 222 514 230C512 236 506 238 500 238L268 262L276 300C277 307 272 312 266 312L186 312C181 312 177 309 176 304L162 268ZM182 216H234A17 17 0 0 1 234 250H182A17 17 0 0 1 182 216Z"/><circle cx="190" cy="233" r="6" fill="currentColor"/><circle cx="226" cy="233" r="6" fill="currentColor"/><path stroke="currentColor" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" d="M192 316V368L224 436H456C470 436 476 428 478 416L486 340C487 330 480 324 470 325L262 340C256 341 252 336 252 330V316M198 386H482M332 338V436M414 331V436"/></svg>`,
+    line: 'Bat until all three are gone. Each wicket brings the next batter in.',
+    spot: 'wickets',
+    tag: 'Wickets left',
   },
   {
     title: 'Focus to settle',
-    line: 'Thirty balls of focus, then confidence builds',
-    art: svg('<path d="M6 32s10-16 26-16 26 16 26 16-10 16-26 16S6 32 6 32Z"/><circle class="acc" cx="32" cy="32" r="8"/><circle cx="32" cy="32" r="2.5" fill="currentColor"/>'),
+    line: 'Survive thirty balls to settle in. Then your confidence starts to build.',
     spot: 'settle',
+    tag: 'Focus meter',
   },
   {
     title: 'The pitch wears',
-    line: 'It gets tougher as the innings goes on',
-    // The strip from above, cracking.
-    art: svg('<rect x="20" y="6" width="24" height="52" rx="3"/><path class="acc" d="M27 16l4 5-3 5 5 4M37 34l-4 4 3 5-4 4M26 46l3 3"/>'),
+    line: 'It gets tougher as the innings goes on. Expect more bounce and turn late.',
+    pitch: true,
   },
   {
     // Every finished innings goes on the board. "Declare, then register" was
     // read by a player as two steps owed before a score could count — the
     // declaration is a choice, to keep a score before the wickets go.
     title: 'Every innings counts',
-    line: 'All out or declared, your score goes on the board. Declare from pause after 20 overs to keep it',
-    // A flag on the stumps.
-    art: svg('<path d="M18 58V10"/><path class="acc" d="M18 12h24l-6 8 6 8H18"/><path d="M32 58V40M42 58V40M30 38h14"/>'),
+    line: 'All out or declared, your score goes on the board. Declare from pause after 20 overs to keep it.',
     spot: 'pause',
+    tag: 'Pause',
   },
 ];
 
-/** The words for one step: the drawing, the title and the line under it. */
-export function introCardMarkup(step: IntroStep, left = false): string {
+/** The strip from above, cracking: the wear card's drawing (Figma 133:12366). */
+const CRACK = '<svg viewBox="0 0 56 56" fill="none" stroke="#F5EFE6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<path d="M35 4.66667H21C18.4227 4.66667 16.3333 6.756 16.3333 9.33333V46.6667C16.3333 49.244 18.4227 51.3333 21 51.3333H35C37.5773 51.3333 39.6667 49.244 39.6667 46.6667V9.33333C39.6667 6.756 37.5773 4.66667 35 4.66667Z"/>'
+  + '<path d="M25.6667 14L30.3333 18.6667L25.6667 23.3333L30.3333 28L25.6667 32.6667L30.3333 37.3333"/></svg>';
+
+/** What a card draws over the ground: the swipes, or the pitch marked. A spotlight is drawn by the HUD, which can see the target. */
+export function introStageMarkup(step: IntroStep, left = false): string {
+  if (step.shots) return shotsCompass(left);
+  if (step.pitch) return `<span class="mi-pitch">${CRACK}</span>`;
+  return '';
+}
+
+/** The card's words: the game and where the player is in the cards, the title and the line under it. */
+export function introCardMarkup(step: IntroStep, index: number, count: number, game: IntroGame): string {
+  const pills = Array.from({ length: count }, (_, i) => `<i class="${i < index ? 'is-done' : i === index ? 'is-on' : ''}"></i>`).join('');
   return `
-      <span class="mi-art${step.shots ? ' is-shots' : ''}">${step.shots ? shotsCompass(left) : step.art}</span>
+      <div class="mi-head"><span class="mi-mode"><i></i><span id="mi-mode">${game.name}</span></span>`
+    + `<span class="mi-dots" aria-hidden="true"${count < 2 ? ' hidden' : ''}>${pills}</span></div>
       <h2 id="mi-title" class="mi-title">${step.title}</h2>
       <p class="mi-line">${step.line}</p>`;
 }
 
-/** The foot of the screen: where the player is in the four, SKIP, and NEXT. */
+/**
+ * The card's keys: SKIP and NEXT, and BACK and LET'S BAT on the last of
+ * several. A card on its own has nothing to go back to and nothing to skip.
+ */
 export function introKeysMarkup(index: number, count: number, finish = false): string {
   const last = index === count - 1;
   // Opened from HOW TO PLAY on the cover there is no innings waiting behind
   // the cards, so the last one offers the two ways on: a Blast now, or a mode.
   if (last && finish) {
     return `
-      <span class="mi-dots" aria-hidden="true"${count < 2 ? ' hidden' : ''}>${Array.from({ length: count }, (_, i) => `<i${i === index ? ' class="is-on"' : ''}></i>`).join('')}</span>
       <div class="mi-finish">
-        <button id="mi-modes" class="k-cta k-cta--secondary" type="button"><span class="k-cta-face"><span>CHOOSE A MODE</span></span></button>
-        <button id="mi-next" class="k-cta k-cta--primary" type="button"><span class="k-cta-face"><span>PLAY NOW</span></span></button>
+        ${cta({ kind: 'secondary', label: 'CHOOSE A MODE', id: 'mi-modes', wide: false })}
+        ${cta({ kind: 'primary', label: 'PLAY NOW', id: 'mi-next' })}
       </div>
-      <button id="mi-skip" class="mi-skip" type="button" hidden>Skip</button>`;
+      <button id="mi-back" class="mi-skip" type="button"${count < 2 ? ' hidden' : ''}>Back</button>`;
   }
-  return `
-      <button id="mi-skip" class="mi-skip" type="button"${last ? ' hidden' : ''}>Skip</button>
-      <span class="mi-dots" aria-hidden="true"${count < 2 ? ' hidden' : ''}>${Array.from({ length: count }, (_, i) => `<i${i === index ? ' class="is-on"' : ''}></i>`).join('')}</span>
-      <button id="mi-next" class="mi-next" type="button">${last ? "Let's bat" : 'Next'}</button>`;
+  const side = last
+    ? `<button id="mi-back" class="mi-skip" type="button"${count < 2 ? ' hidden' : ''}>Back</button>`
+    : '<button id="mi-skip" class="mi-skip" type="button">Skip</button>';
+  return `${side}${cta({ kind: 'primary', label: last ? 'LET’S BAT' : 'NEXT', id: 'mi-next' })}`;
 }
 
 const KEY = 'hitman-marathon-intro';

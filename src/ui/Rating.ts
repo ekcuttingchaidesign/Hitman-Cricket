@@ -3,13 +3,11 @@ import { RATED_NAME, STAR_WORDS, tierOf, type RatedThing } from '../game/rating'
 /**
  * The star prompt, as a screen.
  *
- * Not a sheet in front of the card but a sticker slapped down under it: the
- * card is still the thing the player came to see, with their score on it and
- * PLAY AGAIN a thumb away, and a rating that took the card away to ask would be
- * paid for out of the one screen that is theirs. So it is small, it sits at the
- * foot of the picture, and it goes with one tap of the cross. It is drawn in
- * the game's Test-match green rather than navy, because the card behind it is
- * navy (see the styles).
+ * A card at the foot of the screen, as the handover draws it (Figma 133:12547
+ * and 133:12577): the screen behind dimmed, QUICK ONE by a dot in the colour of
+ * the thing asked about, the question, five stars with the two ends of the
+ * scale under them, and a line saying one tap is all it takes. It is small and
+ * it goes with one tap of the cross, or of the dark round it.
  *
  * One tap is also the whole of rating, and it is not final. The stars stay live
  * while the sticker is up: a second thought is a second tap, and the sticker
@@ -66,9 +64,12 @@ export const SEND_AFTER_MS = 1500;
 
 const TIERS = ['is-low', 'is-mid', 'is-high', 'is-top'];
 
-/** A star: the socket it sits in, the inked fill, and the glint on its upper arm. */
-const STAR_PATH = 'M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5L2.6 9.4l6.5-.9z';
-const STAR = `<svg viewBox="0 0 24 24" aria-hidden="true"><path class="rate-star-edge" d="${STAR_PATH}"/><path class="rate-star-fill" d="${STAR_PATH}"/><path class="rate-star-shine" d="M9.6 9.6l1.5-3.1.8 1.7-1 2.1-2.3.4z"/></svg>`;
+/** A star (the design's two): an outline waiting for a tap, and the gold one that fills it. */
+const STAR = '<svg viewBox="0 0 52 52" aria-hidden="true">'
+  + '<path class="rate-star-edge" d="M23.957 12.2197C24.7613 10.4768 27.2387 10.4768 28.043 12.2197L30.2588 17.0225C30.805 18.2066 31.9267 19.0221 33.2217 19.1758L38.4736 19.7988C40.3803 20.0249 41.146 22.381 39.7363 23.6846L35.8535 27.2754C34.896 28.1609 34.4675 29.4806 34.7217 30.7598L35.7529 35.9473C36.127 37.8304 34.1216 39.2864 32.4463 38.3486L27.832 35.7656C26.694 35.1286 25.306 35.1286 24.168 35.7656L19.5537 38.3486C17.8784 39.2864 15.873 37.8304 16.2471 35.9473L17.2783 30.7598C17.5325 29.4806 17.104 28.1609 16.1465 27.2754L12.2637 23.6846C10.854 22.381 11.6197 20.0249 13.5264 19.7988L18.7783 19.1758C20.0733 19.0221 21.195 18.2066 21.7412 17.0225L23.957 12.2197Z"/>'
+  + '<path class="rate-star-fill" d="M23.2758 11.906C24.3481 9.58138 27.6519 9.58138 28.7242 11.906L30.9394 16.7086C31.3764 17.656 32.2742 18.3083 33.3103 18.4312L38.5624 19.0539C41.1046 19.3553 42.1255 22.4974 40.246 24.2356L36.363 27.8264C35.597 28.5348 35.2541 29.5903 35.4574 30.6136L36.4882 35.8011C36.9871 38.312 34.3142 40.2539 32.0803 39.0035L27.4653 36.4202C26.5549 35.9106 25.4451 35.9106 24.5347 36.4202L19.9197 39.0035C17.6858 40.2539 15.0129 38.312 15.5119 35.8011L16.5426 30.6136C16.7459 29.5903 16.403 28.5348 15.637 27.8264L11.754 24.2356C9.87449 22.4974 10.8954 19.3553 13.4376 19.0539L18.6897 18.4312C19.7258 18.3083 20.6236 17.656 21.0606 16.7086L23.2758 11.906Z"/></svg>';
+/** The cross on the close key (Figma 133:12555). */
+const CROSS = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 4 4 12M4 4l8 8"/></svg>';
 
 export function askRating(options: RatingPromptOptions): RatingPrompt {
   const name = RATED_NAME[options.thing];
@@ -82,34 +83,48 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
   let sending = 0;
   let clearing = 0;
 
+  // The screen behind, dimmed; a tap on it is the cross.
+  const scrim = document.createElement('div');
+  scrim.className = 'rate-scrim';
+  options.root.appendChild(scrim);
   const pop = document.createElement('div');
   pop.className = 'rate-pop';
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-label', `Rate ${name}`);
   pop.dataset.thing = options.thing;
   pop.innerHTML = `
-    <button class="rate-close" type="button" aria-label="Not now">×</button>
     <svg class="rate-defs" width="0" height="0" aria-hidden="true"><defs><linearGradient id="rate-gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff2a6"/><stop offset=".45" stop-color="#ffc93a"/><stop offset="1" stop-color="#f08712"/>
+      <stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#f2a62e"/>
     </linearGradient></defs></svg>
-    <p class="rate-eyebrow"><i aria-hidden="true"></i>QUICK ONE</p>
+    <div class="rate-head"><p class="rate-eyebrow"><i aria-hidden="true"></i>QUICK ONE</p>
+      <button class="rate-close" type="button" aria-label="Not now">${CROSS}</button></div>
     <h3 class="rate-ask"><span class="rate-ask-lead">${options.thing === 'game' ? 'How are you finding' : 'How was'}</span>
       <span class="rate-ask-name">${name}?</span></h3>
     <div class="rate-stars" role="radiogroup" aria-label="Your rating">${[1, 2, 3, 4, 5].map(n => `
       <button class="rate-star" type="button" role="radio" aria-checked="false" data-n="${n}" style="--i:${n - 1}"
         aria-label="${n} star${n > 1 ? 's' : ''} — ${STAR_WORDS[n - 1]}" tabindex="${n === 1 ? 0 : -1}">${STAR}</button>`).join('')}
     </div>
-    <p class="rate-word" aria-live="polite">Tap a star</p>
+    <p class="rate-scale" aria-hidden="true"><span>${STAR_WORDS[0]}</span><span>${STAR_WORDS[4]}</span></p>
+    <p class="rate-word" aria-live="polite"></p>
+    <p class="rate-hint">Tap a star. That’s all it takes.</p>
     <div class="rate-after" hidden></div>
     <div class="rate-burst" aria-hidden="true"></div>`;
   options.root.appendChild(pop);
+
+  // A mode's question on one line, as drawn, a size or two smaller where its
+  // name is long; the game's own question is longer and takes two.
+  const ask = pop.querySelector<HTMLElement>('.rate-ask')!;
+  if (options.thing !== 'game') {
+    ask.classList.add('is-one-line');
+    for (let size = parseFloat(getComputedStyle(ask).fontSize); ask.scrollWidth > ask.clientWidth && size > 18; size--) ask.style.fontSize = `${size - 1}px`;
+  }
 
   const row = pop.querySelector<HTMLElement>('.rate-stars')!;
   const stars = [...pop.querySelectorAll<HTMLButtonElement>('.rate-star')];
   const word = pop.querySelector<HTMLElement>('.rate-word')!;
   const burst = pop.querySelector<HTMLElement>('.rate-burst')!;
 
-  pop.querySelector<HTMLButtonElement>('.rate-close')!.onclick = () => {
+  scrim.onclick = pop.querySelector<HTMLButtonElement>('.rate-close')!.onclick = () => {
     if (!given) options.onDismiss();
     close();
   };
@@ -121,7 +136,7 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
   const preview = (n: number) => {
     const shown = n || given;
     stars.forEach((star, i) => star.classList.toggle('is-lit', i < shown));
-    word.textContent = shown ? STAR_WORDS[shown - 1] : 'Tap a star';
+    word.textContent = shown ? STAR_WORDS[shown - 1] : '';
     pop.classList.toggle('is-previewing', n > 0 && n !== given);
   };
 
@@ -282,7 +297,8 @@ export function askRating(options: RatingPromptOptions): RatingPrompt {
     open = false;
     window.clearTimeout(settle);
     pop.classList.add('is-leaving');
-    window.setTimeout(() => pop.remove(), calm ? 0 : 260);
+    scrim.classList.add('is-leaving');
+    window.setTimeout(() => { pop.remove(); scrim.remove(); }, calm ? 0 : 260);
   }
 
   return {
