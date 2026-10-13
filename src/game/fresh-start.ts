@@ -1,4 +1,5 @@
 import { DB_NAME, PLAYER_KEY } from './identity';
+import { forgetTicket } from './return-ticket';
 
 /**
  * Starting again as somebody this browser has never met.
@@ -58,6 +59,9 @@ export async function clearThisDevice(): Promise<void> {
     const secure = location.protocol === 'https:' ? ';Secure' : '';
     document.cookie = `${PLAYER_KEY}=;path=/;max-age=0;SameSite=Lax${secure}`;
   } catch { /* Then there was no cookie to take. */ }
+  // And the return ticket, or the next load would read it and put the old
+  // player straight back.
+  forgetTicket();
   await dropDatabase();
 }
 

@@ -47,6 +47,16 @@ finished innings counts toward a career, `restore-check.mjs` for what a player
 with no name is offered and the screen that takes a key back, `key-check.mjs`
 for what a player who has one is shown.
 
+`scripts/return-check.mjs` is the return ticket: the cookie `/api/me` sets so
+that Safari, which deletes everything a page's script wrote after a week away,
+still has something to bring the player back from. It wipes the browser the
+way Safari does — localStorage, the script's cookie, IndexedDB — and expects
+the same player back under the same name and kit, and `?fresh=1` to take the
+ticket too. The page reads the ticket but must never write it: a cookie written
+by script is one Safari caps at seven days, which would turn the one copy that
+survives into another that does not. What no check can do is wait a week on a
+real iPhone; the `identity-recovered` count on the dashboard is that test.
+
 Those last two are split by whose screen it is, and that is the point. A check
 that registers and then deletes its way back to nameless is testing its own
 teardown: the key card was missing from My Stats for every registered player
