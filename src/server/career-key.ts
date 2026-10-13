@@ -1,4 +1,4 @@
-import { randomBytes, randomInt, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, randomInt, scryptSync, timingSafeEqual } from 'node:crypto';
 import { KEY_WORDS } from '../game/key-words.js';
 
 /**
@@ -28,6 +28,12 @@ export interface StoredKey {
   hash: string;
   /** When it was issued, so a key can be aged out later if that is ever wanted. */
   at: number;
+  /**
+   * The key itself, sealed with `KEY_SEAL_SECRET`, so the owner can read a
+   * player's key back for them. Absent on every key issued before sealing, and
+   * on any issued where the secret is not set. See `sealKey`.
+   */
+  sealed?: string;
 }
 
 /**
@@ -62,10 +68,85 @@ export function keyShaped(folded: string): boolean {
   return SHAPE.test(folded);
 }
 
-/** What to keep for a key, so the key itself never has to be. */
-export function keepKey(key: string, now = Date.now()): StoredKey {
+/**
+ * What to keep for a key: the slow hash a restore is checked against, and,
+ * where the sealing secret is set, the key sealed so the owner can read it.
+ */
+export function keepKey(key: string, now = Date.now(), secret: Buffer | null = keySealSecret()): StoredKey {
   const salt = randomBytes(16).toString('hex');
-  return { salt, hash: scryptSync(foldKey(key), salt, LENGTH, COST).toString('hex'), at: now };
+  const held: StoredKey = { salt, hash: scryptSync(foldKey(key), salt, LENGTH, COST).toString('hex'), at: now };
+  if (secret) held.sealed = sealKey(foldKey(key), secret);
+  return held;
+}
+
+/**
+ * Sealing: the key kept so the owner can read it back, and nobody else can.
+ *
+ * The hash above is one-way on purpose, and that leaves a friend who lost their
+ * key with no way back but a new one. So the key is also kept sealed — AES-256
+ * in GCM mode, a fresh nonce every time — with a secret that lives in Vercel's
+ * environment and in the terminal of whoever runs `scripts/key-show.ts`, and
+ * nowhere else. Never in the repository, never in a conversation.
+ *
+ * What it costs is the thing the hash alone ruled out: somebody holding both
+ * the database and the secret holds every key. The database alone, or the
+ * secret alone, still opens nothing. The hash stays, and a restore is still
+ * checked against it and only it; the seal is read by the owner's script, never
+ * by an endpoint, so no request a player can make ever opens one.
+ *
+ * GCM authenticates as well as hides: a sealed key that has been changed in the
+ * store, or one sealed under another secret, does not open to a wrong key — it
+ * does not open at all.
+ */
+export const SEAL_ENV = 'KEY_SEAL_SECRET';
+/** What a sealed key says it is, so a later scheme can be told apart from this one. */
+const SEAL_VERSION = 'v1';
+/** Bound into every seal, so a sealed key cannot be passed off as anything else this secret seals. */
+const SEAL_CONTEXT = Buffer.from('hitman-career-key');
+
+/**
+ * The sealing secret from the environment: thirty-two random bytes, base64.
+ * Anything else is no secret rather than a crash — keys are then kept as they
+ * always were, hash only, and the game carries on.
+ */
+export function keySealSecret(env: Record<string, string | undefined> = process.env): Buffer | null {
+  const raw = env[SEAL_ENV]?.trim();
+  if (!raw) return null;
+  try {
+    const secret = Buffer.from(raw, 'base64');
+    return secret.length === 32 ? secret : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The key, sealed. The nonce and the tag travel with it; none of the three is secret. */
+export function sealKey(key: string, secret: Buffer): string {
+  const nonce = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', secret, nonce);
+  cipher.setAAD(SEAL_CONTEXT);
+  const body = Buffer.concat([cipher.update(key, 'utf8'), cipher.final()]);
+  return [SEAL_VERSION, nonce, cipher.getAuthTag(), body]
+    .map(part => typeof part === 'string' ? part : part.toString('base64url')).join('.');
+}
+
+/**
+ * A sealed key opened, or null: no seal, a seal from another secret, one that
+ * has been tampered with, or one that opens to something that is not a key.
+ */
+export function openKey(held: Pick<StoredKey, 'sealed'> | null | undefined, secret: Buffer): string | null {
+  const parts = held?.sealed?.split('.');
+  if (!parts || parts.length !== 4 || parts[0] !== SEAL_VERSION) return null;
+  try {
+    const [nonce, tag, body] = parts.slice(1).map(part => Buffer.from(part, 'base64url'));
+    const decipher = createDecipheriv('aes-256-gcm', secret, nonce);
+    decipher.setAAD(SEAL_CONTEXT);
+    decipher.setAuthTag(tag);
+    const key = Buffer.concat([decipher.update(body), decipher.final()]).toString('utf8');
+    return keyShaped(key) ? key : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
