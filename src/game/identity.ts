@@ -9,10 +9,15 @@
  *
  * So the id is written to three places at once — localStorage, a long-lived
  * cookie and IndexedDB — and read back from whichever survived. They fail in
- * different ways and at different times, which is the point: Safari evicts
- * script-written storage after seven idle days but keeps cookies longer, a
- * cleared-site-data sweep takes the lot, and private windows keep nothing past
- * the tab. Any one of the three coming back is enough to stay the same player.
+ * different ways and at different times, which is the point: a
+ * cleared-site-data sweep takes the lot, private windows keep nothing past the
+ * tab, and any one of the three coming back is enough to stay the same player.
+ *
+ * Safari is the exception that beats all three at once. It deletes everything a
+ * page's script wrote after seven days away and caps a script's cookie at seven
+ * days too, so a player back after a week has none of them. That is what the
+ * return ticket in `return-ticket.ts` is for: a cookie the server sets, which
+ * Safari keeps, read before anything here is asked.
  *
  * None of this is a security measure. An id in a browser identifies a browser,
  * not a person: anyone who wants two rows can have two rows, and the answer to

@@ -36,6 +36,19 @@ export function readPlayer(): Player | null {
 /** Remembers the pair, so the next innings is one key rather than a form. */
 export function writePlayer(player: Player) {
   try { localStorage.setItem(KEY, JSON.stringify(player)); } catch { /* A session remains playable without it. */ }
+  written?.(player);
+}
+
+/**
+ * Who hears about a name or kit being written. There are half a dozen places
+ * that write one — the welcome, the claim, a rename, a restore — and the
+ * return ticket has to follow every one of them, so it listens here rather
+ * than being called from each and missed from the seventh.
+ */
+let written: ((player: Player) => void) | null = null;
+
+export function onPlayerWritten(listener: ((player: Player) => void) | null) {
+  written = listener;
 }
 
 /** Which way round the player bats. */

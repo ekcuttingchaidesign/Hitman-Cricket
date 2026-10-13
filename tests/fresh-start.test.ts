@@ -33,6 +33,8 @@ describe('what a clean slate clears', () => {
   let local: ReturnType<typeof store>;
   let session: ReturnType<typeof store>;
   let deleted: string[];
+  /** Every cookie the page wrote, in order: a plain string would keep only the last. */
+  let cookies: string[];
 
   beforeEach(() => {
     local = store();
@@ -40,7 +42,11 @@ describe('what a clean slate clears', () => {
     deleted = [];
     vi.stubGlobal('localStorage', local);
     vi.stubGlobal('sessionStorage', session);
-    vi.stubGlobal('document', { cookie: '' });
+    cookies = [];
+    vi.stubGlobal('document', {
+      get cookie() { return cookies.join('; '); },
+      set cookie(written: string) { cookies.push(written); },
+    });
     vi.stubGlobal('location', { protocol: 'https:', search: '' });
     vi.stubGlobal('indexedDB', {
       deleteDatabase(name: string) {
@@ -83,8 +89,21 @@ describe('what a clean slate clears', () => {
 
   it('expires the cookie the id is also kept in', async () => {
     await clearThisDevice();
-    expect(document.cookie).toContain('hitman-player=');
-    expect(document.cookie).toContain('max-age=0');
+    const player = cookies.find(written => written.startsWith('hitman-player='));
+    expect(player).toContain('max-age=0');
+  });
+
+  /**
+   * The return ticket is the copy that outlives the other three, which is the
+   * whole of what it is for — and exactly why a clean slate that left it would
+   * put the old player straight back on the next load.
+   */
+  it('expires the return ticket the server wrote, too', async () => {
+    await clearThisDevice();
+    const ticket = cookies.find(written => written.startsWith('hitman-back='));
+    expect(ticket).toBeDefined();
+    expect(ticket).toContain('max-age=0');
+    expect(ticket).toContain('path=/');
   });
 
   it('drops the database the id is kept in a third time', async () => {

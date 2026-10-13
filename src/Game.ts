@@ -40,7 +40,8 @@ import {
   submitSurvive,
   type BoardPayload, type SurvivePayload, type MarathonPayload, type SubmitResult,
 } from './game/board-api';
-import { markProfileDone, profileDone, readHand, readPlayer, writeHand, writePlayer, type Hand } from './game/player';
+import { markProfileDone, onPlayerWritten, profileDone, readHand, readPlayer, writeHand, writePlayer, type Hand } from './game/player';
+import { leaveTicket } from './game/return-ticket';
 import {
   offerRestoreHere, restoreOfferDismissed, restoreOfferDone, restoreOfferShown,
 } from './game/restore-offer';
@@ -520,6 +521,12 @@ export class Game {
     // failure for an afternoon.
     void playerId().then(id => {
       this.player = id;
+      // The return ticket follows the id and whatever name is written under
+      // it. Not from a private window, whose id is gone with the tab anyway.
+      if (this.canRegister) {
+        leaveTicket(id, readPlayer());
+        onPlayerWritten(player => leaveTicket(this.player, player));
+      }
       void this.pullDressing();
       void this.catchUpOnKey();
       return this.openChallenges();
@@ -4634,6 +4641,7 @@ export class Game {
     };
   }
   dispose() {
+    onPlayerWritten(null);
     this.stopDressingSends?.(); window.clearTimeout(this.dressingTimer);
     this.disposed = true; cancelAnimationFrame(this.frameId); this.input?.dispose(); this.scene?.dispose(); this.audio.dispose();
     window.removeEventListener('keydown', this.shortcuts); window.removeEventListener('beforeunload', this.leaving); window.removeEventListener('blur', this.blur); document.removeEventListener('visibilitychange', this.visibility);

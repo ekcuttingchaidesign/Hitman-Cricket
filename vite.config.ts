@@ -25,6 +25,7 @@ import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
   type BlastCareer, type MarathonCareer, type SurviveCareer,
 } from './src/game/career';
+import { forgetHeader, ticketFrom, ticketHeader } from './src/server/return-ticket';
 import { modeAsked } from './src/server/mode';
 
 /**
@@ -82,7 +83,7 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap'];
+          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me'];
         if (!known.includes(path)) return next();
         // A refusal as the deployed endpoints write one, carrying the name
         // that is held when it is not the one typed.
@@ -97,6 +98,17 @@ function boardEndpoints(): Plugin {
         };
         try {
           if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end(); }
+          if (path === '/api/me') {
+            // The return ticket, written the way `api/me.ts` writes it. Not
+            // `Secure`: the dev server is plain http, and a browser keeps no
+            // secure cookie from one.
+            if (req.method !== 'POST') return send(405, { error: 'Use POST.' });
+            const forget = new URLSearchParams((req.url ?? '').split('?')[1] ?? '').has('forget');
+            const ticket = forget ? null : ticketFrom(JSON.parse(await read(req)));
+            if (!forget && !ticket) return send(400, { error: 'That is not a player.' });
+            res.setHeader('Set-Cookie', ticket ? ticketHeader(ticket, false) : forgetHeader(false));
+            return send(200, { ok: true });
+          }
           if (path === '/api/challenge') {
             const request = {
               method: req.method,

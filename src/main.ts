@@ -5,6 +5,7 @@ import { clearThisDevice, forgetFreshFlag, freshWanted } from './game/fresh-star
 import { keyView } from './game/recovery';
 import { readPlayer } from './game/player';
 import { moveHouse, moveIn } from './game/move-house';
+import { comeBack } from './game/return-ticket';
 import { privateNotice } from './ui/PrivateNotice';
 import { freshNotice } from './ui/FreshNotice';
 const root = document.querySelector<HTMLDivElement>('#app')!;
@@ -52,6 +53,10 @@ void (async () => {
     // stop existing.
     if (await freshNotice(root, keyView(!!readPlayer()))) await clearThisDevice();
   }
+  // A phone that has forgotten who is playing, and still holds the ticket the
+  // server wrote: the player is put back before the game asks. After the clean
+  // slate above, which takes the ticket with it.
+  await comeBack();
   const hidden = await privateWindow();
   // Asked once a session: a player who has read the notice and chosen to bat on
   // should not meet it again every time the page reloads.
