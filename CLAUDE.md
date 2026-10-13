@@ -28,12 +28,45 @@ transcript, not in a screenshot. Where a command in a document needs one,
 write `…` and let the reader paste their own. A token that has been seen
 should be rotated by the four steps in `docs/LAUNCH.md`.
 
+`KEY_SEAL_SECRET` is the same kind of thing. It is the secret career keys are
+sealed with (`sealKey` in `src/server/career-key.ts`): thirty-two random bytes,
+base64, set in Vercel — a different value for Production and Preview — and in
+the terminal of whoever runs `scripts/key-show.ts`. With it and the database
+together somebody holds every key, which is why it lives nowhere else. Make
+one in your own terminal and paste it straight into Vercel:
+
+    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+Changing it later means every key sealed before can no longer be read back
+(they still restore: a restore checks the hash, never the seal), so set it once.
+
 ## Scripts that write are opt-in
 
 `scripts/career-seed.ts` and `scripts/board-fill.mjs` both refuse to write
 without an explicit flag, and both default to the harmless development keys
 unless `VERCEL_ENV` says otherwise. Keep that shape for anything new: a script
 that touches real players should have to be asked twice.
+
+## A friend who lost their career key
+
+A key is kept as a slow hash, which a restore is checked against, and — for
+every key issued since `KEY_SEAL_SECRET` was set — sealed as well, so the owner
+can read it back. Two scripts, both run by the owner in their own terminal,
+never reachable from the game (`src/server/key-admin.ts` is what they decide
+with, in `tests/key-seal.test.ts`):
+
+    VERCEL_ENV=production npx vite-node scripts/key-show.ts "Dhruv"
+    VERCEL_ENV=production npx vite-node scripts/key-reset.ts "Dhruv" --write
+
+`key-show` reads a sealed key back and writes nothing; a key issued before
+sealing has only its hash, and it says so. `key-reset` gives one name a new key
+and the old one stops opening it — nothing else is touched, not the record,
+which is filed under the player id, and not anybody else's key. Without
+`--write` it says who it found and stops; with it, it asks for the name again.
+It also clears the tries already spent on that name, so the new key works at
+once. Both print how many innings the player has, so the owner can be sure it
+is the right one — and the owner has to be sure the person asking is that
+player, because whoever is sent the key holds the career.
 
 ## Checks
 
