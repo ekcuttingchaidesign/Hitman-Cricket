@@ -5619,6 +5619,10 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .whatsnew-sheet.is-stage{background:#0d0b10}
 .whatsnew-stage{position:absolute;inset:0;z-index:0;pointer-events:none}
 .whatsnew-stage>.dr-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* Eased in as it is put up, in case it was not ready when the story opened. */
+.whatsnew-stage.is-live>.dr-stage{animation:story-stage-in .4s ease-out}
+@keyframes story-stage-in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.whatsnew-stage.is-live>.dr-stage{animation:none}}
 .whatsnew-stage::after{content:'';position:absolute;left:0;right:0;bottom:0;height:38%;background:linear-gradient(180deg,#0000,#000000b8 70%)}
 .is-stage .whatsnew-bars{position:relative;z-index:2}
 .is-stage .whatsnew-body{justify-content:flex-start}

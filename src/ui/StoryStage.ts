@@ -68,6 +68,17 @@ export class StoryStage {
     });
   }
 
+  /**
+   * Made ahead, where the stories are due to open: the stage built, the batter
+   * dressed in the first kit and drawn off the page, so his shaders are
+   * compiled before the first story asks for him. Made on demand, the first
+   * story stood empty for a second or two on a phone while that happened.
+   */
+  warm() {
+    this.stopped = false;
+    void this.ready().then(stage => stage?.dress(OUTFITS[0], batOf(WELCOME_BAT)));
+  }
+
   /** The stories are put away: the stage and its renderer with them. */
   stop() {
     this.stopped = true;
@@ -81,9 +92,10 @@ export class StoryStage {
     if (this.stage) return Promise.resolve(this.stage);
     this.loading ??= import('../scene/DressingStage').then(({ DressingStage }) => {
       if (this.stopped) return null;
-      try { this.stage = new DressingStage(); } catch { return null; }
+      try { this.stage = new DressingStage(); } catch { this.loading = null; return null; }
       return this.stage;
-    }).catch(() => null);
+    // Not fetched — a dropped connection — is asked again next time, rather than held as an answer.
+    }).catch(() => { this.loading = null; return null; });
     return this.loading;
   }
 }
