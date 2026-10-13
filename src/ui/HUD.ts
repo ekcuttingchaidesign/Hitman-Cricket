@@ -13,6 +13,7 @@ import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
 import { playFilm, type Film, type Playing } from './Lottie';
+import { StoryStage } from './StoryStage';
 import type { Hand, Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
@@ -1155,6 +1156,8 @@ ${modeSelectMarkup()}
   private storyHold = 0;
   /** The film playing in a story that is one, taken down with the story. */
   private storyFilm: Playing | null = null;
+  /** The Dressing Room's stage, for the stories played on it: one for the run of them, put away with them. */
+  private storyStage: StoryStage | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
   /** The way into what the last story is about (`Story.opens`), after the stories are put away. */
@@ -1203,6 +1206,9 @@ ${modeSelectMarkup()}
       film.classList.add(wide ? 'is-cut' : 'is-fit');
       this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
     }
+    const stage = document.getElementById('whatsnew-stage');
+    if (story?.stage && stage) (this.storyStage ??= new StoryStage()).play(stage, story.stage);
+    else { this.storyStage?.stop(); this.storyStage = null; }
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => { const go = this.onStoriesOpen; this.closeStories(); go?.(); };
     if (story?.withKey || story?.opens) return;
@@ -1281,6 +1287,7 @@ ${modeSelectMarkup()}
   closeStories() {
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
+    this.storyStage?.stop(); this.storyStage = null;
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,

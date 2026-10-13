@@ -59,7 +59,16 @@ export interface Story {
    * holds still with it, so a player tapping through lands on it.
    */
   opens?: 'dressing';
+  /**
+   * The Dressing Room's own stage in place of the picture, playing the real
+   * models: every kit on the batter in turn, every bat on the stand, or one
+   * bat. Nothing to download and nothing to go stale; the picture stays
+   * under it for a phone that cannot draw it (`StoryStage.ts`).
+   */
+  stage?: StoryStageKind;
 }
+
+export type StoryStageKind = 'kits' | 'bats' | 'boom';
 
 export const STORIES: readonly Story[] = [
   {
@@ -68,8 +77,9 @@ export const STORIES: readonly Story[] = [
     title: 'SUIT UP',
     body: 'Seven kits. OG Navy is yours already; the other six are earned out in the middle.',
     art: art('dressing-suit-up.webp'),
-    alt: 'Your batter on a pedestal under a spotlight, in the navy and orange OG Navy kit.',
+    alt: 'Your batter on a pedestal under a spotlight, changing from one kit to the next.',
     width: 370, height: 426,
+    stage: 'kits',
   },
   {
     key: 'earn-your-willow',
@@ -77,8 +87,9 @@ export const STORIES: readonly Story[] = [
     title: 'EARN YOUR WILLOW',
     body: 'Eleven bats, from Boom to Hitman. Boom is yours for walking in. Hitman takes everything you’ve got.',
     art: art('dressing-earn-your-willow.webp'),
-    alt: 'Five bats standing in a row under a spotlight: Boom, Ice Cold, Savage, Inferno and Hitman, each in its own stickers.',
+    alt: 'A bat on a stand under a spotlight, turning into the next bat and the next, each in its own stickers.',
     width: 370, height: 426,
+    stage: 'bats',
   },
   {
     key: 'boom',
@@ -88,6 +99,7 @@ export const STORIES: readonly Story[] = [
     art: art('dressing-boom.webp'),
     alt: 'The Boom bat standing on the pedestal, its pink grip and green and purple stickers lit by rays of light.',
     width: 370, height: 426,
+    stage: 'boom',
     opens: 'dressing',
   },
 ];

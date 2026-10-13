@@ -241,6 +241,12 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
+The update's What's new stories play on the room's own stage
+(`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, every bat on
+the stand, then Boom, a chip under each naming it and what earns it. It is the
+shelves' catalogue, so a kit or bat added later is in the stories without a new
+picture; each story keeps its webp under the stage for a phone without WebGL.
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

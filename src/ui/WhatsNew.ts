@@ -46,8 +46,12 @@ export function storiesMarkup(view: StoriesView): string {
   // A card that asks for something holds still: see `Story.withKey` and `Story.opens`.
   const holds = !!(story.withKey || story.opens);
   const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
-  const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
+  const picture = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
+  // A story played on the stage keeps its picture under it, for a phone that cannot draw the stage.
+  const art = story.stage && picture
+    ? `<span class="whatsnew-stage" id="whatsnew-stage" data-stage="${story.stage}">${picture}<span class="whatsnew-chip" id="whatsnew-chip" aria-hidden="true"></span></span>`
+    : picture;
   // A film is the whole story: played down the sheet from the top, under the
   // bars and over nothing, with the way out under it. It says its own words.
   return `
