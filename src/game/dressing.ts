@@ -8,7 +8,7 @@ import { TIERS, tierMeasure } from './tier';
  * `config/board.ts`), so what the batter wears is an outfit here. Nothing on
  * these shelves plays differently; they are looks, earned by playing.
  */
-import { isBat, isOutfit, type BatId, type OutfitId } from './dressing-ids';
+import { FREE_BAT, FREE_OUTFIT, isBat, isOutfit, type BatId, type OutfitId } from './dressing-ids';
 
 export { isBat, isOutfit, type BatId, type OutfitId };
 
@@ -66,8 +66,7 @@ export const BATS: readonly BatSkin[] = [
   { id: 'hitman', name: 'Hitman', grip: '#C8FF1E', glow: '#B6FF2E', line: 'Top of the game.', short: 'Hitman tier', stickers: true },
 ];
 
-export const FREE_OUTFIT: OutfitId = 'home';
-export const FREE_BAT: BatId = 'plain';
+export { FREE_OUTFIT, FREE_BAT };
 /**
  * The bat waiting in the Dressing Room for every player. Nothing has to be
  * played for it: it is unlocked in the room, by its own key, so the player

@@ -569,7 +569,7 @@ export class Game {
     this.hud.on('room-back', () => this.leaveRoom());
     this.hud.onRoomAct = act => { void this.roomAct(act); };
     this.hud.on('modes-challenges', () => { void this.showChallenges(); });
-    this.hud.on('modes-dressing', () => this.openDressing());
+    this.hud.on('modes-dressing', () => this.openDressing('modes'));
     // My Stats from Choose a mode: the avatar at the top and the tier card in the bento.
     this.hud.on('modes-profile', this.showStats);
     this.hud.on('modes-stats', this.showStats);
@@ -660,7 +660,7 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = shown => this.openDressing(shown);
+    this.hud.onStoriesOpen = shown => this.openDressing('story', shown);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
@@ -903,10 +903,11 @@ export class Game {
    * is put away. The screen and its stage are loaded the first time, so the
    * game itself never waits on them. `shown` is called once the room is on
    * screen — or once it is plain it will not be — for whatever it is to cover.
+   * `from` is the way in, counted: its card on Choose a mode or a story.
    */
-  private openDressing(shown?: () => void) {
+  private openDressing(from: 'modes' | 'story', shown?: () => void) {
     if (this.dressing) { shown?.(); return; }
-    this.mark('dressing-open', 'The Dressing Room opened');
+    this.dressingMark(`dressing-open-${from}`, `The Dressing Room opened from ${from === 'story' ? 'a story' : 'Choose a mode'}`);
     const held = readDressing();
     if (!this.dressingPreview) writeDressing({ ...held, visited: true });
     const look = this.myLook();
@@ -921,9 +922,10 @@ export class Game {
           const now = readDressing();
           writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
           const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
-          this.mark('dressing-wear', `Put on ${shelf} ${id}`);
+          this.dressingMark(`dressing-wear-${shelf}-${id}`, `Put on the ${shelf} ${id}`);
         },
         play: mode => {
+          this.dressingMark(`dressing-play-${mode ?? 'any'}`, `Went to play for a goal in the Dressing Room (${mode ?? 'any mode'})`);
           this.closeDressing();
           this.hud.closeModes();
           if (mode === 'rivals') { void this.showChallenges(); return; }
@@ -934,7 +936,7 @@ export class Game {
           if (this.dressingPreview) this.dressingPreview = { ...this.dressingPreview, welcomed: true };
           else { const held = readDressing(); writeDressing({ ...held, seen: [...new Set([...held.seen, seenKey(shelf, id)])] }); }
           this.dressing?.update({ record: this.dressingRecord() });
-          this.mark('dressing-claim', `Unlocked ${shelf} ${id} in the room`);
+          this.dressingMark(`dressing-claim-${shelf}-${id}`, `Unlocked the ${shelf} ${id} in the room`);
           const look = this.myLook();
           this.playUnlocks([{ moment: shelf === 'bat' ? { kind: 'bat', bat: batOf(id) } : { kind: 'kit', from: look.outfit, to: outfitOf(id), bat: look.bat } }], !!this.dressingPreview);
         },
@@ -963,7 +965,7 @@ export class Game {
     // Over whatever is on screen, and back to it when the room is put away.
     this.closeDressing();
     this.dressingPreview = previewRecord(scenario);
-    this.openDressing();
+    this.openDressing('modes');
   }
   /** Puts the unlocks up; a preview's wear nothing and mark nothing. */
   private playUnlocks(items: UnlockItem[], preview = false) {
@@ -975,7 +977,7 @@ export class Game {
             const now = readDressing();
             writeDressing(shelf === 'kit' ? { ...now, outfit: id as OutfitId } : { ...now, bat: id as BatId });
             const worn = this.myLook(); this.scene.dressBatter(worn.outfit, worn.bat);
-            this.mark('dressing-wear', `Put on ${shelf} ${id}`);
+            this.dressingMark(`dressing-wear-${shelf}-${id}`, `Put on the ${shelf} ${id}`);
           }
           // Over the room, the room puts it on too.
           this.dressing?.update(shelf === 'kit' ? { kit: id as OutfitId, wearing: id as OutfitId, shelf } : { bat: id as BatId, holding: id as BatId, shelf });
@@ -1030,7 +1032,10 @@ export class Game {
     const held = readDressing();
     writeDressing({ ...held, seen: [...new Set([...held.seen, ...items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id))])] });
     this.putRatingAway();
-    this.mark('dressing-unlock', `Unlocked ${items.length}`);
+    for (const one of items) {
+      const [shelf, id] = one.moment.kind === 'bat' ? ['bat', one.moment.bat.id] : ['kit', one.moment.to.id];
+      this.dressingMark(`dressing-unlock-${shelf}-${id}`, `Earned the ${shelf} ${id}`);
+    }
     this.playUnlocks(items);
   }
 
@@ -1911,6 +1916,17 @@ export class Game {
   /** The same, for the moments that must not be counted twice in one session. */
   private markOnce(name: string, title: string) {
     trackOnce(...this.named(name, title));
+  }
+  /**
+   * A Dressing Room moment, counted. Not through `mark`: the room is between
+   * innings, so the last mode played says nothing about it and would split
+   * one count three ways. The item is in the name, because GoatCounter keeps
+   * the name and not the title (`dressing-wear-kit-electric`, never
+   * `dressing-wear` titled "electric"), and a fixed shelf keeps that a short
+   * list. The `?dressing=1` preview counts nothing.
+   */
+  private dressingMark(name: string, title: string) {
+    if (!this.dressingPreview) track(name, title);
   }
   private named(name: string, title: string): [string, string] {
     const [moded, said]: [string, string] = this.surviving ? [`survive-${name}`, `Test match: ${title}`]
@@ -3783,7 +3799,9 @@ export class Game {
       : blastTally(this.score);
     const nonce = mintNonce();
     const innings = this.innings;
-    const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce).then(mine => {
+    // What he batted in, for the year recap: read now, as it was worn, not when the answer lands.
+    const worn = this.myLook(), look = { kit: worn.outfit.id, bat: worn.bat.id };
+    const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce, look).then(mine => {
       if (this.disposed) return true;
       if (!mine?.career) return false;
       // Read before the held record is replaced, because the climb is the

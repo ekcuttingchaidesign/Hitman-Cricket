@@ -8,6 +8,10 @@ export const BAT_IDS = ['plain', 'boom', 'rage', 'venom', 'lonewolf', 'meg', 'ic
 export type OutfitId = typeof OUTFIT_IDS[number];
 export type BatId = typeof BAT_IDS[number];
 
+/** What every player has from the start, here so the server knows them without the catalogue. */
+export const FREE_OUTFIT: OutfitId = 'home';
+export const FREE_BAT: BatId = 'plain';
+
 export const isOutfit = (id: unknown): id is OutfitId => typeof id === 'string' && (OUTFIT_IDS as readonly string[]).includes(id);
 export const isBat = (id: unknown): id is BatId => typeof id === 'string' && (BAT_IDS as readonly string[]).includes(id);
 

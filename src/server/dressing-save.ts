@@ -21,7 +21,8 @@ export interface DressingStore {
 export const SAVE_LIMIT = 300;
 const WINDOW_SECONDS = 3600;
 
-export type Saved = { ok: true; saved: SavedDressing } | SaveRefusal;
+/** `won` is what the save brought in that was not held: pieces of the room newly won, for the year recap to date. */
+export type Saved = { ok: true; saved: SavedDressing; won: string[] } | SaveRefusal;
 export type SaveRefusal = { ok: false; status: number; reason: string };
 /** A save turned away, told apart the way the endpoints' compile can follow. */
 export const refusedSave = (outcome: Saved): outcome is SaveRefusal => !outcome.ok;
@@ -38,9 +39,10 @@ export async function saveDressing(store: DressingStore, input: { playerId: unkn
   const incoming = cleanDressing(input.dressing);
   if (!incoming) return { ok: false, status: 400, reason: 'That is not a Dressing Room.' };
   if (await store.hits(input.address, WINDOW_SECONDS) > SAVE_LIMIT) return { ok: false, status: 429, reason: 'Too many saves. Try again in a while.' };
-  const saved = mergeDressing(cleanDressing(await store.read(input.playerId)), incoming);
+  const held = cleanDressing(await store.read(input.playerId));
+  const saved = mergeDressing(held, incoming);
   await store.write(input.playerId, saved);
-  return { ok: true, saved };
+  return { ok: true, saved, won: saved.seen.filter(key => !held?.seen.includes(key)) };
 }
 
 /** In memory, for the dev server and the tests. */

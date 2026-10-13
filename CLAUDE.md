@@ -258,6 +258,35 @@ the next card's are. `whatsnew-check` refuses the stage's
 module for its clocked walk — every frame is a 3D render, seconds apiece in
 software — and lets it in at the way in to see it play.
 
+## The year recap: kept now for December
+
+A recap of each player's year is planned for December, and it can only tell
+what was kept as it happened. Every innings `/api/innings` counts toward a
+career — only when it counts it (`counted`), so a repeat never doubles — is
+also folded into the player's record for its year and into the year's
+totals (`src/game/recap.ts`, `src/server/recap-store.ts`): innings, runs,
+balls, fours, sixes, best, fifties and hundreds a mode, Survival wins, the
+innings in each kit and with each bat (the look travels with the innings and
+is checked against the shelves, `lookOf`), the innings on each day and in each
+hour, and the first and last. A Dressing Room save that brings in a piece the
+store did not hold dates it (`won` from `saveDressing`), and counts it among
+everybody who won it; the free kit and bat are never won. Days, hours and the
+year are India's time, and the server's clock, never a browser's. One field a
+player in `${SCOPE}recap:<year>`, the year's counters in
+`${SCOPE}recap:<year>:all`, raised in place. Neither ever fails the innings or
+the save it rides on. The dev server answers `GET /api/recap?player=` from
+memory for the checks; nothing deployed reads it yet — the recap itself will.
+`scripts/recap-check.mjs` finishes an innings and unlocks Boom and reads both
+back.
+
+GoatCounter counts the same things across everybody, by name (it keeps the
+path, not the title, so the item is in the name): `dressing-open-modes` and
+`-story`, `dressing-wear-<kit|bat>-<id>`, `dressing-unlock-…` and
+`dressing-claim-…`, `dressing-play-<mode>` from a goal's key, and
+`whatsnew-open-<card>` for GO TO DRESSING ROOM, apart from the stories' read
+and left counts. They go through `dressingMark`, not `mark`, so the last mode
+played does not split them, and the `?dressing=1` preview counts nothing.
+
 ## Who's batting: the gate before the first innings
 
 Before the first innings in a browser — a new player's or an old one's — the

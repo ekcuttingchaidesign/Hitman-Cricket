@@ -1,7 +1,8 @@
 // The `.js` on these is not a mistake and must not be tidied away — see the
 // note at the top of `api/board.ts`.
 import { readSaved, refusedSave, saveDressing } from '../src/server/dressing-save.js';
-import { NoDatabase, redisFromEnv, upstashDressing } from '../src/server/upstash.js';
+import { NoDatabase, redisFromEnv, upstashDressing, upstashRecap } from '../src/server/upstash.js';
+import { recordUnlocks } from '../src/server/recap-store.js';
 import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../src/server/http.js';
 
 /**
@@ -27,7 +28,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (!body) return failed(res, 400, 'Send the Dressing Room as JSON.');
     const outcome = await saveDressing(upstashDressing(redisFromEnv()), { playerId: body.playerId, dressing: body.dressing, address: addressOf(req) });
     if (refusedSave(outcome)) return failed(res, outcome.status, outcome.reason);
-    res.status(200).json({ dressing: (outcome as { saved: unknown }).saved });
+    // Pieces of the room this save brought in for the first time were won about
+    // now: dated for the year recap. Never the reason a save fails.
+    await recordUnlocks(upstashRecap(redisFromEnv()), { playerId: String(body.playerId), keys: outcome.won, at: Date.now() })
+      .catch(error => console.error('The year recap could not date an unlock.', error));
+    res.status(200).json({ dressing: outcome.saved });
   } catch (error) {
     if (error instanceof NoDatabase) return failed(res, 503, 'The board is not set up yet.', error);
     failed(res, 503, 'The board could not be reached.', error);

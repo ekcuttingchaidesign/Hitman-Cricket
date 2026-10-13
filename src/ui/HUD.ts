@@ -1247,7 +1247,7 @@ ${modeSelectMarkup()}
       window.clearTimeout(this.storyHold);
       (open as HTMLButtonElement).disabled = true;
       let shown = false;
-      go(() => { if (!shown && this.storiesOpen) { shown = true; this.closeStories(); } });
+      go(() => { if (!shown && this.storiesOpen) { shown = true; this.closeStories('open'); } });
     };
     if (storyHolds(this.storyAt)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
@@ -1322,7 +1322,8 @@ ${modeSelectMarkup()}
   }
 
 
-  closeStories() {
+  /** `open` when the way in put them away, which is counted apart from leaving. */
+  closeStories(how: 'leave' | 'open' = 'leave') {
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
@@ -1333,7 +1334,10 @@ ${modeSelectMarkup()}
     // `is-last` rather than a number, because the count will change and a
     // dashboard comparing "left on 3" across two updates would be comparing
     // the middle of one with the end of the other.
-    track(this.storyAt >= STORIES.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
+    // The way in is counted on its own, by the card it was taken from: it is
+    // what the stories are for, and counted as leaving it would read as a skip.
+    if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Went to the Dressing Room from a What\u2019s new story');
+    else track(this.storyAt >= STORIES.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
       'How far the What\u2019s new stories were read');
     this.$('whatsnew-overlay').classList.add('hidden');
     this.$('whatsnew-overlay').innerHTML = '';
