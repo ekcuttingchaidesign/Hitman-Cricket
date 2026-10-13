@@ -13,6 +13,7 @@ import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
 import { playFilm, type Film, type Playing } from './Lottie';
+import { StoryStage } from './StoryStage';
 import type { Hand, Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
@@ -46,7 +47,7 @@ import {
 } from './Board';
 import { battingCardMarkup, injuryRingMarkup, injuryWord, overChartMarkup, wormChartMarkup } from './EndCard';
 import { modeSelectMarkup, modeSelectParts, type ModeSelectView } from './ModeSelect';
-import { storiesMarkup, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
+import { storiesMarkup, storyHolds, storyKeyMarkup, type StoriesWhere } from './WhatsNew';
 import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
@@ -1179,8 +1180,17 @@ ${modeSelectMarkup()}
   private storyHold = 0;
   /** The film playing in a story that is one, taken down with the story. */
   private storyFilm: Playing | null = null;
+  /** The Dressing Room's stage, for the stories played on it: one for the run of them, put away with them. */
+  private storyStage: StoryStage | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
+  /**
+   * The way into what the stories are about (`Story.opens`). It is handed the
+   * putting away of the stories and calls it once the room is up over them:
+   * put away first, they would show whatever they close onto — Choose a mode —
+   * for as long as the room takes to load.
+   */
+  onStoriesOpen: ((shown: () => void) => void) | null = null;
 
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
@@ -1225,7 +1235,21 @@ ${modeSelectMarkup()}
       film.classList.add(wide ? 'is-cut' : 'is-fit');
       this.storyFilm = playFilm(film, story.film, { fit: wide ? 'xMidYMid slice' : 'xMidYMax meet' });
     }
-    if (story?.withKey) return;
+    const stage = document.getElementById('whatsnew-stage');
+    const room = document.getElementById('whatsnew-room');
+    if (story?.stage && stage && room) (this.storyStage ??= new StoryStage()).play(stage, room, story.stage);
+    else { this.storyStage?.stop(); this.storyStage = null; }
+    const open = document.getElementById('whatsnew-open');
+    if (open) open.onclick = () => {
+      const go = this.onStoriesOpen;
+      if (!go) { this.closeStories(); return; }
+      // Held where it is while the room loads: no moving on, and no second press.
+      window.clearTimeout(this.storyHold);
+      (open as HTMLButtonElement).disabled = true;
+      let shown = false;
+      go(() => { if (!shown && this.storiesOpen) { shown = true; this.closeStories('open'); } });
+    };
+    if (storyHolds(this.storyAt)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }
 
@@ -1298,9 +1322,14 @@ ${modeSelectMarkup()}
   }
 
 
-  closeStories() {
+  /** The stories' stage made ahead, while the cover is up, so the first story does not open on an empty room. */
+  warmStories() { (this.storyStage ??= new StoryStage()).warm(); }
+
+  /** `open` when the way in put them away, which is counted apart from leaving. */
+  closeStories(how: 'leave' | 'open' = 'leave') {
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
+    this.storyStage?.stop(); this.storyStage = null;
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,
@@ -1308,7 +1337,10 @@ ${modeSelectMarkup()}
     // `is-last` rather than a number, because the count will change and a
     // dashboard comparing "left on 3" across two updates would be comparing
     // the middle of one with the end of the other.
-    track(this.storyAt >= STORIES.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
+    // The way in is counted on its own, by the card it was taken from: it is
+    // what the stories are for, and counted as leaving it would read as a skip.
+    if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Went to the Dressing Room from a What\u2019s new story');
+    else track(this.storyAt >= STORIES.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
       'How far the What\u2019s new stories were read');
     this.$('whatsnew-overlay').classList.add('hidden');
     this.$('whatsnew-overlay').innerHTML = '';
@@ -3285,6 +3317,28 @@ ${modeSelectMarkup()}
     this.viewport.append(row);
   }
   /**
+   * `?dressing=1`'s keys, along the top of the picture and over the Dressing
+   * Room and its unlocks, so one scenario can follow another.
+   */
+  dressingKeys<S extends string>(keys: readonly { label: string; scenario: S }[], pick: (scenario: S) => void) {
+    const row = document.createElement('div');
+    row.className = 'welcome-preview dressing-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview the Dressing Room');
+    for (const { label, scenario } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'welcome-preview-key'; key.dataset.scenario = scenario; key.textContent = label;
+      key.addEventListener('click', () => {
+        row.querySelectorAll('.welcome-preview-key').forEach(one => one.classList.toggle('is-on', one === key));
+        pick(scenario);
+      });
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.classList.add('has-dressing-keys');
+    this.viewport.append(row);
+  }
+  /**
    * `?nets=1`'s keys: a bowler each, and the side of the stumps. Built hidden,
    * and shown by `netsShow` once there is a Marathon for them to work on.
    */
@@ -3929,6 +3983,7 @@ ${modeSelectMarkup()}
       if (at) at.innerHTML = html;
     }
     this.$('mode-marathon').classList.toggle('is-played', !!view.marathon.best);
+    this.$('modes-dressing').classList.toggle('is-visited', view.dressing.visited);
     const stats = this.$('modes-stats');
     stats.className = stats.className.replace(/tier-\S+/g, '').trim() + ` tier-${view.stats.tier.key}`;
   }

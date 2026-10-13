@@ -7,20 +7,12 @@ import type { Film } from '../ui/Lottie';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the Test Marathon: one card for the mode, a film of it, and
- * then the key — said as a joke, with the key itself under it so the ask and
- * the means of doing it are on the same screen. The key goes last because it
- * is the one card that holds still: the film before it moves on by itself, and
- * a player tapping through lands on the card that wants something from them
- * rather than skipping past it.
+ * This update is the Dressing Room: the kits and the bats, each played full
+ * screen on the room's own stage, with the way out and the way in under both,
+ * the last card holding still.
+ * (The Test Marathon's film and the career key, the update before, were told
+ * twice to everybody who played then.)
  */
-
-/**
- * Served from `public/` as the file was uploaded, space and all, so the name
- * is written encoded. Relative, because the build is served from `./`.
- */
-const meme = 'save%20key%20meme.png';
-
 export interface Story {
   key: string;
   /** The small line above the picture. */
@@ -30,7 +22,10 @@ export interface Story {
    * already says it in bigger letters than a heading could.
    */
   title: string;
-  /** The line under the picture, where the picture needs one. */
+  /**
+   * The line under the picture, where the picture needs one: two lines at
+   * most on a phone, and no count of kits or bats, which only grow.
+   */
   body?: string;
   /** The picture, for a story that is one. */
   art?: string;
@@ -61,27 +56,41 @@ export interface Story {
    * would take the key away from under a thumb on its way to it.
    */
   withKey?: boolean;
+  /**
+   * A way into the room the story is about, beside the way out under its
+   * words. The last card holds still with it (`storyHolds`), so a player
+   * tapping through lands on it.
+   */
+  opens?: 'dressing';
+  /**
+   * The Dressing Room's own stage, the whole of the screen behind the words,
+   * playing the real models: every kit on the batter in turn, or every bat on
+   * the stand (`StoryStage.ts`). No picture to download and none
+   * to go stale — a phone that cannot draw it cannot play the game either.
+   */
+  stage?: StoryStageKind;
 }
+
+export type StoryStageKind = 'kits' | 'bats';
 
 export const STORIES: readonly Story[] = [
   {
-    key: 'marathon',
-    eyebrow: 'NEW MODE',
-    title: 'Test Marathon',
-    film: 'test-marathon',
-    // The film runs nine seconds, and the story holds a beat past its end.
-    holdMs: 9600,
-    alt: 'Introducing a new mode: Test Marathon. Bat all day. Then: play long innings, make a big score — the runs climb past lunch, tea and stumps to 287 not out.',
+    key: 'suit-up',
+    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
+    title: 'SUIT UP',
+    body: 'Explore different kits, each one earned out in the middle.',
+    alt: 'Your batter on a pedestal under a spotlight, changing from one kit to the next.',
+    stage: 'kits',
+    opens: 'dressing',
   },
   {
-    key: 'save-key',
-    eyebrow: 'CAREER KEY',
-    title: 'Save your career key',
-    art: meme,
-    alt: 'Bernie Sanders in a winter coat, captioned: I am once again asking you to save your career key.',
-    width: 370,
-    cut: true,
-    withKey: true,
+    key: 'earn-your-willow',
+    eyebrow: 'WHAT’S NEW · DRESSING ROOM',
+    title: 'EARN YOUR WILLOW',
+    body: 'Every bat in its own stickers, earned as you climb to Hitman.',
+    alt: 'A bat on a stand under a spotlight, turning into the next bat and the next, each in its own stickers.',
+    stage: 'bats',
+    opens: 'dressing',
   },
 ];
 
@@ -93,7 +102,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'marathon-launch';
+export const UPDATE = 'dressing-room';
 
 /**
  * How many times one browser is shown it unasked.

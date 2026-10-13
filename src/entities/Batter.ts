@@ -1794,9 +1794,9 @@ export type BatterKit = 'home' | 'whites' | 'green' | 'purple' | 'blue';
 /**
  * Shirt and helmet, trousers, and the accent that does the seam, the collar,
  * the number, the pad straps and the shoe flashes. Home is the navy and orange
- * the game has always worn; whites are the Test match; green, purple and blue
- * are the second, third and fourth seats in a Rivals room, so four friends in
- * one match are four different batters and not the same man four times.
+ * the game has always worn; whites are the Test match. Green, purple and blue
+ * were the seats of a Rivals room before each player batted in their own
+ * Dressing Room kit (`wear`); `__cricket.kit` still puts them on.
  */
 export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; trousers: number; accent: number; number: number }> = {
   // A mid navy: the near-black it replaced lost the shape of the shirt under the
@@ -1810,6 +1810,10 @@ export const BATTER_KITS: Record<BatterKit, { shirt: number; helmet: number; tro
 
 export class Batter {
   private poseAge = 0;
+  /** The blade, for turning its stickers the right way round: see `mirrorStickers`. */
+  private blade!: THREE.Mesh;
+  /** The plain label a bare bat wears on its face, hidden under a sticker sheet. */
+  private readonly batLabel: THREE.Mesh[] = [];
   readonly root = new THREE.Group();
   readonly bat = new THREE.Group();
   private torso = new THREE.Group();
@@ -1888,9 +1892,15 @@ export class Batter {
     // the kit does, and in whites a cream one read as a bald head.
     // Matte: a helmet's shell is covered in fabric, so it takes the light the
     // way the cap would rather than shining like a motorbike lid.
-    helmet: new THREE.MeshStandardMaterial({ color: 0x2a527c, roughness: .92 }),
+    // Both sides drawn: from below, the inside of the shell is what closes the
+    // view up under the peak, where a one-sided shell showed straight through.
+    helmet: new THREE.MeshStandardMaterial({ color: 0x2a527c, roughness: .92, side: THREE.DoubleSide }),
     trousers: clothMaterial(new THREE.MeshStandardMaterial({ color: 0xf4f0e4, roughness: .82 })),
     pad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
+    // The leg pads alone: a kit from the Dressing Room colours them, while
+    // the gloves and the shoes, which share `pad`, stay white.
+    legPad: new THREE.MeshStandardMaterial({ color: 0xfdfcf4, roughness: .6 }),
+    grip: new THREE.MeshStandardMaterial({ color: 0x777e80, roughness: .94 }),
     glovePalm: new THREE.MeshStandardMaterial({ color: 0xd9d9cf, roughness: .95 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xb77950, roughness: .87 }),
     bat: willowMaterial(new THREE.MeshStandardMaterial({ color: 0xe0b77a, roughness: .62 })),
@@ -1917,6 +1927,51 @@ export class Batter {
     this.palette.trousers.color.setHex(colours.trousers);
     this.palette.accent.color.setHex(colours.accent);
     this.palette.number.color.setHex(colours.number);
+    this.palette.legPad.color.copy(this.palette.pad.color);
+  }
+
+  /**
+   * A kit from the Dressing Room, over whatever `dress` put on: the same
+   * parts, and the leg pads too, or only some of them (the Test match keeps
+   * its whites and takes the helmet). Colours as the catalogue writes them.
+   */
+  wear(look: Partial<Record<'shirt' | 'helmet' | 'trousers' | 'pads' | 'trim' | 'number', string>>) {
+    if (look.shirt) this.palette.shirt.color.set(look.shirt);
+    if (look.helmet) this.palette.helmet.color.set(look.helmet);
+    if (look.trousers) this.palette.trousers.color.set(look.trousers);
+    if (look.pads) this.palette.legPad.color.set(look.pads);
+    if (look.trim) this.palette.accent.color.set(look.trim);
+    if (look.number) this.palette.number.color.set(look.number);
+  }
+
+  /**
+   * A bat from the Dressing Room: the grip's colour and the sticker sheet on
+   * the blade (`SKIN` in batGeometry.ts), or bare willow with no sheet. The
+   * sheet carries the willow under its stickers, so the blade's own colour
+   * goes to white while it is on, and lights the glow under the floodlights
+   * too: glowing in plain white, a stickered bat came out a pale blur.
+   */
+  holdBat(grip: string, sheet: THREE.Texture | null) {
+    this.palette.grip.color.set(grip);
+    const blade = this.palette.bat;
+    blade.map = sheet; blade.emissiveMap = sheet;
+    blade.color.set(sheet ? 0xffffff : 0xe0b77a);
+    blade.needsUpdate = true;
+    for (const label of this.batLabel) label.visible = !sheet;
+  }
+
+  /**
+   * Turns the stickers the right way round when the stage is mirrored: a
+   * right-hander's world is flipped side to side (GameScene's `world`), which
+   * would print every word on the bat backwards. The blade is the same shape
+   * either way round, so flipping it back changes nothing else.
+   */
+  mirrorStickers(mirrored: boolean) { this.blade.scale.x = mirrored ? -1 : 1; }
+
+  /** The materials a kit colours, for the Dressing Room's scan that changes one kit into another. */
+  get kitMaterials(): THREE.MeshStandardMaterial[] {
+    const p = this.palette;
+    return [p.shirt, p.helmet, p.trousers, p.legPad, p.accent, p.number];
   }
 
   constructor() {
@@ -1931,7 +1986,7 @@ export class Batter {
     this.mesh(this.torso, this.palette.accent, [.028, .034, .008], 'soft').position.set(-.087, .015, .133);
     for (const x of [-.055, .055]) this.mesh(this.torso, this.palette.number, [.028, .125, .008], 'soft').position.set(x, -.04, -.143);
     const face = this.mesh(this.head, this.palette.skin, [.148, .17, .15], 'ball'); face.position.y = -.03;
-    this.mesh(this.head, this.palette.skin, [.075, .10, .075], 'ball').position.set(0, -.10, .075);
+    // No nose, no chin: behind the grille the face is one smooth shape.
     this.mesh(this.head, this.palette.helmet, [1, 1, 1], 'helmet');
     this.mesh(this.head, this.palette.handle, [1, 1, 1], 'helmetRim');
     // A cricket helmet: the peak following the shell round the front, the
@@ -1947,14 +2002,15 @@ export class Batter {
     const vent = this.mesh(this.head, this.palette.handle, [.014, .014, .014], 'vent');
     vent.position.set(0, .197, .05); vent.rotation.x = -Math.PI / 2 + .34;
     // Bat: a dark bound handle standing clear of a plain blade.
-    const rubber=new THREE.Mesh(gripGeometry(),new THREE.MeshStandardMaterial({color:0x777e80,roughness:.94}));
+    const rubber=new THREE.Mesh(gripGeometry(),this.palette.grip);
     rubber.castShadow=true; rubber.receiveShadow=true; this.bat.add(rubber);
     this.mesh(this.bat,this.palette.handle,[.046,.018,.046],'tube').position.y=-.117;
-    this.mesh(this.bat, this.palette.bat, [1, 1, 1], 'blade');
-    // Inset bat label and toe guard: the blade silhouette and contact face stay put.
-    this.mesh(this.bat, this.palette.helmet, [.075, .12, .002], 'flat').position.set(0, -.25, .0228);
-    this.mesh(this.bat, this.palette.accent, [.054, .016, .003], 'flat').position.set(0, -.28, .024);
-    this.mesh(this.bat, this.palette.handle, [.098, .015, .028], 'soft').position.set(0, -.827, -.002);
+    this.blade = this.mesh(this.bat, this.palette.bat, [1, 1, 1], 'blade');
+    // Inset bat label: the blade silhouette and contact face stay put. No toe
+    // guard: its straight top edge across the face cut the toe's curve off flat.
+    // Hidden while a sticker sheet is on (`holdBat`), which has labels of its own.
+    this.batLabel.push(this.mesh(this.bat, this.palette.helmet, [.075, .12, .002], 'flat'), this.mesh(this.bat, this.palette.accent, [.054, .016, .003], 'flat'));
+    this.batLabel[0].position.set(0, -.25, .0228); this.batLabel[1].position.set(0, -.28, .024);
     for (let i = 0; i < 2; i++) {
       // Photo reference IMG_4073: the LEFT top hand closes OVER the handle;
       // its padded knuckles face the spine. The RIGHT bottom hand wraps under
@@ -2009,17 +2065,16 @@ export class Batter {
         elbow: this.mesh(this.root, this.palette.shirt, [.073, .073, .073], 'ball'), cap: this.mesh(this.root, this.palette.shirt, [.086, .078, .088], 'ball'),
         glove, palm, cuff, knuckles: back, shoulder: new THREE.Vector3(), wrist: new THREE.Vector3(), socket:wristSocket(i) });
       const pad = new THREE.Group(); this.root.add(pad);
-      this.mesh(pad, this.palette.pad, [.20, .38, .175], 'soft');
-      for (let roll = 0; roll < 5; roll++) this.mesh(pad, this.palette.pad, [.028, .34, .035], 'tube').position.set(-.064 + roll * .032, 0, .082);
+      this.mesh(pad, this.palette.legPad, [.20, .38, .175], 'soft');
+      for (let roll = 0; roll < 5; roll++) this.mesh(pad, this.palette.legPad, [.028, .34, .035], 'tube').position.set(-.064 + roll * .032, 0, .082);
       for (const y of [-.10, .06]) this.mesh(pad, this.palette.accent, [.185, .026, .17], 'soft').position.set(0, y, -.008);
-      this.mesh(pad, this.palette.pad, [.205, .095, .135], 'soft').position.set(0, .20, .025);
+      this.mesh(pad, this.palette.legPad, [.205, .095, .135], 'soft').position.set(0, .20, .025);
       // Raised piping, knee stitching and ankle flap share the pad's material/draw.
-      for (const x of [-.085, .085]) this.mesh(pad, this.palette.pad, [.009, .34, .012], 'soft').position.set(x, 0, .087);
-      for (const y of [.181, .207, .23]) this.mesh(pad, this.palette.pad, [.13, .006, .01], 'flat').position.set(0, y, .093);
-      this.mesh(pad, this.palette.pad, [.18, .042, .026], 'soft').position.set(0, -.179, .083);
+      for (const x of [-.085, .085]) this.mesh(pad, this.palette.legPad, [.009, .34, .012], 'soft').position.set(x, 0, .087);
+      for (const y of [.181, .207, .23]) this.mesh(pad, this.palette.legPad, [.13, .006, .01], 'flat').position.set(0, y, .093);
+      this.mesh(pad, this.palette.legPad, [.18, .042, .026], 'soft').position.set(0, -.179, .083);
       const shoe = new THREE.Group(); this.root.add(shoe);
       this.mesh(shoe, this.palette.pad, [.185, .125, .33], 'soft').position.z = .055;
-      this.mesh(shoe, this.palette.pad, [.085, .055, .06], 'ball').position.set(0, -.03, .215);
       this.mesh(shoe, this.palette.handle, [.185, .035, .33], 'soft').position.set(0, -.055, .055);
       this.mesh(shoe, this.palette.accent, [.19, .022, .09], 'soft').position.set(0, .015, .12);
       for (const z of [.065, .093, .121]) this.mesh(shoe, this.palette.pad, [.075, .009, .013], 'flat').position.set(0, .063, z);
@@ -2036,7 +2091,7 @@ export class Batter {
       // Keep the established IK controls and measurements, but do not draw
       // their separate cylinders or ball joints. The surface spans the chain.
       for (const control of [arm.upper, arm.lower, arm.elbow, arm.cap, leg.thigh, leg.shin, leg.knee, leg.cap]) control.visible = false;
-      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.09, .062, .046], 24);
+      const sleeve = new BendingLimb([this.palette.shirt, this.palette.skin], [.09, .062, .046], 24, false, true);
       const trouser = new BendingLimb(this.palette.trousers, [.109, .072, .059], 16, true);
       this.sleeves.push(sleeve); this.trouserLegs.push(trouser);
     }

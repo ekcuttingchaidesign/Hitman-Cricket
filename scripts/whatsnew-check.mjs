@@ -26,7 +26,7 @@
 import { chromium } from '@playwright/test';
 
 /** The update key in `src/game/whats-new.ts`. Bumped there, bumped here. */
-const UPDATE = 'marathon-launch';
+const UPDATE = 'dressing-room';
 
 const base = (process.argv[2] ?? 'http://127.0.0.1:5199').replace(/\/$/, '');
 const executablePath = process.env.CHROMIUM_PATH || undefined;
@@ -45,6 +45,13 @@ const page = await browser.newPage({
 await page.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+// The stories play on the Dressing Room's stage, and every frame of it is a 3D
+// render — seconds apiece in software, and the walk below winds the page's
+// clock on by the second. So the stage's module is refused until the way in:
+// the stories stand on their pictures meanwhile, as they do on a phone that
+// cannot draw the stage, and the stage is watched playing at the end.
+const stageModule = /\/DressingStage[^/]*\.(ts|js)(\?|$)/;
+await page.route(stageModule, route => route.abort());
 await page.clock.install();
 
 /** The page's own clock, wound on, then a beat of real time to draw in. */
@@ -87,70 +94,53 @@ check(opened, 'the play key stops at the stories the first time');
 if (!opened) { await browser.close(); process.exit(1); }
 
 const first = await title();
-// A build that plays one mode has no picker to skip to, so the key says the
-// other thing. Either is right; a key that promises the picker in a build
-// without one is not.
-const says = await page.$eval('#whatsnew-done', key => key.textContent.trim());
-check(says === 'SKIP TO MODE SELECTION' || says === 'SKIP AND START BATTING',
-  'the way out says where it goes', says);
-// Waited for from out here, a beat at a time: the page's own timers are the
-// ones standing still.
-async function loaded() {
-  for (let i = 0; i < 40; i++) {
-    if (await page.$eval('.whatsnew-art img', img => img.complete && img.naturalWidth > 0).catch(() => false)) return true;
-    await page.waitForTimeout(250);
-  }
-  return false;
-}
-/** The film, drawn: Lottie's svg in the story, with its picture of the kit in it. */
-async function playing() {
-  for (let i = 0; i < 60; i++) {
-    if (await page.$eval('#whatsnew-film svg', svg => svg.querySelectorAll('image, path').length > 20).catch(() => false)) return true;
-    await page.clock.runFor(100);
-    await page.waitForTimeout(250);
-  }
-  return false;
-}
-// The Test Marathon first, as a film across the whole story.
-check(first === 'Test Marathon', 'it opens on the Test Marathon', first);
-check(await playing(), 'with its film on the screen, playing');
-check(await page.$eval('#whatsnew-film', film => film.getAttribute('aria-label')?.length > 40),
-  'which a screen reader is told about in words');
-check(!(await page.$('#whatsnew-keyslot')), 'and no key card on a card that asks for nothing');
+// The Dressing Room, in two: the kits and the bats, each with the way out and the way in.
+check(first === 'SUIT UP', 'it opens on the kits', first);
+check(!!(await page.$('#whatsnew-stage')) && !(await page.$('.whatsnew-sheet img')), 'full screen for the stage, with no picture to load');
+check(!(await page.$('#whatsnew-stage.is-live')), 'its words standing on their own where the stage cannot be drawn');
+// The two ways on side by side along the foot, the way out on the left, under the room for the stage.
+const keys = () => page.evaluate(() => {
+  const box = sel => document.querySelector(sel)?.getBoundingClientRect();
+  const room = box('#whatsnew-room'), open = box('#whatsnew-open'), done = box('#whatsnew-done');
+  return room && open && done ? { room: Math.round(room.bottom), outTop: Math.round(done.top), inTop: Math.round(open.top),
+    outRight: Math.round(done.right), inLeft: Math.round(open.left),
+    out: document.getElementById('whatsnew-done').textContent.trim(), in: document.getElementById('whatsnew-open').textContent.trim() } : null;
+});
+const paired = k => !!k && k.room <= k.inTop && Math.abs(k.outTop - k.inTop) < 12 && k.outRight < k.inLeft
+  && k.out === 'SKIP' && k.in === 'GO TO DRESSING ROOM';
+check(paired(await keys()), 'with SKIP and GO TO DRESSING ROOM side by side under the stage', JSON.stringify(await keys()));
 
-// The film runs nine seconds, and the story holds a beat past it before it
-// moves on by itself. Wound in half-second steps until it does: the installed
-// clock also runs on by itself in real time, and one long wind on a slow
-// machine carries a card past its own hold and the next one's too.
+// Each holds a while and moves on by itself. Wound in half-second steps until
+// it does: the installed clock also runs on by itself in real time, and one
+// long wind on a slow machine carries a card past its own hold and the next one's too.
 let held = 0;
 for (; held < 14000 && await title() === first; held += 500) await tick(500, 150);
-check(held >= 9000, 'holding for the whole film', `${held}ms`);
-const meme = await title();
-check(meme === 'Save your career key', 'and moves on by itself to the meme, last', meme);
-check(await loaded(), 'the meme is on the screen, loaded', await page.$eval('.whatsnew-art img', img => img.src));
-check(!(await page.$('#whatsnew-film')), 'and the film is gone with its story');
-// A nameless first visit holds no key, so there is no card to save one.
-check(!(await page.$('#whatsnew-keyslot .key-pass')), 'a player with no name is shown no key card');
-check(!(await page.$('#whatsnew-key-restore')), 'and no way back either');
+check(held >= 5000, 'holding a while', `${held}ms`);
+const last = await title();
+check(last === 'EARN YOUR WILLOW', 'and moving on by itself to the bats, the last', last);
+check(paired(await keys()), 'the same two keys in the same place', JSON.stringify(await keys()));
 
-// Carrying the key, the story holds still: one that moved itself on would
-// take the key away from under a thumb on its way to it.
+// With a way in under it, the story holds still: one that moved itself on
+// would take the key away from under a thumb on its way to it.
 await tick(9000);
-check(!!(await page.$('.whatsnew-sheet')) && await title() === meme, 'the story carrying the key holds still', meme);
+check(!!(await page.$('.whatsnew-sheet')) && await title() === last, 'the last story holds still', await title());
 
 // And a tap on the left half goes back.
 await page.click('#whatsnew-back');
 await tick(400);
-check(await title() === 'Test Marathon', 'a tap back goes back a card', await title());
+check(await title() === 'SUIT UP', 'a tap back goes back a card', await title());
 
 await page.click('#whatsnew-done');
 await tick(700);
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
   'the key puts the stories away');
-const picked = await page.$eval('#modes', node => !node.classList.contains('hidden'));
-const batting = await page.$eval('#start', node => !node.offsetParent).catch(() => true);
-check(says === 'SKIP TO MODE SELECTION' ? picked : batting,
-  'and lands where it promised', JSON.stringify({ says, picked, batting }));
+// Where skipping goes is the build's: Choose a mode where there is one to
+// choose, the innings where the build has chosen. Either way, somewhere.
+const landed = async () => ({ hidden: await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')),
+  picked: await page.$eval('#modes', node => !node.classList.contains('hidden')),
+  batting: await page.$eval('#start', node => !node.offsetParent).catch(() => true) });
+const skippedTo = await landed();
+check(skippedTo.picked || skippedTo.batting, 'and lands on Choose a mode or the innings', JSON.stringify(skippedTo));
 check(await seen() === `${UPDATE}:1`, 'the showing is counted', await seen());
 
 // ── Twice, and then never ──────────────────────────────────────────────────
@@ -159,7 +149,15 @@ await arrive();
 await page.click('#start');
 await tick(800);
 check(!!(await page.$('.whatsnew-sheet')), 'it comes back a second time, because once is missed');
+// Put away this time from the last card: tapped on to it, it holds there.
+for (let i = 0; i < 4 && await title() !== last; i++) { await page.click('#whatsnew-next'); await tick(400); }
+await tick(9000);
+check(await title() === last, 'tapped on to the last card, it holds there', await title());
 await page.click('#whatsnew-done');
+await tick(700);
+const skipped = await landed();
+check(skipped.hidden && skipped.picked === skippedTo.picked && skipped.batting === skippedTo.batting,
+  'and SKIP there lands where it did from the first', JSON.stringify(skipped));
 
 await page.reload({ waitUntil: 'load' });
 await arrive();
@@ -192,43 +190,54 @@ if (key) {
   check(await seen() === `${UPDATE}:2`, 'without spending one of the two', await seen());
 }
 
-// ── A player holding a key ─────────────────────────────────────────────────
-// Made up and kept in this throwaway browser only; nothing is sent anywhere.
-await page.evaluate(() => {
-  localStorage.setItem('hitman-batter', JSON.stringify({ name: 'Story Check', avatar: 0 }));
-  localStorage.setItem('hitman-career-key', JSON.stringify({ code: 'brave-otter-lamp-07', saved: false }));
-  localStorage.removeItem('hitman-whatsnew');
-});
+// ── The way in ─────────────────────────────────────────────────────────────
+await page.evaluate(() => localStorage.removeItem('hitman-whatsnew'));
+await page.unroute(stageModule);
 await page.reload({ waitUntil: 'load' });
 await arrive();
 await page.click('#start');
 await tick(800);
-// On to the card that carries the key, a tap at a time: the cards before it
-// also move on by themselves, so a fixed count of taps can overshoot.
-for (let i = 0; i < 3 && !(await page.$('#whatsnew-keyslot')); i++) { await page.click('#whatsnew-next'); await tick(400); }
-check(!!(await page.$('#whatsnew-keyslot .key-pass')), 'tapping on reaches the key card', await title());
-check(await page.$eval('#whatsnew-keyslot', slot => slot.textContent.includes('brave-otter-lamp-07')).catch(() => false),
-  'a player with a key is shown it under the meme');
-const order = await page.evaluate(() => {
-  const top = sel => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
-  return [top('.whatsnew-art img'), top('#whatsnew-keyslot .key-pass'), top('#whatsnew-done')];
+// The stage, playing where it can be drawn: the whole screen behind the words,
+// with room between the title and them for the batter to stand in.
+const staged = () => page.evaluate(() => {
+  const sheet = document.querySelector('.whatsnew-sheet')?.getBoundingClientRect();
+  const canvas = document.querySelector('#whatsnew-stage.is-live>canvas')?.getBoundingClientRect();
+  const room = document.getElementById('whatsnew-room')?.getBoundingClientRect();
+  return { full: !!sheet && !!canvas && Math.abs(sheet.width - canvas.width) < 2 && Math.abs(sheet.height - canvas.height) < 2, room: Math.round(room?.height ?? 0) };
 });
-check(order[0] < order[1] && order[1] < order[2], 'meme, then the key card, then the way out', order.join(' < '));
-const save = await page.$('#whatsnew-key-save');
-check(!!save && (await save.textContent()).trim() === 'SAVE YOUR KEY', 'with a key that says SAVE YOUR KEY');
-if (save) {
-  await save.click();
-  await tick(500);
-  const over = await page.evaluate(() => {
-    const sheet = document.querySelector('#key-overlay .key-modal');
-    if (!sheet) return false;
-    const box = sheet.getBoundingClientRect();
-    return document.elementFromPoint(box.left + box.width / 2, box.top + 40)?.closest('.key-modal') === sheet;
+let live = { full: false, room: 0 };
+for (let i = 0; i < 40 && !live.full; i++) { await tick(100, 250); live = await staged(); }
+check(live.full && await title() === 'SUIT UP', 'where it can be drawn, the kits play on the stage, full screen', JSON.stringify(live));
+check(live.room > 200, 'with room between the words for the batter', `${live.room}px`);
+// The way in from the first card, without reading on.
+check(paired(await keys()), 'the way in right there on the first card', JSON.stringify(await keys()));
+// Choose a mode is under the room, and must never be seen on its own on the
+// way: the stories go only once the room is up over them. Watched for on
+// every change to the screens, not on frames, which this page's clock owns.
+await page.evaluate(() => {
+  window.__bare = 0;
+  const shown = id => { const node = document.getElementById(id); return !!node && !node.classList.contains('hidden'); };
+  const watch = new MutationObserver(() => {
+    if (shown('modes') && !shown('whatsnew-overlay') && !document.querySelector('.dr-overlay')) window.__bare++;
   });
-  check(over, 'which opens the save sheet over the story rather than under it');
-  await page.click('#key-modal-close');
-  await tick(400);
-  check(!!(await page.$('.whatsnew-sheet')), 'and closing it leaves the story where it was');
+  watch.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+  window.__unwatch = () => watch.disconnect();
+});
+await page.click('#whatsnew-open');
+let room = false;
+for (let i = 0; i < 40 && !room; i++) { await tick(250, 250); room = !!(await page.$('#dressing-overlay')); }
+check(room, 'which puts the stories away and opens the Dressing Room');
+const bare = await page.evaluate(() => { window.__unwatch(); return window.__bare; });
+check(bare === 0, 'without Choose a mode showing through on the way', `${bare} times`);
+check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')), 'with the stories gone from under it');
+if (room) {
+  // A first visit: Boom waits on the bat shelf for its key, nothing going off on the way in.
+  let waiting = false;
+  for (let i = 0; i < 20 && !waiting; i++) { await tick(250, 250); waiting = !!(await page.$('#dressing-tab-bat.has-dot')); }
+  check(waiting && !(await page.$('#unlock-overlay')), 'where Boom waits on the bat shelf');
+  await page.click('#dressing-back');
+  await tick(500);
+  check(await page.$eval('#modes', node => !node.classList.contains('hidden')), 'and its back key lands on Choose a mode');
 }
 
 check(errors.length === 0, 'nothing threw on the way', errors.join(' ;; '));

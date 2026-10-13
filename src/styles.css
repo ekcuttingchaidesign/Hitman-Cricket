@@ -5612,6 +5612,22 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   border:1px solid #ffffff1f;
   box-shadow:0 22px 50px #00000073
 }
+/* A story on the Dressing Room's stage is the whole screen: the stage behind
+   everything, the title over its top, the words and the keys over its foot on
+   a shade so they read on any kit, and the room between them left empty —
+   that is where the camera stands the batter (`StoryStage.ts`). */
+.whatsnew-sheet.is-stage{background:#0d0b10}
+.whatsnew-stage{position:absolute;inset:0;z-index:0;pointer-events:none}
+.whatsnew-stage>.dr-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* Eased in as it is put up, in case it was not ready when the story opened. */
+.whatsnew-stage.is-live>.dr-stage{animation:story-stage-in .4s ease-out}
+@keyframes story-stage-in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.whatsnew-stage.is-live>.dr-stage{animation:none}}
+.whatsnew-stage::after{content:'';position:absolute;left:0;right:0;bottom:0;height:38%;background:linear-gradient(180deg,#0000,#000000b8 70%)}
+.is-stage .whatsnew-bars{position:relative;z-index:2}
+.is-stage .whatsnew-body{justify-content:flex-start}
+.whatsnew-room{flex:1 1 auto;min-height:0;width:100%;margin-top:14px}
+.is-stage .whatsnew-say{color:#dfe6ec;text-shadow:0 1px 10px #000;text-wrap:balance}
 /* A picture with its corners already cut: no frame of our own, and a shadow
    that follows its outline rather than a square box's. */
 .whatsnew-art img.is-cut{
@@ -5639,6 +5655,13 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 /* The key under the picture. The body is not a control — taps go through it to
    the halves underneath — so the one thing in it that is has to say so. */
+/* The last card's two ways on, side by side: the way out in the kit's blue,
+   short, and the way in, orange, taking the rest. */
+.whatsnew-foot.is-pair{display:flex;align-items:flex-end;gap:calc(var(--u) * 10)}
+.whatsnew-foot.is-pair>.k-cta{display:flex}
+.whatsnew-foot.is-pair>.k-cta--secondary{flex:0 0 calc(var(--u) * 112)}
+.whatsnew-foot.is-pair>.k-cta--primary{flex:1 1 auto;min-width:0}
+.whatsnew-foot.is-pair>.k-cta--primary .k-cta-face{font-size:calc(var(--u) * 18)}
 .whatsnew-keyslot:empty{display:none}
 .whatsnew-keyslot{width:min(330px,100%);flex:none;pointer-events:auto;text-align:left}
 .whatsnew-keyslot .key-pass{margin:0}
@@ -7107,6 +7130,30 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .ms-poster.is-blast{border:1.5px solid #7fb2ffe6}
 .ms-art{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover}
 .ms-poster::before,.ms-banner::before{content:'';position:absolute;inset:0;z-index:-1}
+/* The Dressing Room's card (Figma "DR / Dressing room card"): the locker edge
+   to edge, dark from the left under the words, a rim from blue to copper. */
+.ms-dressing{
+  position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;flex-shrink:0;
+  width:100%;height:calc(var(--u) * 120);margin:0;padding:0 calc(var(--u) * 16) calc(var(--u) * 20);overflow:hidden;isolation:isolate;
+  border:1px solid #0000;border-radius:24px;color:var(--c-text);text-align:left;font-family:var(--f-ui);cursor:pointer;
+  background:linear-gradient(#06080b,#06080b) padding-box,linear-gradient(90deg,#3f5ab2,#a56647) border-box;
+  box-shadow:0 14px 30px #00000080
+}
+.ms-dressing .ms-art{object-position:50% 50%}
+.ms-dressing::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#1a1515 0%,#1a1515f2 28%,#1b1c1f5c 100%)}
+/* A light crossing the card now and then, the claim key's sweep (`cta-shimmer`)
+   on a dark card: fainter, wider and slower, so it catches the eye on Choose a
+   mode without competing with the PLAY keys above it. Still under reduced motion. */
+.ms-dressing::after{content:'';position:absolute;top:-60%;left:-80%;width:46%;height:220%;pointer-events:none;
+  background:linear-gradient(90deg,#fff0 0%,#ffffff0d 22%,#ffffff29 42%,#ffffff40 50%,#ffffff29 58%,#ffffff0d 78%,#fff0 100%);
+  filter:blur(8px);transform:rotate(16deg);animation:cta-shimmer 8.4s cubic-bezier(.45,0,.4,1) 1.2s infinite}
+@media (prefers-reduced-motion:reduce){.ms-dressing::after{animation:none;display:none}}
+.ms-dressing .ms-tag{left:calc(var(--u) * 16);top:calc(var(--u) * 14);padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:999px;background:var(--c-accent);color:#0b0f14;font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.14em}
+.ms-dressing.is-visited .ms-tag{display:none}
+.ms-dressing-text{display:flex;flex-direction:column;gap:calc(var(--u) * 2)}
+.ms-dressing-name{display:flex;align-items:center;gap:calc(var(--u) * 6);font:400 calc(var(--u) * 24)/1.25 var(--f-display);letter-spacing:.03em;font-optical-sizing:none;font-variation-settings:'opsz' 6;white-space:nowrap}
+.ms-dressing-name .k-icon{width:calc(var(--u) * 16);height:calc(var(--u) * 16)}
+.ms-dressing-line{font:500 calc(var(--u) * 12)/1.25 var(--f-ui);color:#c9d2d8}
 .ms-poster.is-marathon::before{background:linear-gradient(180deg,#0000 0%,#00422500 30%,#004225b3 52%,#004225f2 70%,#004225 100%)}
 /* The helmet sits where the title goes, so the art is grown from its foot:
    the helmet rises clear and the ball and the turf stay where they were. */
@@ -8218,3 +8265,111 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .hurt-note-card h2{margin:0;color:var(--c-text);font:400 calc(var(--u) * 22)/1.05 var(--f-display);letter-spacing:.04em;text-transform:uppercase;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .hurt-note-card .hurt-note-line{margin:0;color:var(--c-text-2);font:500 calc(var(--u) * 14)/1.45 var(--f-ui)}
 .hurt-note-card .k-cta{margin:calc(var(--u) * 2) 0 0;width:100%}
+/* ── The Dressing Room (src/ui/DressingRoom.ts, the stage in src/scene/DressingStage.ts) ──
+   The batter on a turning pedestal under a spotlight, the shelf under him, what
+   the one picked takes at the foot. Laid out on the 402-wide phone it was drawn
+   on, in --u, so the desktop column scales it as it does every other screen. */
+.dr-overlay{position:absolute;inset:0;z-index:40;background:#06080b;color:var(--c-text);font-family:var(--f-ui);overflow:hidden}
+.dr-screen{--dr-top:max(calc(var(--u) * 16), calc(env(safe-area-inset-top, 0px) + var(--u) * 8));position:absolute;inset:0;display:flex;flex-direction:column;padding:var(--dr-top) 0 calc(var(--u) * 24 + env(safe-area-inset-bottom, 0px))}
+.dr-screen>*{position:relative}
+.dr-space{flex:1;min-height:calc(var(--u) * 120);pointer-events:none;margin-top:calc(var(--u) * 12)}
+.dr-screen>.dr-stage{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.dr-top{margin:0 calc(var(--u) * 20);height:calc(var(--u) * 44);display:flex;align-items:center;flex:none}
+.dr-tabs{position:absolute;left:50%;top:0;transform:translateX(-50%);height:calc(var(--u) * 44);display:flex;align-items:center;gap:calc(var(--u) * 2);padding:calc(var(--u) * 4);border-radius:calc(var(--u) * 22);background:#12161bb8;border:calc(var(--u) * 1) solid #2a313a;-webkit-backdrop-filter:blur(calc(var(--u) * 8));backdrop-filter:blur(calc(var(--u) * 8))}
+.dr-tabs button{height:calc(var(--u) * 34);min-width:calc(var(--u) * 64);padding:0 calc(var(--u) * 16);border:0;border-radius:calc(var(--u) * 17);background:transparent;color:#8494a0;font:800 calc(var(--u) * 12)/1 var(--f-ui);letter-spacing:.14em;cursor:pointer}
+.dr-tabs button[aria-pressed="true"]{background:var(--c-text);color:#0a0b0d}
+.dr-name{flex:none;margin:calc(var(--u) * 12) 0 0;text-align:center;font:400 calc(var(--u) * 38)/1 var(--f-display);letter-spacing:.03em;text-shadow:0 calc(var(--u) * 4) calc(var(--u) * 24) #0009;pointer-events:none}
+.dr-name.is-long{font-size:calc(var(--u) * 30);line-height:calc(var(--u) * 38)}
+/* The shelf: a rail down the right of the stage, from under the name to the foot. */
+.dr-items{position:absolute;top:0;bottom:0;right:calc(var(--u) * 10);display:flex;flex-direction:column;gap:calc(var(--u) * 10);overflow-y:auto;overflow-x:hidden;padding:calc(var(--u) * 8) calc(var(--u) * 8);pointer-events:auto;scrollbar-width:none;scroll-snap-type:y proximity;scroll-padding-block:calc(var(--u) * 8);overscroll-behavior-y:contain;touch-action:pan-y;
+  --t:0px;--b:0px;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 var(--t),#000 calc(100% - var(--b)),transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 var(--t),#000 calc(100% - var(--b)),transparent 100%)}
+.dr-items.more-up{--t:calc(var(--u) * 36)}
+.dr-items.more-down{--b:calc(var(--u) * 48)}
+.dr-items::-webkit-scrollbar{display:none}
+.dr-item{flex:none;width:calc(var(--u) * 60);height:calc(var(--u) * 60);scroll-snap-align:start;border-radius:calc(var(--u) * 16);background:linear-gradient(#171c22,#0f1216);border:calc(var(--u) * 1) solid #232a33;position:relative;display:grid;place-items:center;padding:0;cursor:pointer}
+.dr-item img,.dr-item-blank{width:calc(var(--u) * 54);height:calc(var(--u) * 54);display:block;pointer-events:none;-webkit-user-drag:none;user-select:none}
+.dr-item.is-locked img{opacity:.7;filter:saturate(.9)}
+.dr-item.is-picked{border:calc(var(--u) * 2) solid var(--c-text);box-shadow:0 0 calc(var(--u) * 20) #f5efe61f}
+.dr-badge{position:absolute;top:-6px;right:-6px;width:calc(var(--u) * 20);height:calc(var(--u) * 20);border-radius:50%;display:grid;place-items:center}
+.dr-badge.is-on{color:var(--c-win)}
+.dr-badge.is-on svg{width:calc(var(--u) * 20);height:calc(var(--u) * 20)}
+.dr-badge.is-lock{background:#0a0b0dd9;color:var(--c-text);border:calc(var(--u) * 1) solid #3a434e}
+.dr-badge.is-lock svg{width:calc(var(--u) * 11);height:calc(var(--u) * 11)}
+/* Waiting to be unlocked in the room: a red dot where the lock would be, and the tile breathing in its light. */
+.dr-badge.is-ready{top:calc(var(--u) * -3);right:calc(var(--u) * -3);width:calc(var(--u) * 12);height:calc(var(--u) * 12);background:#ff3b30;border:calc(var(--u) * 2) solid #0a0b0d}
+.dr-item.is-ready{border-color:#ff2e88;animation:dr-ready 1.6s ease-in-out infinite}
+.dr-item.is-ready img{opacity:1;filter:none}
+@keyframes dr-ready{0%,100%{box-shadow:0 0 0 0 #ff2e8800}50%{box-shadow:0 0 calc(var(--u) * 16) calc(var(--u) * 2) #ff2e8866}}
+.dr-tabs button{position:relative}
+.dr-tabs button.has-dot::after{content:"";position:absolute;top:calc(var(--u) * 5);right:calc(var(--u) * 8);width:calc(var(--u) * 8);height:calc(var(--u) * 8);border-radius:50%;background:#ff3b30}
+.dr-eye-ready{color:#ff5a8a}
+.dr-next.is-ready{border-color:#ff2e8866}
+@media (prefers-reduced-motion:reduce){.dr-item.is-ready{animation:none;box-shadow:0 0 calc(var(--u) * 12) #ff2e8866}}
+/* One height for every item, the content standing on its foot: the shelf and the
+   camera above it never move when something else is picked. Electric's goal sets it. */
+.dr-foot{flex:none;height:calc(var(--u) * 188);margin:calc(var(--u) * 12) calc(var(--u) * 24) 0;display:flex;flex-direction:column;justify-content:flex-end;gap:calc(var(--u) * 16)}
+.dr-foot:has(.dr-had){gap:calc(var(--u) * 10)}
+.dr-foot:has(.dr-had) .dr-next{padding-top:calc(var(--u) * 8);padding-bottom:calc(var(--u) * 8)}
+.dr-eye{font:800 calc(var(--u) * 10)/1 var(--f-ui);letter-spacing:.18em;text-transform:uppercase;color:#8494a0}
+.dr-goal,.dr-had{display:flex;flex-direction:column;gap:calc(var(--u) * 10)}
+.dr-had{gap:calc(var(--u) * 6)}
+.dr-had p,.dr-one{margin:0;font:400 calc(var(--u) * 15)/1.3 var(--f-ui);color:var(--c-text)}
+.dr-one{font-size:calc(var(--u) * 17)}
+.dr-big{display:flex;align-items:baseline;justify-content:space-between;margin-top:calc(var(--u) * 2)}
+.dr-big b{font:400 calc(var(--u) * 46)/1 var(--f-display);letter-spacing:.01em;font-variant-numeric:tabular-nums}
+.dr-big b span{font-size:calc(var(--u) * 22);color:#8494a0}
+.dr-big em{font:400 calc(var(--u) * 14)/1 var(--f-ui);font-style:normal;color:#a3b3bd}
+.dr-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:calc(var(--u) * 12)}
+.dr-steps li{display:flex;align-items:center;gap:calc(var(--u) * 10);font:400 calc(var(--u) * 15)/1.25 var(--f-ui);color:var(--c-text)}
+.dr-steps li svg{width:calc(var(--u) * 16);height:calc(var(--u) * 16);flex:none;color:#5b6672}
+.dr-steps li span{flex:1;min-width:0}
+.dr-steps b{font:600 calc(var(--u) * 14)/1 var(--f-ui);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dr-steps b span,.dr-next-value span{color:#8494a0;font-weight:400}
+.dr-steps li.is-done{color:#8494a0}
+.dr-steps li.is-done svg,.dr-steps li.is-done b{color:var(--c-win)}
+.dr-track{display:block;height:calc(var(--u) * 4);border-radius:calc(var(--u) * 2);background:#f5efe61a;overflow:hidden}
+.dr-track.is-big{height:calc(var(--u) * 6);border-radius:calc(var(--u) * 3)}
+.dr-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--c-cta-rim-bottom),#ffb23d)}
+.dr-next{display:flex;align-items:center;gap:calc(var(--u) * 12);padding:calc(var(--u) * 10) calc(var(--u) * 12) calc(var(--u) * 10) calc(var(--u) * 10);border-radius:calc(var(--u) * 16);border:calc(var(--u) * 1) solid #232a33;background:linear-gradient(#141920,#0f1318);color:var(--c-text);text-align:left;cursor:pointer;font-family:var(--f-ui)}
+.dr-next img,.dr-next .dr-item-blank{width:calc(var(--u) * 48);height:calc(var(--u) * 48);border-radius:calc(var(--u) * 12);background:#0b0e12;flex:none;opacity:.8}
+.dr-next-text{flex:1;min-width:0;display:grid;gap:calc(var(--u) * 4)}
+.dr-next-text .dr-eye{font-size:calc(var(--u) * 9)}
+.dr-next-text b{font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.04em;text-transform:uppercase}
+.dr-next-step{font:400 calc(var(--u) * 13)/1.2 var(--f-ui);color:#a3b3bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-next .dr-track{height:calc(var(--u) * 3);margin-top:calc(var(--u) * 2)}
+.dr-next-value{font:600 calc(var(--u) * 13)/1 var(--f-ui);font-variant-numeric:tabular-nums;white-space:nowrap;align-self:flex-start;margin-top:calc(var(--u) * 16)}
+.dr-next .k-icon{width:calc(var(--u) * 14);height:calc(var(--u) * 14);color:#8494a0;flex:none}
+.dr-worn,.dr-worn:disabled{opacity:1;cursor:default}
+.dr-worn{height:calc(var(--u) * 52);border-radius:calc(var(--u) * 18);border:calc(var(--u) * 1.5) solid #2e3640;background:transparent;color:var(--c-win);font:400 calc(var(--u) * 18)/1 var(--f-display);letter-spacing:.08em}
+.dr-foot .k-cta{width:100%}
+
+/* ── An unlock (src/ui/Unlock.ts): the stage's moment, the flash, the confetti and the words ── */
+.ul-overlay{position:absolute;inset:0;z-index:45;background:#06080b;color:var(--c-text);font-family:var(--f-ui);overflow:hidden;--glow:#46d2ff}
+.ul-overlay>.dr-stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+.ul-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+.ul-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:2}
+.ul-overlay.is-revealed .ul-flash{animation:ul-flash .55s ease-out}
+@keyframes ul-flash{0%{opacity:.85}100%{opacity:0}}
+.ul-scanning{position:absolute;left:0;right:0;top:calc(var(--u) * 120);margin:0;text-align:center;font:900 calc(var(--u) * 12)/1 var(--f-ui);letter-spacing:.3em;color:color-mix(in srgb,var(--glow) 55%,#fff);z-index:4;transition:opacity .3s}
+.ul-overlay.is-revealed .ul-scanning{opacity:0}
+.ul-words{position:absolute;left:calc(var(--u) * 20);right:calc(var(--u) * 20);bottom:calc(calc(var(--u) * 28) + env(safe-area-inset-bottom, 0px));z-index:4;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 8);text-align:center}
+.ul-words>*{opacity:0;transform:translateY(calc(var(--u) * 24)) scale(.9)}
+.ul-overlay.is-revealed .ul-words>*{animation:ul-pop .55s cubic-bezier(.2,1.6,.4,1) forwards}
+.ul-overlay.is-revealed .ul-words>:nth-child(2){animation-delay:.09s;animation-duration:.7s}
+.ul-overlay.is-revealed .ul-words>:nth-child(3){animation-delay:.25s}
+.ul-overlay.is-revealed .ul-words>:nth-child(4){animation-delay:.45s}
+.ul-overlay.is-revealed .ul-words>:nth-child(5){animation-delay:.57s}
+.ul-overlay.is-revealed .ul-words>:nth-child(6){animation-delay:.65s}
+@keyframes ul-pop{0%{opacity:0;transform:translateY(calc(var(--u) * 24)) scale(.9)}60%{opacity:1}100%{opacity:1;transform:none}}
+.ul-eyebrow{font:900 calc(var(--u) * 12)/1 var(--f-ui);letter-spacing:.2em;text-transform:uppercase;color:var(--glow)}
+.ul-name{margin:0;font:400 calc(var(--u) * 58)/1 var(--f-display);letter-spacing:.02em;text-shadow:0 0 calc(var(--u) * 30) color-mix(in srgb,var(--glow) 55%,transparent)}
+.ul-name.is-long{font-size:calc(var(--u) * 46);line-height:.95}
+.ul-line{margin:0;color:#a3b3bd;font-size:calc(var(--u) * 15)}
+.ul-words .k-cta{width:100%;margin-top:calc(var(--u) * 10)}
+.ul-later{background:none;border:0;color:#a3b3bd;font:400 calc(var(--u) * 16)/1 var(--f-display);letter-spacing:.12em;padding:calc(var(--u) * 12);cursor:pointer;min-height:calc(var(--u) * 44)}
+@media (prefers-reduced-motion:reduce){.ul-words>*{opacity:1;transform:none}.ul-overlay.is-revealed .ul-words>*{animation:none}}
+/* `?dressing=1`: the same row as the welcome's, over the room and its unlocks, which stand down below it. */
+.dressing-preview{z-index:60;grid-template-columns:repeat(6,minmax(0,1fr))}
+.dressing-preview .welcome-preview-key{white-space:normal;line-height:1.1;padding:0 2px}
+.has-dressing-keys .dr-screen{padding-top:calc(var(--dr-top) + 44px)}
+.has-dressing-keys .ul-scanning{top:calc(var(--u) * 120 + 44px)}

@@ -53,7 +53,7 @@ for (const [name, options] of [
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'marathon-launch:9');
+      localStorage.setItem('hitman-whatsnew', 'dressing-room:9');
     } catch { /* Then the notices stand. */ }
     const later = window.setTimeout;
     window.__timerScale = 1;

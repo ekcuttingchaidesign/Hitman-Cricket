@@ -15,6 +15,9 @@ import {
   CAREER_BOARD_SIZE, countInnings, nameCareer, readCareer, readCareerBoards, refusedCareer,
 } from './src/server/career-store';
 import { memoryCareer } from './src/server/memory-career';
+import { memoryDressing, readSaved, saveDressing } from './src/server/dressing-save';
+import { memoryRecap, recordInnings, recordUnlocks } from './src/server/recap-store';
+import { lookOf } from './src/game/dressing-ids';
 import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
 import { carryKey, firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
@@ -71,6 +74,8 @@ function boardEndpoints(): Plugin {
   // while it runs, so a code left over from an hour of poking about stops
   // working the same way it would in production.
   const challenges = memoryChallenges(names);
+  const dressing = memoryDressing();
+  const recap = memoryRecap();
   return {
     name: 'hitman-board-dev',
     apply: 'serve',
@@ -78,7 +83,7 @@ function boardEndpoints(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? '').split('?')[0];
         const known = ['/api/board', '/api/score', '/api/feedback', '/api/career', '/api/innings',
-          '/api/restore', '/api/challenge', '/api/name', '/api/me'];
+          '/api/restore', '/api/challenge', '/api/name', '/api/dressing', '/api/recap', '/api/me'];
         if (!known.includes(path)) return next();
         // A refusal as the deployed endpoints write one, carrying the name
         // that is held when it is not the one typed.
@@ -117,6 +122,26 @@ function boardEndpoints(): Plugin {
             // The same header the deployed endpoint sends on a read, so a check
             // behaves here the way it will behind the edge cache.
             return send(200, outcome, cacheable(request) ? 'public, s-maxage=2, stale-while-revalidate=4' : 'no-store');
+          }
+          if (path === '/api/recap') {
+            // The dev server's alone, for the checks: what the year recap holds
+            // for a player and for everybody. Nothing deployed answers this.
+            const asked = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
+            const year = Number(asked.get('year')) || new Date().getUTCFullYear();
+            return send(200, { player: await recap.read(year, asked.get('player') ?? ''), totals: recap.totals(year) });
+          }
+          if (path === '/api/dressing') {
+            // What `api/dressing.ts` does, over memory.
+            if (req.method === 'GET') {
+              const player = new URLSearchParams((req.url ?? '').split('?')[1] ?? '').get('player');
+              return send(200, { dressing: await readSaved(dressing, player) });
+            }
+            if (req.method !== 'POST') return send(405, { error: 'Use GET or POST.' });
+            const body = JSON.parse(await read(req)) as Record<string, unknown>;
+            const outcome = await saveDressing(dressing, { playerId: body.playerId, dressing: body.dressing, address: 'dev' });
+            if (!outcome.ok) return send(outcome.status, { error: outcome.reason });
+            await recordUnlocks(recap, { playerId: String(body.playerId), keys: outcome.won, at: Date.now() });
+            return send(200, { dressing: outcome.saved });
           }
           if (path === '/api/feedback') {
             // No key on the read here. The deployed endpoint holds one because
@@ -173,12 +198,19 @@ function boardEndpoints(): Plugin {
               address: 'dev',
             };
             const countingMode = modeAsked(sent.mode);
+            const tally = countingMode === 'survive' ? readSurviveTally(sent.innings)
+              : countingMode === 'marathon' ? readMarathonTally(sent.innings) : readBlastTally(sent.innings);
             const counted = countingMode === 'survive'
-              ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: readSurviveTally(sent.innings) })
+              ? await countInnings(careers.survive, SURVIVE_CAREER, { ...counting, tally: tally as ReturnType<typeof readSurviveTally> })
               : countingMode === 'marathon'
-              ? await countInnings(careers.marathon, MARATHON_CAREER, { ...counting, tally: readMarathonTally(sent.innings) })
-              : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: readBlastTally(sent.innings) });
-            return refusedCareer(counted) ? send(counted.status, { error: counted.reason }) : send(200, counted);
+              ? await countInnings(careers.marathon, MARATHON_CAREER, { ...counting, tally: tally as ReturnType<typeof readMarathonTally> })
+              : await countInnings(careers.classic, BLAST_CAREER, { ...counting, tally: tally as ReturnType<typeof readBlastTally> });
+            if (refusedCareer(counted)) return send(counted.status, { error: counted.reason });
+            // What `api/innings.ts` does with a counted innings, over memory.
+            if (counted.counted && tally) {
+              await recordInnings(recap, { playerId: counting.playerId, mode: countingMode, tally, look: lookOf(sent.look), at: Date.now() });
+            }
+            return send(200, counted);
           }
           if (path === '/api/restore') {
             if (req.method !== 'POST') return send(405, { error: 'Use POST.' });

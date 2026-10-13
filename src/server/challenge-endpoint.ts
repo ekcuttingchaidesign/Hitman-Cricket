@@ -41,6 +41,7 @@ export async function challengeRequest(
     playerId: String(body.playerId ?? ''),
     name: String(body.name ?? ''),
     avatar: Number(body.avatar),
+    look: body.look,
     address: req.address,
   };
   const code = String(body.code ?? '');

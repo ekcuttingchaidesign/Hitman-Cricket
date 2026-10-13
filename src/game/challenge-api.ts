@@ -1,5 +1,7 @@
 import type { Innings } from './leaderboard';
 import type { ChallengeState, PlayerStatus, RivalsRecord, RivalsRow } from '../server/challenge-store';
+import type { Look } from './dressing-ids';
+import { readDressing } from './dressing-store';
 
 export type { RivalsRecord, RivalsRow } from '../server/challenge-store';
 
@@ -43,6 +45,8 @@ export interface ChallengeRow extends Innings {
   playerId: string;
   name: string;
   avatar: number;
+  /** Their Dressing Room kit and bat; null for an innings from before the room. */
+  look?: Look | null;
   /** The innings so far, ball by ball. Another player's copy of this is the ghost. */
   card: string;
   host: boolean;
@@ -162,9 +166,12 @@ export async function fetchRivalsBoard(): Promise<RivalsRow[] | null> {
 }
 
 async function post(body: Record<string, unknown>): Promise<ChallengeResult> {
+  // What they wear and hold, with every write: the room keeps it with their
+  // innings, and a pick changed between two balls goes with the next one.
+  const { outfit, bat } = readDressing();
   return read(await ask<{ code: string; challenge: Challenge; error?: string; retry?: boolean; status?: number }>(
     `${API}/api/challenge`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, look: { kit: outfit, bat } }) },
   ));
 }
 

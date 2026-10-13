@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown,
+  STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
 } from '../src/game/whats-new';
-import { storiesAlt, storiesMarkup, storyKeyMarkup } from '../src/ui/WhatsNew';
+import { storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
 
 /** localStorage, as a map, so the counting can be tested without a browser. */
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -16,52 +16,33 @@ function fakeStorage(seed: Record<string, string> = {}) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-/** The card carrying the key, wherever it stands in the set. */
-const MEME = STORIES.findIndex(one => one.withKey);
+/** The last card, which holds still with the way into the room. */
+const LAST = STORIES.length - 1;
 
 describe('what the update says it did', () => {
-  it('says it in two, because a player came here to bat', () => {
-    expect(STORIES).toHaveLength(2);
+  it('tells the Dressing Room in two, each with the way in', () => {
+    expect(STORIES.map(one => one.key)).toEqual(['suit-up', 'earn-your-willow']);
+    for (const story of STORIES) expect(story.opens, story.key).toBe('dressing');
   });
 
-  it('opens on the Test Marathon\'s film, and asks for the key last', () => {
-    expect(STORIES[0]).toMatchObject({ key: 'marathon', film: 'test-marathon' });
-    expect(STORIES.some(one => one.key.startsWith('rivals'))).toBe(false);
-    const film = storiesMarkup({ at: 0, where: 'intro', holdMs: 1 });
-    expect(film).toContain('whatsnew-sheet is-film');
-    // Laid under the bars, ahead of the words, and named for a screen reader:
-    // the film says its words in pictures, so the story's own are read out.
-    expect(film.indexOf('id="whatsnew-film"')).toBeGreaterThan(-1);
-    expect(film.indexOf('id="whatsnew-film"')).toBeLessThan(film.indexOf('whatsnew-bars'));
-    expect(film).toMatch(/role="img" aria-label="[^"]{40,}"/);
-    expect(film).toContain('whatsnew-title is-unseen');
-    expect(film).not.toContain('whatsnew-eyebrow');
-    expect(film).not.toContain('<img');
-    expect(storiesMarkup({ at: MEME, where: 'intro', holdMs: 1 })).not.toContain('is-film');
-    // The key goes last: it is the one card that holds still, so tapping
-    // through lands on it rather than past it.
-    expect(MEME).toBe(STORIES.length - 1);
-  });
-
-  it('gives every card something to show, and a name for it', () => {
+  it('gives every card something to show, a name for it and a line under it', () => {
     for (const story of STORIES) {
-      expect(story.title.length, story.key).toBeGreaterThan(8);
-      expect(story.film ?? story.art, story.key).toMatch(story.film ? /^[a-z-]+$/ : /\.(png|webp)$/);
+      expect(story.title.length, story.key).toBeGreaterThan(6);
+      // A picture, a film, or the Dressing Room's stage.
+      expect(!!(story.art || story.film || story.stage), story.key).toBe(true);
+      expect(story.body?.length ?? 0, story.key).toBeGreaterThan(30);
       // A picture says nothing to a screen reader on its own.
       expect(story.alt.length, story.key).toBeGreaterThan(20);
     }
   });
 
-  it('holds the film for as long as it runs, and a beat more', () => {
-    // The Lottie is 270 frames at 30 a second.
-    expect(STORIES[0].holdMs).toBeGreaterThan(9000);
-    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 })).toContain(`--hold:${STORIES[0].holdMs}ms`);
-  });
-
-  it('asks for the key, and carries it', () => {
-    const said = STORIES.map(one => `${one.title} ${one.alt}`).join(' ').toLowerCase();
-    expect(said).toContain('career key');
-    expect(STORIES.some(one => one.withKey)).toBe(true);
+  it('says each in two lines at most, and never counts kits or bats, which only grow', () => {
+    for (const story of STORIES) {
+      // Two lines of a phone's width, at the story's size, is about sixty-four letters.
+      expect(story.body!.length, story.key).toBeLessThanOrEqual(64);
+      expect(story.body, story.key).not.toMatch(/\d|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b (kits?|bats?)/i);
+      expect(story.body, story.key).not.toMatch(/\b(seven|six|eleven|twelve)\b/i);
+    }
   });
 
   it('reads out as one sentence for somebody who cannot see the pictures', () => {
@@ -72,8 +53,9 @@ describe('what the update says it did', () => {
 });
 
 describe('the story screen', () => {
-  it('draws a bar a story, and holds still on one carrying the key', () => {
-    const markup = storiesMarkup({ at: MEME, where: 'intro', holdMs: 7000 });
+  it('draws a bar a story, and holds still on the last, with the way in', () => {
+    expect(storyHolds(LAST)).toBe(true);
+    const markup = storiesMarkup({ at: LAST, where: 'intro', holdMs: 7000 });
     expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(STORIES.length);
     expect(markup.match(/is-live/g)).toHaveLength(1);
     // A card that moved on by itself would take the key from under a thumb.
@@ -81,55 +63,65 @@ describe('the story screen', () => {
     expect(markup).not.toContain('--hold:');
   });
 
-  it('moves on by itself from a card that asks for nothing', () => {
+  it('moves on by itself from an earlier card, its keys standing where the next card has them', () => {
+    expect(storyHolds(0)).toBe(false);
     const markup = storiesMarkup({ at: 0, where: 'intro', holdMs: 7000 });
     expect(markup).toContain('--hold:');
     expect(markup).not.toContain('is-held');
-    expect(markup).not.toContain('whatsnew-keyslot');
+    expect(markup).toContain('id="whatsnew-open"');
   });
 
-  it('puts the meme on the screen, and the key under it', () => {
-    const markup = storiesMarkup({ at: MEME, where: 'intro', holdMs: 1 });
-    expect(markup).toContain('src="save%20key%20meme.png"');
-    expect(markup.indexOf('whatsnew-art')).toBeLessThan(markup.indexOf('whatsnew-keyslot'));
-    // The way out stays at the foot, under both.
-    expect(markup.indexOf('whatsnew-keyslot')).toBeLessThan(markup.indexOf('whatsnew-done'));
+  it('holds a card with the key on it wherever it stands, and an earlier way in nowhere', () => {
+    const story = (over: Partial<Story>): Story => ({ key: 'x', eyebrow: 'X', title: 'XXXXXXX', alt: 'x'.repeat(30), ...over });
+    expect(storyHolds(0, [story({ withKey: true }), story({})])).toBe(true);
+    expect(storyHolds(0, [story({ opens: 'dressing' }), story({})])).toBe(false);
+    expect(storyHolds(1, [story({}), story({ opens: 'dressing' })])).toBe(true);
+    expect(storyHolds(1, [story({}), story({})])).toBe(false);
+  });
+
+  it('puts SKIP and GO TO DRESSING ROOM side by side under every stage', () => {
+    for (let at = 0; at < STORIES.length; at++) {
+      const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      expect(markup).toMatch(/whatsnew-foot is-pair[\s\S]*k-cta--secondary[^>]*id="whatsnew-done"[\s\S]*>SKIP<[\s\S]*k-cta--primary[^>]*id="whatsnew-open"[\s\S]*>GO TO DRESSING ROOM</);
+      expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-done'));
+      // Opened from the board, the way out goes back there.
+      expect(storiesMarkup({ at, where: 'board', holdMs: 1 })).toMatch(/id="whatsnew-done"[\s\S]*?>CLOSE</);
+    }
+  });
+
+  it('plays the Dressing Room full screen on its stage, with no picture to download', () => {
+    expect(STORIES.map(one => one.stage)).toEqual(['kits', 'bats']);
+    for (let at = 0; at < STORIES.length; at++) {
+      const markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
+      expect(markup).toContain('whatsnew-sheet is-stage');
+      expect(markup).toMatch(/id="whatsnew-stage"[^>]*role="img"[^>]*aria-label="[^"]{20,}"/);
+      // The room is between the title and the words: where the batter stands.
+      expect(markup.indexOf('whatsnew-title')).toBeLessThan(markup.indexOf('whatsnew-room'));
+      expect(markup.indexOf('whatsnew-room')).toBeLessThan(markup.indexOf('whatsnew-say'));
+      expect(markup).not.toContain('<img');
+    }
   });
 
   it('asks a player with a name to save their key, and shows nobody else a card', () => {
-    const held = storiesMarkup({ at: MEME, where: 'intro', holdMs: 1,
-      careerKey: { state: 'unsaved', code: 'brave-otter-lamp-07' } });
-    expect(held).toContain('Save your key');
-    expect(held).toContain('brave-otter-lamp-07');
-    expect(held).toMatch(/id="whatsnew-key-save"[^>]*>SAVE YOUR KEY</);
+    // The key's card, for a story that carries it (`Story.withKey`); none of this update's does.
+    expect(STORIES.some(one => one.withKey)).toBe(false);
+    expect(storyKeyMarkup({ state: 'unsaved', code: 'brave-otter-lamp-07' })).toContain('brave-otter-lamp-07');
     expect(storyKeyMarkup({ state: 'saved', code: 'a-b-c-01' })).toContain('id="whatsnew-key-save"');
-    // A name with no key behind it: the press makes one, then the sheet saves it.
-    const lost = storyKeyMarkup({ state: 'lost' });
-    expect(lost).toContain('Save your key');
-    expect(lost).toMatch(/id="whatsnew-key-make"[^>]*>SAVE YOUR KEY</);
-    // No name at all: nothing to save, so no card.
+    expect(storyKeyMarkup({ state: 'lost' })).toMatch(/id="whatsnew-key-make"[^>]*>SAVE YOUR KEY</);
     expect(storyKeyMarkup(null)).toBe('');
-  });
-
-  it('draws no frame round a picture that brings its own corners', () => {
-    // The meme and both Marathon posters are cut to their own corners.
-    for (let at = 0; at < STORIES.length; at++) {
-      expect(storiesMarkup({ at, where: 'intro', holdMs: 1 }).includes('class="is-cut"')).toBe(!!STORIES[at].cut);
-    }
-    expect(storiesMarkup({ at: MEME, where: 'intro', holdMs: 1 })).toContain('class="is-cut"');
   });
 
   it('never prints a key it was not handed', () => {
     expect(storyKeyMarkup({ state: 'unsaved', code: '<b>x</b>' })).not.toContain('<b>x</b>');
   });
 
-  it('names the way out for where it was opened from, and where that goes', () => {
-    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 })).toContain('SKIP TO MODE SELECTION');
-    // A build that plays one mode has no picker to skip to, so the key cannot
-    // promise one — it is the only thing on the screen that could lie.
-    expect(storiesMarkup({ at: 0, where: 'intro', holdMs: 1, locked: true }))
-      .toContain('SKIP AND START BATTING');
-    expect(storiesMarkup({ at: 0, where: 'board', holdMs: 1, locked: true })).toContain('CLOSE');
+  it('names the way out for where it was opened from', () => {
+    // Beside the way in it is short: SKIP, wherever skipping goes in this
+    // build, or CLOSE back to the board it was opened from.
+    const out = (markup: string) => markup.match(/id="whatsnew-done"[\s\S]*?<span>([^<]+)<\/span>/)?.[1];
+    expect(out(storiesMarkup({ at: 0, where: 'intro', holdMs: 1 }))).toBe('SKIP');
+    expect(out(storiesMarkup({ at: 0, where: 'intro', holdMs: 1, locked: true }))).toBe('SKIP');
+    expect(out(storiesMarkup({ at: 0, where: 'board', holdMs: 1, locked: true }))).toBe('CLOSE');
   });
 
   it('carries both halves of the page, so a tap means back or on', () => {

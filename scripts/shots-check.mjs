@@ -52,6 +52,18 @@ async function open(options, seed = {}) {
 }
 
 const advance = (page, ms) => page.clock.runFor(Math.max(16, Math.round(ms)));
+/**
+ * Stops the page's clock where it stands, until `resume`. The installed clock
+ * runs on in real time between steps, and a renderer slow enough spends whole
+ * beats of the coachmarks' light between two of them; its time can also run
+ * past the moment asked for between reading it and pausing at it, so it is read
+ * and asked for again until it holds.
+ */
+async function freeze(page) {
+  for (let tries = 0; ; tries++) {
+    try { await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 250); return; } catch (error) { if (tries > 8) throw error; }
+  }
+}
 const snap = page => page.evaluate(() => window.__cricket.snapshot());
 
 /** In by the play key and the picker, as a player is. */
@@ -103,13 +115,20 @@ const DESK = { viewport: { width: 1440, height: 900 } };
   check(boxes.every(b => b.left >= app.left && b.right <= app.right), 'every name inside the screen', JSON.stringify(boxes.map(b => [Math.round(b.left), Math.round(b.right)])));
   const overlap = boxes.some((a, i) => boxes.some((b, j) => i < j && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom));
   check(!overlap, 'and none over another');
-  // The light goes round: the straight drive lit first, as drawn, and a beat
-  // later the cover drive, the caption under the thumb following it.
+  // The light goes round — the straight drive first, as drawn, which the unit
+  // tests hold (`data-lit="2"`) — and a beat later the next lane, the caption
+  // under the thumb following it. Judged on the page's clock held still, so it
+  // is one beat however long the renderer took to get here.
   const lit = () => page.evaluate(() => [document.querySelector('.hb-fan')?.dataset.lit, document.querySelector('.hb-caption.is-lane span')?.textContent]);
+  const ORDER = [2, 3, 4, 0, 1], NAMED = ['pull', 'on drive', 'straight drive', 'cover drive', 'cut'];
+  await freeze(page);
   const [a, aSays] = await lit();
   await advance(page, 1750);
   const [b, bSays] = await lit();
-  check(a === '2' && b === '3' && /straight drive/.test(aSays) && /cover drive/.test(bSays), 'and the lanes are lit in turn, the caption saying which', `${a} ${aSays} / ${b} ${bSays}`);
+  await page.clock.resume();
+  const after = ORDER[(ORDER.indexOf(Number(a)) + 1) % ORDER.length];
+  check(Number(b) === after && aSays?.includes(NAMED[Number(a)]) && bSays?.includes(NAMED[Number(b)]),
+    'and the lanes are lit in turn, the caption saying which', `${a} ${aSays} / ${b} ${bSays}`);
   await page.screenshot({ path: `${out}/phone.png` });
   await page.locator('#mi-next').click({ force: true });
   await advance(page, 50);
