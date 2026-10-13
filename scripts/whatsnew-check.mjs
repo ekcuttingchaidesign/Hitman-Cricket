@@ -211,10 +211,24 @@ check(live.full && await title() === 'SUIT UP', 'where it can be drawn, the kits
 check(live.room > 200, 'with room between the words for the batter', `${live.room}px`);
 // The way in from the first card, without reading on.
 check(paired(await keys()), 'the way in right there on the first card', JSON.stringify(await keys()));
+// Choose a mode is under the room, and must never be seen on its own on the
+// way: the stories go only once the room is up over them. Watched for on
+// every change to the screens, not on frames, which this page's clock owns.
+await page.evaluate(() => {
+  window.__bare = 0;
+  const shown = id => { const node = document.getElementById(id); return !!node && !node.classList.contains('hidden'); };
+  const watch = new MutationObserver(() => {
+    if (shown('modes') && !shown('whatsnew-overlay') && !document.querySelector('.dr-overlay')) window.__bare++;
+  });
+  watch.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
+  window.__unwatch = () => watch.disconnect();
+});
 await page.click('#whatsnew-open');
 let room = false;
 for (let i = 0; i < 40 && !room; i++) { await tick(250, 250); room = !!(await page.$('#dressing-overlay')); }
 check(room, 'which puts the stories away and opens the Dressing Room');
+const bare = await page.evaluate(() => { window.__unwatch(); return window.__bare; });
+check(bare === 0, 'without Choose a mode showing through on the way', `${bare} times`);
 check(await page.$eval('#whatsnew-overlay', node => node.classList.contains('hidden')), 'with the stories gone from under it');
 if (room) {
   // A first visit: Boom waits on the bat shelf for its key, nothing going off on the way in.

@@ -1160,8 +1160,13 @@ ${modeSelectMarkup()}
   private storyStage: StoryStage | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
-  /** The way into what the last story is about (`Story.opens`), after the stories are put away. */
-  onStoriesOpen: (() => void) | null = null;
+  /**
+   * The way into what the stories are about (`Story.opens`). It is handed the
+   * putting away of the stories and calls it once the room is up over them:
+   * put away first, they would show whatever they close onto — Choose a mode —
+   * for as long as the room takes to load.
+   */
+  onStoriesOpen: ((shown: () => void) => void) | null = null;
 
   /** How long one card holds before it moves on by itself. */
   static readonly STORY_MS = 7000;
@@ -1211,7 +1216,15 @@ ${modeSelectMarkup()}
     if (story?.stage && stage && room) (this.storyStage ??= new StoryStage()).play(stage, room, story.stage);
     else { this.storyStage?.stop(); this.storyStage = null; }
     const open = document.getElementById('whatsnew-open');
-    if (open) open.onclick = () => { const go = this.onStoriesOpen; this.closeStories(); go?.(); };
+    if (open) open.onclick = () => {
+      const go = this.onStoriesOpen;
+      if (!go) { this.closeStories(); return; }
+      // Held where it is while the room loads: no moving on, and no second press.
+      window.clearTimeout(this.storyHold);
+      (open as HTMLButtonElement).disabled = true;
+      let shown = false;
+      go(() => { if (!shown && this.storiesOpen) { shown = true; this.closeStories(); } });
+    };
     if (storyHolds(this.storyAt)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }

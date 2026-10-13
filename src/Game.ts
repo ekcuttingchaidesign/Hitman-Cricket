@@ -660,7 +660,7 @@ export class Game {
     this.hud.onBoardStories = () => this.showStories('board');
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
-    this.hud.onStoriesOpen = () => this.openDressing();
+    this.hud.onStoriesOpen = shown => this.openDressing(shown);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
@@ -901,10 +901,11 @@ export class Game {
   /**
    * Opens the Dressing Room over Choose a mode, which is still there when it
    * is put away. The screen and its stage are loaded the first time, so the
-   * game itself never waits on them.
+   * game itself never waits on them. `shown` is called once the room is on
+   * screen — or once it is plain it will not be — for whatever it is to cover.
    */
-  private openDressing() {
-    if (this.dressing) return;
+  private openDressing(shown?: () => void) {
+    if (this.dressing) { shown?.(); return; }
     this.mark('dressing-open', 'The Dressing Room opened');
     const held = readDressing();
     if (!this.dressingPreview) writeDressing({ ...held, visited: true });
@@ -939,7 +940,8 @@ export class Game {
         },
         close: () => this.closeDressing(),
       }, () => new DressingStage({ room: true }));
-    });
+      // Put up, or failed to be: either way, nothing more to wait for.
+    }).finally(() => shown?.());
   }
   /** One of `?dressing=1`'s keys. */
   private previewDressing(scenario: DressingScenario) {

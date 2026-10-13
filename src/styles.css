@@ -7184,6 +7184,13 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .ms-dressing .ms-art{object-position:50% 50%}
 .ms-dressing::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#1a1515 0%,#1a1515f2 28%,#1b1c1f5c 100%)}
+/* A light crossing the card now and then, the claim key's sweep (`cta-shimmer`)
+   on a dark card: fainter, wider and slower, so it catches the eye on Choose a
+   mode without competing with the PLAY keys above it. Still under reduced motion. */
+.ms-dressing::after{content:'';position:absolute;top:-60%;left:-80%;width:46%;height:220%;pointer-events:none;
+  background:linear-gradient(90deg,#fff0 0%,#ffffff0d 22%,#ffffff29 42%,#ffffff40 50%,#ffffff29 58%,#ffffff0d 78%,#fff0 100%);
+  filter:blur(8px);transform:rotate(16deg);animation:cta-shimmer 8.4s cubic-bezier(.45,0,.4,1) 1.2s infinite}
+@media (prefers-reduced-motion:reduce){.ms-dressing::after{animation:none;display:none}}
 .ms-dressing .ms-tag{left:calc(var(--u) * 16);top:calc(var(--u) * 14);padding:calc(var(--u) * 4) calc(var(--u) * 8);border-radius:999px;background:var(--c-accent);color:#0b0f14;font:800 calc(var(--u) * 10)/1.3 var(--f-ui);letter-spacing:.14em}
 .ms-dressing.is-visited .ms-tag{display:none}
 .ms-dressing-text{display:flex;flex-direction:column;gap:calc(var(--u) * 2)}
