@@ -934,7 +934,10 @@ export class Game {
         claim: (shelf, id) => {
           // Taken the moment the key is pressed, so a player who leaves mid-moment has it all the same.
           if (this.dressingPreview) this.dressingPreview = { ...this.dressingPreview, welcomed: true };
-          else { const held = readDressing(); writeDressing({ ...held, seen: [...new Set([...held.seen, seenKey(shelf, id)])] }); }
+          else {
+            const held = readDressing(), key = seenKey(shelf, id);
+            writeDressing({ ...held, seen: [...new Set([...held.seen, key])], shown: [...new Set([...held.shown, key])] });
+          }
           this.dressing?.update({ record: this.dressingRecord() });
           this.dressingMark(`dressing-claim-${shelf}-${id}`, `Unlocked the ${shelf} ${id} in the room`);
           const look = this.myLook();
@@ -1030,7 +1033,8 @@ export class Game {
     const items = this.freshUnlocks();
     if (!items.length) return;
     const held = readDressing();
-    writeDressing({ ...held, seen: [...new Set([...held.seen, ...items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id))])] });
+    const keys = items.map(one => one.moment.kind === 'bat' ? seenKey('bat', one.moment.bat.id) : seenKey('kit', one.moment.to.id));
+    writeDressing({ ...held, seen: [...new Set([...held.seen, ...keys])], shown: [...new Set([...held.shown, ...keys])] });
     this.putRatingAway();
     for (const one of items) {
       const [shelf, id] = one.moment.kind === 'bat' ? ['bat', one.moment.bat.id] : ['kit', one.moment.to.id];
@@ -1090,7 +1094,7 @@ export class Game {
   private dressingCount() {
     const record = this.dressingRecord(), got = earned(record);
     // The card's NEW stays until the room has been opened and Boom, waiting there, unlocked.
-    return { earned: got.outfits.length + got.bats.length, of: OUTFITS.length + BATS.length, visited: readDressing().visited && record.welcomed };
+    return { earned: got.outfits.length + got.bats.length, of: OUTFITS.length + BATS.length, visited: readDressing().visited && record.welcomed && !record.waiting?.length };
   }
 
   /**
@@ -4450,12 +4454,20 @@ export class Game {
     const careers = { classic: heldCareer('classic') as BlastCareer, survive: heldCareer('survive') as SurviveCareer, marathon: heldCareer('marathon') as MarathonCareer };
     const wins = rivalryEntries().filter(one => one.outcome === 'W');
     const now = { classic: tierMeasure('classic', careers.classic), survive: tierMeasure('survive', careers.survive), marathon: tierMeasure('marathon', careers.marathon) };
-    return {
+    const held = readDressing();
+    const record: DressingRecord = {
       careers,
       rivals: { won: Math.max(wins.length, this.rooms?.record?.won ?? 0), beaten: new Set(wins.map(one => one.them.playerId)).size },
-      launch: readDressing().launch ?? now,
-      welcomed: readDressing().seen.includes(seenKey('bat', WELCOME_BAT)),
+      launch: held.launch ?? now,
+      welcomed: held.seen.includes(seenKey('bat', WELCOME_BAT)),
     };
+    // Earned and known, never shown: won before the room arrived, waiting there
+    // for its key. One not yet seen is new, and goes up at the innings' end.
+    const got = earned(record);
+    const free = new Set([seenKey('kit', FREE_OUTFIT), seenKey('bat', FREE_BAT), seenKey('bat', WELCOME_BAT)]);
+    const waiting = [...got.outfits.map(id => seenKey('kit', id)), ...got.bats.map(id => seenKey('bat', id))]
+      .filter(key => !free.has(key) && held.seen.includes(key) && !held.shown.includes(key));
+    return { ...record, waiting };
   }
   /** What the batter goes out in: the player's pick, or the free one where the pick is not (or no longer) theirs. */
   private myLook(): { outfit: Outfit; bat: BatSkin } {

@@ -214,7 +214,15 @@ the pick is no longer earned. Boom is not free and nothing goes off on the way
 in: it waits on the bat shelf (`WELCOME_BAT` and `ready` in `dressing.ts`), a
 dot on the BAT tab and a light round its tile, until the player picks it and
 presses UNLOCK BOOM, which plays its unlock over the room. It counts as
-unlocked once `bat:boom` is in the seen list, so every player sets it off once. What is earned is worked out from the careers
+unlocked once `bat:boom` is in the seen list, so every player sets it off once.
+What a career earned before the room arrived waits the same way: `seen` is
+what is known to be earned (the end of an innings celebrates only what is not),
+`shown` is what has had its moment, and anything seen and not shown — the
+history a first look takes in quietly — waits in the room with a dot and its
+own UNLOCK key (`waiting` on the record, `ready` in `dressing.ts`), and keeps
+NEW on the card until it is claimed. A copy saved before `shown` existed reads
+as having shown only Boom and the free pair (`cleanDressing`), so the players
+who opened the room on its first day get their moments too. What is earned is worked out from the careers
 every time (`dressing.ts`, in the unit tests), so history counts and nothing is
 stored but the pick; the pick travels with a Rival Match innings, where each
 player bats in their own kit now rather than their seat's. The shelf is a rail

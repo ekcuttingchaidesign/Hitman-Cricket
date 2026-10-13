@@ -85,12 +85,19 @@ await first.page.locator('#unlock-take').click();
 await first.page.waitForTimeout(400);
 await first.page.locator('#dressing-tab-kit').click();
 await first.page.locator('.dr-item[data-id="crimson"]').click();
+// Crimson was earned before the room arrived, so it waits for its key too:
+// its moment plays, and WEAR IT NOW puts it on.
+check((await first.page.locator('#dressing-key').innerText()).includes('UNLOCK CRIMSON'), 'Crimson, earned before the room, waits for its key');
 await first.page.locator('#dressing-key').click();
-// Sent a moment after the last change.
-const sent = await first.page.waitForResponse(response => response.url().includes('/api/dressing') && response.request().method() === 'POST', { timeout: 10_000 }).catch(() => null);
+await first.page.waitForSelector('#unlock-overlay.is-revealed', { timeout: 30_000 }).catch(() => {});
+await first.page.locator('#unlock-take').click();
+// Sent a moment after the last change: the save that carries Crimson on him.
+const sent = await first.page.waitForResponse(async response => response.url().includes('/api/dressing') && response.request().method() === 'POST'
+  && (await response.json().catch(() => null))?.dressing?.outfit === 'crimson', { timeout: 15_000 }).catch(() => null);
 check(!!sent && sent.ok(), 'a moment after the change, it is sent to the store', sent && sent.status());
 const kept = sent ? (await sent.json()).dressing : null;
-check(kept?.outfit === 'crimson' && kept?.bat === 'boom' && kept?.seen.includes('bat:boom'), 'which keeps Crimson, Boom, and Boom unlocked', JSON.stringify(kept));
+check(kept?.outfit === 'crimson' && kept?.bat === 'boom' && kept?.seen.includes('bat:boom') && kept?.shown.includes('kit:crimson'),
+  'which keeps Crimson, Boom, and both unlocked', JSON.stringify(kept));
 check(first.page.errors.length === 0, 'with nothing in the console', first.page.errors.join(' | '));
 await first.context.close();
 
@@ -99,7 +106,7 @@ const second = await device(player, name, null);
 await second.page.waitForTimeout(1500);
 const taken = await held(second.page);
 check(taken?.outfit === 'crimson' && taken?.bat === 'boom', 'has the pick without being told', JSON.stringify(taken));
-check(taken?.seen.includes('bat:boom'), 'and Boom already unlocked, so it does not wait in the room again');
+check(taken?.seen.includes('bat:boom') && taken?.shown.includes('kit:crimson'), 'and Boom and Crimson already unlocked, so neither waits in the room again', JSON.stringify(taken?.shown));
 const look = await lookAtCrease(second.page);
 check(look === 'crimson/boom', 'and goes out to bat in Crimson with Boom', look);
 check(second.page.errors.length === 0, 'with nothing in the console', second.page.errors.join(' | '));

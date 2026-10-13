@@ -50,4 +50,18 @@ describe('the Dressing Room screen', () => {
     expect(owned).toContain('Nobody messes with Savage');
     expect(owned).toContain('PICK IT UP');
   });
+
+  it('puts an item earned before the room arrived up for its key, not straight on', () => {
+    // Savage is earned by this record; waiting, it has its moment to come.
+    const record = { ...view().record, waiting: ['bat:savage'] };
+    const shelf = shelfMarkup(view({ shelf: 'bat', bat: 'savage', record }));
+    expect(shelf).toMatch(/class="dr-item is-picked is-ready" data-id="savage"[^>]*aria-label="Savage, ready to unlock"/);
+    expect(shelf).toMatch(/data-id="savage"[^>]*>.*?dr-badge is-ready/s);
+    const foot = footMarkup(view({ shelf: 'bat', bat: 'savage', record }));
+    expect(foot).toContain('Ready to unlock');
+    expect(foot).toContain('UNLOCK SAVAGE');
+    expect(foot).not.toContain('PICK IT UP');
+    // Looked at from another item, it comes before anything still to be played for.
+    expect(footMarkup(view({ shelf: 'bat', bat: 'plain', holding: 'plain', record }))).toMatch(/id="dressing-next" data-id="savage".*Ready to unlock/s);
+  });
 });

@@ -3,7 +3,7 @@ import { cleanDressing, mergeDressing, sameDressing, type SavedDressing } from '
 import { SAVE_LIMIT, memoryDressing, readSaved, saveDressing } from '../src/server/dressing-save';
 
 const copy = (patch: Partial<SavedDressing> = {}): SavedDressing => ({
-  outfit: 'home', bat: 'plain', pickedAt: 0, launch: null, seen: ['kit:home', 'bat:plain'], visited: false, ...patch,
+  outfit: 'home', bat: 'plain', pickedAt: 0, launch: null, seen: ['kit:home', 'bat:plain'], shown: ['kit:home', 'bat:plain'], visited: false, ...patch,
 });
 const PLAYER = 'abc1234-0123456789ab';
 
@@ -57,5 +57,18 @@ describe('the store of them', () => {
     expect(await readSaved(store, 'me')).toBeNull();
     for (let i = 0; i < SAVE_LIMIT; i++) await saveDressing(store, { playerId: PLAYER, dressing: copy(), address: 'b' });
     expect(await saveDressing(store, { playerId: PLAYER, dressing: copy(), address: 'b' })).toMatchObject({ ok: false, status: 429 });
+  });
+
+  it('reads a copy from before the shown list as having shown nothing but Boom and the free pair', () => {
+    const old = { outfit: 'home', bat: 'plain', pickedAt: 0, launch: null, seen: ['kit:home', 'bat:plain', 'bat:boom', 'kit:crimson', 'bat:meg'], visited: true };
+    expect(cleanDressing(old)?.shown).toEqual(['kit:home', 'bat:plain', 'bat:boom']);
+    // Once kept, it is read as kept.
+    expect(cleanDressing({ ...old, shown: ['bat:meg', 'bat:excalibur'] })?.shown).toEqual(['bat:meg']);
+  });
+
+  it('keeps every moment either copy has played', () => {
+    const merged = mergeDressing(copy({ shown: ['kit:home', 'bat:meg'] }), copy({ shown: ['kit:crimson'] }));
+    expect(merged.shown.sort()).toEqual(['bat:meg', 'kit:crimson', 'kit:home']);
+    expect(sameDressing(copy({ shown: ['bat:meg'] }), copy({ shown: [] }))).toBe(false);
   });
 });

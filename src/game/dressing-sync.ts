@@ -22,9 +22,18 @@ export interface SavedDressing {
   /** When the pick was last changed, by the clock of the device that changed it: the later pick wins. */
   pickedAt: number;
   launch: Figures | null;
+  /** Unlocks known to be earned: what the end of an innings has no need to celebrate again. */
   seen: string[];
+  /**
+   * Unlocks whose moment has played. One seen and not shown — earned before the
+   * room arrived — waits in the room for its key, as Boom does (`ready`).
+   */
+  shown: string[];
   visited: boolean;
 }
+
+/** Shown before there was a record of it: Boom's key and the free pair are the only moments the first release played for history. */
+const SHOWN_BEFORE = new Set(['bat:boom', 'kit:home', 'bat:plain']);
 
 const KNOWN = new Set<string>([...OUTFIT_IDS.map(id => `kit:${id}`), ...BAT_IDS.map(id => `bat:${id}`)]);
 const figure = (value: unknown) => { const n = Number(value); return Number.isFinite(n) && n >= 0 ? n : 0; };
@@ -37,8 +46,12 @@ export function cleanDressing(raw: unknown): SavedDressing | null {
   const launch = held.launch && typeof held.launch === 'object'
     ? { classic: figure((held.launch as Figures).classic), survive: figure((held.launch as Figures).survive), marathon: figure((held.launch as Figures).marathon) }
     : null;
-  const seen = Array.isArray(held.seen) ? [...new Set(held.seen.filter((one): one is string => typeof one === 'string' && KNOWN.has(one)))] : [];
-  return { outfit: held.outfit, bat: held.bat, pickedAt: figure(held.pickedAt), launch, seen, visited: held.visited === true };
+  const keys = (list: unknown) => Array.isArray(list) ? [...new Set(list.filter((one): one is string => typeof one === 'string' && KNOWN.has(one)))] : [];
+  const seen = keys(held.seen);
+  // A copy from before `shown` was kept: everything its seen list took in
+  // silently, a career's worth earned before the room, has never had its moment.
+  const shown = Array.isArray(held.shown) ? keys(held.shown) : seen.filter(one => SHOWN_BEFORE.has(one));
+  return { outfit: held.outfit, bat: held.bat, pickedAt: figure(held.pickedAt), launch, seen, shown, visited: held.visited === true };
 }
 
 /**
@@ -58,6 +71,7 @@ export function mergeDressing(held: SavedDressing | null, incoming: SavedDressin
   return {
     outfit: pick.outfit, bat: pick.bat, pickedAt: pick.pickedAt, launch,
     seen: [...new Set([...held.seen, ...incoming.seen])],
+    shown: [...new Set([...held.shown, ...incoming.shown])],
     visited: held.visited || incoming.visited,
   };
 }
@@ -67,5 +81,6 @@ export function sameDressing(a: SavedDressing | null, b: SavedDressing | null) {
   if (!a || !b) return a === b;
   return a.outfit === b.outfit && a.bat === b.bat && a.pickedAt === b.pickedAt && a.visited === b.visited
     && JSON.stringify(a.launch) === JSON.stringify(b.launch)
-    && a.seen.length === b.seen.length && a.seen.every(one => b.seen.includes(one));
+    && a.seen.length === b.seen.length && a.seen.every(one => b.seen.includes(one))
+    && a.shown.length === b.shown.length && a.shown.every(one => b.shown.includes(one));
 }
