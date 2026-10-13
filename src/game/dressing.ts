@@ -74,8 +74,13 @@ export { FREE_OUTFIT, FREE_BAT };
  */
 export const WELCOME_BAT: BatId = 'boom';
 
-/** Whether an item is waiting to be unlocked in the room by its key, rather than earned by playing. */
-export const ready = (shelf: 'kit' | 'bat', id: string, r: DressingRecord) => shelf === 'bat' && id === WELCOME_BAT && !r.welcomed;
+/**
+ * Whether an item is waiting in the room for its key: Boom until it is
+ * unlocked, and anything earned before the room arrived until its moment has
+ * played (`waiting`).
+ */
+export const ready = (shelf: 'kit' | 'bat', id: string, r: DressingRecord) =>
+  (shelf === 'bat' && id === WELCOME_BAT && !r.welcomed) || !!r.waiting?.includes(`${shelf}:${id}`);
 
 export const outfitOf = (id: string | null | undefined): Outfit => OUTFITS.find(o => o.id === id) ?? OUTFITS[0];
 export const batOf = (id: string | null | undefined): BatSkin => BATS.find(b => b.id === id) ?? BATS.find(b => b.id === FREE_BAT)!;
@@ -103,6 +108,12 @@ export interface DressingRecord {
   launch: Record<CareerMode, number>;
   /** Whether Boom has been unlocked, which is done in the Dressing Room itself with its key. */
   welcomed: boolean;
+  /**
+   * Earned, and known to be, but never shown: a career's worth won before the
+   * room arrived. Each waits in the room for its key, so it gets its moment
+   * when the player comes for it rather than all at once after an innings.
+   */
+  waiting?: readonly string[];
 }
 
 const MODES: readonly CareerMode[] = ['classic', 'survive', 'marathon'];

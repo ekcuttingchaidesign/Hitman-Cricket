@@ -18,7 +18,7 @@ const KEY = 'hitman-dressing';
 /** The same shape the store keeps, so the two can be merged without translating either. */
 export type Dressing = SavedDressing;
 
-const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, pickedAt: 0, launch: null, seen: [], visited: false });
+const fresh = (): Dressing => ({ outfit: FREE_OUTFIT, bat: FREE_BAT, pickedAt: 0, launch: null, seen: [], shown: [], visited: false });
 
 export function readDressing(): Dressing {
   try {

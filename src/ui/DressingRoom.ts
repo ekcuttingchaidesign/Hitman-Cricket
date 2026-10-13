@@ -64,8 +64,9 @@ export function shelfMarkup(view: DressingView): string {
     const item = itemOf(view.shelf, id), owned = (stepsOf(view.shelf, id, view.record) ?? []).every(done), waiting = ready(view.shelf, id, view.record);
     const picture = view.pictures[`${view.shelf}:${id}`];
     // One waiting to be unlocked has a dot where the lock would be, and a light round it: tap me.
-    const badge = id === worn ? `<span class="dr-badge is-on" aria-hidden="true">${TICK}</span>` : owned ? ''
-      : waiting ? '<span class="dr-badge is-ready" aria-hidden="true"></span>' : `<span class="dr-badge is-lock" aria-hidden="true">${LOCK}</span>`;
+    const badge = waiting ? '<span class="dr-badge is-ready" aria-hidden="true"></span>'
+      : id === worn ? `<span class="dr-badge is-on" aria-hidden="true">${TICK}</span>` : owned ? ''
+      : `<span class="dr-badge is-lock" aria-hidden="true">${LOCK}</span>`;
     return `<button type="button" role="listitem" class="dr-item${id === picked ? ' is-picked' : ''}${owned ? '' : ' is-locked'}${waiting ? ' is-ready' : ''}" data-id="${id}" aria-pressed="${id === picked}" aria-label="${escape(item.name)}${waiting ? ', ready to unlock' : owned ? '' : ', locked'}${id === worn ? ', on' : ''}">`
       + `${picture ? `<img src="${picture}" alt="">` : '<i class="dr-item-blank"></i>'}${badge}</button>`;
   }).join('');
@@ -83,6 +84,10 @@ export function footMarkup(view: DressingView): string {
   const { shelf, record } = view;
   const id = shelf === 'kit' ? view.kit : view.bat, item = itemOf(shelf, id);
   const steps = stepsOf(shelf, id, record);
+  // Waiting in the room, earned or not: nothing to play for, only its key.
+  if (ready(shelf, id, record))
+    return `<div class="dr-had"><span class="dr-eye dr-eye-ready">Ready to unlock</span><p>${escape(item.line)}</p></div>`
+      + cta({ kind: 'primary', label: `UNLOCK ${item.name.toUpperCase()}`, id: 'dressing-key', wide: true, moving: true });
   if (!steps || steps.every(done)) {
     const on = id === (shelf === 'kit' ? view.wearing : view.holding);
     const ids = shelf === 'kit' ? OUTFITS.map(o => o.id) : BATS.map(b => b.id);
@@ -103,10 +108,6 @@ export function footMarkup(view: DressingView): string {
       : cta({ kind: 'primary', label: shelf === 'kit' ? 'WEAR IT' : 'PICK IT UP', id: 'dressing-key', wide: true });
     return `<div class="dr-had"><span class="dr-eye">${steps ? 'Earned' : 'Free'}</span><p>${escape(item.line)}</p></div>${card}${key}`;
   }
-  // Waiting in the room: nothing to play for, only its key.
-  if (ready(shelf, id, record))
-    return `<div class="dr-had"><span class="dr-eye dr-eye-ready">Ready to unlock</span><p>${escape(item.line)}</p></div>`
-      + cta({ kind: 'primary', label: `UNLOCK ${item.name.toUpperCase()}`, id: 'dressing-key', wide: true, moving: true });
   const first = steps.find(step => !done(step))!;
   let body: string;
   if (steps.length === 1) {
