@@ -206,6 +206,17 @@ describe('bat travel', () => {
     expect(contact.knees[1][1]).toBeGreaterThan(.3);
     expect(contact.backToe[1]).toBeCloseTo(.01, 5);
   });
+  it('takes the cover drive home back along its own swing, never over his head', () => {
+    const batter = new Batter(); batter.prepare(1); batter.update(0);
+    play(batter, 'cover', .10);
+    // From the held finish down through the carry and the extension and under
+    // him, the toe hangs below the hands all the way; only then does it go up
+    // behind into the pick-up. Over the top, the bat turned in his hands twice.
+    for (let time = 620; time <= 820; time += 4) {
+      batter.update(time); const pose = batter.inspect();
+      expect(pose.bladeTip[1], `@${time}`).toBeLessThan(pose.grip[1]);
+    }
+  });
   const sample = (shot: ShotType, ballX: number) => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);

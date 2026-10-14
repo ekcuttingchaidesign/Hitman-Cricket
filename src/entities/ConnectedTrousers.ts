@@ -14,6 +14,8 @@ const SEAT = .034;
 const HIP = .018;
 /** How far the seat's curve hangs from the opening before it turns, as a share of the way to the thigh. */
 const FALL = .7;
+/** How far the top of the trousers turns with the chest rather than the pelvis. */
+const WAIST_TURN = .5;
 
 /** One trouser surface: waist, tailored rise, crotch and both bending legs. */
 export class ConnectedTrousers {
@@ -22,6 +24,8 @@ export class ConnectedTrousers {
   private p = new THREE.Vector3();
   private q = new THREE.Vector3();
   private ref = new THREE.Vector3();
+  private along = new THREE.Vector3();
+  private turn = new THREE.Quaternion();
   private inverse = new THREE.Quaternion();
   private offset(i: number) { return 51 + i * 320; }
   constructor(material: THREE.Material) {
@@ -73,8 +77,14 @@ export class ConnectedTrousers {
       } else {
         // Below the shirt's hem, so the cloth falls from it rather than folding
         // back up; and deeper behind than in front, the top of the seat.
+        // Turned part of the way with the chest: tied to the pelvis alone, a
+        // drive leaning out over the ball left the back of this ring a hand's
+        // width behind the hem, a ledge under the shirt that read from behind
+        // as a knob on his hip.
         const z = Math.cos(angle);
-        set(24 + i, Math.sin(angle) * .17, -.02, z * (z < 0 ? .15 : .122));
+        this.p.set(Math.sin(angle) * .17, -.02, z * (z < 0 ? .15 : .122))
+          .applyQuaternion(this.turn.copy(hips.quaternion).slerp(torso.quaternion, WAIST_TURN)).add(hips.position);
+        positions.setXYZ(24 + i, this.p.x, this.p.y, this.p.z);
       }
     }
     // The crotch seam: front, under, and behind, where it is set low and well
@@ -98,8 +108,16 @@ export class ConnectedTrousers {
           // curve whose first handle hangs straight down from the opening,
           // furthest behind and not at all in front.
           const fall = FALL * (1 - this.p.z / (Math.hypot(this.p.x, this.p.z) || 1)) / 2 * this.p.distanceTo(this.q);
-          this.p.multiplyScalar((1 - t) ** 2 + 2 * t * (1 - t)).addScaledVector(this.q, t * t);
-          this.p.y -= 2 * t * (1 - t) * fall;
+          // And it arrives at the thigh along the thigh, the way the leg goes
+          // on below it. Arriving from the hang instead met the leg at a
+          // corner, hidden in the stance and stuck out as a point at the top
+          // of the thigh once a lunge carried the leg out from under him.
+          this.along.fromBufferAttribute(source, (SEAT_ROWS + 2) * 17 + i).sub(hips.position).applyQuaternion(this.inverse);
+          this.along.subVectors(this.q, this.along).normalize();
+          const handle = Math.hypot(this.q.x - this.p.x, this.q.y - this.p.y + fall, this.q.z - this.p.z) * 2 / 3;
+          const u = 1 - t, near = 3 * u * t * t;
+          this.p.multiplyScalar(u * u * u + 3 * u * u * t).addScaledVector(this.q, t * t * t + near).addScaledVector(this.along, near * handle);
+          this.p.y -= 3 * u * u * t * fall * 2 / 3;
           // Rounded out behind, fullest halfway down, and a little at the
           // outside of each hip; nothing in front or between the legs.
           const swell = Math.sin(t ** .7 * Math.PI);

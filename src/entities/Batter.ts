@@ -214,7 +214,9 @@ const STROKE_FINISH_MS = 410;
  * until `hold`, longer than the straight drive's, because the recording holds
  * it so.
  */
-const COVER_PLANT = { at: 55, bat: .55, hips: .85, chest: .45, hold: 620 } as const;
+const COVER_PLANT = { at: 55, bat: .55, hips: .85, chest: .45, hold: 600 } as const;
+/** When the cover drive's way home passes back through its own keys. */
+const COVER_HOME = { carry: 670, through: 740, under: 828 } as const;
 /** How close the grip may come to the middle of the helmet: its radius, a forearm's, and a little air. */
 const HANDS_CLEAR = .36;
 /** The middle of the helmet's dome, from the head's own origin. */
@@ -2581,15 +2583,31 @@ export class Batter {
         keys.push({ time: 410, pose: finish });
         this.apply(shoulderDriven(keys,age,STROKE_CONTACT_MS));
       } else if (age < hold) this.apply(finish);
-      else if (age < 800) {
+      else if (cover) {
+        // Home the way it came: back down through the carry and the
+        // extension, under him through where he met the ball, and up into the
+        // pick-up behind, the bat never turning in his hands. Taken over the
+        // top instead, down in front of the face, it turned over twice on the
+        // way. The feet and hips come back under him as it goes.
+        const back = (pose: Pose, home: number): Pose => {
+          const body = mix(pose, GUARD, home);
+          return { ...pose, hip: body.hip, chest: body.chest, frontFoot: body.frontFoot, backFoot: body.backFoot, heel: body.heel,
+            backFootYaw: body.backFootYaw, look: body.look };
+        };
+        this.apply(shoulderDriven([{ time: hold, pose: finish },
+          { time: COVER_HOME.carry, pose: back(reachPose(stroke.carry!), .2) },
+          { time: COVER_HOME.through, pose: back(reachPose(stroke.through!), .45) },
+          { time: COVER_HOME.under, pose: back(contact, .7) },
+          { time: STROKE_DURATION_MS, pose: GUARD }], age, hold - 70));
+      } else if (age < 800) {
         // Down off the high finish. The on drive's comes down out in front of
         // the face, toe up and forward, because from above the helmet the knob
         // points down at him and the short way to the pick-up is through the
         // grille.
         const out=reachPose(this.shot==='LONG_ON'
           ? { ...stroke.finish, grip: [.02,1.42,.74], batUp: [-.15,-.55,-.82], batFace: [.90,-.30,.30], armHinge:.4, armDrive:.5, shoulderLift:.04 }
-          : { ...stroke.finish, grip: this.shot==='STRAIGHT'?[.46,1.40,.66]:[.58,1.38,.68], batUp: [-1,0,0], batFace: [0,0,1],armHinge:.2,armDrive:1,shoulderLift:.04 });
-        const clear=hold+(this.shot==='COVER_LONG_OFF'?110:90);
+          : { ...stroke.finish, grip: [.46,1.40,.66], batUp: [-1,0,0], batFace: [0,0,1],armHinge:.2,armDrive:1,shoulderLift:.04 });
+        const clear=hold+90;
         this.apply(age<clear?mix(finish,out,(age-hold)/(clear-hold)):mix(out,reachPose(stroke.recover!),(age-clear)/(800-clear), leave));
       } else this.apply(mix(reachPose(stroke.recover!),GUARD,(age-800)/(STROKE_DURATION_MS-800), arrive));
       return;
