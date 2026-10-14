@@ -59,14 +59,6 @@ interface Material {
   metal?: [string, string, string];
   ring: string;
   sheen: [number, string][];
-  /** The bar to the next rung, and how far along it is. */
-  track?: [string, string];
-  /** Brushed lines across a light metal: the dark one, then the light. */
-  brushed?: [string, string];
-  /** The art behind, etched dark into a light metal rather than lit on a dark one. */
-  etched?: boolean;
-  /** How strongly the Marathon's crimson rises from the foot, as an alpha. */
-  glow?: string;
 }
 
 const SHEEN: [number, string][] = [[0.1875, '#ffffff00'], [0.46875, '#ffffff14'], [0.5625, '#ffffff00']];
@@ -94,45 +86,20 @@ const MATERIALS: Record<string, Material> = {
 };
 
 /**
- * The Test Marathon's STAR is silver: brushed light metal with dark type, as
- * the Blast's EMERGING is bronze, with the Marathon's green in the badge and
- * the bar and a breath of crimson at the foot. The page draws the same
- * (`.st-card.is-marathon.tier-star`).
+ * The Test Marathon's card is its green, crimson rising from the foot — but
+ * its STAR is the Star card itself, black and silver, as the page draws it.
  */
-const MARATHON_STAR: Material = {
-  stops: [[0, '#f1f4f7'], [0.28, '#b3bbc4'], [0.5, '#f6f8fa'], [0.72, '#8f98a1'], [1, '#c6cdd4']], angle: 149.4, edge: '#ffffff',
-  ink: '#14181c', quiet: '#3f4851', pill: '#0b3a24', pillInk: '#e3ece6', ring: '#14181c40',
-  metal: ['#2a3038', '#0c0f12', '#3a424b'], sheen: [[0.1875, '#ffffff00'], [0.46875, '#ffffff1f'], [0.5625, '#ffffff00']],
-  track: ['#14181c24', '#0b3a24'], brushed: ['#1a20260d', '#ffffff1f'], etched: true, glow: '24',
-};
-
-/** The Test Marathon's card is its green, crimson rising from the foot; silver on STAR. */
 function marathonOf(base: Material, tier: string): Material {
-  if (tier === 'star') return MARATHON_STAR;
+  if (tier === 'star') return base;
   return {
     ...base,
     stops: [[0, '#0b3a24'], [0.55, '#052015'], [1, '#021009']], angle: 160,
-    edge: tier === 'emerging' ? '#d9a877' : tier === 'star' ? '#c9d1d9' : tier === 'hitman' ? '#f3d27a' : '#3f7d5a',
+    edge: tier === 'emerging' ? '#d9a877' : tier === 'hitman' ? '#f3d27a' : '#3f7d5a',
     ink: '#f5efe6', quiet: '#b5c7bc', ring: '#ffffff40',
-    pill: tier === 'emerging' ? '#2a1608d9' : tier === 'hitman' || tier === 'star' ? base.pill : '#ffffff1f',
-    pillInk: tier === 'emerging' ? '#f0c79e' : tier === 'hitman' || tier === 'star' ? base.pillInk : '#e7f0ea',
+    pill: tier === 'emerging' ? '#2a1608d9' : tier === 'hitman' ? base.pill : '#ffffff1f',
+    pillInk: tier === 'emerging' ? '#f0c79e' : tier === 'hitman' ? base.pillInk : '#e7f0ea',
     metal: tier === 'hitman' ? base.metal : undefined,
   };
-}
-
-/**
- * A picture's shape in black at half strength, for art etched into a light
- * metal. Drawn through a second canvas rather than `ctx.filter`, which Safari's
- * canvas does not have.
- */
-function etch(art: CanvasImageSource, w: number, h: number): HTMLCanvasElement {
-  const out = document.createElement('canvas');
-  out.width = Math.ceil(w * 2); out.height = Math.ceil(h * 2);
-  const c = out.getContext('2d')!;
-  c.drawImage(art, 0, 0, out.width, out.height);
-  c.globalCompositeOperation = 'source-in';
-  c.fillStyle = '#00000080'; c.fillRect(0, 0, out.width, out.height);
-  return out;
 }
 
 /** A CSS-style angled gradient across a box. */
@@ -190,16 +157,15 @@ export async function paintTierCard(
   ctx.save();
   rounded(ctx, 0, 0, W, H, R); ctx.clip();
   ctx.fillStyle = angled(ctx, W, H, m.angle, m.stops); ctx.fillRect(0, 0, W, H);
-  if (facts.mode === 'marathon') {
+  if (facts.mode === 'marathon' && tier !== 'star') {
     const red = ctx.createRadialGradient(W * 0.85, H * 1.15, 0, W * 0.85, H * 1.15, W * 0.75);
-    red.addColorStop(0, `#c8102e${m.glow ?? '5c'}`); red.addColorStop(0.62, '#c8102e00');
+    red.addColorStop(0, '#c8102e5c'); red.addColorStop(0.62, '#c8102e00');
     ctx.fillStyle = red; ctx.fillRect(0, 0, W, H);
   }
   // Each material's own grain: brushed lines on bronze, a faint weave on navy.
-  const brushed = m.brushed ?? (tier === 'emerging' && facts.mode !== 'marathon' ? ['#3a1e0c0d', '#ffffff0f'] : null);
-  if (brushed) {
+  if (tier === 'emerging' && facts.mode !== 'marathon') {
     for (let row = 0; row < H; row += 4) {
-      ctx.fillStyle = (row / 4) % 2 ? brushed[1] : brushed[0];
+      ctx.fillStyle = (row / 4) % 2 ? '#ffffff0f' : '#3a1e0c0d';
       ctx.fillRect(0, row, W, 1);
     }
   } else if (tier === 'debutant' && facts.mode !== 'marathon') {
@@ -214,7 +180,7 @@ export async function paintTierCard(
       ctx.save();
       ctx.translate(134.5 + 142.66, -13 + 135.68);
       ctx.rotate(12 * Math.PI / 180);
-      ctx.drawImage(m.etched ? etch(star, 285.3, 271.35) : star, -142.66, -135.68, 285.3, 271.35);
+      ctx.drawImage(star, -142.66, -135.68, 285.3, 271.35);
       ctx.restore();
     }
   } else if (tier === 'hitman') {
@@ -281,9 +247,9 @@ export async function paintTierCard(
   if (progress) {
     const { progress: done, toNext, next } = facts.ladder;
     const ty = 184;
-    ctx.fillStyle = m.track?.[0] ?? (tier === 'hitman' ? '#f3d27a26' : '#ffffff1f');
+    ctx.fillStyle = tier === 'hitman' ? '#f3d27a26' : '#ffffff1f';
     rounded(ctx, 20, ty, 150, 4, 2); ctx.fill();
-    ctx.fillStyle = m.track?.[1] ?? (tier === 'hitman' ? '#f3d27a' : '#dde3e8');
+    ctx.fillStyle = tier === 'hitman' ? '#f3d27a' : '#dde3e8';
     rounded(ctx, 20, ty, Math.max(4, 150 * (next ? done : 1)), 4, 2); ctx.fill();
     ctx.font = ui(500, 12); ctx.fillStyle = m.quiet; ctx.textAlign = 'right';
     ctx.fillText(next && toNext !== null ? `${toNext.toLocaleString('en-US')} ${measureName(facts.mode)} to ${next.short}` : 'Top of the game', W - 20, ty + 6);

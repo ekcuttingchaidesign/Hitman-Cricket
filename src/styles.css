@@ -7822,7 +7822,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   --edge:#3f7d5a;--ink:var(--c-text);--quiet:#b5c7bc;--pill:#ffffff1f;--pill-ink:#e7f0ea;--figure:var(--c-text)}
 .st-card.is-marathon .st-card-grain{background:none}
 .st-card.is-marathon.tier-emerging{--pill:#2a1608d9;--pill-ink:#f0c79e;--edge:#d9a877}
-.st-card.is-marathon.tier-star{--edge:#c9d1d9}
 .st-card.is-marathon.tier-hitman{--edge:var(--c-gold);--pill:var(--c-gold);--pill-ink:#1a1206;--figure:var(--c-gold)}
 .st-card.is-marathon .st-card-who .board-kit{box-shadow:0 0 0 2px #ffffff40}
 
@@ -7908,19 +7907,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card.tier-hitman .st-card-track{background:#f3d27a26}
 .st-card.tier-hitman .st-card-track i{background:#f3d27a}
 .st-card.tier-hitman .st-card-who .board-kit{box-shadow:0 0 0 2px #f3d27a}
-/* The Test Marathon's STAR is silver: brushed light metal with dark type, as
-   the Blast's EMERGING is bronze, the Marathon in its green badge and bar and
-   a breath of crimson at the foot. After the Star card's own rules, which it
-   replaces whole. TierCard's `marathonOf` paints the same for the share. */
-.st-card.is-marathon.tier-star{--metal:radial-gradient(120% 75% at 85% 115%,#c8102e24,#c8102e00 62%),linear-gradient(149.4deg,#f1f4f7 0%,#b3bbc4 28%,#f6f8fa 50%,#8f98a1 72%,#c6cdd4 100%);
-  --edge:#ffffff;--ink:#14181c;--quiet:#3f4851;--pill:#0b3a24;--pill-ink:#e3ece6;--figure:#14181c}
-.st-card.is-marathon.tier-star .st-card-grain{background:repeating-linear-gradient(180deg,#1a20260d 0 1px,#fff0 1px 4px,#ffffff1f 4px 5px,#fff0 5px 8px)}
-.st-card.is-marathon.tier-star .st-card-star{filter:brightness(0);opacity:.5}
-.st-card.is-marathon.tier-star .st-card-name b,.st-card.is-marathon.tier-star .st-card-figure b{
-  background:linear-gradient(180deg,#2a3038 0%,#0c0f12 55%,#3a424b 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.st-card.is-marathon.tier-star .st-card-track{background:#14181c24}
-.st-card.is-marathon.tier-star .st-card-track i{background:#0b3a24}
-.st-card.is-marathon.tier-star .st-card-who .board-kit{box-shadow:0 0 0 2px #14181c40}
 /* The Test Marathon's HITMAN keeps the Marathon's green, crimson at the foot,
    with all of the Hitman card's gold on it: the edge and rim, the badge, the
    name and figure, the batsman. After the Hitman card's rules, which would
