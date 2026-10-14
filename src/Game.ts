@@ -54,8 +54,9 @@ import { gameLink, keyWhatsappLink } from './game/Share';
 import { keyImage, keyImageName, prepareKeyAssets } from './game/KeyImage';
 import {
   countInnings, fetchCareerBoards, fetchMyCareer, forgetCareer, heldCareer, mintNonce,
-  type CareerBoards, type CareerRow,
+  type CareerBoards, type CareerRow, type MyCareer,
 } from './game/career-api';
+import { allPending, claimPending, dropPending, keepPending, nextPending } from './game/pending-innings';
 import { blastTally, emptyBlast, emptyMarathon, emptySurvive, type BlastTally, type CareerMode, type MarathonTally, type SurviveTally } from './game/career';
 import { demoBoard, demoCareers, demoMarathon, demoRivals, demoSurvive, demoWanted, fillMarathon, fillRivals } from './game/demo-board';
 import { forgetKey, keepKey, keyView, markKeySaved } from './game/recovery';
@@ -112,8 +113,15 @@ import { demoRoom, demoWanted as roomDemoWanted } from './game/room-demo';
 /** The phases that count as playing. Not the cover, the end card or a pause. */
 const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESOLVE', 'RESULT'];
 
-/** How long a counted innings waits before its second and final attempt. */
+/** How long a counted innings waits before its second attempt this visit; after that it waits for the next load or innings. */
 const RETRY_MS = 4000;
+/**
+ * How long an innings the store called too soon waits to go again: the store's
+ * `MIN_INNINGS_MS` and a second over, so the one before it has cleared.
+ */
+const SOON_MS = 11_000;
+/** How long after the game opens it sends the innings an earlier visit left unanswered. */
+const PENDING_SETTLE_MS = 8000;
 /** The longest the name sheet says SAVING… before it treats the board as away. */
 const PROFILE_PATIENCE_MS = 8000;
 /**
@@ -529,6 +537,10 @@ export class Game {
       }
       void this.pullDressing();
       void this.catchUpOnKey();
+      // Innings finished on an earlier visit that the career never answered for,
+      // sent once the game has settled: a page still building its ground can sit
+      // on an answer past the request's own timeout and read it as none.
+      window.setTimeout(() => void this.sendPending(), PENDING_SETTLE_MS);
       return this.openChallenges();
     }).catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
     this.countVisit();
@@ -3798,11 +3810,14 @@ export class Game {
    * place. Its id does not survive the session, so every innings played in one
    * would open a career that is never added to again.
    *
-   * The innings carries an id of its own so it can be sent twice safely, and it
-   * is sent twice on purpose: a reply lost on the way back is indistinguishable
-   * from a request that never arrived, so the second attempt is the only way to
-   * be sure a counted innings was counted — and the store throws away the one
-   * it has already seen.
+   * The innings carries an id of its own so it can be sent again safely, and it
+   * is sent until the store answers for it: a reply lost on the way back is
+   * indistinguishable from a request that never arrived, so sending again is
+   * the only way to be sure a counted innings was counted — and the store
+   * throws away the one it has already seen. Twice in this visit, four seconds
+   * apart, then on every load and after every innings until it lands. It used
+   * to be forgotten after the second try, which is how an innings could reach
+   * Top score and never the career its other ladders are read from.
    */
   private countThisInnings() {
     if (!this.player || !this.canRegister || this.practising) return;
@@ -3814,31 +3829,73 @@ export class Game {
       : this.surviving ? { ...this.survived(), sixes: this.score.sixes, fours: this.score.fours }
       : blastTally(this.score);
     const nonce = mintNonce();
-    const innings = this.innings;
     // What he batted in, for the year recap: read now, as it was worn, not when the answer lands.
     const worn = this.myLook(), look = { kit: worn.outfit.id, bat: worn.bat.id };
-    const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce, look).then(mine => {
-      if (this.disposed) return true;
-      if (!mine?.career) return false;
-      // Read before the held record is replaced, because the climb is the
-      // difference between the two and there is nowhere else it is written
-      // down. The mirror stands in on the first innings of a session, when
-      // nothing has been fetched yet: it is this browser's own last word on
-      // the career and it is what the card would have drawn.
-      this.markClimb(mode, this.myCareer[mode]?.career ?? heldCareer(mode), mine.career, mine.granted ?? null);
-      this.myCareer[mode] = {
-        career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
-      };
-      // The boards held from before this innings no longer have it on them, so
-      // the next open asks again rather than drawing a career one innings old.
-      delete this.careerBoards[mode];
-      this.unlocksAfter(innings);
-      return true;
+    // Written down before it is sent and crossed off only when the store has
+    // answered for it, so a signal lost at the end card costs nothing: it goes
+    // again on the next load or after the next innings (`pending-innings.ts`).
+    keepPending({ player: this.player, mode, tally, nonce, look, ended: Date.now() });
+    this.landing.set(nonce, this.innings);
+    void this.sendPending().then(() => {
+      if (this.disposed || !allPending().some(one => one.nonce === nonce)) return;
+      setTimeout(() => { if (!this.disposed) void this.sendPending(); }, RETRY_MS);
     });
-    void send().then(landed => {
-      if (landed || this.disposed) return;
-      setTimeout(() => { if (!this.disposed) void send(); }, RETRY_MS);
-    });
+  }
+
+  /** The innings of this visit still waiting on their count, by nonce, for what landing them sets off. */
+  private landing = new Map<string, number>();
+  private pendingBusy = false;
+
+  /**
+   * Every innings this player has finished and the store has not answered for,
+   * oldest first, one at a time: the store spaces counted innings apart, and
+   * two sent together would have the second taken for a duplicate. Stops at
+   * the first that gets no answer, which leaves it and everything after it for
+   * the next try.
+   */
+  private async sendPending(): Promise<void> {
+    if (this.pendingBusy || this.disposed || !this.player || !this.canRegister) return;
+    this.pendingBusy = true;
+    const tried = new Set<string>();
+    try {
+      for (let entry = nextPending(this.player, Date.now()); entry; entry = nextPending(this.player, Date.now(), tried)) {
+        tried.add(entry.nonce);
+        claimPending(entry.nonce, Date.now());
+        const answer = await countInnings<AnyCareer>(entry.player, entry.mode, entry.tally, readPlayer(), entry.nonce, entry.look);
+        if (this.disposed) return;
+        if (answer.kind === 'unreached' || (answer.kind === 'took' && answer.why === 'soon')) {
+          claimPending(entry.nonce, null);
+          // Too soon after the last counted innings is a wait of seconds; no
+          // answer at all waits for the next load or innings.
+          if (answer.kind === 'took') setTimeout(() => { if (!this.disposed) void this.sendPending(); }, SOON_MS);
+          return;
+        }
+        dropPending(entry.nonce);
+        if (answer.kind === 'took') this.tookCount(entry.mode, answer.mine, this.landing.get(entry.nonce));
+        this.landing.delete(entry.nonce);
+      }
+    } finally {
+      this.pendingBusy = false;
+    }
+  }
+
+  /** What an innings the store has answered for changes here. */
+  private tookCount(mode: CareerMode, mine: MyCareer<AnyCareer>, innings: number | undefined) {
+    if (!mine.career) return;
+    // Read before the held record is replaced, because the climb is the
+    // difference between the two and there is nowhere else it is written
+    // down. The mirror stands in on the first innings of a session, when
+    // nothing has been fetched yet: it is this browser's own last word on
+    // the career and it is what the card would have drawn.
+    this.markClimb(mode, this.myCareer[mode]?.career ?? heldCareer(mode), mine.career, mine.granted ?? null);
+    this.myCareer[mode] = {
+      career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
+    };
+    // The boards held from before this innings no longer have it on them, so
+    // the next open asks again rather than drawing a career one innings old.
+    delete this.careerBoards[mode];
+    // Only an innings of this visit has an end card to celebrate on.
+    if (innings !== undefined) this.unlocksAfter(innings);
   }
 
   /**

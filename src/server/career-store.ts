@@ -176,6 +176,12 @@ export interface CareerAccepted<C> {
    * the career exactly as it was.
    */
   counted: boolean;
+  /**
+   * Why an innings was not counted, where it was not. The browser keeps an
+   * innings until the store answers for it, and only `soon` means it should be
+   * sent again: `repeat` has been counted already and `spent` never will be.
+   */
+  why?: 'repeat' | 'soon' | 'spent';
   career: C;
   name: string;
   avatar: number;
@@ -263,7 +269,8 @@ export async function countInnings<C, T>(
         await store.write(input.playerId, { ...held, ...name });
         await rankAll(store, ladder, input.playerId, held.career, name.name, held.at);
       }
-        return { ok: true, counted: false, career: ladder.figures(held.career), granted: held.granted ?? null, ...name };
+      const why = repeat ? 'repeat' : tooSoon ? 'soon' : 'spent';
+      return { ok: true, counted: false, why, career: ladder.figures(held.career), granted: held.granted ?? null, ...name };
     }
   }
 

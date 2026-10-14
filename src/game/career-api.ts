@@ -1,6 +1,5 @@
-import type { BlastCareer, CareerMode, MarathonCareer, MarathonTally, SurviveCareer, SurviveTally } from './career';
+import type { BlastCareer, CareerMode, MarathonCareer, SurviveCareer } from './career';
 import { emptyBlast, emptyMarathon, emptySurvive } from './career';
-import type { Innings } from './leaderboard';
 
 /**
  * Careers, fetched and sent.
@@ -81,14 +80,14 @@ export function mintNonce(): string {
  * the name is theirs, so sending one here can never take somebody else's.
  */
 export async function countInnings<C extends AnyCareer>(
-  playerId: string, mode: CareerMode, innings: Innings | SurviveTally | MarathonTally,
+  playerId: string, mode: CareerMode, innings: unknown,
   who: { name: string; avatar: number } | null, nonce: string,
   /** What the innings was played in, for the year recap; the store checks it against the shelves. */
   look: { kit: string; bat: string } | null = null,
-): Promise<MyCareer<C> | null> {
+): Promise<CountAnswer<C>> {
   const answer = await ask<{
-    career: C; name: string; avatar: number; counted?: boolean;
-    granted?: { key: string; reason: string } | null; error?: string;
+    career: C; name: string; avatar: number; counted?: boolean; why?: CountWhy;
+    granted?: { key: string; reason: string } | null; error?: string; status?: number;
   }>(`${API}/api/innings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -97,7 +96,14 @@ export async function countInnings<C extends AnyCareer>(
       name: who?.name ?? '', avatar: who?.avatar ?? 0,
     }),
   });
-  if (!answer || answer.error) return null;
+  if (!answer) return { kind: 'unreached' };
+  if (answer.error || !answer.career) {
+    // Turned down for what it is — not a player, an innings that could not have
+    // happened — is turned down for good, and sending it again changes nothing.
+    // Too many from this address, or the store being down, is a matter of when.
+    const status = Number(answer.status);
+    return status >= 400 && status < 500 && status !== 429 ? { kind: 'refused' } : { kind: 'unreached' };
+  }
   const mine = {
     career: answer.career, name: answer.name, avatar: answer.avatar, granted: answer.granted ?? null,
   };
@@ -107,8 +113,21 @@ export async function countInnings<C extends AnyCareer>(
   // beside it does not, for as long as the held copy stayed fresh — which is
   // exactly the minute after an innings, when both are being looked at.
   if (answer.counted) delete cached[mode];
-  return mine;
+  return { kind: 'took', mine, counted: !!answer.counted, why: answer.why };
 }
+
+/** Why the store took an innings without counting it: see `CareerAccepted.why`. */
+export type CountWhy = 'repeat' | 'soon' | 'spent';
+
+/**
+ * What became of one attempt to count an innings. `took` is an answer from the
+ * store, counted or not; `refused` will never be counted; `unreached` is no
+ * answer at all and the innings is worth sending again later.
+ */
+export type CountAnswer<C> =
+  | { kind: 'took'; mine: MyCareer<C>; counted: boolean; why?: CountWhy }
+  | { kind: 'refused' }
+  | { kind: 'unreached' };
 
 /**
  * This player's own figures for their card. The mirror answers first so the

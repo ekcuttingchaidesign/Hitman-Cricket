@@ -98,6 +98,17 @@ by finishing an innings and none by opening the board from the cover. (Both
 now reach My Stats by the cover's profile chip, the board having lost its My
 Stats tab in the redraw.)
 
+An innings counted toward a career is written down in the browser before it is
+sent (`hitman-pending-innings`, `src/game/pending-innings.ts`) and crossed off
+only when the store answers for it — counted, already counted (`why: 'repeat'`)
+or never to be (`'spent'`, or a 4xx other than 429); too soon after the last
+(`'soon'`) goes again in eleven seconds. Anything unanswered goes again on the
+next load, once the game has settled, and after the next innings. It used to be
+tried twice and forgotten while the innings board kept its register key, which
+is how a 150 not out stood on Top score and nowhere on the career ladders.
+`scripts/pending-check.mjs` walks no signal and a lost reply, and holds that a
+resend never counts twice.
+
 That last one holds a rule about *when* something happens rather than what a
 function answers, so no unit test can reach it. A career is a sum, so an
 innings walked out on counting would let a player stack runs by restarting
