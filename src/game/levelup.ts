@@ -7,40 +7,42 @@ import { TIERS, type Tier } from './tier';
  *
  * What is here is the choreography as figures, kept apart from the drawing
  * (`src/ui/LevelUp.ts`) so the one rule worth holding to a test can be: each
- * rung is a bigger occasion than the one below it. The ladder already climbs
- * in its materials — navy, bronze, black and silver, black and gold — and the
- * moment of reaching a rung climbs with it: more arrows and faster, a longer
- * held breath before the card turns, light behind it from STAR, and the
- * ground itself shaking for HITMAN. A bronze moment that spent everything the
- * gold one does would leave the top of the ladder nothing to be.
+ * rung is a bigger occasion than the one below it.
  *
- * The arrows are the innings card's chevrons (`BAND_CHEVRONS` in the HUD),
- * stood on end: the same shape that runs on the total's band, rising.
+ * Bigger by finish, not by clutter. The screen is one thing — the card — on a
+ * quiet dark ground, the way a game's rank-up is one badge popping in: a few
+ * chevrons rise through the middle and are gone before LEVEL UP is read, a
+ * handful of streaks fly off the card as it turns, and nothing is ever drawn
+ * behind the words. What climbs is the polish round that one thing: a longer
+ * held breath before the turn, glints on the card's corners from STAR, soft
+ * dust drifting up the edges of the screen, a ring going out from the card
+ * (two for HITMAN), a firmer flash, and for HITMAN alone a small shake and a
+ * second cheer. A bronze moment that spent everything the gold one does
+ * would leave the top of the ladder nothing to be.
+ *
+ * The chevrons are the innings card's (`BAND_CHEVRONS` in the HUD), stood on
+ * end: the same shape that runs on the total's band, rising.
  */
 export interface LevelUpFx {
-  /** The arrows rising behind everything, at once. */
-  arrows: number;
-  /** How fast they rush in the first second, in screen heights a second. */
-  rush: number;
-  /** The great chevrons that sweep the screen and uncover LEVEL UP. */
-  sweeps: number;
+  /** The chevrons that rise through the middle and uncover LEVEL UP. */
+  lift: number;
   /** How long the old card is held before it turns, after it has risen. ms. */
   hold: number;
   /** How long the seam takes to climb the card. ms. */
   morph: number;
-  /** The burst at the turn: bits of the tier's metal. */
-  burst: number;
-  /** Sparkles that keep twinkling over the screen once it has turned. */
-  sparkles: number;
-  /** Foil drifting down after the burst, in the tier's metal. */
-  foil: number;
-  /** How strongly the turned card is lit from behind by turning rays, nought for none. */
-  rays: number;
-  /** How white the flash at the turn is, nought to one. */
+  /** The streaks that fly off the card as it turns. */
+  streaks: number;
+  /** Glints that twinkle on the card's corners once it has turned. */
+  glints: number;
+  /** Soft dust drifting up the screen's edges once it has turned, out of focus and away from the words. */
+  dust: number;
+  /** Rings going out from the card as it turns. */
+  rings: number;
+  /** How bright the flash round the card is at the turn, nought to one. */
   flash: number;
   /** How far the screen shakes at the turn, in design pixels; nought for none. */
   shake: number;
-  /** Whether the arrows carry a glow. */
+  /** Whether the rising chevrons carry a glow. */
   glow: boolean;
   /** The cheer the crowd gives it, by size. */
   cheer: 'mid' | 'big' | null;
@@ -50,10 +52,10 @@ export interface LevelUpFx {
 
 /** By rung. DEBUTANT is never climbed to (everybody starts there), so it is the floor and is never played. */
 const FX: Record<string, LevelUpFx> = {
-  debutant: { arrows: 12, rush: 1.2, sweeps: 1, hold: 500, morph: 520, burst: 30, sparkles: 0, foil: 0, rays: 0, flash: .35, shake: 0, glow: false, cheer: null, encore: false },
-  emerging: { arrows: 18, rush: 1.5, sweeps: 2, hold: 600, morph: 620, burst: 60, sparkles: 10, foil: 0, rays: 0, flash: .5, shake: 0, glow: false, cheer: 'mid', encore: false },
-  star: { arrows: 30, rush: 1.9, sweeps: 3, hold: 750, morph: 760, burst: 110, sparkles: 34, foil: 40, rays: .5, flash: .7, shake: 0, glow: true, cheer: 'big', encore: false },
-  hitman: { arrows: 46, rush: 2.4, sweeps: 4, hold: 950, morph: 920, burst: 180, sparkles: 60, foil: 120, rays: .85, flash: .92, shake: 9, glow: true, cheer: 'big', encore: true },
+  debutant: { lift: 2, hold: 500, morph: 520, streaks: 8, glints: 0, dust: 0, rings: 0, flash: .3, shake: 0, glow: false, cheer: null, encore: false },
+  emerging: { lift: 3, hold: 600, morph: 620, streaks: 10, glints: 0, dust: 0, rings: 0, flash: .4, shake: 0, glow: false, cheer: 'mid', encore: false },
+  star: { lift: 3, hold: 750, morph: 760, streaks: 14, glints: 4, dust: 10, rings: 1, flash: .5, shake: 0, glow: true, cheer: 'big', encore: false },
+  hitman: { lift: 3, hold: 900, morph: 880, streaks: 18, glints: 6, dust: 16, rings: 2, flash: .6, shake: 4, glow: true, cheer: 'big', encore: true },
 };
 
 export function levelUpFx(tier: Pick<Tier, 'key'>): LevelUpFx {
@@ -90,6 +92,9 @@ export interface LevelUpBeats {
   ready: number;
 }
 
+/** The chevrons rise one after another, this far apart, the last over LEVEL UP as it pops. ms. */
+export const LIFT_GAP = 120;
+
 export function levelUpBeats(fx: LevelUpFx): LevelUpBeats {
   const word = 650, card = word + 450, turn = card + fx.hold, turned = turn + fx.morph;
   return { word, card, turn, turned, named: turned + 350, ready: turned + 900 };
@@ -97,16 +102,15 @@ export function levelUpBeats(fx: LevelUpFx): LevelUpBeats {
 
 /**
  * The buzz in the hand, as `navigator.vibrate` patterns at a beat each: a
- * tick for each great chevron as it sweeps by, a thump as the seam starts up
+ * tick for each chevron as it rises past the word, a thump as the seam starts up
  * the card, and the burst at the turn — longer and more of it up the ladder.
  */
 export function levelUpHaptics(fx: LevelUpFx, beats: LevelUpBeats): { at: number; pattern: number[] }[] {
   const out: { at: number; pattern: number[] }[] = [];
-  const sweepGap = beats.word / Math.max(1, fx.sweeps);
-  for (let i = 0; i < fx.sweeps; i++) out.push({ at: Math.round(i * sweepGap + sweepGap * .6), pattern: [8] });
+  for (let i = 0; i < fx.lift; i++) out.push({ at: Math.round(beats.word - (fx.lift - 1 - i) * LIFT_GAP), pattern: [8] });
   out.push({ at: beats.turn, pattern: [14] });
   const burst: Record<number, number[]> = { 0: [30], 1: [40, 50, 30], 2: [60, 40, 40, 40, 90], 3: [70, 40, 50, 40, 70, 60, 140] };
-  const rung = fx.shake ? 3 : fx.rays ? 2 : fx.cheer ? 1 : 0;
+  const rung = fx.shake ? 3 : fx.rings ? 2 : fx.cheer ? 1 : 0;
   out.push({ at: beats.turned, pattern: burst[rung] });
   return out;
 }

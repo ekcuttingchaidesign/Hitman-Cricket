@@ -8375,79 +8375,66 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .has-dressing-keys .ul-scanning{top:calc(var(--u) * 120 + 44px)}
 
 /* ── Level Up (src/ui/LevelUp.ts) ─────────────────────────────────────────────
-   The innings card's chevrons stood on end and rushing up, LEVEL UP uncovered
-   by the great ones, the old card turned into the new rung's by a seam of
-   light in the same chevron, and the two keys. Every colour is the rung's
-   metal (--lu-base, --lu-light, --lu-deep, from levelUpMetal); how loud it is
-   (--lu-flash, --lu-rays, --lu-shake, --lu-morph) climbs with the ladder. */
+   One thing on a quiet dark ground: a few chevrons rise through the middle
+   and LEVEL UP pops in as the last passes, the old card turned into the new
+   rung's by a seam of light in the same chevron, a ring or two going out from
+   it, and the two keys. Every colour is the rung's metal (--lu-base,
+   --lu-light, --lu-deep, from levelUpMetal); how much finish there is
+   (--lu-flash, --lu-shake, --lu-morph, the rings) climbs with the ladder.
+   Nothing stands behind the words. */
 .lu-overlay{
-  --lu-base:#cd7f32;--lu-light:#f3bd80;--lu-deep:#7a4a22;--lu-morph:620ms;--lu-flash:.5;--lu-rays:0;--lu-shake:0;
+  --lu-base:#cd7f32;--lu-light:#f3bd80;--lu-deep:#7a4a22;--lu-morph:620ms;--lu-flash:.4;--lu-shake:0;
   position:absolute;inset:0;z-index:46;overflow:hidden;background:#0b0c0e;color:var(--c-text);font-family:var(--f-ui);
   animation:lu-in .28s ease-out both
 }
-.lu-overlay::after{content:'';position:absolute;inset:0;z-index:4;opacity:.35;pointer-events:none;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
+.lu-overlay::after{content:'';position:absolute;inset:0;z-index:4;opacity:.3;pointer-events:none;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
 @keyframes lu-in{from{opacity:0}to{opacity:1}}
-.lu-bloom{position:absolute;left:50%;top:46%;z-index:0;width:calc(var(--u) * 820);height:calc(var(--u) * 820);transform:translate(-50%,-50%) scale(.8);
-  background:radial-gradient(closest-side,color-mix(in srgb,var(--lu-base) 30%,transparent),transparent);opacity:.6;pointer-events:none;
-  transition:opacity .8s ease-out,transform 1.2s cubic-bezier(.2,1,.3,1)}
-.lu-overlay.is-turned .lu-bloom{opacity:1;transform:translate(-50%,-50%) scale(1.1)}
+/* A soft light where the card will stand, and a darker edge round the screen. */
+.lu-bloom{position:absolute;left:50%;top:48%;z-index:0;width:calc(var(--u) * 640);height:calc(var(--u) * 640);transform:translate(-50%,-50%) scale(.85);
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--lu-base) 22%,transparent),transparent);opacity:.7;pointer-events:none;
+  transition:opacity 1s ease-out,transform 1.4s cubic-bezier(.2,1,.3,1)}
+.lu-overlay.is-turned .lu-bloom{opacity:1;transform:translate(-50%,-50%)}
+.lu-overlay::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:radial-gradient(120% 80% at 50% 45%,#0000 55%,#000a 100%)}
 .lu-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .lu-fx.is-back{z-index:1}
 .lu-fx.is-front{z-index:3}
-.lu-flash{position:absolute;inset:0;z-index:4;background:radial-gradient(closest-side,#fff,color-mix(in srgb,var(--lu-light) 70%,#fff0));opacity:0;pointer-events:none}
-.lu-overlay.is-turned:not(.is-still) .lu-flash{animation:lu-flash .7s ease-out}
-@keyframes lu-flash{0%{opacity:var(--lu-flash)}100%{opacity:0}}
 
 .lu-stage{
-  position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 20);
+  position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 24);
   padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 168 + env(safe-area-inset-bottom,0px))
 }
-.lu-overlay.is-turned:not(.is-still) .lu-stage{animation:lu-shake .5s cubic-bezier(.36,.07,.19,.97)}
+.lu-overlay.is-turned:not(.is-still) .lu-stage{animation:lu-shake .42s cubic-bezier(.36,.07,.19,.97)}
 @keyframes lu-shake{
-  10%,90%{transform:translate(calc(var(--u) * var(--lu-shake) * -.2),calc(var(--u) * var(--lu-shake) * .1))}
-  20%,80%{transform:translate(calc(var(--u) * var(--lu-shake) * .4),calc(var(--u) * var(--lu-shake) * -.3))}
-  30%,50%,70%{transform:translate(calc(var(--u) * var(--lu-shake) * -.8),calc(var(--u) * var(--lu-shake) * .4))}
-  40%,60%{transform:translate(calc(var(--u) * var(--lu-shake) * .8),calc(var(--u) * var(--lu-shake) * -.5))}
+  20%,80%{transform:translate(calc(var(--u) * var(--lu-shake) * .5),calc(var(--u) * var(--lu-shake) * -.3))}
+  40%,60%{transform:translate(calc(var(--u) * var(--lu-shake) * -.7),calc(var(--u) * var(--lu-shake) * .4))}
 }
 
-/* LEVEL UP, uncovered from the foot up as the last great chevron passes, over
-   a stack of three chevrons lighting one after another, upwards. */
-.lu-head{position:relative;display:grid;place-items:center;flex:none;width:100%;height:calc(var(--u) * 132)}
-.lu-mark{position:absolute;left:50%;top:50%;display:flex;flex-direction:column;align-items:center;gap:0;
-  transform:translate(-50%,-44%) translateY(calc(var(--u) * 70));opacity:0;transition:opacity .4s,transform .8s cubic-bezier(.2,1.3,.4,1)}
-.lu-mark svg{display:block;width:calc(var(--u) * 132);height:calc(var(--u) * 95);margin-top:calc(var(--u) * -52);fill:var(--lu-base);opacity:.14}
-.lu-mark svg:first-child{margin-top:0}
-.lu-overlay.is-word .lu-mark{opacity:1;transform:translate(-50%,-44%)}
-.lu-overlay.is-word .lu-mark svg{animation:lu-chev 1.5s ease-in-out infinite}
-.lu-overlay.is-word .lu-mark svg:nth-child(3){animation-delay:0s}
-.lu-overlay.is-word .lu-mark svg:nth-child(2){animation-delay:.18s}
-.lu-overlay.is-word .lu-mark svg:nth-child(1){animation-delay:.36s}
-@keyframes lu-chev{0%,100%{opacity:.1}35%{opacity:.5;fill:var(--lu-light)}}
-.lu-word{position:relative;margin:0;white-space:nowrap;text-align:center;
-  font:400 calc(var(--u) * 72)/.95 var(--f-display);letter-spacing:.02em;font-optical-sizing:none;font-variation-settings:'opsz' 6;
-  clip-path:inset(100% -20% -20% -20%);transform:translateY(calc(var(--u) * 36)) scale(.9);
-  transition:clip-path .45s cubic-bezier(.3,.9,.3,1),transform .75s cubic-bezier(.2,1.5,.4,1)}
-.lu-overlay.is-word .lu-word{clip-path:inset(-20% -20% -20% -20%);transform:none}
+/* LEVEL UP: popped in with an overshoot as the last chevron passes, then still. */
+.lu-head{position:relative;display:grid;place-items:center;flex:none;width:100%;height:calc(var(--u) * 96)}
+.lu-word{position:relative;margin:0;white-space:nowrap;text-align:center;opacity:0;transform:scale(.4);
+  font:400 calc(var(--u) * 68)/.95 var(--f-display);letter-spacing:.02em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.lu-overlay.is-word .lu-word{animation:lu-word .62s cubic-bezier(.2,1.55,.4,1) forwards}
+@keyframes lu-word{0%{opacity:0;transform:scale(.4)}35%{opacity:1}100%{opacity:1;transform:none}}
 .lu-word span,.lu-title{
   background:linear-gradient(110deg,#fff0 30%,#ffffff40 44%,#ffffff8c 50%,#ffffff40 56%,#fff0 70%) -150% 0/250% 100% no-repeat,
     linear-gradient(180deg,#fff 0%,var(--lu-light) 40%,var(--lu-base) 72%,var(--lu-deep) 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 calc(var(--u) * 4) 0 #000a) drop-shadow(0 0 calc(var(--u) * 18) color-mix(in srgb,var(--lu-base) 50%,#0000))
+  filter:drop-shadow(0 calc(var(--u) * 4) 0 #000a)
 }
-.lu-overlay.is-word .lu-word span{animation:lu-shine 2.8s .35s ease-in-out infinite}
-.lu-overlay.is-named .lu-title{animation:lu-shine 2.8s .5s ease-in-out infinite}
-@keyframes lu-shine{0%{background-position:-150% 0,0 0}45%,100%{background-position:250% 0,0 0}}
+.lu-overlay.is-word .lu-word span{animation:lu-shine 1.1s .45s ease-in-out both}
+.lu-overlay.is-named .lu-title{animation:lu-shine 1.1s .4s ease-in-out both}
+@keyframes lu-shine{0%{background-position:-150% 0,0 0}100%{background-position:250% 0,0 0}}
 
 /* The card: the one the player held, rising; then the seam climbing it, and
    the new rung's where it has passed. */
 .lu-card{position:relative;flex:none;width:100%;height:calc(var(--u) * 214);
-  opacity:0;transform:translateY(calc(var(--u) * 90)) scale(.8) rotateX(22deg);transform-origin:50% 100%;
-  transition:opacity .35s ease-out,transform .75s cubic-bezier(.2,1.25,.4,1)}
+  opacity:0;transform:translateY(calc(var(--u) * 70)) scale(.86);
+  transition:opacity .35s ease-out,transform .7s cubic-bezier(.2,1.3,.4,1)}
 .lu-overlay.is-card .lu-card{opacity:1;transform:none}
 .lu-overlay.is-turn:not(.is-turned) .lu-card{animation:lu-charge var(--lu-morph) ease-in forwards}
-.lu-overlay.is-turned:not(.is-still) .lu-card{animation:lu-pop .7s cubic-bezier(.2,1.6,.4,1)}
-@keyframes lu-charge{to{transform:scale(1.045)}}
-@keyframes lu-pop{0%{transform:scale(1.1)}100%{transform:none}}
+.lu-overlay.is-turned:not(.is-still) .lu-card{animation:lu-pop .65s cubic-bezier(.2,1.6,.4,1)}
+@keyframes lu-charge{to{transform:scale(1.035)}}
+@keyframes lu-pop{0%{transform:scale(1.09)}100%{transform:none}}
 .lu-face{position:absolute;inset:0;z-index:1}
 .lu-face .st-card{height:100%;box-sizing:border-box}
 .lu-face .st-edit{display:none}
@@ -8459,42 +8446,41 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   to{clip-path:polygon(-10% -60%,110% -60%,110% -12%,50% -60%,-10% -12%)}
 }
 .lu-seam{position:absolute;left:-10%;top:100%;z-index:3;width:120%;height:48%;overflow:visible;opacity:0;
-  fill:none;stroke:#fff;stroke-width:3;stroke-linejoin:round;vector-effect:non-scaling-stroke;
-  filter:drop-shadow(0 0 calc(var(--u) * 4) var(--lu-light)) drop-shadow(0 0 calc(var(--u) * 14) var(--lu-base))}
+  fill:none;stroke:#fff;stroke-width:3;stroke-linejoin:round;
+  filter:drop-shadow(0 0 calc(var(--u) * 4) var(--lu-light)) drop-shadow(0 0 calc(var(--u) * 12) var(--lu-base))}
 .lu-seam polyline{vector-effect:non-scaling-stroke}
 .lu-overlay.is-turn .lu-seam{animation:lu-seam var(--lu-morph) cubic-bezier(.55,.05,.45,1) forwards}
 @keyframes lu-seam{0%{top:100%;opacity:0}10%{opacity:1}88%{opacity:1}100%{top:-60%;opacity:0}}
-.lu-halo{position:absolute;inset:-22% -12%;z-index:0;border-radius:50%;pointer-events:none;
-  background:radial-gradient(closest-side,color-mix(in srgb,var(--lu-light) 55%,#fff0),#fff0);opacity:0}
-.lu-overlay.is-turned .lu-halo{animation:lu-halo 3.2s ease-out forwards}
-.lu-overlay.is-still .lu-halo{animation:none;opacity:.35}
-@keyframes lu-halo{0%{opacity:1;transform:scale(.9)}30%{opacity:.5;transform:scale(1.08)}100%{opacity:.35;transform:none}}
-.lu-rays{position:absolute;left:50%;top:50%;z-index:-1;width:calc(var(--u) * 980);height:calc(var(--u) * 980);margin:calc(var(--u) * -490) 0 0 calc(var(--u) * -490);
-  background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--lu-light) 50%,#fff0) 0deg 5deg,#fff0 5deg 15deg);
-  -webkit-mask:radial-gradient(closest-side,#000 18%,#0000 74%);mask:radial-gradient(closest-side,#000 18%,#0000 74%);
-  border-radius:50%;opacity:0;transform:scale(.6);pointer-events:none;transition:opacity 1s ease-out,transform 1.4s cubic-bezier(.2,1,.3,1)}
-.lu-overlay.is-turned .lu-rays{opacity:var(--lu-rays);transform:none;animation:lu-spin 40s linear infinite}
-@keyframes lu-spin{to{rotate:360deg}}
-/* The new card catches the light as it lands, and the top two rungs keep catching it. */
+/* The flash is the card's own, a light over it as it lands, not the screen's. */
+.lu-flash{position:absolute;inset:-30% -8%;z-index:4;border-radius:50%;pointer-events:none;opacity:0;
+  background:radial-gradient(closest-side,#fff,color-mix(in srgb,var(--lu-light) 50%,#fff0) 55%,#fff0)}
+.lu-overlay.is-turned:not(.is-still) .lu-flash{animation:lu-flash .55s ease-out}
+@keyframes lu-flash{0%{opacity:var(--lu-flash)}100%{opacity:0}}
+/* A glow under the card, the same at every rung. */
+.lu-halo{position:absolute;inset:-18% -8%;z-index:0;border-radius:50%;pointer-events:none;opacity:0;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--lu-base) 40%,#fff0),#fff0);transition:opacity .9s ease-out}
+.lu-overlay.is-turned .lu-halo{opacity:.55}
+/* The rings: the card's own outline going out from it as it lands, STAR one and HITMAN two. */
+.lu-ring{position:absolute;inset:0;z-index:0;border:2px solid var(--lu-light);border-radius:24px;opacity:0;pointer-events:none}
+.lu-overlay.is-turned:not(.is-still) .lu-ring{animation:lu-ring .9s calc(var(--i) * .2s) cubic-bezier(.2,.7,.3,1) both}
+@keyframes lu-ring{0%{opacity:.85;transform:scale(1)}100%{opacity:0;transform:scale(1.16,1.3)}}
+/* The new card catches the light once as it lands. */
 .lu-face.is-new .st-card::after{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;
-  background:linear-gradient(105deg,#fff0 36%,#ffffff59 48%,#ffffff1a 54%,#fff0 64%);transform:translateX(-130%)}
-.lu-overlay.is-turned .lu-face.is-new .st-card::after{animation:lu-sheen 1.2s .05s ease-out forwards}
-.lu-overlay.tier-star.is-turned .lu-face.is-new .st-card::after,
-.lu-overlay.tier-hitman.is-turned .lu-face.is-new .st-card::after{animation:lu-sheen-on 3.8s .05s ease-in-out infinite}
-.lu-overlay.tier-hitman .lu-face.is-new .st-card::after{background:linear-gradient(105deg,#fff0 34%,#ffe08a66 44%,#ff9cd040 50%,#8fe3ff40 56%,#fff0 66%)}
+  background:linear-gradient(105deg,#fff0 36%,#ffffff4d 48%,#ffffff17 54%,#fff0 64%);transform:translateX(-130%)}
+.lu-overlay.is-turned .lu-face.is-new .st-card::after{animation:lu-sheen 1.1s .1s ease-out forwards}
+.lu-overlay.tier-hitman .lu-face.is-new .st-card::after{background:linear-gradient(105deg,#fff0 34%,#ffe08a59 44%,#ff9cd033 50%,#8fe3ff33 56%,#fff0 66%)}
 @keyframes lu-sheen{to{transform:translateX(130%)}}
-@keyframes lu-sheen-on{0%{transform:translateX(-130%)}35%,100%{transform:translateX(130%)}}
 .lu-overlay.is-turned .lu-face.is-new .st-card-track i{transition:width 1.1s .25s cubic-bezier(.2,1,.3,1)}
 
 /* The rung's name and the line under it. */
 .lu-words{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 4);flex:none;text-align:center}
-.lu-words>*{margin:0;opacity:0;transform:translateY(calc(var(--u) * 16));transition:opacity .4s ease-out,transform .6s cubic-bezier(.2,1.5,.4,1)}
+.lu-words>*{margin:0;opacity:0;transform:translateY(calc(var(--u) * 14));transition:opacity .4s ease-out,transform .55s cubic-bezier(.2,1.4,.4,1)}
 .lu-overlay.is-named .lu-words>*{opacity:1;transform:none}
 .lu-overlay.is-named .lu-words>:nth-child(2){transition-delay:.06s}
 .lu-overlay.is-named .lu-words>:nth-child(3){transition-delay:.16s}
 .lu-overlay.is-named .lu-words>:nth-child(4){transition-delay:.24s}
-.lu-kicker{font:700 calc(var(--u) * 11)/1.3 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:color-mix(in srgb,var(--lu-light) 80%,#fff)}
-.lu-title{padding:0 calc(var(--u) * 6);font:400 calc(var(--u) * 52)/1.02 var(--f-display);letter-spacing:.03em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.lu-kicker{font:700 calc(var(--u) * 11)/1.3 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:var(--c-text-2)}
+.lu-title{padding:0 calc(var(--u) * 6);font:400 calc(var(--u) * 50)/1.02 var(--f-display);letter-spacing:.03em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .lu-title.is-long{font-size:calc(var(--u) * 38)}
 .lu-line{font:500 calc(var(--u) * 15)/1.35 var(--f-ui);color:var(--c-text)}
 .lu-next{margin-top:calc(var(--u) * 6)!important;padding:calc(var(--u) * 5) calc(var(--u) * 12);border:1px solid color-mix(in srgb,var(--lu-base) 45%,#fff0);border-radius:999px;
@@ -8502,8 +8488,8 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 
 /* The two ways on. */
 .lu-keys{position:absolute;left:calc(var(--u) * 20);right:calc(var(--u) * 20);bottom:max(calc(var(--u) * 26),env(safe-area-inset-bottom,0px));z-index:5;
-  display:flex;flex-direction:column;gap:calc(var(--u) * 12);opacity:0;transform:translateY(calc(var(--u) * 40));pointer-events:none;
-  transition:opacity .35s ease-out,transform .6s cubic-bezier(.2,1.35,.4,1)}
+  display:flex;flex-direction:column;gap:calc(var(--u) * 12);opacity:0;transform:translateY(calc(var(--u) * 30));pointer-events:none;
+  transition:opacity .35s ease-out,transform .55s cubic-bezier(.2,1.3,.4,1)}
 .lu-overlay.is-ready .lu-keys{opacity:1;transform:none;pointer-events:auto}
 .lu-keys .k-cta{width:100%}
 .lu-status{min-height:1.3em;margin:0;text-align:center;font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-2)}
@@ -8511,14 +8497,11 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 
 /* A short phone keeps the card and the keys, and gives up the ladder's line. */
 @container app (max-height:700px){
-  .lu-head{height:calc(var(--u) * 104)}
-  .lu-word{font-size:calc(var(--u) * 60)}
+  .lu-head{height:calc(var(--u) * 80)}
+  .lu-word{font-size:calc(var(--u) * 58)}
   .lu-line{display:none}
-  .lu-stage{gap:calc(var(--u) * 14)}
+  .lu-stage{gap:calc(var(--u) * 16)}
 }
 /* Still: the turned card and the keys, faded in rather than flown. */
 .lu-overlay.is-still *,.lu-overlay.is-still *::after{animation:none!important;transition:opacity .4s ease-out!important}
-.lu-overlay.is-still .lu-word{clip-path:none}
-@media (prefers-reduced-motion:reduce){
-  .lu-overlay .lu-rays{animation:none}
-}
+.lu-overlay.is-still .lu-word{opacity:1;transform:none}

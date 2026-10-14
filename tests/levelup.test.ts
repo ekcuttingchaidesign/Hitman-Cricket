@@ -7,7 +7,7 @@ import { climbedTo, TIERS } from '../src/game/tier';
 const CLIMBABLE = TIERS.slice(1);
 
 describe('Level Up grows with the ladder', () => {
-  const numeric = ['arrows', 'rush', 'sweeps', 'hold', 'morph', 'burst', 'sparkles', 'foil', 'rays', 'flash', 'shake'] as const;
+  const numeric = ['lift', 'hold', 'morph', 'streaks', 'glints', 'dust', 'rings', 'flash', 'shake'] as const;
 
   it('never spends less on a rung than on the one below it, and spends more of something', () => {
     for (let i = 1; i < CLIMBABLE.length; i++) {
@@ -17,12 +17,24 @@ describe('Level Up grows with the ladder', () => {
     }
   });
 
-  it('keeps the light behind the card for STAR and up, and the shake for HITMAN alone', () => {
-    expect(levelUpFx({ key: 'emerging' }).rays).toBe(0);
-    expect(levelUpFx({ key: 'star' }).rays).toBeGreaterThan(0);
+  it('keeps the first rung plain: no glints, no dust, no rings', () => {
+    const emerging = levelUpFx({ key: 'emerging' });
+    expect([emerging.glints, emerging.dust, emerging.rings, emerging.shake]).toEqual([0, 0, 0, 0]);
+    expect(levelUpFx({ key: 'star' }).rings).toBeGreaterThan(0);
     expect(levelUpFx({ key: 'star' }).shake).toBe(0);
     expect(levelUpFx({ key: 'hitman' }).shake).toBeGreaterThan(0);
     expect(levelUpFx({ key: 'hitman' }).encore).toBe(true);
+  });
+
+  it('stays one thing on a quiet ground, even at the top', () => {
+    // The finish climbs, the clutter does not: a handful of chevrons, streaks
+    // and motes at most, so the words are never read through a storm.
+    const top = levelUpFx({ key: 'hitman' });
+    expect(top.lift).toBeLessThanOrEqual(3);
+    expect(top.streaks).toBeLessThanOrEqual(20);
+    expect(top.dust).toBeLessThanOrEqual(16);
+    expect(top.flash).toBeLessThanOrEqual(.6);
+    expect(top.shake).toBeLessThanOrEqual(5);
   });
 
   it('holds its breath longer before the turn the higher the rung, and puts the keys up last', () => {

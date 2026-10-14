@@ -504,15 +504,18 @@ practice (`tests/practice.test.ts` names it). `rating-check` walks it.
 ## Level Up
 
 An innings that carries a career onto a new rung ends on Level Up
-(`src/ui/LevelUp.ts`) before the innings card, which waits underneath: the
-end card's chevrons stood on end rushing up the screen, the great ones
-sweeping past to uncover LEVEL UP, the card the player held rising into the
-middle and turned into the new rung's by a seam of light in the same chevron,
-the figure counting on, then the rung's name and two keys — SHARE STATS CARD
-(the new card as a picture, `shareCareer` in the HUD, the same as My Stats'
-SHARE MY CARD) and GO TO SCORECARD (Escape too), which puts it away and lets
-the innings' unlocks follow. A tap before the keys skips to them; reduced
-motion gets the turned card and the keys, still.
+(`src/ui/LevelUp.ts`) before the innings card, which waits underneath. It is
+one thing on a quiet dark ground, the way a game's rank-up is one badge: a few
+of the end card's chevrons, stood on end, rise through the middle and LEVEL UP
+pops in as the last passes; the card the player held rises and is turned into
+the new rung's by a seam of light in the same chevron, the figure counting on;
+it pops as it lands with a few streaks off it; then the rung's name and two
+keys — SHARE STATS CARD (the new card as a picture, `shareCareer` in the HUD,
+the same as My Stats' SHARE MY CARD) and GO TO SCORECARD (Escape too), which
+puts it away and lets the innings' unlocks follow. A tap before the keys skips
+to them; reduced motion gets the turned card and the keys, still. Nothing is
+drawn behind the words once they are up, and there are no rays: an earlier
+cut with a field of arrows and rays behind everything was too busy to read.
 
 It is the store's answer that decides it — `climbedTo` between the career as
 it stood before the innings was sent and the one `/api/innings` hands back —
@@ -522,11 +525,13 @@ writes its answer into the mirror, so a mirror read on the answer is already
 the new career and nothing would ever have been climbed (which is what the
 `tier-` counts had been doing on a session's first innings).
 
-Each rung is a bigger occasion than the one below it, and that is a rule held
-in `tests/levelup.test.ts`: `levelUpFx` in `src/game/levelup.ts` is every
-figure — arrows, sweeps, the held breath before the turn, burst, sparkles,
-foil, rays from STAR, the flash, the shake for HITMAN alone, the crowd — and
-none may fall going up. The buzz in the hand (`levelUpHaptics`, played by
+Each rung is a bigger occasion than the one below it, by finish rather than
+clutter, and both halves are held in `tests/levelup.test.ts`: `levelUpFx` in
+`src/game/levelup.ts` is every figure — the held breath before the turn, the
+streaks, glints on the card's corners and soft dust up the screen's edges from
+STAR, a ring going out from the card (two for HITMAN), the flash, a small
+shake for HITMAN alone, the crowd — none may fall going up, and none may pass
+a ceiling. The buzz in the hand (`levelUpHaptics`, played by
 `src/game/haptics.ts`) climbs the same way: `navigator.vibrate` where there is
 one, and on an iPhone the system tick a switch gives, one a pulse. A new rung
 is a new entry there.
