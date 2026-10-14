@@ -7921,6 +7921,12 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card.is-marathon.tier-star .st-card-track{background:#14181c24}
 .st-card.is-marathon.tier-star .st-card-track i{background:#0b3a24}
 .st-card.is-marathon.tier-star .st-card-who .board-kit{box-shadow:0 0 0 2px #14181c40}
+/* The Test Marathon's HITMAN keeps the Marathon's green, crimson at the foot,
+   with all of the Hitman card's gold on it: the edge and rim, the badge, the
+   name and figure, the batsman. After the Hitman card's rules, which would
+   otherwise put it on their black. */
+.st-card.is-marathon.tier-hitman{--metal:radial-gradient(120% 75% at 85% 115%,#c8102e5c,#c8102e00 62%),linear-gradient(160deg,#0b3a24 0%,#052015 55%,#021009 100%);
+  --quiet:#c9b47c;--pill:linear-gradient(90deg,#fff0b8,#c99a35 45%,#f7d774);--pill-ink:#1a1204}
 
 /* ── Rivals (UI v1, the handover's section 08) ───────────────────────────────
    Every Rivals screen stands on BG / Rivals: your blue bloom top left, their
