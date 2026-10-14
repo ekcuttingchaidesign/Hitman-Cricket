@@ -205,6 +205,16 @@ export const ADMIRE_MS = 400;
 const ADMIRE_AT = 480;
 /** When a drive's finish is reached, for keeping it to rehearse. */
 const STROKE_FINISH_MS = 410;
+/**
+ * The cover drive's front foot going down before the bat does. At `at` the
+ * foot is planted and the hips are `hips` of the way to contact, while the bat
+ * is only `bat` of the way down its arc. The chest keeps pace with the bat, not
+ * the hips: leaning out over the ball that early put it in the bat's way on a
+ * wide one coming down from high. The finish is held
+ * until `hold`, longer than the straight drive's, because the recording holds
+ * it so.
+ */
+const COVER_PLANT = { at: 55, bat: .55, hips: .85, chest: .45, hold: 620 } as const;
 /** How close the grip may come to the middle of the helmet: its radius, a forearm's, and a little air. */
 const HANDS_CLEAR = .36;
 /** The middle of the helmet's dome, from the head's own origin. */
@@ -351,16 +361,36 @@ const STROKES: Record<ShotType, Stroke> = {
       grip: [.22, 1.10, .42], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
       yaw: .80, face: -.20, heel: .10, leadElbow: -.18 },
   },
+  /**
+   * The cover drive, from a broadcast recording of a right-hander filmed
+   * side-on from the off side in slow motion, and from the bowler's end at
+   * match speed.
+   *
+   * He gets down into it: a long stride with the front knee bent over the
+   * foot, the hips low and forward, the back leg long behind him with the
+   * heel up and the foot on its toe, and the head and chest out over the
+   * line of the ball rather than stood up over the hips. The front foot is
+   * down before the bat comes (`COVER_PLANT`). After the ball the hands go
+   * up first along the line to cover with the blade still hanging under
+   * them; the blade comes up last, and the finish is the hands just over
+   * the helmet with the bat pointing out after the ball to cover and down,
+   * held — a checked drive, not one swung over the shoulder.
+   */
   COVER_LONG_OFF: {
-    contact: { ...GUARD, hip: [.05, .81, .13], chest: [.19, 1.15, .22], frontFoot: [.10, .08, .60],
-      grip: [.50, .98, .35], batUp: [.34, .93, -.14], batFace: [.42, .10, .90], yaw: 1.42, face: .28, heel: .07, leadElbow: .12,
-      armHinge: .92, armDrive: 1, shoulderLift: 0 },
-    through: { ...GUARD, hip: [.00,.80,.20], chest: [.15,1.14,.30], frontFoot: [.10,.08,.60], backFoot: [-.12,.08,-.24],
-      grip: [.58,1.18,.76], batUp: [-.18,.975,-.10], batFace: [.42,.1,.90], yaw: .98, face: .28, heel: .18, leadElbow: .15,
-      armHinge: .80, armDrive: 1, shoulderLift: .05 },
-    finish: { ...GUARD, hip: [.08,.80,.20], chest: [.22,1.16,.30], frontFoot: [.10,.08,.60],
-      grip: [.47,1.60,.60], batUp: [-.86,.22,-.46], batFace: [.05,.93,.35], yaw: .95, face: .30, heel: .20, leadElbow: .40,
-      armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
+    contact: { ...GUARD, hip: [.08, .82, .16], chest: [.23, 1.16, .24], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.50, .98, .35], batUp: [.30, .95, -.06], batFace: [.42, .10, .90], yaw: 1.40, face: .28, heel: .36, backFootYaw: 1.20, leadElbow: .14,
+      look: .22, armHinge: .92, armDrive: 1, shoulderLift: 0 },
+    through: { ...GUARD, hip: [.09, .80, .20], chest: [.25, 1.14, .30], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.66, 1.12, .86], batUp: [-.20, .97, -.12], batFace: [.42, .1, .90], yaw: 1.02, face: .28, heel: .46, backFootYaw: 1.10, leadElbow: .16,
+      look: .20, armHinge: .80, armDrive: 1, shoulderLift: .05 },
+    // Hands up to the chin before the blade comes up: it still points down and
+    // out after the ball.
+    carry: { ...GUARD, hip: [.10, .80, .22], chest: [.27, 1.14, .34], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.62, 1.30, .78], batUp: [-.35, .80, -.48], batFace: [.45, .45, .77], yaw: .98, face: .29, heel: .52, backFootYaw: 1.05, leadElbow: .30,
+      look: .16, armHinge: 1.30, armDrive: 1, shoulderLift: .07 },
+    finish: { ...GUARD, hip: [.11, .80, .23], chest: [.28, 1.14, .35], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.54, 1.54, .68], batUp: [-.62, .48, -.62], batFace: [.20, .88, .44], yaw: .95, face: .30, heel: .56, backFootYaw: 1.00, leadElbow: .42,
+      look: .12, armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
     recover: { ...GUARD, grip: [.38,1.10,.40], batUp: [-.15,-.80,-.58], batFace: [.86,-.22,.17], yaw: 1.16 },
   },
   LEG: {
@@ -2536,15 +2566,22 @@ export class Batter {
     // The lofted on drive runs the drives' clock too: it is a drive, and the
     // on drive along the ground it is picked instead of keeps its own.
     if (this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF' || (this.shot === 'LONG_ON' && this.lofted)) {
+      const cover = this.shot === 'COVER_LONG_OFF';
+      const hold = this.lofted ? 620 : cover ? COVER_PLANT.hold : 570;
       if (age < 410) {
         const keys = [{ time: 0, pose: this.swingFrom }, { time: STROKE_CONTACT_MS, pose: contact },
           { time: 220, pose: reachPose(stroke.through!) }];
+        // The cover drive's front foot is down, and his weight going onto it,
+        // while the bat is still on its way down: the bat keeps the path it
+        // has, and only the legs and hips get there first.
+        if (cover) keys.splice(1, 0, { time: COVER_PLANT.at, pose: { ...mix(this.swingFrom, contact, COVER_PLANT.bat),
+          frontFoot: contact.frontFoot, backFoot: contact.backFoot,
+          hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } });
         if (stroke.carry) keys.push({ time: 310, pose: reachPose(stroke.carry) });
         keys.push({ time: 410, pose: finish });
         this.apply(shoulderDriven(keys,age,STROKE_CONTACT_MS));
-      } else if (age < (this.lofted ? 620 : 570)) this.apply(finish);
+      } else if (age < hold) this.apply(finish);
       else if (age < 800) {
-        const hold=this.lofted?620:570;
         // Down off the high finish. The on drive's comes down out in front of
         // the face, toe up and forward, because from above the helmet the knob
         // points down at him and the short way to the pick-up is through the

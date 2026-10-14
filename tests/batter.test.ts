@@ -181,8 +181,30 @@ describe('bat travel', () => {
         expect(finish.batUp[1]).toBeLessThan(-.55);
         expect(finish.bladeTip[1]).toBeGreaterThan(1.35);
       }
-      else expect(finish.batUp[0]).toBeLessThan(-.8);
+      else {
+        // The cover drive's checked finish, from the recording: the bat points
+        // out after the ball to cover — off side and up the ground at once —
+        // with the toe below the hands, not square of the wicket.
+        expect(finish.batUp[0]).toBeLessThan(-.5);
+        expect(finish.batUp[2]).toBeLessThan(-.5);
+        expect(finish.batUp[1]).toBeGreaterThan(.3);
+      }
     }
+  });
+  it('plants the cover drive\'s front foot before the bat comes down, and lunges long', () => {
+    const batter = new Batter(); batter.prepare(1); batter.update(0);
+    play(batter, 'cover', .10);
+    batter.update(STROKE_CONTACT_MS); const contact = batter.inspect();
+    batter.update(55); const plant = batter.inspect();
+    // Down already, with the bat still on its way: the blade is halfway
+    // down its arc, well up off the turf.
+    expect(Math.abs(plant.frontFoot[2] - contact.frontFoot[2])).toBeLessThan(.02);
+    expect(plant.bladeTip[1]).toBeGreaterThan(contact.bladeTip[1] + .2);
+    // A stride of a metre, the back leg long behind him rather than folded
+    // under the hips, and the back heel off the turf.
+    expect(contact.frontFoot[2] - contact.backFoot[2]).toBeGreaterThan(.95);
+    expect(contact.knees[1][1]).toBeGreaterThan(.3);
+    expect(contact.backToe[1]).toBeCloseTo(.01, 5);
   });
   const sample = (shot: ShotType, ballX: number) => {
     const batter = new Batter();

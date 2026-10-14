@@ -51,10 +51,11 @@ button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);co
 #play{min-width:78px}
 input[type=range]{width:100%;accent-color:var(--accent);min-width:0}
 h2{font:400 24px/1 var(--f-display);margin:10px 0 0;letter-spacing:.01em}
-#frames{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(120px,1fr);gap:8px;overflow-x:auto;padding-bottom:4px}
+#frames{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(132px,1fr);gap:8px;overflow-x:auto;padding-bottom:4px}
 .frame{padding:0;display:grid;border-radius:12px;overflow:hidden;background:var(--pitch);text-align:left}
 .frame canvas{width:100%;height:auto;display:block}
-.frame span{display:flex;justify-content:space-between;gap:6px;padding:8px 10px;background:var(--panel)}
+.frame span{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:8px 10px;background:var(--panel)}
+.frame b{white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .frame i{white-space:nowrap;font:500 12px/1.2 var(--f-mono);font-style:normal;color:var(--text-2)}
 .frame.on{border-color:var(--accent)}
 .frame.on span{background:#2a1810}
@@ -106,6 +107,6 @@ kbd{font:500 12px var(--f-mono);border:1px solid var(--line);border-radius:5px;p
 
   <h2>Key poses</h2>
   <div id="frames" aria-label="Key poses, side-on"></div>
-  <p class="note">This is the stroke exactly as the game plays it today, from <b>STROKES.COVER_LONG_OFF</b> in the batting rig: contact at 110 ms, the arms out through the line at 220, the high finish at 410, and home to his guard by 940. The ring marks where the ball is met. Tap a pose to stop on it; <kbd>Space</kbd> plays and pauses, <kbd>←</kbd> <kbd>→</kbd> step 10 ms, with <kbd>Shift</kbd> 50 ms.</p>
+  <p class="note">The cover drive as the game plays it now, rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 620 before he goes back to his guard. The ring marks where the ball is met. Tap a pose to stop on it; <kbd>Space</kbd> plays and pauses, <kbd>←</kbd> <kbd>→</kbd> step 10 ms, with <kbd>Shift</kbd> 50 ms.</p>
 </div>
 <script type="module" src="/src/cover-drive-preview.ts"></script>

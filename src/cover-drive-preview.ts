@@ -22,9 +22,9 @@ const BALL = { x: LINE_X.OFF, y: .54, z: GAME.contactZ };
 /** Ball time before the swing starts, so the delivery can be seen arriving. */
 const LEAD_MS = 260;
 const END_MS = STROKE_DURATION_MS;
-/** The stroke's own clock, as `STROKES.COVER_LONG_OFF` is keyed. */
+/** The stroke's own clock, as `STROKES.COVER_LONG_OFF` and `COVER_PLANT` key it. */
 const PHASES = [
-  ['Backlift', -LEAD_MS], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Recovery', 700],
+  ['Backlift', -LEAD_MS], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Recovery', 620],
 ] as const;
 /** Incoming pace and the shot's pace and line off the bat (from straight, towards the off side). */
 const IN_SPEED = .030, OUT_SPEED = .024, OUT_ANGLE = THREE.MathUtils.degToRad(58), BOUNCE_Z = 3.5;
