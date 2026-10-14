@@ -30,7 +30,7 @@ const check = (ok, what, detail) => {
 };
 
 const browser = await chromium.launch({ executablePath });
-const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
 // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
 await context.addInitScript(() => { try { localStorage.setItem('hitman-shots-intro', 'done'); } catch { /* Then it shows. */ } });
 const page = await context.newPage();
@@ -84,7 +84,8 @@ const seeded = await played();
 check(seeded && typeof seeded === 'object' && !seeded.survive, 'a new browser starts with nothing played', JSON.stringify(seeded));
 
 // ── Walked out on ──────────────────────────────────────────────────────────
-await playOn(3);
+// One ball is enough to be under way; software rendering spends seconds a frame.
+await playOn(1);
 await page.keyboard.press('r');
 await advance(600);
 await page.waitForTimeout(1500);
@@ -92,7 +93,6 @@ check((await snap()).ease === 1.35, 'an innings walked out on does not use the h
 check(!(await played())?.survive, 'and is not counted', JSON.stringify(await played()));
 
 // ── Played to the end ──────────────────────────────────────────────────────
-await playOn(2);
 await page.evaluate(() => window.__cricket.hurt());
 for (let i = 0; i < 40; i++) {
   if ((await snap()).phase === 'INNINGS_END') break;
