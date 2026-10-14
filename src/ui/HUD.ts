@@ -1414,10 +1414,18 @@ ${modeSelectMarkup()}
     const facts = this.statsShown;
     if (!facts) return;
     track('stats-brag', 'Bragged about the career card');
+    await this.shareCareer(facts, this.$('stats-status'));
+  }
+
+  /**
+   * One career card out as a picture, saying how it went in `status`: My
+   * Stats' SHARE MY CARD, and Level Up's SHARE STATS CARD with the card the
+   * innings has just turned.
+   */
+  async shareCareer(facts: StatsFacts, status: HTMLElement) {
     const url = gameLink();
     const lead = facts.hero[0] ?? { label: 'runs', value: 0 };
     const caption = statsStoryText(lead, facts.innings, url);
-    const status = this.$('stats-status');
     if (!canShareImage()) {
       // No file can leave this browser, so the picture cannot go anywhere the
       // player chooses. WhatsApp's own link still carries the words and the
@@ -1434,13 +1442,12 @@ ${modeSelectMarkup()}
       if (error instanceof DOMException && error.name === 'AbortError') return;
       status.textContent = 'Could not open the share sheet. Saving the picture instead.';
       status.classList.remove('hidden');
-      await this.saveStats(facts, url, caption);
+      await this.saveStats(facts, url, caption, status);
     }
   }
 
   /** No share sheet: put the picture in the downloads folder and say so. */
-  private async saveStats(facts: StatsFacts, url: string, caption: string) {
-    const status = this.$('stats-status');
+  private async saveStats(facts: StatsFacts, url: string, caption: string, status: HTMLElement) {
     try {
       const picture = await statsStoryImage(facts, url);
       const href = URL.createObjectURL(picture);
@@ -3289,6 +3296,26 @@ ${modeSelectMarkup()}
       key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.thing = thing; key.textContent = label;
       key.setAttribute('aria-label', `Preview the stars for ${RATED_NAME[thing]}`);
       key.addEventListener('click', () => pick(thing));
+      row.append(key);
+    }
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());
+    this.viewport.append(row);
+  }
+  /**
+   * `?levelup=1`'s keys: one a rung and a mode, along the foot of the picture
+   * in the stars' preview row's dress. Level Up goes over them; GO TO
+   * SCORECARD brings them back.
+   */
+  levelUpKeys(keys: readonly { label: string; tier: string; mode: CareerMode }[], pick: (tier: string, mode: CareerMode) => void) {
+    const row = document.createElement('div');
+    row.className = 'rate-preview levelup-preview';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Preview Level up');
+    for (const { label, tier, mode } of keys) {
+      const key = document.createElement('button');
+      key.type = 'button'; key.className = 'rate-preview-key'; key.dataset.tier = tier; key.dataset.mode = mode; key.textContent = label;
+      key.setAttribute('aria-label', `Preview Level up to ${label.toLowerCase()}`);
+      key.addEventListener('click', () => pick(tier, mode));
       row.append(key);
     }
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend'] as const) row.addEventListener(type, event => event.stopPropagation());

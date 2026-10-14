@@ -501,6 +501,43 @@ remembered: the stars go nowhere, the follow-up's last screen says so, and
 asking again is one tap. It changes nothing about the batting, so it is not
 practice (`tests/practice.test.ts` names it). `rating-check` walks it.
 
+## Level Up
+
+An innings that carries a career onto a new rung ends on Level Up
+(`src/ui/LevelUp.ts`) before the innings card, which waits underneath: the
+end card's chevrons stood on end rushing up the screen, the great ones
+sweeping past to uncover LEVEL UP, the card the player held rising into the
+middle and turned into the new rung's by a seam of light in the same chevron,
+the figure counting on, then the rung's name and two keys — SHARE STATS CARD
+(the new card as a picture, `shareCareer` in the HUD, the same as My Stats'
+SHARE MY CARD) and GO TO SCORECARD (Escape too), which puts it away and lets
+the innings' unlocks follow. A tap before the keys skips to them; reduced
+motion gets the turned card and the keys, still.
+
+It is the store's answer that decides it — `climbedTo` between the career as
+it stood before the innings was sent and the one `/api/innings` hands back —
+so it goes up a moment after the card does, and only while that innings' card
+is still up. The career before is read *before* the send: `countInnings`
+writes its answer into the mirror, so a mirror read on the answer is already
+the new career and nothing would ever have been climbed (which is what the
+`tier-` counts had been doing on a session's first innings).
+
+Each rung is a bigger occasion than the one below it, and that is a rule held
+in `tests/levelup.test.ts`: `levelUpFx` in `src/game/levelup.ts` is every
+figure — arrows, sweeps, the held breath before the turn, burst, sparkles,
+foil, rays from STAR, the flash, the shake for HITMAN alone, the crowd — and
+none may fall going up. The buzz in the hand (`levelUpHaptics`, played by
+`src/game/haptics.ts`) climbs the same way: `navigator.vibrate` where there is
+one, and on an iPhone the system tick a switch gives, one a pulse. A new rung
+is a new entry there.
+
+`?levelup=1` is a row of keys — EMERGING, STAR, HITMAN, and TEST STAR and TEST
+HITMAN in the Marathon's green — putting it up over a made-up climb, counting
+and following with nothing (`tests/practice.test.ts` names it), and
+`__cricket.levelUp('star', 'marathon')` does the same for the checks.
+`scripts/levelup-check.mjs` reaches it the real way first — two Blasts of 180
+for a named player, the second over 350 — then every rung by name.
+
 ## `?welcome=1`
 
 A row of keys along the top of the picture — NEW, BACK, EDIT, TAKEN, SIBLING,

@@ -65,7 +65,8 @@ import type { StatsSheetView, StatsSlide } from './ui/StatsSheet';
 import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
-import { climbedTo, standingOf, tierMeasure, type Granted } from './game/tier';
+import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
+import { LevelUp } from './ui/LevelUp';
 import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
@@ -442,6 +443,13 @@ export class Game {
    * nothing is sent and nothing is kept, so each can be tried again and again.
    */
   private readonly welcomeKeys = new URLSearchParams(location.search).get('welcome') === '1';
+  /**
+   * `?levelup=1`: a row of keys, one a rung — EMERGING, STAR, HITMAN — in
+   * each mode's card, putting Level Up up as an innings that climbed to it
+   * would, for looking at it on a phone without the weeks of batting. Nothing
+   * is counted, shared on the player's behalf, or followed by unlocks.
+   */
+  private readonly levelUpKeys = new URLSearchParams(location.search).get('levelup') === '1';
   /** The way `?welcome=1` has the welcome up, or null when it is the real one. */
   private welcomeScenario: WelcomeScenario | null = null;
   /**
@@ -544,6 +552,7 @@ export class Game {
     // The stars' keys first, so the moments' keys come after them in the page
     // and can be lifted clear of them when both are asked for.
     if (this.rateKeys) this.hud.rateKeys(RATE_KEYS, thing => this.previewRating(thing));
+    if (this.levelUpKeys) this.hud.levelUpKeys(LEVEL_UP_KEYS, (tier, mode) => this.previewLevelUp(tier, mode));
     if (this.welcomeKeys) this.hud.welcomeKeys(WELCOME_KEYS, scenario => this.previewWelcome(scenario));
     if (this.dressingKeys) this.hud.dressingKeys(DRESSING_KEYS, scenario => this.previewDressing(scenario));
     if (this.momentKeys) this.hud.momentKeys(MOMENT_KEYS, moment => this.askMoment(moment));
@@ -848,6 +857,10 @@ export class Game {
       physio: (injury = 90) => this.hud.hurtNote(() => {}, injury),
       // Whether it is up.
       ratingOpen: () => !!this.ratingPrompt?.open,
+      // Level Up by rung, for `levelup-check.mjs`: `levelUp('star', 'marathon')`.
+      levelUp: (tier = 'star', mode?: CareerMode) => this.previewLevelUp(tier, mode),
+      // Where it has got to — 'rush' to 'ready' — or null when it is not up.
+      levelingUp: () => this.levelUp?.at ?? null,
     } });
   }
   /**
@@ -1041,7 +1054,7 @@ export class Game {
   }
   /** Plays whatever has been earned and not celebrated; each is marked seen as it goes up, so none is played twice. */
   private celebrateUnlocks() {
-    if (this.unlock || this.dressing || this.practising || this.demoing) return;
+    if (this.unlock || this.levelUp || this.dressing || this.practising || this.demoing) return;
     const items = this.freshUnlocks();
     if (!items.length) return;
     const held = readDressing();
@@ -2881,6 +2894,9 @@ export class Game {
     // stars' own keys, though: R from a star still walks out to bat, which it
     // did not while every key pressed on one was swallowed.
     if (document.querySelector('.feedback-screen')) return;
+    // Level Up takes its own keys: Escape is its way to the scorecard, and
+    // Enter is whichever of its keys has the focus, not PLAY AGAIN under it.
+    if (this.levelUp) return;
     if (event.target instanceof Element && event.target.closest('.rate-pop') && STAR_KEYS.has(event.key)) return;
     const key = event.key.toUpperCase();
     // The stories sit over everything, including the board that may have opened
@@ -3817,15 +3833,29 @@ export class Game {
     const innings = this.innings;
     // What he batted in, for the year recap: read now, as it was worn, not when the answer lands.
     const worn = this.myLook(), look = { kit: worn.outfit.id, bat: worn.bat.id };
+    // The career as it stood before this innings, read before it is sent,
+    // because the climb is the difference between the two and there is
+    // nowhere else it is written down. Read here and not when the answer
+    // lands: `countInnings` writes the answer into the mirror before handing
+    // it back, so a mirror read then is already the new career and nothing
+    // would ever have been climbed. The mirror stands in on the first innings
+    // of a session, when nothing has been fetched yet: it is this browser's
+    // own last word on the career and it is what the card would have drawn.
+    const was = this.myCareer[mode]?.career ?? heldCareer(mode);
+    let climbed = false;
     const send = () => countInnings<AnyCareer>(this.player!, mode, tally, readPlayer(), nonce, look).then(mine => {
       if (this.disposed) return true;
       if (!mine?.career) return false;
-      // Read before the held record is replaced, because the climb is the
-      // difference between the two and there is nowhere else it is written
-      // down. The mirror stands in on the first innings of a session, when
-      // nothing has been fetched yet: it is this browser's own last word on
-      // the career and it is what the card would have drawn.
-      this.markClimb(mode, this.myCareer[mode]?.career ?? heldCareer(mode), mine.career, mine.granted ?? null);
+      const granted = mine.granted ?? null;
+      // A first innings is an arrival, not a climb, for the count.
+      this.markClimb(mode, was.innings ? was : null, mine.career, granted);
+      // The screen, though, is for anybody the innings carried onto a new
+      // rung — once, though the innings may be sent twice — and only while
+      // its card is still the one up.
+      const rung = climbedTo(mode, was, mine.career, granted);
+      const levelling = !!rung && !climbed && !this.demoing && this.innings === innings && this.phase === 'INNINGS_END';
+      if (rung) climbed = true;
+      if (levelling) this.showLevelUp(mode, was, mine.career, granted);
       this.myCareer[mode] = {
         career: mine.career, name: mine.name, avatar: mine.avatar, granted: mine.granted ?? null,
       };
@@ -3858,6 +3888,57 @@ export class Game {
   private markClimb(mode: CareerMode, was: AnyCareer | null, now: AnyCareer, granted: Granted | null) {
     const climbed = climbedTo(mode, was, now, granted);
     if (climbed) this.markOnce(`tier-${climbed.key}`, `Reached ${climbed.name}`);
+  }
+
+  /** Level Up, while it is up. */
+  private levelUp: LevelUp | null = null;
+  /**
+   * Level Up (`src/ui/LevelUp.ts`): the full screen for an innings that
+   * carried the career onto a new rung, over the innings card, which GO TO
+   * SCORECARD hands back to. The unlocks the same innings earned wait for it
+   * and follow it. A preview (`?levelup=1`, `__cricket.levelUp`) counts and
+   * shares nothing of its own and is followed by nothing.
+   */
+  private showLevelUp(mode: CareerMode, was: AnyCareer, now: AnyCareer, granted: Granted | null, preview = false) {
+    if (this.levelUp || this.disposed) return;
+    const batting = readPlayer();
+    const who = batting?.name ? { name: batting.name, avatar: batting.avatar ?? 0 } : null;
+    const standing = bestStanding(mode, placesOf(this.careerBoards[mode]?.boards ?? {}, this.player));
+    const factsOf = (career: AnyCareer) => statsFacts(mode, career, { name: who?.name ?? '', avatar: who?.avatar ?? 0, granted }, standing);
+    const before = factsOf(was), after = factsOf(now);
+    this.putRatingAway();
+    if (!preview) this.mark(`levelup-${after.tier.key}`, `Level up: ${after.tier.name}`);
+    this.levelUp = new LevelUp(this.hud.viewport, { before, after, who }, {
+      share: status => {
+        if (!preview) this.mark('levelup-share', 'Shared the card from Level up');
+        return this.hud.shareCareer(after, status);
+      },
+      scorecard: () => {
+        if (!preview) this.mark('levelup-scorecard', 'Went on to the scorecard from Level up');
+        this.closeLevelUp(!preview);
+      },
+      cheer: (size, at) => this.audio.cheer({ size, peak: size === 'big' ? .75 : .55, decay: 2.4, swell: .35 }, at),
+    });
+  }
+  private closeLevelUp(thenUnlocks: boolean) {
+    if (!this.levelUp) return;
+    this.levelUp.close();
+    this.levelUp = null;
+    document.querySelector<HTMLElement>('#end:not(.hidden) .k-cta')?.focus({ preventScroll: true });
+    if (thenUnlocks && this.phase === 'INNINGS_END') this.celebrateUnlocks();
+  }
+  /** Level Up for a rung, by name, over whatever is on screen: the preview's keys and the checks'. */
+  private previewLevelUp(key: string, mode: CareerMode = this.careerMode) {
+    const rung = Math.max(1, TIERS.findIndex(one => one.key === key));
+    const tier = TIERS[rung] ?? TIERS[2], below = TIERS[rung - 1];
+    const field = mode === 'survive' ? 'balls' : 'runs';
+    const held = heldCareer(mode);
+    // Just short of the rung before, a little over it after: the innings that tipped it.
+    const step = Math.max(1, Math.round((tier.at[mode] - below.at[mode]) * .03));
+    const was = { ...held, [field]: tier.at[mode] - step, innings: Math.max(1, held.innings) } as AnyCareer;
+    const now = { ...held, [field]: tier.at[mode] + step * 2, innings: Math.max(2, held.innings + 1) } as AnyCareer;
+    this.closeLevelUp(false);
+    this.showLevelUp(mode, was, now, null, true);
   }
 
   private end() {
@@ -4656,6 +4737,12 @@ const SURVIVED = 'Survived all 60 · drew';
 const RATE_KEYS: readonly { label: string; thing: RatedThing }[] = [
   { label: 'GAME', thing: 'game' }, { label: 'BLAST', thing: 'classic' }, { label: 'MARATHON', thing: 'marathon' },
   { label: 'SURVIVAL', thing: 'survive' }, { label: 'RIVALS', thing: 'rivals' },
+];
+/** `?levelup=1`'s keys: each rung a player can climb to, in the Blast's card and in the Marathon's green. */
+const LEVEL_UP_KEYS: readonly { label: string; tier: string; mode: CareerMode }[] = [
+  { label: 'EMERGING', tier: 'emerging', mode: 'classic' }, { label: 'STAR', tier: 'star', mode: 'classic' },
+  { label: 'HITMAN', tier: 'hitman', mode: 'classic' }, { label: 'TEST STAR', tier: 'star', mode: 'marathon' },
+  { label: 'TEST HITMAN', tier: 'hitman', mode: 'marathon' },
 ];
 /** A way `?welcome=1` puts the welcome up. */
 type WelcomeScenario = 'new' | 'back' | 'edit' | 'taken' | 'sibling' | 'month' | 'offline';
