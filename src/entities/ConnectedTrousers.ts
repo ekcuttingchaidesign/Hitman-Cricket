@@ -15,7 +15,7 @@ const HIP = .018;
 /** How far the seat's curve hangs from the opening before it turns, as a share of the way to the thigh. */
 const FALL = .7;
 /** How far the top of the trousers turns with the chest rather than the pelvis. */
-const WAIST_TURN = .5;
+const WAIST_TURN = .75;
 
 /** One trouser surface: waist, tailored rise, crotch and both bending legs. */
 export class ConnectedTrousers {
