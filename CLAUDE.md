@@ -504,35 +504,42 @@ practice (`tests/practice.test.ts` names it). `rating-check` walks it.
 ## Level Up
 
 An innings that carries a career onto a new rung ends on Level Up
-(`src/ui/LevelUp.ts`) before the innings card, which waits underneath. It is
-played in the ground itself, with the game's own pieces. The HUD stands aside
-(`levelup-on` on the stage), the cinema's black bars come in, and the batter
-plays one last lofted drive at nothing; as the bat meets it (the boundary
-crack, a knock in the hand) the real ball goes up over the bowler's head into
-the lights with the camera craning up and back after it and turning to keep
-it (`GameScene.salute`, which takes the camera from the shake while it runs),
-the stands up behind it holding the rung's name, LEVEL UP! and the player's
-own on their placards (the `level-up` crowd moment). It is drawn bigger and lit
-from inside the higher it goes, with a halo of the rung's metal, so it stays
-the hero at forty metres. It slows and hangs at the height the page's LEVEL UP
-stands at (`rest`); there the page takes over: the bars go, a flare and rings
-where the ball was (`saluteBall` follows it on the page), LEVEL UP bursting
-out of that point a letter at a time, the roar, fireworks over the far stand
-after dark from STAR, the ground blurred and darkened behind (`.lu-scrim`),
-and a line of light dropping from the word and swelling into the card the
-player held. A seam of light in the end card's chevron turns it to the new
-rung, the figure counting on, and the rung's name and two keys follow: SHARE
-STATS CARD (the new card as a picture, `shareCareer` in the HUD, the same as
-My Stats' SHARE MY CARD) and GO TO SCORECARD (Escape too), which brings the
-camera home (`endSalute`) and lets the innings' unlocks follow. anime.js does
-the page's choreography; a tap before the keys skips to them; reduced motion
-gets the turned card and the keys, still, over the blurred ground.
+(`src/ui/LevelUp.ts`) before the innings card, which waits underneath. Each
+rung opens its own way, built from the game's own pieces (`opening` in
+`levelUpFx`, the story in `src/game/levelup.ts`):
 
-Three cuts came before this one, and each is a lesson: a flat field of arrows
-and rays over everything was too busy to read; a quiet dark ground too
-subtle; a three.js room of metal chevrons cluttered and generic. What made it
-read was the game's own ground, a moving camera, and one thing — the ball —
-carrying the speed.
+- EMERGING PLAYER, the road: the player's own Road to Hitman (the real
+  `roadToHitman`, over the place the card will stand), its fill running on to
+  the next medallion, which squats, lights and pops, then flies off the track
+  spinning like a coin to land big in the middle; the cannons go, LEVEL UP
+  drops in, the card rises and the medallion flies into its badge.
+- STAR, the six: the card waits with the old rung showing; the ball comes in
+  from the corner already at full speed and hits it square, and the card spins
+  like a struck coin onto the new rung as LEVEL UP bursts out of the impact.
+- HITMAN, the chevron rush: the end card's chevron springs up in gold, squats,
+  charges and fires a train of five up the screen — a gold flash as it passes
+  LEVEL UP, chevron fireworks off the top — and the card is pulled up in its
+  wake; a last chevron dives into it.
+
+All three end the same way: the card flips over to the new rung, the cannons
+fire from both bottom corners, the figure counts on, and the rung's name and
+two keys follow — SHARE STATS CARD (the new card as a picture, `shareCareer`
+in the HUD) and GO TO SCORECARD (Escape too), which lets the innings' unlocks
+follow. Everything on it is worked out from one clock: every move a
+closed-form spring (`spring`, `SPRINGS` — bounce for small moves, `soft` for
+long travel, or the card sails past and covers the words) and every piece of
+confetti a closed-form flight, paper that sways and turns over with a darker
+back. So any moment can be drawn on its own: a tap before the keys jumps to
+them, and reduced motion is the last frame, still. The game's ground is not
+drawn while it is up.
+
+The way here is a list of things that did not work, and they are the rules
+now: no field of arrows or rays behind the words (too busy), not a flat dark
+ground with nothing happening (too quiet), not a three.js room of chevrons
+(cluttered, generic), not the ball sliding from A to B (no speed), not a
+cinematic in the stadium (read as an advert). What worked was the game's own
+pieces, springs with anticipation and overshoot, and paper confetti — the
+Duolingo playbook.
 
 It is the store's answer that decides it — `climbedTo` between the career as
 it stood before the innings was sent and the one `/api/innings` hands back —
@@ -543,25 +550,25 @@ the new career and nothing would ever have been climbed (which is what the
 `tier-` counts had been doing on a session's first innings).
 
 Each rung is a bigger occasion than the one below it, and both halves of that
-are held in `tests/levelup.test.ts`: `levelUpFx` in `src/game/levelup.ts` is
-every figure — how high the ball goes and how long it climbs, an ordinary
-streak behind it for EMERGING PLAYER and the special stroke's fire from STAR,
-fireworks waves (one for STAR, two for HITMAN), the held breath before the
-card turns, the streaks, glints, rings and flash round the card, a shake of
-the card for HITMAN alone, the crowd — none may fall going up, and none may
-pass a ceiling. The buzz in the hand (`levelUpHaptics`, played by
-`src/game/haptics.ts`) climbs the same way: a knock on contact, ticks thinning
-as the ball slows, a pop at the burst, the turn's burst; `navigator.vibrate`
-where there is one, and on an iPhone the system tick a switch gives, one a
-pulse. A new rung is a new entry there.
+are held in `tests/levelup.test.ts`: which rung opens which way, and
+`levelUpFx`'s figures — confetti a wave, waves of it, the gold shower (HITMAN
+alone), the burst out of the moment itself, shockwaves, flash, shake, glints,
+the crowd — none may fall going up, and none may pass a ceiling. The beats
+(`levelUpBeats`) and the buzz in the hand (`levelUpHaptics`, played by
+`src/game/haptics.ts`) come from the opening: ticks as the road fills and a
+knock as the medallion pops, one hard knock as the ball hits and ticks
+slowing with the spin, a rising buzz as the chevron charges and a tick for
+each in the train; then the turn's burst, longer up the ladder.
+`navigator.vibrate` where there is one, and on an iPhone the system tick a
+switch gives, one a pulse.
 
 `?levelup=1` is a row of keys — EMERGING, STAR, HITMAN, and TEST STAR and TEST
 HITMAN in the Marathon's green — putting it up over a made-up climb, counting
 and following with nothing (`tests/practice.test.ts` names it), and
 `__cricket.levelUp('star', 'marathon')` does the same for the checks.
 `scripts/levelup-check.mjs` reaches it the real way first — two Blasts of 180
-for a named player, the second over 350 — then every rung by name. Add
-`&lights=night` to see the fireworks and the phones' flashes.
+for a named player, the second over 350, opening on the road — then every rung
+by name, each on its own opening, ending flipped onto the new card.
 
 ## `?welcome=1`
 

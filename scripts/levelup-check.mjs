@@ -8,8 +8,9 @@
  * First the way a player reaches it: two Blasts written ball by ball for a
  * named player, a hundred and eighty apiece — the first leaves the career a
  * DEBUTANT and puts nothing up, the second carries it over EMERGING PLAYER's
- * 350, and the store's answer puts Level Up up, opening on the ground itself
- * (the shot, `GameScene.salute`) with the innings card stood aside under it. Then each rung by
+ * 350, and the store's answer puts Level Up over the card, opening on Road to
+ * Hitman. Then each rung by name, each with its own opening: the road for
+ * EMERGING PLAYER, the six for STAR, the chevron rush for HITMAN. Then each rung by
  * name (`__cricket.levelUp('star', 'marathon')`): the phases in order, the old
  * card turned into the new rung's, the figure counted on, the keys, a tap
  * skipping to them, Escape and GO TO SCORECARD back to the card under it.
@@ -86,18 +87,18 @@ check((await levelling()) === null && await overlay.count() === 0, 'with no Leve
 await crease(false);
 await page.evaluate(balls => window.__cricket.blast(balls), SIXES);
 let up = false;
-for (let i = 0; i < 40 && !up; i++) { up = (await overlay.count()) > 0; if (!up) await page.waitForTimeout(250); }
+for (let i = 0; i < 80 && !up; i++) { up = (await overlay.count()) > 0; if (!up) await page.waitForTimeout(250); }
 check(up, 'a second, taking the career to 360, puts Level Up over the card');
 check(await overlay.getAttribute('data-tier') === 'emerging', 'for EMERGING PLAYER', await overlay.getAttribute('data-tier'));
 check(await page.locator('#end:not(.hidden)').count() === 1, 'with the innings card waiting under it');
-check(await overlay.evaluate(el => el.classList.contains('is-grounded')) && await page.evaluate(() => document.getElementById('viewport').classList.contains('levelup-on')),
-  'opening on the ground itself, the HUD stood aside');
+check(await overlay.getAttribute('data-opening') === 'road', 'opening on Road to Hitman', await overlay.getAttribute('data-opening'));
 await page.waitForTimeout(500);
 await page.screenshot({ path: 'test-results/levelup/real-rush.png' });
 check(await reach('ready'), 'and it plays through to its keys');
 check(await page.locator('.lu-face.is-new .st-card.tier-emerging').count() === 1 && await page.locator('.lu-face.is-old .st-card.tier-debutant').count() === 1,
   'turning the DEBUTANT card into the EMERGING PLAYER one');
-check(await page.locator('.lu-face.is-old').evaluate(el => getComputedStyle(el).visibility) === 'hidden', 'the old card gone once it has turned');
+check(await overlay.evaluate(el => el.classList.contains('is-flipped')), 'the card flipped over to the new one');
+check(await page.locator('.lu-road .k-road-rung.is-reached').count() === 2, 'with the road\'s next medallion lit on the way', String(await page.locator('.lu-road .k-road-rung.is-reached').count()));
 await page.waitForTimeout(1200);
 check((await page.locator('.lu-face.is-new .st-card-figure b').textContent()).replace(/,/g, '') === '360', 'the figure counted on to the career as it stands',
   await page.locator('.lu-face.is-new .st-card-figure b').textContent());
@@ -108,9 +109,9 @@ await page.locator('#levelup-scorecard').click();
 await page.waitForTimeout(400);
 check(await overlay.count() === 0 && (await snap()).phase === 'INNINGS_END' && await page.locator('#end').isVisible(),
   'GO TO SCORECARD puts it away and leaves the innings card');
-check(!(await page.evaluate(() => document.getElementById('viewport').classList.contains('levelup-on'))), 'with the HUD back');
 
 // — Each rung, by name, as the preview puts it up.
+const shakes = {};
 for (const [tier, mode] of [['emerging', 'classic'], ['star', 'classic'], ['hitman', 'classic'], ['star', 'marathon'], ['hitman', 'survive']]) {
   await page.evaluate(([t, m]) => window.__cricket.levelUp(t, m), [tier, mode]);
   const phases = [];
@@ -127,15 +128,18 @@ for (const [tier, mode] of [['emerging', 'classic'], ['star', 'classic'], ['hitm
     `${tier} in ${mode}: its phases in order, ending on the keys`, phases.join(' → '));
   check(await overlay.getAttribute('data-tier') === tier && await page.locator(`.lu-face.is-new .st-card.tier-${tier}.is-${mode}`).count() === 1,
     `${tier} in ${mode}: the new card in the rung's material`);
+  check(await overlay.getAttribute('data-opening') === { emerging: 'road', star: 'six', hitman: 'rush' }[tier], `${tier} in ${mode}: its own opening`, await overlay.getAttribute('data-opening'));
+  check(await overlay.evaluate(el => el.classList.contains('is-flipped')), `${tier} in ${mode}: ending on the new card`);
   check(await page.locator('.lu-title').textContent() === { emerging: 'EMERGING PLAYER', star: 'STAR', hitman: 'HITMAN' }[tier], `${tier} in ${mode}: the rung named`);
-  const shake = await overlay.evaluate(el => getComputedStyle(el).getPropertyValue('--lu-shake').trim());
-  check(tier === 'hitman' ? Number(shake) > 0 : Number(shake) === 0, `${tier} in ${mode}: the ground shakes for HITMAN alone`, shake);
+  shakes[tier] = Number(await overlay.evaluate(el => getComputedStyle(el).getPropertyValue('--lu-shake').trim()));
   await page.waitForTimeout(900);
   await page.screenshot({ path: `test-results/levelup/${tier}-${mode}.png` });
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   check(await overlay.count() === 0, `${tier} in ${mode}: Escape goes to the scorecard`);
 }
+
+check(shakes.emerging < shakes.star && shakes.star < shakes.hitman, 'the landing shaking harder the higher the rung', JSON.stringify(shakes));
 
 // — A tap before the keys skips to them.
 await page.evaluate(() => window.__cricket.levelUp('hitman', 'classic'));

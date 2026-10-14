@@ -1,13 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBlast, mergeBlast, type BlastTally } from '../src/game/career';
-import { levelUpBeats, levelUpFx, levelUpHaptics, levelUpMetal, levelUpWords } from '../src/game/levelup';
+import { levelUpBeats, levelUpFx, levelUpHaptics, levelUpMetal, levelUpWords, spring, springArrives } from '../src/game/levelup';
 import { climbedTo, TIERS } from '../src/game/tier';
 
 /** The rungs a player can climb to: everybody starts on the first. */
 const CLIMBABLE = TIERS.slice(1);
 
+describe('Level Up opens its own way on each rung', () => {
+  it('opens on Road to Hitman for EMERGING PLAYER, the six for STAR, the chevron rush for HITMAN', () => {
+    expect(CLIMBABLE.map(tier => [tier.key, levelUpFx(tier).opening])).toEqual([['emerging', 'road'], ['star', 'six'], ['hitman', 'rush']]);
+  });
+
+  it('keeps the gold shower and the second wave of cannons for HITMAN', () => {
+    const [emerging, star, hitman] = CLIMBABLE.map(tier => levelUpFx(tier));
+    expect([emerging.shower, star.shower]).toEqual([0, 0]);
+    expect(hitman.shower).toBeGreaterThan(0);
+    expect([emerging.waves, star.waves, hitman.waves]).toEqual([1, 1, 2]);
+    expect(hitman.encore).toBe(true);
+  });
+});
+
 describe('Level Up grows with the ladder', () => {
-  const numeric = ['lift', 'height', 'flight', 'fireworks', 'hold', 'morph', 'streaks', 'glints', 'rings', 'flash', 'shake'] as const;
+  const numeric = ['confetti', 'waves', 'shower', 'burst', 'rings', 'flash', 'shake', 'glints'] as const;
 
   it('never spends less on a rung than on the one below it, and spends more of something', () => {
     for (let i = 1; i < CLIMBABLE.length; i++) {
@@ -17,59 +31,43 @@ describe('Level Up grows with the ladder', () => {
     }
   });
 
-  it('sends the ball higher the higher the rung, and keeps the fire and the fireworks for STAR and up', () => {
-    const [emerging, star, hitman] = CLIMBABLE.map(tier => levelUpFx(tier));
-    expect(emerging.height).toBeLessThan(star.height);
-    expect(star.height).toBeLessThan(hitman.height);
-    expect(emerging.tail).toBe('plain');
-    expect([emerging.fireworks, emerging.glints, emerging.shake]).toEqual([0, 0, 0]);
-    expect(star.tail).toBe('fire');
-    expect(star.fireworks).toBeGreaterThan(0);
-    expect(star.shake).toBe(0);
-    expect(hitman.fireworks).toBeGreaterThan(star.fireworks);
-    expect(hitman.shake).toBeGreaterThan(0);
-    expect(hitman.encore).toBe(true);
-  });
-
-  it('keeps even the top rung an occasion rather than a wait', () => {
-    // The finish climbs, the clutter and the waiting do not.
+  it('keeps even the top rung a celebration rather than a storm', () => {
     const top = levelUpFx({ key: 'hitman' });
-    expect(top.flight).toBeLessThanOrEqual(2200);
-    expect(top.height).toBeLessThanOrEqual(36);
-    expect(top.fireworks).toBeLessThanOrEqual(2);
-    expect(top.streaks).toBeLessThanOrEqual(20);
-    expect(top.flash).toBeLessThanOrEqual(.6);
-    expect(top.shake).toBeLessThanOrEqual(5);
+    expect(top.confetti * top.waves + top.shower + top.burst).toBeLessThanOrEqual(480);
+    expect(top.flash).toBeLessThanOrEqual(.7);
+    expect(top.shake).toBeLessThanOrEqual(6);
   });
 
-  it('climbs longer and holds its breath longer the higher the rung, and puts the keys up last', () => {
-    const beats = CLIMBABLE.map(tier => levelUpBeats(levelUpFx(tier)));
-    for (const one of beats) {
-      expect(one.contact).toBeLessThan(one.word);
-      expect(one.word).toBeLessThan(one.card);
+  it('runs its beats in order, the card standing before it turns, and the keys up inside five seconds', () => {
+    for (const tier of CLIMBABLE) {
+      const one = levelUpBeats(levelUpFx(tier));
+      expect(one.word, tier.key).toBeLessThanOrEqual(one.card);
       expect(one.card).toBeLessThan(one.turn);
       expect(one.turn).toBeLessThan(one.turned);
-      expect(one.turned).toBeLessThan(one.named);
+      expect(one.turned).toBeLessThan(one.count);
+      expect(one.count).toBeLessThan(one.named);
       expect(one.named).toBeLessThan(one.ready);
+      expect(one.ready).toBeLessThan(5000);
     }
-    for (let i = 1; i < beats.length; i++) expect(beats[i].ready).toBeGreaterThan(beats[i - 1].ready);
-    // Long enough to be an occasion, never so long that the keys feel withheld.
-    expect(beats[beats.length - 1].ready).toBeLessThan(6500);
   });
 
-  it('knocks in the hand as the bat meets the ball, and ticks while it climbs', () => {
-    const fx = levelUpFx({ key: 'star' }), beats = levelUpBeats(fx), at = levelUpHaptics(fx, beats);
-    expect(at[0].at).toBe(beats.contact);
-    const climbing = at.filter(one => one.at > beats.contact && one.at < beats.word);
-    expect(climbing.length).toBe(fx.lift);
-    for (let i = 1; i < climbing.length; i++) expect(climbing[i].at).toBeGreaterThan(climbing[i - 1].at);
+  it('settles every spring where it was going, and counts the turn from the moment the card first faces round', () => {
+    for (const kind of ['snappy', 'bouncy', 'wobbly', 'soft'] as const) {
+      expect(spring(0, kind)).toBe(0);
+      expect(spring(3000, kind)).toBeCloseTo(1, 3);
+    }
+    // Bounce on the small moves, barely any on the long ones: a soft spring that overshot would cover the words.
+    const peak = (kind: 'bouncy' | 'soft') => Math.max(...Array.from({ length: 1500 }, (_, ms) => spring(ms, kind)));
+    expect(peak('bouncy')).toBeGreaterThan(1.1);
+    expect(peak('soft')).toBeLessThan(1.05);
+    expect(spring(springArrives('bouncy'), 'bouncy')).toBeGreaterThanOrEqual(1);
   });
 
   it('buzzes harder at the turn the higher the rung, and only at the beats', () => {
     const total = (tier: { key: string }) => {
-      const fx = levelUpFx(tier), beats = levelUpBeats(fx);
-      const at = levelUpHaptics(fx, beats);
+      const fx = levelUpFx(tier), beats = levelUpBeats(fx), at = levelUpHaptics(fx, beats);
       for (const one of at) expect(one.at).toBeLessThanOrEqual(beats.turned);
+      for (let i = 1; i < at.length; i++) expect(at[i].at).toBeGreaterThanOrEqual(at[i - 1].at);
       const burst = at[at.length - 1];
       expect(burst.at).toBe(beats.turned);
       return burst.pattern.filter((_, i) => i % 2 === 0).reduce((sum, ms) => sum + ms, 0);

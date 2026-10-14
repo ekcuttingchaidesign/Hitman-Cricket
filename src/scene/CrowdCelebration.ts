@@ -9,7 +9,7 @@ const SETTLE_MS = 450;
  * The boundaries are named for the stroke because the milestones already use
  * `'four'`, for four hundred.
  */
-export type CrowdMoment = 'hit-four' | 'hit-six' | 'level-up' | Milestone;
+export type CrowdMoment = 'hit-four' | 'hit-six' | Milestone;
 /**
  * What the placards say: the first always (the number), then two of the rest
  * drawn at random, so the same moment does not hold up the same words twice
@@ -28,11 +28,7 @@ export const CROWD_MOMENTS: Record<CrowdMoment, Reaction> = {
   double: { ms: 5200, strength: 1, labels: () => ['200', 'DOUBLE!', '{NAME} 200*', 'DOUBLE TON!', 'GO {NAME}!'], priority: 3 },
   triple: { ms: 5200, strength: 1, labels: () => ['300', 'TRIPLE!', '{NAME} 300*', 'LEGEND!', 'HISTORY!'], priority: 3 },
   four: { ms: 5600, strength: 1, labels: () => ['400', 'FOUR HUNDRED', '{NAME} 400*', 'LEGEND!', 'IMMORTAL'], priority: 3 },
-  // Level Up: a career onto a new rung, `mark` the rung (1 to 3). Its name first.
-  'level-up': { ms: 6000, strength: 1, labels: mark => [RUNG_WORDS[mark] ?? 'LEVEL UP!', 'LEVEL UP!', '{NAME}!', 'NEXT LEVEL', 'TAKE A BOW'], priority: 4 },
 };
-/** What the first placard says for each rung a Level Up reaches. */
-const RUNG_WORDS: Record<number, string> = { 1: 'EMERGING!', 2: 'STAR!', 3: 'HITMAN!' };
 /** Each placard's paper and ink, three of these drawn for a moment. */
 const POSTERS: readonly [string, string][] = [
   ['#fff6d8', '#153d56'], ['#f5ad42', '#173647'], ['#174c43', '#fff8e5'], ['#e9582b', '#fff6e6'],
@@ -50,7 +46,7 @@ const STREAK_STRENGTH = .14;
  */
 const TORCHES = 700;
 const TORCH_STRENGTH: Record<CrowdMoment, number> = {
-  'hit-four': .06, 'hit-six': .14, fifty: .55, raise: .55, century: .8, 'six-sixes': .8, double: .9, triple: 1, four: 1, 'level-up': 1,
+  'hit-four': .06, 'hit-six': .14, fifty: .55, raise: .55, century: .8, 'six-sixes': .8, double: .9, triple: 1, four: 1,
 };
 
 /** Event-only animation of the existing audience. Four extra draws while cheering,
