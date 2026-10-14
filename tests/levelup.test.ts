@@ -7,7 +7,7 @@ import { climbedTo, TIERS } from '../src/game/tier';
 const CLIMBABLE = TIERS.slice(1);
 
 describe('Level Up grows with the ladder', () => {
-  const numeric = ['lift', 'hold', 'morph', 'streaks', 'glints', 'dust', 'rings', 'flash', 'shake'] as const;
+  const numeric = ['lift', 'chevrons', 'hover', 'hold', 'morph', 'streaks', 'glints', 'dust', 'rings', 'flash', 'shake'] as const;
 
   it('never spends less on a rung than on the one below it, and spends more of something', () => {
     for (let i = 1; i < CLIMBABLE.length; i++) {
@@ -26,11 +26,13 @@ describe('Level Up grows with the ladder', () => {
     expect(levelUpFx({ key: 'hitman' }).encore).toBe(true);
   });
 
-  it('stays one thing on a quiet ground, even at the top', () => {
-    // The finish climbs, the clutter does not: a handful of chevrons, streaks
-    // and motes at most, so the words are never read through a storm.
+  it('stays one card in a room, even at the top', () => {
+    // The finish climbs, the clutter does not: the room's chevrons, streaks
+    // and motes have a ceiling, so the words are never read through a storm.
     const top = levelUpFx({ key: 'hitman' });
     expect(top.lift).toBeLessThanOrEqual(3);
+    expect(top.chevrons).toBeLessThanOrEqual(48);
+    expect(top.hover).toBeLessThanOrEqual(12);
     expect(top.streaks).toBeLessThanOrEqual(20);
     expect(top.dust).toBeLessThanOrEqual(16);
     expect(top.flash).toBeLessThanOrEqual(.6);

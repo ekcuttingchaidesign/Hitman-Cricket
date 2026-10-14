@@ -2984,7 +2984,9 @@ export class Game {
       this.input.flush(this.elapsed);
       this.update();
     }
-    if (!document.hidden) this.scene.render(this.elapsed);
+    // Level Up covers the whole screen with a room of its own, so the ground
+    // under it is not drawn: a phone has one GPU for the two.
+    if (!document.hidden && !this.levelUp) this.scene.render(this.elapsed);
     // The sound first: on a phone the overlay is taller than the screen is.
     if (this.debug) this.hud.debug({ ...this.audio.describe(), ...this.snapshot() });
     this.frameId = requestAnimationFrame(this.frame);

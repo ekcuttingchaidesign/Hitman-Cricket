@@ -9,13 +9,14 @@ import { TIERS, type Tier } from './tier';
  * (`src/ui/LevelUp.ts`) so the one rule worth holding to a test can be: each
  * rung is a bigger occasion than the one below it.
  *
- * Bigger by finish, not by clutter. The screen is one thing — the card — on a
- * quiet dark ground, the way a game's rank-up is one badge popping in: a few
- * chevrons rise through the middle and are gone before LEVEL UP is read, a
- * handful of streaks fly off the card as it turns, and nothing is ever drawn
- * behind the words. What climbs is the polish round that one thing: a longer
- * held breath before the turn, glints on the card's corners from STAR, soft
- * dust drifting up the edges of the screen, a ring going out from the card
+ * One thing in a deep room: the card, floating and leaning in 3D space, in
+ * front of the innings card's chevrons cast in the rung's metal and rising
+ * into fog (`src/scene/LevelUpStage.ts`). They rush up past the camera to
+ * uncover LEVEL UP, then drift; the near ones keep to the sides, so the
+ * words are never read through a bright shape. What climbs is everything
+ * round that: more chevrons in the room, a longer held breath before the
+ * turn, a stronger lean in the card's hover, streaks, glints on the card's
+ * corners and dust of the metal from STAR, a ring going out from the card
  * (two for HITMAN), a firmer flash, and for HITMAN alone a small shake and a
  * second cheer. A bronze moment that spent everything the gold one does
  * would leave the top of the ladder nothing to be.
@@ -24,8 +25,12 @@ import { TIERS, type Tier } from './tier';
  * end: the same shape that runs on the total's band, rising.
  */
 export interface LevelUpFx {
-  /** The chevrons that rise through the middle and uncover LEVEL UP. */
+  /** The ticks in the hand as the chevrons rush up and uncover LEVEL UP. */
   lift: number;
+  /** The chevrons in the room behind the card. */
+  chevrons: number;
+  /** How far the card leans as it hovers, in degrees. */
+  hover: number;
   /** How long the old card is held before it turns, after it has risen. ms. */
   hold: number;
   /** How long the seam takes to climb the card. ms. */
@@ -34,7 +39,7 @@ export interface LevelUpFx {
   streaks: number;
   /** Glints that twinkle on the card's corners once it has turned. */
   glints: number;
-  /** Soft dust drifting up the screen's edges once it has turned, out of focus and away from the words. */
+  /** Dust of the metal hanging in the room, out of focus: eight motes a unit. */
   dust: number;
   /** Rings going out from the card as it turns. */
   rings: number;
@@ -42,8 +47,6 @@ export interface LevelUpFx {
   flash: number;
   /** How far the screen shakes at the turn, in design pixels; nought for none. */
   shake: number;
-  /** Whether the rising chevrons carry a glow. */
-  glow: boolean;
   /** The cheer the crowd gives it, by size. */
   cheer: 'mid' | 'big' | null;
   /** A second cheer a beat later, for the rung the game is named for. */
@@ -52,10 +55,10 @@ export interface LevelUpFx {
 
 /** By rung. DEBUTANT is never climbed to (everybody starts there), so it is the floor and is never played. */
 const FX: Record<string, LevelUpFx> = {
-  debutant: { lift: 2, hold: 500, morph: 520, streaks: 8, glints: 0, dust: 0, rings: 0, flash: .3, shake: 0, glow: false, cheer: null, encore: false },
-  emerging: { lift: 3, hold: 600, morph: 620, streaks: 10, glints: 0, dust: 0, rings: 0, flash: .4, shake: 0, glow: false, cheer: 'mid', encore: false },
-  star: { lift: 3, hold: 750, morph: 760, streaks: 14, glints: 4, dust: 10, rings: 1, flash: .5, shake: 0, glow: true, cheer: 'big', encore: false },
-  hitman: { lift: 3, hold: 900, morph: 880, streaks: 18, glints: 6, dust: 16, rings: 2, flash: .6, shake: 4, glow: true, cheer: 'big', encore: true },
+  debutant: { lift: 2, chevrons: 16, hover: 5, hold: 500, morph: 520, streaks: 8, glints: 0, dust: 0, rings: 0, flash: .3, shake: 0, cheer: null, encore: false },
+  emerging: { lift: 3, chevrons: 22, hover: 7, hold: 600, morph: 620, streaks: 10, glints: 0, dust: 0, rings: 0, flash: .4, shake: 0, cheer: 'mid', encore: false },
+  star: { lift: 3, chevrons: 32, hover: 9, hold: 750, morph: 760, streaks: 14, glints: 4, dust: 10, rings: 1, flash: .5, shake: 0, cheer: 'big', encore: false },
+  hitman: { lift: 3, chevrons: 44, hover: 11, hold: 900, morph: 880, streaks: 18, glints: 6, dust: 16, rings: 2, flash: .6, shake: 4, cheer: 'big', encore: true },
 };
 
 export function levelUpFx(tier: Pick<Tier, 'key'>): LevelUpFx {

@@ -109,16 +109,16 @@ check(await overlay.count() === 0 && (await snap()).phase === 'INNINGS_END' && a
 // — Each rung, by name, as the preview puts it up.
 for (const [tier, mode] of [['emerging', 'classic'], ['star', 'classic'], ['hitman', 'classic'], ['star', 'marathon'], ['hitman', 'survive']]) {
   await page.evaluate(([t, m]) => window.__cricket.levelUp(t, m), [tier, mode]);
-  const seen = [];
+  const phases = [];
+  let shot = false;
   for (let i = 0; i < 60; i++) {
     const at = await levelling();
-    if (at && seen[seen.length - 1] !== at) seen.push(at);
-    if (at === 'turn' && !seen.includes('shot')) { seen.push('shot'); await page.screenshot({ path: `test-results/levelup/${tier}-${mode}-turn.png` }); }
+    if (at && phases[phases.length - 1] !== at) phases.push(at);
+    if (at === 'turn' && !shot) { shot = true; await page.screenshot({ path: `test-results/levelup/${tier}-${mode}-turn.png` }); }
     if (at === 'ready') break;
     await page.waitForTimeout(120);
   }
   const order = ['rush', 'word', 'card', 'turn', 'turned', 'named', 'ready'];
-  const phases = seen.filter(one => one !== 'shot');
   check(phases.every((one, i) => i === 0 || order.indexOf(one) > order.indexOf(phases[i - 1])) && phases.at(-1) === 'ready',
     `${tier} in ${mode}: its phases in order, ending on the keys`, phases.join(' → '));
   check(await overlay.getAttribute('data-tier') === tier && await page.locator(`.lu-face.is-new .st-card.tier-${tier}.is-${mode}`).count() === 1,
