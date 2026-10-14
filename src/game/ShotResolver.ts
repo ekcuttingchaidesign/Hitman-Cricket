@@ -10,10 +10,11 @@ import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from '
  * `windows` and `scale` default to the classic innings', so every existing call
  * means what it has always meant.
  */
+export type Windows = { perfect: number; good: number; ok: number; poor: number };
 export function gradeTiming(
   delta: number,
   fast = false,
-  windows: { perfect: number; good: number; ok: number; poor: number } = GAME.timing,
+  windows: Windows = GAME.timing,
   scale: number = GAME.fastTimingScale,
 ): TimingGrade {
   const value = Math.abs(delta) / (fast ? scale : 1);
@@ -94,9 +95,13 @@ export function turn(delivery: Delivery) {
 export function turningIn(delivery: Delivery) {
   return sweepable(delivery) && turn(delivery) < 0;
 }
-/** The grade this attempt earns at this ball, in one place so nothing disagrees. */
-export function gradeOf(delivery: Delivery, attempt: ShotAttempt) {
-  return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight);
+/**
+ * The grade this attempt earns at this ball, in one place so nothing disagrees.
+ * `windows` are a newcomer's when the innings is helped (`newcomer.ts`), and
+ * the rig asks with the same ones the score does.
+ */
+export function gradeOf(delivery: Delivery, attempt: ShotAttempt, windows: Windows = GAME.timing) {
+  return gradeTiming(attempt.inputTimeMs - delivery.idealContactTimeMs, STYLES[delivery.style].tight, windows);
 }
 /**
  * Whether he commits to the sweep at all — read by the rig and by the score, so
@@ -241,13 +246,20 @@ export function squareDrivable(delivery: Delivery) {
 export function squareDrive(delivery: Delivery, attempt: ShotAttempt | null) {
   return !!attempt && attempt.shotType === 'COVER_LONG_OFF' && squareDrivable(delivery);
 }
-/** `charged` is the batter's confidence being full — the shot still has to be played. */
-export function resolveShot(delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, charged = false): ShotOutcome {
+/**
+ * `charged` is the batter's confidence being full — the shot still has to be
+ * played. `windows` are the classic ones unless a newcomer is being helped,
+ * which only ever widens OK: the special strokes and the boundaries are graded
+ * on PERFECT and GOOD, and those are never moved.
+ */
+export function resolveShot(
+  delivery: Delivery, attempt: ShotAttempt | null, rng: { next(): number }, charged = false, windows: Windows = GAME.timing,
+): ShotOutcome {
   // A scoop input with nothing to spend on it is the block it would otherwise
   // have been, here as in the rig.
   if (attempt) attempt = playedAs(delivery, attempt, charged);
   const delta = attempt ? attempt.inputTimeMs - delivery.idealContactTimeMs : null;
-  const timingGrade = delta === null ? 'MISS' : gradeTiming(delta, STYLES[delivery.style].tight);
+  const timingGrade = delta === null ? 'MISS' : gradeTiming(delta, STYLES[delivery.style].tight, windows);
   const compatibility = attempt ? COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] : 0;
   const quality = TIMING_SCORE[timingGrade] * compatibility;
   const madeBatContact = !!attempt && timingGrade !== 'MISS' && compatibility >= 0.25;

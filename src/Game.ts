@@ -3,7 +3,7 @@ import { blastLights, keepLights } from './game/lights';
 import { ADVANCE, CONFIDENCE_FULL, GAME } from './config/gameplay';
 import { HEALTH, SURVIVE } from './config/survive';
 import { INTRO_STEPS, introDue, noteIntro, type IntroGame } from './ui/MarathonIntro';
-import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo } from './ui/ShotsIntro';
+import { CONFIDENCE_STEP, SHOTS_STEP, howToDue, noteHowTo, playedBefore } from './ui/ShotsIntro';
 import { CONFIDENCE as MARATHON_CONFIDENCE, LEVEL_BANNER_MS, MARATHON, SETTLE } from './config/marathon';
 import { MarathonInnings, leftHandersOf, marathonFigures, type Change } from './game/Marathon';
 import { soloOf, teamOf, type SoloRow, type TeamRow } from './game/marathon-board';
@@ -11,9 +11,10 @@ import { marathonOffer, type MarathonLadder } from './ui/MarathonBoard';
 import { shownKph } from './game/speed-gun';
 import { Confidence, landedSpecial, pulledBouncer } from './game/Confidence';
 import { Health } from './game/Health';
-import { endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
+import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
+import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, marathonFastWear, marathonOnly, roundEvery, spun, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -114,6 +115,9 @@ const LIVE: GamePhase[] = ['READY', 'BOWLER_RUNUP', 'BALL_IN_FLIGHT', 'SHOT_RESO
 
 /** How long a counted innings waits before its second and final attempt. */
 const RETRY_MS = 4000;
+/** This browser's storage, as the newcomer's count reads and writes it. Storage turned off reads as empty. */
+const readStored = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
+const writeStored = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* Then it is not kept. */ } };
 /** The longest the name sheet says SAVING… before it treats the board as away. */
 const PROFILE_PATIENCE_MS = 8000;
 /**
@@ -405,6 +409,12 @@ export class Game {
   private audio = new GameAudio();
   private debug = new URLSearchParams(location.search).get('debug') === '1';
   /**
+   * How much a newcomer's windows are widened this innings, 1 for not at all:
+   * see `newcomer.ts`. Decided as the innings starts, from the finished
+   * innings this browser or this career has in the mode.
+   */
+  private ease = 1;
+  /**
    * `?moments=1`: a row of keys on the screen, one a milestone — 50, 100, six
    * sixes, and the Test marks 150 to 400 — so each celebration can be looked
    * at on a phone without batting to it. A tap plays the moment exactly as the
@@ -532,6 +542,7 @@ export class Game {
       return this.openChallenges();
     }).catch(error => { if (import.meta.env.DEV) console.error('challenge startup', error); });
     this.countVisit();
+    seedPlayed(readStored, writeStored, playedBefore(readStored));
     // A survive-only build has no board behind it and no screen that opens one,
     // so it does not go looking. On GitHub Pages that request is a guaranteed
     // 404 on every load — harmless, since a board that never answers is already
@@ -1695,6 +1706,10 @@ export class Game {
       ? new MarathonInnings(leftHandersOf(this.seed, location.search, readHand()), new URLSearchParams(location.search).get('settled') === '1')
       : null;
     if (this.marathon) this.health = this.marathon.current.health;
+    this.ease = this.newcomerEase();
+    // Which of the helped innings this is, so the dashboard can set the
+    // newcomers who come back against the ones who do not.
+    if (this.ease > 1) this.mark(`newcomer-${EASE.indexOf(this.ease) + 1}`, 'Innings batted with a newcomer\'s help');
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.applyNets();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
@@ -1779,7 +1794,7 @@ export class Game {
     this.scene.whites(false); this.scene.overcast(false, true); this.hud.levelBanner(null); this.scene.time(blastLights()); this.scene.leftHanded(false); this.hud.sides(false);
     this.audio.stop(); this.audio.music(null); this.audio.crowd(null); this.audio.unlock(); this.score = new ScoreManager();
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.lesson = 0; this.primed = null; this.confidence = new Confidence(); this.sledger = new Sledger(); this.sledgeDue = false;
-    this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
+    this.ease = 1; this.input.reset(); this.scene.reset(); this.hud.startTutorial(); this.showConfidence(); this.setPhase('READY');
     this.hud.coach(TUTORIAL[0], 1, TUTORIAL.length);
     (document.activeElement as HTMLElement | null)?.blur();
   };
@@ -1879,9 +1894,26 @@ export class Game {
   private get plan() {
     // A Rival Match is bowled as the Blast is, whatever the link asks for.
     if (this.challenge.playing) return CLASSIC_PLAN;
-    const plan = this.basePlan;
-    return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(plan) : plan;
+    const base = this.ease > 1 ? withoutYorkers(this.basePlan) : this.basePlan;
+    return this.marathoning && (this.roundOnly || this.netsKeys) ? roundEvery(base) : base;
   }
+  /**
+   * The help for the innings about to start. None in a Rival Match, where both
+   * sides must bat the same game; none in practice, whose switches are for
+   * trying the game exactly as it is; and none for the scripted browser the
+   * checks drive (`?debug=1`), which times its strokes to the real windows —
+   * `?newcomer=1` beside it asks the browser's own count, for a check that
+   * wants the help. It can only ever give a newcomer the help they are owed.
+   */
+  private newcomerEase(): number {
+    if (this.challenge.playing || this.practising) return 1;
+    if (this.debug && new URLSearchParams(location.search).get('newcomer') !== '1') return 1;
+    const mode = this.careerMode;
+    const career = this.myCareer[mode]?.career ?? heldCareer(mode);
+    return easeFor(playedIn(mode, readStored, career.innings));
+  }
+  /** The Blast's windows for this innings, a newcomer's if it is helped. */
+  private get windows() { return easedWindows(GAME.timing, this.ease); }
   private get basePlan() {
     if (this.marathoning && (this.swingOnly || this.expressOnly || this.reverseOnly)) {
       return marathonOnly({ swing: this.swingOnly, express: this.expressOnly, reverse: this.reverseOnly });
@@ -2028,7 +2060,7 @@ export class Game {
     // the meter is empty or the timing is not good enough for the slog. It
     // costs nothing, so unlike the two special strokes it needs no meter read.
     const levelled = !charging && !sweeping
-      && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt));
+      && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt, this.windows));
     this.primed = null;
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled);
     this.hud.select(shotType, charging);
@@ -3072,8 +3104,8 @@ export class Game {
     const step = this.lesson >= 0 ? TUTORIAL[this.lesson] : null;
     this.outcome = step ? tutorialOutcome(step, this.delivery!, this.attempt)
       : this.marathon ? this.marathonBall()
-      : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng)
-      : resolveShot(this.delivery!, this.attempt, this.rng, this.charged);
+      : this.surviving ? resolveSurvive(this.delivery!, this.attempt, this.rng, easedSkill(TAILENDER, this.ease))
+      : resolveShot(this.delivery!, this.attempt, this.rng, this.charged, this.windows);
     if (step) this.hud.coachPlayed(step.praise, this.outcome.madeBatContact);
     else {
       this.score.record(this.outcome); this.generator.record(this.outcome);
@@ -3188,8 +3220,8 @@ export class Game {
     const delivery = this.delivery!, attempt = this.attempt;
     const special = this.charged && (advanceShot(delivery, attempt, true)
       || slogSweep(delivery, attempt, true) || !!scoopShot(delivery, attempt, true));
-    return special ? resolveShot(delivery, attempt, this.rng, true)
-      : resolveSurvive(delivery, attempt, this.rng, this.marathon!.current.batter);
+    return special ? resolveShot(delivery, attempt, this.rng, true, this.windows)
+      : resolveSurvive(delivery, attempt, this.rng, easedSkill(this.marathon!.current.batter, this.ease));
   }
   /** The balls the batter who played the last one has faced. The whole innings, but in a Marathon. */
   private get batterHistory() { return this.score.history.slice(this.playedFrom); }
@@ -3863,6 +3895,9 @@ export class Game {
   private end() {
     this.setPhase('INNINGS_END');
     this.countThisInnings();
+    // Toward the end of a newcomer's help, by the same rule as the career: only
+    // an innings finished counts, so walking out on one does not keep it going.
+    if (!this.practising) notePlayed(this.careerMode, readStored, writeStored);
     this.rateThisInnings();
     // Both cards get it, and it is asked for before the modes part company
     // below: the innings that just ended is a different innings in each of
@@ -4623,7 +4658,7 @@ export class Game {
       special: this.outcome ? landedSpecial(this.outcome) : false, burning: this.scene.burning, powerStyle: this.powerStyle,
       pulled: this.outcome && this.delivery ? pulledBouncer(this.delivery, this.attempt?.shotType, this.outcome) : false, swishing: this.scene.swishing, tail: this.scene.tailKind, pullPen: this.pullPen,
       mirrored: this.scene.mirrored, look: this.scene.wearing, marathon: this.marathon ? this.marathonState() : null,
-      standing: this.standing };
+      standing: this.standing, ease: this.ease };
   }
   /** Where a Marathon innings stands, for `marathon-check.mjs`. */
   private marathonState() {
