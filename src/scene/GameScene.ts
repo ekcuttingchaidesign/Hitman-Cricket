@@ -114,6 +114,41 @@ function muteAt(age: number, lasts = CELEBRATION_MS) {
 const SHAPES = { ball: new THREE.SphereGeometry(1, 24, 16) };
 
 /**
+ * Level Up's moment in the ground (`GameScene.salute`): one last lofted drive,
+ * and the ball sent up over the bowler's head into the lights with the camera
+ * craning after it, until it hangs where LEVEL UP is about to be.
+ */
+export interface Salute {
+  /** How high it climbs, in metres, and how long it takes to get there. */
+  height: number;
+  ms: number;
+  /** The tail behind it: the ordinary streak, or the special stroke's fire. */
+  tail: 'plain' | 'fire';
+  /** Where on the screen it comes to rest, as a share of the height from the top. */
+  rest: number;
+  /** The light round it as it climbs: the rung's metal. */
+  glow: string;
+}
+/** Where the ball leaves the bat, and where over the ground it ends up, before the climb is added. */
+const SALUTE_FROM = new THREE.Vector3(0, 1.25, 0.9), SALUTE_TO_Z = 30;
+/** How far the camera cranes: up, and back, from behind the batter. */
+const CRANE = { up: 7, back: 5 };
+/**
+ * The ball, drawn bigger the higher it goes, so it is still the hero at forty
+ * metres rather than a speck against the stars — a cheat any replay makes.
+ */
+const SALUTE_GROWTH = 6.5;
+/** A soft round light, for the glow round the salute's ball. */
+function haloTexture() {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 64;
+  const g = canvas.getContext('2d')!, fill = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  fill.addColorStop(0, '#ffffff'); fill.addColorStop(.25, '#ffffffaa'); fill.addColorStop(1, '#ffffff00');
+  g.fillStyle = fill; g.fillRect(0, 0, 64, 64);
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/**
  * The ball, by format: the Blast's bright red, and the Test match's darker
  * Dukes. Both keep the faint glow of their own colour, which is what holds a
  * ball against the stands in the second it is in the air.
@@ -231,6 +266,17 @@ export class GameScene {
   private bowling = false;
   private runupProgress = 0;
   private reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** Where the camera looks at rest, as `resize` last set it, and the lens it had. */
+  private readonly aim = new THREE.Vector3(0, 1.05, 9);
+  private lens = 50;
+  /** Level Up's salute while it is on: when the ball left the bat, and how it goes. */
+  private saluting: { start: number; spec: Salute; flared: boolean } | null = null;
+  private readonly homeward = new THREE.Quaternion();
+  /** The light round the salute's ball, made the first time it is wanted. */
+  private halo: THREE.Sprite | null = null;
+  /** The ball's own glow from before the salute, put back after it. */
+  private leather = { emissive: BALL.blast.glow as number, intensity: 0.2 };
+  private readonly framed = new THREE.Quaternion();
   private sky = new Sky();
   /** Which ground the stands are built for: see `grounds.ts`. */
   readonly ground: GroundName = groundFrom(location.search);
@@ -531,7 +577,9 @@ export class GameScene {
     const widened = 2 * Math.atan(Math.tan(base * Math.PI / 360) * design / this.camera.aspect) * 180 / Math.PI;
     this.camera.fov = THREE.MathUtils.clamp(this.camera.aspect < design ? widened : base, base, 67);
     const tall = THREE.MathUtils.clamp((design - this.camera.aspect) / (design - 0.5), 0, 1);
-    this.camera.lookAt(0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall));
+    this.aim.set(0, THREE.MathUtils.lerp(1.05, 0.15, tall), THREE.MathUtils.lerp(9, 5.4, tall));
+    this.lens = this.camera.fov;
+    this.camera.lookAt(this.aim);
     this.camera.updateProjectionMatrix();
   };
   /**
@@ -642,6 +690,104 @@ export class GameScene {
   get fireworksUp() { return this.bursts.up; }
   cheer(kind: CrowdMoment, now: number, mark = 0, streak = 1, name = '') { this.crowd?.trigger(kind, now, mark, streak, name); }
   get crowdState() { return this.crowd?.state ?? { kind: null, spectators: 0, banners: 0 }; }
+  /**
+   * Level Up, in the ground: he plays one last lofted drive at nothing, and
+   * when the bat meets it the ball goes up over the bowler's head, slowing as
+   * it climbs, until it hangs high over the ground at `spec.rest` of the
+   * screen's height. The camera cranes up and back after it and turns to keep
+   * it there. Returns when the ball leaves the bat, on the scene's clock.
+   */
+  salute(now: number, spec: Salute) {
+    this.batter.reset();
+    this.rehearse('watch', now);
+    const start = Number.isFinite(this.batter.strikeAt) && this.batter.strikeAt > now ? this.batter.strikeAt : now + 320;
+    this.saluting = { start, spec, flared: false };
+    this.hitOutcome = null;
+    if (spec.tail === 'fire') this.tail('fire'); else this.blaze = null;
+    this.ball.visible = false; this.shadow.visible = false;
+    if (!this.halo) {
+      this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      this.halo.scale.setScalar(5); this.ball.add(this.halo);
+    }
+    (this.halo.material as THREE.SpriteMaterial).color.set(spec.glow);
+    this.halo.visible = true;
+    // Lit from inside: seen from below, against the night, the leather's own
+    // side is in shadow, and the ball would be a dark coin with a halo.
+    const leather = this.ball.material as THREE.MeshStandardMaterial;
+    this.leather = { emissive: leather.emissive.getHex(), intensity: leather.emissiveIntensity };
+    leather.emissive.setHex(0xff5a2e); leather.emissiveIntensity = 1.1;
+    return start;
+  }
+  /** The ball at the top of its climb, gone in a flare the page draws: hidden, with its tail. */
+  saluteFlare() { if (this.saluting) this.saluting.flared = true; }
+  /** The camera home behind the batter, the ball put away, the stands sat down. */
+  endSalute() {
+    if (!this.saluting) return;
+    this.saluting = null;
+    this.blaze = null;
+    this.ball.visible = false; this.ball.scale.setScalar(0.115);
+    if (this.halo) this.halo.visible = false;
+    const leather = this.ball.material as THREE.MeshStandardMaterial;
+    leather.emissive.setHex(this.leather.emissive); leather.emissiveIntensity = this.leather.intensity;
+    this.trail.forEach(dot => dot.visible = false); this.fire.forEach(dot => dot.visible = false);
+    this.camera.position.set(0, 2.9, -5.15); this.camera.fov = this.lens; this.camera.lookAt(this.aim); this.camera.updateProjectionMatrix();
+    this.crowd?.settle(this.clock);
+  }
+  /** Where the ball is on the screen while it climbs, in the container's pixels, or null. */
+  saluteBall(): { x: number; y: number } | null {
+    if (!this.saluting || !this.ball.visible) return null;
+    const p = this.ball.getWorldPosition(new THREE.Vector3()).project(this.camera);
+    const { width, height } = this.container.getBoundingClientRect();
+    return { x: (p.x + 1) / 2 * width, y: (1 - p.y) / 2 * height };
+  }
+  /** Where the salute's ball is at `q` of its climb: rising fast and slowing, carried out over the ground. */
+  private saluteAt(q: number, into: THREE.Vector3) {
+    const { height } = this.saluting!.spec;
+    const rise = 1 - (1 - q) ** 2.4, carry = 1 - (1 - q) ** 1.6;
+    return into.set(0, SALUTE_FROM.y + (height - SALUTE_FROM.y) * rise, THREE.MathUtils.lerp(SALUTE_FROM.z, SALUTE_TO_Z, carry));
+  }
+  /** One frame of the salute: the ball, its tail, and the camera after it. */
+  private directSalute(now: number) {
+    const { start, spec, flared } = this.saluting!;
+    const since = now - start, flying = since >= 0;
+    // Slowing all the way up and hanging at the top: the climb eased out hard.
+    const q = THREE.MathUtils.clamp(since / spec.ms, 0, 1), climb = 1 - (1 - q) ** 3;
+    const grow = 1 + SALUTE_GROWTH * climb;
+    if (flying) this.saluteAt(climb, this.ball.position);
+    this.ball.visible = flying && !flared;
+    this.ball.scale.setScalar(0.115 * grow);
+    this.ball.rotation.x -= 0.25 * (1 - climb) + 0.01;
+    const moving = flying && !flared && q < .985;
+    const at = new THREE.Vector3();
+    this.trail.forEach((dot, i) => {
+      const behind = climb - (i + 1) * 0.03 * (1 - climb * .6);
+      dot.visible = !this.blaze && moving && behind > 0;
+      if (dot.visible) { dot.position.copy(this.saluteAt(behind, at)); dot.scale.setScalar(0.115 * grow * (1 - i / 12)); }
+    });
+    this.fire.forEach((dot, i) => {
+      const behind = climb - (i + 1) * 0.0042 * (1 - climb * .4);
+      dot.visible = !!this.blaze && moving && behind > 0;
+      if (!dot.visible) return;
+      dot.position.copy(this.saluteAt(behind, at));
+      dot.scale.setScalar(0.13 * grow * (1 - i / 32) * (1 + 0.18 * Math.sin(now * 0.045 + i * 1.7)));
+    });
+    // The crane: up and back from behind the batter, turning from the pitch to
+    // the ball, and pushing in a little as it settles.
+    const crane = THREE.MathUtils.smoothstep(since, -150, spec.ms * .95);
+    const kick = flying ? Math.max(0, 1 - since / 380) * 0.06 : 0;
+    this.camera.position.set(Math.sin(now * 0.085) * kick, 2.9 + CRANE.up * crane, -5.15 - CRANE.back * crane);
+    this.camera.fov = this.lens * (1 - 0.14 * crane);
+    this.camera.updateProjectionMatrix();
+    this.camera.lookAt(this.aim); this.homeward.copy(this.camera.quaternion);
+    if (flying) {
+      this.camera.lookAt(this.ball.getWorldPosition(at));
+      // Turned down from the ball by enough to hold it at `rest` of the screen's height.
+      const ndc = 1 - 2 * spec.rest;
+      this.camera.rotateX(-Math.atan(ndc * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2))));
+      this.framed.copy(this.camera.quaternion);
+      this.camera.quaternion.copy(this.homeward).slerp(this.framed, THREE.MathUtils.smoothstep(since, 0, spec.ms * .3));
+    }
+  }
   /**
    * A moment: his hundred or six sixes, the bat to the sky and the world gone
    * grey round him; or his fifty, `mild`, the bat raised and the colours left
@@ -1231,8 +1377,11 @@ export class GameScene {
       ? outcome.advance ? 0.062 : outcome.aerial ? 0.020 : outcome.runs === 6 ? 0.030 : outcome.runs === 4 ? 0.017 : outcome.isWicket ? 0.022 : 0
       : 0;
     const shake = power * Math.max(0, 1 - since / (outcome?.advance ? 620 : 300));
-    this.camera.position.x = Math.sin(now * 0.085) * shake;
-    this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
+    if (this.saluting) this.directSalute(now);
+    else {
+      this.camera.position.x = Math.sin(now * 0.085) * shake;
+      this.camera.position.y = 2.9 + Math.sin(now * 0.13) * shake * 0.6;
+    }
     this.sky.mesh.position.copy(this.camera.position);
     if (this.sky.cover !== this.cover.to) {
       const k = Math.min(1, Math.max(0, (now - this.cover.at) / COVER_MS));

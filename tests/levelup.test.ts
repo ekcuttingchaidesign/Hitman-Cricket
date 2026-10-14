@@ -7,7 +7,7 @@ import { climbedTo, TIERS } from '../src/game/tier';
 const CLIMBABLE = TIERS.slice(1);
 
 describe('Level Up grows with the ladder', () => {
-  const numeric = ['lift', 'chevrons', 'hover', 'hold', 'morph', 'streaks', 'glints', 'dust', 'rings', 'flash', 'shake'] as const;
+  const numeric = ['lift', 'height', 'flight', 'fireworks', 'hold', 'morph', 'streaks', 'glints', 'rings', 'flash', 'shake'] as const;
 
   it('never spends less on a rung than on the one below it, and spends more of something', () => {
     for (let i = 1; i < CLIMBABLE.length; i++) {
@@ -17,31 +17,35 @@ describe('Level Up grows with the ladder', () => {
     }
   });
 
-  it('keeps the first rung plain: no glints, no dust, no rings', () => {
-    const emerging = levelUpFx({ key: 'emerging' });
-    expect([emerging.glints, emerging.dust, emerging.rings, emerging.shake]).toEqual([0, 0, 0, 0]);
-    expect(levelUpFx({ key: 'star' }).rings).toBeGreaterThan(0);
-    expect(levelUpFx({ key: 'star' }).shake).toBe(0);
-    expect(levelUpFx({ key: 'hitman' }).shake).toBeGreaterThan(0);
-    expect(levelUpFx({ key: 'hitman' }).encore).toBe(true);
+  it('sends the ball higher the higher the rung, and keeps the fire and the fireworks for STAR and up', () => {
+    const [emerging, star, hitman] = CLIMBABLE.map(tier => levelUpFx(tier));
+    expect(emerging.height).toBeLessThan(star.height);
+    expect(star.height).toBeLessThan(hitman.height);
+    expect(emerging.tail).toBe('plain');
+    expect([emerging.fireworks, emerging.glints, emerging.shake]).toEqual([0, 0, 0]);
+    expect(star.tail).toBe('fire');
+    expect(star.fireworks).toBeGreaterThan(0);
+    expect(star.shake).toBe(0);
+    expect(hitman.fireworks).toBeGreaterThan(star.fireworks);
+    expect(hitman.shake).toBeGreaterThan(0);
+    expect(hitman.encore).toBe(true);
   });
 
-  it('stays one card in a room, even at the top', () => {
-    // The finish climbs, the clutter does not: the room's chevrons, streaks
-    // and motes have a ceiling, so the words are never read through a storm.
+  it('keeps even the top rung an occasion rather than a wait', () => {
+    // The finish climbs, the clutter and the waiting do not.
     const top = levelUpFx({ key: 'hitman' });
-    expect(top.lift).toBeLessThanOrEqual(3);
-    expect(top.chevrons).toBeLessThanOrEqual(48);
-    expect(top.hover).toBeLessThanOrEqual(12);
+    expect(top.flight).toBeLessThanOrEqual(2200);
+    expect(top.height).toBeLessThanOrEqual(36);
+    expect(top.fireworks).toBeLessThanOrEqual(2);
     expect(top.streaks).toBeLessThanOrEqual(20);
-    expect(top.dust).toBeLessThanOrEqual(16);
     expect(top.flash).toBeLessThanOrEqual(.6);
     expect(top.shake).toBeLessThanOrEqual(5);
   });
 
-  it('holds its breath longer before the turn the higher the rung, and puts the keys up last', () => {
+  it('climbs longer and holds its breath longer the higher the rung, and puts the keys up last', () => {
     const beats = CLIMBABLE.map(tier => levelUpBeats(levelUpFx(tier)));
     for (const one of beats) {
+      expect(one.contact).toBeLessThan(one.word);
       expect(one.word).toBeLessThan(one.card);
       expect(one.card).toBeLessThan(one.turn);
       expect(one.turn).toBeLessThan(one.turned);
@@ -50,7 +54,15 @@ describe('Level Up grows with the ladder', () => {
     }
     for (let i = 1; i < beats.length; i++) expect(beats[i].ready).toBeGreaterThan(beats[i - 1].ready);
     // Long enough to be an occasion, never so long that the keys feel withheld.
-    expect(beats[beats.length - 1].ready).toBeLessThan(4500);
+    expect(beats[beats.length - 1].ready).toBeLessThan(6500);
+  });
+
+  it('knocks in the hand as the bat meets the ball, and ticks while it climbs', () => {
+    const fx = levelUpFx({ key: 'star' }), beats = levelUpBeats(fx), at = levelUpHaptics(fx, beats);
+    expect(at[0].at).toBe(beats.contact);
+    const climbing = at.filter(one => one.at > beats.contact && one.at < beats.word);
+    expect(climbing.length).toBe(fx.lift);
+    for (let i = 1; i < climbing.length; i++) expect(climbing[i].at).toBeGreaterThan(climbing[i - 1].at);
   });
 
   it('buzzes harder at the turn the higher the rung, and only at the beats', () => {

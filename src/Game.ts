@@ -66,7 +66,8 @@ import type { BatterKit } from './entities/Batter';
 import { markWhatsNewShown, whatsNewDue } from './game/whats-new';
 import type { StoriesWhere } from './ui/WhatsNew';
 import { climbedTo, standingOf, tierMeasure, TIERS, type Granted } from './game/tier';
-import { LevelUp } from './ui/LevelUp';
+import { LevelUp, type LevelUpGround } from './ui/LevelUp';
+import { levelUpFx, levelUpMetal } from './game/levelup';
 import { BATS, FREE_BAT, FREE_OUTFIT, OUTFITS, WELCOME_BAT, batOf, batOwned, earned, outfitOf, outfitOwned, type BatId, type BatSkin, type DressingRecord, type Outfit, type OutfitId } from './game/dressing';
 import type { DressingRoom } from './ui/DressingRoom';
 import type { UnlockItem, UnlockMoment } from './ui/Unlock';
@@ -2984,9 +2985,7 @@ export class Game {
       this.input.flush(this.elapsed);
       this.update();
     }
-    // Level Up covers the whole screen with a room of its own, so the ground
-    // under it is not drawn: a phone has one GPU for the two.
-    if (!document.hidden && !this.levelUp) this.scene.render(this.elapsed);
+    if (!document.hidden) this.scene.render(this.elapsed);
     // The sound first: on a phone the overlay is taller than the screen is.
     if (this.debug) this.hud.debug({ ...this.audio.describe(), ...this.snapshot() });
     this.frameId = requestAnimationFrame(this.frame);
@@ -3910,7 +3909,9 @@ export class Game {
     const before = factsOf(was), after = factsOf(now);
     this.putRatingAway();
     if (!preview) this.mark(`levelup-${after.tier.key}`, `Level up: ${after.tier.name}`);
+    this.hud.viewport.classList.add('levelup-on');
     this.levelUp = new LevelUp(this.hud.viewport, { before, after, who }, {
+      ground: this.levelUpGround(after.tier.key, who?.name ?? ''),
       share: status => {
         if (!preview) this.mark('levelup-share', 'Shared the card from Level up');
         return this.hud.shareCareer(after, status);
@@ -3922,10 +3923,44 @@ export class Game {
       cheer: (size, at) => this.audio.cheer({ size, peak: size === 'big' ? .75 : .55, decay: 2.4, swell: .35 }, at),
     });
   }
+  /**
+   * The ground Level Up opens on: the game's own scene playing the shot
+   * (`GameScene.salute`) — the bat's crack and the stands up with the rung's
+   * name on their placards as the bat meets it, and when the ball hangs, the
+   * roar and, after dark from STAR, fireworks over the far stand.
+   */
+  private levelUpGround(tier: string, name: string): LevelUpGround {
+    const fx = levelUpFx({ key: tier }), rung = TIERS.findIndex(one => one.key === tier);
+    let live = true;
+    return {
+      start: rest => {
+        const now = this.elapsed;
+        const contact = this.scene.salute(now, { height: fx.height, ms: fx.flight, tail: fx.tail, rest, glow: levelUpMetal(TIERS[rung]).light });
+        const wait = Math.max(0, contact - now);
+        window.setTimeout(() => {
+          if (!live || this.disposed) return;
+          this.audio.play('boundary');
+          this.audio.swellCrowd(1.8, 1.2, 1.4);
+          this.scene.cheer('level-up', this.elapsed, rung, 1, name);
+        }, wait);
+        return wait;
+      },
+      ball: () => this.scene.saluteBall(),
+      burst: () => {
+        this.scene.saluteFlare();
+        this.audio.cheer({ size: fx.cheer === 'mid' ? 'mid' : 'big', peak: .8, decay: 2.6, swell: .45 });
+        for (let wave = 0; wave < fx.fireworks; wave++) {
+          window.setTimeout(() => { if (live && !this.disposed) this.scene.fireworks(this.elapsed, FIREWORKS_MS.milestone); }, wave * 1500);
+        }
+      },
+      end: () => { live = false; this.scene.endSalute(); },
+    };
+  }
   private closeLevelUp(thenUnlocks: boolean) {
     if (!this.levelUp) return;
     this.levelUp.close();
     this.levelUp = null;
+    this.hud.viewport.classList.remove('levelup-on');
     document.querySelector<HTMLElement>('#end:not(.hidden) .k-cta')?.focus({ preventScroll: true });
     if (thenUnlocks && this.phase === 'INNINGS_END') this.celebrateUnlocks();
   }

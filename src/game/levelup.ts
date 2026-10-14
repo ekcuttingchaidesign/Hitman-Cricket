@@ -9,29 +9,34 @@ import { TIERS, type Tier } from './tier';
  * (`src/ui/LevelUp.ts`) so the one rule worth holding to a test can be: each
  * rung is a bigger occasion than the one below it.
  *
- * One thing in a deep room: the card, floating and leaning in 3D space, in
- * front of the innings card's chevrons cast in the rung's metal and rising
- * into fog (`src/scene/LevelUpStage.ts`). They rush up past the camera to
- * uncover LEVEL UP, then drift; the near ones keep to the sides, so the
- * words are never read through a bright shape. What climbs is everything
- * round that: more chevrons in the room, a longer held breath before the
- * turn, a stronger lean in the card's hover, streaks, glints on the card's
- * corners and dust of the metal from STAR, a ring going out from the card
- * (two for HITMAN), a firmer flash, and for HITMAN alone a small shake and a
- * second cheer. A bronze moment that spent everything the gold one does
- * would leave the top of the ladder nothing to be.
+ * It is played in the ground itself, with the game's own pieces: the batter
+ * plays one last lofted drive, the bat's crack, and the real ball goes up
+ * over the bowler's head into the floodlights with the camera craning after
+ * it (`GameScene.salute`), the stands up behind it holding the rung's name on
+ * their placards. It slows as it climbs and hangs; LEVEL UP bursts out of the
+ * point where it hangs, the ground blurs behind, and a line of light drops
+ * from it and swells into the card, which turns to the new rung.
  *
- * The chevrons are the innings card's (`BAND_CHEVRONS` in the HUD), stood on
- * end: the same shape that runs on the total's band, rising.
+ * What climbs is the shot and everything round it: the ball goes higher and
+ * hangs longer, an ordinary streak behind it for EMERGING PLAYER and the
+ * special stroke's fire from STAR, fireworks over the far stand after dark
+ * from STAR (two waves for HITMAN), the held breath before the card turns,
+ * the streaks, glints, rings and flash round the card, and for HITMAN alone a
+ * shake and a second cheer. A bronze moment that spent everything the gold
+ * one does would leave the top of the ladder nothing to be.
  */
 export interface LevelUpFx {
-  /** The ticks in the hand as the chevrons rush up and uncover LEVEL UP. */
+  /** The ticks in the hand as the ball climbs. */
   lift: number;
-  /** The chevrons in the room behind the card. */
-  chevrons: number;
-  /** How far the card leans as it hovers, in degrees. */
-  hover: number;
-  /** How long the old card is held before it turns, after it has risen. ms. */
+  /** How high the ball goes, in metres. */
+  height: number;
+  /** How long it takes to get there from the bat, in ms. */
+  flight: number;
+  /** The tail behind it: the ordinary streak, or the special stroke's fire. */
+  tail: 'plain' | 'fire';
+  /** Waves of fireworks over the far stand when it hangs, after dark. */
+  fireworks: number;
+  /** How long the old card is held before it turns, after it has swelled out of the light. ms. */
   hold: number;
   /** How long the seam takes to climb the card. ms. */
   morph: number;
@@ -39,13 +44,11 @@ export interface LevelUpFx {
   streaks: number;
   /** Glints that twinkle on the card's corners once it has turned. */
   glints: number;
-  /** Dust of the metal hanging in the room, out of focus: eight motes a unit. */
-  dust: number;
-  /** Rings going out from the card as it turns. */
+  /** Rings going out from the card as it turns, and from the ball as it bursts. */
   rings: number;
   /** How bright the flash round the card is at the turn, nought to one. */
   flash: number;
-  /** How far the screen shakes at the turn, in design pixels; nought for none. */
+  /** How far the card shakes at the turn, in degrees; nought for none. */
   shake: number;
   /** The cheer the crowd gives it, by size. */
   cheer: 'mid' | 'big' | null;
@@ -55,10 +58,10 @@ export interface LevelUpFx {
 
 /** By rung. DEBUTANT is never climbed to (everybody starts there), so it is the floor and is never played. */
 const FX: Record<string, LevelUpFx> = {
-  debutant: { lift: 2, chevrons: 16, hover: 5, hold: 500, morph: 520, streaks: 8, glints: 0, dust: 0, rings: 0, flash: .3, shake: 0, cheer: null, encore: false },
-  emerging: { lift: 3, chevrons: 22, hover: 7, hold: 600, morph: 620, streaks: 10, glints: 0, dust: 0, rings: 0, flash: .4, shake: 0, cheer: 'mid', encore: false },
-  star: { lift: 3, chevrons: 32, hover: 9, hold: 750, morph: 760, streaks: 14, glints: 4, dust: 10, rings: 1, flash: .5, shake: 0, cheer: 'big', encore: false },
-  hitman: { lift: 3, chevrons: 44, hover: 11, hold: 900, morph: 880, streaks: 18, glints: 6, dust: 16, rings: 2, flash: .6, shake: 4, cheer: 'big', encore: true },
+  debutant: { lift: 2, height: 18, flight: 1300, tail: 'plain', fireworks: 0, hold: 500, morph: 520, streaks: 8, glints: 0, rings: 0, flash: .3, shake: 0, cheer: null, encore: false },
+  emerging: { lift: 3, height: 22, flight: 1500, tail: 'plain', fireworks: 0, hold: 550, morph: 620, streaks: 10, glints: 0, rings: 1, flash: .4, shake: 0, cheer: 'mid', encore: false },
+  star: { lift: 4, height: 27, flight: 1750, tail: 'fire', fireworks: 1, hold: 650, morph: 760, streaks: 14, glints: 4, rings: 2, flash: .5, shake: 0, cheer: 'big', encore: false },
+  hitman: { lift: 5, height: 32, flight: 2000, tail: 'fire', fireworks: 2, hold: 750, morph: 880, streaks: 18, glints: 6, rings: 3, flash: .6, shake: 4, cheer: 'big', encore: true },
 };
 
 export function levelUpFx(tier: Pick<Tier, 'key'>): LevelUpFx {
@@ -77,13 +80,17 @@ export function levelUpMetal(tier: Tier): { base: string; light: string; deep: s
 }
 
 /**
- * When the screen does what, in ms from its start. Everything after the card
- * rises waits on the tier's `hold`, so a bigger rung is a longer breath.
+ * When the screen does what, in ms from its start. The bat meets the ball at
+ * `contact`, which the scene says (it is when his stroke gets there); the
+ * rest follows from the rung's figures, so a bigger rung is a longer climb
+ * and a longer breath.
  */
 export interface LevelUpBeats {
-  /** The great chevrons have swept past and LEVEL UP is uncovered. */
+  /** The bat meets the ball. */
+  contact: number;
+  /** The ball hangs at the top and bursts into LEVEL UP. */
   word: number;
-  /** The old card has risen into the middle. */
+  /** The line of light has swelled into the card the player held. */
   card: number;
   /** The seam starts up the card. */
   turn: number;
@@ -95,32 +102,34 @@ export interface LevelUpBeats {
   ready: number;
 }
 
-/** The chevrons rise one after another, this far apart, the last over LEVEL UP as it pops. ms. */
-export const LIFT_GAP = 120;
+/** From LEVEL UP to the card standing: the line dropping and swelling. ms. */
+export const SWELL_MS = 900;
 
-export function levelUpBeats(fx: LevelUpFx): LevelUpBeats {
-  const word = 650, card = word + 450, turn = card + fx.hold, turned = turn + fx.morph;
-  return { word, card, turn, turned, named: turned + 350, ready: turned + 900 };
+export function levelUpBeats(fx: LevelUpFx, contact = 350): LevelUpBeats {
+  const word = contact + fx.flight, card = word + SWELL_MS, turn = card + fx.hold, turned = turn + fx.morph;
+  return { contact, word, card, turn, turned, named: turned + 350, ready: turned + 900 };
 }
 
 /**
  * The buzz in the hand, as `navigator.vibrate` patterns at a beat each: a
- * tick for each chevron as it rises past the word, a thump as the seam starts up
- * the card, and the burst at the turn — longer and more of it up the ladder.
+ * firm knock as the bat meets it, ticks thinning out as the ball climbs and
+ * slows, a pop as it bursts into LEVEL UP, a thump as the seam starts up the
+ * card, and the burst at the turn — longer and more of it up the ladder.
  */
 export function levelUpHaptics(fx: LevelUpFx, beats: LevelUpBeats): { at: number; pattern: number[] }[] {
-  const out: { at: number; pattern: number[] }[] = [];
-  for (let i = 0; i < fx.lift; i++) out.push({ at: Math.round(beats.word - (fx.lift - 1 - i) * LIFT_GAP), pattern: [8] });
+  const out: { at: number; pattern: number[] }[] = [{ at: beats.contact, pattern: [28] }];
+  for (let i = 1; i <= fx.lift; i++) out.push({ at: Math.round(beats.contact + fx.flight * (1 - (1 - i / (fx.lift + 1)) ** 2) * .9), pattern: [6] });
+  out.push({ at: beats.word, pattern: [18, 40, 18] });
   out.push({ at: beats.turn, pattern: [14] });
   const burst: Record<number, number[]> = { 0: [30], 1: [40, 50, 30], 2: [60, 40, 40, 40, 90], 3: [70, 40, 50, 40, 70, 60, 140] };
-  const rung = fx.shake ? 3 : fx.rings ? 2 : fx.cheer ? 1 : 0;
+  const rung = fx.shake ? 3 : fx.fireworks ? 2 : fx.cheer ? 1 : 0;
   out.push({ at: beats.turned, pattern: burst[rung] });
   return out;
 }
 
 /** What the screen says, from the rung reached and the career as it now stands. */
 export interface LevelUpWords {
-  /** The word the arrows uncover. */
+  /** The word the ball bursts into. */
   word: string;
   /** The small line over the rung's name: what kind of moment this is. */
   kicker: string;

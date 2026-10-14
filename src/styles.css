@@ -8375,42 +8375,54 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .has-dressing-keys .ul-scanning{top:calc(var(--u) * 120 + 44px)}
 
 /* ── Level Up (src/ui/LevelUp.ts) ─────────────────────────────────────────────
-   One card in a deep room: the three.js room behind (.lu-3d, LevelUpStage),
-   the card floating and leaning in front of it in CSS 3D, LEVEL UP and the
-   rung's name a letter at a time. anime.js moves .lu-card (the flight in),
-   .lu-pop (the charge and the swing at the turn) and the letters; the hover
-   writes .lu-tilt a frame at a time, and --gx, --gy and --lift with it for the
-   glare and the shadow. Every colour is the rung's metal (--lu-base,
-   --lu-light, --lu-deep, from levelUpMetal). */
+   It opens on the ground itself: the page clear but for the cinema's black
+   bars while the game's scene plays the shot (GameScene.salute). When the ball
+   bursts (.is-word) the bars go and the scrim comes up — the ground blurred
+   and darkened behind — with LEVEL UP and the card in front of it. anime.js
+   moves the letters, .lu-card and .lu-pop; the hover writes .lu-tilt a frame
+   at a time, and --gx, --gy and --lift with it for the glare and the shadow.
+   Every colour is the rung's metal (--lu-base, --lu-light, --lu-deep). */
 .lu-overlay{
   --lu-base:#cd7f32;--lu-light:#f3bd80;--lu-deep:#7a4a22;--lu-morph:620ms;--lu-flash:.4;--lu-shake:0;--gx:50%;--gy:40%;--lift:0;
-  position:absolute;inset:0;z-index:46;overflow:hidden;background:#0b0c0e;color:var(--c-text);font-family:var(--f-ui);
+  position:absolute;inset:0;z-index:46;overflow:hidden;background:none;color:var(--c-text);font-family:var(--f-ui);
   animation:lu-in .3s ease-out both
 }
 @keyframes lu-in{from{opacity:0}to{opacity:1}}
-.lu-3d{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%}
-/* The words are never read straight off the room: a darker pool under each, and the screen's edge darkened. */
-.lu-veil{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(130% 85% at 50% 45%,#0000 50%,#000b 100%)}
-/* A light of the rung's metal where the card hangs, brighter once it has turned. */
-.lu-bloom{position:absolute;left:50%;top:47%;z-index:1;width:calc(var(--u) * 700);height:calc(var(--u) * 560);transform:translate(-50%,-50%) scale(.8);
-  background:radial-gradient(closest-side,color-mix(in srgb,var(--lu-base) 34%,transparent),transparent);opacity:.65;pointer-events:none;
+/* While Level Up is up, the screen is the ground and the page: nothing else of the HUD. */
+.stage.levelup-on>*:not(canvas):not(.lu-overlay):not(.stage-underlay){visibility:hidden}
+/* The ground behind the card: blurred, darkened at the edges, the rung's light in the middle. */
+.lu-scrim{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(120% 85% at 50% 42%,#0b0c0e8c 0%,#0b0c0ed9 62%,#050506f5 100%);
+  -webkit-backdrop-filter:blur(12px) saturate(.85);backdrop-filter:blur(12px) saturate(.85);transition:opacity .7s ease-out}
+.lu-overlay.is-grounded:not(.is-word) .lu-scrim{opacity:0}
+/* The cinema's bars, while the shot plays. */
+.lu-bar{position:absolute;left:0;right:0;z-index:5;height:11%;background:#000;pointer-events:none;transform:scaleY(0);transition:transform .45s cubic-bezier(.6,0,.3,1)}
+.lu-bar.is-top{top:0;transform-origin:50% 0}
+.lu-bar.is-foot{bottom:0;transform-origin:50% 100%}
+.lu-overlay.is-grounded:not(.is-word) .lu-bar{transform:none;animation:lu-bars .5s cubic-bezier(.3,0,.2,1) both}
+@keyframes lu-bars{from{transform:scaleY(0)}to{transform:none}}
+.lu-overlay::after{content:'';position:absolute;inset:0;z-index:4;opacity:.18;pointer-events:none;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
+/* A light of the rung's metal where the card hangs, once it is there. */
+.lu-bloom{position:absolute;left:50%;top:42%;z-index:1;width:calc(var(--u) * 700);height:calc(var(--u) * 560);transform:translate(-50%,-50%) scale(.8);
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--lu-base) 30%,transparent),transparent);opacity:.6;pointer-events:none;
   transition:opacity 1s ease-out,transform 1.4s cubic-bezier(.2,1,.3,1)}
+.lu-overlay.is-grounded:not(.is-word) .lu-bloom{opacity:0}
 .lu-overlay.is-turned .lu-bloom{opacity:1;transform:translate(-50%,-50%)}
-.lu-overlay::after{content:'';position:absolute;inset:0;z-index:4;opacity:.22;pointer-events:none;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
 .lu-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .lu-fx.is-front{z-index:3}
 
 .lu-stage{
-  position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 24);
+  position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 14);
   padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 168 + env(safe-area-inset-bottom,0px));
   perspective:calc(var(--u) * 1100);perspective-origin:50% 45%
 }
 .lu-head,.lu-words{position:relative}
 .lu-head::before,.lu-words::before{content:'';position:absolute;inset:-35% -12%;z-index:-1;pointer-events:none;
   background:radial-gradient(closest-side,#0b0c0ee0,#0b0c0e99 55%,#0b0c0e00)}
+.lu-overlay.is-grounded:not(.is-word) .lu-head::before,.lu-overlay.is-grounded:not(.is-word) .lu-words::before{opacity:0}
 
 /* LEVEL UP: a letter at a time, each turning up off its back (anime.js). */
-.lu-head{display:grid;place-items:center;flex:none;width:100%;height:calc(var(--u) * 96);perspective:calc(var(--u) * 500)}
+.lu-head{display:grid;place-items:center;flex:none;width:100%;height:calc(var(--u) * 78);perspective:calc(var(--u) * 500)}
 .lu-word{margin:0;white-space:nowrap;text-align:center;
   font:400 calc(var(--u) * 70)/.95 var(--f-display);letter-spacing:.02em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .lu-letter{display:inline-block;opacity:0;transform-origin:50% 100%;

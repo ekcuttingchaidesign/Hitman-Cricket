@@ -8,7 +8,8 @@
  * First the way a player reaches it: two Blasts written ball by ball for a
  * named player, a hundred and eighty apiece — the first leaves the career a
  * DEBUTANT and puts nothing up, the second carries it over EMERGING PLAYER's
- * 350, and the store's answer puts Level Up over the card. Then each rung by
+ * 350, and the store's answer puts Level Up up, opening on the ground itself
+ * (the shot, `GameScene.salute`) with the innings card stood aside under it. Then each rung by
  * name (`__cricket.levelUp('star', 'marathon')`): the phases in order, the old
  * card turned into the new rung's, the figure counted on, the keys, a tap
  * skipping to them, Escape and GO TO SCORECARD back to the card under it.
@@ -88,7 +89,9 @@ let up = false;
 for (let i = 0; i < 40 && !up; i++) { up = (await overlay.count()) > 0; if (!up) await page.waitForTimeout(250); }
 check(up, 'a second, taking the career to 360, puts Level Up over the card');
 check(await overlay.getAttribute('data-tier') === 'emerging', 'for EMERGING PLAYER', await overlay.getAttribute('data-tier'));
-check(await page.locator('#end').isVisible(), 'with the innings card waiting under it');
+check(await page.locator('#end:not(.hidden)').count() === 1, 'with the innings card waiting under it');
+check(await overlay.evaluate(el => el.classList.contains('is-grounded')) && await page.evaluate(() => document.getElementById('viewport').classList.contains('levelup-on')),
+  'opening on the ground itself, the HUD stood aside');
 await page.waitForTimeout(500);
 await page.screenshot({ path: 'test-results/levelup/real-rush.png' });
 check(await reach('ready'), 'and it plays through to its keys');
@@ -105,6 +108,7 @@ await page.locator('#levelup-scorecard').click();
 await page.waitForTimeout(400);
 check(await overlay.count() === 0 && (await snap()).phase === 'INNINGS_END' && await page.locator('#end').isVisible(),
   'GO TO SCORECARD puts it away and leaves the innings card');
+check(!(await page.evaluate(() => document.getElementById('viewport').classList.contains('levelup-on'))), 'with the HUD back');
 
 // — Each rung, by name, as the preview puts it up.
 for (const [tier, mode] of [['emerging', 'classic'], ['star', 'classic'], ['hitman', 'classic'], ['star', 'marathon'], ['hitman', 'survive']]) {

@@ -8,28 +8,28 @@ import {
   levelUpBeats, levelUpFx, levelUpHaptics, levelUpMetal, levelUpWords,
   type LevelUpBeats, type LevelUpFx,
 } from '../game/levelup';
-import { LevelUpStage } from '../scene/LevelUpStage';
 
 /**
  * Level Up, drawn: the full screen an innings ends on when it carried a career
  * onto a new rung, over the innings card it then hands back to.
  *
- * One card in a deep room. Behind it, the innings card's chevrons cast in the
- * rung's metal rush up past the camera and then drift into fog
- * (`LevelUpStage`, three.js); LEVEL UP comes up letter by letter as they
- * pass. The card the player held flies in out of the depth and hangs there,
- * floating and leaning, the light sliding across it as it leans; a seam of
- * light climbs it in the same chevron, and where it has passed the card is
- * the new rung's, the figure counting on to where the innings left it. It
- * swings forward as it lands with a few streaks off it, the room surges, and
- * the rung's name and the two ways on follow: SHARE STATS CARD, and GO TO
- * SCORECARD, which is the innings card waiting underneath.
+ * It opens on the ground itself (`LevelUpGround`, the game's own scene): the
+ * page is clear but for the cinema's black bars, and the batter plays one
+ * last lofted drive and sends the ball up into the lights with the camera
+ * after it. Where the ball hangs, the page takes over: the bars go, a flare
+ * and rings where it was, LEVEL UP bursting out of that point a letter at a
+ * time, the ground blurred and darkened behind, and a line of light dropping
+ * from the word and swelling into the card the player held. A seam of light
+ * climbs it in the end card's chevron and turns it to the new rung, the figure
+ * counting on; it swings forward as it lands, and the rung's name and the two
+ * ways on follow: SHARE STATS CARD, and GO TO SCORECARD, the innings card
+ * waiting underneath.
  *
- * The choreography is anime.js (the entry, the swing, the letters, the
- * count); the hover is worked out a frame at a time so a finger or a tilt of
- * the phone can lean the card too. How much of everything there is goes by
- * the rung (`levelUpFx`). A tap before the keys are up skips to them; reduced
- * motion gets the turned card and the keys, still, with one buzz.
+ * The choreography is anime.js (the letters, the card, the count, the keys);
+ * the card's hover is worked a frame at a time so a finger or a tilt of the
+ * phone can lean it. How much of everything there is goes by the rung
+ * (`levelUpFx`). A tap before the keys are up skips to them; reduced motion
+ * gets the turned card and the keys, still, over the blurred ground.
  */
 export interface LevelUpView {
   /** The career as it stood before this innings, and as it stands now. */
@@ -39,6 +39,18 @@ export interface LevelUpView {
   who: { name: string; avatar: number } | null;
 }
 
+/** The ground under the page: the game's scene, playing the shot. */
+export interface LevelUpGround {
+  /** The shot, with the ball to come to rest at `rest` of the screen's height. How many ms until the bat meets it. */
+  start(rest: number): number;
+  /** Where the ball is now, in the page's pixels, or null once it is gone. */
+  ball(): { x: number; y: number } | null;
+  /** The ball at the top: it goes, in the page's flare, and the stands and the sky go up. */
+  burst(): void;
+  /** The camera home behind the batter, the ball put away. */
+  end(): void;
+}
+
 export interface LevelUpHandlers {
   /** SHARE STATS CARD: the new card, out as a picture. Says how it went in `status`. */
   share(status: HTMLElement): Promise<void> | void;
@@ -46,6 +58,8 @@ export interface LevelUpHandlers {
   scorecard(): void;
   /** The crowd, at the turn. */
   cheer?(size: 'mid' | 'big', at: number): void;
+  /** The ground to play the shot on, where there is one to see. */
+  ground?: LevelUpGround | null;
 }
 
 type Streak = { x: number; y: number; vx: number; vy: number; length: number; life: number };
@@ -59,9 +73,12 @@ const lettered = (word: string) => [...word].map(ch => ch === ' '
 export class LevelUp {
   readonly root: HTMLElement;
   private readonly front: HTMLCanvasElement;
-  private readonly stage: LevelUpStage | null = null;
   private readonly fx: LevelUpFx;
-  private readonly beats: LevelUpBeats;
+  private beats: LevelUpBeats;
+  /** Where the ball was last seen on the page, and where the word stands: in the front canvas's pixels. */
+  private ballAt: { x: number; y: number } | null = null;
+  private wordAt = { x: 0, y: 0, bottom: 0 };
+  private burstAt = 0;
   private readonly metal: { base: string; light: string; deep: string };
   private readonly reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly card: HTMLElement;
@@ -104,10 +121,13 @@ export class LevelUp {
     const set = (name: string, value: string | number) => this.root.style.setProperty(name, String(value));
     set('--lu-base', this.metal.base); set('--lu-light', this.metal.light); set('--lu-deep', this.metal.deep);
     set('--lu-morph', `${this.fx.morph}ms`); set('--lu-flash', this.fx.flash); set('--lu-shake', this.fx.shake);
+    const grounded = !!handlers.ground && !this.reducedMotion;
+    if (grounded) this.root.classList.add('is-grounded');
     const rings = Array.from({ length: this.fx.rings }, (_, i) => `<i class="lu-ring" style="--i:${i}" aria-hidden="true"></i>`).join('');
     this.root.innerHTML = `
-      <i class="lu-veil" aria-hidden="true"></i>
+      <i class="lu-scrim" aria-hidden="true"></i>
       <i class="lu-bloom" aria-hidden="true"></i>
+      <i class="lu-bar is-top" aria-hidden="true"></i><i class="lu-bar is-foot" aria-hidden="true"></i>
       <div class="lu-stage">
         <div class="lu-head">
           <h2 class="lu-word" aria-label="${escape(words.word)}">${lettered(words.word)}</h2>
@@ -139,11 +159,6 @@ export class LevelUp {
         ${cta({ kind: 'secondary', label: 'GO TO SCORECARD', id: 'levelup-scorecard', icon: 'chart' })}
         <p id="levelup-status" class="lu-status" role="status" aria-live="polite"></p>
       </div>`;
-    // The room, where WebGL will have one; a plain dark ground where it will not.
-    try {
-      this.stage = new LevelUpStage(this.fx, this.metal);
-      this.root.prepend(this.stage.canvas);
-    } catch { this.stage = null; }
     host.appendChild(this.root);
     this.card = this.root.querySelector('.lu-card')!;
     this.tilt = this.root.querySelector('.lu-tilt')!;
@@ -161,6 +176,12 @@ export class LevelUp {
     this.layout.observe(this.root);
     this.size();
     this.started = performance.now();
+    // The shot first: it says when the bat meets the ball, and everything after is timed from that.
+    if (grounded) {
+      const head = this.root.querySelector('.lu-head')!.getBoundingClientRect(), box = this.root.getBoundingClientRect();
+      const rest = box.height ? (head.top + head.height / 2 - box.top) / box.height : .24;
+      this.beats = levelUpBeats(this.fx, Math.max(120, handlers.ground!.start(rest)));
+    }
     if (this.reducedMotion) {
       this.finish(true);
       buzz(levelUpHaptics(this.fx, this.beats).at(-1)!.pattern);
@@ -183,7 +204,7 @@ export class LevelUp {
     window.removeEventListener('deviceorientation', this.orient);
     utils.remove([...this.root.querySelectorAll('*')]);
     stopBuzz();
-    this.stage?.dispose();
+    this.handlers.ground?.end();
     this.root.remove();
   }
 
@@ -192,8 +213,8 @@ export class LevelUp {
   /** The beats, each a class on the root the stylesheet answers and a move anime.js makes. */
   private play() {
     const { beats, fx } = this;
-    this.later(beats.word, () => { this.to('word'); this.letters('.lu-word .lu-letter', 1); });
-    this.later(beats.card, () => { this.to('card'); this.enter(); });
+    this.later(beats.word, () => this.burst());
+    this.later(beats.card, () => { this.to('card'); this.appear(); });
     this.later(beats.turn, () => { this.to('turn'); this.charge(); });
     this.later(beats.turned, () => this.turned());
     this.later(beats.named, () => { this.to('named'); this.letters('.lu-title .lu-letter', .7); });
@@ -213,30 +234,49 @@ export class LevelUp {
     for (const one of order.slice(1, order.indexOf(phase) + 1)) this.root.classList.add(`is-${one}`);
   }
 
-  /** Letters up one at a time from the middle out, each turning up off its back, then bobbing in a slow wave. */
-  private letters(selector: string, weight: number) {
+  /** The ball at the top: gone in a flare, LEVEL UP out of where it was, the ground blurred behind. */
+  private burst() {
+    this.to('word');
+    this.burstAt = performance.now();
+    this.measure();
+    this.handlers.ground?.burst();
+    this.letters('.lu-word .lu-letter', 1, true);
+  }
+
+  /**
+   * Letters out one at a time. Burst, they fly out of the middle of the word —
+   * where the ball hung — each to its place; otherwise they come up off their
+   * backs from the middle out. Either way they then bob in a slow wave.
+   */
+  private letters(selector: string, weight: number, burst = false) {
     const letters = [...this.root.querySelectorAll<HTMLElement>(selector)];
     if (!letters.length) return;
+    const middle = letters.reduce((sum, el) => sum + el.offsetLeft + el.offsetWidth / 2, 0) / letters.length;
+    const bob = () => {
+      if (this.closed) return;
+      animate(letters, { translateY: [0, -4 * weight], duration: 1300, delay: stagger(90), ease: 'inOutSine', alternate: true, loop: true });
+    };
+    if (burst) {
+      letters.forEach((el, i) => {
+        const from = middle - (el.offsetLeft + el.offsetWidth / 2);
+        animate(el, {
+          opacity: [0, 1], translateX: [from, 0], translateY: [0, 0], scale: [.2, 1], rotate: [from * -.12, 0],
+          duration: 700, delay: Math.abs(i - (letters.length - 1) / 2) * 34, ease: 'outBack(2.2)',
+          onComplete: () => { if (i === letters.length - 1) bob(); },
+        });
+      });
+      return;
+    }
     animate(letters, {
       opacity: [0, 1], translateY: [46 * weight, 0], rotateX: [-100, 0], scale: [.5, 1],
-      duration: 820, delay: stagger(42, { from: 'center' }), ease: 'outBack(1.9)',
-      onComplete: () => {
-        if (this.closed) return;
-        animate(letters, {
-          translateY: [0, -4 * weight], duration: 1300, delay: stagger(90), ease: 'inOutSine', alternate: true, loop: true,
-        });
-      },
+      duration: 820, delay: stagger(42, { from: 'center' }), ease: 'outBack(1.9)', onComplete: bob,
     });
   }
 
-  /** The card the player held, flying in out of the depth of the room and settling into its hover. */
-  private enter() {
+  /** The card the player held, standing where the line of light has swelled out to it. */
+  private appear() {
     animate(this.card, {
-      opacity: { from: 0, to: 1, duration: 300, ease: 'outQuad' },
-      translateZ: { from: -900, to: 0, duration: 1000, ease: 'outExpo' },
-      translateY: { from: 160, to: 0, duration: 1000, ease: 'outExpo' },
-      rotateX: { from: 62, to: 0, duration: 1500, ease: 'outElastic(1, .7)' },
-      rotateY: { from: -28, to: 0, duration: 1500, ease: 'outElastic(1, .7)' },
+      opacity: [0, 1], scale: [.96, 1], duration: 380, ease: 'outCubic',
       onComplete: () => { this.hoverAt = performance.now(); },
     });
   }
@@ -257,8 +297,7 @@ export class LevelUp {
       if (this.fx.shake) {
         animate(this.pop, { rotateZ: [-this.fx.shake * .35, this.fx.shake * .35, -this.fx.shake * .2, 0], duration: 520, ease: 'outQuad' });
       }
-      this.stage?.surge(performance.now());
-      this.burst();
+      this.streak();
       if (this.fx.cheer) this.handlers.cheer?.(this.fx.cheer, 0);
       if (this.fx.encore) this.handlers.cheer?.('big', .9);
     }
@@ -290,6 +329,8 @@ export class LevelUp {
     if (!this.turnedAt) this.turnedAt = performance.now();
     if (!this.hoverAt) this.hoverAt = performance.now();
     this.measure();
+    this.handlers.ground?.burst();
+    if (!this.burstAt) this.burstAt = performance.now() - 2000;
     this.to('named');
     this.ready();
   }
@@ -351,7 +392,6 @@ export class LevelUp {
 
   private scale = 1;
   private size() {
-    this.stage?.size(this.root.clientWidth, this.root.clientHeight);
     const dpr = Math.min(2, devicePixelRatio || 1);
     const w = Math.round(this.front.clientWidth * dpr), h = Math.round(this.front.clientHeight * dpr);
     if (w && h && (this.front.width !== w || this.front.height !== h)) { this.front.width = w; this.front.height = h; }
@@ -369,6 +409,8 @@ export class LevelUp {
       x: (parent.left - root.left + this.card.offsetLeft) * k, y: (parent.top - root.top + this.card.offsetTop) * k,
       w: this.card.offsetWidth * k, h: this.card.offsetHeight * k,
     };
+    const word = this.root.querySelector('.lu-word')!.getBoundingClientRect();
+    this.wordAt = { x: (word.left - root.left + word.width / 2) * k, y: (word.top - root.top + word.height / 2) * k, bottom: (word.bottom - root.top) * k };
   }
 
   private tick = () => {
@@ -377,8 +419,11 @@ export class LevelUp {
     // One clock for everything here, the one the beats were started on.
     const now = performance.now(), t = now - this.started;
     const dt = Math.min(50, now - (this.last || now)) / 1000; this.last = now;
+    void t;
     this.hover(now);
-    this.stage?.render(t, now, this.reducedMotion);
+    // The ball, followed on the page while it climbs, so the flare goes where it went.
+    const ball = this.handlers.ground?.ball();
+    if (ball) { const k = this.front.width / (this.root.clientWidth || 1); this.ballAt = { x: ball.x * k, y: ball.y * k }; }
     this.drawFront(dt, now);
   };
 
@@ -391,7 +436,7 @@ export class LevelUp {
     this.lean.x += (this.want.x - this.lean.x) * .08;
     this.lean.y += (this.want.y - this.lean.y) * .08;
     const on = this.reducedMotion ? 0 : this.hoverAt ? Math.min(1, (now - this.hoverAt) / 900) : 0;
-    const deg = this.fx.hover, u = this.root.clientWidth / 402, reach = this.reducedMotion ? 0 : 1;
+    const deg = 8, u = this.root.clientWidth / 402, reach = this.reducedMotion ? 0 : 1;
     const ry = on * Math.sin(now / 2300) * deg + reach * this.lean.x * deg * 1.3;
     const rx = on * Math.sin(now / 1700) * deg * .55 - reach * this.lean.y * deg;
     const y = on * Math.sin(now / 1100) * 7 * u;
@@ -399,11 +444,10 @@ export class LevelUp {
     this.root.style.setProperty('--gx', `${(50 + ry * 4).toFixed(1)}%`);
     this.root.style.setProperty('--gy', `${(40 - rx * 4).toFixed(1)}%`);
     this.root.style.setProperty('--lift', (u ? y / (7 * u) : 0).toFixed(3));
-    this.stage?.lean(ry / (deg * 2), rx / (deg * 2));
   }
 
   /** A few streaks off the card as it turns, from its edge outwards. */
-  private burst() {
+  private streak() {
     if (this.reducedMotion || this.streaks.length) return;
     this.measure();
     const { x, y, w, h } = this.box, s = this.scale, n = this.fx.streaks;
@@ -422,6 +466,7 @@ export class LevelUp {
     const g = this.front.getContext('2d'); if (!g) return;
     const W = this.front.width, H = this.front.height, s = this.scale, step = dt * 60;
     g.clearRect(0, 0, W, H);
+    if (this.burstAt) this.drawBurst(g, now - this.burstAt, s);
     // The streaks: quick, slowing, gone in half a second.
     if (this.streaks.length) {
       g.lineCap = 'round';
@@ -456,6 +501,49 @@ export class LevelUp {
         g.fill();
       }
       g.shadowBlur = 0;
+    }
+    g.globalAlpha = 1;
+  }
+
+  /**
+   * After the ball bursts, `age` ms on: a flare where it hung, rings going out
+   * from there, and the line of light dropping from the word and swelling out
+   * into the card's own shape until the card stands in it.
+   */
+  private drawBurst(g: CanvasRenderingContext2D, age: number, s: number) {
+    const from = this.ballAt ?? this.wordAt;
+    const ease = (p: number) => 1 - (1 - p) ** 3, clamp = (p: number) => Math.max(0, Math.min(1, p));
+    // The flare: a hard white star with the rung's light round it, gone in a breath.
+    const fq = clamp(age / 420);
+    if (fq < 1) {
+      const r = (34 + this.fx.rings * 8) * s * Math.sin(Math.PI * Math.min(1, fq * 1.4 + .15));
+      const glow = g.createRadialGradient(from.x, from.y, 0, from.x, from.y, r * 2.4);
+      glow.addColorStop(0, `${this.metal.light}cc`); glow.addColorStop(1, `${this.metal.light}00`);
+      g.globalAlpha = 1 - fq; g.fillStyle = glow; g.beginPath(); g.arc(from.x, from.y, r * 2.4, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#fff'; g.shadowColor = this.metal.light; g.shadowBlur = 14 * s;
+      g.beginPath();
+      g.moveTo(from.x, from.y - r); g.quadraticCurveTo(from.x, from.y, from.x + r, from.y); g.quadraticCurveTo(from.x, from.y, from.x, from.y + r);
+      g.quadraticCurveTo(from.x, from.y, from.x - r, from.y); g.quadraticCurveTo(from.x, from.y, from.x, from.y - r); g.fill();
+      g.shadowBlur = 0;
+    }
+    for (let k = 0; k < this.fx.rings; k++) {
+      const q = clamp((age - k * 110) / 620);
+      if (q <= 0 || q >= 1) continue;
+      g.globalAlpha = (1 - q) * .9; g.strokeStyle = k ? this.metal.light : '#fff'; g.lineWidth = (3 * (1 - q) + .5) * s;
+      g.beginPath(); g.arc(from.x, from.y, (20 + 170 * ease(q)) * s, 0, Math.PI * 2); g.stroke();
+    }
+    // The line, then the swell: from under the word down to the card's foot, then out to the card.
+    const swell = this.beats.card - this.beats.word, grow = clamp((age - 120) / 260), out = clamp((age - 380) / (swell - 380));
+    if (grow > 0 && out < 1) {
+      const b = this.box, top = this.wordAt.bottom + 6 * s, bottom = top + (b.y + b.h - top) * ease(grow);
+      const io = out < .5 ? 4 * out ** 3 : 1 - (-2 * out + 2) ** 3 / 2;
+      const lerp = (a: number, c: number) => a + (c - a) * io;
+      const x = lerp(this.wordAt.x - 1.5 * s, b.x), w = lerp(3 * s, b.w), y = lerp(top, b.y), h = lerp(bottom - top, b.h);
+      const fill = g.createLinearGradient(0, y, 0, y + h);
+      fill.addColorStop(0, '#ffffff'); fill.addColorStop(1, `${this.metal.light}66`);
+      g.globalAlpha = (1 - clamp((age - swell + 260) / 260)) * (.6 + .4 * (1 - io));
+      g.fillStyle = fill; g.shadowColor = this.metal.base; g.shadowBlur = 18 * s;
+      g.beginPath(); g.roundRect(x, y, w, h, (1.5 + 22.5 * io) * s); g.fill(); g.shadowBlur = 0;
     }
     g.globalAlpha = 1;
   }
