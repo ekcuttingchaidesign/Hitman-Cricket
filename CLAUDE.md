@@ -467,6 +467,30 @@ the switches do nothing. A new switch goes into `PRACTICE_SWITCHES` or into
 the named exceptions in `tests/practice.test.ts`, which fails on any
 parameter the game reads that is in neither.
 
+## A newcomer's first innings
+
+The first three finished innings in each mode are batted a little easier
+(`src/game/newcomer.ts`): the OK window is widened into POOR and the block's
+clean band into the edged one, by `EASE` — 1.35, 1.2, 1.1 — and then not at
+all. PERFECT and GOOD are never moved, because they are where the sixes and
+fours come from: the help turns a skied catch into a single and a beaten block
+into a dead bat, so it keeps a newcomer in without handing anybody a boundary,
+and a good player who clears their browser for an easy innings gains next to
+nothing. They are bowled no yorker — none owed for sixes, and the express
+bowler's is a full, fast ball in its place — and every other ball as before:
+the pace stays. Nothing on screen says so, and the innings count on the boards
+and the career as any other.
+
+A mode is new on its own. The count is this browser's (`hitman-newcomer`),
+added to in `end` beside the career's count — only a finished innings, so a
+restart does not keep the help going — or the career's where that is further
+on, as it is for a player brought back by a key. A browser that had batted
+here before the help shipped is written down as past it on its first load
+(`seedPlayed`). None in a Rival Match, in practice, or under `?debug=1`, whose
+checks time their strokes to the real windows; `?newcomer=1` beside it lets
+the help back in by the browser's own count. `scripts/newcomer-check.mjs`
+walks when it moves on. GoatCounter counts `newcomer-1` to `-3` a mode.
+
 ## `?moments=1`
 
 A row of keys along the foot of the picture, one a milestone — 50, 100, six

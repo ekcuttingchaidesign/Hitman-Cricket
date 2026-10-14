@@ -54,6 +54,7 @@ describe('every switch the game reads', () => {
     pullpen: 'the colour of the pull\'s flash',
     perf: 'the frame-rate readout, measuring and sending nothing',
     profile: 'asks who is batting under ?debug=1, for the check that walks it; the batting is unchanged',
+    newcomer: 'lets a newcomer\'s help back in under ?debug=1, by the browser\'s own count: it gives nobody help they are not owed',
     welcome: 'the welcome in each way it can go, on demand, sending and keeping nothing',
     dressing: 'the Dressing Room and its unlocks over a made-up record, earning, wearing and keeping nothing',
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',

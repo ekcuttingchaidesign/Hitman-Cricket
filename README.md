@@ -43,6 +43,10 @@ A pointer that is not coarse gets the card over the live ground instead, where t
 
 The start screen offers a three-ball tutorial. Each ball is slow, dead straight, and scripted to teach one gesture: a middle-stump ball to drive straight (swipe up), one on the legs to whip away square (swipe right to left), and one wide outside off to cut square behind point (swipe left to right). An arrow on the field sweeps the way you must swipe. Nobody gets out, nothing counts towards a score, and **Skip to innings** leaves at any point.
 
+## A newcomer's first innings
+
+The first three innings a player finishes in each mode are a little kinder, and less so each time: the OK window reaches further into what would have been a mistimed, skied stroke, and the block takes a shade more of the ball. Perfect and good timing are left exactly as they are — they are where the fours and sixes come from — so the help keeps a new player in rather than scoring for them. No yorkers are bowled to them either; the pace is the same. Nothing on screen says so, and the innings count as any other. A player who brings a career back with a key is past it already.
+
 ## The square cut
 
 The off side's scoring stroke, played off the back foot and square of the wicket: **swipe right**, or press <kbd>D</kbd>. He rocks back and across, frees his arms at the ball, strikes it square with a horizontal bat, and the arc keeps going — the wrists roll, the body unwinds on the back foot, and the blade wraps up over the front shoulder. It replaces the off-side punch that used to sit on this input; the cover drive on <kbd>W</kbd>+<kbd>D</kbd> is untouched.
