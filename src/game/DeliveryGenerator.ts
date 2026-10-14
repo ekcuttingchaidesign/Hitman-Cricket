@@ -7,6 +7,8 @@ import {
 } from '../config/marathon';
 import { SeededRandom } from './SeededRandom';
 import type { BallLine, Delivery, DeliveryStyle, ShotOutcome } from './types';
+/** The express bowler's over, with how many yorkers it holds left open: a newcomer is bowled none. */
+type ExpressOver = Omit<typeof EXPRESS_OVER, 'yorkers'> & { yorkers: number };
 /** What a mode's bowling is made of: the table to roll on and the two counters. */
 export interface BowlingPlan {
   styles: typeof STYLES;
@@ -52,7 +54,7 @@ export interface BlockPlan {
   levelOf(block: number): Level;
   /** The level one over is bowled at, where it is not simply its block's. */
   levelAt?(over: number): Level;
-  express: typeof EXPRESS_OVER;
+  express: ExpressOver;
   /**
    * Which overs are bowled round the wicket: none before `from`, and each one
    * after it with this chance. Absent, every over is bowled over the wicket.
@@ -234,6 +236,20 @@ export const MARATHON_PLAN: BowlingPlan = {
   short: { ...BOUNCERS, deathOvers: 0, ofOvers: MARATHON_OVERS, ballsPerOver: MARATHON.ballsPerOver },
   blocks: { size: BLOCK_OVERS, ofOvers: MARATHON_OVERS, levelOf, levelAt: marathonLevelAt, express: EXPRESS_OVER, round: ROUND },
 };
+
+/**
+ * Any mode's bowling with no yorker in it, for a newcomer's first innings (see
+ * `newcomer.ts`): none owed for a run of sixes, and the express bowler's is a
+ * full, fast ball in its place, so his over is every bit as quick. Nothing
+ * else changes — the pace, the bouncers, the swing and the spinner stay.
+ */
+export function withoutYorkers(plan: BowlingPlan): BowlingPlan {
+  return {
+    ...plan,
+    specials: { ...plan.specials, sixesForYorker: Infinity },
+    blocks: plan.blocks && { ...plan.blocks, express: { ...plan.blocks.express, yorkers: 0 } },
+  };
+}
 
 /**
  * The Marathon with every over bowled round the wicket, from the first, for
@@ -442,7 +458,7 @@ export class DeliveryGenerator {
    * one over in three, the yorker, one over in two the slower ball, and the
    * rest full and quick.
    */
-  private placeExpress(express: typeof EXPRESS_OVER, ballsPerOver: number): Map<number, DeliveryStyle> {
+  private placeExpress(express: ExpressOver, ballsPerOver: number): Map<number, DeliveryStyle> {
     const positions = [];
     for (let ball = 0; ball < ballsPerOver; ball++) positions.push(ball);
     const order = this.rng.shuffle(positions);
