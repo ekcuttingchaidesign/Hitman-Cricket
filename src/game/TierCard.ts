@@ -86,20 +86,53 @@ const MATERIALS: Record<string, Material> = {
 };
 
 /**
+ * The Test Marathon's EMERGING PLAYER is the red of a Dukes ball, lit from
+ * the top left, with bronze trim and the end card's chevrons faint across it.
+ * The page draws the same (`.st-card.is-marathon.tier-emerging`).
+ */
+const MARATHON_EMERGING: Material = {
+  stops: [[0, '#7a1420'], [0.52, '#4a0a13'], [1, '#22040a']], angle: 155, edge: '#d9a877',
+  ink: '#fbf1e6', quiet: '#e0b4a4', pill: ['#f0c79e', '#b9784a', '#e8b98c'], pillInk: '#2a1608', ring: '#d9a87780', sheen: SHEEN,
+};
+
+/**
  * The Test Marathon's card is its green, crimson rising from the foot — but
- * its STAR is the Star card itself, black and silver, as the page draws it.
+ * its EMERGING PLAYER is red leather, and its STAR the Star card itself,
+ * black and silver, as the page draws them.
  */
 function marathonOf(base: Material, tier: string): Material {
   if (tier === 'star') return base;
+  if (tier === 'emerging') return MARATHON_EMERGING;
   return {
     ...base,
     stops: [[0, '#0b3a24'], [0.55, '#052015'], [1, '#021009']], angle: 160,
-    edge: tier === 'emerging' ? '#d9a877' : tier === 'hitman' ? '#f3d27a' : '#3f7d5a',
+    edge: tier === 'hitman' ? '#f3d27a' : '#3f7d5a',
     ink: '#f5efe6', quiet: '#b5c7bc', ring: '#ffffff40',
-    pill: tier === 'emerging' ? '#2a1608d9' : tier === 'hitman' ? base.pill : '#ffffff1f',
-    pillInk: tier === 'emerging' ? '#f0c79e' : tier === 'hitman' ? base.pillInk : '#e7f0ea',
+    pill: tier === 'hitman' ? base.pill : '#ffffff1f',
+    pillInk: tier === 'hitman' ? base.pillInk : '#e7f0ea',
     metal: tier === 'hitman' ? base.metal : undefined,
   };
+}
+
+/**
+ * The end card's chevrons as a faint field across a card, strongest at the
+ * top left and gone by the foot — as the page's `.st-card-grain` is masked.
+ */
+function chevrons(w: number, h: number): HTMLCanvasElement {
+  const scale = 3, out = document.createElement('canvas');
+  out.width = w * scale; out.height = h * scale;
+  const c = out.getContext('2d')!;
+  c.scale(scale, scale);
+  c.strokeStyle = '#ffffff0f'; c.lineWidth = 2.2;
+  c.beginPath();
+  for (let y = 0; y < h + 14; y += 14) {
+    for (let x = 0; x < w + 22; x += 22) { c.moveTo(x + 3, y + 11); c.lineTo(x + 11, y + 4); c.lineTo(x + 19, y + 11); }
+  }
+  c.stroke();
+  c.globalCompositeOperation = 'destination-in';
+  c.fillStyle = angled(c, w, h, 160, [[0.1, '#000'], [0.85, '#0000']]);
+  c.fillRect(0, 0, w, h);
+  return out;
 }
 
 /** A CSS-style angled gradient across a box. */
@@ -157,7 +190,13 @@ export async function paintTierCard(
   ctx.save();
   rounded(ctx, 0, 0, W, H, R); ctx.clip();
   ctx.fillStyle = angled(ctx, W, H, m.angle, m.stops); ctx.fillRect(0, 0, W, H);
-  if (facts.mode === 'marathon' && tier !== 'star') {
+  if (m === MARATHON_EMERGING) {
+    // Lit from the top left, and the chevrons fading out before the figure.
+    const lit = ctx.createRadialGradient(W * 0.18, -H * 0.05, 0, W * 0.18, -H * 0.05, W * 0.62);
+    lit.addColorStop(0, '#ff8a7a2e'); lit.addColorStop(1, '#ff8a7a00');
+    ctx.fillStyle = lit; ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(chevrons(W, H), 0, 0, W, H);
+  } else if (facts.mode === 'marathon' && tier !== 'star') {
     const red = ctx.createRadialGradient(W * 0.85, H * 1.15, 0, W * 0.85, H * 1.15, W * 0.75);
     red.addColorStop(0, '#c8102e5c'); red.addColorStop(0.62, '#c8102e00');
     ctx.fillStyle = red; ctx.fillRect(0, 0, W, H);

@@ -7821,7 +7821,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card.is-marathon{--metal:radial-gradient(120% 75% at 85% 115%,#c8102e5c,#c8102e00 62%),linear-gradient(160deg,#0b3a24 0%,#052015 55%,#021009 100%);
   --edge:#3f7d5a;--ink:var(--c-text);--quiet:#b5c7bc;--pill:#ffffff1f;--pill-ink:#e7f0ea;--figure:var(--c-text)}
 .st-card.is-marathon .st-card-grain{background:none}
-.st-card.is-marathon.tier-emerging{--pill:#2a1608d9;--pill-ink:#f0c79e;--edge:#d9a877}
+/* Its EMERGING PLAYER is the red of a Dukes ball, lit from the top left, with
+   bronze trim and the end card's chevrons faint across it, gone by the foot. */
+.st-card.is-marathon.tier-emerging{--metal:radial-gradient(90% 70% at 18% -5%,#ff8a7a2e,#ff8a7a00 60%),linear-gradient(155deg,#7a1420 0%,#4a0a13 52%,#22040a 100%);
+  --edge:#d9a877;--ink:#fbf1e6;--quiet:#e0b4a4;--pill:linear-gradient(90deg,#f0c79e,#b9784a 50%,#e8b98c);--pill-ink:#2a1608;--figure:#fbf1e6}
+.st-card.is-marathon.tier-emerging .st-card-grain{
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='14'%3E%3Cpath d='M3 11 L11 4 L19 11' fill='none' stroke='%23fff' stroke-opacity='.06' stroke-width='2.2'/%3E%3C/svg%3E") 0 0/calc(var(--u) * 22) calc(var(--u) * 14);
+  -webkit-mask:linear-gradient(160deg,#000 10%,#0000 85%);mask:linear-gradient(160deg,#000 10%,#0000 85%)}
+.st-card.is-marathon.tier-emerging .st-card-who .board-kit{box-shadow:0 0 0 2px #d9a87780}
 .st-card.is-marathon.tier-hitman{--edge:var(--c-gold);--pill:var(--c-gold);--pill-ink:#1a1206;--figure:var(--c-gold)}
 .st-card.is-marathon .st-card-who .board-kit{box-shadow:0 0 0 2px #ffffff40}
 

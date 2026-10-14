@@ -654,8 +654,9 @@ My Stats is redrawn (phase 6, the handover's section 07): `src/ui/StatsSheet.ts`
 draws the career card in the page, in the material of the tier (matte navy,
 brushed bronze, black with a chrome edge, black and gold foil; the
 Marathon's in its green with crimson rising, gold on it at HITMAN, but its
-STAR the Star card's black and silver, as TierCard's `marathonOf` paints it),
-then Road to Hitman, six figures a mode with Best rank
+EMERGING PLAYER the red of a Dukes ball with bronze trim and faint chevrons,
+and its STAR the Star card's black and silver, as TierCard's `marathonOf`
+paints it), then Road to Hitman, six figures a mode with Best rank
 (`bestRank` in `src/Game.ts`: the innings board's place and every career
 ladder's, the best of them), and the key as a ticket stub. A switch at the
 head moves between the modes; the cards are still a rail, one a mode, so a
