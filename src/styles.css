@@ -7821,8 +7821,14 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card.is-marathon{--metal:radial-gradient(120% 75% at 85% 115%,#c8102e5c,#c8102e00 62%),linear-gradient(160deg,#0b3a24 0%,#052015 55%,#021009 100%);
   --edge:#3f7d5a;--ink:var(--c-text);--quiet:#b5c7bc;--pill:#ffffff1f;--pill-ink:#e7f0ea;--figure:var(--c-text)}
 .st-card.is-marathon .st-card-grain{background:none}
-.st-card.is-marathon.tier-emerging{--pill:#2a1608d9;--pill-ink:#f0c79e;--edge:#d9a877}
-.st-card.is-marathon.tier-star{--edge:#c9d1d9}
+/* Its EMERGING PLAYER is the red of a Dukes ball, lit from the top left, with
+   bronze trim and the end card's chevrons faint across it, gone by the foot. */
+.st-card.is-marathon.tier-emerging{--metal:radial-gradient(90% 70% at 18% -5%,#ff8a7a2e,#ff8a7a00 60%),linear-gradient(155deg,#7a1420 0%,#4a0a13 52%,#22040a 100%);
+  --edge:#d9a877;--ink:#fbf1e6;--quiet:#e0b4a4;--pill:linear-gradient(90deg,#f0c79e,#b9784a 50%,#e8b98c);--pill-ink:#2a1608;--figure:#fbf1e6}
+.st-card.is-marathon.tier-emerging .st-card-grain{
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='14'%3E%3Cpath d='M3 11 L11 4 L19 11' fill='none' stroke='%23fff' stroke-opacity='.06' stroke-width='2.2'/%3E%3C/svg%3E") 0 0/calc(var(--u) * 22) calc(var(--u) * 14);
+  -webkit-mask:linear-gradient(160deg,#000 10%,#0000 85%);mask:linear-gradient(160deg,#000 10%,#0000 85%)}
+.st-card.is-marathon.tier-emerging .st-card-who .board-kit{box-shadow:0 0 0 2px #d9a87780}
 .st-card.is-marathon.tier-hitman{--edge:var(--c-gold);--pill:var(--c-gold);--pill-ink:#1a1206;--figure:var(--c-gold)}
 .st-card.is-marathon .st-card-who .board-kit{box-shadow:0 0 0 2px #ffffff40}
 
@@ -7908,6 +7914,12 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .st-card.tier-hitman .st-card-track{background:#f3d27a26}
 .st-card.tier-hitman .st-card-track i{background:#f3d27a}
 .st-card.tier-hitman .st-card-who .board-kit{box-shadow:0 0 0 2px #f3d27a}
+/* The Test Marathon's HITMAN keeps the Marathon's green, crimson at the foot,
+   with all of the Hitman card's gold on it: the edge and rim, the badge, the
+   name and figure, the batsman. After the Hitman card's rules, which would
+   otherwise put it on their black. */
+.st-card.is-marathon.tier-hitman{--metal:radial-gradient(120% 75% at 85% 115%,#c8102e5c,#c8102e00 62%),linear-gradient(160deg,#0b3a24 0%,#052015 55%,#021009 100%);
+  --quiet:#c9b47c;--pill:linear-gradient(90deg,#fff0b8,#c99a35 45%,#f7d774);--pill-ink:#1a1204}
 
 /* ── Rivals (UI v1, the handover's section 08) ───────────────────────────────
    Every Rivals screen stands on BG / Rivals: your blue bloom top left, their
@@ -8373,3 +8385,82 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .dressing-preview .welcome-preview-key{white-space:normal;line-height:1.1;padding:0 2px}
 .has-dressing-keys .dr-screen{padding-top:calc(var(--dr-top) + 44px)}
 .has-dressing-keys .ul-scanning{top:calc(var(--u) * 120 + 44px)}
+
+/* ── Level Up (src/ui/LevelUp.ts) ─────────────────────────────────────────────
+   Each rung opens its own way (Road to Hitman, the six, the chevron rush) and
+   all three end on the card flipping over. Every pose is set inline from one
+   clock, a frame at a time: the letters, .lu-card (where it is), .lu-flip
+   (which way it faces), .lu-tilt (the hover), the road, .lu-medal, the keys,
+   and --sheen, --flash, --bloom, --gx and --gy. The canvas over it draws the
+   chevrons, the ball, the rings and the confetti. The rung's metal is
+   --lu-base, --lu-light and --lu-deep. */
+.lu-overlay{
+  --lu-base:#cd7f32;--lu-light:#f3bd80;--lu-deep:#7a4a22;--lu-shake:0;--sheen:-130%;--flash:0;--bloom:.35;--gx:50%;--gy:40%;--glow:0;
+  position:absolute;inset:0;z-index:46;overflow:hidden;color:var(--c-text);font-family:var(--f-ui);
+  background:radial-gradient(120% 75% at 50% 42%,#191c21 0%,#0d0e11 58%,#060607 100%);
+  animation:lu-in .25s ease-out both
+}
+@keyframes lu-in{from{opacity:0}to{opacity:1}}
+.lu-overlay::after{content:'';position:absolute;inset:0;z-index:8;opacity:.16;pointer-events:none;background:url('./assets/entry/grain.webp') 0 0/50px 50px}
+.lu-bloom{position:absolute;left:50%;top:44%;z-index:0;width:calc(var(--u) * 680);height:calc(var(--u) * 560);transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--lu-base) 30%,transparent),transparent);opacity:var(--bloom);pointer-events:none}
+.lu-shaker{position:absolute;inset:0;z-index:1;transform-origin:50% 42%}
+.lu-stage{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u) * 14);
+  padding:var(--top-gap) calc(var(--u) * 20) calc(var(--u) * 168 + env(safe-area-inset-bottom,0px))
+}
+/* LEVEL UP, a letter at a time. */
+.lu-head{display:grid;place-items:center;flex:none;width:100%;height:calc(var(--u) * 78)}
+.lu-word{margin:0;white-space:nowrap;text-align:center;
+  font:400 calc(var(--u) * 70)/.95 var(--f-display);letter-spacing:.02em;font-optical-sizing:none;font-variation-settings:'opsz' 6}
+.lu-letter{display:inline-block;opacity:0;transform-origin:50% 90%;
+  background:linear-gradient(180deg,#fff 0%,var(--lu-light) 40%,var(--lu-base) 72%,var(--lu-deep) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 calc(var(--u) * 5) 0 #000c) drop-shadow(0 0 calc(var(--u) * 14) color-mix(in srgb,var(--lu-base) 40%,#0000))}
+.lu-gap{display:inline-block;width:.28em}
+/* The card's slot: the card, and the Road to Hitman over the place it will stand. */
+.lu-slot{position:relative;flex:none;width:100%;height:calc(var(--u) * 214);perspective:calc(var(--u) * 1000)}
+.lu-card{position:absolute;inset:0;opacity:0;transform-style:preserve-3d}
+.lu-tilt,.lu-flip{position:absolute;inset:0;transform-style:preserve-3d}
+.lu-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.lu-face.is-new{transform:rotateY(180deg)}
+.lu-face .st-card{height:100%;box-sizing:border-box}
+.lu-face .st-edit{display:none}
+.lu-face.is-new .st-card::after{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:linear-gradient(105deg,#fff0 36%,#ffffff4d 48%,#ffffff17 54%,#fff0 64%);transform:translateX(var(--sheen))}
+.lu-overlay.tier-hitman .lu-face.is-new .st-card::after{background:linear-gradient(105deg,#fff0 34%,#ffe08a66 44%,#ff9cd033 50%,#8fe3ff33 56%,#fff0 66%)}
+.lu-glare{position:absolute;inset:0;z-index:6;border-radius:24px;pointer-events:none;mix-blend-mode:soft-light;opacity:.7;
+  background:radial-gradient(70% 90% at var(--gx) var(--gy),#ffffffb3,#fff0 60%)}
+.lu-flash{position:absolute;inset:-30% -8%;z-index:7;border-radius:50%;pointer-events:none;opacity:var(--flash);
+  background:radial-gradient(closest-side,#fff,color-mix(in srgb,var(--lu-light) 50%,#fff0) 55%,#fff0)}
+.lu-road{position:absolute;left:0;right:0;top:calc(var(--u) * 14);opacity:0;pointer-events:none}
+.lu-road .k-road-you{transition:none}
+.lu-road .k-badge{transform-origin:50% 50%}
+/* The medallion that flies off the road: the size it is on the road, scaled from there. */
+.lu-medal{position:absolute;left:0;top:0;z-index:5;width:calc(var(--u) * 46);height:calc(var(--u) * 52);margin:calc(var(--u) * -26) 0 0 calc(var(--u) * -23);opacity:0;pointer-events:none}
+.lu-medal img{position:relative;width:100%;height:100%;display:block;filter:drop-shadow(0 calc(var(--u) * 4) calc(var(--u) * 6) #000a)}
+.lu-medal i{position:absolute;inset:-60%;border-radius:50%;background:radial-gradient(closest-side,var(--lu-light),transparent 70%);opacity:var(--glow)}
+.lu-fx{position:absolute;inset:0;z-index:6;width:100%;height:100%;pointer-events:none}
+/* The rung's name and the line under it. */
+.lu-words{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 4);flex:none;text-align:center;opacity:0}
+.lu-words>*{margin:0}
+.lu-kicker{font:700 calc(var(--u) * 11)/1.3 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:var(--c-text-2)}
+.lu-title{padding:0 calc(var(--u) * 6);white-space:nowrap;font:400 calc(var(--u) * 50)/1.02 var(--f-display);letter-spacing:.03em;font-optical-sizing:none;font-variation-settings:'opsz' 6;
+  background:linear-gradient(180deg,#fff 0%,var(--lu-light) 40%,var(--lu-base) 72%,var(--lu-deep) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 calc(var(--u) * 4) 0 #000b)}
+.lu-title.is-long{font-size:calc(var(--u) * 36)}
+.lu-line{font:500 calc(var(--u) * 15)/1.35 var(--f-ui);color:var(--c-text)}
+/* The two ways on. */
+.lu-keys{position:absolute;left:calc(var(--u) * 20);right:calc(var(--u) * 20);bottom:max(calc(var(--u) * 26),env(safe-area-inset-bottom,0px));z-index:7;
+  display:flex;flex-direction:column;gap:calc(var(--u) * 12);opacity:0;pointer-events:none}
+.lu-overlay.is-ready .lu-keys{pointer-events:auto}
+.lu-keys .k-cta{width:100%}
+.lu-status{min-height:1.3em;margin:0;text-align:center;font:500 calc(var(--u) * 12)/1.3 var(--f-ui);color:var(--c-text-2)}
+.lu-status:empty{display:none}
+/* A short phone keeps the card and the keys, and gives up the ladder's line. */
+@container app (max-height:700px){
+  .lu-head{height:calc(var(--u) * 64)}
+  .lu-word{font-size:calc(var(--u) * 58)}
+  .lu-line{display:none}
+  .lu-stage{gap:calc(var(--u) * 10)}
+}
