@@ -500,6 +500,24 @@ included. `?coverv=1`, `2` or `3` asks for one, and is practice. `cover-drive.ht
 version on their own, built into one page by
 `scripts/cover-drive-artifact.mjs`.
 
+## The on drive
+
+The on drive (`STROKES.LONG_ON`) is the straight drive played to long-on:
+every key is the straight drive's turned 24 degrees about his back foot, so the
+front foot strides down the line of a ball on leg stump towards mid-on, the bat
+comes down straight with its face closed to mid-on, the arms go out along the
+line, and the hands finish high with the blade up the ground. Turned as one,
+the arms keep the straight drive's relations to the trunk, which is what the
+shared arm checks hold. It meets the ball beside the front pad, 16cm further
+down the pitch than the straight drive (`ON_DRIVE_MEETS_AT`, lofted or along
+the ground, judged the same as the swipe always was), and goes home back down
+its own swing as the rebuilt cover drive does (`rebuiltDrive`), without its
+carry, so the bat never turns in his hands. It used to whip the bat across his
+front and over the leg-side shoulder, a flick's finish, turning the blade more
+than once round in his hands; nothing tested it, because it was the one drive
+missing from the batter tests' list of strokes (`'on'` in `PLAYS` now).
+`cover-drive.html` has it beside the cover strokes.
+
 ## A newcomer's first innings
 
 The first three finished innings in each mode are batted a little easier

@@ -1,7 +1,7 @@
 // Offline rig contact sheet: every stroke sampled across its own clock from a
 // chosen camera, tiled into one canvas for frame-by-frame review. Dev tool.
 import * as THREE from 'three';
-import { Batter, CHARGE_MEETS_AT, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, CHARGE_MEETS_AT, ON_DRIVE_MEETS_AT, STROKE_DURATION_MS } from './entities/Batter';
 import { GAME } from './config/gameplay';
 
 const params = new URLSearchParams(location.search);
@@ -62,7 +62,7 @@ for (let i = 0; i < frames; i++) {
   const age = shot.endsWith('CHARGE') || shot.endsWith('SCOOP') ? i / (frames - 1) * total
     : i / (frames - 1) <= .75 ? (i / (frames - 1)) / .75 * 620 : 620 + ((i / (frames - 1)) - .75) / .25 * (total - 620);
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ + (shot.endsWith('CHARGE') ? CHARGE_MEETS_AT : 0), shot.endsWith('CHARGE'), spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false);
+  batter.swing(spec.shot, 0, spec.x, spec.y, GAME.contactZ + (shot.endsWith('CHARGE') ? CHARGE_MEETS_AT : spec.shot === 'LONG_ON' ? ON_DRIVE_MEETS_AT : 0), shot.endsWith('CHARGE'), spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false);
   batter.update(age);
   batter.drape(); renderer.render(scene, camera);
   const col = i % COLS, row = Math.floor(i / COLS);

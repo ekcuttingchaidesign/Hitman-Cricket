@@ -59,10 +59,10 @@ it('tucks the seat by where the thigh points: whole in the guard, away in a driv
     for (let t = 410; t <= 600; t += 40) { batter.update(t); expect(tucked()[0]).toBeGreaterThan(.95); }
   }
   // Strokes whose front thigh hardly lifts take no more than half of it away
-  // (the on drive a third, at 240 ms), where every one of them used to lose
-  // the lot.
-  for (const shot of ['LONG_ON', 'LEG'] as const) {
-    batter.reset(); batter.update(0); batter.swing(shot, 0, 0, .54, GAME.contactZ);
+  // (the flick a third, at 240 ms), where every one of them used to lose the
+  // lot.
+  for (const [shot, x, y] of [['LEG', 0, .54], ['SQUARE_CUT', .4, .92]] as const) {
+    batter.reset(); batter.update(0); batter.swing(shot, 0, x, y, GAME.contactZ);
     for (let t = 0; t <= STROKE_DURATION_MS; t += 20) { batter.update(t); expect(Math.max(...tucked())).toBeLessThan(.5); }
   }
   // And home again in his guard, whole.
