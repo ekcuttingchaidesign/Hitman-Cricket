@@ -215,6 +215,13 @@ const STROKE_FINISH_MS = 410;
  * it so.
  */
 const COVER_PLANT = { at: 55, bat: .55, hips: .85, chest: .45, hold: 600 } as const;
+/**
+ * The face the charge over cover brings the bat down with: the cover drive's
+ * contact as it stood before the drive was rebuilt from the recording. The
+ * charge was drawn against it, and rebuilding the drive is not to move the
+ * charge's bat.
+ */
+const COVER_CHARGE_FACE: Pose = { ...GUARD, batUp: [.34, .93, -.14], batFace: [.42, .10, .90] };
 /** When the cover drive's way home passes back through its own keys. */
 const COVER_HOME = { carry: 670, through: 740, under: 828 } as const;
 /** How close the grip may come to the middle of the helmet: its radius, a forearm's, and a little air. */
@@ -2735,7 +2742,7 @@ export class Batter {
     if (!this.felled) {
       const up=UP.clone().applyQuaternion(this.bat.quaternion);
       const impact=this.charging?CHARGE_CONTACT_MS:this.squaring?SQUARE_DRIVE_CONTACT_MS:this.shot==='SCOOP'?SCOOP_CONTACT_MS:this.shot==='REVERSE_SCOOP'?REVERSE_CONTACT_MS:STROKE_CONTACT_MS;
-      const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?STROKES.COVER_LONG_OFF.contact
+      const reference=this.squaring?SQUARE_DRIVE.contact:this.charging&&this.shot==='COVER_LONG_OFF'?COVER_CHARGE_FACE:this.shot==='COVER_LONG_OFF'?STROKES.COVER_LONG_OFF.contact
         :this.charging&&this.shot==='LONG_ON'?ON_CHARGE_CONTACT:this.shot==='LONG_ON'?STROKES.LONG_ON.contact:STROKES.STRAIGHT.contact;
       const referenceQ=batOrientation(STROKES.STRAIGHT.contact).clone().slerp(batOrientation(reference),idle?0:ease(THREE.MathUtils.clamp(this.poseAge/impact,0,1)));
       const referenceUp=UP.clone().applyQuaternion(referenceQ);
