@@ -287,9 +287,11 @@ const COVER_HOME = { carry: 670, through: 740, under: 828 } as const;
  * cover drive's clock it was given fifty milliseconds for, and the elbows
  * flipped doing it.
  */
-const ON_LOFT_CLOCK = { wrapped: 440, hold: 580, carry: 700, through: 770, under: 866 };
-/** How long the six's wrap is held: until then the bat does not turn in his hands at all. */
+const ON_LOFT_CLOCK = { rolls: 200, wrapped: 440, hold: 580, carry: 700, through: 770, under: 866 };
+/** When the six's wrap is let go: until then nothing turns the bat in his hands but the roll through the carry. */
 export const ON_LOFT_HOLD = ON_LOFT_CLOCK.hold;
+/** When the six's bottom hand rolls over the top one: through the carry, from the extension to the wrap. */
+export const ON_LOFT_ROLL = [ON_LOFT_CLOCK.rolls, ON_LOFT_CLOCK.wrapped] as const;
 /** How close the grip may come to the middle of the helmet: its radius, a forearm's, and a little air. */
 const HANDS_CLEAR = .36;
 /** The middle of the helmet's dome, from the head's own origin. */
@@ -1007,7 +1009,9 @@ const STRAIGHT_LOFT: Stroke = {
  * just above the front shoulder with the bat lying back over the top of it
  * and behind his head, the chest open to long-on and the back foot up on its
  * toe, watching it go. The arms do it, not the wrists: from the ball on the
- * face rides the handle and does not turn in his hands (`riding`). Timed
+ * face rides the handle (`riding`), and the one turn in his hands is the
+ * bottom hand rolling over the top one through the carry, so that the curved
+ * back of the blade, not its face, lies against the shoulder. Timed
  * anything less than perfectly it is the on drive along the ground that gets
  * played, which is also the ball that is worth less than six.
  */
@@ -2346,8 +2350,14 @@ export class Batter {
    * last, and the last frame is the guard's exactly, so he settles into it
    * without a flick. Worked out once a stroke and read by time, so any frame
    * can be drawn on its own.
+   *
+   * `rolling`, where a stroke asks for it, turns the face on the way to
+   * somewhere, the short way and evenly inside its window: the six's bottom
+   * hand rolling over the top one as the arms carry the bat up into the wrap,
+   * which puts the back of the blade against the shoulder rather than its face.
    */
-  private riding(from: number, poseAt: (age: number) => Pose, start: THREE.Quaternion, unwind: readonly [number, number], age: number) {
+  private riding(from: number, poseAt: (age: number) => Pose, start: THREE.Quaternion, unwind: readonly [number, number], age: number,
+    rolling?: { window: readonly [number, number]; away: (pose: Pose, up: THREE.Vector3) => THREE.Vector3 }) {
     const step = 2, key = `${this.shot}:${this.charging}:${this.coverVersion}:${this.swingStart}:${this.ballX}:${this.ballY}:${this.ballZ}`;
     if (this.homeRide?.key !== key) {
       const turns: THREE.Quaternion[] = [], ups: THREE.Vector3[] = [];
@@ -2356,6 +2366,14 @@ export class Batter {
       turns.push(start.clone());
       for (let n = 1; n < ups.length; n++)
         turns.push(new THREE.Quaternion().setFromUnitVectors(ups[n - 1], ups[n]).multiply(turns[n - 1]));
+      if (rolling) {
+        const [rolls, rolled] = rolling.window.map(time => Math.round((time - from) / step));
+        const up = ups[rolled], face = new THREE.Vector3(0, 0, 1).applyQuaternion(turns[rolled]);
+        const want = rolling.away(poseAt(rolling.window[1]), up);
+        want.addScaledVector(up, -want.dot(up)).normalize();
+        const turn = Math.atan2(up.dot(face.clone().cross(want)), face.dot(want));
+        turns.forEach((at, n) => at.multiply(new THREE.Quaternion().setFromAxisAngle(UP, turn * ease(THREE.MathUtils.clamp((n - rolls) / (rolled - rolls), 0, 1)))));
+      }
       // The guard's face, as it is drawn once he is back in it.
       const straight = batOrientation(STROKES.STRAIGHT.contact);
       const guard = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), ups[ups.length - 1]).multiply(straight);
@@ -2718,9 +2736,10 @@ export class Batter {
     // The on drive's six: the on drive's front foot down first and its contact,
     // up through the lofted extension and carry into the wrap over the front
     // shoulder, held, and home back down the way it went. From the ball on the
-    // face rides the handle (`riding`): the arms take the bat over, and the
-    // wrists do not turn it in his hands. What it has to turn to be back in his
-    // guard it turns on the way down from the hold.
+    // face rides the handle (`riding`): the arms take the bat over, and the one
+    // turn in his hands is the bottom hand rolling over through the carry. What
+    // it has to turn to be back in his guard it turns on the way down from the
+    // hold.
     if (this.onLoft) {
       const { wrapped, hold, carry, through, under } = ON_LOFT_CLOCK;
       const body = (pose: Pose, home: number): Pose => {
@@ -2744,7 +2763,12 @@ export class Batter {
       if (age > STROKE_CONTACT_MS) {
         const reference = batOrientation(STROKES.LONG_ON.contact), up = UP.clone().applyQuaternion(batOrientation(poseAt(STROKE_CONTACT_MS)));
         const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
-        pose.bat = this.riding(STROKE_CONTACT_MS, poseAt, met, [hold, through], age);
+        // The face away from the front shoulder by the wrap, the back of the
+        // blade against it, as a lofted follow-through finishes.
+        pose.bat = this.riding(STROKE_CONTACT_MS, poseAt, met, [hold, under], age, {
+          window: [ON_LOFT_CLOCK.rolls, wrapped],
+          away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)),
+        });
       }
       this.apply(pose);
       return;

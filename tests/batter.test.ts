@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -1976,7 +1976,7 @@ describe('the lofted on drive', () => {
       expect(finish.backFoot[1], `x=${x}`).toBeGreaterThan(.1);
     }
   });
-  it('takes the bat over with the arms, not by turning it in his hands', () => {
+  it('takes the bat over with the arms: the bottom hand rolls over once, and the back of the blade lands on the shoulder', () => {
     for (const x of PLAYS.onLofted.reach) {
       const six = played(true, x);
       const at = (time: number) => { six.update(time); return six.bat.quaternion.clone(); };
@@ -1986,16 +1986,25 @@ describe('the lofted on drive', () => {
         const face = new Vector3(0, 0, 1).applyQuaternion(b);
         return Math.atan2(up.dot(carried.clone().cross(face)), carried.dot(face));
       };
-      // From the ball up into the wrap and through the hold, the face rides the
-      // handle; on the way home it settles into the guard a little at a time.
-      let previous = at(STROKE_CONTACT_MS + 4), net = 0;
+      // From the ball to the extension the face rides the handle; through the
+      // carry the bottom hand rolls over the top one, evenly and one way only;
+      // held, nothing; on the way home it settles into the guard a little at a time.
+      let previous = at(STROKE_CONTACT_MS + 4), rolled = 0, way = 0;
       for (let time = STROKE_CONTACT_MS + 8; time <= STROKE_DURATION_MS; time += 4) {
         const now = at(time), turn = roll(previous, now);
-        net += turn;
-        expect(Math.abs(turn), `x=${x} @${time}`).toBeLessThan(MathUtils.degToRad(time < ON_LOFT_HOLD ? .5 : 4));
+        const rolling = time > ON_LOFT_ROLL[0] && time <= ON_LOFT_ROLL[1] + 4;
+        if (rolling) { rolled += turn; if (Math.abs(turn) > MathUtils.degToRad(.2)) { if (!way) way = Math.sign(turn); expect(Math.sign(turn), `x=${x} @${time}`).toBe(way); } }
+        expect(Math.abs(turn), `x=${x} @${time}`).toBeLessThan(MathUtils.degToRad(rolling ? 5 : time < ON_LOFT_HOLD ? .5 : 4));
         previous = now;
       }
-      expect(Math.abs(net), `x=${x}`).toBeLessThan(MathUtils.degToRad(90));
+      expect(Math.abs(rolled), `x=${x}`).toBeLessThan(Math.PI);
+      // And at the wrap the face looks away from the front shoulder: the back
+      // of the blade is what lies against it.
+      six.update(500);
+      const finish = six.inspect(), axis = new Vector3(0, 1, 0).applyQuaternion(six.bat.quaternion);
+      const away = new Vector3(...finish.grip).addScaledVector(axis, -.45).sub(new Vector3(...finish.shoulders[0]));
+      away.addScaledVector(axis, -away.dot(axis)).normalize();
+      expect(new Vector3(0, 0, 1).applyQuaternion(six.bat.quaternion).dot(away), `x=${x}`).toBeGreaterThan(.95);
     }
   });
   it('never passes the bat through him, coming up or coming home', () => {

@@ -522,11 +522,13 @@ stride and contact, climbs through the lofted straight drive's extension and
 carry turned the same way, and wraps: the hands just over the front shoulder,
 the elbows bent, the bat lying back over the shoulder behind his head, held,
 then home back over his head and down the line on a clock of its own
-(`ON_LOFT_CLOCK`). The arms take the bat over, not the wrists: from the ball to
-the end of the hold the face rides the handle (`riding`) and does not turn in
-his hands at all, and it settles into the guard on the way home. The six it
-replaced reached both arms for the sky and turned the bat a full turn in his
-hands coming home. `cover-drive.html` has both beside the cover strokes.
+(`ON_LOFT_CLOCK`). The arms take the bat over, not the wrists: from the ball the
+face rides the handle (`riding`), and the one turn it takes is the bottom hand
+rolling over the top one through the carry (`ON_LOFT_ROLL`), evenly and one way,
+so that at the wrap the flat face looks away from the front shoulder and the
+curved back of the blade lies against it; nothing turns it while it is held,
+and it settles into the guard on the way home. The six it replaced reached
+both arms for the sky and turned the bat a full turn in his hands coming home. `cover-drive.html` has both beside the cover strokes.
 
 ## A newcomer's first innings
 
