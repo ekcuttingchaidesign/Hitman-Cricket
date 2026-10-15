@@ -40,6 +40,36 @@ it('keeps the jersey hem and trouser waist joined in every shot and celebration'
   expect([...edges.values()].every(n=>n===1||n===2)).toBe(true);
 });
 
+it('tucks the seat by where the thigh points: whole in the guard, away in a drive\'s finish', () => {
+  // The swell behind the seat, kept with a thigh lifted out in front, turned
+  // forward under him as a point at the bottom of the seat. It was tucked by
+  // a reading that followed the hips turning over the thigh, which tucked a
+  // thigh hanging behind him and threw the swell off and on in a frame while
+  // the leg hardly moved; it goes by the thigh's own direction now.
+  const batter = new Batter();
+  const tucked = () => { batter.drape(); return (batter as unknown as Garments).connectedTrousers.tucked; };
+  batter.reset(); batter.update(0);
+  expect(tucked()).toEqual([0, 0]);
+  // Every drive's held finish, the front thigh well out in front: all of it away.
+  for (const [shot, x, y, z, version] of [
+    ['COVER_LONG_OFF', .16, .48, GAME.contactZ, 1], ['COVER_LONG_OFF', .16, .48, GAME.contactZ, 2],
+    ['COVER_LONG_OFF', .16, .48, GAME.contactZ + .28, 3], ['STRAIGHT', 0, .54, GAME.contactZ, 2],
+  ] as const) {
+    batter.reset(); batter.update(0); batter.swing(shot, 0, x, y, z, false, false, false, false, version);
+    for (let t = 410; t <= 600; t += 40) { batter.update(t); expect(tucked()[0]).toBeGreaterThan(.95); }
+  }
+  // Strokes whose front thigh hardly lifts take no more than half of it away
+  // (the on drive a third, at 240 ms), where every one of them used to lose
+  // the lot.
+  for (const shot of ['LONG_ON', 'LEG'] as const) {
+    batter.reset(); batter.update(0); batter.swing(shot, 0, 0, .54, GAME.contactZ);
+    for (let t = 0; t <= STROKE_DURATION_MS; t += 20) { batter.update(t); expect(Math.max(...tucked())).toBeLessThan(.5); }
+  }
+  // And home again in his guard, whole.
+  batter.update(STROKE_DURATION_MS + 400);
+  expect(tucked()).toEqual([0, 0]);
+});
+
 it('keeps the bowler\'s shirt hem and trouser waist joined through his action', () => {
   // The bowler wears the batter's kind of clothes (the fielders do not).
   const bowler = new Bowler();
