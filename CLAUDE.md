@@ -47,6 +47,32 @@ without an explicit flag, and both default to the harmless development keys
 unless `VERCEL_ENV` says otherwise. Keep that shape for anything new: a script
 that touches real players should have to be asked twice.
 
+## Career passwords: the way back players keep
+
+Players did not save their career keys, so a name now comes with a password
+the player picks. A new name is not taken without one (the gate,
+`src/ui/Profile.ts`); a player who named themselves before is asked once before
+their next innings, with a "not now" that holds off three days
+(`hitman-password-later`); My Stats' details change it. It is kept against the
+player id (`${SCOPE}passwords`), so every name they hold opens with it, as a
+salted scrypt hash (`src/server/career-password.ts`) — never sealed, never read
+back: a password is often the one they use everywhere. What it has to be is
+`passwordProblem` (`src/server/password-rules.ts`), checked in the browser and
+again on the server.
+
+Restoring by it (`src/ui/Restore.ts`, the sheet's first face): a few letters of
+the name list the players with a password whose names begin with them —
+`${SCOPE}findable`, a sorted set read by `ZRANGE BYLEX`, holding only names
+whose player has set one, each answered with the name they bat under now, a kit
+and an innings count, never a player id — the player taps themselves and enters
+it. The fields are a username and a password to the phone, so a saved one fills
+itself in. The tries are the key's, from the same two counters; the list is
+counted per address. The career key stays, one link down the same sheet, and is
+how somebody who forgot their password gets in to set another — so a friend
+who forgot theirs is a `key-show` or `key-reset` away, as below.
+`tests/password.test.ts` holds the rules; `restore-check.mjs` and
+`name-check.mjs` walk the screens.
+
 ## A friend who lost their career key
 
 A key is kept as a slow hash, which a restore is checked against, and — for

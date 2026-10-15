@@ -10,6 +10,13 @@
  * From My Stats it is the same sheet with a way out, for changing any of the
  * three. The name changes once a month, which it says before anybody types; the
  * kit and the hand change whenever the player likes.
+ *
+ * And a password, under the name. Career keys were the way back to a record and
+ * players did not keep them; a password they chose themselves, which their
+ * phone offers to remember against the name, is one they will. So a new name is
+ * not taken without one, a player who already had a name is asked for one once
+ * (with a "not now" that holds off three days), and from My Stats it can be
+ * changed. See `src/server/password-rules.ts` for what it has to be.
  */
 
 import type { Hand } from '../game/player';
@@ -40,6 +47,27 @@ export interface ProfileView {
   offline?: boolean;
   /** The rung their Blast career is on, for the chip under the name. Debutant unless told. */
   tier?: { key: string; name: string };
+  /**
+   * The password field, and what it is for: `new` with a new name and `add`
+   * for a name that has none (see `passwordRequired`), and `change` from My
+   * Stats for a player who has one, left blank to keep it. Absent where it cannot be kept
+   * (a private window), or is not known to be wanted.
+   */
+  password?: 'new' | 'add' | 'change' | null;
+  /** What has been typed into it, carried across a redraw. Never kept anywhere else. */
+  secret?: string;
+  /** A player who already had a name may put the question off. */
+  later?: boolean;
+}
+
+/**
+ * Whether the password field must be filled before the key to go wakes: always
+ * with a new name, and before an innings for a name that has none. From My
+ * Stats, a player with a name and no password can still change their kit
+ * without setting one.
+ */
+export function passwordRequired(view: Pick<ProfileView, 'password' | 'gate'>): boolean {
+  return view.password === 'new' || (view.password === 'add' && view.gate);
 }
 
 const art = (file: string) => new URL(`../assets/entry/${file}`, import.meta.url).href;
@@ -87,7 +115,25 @@ export function profileMarkup(view: ProfileView): string {
   const back = gate
     ? `<button id="profile-leave" class="k-icon-button welcome-back" type="button" aria-label="Back to the cover">${icon('arrow-left')}</button>`
     : `<button id="profile-close" class="k-icon-button welcome-back" type="button" aria-label="Back to My Stats">${icon('arrow-left')}</button>`;
-  const go = cta({ kind: 'primary', label: sending ? 'SAVING…' : gate ? 'LET’S BAT' : 'SAVE', id: 'profile-send', wide: true, disabled: sending || !named(name) });
+  const password = view.password ?? null;
+  const secret = view.secret ?? '';
+  const ready = named(name) && (!passwordRequired(view) || secret.trim().length > 0);
+  const go = cta({ kind: 'primary', label: sending ? 'SAVING…' : gate ? 'LET’S BAT' : 'SAVE', id: 'profile-send', wide: true, disabled: sending || !ready });
+  const passwordWords = {
+    new: { label: 'SET A PASSWORD', hint: 'Your way back to this career on any phone. Your phone can remember it for you.' },
+    add: { label: 'SET A PASSWORD', hint: 'Keys are easy to lose. A password brings your career back on any phone.' },
+    change: { label: 'NEW PASSWORD', hint: 'Leave it blank to keep the one you have.' },
+  } as const;
+  const passwordField = password ? `
+        <label class="welcome-field is-password"><span class="welcome-label">${passwordWords[password].label}</span>
+          <span class="welcome-secret">
+            <input id="profile-password" type="password" maxlength="64" autocomplete="new-password" autocapitalize="none"
+              autocorrect="off" spellcheck="false" enterkeyhint="done" minlength="6"
+              placeholder="${password === 'change' ? 'Leave blank to keep yours' : 'At least 6 characters'}" value="${escape(secret)}"${passwordRequired(view) ? ' required' : ''}>
+            <button id="profile-password-show" class="welcome-secret-show" type="button" aria-pressed="false">SHOW</button>
+          </span>
+          <span class="welcome-hint">${passwordWords[password].hint}</span>
+        </label>` : '';
   return `
     <section class="welcome ${gate ? 'is-gate' : 'is-edit'}" role="dialog" aria-modal="true" aria-labelledby="profile-title">
       <img class="welcome-haze" src="${art('haze.svg')}" alt="" aria-hidden="true">
@@ -110,9 +156,9 @@ export function profileMarkup(view: ProfileView): string {
         <div id="profile-picker" class="welcome-kits" role="radiogroup" aria-label="Choose your avatar">${kits}
         </div>
         <label class="welcome-field"><span class="welcome-label">YOUR NAME</span>
-          <input id="profile-name" type="text" maxlength="14" autocomplete="nickname" autocapitalize="words"
-            enterkeyhint="done" placeholder="Enter your name" value="${escape(name)}" required>
-        </label>
+          <input id="profile-name" type="text" maxlength="14" autocomplete="${password ? 'username' : 'nickname'}" autocapitalize="words"
+            enterkeyhint="${password ? 'next' : 'done'}" placeholder="Enter your name" value="${escape(name)}" required>
+        </label>${passwordField}
         <div class="welcome-step">
           <p class="welcome-label" id="profile-hand-label">HOW DO YOU BAT?</p>
           <div class="welcome-hands" role="radiogroup" aria-labelledby="profile-hand-label">${handKey('right')}${handKey('left')}
@@ -123,6 +169,7 @@ export function profileMarkup(view: ProfileView): string {
         <div class="welcome-foot">
           ${go.replace('type="button"', 'type="submit"')}
           ${gate && offline ? '<button id="profile-skip" class="welcome-skip" type="button">Bat now, save my name next time</button>' : ''}
+          ${gate && view.later && !offline ? '<button id="profile-later" class="welcome-skip" type="button">Not now</button>' : ''}
           <p class="welcome-fine">You can change your name once every 30 days.<br>Your avatar and the way you bat, whenever you like.</p>
         </div>
       </form>

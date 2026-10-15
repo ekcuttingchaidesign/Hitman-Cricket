@@ -2,6 +2,7 @@ import { Redis } from '@upstash/redis';
 import type { BoardStore, StoredRow } from './board-store.js';
 import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
+import type { StoredPassword } from './career-password.js';
 import type { RecoveryStore } from './recovery-store.js';
 import type { DressingStore } from './dressing-save.js';
 import type { SavedDressing } from '../game/dressing-sync.js';
@@ -107,6 +108,8 @@ const FEEDBACK_RATE = `${SCOPE}frate:`;
  */
 const RESTORE_RATE = `${SCOPE}rrate:`;
 const RESTORE_NAME_RATE = `${SCOPE}nrate:`;
+/** Searches for a name to restore, from one address. */
+const FIND_RATE = `${SCOPE}frate:`;
 
 /**
  * No database behind the board. This is a setup that was never finished, not an
@@ -343,6 +346,10 @@ export function upstashFeedback(redis: Redis): FeedbackStore {
 export function upstashRecovery(redis: Redis): RecoveryStore {
   const keys = `${SCOPE}keys`;
   const names = `${SCOPE}names`;
+  const passwords = `${SCOPE}passwords`;
+  // A sorted set with every score 0, which Redis keeps in member order: a
+  // prefix search is one ZRANGE BYLEX, however many names there are.
+  const findable = `${SCOPE}findable`;
   const count = async (counter: string, windowSeconds: number) => {
     const count = await redis.incr(counter);
     // Only the first spends the clock, so the window rolls from the first try
@@ -371,6 +378,28 @@ export function upstashRecovery(redis: Redis): RecoveryStore {
     },
     async triesAt(folded, windowSeconds) {
       return count(`${RESTORE_NAME_RATE}${folded}`, windowSeconds);
+    },
+    async passwordOf(playerId) {
+      const held = await redis.hget<StoredPassword | string>(passwords, playerId);
+      if (!held) return null;
+      // Parsed on the way out, as a key is: see `keyFor`.
+      if (typeof held === 'object') return held as StoredPassword;
+      try { return JSON.parse(String(held)) as StoredPassword; } catch { return null; }
+    },
+    async putPassword(playerId, held) {
+      await redis.hset(passwords, { [playerId]: JSON.stringify(held) });
+    },
+    async listName(entry) {
+      await redis.zadd(findable, { score: 0, member: entry });
+    },
+    async namesFrom(prefix, limit) {
+      // `\xff` sorts after every character a folded name or a space can be,
+      // so this is everything that begins with the prefix.
+      const found = await redis.zrange<unknown[]>(findable, `[${prefix}`, `[${prefix}\xff`, { byLex: true, offset: 0, count: limit });
+      return found.map(String);
+    },
+    async searchesFrom(address, windowSeconds) {
+      return count(`${FIND_RATE}${address}`, windowSeconds);
     },
   };
 }

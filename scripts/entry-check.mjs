@@ -170,7 +170,10 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   await page.locator('.kit-option').first().click();
   check(await words(page, '#welcome-name') === 'SHASHANK', 'the name over the kit is the one typed', await words(page, '#welcome-name'));
   check(await words(page, '#welcome-hand') === 'LEFT-HANDED', 'and the chip under it the hand chosen', await words(page, '#welcome-hand'));
-  check(!(await page.locator('#profile-send').isDisabled()), "LET'S BAT wakes with the name");
+  check(await page.locator('#profile-password').isVisible(), 'with a password asked for under the name');
+  check(await page.locator('#profile-send').isDisabled(), "and LET'S BAT still sleeps until there is a password");
+  await page.locator('#profile-password').fill('Square-Cut-9');
+  check(!(await page.locator('#profile-send').isDisabled()), "LET'S BAT wakes with the name and the password");
   await page.locator('#profile-name').blur();
   await page.waitForTimeout(500); // The keys' own fades.
   await page.screenshot({ path: 'test-results/entry/name.png' });

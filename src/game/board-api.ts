@@ -262,6 +262,8 @@ export interface NameResult {
   held?: string;
   /** No answer, or the store itself failing: nothing the player typed was wrong. */
   offline?: boolean;
+  /** Whether the password sent with the name was kept, where one was sent. */
+  password?: boolean;
 }
 
 /**
@@ -269,15 +271,20 @@ export interface NameResult {
  * with no name whose innings earned no place. The same gate a board claim
  * passes, and the same key back — see `api/name.ts`.
  */
-export async function claimName(playerId: string, name: string, avatar: number, previous?: string): Promise<NameResult> {
-  const answer = await ask<{ name?: string; key?: string; error?: string; retry?: boolean; status?: number; held?: string }>(
+export async function claimName(
+  playerId: string, name: string, avatar: number, previous?: string, password?: string,
+): Promise<NameResult> {
+  const answer = await ask<{
+    name?: string; key?: string; error?: string; retry?: boolean; status?: number; held?: string; password?: boolean;
+  }>(
     `${API}/api/name`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // The name this browser bats under now, so the key already saved for it
       // opens the new one too. The store checks it is this player's.
-      body: JSON.stringify({ playerId, name, avatar, previous }),
+      // And the password, where the gate asked for one: set once the name is held.
+      body: JSON.stringify(password ? { playerId, name, avatar, previous, password } : { playerId, name, avatar, previous }),
     },
   );
   if (!answer) return { ok: false, reason: 'The board could not be reached. Try again in a moment.', offline: true };
@@ -290,7 +297,7 @@ export async function claimName(playerId: string, name: string, avatar: number, 
       held: typeof answer.held === 'string' ? answer.held : undefined,
     };
   }
-  return { ok: true, name: answer.name, key: answer.key };
+  return { ok: true, name: answer.name, key: answer.key, password: answer.password };
 }
 
 /** Throws away the board held from last time, so the next open asks again. */

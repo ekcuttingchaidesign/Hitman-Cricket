@@ -59,10 +59,11 @@ import {
   type KeyView,
 } from './CareerKey';
 import {
-  RESTORE_TAKEN, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
+  FIND_FROM, RESTORE_TAKEN, foundMarkup, restoreLinkMarkup, restoreMarkup, restorePanelMarkup,
   type LocalCareer, type RestoreView,
 } from './Restore';
-import { handWord, named, plateName, profileMarkup, type ProfileView } from './Profile';
+import type { FoundPlayer } from '../game/recovery-api';
+import { handWord, named, passwordRequired, plateName, profileMarkup, type ProfileView } from './Profile';
 import {
   statsExplain, statsStoryImage, type StatsFacts,
 } from '../game/StatsCard';
@@ -268,6 +269,12 @@ function swipeGuide() {
 }
 /** The What's New film's own shape, 1080 by 1920. */
 const FILM_ASPECT = 1080 / 1920;
+
+/** What the restore sheet hands the game: a name, and a password or a key. */
+export type RestoreEntry = { name: string; password: string; key?: undefined } | { name: string; key: string; password?: undefined };
+
+/** What the name screen hands the game. */
+export interface ProfileEntry { name: string; avatar: number; hand: Hand; password: string }
 
 export class HUD {
   readonly viewport: HTMLElement;
@@ -2472,17 +2479,64 @@ ${modeSelectMarkup()}
    * journey instead of a correction.
    */
   openRestore(name = '', local: LocalCareer | null = null) {
-    this.restoreView = { name, local, sending: false, error: null };
+    this.restoreView = { name, local, sending: false, error: null, by: 'password', found: null, picked: null };
     this.drawRestore();
+    // Opened with a name — the one the gate was just told is taken — so the
+    // list is asked for at once, with that name already picked if it is there.
+    if (this.restoreFindable(name)) this.onRestoreFind?.(name);
   }
 
-  /** What the player is offering. */
-  get restoreEntry() {
-    return {
-      name: (this.$('restore-name') as HTMLInputElement).value,
-      key: (this.$('restore-key') as HTMLInputElement).value,
-    };
+  /** What the player is offering: the name, and the password or the key, whichever this sheet is asking for. */
+  get restoreEntry(): RestoreEntry {
+    const name = (this.$('restore-name') as HTMLInputElement).value;
+    const key = document.getElementById('restore-key') as HTMLInputElement | null;
+    if (key) return { name, key: key.value };
+    return { name, password: (this.$('restore-password') as HTMLInputElement).value };
   }
+
+  /** Whether what is typed is enough to ask the list for. */
+  private restoreFindable(name: string) {
+    return [...name.replace(/[^\p{L}\p{N}]/gu, '')].length >= FIND_FROM;
+  }
+
+  /**
+   * The list for a name, as the store answered it. Dropped if the name has
+   * been typed on since — a slow answer for "Gau" must not land over "Gaurav".
+   * Where one player is listed under exactly what was typed, they are picked.
+   */
+  restoreFound(name: string, found: FoundPlayer[] | null, reason: string | null = null) {
+    const view = this.restoreView;
+    const field = document.getElementById('restore-name') as HTMLInputElement | null;
+    if (!view || view.done || !field || field.value !== name) return;
+    const fold = (one: string) => one.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const exact = found?.find(one => fold(one.name) === fold(name));
+    const picked = view.picked && found?.some(one => fold(one.name) === fold(view.picked!)) ? view.picked : exact?.name ?? null;
+    this.restoreView = { ...view, name, found, picked, findError: reason };
+    this.drawFound();
+  }
+
+  /** The list redrawn on its own, and its rows wired: a tap picks the name and moves to the password. */
+  private drawFound() {
+    const view = this.restoreView;
+    const list = document.getElementById('restore-found');
+    if (!view || !list) return;
+    list.innerHTML = foundMarkup(view);
+    for (const img of list.querySelectorAll<HTMLImageElement>('img')) retryImage(img);
+    list.querySelectorAll<HTMLButtonElement>('.rs-found-row').forEach(row => {
+      row.onclick = () => {
+        const name = row.dataset.name ?? '';
+        const field = this.$('restore-name') as HTMLInputElement;
+        field.value = name;
+        if (this.restoreView) this.restoreView = { ...this.restoreView, name, picked: name };
+        this.drawFound();
+        (document.getElementById('restore-password') as HTMLInputElement | null)?.focus();
+      };
+    });
+  }
+
+  /** The game asks the store for the list. Debounced here, so a name typed fast is one question. */
+  onRestoreFind: ((name: string) => void) | null = null;
+  private findTimer = 0;
 
   /** The form, while the store is thinking about it. */
   restoreSending(sending: boolean) {
@@ -2523,14 +2577,16 @@ ${modeSelectMarkup()}
 
   profileSending(sending: boolean) {
     if (!this.profileView) return;
-    this.profileView = { ...this.profileView, ...this.profileEntry, sending, error: sending ? null : this.profileView.error, held: null };
+    const { password: secret, ...entry } = this.profileEntry;
+    this.profileView = { ...this.profileView, ...entry, secret, sending, error: sending ? null : this.profileView.error, held: null };
     this.drawProfile();
   }
 
   profileFailed(reason: string, how: { held?: string | null; offline?: boolean } = {}) {
     if (!this.profileView) return;
+    const { password: secret, ...entry } = this.profileEntry;
     this.profileView = {
-      ...this.profileView, ...this.profileEntry, sending: false, error: reason, held: how.held ?? null,
+      ...this.profileView, ...entry, secret, sending: false, error: reason, held: how.held ?? null,
       offline: this.profileView.offline || !!how.offline,
     };
     this.drawProfile();
@@ -2547,16 +2603,22 @@ ${modeSelectMarkup()}
 
   get profileOpen() { return !!this.profileView; }
 
-  /** What the player is offering: the name typed, and the kit and hand picked. */
-  get profileEntry() {
+  /** What the player is offering: the name typed, the kit and hand picked, and the password where it was asked. */
+  get profileEntry(): ProfileEntry {
     const field = document.getElementById('profile-name') as HTMLInputElement | null;
+    const secret = document.getElementById('profile-password') as HTMLInputElement | null;
     const view = this.profileView;
-    return { name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand };
+    return {
+      name: field?.value ?? view?.name ?? '', avatar: view?.avatar ?? 0, hand: view?.hand ?? 'right' as Hand,
+      password: secret?.value ?? view?.secret ?? '',
+    };
   }
 
   /** What the game does with the answer, and with "bat now" when the board is away. The store is the game's. */
-  onProfile: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
-  onProfileSkip: ((entry: { name: string; avatar: number; hand: Hand }) => void) | null = null;
+  onProfile: ((entry: ProfileEntry) => void) | null = null;
+  onProfileSkip: ((entry: ProfileEntry) => void) | null = null;
+  /** "Not now" to the password, from a player who already had a name. */
+  onProfileLater: ((entry: ProfileEntry) => void) | null = null;
   /** The edit key on My Stats. The game knows who the player is. */
   onProfileEdit: (() => void) | null = null;
   /** The gate's back key: the game lets the innings go and puts the cover up. */
@@ -2591,12 +2653,26 @@ ${modeSelectMarkup()}
     // The key to go wakes with the first letter typed, and sleeps again if the
     // name is cleared.
     const go = this.$('profile-send') as HTMLButtonElement;
+    const secret = document.getElementById('profile-password') as HTMLInputElement | null;
+    const ready = () => named(field.value) && (!passwordRequired(view) || !!secret?.value.trim());
     field.oninput = () => {
       plate.textContent = plateName(field.value);
       plate.classList.toggle('is-empty', !named(field.value));
       if (this.profileView?.sending) return;
-      go.disabled = !named(field.value);
+      go.disabled = !ready();
     };
+    if (secret) {
+      secret.oninput = () => { if (!this.profileView?.sending) go.disabled = !ready(); };
+      // Shown while asked: a password typed on a phone's keyboard is easy to get
+      // wrong unseen, and one got wrong here is a career nobody can open.
+      const show = this.$('profile-password-show') as HTMLButtonElement;
+      show.onclick = () => {
+        const shown = secret.type === 'password';
+        secret.type = shown ? 'text' : 'password';
+        show.textContent = shown ? 'HIDE' : 'SHOW';
+        show.setAttribute('aria-pressed', String(shown));
+      };
+    }
     overlay.querySelectorAll<HTMLButtonElement>('.kit-option').forEach(option => {
       option.onclick = () => {
         const kit = Number(option.dataset.kit);
@@ -2630,9 +2706,11 @@ ${modeSelectMarkup()}
     if (restore) restore.onclick = () => this.openRestore(view.held ?? this.profileEntry.name);
     const skip = document.getElementById('profile-skip');
     if (skip) skip.onclick = () => this.onProfileSkip?.(this.profileEntry);
+    const later = document.getElementById('profile-later');
+    if (later) later.onclick = () => this.onProfileLater?.(this.profileEntry);
     (this.$('profile-form') as HTMLFormElement).onsubmit = event => {
       event.preventDefault();
-      if (this.profileView?.sending || !named(field.value)) return;
+      if (this.profileView?.sending || !ready()) return;
       this.onProfile?.(this.profileEntry);
     };
     // Not focused on a phone: the keyboard would come up over the card the
@@ -2640,8 +2718,8 @@ ${modeSelectMarkup()}
     if (!view.sending && view.fresh && matchMedia('(pointer: fine)').matches) field.focus();
   }
 
-  /** What the game does with a name and a key. The store is the game's. */
-  onRestore: ((entry: { name: string; key: string }) => void) | null = null;
+  /** What the game does with a name and a password, or a name and a key. The store is the game's. */
+  onRestore: ((entry: RestoreEntry) => void) | null = null;
 
   /**
    * Asking for a key to replace the one this browser does not have.
@@ -2709,10 +2787,11 @@ ${modeSelectMarkup()}
   private drawRestore() {
     const overlay = this.$('restore-overlay');
     if (!this.restoreView) return this.closeRestore();
+    const value = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value ?? '';
     const held = this.restoreOpen && document.getElementById('restore-name')
-      ? { name: (this.$('restore-name') as HTMLInputElement).value,
-        key: (this.$('restore-key') as HTMLInputElement).value }
+      ? { name: value('restore-name'), key: value('restore-key'), password: value('restore-password') }
       : null;
+    if (held && !this.restoreView.done) this.restoreView = { ...this.restoreView, name: held.name };
     overlay.innerHTML = restoreMarkup(this.restoreView);
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -2725,18 +2804,42 @@ ${modeSelectMarkup()}
       return;
     }
     const name = this.$('restore-name') as HTMLInputElement;
-    const key = this.$('restore-key') as HTMLInputElement;
-    if (held) { name.value = held.name; key.value = held.key; }
+    // The key or the password, whichever this sheet is asking for.
+    const secret = (document.getElementById('restore-key') ?? this.$('restore-password')) as HTMLInputElement;
+    if (held) { name.value = held.name; secret.value = secret.id === 'restore-key' ? held.key : held.password; }
     this.$('restore-close').onclick = () => this.closeRestore();
     (this.$('restore-form') as HTMLFormElement).onsubmit = event => {
       event.preventDefault();
       if (this.restoreView?.sending) return;
       this.onRestore?.(this.restoreEntry);
     };
+    // Between the two ways back, carrying the name across.
+    const switchTo = (by: 'password' | 'key') => () => {
+      if (!this.restoreView) return;
+      this.restoreView = { ...this.restoreView, by, error: null };
+      this.drawRestore();
+    };
+    const byKey = document.getElementById('restore-by-key');
+    if (byKey) byKey.onclick = switchTo('key');
+    const byPassword = document.getElementById('restore-by-password');
+    if (byPassword) byPassword.onclick = switchTo('password');
+    if (document.getElementById('restore-found')) {
+      this.drawFound();
+      name.oninput = () => {
+        window.clearTimeout(this.findTimer);
+        const typed = name.value;
+        if (this.restoreView) this.restoreView = { ...this.restoreView, name: typed, picked: null };
+        if (!this.restoreFindable(typed)) {
+          if (this.restoreView) this.restoreView = { ...this.restoreView, found: null, findError: null };
+          return this.drawFound();
+        }
+        this.findTimer = window.setTimeout(() => this.onRestoreFind?.(typed), 350);
+      };
+    }
     if (this.restoreView.sending) return;
     // Back to whichever field still needs something: the name where it is
-    // empty, the key otherwise — which is also where a refused try belongs.
-    (name.value ? key : name).focus();
+    // empty, the key or password otherwise — which is also where a refused try belongs.
+    (name.value ? secret : name).focus();
   }
 
   /**

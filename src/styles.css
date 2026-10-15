@@ -7085,6 +7085,16 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 }
 .welcome-field input::placeholder{color:#ffffff4d}
 .welcome-field input:focus{border-color:var(--c-accent)}
+/* The password, under the name: the same field with a SHOW key inside its right end, and a line under it. */
+.welcome-field.is-password{margin-top:calc(var(--u) * 14)}
+.welcome-secret{position:relative;display:block}
+.welcome-secret input{padding-right:calc(var(--u) * 78)}
+.welcome-secret-show{
+  position:absolute;right:calc(var(--u) * 8);top:50%;transform:translateY(-50%);
+  min-width:44px;height:44px;margin:0;padding:0 calc(var(--u) * 10);border:0;border-radius:12px;background:none;
+  color:var(--c-accent-soft);font:700 calc(var(--u) * 11)/1 var(--f-ui);letter-spacing:.12em;cursor:pointer
+}
+.welcome-hint{font:500 calc(var(--u) * 12)/1.4 var(--f-ui);color:var(--c-text-3)}
 .welcome-step{display:flex;flex-direction:column;gap:calc(var(--u) * 8);align-self:stretch;margin-top:calc(var(--u) * 18)}
 .welcome-hands{display:flex;gap:calc(var(--u) * 10)}
 .welcome-hand-key{
@@ -7969,6 +7979,18 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .rs-field input:focus{border-color:var(--c-accent)}
 .rs-field.is-wrong input{border-color:var(--c-loss)}
 .rs-error{margin:calc(var(--u) * -6) 0 0;color:var(--c-loss);font:500 calc(var(--u) * 12)/1.4 var(--f-ui)}
+/* The players a name could be, under it: a kit, the name, the innings, the picked one ringed. */
+.rs-found{display:flex;flex-direction:column;gap:calc(var(--u) * 6);margin:calc(var(--u) * -6) 0 0}
+.rs-found:empty{display:none}
+.rs-found-row{display:flex;align-items:center;gap:calc(var(--u) * 10);min-height:48px;margin:0;padding:calc(var(--u) * 6) calc(var(--u) * 12);
+  border:1.5px solid #ffffff14;border-radius:14px;background:#ffffff08;color:var(--c-text);text-align:left;cursor:pointer}
+.rs-found-row img{flex:none;width:calc(var(--u) * 34);height:calc(var(--u) * 34);border-radius:50%}
+.rs-found-name{flex:1;min-width:0;font:700 calc(var(--u) * 15)/1.2 var(--f-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-found-innings{flex:none;font:600 calc(var(--u) * 12)/1 var(--f-ui);color:var(--c-text-3)}
+.rs-found-row.is-picked{border-color:var(--c-accent);background:color-mix(in srgb,var(--c-accent) 12%,transparent)}
+.rs-found-say{margin:0;font:500 calc(var(--u) * 12)/1.45 var(--f-ui);color:var(--c-text-3)}
+.rs-switch{align-self:center;min-height:44px;margin:calc(var(--u) * -4) 0 0;padding:0 calc(var(--u) * 12);border:0;background:none;
+  color:var(--c-accent-soft);font:600 calc(var(--u) * 13)/1.2 var(--f-ui);cursor:pointer}
 .ks-sheet .restore-losing{margin:0;padding:calc(var(--u) * 12) calc(var(--u) * 14);border:1px solid #f2b54459;border-radius:12px;background:#f2b5440f}
 .ks-sheet .restore-losing-say{margin:0;font:500 calc(var(--u) * 12)/1.45 var(--f-ui);color:var(--c-text-2)}
 .ks-sheet .restore-losing-say b{font-weight:500;color:inherit}

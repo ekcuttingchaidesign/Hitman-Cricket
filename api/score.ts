@@ -4,7 +4,7 @@ import {
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
 import { foldName } from '../src/server/board-store.js';
-import { carryKey, keyOnClaim } from '../src/server/recovery-store.js';
+import { carryKey, keyOnClaim, listOnClaim } from '../src/server/recovery-store.js';
 import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
@@ -106,6 +106,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const folded = foldName(cleanName(who.name));
       await carryKey(recovery, { from: body.previous, to: folded, playerId: who.playerId });
       key = await keyOnClaim(recovery, folded);
+      // And a name changed on the way in is one a restore can find, where there is a password to type.
+      await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }

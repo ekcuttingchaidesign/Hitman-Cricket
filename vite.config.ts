@@ -20,7 +20,11 @@ import { memoryRecap, recordInnings, recordUnlocks } from './src/server/recap-st
 import { lookOf } from './src/game/dressing-ids';
 import { memoryRecovery } from './src/server/memory-recovery';
 import { foldName } from './src/server/board-store';
-import { carryKey, firstKey, keyOnClaim, newKey, refusedRecovery, restore } from './src/server/recovery-store';
+import {
+  carryKey, describeFrom, findPlayers, firstKey, keyOnClaim, listOnClaim, newKey, passwordSet, refusedRecovery, restore,
+  restoreWithPassword, setPassword,
+} from './src/server/recovery-store';
+import { cleanPassword, passwordProblem } from './src/server/password-rules';
 import {
   BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER, readBlastTally, readMarathonTally, readSurviveTally,
   type BlastCareer, type MarathonCareer, type SurviveCareer,
@@ -227,6 +231,23 @@ function boardEndpoints(): Plugin {
                 ? send(made.status, { error: made.reason })
                 : send(200, { key: made.key });
             }
+            if ((req.url ?? '').includes('find=')) {
+              const found = await findPlayers(recovery, { name: asked.name, address: 'dev' },
+                describeFrom([careers.classic, careers.survive, careers.marathon]));
+              return refusedRecovery(found) ? send(found.status, { error: found.reason }) : send(200, { players: found.players });
+            }
+            if ((req.url ?? '').includes('password=')) {
+              const set = await setPassword(recovery, { name: asked.name, playerId: asked.playerId, password: asked.password });
+              return refusedRecovery(set) ? send(set.status, { error: set.reason }) : send(200, { ok: true, at: set.at });
+            }
+            if ((req.url ?? '').includes('status=')) {
+              const known = await passwordSet(recovery, { name: asked.name, playerId: asked.playerId });
+              return refusedRecovery(known) ? send(known.status, { error: known.reason }) : send(200, { password: known.password });
+            }
+            if (typeof asked.password === 'string') {
+              const back = await restoreWithPassword(recovery, { name: asked.name, password: asked.password, address: 'dev' });
+              return refusedRecovery(back) ? send(back.status, { error: back.reason }) : send(200, { playerId: back.playerId });
+            }
             if ((req.url ?? '').includes('new=')) {
               const made = await newKey(recovery, { name: asked.name, playerId: asked.playerId });
               return refusedRecovery(made)
@@ -250,6 +271,9 @@ function boardEndpoints(): Plugin {
             const who = {
               playerId: String(asked.playerId ?? ''), name: String(asked.name ?? ''), avatar: Number(asked.avatar), address: 'dev',
             };
+            const password = cleanPassword(asked.password);
+            const problem = password ? passwordProblem(password, foldName(cleanName(who.name))) : null;
+            if (problem) return send(400, { error: problem, retry: false, status: 400, password: true });
             const claimed = await claimOnly(boards[''], who);
             if (nameRefused(claimed)) return turnedDown(claimed);
             const name = (claimed as { ok: true; name: string }).name;
@@ -261,7 +285,9 @@ function boardEndpoints(): Plugin {
             ]);
             await carryKey(recovery, { from: asked.previous, to: foldName(name), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(name));
-            return send(200, key ? { ok: true, name, key } : { ok: true, name });
+            const kept = password ? (await setPassword(recovery, { name, playerId: who.playerId, password })).ok : false;
+            if (!password) await listOnClaim(recovery, { name, playerId: who.playerId });
+            return send(200, { ok: true, name, ...(key ? { key } : {}), ...(password ? { password: kept } : {}) });
           }
           if (path === '/api/board') {
             if (req.method !== 'GET') return send(405, { error: 'Use GET.' });
@@ -302,6 +328,7 @@ function boardEndpoints(): Plugin {
             await nameCareer(careers.marathon, MARATHON_CAREER, who.playerId, cleanName(who.name), who.avatar);
             await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
             const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+            await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
             return send(200, key ? { ...taken, key } : taken);
           }
           const asked = submitted === 'survive';
@@ -319,6 +346,7 @@ function boardEndpoints(): Plugin {
           // over once, exactly as the deployed endpoint does it.
           await carryKey(recovery, { from: body.previous, to: foldName(cleanName(who.name)), playerId: who.playerId });
           const key = await keyOnClaim(recovery, foldName(cleanName(who.name)));
+          await listOnClaim(recovery, { name: who.name, playerId: who.playerId });
           return send(200, key ? { ...outcome, key } : outcome);
         } catch (error) {
           send(400, { error: error instanceof Error ? error.message : 'Bad request.' });

@@ -1,8 +1,9 @@
 import {
-  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, claimOnly, foldName, nameRefused,
+  CLASSIC_LADDER, MARATHON_SOLO_LADDER, MARATHON_TEAM_LADDER, SURVIVE_LADDER, claimOnly, cleanName, foldName, nameRefused,
 } from '../src/server/board-store.js';
 import { nameCareer } from '../src/server/career-store.js';
-import { carryKey, keyOnClaim } from '../src/server/recovery-store.js';
+import { carryKey, keyOnClaim, listOnClaim, setPassword } from '../src/server/recovery-store.js';
+import { cleanPassword, passwordProblem } from '../src/server/password-rules.js';
 import {
   NoDatabase, redisFromEnv, upstashCareer, upstashRecovery, upstashStore,
 } from '../src/server/upstash.js';
@@ -27,6 +28,11 @@ import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../s
  * and career they hold, with the key they already have carried across rather
  * than a second one minted. `previous` is the name the browser bats under now,
  * and is only ever used to find that key: `carryKey` checks it is theirs.
+ *
+ * `password`, where the gate sent one, is set once the name is held — held to
+ * its rules first, so a password that will be refused does not leave a name
+ * claimed behind it. Optional here: the gate is what makes it required, and a
+ * player renaming from My Stats already has one.
  */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (cors(req, res)) return;
@@ -40,6 +46,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     avatar: Number(body.avatar),
     address: addressOf(req),
   };
+
+  const password = cleanPassword(body.password);
+  if (password) {
+    const problem = passwordProblem(password, foldName(cleanName(who.name)));
+    if (problem) return res.status(400).json({ error: problem, retry: false, status: 400, password: true });
+  }
 
   try {
     const outcome = await claimOnly(upstashStore(redisFromEnv()), who);
@@ -65,15 +77,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
     // The key, minted the first time this name is claimed and handed over once.
     let key: string | null = null;
+    let passwordKept = false;
     try {
       const recovery = upstashRecovery(redisFromEnv());
       await carryKey(recovery, { from: body.previous, to: foldName(name), playerId: who.playerId });
       key = await keyOnClaim(recovery, foldName(name));
+      if (password) passwordKept = (await setPassword(recovery, { name, playerId: who.playerId, password })).ok;
+      else await listOnClaim(recovery, { name, playerId: who.playerId });
     } catch (error) {
       console.error('No career key was minted for the name.', error);
     }
     res.setHeader('Cache-Control', 'no-store');
-    res.status(200).json(key ? { ok: true, name, key } : { ok: true, name });
+    res.status(200).json({ ok: true, name, ...(key ? { key } : {}), ...(password ? { password: passwordKept } : {}) });
   } catch (error) {
     if (error instanceof NoDatabase) return failed(res, 503, 'The board is not set up yet.', error);
     failed(res, 503, 'The board could not be reached.', error);

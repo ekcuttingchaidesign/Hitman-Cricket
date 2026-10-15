@@ -84,3 +84,45 @@ export async function firstCareerKey(name: string, playerId: string): Promise<st
   );
   return answer && !answer.error && answer.key ? answer.key : null;
 }
+
+/** One name a restore can pick, as the store lists it. */
+export interface FoundPlayer {
+  name: string;
+  avatar: number;
+  innings: number;
+}
+
+/**
+ * The names that begin with what has been typed, for a player to pick
+ * themselves from. Null where the store could not be asked, which the sheet
+ * says differently from an empty list.
+ */
+export async function findPlayers(name: string): Promise<{ players: FoundPlayer[] } | { reason: string } | null> {
+  const answer = await ask<{ players?: FoundPlayer[]; error?: string }>(`${API}/api/restore?find=1`, { name });
+  if (!answer) return null;
+  if (answer.error || !Array.isArray(answer.players)) return { reason: answer.error ?? 'That could not be searched.' };
+  return { players: answer.players };
+}
+
+/** A name and a password, offered for the record they open. */
+export async function restoreByPassword(name: string, password: string): Promise<RestoreResult> {
+  const answer = await ask<{ playerId?: string; error?: string }>(`${API}/api/restore`, { name, password });
+  if (!answer) return { ok: false, reason: 'That could not be checked. Try again in a minute.' };
+  if (answer.error || !answer.playerId) return { ok: false, reason: answer.error ?? 'That did not go through.' };
+  return { ok: true, playerId: answer.playerId };
+}
+
+/** A password set or changed for a name this browser holds the player id for. */
+export async function setCareerPassword(name: string, playerId: string, password: string): Promise<
+{ ok: boolean; reason?: string }> {
+  const answer = await ask<{ ok?: boolean; error?: string }>(`${API}/api/restore?password=1`, { name, playerId, password });
+  if (!answer) return { ok: false, reason: 'That could not be saved. Try again in a minute.' };
+  if (answer.error || !answer.ok) return { ok: false, reason: answer.error ?? 'That did not go through.' };
+  return { ok: true };
+}
+
+/** Whether this player has set a password, or null where the store could not say. */
+export async function passwordStatus(name: string, playerId: string): Promise<boolean | null> {
+  const answer = await ask<{ password?: boolean; error?: string }>(`${API}/api/restore?status=1`, { name, playerId });
+  return answer && !answer.error && typeof answer.password === 'boolean' ? answer.password : null;
+}

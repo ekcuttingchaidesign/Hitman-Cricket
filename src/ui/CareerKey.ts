@@ -194,7 +194,7 @@ export function keyModalMarkup(view: KeyView): string {
           <button id="key-modal-close" class="ks-close" type="button" aria-label="Close">${icon('close')}</button>
         </div>
         <p class="key-serial ks-key"><span>${escape(view.code ?? '')}</span></p>
-        <p class="ks-say">This and your name bring your record back: every run, every innings, your tier and your place on the board. Without it, a new phone or a cleared browser starts you at nought.</p>
+        <p class="ks-say">This and your name bring your record back: every run, every innings, your tier and your place on the board. It is your way back if you ever forget your password.</p>
         <p class="key-hero ks-hint">${icon('scan')}<span><b>Screenshot this screen</b><small>The surest way to keep it. Your phone already knows how.</small></span></p>
         ${cta({ kind: 'primary', label: 'SAVE AS IMAGE', id: 'key-image', wide: true })}
         <div class="ks-more">
