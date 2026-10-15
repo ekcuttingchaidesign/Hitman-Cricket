@@ -6,9 +6,9 @@
  * without batting twenty overs to reach it — `?nets=1` puts on whichever
  * bowler the player likes, `?settled=1` walks every batter out with a full
  * meter, `?charge=1` fills the meter for the charge every ball, `?cover=1`
- * bowls the cover drive's ball and nothing else, `?coverv=3` meets the cover
- * drive beside the front pad and so sooner. (`?coverv=1` and `2` only choose
- * which of the two the game already plays, and are not practice.) They are
+ * bowls the cover drive's ball and nothing else. (`?coverv=1`, `2` and `3`
+ * only choose which of the three the game already plays, and are not
+ * practice.) They are
  * tools, and an innings played with one is not an innings anybody else could
  * have played. So it is kept off everything that compares one player with
  * another: the boards are not offered it, the career does not count it, and
@@ -31,7 +31,6 @@ const ON: Record<string, (value: string) => boolean> = {
   nets: v => v === '1',
   settled: v => v === '1',
   cover: v => v === '1',
-  coverv: v => v === '3',
 };
 
 /** Every switch the game reads that changes how an innings plays, by its name in the link. */

@@ -4,8 +4,8 @@ import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
 import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN } from '../src/game/DeliveryGenerator';
-import { ballPosition, effectiveLine, flightDrag, flightProgress, soonerBy, stumpIntersection } from '../src/game/DeliveryTrajectory';
-import { COVER_V3_MEETS_AT } from '../src/entities/Batter';
+import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
+import { COVER_ODDS, coverVersionOf } from '../src/entities/Batter';
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -966,20 +966,11 @@ describe('the cover drive drill', () => {
   });
 });
 
-describe('the cover drive met beside the front pad', () => {
-  it('is on time that much sooner as the ball gets there sooner', () => {
-    const fraction = 1 - COVER_V3_MEETS_AT / (GAME.releaseZ - GAME.contactZ);
-    for (const seed of [3, 7, 11]) {
-      const generator = new DeliveryGenerator(new SeededRandom(seed));
-      for (let ball = 0; ball < 12; ball++) {
-        const delivery = generator.next(ball * 3000);
-        const sooner = soonerBy(delivery, fraction);
-        // A hundredth of a second or two for a few tenths of a metre at the
-        // pace it arrives at; up to half a tenth for a slower ball, which is
-        // held back late in its flight.
-        expect(sooner).toBeGreaterThan(4); expect(sooner).toBeLessThan(60);
-        expect(flightProgress(delivery, delivery.durationMs - sooner)).toBeCloseTo(fraction, 6);
-      }
-    }
+describe('the versions of the cover strokes', () => {
+  it('are played four in ten, two in ten and four in ten', () => {
+    const counts = { 1: 0, 2: 0, 3: 0 };
+    for (let i = 0; i < 1000; i++) counts[coverVersionOf((i + .5) / 1000)]++;
+    expect(counts).toEqual({ 1: 400, 2: 200, 3: 400 });
+    expect(Object.values(COVER_ODDS).reduce((a, b) => a + b)).toBeCloseTo(1, 9);
   });
 });

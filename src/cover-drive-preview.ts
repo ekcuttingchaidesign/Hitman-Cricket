@@ -42,7 +42,7 @@ const STROKES: Record<string, Stroke> = {
     phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Home', 600]],
     out: { speed: .024, angle: THREE.MathUtils.degToRad(58), climb: 0 },
     facts: ['full, off stump', `${STROKE_DURATION_MS} ms`],
-    note: 'The cover drive as the game plays it now, rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance.',
+    note: 'Version two, played twice in ten: the cover drive rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance.',
   },
   charge: {
     label: 'Charge over cover', charging: true, ball: { x: 0, y: .54, z: GAME.contactZ + CHARGE_MEETS_AT },
@@ -55,7 +55,7 @@ const STROKES: Record<string, Stroke> = {
   },
 };
 let stroke = STROKES.cover;
-/** Which version of the stroke: the game's own (1), or the rebuilt one (2). The game plays each half the time. */
+/** Which version of the stroke: the game's own (1), the rebuilt one (2), or met beside the pad (3). The game plays them 40, 20 and 40 in a hundred. */
 let version: CoverVersion = 2;
 /** Incoming pace, metres a millisecond. */
 const IN_SPEED = .030;
@@ -271,12 +271,12 @@ function frame(now: number) {
 
 /** What version one of each stroke is: the game's own, as it was. */
 const VERSION_ONE: Record<string, string> = {
-  cover: 'Version one, the cover drive the game has always played, kept beside the rebuilt one: a short step in, the ball met at 110 ms, the arms out through the line at 220 and the high finish at 410, with the bat pointing out square, held to 570, and home to his guard over the top.',
+  cover: 'Version one, played four times in ten: the cover drive the game has always played, kept beside the rebuilt one: a short step in, the ball met at 110 ms, the arms out through the line at 220 and the high finish at 410, with the bat pointing out square, held to 570, and home to his guard over the top.',
   charge: 'Version one, the charge over cover the game has always played: the same run down the pitch, ball and finish as version two, with the bat turning in his hands on the way up into the finish and on the way home.',
 };
 /** What version three of each stroke is: the cover drive met beside the front pad. */
 const VERSION_THREE: Record<string, string> = {
-  cover: 'Version three, on trial: version two met beside the front pad, under his eyes, as the recording meets it, 28 cm further down the pitch than the game meets every other drive. The hips and chest are further forward, the front knee bent deeper over the foot, and the back foot slides back less. In the game it is only played with ?coverv=3 on the link, as practice, because the ball gets there a little sooner: a stock ball about 14 ms sooner, a slower ball up to 45.',
+  cover: 'Version three, played four times in ten: version two met beside the front pad, under his eyes, as the recording meets it, 28 cm further down the pitch than the game meets every other drive. The hips and chest are further forward, the front knee bent deeper over the foot, and the back foot slides back less. The swipe is timed as for the other two.',
   charge: 'The charge over cover has no version three: it is version two\'s, down the pitch to the ball as it always was.',
 };
 const title = document.querySelector<HTMLHeadingElement>('h1')!;

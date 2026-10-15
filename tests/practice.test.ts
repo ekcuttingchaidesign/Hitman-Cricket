@@ -17,7 +17,7 @@ describe('a practice innings', () => {
     expect(practiceSwitches('?mode=marathon&wear=fast')).toEqual(['wear']);
     for (const name of ['spin', 'bouncers', 'express', 'reverse', 'round', 'cover']) expect(practiceSwitches(`?${name}=1`)).toEqual([name]);
     // Version three of the cover drive moves when the swipe is on time; one and two only pick between the two the game plays.
-    expect(practiceSwitches('?coverv=3')).toEqual(['coverv']);
+    expect(practiceSwitches('?coverv=3')).toEqual([]);
     expect(practiceSwitches('?coverv=1&cover=0')).toEqual([]);
     expect(practiceSwitches('?coverv=2')).toEqual([]);
   });
@@ -62,6 +62,7 @@ describe('every switch the game reads', () => {
     welcome: 'the welcome in each way it can go, on demand, sending and keeping nothing',
     dressing: 'the Dressing Room and its unlocks over a made-up record, earning, wearing and keeping nothing',
     ui: 'the UI kit laid out as a page, instead of the game, reading and sending nothing',
+    coverv: 'which version of the cover strokes he plays: how he plays it, never how well, so the ball and the score are as they would be',
   };
 
   it('is either practice or named as not practice', () => {

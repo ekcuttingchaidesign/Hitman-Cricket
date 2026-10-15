@@ -460,8 +460,7 @@ the place the board shows. Nothing is written. Production never sees them.
 An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
 `?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?cover=1`
-(every ball the cover drive's own: a stock ball pitched up on off stump),
-`?coverv=3` (the cover drive met beside the front pad, still on trial), or the
+(every ball the cover drive's own: a stock ball pitched up on off stump), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
 (`src/game/practice.ts`). The card says so in place of an offer, the career
 does not count it, and the browser's own best does not move; in a Rival Match
@@ -469,31 +468,28 @@ the switches do nothing. A new switch goes into `PRACTICE_SWITCHES` or into
 the named exceptions in `tests/practice.test.ts`, which fails on any
 parameter the game reads that is in neither.
 
-## Two versions of the cover strokes
+## Three versions of the cover strokes
 
-The strokes off the cover swipe come in two versions (`CoverVersion` in
-`src/entities/Batter.ts`), and the game picks one at each cover swipe, half
-and half: version one is the cover drive and charge over cover as they always
-were (`COVER_DRIVE_V1`), version two the cover drive rebuilt from a side-on
+The strokes off the cover swipe come in three versions (`CoverVersion` in
+`src/entities/Batter.ts`), and the game picks one at each cover swipe, four
+in ten, two in ten and four in ten (`COVER_ODDS`, `coverVersionOf`): version
+one is the cover drive and charge over cover as they always were
+(`COVER_DRIVE_V1`); version two the cover drive rebuilt from a side-on
 slow-motion recording (`STROKES.COVER_LONG_OFF`, the front foot planted first
 and a long lunge, `COVER_PLANT`, home back along the swing, `COVER_HOME`) and
 the charge over cover carrying its bat into the finish without turning it in
-his hands (`riding`). It is how he plays the stroke, never how well, so it is
-drawn from the browser's dice and not the innings' seed, which would move
-every ball after it; the square drive is the same in both. `?coverv=1` or
-`?coverv=2` asks for one, and is not practice.
-
-A third is on trial and only ever asked for: `?coverv=3`, which is practice.
-It is version two met later in the ball's flight, beside the front pad rather
-than out in front of it (`COVER_DRIVE_V3`, `COVER_V3_MEETS_AT` past the usual
-point): the hips, chest and hands carried forward over the planted foot, the
-ball resolved at that fraction of its flight (`meetsAt` in `src/Game.ts`, the
-scene's `meeting`), and the perfect swipe as much sooner as the ball gets
-there sooner (`soonerBy`): about 14ms on a stock ball, up to 45 on a slower
-one. The square
-drive and the charge over cover are played as in version two.
-`cover-drive.html` is both strokes in every version on their own, built into
-one page by `scripts/cover-drive-artifact.mjs`.
+his hands (`riding`); version three version two's drive met beside the front
+pad rather than out in front of it (`COVER_DRIVE_V3`, `COVER_V3_MEETS_AT`
+further down the pitch), the hips, chest and hands carried forward over the
+planted foot and the ball resolved at that point of its flight (`meetsAt` in
+`src/Game.ts`, the scene's `meeting`). Its square drive and charge are
+version two's. It is how he plays the stroke, never how well, so it is drawn
+from the browser's dice and not the innings' seed, which would move every
+ball after it, and the swipe is judged the same in all three: the version is
+drawn after the swipe, so nobody can time for it. `?coverv=1`, `2` or `3` asks
+for one, and is not practice. `cover-drive.html` is both strokes in every
+version on their own, built into one page by
+`scripts/cover-drive-artifact.mjs`.
 
 ## A newcomer's first innings
 

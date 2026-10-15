@@ -224,12 +224,18 @@ const COVER_PLANT = { at: 55, bat: .55, batV3: .62, hips: .85, chest: .45, hold:
  * is how he plays the stroke, not how well, so nothing scored depends on it.
  */
 export type CoverVersion = 1 | 2 | 3;
+/** How often each version of the cover strokes is played, by the cover swipe. */
+export const COVER_ODDS: Record<CoverVersion, number> = { 1: .4, 2: .2, 3: .4 };
+/** The version a roll of the dice in [0, 1) plays, by `COVER_ODDS`. */
+export function coverVersionOf(roll: number): CoverVersion {
+  return roll < COVER_ODDS[1] ? 1 : roll < COVER_ODDS[1] + COVER_ODDS[2] ? 2 : 3;
+}
 /**
  * Version three of the cover drive meets the ball this much further down the
  * pitch than every other drive: beside the front pad, under his eyes, where
- * the recording meets it, rather than a stride behind it. Only asked for by
- * name (`?coverv=3`), because meeting it sooner moves when the swipe is on
- * time.
+ * the recording meets it, rather than a stride behind it. The swipe is judged
+ * as for the other two all the same: the version is drawn after the swipe,
+ * so a player cannot time for it.
  */
 export const COVER_V3_MEETS_AT = .28;
 /**
