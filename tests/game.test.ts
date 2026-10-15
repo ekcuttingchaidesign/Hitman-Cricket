@@ -989,6 +989,32 @@ describe('the versions of the cover strokes', () => {
     expect(coverRoll(7, 3)).not.toBe(coverRoll(8, 3));
   });
 
+  it('go for four, not six, when skied off a stroke kept down and not caught', () => {
+    let escaped = 0, held = 0;
+    for (const seed of [3, 7, 11, 19]) {
+      const generator = new DeliveryGenerator(new SeededRandom(seed));
+      // Driven through the off side at a ball on the pads: the line does not
+      // suit it, so it goes up, caught or not by the dice.
+      generator.drill('NORMAL', 'LEG');
+      for (let ball = 0; ball < 30; ball++) {
+        const delivery = generator.next(ball * 3000);
+        for (const roll of [.1, .9]) {
+          const play = (grounded: boolean) => resolveShot(delivery, { shotType: 'COVER_LONG_OFF', inputTimeMs: delivery.idealContactTimeMs, grounded }, { next: () => roll });
+          const over = play(false), down = play(true);
+          if (!over.aerial) continue;
+          expect(down.aerial).toBe(true);
+          expect(down.isWicket).toBe(over.isWicket);
+          if (over.isWicket) { held++; continue; }
+          escaped++;
+          expect(over.runs).toBe(6);
+          expect(down.runs).toBe(4); expect(down.feedback).toBe('FOUR!');
+        }
+      }
+    }
+    expect(escaped).toBeGreaterThan(0);
+    expect(held).toBeGreaterThan(0);
+  });
+
   // Versions two and three keep the ball down: what would have been a six is
   // a four, and nothing else about the ball changes.
   for (const [mode, play] of [

@@ -49,6 +49,16 @@ describe('a ball in the air', () => {
     expect(six.dropAt).toBe(0);
   });
 
+  it('lands inside and runs away to the rope when it is a four', () => {
+    // A mishit off a stroke played to keep it down, not caught.
+    const four = flightOf(outcome({ aerial: true, runs: 4 }));
+    expect(four.distance).toBe(flightOf(outcome({ runs: 4 })).distance);
+    expect(four.bounceAt).toBeGreaterThan(0); expect(four.bounceAt).toBeLessThan(1);
+    expect(four.height).toBeGreaterThan(5);
+    expect(four.takeAt).toBe(1);
+    expect(four.dropAt).toBe(0);
+  });
+
   it('goes out to a fielder when somebody is under it', () => {
     const held = flightOf(out('CAUGHT', { aerial: true }));
     expect(held.distance).toBeGreaterThan(15);

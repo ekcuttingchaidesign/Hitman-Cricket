@@ -488,7 +488,9 @@ version two's.
 
 Versions two and three keep the ball down: middled, the drive goes along the
 ground for four, never over the top for six (`grounded` on the attempt, read
-by `resolveShot` and `resolveSurvive`); version one's still goes for six. The
+by `resolveShot` and `resolveSurvive`), and skied and not caught it lands
+inside the rope and runs away for four (`flightOf`); version one's still goes
+for six either way. The
 swipe is judged the same in all three — the version is drawn after it, so
 nobody can time for it — and since the version now moves the score it is
 rolled off the innings' seed and the ball it has reached (`coverRoll`), never
