@@ -35,6 +35,10 @@ interface Pose {
   look?: number;
   heel: number;
   backFootYaw?: number;
+  /** The front heel up off a planted toe, as `heel` lifts the back one: the hook's front foot coming round. */
+  toe?: number;
+  /** Which way the front shoe points, where a stroke turns it further than the body's own share of it. */
+  frontFootYaw?: number;
   leadElbow: number;
   /** Shoulder-led drives: elevation of the upper-arm bend plane, not bat roll. */
   armHinge?: number;
@@ -624,9 +628,9 @@ export const HOOK_MEETS_AT = .45;
  * hold there, and home, unhurried rather than snapped out of, as admiring a
  * drive holds its finish the longer.
  */
-export const HOOK_HOLD_MS = 320;
-const HOOK_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: HOOK_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, turned: 650, hold: 710, unwrap: 805, lowered: 875 } as const;
-const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Pose; rise: Pose; turned: Pose; unwrap: Pose; lowered: Pose } = {
+export const HOOK_HOLD_MS = 420;
+const HOOK_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: HOOK_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, turned: 610, faced: 700, hold: 740, unwrap: 830, lowered: 885 } as const;
+const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Pose; rise: Pose; turned: Pose; faced: Pose; unwrap: Pose; lowered: Pose } = {
   // Back and across, the front foot drawn back and opened, the bat high over the back shoulder.
   load: { ...BACKLIFT, hip: [-.12, .95, -.14], chest: [-.10, 1.30, -.10],
     frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.38],
@@ -665,17 +669,25 @@ const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Po
     yaw: -1.25, face: -1.70, heel: .44, backFootYaw: .24, leadElbow: -.05, look: -.25 },
   // and the bat wraps behind his head, the hands over the front shoulder.
   finish: { ...GUARD, hip: [-.20, .95, -.08], chest: [-.25, 1.32, -.06],
-    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.35],
+    frontFoot: [-.26, .08, .0], backFoot: [.10, .08, -.35],
     grip: [-.52, 1.90, -.06], batUp: [-.62, .45, .64], batFace: [.62, .78, 0],
-    yaw: -1.40, face: -1.95, heel: .50, backFootYaw: .14, leadElbow: -.08, look: -.30 },
-  // And he goes on turning after it, the hands staying up over the front
-  // shoulder as the body turns under them: the chest round square to the leg
-  // side, the back foot swung round onto its toe, and the bat come up behind
-  // his head pointing up and away to off, his head up after the ball.
-  turned: { ...GUARD, hip: [-.20, .95, -.10], chest: [-.24, 1.32, -.08],
-    frontFoot: [-.26, .08, .02], backFoot: [.16, .10, -.30],
-    grip: [-.45, 1.90, .02], batUp: [-.75, -.62, .22], batFace: [.62, -.78, 0],
-    yaw: -1.80, face: -2.05, heel: .75, backFootYaw: -.30, leadElbow: -.10, look: -.40 },
+    yaw: -1.40, face: -1.95, heel: .50, backFootYaw: .14, leadElbow: -.08, look: -.30, toe: .12, frontFootYaw: -1.20 },
+  // And he goes on turning after it, on his feet as well as his shoulders:
+  // the hands staying up over the front shoulder as the body turns under
+  // them, the hips going round with the chest, the back foot pivoting up on
+  // its toe and the front foot lifting and coming round behind him. Square
+  // to the leg side here, the bat up behind his head pointing away to off,
+  turned: { ...GUARD, hip: [-.14, .97, -.16], chest: [-.18, 1.34, -.14],
+    frontFoot: [-.18, .11, -.24], backFoot: [.08, .09, -.29],
+    grip: [-.39, 1.90, -.04], batUp: [-.75, -.62, .22], batFace: [.62, -.78, 0],
+    yaw: -1.80, face: -2.05, heel: .45, backFootYaw: -.60, leadElbow: -.10, look: -.40, toe: .25, frontFootYaw: -1.70 },
+  // and on round until his back is to the bowler and his hips to the
+  // stumps: the front foot come round to off stump on its toe, the back one
+  // turned to leg stump, his head up after the ball over his shoulder.
+  faced: { ...GUARD, hip: [.05, 1.00, -.27], chest: [.02, 1.37, -.29],
+    frontFoot: [.27, .08, -.40], backFoot: [-.12, .08, -.15],
+    grip: [-.20, 1.94, -.41], batUp: [-.59, -.62, -.51], batFace: [.34, -.78, .52],
+    yaw: -2.75, face: -2.30, heel: .10, backFootYaw: -2.20, leadElbow: -.10, look: -.45, toe: .22, frontFootYaw: -2.40 },
   // Home, unhurried: back up over his head with the bat upright, then the
   // hands let down in front of him into his guard, the bat tipping back over
   // the shoulder as it goes. The guard's bat is up behind him already, so it
@@ -683,7 +695,7 @@ const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Po
   // and round by the leg side it had a long way to swing in no time at all.
   unwrap: { ...GUARD, hip: [-.16, .95, -.06], chest: [-.18, 1.31, -.02],
     frontFoot: [-.24, .08, .06], backFoot: [.06, .08, -.33],
-    grip: [-.30, 1.66, .36], batUp: [0, -1, .10], batFace: [0, .10, 1],
+    grip: [-.36, 1.70, .44], batUp: [0, -1, .10], batFace: [0, .10, 1],
     yaw: -.40, face: -.60, heel: .26, backFootYaw: .50, leadElbow: -.10 },
   lowered: { ...GUARD, hip: [-.10, .95, -.05], chest: [-.06, 1.30, .0],
     frontFoot: [-.16, .08, .18], backFoot: [-.05, .08, -.28],
@@ -1934,6 +1946,9 @@ function mix(a: Pose, b: Pose, amount: number, curve = ease): Pose {
     headDown: THREE.MathUtils.lerp(a.headDown ?? 0, b.headDown ?? 0, t),
     look: THREE.MathUtils.lerp(a.look ?? 0, b.look ?? 0, t),
     backFootYaw: THREE.MathUtils.lerp(a.backFootYaw ?? 1.38, b.backFootYaw ?? 1.38, t),
+    toe: THREE.MathUtils.lerp(a.toe ?? 0, b.toe ?? 0, t),
+    frontFootYaw: a.frontFootYaw === undefined && b.frontFootYaw === undefined ? undefined
+      : THREE.MathUtils.lerp(a.frontFootYaw ?? a.yaw * .77, b.frontFootYaw ?? b.yaw * .77, t),
     leadElbow: THREE.MathUtils.lerp(a.leadElbow, b.leadElbow, t),
     armHinge: THREE.MathUtils.lerp(a.armHinge ?? -.6,b.armHinge ?? -.6,t),
     armDrive: THREE.MathUtils.lerp(a.armDrive ?? 0,b.armDrive ?? 0,t),
@@ -1968,6 +1983,8 @@ function flowing(keys: readonly { time: number; pose: Pose }[], age: number, hor
     pose[key] = [0, 1, 2].map(axis => sample(keys.map(k => k.pose[key][axis]))) as unknown as Point;
   for (const key of ['yaw', 'face', 'heel', 'leadElbow'] as const) pose[key] = sample(keys.map(k => k.pose[key]));
   pose.backFootYaw = sample(keys.map(k => k.pose.backFootYaw ?? 1.38));
+  pose.toe = sample(keys.map(k => k.pose.toe ?? 0));
+  if (keys.some(k => k.pose.frontFootYaw !== undefined)) pose.frontFootYaw = sample(keys.map(k => k.pose.frontFootYaw ?? k.pose.yaw * .77));
   for (const key of ['armHinge','armDrive','shoulderLift'] as const)
     pose[key] = sample(keys.map(k=>k.pose[key] ?? (key==='armHinge'?-.6:0)));
   pose.release = THREE.MathUtils.clamp(sample(keys.map(k => k.pose.release ?? 0)), 0, 1);
@@ -2794,16 +2811,16 @@ export class Batter {
       return;
     }
     if (this.shot === 'HOOK') {
-      const { load, down, contact: met, front, leg, round, rise, finish: end, turned, hold, unwrap, lowered } = HOOK_CLOCK;
+      const { load, down, contact: met, front, leg, round, rise, finish: end, turned, faced, hold, unwrap, lowered } = HOOK_CLOCK;
       const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(HOOK.load) }, { time: down, pose: reachPose(HOOK.down) },
         { time: met, pose: contact }, { time: front, pose: reachPose(HOOK.front) }, { time: leg, pose: reachPose(HOOK.leg) },
         { time: round, pose: reachPose(HOOK.round) }, { time: rise, pose: reachPose(HOOK.rise) }, { time: end, pose: finish }];
-      const round_ = reachPose(HOOK.turned);
-      const after = [{ time: end, pose: finish }, { time: turned, pose: round_ }];
+      const round_ = reachPose(HOOK.faced);
+      const after = [{ time: end, pose: finish }, { time: turned, pose: reachPose(HOOK.turned) }, { time: faced, pose: round_ }];
       // Home: unwound with the bat brought upright over his head, then down.
       const home = [{ time: hold, pose: round_ }, { time: unwrap, pose: reachPose(HOOK.unwrap) }, { time: lowered, pose: reachPose(HOOK.lowered) },
         { time: STROKE_DURATION_MS, pose: GUARD }];
-      const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < turned ? flowing(after, at) : at < hold ? round_ : flowing(home, at);
+      const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < faced ? flowing(after, at) : at < hold ? round_ : flowing(home, at);
       const pose = { ...poseAt(age) };
       // The face never turns in his hands: it rides the handle from his
       // stance, as his guard draws it, the whole way round, and only the
@@ -3493,7 +3510,7 @@ export class Batter {
       const leg = this.legs[i];
       const hipJoint = new THREE.Vector3(i === 0 ? -.135 : .135, -.045, 0).applyQuaternion(yaw).add(hip);
       const foot = V(i === 0 ? pose.frontFoot : pose.backFoot);
-      const footPitch = Math.max(i === 1 ? pose.heel * 2.4 : 0, (pose.kneel ?? 0) * 1.15);
+      const footPitch = Math.max(i === 1 ? pose.heel * 2.4 : (pose.toe ?? 0) * 2.4, (pose.kneel ?? 0) * 1.15);
       // Lift the heel about a planted toe instead of lifting the entire shoe.
       foot.y += .225 * Math.sin(footPitch) + .07 * (Math.cos(footPitch) - 1);
       const driving = !this.pulling && (this.charging || this.lofted || this.shot==='STRAIGHT' || this.shot==='COVER_LONG_OFF');
@@ -3523,6 +3540,10 @@ export class Batter {
         const weight=ease(THREE.MathUtils.clamp(this.poseAge/80,0,1))*ease(THREE.MathUtils.clamp((STROKE_DURATION_MS-this.poseAge)/160,0,1));
         kneePole.lerp(new THREE.Vector3(i===0 ? .04 : .35,-.15,.65),weight);
       }
+      // The hook turns him right round on his feet, and a knee bent out to off
+      // whichever way he faces folds backwards once he faces leg: bent the way
+      // he faces, from the guard's own bend.
+      if (this.shot === 'HOOK' && Number.isFinite(this.poseAge) && this.poseAge < STROKE_DURATION_MS) kneePole.applyAxisAngle(UP, pose.yaw - GUARD.yaw);
       // On both knees: forward of him and down to the turf.
       if (pose.kneel) kneePole.lerp(new THREE.Vector3(Math.sin(pose.yaw) * .55, -.35, Math.cos(pose.yaw) * .55), pose.kneel);
       const knee = solveJoint(hipJoint, foot, .43, .44, hipJoint.clone().add(kneePole));
@@ -3533,7 +3554,7 @@ export class Batter {
       this.limbStart.copy(hipJoint).lerp(hip, .5).addScaledVector(spine, .09);
       this.trouserLegs[i].aim(this.limbStart, knee, foot, this.connectedTrousers.reference(i, this.hips));
       const lowerAxis = knee.clone().sub(foot).normalize();
-      const shoeYaw = i === 0 ? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);
+      const shoeYaw = i === 0 ? pose.frontFootYaw ?? pose.yaw * .77 : (pose.backFootYaw ?? 1.38);
       /**
        * Which way the front pad faces.
        *

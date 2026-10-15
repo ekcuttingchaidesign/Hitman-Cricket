@@ -2588,13 +2588,21 @@ describe('the hook', () => {
     const away = batter.bat.localToWorld(new Vector3(0, -.45, 0)).sub(batter.root.position).sub(new Vector3(...pose.shoulders[0])).normalize();
     expect(face.dot(away)).toBeGreaterThan(.9);
   });
-  it('turns on round to the leg side, holds it, then settles back into his guard without a jump', () => {
+  it('turns on round on his feet until his back is to the bowler, holds it, then settles back into his guard without a jump', () => {
     const batter = hooked();
     const toeAt = (time: number) => { batter.update(time); batter.root.updateMatrixWorld(true); return batter.bat.localToWorld(new Vector3(0, -.8, 0)); };
-    // Square to the leg side, the bat up behind his head, held a moment.
-    toeAt(800);
-    expect(batter.inspect().yaw).toBeLessThan(-1.6);
-    expect(toeAt(845).distanceTo(toeAt(760))).toBeLessThan(.01);
+    // Square to the leg side on the way, and the feet going round with him:
+    // the front foot coming off the turf, the back one pivoting on its toe.
+    toeAt(700);
+    let pose = batter.inspect();
+    expect(pose.yaw).toBeLessThan(-1.5);
+    // Then his back to the bowler, held a moment: the front foot over towards
+    // off stump and the back one towards leg, the two the other way round
+    // from where he hit it.
+    toeAt(920); pose = batter.inspect();
+    expect(pose.yaw).toBeLessThan(-2.5);
+    expect(pose.frontFoot[0]).toBeGreaterThan(pose.backFoot[0] + .25);
+    expect(toeAt(955).distanceTo(toeAt(885))).toBeLessThan(.01);
     let last = toeAt(560), fastest = 0;
     for (let time = 564; time <= STROKE_DURATION_MS + HOOK_HOLD_MS; time += 4) { const toe = toeAt(time); fastest = Math.max(fastest, toe.distanceTo(last)); last = toe; }
     expect(fastest).toBeLessThan(.08);

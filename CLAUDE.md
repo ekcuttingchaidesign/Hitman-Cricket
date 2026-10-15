@@ -558,10 +558,15 @@ down, and the bottom hand rolling over the top one as the elbows fold, so the
 curved back of the blade lies against the front shoulder at the wrap, as the
 on drive's six's does. The first build held the hands at his chest and turned
 the bat on its handle, and was redone from a net session filmed end on. After
-the wrap he turns on, as the clip does, the hands staying up over the front
-shoulder while the body turns under them, until his chest is square to the
-leg side, the back foot round on its toe and the bat up behind his head
-pointing away to off; held there, he unwinds with the bat brought upright
+the wrap he turns on, as the clip does, on his feet as well as his shoulders:
+the hands staying up over the front shoulder while the body turns under them,
+square to the leg side and on round until his back is to the bowler and his
+hips to the stumps, the front foot lifted and brought round on its toe to off
+stump (`toe`, `frontFootYaw`) and the back one pivoted to leg stump, the two
+the other way round from where he hit it, and the bat up behind his head
+pointing away to off. Turned that far, a knee bent out to off as every other
+stroke's is folds backwards, so the hook's knees bend the way he faces. Held
+there, he unwinds with the bat brought upright
 over his head and lets the hands down into his guard, whose bat is up behind
 him already. Taking the hands round behind his head instead, or home back
 through the wrap, put an arm through the helmet. Everything from the wrap on
