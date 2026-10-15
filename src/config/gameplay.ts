@@ -208,6 +208,22 @@ export const HOOK = {
   skied: 'TOP EDGE — CAUGHT!',
 } as const;
 /**
+ * The cut off the spinner. A slow ball gives a batter time to make room, so
+ * the cut is not only for the one wide of off: he steps away to leg as he
+ * picks the bat up, far enough to leave the ball out on his off side whatever
+ * line it is on, and cuts it off the back foot. The off-spinner's ball,
+ * pitched outside off and turning into him, and the leg-spinner's, pitched on
+ * leg and turning away, are both his to cut. Down the leg side he has to go a
+ * long way for it, and the further he goes the more of the stumps he shows:
+ * missed, a straight one bowls him.
+ *
+ * `fit` is how well each line suits it, read where the turn leaves the ball,
+ * in place of the cut's own column, which wants width.
+ */
+export const SPIN_CUT = {
+  fit: { OUTSIDE_LEG: 0.55, LEG: 0.85, MIDDLE: 1, OFF: 1, OUTSIDE_OFF: 1 } as Record<BallLine, number>,
+} as const;
+/**
  * The square cut. It is the one stroke that answers a bouncer outside off: the
  * ball sits up at chest height with width on it, and a batter who rocks back
  * and frees his arms puts it away square. `minWidth` is how far outside off the

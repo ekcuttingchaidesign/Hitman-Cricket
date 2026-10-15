@@ -603,6 +603,29 @@ plays it in a browser on `?bouncers=1`, keys and a real swipe, in the Blast
 and in Survival;
 `cover-drive.html` has it beside the drives.
 
+## The cut off the spinner
+
+The cut has a second build for a spinner's ball (`spinCut` in
+`ShotResolver.ts`, `spun` on the delivery: off-spin, leg-spin and the arm
+ball), off the same swipe and the same D key. An off-spinner pitched outside
+off turns in at him and a leg-spinner pitched on leg turns away, and neither
+leaves the width the cut wants, so he makes it: back and away towards leg
+(`SPIN_CUT_ROOM`, the step taken off the ball's line), the front foot drawn
+back with him and the stance opened wide, the weight on the back foot and the
+bat high (`SPIN_CUT_LOAD_MS`). Built from a clip filmed from in front. He meets
+it on the back foot out in front of off stump at `SPIN_CUT_CONTACT_MS`, the
+arms out straight and the face over the ball; the hands go through level
+towards point, then up with the blade upright before his face, over his head,
+and the bat lands on the opposite shoulder, behind his head over the leg side
+(`SPIN_CUT_CLOCK`). The face rides the handle (`riding`) and turns only as the
+forearms bring it down over the ball and as the bat goes over onto the
+shoulder; held there, it comes back over his head and down into his guard.
+Which lines suit it is `SPIN_CUT.fit` in `gameplay.ts`, read through `fitOf`
+in both resolvers in place of the cut's own column, which wants width: off and
+middle as well as outside off, leg less, outside leg least. `?spin=1` gives
+the spinner every over. It is `spinCut` in the batter tests' `PLAYS`, and
+`cover-drive.html` has it beside the drives and the hook.
+
 ## A newcomer's first innings
 
 The first three finished innings in each mode are batted a little easier

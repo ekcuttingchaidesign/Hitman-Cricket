@@ -998,10 +998,10 @@ export class GameScene {
   }
   /** How far along its flight the ball the bat was swung at is met, when that is short of the crease without a charge. */
   private meeting = 1;
-  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2, meets = 1) {
+  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2, meets = 1, spinCut = false) {
     this.meeting = charging ? 1 : meets;
     const contact = this.flight(delivery, charging ? GameScene.meetsAt(true) : meets);
-    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version, spinCut);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;

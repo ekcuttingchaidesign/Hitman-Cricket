@@ -25,7 +25,7 @@ import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
 import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
-import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, spinCut, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -2119,7 +2119,9 @@ export class Game {
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
     if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt);
+    // At the spinner the cut is played making room for it: see `SPIN_CUT`.
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt,
+      !charging && spinCut(this.delivery!, this.attempt));
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and

@@ -1,5 +1,6 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, SCOOP, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, SCOOP, SOLID_SHOT, SPIN_CUT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
+import { spun } from './DeliveryGenerator';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
 /**
  * How well a stroke was timed, by the size of the error and nothing else. The
@@ -31,6 +32,19 @@ function groundRuns(rng: { next(): number }): ShotOutcome['runs'] {
     if (roll <= 0) return value;
   }
   return GROUND_RUNS[GROUND_RUNS.length - 1][0];
+}
+/**
+ * The cut at the spinner: he makes room for it, so it is played at any line
+ * (`SPIN_CUT`). Read by the rig and by the score, so the stroke he plays and the
+ * line it is judged on are the same.
+ */
+export function spinCut(delivery: Delivery, attempt: Pick<ShotAttempt, 'shotType'> | null) {
+  return attempt?.shotType === 'SQUARE_CUT' && spun(delivery);
+}
+/** How well this stroke suits the line this ball finishes on: the table's, but the spinner's cut its own. */
+export function fitOf(delivery: Delivery, shot: ShotType) {
+  const line = effectiveLine(delivery);
+  return shot === 'SQUARE_CUT' && spun(delivery) ? SPIN_CUT.fit[line] : COMPATIBILITY[line][shot];
 }
 /**
  * Whether this ball can be charged at all. Line, length and pace each have to be
@@ -288,7 +302,7 @@ export function resolveShot(
   if (attempt) attempt = playedAs(delivery, attempt, charged);
   const delta = attempt ? attempt.inputTimeMs - delivery.idealContactTimeMs : null;
   const timingGrade = delta === null ? 'MISS' : gradeTiming(delta, STYLES[delivery.style].tight, windows);
-  const compatibility = attempt ? COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] : 0;
+  const compatibility = attempt ? fitOf(delivery, attempt.shotType) : 0;
   const quality = TIMING_SCORE[timingGrade] * compatibility;
   const madeBatContact = !!attempt && timingGrade !== 'MISS' && compatibility >= 0.25;
   const outcome: ShotOutcome = { runs: 0, isWicket: false, quality, feedback: 'DOT BALL', timingGrade,

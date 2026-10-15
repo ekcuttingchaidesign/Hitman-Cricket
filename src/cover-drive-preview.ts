@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, SPIN_CUT_CONTACT_MS, SPIN_CUT_LOAD_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
@@ -30,6 +30,8 @@ interface Stroke {
   label: string; shot: ShotType; charging: boolean; lofted?: boolean;
   /** Played the same in every version: the on drive has only the one. */
   single?: boolean;
+  /** The cut at a spinner, room made by stepping away to leg. */
+  spinCut?: boolean;
   /** Where the ball is met, in the rig's frame. */
   ball: { x: number; y: number; z: number };
   contact: number; end: number; bounceZ: number;
@@ -71,6 +73,14 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .028, angle: THREE.MathUtils.degToRad(-22), climb: .014 },
     facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
     note: 'The on drive lofted for six, played when the swipe is perfectly timed: the on drive\'s own stride and contact, then the arms carry the bat up through the line and over into a wrap, the elbows bent rather than reaching for the sky: the hands just over the front shoulder with the bat lying back over it behind his head, the front elbow up beside the helmet, the back arm across in front of his face, the chest open to long-on and the back foot up on its toe, held to 580 ms. The arms take the bat over, not the wrists: the one turn in his hands is the bottom hand rolling over the top one through the carry, evenly and one way, so that at the wrap the flat face looks out and the curved back of the blade lies against his shoulder; held, nothing turns it, and on the way home, back over his head and down the line, it settles into his guard a little at a time. The six it replaces turned the bat a full turn in his hands on the way home.',
+  },
+  spincut: {
+    label: 'Cut off the spinner', shot: 'SQUARE_CUT', charging: false, single: true, spinCut: true, ball: { x: LINE_X.MIDDLE, y: .54, z: GAME.contactZ },
+    contact: SPIN_CUT_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 4.2,
+    phases: [['Stance', -LEAD_MS], ['Back and away', SPIN_CUT_LOAD_MS], ['Contact', SPIN_CUT_CONTACT_MS], ['Through', 260], ['Up', 350], ['Over', 440], ['Shoulder', 520], ['Home', 700]],
+    out: { speed: .03, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.SQUARE_CUT), climb: 0 },
+    facts: ['off-spinner turning in', `${STROKE_DURATION_MS} ms`],
+    note: 'The cut at a spinner, off the same swipe as the cut: an off-spinner pitched outside off and turning in at him, or a leg-spinner pitched on leg and turning away. He makes the room himself: the back foot goes back and away towards leg, the front foot is drawn back with it and the stance opens wide, the weight on the back foot, the bat taken up high. The ball is met at 190 ms out in front of the off stump on the back foot, the bat coming down on it with the arms out straight and the face over the ball, and the hands go on through level towards point at 260, then up at 350 with the blade upright in front of his face, over his head at 440, and the bat lands at 520 on the opposite shoulder, behind his head over the leg side, the face riding his hands all the way: held there, it comes back over his head and down into his guard.',
   },
   hook: {
     label: 'Hook shot', shot: 'HOOK', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: 1.134, z: GAME.contactZ + HOOK_MEETS_AT },
@@ -194,7 +204,7 @@ const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !str
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, false, false, version);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, false, false, version, !!stroke.spinCut);
   swinging = true;
 }
 

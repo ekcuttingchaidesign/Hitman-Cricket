@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -10,7 +10,7 @@ import { resolveSurvive } from '../src/game/Survive';
 import { mapKeys, mapSwipe } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
-import { advanceShot, chargeable, cuttable, gradeOf, gradeTiming, hookable, playedAs, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
+import { advanceShot, chargeable, cuttable, fitOf, gradeOf, gradeTiming, hookable, playedAs, spinCut, resolveShot, scoopLine, scoopShot, scoopable, slogSweep, squareDrivable, sweepable, sweeps, turningIn } from '../src/game/ShotResolver';
 import type { Delivery, ShotOutcome, ShotType } from '../src/game/types';
 const delivery = (changes: Partial<Delivery> = {}): Delivery => ({ line: 'MIDDLE', style: 'NORMAL', speedKph: 125, baseTargetX: 0, finalTargetX: 0, bounceZ: GAME.bounceZ, rise: GAME.rise, durationMs: 1000, releaseTimeMs: 0, idealContactTimeMs: 1000, ...changes });
 const rng = (value: number) => ({ next: () => value });
@@ -949,6 +949,45 @@ describe('the scoops', () => {
     const ball = at('MIDDLE');
     expect(scoop(ball, 0, 'STRAIGHT').advance).toBe(true);
     expect(scoop(ball, 0, 'SCOOP').advance).toBeUndefined();
+  });
+});
+
+/**
+ * The cut off the spinner: he makes room, so the off-spinner's ball turning
+ * into him and the leg-spinner's turning away from leg are both cuttable.
+ * The same swipe as the cut; only the ball is different.
+ */
+describe('the cut off the spinner', () => {
+  const spinner = (style: 'OFF_SPIN' | 'LEG_SPIN' | 'ARM_BALL', base: number, final: number) =>
+    delivery({ style, baseTargetX: base, finalTargetX: final, speedKph: 88 });
+  const cutAt = (d: Delivery, delta = 0, roll = .99) => resolveShot(d, { shotType: 'SQUARE_CUT', inputTimeMs: d.idealContactTimeMs + delta }, rng(roll));
+  it('is the cut at any spinner, and only at a spinner', () => {
+    expect(spinCut(spinner('OFF_SPIN', .42, .03), { shotType: 'SQUARE_CUT' })).toBe(true);
+    expect(spinCut(spinner('LEG_SPIN', -.42, .19), { shotType: 'SQUARE_CUT' })).toBe(true);
+    expect(spinCut(spinner('ARM_BALL', 0, 0), { shotType: 'SQUARE_CUT' })).toBe(true);
+    expect(spinCut(delivery({ finalTargetX: 0 }), { shotType: 'SQUARE_CUT' })).toBe(false);
+    expect(spinCut(spinner('OFF_SPIN', .42, .03), { shotType: 'LEG' })).toBe(false);
+  });
+  it('suits the lines a spinner turns onto, where the cut at a quick wants width', () => {
+    for (const line of LINES) {
+      const d = spinner('OFF_SPIN', .42, LINE_X[line]);
+      expect(fitOf(d, 'SQUARE_CUT'), line).toBe(SPIN_CUT.fit[line]);
+      expect(fitOf(delivery({ finalTargetX: LINE_X[line] }), 'SQUARE_CUT'), line).toBe(COMPATIBILITY[line].SQUARE_CUT);
+      // Every other stroke at the spinner keeps its own column.
+      expect(fitOf(d, 'STRAIGHT'), line).toBe(COMPATIBILITY[line].STRAIGHT);
+    }
+    expect(SPIN_CUT.fit.MIDDLE).toBeGreaterThan(COMPATIBILITY.MIDDLE.SQUARE_CUT);
+    expect(SPIN_CUT.fit.LEG).toBeGreaterThan(COMPATIBILITY.LEG.SQUARE_CUT);
+  });
+  it('cuts the off-spinner turning in, and the leg-spinner turning away from leg, for boundaries', () => {
+    expect(cutAt(spinner('OFF_SPIN', .42, .03)).runs).toBe(6);
+    expect(cutAt(spinner('LEG_SPIN', -.42, -.03), 60).runs).toBe(4);
+  });
+  it('is edged behind mistimed, and bowled missed with the stumps left open', () => {
+    const edged = cutAt(spinner('OFF_SPIN', .42, .03), 170);
+    expect(edged.isWicket).toBe(true); expect(edged.edged).toBe(true);
+    const missed = cutAt(spinner('OFF_SPIN', .42, .03), 400);
+    expect(missed.isWicket).toBe(true); expect(missed.wicketType).toBe('BOWLED');
   });
 });
 

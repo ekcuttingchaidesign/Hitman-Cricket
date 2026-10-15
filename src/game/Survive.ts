@@ -1,10 +1,10 @@
-import { COMPATIBILITY, CUT, HOOK, SOLID_SHOT } from '../config/gameplay.js';
+import { CUT, HOOK, SOLID_SHOT } from '../config/gameplay.js';
 import {
   BANDS, BODY_ZONE, CLOSE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
-import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
+import { ballPosition, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { gradeTiming, hookable, squareDrive, sweeps } from './ShotResolver.js';
+import { fitOf, gradeTiming, hookable, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -392,7 +392,7 @@ export function surviveBall(
   const timingGrade = delta === null ? 'MISS'
     : gradeTiming(delta, tight, skill.timing, SURVIVE.fastTimingScale);
   const contact = contactOf(delta, tight, skill.bands);
-  const compatibility = attempt ? COMPATIBILITY[effectiveLine(delivery)][attempt.shotType] : 0;
+  const compatibility = attempt ? fitOf(delivery, attempt.shotType) : 0;
   const base: ShotOutcome = {
     runs: 0, isWicket: false, quality: SURVIVE_TIMING[timingGrade] * compatibility, feedback: 'DOT BALL',
     timingGrade, timingDeltaMs: delta, compatibility, madeBatContact: false, aerial: false,
