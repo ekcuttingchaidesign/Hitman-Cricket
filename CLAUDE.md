@@ -564,14 +564,21 @@ square to the leg side and on round until his back is to the bowler and his
 hips to the stumps, the front foot lifted and brought round on its toe to off
 stump (`toe`, `frontFootYaw`) and the back one pivoted to leg stump, the two
 the other way round from where he hit it, and the bat up behind his head
-pointing away to off. Turned that far, a knee bent out to off as every other
-stroke's is folds backwards, so the hook's knees bend the way he faces. Held
-there, he unwinds with the bat brought upright
+pointing away to off. It is one turn with the swing, not a second movement
+after it: from the ball on the keys are carried round about his hips
+(`HOOK_SWUNG`, `swungRound`) onto one turn that is fastest through the ball and
+slows all the way to a stop, and they are one key list, which eases to rest
+only at its end. Turned as first authored, the body slowed into the wrap, the
+list stopped there, and the turn after it ran nearly three times as fast, in
+slow motion besides — the batter tests hold the turn to slowing once it peaks.
+Turned that far, a knee bent out to off as every other stroke's is folds
+backwards, so the hook's knees bend the way he faces. Held there, he unwinds with the bat brought upright
 over his head and lets the hands down into his guard, whose bat is up behind
 him already. Taking the hands round behind his head instead, or home back
-through the wrap, put an arm through the helmet. Everything from the wrap on
-runs `HOOK_HOLD_MS` slower than the other strokes' clock, as an admired drive
-holds its finish the longer, so none of it is hurried. A hook that scores is
+through the wrap, put an arm through the helmet. Once he has turned round, the
+hold and home run `HOOK_HOLD_MS` slower than the other strokes' clock, as an
+admired drive holds its finish the longer, so the way home is not hurried; the
+swing and the turn keep the stroke's own tempo. A hook that scores is
 twirled after, as a pull is (`played.pulled`). It shares the
 pull's elbow clearance (`crossBat`) and is in the batter tests' `PLAYS` as
 `hook`.

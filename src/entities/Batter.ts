@@ -623,13 +623,14 @@ export const HOOK_CONTACT_MS = 200;
 /** How far down the pitch of the crease the hook meets the ball: out in front, arms straight. */
 export const HOOK_MEETS_AT = .45;
 /**
- * How much longer the hook takes than the other strokes, all of it after the
- * wrap, which runs that much slower: the turn on round to the leg side, the
- * hold there, and home, unhurried rather than snapped out of, as admiring a
- * drive holds its finish the longer.
+ * How much longer the hook takes than the other strokes, all of it once he
+ * has turned round, which runs that much slower: the hold, and home,
+ * unhurried rather than snapped out of, as admiring a drive holds its finish
+ * the longer. The swing and the turn keep the swing's own tempo: slowed from
+ * the wrap, the turn after it went into slow motion half way through a stroke.
  */
 export const HOOK_HOLD_MS = 420;
-const HOOK_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: HOOK_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, turned: 610, faced: 700, hold: 740, unwrap: 830, lowered: 885 } as const;
+const HOOK_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: HOOK_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, turned: 600, faced: 720, hold: 770, unwrap: 850, lowered: 895 } as const;
 const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Pose; rise: Pose; turned: Pose; faced: Pose; unwrap: Pose; lowered: Pose } = {
   // Back and across, the front foot drawn back and opened, the bat high over the back shoulder.
   load: { ...BACKLIFT, hip: [-.12, .95, -.14], chest: [-.10, 1.30, -.10],
@@ -709,6 +710,39 @@ const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Po
  * comes back inside off stump, because inside it the ball is the pull's.
  */
 const HOOK_REACH: readonly [number, number] = [.10, .45];
+/**
+ * The hook's keys from the ball to the end of the turn, as they are played:
+ * one turn of the body from the ball to his back to the bowler, fastest
+ * through the ball and slowing all the way, with nothing stopped in between.
+ * The keys above are the shapes, each authored at the body's own angle; the
+ * swing then carries each round about his hips (`swungRound`) to its place on
+ * that one turn, the arms and the bat going with the body, and gives it its
+ * feet. Turned the way the keys first were, the body slowed into the wrap and
+ * then spun on round after it, nearly three times as fast: the swing stopped,
+ * and a second movement started.
+ *
+ * The feet go round with him, both about the middle of his stance: the back
+ * foot pivots up onto its toe and comes round to leg stump, the front one
+ * lifts and is carried round behind him to off stump, so the two finish the
+ * other way round from where he hit it.
+ */
+function swungRound(pose: Pose, by: number, shift: readonly [number, number],
+  feet: { front: Point; back: Point; toe: number; heel: number; frontFootYaw: number; backFootYaw: number }): Pose {
+  const about = V(pose.hip).add(new THREE.Vector3(shift[0], 0, shift[1]));
+  const carried = (p: Point) => V(p).add(new THREE.Vector3(shift[0], 0, shift[1])).sub(about).applyAxisAngle(UP, by).add(about).toArray() as unknown as Point;
+  const turned = (p: Point) => V(p).applyAxisAngle(UP, by).toArray() as unknown as Point;
+  return { ...pose, hip: about.toArray() as unknown as Point, chest: carried(pose.chest), grip: carried(pose.grip),
+    batUp: turned(pose.batUp), batFace: turned(pose.batFace), yaw: pose.yaw + by, face: pose.face + by,
+    frontFoot: feet.front, backFoot: feet.back, toe: feet.toe, heel: feet.heel, frontFootYaw: feet.frontFootYaw, backFootYaw: feet.backFootYaw };
+}
+const HOOK_SWUNG = {
+  front: swungRound(HOOK.front, -.21, [0, 0], { front: [-.26, .08, .02], back: [.10, .08, -.38], toe: 0, heel: .18, frontFootYaw: -.30, backFootYaw: .75 }),
+  leg: swungRound(HOOK.leg, -.36, [0, 0], { front: [-.26, .08, .02], back: [.10, .08, -.38], toe: 0, heel: .30, frontFootYaw: -.70, backFootYaw: .50 }),
+  round: swungRound(HOOK.round, -.36, [.012, -.007], { front: [-.29, .08, -.04], back: [.16, .08, -.33], toe: .05, heel: .42, frontFootYaw: -1.15, backFootYaw: .15 }),
+  rise: swungRound(HOOK.rise, -.52, [.03, -.018], { front: [-.315, .09, -.15], back: [.215, .08, -.246], toe: .12, heel: .48, frontFootYaw: -1.50, backFootYaw: -.25 }),
+  finish: swungRound(HOOK.finish, -.77, [.068, -.04], { front: [-.22, .11, -.38], back: [.19, .08, -.07], toe: .22, heel: .45, frontFootYaw: -1.95, backFootYaw: -.85 }),
+  turned: swungRound(HOOK.turned, -.69, [.11 - .06, -.067 + .06], { front: [.05, .11, -.50], back: [.016, .08, 0], toe: .25, heel: .30, frontFootYaw: -2.25, backFootYaw: -1.60 }),
+};
 /**
  * The square drive, off the front foot — the reference recording.
  *
@@ -2612,10 +2646,10 @@ export class Batter {
     // the ball, the helmet's round shell showed nothing of it from behind, and
     // only the peak came out past it and went back, as if the helmet stretched.
     if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
-    // The hook's follow-through, from the wrap on, runs the slower: see `HOOK_HOLD_MS`.
-    else if (this.shot === 'HOOK' && age > HOOK_CLOCK.finish) {
-      const { finish } = HOOK_CLOCK;
-      age = finish + (age - finish) * (STROKE_DURATION_MS - finish) / (STROKE_DURATION_MS + HOOK_HOLD_MS - finish);
+    // The hook, once he has turned round, holds and goes home the slower: see `HOOK_HOLD_MS`.
+    else if (this.shot === 'HOOK' && age > HOOK_CLOCK.faced) {
+      const { faced } = HOOK_CLOCK;
+      age = faced + (age - faced) * (STROKE_DURATION_MS - faced) / (STROKE_DURATION_MS + HOOK_HOLD_MS - faced);
     }
     this.poseAge = age;
     this.travel(age);
@@ -2812,15 +2846,18 @@ export class Batter {
     }
     if (this.shot === 'HOOK') {
       const { load, down, contact: met, front, leg, round, rise, finish: end, turned, faced, hold, unwrap, lowered } = HOOK_CLOCK;
-      const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(HOOK.load) }, { time: down, pose: reachPose(HOOK.down) },
-        { time: met, pose: contact }, { time: front, pose: reachPose(HOOK.front) }, { time: leg, pose: reachPose(HOOK.leg) },
-        { time: round, pose: reachPose(HOOK.round) }, { time: rise, pose: reachPose(HOOK.rise) }, { time: end, pose: finish }];
       const round_ = reachPose(HOOK.faced);
-      const after = [{ time: end, pose: finish }, { time: turned, pose: reachPose(HOOK.turned) }, { time: faced, pose: round_ }];
+      const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(HOOK.load) }, { time: down, pose: reachPose(HOOK.down) },
+        { time: met, pose: contact }, { time: front, pose: reachPose(HOOK_SWUNG.front) }, { time: leg, pose: reachPose(HOOK_SWUNG.leg) },
+        { time: round, pose: reachPose(HOOK_SWUNG.round) }, { time: rise, pose: reachPose(HOOK_SWUNG.rise) }, { time: end, pose: reachPose(HOOK_SWUNG.finish) },
+        // One list from the ball to the end of the turn, so nothing comes to
+        // rest on the way: a key list eases to a stop at its last key, and the
+        // wrap as the end of one list and the start of the next stopped dead.
+        { time: turned, pose: reachPose(HOOK_SWUNG.turned) }, { time: faced, pose: round_ }];
       // Home: unwound with the bat brought upright over his head, then down.
       const home = [{ time: hold, pose: round_ }, { time: unwrap, pose: reachPose(HOOK.unwrap) }, { time: lowered, pose: reachPose(HOOK.lowered) },
         { time: STROKE_DURATION_MS, pose: GUARD }];
-      const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < faced ? flowing(after, at) : at < hold ? round_ : flowing(home, at);
+      const poseAt = (at: number): Pose => at < faced ? flowing(out, at) : at < hold ? round_ : flowing(home, at);
       const pose = { ...poseAt(age) };
       // The face never turns in his hands: it rides the handle from his
       // stance, as his guard draws it, the whole way round, and only the

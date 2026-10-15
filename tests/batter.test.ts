@@ -2583,7 +2583,7 @@ describe('the hook', () => {
       previous = q;
     }
     expect(worst.roll, JSON.stringify(worst)).toBeLessThan(5);
-    batter.update(560); batter.root.updateMatrixWorld(true);
+    batter.update(520); batter.root.updateMatrixWorld(true);
     const pose = batter.inspect(), face = new Vector3(0, 0, 1).applyQuaternion(batter.bat.getWorldQuaternion(new Quaternion()));
     const away = batter.bat.localToWorld(new Vector3(0, -.45, 0)).sub(batter.root.position).sub(new Vector3(...pose.shoulders[0])).normalize();
     expect(face.dot(away)).toBeGreaterThan(.9);
@@ -2599,13 +2599,29 @@ describe('the hook', () => {
     // Then his back to the bowler, held a moment: the front foot over towards
     // off stump and the back one towards leg, the two the other way round
     // from where he hit it.
-    toeAt(920); pose = batter.inspect();
+    toeAt(800); pose = batter.inspect();
     expect(pose.yaw).toBeLessThan(-2.5);
     expect(pose.frontFoot[0]).toBeGreaterThan(pose.backFoot[0] + .25);
-    expect(toeAt(955).distanceTo(toeAt(885))).toBeLessThan(.01);
-    let last = toeAt(560), fastest = 0;
-    for (let time = 564; time <= STROKE_DURATION_MS + HOOK_HOLD_MS; time += 4) { const toe = toeAt(time); fastest = Math.max(fastest, toe.distanceTo(last)); last = toe; }
+    expect(toeAt(850).distanceTo(toeAt(760))).toBeLessThan(.01);
+    let last = toeAt(860), fastest = 0;
+    for (let time = 864; time <= STROKE_DURATION_MS + HOOK_HOLD_MS; time += 4) { const toe = toeAt(time); fastest = Math.max(fastest, toe.distanceTo(last)); last = toe; }
     expect(fastest).toBeLessThan(.08);
+  });
+  it('turns round in one movement with the swing: fastest through the ball and slowing all the way', () => {
+    const batter = hooked();
+    const rates: number[] = [];
+    let last = 0;
+    for (let time = HOOK_CONTACT_MS; time <= 760; time += 20) {
+      batter.update(time); const yaw = batter.inspect().yaw;
+      if (time > HOOK_CONTACT_MS) rates.push((last - yaw) / .02);
+      last = yaw;
+    }
+    // Turning to leg the whole way until he stops, never back.
+    expect(Math.min(...rates)).toBeGreaterThan(-.05);
+    // Past its peak it only slows: nothing stalls at the wrap and then
+    // spins again after it, the first build's two movements.
+    const peak = rates.indexOf(Math.max(...rates));
+    for (let i = peak + 1; i < rates.length; i++) expect(rates[i], `@${HOOK_CONTACT_MS + 20 * (i + 1)}`).toBeLessThanOrEqual(rates[i - 1] + .35);
   });
   it('twirls the bat after one that scores, as after a pull', () => {
     const batter = hooked(); batter.update(HOOK_CONTACT_MS);
