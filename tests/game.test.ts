@@ -3,7 +3,7 @@ import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN,
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
-import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SURVIVE_PLAN, bouncersEvery } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { COVER_ODDS, coverRoll, coverVersionOf } from '../src/entities/Batter';
 import { resolveSurvive } from '../src/game/Survive';
@@ -1008,6 +1008,18 @@ describe('the hook', () => {
   it('lets a missed one go on over the stumps', () => {
     const missed = hook(bouncer('OFF'), 400);
     expect(missed.isWicket).toBe(false); expect(missed.madeBatContact).toBe(false); expect(missed.runs).toBe(0);
+  });
+  it('is every ball on `?hooks=1`, in every mode, and only some on `?bouncers=1`', () => {
+    for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {
+      const hooks = new DeliveryGenerator(new SeededRandom(11), bouncersEvery(plan, true));
+      const bouncers = new DeliveryGenerator(new SeededRandom(11), bouncersEvery(plan));
+      const dealt = Array.from({ length: 120 }, () => [hooks.next(0), bouncers.next(0)]);
+      expect(dealt.every(([ball]) => hookable(ball))).toBe(true);
+      expect(dealt.every(([, ball]) => ball.style === 'SHORT')).toBe(true);
+      expect(dealt.some(([, ball]) => !hookable(ball))).toBe(true);
+      // Both lines it answers come, not one of them.
+      expect(new Set(dealt.map(([ball]) => effectiveLine(ball)))).toEqual(new Set(['OFF', 'OUTSIDE_OFF']));
+    }
   });
   it('goes behind square on the leg side, finer than the pull', () => {
     expect(SHOT_ANGLES.HOOK).toBeLessThan(-90);

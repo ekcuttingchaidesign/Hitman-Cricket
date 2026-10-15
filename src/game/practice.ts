@@ -23,6 +23,7 @@ const ON: Record<string, (value: string) => boolean> = {
   charge: v => v !== '',
   slowmo: v => Number(v) > 0,
   bouncers: v => v === '1',
+  hooks: v => v === '1',
   swing: v => v === '1',
   express: v => v === '1',
   reverse: v => v === '1',

@@ -459,7 +459,8 @@ the place the board shows. Nothing is written. Production never sees them.
 
 An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
-`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?cover=1`
+`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?hooks=1`
+(every ball a bouncer on off stump or wider, the hook's ball), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
 `?coverv=1`, `2` or `3` (always that version of the cover strokes), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
@@ -578,8 +579,10 @@ twos; worse and the side decides — late the glove through to the keeper,
 early straight up off the top edge and caught. Missed, it flies on over the
 stumps. Survival and the Marathon pay it the same way off their own windows,
 early skied and late gloved or hurt. A hooked bouncer that scores gets the
-pull's flash (`pulledBouncer`). `scripts/hook-check.mjs` plays it in a browser
-on `?bouncers=1`, keys and a real swipe, in the Blast and in Survival;
+pull's flash (`pulledBouncer`). `?hooks=1` bowls nothing but its ball, every
+ball, in any mode (`bouncersEvery`), and is practice. `scripts/hook-check.mjs`
+plays it in a browser on `?bouncers=1`, keys and a real swipe, in the Blast
+and in Survival;
 `cover-drive.html` has it beside the drives.
 
 ## A newcomer's first innings

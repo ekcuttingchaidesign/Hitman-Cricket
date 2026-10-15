@@ -252,6 +252,21 @@ export function withoutYorkers(plan: BowlingPlan): BowlingPlan {
 }
 
 /**
+ * Every ball a bouncer, for `?bouncers=1`: no spinner, no planned short balls
+ * or blocks, and no yorker or slower ball owed, since either would stand in
+ * its place. With `hookable`, for `?hooks=1`, every one of them is aimed on
+ * off stump or wider, the ball the hook answers (`hookable`), so the stroke can
+ * be tried every ball. The pace, the timing and the scoring are the mode's.
+ */
+export function bouncersEvery(plan: BowlingPlan, hookable = false): BowlingPlan {
+  const every: BowlingPlan = { ...plan, spin: undefined, short: undefined, blocks: undefined,
+    specials: { sixesForYorker: Infinity, quickForSlower: Infinity, shortChance: 1 } };
+  return hookable
+    ? { ...every, aimed: true, styles: { ...plan.styles, SHORT: { ...plan.styles.SHORT, aimBody: 0, aimWide: 1 } } }
+    : every;
+}
+
+/**
  * The Marathon with every over bowled round the wicket, from the first, for
  * `?round=1`: the side is otherwise drawn, from the sixth over, so seeing it
  * the honest way takes some batting.
