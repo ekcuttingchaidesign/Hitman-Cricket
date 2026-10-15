@@ -349,12 +349,16 @@ export function resolveShot(
     // going across it, so it feathers off the edge and the keeper takes it.
     if (attempt?.shotType === 'SQUARE_CUT') return edge(outcome, CUT.edged);
     const taken = timingGrade === 'POOR' || rng.next() < GAME.mishitCaught;
+    // A stroke played to keep the ball down that goes up anyway has not the
+    // bat behind it to clear the rope: it lands inside and runs away for four.
+    const runs = attempt?.grounded ? 4 : 6;
     return taken
       ? { ...outcome, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'CAUGHT!' }
-      : { ...outcome, aerial: true, runs: 6, feedback: award(6) };
+      : { ...outcome, aerial: true, runs, feedback: award(runs) };
   }
-  // Middled it: the timing grade names the shot.
-  if (timingGrade === 'PERFECT') return { ...outcome, runs: 6, feedback: award(6) };
+  // Middled it: the timing grade names the shot. A stroke played to keep the
+  // ball down goes for four however well it is middled.
+  if (timingGrade === 'PERFECT') return attempt?.grounded ? { ...outcome, runs: 4, feedback: award(4) } : { ...outcome, runs: 6, feedback: award(6) };
   if (timingGrade === 'GOOD') return { ...outcome, runs: 4, feedback: award(4) };
   const runs = groundRuns(rng);
   return { ...outcome, runs, feedback: award(runs) };

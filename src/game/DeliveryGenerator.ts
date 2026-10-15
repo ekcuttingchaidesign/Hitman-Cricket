@@ -356,6 +356,8 @@ export class DeliveryGenerator {
   private readonly sides: boolean[] = [];
   /** The nets' bowler and side, standing in for the plan's every over once asked for. */
   private netting: { kind: OverKind; level: Level; round: boolean } | null = null;
+  /** One ball bowled every time, for working on the stroke it is bowled for: `drill`. */
+  private drilled: { style: DeliveryStyle; line: BallLine } | null = null;
   constructor(private rng: SeededRandom, private plan: BowlingPlan = CLASSIC_PLAN) {
     const blocks = plan.blocks;
     if (blocks) {
@@ -396,6 +398,12 @@ export class DeliveryGenerator {
     if (this.bowled % perOver) this.bowled += perOver - this.bowled % perOver;
     this.netting = { kind: NETS[bowler].kind, level: NETS[bowler].level(), round };
   }
+  /**
+   * Bowl `style` on `line` every ball from now on, for working on the stroke
+   * that ball asks for: `?cover=1` bowls the cover drive's own ball, a stock
+   * delivery pitched up on off stump, nothing moving, every time.
+   */
+  drill(style: DeliveryStyle, line: BallLine) { this.drilled = { style, line }; }
   /** The level over `over` is bowled at, in a plan by blocks. */
   levelAt(over: number): Level | null {
     const blocks = this.plan.blocks;
@@ -553,7 +561,7 @@ export class DeliveryGenerator {
   }
   next(releaseTimeMs: number): Delivery {
     if (!this.bag.length) this.bag = this.rng.shuffle(LINES);
-    const style = this.chooseStyle();
+    const style = this.drilled?.style ?? this.chooseStyle();
     const spell = this.plan.spin;
     const turning = !!spell && TURNING.includes(style);
     const sign = style === 'SWING_IN' || style === 'OFF_SPIN' || style === 'REVERSE_IN' ? -1
@@ -570,7 +578,8 @@ export class DeliveryGenerator {
     // before the bag, so it neither takes a line from it nor leaves a gap.
     const swingFrom = this.levelAt(this.over)?.swingShare !== undefined && !this.expressOn
       ? SWING_LINES[style] ?? REVERSE.lines[style] : undefined;
-    const line = turning ? this.pick(turnable(sign, spell!))
+    const line = this.drilled ? this.drilled.line
+      : turning ? this.pick(turnable(sign, spell!))
       : swingFrom ? this.pick([...swingFrom])
       : (this.aim(style) ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;

@@ -205,6 +205,72 @@ export const ADMIRE_MS = 400;
 const ADMIRE_AT = 480;
 /** When a drive's finish is reached, for keeping it to rehearse. */
 const STROKE_FINISH_MS = 410;
+/**
+ * The cover drive's front foot going down before the bat does. At `at` the
+ * foot is planted and the hips are `hips` of the way to contact, while the bat
+ * is only `bat` of the way down its arc. The chest keeps pace with the bat, not
+ * the hips: leaning out over the ball that early put it in the bat's way on a
+ * wide one coming down from high. The finish is held
+ * until `hold`, longer than the straight drive's, because the recording holds
+ * it so.
+ */
+const COVER_PLANT = { at: 55, bat: .55, batV3: .62, hips: .85, chest: .45, hold: 600 } as const;
+/**
+ * Which version of the two strokes off the cover input he plays. One is the
+ * game's own cover drive and charge over cover as they always were; two is
+ * the cover drive rebuilt from the recording (`STROKES.COVER_LONG_OFF`) and
+ * the charge over cover carrying its bat up into the finish without turning
+ * it in his hands. The game picks one at each cover swipe, half and half; it
+ * is how he plays the stroke, not how well, so nothing scored depends on it.
+ */
+export type CoverVersion = 1 | 2 | 3;
+/** How often each version of the cover strokes is played, by the cover swipe. */
+export const COVER_ODDS: Record<CoverVersion, number> = { 1: .4, 2: .2, 3: .4 };
+/** The version a roll of the dice in [0, 1) plays, by `COVER_ODDS`. */
+export function coverVersionOf(roll: number): CoverVersion {
+  return roll < COVER_ODDS[1] ? 1 : roll < COVER_ODDS[1] + COVER_ODDS[2] ? 2 : 3;
+}
+/**
+ * The roll for the ball an innings has reached, from its seed: the same ball
+ * of the same innings always rolls the same, so two rivals on one seed play
+ * the same version off it, and nothing is taken from the seed's own stream,
+ * which would move every ball bowled after it. (A 32-bit mix, murmur's last
+ * step, over the seed and the ball.)
+ */
+export function coverRoll(seed: number, ball: number) {
+  let h = (seed ^ Math.imul(ball + 1, 0x9e3779b9)) >>> 0;
+  h = Math.imul(h ^ h >>> 16, 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ h >>> 13, 0xc2b2ae35) >>> 0;
+  return ((h ^ h >>> 16) >>> 0) / 2 ** 32;
+}
+/**
+ * Version three of the cover drive meets the ball this much further down the
+ * pitch than every other drive: beside the front pad, under his eyes, where
+ * the recording meets it, rather than a stride behind it. The swipe is judged
+ * as for the other two all the same: the version is drawn after the swipe,
+ * so a player cannot time for it. Like version two it keeps the ball down,
+ * so it goes for four at most (`ShotAttempt.grounded`).
+ */
+export const COVER_V3_MEETS_AT = .28;
+/**
+ * The cover drive as it was before it was rebuilt: version one. Its contact
+ * is also the face the charge over cover brings the bat down with, in either
+ * version, which is what that charge was drawn against.
+ */
+const COVER_DRIVE_V1: Stroke = {
+  contact: { ...GUARD, hip: [.05, .81, .13], chest: [.19, 1.15, .22], frontFoot: [.10, .08, .60],
+    grip: [.50, .98, .35], batUp: [.34, .93, -.14], batFace: [.42, .10, .90], yaw: 1.42, face: .28, heel: .07, leadElbow: .12,
+    armHinge: .92, armDrive: 1, shoulderLift: 0 },
+  through: { ...GUARD, hip: [.00,.80,.20], chest: [.15,1.14,.30], frontFoot: [.10,.08,.60], backFoot: [-.12,.08,-.24],
+    grip: [.58,1.18,.76], batUp: [-.18,.975,-.10], batFace: [.42,.1,.90], yaw: .98, face: .28, heel: .18, leadElbow: .15,
+    armHinge: .80, armDrive: 1, shoulderLift: .05 },
+  finish: { ...GUARD, hip: [.08,.80,.20], chest: [.22,1.16,.30], frontFoot: [.10,.08,.60],
+    grip: [.47,1.60,.60], batUp: [-.86,.22,-.46], batFace: [.05,.93,.35], yaw: .95, face: .30, heel: .20, leadElbow: .40,
+    armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
+  recover: { ...GUARD, grip: [.38,1.10,.40], batUp: [-.15,-.80,-.58], batFace: [.86,-.22,.17], yaw: 1.16 },
+};
+/** When the cover drive's way home passes back through its own keys. */
+const COVER_HOME = { carry: 670, through: 740, under: 828 } as const;
 /** How close the grip may come to the middle of the helmet: its radius, a forearm's, and a little air. */
 const HANDS_CLEAR = .36;
 /** The middle of the helmet's dome, from the head's own origin. */
@@ -351,16 +417,36 @@ const STROKES: Record<ShotType, Stroke> = {
       grip: [.22, 1.10, .42], batUp: [-.15, -.80, -.58], batFace: [.86, -.22, .17],
       yaw: .80, face: -.20, heel: .10, leadElbow: -.18 },
   },
+  /**
+   * The cover drive, from a broadcast recording of a right-hander filmed
+   * side-on from the off side in slow motion, and from the bowler's end at
+   * match speed.
+   *
+   * He gets down into it: a long stride with the front knee bent over the
+   * foot, the hips low and forward, the back leg long behind him with the
+   * heel up and the foot on its toe, and the head and chest out over the
+   * line of the ball rather than stood up over the hips. The front foot is
+   * down before the bat comes (`COVER_PLANT`). After the ball the hands go
+   * up first along the line to cover with the blade still hanging under
+   * them; the blade comes up last, and the finish is the hands just over
+   * the helmet with the bat pointing out after the ball to cover and down,
+   * held — a checked drive, not one swung over the shoulder.
+   */
   COVER_LONG_OFF: {
-    contact: { ...GUARD, hip: [.05, .81, .13], chest: [.19, 1.15, .22], frontFoot: [.10, .08, .60],
-      grip: [.50, .98, .35], batUp: [.34, .93, -.14], batFace: [.42, .10, .90], yaw: 1.42, face: .28, heel: .07, leadElbow: .12,
-      armHinge: .92, armDrive: 1, shoulderLift: 0 },
-    through: { ...GUARD, hip: [.00,.80,.20], chest: [.15,1.14,.30], frontFoot: [.10,.08,.60], backFoot: [-.12,.08,-.24],
-      grip: [.58,1.18,.76], batUp: [-.18,.975,-.10], batFace: [.42,.1,.90], yaw: .98, face: .28, heel: .18, leadElbow: .15,
-      armHinge: .80, armDrive: 1, shoulderLift: .05 },
-    finish: { ...GUARD, hip: [.08,.80,.20], chest: [.22,1.16,.30], frontFoot: [.10,.08,.60],
-      grip: [.47,1.60,.60], batUp: [-.86,.22,-.46], batFace: [.05,.93,.35], yaw: .95, face: .30, heel: .20, leadElbow: .40,
-      armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
+    contact: { ...GUARD, hip: [.08, .82, .16], chest: [.23, 1.16, .24], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.50, .98, .35], batUp: [.30, .95, -.06], batFace: [.42, .10, .90], yaw: 1.40, face: .28, heel: .36, backFootYaw: 1.20, leadElbow: .14,
+      look: .22, armHinge: .92, armDrive: 1, shoulderLift: 0 },
+    through: { ...GUARD, hip: [.09, .80, .20], chest: [.25, 1.14, .30], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.66, 1.12, .86], batUp: [-.20, .97, -.12], batFace: [.42, .1, .90], yaw: 1.02, face: .28, heel: .46, backFootYaw: 1.10, leadElbow: .16,
+      look: .20, armHinge: .80, armDrive: 1, shoulderLift: .05 },
+    // Hands up to the chin before the blade comes up: it still points down and
+    // out after the ball.
+    carry: { ...GUARD, hip: [.10, .80, .22], chest: [.27, 1.14, .34], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.62, 1.30, .78], batUp: [-.35, .80, -.48], batFace: [.45, .45, .77], yaw: .98, face: .29, heel: .52, backFootYaw: 1.05, leadElbow: .30,
+      look: .16, armHinge: 1.30, armDrive: 1, shoulderLift: .07 },
+    finish: { ...GUARD, hip: [.11, .80, .23], chest: [.28, 1.14, .35], frontFoot: [.15, .08, .60], backFoot: [-.15, .08, -.40],
+      grip: [.54, 1.54, .68], batUp: [-.62, .48, -.62], batFace: [.20, .88, .44], yaw: .95, face: .30, heel: .56, backFootYaw: 1.00, leadElbow: .42,
+      look: .12, armHinge: 1.65, armDrive: 1, shoulderLift: .08 },
     recover: { ...GUARD, grip: [.38,1.10,.40], batUp: [-.15,-.80,-.58], batFace: [.86,-.22,.17], yaw: 1.16 },
   },
   LEG: {
@@ -394,6 +480,22 @@ const STROKES: Record<ShotType, Stroke> = {
   SCOOP: null as unknown as Stroke,
   REVERSE_SCOOP: null as unknown as Stroke,
 };
+/**
+ * Version three: version two's stroke with the whole body gone forward to the
+ * ball, met beside the front pad (`COVER_V3_MEETS_AT`). The hips and chest are
+ * a sixth of a metre further on, the head over the ball and the front knee,
+ * the front knee bent deeper over the foot; and the back foot slides back less
+ * than version two's, because the hips are nearer it.
+ */
+const COVER_DRIVE_V3: Stroke = (() => {
+  const v2 = { contact: { hip: [.08, .80, .30], chest: [.25, 1.16, .38], frontFoot: [.15, .08, .62], backFoot: [-.15, .08, -.34] },
+    through: { hip: [.09, .79, .33], chest: [.27, 1.12, .44], grip: [.68, 1.10, 1.00] },
+    carry: { hip: [.10, .79, .34], chest: [.28, 1.13, .46], grip: [.64, 1.28, .92] },
+    finish: { hip: [.11, .79, .34], chest: [.29, 1.13, .46], grip: [.56, 1.52, .80] } } as const;
+  const feet = { frontFoot: v2.contact.frontFoot as Point, backFoot: v2.contact.backFoot as Point };
+  const stroke = (key: 'contact' | 'through' | 'carry' | 'finish') => ({ ...STROKES.COVER_LONG_OFF[key]!, ...feet, ...(v2[key] as Partial<Pose>) });
+  return { contact: stroke('contact'), through: stroke('through'), carry: stroke('carry'), finish: stroke('finish'), recover: STROKES.COVER_LONG_OFF.recover };
+})();
 
 /**
  * The bat's orientation as one rotation: `batUp` is the handle axis and
@@ -2181,7 +2283,8 @@ export class Batter {
     this.afterward = { from: Math.max(now, home), kind, keys: null };
     return this.afterward.from + lengthOf(kind, this.shot);
   }
-  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false) {
+  swing(shot: ShotType, now: number, finalBallX: number, ballY = .54, ballZ: number = GAME.contactZ, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2) {
+    this.coverVersion = version;
     // Three charges, one per drive input: straight, over cover, over long-on.
     // Each is one stroke on one line whichever way the ball was actually going.
     this.shot = charging ? (shot === 'COVER_LONG_OFF' || shot === 'LONG_ON' ? shot : 'STRAIGHT') : shot;
@@ -2213,6 +2316,45 @@ export class Batter {
     // ball that stroke was never going to reach.
     this.ballY = this.pulling || this.cutting ? ballY : Math.min(ballY, .62);
   }
+  /**
+   * The bat from `from` to the guard, the face carried along with the handle
+   * frame by frame from `start`, so it does not turn in his hands: the cover
+   * drive's way home, from its held finish, and the charge over cover from the
+   * ball on. Whatever turn about the handle is left between the carried face
+   * and the guard's at the end is taken inside `unwind` rather than at the
+   * last, and the last frame is the guard's exactly, so he settles into it
+   * without a flick. Worked out once a stroke and read by time, so any frame
+   * can be drawn on its own.
+   */
+  private riding(from: number, poseAt: (age: number) => Pose, start: THREE.Quaternion, unwind: readonly [number, number], age: number) {
+    const step = 2, key = `${this.shot}:${this.charging}:${this.coverVersion}:${this.swingStart}:${this.ballX}:${this.ballY}:${this.ballZ}`;
+    if (this.homeRide?.key !== key) {
+      const turns: THREE.Quaternion[] = [], ups: THREE.Vector3[] = [];
+      for (let time = from; time <= STROKE_DURATION_MS; time += step)
+        ups.push(UP.clone().applyQuaternion(batOrientation(poseAt(Math.min(time, STROKE_DURATION_MS - 1e-6)))));
+      turns.push(start.clone());
+      for (let n = 1; n < ups.length; n++)
+        turns.push(new THREE.Quaternion().setFromUnitVectors(ups[n - 1], ups[n]).multiply(turns[n - 1]));
+      // The guard's face, as it is drawn once he is back in it.
+      const straight = batOrientation(STROKES.STRAIGHT.contact);
+      const guard = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), ups[ups.length - 1]).multiply(straight);
+      const left = turns[turns.length - 1].clone().invert().multiply(guard);
+      const roll = 2 * Math.atan2(left.y, left.w);
+      const shortest = Math.atan2(Math.sin(roll), Math.cos(roll));
+      // Only inside `unwind`: before it and after it the face only rides the handle.
+      const [begins, ends] = unwind.map(time => (time - from) / step);
+      turns.forEach((turn, n) => turn.multiply(new THREE.Quaternion().setFromAxisAngle(UP, shortest * ease(THREE.MathUtils.clamp((n - begins) / (ends - begins), 0, 1)))));
+      turns[turns.length - 1].copy(guard);
+      this.homeRide = { key, turns };
+    }
+    const at = THREE.MathUtils.clamp((age - from) / step, 0, this.homeRide.turns.length - 1), n = Math.min(Math.floor(at), this.homeRide.turns.length - 2);
+    return this.homeRide.turns[n].clone().slerp(this.homeRide.turns[n + 1], at - n);
+  }
+  private homeRide: { key: string; turns: THREE.Quaternion[] } | null = null;
+  /** Which version of the cover strokes this swing plays: see `CoverVersion`. */
+  private coverVersion: CoverVersion = 2;
+  /** Version two or three of a stroke off the cover input, not driven square: the strokes the versions differ in. */
+  private get coverV2() { return this.shot === 'COVER_LONG_OFF' && !this.squaring && this.coverVersion >= 2; }
   get strikeAt() { return this.contactTime; }
   get contactZ() { return this.ballZ; }
   /**
@@ -2342,7 +2484,9 @@ export class Batter {
       : this.charging ? { contact: CHARGE_CONTACT, finish: CHARGE_FINISH }
       : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? PULL : this.cutting ? CUT_HIGH
       : this.squaring ? SQUARE_DRIVE : this.lofted ? (this.shot === 'LONG_ON' ? ON_LOFT : STRAIGHT_LOFT)
-      : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP : STROKES[this.shot];
+      : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP
+      : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 1 ? COVER_DRIVE_V1
+      : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 3 ? COVER_DRIVE_V3 : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
     const zones: Record<ShotType, readonly [number, number]> = {
@@ -2399,18 +2543,29 @@ export class Batter {
         ? [[COVER_CHARGE_CLOCK.down, COVER_CHARGE_DOWN], [COVER_CHARGE_CLOCK.recover, COVER_CHARGE_RECOVER]]
         : overLongOn ? [[unwrap, ON_CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]]
         : [[unwrap, CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]];
-      if (age < settle) {
-        this.apply(shoulderDriven([{ time: 0, pose: this.swingFrom },
-          ...keys.map(({ time, pose }) => ({ time, pose: time === CHARGE_CLOCK.contact ? contact : reachPose(pose) }))], age, CHARGE_CONTACT_MS));
-      } else if (age < hold) this.apply(finish);
-      else {
+      const poseAt = (at: number): Pose => {
+        if (at < settle) return shoulderDriven([{ time: 0, pose: this.swingFrom },
+          ...keys.map(({ time, pose }) => ({ time, pose: time === CHARGE_CLOCK.contact ? contact : reachPose(pose) }))], at, CHARGE_CONTACT_MS);
+        if (at < hold) return finish;
         let from: Pose = finish, since: number = hold;
         for (const [until, pose] of home) {
-          if (age < until) { this.apply(mix(from, reachPose(pose), (age - since) / (until - since))); return; }
+          if (at < until) return mix(from, reachPose(pose), (at - since) / (until - since));
           from = reachPose(pose); since = until;
         }
-        this.apply(mix(from, GUARD, (age - since) / (STROKE_DURATION_MS - since)));
+        return mix(from, GUARD, (at - since) / (STROKE_DURATION_MS - since));
+      };
+      const pose = { ...poseAt(age) };
+      // Over cover, from the ball on, the face rides the handle: up into the
+      // high finish it turned a quarter of a turn in his hands and showed the
+      // sky the blade's edge rather than its face, and coming home it spun
+      // more than a full turn. What it has to turn to be back in his guard it
+      // turns on the way down from the hold.
+      if (overCover && this.coverV2 && age > CHARGE_CONTACT_MS) {
+        const reference = batOrientation(COVER_DRIVE_V1.contact), up = UP.clone().applyQuaternion(batOrientation(poseAt(CHARGE_CONTACT_MS)));
+        const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
+        pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, met, [hold, COVER_CHARGE_CLOCK.recover], age);
       }
+      this.apply(pose);
       return;
     }
     if (this.shot === 'SCOOP') {
@@ -2536,15 +2691,43 @@ export class Batter {
     // The lofted on drive runs the drives' clock too: it is a drive, and the
     // on drive along the ground it is picked instead of keeps its own.
     if (this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF' || (this.shot === 'LONG_ON' && this.lofted)) {
+      const cover = this.coverV2;
+      const hold = this.lofted ? 620 : cover ? COVER_PLANT.hold : 570;
       if (age < 410) {
         const keys = [{ time: 0, pose: this.swingFrom }, { time: STROKE_CONTACT_MS, pose: contact },
           { time: 220, pose: reachPose(stroke.through!) }];
+        // The cover drive's front foot is down, and his weight going onto it,
+        // while the bat is still on its way down: the bat keeps the path it
+        // has, and only the legs and hips get there first.
+        // Version three's bat has further to come, to a ball further on, so it is
+        // further down its arc by then and the elbows do not have to hurry.
+        if (cover) keys.splice(1, 0, { time: COVER_PLANT.at, pose: { ...mix(this.swingFrom, contact, this.coverVersion === 3 ? COVER_PLANT.batV3 : COVER_PLANT.bat),
+          frontFoot: contact.frontFoot, backFoot: contact.backFoot,
+          hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } });
         if (stroke.carry) keys.push({ time: 310, pose: reachPose(stroke.carry) });
         keys.push({ time: 410, pose: finish });
         this.apply(shoulderDriven(keys,age,STROKE_CONTACT_MS));
-      } else if (age < (this.lofted ? 620 : 570)) this.apply(finish);
-      else if (age < 800) {
-        const hold=this.lofted?620:570;
+      } else if (age < hold) this.apply(finish);
+      else if (cover) {
+        // Home the way it came: back down through the carry and the
+        // extension, under him through where he met the ball, and up into the
+        // pick-up behind, the bat never turning in his hands. Taken over the
+        // top instead, down in front of the face, it turned over twice on the
+        // way. The feet and hips come back under him as it goes.
+        const back = (pose: Pose, home: number): Pose => {
+          const body = mix(pose, GUARD, home);
+          return { ...pose, hip: body.hip, chest: body.chest, frontFoot: body.frontFoot, backFoot: body.backFoot, heel: body.heel,
+            backFootYaw: body.backFootYaw, look: body.look };
+        };
+        const keys = [{ time: hold, pose: finish },
+          { time: COVER_HOME.carry, pose: back(reachPose(stroke.carry!), .2) },
+          { time: COVER_HOME.through, pose: back(reachPose(stroke.through!), .45) },
+          { time: COVER_HOME.under, pose: back(contact, .7) },
+          { time: STROKE_DURATION_MS, pose: GUARD }];
+        const pose = shoulderDriven(keys, age, hold - 70);
+        pose.bat = this.riding(hold, at => shoulderDriven(keys, at, hold - 70), batOrientation(finish), [hold, COVER_HOME.through], age);
+        this.apply(pose);
+      } else if (age < 800) {
         // Down off the high finish. The on drive's comes down out in front of
         // the face, toe up and forward, because from above the helmet the knob
         // points down at him and the short way to the pick-up is through the
@@ -2641,7 +2824,7 @@ export class Batter {
     if (!this.felled) {
       const up=UP.clone().applyQuaternion(this.bat.quaternion);
       const impact=this.charging?CHARGE_CONTACT_MS:this.squaring?SQUARE_DRIVE_CONTACT_MS:this.shot==='SCOOP'?SCOOP_CONTACT_MS:this.shot==='REVERSE_SCOOP'?REVERSE_CONTACT_MS:STROKE_CONTACT_MS;
-      const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?STROKES.COVER_LONG_OFF.contact
+      const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?(!this.coverV2||this.charging?COVER_DRIVE_V1.contact:this.coverVersion===3?COVER_DRIVE_V3.contact:STROKES.COVER_LONG_OFF.contact)
         :this.charging&&this.shot==='LONG_ON'?ON_CHARGE_CONTACT:this.shot==='LONG_ON'?STROKES.LONG_ON.contact:STROKES.STRAIGHT.contact;
       const referenceQ=batOrientation(STROKES.STRAIGHT.contact).clone().slerp(batOrientation(reference),idle?0:ease(THREE.MathUtils.clamp(this.poseAge/impact,0,1)));
       const referenceUp=UP.clone().applyQuaternion(referenceQ);
@@ -2650,6 +2833,12 @@ export class Batter {
         this.bat.quaternion.copy(transported);
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
+      }
+      else if(this.coverV2 && (this.charging || this.poseAge>=COVER_PLANT.hold)) {
+        // The cover drive's way home, and the charge over cover from the ball
+        // on, already hold their face (`riding`):
+        // the roll the other strokes take into the guard is up to a full turn,
+        // and it spun the blade about the handle as it came up into the pick-up.
       }
       else {
         // Return the same corrected guard without snapping the other strokes.

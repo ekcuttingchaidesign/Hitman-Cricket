@@ -24,8 +24,8 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { type Celebration, celebrationLength } from './entities/Batter';
-import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, resolveShot } from './game/ShotResolver';
+import { COVER_V3_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
+import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -35,7 +35,7 @@ import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerSty
 import { HUD } from './ui/HUD';
 import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
-import type { AfterBall, Hurt } from './entities/Batter';
+import type { AfterBall, CoverVersion, Hurt } from './entities/Batter';
 import {
   claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
   submitSurvive,
@@ -482,6 +482,25 @@ export class Game {
    * is otherwise the innings, scored and offered to the boards as any other.
    */
   private readonly netsKeys = new URLSearchParams(location.search).get('nets') === '1';
+  /** `?cover=1`: every ball the cover drive's, a stock ball pitched up on off stump. */
+  private readonly coverDrill = new URLSearchParams(location.search).get('cover') === '1';
+  /**
+   * `?coverv=1`, `2` or `3`: always that version of the cover strokes, for
+   * looking at one.
+   */
+  private readonly coverAsked = Number(new URLSearchParams(location.search).get('coverv'));
+  /** How far along its flight this ball is met: the crease, or short of it for version three's cover drive. */
+  private meetsAt = 1;
+  /**
+   * Which version of the strokes off the cover input this swing plays, by
+   * `COVER_ODDS`. Rolled off the innings' seed and the ball it has reached
+   * (`coverRoll`), since versions two and three go for four where version
+   * one goes for six: the same ball plays the same version for everybody on
+   * that seed, rivals included.
+   */
+  private coverVersion(): CoverVersion {
+    return this.coverAsked === 1 || this.coverAsked === 2 || this.coverAsked === 3 ? this.coverAsked : coverVersionOf(coverRoll(this.seed, this.score.balls));
+  }
   private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
   /** Hand the nets' choice to the bowling and show it on the keys. */
   private applyNets() {
@@ -1725,6 +1744,9 @@ export class Game {
     if (this.ease > 1) this.mark(`newcomer-${EASE.indexOf(this.ease) + 1}`, 'Innings batted with a newcomer\'s help');
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.applyNets();
+    // `?cover=1`: the cover drive's ball every time, to play the stroke over
+    // and over. Practice, so it counts for nothing; and not in a Rival Match.
+    if (this.coverDrill && !this.challenge.playing) this.generator.drill('NORMAL', 'OFF');
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset();
     const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat);
@@ -2075,7 +2097,17 @@ export class Game {
     const levelled = !charging && !sweeping
       && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt, this.windows));
     this.primed = null;
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled);
+    const version = this.coverVersion();
+    // Version three of the cover drive meets the ball beside the front pad, a
+    // little before the crease, so the ball is struck there. The swipe is
+    // judged as for the other two: the version is drawn after it, so nobody
+    // can time for it. Not the square drive's wide ball, which is met where
+    // it always was.
+    const driven = shotType === 'COVER_LONG_OFF' && !charging && !squareDrivable(this.delivery!);
+    this.meetsAt = driven && version === 3 ? 1 - COVER_V3_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
+    // Versions two and three keep it down: four, never six (`grounded`).
+    if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt);
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and
@@ -3048,7 +3080,7 @@ export class Game {
     if (this.phase === 'READY' && age >= this.readyMs && this.elapsed >= this.bannerUntil && (this.scene.fieldSettled || age >= this.readyMs + FIELD_WAIT_MS)) {
       this.delivery = this.lesson >= 0 ? tutorialDelivery(TUTORIAL[this.lesson], this.elapsed + GAME.runupMs)
         : this.chargeable(this.generator.next(this.elapsed + GAME.runupMs));
-      this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false;
+      this.attempt = null; this.outcome = null; this.bounced = false; this.specials = []; this.primed = null; this.chargeBall = false; this.meetsAt = 1;
       // The ball is settled before the bowler moves, so the call goes out with
       // him. Held to the flight it gave the player under a second to see the
       // cue, change the shot he had in mind and time it — and that was most of
@@ -3085,7 +3117,7 @@ export class Game {
       this.scene.delivery(this.delivery, progress);
       const bounce = (GAME.releaseZ - this.delivery.bounceZ) / (GAME.releaseZ - GAME.contactZ);
       if (!this.bounced && progress >= bounce) { this.audio.play('bounce'); this.bounced = true; }
-      if ((progress >= 1 && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + this.swingWindow + GAME.comboMs) this.resolve();
+      if ((progress >= this.meetsAt && this.attempt) || this.elapsed >= this.delivery.idealContactTimeMs + this.swingWindow + GAME.comboMs) this.resolve();
     } else if (this.phase === 'SHOT_RESOLVE') {
       this.scene.result(this.elapsed);
       // A skied ball cracks off the bat now and is judged when it comes down.

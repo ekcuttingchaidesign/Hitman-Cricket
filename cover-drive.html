@@ -1,0 +1,123 @@
+<title>Cover Drive</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jaro&family=Instrument+Sans:wght@400;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: the nets at dusk. One tall stage, a transport under it like a
+   video scrubber, then the key poses as a strip of stills. Single dark look,
+   the game's own page colour and orange, chosen rather than themed. */
+:root{
+  color-scheme:dark;
+  --bg:#0a0b0d;
+  --panel:#12161b;
+  --line:#ffffff17;
+  --text:#f5efe6;
+  --text-2:#a3b3bd;
+  --accent:#ed7044;
+  --accent-soft:#ffb08f;
+  --pitch:#0e1a14;
+  --f-display:Jaro,'Arial Narrow',Impact,sans-serif;
+  --f-ui:'Instrument Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text)}
+body{font:15px/1.5 var(--f-ui);padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:960px;margin:0 auto;display:grid;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:8px 16px}
+h1{font:400 clamp(38px,8vw,56px)/.9 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+.facts{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 12px/1 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);
+  border:1px solid var(--line);border-radius:999px;padding:7px 10px}
+.chip b{color:var(--text)}
+#stage{position:relative;height:min(62vh,560px);min-height:300px;border-radius:14px;overflow:hidden;background:var(--pitch);border:1px solid var(--line)}
+#stage canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{position:absolute;left:12px;top:12px;display:flex;gap:8px;align-items:baseline;pointer-events:none}
+#phase{font:400 26px/1 var(--f-display);color:var(--text);text-shadow:0 1px 8px #000a}
+#time{font:500 13px/1 var(--f-mono);color:var(--accent-soft);font-variant-numeric:tabular-nums}
+.hint{position:absolute;right:12px;bottom:10px;font-size:12px;color:var(--text-2);pointer-events:none}
+.transport{display:grid;grid-template-columns:auto auto auto 1fr;gap:8px;align-items:center}
+.rows{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
+.seg{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.seg .lab{font:600 11px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin-right:4px}
+button{font:600 14px/1 var(--f-ui);color:var(--text);background:var(--panel);border:1px solid var(--line);
+  border-radius:9px;padding:10px 12px;min-height:40px;cursor:pointer}
+button:hover{border-color:#ffffff38}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#1a0d07}
+#play{min-width:78px}
+input[type=range]{width:100%;accent-color:var(--accent);min-width:0}
+h2{font:400 24px/1 var(--f-display);margin:10px 0 0;letter-spacing:.01em}
+#frames{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(132px,1fr);gap:8px;overflow-x:auto;padding-bottom:4px}
+.frame{padding:0;display:grid;border-radius:12px;overflow:hidden;background:var(--pitch);text-align:left}
+.frame canvas{width:100%;height:auto;display:block}
+.frame span{display:flex;justify-content:space-between;align-items:baseline;gap:6px;padding:8px 10px;background:var(--panel)}
+.frame b{white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.frame i{white-space:nowrap;font:500 12px/1.2 var(--f-mono);font-style:normal;color:var(--text-2)}
+.frame.on{border-color:var(--accent)}
+.frame.on span{background:#2a1810}
+p.note{color:var(--text-2);margin:0;max-width:68ch}
+p.note b{color:var(--text)}
+kbd{font:500 12px var(--f-mono);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+@media (max-width:560px){.transport{grid-template-columns:auto auto auto}.transport input{grid-column:1/-1}.hint{display:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Cover <span>Drive</span></h1>
+    <div class="facts">
+      <span class="chip"><b>Right-handed</b></span>
+      <span class="chip">Ball <b data-fact>full, off stump</b></span>
+      <span class="chip">Stroke <b data-fact>940 ms</b></span>
+    </div>
+  </header>
+
+  <div id="stage">
+    <div class="hud"><output id="phase">Stance</output><output id="time">0 ms</output></div>
+    <div class="hint">Drag to orbit · scroll to zoom</div>
+  </div>
+
+  <div class="transport">
+    <button id="play" aria-pressed="true">Pause</button>
+    <button id="back" aria-label="Back 10 milliseconds">−10</button>
+    <button id="fwd" aria-label="Forward 10 milliseconds">+10</button>
+    <input id="scrub" type="range" step="1" value="0" aria-label="Time in the stroke">
+  </div>
+
+  <div class="rows">
+    <div class="seg" role="group" aria-label="Stroke">
+      <span class="lab">Stroke</span>
+      <button data-stroke="cover" aria-pressed="true">Cover drive</button>
+      <button data-stroke="charge" aria-pressed="false">Charge over cover</button>
+    </div>
+    <div class="seg" role="group" aria-label="Version">
+      <span class="lab">Version</span>
+      <button data-version="1" aria-pressed="false">V1 · 40%</button>
+      <button data-version="2" aria-pressed="true">V2 · 20%</button>
+      <button data-version="3" aria-pressed="false">V3 · at the pad · 40%</button>
+    </div>
+    <div class="seg" role="group" aria-label="Speed">
+      <span class="lab">Speed</span>
+      <button data-speed="0.1" aria-pressed="false">0.1×</button>
+      <button data-speed="0.25" aria-pressed="false">¼×</button>
+      <button data-speed="0.5" aria-pressed="true">½×</button>
+      <button data-speed="1" aria-pressed="false">1×</button>
+    </div>
+    <div class="seg" role="group" aria-label="Camera">
+      <span class="lab">Camera</span>
+      <button data-view="side" aria-pressed="true">Side-on</button>
+      <button data-view="bowler" aria-pressed="false">Bowler's end</button>
+      <button data-view="behind" aria-pressed="false">Game view</button>
+      <button data-view="leg" aria-pressed="false">Leg side</button>
+      <button data-view="high" aria-pressed="false">High</button>
+    </div>
+  </div>
+
+  <h2>Key poses</h2>
+  <div id="frames" aria-label="Key poses, side-on"></div>
+  <p class="note"><span id="note-text">Version two, played twice in ten and four at most: the cover drive rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance.</span> The ring marks where the ball is met. Tap a pose to stop on it; <kbd>Space</kbd> plays and pauses, <kbd>←</kbd> <kbd>→</kbd> step 10 ms, with <kbd>Shift</kbd> 50 ms.</p>
+</div>
+<script type="module" src="/src/cover-drive-preview.ts"></script>

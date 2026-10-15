@@ -14,6 +14,10 @@ const SEAT = .034;
 const HIP = .018;
 /** How far the seat's curve hangs from the opening before it turns, as a share of the way to the thigh. */
 const FALL = .7;
+/** Forward over down, from the seat to the thigh: the swell is whole up to the first and gone by the second. */
+const SEAT_TUCK: readonly [number, number] = [1.0, 1.25];
+/** The same for the back of the crotch seam, which stands at about 1.8 at the crease. */
+const SEAM_TUCK: readonly [number, number] = [1.8, 2.2];
 
 /** One trouser surface: waist, tailored rise, crotch and both bending legs. */
 export class ConnectedTrousers {
@@ -98,6 +102,16 @@ export class ConnectedTrousers {
           // curve whose first handle hangs straight down from the opening,
           // furthest behind and not at all in front.
           const fall = FALL * (1 - this.p.z / (Math.hypot(this.p.x, this.p.z) || 1)) / 2 * this.p.distanceTo(this.q);
+          // How far forward of the seat the thigh runs, for each step down to
+          // it. Stood at the crease it is no more than one; a thigh lifted out
+          // in front, as the front leg of a long drive is, takes it well past,
+          // and the swell behind then had to turn forward so sharply under him
+          // that it stood out as a point at the bottom of the seat.
+          const under = (this.q.z - this.p.z) / Math.max(this.p.y - this.q.y, .01);
+          // The back of the crotch seam runs further under than the seat even
+          // at the crease, so it is measured against a range of its own.
+          const [whole, gone] = i === 13 ? SEAM_TUCK : SEAT_TUCK;
+          const room = THREE.MathUtils.clamp((gone - under) / (gone - whole), 0, 1);
           this.p.multiplyScalar((1 - t) ** 2 + 2 * t * (1 - t)).addScaledVector(this.q, t * t);
           this.p.y -= 2 * t * (1 - t) * fall;
           // Rounded out behind, fullest halfway down, and a little at the
@@ -105,7 +119,7 @@ export class ConnectedTrousers {
           const swell = Math.sin(t ** .7 * Math.PI);
           const behind = Math.max(0, -this.p.z) / (Math.hypot(this.p.x, this.p.z) || 1);
           const side = Math.max(0, this.p.x * outside) / (Math.hypot(this.p.x, this.p.z) || 1);
-          this.p.z -= SEAT * swell * behind * behind;
+          this.p.z -= SEAT * swell * behind * behind * room;
           this.p.x += outside * HIP * swell * side * side;
           this.p.applyQuaternion(hips.quaternion).add(hips.position);
         } else this.p.fromBufferAttribute(source, row * 17 + i);

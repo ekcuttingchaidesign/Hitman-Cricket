@@ -96,8 +96,12 @@ export function flightOf(outcome: ShotOutcome): Flight {
       takeAt: 0.86, dropAt: outcome.dropped ? 0.88 : 0, bounceAt: 0,
     };
   }
-  // In the air and nobody under it: a mishit that cleared the rope.
-  if (outcome.aerial) return shape(GROUND_REACH[6], 15, hang(outcome), 0.1);
+  // In the air and nobody under it: a mishit that cleared the rope, or for a
+  // stroke played to keep it down, one that clears the infield, lands well
+  // inside and runs away to it.
+  if (outcome.aerial) return outcome.runs === 4
+    ? { ...shape(GROUND_REACH[4], 11, 1700, 0.1), bounceAt: 0.7 }
+    : shape(GROUND_REACH[6], 15, hang(outcome), 0.1);
   if (caught) return shape(18, 5, GAME.hitAnimationMs, 1.5, 0.86);
   const height = outcome.runs === 6 ? 12 : outcome.runs === 4 ? 0.22 : 0.6;
   return shape(GROUND_REACH[outcome.runs] ?? 5, height, GAME.hitAnimationMs, 0.1);

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type Hurt } from '../entities/Batter';
+import { type AfterBall, Batter, type BatterKit, CELEBRATION_MS, CHARGE_MEETS_AT, type Celebration, celebrationLength, type CoverVersion, type Hurt } from '../entities/Batter';
 import { ACTION_MS, Bowler, EXPRESS_ACTION, PACE_ACTION } from '../entities/Bowler';
 import { bodyOf, showBody } from '../entities/Fielder';
 import { FIGURE_ASSETS } from '../entities/Cricketer';
@@ -996,16 +996,20 @@ export class GameScene {
   private static meetsAt(charging: boolean) {
     return charging ? 1 - CHARGE_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
   }
-  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false) {
-    const contact = this.flight(delivery, GameScene.meetsAt(charging));
-    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled);
+  /** How far along its flight the ball the bat was swung at is met, when that is short of the crease without a charge. */
+  private meeting = 1;
+  swing(shot: ShotType, now: number, delivery: Delivery, charging = false, lofted = false, sweeping = false, levelled = false, version: CoverVersion = 2, meets = 1) {
+    this.meeting = charging ? 1 : meets;
+    const contact = this.flight(delivery, charging ? GameScene.meetsAt(true) : meets);
+    this.batter.swing(shot, now, contact.x, contact.y, contact.z, charging, lofted, sweeping, levelled, version);
   }
   hit(outcome: ShotOutcome, shot: ShotType | undefined, delivery: Delivery, now: number) {
     this.hitStart = outcome.madeBatContact ? Math.max(now, this.batter.strikeAt) : now;
     this.contactDelay = this.hitStart - now;
     this.incomingPosition.copy(this.ball.position);
     this.hitOutcome = outcome;
-    const p = this.flight(delivery, GameScene.meetsAt(!!outcome.advance)); this.hitOrigin.set(p.x, p.y, p.z);
+    const p = this.flight(delivery, outcome.advance ? GameScene.meetsAt(true) : this.meeting); this.hitOrigin.set(p.x, p.y, p.z);
+    this.meeting = 1;
     // The sweep is hit where the sweep goes — midwicket — rather than out along
     // the sector of the leg-side swipe that played it.
     // The orthodox sweep goes squarer than the slog does: the blade is level and
