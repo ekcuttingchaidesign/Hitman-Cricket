@@ -619,13 +619,14 @@ export const HOOK_CONTACT_MS = 200;
 /** How far down the pitch of the crease the hook meets the ball: out in front, arms straight. */
 export const HOOK_MEETS_AT = .45;
 /**
- * How much longer the hook holds its wrapped finish than the other strokes
- * hold theirs, everything after it that much later: as admiring a drive does,
- * so he settles back into his guard unhurried rather than snapping out of it.
+ * How much longer the hook takes than the other strokes, all of it after the
+ * wrap, which runs that much slower: the turn on round to the leg side, the
+ * hold there, and home, unhurried rather than snapped out of, as admiring a
+ * drive holds its finish the longer.
  */
-export const HOOK_HOLD_MS = 260;
-const HOOK_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: HOOK_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, hold: 560, unwrap: 700, lowered: 830 } as const;
-const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Pose; rise: Pose; unwrap: Pose; lowered: Pose } = {
+export const HOOK_HOLD_MS = 320;
+const HOOK_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: HOOK_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, turned: 650, hold: 710, unwrap: 805, lowered: 875 } as const;
+const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Pose; rise: Pose; turned: Pose; unwrap: Pose; lowered: Pose } = {
   // Back and across, the front foot drawn back and opened, the bat high over the back shoulder.
   load: { ...BACKLIFT, hip: [-.12, .95, -.14], chest: [-.10, 1.30, -.10],
     frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.38],
@@ -655,18 +656,26 @@ const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Po
   round: { ...GUARD, hip: [-.20, .95, -.07], chest: [-.26, 1.32, -.04],
     frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.36],
     grip: [-.60, 1.48, 0], batUp: [.55, -.45, .70], batFace: [.79, .10, -.62],
-    yaw: -.80, face: -1.00, heel: .34, backFootYaw: .45, leadElbow: 0, look: -.15 },
+    yaw: -1.05, face: -1.35, heel: .38, backFootYaw: .38, leadElbow: 0, look: -.15 },
   // The elbows fold, the hands coming up in front of his face on the leg side
   // and the bat still going round, behind him now,
   rise: { ...GUARD, hip: [-.20, .95, -.08], chest: [-.25, 1.32, -.05],
     frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.36],
     grip: [-.52, 1.72, .22], batUp: [.05, -.20, .98], batFace: [.95, .15, -.02],
-    yaw: -.85, face: -1.20, heel: .38, backFootYaw: .38, leadElbow: -.05, look: -.25 },
+    yaw: -1.25, face: -1.70, heel: .44, backFootYaw: .24, leadElbow: -.05, look: -.25 },
   // and the bat wraps behind his head, the hands over the front shoulder.
   finish: { ...GUARD, hip: [-.20, .95, -.08], chest: [-.25, 1.32, -.06],
     frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.35],
     grip: [-.52, 1.90, -.06], batUp: [-.62, .45, .64], batFace: [.62, .78, 0],
-    yaw: -.90, face: -1.40, heel: .42, backFootYaw: .30, leadElbow: -.08, look: -.30 },
+    yaw: -1.40, face: -1.95, heel: .50, backFootYaw: .14, leadElbow: -.08, look: -.30 },
+  // And he goes on turning after it, the hands staying up over the front
+  // shoulder as the body turns under them: the chest round square to the leg
+  // side, the back foot swung round onto its toe, and the bat come up behind
+  // his head pointing up and away to off, his head up after the ball.
+  turned: { ...GUARD, hip: [-.20, .95, -.10], chest: [-.24, 1.32, -.08],
+    frontFoot: [-.26, .08, .02], backFoot: [.16, .10, -.30],
+    grip: [-.45, 1.90, .02], batUp: [-.75, -.62, .22], batFace: [.62, -.78, 0],
+    yaw: -1.80, face: -2.05, heel: .75, backFootYaw: -.30, leadElbow: -.10, look: -.40 },
   // Home, unhurried: back up over his head with the bat upright, then the
   // hands let down in front of him into his guard, the bat tipping back over
   // the shoulder as it goes. The guard's bat is up behind him already, so it
@@ -2586,8 +2595,11 @@ export class Batter {
     // the ball, the helmet's round shell showed nothing of it from behind, and
     // only the peak came out past it and went back, as if the helmet stretched.
     if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
-    // The hook's wrap is held the longer in the same way: see `HOOK_HOLD_MS`.
-    else if (this.shot === 'HOOK' && age > HOOK_CLOCK.finish) age = Math.max(HOOK_CLOCK.finish, age - HOOK_HOLD_MS);
+    // The hook's follow-through, from the wrap on, runs the slower: see `HOOK_HOLD_MS`.
+    else if (this.shot === 'HOOK' && age > HOOK_CLOCK.finish) {
+      const { finish } = HOOK_CLOCK;
+      age = finish + (age - finish) * (STROKE_DURATION_MS - finish) / (STROKE_DURATION_MS + HOOK_HOLD_MS - finish);
+    }
     this.poseAge = age;
     this.travel(age);
     const celebrating = now - this.celebratedAt;
@@ -2782,13 +2794,16 @@ export class Batter {
       return;
     }
     if (this.shot === 'HOOK') {
-      const { load, down, contact: met, front, leg, round, rise, finish: end, hold, unwrap, lowered } = HOOK_CLOCK;
+      const { load, down, contact: met, front, leg, round, rise, finish: end, turned, hold, unwrap, lowered } = HOOK_CLOCK;
       const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(HOOK.load) }, { time: down, pose: reachPose(HOOK.down) },
         { time: met, pose: contact }, { time: front, pose: reachPose(HOOK.front) }, { time: leg, pose: reachPose(HOOK.leg) },
         { time: round, pose: reachPose(HOOK.round) }, { time: rise, pose: reachPose(HOOK.rise) }, { time: end, pose: finish }];
-      const home = [{ time: hold, pose: finish }, { time: unwrap, pose: reachPose(HOOK.unwrap) }, { time: lowered, pose: reachPose(HOOK.lowered) },
+      const round_ = reachPose(HOOK.turned);
+      const after = [{ time: end, pose: finish }, { time: turned, pose: round_ }];
+      // Home: unwound with the bat brought upright over his head, then down.
+      const home = [{ time: hold, pose: round_ }, { time: unwrap, pose: reachPose(HOOK.unwrap) }, { time: lowered, pose: reachPose(HOOK.lowered) },
         { time: STROKE_DURATION_MS, pose: GUARD }];
-      const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < hold ? finish : flowing(home, at);
+      const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < turned ? flowing(after, at) : at < hold ? round_ : flowing(home, at);
       const pose = { ...poseAt(age) };
       // The face never turns in his hands: it rides the handle from his
       // stance, as his guard draws it, the whole way round, and only the

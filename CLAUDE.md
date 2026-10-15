@@ -557,13 +557,17 @@ twice, a little at a time: the forearms squaring it to the bowler on the way
 down, and the bottom hand rolling over the top one as the elbows fold, so the
 curved back of the blade lies against the front shoulder at the wrap, as the
 on drive's six's does. The first build held the hands at his chest and turned
-the bat on its handle, and was redone from a net session filmed end on. The
-wrap is held `HOOK_HOLD_MS` longer than other strokes hold theirs, as an
-admired drive is, and home is unhurried: back up over his head with the bat
-upright, then the hands let down in front of him into the guard, whose bat is
-up behind him already — straight from the wrap the blade goes through him,
-and round by the leg side it jumped. A hook that scores is twirled after, as
-a pull is (`played.pulled`). It shares the
+the bat on its handle, and was redone from a net session filmed end on. After
+the wrap he turns on, as the clip does, the hands staying up over the front
+shoulder while the body turns under them, until his chest is square to the
+leg side, the back foot round on its toe and the bat up behind his head
+pointing away to off; held there, he unwinds with the bat brought upright
+over his head and lets the hands down into his guard, whose bat is up behind
+him already. Taking the hands round behind his head instead, or home back
+through the wrap, put an arm through the helmet. Everything from the wrap on
+runs `HOOK_HOLD_MS` slower than the other strokes' clock, as an admired drive
+holds its finish the longer, so none of it is hurried. A hook that scores is
+twirled after, as a pull is (`played.pulled`). It shares the
 pull's elbow clearance (`crossBat`) and is in the batter tests' `PLAYS` as
 `hook`.
 
@@ -574,11 +578,13 @@ and chest: the first build sent a hooked four on along the ground through
 his shoulder.
 
 Timing names it (`hooked` in `ShotResolver.ts`, the cut's ladder): middled
-six over fine leg (`SHOT_ANGLES.HOOK`), a shade under four, held back ones and
+six over backward square leg (`SHOT_ANGLES.HOOK`, out across the front of him
+the way the bat swings: sent finer it went back over his head towards the
+camera while the bat was still going the other way), a shade under four, held back ones and
 twos; worse and the side decides — late the glove through to the keeper,
 early straight up off the top edge and caught. Missed, it flies on over the
 stumps. Survival and the Marathon pay it the same way off their own windows,
-early skied and late gloved or hurt. A hooked bouncer that scores gets the
+early skied and late gloved or hurt. A hooked six, and only a six, gets the
 pull's flash (`pulledBouncer`). `?hooks=1` bowls nothing but its ball, every
 ball, in any mode (`bouncersEvery`), and is practice. `scripts/hook-check.mjs`
 plays it in a browser on `?bouncers=1`, keys and a real swipe, in the Blast

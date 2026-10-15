@@ -37,6 +37,12 @@ describe('the flash for a pulled bouncer', () => {
     expect(pulledBouncer({ style: 'SHORT' }, undefined, six)).toBe(false);
   });
 
+  it('is for a hooked six, and not a hook worth less', () => {
+    expect(pulledBouncer({ style: 'SHORT' }, 'HOOK', six)).toBe(true);
+    for (const runs of [1, 2, 3, 4] as const) expect(pulledBouncer({ style: 'SHORT' }, 'HOOK', { ...six, runs }), `${runs}`).toBe(false);
+    expect(pulledBouncer({ style: 'SHORT' }, 'HOOK', { ...six, runs: 0, isWicket: true })).toBe(false);
+  });
+
   it('is not for a pull that missed, gloved it, or got him out', () => {
     expect(pulledBouncer({ style: 'SHORT' }, 'LEG', { ...six, runs: 0, madeBatContact: false })).toBe(false);
     expect(pulledBouncer({ style: 'SHORT' }, 'LEG', { ...six, runs: 0 })).toBe(false);

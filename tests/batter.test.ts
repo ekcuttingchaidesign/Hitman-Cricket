@@ -2588,10 +2588,13 @@ describe('the hook', () => {
     const away = batter.bat.localToWorld(new Vector3(0, -.45, 0)).sub(batter.root.position).sub(new Vector3(...pose.shoulders[0])).normalize();
     expect(face.dot(away)).toBeGreaterThan(.9);
   });
-  it('holds the wrap, then settles back into his guard without a jump', () => {
+  it('turns on round to the leg side, holds it, then settles back into his guard without a jump', () => {
     const batter = hooked();
     const toeAt = (time: number) => { batter.update(time); batter.root.updateMatrixWorld(true); return batter.bat.localToWorld(new Vector3(0, -.8, 0)); };
-    expect(toeAt(560 + HOOK_HOLD_MS).distanceTo(toeAt(540))).toBeLessThan(.01);
+    // Square to the leg side, the bat up behind his head, held a moment.
+    toeAt(800);
+    expect(batter.inspect().yaw).toBeLessThan(-1.6);
+    expect(toeAt(845).distanceTo(toeAt(760))).toBeLessThan(.01);
     let last = toeAt(560), fastest = 0;
     for (let time = 564; time <= STROKE_DURATION_MS + HOOK_HOLD_MS; time += 4) { const toe = toeAt(time); fastest = Math.max(fastest, toe.distanceTo(last)); last = toe; }
     expect(fastest).toBeLessThan(.08);

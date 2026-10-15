@@ -27,11 +27,13 @@ export function landedSpecial(outcome: Pick<ShotOutcome, 'advance' | 'swept' | '
  * behind the ball, in either mode. Only a middled pull hits a bouncer at all;
  * anything less goes through, over, or off the glove. So it is rare, and it
  * should feel it. A special stroke is never this: it has its own flash. The
- * hook is the pull's other half, at the bouncer outside off, and gets it too.
+ * hook is the pull's other half, at the bouncer outside off, and gets it too —
+ * but only for six: hooked for less it is helped round or lands short of the
+ * rope, and the flash would be promising a shot it was not.
  */
 export function pulledBouncer(delivery: Pick<Delivery, 'style'>, shot: ShotType | undefined,
   outcome: Pick<ShotOutcome, 'advance' | 'swept' | 'scooped' | 'madeBatContact' | 'isWicket' | 'runs'>) {
-  return delivery.style === 'SHORT' && (shot === 'LEG' || shot === 'HOOK') && !specialStroke(outcome)
+  return delivery.style === 'SHORT' && (shot === 'LEG' || (shot === 'HOOK' && outcome.runs === 6)) && !specialStroke(outcome)
     && outcome.madeBatContact && !outcome.isWicket && outcome.runs > 0;
 }
 

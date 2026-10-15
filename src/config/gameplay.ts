@@ -137,8 +137,10 @@ export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 // ball runs away behind point rather than in front of it.
 // The scoops are the two that go behind the wicket: over fine leg and the
 // keeper's leg side, and over the slips. The hook goes behind square too,
-// round to fine leg, a little squarer than the scoop.
-export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0, SCOOP: -150, REVERSE_SCOOP: 150, HOOK: -138 };
+// out across the front of him the way the bat swings, to backward square:
+// sent finer it went back past his head towards the camera while the bat was
+// still going the other way.
+export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0, SCOOP: -150, REVERSE_SCOOP: 150, HOOK: -112 };
 /**
  * The scoop and the reverse scoop: the third pair of special strokes, and the
  * first that go behind the wicket. A full meter buys one, the same as the
