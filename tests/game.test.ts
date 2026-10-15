@@ -3,7 +3,7 @@ import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN,
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
-import { DeliveryGenerator } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
@@ -947,5 +947,20 @@ describe('the scoops', () => {
     const ball = at('MIDDLE');
     expect(scoop(ball, 0, 'STRAIGHT').advance).toBe(true);
     expect(scoop(ball, 0, 'SCOOP').advance).toBeUndefined();
+  });
+});
+
+describe('the cover drive drill', () => {
+  it('bowls the cover drive\'s own ball every time, whatever the plan would have bowled', () => {
+    for (const plan of [CLASSIC_PLAN, MARATHON_PLAN]) {
+      const generator = new DeliveryGenerator(new SeededRandom(7), plan);
+      generator.drill('NORMAL', 'OFF');
+      for (let ball = 0; ball < 60; ball++) {
+        const delivery = generator.next(ball * 3000);
+        expect(delivery.style).toBe('NORMAL');
+        expect(delivery.line).toBe('OFF');
+        expect(delivery.finalTargetX).toBe(LINE_X.OFF);
+      }
+    }
   });
 });

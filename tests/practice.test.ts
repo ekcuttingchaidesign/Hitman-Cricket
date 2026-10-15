@@ -15,7 +15,7 @@ describe('a practice innings', () => {
     expect(practiceSwitches('?charge=ball')).toEqual(['charge']);
     expect(practiceSwitches('?slowmo=0.65')).toEqual(['slowmo']);
     expect(practiceSwitches('?mode=marathon&wear=fast')).toEqual(['wear']);
-    for (const name of ['spin', 'bouncers', 'express', 'reverse', 'round']) expect(practiceSwitches(`?${name}=1`)).toEqual([name]);
+    for (const name of ['spin', 'bouncers', 'express', 'reverse', 'round', 'cover']) expect(practiceSwitches(`?${name}=1`)).toEqual([name]);
   });
 
   it('is not a link that only mentions one', () => {

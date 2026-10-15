@@ -459,7 +459,8 @@ the place the board shows. Nothing is written. Production never sees them.
 
 An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
-`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, or the
+`?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?cover=1`
+(every ball the cover drive's own: a stock ball pitched up on off stump), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
 (`src/game/practice.ts`). The card says so in place of an offer, the career
 does not count it, and the browser's own best does not move; in a Rival Match

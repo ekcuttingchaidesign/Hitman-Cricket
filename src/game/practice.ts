@@ -5,7 +5,8 @@
  * The switches are how a bowler, a stroke or a stage of an innings gets tried
  * without batting twenty overs to reach it — `?nets=1` puts on whichever
  * bowler the player likes, `?settled=1` walks every batter out with a full
- * meter, `?charge=1` fills the meter for the charge every ball. They are
+ * meter, `?charge=1` fills the meter for the charge every ball, `?cover=1`
+ * bowls the cover drive's ball and nothing else. They are
  * tools, and an innings played with one is not an innings anybody else could
  * have played. So it is kept off everything that compares one player with
  * another: the boards are not offered it, the career does not count it, and
@@ -27,6 +28,7 @@ const ON: Record<string, (value: string) => boolean> = {
   round: v => v === '1',
   nets: v => v === '1',
   settled: v => v === '1',
+  cover: v => v === '1',
 };
 
 /** Every switch the game reads that changes how an innings plays, by its name in the link. */

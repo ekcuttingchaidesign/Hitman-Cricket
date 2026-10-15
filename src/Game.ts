@@ -482,6 +482,8 @@ export class Game {
    * is otherwise the innings, scored and offered to the boards as any other.
    */
   private readonly netsKeys = new URLSearchParams(location.search).get('nets') === '1';
+  /** `?cover=1`: every ball the cover drive's, a stock ball pitched up on off stump. */
+  private readonly coverDrill = new URLSearchParams(location.search).get('cover') === '1';
   private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
   /** Hand the nets' choice to the bowling and show it on the keys. */
   private applyNets() {
@@ -1725,6 +1727,9 @@ export class Game {
     if (this.ease > 1) this.mark(`newcomer-${EASE.indexOf(this.ease) + 1}`, 'Innings batted with a newcomer\'s help');
     this.generator = new DeliveryGenerator(this.rng, this.plan);
     this.applyNets();
+    // `?cover=1`: the cover drive's ball every time, to play the stroke over
+    // and over. Practice, so it counts for nothing; and not in a Rival Match.
+    if (this.coverDrill && !this.challenge.playing) this.generator.drill('NORMAL', 'OFF');
     this.delivery = null; this.attempt = null; this.outcome = null; this.elapsed = 0; this.primed = null;
     this.input.reset(); this.scene.reset();
     const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat);
