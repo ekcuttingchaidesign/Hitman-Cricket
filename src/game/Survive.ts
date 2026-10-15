@@ -413,7 +413,7 @@ export function surviveBall(
     // absolutely middles beats them.
     const spin = spun(delivery);
     if (timingGrade === 'PERFECT') {
-      const runs = inTheSlot(delivery, compatibility) ? 6 : 4;
+      const runs = inTheSlot(delivery, compatibility) && !attempt.grounded ? 6 : 4;
       return { ...base, runs, madeBatContact: true, feedback: award(runs) };
     }
     if (timingGrade === 'GOOD' && !spin) return { ...base, runs: 4, madeBatContact: true, feedback: award(4) };

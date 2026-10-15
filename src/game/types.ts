@@ -45,7 +45,15 @@ export interface Delivery {
    */
   round?: boolean;
 }
-export interface ShotAttempt { shotType: ShotType; inputTimeMs: number }
+export interface ShotAttempt {
+  shotType: ShotType; inputTimeMs: number;
+  /**
+   * Played to keep the ball down: middled, it goes along the ground for four
+   * rather than over the top for six. The cover drive's versions two and
+   * three (`CoverVersion`).
+   */
+  grounded?: boolean;
+}
 export interface ShotOutcome {
   runs: 0 | 1 | 2 | 3 | 4 | 6; isWicket: boolean; wicketType?: WicketType;
   quality: number; feedback: string; timingGrade: TimingGrade;

@@ -24,7 +24,7 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
+import { COVER_V3_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
 import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
@@ -493,12 +493,13 @@ export class Game {
   private meetsAt = 1;
   /**
    * Which version of the strokes off the cover input this swing plays, by
-   * `COVER_ODDS`. From the browser's own dice, not the innings'
-   * seed: how he plays the stroke changes nothing about the ball or the score,
-   * and drawing it from the seed would move every ball bowled after it.
+   * `COVER_ODDS`. Rolled off the innings' seed and the ball it has reached
+   * (`coverRoll`), since versions two and three go for four where version
+   * one goes for six: the same ball plays the same version for everybody on
+   * that seed, rivals included.
    */
   private coverVersion(): CoverVersion {
-    return this.coverAsked === 1 || this.coverAsked === 2 || this.coverAsked === 3 ? this.coverAsked : coverVersionOf(Math.random());
+    return this.coverAsked === 1 || this.coverAsked === 2 || this.coverAsked === 3 ? this.coverAsked : coverVersionOf(coverRoll(this.seed, this.score.balls));
   }
   private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
   /** Hand the nets' choice to the bowling and show it on the keys. */
@@ -2102,8 +2103,10 @@ export class Game {
     // judged as for the other two: the version is drawn after it, so nobody
     // can time for it. Not the square drive's wide ball, which is met where
     // it always was.
-    this.meetsAt = version === 3 && shotType === 'COVER_LONG_OFF' && !charging && !squareDrivable(this.delivery!)
-      ? 1 - COVER_V3_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
+    const driven = shotType === 'COVER_LONG_OFF' && !charging && !squareDrivable(this.delivery!);
+    this.meetsAt = driven && version === 3 ? 1 - COVER_V3_MEETS_AT / (GAME.releaseZ - GAME.contactZ) : 1;
+    // Versions two and three keep it down: four, never six (`grounded`).
+    if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };
     this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, version, this.meetsAt);
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the

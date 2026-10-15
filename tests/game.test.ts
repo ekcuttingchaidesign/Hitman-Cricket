@@ -5,7 +5,8 @@ import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
 import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
-import { COVER_ODDS, coverVersionOf } from '../src/entities/Batter';
+import { COVER_ODDS, coverRoll, coverVersionOf } from '../src/entities/Batter';
+import { resolveSurvive } from '../src/game/Survive';
 import { mapKeys } from '../src/game/InputManager';
 import { ScoreManager } from '../src/game/ScoreManager';
 import { SeededRandom } from '../src/game/SeededRandom';
@@ -973,4 +974,41 @@ describe('the versions of the cover strokes', () => {
     expect(counts).toEqual({ 1: 400, 2: 200, 3: 400 });
     expect(Object.values(COVER_ODDS).reduce((a, b) => a + b)).toBeCloseTo(1, 9);
   });
+
+  it('are rolled the same for the same ball of the same innings, and near enough by the odds', () => {
+    const counts = { 1: 0, 2: 0, 3: 0 };
+    for (let seed = 1; seed <= 40; seed++) for (let ball = 0; ball < 250; ball++) {
+      const roll = coverRoll(seed, ball);
+      expect(roll).toBeGreaterThanOrEqual(0); expect(roll).toBeLessThan(1);
+      expect(coverRoll(seed, ball)).toBe(roll);
+      counts[coverVersionOf(roll)]++;
+    }
+    expect(counts[1] / 10000).toBeCloseTo(.4, 1);
+    expect(counts[2] / 10000).toBeCloseTo(.2, 1);
+    expect(counts[3] / 10000).toBeCloseTo(.4, 1);
+    expect(coverRoll(7, 3)).not.toBe(coverRoll(8, 3));
+  });
+
+  // Versions two and three keep the ball down: what would have been a six is
+  // a four, and nothing else about the ball changes.
+  for (const [mode, play] of [
+    ['the Blast', (d: Delivery, grounded: boolean) => resolveShot(d, { shotType: 'COVER_LONG_OFF', inputTimeMs: d.idealContactTimeMs, grounded }, new SeededRandom(5))],
+    ['the Test', (d: Delivery, grounded: boolean) => resolveSurvive(d, { shotType: 'COVER_LONG_OFF', inputTimeMs: d.idealContactTimeMs, grounded }, new SeededRandom(5))],
+  ] as const) {
+    it(`go for four, not six, when kept down, in ${mode}`, () => {
+      let sixes = 0;
+      for (const seed of [3, 7, 11, 19]) {
+        const generator = new DeliveryGenerator(new SeededRandom(seed));
+        generator.drill('NORMAL', 'OFF');
+        for (let ball = 0; ball < 30; ball++) {
+          const delivery = generator.next(ball * 3000);
+          const over = play(delivery, false), down = play(delivery, true);
+          if (over.runs === 6) { sixes++; expect(down.runs).toBe(4); expect(down.feedback).toBe('FOUR!'); }
+          else expect(down).toEqual(over);
+          expect(down.isWicket).toBe(over.isWicket);
+        }
+      }
+      expect(sixes).toBeGreaterThan(0);
+    });
+  }
 });

@@ -231,11 +231,25 @@ export function coverVersionOf(roll: number): CoverVersion {
   return roll < COVER_ODDS[1] ? 1 : roll < COVER_ODDS[1] + COVER_ODDS[2] ? 2 : 3;
 }
 /**
+ * The roll for the ball an innings has reached, from its seed: the same ball
+ * of the same innings always rolls the same, so two rivals on one seed play
+ * the same version off it, and nothing is taken from the seed's own stream,
+ * which would move every ball bowled after it. (A 32-bit mix, murmur's last
+ * step, over the seed and the ball.)
+ */
+export function coverRoll(seed: number, ball: number) {
+  let h = (seed ^ Math.imul(ball + 1, 0x9e3779b9)) >>> 0;
+  h = Math.imul(h ^ h >>> 16, 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ h >>> 13, 0xc2b2ae35) >>> 0;
+  return ((h ^ h >>> 16) >>> 0) / 2 ** 32;
+}
+/**
  * Version three of the cover drive meets the ball this much further down the
  * pitch than every other drive: beside the front pad, under his eyes, where
  * the recording meets it, rather than a stride behind it. The swipe is judged
  * as for the other two all the same: the version is drawn after the swipe,
- * so a player cannot time for it.
+ * so a player cannot time for it. Like version two it keeps the ball down,
+ * so it goes for four at most (`ShotAttempt.grounded`).
  */
 export const COVER_V3_MEETS_AT = .28;
 /**

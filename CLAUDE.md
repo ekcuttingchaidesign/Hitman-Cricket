@@ -460,7 +460,8 @@ the place the board shows. Nothing is written. Production never sees them.
 An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
 `?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?cover=1`
-(every ball the cover drive's own: a stock ball pitched up on off stump), or the
+(every ball the cover drive's own: a stock ball pitched up on off stump),
+`?coverv=1`, `2` or `3` (always that version of the cover strokes), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
 (`src/game/practice.ts`). The card says so in place of an offer, the career
 does not count it, and the browser's own best does not move; in a Rival Match
@@ -483,11 +484,17 @@ pad rather than out in front of it (`COVER_DRIVE_V3`, `COVER_V3_MEETS_AT`
 further down the pitch), the hips, chest and hands carried forward over the
 planted foot and the ball resolved at that point of its flight (`meetsAt` in
 `src/Game.ts`, the scene's `meeting`). Its square drive and charge are
-version two's. It is how he plays the stroke, never how well, so it is drawn
-from the browser's dice and not the innings' seed, which would move every
-ball after it, and the swipe is judged the same in all three: the version is
-drawn after the swipe, so nobody can time for it. `?coverv=1`, `2` or `3` asks
-for one, and is not practice. `cover-drive.html` is both strokes in every
+version two's.
+
+Versions two and three keep the ball down: middled, the drive goes along the
+ground for four, never over the top for six (`grounded` on the attempt, read
+by `resolveShot` and `resolveSurvive`); version one's still goes for six. The
+swipe is judged the same in all three — the version is drawn after it, so
+nobody can time for it — and since the version now moves the score it is
+rolled off the innings' seed and the ball it has reached (`coverRoll`), never
+taken from the seed's own stream, which would move every ball after it: the
+same ball plays the same version for everybody on that seed, rivals
+included. `?coverv=1`, `2` or `3` asks for one, and is practice. `cover-drive.html` is both strokes in every
 version on their own, built into one page by
 `scripts/cover-drive-artifact.mjs`.
 
