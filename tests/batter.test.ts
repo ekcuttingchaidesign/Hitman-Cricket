@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -1922,9 +1922,9 @@ describe('the charge over long-on', () => {
 });
 
 /**
- * The on drive's six, from a broadcast recording: the on drive's own contact,
- * then a lofted follow-through of its own. The on drive along the ground is
- * what every other timing plays, and it is untouched.
+ * The on drive's six: the on drive's own contact, then a lofted follow-through
+ * of its own that wraps the bat over the front shoulder. The on drive along the
+ * ground is what every other timing plays.
  */
 describe('the lofted on drive', () => {
   const played = (lofted: boolean, x = -.2) => {
@@ -1941,28 +1941,61 @@ describe('the lofted on drive', () => {
       expect(six.inspect().bladeContact[0], `x=${x}`).toBeCloseTo(Math.max(-.55, Math.min(.08, x)), 6);
       six.update(220);
       const through = six.inspect();
-      // Out towards long-on: the hands well forward of the chest and on the
-      // leg side of the straight drive's line.
+      // Out towards long-on: the hands well forward of the chest.
       expect(through.grip[2] - through.chest[2], `x=${x}`).toBeGreaterThan(.35);
-      six.update(410); four.update(410);
-      const finish = six.inspect(), root = six.root.position;
-      // Both arms up: hands above the helmet, the toe above them and to the
-      // leg side, over the front shoulder; the back foot on its toe.
-      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.75);
-      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(four.inspect().grip[1] + .25);
-      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1] + .4);
-      expect(finish.bladeTip[0] - root.x, `x=${x}`).toBeLessThan(finish.grip[0] - .2);
-      expect(finish.backFoot[1], `x=${x}`).toBeGreaterThan(.1);
-      for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
-      // The blade climbs in one arc from the ball to the finish.
+      // The blade climbs in one arc from the ball to the top of the carry.
       let peak = -Infinity, sag = { drop: 0, at: 0 };
-      for (let time = STROKE_CONTACT_MS; time <= 410; time += 4) {
+      for (let time = STROKE_CONTACT_MS; time <= 340; time += 4) {
         six.update(time);
         const tip = six.inspect().bladeTip[1];
         if (peak - tip > sag.drop) sag = { drop: peak - tip, at: time };
         peak = Math.max(peak, tip);
       }
       expect(sag.drop, `x=${x} toe sagging ${JSON.stringify(sag)}`).toBeLessThan(.08);
+    }
+  });
+  it('wraps the bat over the front shoulder, the elbows bent, rather than reaching for the sky', () => {
+    for (const x of PLAYS.onLofted.reach) {
+      const six = played(true, x);
+      six.update(500);
+      const finish = six.inspect(), root = six.root.position;
+      const [front, back] = finish.shoulders, grip = new Vector3(...finish.grip), tip = new Vector3(...finish.bladeTip).sub(root);
+      // The hands just over the front shoulder, not up at arm's length.
+      expect(grip.y - front[1], `x=${x}`).toBeGreaterThan(.1);
+      expect(grip.y - front[1], `x=${x}`).toBeLessThan(.3);
+      expect(Math.hypot(grip.x - front[0], grip.z - front[2]), `x=${x}`).toBeLessThan(.25);
+      // The bat lying back over it: the toe above the hands, behind them, and
+      // across towards the other shoulder.
+      expect(tip.y - grip.y, `x=${x}`).toBeGreaterThan(.3);
+      expect(grip.z - tip.z, `x=${x}`).toBeGreaterThan(.3);
+      expect(Math.abs(tip.x - back[0]), `x=${x}`).toBeLessThan(Math.abs(grip.x - back[0]));
+      // The front elbow up beside his head, the back one across in front of his face.
+      expect(finish.elbows[0][1] - front[1], `x=${x}`).toBeGreaterThan(.2);
+      expect(finish.elbows[1][2], `x=${x}`).toBeGreaterThan((six as unknown as { head: Object3D }).head.position.z);
+      // The back foot up on its toe.
+      expect(finish.backFoot[1], `x=${x}`).toBeGreaterThan(.1);
+    }
+  });
+  it('takes the bat over with the arms, not by turning it in his hands', () => {
+    for (const x of PLAYS.onLofted.reach) {
+      const six = played(true, x);
+      const at = (time: number) => { six.update(time); return six.bat.quaternion.clone(); };
+      const roll = (a: Quaternion, b: Quaternion) => {
+        const up = new Vector3(0, 1, 0).applyQuaternion(b);
+        const carried = new Vector3(0, 0, 1).applyQuaternion(a).applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0).applyQuaternion(a), up));
+        const face = new Vector3(0, 0, 1).applyQuaternion(b);
+        return Math.atan2(up.dot(carried.clone().cross(face)), carried.dot(face));
+      };
+      // From the ball up into the wrap and through the hold, the face rides the
+      // handle; on the way home it settles into the guard a little at a time.
+      let previous = at(STROKE_CONTACT_MS + 4), net = 0;
+      for (let time = STROKE_CONTACT_MS + 8; time <= STROKE_DURATION_MS; time += 4) {
+        const now = at(time), turn = roll(previous, now);
+        net += turn;
+        expect(Math.abs(turn), `x=${x} @${time}`).toBeLessThan(MathUtils.degToRad(time < ON_LOFT_HOLD ? .5 : 4));
+        previous = now;
+      }
+      expect(Math.abs(net), `x=${x}`).toBeLessThan(MathUtils.degToRad(90));
     }
   });
   it('never passes the bat through him, coming up or coming home', () => {

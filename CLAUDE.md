@@ -516,7 +516,17 @@ carry, so the bat never turns in his hands. It used to whip the bat across his
 front and over the leg-side shoulder, a flick's finish, turning the blade more
 than once round in his hands; nothing tested it, because it was the one drive
 missing from the batter tests' list of strokes (`'on'` in `PLAYS` now).
-`cover-drive.html` has it beside the cover strokes.
+
+Its six (`ON_LOFT`, played when the swipe is perfectly timed) shares its
+stride and contact, climbs through the lofted straight drive's extension and
+carry turned the same way, and wraps: the hands just over the front shoulder,
+the elbows bent, the bat lying back over the shoulder behind his head, held,
+then home back over his head and down the line on a clock of its own
+(`ON_LOFT_CLOCK`). The arms take the bat over, not the wrists: from the ball to
+the end of the hold the face rides the handle (`riding`) and does not turn in
+his hands at all, and it settles into the guard on the way home. The six it
+replaced reached both arms for the sky and turned the bat a full turn in his
+hands coming home. `cover-drive.html` has both beside the cover strokes.
 
 ## A newcomer's first innings
 

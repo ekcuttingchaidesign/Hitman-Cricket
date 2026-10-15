@@ -279,6 +279,17 @@ const COVER_DRIVE_V1: Stroke = {
 };
 /** When the cover drive's way home passes back through its own keys. */
 const COVER_HOME = { carry: 670, through: 740, under: 828 } as const;
+/**
+ * The on drive's six, on its own clock after the ball: into the wrap a little
+ * later than a drive reaches its finish, the wrap held, and home back over his
+ * head to the carry, down the line and under him. From over the shoulder the
+ * bat has the whole of the way over his head to come back first, which on the
+ * cover drive's clock it was given fifty milliseconds for, and the elbows
+ * flipped doing it.
+ */
+const ON_LOFT_CLOCK = { wrapped: 440, hold: 580, carry: 700, through: 770, under: 866 };
+/** How long the six's wrap is held: until then the bat does not turn in his hands at all. */
+export const ON_LOFT_HOLD = ON_LOFT_CLOCK.hold;
 /** How close the grip may come to the middle of the helmet: its radius, a forearm's, and a little air. */
 const HANDS_CLEAR = .36;
 /** The middle of the helmet's dome, from the head's own origin. */
@@ -987,47 +998,30 @@ const STRAIGHT_LOFT: Stroke = {
   recover: STROKES.STRAIGHT.recover,
 };
 /**
- * The on drive, lofted — the six, from a broadcast recording.
+ * The on drive, lofted: the six.
  *
- * The same ball and the same contact as the on drive played along the ground:
- * the front foot across to the leg side, the face closed towards mid-on, the
- * ball met beside the pad. What separates them is everything after impact.
- * The arms open out towards long-on with the blade already climbing, the
- * hands keep going up and across to the leg side, and the finish is the one
- * the recording holds for a full second: both arms straight above the helmet,
- * the bat to the sky over the front shoulder and a little behind it, the back
- * foot up on its toe and the chest open to the leg side, watching it go.
- * Timed anything less than perfectly it is the ordinary on drive that gets
+ * The on drive's own ball and contact, and the lofted straight drive's
+ * extension and carry turned to long-on with it, the blade already climbing as
+ * the arms straighten. Then it wraps: the arms carry on up and over, the
+ * elbows bent rather than reaching for the sky, and the finish is the hands
+ * just above the front shoulder with the bat lying back over the top of it
+ * and behind his head, the chest open to long-on and the back foot up on its
+ * toe, watching it go. The arms do it, not the wrists: from the ball on the
+ * face rides the handle and does not turn in his hands (`riding`). Timed
+ * anything less than perfectly it is the on drive along the ground that gets
  * played, which is also the ball that is worth less than six.
  */
 const ON_LOFT: Stroke = {
-  // The drive aim is eased in rather than switched on at the ball: the on
-  // drive's guard has none, and taking it whole inside the pick-up moved the
-  // front elbow too fast at a ball wide of leg stump.
-  contact: { ...STROKES.LONG_ON.contact, armHinge: .90, armDrive: .50, shoulderLift: 0 },
-  // Extension, out towards long-on: both arms straight, the blade climbing.
-  through: { ...GUARD, hip: [-.10, .80, .22], chest: [-.02, 1.14, .32],
-    frontFoot: [-.34, .08, .58], backFoot: [-.16, .10, -.28],
-    grip: [.10, 1.06, .78], batUp: [.32, .50, -.80], batFace: [-.50, .75, .45],
-    yaw: .55, face: -.30, heel: .30, backFootYaw: 1.00, leadElbow: .24,
-    armHinge: .55, armDrive: 1, shoulderLift: .04 },
-  // Up and across to the leg side, the blade with the hands.
-  carry: { ...GUARD, hip: [-.10, .84, .18], chest: [-.06, 1.20, .24],
-    frontFoot: [-.34, .08, .58], backFoot: [-.14, .14, -.26],
-    grip: [-.10, 1.42, .66], batUp: [.32, -.30, -.90], batFace: [-.45, .82, -.35],
-    yaw: .35, face: -.35, heel: .45, backFootYaw: .90, leadElbow: .26,
-    armHinge: 1.00, armDrive: 1, shoulderLift: .06 },
-  // Both arms straight above the helmet, the bat to the sky over the front
-  // shoulder, the back foot on its toe. Held.
-  finish: { ...GUARD, hip: [-.12, .88, .16], chest: [-.08, 1.24, .20],
-    frontFoot: [-.34, .08, .58], backFoot: [-.12, .16, -.22],
-    grip: [-.26, 1.90, .44], batUp: [.36, -.70, .60], batFace: [.85, .20, -.30],
-    yaw: .30, face: -.30, heel: .55, backFootYaw: .70, leadElbow: .30,
-    armHinge: 1.50, armDrive: .80, shoulderLift: .10 },
-  // The on drive's own way home, held a little further out in front: from
-  // this finish the knob passes the grille on the way to the pick-up at a
-  // ball wide of leg stump, where the body has followed the ball across.
-  recover: { ...STROKES.LONG_ON.recover!, grip: [.26, 1.04, .60] },
+  contact: STROKES.LONG_ON.contact,
+  through: { ...STROKES.LONG_ON.through!, grip: [.210, 1.08, .899], batUp: [.419, .44, -.794], batFace: [-.179, .90, .402],
+    heel: .28, armHinge: .70, shoulderLift: .05 },
+  carry: { ...GUARD, hip: [.044, .86, .19], chest: [.122, 1.20, .334], frontFoot: [-.116, .08, .524], backFoot: [.088, .08, -.228],
+    grip: [.146, 1.42, .87], batUp: [.379, -.60, -.705], batFace: [.29, .80, -.528], yaw: -.14, face: -.36, heel: .38,
+    backFootYaw: .48, leadElbow: .26, armHinge: 1.30, armDrive: 1, shoulderLift: .07 },
+  finish: { ...GUARD, hip: [.04, .88, .17], chest: [.08, 1.22, .29], frontFoot: [-.116, .08, .524], backFoot: [.09, .12, -.21],
+    grip: [-.10, 1.62, .46], batUp: [-.40, -.66, .64], batFace: [.85, 0, .53], yaw: -.40, face: -.45, heel: .55,
+    backFootYaw: .40, leadElbow: .30, armHinge: 1.60, armDrive: 1, shoulderLift: .10 },
+  recover: STROKES.LONG_ON.recover,
 };
 /**
  * The advance charge — the reference recordings, from behind and from the front.
@@ -2384,6 +2378,8 @@ export class Batter {
   private get coverV2() { return this.shot === 'COVER_LONG_OFF' && !this.squaring && this.coverVersion >= 2; }
   /** The on drive along the ground: not the six, and not the charge over long-on, which have their own. */
   private get onDrive() { return this.shot === 'LONG_ON' && !this.charging && !this.lofted; }
+  /** The on drive lofted for six, which wraps over the front shoulder with the face riding the handle. */
+  private get onLoft() { return this.shot === 'LONG_ON' && this.lofted && !this.charging; }
   /** The rebuilt drives, which go home back along their own swing: the cover drive's versions two and three, and the on drive. */
   private get rebuiltDrive() { return this.coverV2 || this.onDrive; }
   get strikeAt() { return this.contactTime; }
@@ -2719,6 +2715,40 @@ export class Batter {
       }
       return;
     }
+    // The on drive's six: the on drive's front foot down first and its contact,
+    // up through the lofted extension and carry into the wrap over the front
+    // shoulder, held, and home back down the way it went. From the ball on the
+    // face rides the handle (`riding`): the arms take the bat over, and the
+    // wrists do not turn it in his hands. What it has to turn to be back in his
+    // guard it turns on the way down from the hold.
+    if (this.onLoft) {
+      const { wrapped, hold, carry, through, under } = ON_LOFT_CLOCK;
+      const body = (pose: Pose, home: number): Pose => {
+        const settled = mix(pose, GUARD, home);
+        return { ...pose, hip: settled.hip, chest: settled.chest, frontFoot: settled.frontFoot, backFoot: settled.backFoot, heel: settled.heel,
+          backFootYaw: settled.backFootYaw, look: settled.look };
+      };
+      const out = [{ time: 0, pose: this.swingFrom },
+        { time: COVER_PLANT.at, pose: { ...mix(this.swingFrom, contact, COVER_PLANT.bat), frontFoot: contact.frontFoot, backFoot: contact.backFoot,
+          hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } },
+        { time: STROKE_CONTACT_MS, pose: contact }, { time: 220, pose: reachPose(stroke.through!) },
+        { time: 310, pose: reachPose(stroke.carry!) }, { time: wrapped, pose: finish }];
+      const home = [{ time: hold, pose: finish },
+        { time: carry, pose: body(reachPose(stroke.carry!), .2) },
+        { time: through, pose: body(reachPose(stroke.through!), .45) },
+        { time: under, pose: body(contact, .7) },
+        { time: STROKE_DURATION_MS, pose: GUARD }];
+      const poseAt = (at: number): Pose => at < wrapped ? shoulderDriven(out, at, STROKE_CONTACT_MS)
+        : at < hold ? finish : shoulderDriven(home, at, hold - 70);
+      const pose = { ...poseAt(age) };
+      if (age > STROKE_CONTACT_MS) {
+        const reference = batOrientation(STROKES.LONG_ON.contact), up = UP.clone().applyQuaternion(batOrientation(poseAt(STROKE_CONTACT_MS)));
+        const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
+        pose.bat = this.riding(STROKE_CONTACT_MS, poseAt, met, [hold, through], age);
+      }
+      this.apply(pose);
+      return;
+    }
     // The on drive runs the drives' clock, lofted or along the ground: it is
     // a drive.
     if (this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF' || this.shot === 'LONG_ON') {
@@ -2844,7 +2874,7 @@ export class Batter {
       if (clearing > 0) {
         const helmet = this.head.position.clone().add(HELMET_CENTRE);
         const fromHelmet = this.bat.position.clone().sub(helmet), near = fromHelmet.length();
-        if ((this.shot === 'COVER_LONG_OFF' || this.onDrive) && near < HANDS_CLEAR && near > 1e-6) this.bat.position.addScaledVector(fromHelmet, clearing * (HANDS_CLEAR - near) / near);
+        if ((this.shot === 'COVER_LONG_OFF' || this.onDrive || this.onLoft) && near < HANDS_CLEAR && near > 1e-6) this.bat.position.addScaledVector(fromHelmet, clearing * (HANDS_CLEAR - near) / near);
         const chin = CHIN_GUARD.clone().applyEuler(this.head.rotation).add(this.head.position);
         const fromChin = this.bat.position.clone().addScaledVector(UP.clone().applyQuaternion(batOrientation(pose)), KNOB).sub(chin), short = KNOB_CLEAR - fromChin.length();
         if (short > 0 && short < KNOB_CLEAR) this.bat.position.addScaledVector(fromChin.normalize(), clearing * short);
@@ -2869,7 +2899,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if(this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft) {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,

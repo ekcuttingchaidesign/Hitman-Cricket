@@ -27,7 +27,7 @@ const LEAD_MS = 260;
  * on its own clock, and with where the ball goes off the bat.
  */
 interface Stroke {
-  label: string; shot: ShotType; charging: boolean;
+  label: string; shot: ShotType; charging: boolean; lofted?: boolean;
   /** Played the same in every version: the on drive has only the one. */
   single?: boolean;
   /** Where the ball is met, in the rig's frame. */
@@ -63,6 +63,14 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .024, angle: THREE.MathUtils.degToRad(-22), climb: 0 },
     facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
     note: 'The on drive, rebuilt as a drive: the straight drive turned 24 degrees to long-on about the back foot. The front foot is down at 55 ms, a long stride down the line of a ball on leg stump pointing towards mid-on, the head over the ball; the bat comes down straight with its face closed to mid-on and meets the ball at 110 ms beside the front pad, 16 cm further down the pitch than the straight drive, with the front elbow high. The arms go out along the line to long-on at 220, the hands finish high in front of him at 410 with the blade up the ground after the ball, held to 600, and the bat goes home back down the way it came without turning in his hands. It used to whip the bat across the front of him and over the leg-side shoulder, the blade turning more than once round in his hands.',
+  },
+  six: {
+    label: 'On drive six', shot: 'LONG_ON', charging: false, lofted: true, single: true, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ + ON_DRIVE_MEETS_AT },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.6,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Wrap', 440], ['Home', 580]],
+    out: { speed: .028, angle: THREE.MathUtils.degToRad(-22), climb: .014 },
+    facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
+    note: 'The on drive lofted for six, played when the swipe is perfectly timed: the on drive\'s own stride and contact, then the arms carry the bat up through the line and over into a wrap, the elbows bent rather than reaching for the sky: the hands just over the front shoulder with the bat lying back over it behind his head, the front elbow up beside the helmet, the back arm across in front of his face, the chest open to long-on and the back foot up on its toe, held to 580 ms. The arms take the bat over, not the wrists: from the ball to the end of the hold the face does not turn in his hands at all, and on the way home, back over his head and down the line, it settles into his guard a little at a time. The six it replaces turned the bat a full turn in his hands on the way home.',
   },
 };
 let stroke = STROKES.cover;
@@ -178,7 +186,7 @@ const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !str
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, false, false, false, version);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, false, false, version);
   swinging = true;
 }
 
