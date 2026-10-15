@@ -24,7 +24,7 @@ const LEAD_MS = 260;
 const END_MS = STROKE_DURATION_MS;
 /** The stroke's own clock, as `STROKES.COVER_LONG_OFF` and `COVER_PLANT` key it. */
 const PHASES = [
-  ['Backlift', -LEAD_MS], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Home', 600],
+  ['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Home', 600],
 ] as const;
 /** Incoming pace and the shot's pace and line off the bat (from straight, towards the off side). */
 const IN_SPEED = .030, OUT_SPEED = .024, OUT_ANGLE = THREE.MathUtils.degToRad(58), BOUNCE_Z = 3.5;
@@ -104,17 +104,30 @@ function placeCamera(view: string) {
   camera.position.copy(mirror(v.eye)); controls.target.copy(mirror(v.at)); controls.update();
 }
 
-/** Puts the batter and the ball at time `t`. Before the swing he holds his backlift. */
+/**
+ * Puts the batter and the ball at time `t`. Before the swing he rises out of
+ * his stance into the backlift as the ball comes, as the game has him do while
+ * the bowler runs in, so the loop starts in the stance the stroke ends in
+ * rather than snapping from it to the backlift.
+ */
 function pose(t: number) {
-  if (t < 0) { batter.prepare(1); batter.update(0); } else batter.update(t);
+  if (t < 0) {
+    batter.reset(); swinging = false;
+    batter.prepare(THREE.MathUtils.smoothstep(t, -LEAD_MS, 0)); batter.update(0);
+  } else {
+    if (!swinging) start();
+    batter.update(t);
+  }
   ball.position.fromArray(ballAt(t));
   marker.visible = t <= STROKE_CONTACT_MS + 140;
   batter.drape();
 }
 
+let swinging = false;
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   batter.swing('COVER_LONG_OFF', 0, BALL.x, BALL.y, BALL.z);
+  swinging = true;
 }
 
 // ── Controls ─────────────────────────────────────────────────────────────────
@@ -126,7 +139,7 @@ const strip_ = document.querySelector<HTMLDivElement>('#frames')!;
 scrub.min = String(-LEAD_MS); scrub.max = String(END_MS);
 
 let playing = true, t = -LEAD_MS, speed = .5, previous = performance.now(), view = 'side';
-const phaseAt = (time: number) => [...PHASES].reverse().find(([, at]) => time >= at)?.[0] ?? 'Backlift';
+const phaseAt = (time: number) => [...PHASES].reverse().find(([, at]) => time >= at)?.[0] ?? 'Stance';
 function setPlaying(on: boolean) { playing = on; playButton.textContent = on ? 'Pause' : 'Play'; playButton.setAttribute('aria-pressed', String(on)); }
 function seek(time: number) { setPlaying(false); t = Math.max(-LEAD_MS, Math.min(END_MS, time)); }
 

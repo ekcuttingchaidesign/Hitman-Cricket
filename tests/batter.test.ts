@@ -217,6 +217,29 @@ describe('bat travel', () => {
       expect(pose.bladeTip[1], `@${time}`).toBeLessThan(pose.grip[1]);
     }
   });
+  it('does not turn the bat in his hands on the cover drive\'s way home, nor flick it into the guard', () => {
+    const batter = new Batter(); batter.prepare(1); batter.update(0);
+    play(batter, 'cover', .10);
+    const at = (time: number) => { batter.update(time); return batter.bat.quaternion.clone(); };
+    // How far the face turns about the handle between two frames, once the
+    // handle's own swing is taken out.
+    const roll = (a: Quaternion, b: Quaternion) => {
+      const up = new Vector3(0, 1, 0).applyQuaternion(b);
+      const carried = new Vector3(0, 0, 1).applyQuaternion(a).applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0).applyQuaternion(a), up));
+      const face = new Vector3(0, 0, 1).applyQuaternion(b);
+      return Math.abs(Math.atan2(up.dot(carried.clone().cross(face)), carried.dot(face)));
+    };
+    // From the extension on back to the pick-up, the face rides the handle.
+    let previous = at(770);
+    for (let time = 774; time <= STROKE_DURATION_MS; time += 4) {
+      const now = at(time);
+      expect(roll(previous, now), `@${time}`).toBeLessThan(MathUtils.degToRad(2));
+      previous = now;
+    }
+    // And the frame before he is back is the guard he is back in.
+    const last = at(STROKE_DURATION_MS - .5), home = at(STROKE_DURATION_MS + 50);
+    expect(last.angleTo(home)).toBeLessThan(MathUtils.degToRad(1));
+  });
   const sample = (shot: ShotType, ballX: number) => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);

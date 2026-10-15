@@ -2245,6 +2245,42 @@ export class Batter {
     // ball that stroke was never going to reach.
     this.ballY = this.pulling || this.cutting ? ballY : Math.min(ballY, .62);
   }
+  /**
+   * The bat on the cover drive's way home, as the handle swings back along the
+   * swing: the face carried along with the handle frame by frame, so it does
+   * not turn in his hands, from the finish's own face to the guard's. Whatever
+   * turn about the handle is left between the two at the end is taken early,
+   * coming down off the finish, rather than at the last; and the last frame is
+   * the guard's exactly, so he settles into it without a flick. Worked out
+   * once a stroke and read by time, so any frame can be drawn on its own.
+   */
+  private ridingHome(keys: readonly { time: number; pose: Pose }[], age: number) {
+    const from = keys[0].time, step = 2, key = `${this.swingStart}:${this.ballX}:${this.ballY}:${this.ballZ}`;
+    if (this.homeRide?.key !== key) {
+      const turns: THREE.Quaternion[] = [], ups: THREE.Vector3[] = [];
+      for (let time = from; time <= STROKE_DURATION_MS; time += step)
+        ups.push(UP.clone().applyQuaternion(batOrientation(shoulderDriven(keys, Math.min(time, STROKE_DURATION_MS - 1e-6), from - 70))));
+      turns.push(batOrientation(keys[0].pose).clone());
+      for (let n = 1; n < ups.length; n++)
+        turns.push(new THREE.Quaternion().setFromUnitVectors(ups[n - 1], ups[n]).multiply(turns[n - 1]));
+      // The guard's face, as it is drawn once he is back in it.
+      const straight = batOrientation(STROKES.STRAIGHT.contact);
+      const guard = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), ups[ups.length - 1]).multiply(straight);
+      const left = turns[turns.length - 1].clone().invert().multiply(guard);
+      const roll = 2 * Math.atan2(left.y, left.w);
+      const shortest = Math.atan2(Math.sin(roll), Math.cos(roll));
+      // Taken coming down off the finish, as the wrists let it go, and none
+      // of it after the extension: from there to the pick-up the face only
+      // rides the handle.
+      const unwound = (COVER_HOME.through - from) / step;
+      turns.forEach((turn, n) => turn.multiply(new THREE.Quaternion().setFromAxisAngle(UP, shortest * ease(Math.min(1, n / unwound)))));
+      turns[turns.length - 1].copy(guard);
+      this.homeRide = { key, turns };
+    }
+    const at = THREE.MathUtils.clamp((age - from) / step, 0, this.homeRide.turns.length - 1), n = Math.min(Math.floor(at), this.homeRide.turns.length - 2);
+    return this.homeRide.turns[n].clone().slerp(this.homeRide.turns[n + 1], at - n);
+  }
+  private homeRide: { key: string; turns: THREE.Quaternion[] } | null = null;
   get strikeAt() { return this.contactTime; }
   get contactZ() { return this.ballZ; }
   /**
@@ -2594,11 +2630,14 @@ export class Batter {
           return { ...pose, hip: body.hip, chest: body.chest, frontFoot: body.frontFoot, backFoot: body.backFoot, heel: body.heel,
             backFootYaw: body.backFootYaw, look: body.look };
         };
-        this.apply(shoulderDriven([{ time: hold, pose: finish },
+        const keys = [{ time: hold, pose: finish },
           { time: COVER_HOME.carry, pose: back(reachPose(stroke.carry!), .2) },
           { time: COVER_HOME.through, pose: back(reachPose(stroke.through!), .45) },
           { time: COVER_HOME.under, pose: back(contact, .7) },
-          { time: STROKE_DURATION_MS, pose: GUARD }], age, hold - 70));
+          { time: STROKE_DURATION_MS, pose: GUARD }];
+        const pose = shoulderDriven(keys, age, hold - 70);
+        pose.bat = this.ridingHome(keys, age);
+        this.apply(pose);
       } else if (age < 800) {
         // Down off the high finish. The on drive's comes down out in front of
         // the face, toe up and forward, because from above the helmet the knob
@@ -2705,6 +2744,11 @@ export class Batter {
         this.bat.quaternion.copy(transported);
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
+      }
+      else if(this.shot==='COVER_LONG_OFF' && !this.charging && !this.squaring && this.poseAge>=COVER_PLANT.hold) {
+        // The cover drive's way home already holds its face (`ridingHome`):
+        // the roll the other strokes take into the guard is up to a full turn,
+        // and it spun the blade about the handle as it came up into the pick-up.
       }
       else {
         // Return the same corrected guard without snapping the other strokes.
