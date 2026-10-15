@@ -88,3 +88,18 @@ export function stumpIntersection(delivery: Delivery) {
   const p = ballPosition(delivery, GAME.releaseZ / (GAME.releaseZ - GAME.contactZ));
   return Math.abs(p.x) <= GAME.stumpZone && p.y <= GAME.stumpHeight;
 }
+
+/**
+ * How long before the ball reaches the crease it reaches `fraction` of its way
+ * there: what a stroke that meets it further down the pitch has to be that
+ * much sooner for, to be on time. Found by halving, since the flight's pace is
+ * not even (`flightProgress`).
+ */
+export function soonerBy(delivery: Delivery, fraction: number) {
+  let early = 0, late = delivery.durationMs;
+  for (let i = 0; i < 40; i++) {
+    const mid = (early + late) / 2;
+    if (flightProgress(delivery, mid) < fraction) early = mid; else late = mid;
+  }
+  return delivery.durationMs - (early + late) / 2;
+}

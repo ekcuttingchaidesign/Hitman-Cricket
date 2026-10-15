@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 
@@ -110,7 +110,7 @@ world.add(marker);
 
 /** Where the ball is at time `t` on the stroke's clock, in the rig's frame. */
 function ballAt(t: number): [number, number, number] {
-  const { ball: at, contact, bounceZ, out } = stroke, dt = t - contact;
+  const at = metAt(), { contact, bounceZ, out } = stroke, dt = t - contact;
   if (dt <= 0) {
     const z = at.z - dt * IN_SPEED;
     if (z <= bounceZ) {
@@ -156,15 +156,18 @@ function pose(t: number) {
     batter.update(t);
   }
   ball.position.fromArray(ballAt(t));
-  marker.position.set(stroke.ball.x, stroke.ball.y, stroke.ball.z);
+  const at = metAt(); marker.position.set(at.x, at.y, at.z);
   marker.visible = t <= stroke.contact + 140;
   batter.drape();
 }
 
 let swinging = false;
+/** Where this stroke meets the ball: version three's cover drive beside the front pad, a little further on. */
+const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !stroke.charging ? COVER_V3_MEETS_AT : 0) });
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing('COVER_LONG_OFF', 0, stroke.ball.x, stroke.ball.y, stroke.ball.z, stroke.charging, false, false, false, version);
+  const at = metAt();
+  batter.swing('COVER_LONG_OFF', 0, at.x, at.y, at.z, stroke.charging, false, false, false, version);
   swinging = true;
 }
 
@@ -271,6 +274,11 @@ const VERSION_ONE: Record<string, string> = {
   cover: 'Version one, the cover drive the game has always played, kept beside the rebuilt one: a short step in, the ball met at 110 ms, the arms out through the line at 220 and the high finish at 410, with the bat pointing out square, held to 570, and home to his guard over the top.',
   charge: 'Version one, the charge over cover the game has always played: the same run down the pitch, ball and finish as version two, with the bat turning in his hands on the way up into the finish and on the way home.',
 };
+/** What version three of each stroke is: the cover drive met beside the front pad. */
+const VERSION_THREE: Record<string, string> = {
+  cover: 'Version three, on trial: version two met beside the front pad, under his eyes, as the recording meets it, 28 cm further down the pitch than the game meets every other drive. The hips and chest are further forward, the front knee bent deeper over the foot, and the back foot slides back less. In the game it is only played with ?coverv=3 on the link, as practice, because the ball gets there a little sooner: a stock ball about 14 ms sooner, a slower ball up to 45.',
+  charge: 'The charge over cover has no version three: it is version two\'s, down the pitch to the ball as it always was.',
+};
 const title = document.querySelector<HTMLHeadingElement>('h1')!;
 const facts = document.querySelectorAll<HTMLElement>('[data-fact]');
 const note = document.querySelector<HTMLSpanElement>('#note-text')!;
@@ -280,7 +288,7 @@ function choose(key: string) {
   const [first, ...rest] = stroke.label.split(' ');
   title.innerHTML = `${first} <span>${rest.join(' ')}</span>`;
   facts.forEach((fact, i) => { fact.textContent = stroke.facts[i]; });
-  note.textContent = version === 2 ? stroke.note : VERSION_ONE[key];
+  note.textContent = version === 1 ? VERSION_ONE[key] : version === 3 ? VERSION_THREE[key] : stroke.note;
   scrub.min = String(-LEAD_MS); scrub.max = String(stroke.end);
   swinging = false; contactSheet(); start();
   t = -LEAD_MS; placeCamera(view); setPlaying(true);

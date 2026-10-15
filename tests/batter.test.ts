@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -14,10 +14,12 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * to it — the run down the pitch, the wrap, the walk back — has a suite of its
  * own below.
  */
-const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number }> = {
+const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number; version?: 1 | 2 | 3 }> = {
   pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500 },
   straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], settle: 410 },
   cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410 },
+  // Version three of it: the same ball, met beside the front pad.
+  cover3: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410, version: 3 },
   square: { shot: 'COVER_LONG_OFF', ballY: .40, impact: SQUARE_DRIVE_CONTACT_MS, reach: [.30, .44, .55], settle: 430 },
   // The six: the same ball and the same contact as the classic drive above,
   // and a different follow-through, which is the whole of the difference.
@@ -53,7 +55,8 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
 };
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
-  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ + (spec.charging ? CHARGE_MEETS_AT : 0), spec.charging ?? false, spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false);
+  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ + (spec.charging ? CHARGE_MEETS_AT : spec.version === 3 ? COVER_V3_MEETS_AT : 0),
+    spec.charging ?? false, spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, spec.version ?? 2);
 };
 /** The charge, played at the ball the game plays it at. */
 const charge = (x = 0) => {
@@ -345,11 +348,13 @@ describe('the bat and the body', () => {
     // home — so the poses either side of it, and the recovery pose a stroke can
     // name, have to be chosen to take the bat round instead.
     const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
-    for (const shot of STROKES) {
+    // Every stroke, and both other versions of the cover drive beside the default.
+    const plays = [...STROKES.map(shot => [shot, 2, 0] as const), ['COVER_LONG_OFF', 1, 0] as const, ['COVER_LONG_OFF', 3, COVER_V3_MEETS_AT] as const];
+    for (const [shot, version, ahead] of plays) {
       let worst = { value: Infinity, part: '', where: '' };
       for (const ballY of [.54, 1.12]) for (const ballX of [-.55, -.42, -.3, -.14, 0, .14, .42, .55]) {
         const batter = new Batter();
-        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY, GAME.contactZ + ahead, false, false, false, false, version);
         for (let time = 0; time <= STROKE_DURATION_MS; time += 8) {
           batter.update(time);
           const pose = batter.inspect();
@@ -370,7 +375,7 @@ describe('the bat and the body', () => {
           }
         }
       }
-      expect(worst.value, `${shot} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
+      expect(worst.value, `${shot} v${version} reaches ${worst.value.toFixed(2)} into the ${worst.part} at ${worst.where}`).toBeGreaterThan(1);
     }
   });
 
@@ -723,7 +728,7 @@ describe('the square cut', () => {
 });
 
 describe('the grip', () => {
-  it.each(['straight','cover','square'])('uses a diagonal top-hand wrist and leading elbow for %s',kind=>{
+  it.each(['straight','cover','cover3','square'])('uses a diagonal top-hand wrist and leading elbow for %s',kind=>{
     const batter=new Batter(); batter.prepare(1); batter.update(0);
     play(batter, kind, PLAYS[kind].reach[1]);
     batter.update(PLAYS[kind].impact);
@@ -736,7 +741,7 @@ describe('the grip', () => {
   // Every stroke frame by frame: a second or two alone, near the default five
   // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','square','straight','cover','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','square','straight','cover','cover3','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -810,7 +815,7 @@ describe('the grip', () => {
 });
 
 describe('shoulders', () => {
-  it.each(['straight','lofted','cover','square','charge','coverCharge','onCharge','onLofted'])('powers the %s follow-through with upper-arm travel', kind => {
+  it.each(['straight','lofted','cover','cover3','square','charge','coverCharge','onCharge','onLofted'])('powers the %s follow-through with upper-arm travel', kind => {
     const batter=new Batter(); batter.prepare(1); batter.update(0);
     play(batter, kind, PLAYS[kind].reach[1]);
     batter.update(PLAYS[kind].impact); const contact=batter.inspect();
@@ -855,7 +860,7 @@ describe('shoulders', () => {
 });
 
 describe('every stroke, across its reach', () => {
-  it.each(['straight','cover','square','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('presents the flat face from face-down pickup into %s contact',kind=>{
+  it.each(['straight','cover','cover3','square','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('presents the flat face from face-down pickup into %s contact',kind=>{
     for(const x of PLAYS[kind].reach) {
       const batter=new Batter(); batter.prepare(1); batter.update(0);
       expect(batter.inspect().batFace[1]).toBeLessThan(-.4);
@@ -900,7 +905,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','square','straight','cover','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','square','straight','cover','cover3','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -960,7 +965,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['pull', 'square', 'straight', 'cover', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
+  it.each(['pull', 'square', 'straight', 'cover','cover3', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1069,7 +1074,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['pull', 'square', 'straight', 'cover', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['pull', 'square', 'straight', 'cover','cover3', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
@@ -1156,7 +1161,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['pull','square','straight','lofted','cover','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['pull','square','straight','lofted','cover','cover3','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1189,7 +1194,7 @@ describe('the arms', () => {
    * than at the contact it came out of, which is the bent-armed, shoulder-hinged
    * look the whole stroke was judged on.
    */
-  it.each(['square','straight','lofted','cover'])('opens the %s elbows out through impact', kind => {
+  it.each(['square','straight','lofted','cover','cover3'])('opens the %s elbows out through impact', kind => {
     const spec = PLAYS[kind];
     for (const x of spec.reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
@@ -1216,7 +1221,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['pull','square','straight','lofted','cover','cut','sweep'])('never reaches the %s arms past their own length', kind => {
+  it.each(['pull','square','straight','lofted','cover','cover3','cut','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);

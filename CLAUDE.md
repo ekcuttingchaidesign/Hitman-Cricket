@@ -460,7 +460,8 @@ the place the board shows. Nothing is written. Production never sees them.
 An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
 `?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?cover=1`
-(every ball the cover drive's own: a stock ball pitched up on off stump), or the
+(every ball the cover drive's own: a stock ball pitched up on off stump),
+`?coverv=3` (the cover drive met beside the front pad, still on trial), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
 (`src/game/practice.ts`). The card says so in place of an offer, the career
 does not count it, and the browser's own best does not move; in a Rival Match
@@ -480,9 +481,19 @@ the charge over cover carrying its bat into the finish without turning it in
 his hands (`riding`). It is how he plays the stroke, never how well, so it is
 drawn from the browser's dice and not the innings' seed, which would move
 every ball after it; the square drive is the same in both. `?coverv=1` or
-`?coverv=2` asks for one, and is not practice. `cover-drive.html` is both
-strokes in both versions on their own, built into one page by
-`scripts/cover-drive-artifact.mjs`.
+`?coverv=2` asks for one, and is not practice.
+
+A third is on trial and only ever asked for: `?coverv=3`, which is practice.
+It is version two met later in the ball's flight, beside the front pad rather
+than out in front of it (`COVER_DRIVE_V3`, `COVER_V3_MEETS_AT` past the usual
+point): the hips, chest and hands carried forward over the planted foot, the
+ball resolved at that fraction of its flight (`meetsAt` in `src/Game.ts`, the
+scene's `meeting`) and the press judged as if it came that much sooner
+(`soonerBy`), so the swipe a player times for the other two is still the
+perfect one — the stroke waits for the ball, not the thumb. The square
+drive and the charge over cover are played as in version two.
+`cover-drive.html` is both strokes in every version on their own, built into
+one page by `scripts/cover-drive-artifact.mjs`.
 
 ## A newcomer's first innings
 

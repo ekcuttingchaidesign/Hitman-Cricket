@@ -214,7 +214,7 @@ const STROKE_FINISH_MS = 410;
  * until `hold`, longer than the straight drive's, because the recording holds
  * it so.
  */
-const COVER_PLANT = { at: 55, bat: .55, hips: .85, chest: .45, hold: 600 } as const;
+const COVER_PLANT = { at: 55, bat: .55, batV3: .62, hips: .85, chest: .45, hold: 600 } as const;
 /**
  * Which version of the two strokes off the cover input he plays. One is the
  * game's own cover drive and charge over cover as they always were; two is
@@ -223,7 +223,15 @@ const COVER_PLANT = { at: 55, bat: .55, hips: .85, chest: .45, hold: 600 } as co
  * it in his hands. The game picks one at each cover swipe, half and half; it
  * is how he plays the stroke, not how well, so nothing scored depends on it.
  */
-export type CoverVersion = 1 | 2;
+export type CoverVersion = 1 | 2 | 3;
+/**
+ * Version three of the cover drive meets the ball this much further down the
+ * pitch than every other drive: beside the front pad, under his eyes, where
+ * the recording meets it, rather than a stride behind it. Only asked for by
+ * name (`?coverv=3`), because meeting it sooner moves when the swipe is on
+ * time.
+ */
+export const COVER_V3_MEETS_AT = .28;
 /**
  * The cover drive as it was before it was rebuilt: version one. Its contact
  * is also the face the charge over cover brings the bat down with, in either
@@ -452,6 +460,22 @@ const STROKES: Record<ShotType, Stroke> = {
   SCOOP: null as unknown as Stroke,
   REVERSE_SCOOP: null as unknown as Stroke,
 };
+/**
+ * Version three: version two's stroke with the whole body gone forward to the
+ * ball, met beside the front pad (`COVER_V3_MEETS_AT`). The hips and chest are
+ * a sixth of a metre further on, the head over the ball and the front knee,
+ * the front knee bent deeper over the foot; and the back foot slides back less
+ * than version two's, because the hips are nearer it.
+ */
+const COVER_DRIVE_V3: Stroke = (() => {
+  const v2 = { contact: { hip: [.08, .80, .30], chest: [.25, 1.16, .38], frontFoot: [.15, .08, .62], backFoot: [-.15, .08, -.34] },
+    through: { hip: [.09, .79, .33], chest: [.27, 1.12, .44], grip: [.68, 1.10, 1.00] },
+    carry: { hip: [.10, .79, .34], chest: [.28, 1.13, .46], grip: [.64, 1.28, .92] },
+    finish: { hip: [.11, .79, .34], chest: [.29, 1.13, .46], grip: [.56, 1.52, .80] } } as const;
+  const feet = { frontFoot: v2.contact.frontFoot as Point, backFoot: v2.contact.backFoot as Point };
+  const stroke = (key: 'contact' | 'through' | 'carry' | 'finish') => ({ ...STROKES.COVER_LONG_OFF[key]!, ...feet, ...(v2[key] as Partial<Pose>) });
+  return { contact: stroke('contact'), through: stroke('through'), carry: stroke('carry'), finish: stroke('finish'), recover: STROKES.COVER_LONG_OFF.recover };
+})();
 
 /**
  * The bat's orientation as one rotation: `batUp` is the handle axis and
@@ -2309,8 +2333,8 @@ export class Batter {
   private homeRide: { key: string; turns: THREE.Quaternion[] } | null = null;
   /** Which version of the cover strokes this swing plays: see `CoverVersion`. */
   private coverVersion: CoverVersion = 2;
-  /** Version two of a stroke off the cover input, not driven square: the strokes the two versions differ in. */
-  private get coverV2() { return this.shot === 'COVER_LONG_OFF' && !this.squaring && this.coverVersion === 2; }
+  /** Version two or three of a stroke off the cover input, not driven square: the strokes the versions differ in. */
+  private get coverV2() { return this.shot === 'COVER_LONG_OFF' && !this.squaring && this.coverVersion >= 2; }
   get strikeAt() { return this.contactTime; }
   get contactZ() { return this.ballZ; }
   /**
@@ -2441,7 +2465,8 @@ export class Batter {
       : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? PULL : this.cutting ? CUT_HIGH
       : this.squaring ? SQUARE_DRIVE : this.lofted ? (this.shot === 'LONG_ON' ? ON_LOFT : STRAIGHT_LOFT)
       : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP
-      : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 1 ? COVER_DRIVE_V1 : STROKES[this.shot];
+      : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 1 ? COVER_DRIVE_V1
+      : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 3 ? COVER_DRIVE_V3 : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
     // somewhere along the selected sector. Wrong shots stay in their own reach.
     const zones: Record<ShotType, readonly [number, number]> = {
@@ -2654,7 +2679,9 @@ export class Batter {
         // The cover drive's front foot is down, and his weight going onto it,
         // while the bat is still on its way down: the bat keeps the path it
         // has, and only the legs and hips get there first.
-        if (cover) keys.splice(1, 0, { time: COVER_PLANT.at, pose: { ...mix(this.swingFrom, contact, COVER_PLANT.bat),
+        // Version three's bat has further to come, to a ball further on, so it is
+        // further down its arc by then and the elbows do not have to hurry.
+        if (cover) keys.splice(1, 0, { time: COVER_PLANT.at, pose: { ...mix(this.swingFrom, contact, this.coverVersion === 3 ? COVER_PLANT.batV3 : COVER_PLANT.bat),
           frontFoot: contact.frontFoot, backFoot: contact.backFoot,
           hip: mix(this.swingFrom, contact, COVER_PLANT.hips).hip, chest: mix(this.swingFrom, contact, COVER_PLANT.chest).chest } });
         if (stroke.carry) keys.push({ time: 310, pose: reachPose(stroke.carry) });
@@ -2777,7 +2804,7 @@ export class Batter {
     if (!this.felled) {
       const up=UP.clone().applyQuaternion(this.bat.quaternion);
       const impact=this.charging?CHARGE_CONTACT_MS:this.squaring?SQUARE_DRIVE_CONTACT_MS:this.shot==='SCOOP'?SCOOP_CONTACT_MS:this.shot==='REVERSE_SCOOP'?REVERSE_CONTACT_MS:STROKE_CONTACT_MS;
-      const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?(this.coverV2&&!this.charging?STROKES.COVER_LONG_OFF.contact:COVER_DRIVE_V1.contact)
+      const reference=this.squaring?SQUARE_DRIVE.contact:this.shot==='COVER_LONG_OFF'?(!this.coverV2||this.charging?COVER_DRIVE_V1.contact:this.coverVersion===3?COVER_DRIVE_V3.contact:STROKES.COVER_LONG_OFF.contact)
         :this.charging&&this.shot==='LONG_ON'?ON_CHARGE_CONTACT:this.shot==='LONG_ON'?STROKES.LONG_ON.contact:STROKES.STRAIGHT.contact;
       const referenceQ=batOrientation(STROKES.STRAIGHT.contact).clone().slerp(batOrientation(reference),idle?0:ease(THREE.MathUtils.clamp(this.poseAge/impact,0,1)));
       const referenceUp=UP.clone().applyQuaternion(referenceQ);
