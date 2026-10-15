@@ -615,11 +615,15 @@ back with him and the stance opened wide, the weight on the back foot and the
 bat high (`SPIN_CUT_LOAD_MS`). Built from a clip filmed from in front. He meets
 it on the back foot out in front of off stump at `SPIN_CUT_CONTACT_MS`, the
 arms out straight and the face over the ball; the hands go through level
-towards point, then up with the blade upright before his face, over his head,
-and the bat lands on the opposite shoulder, behind his head over the leg side
-(`SPIN_CUT_CLOCK`). The face rides the handle (`riding`) and turns only as the
-forearms bring it down over the ball and as the bat goes over onto the
-shoulder; held there, it comes back over his head and down into his guard.
+towards point, then up with the blade upright before his face, and stop at the
+peak of the helmet, the elbows down either side of his face, while the bat
+tips out past his leg-side ear and lands across the opposite shoulder
+(`SPIN_CUT_CLOCK`). Neither the hands nor the bat go over his head: built
+first that way, it read as forced. The face rides the handle (`riding`) and
+turns only as the forearms bring it down over the ball and as the bat goes
+onto the shoulder. Held there as the hook is (`SPIN_CUT_HOLD_MS`, the way home
+slowed with it), it comes off the way it went on and down into his guard; the
+way back over the top of his head went through the helmet.
 Which lines suit it is `SPIN_CUT.fit` in `gameplay.ts`, read through `fitOf`
 in both resolvers in place of the cut's own column, which wants width: off and
 middle as well as outside off, leg less, outside leg least. `?spin=1` gives

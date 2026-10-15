@@ -390,19 +390,24 @@ const CUT_REACH: readonly [number, number] = [.11, .62];
  * distance away (`SPIN_CUT_ROOM`). Then off the back foot, the weight sunk on
  * that leg and the front one long: the bat comes down from high and meets the
  * ball low and away towards off with both arms straight, and carries on level
- * to off, then rises in front of him as the chest comes round square, goes
- * up over his head, and lands across the back of his neck on the front
- * shoulder, the hands up by his back ear. The face rides the handle, as the
- * hook's does: the forearms square it to the ball on the way down, and the
- * bottom hand rolls it over as the bat comes over, so the back of the blade
- * lies on the shoulder.
+ * to off, then rises upright in front of him as the chest comes round
+ * square, the hands up beside his face, and tips back past the leg side of
+ * his head onto the front shoulder, the gloves stopping at the peak of the
+ * helmet with the elbows down either side of his face. The hands never go
+ * over his head, and the bat never goes over it: built first that way, it
+ * read as forced. Held there (`SPIN_CUT_HOLD_MS`), as the hook is, then home
+ * the way it came. The face rides the handle, as the hook's does: the
+ * forearms square it to the ball on the way down, and the bottom hand rolls
+ * it over as the bat tips back, so the back of the blade lies on the shoulder.
  */
 export const SPIN_CUT_LOAD_MS = 100;
 export const SPIN_CUT_CONTACT_MS = 190;
 /** How far out on his off side the ball is left once he has made room: what a cut wants. */
 const SPIN_CUT_ROOM = .32;
-const SPIN_CUT_CLOCK = { load: SPIN_CUT_LOAD_MS, contact: SPIN_CUT_CONTACT_MS, through: 260, rise: 350, over: 440, finish: 520, hold: 620, unwrap: 700, upright: 770, lowered: 850 } as const;
-const SPIN_CUT: Stroke & { load: Pose; rise: Pose; over: Pose; upright: Pose; lowered: Pose } = {
+/** The time the bat is held on the shoulder past the stroke's own clock, and the way home slowed with it, as the hook's is. */
+export const SPIN_CUT_HOLD_MS = 300;
+const SPIN_CUT_CLOCK = { load: SPIN_CUT_LOAD_MS, contact: SPIN_CUT_CONTACT_MS, through: 260, rise: 350, up: 435, tip: 478, finish: 520, hold: 680, untip: 722, unwrap: 770, upright: 825, lowered: 880 } as const;
+const SPIN_CUT: Stroke & { load: Pose; rise: Pose; up: Pose; tip: Pose; off: Pose; upright: Pose; lowered: Pose } = {
   // Room made, the bat high: the back foot back to his stumps, the front one out wide to leg.
   load: { ...BACKLIFT, hip: [0, .86, -.14], chest: [.04, 1.21, -.10],
     frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
@@ -423,18 +428,29 @@ const SPIN_CUT: Stroke & { load: Pose; rise: Pose; over: Pose; upright: Pose; lo
     frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
     grip: [.18, 1.25, .38], batUp: [.05, -.95, -.20], batFace: [.10, -.20, .97],
     yaw: .35, face: .45, heel: .10, backFootYaw: 1.05, leadElbow: -.05 },
-  // over his head,
-  over: { ...GUARD, hip: [-.04, .86, -.13], chest: [.02, 1.20, -.05],
+  // the hands up beside his face and the blade tipping back over the leg side,
+  up: { ...GUARD, hip: [-.04, .86, -.13], chest: [.02, 1.20, -.05],
     frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
-    grip: [.10, 1.78, .30], batUp: [-.10, -.60, .80], batFace: [.10, .80, .60],
-    yaw: .12, face: .15, heel: .10, backFootYaw: 1.0, leadElbow: -.10, look: -.10 },
-  // and down across the back of his neck onto the front shoulder, the hands by his back ear.
+    grip: [.16, 1.52, .38], batUp: [.40, -.85, .25], batFace: [.10, .50, .86],
+    yaw: .12, face: .15, heel: .10, backFootYaw: 1.0, leadElbow: -.10, look: -.05 },
+  // out to the leg side past his ear rather than back over the top of his head,
+  tip: { ...GUARD, hip: [-.04, .86, -.13], chest: [.015, 1.20, -.055],
+    frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
+    grip: [.12, 1.60, .34], batUp: [.85, -.35, .10], batFace: [0, .27, .96],
+    yaw: .06, face: .08, heel: .09, backFootYaw: 1.0, leadElbow: -.10 },
+  // and back past his head onto the front shoulder, the gloves at the peak of
+  // the helmet and the elbows down either side of his face.
   finish: { ...GUARD, hip: [-.04, .86, -.13], chest: [.01, 1.20, -.06],
     frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
-    grip: [.08, 1.88, -.12], batUp: [.75, .45, .50], batFace: [.45, -.80, -.40],
+    grip: [.08, 1.64, .28], batUp: [.80, .25, .55], batFace: [.45, -.80, -.40],
     yaw: 0, face: 0, heel: .08, backFootYaw: 1.0, leadElbow: -.10 },
-  // Home: back up off the shoulder over his head, the bat upright in front of
-  // him, then let down into his guard.
+  // Home: off the shoulder out to the leg side the way it came, the hands
+  // pushed out in front of his face to stand it up clear of the helmet, then
+  // upright in front of him, then let down into his guard.
+  off: { ...GUARD, hip: [-.04, .86, -.12], chest: [.02, 1.21, -.04],
+    frontFoot: [-.50, .08, .04], backFoot: [.08, .08, -.30],
+    grip: [.14, 1.58, .42], batUp: [.35, -.80, .45], batFace: [.10, .50, .86],
+    yaw: .12, face: .15, heel: .10, backFootYaw: 1.0, leadElbow: -.10 },
   upright: { ...GUARD, hip: [-.03, .91, -.08], chest: [.0, 1.27, -.02],
     frontFoot: [-.30, .08, .12], backFoot: [.0, .08, -.32],
     grip: [.02, 1.62, .44], batUp: [0, -1, .10], batFace: [0, .10, 1],
@@ -2519,7 +2535,7 @@ export class Batter {
     // A ball left alone: the bat lowered out of the leave as he goes.
     if (!Number.isFinite(this.swingStart)) this.anticipation = 0;
     if ((kind === 'admire' || kind === 'lean') && now - this.swingStart <= ADMIRE_AT) this.admiring = true;
-    const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : this.shot === 'HOOK' ? HOOK_HOLD_MS : 0);
+    const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : this.shot === 'HOOK' ? HOOK_HOLD_MS : this.spinCutting ? SPIN_CUT_HOLD_MS : 0);
     // The keys are drawn up when he starts, not now: asked for before the
     // stroke has met the ball, there is no stroke yet for `shadow` to rehearse.
     this.afterward = { from: Math.max(now, home), kind, keys: null };
@@ -2720,6 +2736,11 @@ export class Batter {
       const { faced } = HOOK_CLOCK;
       age = faced + (age - faced) * (STROKE_DURATION_MS - faced) / (STROKE_DURATION_MS + HOOK_HOLD_MS - faced);
     }
+    // And the spinner's cut once the bat is on his shoulder: see `SPIN_CUT_HOLD_MS`.
+    else if (this.spinCutting && age > SPIN_CUT_CLOCK.finish) {
+      const { finish } = SPIN_CUT_CLOCK;
+      age = finish + (age - finish) * (STROKE_DURATION_MS - finish) / (STROKE_DURATION_MS + SPIN_CUT_HOLD_MS - finish);
+    }
     this.poseAge = age;
     this.travel(age);
     const celebrating = now - this.celebratedAt;
@@ -2916,13 +2937,13 @@ export class Batter {
       return;
     }
     if (this.spinCutting) {
-      const { load, contact: met, through, rise, over, finish: end, hold, unwrap, lowered } = SPIN_CUT_CLOCK;
+      const { load, contact: met, through, rise, up, tip, finish: end, hold, unwrap, lowered } = SPIN_CUT_CLOCK;
       const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(SPIN_CUT.load) }, { time: met, pose: contact },
         { time: through, pose: reachPose(SPIN_CUT.through!) }, { time: rise, pose: reachPose(SPIN_CUT.rise) },
-        { time: over, pose: reachPose(SPIN_CUT.over) }, { time: end, pose: finish }];
-      // Home off the shoulder back over his head, then down in front: from
+        { time: up, pose: reachPose(SPIN_CUT.up) }, { time: tip, pose: reachPose(SPIN_CUT.tip) }, { time: end, pose: finish }];
+      // Home off the shoulder the way it came, then down in front: from
       // behind his neck every shorter way goes through him.
-      const home = [{ time: hold, pose: finish }, { time: unwrap, pose: reachPose(SPIN_CUT.over) }, { time: SPIN_CUT_CLOCK.upright, pose: reachPose(SPIN_CUT.upright) },
+      const home = [{ time: hold, pose: finish }, { time: SPIN_CUT_CLOCK.untip, pose: reachPose(SPIN_CUT.tip) }, { time: unwrap, pose: reachPose(SPIN_CUT.off) }, { time: SPIN_CUT_CLOCK.upright, pose: reachPose(SPIN_CUT.upright) },
         { time: lowered, pose: reachPose(SPIN_CUT.lowered) }, { time: STROKE_DURATION_MS, pose: GUARD }];
       const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < hold ? finish : flowing(home, at);
       const pose = { ...poseAt(age) };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SPIN_CUT_CONTACT_MS, SPIN_CUT_HOLD_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -2684,8 +2684,8 @@ describe('the cut off the spinner', () => {
     expect(worst).toBeLessThan(5);
     batter.update(560); batter.root.updateMatrixWorld(true);
     const pose = batter.inspect(), root = batter.root.position;
-    // Over his head and down behind it to the front shoulder: the toe on the
-    // leg side of him, below the hands, behind his head.
+    // Back past his head onto the front shoulder: the toe on the leg side of
+    // him, below the hands, behind his head.
     const toe = batter.bat.localToWorld(new Vector3(0, -.8, 0)).sub(root), hands = new Vector3(...pose.hands[0]).sub(root);
     expect(toe.x).toBeLessThan(pose.chest[0] - .2);
     expect(toe.y).toBeLessThan(hands.y);
@@ -2693,5 +2693,24 @@ describe('the cut off the spinner', () => {
     const face = new Vector3(0, 0, 1).applyQuaternion(batter.bat.getWorldQuaternion(new Quaternion()));
     const away = batter.bat.localToWorld(new Vector3(0, -.45, 0)).sub(root).sub(new Vector3(...pose.shoulders[0])).normalize();
     expect(face.dot(away)).toBeGreaterThan(.9);
+  });
+  it('never takes the hands or the bat over his head: the gloves stop at the peak, in front of his face', () => {
+    const batter = cut();
+    for (let time = 0; time <= STROKE_DURATION_MS + SPIN_CUT_HOLD_MS; time += 4) {
+      batter.update(time); batter.root.updateMatrixWorld(true);
+      const pose = batter.inspect(), root = batter.root.position;
+      for (const hand of pose.hands) expect(hand[1] - root.y - pose.chest[1], `hand at ${time}ms`).toBeLessThan(.5);
+    }
+    batter.update(560);
+    const pose = batter.inspect(), root = batter.root.position;
+    for (const hand of pose.hands) expect(hand[2] - root.z, 'gloves in front of his face').toBeGreaterThan(pose.chest[2] + .2);
+  });
+  it('holds the bat on the shoulder before it goes home, as the hook does', () => {
+    const batter = cut();
+    const toeAt = (time: number) => { batter.update(time); batter.root.updateMatrixWorld(true); return batter.bat.localToWorld(new Vector3(0, -.8, 0)); };
+    expect(toeAt(560).distanceTo(toeAt(760))).toBeLessThan(.02);
+    expect(toeAt(STROKE_DURATION_MS).distanceTo(toeAt(560))).toBeGreaterThan(.2);
+    // and still going home after the stroke's own clock, slowed by the hold.
+    expect(toeAt(STROKE_DURATION_MS).distanceTo(toeAt(STROKE_DURATION_MS + SPIN_CUT_HOLD_MS * .6))).toBeGreaterThan(.05);
   });
 });
