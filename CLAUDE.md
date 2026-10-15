@@ -488,9 +488,9 @@ It is version two met later in the ball's flight, beside the front pad rather
 than out in front of it (`COVER_DRIVE_V3`, `COVER_V3_MEETS_AT` past the usual
 point): the hips, chest and hands carried forward over the planted foot, the
 ball resolved at that fraction of its flight (`meetsAt` in `src/Game.ts`, the
-scene's `meeting`) and the press judged as if it came that much sooner
-(`soonerBy`), so the swipe a player times for the other two is still the
-perfect one — the stroke waits for the ball, not the thumb. The square
+scene's `meeting`), and the perfect swipe as much sooner as the ball gets
+there sooner (`soonerBy`): about 14ms on a stock ball, up to 45 on a slower
+one. The square
 drive and the charge over cover are played as in version two.
 `cover-drive.html` is both strokes in every version on their own, built into
 one page by `scripts/cover-drive-artifact.mjs`.
