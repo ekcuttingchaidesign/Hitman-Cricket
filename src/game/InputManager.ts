@@ -1,4 +1,4 @@
-import { GAME, SCOOP } from '../config/gameplay';
+import { GAME, HOOK, SCOOP } from '../config/gameplay';
 import type { ShotType } from './types';
 /**
  * The three shot keys, with the arrow keys as the same three. Normalising here
@@ -28,7 +28,8 @@ export function mapKeys(keys: string[]): ShotType | null {
   // has decided not to play a stroke.
   // The block, or with a side key inside the combo window, the scoop that side:
   // the keyboard's two downward diagonals. Without the meter to spend they
-  // are played as the block they would have been — see `playedAs`.
+  // are played as the block they would have been — see `playedAs`. At a
+  // bouncer he can hook, the first of them is the hook, meter or none.
   if (normalized.includes('S')) return normalized.includes('A') ? 'SCOOP' : normalized.includes('D') ? 'REVERSE_SCOOP' : 'DEFEND';
   if (normalized.includes('A') && normalized.includes('W')) return 'LONG_ON';
   if (normalized.includes('W') && normalized.includes('D')) return 'COVER_LONG_OFF';
@@ -52,9 +53,13 @@ const SWIPE_SHOTS = ['LEG', 'LONG_ON', 'STRAIGHT', 'COVER_LONG_OFF', 'SQUARE_CUT
  * the minimum distance plays something. The block is untouched — it is the one
  * stroke that has to be reliable, and its fan is exactly where it was.
  */
-export function mapSwipe(dx: number, dy: number, coverLean = 0, scoops = false): ShotType | null {
+export function mapSwipe(dx: number, dy: number, coverLean = 0, scoops = false, hook = false): ShotType | null {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.hypot(dx, dy) < GAME.swipeDistance) return null;
   const angle = Math.atan2(dx, -dy) * 180 / Math.PI;
+  // At a bouncer he can hook, down and to leg is the hook, meter or none: no
+  // special stroke is played at a bouncer, so the diagonal is free. Only that
+  // one: down and to off is still the cut above it and the block below.
+  if (hook && angle < 0 && -angle >= HOOK.sector.from && -angle <= HOOK.sector.to) return 'HOOK';
   // With a meter to spend, the two downward diagonals are the scoops: down
   // and to leg the scoop, down and to off the reverse. Straight down is still
   // the block, and the fan above them is untouched.
@@ -89,12 +94,13 @@ export class InputManager {
    * otherwise. See `mapSwipe`.
    */
   /** `scoops` says whether the downward diagonals are the scoops right now: the meter is full. */
+  /** `hooks` says whether down and to leg is the hook right now: a bouncer he can hook is on its way. */
   /**
    * `mirrored` says a left-hander is in. The screen is mirrored for him, so a
    * swipe or a side key is read the other way round: his pull is a swipe to
    * the right, exactly where his leg side now is.
    */
-  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false) {
+  constructor(private active: () => boolean, private now: (at?: number) => number, private shoot: (shot: ShotType, time: number) => void, private surface?: HTMLElement, private coverLean: () => number = () => 0, private scoops: () => boolean = () => false, private mirrored: () => boolean = () => false, private hooks: () => boolean = () => false) {
     window.addEventListener('keydown', this.down);
     window.addEventListener('keyup', this.up);
     surface?.addEventListener('pointerdown', this.pointerDown);
@@ -116,7 +122,7 @@ export class InputManager {
     if (!this.active() || this.used) { this.cancelGesture(); return; }
     event.preventDefault();
     const across = (event.clientX - this.gesture.x) * (this.mirrored() ? -1 : 1);
-    const shot = mapSwipe(across, event.clientY - this.gesture.y, this.coverLean(), this.scoops());
+    const shot = mapSwipe(across, event.clientY - this.gesture.y, this.coverLean(), this.scoops(), this.hooks());
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
@@ -150,7 +156,8 @@ export class InputManager {
       // hundred milliseconds were enough to miss the ball being judged. With
       // a meter to spend it pairs with a side key for the scoops, so it waits
       // like the rest — the press is still timed from the key, not the wait.
-      if (key === 'S' && !this.scoops()) this.resolve('DEFEND');
+      // So it does at a bouncer he can hook, where S and A are the hook.
+      if (key === 'S' && !this.scoops() && !this.hooks()) this.resolve('DEFEND');
     }
     else {
       const pair = [...this.pending.keys, key];

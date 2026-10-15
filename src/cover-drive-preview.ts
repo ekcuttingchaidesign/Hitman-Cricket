@@ -15,8 +15,8 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
-import { ADVANCE, GAME, LINE_X } from './config/gameplay';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_LOAD_MS, HOOK_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { ADVANCE, GAME, LINE_X, SHOT_ANGLES, STYLES } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 import type { ShotType } from './game/types';
 
@@ -71,6 +71,14 @@ const STROKES: Record<string, Stroke> = {
     out: { speed: .028, angle: THREE.MathUtils.degToRad(-22), climb: .014 },
     facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
     note: 'The on drive lofted for six, played when the swipe is perfectly timed: the on drive\'s own stride and contact, then the arms carry the bat up through the line and over into a wrap, the elbows bent rather than reaching for the sky: the hands just over the front shoulder with the bat lying back over it behind his head, the front elbow up beside the helmet, the back arm across in front of his face, the chest open to long-on and the back foot up on its toe, held to 580 ms. The arms take the bat over, not the wrists: the one turn in his hands is the bottom hand rolling over the top one through the carry, evenly and one way, so that at the wrap the flat face looks out and the curved back of the blade lies against his shoulder; held, nothing turns it, and on the way home, back over his head and down the line, it settles into his guard a little at a time. The six it replaces turned the bat a full turn in his hands on the way home.',
+  },
+  hook: {
+    label: 'Hook shot', shot: 'HOOK', charging: false, single: true, ball: { x: LINE_X.OUTSIDE_OFF, y: 1.134, z: GAME.contactZ + HOOK_MEETS_AT },
+    contact: HOOK_CONTACT_MS, end: STROKE_DURATION_MS + HOOK_HOLD_MS, bounceZ: STYLES.SHORT.bounce!,
+    phases: [['Stance', -LEAD_MS], ['Back and across', HOOK_LOAD_MS], ['Down', 160], ['Contact', HOOK_CONTACT_MS], ['Out front', 255], ['To leg', 315], ['Round', 395], ['Wrap', 520], ['Home', 800]],
+    out: { speed: .03, angle: THREE.MathUtils.degToRad(SHOT_ANGLES.HOOK), climb: .032 },
+    facts: ['bouncer, outside off', `${STROKE_DURATION_MS + HOOK_HOLD_MS} ms`],
+    note: 'The hook, at a bouncer on off stump or wider, off the swipe down and to leg with or without a meter; from Tendulkar\'s off Caddick in 2003 and a net session in slow motion for the hands. He goes back and across, the back foot over towards off stump and the front one drawn back and opened, the bat taken high over the back shoulder. The hands come down and out, and the ball is met at 200 ms well away from him, out in front and towards off, both arms straight and the bat level with its face to the bowler. Then the arms swing it round flat like a baseball bat, still long: straight out in front at 255, out to leg at 315, round behind square at 395, the chest turning with them and the face going round with the body, never in his hands. Only then do the elbows fold, the bottom hand rolling over the top one, and by 520 the bat is wrapped behind his head with the hands up over the front shoulder, the curved back of the blade against it and his head turned after the ball. The wrap is held, and from 800 the bat comes back up over his head and the hands let down in front of him into his guard. It goes up over him to fine leg: middled for six, a shade under for four; late it takes the glove through to the keeper, early it goes straight up.',
   },
 };
 let stroke = STROKES.cover;

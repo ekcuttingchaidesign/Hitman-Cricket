@@ -1,4 +1,4 @@
-import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, SCOOP, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
+import { ADVANCE, COMPATIBILITY, CUT, DEFENCE, FLAT_SWEEP, GAME, GROUND_RUNS, HOOK, SCOOP, SOLID_SHOT, SQUARE_DRIVE, STYLES, SWEEP, TIMING_SCORE } from '../config/gameplay';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory';
 import type { Delivery, ShotAttempt, ShotOutcome, ShotType, TimingGrade } from './types';
 /**
@@ -170,12 +170,24 @@ export function scoopShot(delivery: Delivery, attempt: ShotAttempt | null, charg
   return charged && !!attempt && isScoop(attempt.shotType) && scoopable(delivery) ? attempt.shotType : null;
 }
 /**
+ * Whether this is the bouncer the hook answers: short, and on off stump or
+ * wider where it finishes. Down and to leg is the hook at this ball, and only
+ * at this one.
+ */
+export function hookable(delivery: Delivery) {
+  return delivery.style === 'SHORT' && HOOK.lines.includes(effectiveLine(delivery));
+}
+/**
  * What a scoop input is played as. With the meter full and a ball he can get
  * under, the scoop; without either, the swipe was still a swipe down, so it is
- * the block. Read by the rig and by the score, so what he plays and what he is
- * given are always the same stroke.
+ * the block. At a bouncer he can hook, the scoop's diagonal is the hook — the
+ * keys' S and A, which the swipe reads as the hook itself — and a hook at any
+ * other ball is the block too. Read by the rig and by the score, so what he
+ * plays and what he is given are always the same stroke.
  */
 export function playedAs(delivery: Delivery, attempt: ShotAttempt, charged: boolean): ShotAttempt {
+  if (attempt.shotType === 'SCOOP' && hookable(delivery)) return { ...attempt, shotType: 'HOOK' };
+  if (attempt.shotType === 'HOOK' && !hookable(delivery)) return { ...attempt, shotType: 'DEFEND' };
   return isScoop(attempt.shotType) && !scoopShot(delivery, attempt, charged) ? { ...attempt, shotType: 'DEFEND' } : attempt;
 }
 /**
@@ -208,6 +220,22 @@ function squareStroke(outcome: ShotOutcome, rng: { next(): number },
   if (outcome.timingGrade === spec.timing.four) return { ...middled, runs: 4, feedback: award(4) };
   if (outcome.timingGrade === 'OK') { const runs = groundRuns(rng); return { ...middled, runs, feedback: award(runs) }; }
   return edge(middled, spec.edged);
+}
+/**
+ * The hook, at the bouncer it answers. Timing alone names it, as it does the
+ * cut's: middled over fine leg for six, a shade under for four, held back
+ * helped round for ones and twos. Worse than that and which side of the ball
+ * he was decides how he is out: late, the ball is on him before the bat is
+ * and it takes the glove through to the keeper; early, the bat is through
+ * and it goes off the top of it, straight up.
+ */
+export function hooked(outcome: ShotOutcome, rng: { next(): number }): ShotOutcome {
+  const middled = { ...outcome, hooked: true, compatibility: 1, quality: TIMING_SCORE[outcome.timingGrade], madeBatContact: true };
+  if (outcome.timingGrade === 'PERFECT') return { ...middled, quality: 1, runs: 6, feedback: HOOK.feedback.six };
+  if (outcome.timingGrade === 'GOOD') return { ...middled, runs: 4, feedback: HOOK.feedback.four };
+  if (outcome.timingGrade === 'OK') { const runs = groundRuns(rng); return { ...middled, runs, feedback: award(runs) }; }
+  if ((outcome.timingDeltaMs ?? 0) > 0) return edge(middled, HOOK.gloved);
+  return { ...middled, aerial: true, isWicket: true, wicketType: 'CAUGHT', feedback: HOOK.skied };
 }
 /**
  * The scoop, once it is settled that he is playing one. The line decides
@@ -312,6 +340,9 @@ export function resolveShot(
   if (delivery.style === 'SHORT') {
     if (attempt?.shotType === 'LEG' && timingGrade === 'PERFECT')
       return { ...outcome, runs: 6, feedback: award(6), compatibility: 1, quality: 1, madeBatContact: true };
+    // On off stump or wider, round to fine leg off the diagonal. `playedAs`
+    // has already settled that this is the ball for it.
+    if (attempt?.shotType === 'HOOK' && timingGrade !== 'MISS') return hooked(outcome, rng);
     // Short and wide is the cut's ball: it sits up at chest height with room to
     // free the arms at it, and the stroke is judged on timing alone. Cutting at
     // one too close to the body is cramped, and cramped is the edge.

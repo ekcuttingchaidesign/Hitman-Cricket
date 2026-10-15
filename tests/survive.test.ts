@@ -35,6 +35,31 @@ const rolls = (...values: number[]) => {
 const at = (delta: number, shotType: Parameters<typeof resolveSurvive>[1] extends null ? never : 'DEFEND' | 'STRAIGHT' | 'LEG' | 'SQUARE_CUT' | 'COVER_LONG_OFF' = 'STRAIGHT') =>
   ({ shotType, inputTimeMs: 600 + delta });
 
+/**
+ * The hook in this mode: the cut's ladder at the cut's ball, and its own two
+ * ways out — up off the top edge early, the glove late.
+ */
+describe('the hook', () => {
+  const short = (x: number) => ball('SHORT', { line: x > .3 ? 'OUTSIDE_OFF' : 'OFF', baseTargetX: x, finalTargetX: x });
+  const hook = (delta: number) => ({ shotType: 'HOOK' as const, inputTimeMs: 600 + delta });
+  it('is six middled and four a shade under', () => {
+    expect(resolveSurvive(short(.42), hook(0), rolls(.99)).runs).toBe(6);
+    expect(resolveSurvive(short(.14), hook(30), rolls(.99)).runs).toBe(4);
+  });
+  it('is worked round for ones and twos held back', () => {
+    const worked = resolveSurvive(short(.42), hook(-60), rolls(.1));
+    expect([1, 2]).toContain(worked.runs); expect(worked.isWicket).toBe(false);
+  });
+  it('goes up off the top edge early, and is on the glove late', () => {
+    const early = resolveSurvive(short(.42), hook(-120), rolls(0));
+    expect(early.aerial).toBe(true); expect(early.isWicket).toBe(true);
+    const late = resolveSurvive(short(.42), hook(120), rolls(0));
+    expect(late.isWicket).toBe(true); expect(late.edged).toBe(true); expect(late.feedback).toContain('CAUGHT BEHIND');
+    const hurt = resolveSurvive(short(.42), hook(120), rolls(.99));
+    expect(hurt.isWicket).toBe(false); expect(hurt.hit?.where).toBe('GLOVES');
+  });
+});
+
 describe('the ball that climbs into the ribs', () => {
   // This is the delivery the mode was built around, and the whole reason it can
   // exist is that the post-bounce curve peaks before the batter and is falling

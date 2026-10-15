@@ -1,10 +1,10 @@
-import { COMPATIBILITY, CUT, SOLID_SHOT } from '../config/gameplay.js';
+import { COMPATIBILITY, CUT, HOOK, SOLID_SHOT } from '../config/gameplay.js';
 import {
   BANDS, BODY_ZONE, CLOSE, OFF_WIDTH, PITCH, RISK, SAFE_MISHIT, SIX, SPIN, STYLES, SURVIVE, SURVIVE_TIMING, damageFor,
 } from '../config/survive.js';
 import { ballPosition, effectiveLine, stumpIntersection } from './DeliveryTrajectory.js';
 import { spun } from './DeliveryGenerator.js';
-import { gradeTiming, squareDrive, sweeps } from './ShotResolver.js';
+import { gradeTiming, hookable, squareDrive, sweeps } from './ShotResolver.js';
 
 export { spun };
 import type { BodyPart, Delivery, Ending, ShotAttempt, ShotOutcome, TimingSide } from './types.js';
@@ -312,6 +312,23 @@ function shortBall(base: ShotOutcome, delivery: Delivery, shot: string, contact:
     if (contact === 'EDGED_LATE') {
       return rng.next() < RISK.nickCarries
         ? { ...base, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: 'GLOVED — CAUGHT BEHIND!' }
+        : blow(base, delivery, 'GLOVES');
+    }
+    return { ...base, madeBatContact: false, feedback: 'THROUGH TO THE KEEPER' };
+  }
+  // The hook, at the bouncer on or outside off that it answers: the cut's
+  // ladder on the cut's ball, and its own two ways out. Through the stroke
+  // with the ball still coming, it goes straight up; late, it is on the
+  // glove, which carries to the keeper or simply hurts.
+  if (shot === 'HOOK' && hookable(delivery) && base.timingGrade !== 'MISS') {
+    const middled = { ...base, hooked: true, compatibility: 1, quality: SURVIVE_TIMING[base.timingGrade], madeBatContact: true };
+    if (base.timingGrade === 'PERFECT') return { ...middled, quality: 1, runs: 6, feedback: HOOK.feedback.six };
+    if (base.timingGrade === 'GOOD') return { ...middled, runs: 4, feedback: HOOK.feedback.four };
+    if (base.timingGrade === 'OK') return nudged(middled, rng);
+    if (contact === 'EDGED_EARLY') return skied(base, rng);
+    if (contact === 'EDGED_LATE') {
+      return rng.next() < RISK.nickCarries
+        ? { ...base, madeBatContact: true, edged: true, isWicket: true, wicketType: 'CAUGHT', feedback: HOOK.gloved }
         : blow(base, delivery, 'GLOVES');
     }
     return { ...base, madeBatContact: false, feedback: 'THROUGH TO THE KEEPER' };

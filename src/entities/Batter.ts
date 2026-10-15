@@ -519,6 +519,7 @@ const STROKES: Record<ShotType, Stroke> = {
   // authored, after the sweep whose kneel the reverse borrows.
   SCOOP: null as unknown as Stroke,
   REVERSE_SCOOP: null as unknown as Stroke,
+  HOOK: null as unknown as Stroke,
 };
 /**
  * Version three: version two's stroke with the whole body gone forward to the
@@ -597,6 +598,96 @@ const PULL: Stroke = {
     batFace: [.86, -.22, .17], yaw: .70, heel: .04 },
 };
 const PULL_REACH: readonly [number, number] = [-.55, .32];
+/**
+ * The hook, at a bouncer on or outside off: Tendulkar's off Caddick in 2003,
+ * and a net session filmed end on in slow motion, for the hands. He goes back
+ * and across first, the back foot over towards off stump and the front one
+ * drawn back and opened, with the bat taken high over the back shoulder. The
+ * hands come down and out, and the ball is met well away from him, out in
+ * front and towards off, with both arms straight and the bat level, its face
+ * to the bowler. Then the arms swing it round flat, like a baseball bat: out
+ * in front of him, then to leg, then round behind square, the arms still
+ * long and the chest turning with them, the face going round with the body
+ * and never turning in his hands. Only then do the elbows fold and the bat
+ * wraps behind his head, the hands up over the front shoulder, his head
+ * turned after the ball to fine leg. Met at `HOOK_MEETS_AT` down the pitch,
+ * in front of him, so that a ball going away to fine leg climbs over him
+ * rather than through him.
+ */
+export const HOOK_LOAD_MS = 100;
+export const HOOK_CONTACT_MS = 200;
+/** How far down the pitch of the crease the hook meets the ball: out in front, arms straight. */
+export const HOOK_MEETS_AT = .45;
+/**
+ * How much longer the hook holds its wrapped finish than the other strokes
+ * hold theirs, everything after it that much later: as admiring a drive does,
+ * so he settles back into his guard unhurried rather than snapping out of it.
+ */
+export const HOOK_HOLD_MS = 260;
+const HOOK_CLOCK = { load: HOOK_LOAD_MS, down: 160, contact: HOOK_CONTACT_MS, front: 255, leg: 315, round: 395, rise: 450, finish: 520, hold: 560, unwrap: 700, lowered: 830 } as const;
+const HOOK: Stroke & { load: Pose; down: Pose; front: Pose; leg: Pose; round: Pose; rise: Pose; unwrap: Pose; lowered: Pose } = {
+  // Back and across, the front foot drawn back and opened, the bat high over the back shoulder.
+  load: { ...BACKLIFT, hip: [-.12, .95, -.14], chest: [-.10, 1.30, -.10],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.38],
+    grip: [.20, 1.58, -.05], batUp: [-.18, -.85, .49], batFace: [.85, -.05, .40],
+    yaw: .75, face: .35, heel: .04, backFootYaw: .95, leadElbow: -.10 },
+  // The hands come down and out, the bat level behind them pointing off and back.
+  down: { ...GUARD, hip: [-.15, .95, -.10], chest: [-.14, 1.30, -.02],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.38],
+    grip: [.14, 1.30, .24], batUp: [-.70, .05, .71], batFace: [.71, .05, .70],
+    yaw: .45, face: .35, heel: .06, backFootYaw: .90, leadElbow: -.04 },
+  // Met out in front and towards off, both arms long, the bat level, the face to the bowler.
+  contact: { ...GUARD, hip: [-.21, .95, -.08], chest: [-.22, 1.30, -.02],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.38],
+    grip: [.06, 1.16, .58], batUp: [-.92, .05, -.38], batFace: [-.38, .05, .92],
+    yaw: .20, face: .35, heel: .10, backFootYaw: .85, leadElbow: 0 },
+  // Swung round flat with the arms still long: straight out in front of him,
+  front: { ...GUARD, hip: [-.20, .95, -.08], chest: [-.21, 1.31, -.01],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.38],
+    grip: [-.22, 1.22, .70], batUp: [-.05, 0, -1], batFace: [-1, .05, -.05],
+    yaw: -.10, face: 0, heel: .18, backFootYaw: .75, leadElbow: 0 },
+  // then out to leg, the bat climbing a little,
+  leg: { ...GUARD, hip: [-.20, .95, -.06], chest: [-.24, 1.31, 0],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.37],
+    grip: [-.66, 1.30, .60], batUp: [.85, -.25, -.46], batFace: [-.48, .10, -.87],
+    yaw: -.45, face: -.50, heel: .26, backFootYaw: .60, leadElbow: 0 },
+  // then round behind square, the arms still out, the chest turned to leg.
+  round: { ...GUARD, hip: [-.20, .95, -.07], chest: [-.26, 1.32, -.04],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.36],
+    grip: [-.60, 1.48, 0], batUp: [.55, -.45, .70], batFace: [.79, .10, -.62],
+    yaw: -.80, face: -1.00, heel: .34, backFootYaw: .45, leadElbow: 0, look: -.15 },
+  // The elbows fold, the hands coming up in front of his face on the leg side
+  // and the bat still going round, behind him now,
+  rise: { ...GUARD, hip: [-.20, .95, -.08], chest: [-.25, 1.32, -.05],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.36],
+    grip: [-.52, 1.72, .22], batUp: [.05, -.20, .98], batFace: [.95, .15, -.02],
+    yaw: -.85, face: -1.20, heel: .38, backFootYaw: .38, leadElbow: -.05, look: -.25 },
+  // and the bat wraps behind his head, the hands over the front shoulder.
+  finish: { ...GUARD, hip: [-.20, .95, -.08], chest: [-.25, 1.32, -.06],
+    frontFoot: [-.26, .08, .02], backFoot: [.10, .08, -.35],
+    grip: [-.52, 1.90, -.06], batUp: [-.62, .45, .64], batFace: [.62, .78, 0],
+    yaw: -.90, face: -1.40, heel: .42, backFootYaw: .30, leadElbow: -.08, look: -.30 },
+  // Home, unhurried: back up over his head with the bat upright, then the
+  // hands let down in front of him into his guard, the bat tipping back over
+  // the shoulder as it goes. The guard's bat is up behind him already, so it
+  // hardly has to turn: straight from the wrap the blade goes through him,
+  // and round by the leg side it had a long way to swing in no time at all.
+  unwrap: { ...GUARD, hip: [-.16, .95, -.06], chest: [-.18, 1.31, -.02],
+    frontFoot: [-.24, .08, .06], backFoot: [.06, .08, -.33],
+    grip: [-.30, 1.66, .36], batUp: [0, -1, .10], batFace: [0, .10, 1],
+    yaw: -.40, face: -.60, heel: .26, backFootYaw: .50, leadElbow: -.10 },
+  lowered: { ...GUARD, hip: [-.10, .95, -.05], chest: [-.06, 1.30, .0],
+    frontFoot: [-.16, .08, .18], backFoot: [-.05, .08, -.28],
+    grip: [.04, 1.24, .34], batUp: [-.25, -.85, .45], batFace: [.20, .45, .87],
+    yaw: .55, face: -.10, heel: .08, backFootYaw: .95, leadElbow: -.20 },
+  recover: { ...GUARD, grip: [.36, 1.10, .40], batUp: [-.15, -.80, -.58],
+    batFace: [.86, -.22, .17], yaw: .70, heel: .04 },
+};
+/**
+ * How far the hook reaches: off stump and out to the wide bouncer. It never
+ * comes back inside off stump, because inside it the ball is the pull's.
+ */
+const HOOK_REACH: readonly [number, number] = [.10, .45];
 /**
  * The square drive, off the front foot — the reference recording.
  *
@@ -970,7 +1061,7 @@ const REVERSE_SCOOP: Stroke & { down: Pose; beside: Pose; apex: Pose; across: Po
 };
 /** Off stump and outside it: the reverse scoop's reach. */
 const REVERSE_REACH: readonly [number, number] = [.05, .62];
-STROKES.SCOOP = SCOOP; STROKES.REVERSE_SCOOP = REVERSE_SCOOP;
+STROKES.SCOOP = SCOOP; STROKES.REVERSE_SCOOP = REVERSE_SCOOP; STROKES.HOOK = HOOK;
 
 /**
  * The straight drive, lofted — the six.
@@ -2288,7 +2379,7 @@ export class Batter {
   }
   /** The stroke last played, as `afterBall` needs it. */
   get played(): PlayedStroke {
-    return { shot: this.shot, charging: this.charging, lofted: this.lofted, swept: this.sweeping || this.levelled, pulled: this.pulling };
+    return { shot: this.shot, charging: this.charging, lofted: this.lofted, swept: this.sweeping || this.levelled, pulled: this.crossBat };
   }
   prepare(progress: number) { this.anticipation = THREE.MathUtils.smoothstep(progress, .05, .72); }
   /**
@@ -2302,7 +2393,7 @@ export class Batter {
     // A ball left alone: the bat lowered out of the leave as he goes.
     if (!Number.isFinite(this.swingStart)) this.anticipation = 0;
     if ((kind === 'admire' || kind === 'lean') && now - this.swingStart <= ADMIRE_AT) this.admiring = true;
-    const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : 0);
+    const home = this.swingStart + STROKE_DURATION_MS + (this.admiring ? ADMIRE_MS : this.shot === 'HOOK' ? HOOK_HOLD_MS : 0);
     // The keys are drawn up when he starts, not now: asked for before the
     // stroke has met the ball, there is no stroke yet for `shadow` to rehearse.
     this.afterward = { from: Math.max(now, home), kind, keys: null };
@@ -2333,13 +2424,14 @@ export class Batter {
     if (this.sweeping) this.pulling = false;
     this.swingStart = now;
     this.contactTime = now + (charging ? CHARGE_CONTACT_MS : this.sweeping ? SWEEP_CONTACT_MS : this.pulling ? PULL_CONTACT_MS
-      : this.squaring ? SQUARE_DRIVE_CONTACT_MS : this.shot === 'SCOOP' ? SCOOP_CONTACT_MS : this.shot === 'REVERSE_SCOOP' ? REVERSE_CONTACT_MS : STROKE_CONTACT_MS);
+      : this.squaring ? SQUARE_DRIVE_CONTACT_MS : this.shot === 'SCOOP' ? SCOOP_CONTACT_MS : this.shot === 'REVERSE_SCOOP' ? REVERSE_CONTACT_MS
+      : this.shot === 'HOOK' ? HOOK_CONTACT_MS : STROKE_CONTACT_MS);
     this.swingFrom = this.pose; this.ballX = finalBallX; this.ballZ = ballZ;
-    // Only the two cross-bat strokes go up after a bouncer — the pull to the leg
-    // side and the cut to the off. Every other stroke plays at its own height and
+    // Only the cross-bat strokes go up after a bouncer — the pull to the leg
+    // side, the hook round behind it and the cut to the off. Every other stroke plays at its own height and
     // the ball passes over the bat, rather than the arms stretching to chase a
     // ball that stroke was never going to reach.
-    this.ballY = this.pulling || this.cutting ? ballY : Math.min(ballY, .62);
+    this.ballY = this.crossBat || this.cutting ? ballY : Math.min(ballY, .62);
   }
   /**
    * The bat from `from` to the guard, the face carried along with the handle
@@ -2357,7 +2449,7 @@ export class Batter {
    * which puts the back of the blade against the shoulder rather than its face.
    */
   private riding(from: number, poseAt: (age: number) => Pose, start: THREE.Quaternion, unwind: readonly [number, number], age: number,
-    rolling?: { window: readonly [number, number]; away: (pose: Pose, up: THREE.Vector3) => THREE.Vector3 }) {
+    rolling?: { window: readonly [number, number]; away: (pose: Pose, up: THREE.Vector3) => THREE.Vector3 } | readonly { window: readonly [number, number]; away: (pose: Pose, up: THREE.Vector3) => THREE.Vector3 }[]) {
     const step = 2, key = `${this.shot}:${this.charging}:${this.coverVersion}:${this.swingStart}:${this.ballX}:${this.ballY}:${this.ballZ}`;
     if (this.homeRide?.key !== key) {
       const turns: THREE.Quaternion[] = [], ups: THREE.Vector3[] = [];
@@ -2366,10 +2458,11 @@ export class Batter {
       turns.push(start.clone());
       for (let n = 1; n < ups.length; n++)
         turns.push(new THREE.Quaternion().setFromUnitVectors(ups[n - 1], ups[n]).multiply(turns[n - 1]));
-      if (rolling) {
-        const [rolls, rolled] = rolling.window.map(time => Math.round((time - from) / step));
+      // Each in turn, in order, so a later one turns the face the earlier left.
+      for (const roll of rolling ? ('window' in rolling ? [rolling] : rolling) : []) {
+        const [rolls, rolled] = roll.window.map(time => Math.round((time - from) / step));
         const up = ups[rolled], face = new THREE.Vector3(0, 0, 1).applyQuaternion(turns[rolled]);
-        const want = rolling.away(poseAt(rolling.window[1]), up);
+        const want = roll.away(poseAt(roll.window[1]), up);
         want.addScaledVector(up, -want.dot(up)).normalize();
         const turn = Math.atan2(up.dot(face.clone().cross(want)), face.dot(want));
         turns.forEach((at, n) => at.multiply(new THREE.Quaternion().setFromAxisAngle(UP, turn * ease(THREE.MathUtils.clamp((n - rolls) / (rolled - rolls), 0, 1)))));
@@ -2394,6 +2487,8 @@ export class Batter {
   private coverVersion: CoverVersion = 2;
   /** Version two or three of a stroke off the cover input, not driven square: the strokes the versions differ in. */
   private get coverV2() { return this.shot === 'COVER_LONG_OFF' && !this.squaring && this.coverVersion >= 2; }
+  /** The two cross-bat strokes at a bouncer that wrap round to the leg side: the pull and the hook. */
+  private get crossBat() { return this.pulling || this.shot === 'HOOK'; }
   /** The on drive along the ground: not the six, and not the charge over long-on, which have their own. */
   private get onDrive() { return this.shot === 'LONG_ON' && !this.charging && !this.lofted; }
   /** The on drive lofted for six, which wraps over the front shoulder with the face riding the handle. */
@@ -2491,6 +2586,8 @@ export class Batter {
     // the ball, the helmet's round shell showed nothing of it from behind, and
     // only the peak came out past it and went back, as if the helmet stretched.
     if (this.admiring && age > ADMIRE_AT) age = Math.max(ADMIRE_AT, age - ADMIRE_MS);
+    // The hook's wrap is held the longer in the same way: see `HOOK_HOLD_MS`.
+    else if (this.shot === 'HOOK' && age > HOOK_CLOCK.finish) age = Math.max(HOOK_CLOCK.finish, age - HOOK_HOLD_MS);
     this.poseAge = age;
     this.travel(age);
     const celebrating = now - this.celebratedAt;
@@ -2529,7 +2626,7 @@ export class Batter {
       : this.charging ? { contact: CHARGE_CONTACT, finish: CHARGE_FINISH }
       : this.sweeping ? (this.levelled ? FLAT_SWEEP : SLOG_SWEEP) : this.pulling ? PULL : this.cutting ? CUT_HIGH
       : this.squaring ? SQUARE_DRIVE : this.lofted ? (this.shot === 'LONG_ON' ? ON_LOFT : STRAIGHT_LOFT)
-      : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP
+      : this.shot === 'SCOOP' ? SCOOP : this.shot === 'REVERSE_SCOOP' ? REVERSE_SCOOP : this.shot === 'HOOK' ? HOOK
       : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 1 ? COVER_DRIVE_V1
       : this.shot === 'COVER_LONG_OFF' && this.coverVersion === 3 ? COVER_DRIVE_V3 : STROKES[this.shot];
     // Place the middle of the blade at the ball's contact plane, not merely
@@ -2541,7 +2638,7 @@ export class Batter {
       SQUARE_CUT: CUT_REACH,
       // Defence covers the stumps and a little either side, not the whole crease.
       DEFEND: [-.30, .30],
-      SCOOP: SCOOP_REACH, REVERSE_SCOOP: REVERSE_REACH,
+      SCOOP: SCOOP_REACH, REVERSE_SCOOP: REVERSE_REACH, HOOK: HOOK_REACH,
     };
     // Both charges reach the straight drive's zone: a chargeable ball is on
     // the stumps, and the one over cover is hit inside out from that line
@@ -2551,7 +2648,8 @@ export class Batter {
     // The bat meets the ball where he stands at contact. Reading the live root
     // instead drags the hands backwards out of a charge as it carries him on.
     const impact = this.charging ? CHARGE_CONTACT_MS : this.sweeping ? SWEEP_CONTACT_MS : this.pulling ? PULL_CONTACT_MS
-      : this.squaring ? SQUARE_DRIVE_CONTACT_MS : this.shot === 'SCOOP' ? SCOOP_CONTACT_MS : this.shot === 'REVERSE_SCOOP' ? REVERSE_CONTACT_MS : STROKE_CONTACT_MS;
+      : this.squaring ? SQUARE_DRIVE_CONTACT_MS : this.shot === 'SCOOP' ? SCOOP_CONTACT_MS : this.shot === 'REVERSE_SCOOP' ? REVERSE_CONTACT_MS
+      : this.shot === 'HOOK' ? HOOK_CONTACT_MS : STROKE_CONTACT_MS;
     const planted = GAME.stanceZ + this.downPitch(impact);
     const contactGrip = new THREE.Vector3(targetX - this.root.position.x, this.ballY, this.ballZ - planted)
       .addScaledVector(V(stroke.contact.batUp).normalize(), .44);
@@ -2562,7 +2660,7 @@ export class Batter {
     const step = targetX * (this.squaring ? .86 : .65);
     const shift = (p: Point, amount: number): Point => [p[0] + amount, p[1], p[2]];
     const shiftsBackFoot = this.pulling || this.squaring || this.sweeping || this.charging || this.lofted || this.shot === 'STRAIGHT' || this.shot === 'COVER_LONG_OFF'
-      || this.shot === 'SCOOP' || this.shot === 'REVERSE_SCOOP' || this.onDrive;
+      || this.shot === 'SCOOP' || this.shot === 'REVERSE_SCOOP' || this.shot === 'HOOK' || this.onDrive;
     const reachPose = (p: Pose): Pose => ({ ...p, hip: shift(p.hip, step), chest: shift(p.chest, step),
       frontFoot: shift(p.frontFoot, step), backFoot: shiftsBackFoot ? shift(p.backFoot, step) : p.backFoot,
       grip: shift(p.grip, step) });
@@ -2681,6 +2779,31 @@ export class Batter {
           : age < up ? mix(SWEEP_UNWRAP, recovery, (age - out) / (up - out), leave)
           : mix(recovery, GUARD, (age - up) / (STROKE_DURATION_MS - up), arrive));
       }
+      return;
+    }
+    if (this.shot === 'HOOK') {
+      const { load, down, contact: met, front, leg, round, rise, finish: end, hold, unwrap, lowered } = HOOK_CLOCK;
+      const out = [{ time: 0, pose: this.swingFrom }, { time: load, pose: reachPose(HOOK.load) }, { time: down, pose: reachPose(HOOK.down) },
+        { time: met, pose: contact }, { time: front, pose: reachPose(HOOK.front) }, { time: leg, pose: reachPose(HOOK.leg) },
+        { time: round, pose: reachPose(HOOK.round) }, { time: rise, pose: reachPose(HOOK.rise) }, { time: end, pose: finish }];
+      const home = [{ time: hold, pose: finish }, { time: unwrap, pose: reachPose(HOOK.unwrap) }, { time: lowered, pose: reachPose(HOOK.lowered) },
+        { time: STROKE_DURATION_MS, pose: GUARD }];
+      const poseAt = (at: number): Pose => at < end ? flowing(out, at) : at < hold ? finish : flowing(home, at);
+      const pose = { ...poseAt(age) };
+      // The face never turns in his hands: it rides the handle from his
+      // stance, as his guard draws it, the whole way round, and only the
+      // forearms turning it square to the bowler on the way down to the ball
+      // and back to his guard on the way home move it about the handle.
+      const straight = batOrientation(STROKES.STRAIGHT.contact);
+      const start = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(straight), UP.clone().applyQuaternion(batOrientation(this.swingFrom))).multiply(straight);
+      pose.bat = this.riding(0, poseAt, start, [hold, STROKE_DURATION_MS], age, [
+        { window: [load, met], away: () => new THREE.Vector3(0, 0, 1) },
+        // And the bottom hand rolling over the top one as the elbows fold, so
+        // that wrapped the flat face looks out and the curved back of the
+        // blade lies against his front shoulder, as the on drive's six does.
+        { window: [leg, end], away: (wrap, up) => V(wrap.grip).addScaledVector(up, -.45).sub(shoulderOf(wrap, 0)) },
+      ]);
+      this.apply(pose);
       return;
     }
     if (this.pulling) {
@@ -2923,7 +3046,7 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft) {
+      else if((this.rebuiltDrive && (this.charging || this.poseAge>=COVER_PLANT.hold)) || this.onLoft || this.shot === 'HOOK') {
         // The cover drive's way home, and the charge over cover from the ball
         // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,
@@ -3061,7 +3184,7 @@ export class Batter {
         const alongBlade = THREE.MathUtils.clamp(point.clone().sub(this.bat.position).dot(axis), -.83, -.17);
         const bladeDistance = point.distanceTo(this.bat.position.clone().addScaledVector(axis, alongBlade));
         return Math.min(this.offSpine(point, hip, chest, spine) / .19, this.offHandle(point) / .11,
-          this.pulling ? bladeDistance / .17 : Infinity);
+          this.crossBat ? bladeDistance / .17 : Infinity);
       };
       let hint = square(arm.shoulder.clone().sub(chest));
       // Out from the body alone puts the back elbow on the off side, which is
@@ -3078,7 +3201,7 @@ export class Batter {
       // Either hint can still bury the elbow on a stroke that wraps the hands
       // across the body — in the chest, or out along the handle past the knob.
       // Turn the bend around the arm until it clears, smallest turn first.
-      for (let step = 1; step <= (this.pulling ? 12 : 6) && room(elbow) < 1; step++)
+      for (let step = 1; step <= (this.crossBat ? 12 : 6) && room(elbow) < 1; step++)
         for (const side of [1, -1]) {
           const turned = bend(hint.clone().applyAxisAngle(along, side * step * .26));
           if (room(turned) > room(elbow)) elbow = turned;

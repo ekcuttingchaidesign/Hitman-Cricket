@@ -75,15 +75,16 @@ class Surface extends EventTarget {
 }
 function setup() {
   const keyboard = new EventTarget(); vi.stubGlobal('window', keyboard); vi.stubGlobal('Element', Surface);
-  const surface = new Surface(); let active = true; let now = 100; let scoops = false;
+  const surface = new Surface(); let active = true; let now = 100; let scoops = false; let hooks = false;
   const shoot = vi.fn();
-  const input = new InputManager(() => active, () => now, shoot, surface as unknown as HTMLElement, () => 0, () => scoops);
+  const input = new InputManager(() => active, () => now, shoot, surface as unknown as HTMLElement, () => 0, () => scoops, () => false, () => hooks);
   const pointer = (type: string, x: number, y: number, options: object = {}) => {
     const event = new Event(type, { cancelable: true });
     Object.assign(event, { pointerId: 1, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, ...options });
     surface.dispatchEvent(event);
   };
-  return { input, shoot, surface, pointer, keyboard, time: (time: number) => now = time, active: (value: boolean) => active = value, scoops: (value: boolean) => scoops = value };
+  return { input, shoot, surface, pointer, keyboard, time: (time: number) => now = time, active: (value: boolean) => active = value,
+    scoops: (value: boolean) => scoops = value, hooks: (value: boolean) => hooks = value };
 }
 afterEach(() => vi.unstubAllGlobals());
 describe('touch input integration', () => {
@@ -174,6 +175,25 @@ describe('arrow keys', () => {
     primed.input.flush(500);
     expect(primed.shoot).toHaveBeenCalledWith('DEFEND', 100);
     primed.input.dispose();
+  });
+  it('plays the hook off the down-left swipe and the keys at a bouncer he can hook, meter or none', () => {
+    const swiped = setup(); swiped.hooks(true);
+    swiped.pointer('pointerdown', 100, 100); swiped.pointer('pointermove', 50, 150);
+    expect(swiped.shoot).toHaveBeenCalledExactlyOnceWith('HOOK', 100); swiped.input.dispose();
+    // The block's key waits for its partner rather than committing at once,
+    // and is still timed from the press, in either order.
+    for (const keys of [['s', 'a'], ['a', 's'], ['ArrowDown', 'ArrowLeft']]) {
+      const s = setup(); s.hooks(true);
+      press(s, keys[0]);
+      expect(s.shoot, keys.join(' + ')).not.toHaveBeenCalled();
+      press(s, keys[1]);
+      expect(s.shoot, keys.join(' + ')).toHaveBeenCalledWith('SCOOP', 100);
+      s.input.dispose();
+    }
+    // The bare block key is still the block once the window is out.
+    const ducked = setup(); ducked.hooks(true);
+    press(ducked, 's'); ducked.input.flush(500);
+    expect(ducked.shoot).toHaveBeenCalledWith('DEFEND', 100); ducked.input.dispose();
   });
   it('takes the arrow keys off the browser, and leaves the rest alone', () => {
     const s = setup();

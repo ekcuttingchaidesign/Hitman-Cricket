@@ -5,7 +5,7 @@ export type DeliveryStyle = 'NORMAL' | 'FAST' | 'EXPRESS' | 'YORKER' | 'SHORT' |
  * special strokes that only a full meter buys, played off the two downward
  * diagonals and never chosen for you.
  */
-export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'SQUARE_CUT' | 'DEFEND' | 'SCOOP' | 'REVERSE_SCOOP';
+export type ShotType = 'LEG' | 'LONG_ON' | 'STRAIGHT' | 'COVER_LONG_OFF' | 'SQUARE_CUT' | 'DEFEND' | 'SCOOP' | 'REVERSE_SCOOP' | 'HOOK';
 export type TimingGrade = 'PERFECT' | 'GOOD' | 'OK' | 'POOR' | 'MISS';
 export type WicketType = 'BOWLED' | 'LBW' | 'CAUGHT' | 'STUMPED';
 /**
@@ -66,6 +66,8 @@ export interface ShotOutcome {
   swept?: boolean;
   /** Scooped or reverse-scooped behind the wicket, whatever came of it. Spends the meter. */
   scooped?: boolean;
+  /** Hooked off a bouncer, whatever came of it: struck out in front, so it goes up over him to fine leg. */
+  hooked?: boolean;
   /** Driven square of the wicket off the front foot, rather than through cover. */
   squared?: boolean;
   /** Swept along the ground, square of the wicket: the orthodox sweep. */

@@ -24,8 +24,8 @@ import { ScoreManager } from './game/ScoreManager';
 import { SeededRandom } from './game/SeededRandom';
 import { ShuffleBag } from './game/ShuffleBag';
 import { MARK_OF, milestoneOf, nearingEnd, nearingOf, type Milestone, type Moment, type Nearing } from './game/milestone';
-import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
-import { advanceShot, gradeOf, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
+import { COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, HOOK_MEETS_AT, coverRoll, coverVersionOf, type Celebration, celebrationLength } from './entities/Batter';
+import { advanceShot, gradeOf, hookable, loftedDrive, playedAs, scoopLine, scoopShot, scoopable, slogSweep, sweeps, chargeable, sweepable, squareDrivable, resolveShot } from './game/ShotResolver';
 import { TUTORIAL, tutorialDelivery, tutorialOutcome } from './game/Tutorial';
 import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } from './game/types';
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
@@ -597,7 +597,9 @@ export class Game {
       () => this.charged,
       // A left-hander's swipes and side keys, read the way his mirrored
       // screen shows them. Asked of the scene, so the two cannot disagree.
-      () => this.scene.mirrored);
+      () => this.scene.mirrored,
+      // Down and to leg is the hook at a bouncer on or outside off.
+      () => !!this.delivery && hookable(this.delivery));
     // The play key opens the picker rather than an innings — unless a link has
     // already named the mode, in which case it is that mode's play key.
     this.hud.on('start', this.play);
@@ -2106,7 +2108,10 @@ export class Game {
     const driven = shotType === 'COVER_LONG_OFF' && !charging && !squareDrivable(this.delivery!);
     // The on drive, lofted or along the ground, meets it beside the front pad
     // too, at the end of its stride, and is judged the same.
-    const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT : 0;
+    // The hook meets it out in front of him, arms long, so it climbs away over
+    // him to fine leg rather than through him.
+    const ahead = driven && version === 3 ? COVER_V3_MEETS_AT : shotType === 'LONG_ON' && !charging ? ON_DRIVE_MEETS_AT
+      : shotType === 'HOOK' ? HOOK_MEETS_AT : 0;
     this.meetsAt = 1 - ahead / (GAME.releaseZ - GAME.contactZ);
     // Versions two and three keep it down: four, never six (`grounded`).
     if (driven && version >= 2) this.attempt = { ...this.attempt, grounded: true };

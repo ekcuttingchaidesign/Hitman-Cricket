@@ -158,7 +158,7 @@ stroke lands, for the fire trail that burns behind only those
 (`snapshot().burning`); that part takes several minutes in software.
 
 `scripts/pull-check.mjs` is the flash for a bouncer pulled and hit, the one
-ordinary stroke that gets one: focus lines in the pull's pen, a swoosh behind
+ordinary stroke that gets one (the hook, the pull's other half, gets it too): focus lines in the pull's pen, a swoosh behind
 the bat (`snapshot().swishing`) and the ball's tail recoloured
 (`snapshot().tail`), with the ground left in colour. It raises it through the
 debug hook, then plays real innings in both modes, blocking every ball until a
@@ -529,6 +529,58 @@ so that at the wrap the flat face looks away from the front shoulder and the
 curved back of the blade lies against it; nothing turns it while it is held,
 and it settles into the guard on the way home. The six it replaced reached
 both arms for the sky and turned the bat a full turn in his hands coming home. `cover-drive.html` has both beside the cover strokes.
+
+## The hook
+
+The hook (`'HOOK'`, `STROKES.HOOK` in `src/entities/Batter.ts`) is a bouncer on
+off stump or wider (`hookable`, `HOOK.lines`) hooked round to fine leg, built
+from Tendulkar's off Caddick in 2003, end on in slow motion. It is an ordinary
+stroke, no meter, played off the scoop's diagonal — down and to leg, or the
+keys' S and A — which is free at a bouncer because no special stroke is
+played at one: `mapSwipe` reads that swipe as the hook while such a ball is
+on its way (the input's `hooks`), S waits for its partner key there as it
+does with a meter, and `playedAs` turns the keys' scoop into the hook at that
+ball and a hook at any other into the block. Down and to off is still the cut
+and the block.
+
+He goes back and across first (`HOOK_LOAD_MS`), the back foot over towards
+off stump and the front one drawn back and opened, the bat high over the back
+shoulder; the hands come down and out, and the ball is met well away from
+him at `HOOK_CONTACT_MS` — out in front by `HOOK_MEETS_AT` and towards off,
+both arms straight, the bat level, the face to the bowler. Then the arms swing
+it round flat like a baseball bat, still long: out in front, out to leg, round
+behind square, the chest turning with them. Only then do the elbows fold and
+the bat wraps behind his head, the hands over the front shoulder. The face
+rides the handle from his stance (`riding`) and never turns in his hands but
+twice, a little at a time: the forearms squaring it to the bowler on the way
+down, and the bottom hand rolling over the top one as the elbows fold, so the
+curved back of the blade lies against the front shoulder at the wrap, as the
+on drive's six's does. The first build held the hands at his chest and turned
+the bat on its handle, and was redone from a net session filmed end on. The
+wrap is held `HOOK_HOLD_MS` longer than other strokes hold theirs, as an
+admired drive is, and home is unhurried: back up over his head with the bat
+upright, then the hands let down in front of him into the guard, whose bat is
+up behind him already — straight from the wrap the blade goes through him,
+and round by the leg side it jumped. A hook that scores is twirled after, as
+a pull is (`played.pulled`). It shares the
+pull's elbow clearance (`crossBat`) and is in the batter tests' `PLAYS` as
+`hook`.
+
+Met out in front, a ball sent to fine leg goes back across where he stands,
+so a hooked ball (`hooked` on the outcome) climbs from the bat in `flightOf`
+whatever it is worth, and `tests/flight.test.ts` flies it against his head
+and chest: the first build sent a hooked four on along the ground through
+his shoulder.
+
+Timing names it (`hooked` in `ShotResolver.ts`, the cut's ladder): middled
+six over fine leg (`SHOT_ANGLES.HOOK`), a shade under four, held back ones and
+twos; worse and the side decides — late the glove through to the keeper,
+early straight up off the top edge and caught. Missed, it flies on over the
+stumps. Survival and the Marathon pay it the same way off their own windows,
+early skied and late gloved or hurt. A hooked bouncer that scores gets the
+pull's flash (`pulledBouncer`). `scripts/hook-check.mjs` plays it in a browser
+on `?bouncers=1`, keys and a real swipe, in the Blast and in Survival;
+`cover-drive.html` has it beside the drives.
 
 ## A newcomer's first innings
 

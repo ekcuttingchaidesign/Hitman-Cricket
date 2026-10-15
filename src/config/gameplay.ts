@@ -119,11 +119,12 @@ export const COMPATIBILITY: Record<BallLine, Record<ShotType, number>> = {
   // is no room to swing square, and down the leg side nothing at all.
   // The scoops are resolved on their own terms too, by `SCOOP.lines`, and
   // these columns only restate that rule so the table is keyed by every shot.
-  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 0 },
-  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, SQUARE_CUT: 0.1, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0 },
-  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, SQUARE_CUT: 0.4, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0 },
-  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, SQUARE_CUT: 0.85, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1 },
-  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, SQUARE_CUT: 1, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1 },
+  // So is the hook, by `HOOK.lines`: it is only ever played at a bouncer.
+  OUTSIDE_LEG: { LEG: 1, LONG_ON: 0.9, STRAIGHT: 0.3, COVER_LONG_OFF: 0.1, SQUARE_CUT: 0, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 0, HOOK: 0 },
+  LEG: { LEG: 1, LONG_ON: 1, STRAIGHT: 0.65, COVER_LONG_OFF: 0.25, SQUARE_CUT: 0.1, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0, HOOK: 0 },
+  MIDDLE: { LEG: 0.55, LONG_ON: 0.85, STRAIGHT: 1, COVER_LONG_OFF: 0.85, SQUARE_CUT: 0.4, DEFEND: 1, SCOOP: 1, REVERSE_SCOOP: 0, HOOK: 0 },
+  OFF: { LEG: 0.1, LONG_ON: 0.25, STRAIGHT: 0.65, COVER_LONG_OFF: 1, SQUARE_CUT: 0.85, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1, HOOK: 1 },
+  OUTSIDE_OFF: { LEG: 0, LONG_ON: 0.1, STRAIGHT: 0.3, COVER_LONG_OFF: 0.9, SQUARE_CUT: 1, DEFEND: 1, SCOOP: 0, REVERSE_SCOOP: 1, HOOK: 1 },
 };
 export const TIMING_SCORE: Record<TimingGrade, number> = { PERFECT: 1, GOOD: 0.82, OK: 0.58, POOR: 0.25, MISS: 0 };
 // A shot at least this compatible with the line counts as middled; below it the
@@ -135,8 +136,9 @@ export const GROUND_RUNS = [[1, 0.45], [2, 0.35], [3, 0.20]] as const;
 // The cut is the only stroke that scores behind square: past ninety degrees the
 // ball runs away behind point rather than in front of it.
 // The scoops are the two that go behind the wicket: over fine leg and the
-// keeper's leg side, and over the slips.
-export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0, SCOOP: -150, REVERSE_SCOOP: 150 };
+// keeper's leg side, and over the slips. The hook goes behind square too,
+// round to fine leg, a little squarer than the scoop.
+export const SHOT_ANGLES: Record<ShotType, number> = { LEG: -52, LONG_ON: -24, STRAIGHT: 0, COVER_LONG_OFF: 24, SQUARE_CUT: 100, DEFEND: 0, SCOOP: -150, REVERSE_SCOOP: 150, HOOK: -138 };
 /**
  * The scoop and the reverse scoop: the third pair of special strokes, and the
  * first that go behind the wicket. A full meter buys one, the same as the
@@ -178,6 +180,30 @@ export const SCOOP = {
   topEdge: 'TOP-EDGED — CAUGHT BEHIND!',
   /** Played at the wrong ball. Said so, so the rule teaches itself. */
   wrongLine: { SCOOP: 'TOO WIDE TO SCOOP', REVERSE_SCOOP: 'TOO STRAIGHT TO REVERSE' },
+} as const;
+/**
+ * The hook: a bouncer on off stump or wider, hooked round to fine leg off the
+ * back foot. He goes back and across to get inside the line, meets it in
+ * front of the chest with the bat level, and swings it on round behind
+ * square. An ordinary stroke — no meter — off the down-and-to-leg diagonal,
+ * which on any other ball is a scoop's or nothing's: no special stroke is
+ * played at a bouncer, so on this one the diagonal is free.
+ *
+ * Timing names it. Middled it goes over fine leg for six, a shade under and
+ * it runs away there for four, held back it is helped round for ones and
+ * twos. Anything worse is the price of hooking: late and it takes the glove
+ * on the way through to the keeper, early and it goes off the top of the bat
+ * and straight up, and somebody is under it. Missed, it flies on over the
+ * stumps, which a bouncer cannot hit.
+ */
+export const HOOK = {
+  /** Which bouncers it answers, read off where the ball finishes. */
+  lines: ['OFF', 'OUTSIDE_OFF'] as readonly BallLine[],
+  /** The swipe: the scoop's diagonal, down and to leg, measured off vertical. */
+  sector: { from: 110, to: 160 },
+  feedback: { six: 'HOOKED FOR SIX!', four: 'HOOKED — FOUR!' },
+  gloved: 'GLOVED — CAUGHT BEHIND!',
+  skied: 'TOP EDGE — CAUGHT!',
 } as const;
 /**
  * The square cut. It is the one stroke that answers a bouncer outside off: the

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -54,6 +54,9 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   onLofted: { shot: 'LONG_ON', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.55, -.2, .08], lofted: true, settle: 410, meets: ON_DRIVE_MEETS_AT },
   // The on drive along the ground: the cover drive's mirror, to long-on.
   on: { shot: 'LONG_ON', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.55, -.2, .08], settle: 410, meets: ON_DRIVE_MEETS_AT },
+  // The hook: the bouncer on off stump and the one wide of it, at the height
+  // a bouncer arrives, round to fine leg off the back foot.
+  hook: { shot: 'HOOK', ballY: 1.134, impact: HOOK_CONTACT_MS, reach: [.14, .28, .42], settle: 500, meets: HOOK_MEETS_AT },
 };
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
@@ -795,7 +798,7 @@ describe('the grip', () => {
   // Every stroke frame by frame: a second or two alone, near the default five
   // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','hook','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -960,7 +963,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','hook','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -1020,7 +1023,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['pull', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
+  it.each(['pull', 'hook', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1129,7 +1132,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['pull', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['pull', 'hook', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
@@ -1216,7 +1219,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['pull','square','straight','lofted','cover','cover3','on','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['pull','hook','square','straight','lofted','cover','cover3','on','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1276,7 +1279,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['pull','square','straight','lofted','cover','cover3','on','cut','sweep'])('never reaches the %s arms past their own length', kind => {
+  it.each(['pull','hook','square','straight','lofted','cover','cover3','on','cut','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -2525,4 +2528,76 @@ describe.each([['double', 2360], ['triple', 2400], ['four', 2760]] as const)('th
       expect(pose.hands[0][1], `left fist down by the hip at ${time}ms`).toBeLessThan(pose.chest[1] - .1);
     }
 });
+});
+
+/**
+ * The hook, held to a net session filmed end on in slow motion: met well away
+ * from him with the arms straight, swung round flat with them still long, the
+ * bat never spun in his hands, the wrap held, and home without a jump. The
+ * first build kept the hands at his chest and turned the bat on its handle.
+ */
+describe('the hook', () => {
+  const hooked = (x = .28) => {
+    const batter = new Batter(); batter.prepare(1); batter.update(0);
+    batter.swing('HOOK', 0, x, 1.134, GAME.contactZ + HOOK_MEETS_AT);
+    return batter;
+  };
+  const reach = (batter: Batter) => {
+    const pose = batter.inspect();
+    return Math.min(...[0, 1].map(i => new Vector3(...pose.shoulders[i]).distanceTo(new Vector3(...pose.wrists[i]))));
+  };
+  it('meets the ball out in front and towards off with both arms straight, on the middle of the bat', () => {
+    for (const x of [.14, .28, .42]) {
+      const batter = hooked(x); batter.update(HOOK_CONTACT_MS); batter.root.updateMatrixWorld(true);
+      expect(reach(batter), `x=${x}`).toBeGreaterThan(.56);
+      const middle = batter.bat.localToWorld(new Vector3(0, -.44, 0));
+      expect(middle.distanceTo(new Vector3(x, 1.134, GAME.contactZ + HOOK_MEETS_AT)), `x=${x}`).toBeLessThan(.02);
+      const pose = batter.inspect(), hands = new Vector3(...pose.hands[0]).sub(batter.root.position);
+      expect(hands.z - pose.chest[2], `x=${x} hands in front of the chest`).toBeGreaterThan(.4);
+    }
+  });
+  it('swings it round flat, out in front and then to leg, with the arms still long', () => {
+    for (const time of [255, 315]) {
+      const batter = hooked(); batter.update(time); batter.root.updateMatrixWorld(true);
+      expect(reach(batter), `@${time}`).toBeGreaterThan(.5);
+      const up = new Vector3(0, 1, 0).applyQuaternion(batter.bat.getWorldQuaternion(new Quaternion()));
+      expect(Math.abs(up.y), `@${time} the bat level`).toBeLessThan(.45);
+    }
+    // Out in front, then to leg: the toe goes round from off to leg.
+    const toe = (time: number) => { const b = hooked(); b.update(time); b.root.updateMatrixWorld(true); return b.bat.localToWorld(new Vector3(0, -.8, 0)).sub(b.root.position); };
+    expect(toe(HOOK_CONTACT_MS).x).toBeGreaterThan(toe(255).x);
+    expect(toe(255).x).toBeGreaterThan(toe(315).x);
+  });
+  it('never spins the bat in his hands, and wraps it with the back of the blade on the front shoulder', () => {
+    const batter = hooked();
+    let previous: Quaternion | null = null, worst = { roll: 0, time: 0 };
+    for (let time = 0; time <= STROKE_DURATION_MS + HOOK_HOLD_MS; time += 4) {
+      batter.update(time); batter.root.updateMatrixWorld(true);
+      const q = batter.bat.getWorldQuaternion(new Quaternion());
+      if (previous) {
+        const up = new Vector3(0, 1, 0).applyQuaternion(q), was = new Vector3(0, 1, 0).applyQuaternion(previous);
+        const left = new Quaternion().setFromUnitVectors(was, up).multiply(previous).invert().multiply(q);
+        const roll = Math.abs(2 * Math.atan2(left.y, left.w)) * 180 / Math.PI;
+        if (Math.min(roll, 360 - roll) > worst.roll) worst = { roll: Math.min(roll, 360 - roll), time };
+      }
+      previous = q;
+    }
+    expect(worst.roll, JSON.stringify(worst)).toBeLessThan(5);
+    batter.update(560); batter.root.updateMatrixWorld(true);
+    const pose = batter.inspect(), face = new Vector3(0, 0, 1).applyQuaternion(batter.bat.getWorldQuaternion(new Quaternion()));
+    const away = batter.bat.localToWorld(new Vector3(0, -.45, 0)).sub(batter.root.position).sub(new Vector3(...pose.shoulders[0])).normalize();
+    expect(face.dot(away)).toBeGreaterThan(.9);
+  });
+  it('holds the wrap, then settles back into his guard without a jump', () => {
+    const batter = hooked();
+    const toeAt = (time: number) => { batter.update(time); batter.root.updateMatrixWorld(true); return batter.bat.localToWorld(new Vector3(0, -.8, 0)); };
+    expect(toeAt(560 + HOOK_HOLD_MS).distanceTo(toeAt(540))).toBeLessThan(.01);
+    let last = toeAt(560), fastest = 0;
+    for (let time = 564; time <= STROKE_DURATION_MS + HOOK_HOLD_MS; time += 4) { const toe = toeAt(time); fastest = Math.max(fastest, toe.distanceTo(last)); last = toe; }
+    expect(fastest).toBeLessThan(.08);
+  });
+  it('twirls the bat after one that scores, as after a pull', () => {
+    const batter = hooked(); batter.update(HOOK_CONTACT_MS);
+    expect(batter.played.pulled).toBe(true);
+  });
 });
