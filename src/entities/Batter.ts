@@ -2253,21 +2253,22 @@ export class Batter {
     this.ballY = this.pulling || this.cutting ? ballY : Math.min(ballY, .62);
   }
   /**
-   * The bat on the cover drive's way home, as the handle swings back along the
-   * swing: the face carried along with the handle frame by frame, so it does
-   * not turn in his hands, from the finish's own face to the guard's. Whatever
-   * turn about the handle is left between the two at the end is taken early,
-   * coming down off the finish, rather than at the last; and the last frame is
-   * the guard's exactly, so he settles into it without a flick. Worked out
-   * once a stroke and read by time, so any frame can be drawn on its own.
+   * The bat from `from` to the guard, the face carried along with the handle
+   * frame by frame from `start`, so it does not turn in his hands: the cover
+   * drive's way home, from its held finish, and the charge over cover from the
+   * ball on. Whatever turn about the handle is left between the carried face
+   * and the guard's at the end is taken inside `unwind` rather than at the
+   * last, and the last frame is the guard's exactly, so he settles into it
+   * without a flick. Worked out once a stroke and read by time, so any frame
+   * can be drawn on its own.
    */
-  private ridingHome(keys: readonly { time: number; pose: Pose }[], age: number) {
-    const from = keys[0].time, step = 2, key = `${this.swingStart}:${this.ballX}:${this.ballY}:${this.ballZ}`;
+  private riding(from: number, poseAt: (age: number) => Pose, start: THREE.Quaternion, unwind: readonly [number, number], age: number) {
+    const step = 2, key = `${this.shot}:${this.charging}:${this.swingStart}:${this.ballX}:${this.ballY}:${this.ballZ}`;
     if (this.homeRide?.key !== key) {
       const turns: THREE.Quaternion[] = [], ups: THREE.Vector3[] = [];
       for (let time = from; time <= STROKE_DURATION_MS; time += step)
-        ups.push(UP.clone().applyQuaternion(batOrientation(shoulderDriven(keys, Math.min(time, STROKE_DURATION_MS - 1e-6), from - 70))));
-      turns.push(batOrientation(keys[0].pose).clone());
+        ups.push(UP.clone().applyQuaternion(batOrientation(poseAt(Math.min(time, STROKE_DURATION_MS - 1e-6)))));
+      turns.push(start.clone());
       for (let n = 1; n < ups.length; n++)
         turns.push(new THREE.Quaternion().setFromUnitVectors(ups[n - 1], ups[n]).multiply(turns[n - 1]));
       // The guard's face, as it is drawn once he is back in it.
@@ -2276,11 +2277,9 @@ export class Batter {
       const left = turns[turns.length - 1].clone().invert().multiply(guard);
       const roll = 2 * Math.atan2(left.y, left.w);
       const shortest = Math.atan2(Math.sin(roll), Math.cos(roll));
-      // Taken coming down off the finish, as the wrists let it go, and none
-      // of it after the extension: from there to the pick-up the face only
-      // rides the handle.
-      const unwound = (COVER_HOME.through - from) / step;
-      turns.forEach((turn, n) => turn.multiply(new THREE.Quaternion().setFromAxisAngle(UP, shortest * ease(Math.min(1, n / unwound)))));
+      // Only inside `unwind`: before it and after it the face only rides the handle.
+      const [begins, ends] = unwind.map(time => (time - from) / step);
+      turns.forEach((turn, n) => turn.multiply(new THREE.Quaternion().setFromAxisAngle(UP, shortest * ease(THREE.MathUtils.clamp((n - begins) / (ends - begins), 0, 1)))));
       turns[turns.length - 1].copy(guard);
       this.homeRide = { key, turns };
     }
@@ -2474,18 +2473,29 @@ export class Batter {
         ? [[COVER_CHARGE_CLOCK.down, COVER_CHARGE_DOWN], [COVER_CHARGE_CLOCK.recover, COVER_CHARGE_RECOVER]]
         : overLongOn ? [[unwrap, ON_CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]]
         : [[unwrap, CHARGE_UNWRAP], [across, CHARGE_ACROSS], [recover, CHARGE_RECOVER]];
-      if (age < settle) {
-        this.apply(shoulderDriven([{ time: 0, pose: this.swingFrom },
-          ...keys.map(({ time, pose }) => ({ time, pose: time === CHARGE_CLOCK.contact ? contact : reachPose(pose) }))], age, CHARGE_CONTACT_MS));
-      } else if (age < hold) this.apply(finish);
-      else {
+      const poseAt = (at: number): Pose => {
+        if (at < settle) return shoulderDriven([{ time: 0, pose: this.swingFrom },
+          ...keys.map(({ time, pose }) => ({ time, pose: time === CHARGE_CLOCK.contact ? contact : reachPose(pose) }))], at, CHARGE_CONTACT_MS);
+        if (at < hold) return finish;
         let from: Pose = finish, since: number = hold;
         for (const [until, pose] of home) {
-          if (age < until) { this.apply(mix(from, reachPose(pose), (age - since) / (until - since))); return; }
+          if (at < until) return mix(from, reachPose(pose), (at - since) / (until - since));
           from = reachPose(pose); since = until;
         }
-        this.apply(mix(from, GUARD, (age - since) / (STROKE_DURATION_MS - since)));
+        return mix(from, GUARD, (at - since) / (STROKE_DURATION_MS - since));
+      };
+      const pose = { ...poseAt(age) };
+      // Over cover, from the ball on, the face rides the handle: up into the
+      // high finish it turned a quarter of a turn in his hands and showed the
+      // sky the blade's edge rather than its face, and coming home it spun
+      // more than a full turn. What it has to turn to be back in his guard it
+      // turns on the way down from the hold.
+      if (overCover && age > CHARGE_CONTACT_MS) {
+        const reference = batOrientation(COVER_CHARGE_FACE), up = UP.clone().applyQuaternion(batOrientation(poseAt(CHARGE_CONTACT_MS)));
+        const met = new THREE.Quaternion().setFromUnitVectors(UP.clone().applyQuaternion(reference), up).multiply(reference);
+        pose.bat = this.riding(CHARGE_CONTACT_MS, poseAt, met, [hold, COVER_CHARGE_CLOCK.recover], age);
       }
+      this.apply(pose);
       return;
     }
     if (this.shot === 'SCOOP') {
@@ -2643,7 +2653,7 @@ export class Batter {
           { time: COVER_HOME.under, pose: back(contact, .7) },
           { time: STROKE_DURATION_MS, pose: GUARD }];
         const pose = shoulderDriven(keys, age, hold - 70);
-        pose.bat = this.ridingHome(keys, age);
+        pose.bat = this.riding(hold, at => shoulderDriven(keys, at, hold - 70), batOrientation(finish), [hold, COVER_HOME.through], age);
         this.apply(pose);
       } else if (age < 800) {
         // Down off the high finish. The on drive's comes down out in front of
@@ -2752,8 +2762,9 @@ export class Batter {
         // Turned about the handle to the pose's own face, as far as it asks.
         if(idle && pose.ownFace) this.bat.quaternion.slerp(batOrientation(pose),pose.ownFace);
       }
-      else if(this.shot==='COVER_LONG_OFF' && !this.charging && !this.squaring && this.poseAge>=COVER_PLANT.hold) {
-        // The cover drive's way home already holds its face (`ridingHome`):
+      else if(this.shot==='COVER_LONG_OFF' && !this.squaring && (this.charging || this.poseAge>=COVER_PLANT.hold)) {
+        // The cover drive's way home, and the charge over cover from the ball
+        // on, already hold their face (`riding`):
         // the roll the other strokes take into the guard is up to a full turn,
         // and it spun the blade about the handle as it came up into the pick-up.
       }

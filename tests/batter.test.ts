@@ -240,6 +240,29 @@ describe('bat travel', () => {
     const last = at(STROKE_DURATION_MS - .5), home = at(STROKE_DURATION_MS + 50);
     expect(last.angleTo(home)).toBeLessThan(MathUtils.degToRad(1));
   });
+  it('carries the bat up into the charge over cover\'s high finish without turning it in his hands, face to the sky', () => {
+    const batter = charge(); batter.reset(); batter.prepare(1); batter.update(0); play(batter, 'coverCharge');
+    const at = (time: number) => { batter.update(time); return batter.bat.quaternion.clone(); };
+    const roll = (a: Quaternion, b: Quaternion) => {
+      const up = new Vector3(0, 1, 0).applyQuaternion(b);
+      const carried = new Vector3(0, 0, 1).applyQuaternion(a).applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0).applyQuaternion(a), up));
+      const face = new Vector3(0, 0, 1).applyQuaternion(b);
+      return Math.abs(Math.atan2(up.dot(carried.clone().cross(face)), carried.dot(face)));
+    };
+    // From the ball up to the hold, the face rides the handle.
+    let previous = at(CHARGE_CONTACT_MS);
+    for (let time = CHARGE_CONTACT_MS + 4; time <= CHARGE_CLOCK.hold; time += 4) {
+      const now = at(time);
+      expect(roll(previous, now), `@${time}`).toBeLessThan(MathUtils.degToRad(2));
+      previous = now;
+    }
+    // Up there the sky sees the face of the blade, not its edge.
+    expect(new Vector3(0, 0, 1).applyQuaternion(at(580)).y).toBeGreaterThan(.5);
+    // And coming home it turns no more than it has to: not the full turns it spun before.
+    let turned = 0; previous = at(CHARGE_CLOCK.hold);
+    for (let time = CHARGE_CLOCK.hold + 4; time <= STROKE_DURATION_MS; time += 4) { const now = at(time); turned += roll(previous, now); previous = now; }
+    expect(turned).toBeLessThan(MathUtils.degToRad(150));
+  });
   const sample = (shot: ShotType, ballX: number) => {
     const batter = new Batter();
     batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX);
