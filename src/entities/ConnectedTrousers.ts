@@ -14,10 +14,18 @@ const SEAT = .034;
 const HIP = .018;
 /** How far the seat's curve hangs from the opening before it turns, as a share of the way to the thigh. */
 const FALL = .7;
-/** Forward over down, from the seat to the thigh: the swell is whole up to the first and gone by the second. */
-const SEAT_TUCK: readonly [number, number] = [1.0, 1.25];
-/** The same for the back of the crotch seam, which stands at about 1.8 at the crease. */
-const SEAM_TUCK: readonly [number, number] = [1.8, 2.2];
+/**
+ * How far forward of straight down the thigh points, in degrees: the seat's
+ * swell is whole up to the first and gone by the second, eased between. He
+ * stands at 13 in his guard, and the cover drive's finish holds the front
+ * thigh at 27 to 29 (the straight drive's at 33), where any swell left turns
+ * forward under him as a point at the bottom of the seat. As wide as that gap
+ * allows, so the seat settles over the frames a stride takes rather than in
+ * one.
+ */
+const SEAT_TUCK: readonly [number, number] = [15, 27];
+/** The two rings down the leg the thigh's direction is read between. */
+const THIGH_RINGS: readonly [number, number] = [SEAT_ROWS + 1, 10];
 
 /** One trouser surface: waist, tailored rise, crotch and both bending legs. */
 export class ConnectedTrousers {
@@ -26,8 +34,18 @@ export class ConnectedTrousers {
   private p = new THREE.Vector3();
   private q = new THREE.Vector3();
   private ref = new THREE.Vector3();
+  /** How far each leg's seat is tucked away, 0 to 1, as last drawn. */
+  readonly tucked = [0, 0];
+  private top = new THREE.Vector3();
+  private low = new THREE.Vector3();
   private inverse = new THREE.Quaternion();
   private offset(i: number) { return 51 + i * 320; }
+  /** The middle of one ring of a leg, in the hips' own frame. */
+  private ring(source: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, row: number, into: THREE.Vector3, hips: THREE.Vector3) {
+    into.set(0, 0, 0);
+    for (let i = 0; i < 16; i++) into.add(this.q.fromBufferAttribute(source, row * 17 + i));
+    return into.divideScalar(16).sub(hips).applyQuaternion(this.inverse);
+  }
   constructor(material: THREE.Material) {
     const indices: number[] = [], count = 691;
     const geometry = new THREE.BufferGeometry();
@@ -88,6 +106,16 @@ export class ConnectedTrousers {
     for (let leg = 0; leg < 2; leg++) {
       const source = legs[leg].mesh.geometry.getAttribute('position');
       const outside = leg === 0 ? -1 : 1;
+      // How far the seat is tucked away, from where the thigh points: once for
+      // the whole leg. Read off each column's own pair of points instead, the
+      // reading followed the hips turning over the thigh rather than the
+      // thigh lifting, so it tucked a thigh hanging behind him and threw the
+      // swell off and on in a frame while the leg hardly moved.
+      this.ring(source, THIGH_RINGS[0], this.top, hips.position);
+      this.ring(source, THIGH_RINGS[1], this.low, hips.position);
+      const forward = THREE.MathUtils.radToDeg(Math.atan2(this.low.z - this.top.z, this.top.y - this.low.y));
+      this.tucked[leg] = THREE.MathUtils.smoothstep(forward, SEAT_TUCK[0], SEAT_TUCK[1]);
+      const room = 1 - this.tucked[leg];
       for (let row = 1; row <= 20; row++) for (let i = 0; i < 16; i++) {
         if (row <= SEAT_ROWS) {
           // From the opening to the leg, worked in the hips' own frame so that
@@ -102,16 +130,6 @@ export class ConnectedTrousers {
           // curve whose first handle hangs straight down from the opening,
           // furthest behind and not at all in front.
           const fall = FALL * (1 - this.p.z / (Math.hypot(this.p.x, this.p.z) || 1)) / 2 * this.p.distanceTo(this.q);
-          // How far forward of the seat the thigh runs, for each step down to
-          // it. Stood at the crease it is no more than one; a thigh lifted out
-          // in front, as the front leg of a long drive is, takes it well past,
-          // and the swell behind then had to turn forward so sharply under him
-          // that it stood out as a point at the bottom of the seat.
-          const under = (this.q.z - this.p.z) / Math.max(this.p.y - this.q.y, .01);
-          // The back of the crotch seam runs further under than the seat even
-          // at the crease, so it is measured against a range of its own.
-          const [whole, gone] = i === 13 ? SEAM_TUCK : SEAT_TUCK;
-          const room = THREE.MathUtils.clamp((gone - under) / (gone - whole), 0, 1);
           this.p.multiplyScalar((1 - t) ** 2 + 2 * t * (1 - t)).addScaledVector(this.q, t * t);
           this.p.y -= 2 * t * (1 - t) * fall;
           // Rounded out behind, fullest halfway down, and a little at the

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Batter, COVER_V3_MEETS_AT, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
+import { Batter, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, ON_LOFT_HOLD, ON_LOFT_ROLL, CELEBRATION_MS, FIFTY_MS, CHARGE_CLOCK, REVERSE_CONTACT_MS, SCOOP_CONTACT_MS, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, HAND_SPACING, PULL_LOAD_MS, PULL_CONTACT_MS, SQUARE_DRIVE_CONTACT_MS, STROKE_CONTACT_MS, STROKE_DURATION_MS, SWEEP_CONTACT_MS, CELEBRATION_LENGTHS, ADMIRE_MS, AFTER_BALL_MS, type AfterBall } from '../src/entities/Batter';
 import { ADVANCE, GAME, LINE_X, SHOTS, SQUARE_DRIVE } from '../src/config/gameplay';
 import type { ShotType } from '../src/game/types';
 import { MathUtils, Object3D, Quaternion, Vector3 } from 'three';
@@ -14,7 +14,7 @@ const STROKES: ShotType[] = [...SHOTS, 'DEFEND'];
  * to it — the run down the pitch, the wrap, the walk back — has a suite of its
  * own below.
  */
-const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number; version?: 1 | 2 | 3 }> = {
+const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; reach: number[]; lofted?: boolean; sweeping?: boolean; levelled?: boolean; charging?: boolean; settle: number; version?: 1 | 2 | 3; meets?: number }> = {
   pull: { shot: 'LEG', ballY: 1.12, impact: PULL_CONTACT_MS, reach: [-.55, 0, .32], settle: 500 },
   straight: { shot: 'STRAIGHT', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.17, 0, .17], settle: 410 },
   cover: { shot: 'COVER_LONG_OFF', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.08, .10, .28], settle: 410 },
@@ -51,11 +51,13 @@ const PLAYS: Record<string, { shot: ShotType; ballY: number; impact: number; rea
   reverse: { shot: 'REVERSE_SCOOP', ballY: .54, impact: REVERSE_CONTACT_MS, reach: [.05, .28, .62], settle: 600 },
   // The on drive's six: the same ball and contact as the on drive, and a
   // different follow-through, which is the whole of the difference.
-  onLofted: { shot: 'LONG_ON', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.55, -.2, .08], lofted: true, settle: 410 },
+  onLofted: { shot: 'LONG_ON', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.55, -.2, .08], lofted: true, settle: 410, meets: ON_DRIVE_MEETS_AT },
+  // The on drive along the ground: the cover drive's mirror, to long-on.
+  on: { shot: 'LONG_ON', ballY: .54, impact: STROKE_CONTACT_MS, reach: [-.55, -.2, .08], settle: 410, meets: ON_DRIVE_MEETS_AT },
 };
 const play = (batter: Batter, kind: string, x = 0) => {
   const spec = PLAYS[kind];
-  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ + (spec.charging ? CHARGE_MEETS_AT : spec.version === 3 ? COVER_V3_MEETS_AT : 0),
+  batter.swing(spec.shot, 0, x, spec.ballY, GAME.contactZ + (spec.charging ? CHARGE_MEETS_AT : spec.version === 3 ? COVER_V3_MEETS_AT : spec.meets ?? 0),
     spec.charging ?? false, spec.lofted ?? false, spec.sweeping ?? false, spec.levelled ?? false, spec.version ?? 2);
 };
 /** The charge, played at the ball the game plays it at. */
@@ -260,6 +262,58 @@ describe('bat travel', () => {
     const last = at(STROKE_DURATION_MS - .5), home = at(STROKE_DURATION_MS + 50);
     expect(last.angleTo(home)).toBeLessThan(MathUtils.degToRad(1));
   });
+  it('plays the on drive as a drive to long-on, not a flick over the leg-side shoulder', () => {
+    for (const x of [-.42, -.2, 0]) {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      play(batter, 'on', x);
+      // The front foot well down the pitch, the bat upright at the ball.
+      batter.update(STROKE_CONTACT_MS); const contact = batter.inspect();
+      expect(contact.frontFoot[2] - contact.backFoot[2], `x=${x}`).toBeGreaterThan(.75);
+      expect(new Vector3(...contact.batUp).normalize().y, `x=${x}`).toBeGreaterThan(.95);
+      // After the ball the toe stays out in front of him, going on to long-on:
+      // it used to swing across the front of him to three quarters of a metre
+      // on the leg side of his chest and wrap over the shoulder.
+      for (let time = STROKE_CONTACT_MS + 4; time <= 600; time += 4) {
+        batter.update(time); const pose = batter.inspect();
+        const tip = new Vector3(...pose.bladeTip).sub(batter.root.position);
+        expect(tip.x - pose.chest[0], `x=${x} @${time}`).toBeGreaterThan(-.45);
+        expect(tip.z - pose.chest[2], `x=${x} @${time}`).toBeGreaterThan(.3);
+      }
+      // Arms out along the line at the extension, and the hands high in front
+      // of him at the finish with the blade up the ground after the ball.
+      batter.update(220); const through = batter.inspect();
+      expect(through.grip[2] - through.chest[2], `x=${x}`).toBeGreaterThan(.35);
+      batter.update(500); const finish = batter.inspect();
+      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.45);
+      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1]);
+      expect(finish.bladeTip[2], `x=${x}`).toBeGreaterThan(finish.grip[2] + batter.root.position.z);
+    }
+  });
+  it('does not turn the bat in his hands through the on drive, nor on its way home', () => {
+    const batter = new Batter(); batter.prepare(1); batter.update(0);
+    play(batter, 'on', -.2);
+    const at = (time: number) => { batter.update(time); return batter.bat.quaternion.clone(); };
+    const roll = (a: Quaternion, b: Quaternion) => {
+      const up = new Vector3(0, 1, 0).applyQuaternion(b);
+      const carried = new Vector3(0, 0, 1).applyQuaternion(a).applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0).applyQuaternion(a), up));
+      const face = new Vector3(0, 0, 1).applyQuaternion(b);
+      return Math.atan2(up.dot(carried.clone().cross(face)), carried.dot(face));
+    };
+    // Over the whole stroke the face turns about the handle no more than it
+    // has to, to close towards mid-on and open again: it used to turn more
+    // than once round in his hands.
+    let previous = at(0), net = 0;
+    for (let time = 4; time <= STROKE_DURATION_MS; time += 4) {
+      const now = at(time), turn = roll(previous, now);
+      net += turn;
+      // And from the ball on, home included, it rides the handle.
+      if (time > STROKE_CONTACT_MS + 20) expect(Math.abs(turn), `@${time}`).toBeLessThan(MathUtils.degToRad(2));
+      previous = now;
+    }
+    expect(Math.abs(net)).toBeLessThan(MathUtils.degToRad(30));
+    const last = at(STROKE_DURATION_MS - .5), home = at(STROKE_DURATION_MS + 50);
+    expect(last.angleTo(home)).toBeLessThan(MathUtils.degToRad(1));
+  });
   it('carries the bat up into the charge over cover\'s high finish without turning it in his hands, face to the sky', () => {
     const batter = charge(); batter.reset(); batter.prepare(1); batter.update(0); play(batter, 'coverCharge');
     const at = (time: number) => { batter.update(time); return batter.bat.quaternion.clone(); };
@@ -349,7 +403,7 @@ describe('the bat and the body', () => {
     // name, have to be chosen to take the bat round instead.
     const root = new Vector3(GAME.stanceX, 0, GAME.stanceZ);
     // Every stroke, and both other versions of the cover drive beside the default.
-    const plays = [...STROKES.map(shot => [shot, 2, 0] as const), ['COVER_LONG_OFF', 1, 0] as const, ['COVER_LONG_OFF', 3, COVER_V3_MEETS_AT] as const];
+    const plays = [...STROKES.map(shot => [shot, 2, shot === 'LONG_ON' ? ON_DRIVE_MEETS_AT : 0] as const), ['COVER_LONG_OFF', 1, 0] as const, ['COVER_LONG_OFF', 3, COVER_V3_MEETS_AT] as const];
     for (const [shot, version, ahead] of plays) {
       let worst = { value: Infinity, part: '', where: '' };
       for (const ballY of [.54, 1.12]) for (const ballX of [-.55, -.42, -.3, -.14, 0, .14, .42, .55]) {
@@ -728,7 +782,7 @@ describe('the square cut', () => {
 });
 
 describe('the grip', () => {
-  it.each(['straight','cover','cover3','square'])('uses a diagonal top-hand wrist and leading elbow for %s',kind=>{
+  it.each(['straight','cover','cover3','on','square'])('uses a diagonal top-hand wrist and leading elbow for %s',kind=>{
     const batter=new Batter(); batter.prepare(1); batter.update(0);
     play(batter, kind, PLAYS[kind].reach[1]);
     batter.update(PLAYS[kind].impact);
@@ -741,7 +795,7 @@ describe('the grip', () => {
   // Every stroke frame by frame: a second or two alone, near the default five
   // seconds when the whole suite runs at once, so it is given room.
   it('does not flip an elbow or wrist between frames, including entering and leaving guard', () => {
-    for (const kind of ['pull','square','straight','cover','cover3','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
+    for (const kind of ['pull','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse']) for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       let previous = batter.inspect();
       play(batter, kind, x);
@@ -770,7 +824,8 @@ describe('the grip', () => {
     let flattest = Infinity, wristWhere = '';
     for (const [shot, ballY] of STROKES.flatMap(s => [[s, .54], [s, 1.12]] as const)) {
       for (const ballX of [-.5, 0, .5]) {
-        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY);
+        // Each where the game meets it: the on drive a little further on.
+        batter.reset(); batter.prepare(1); batter.update(0); batter.swing(shot, 0, ballX, ballY, GAME.contactZ + (shot === 'LONG_ON' ? ON_DRIVE_MEETS_AT : 0));
         for (let time = -1; time <= STROKE_DURATION_MS; time += 20) {
           batter.update(time);
           const pose = batter.inspect();
@@ -815,7 +870,7 @@ describe('the grip', () => {
 });
 
 describe('shoulders', () => {
-  it.each(['straight','lofted','cover','cover3','square','charge','coverCharge','onCharge','onLofted'])('powers the %s follow-through with upper-arm travel', kind => {
+  it.each(['straight','lofted','cover','cover3','on','square','charge','coverCharge','onCharge','onLofted'])('powers the %s follow-through with upper-arm travel', kind => {
     const batter=new Batter(); batter.prepare(1); batter.update(0);
     play(batter, kind, PLAYS[kind].reach[1]);
     batter.update(PLAYS[kind].impact); const contact=batter.inspect();
@@ -860,7 +915,7 @@ describe('shoulders', () => {
 });
 
 describe('every stroke, across its reach', () => {
-  it.each(['straight','cover','cover3','square','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('presents the flat face from face-down pickup into %s contact',kind=>{
+  it.each(['straight','cover','cover3','on','square','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('presents the flat face from face-down pickup into %s contact',kind=>{
     for(const x of PLAYS[kind].reach) {
       const batter=new Batter(); batter.prepare(1); batter.update(0);
       expect(batter.inspect().batFace[1]).toBeLessThan(-.4);
@@ -905,7 +960,7 @@ describe('every stroke, across its reach', () => {
       else expect(face[2]).toBeGreaterThan(.8);
     }
   });
-  it.each(['pull','square','straight','cover','cover3','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
+  it.each(['pull','square','straight','cover','cover3','on','sweep','flat','charge','coverCharge','onCharge','onLofted','scoop','reverse'])('keeps the %s blade volume outside body, helmet, joints and forearms', (kind) => {
     const geometry=bladeGeometry(), positions=geometry.getAttribute('position'), index=geometry.getIndex()!;
     const samples=Array.from({length:positions.count},(_,i)=>new Vector3().fromBufferAttribute(positions,i));
     for(let i=0;i<index.count;i+=3) samples.push(
@@ -965,7 +1020,7 @@ describe('every stroke, across its reach', () => {
  */
 describe('the front pad', () => {
   const flat = (v: Vector3) => new Vector3(v.x, 0, v.z).normalize();
-  it.each(['pull', 'square', 'straight', 'cover','cover3', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
+  it.each(['pull', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('faces where the %s shoe faces', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1074,7 +1129,7 @@ describe('the slog sweep', () => {
    * onto one line — 0.04m between the forearms where the other strokes keep
    * 0.13m and up — and read as a man paddling rather than swinging.
    */
-  it.each(['pull', 'square', 'straight', 'cover','cover3', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
+  it.each(['pull', 'square', 'straight', 'cover','cover3','on', 'sweep', 'flat'])('keeps the %s forearms apart and the elbows unswapped', kind => {
     /** Closest approach of the elbow halves, which is the half that can cross. */
     const between = (a: Vector3, b: Vector3, c: Vector3, d: Vector3) => {
       const u = b.clone().sub(a), v = d.clone().sub(c), w = a.clone().sub(c);
@@ -1161,7 +1216,7 @@ describe('the arms', () => {
    * came within 0.09 m of the centre of the helmet on the square drive, which
    * is well inside it.
    */
-  it.each(['pull','square','straight','lofted','cover','cover3','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
+  it.each(['pull','square','straight','lofted','cover','cover3','on','cut','sweep'])('keeps the %s arms out of the helmet', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1194,7 +1249,7 @@ describe('the arms', () => {
    * than at the contact it came out of, which is the bent-armed, shoulder-hinged
    * look the whole stroke was judged on.
    */
-  it.each(['square','straight','lofted','cover','cover3'])('opens the %s elbows out through impact', kind => {
+  it.each(['square','straight','lofted','cover','cover3','on'])('opens the %s elbows out through impact', kind => {
     const spec = PLAYS[kind];
     for (const x of spec.reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
@@ -1221,7 +1276,7 @@ describe('the arms', () => {
     }
   });
   /** An arm past its own length is a stretched limb, not a straight one. */
-  it.each(['pull','square','straight','lofted','cover','cover3','cut','sweep'])('never reaches the %s arms past their own length', kind => {
+  it.each(['pull','square','straight','lofted','cover','cover3','on','cut','sweep'])('never reaches the %s arms past their own length', kind => {
     for (const x of PLAYS[kind].reach) {
       const batter = new Batter(); batter.prepare(1); batter.update(0);
       play(batter, kind, x);
@@ -1867,14 +1922,14 @@ describe('the charge over long-on', () => {
 });
 
 /**
- * The on drive's six, from a broadcast recording: the on drive's own contact,
- * then a lofted follow-through of its own. The on drive along the ground is
- * what every other timing plays, and it is untouched.
+ * The on drive's six: the on drive's own contact, then a lofted follow-through
+ * of its own that wraps the bat over the front shoulder. The on drive along the
+ * ground is what every other timing plays.
  */
 describe('the lofted on drive', () => {
   const played = (lofted: boolean, x = -.2) => {
     const batter = new Batter(); batter.reset(); batter.prepare(1); batter.update(0);
-    batter.swing('LONG_ON', 0, x, .54, GAME.contactZ, false, lofted);
+    batter.swing('LONG_ON', 0, x, .54, GAME.contactZ + ON_DRIVE_MEETS_AT, false, lofted);
     return batter;
   };
   it('shares the on drive\'s ball and contact, and only then goes up', () => {
@@ -1886,28 +1941,70 @@ describe('the lofted on drive', () => {
       expect(six.inspect().bladeContact[0], `x=${x}`).toBeCloseTo(Math.max(-.55, Math.min(.08, x)), 6);
       six.update(220);
       const through = six.inspect();
-      // Out towards long-on: the hands well forward of the chest and on the
-      // leg side of the straight drive's line.
+      // Out towards long-on: the hands well forward of the chest.
       expect(through.grip[2] - through.chest[2], `x=${x}`).toBeGreaterThan(.35);
-      six.update(410); four.update(410);
-      const finish = six.inspect(), root = six.root.position;
-      // Both arms up: hands above the helmet, the toe above them and to the
-      // leg side, over the front shoulder; the back foot on its toe.
-      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(1.75);
-      expect(finish.grip[1], `x=${x}`).toBeGreaterThan(four.inspect().grip[1] + .25);
-      expect(finish.bladeTip[1], `x=${x}`).toBeGreaterThan(finish.grip[1] + .4);
-      expect(finish.bladeTip[0] - root.x, `x=${x}`).toBeLessThan(finish.grip[0] - .2);
-      expect(finish.backFoot[1], `x=${x}`).toBeGreaterThan(.1);
-      for (const forward of finish.handsForward) expect(forward, `x=${x}`).toBeGreaterThan(0);
-      // The blade climbs in one arc from the ball to the finish.
+      // The blade climbs in one arc from the ball to the top of the carry.
       let peak = -Infinity, sag = { drop: 0, at: 0 };
-      for (let time = STROKE_CONTACT_MS; time <= 410; time += 4) {
+      for (let time = STROKE_CONTACT_MS; time <= 340; time += 4) {
         six.update(time);
         const tip = six.inspect().bladeTip[1];
         if (peak - tip > sag.drop) sag = { drop: peak - tip, at: time };
         peak = Math.max(peak, tip);
       }
       expect(sag.drop, `x=${x} toe sagging ${JSON.stringify(sag)}`).toBeLessThan(.08);
+    }
+  });
+  it('wraps the bat over the front shoulder, the elbows bent, rather than reaching for the sky', () => {
+    for (const x of PLAYS.onLofted.reach) {
+      const six = played(true, x);
+      six.update(500);
+      const finish = six.inspect(), root = six.root.position;
+      const [front, back] = finish.shoulders, grip = new Vector3(...finish.grip), tip = new Vector3(...finish.bladeTip).sub(root);
+      // The hands just over the front shoulder, not up at arm's length.
+      expect(grip.y - front[1], `x=${x}`).toBeGreaterThan(.1);
+      expect(grip.y - front[1], `x=${x}`).toBeLessThan(.3);
+      expect(Math.hypot(grip.x - front[0], grip.z - front[2]), `x=${x}`).toBeLessThan(.25);
+      // The bat lying back over it: the toe above the hands, behind them, and
+      // across towards the other shoulder.
+      expect(tip.y - grip.y, `x=${x}`).toBeGreaterThan(.3);
+      expect(grip.z - tip.z, `x=${x}`).toBeGreaterThan(.3);
+      expect(Math.abs(tip.x - back[0]), `x=${x}`).toBeLessThan(Math.abs(grip.x - back[0]));
+      // The front elbow up beside his head, the back one across in front of his face.
+      expect(finish.elbows[0][1] - front[1], `x=${x}`).toBeGreaterThan(.2);
+      expect(finish.elbows[1][2], `x=${x}`).toBeGreaterThan((six as unknown as { head: Object3D }).head.position.z);
+      // The back foot up on its toe.
+      expect(finish.backFoot[1], `x=${x}`).toBeGreaterThan(.1);
+    }
+  });
+  it('takes the bat over with the arms: the bottom hand rolls over once, and the back of the blade lands on the shoulder', () => {
+    for (const x of PLAYS.onLofted.reach) {
+      const six = played(true, x);
+      const at = (time: number) => { six.update(time); return six.bat.quaternion.clone(); };
+      const roll = (a: Quaternion, b: Quaternion) => {
+        const up = new Vector3(0, 1, 0).applyQuaternion(b);
+        const carried = new Vector3(0, 0, 1).applyQuaternion(a).applyQuaternion(new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0).applyQuaternion(a), up));
+        const face = new Vector3(0, 0, 1).applyQuaternion(b);
+        return Math.atan2(up.dot(carried.clone().cross(face)), carried.dot(face));
+      };
+      // From the ball to the extension the face rides the handle; through the
+      // carry the bottom hand rolls over the top one, evenly and one way only;
+      // held, nothing; on the way home it settles into the guard a little at a time.
+      let previous = at(STROKE_CONTACT_MS + 4), rolled = 0, way = 0;
+      for (let time = STROKE_CONTACT_MS + 8; time <= STROKE_DURATION_MS; time += 4) {
+        const now = at(time), turn = roll(previous, now);
+        const rolling = time > ON_LOFT_ROLL[0] && time <= ON_LOFT_ROLL[1] + 4;
+        if (rolling) { rolled += turn; if (Math.abs(turn) > MathUtils.degToRad(.2)) { if (!way) way = Math.sign(turn); expect(Math.sign(turn), `x=${x} @${time}`).toBe(way); } }
+        expect(Math.abs(turn), `x=${x} @${time}`).toBeLessThan(MathUtils.degToRad(rolling ? 5 : time < ON_LOFT_HOLD ? .5 : 4));
+        previous = now;
+      }
+      expect(Math.abs(rolled), `x=${x}`).toBeLessThan(Math.PI);
+      // And at the wrap the face looks away from the front shoulder: the back
+      // of the blade is what lies against it.
+      six.update(500);
+      const finish = six.inspect(), axis = new Vector3(0, 1, 0).applyQuaternion(six.bat.quaternion);
+      const away = new Vector3(...finish.grip).addScaledVector(axis, -.45).sub(new Vector3(...finish.shoulders[0]));
+      away.addScaledVector(axis, -away.dot(axis)).normalize();
+      expect(new Vector3(0, 0, 1).applyQuaternion(six.bat.quaternion).dot(away), `x=${x}`).toBeGreaterThan(.95);
     }
   });
   it('never passes the bat through him, coming up or coming home', () => {

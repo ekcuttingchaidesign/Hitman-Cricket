@@ -15,9 +15,10 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, type CoverVersion, COVER_V3_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, COVER_V3_MEETS_AT, ON_DRIVE_MEETS_AT, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
+import type { ShotType } from './game/types';
 
 /** Ball time before the swing starts, so the delivery can be seen arriving. */
 const LEAD_MS = 260;
@@ -26,7 +27,9 @@ const LEAD_MS = 260;
  * on its own clock, and with where the ball goes off the bat.
  */
 interface Stroke {
-  label: string; charging: boolean;
+  label: string; shot: ShotType; charging: boolean; lofted?: boolean;
+  /** Played the same in every version: the on drive has only the one. */
+  single?: boolean;
   /** Where the ball is met, in the rig's frame. */
   ball: { x: number; y: number; z: number };
   contact: number; end: number; bounceZ: number;
@@ -37,7 +40,7 @@ interface Stroke {
 }
 const STROKES: Record<string, Stroke> = {
   cover: {
-    label: 'Cover drive', charging: false, ball: { x: LINE_X.OFF, y: .54, z: GAME.contactZ },
+    label: 'Cover drive', shot: 'COVER_LONG_OFF', charging: false, ball: { x: LINE_X.OFF, y: .54, z: GAME.contactZ },
     contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
     phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Home', 600]],
     out: { speed: .024, angle: THREE.MathUtils.degToRad(58), climb: 0 },
@@ -45,13 +48,29 @@ const STROKES: Record<string, Stroke> = {
     note: 'Version two, played twice in ten and four at most: the cover drive rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance.',
   },
   charge: {
-    label: 'Charge over cover', charging: true, ball: { x: 0, y: .54, z: GAME.contactZ + CHARGE_MEETS_AT },
+    label: 'Charge over cover', shot: 'COVER_LONG_OFF', charging: true, ball: { x: 0, y: .54, z: GAME.contactZ + CHARGE_MEETS_AT },
     contact: CHARGE_CONTACT_MS, end: STROKE_DURATION_MS + ADVANCE.walkBackMs, bounceZ: 4.6,
     phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS],
       ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['High finish', 580], ['Down', 760], ['Walking back', 1000]],
     out: { speed: .028, angle: THREE.MathUtils.degToRad(40), climb: .013 },
     facts: ['length, on the stumps', `${STROKE_DURATION_MS + ADVANCE.walkBackMs} ms`],
     note: 'The charge over cover: the back foot skips up to the front one, the front foot strides out down the pitch with the bat up to the sky, and the ball is met at 300 ms on the full, three quarters of a metre out of his ground. The face is opened to cover with the body still closed, the arms extend out towards extra cover, and the finish is held with the hands together above the helmet, the face of the blade to the sky: from the ball on the bat rides his hands without turning in them, until it unwinds into his guard on the way down. Then he walks back to his crease. In the game it is played off the cover swipe with the meter full, and its clock runs at two thirds speed.',
+  },
+  on: {
+    label: 'On drive', shot: 'LONG_ON', charging: false, single: true, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ + ON_DRIVE_MEETS_AT },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.6,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Home', 600]],
+    out: { speed: .024, angle: THREE.MathUtils.degToRad(-22), climb: 0 },
+    facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
+    note: 'The on drive, rebuilt as a drive: the straight drive turned 24 degrees to long-on about the back foot. The front foot is down at 55 ms, a long stride down the line of a ball on leg stump pointing towards mid-on, the head over the ball; the bat comes down straight with its face closed to mid-on and meets the ball at 110 ms beside the front pad, 16 cm further down the pitch than the straight drive, with the front elbow high. The arms go out along the line to long-on at 220, the hands finish high in front of him at 410 with the blade up the ground after the ball, held to 600, and the bat goes home back down the way it came without turning in his hands. It used to whip the bat across the front of him and over the leg-side shoulder, the blade turning more than once round in his hands.',
+  },
+  six: {
+    label: 'On drive six', shot: 'LONG_ON', charging: false, lofted: true, single: true, ball: { x: LINE_X.LEG, y: .54, z: GAME.contactZ + ON_DRIVE_MEETS_AT },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.6,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Wrap', 440], ['Home', 580]],
+    out: { speed: .028, angle: THREE.MathUtils.degToRad(-22), climb: .014 },
+    facts: ['full, leg stump', `${STROKE_DURATION_MS} ms`],
+    note: 'The on drive lofted for six, played when the swipe is perfectly timed: the on drive\'s own stride and contact, then the arms carry the bat up through the line and over into a wrap, the elbows bent rather than reaching for the sky: the hands just over the front shoulder with the bat lying back over it behind his head, the front elbow up beside the helmet, the back arm across in front of his face, the chest open to long-on and the back foot up on its toe, held to 580 ms. The arms take the bat over, not the wrists: the one turn in his hands is the bottom hand rolling over the top one through the carry, evenly and one way, so that at the wrap the flat face looks out and the curved back of the blade lies against his shoulder; held, nothing turns it, and on the way home, back over his head and down the line, it settles into his guard a little at a time. The six it replaces turned the bat a full turn in his hands on the way home.',
   },
 };
 let stroke = STROKES.cover;
@@ -163,11 +182,11 @@ function pose(t: number) {
 
 let swinging = false;
 /** Where this stroke meets the ball: version three's cover drive beside the front pad, a little further on. */
-const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !stroke.charging ? COVER_V3_MEETS_AT : 0) });
+const metAt = () => ({ ...stroke.ball, z: stroke.ball.z + (version === 3 && !stroke.charging && !stroke.single ? COVER_V3_MEETS_AT : 0) });
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
   const at = metAt();
-  batter.swing('COVER_LONG_OFF', 0, at.x, at.y, at.z, stroke.charging, false, false, false, version);
+  batter.swing(stroke.shot, 0, at.x, at.y, at.z, stroke.charging, !!stroke.lofted, false, false, version);
   swinging = true;
 }
 
@@ -288,7 +307,8 @@ function choose(key: string) {
   const [first, ...rest] = stroke.label.split(' ');
   title.innerHTML = `${first} <span>${rest.join(' ')}</span>`;
   facts.forEach((fact, i) => { fact.textContent = stroke.facts[i]; });
-  note.textContent = version === 1 ? VERSION_ONE[key] : version === 3 ? VERSION_THREE[key] : stroke.note;
+  note.textContent = stroke.single ? stroke.note : version === 1 ? VERSION_ONE[key] : version === 3 ? VERSION_THREE[key] : stroke.note;
+  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-version]')) b.disabled = !!stroke.single;
   scrub.min = String(-LEAD_MS); scrub.max = String(stroke.end);
   swinging = false; contactSheet(); start();
   t = -LEAD_MS; placeCamera(view); setPlaying(true);
