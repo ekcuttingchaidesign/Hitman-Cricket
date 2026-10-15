@@ -70,8 +70,8 @@ kbd{font:500 12px var(--f-mono);border:1px solid var(--line);border-radius:5px;p
     <h1>Cover <span>Drive</span></h1>
     <div class="facts">
       <span class="chip"><b>Right-handed</b></span>
-      <span class="chip">Ball <b>full, off stump</b></span>
-      <span class="chip">Stroke <b>940 ms</b></span>
+      <span class="chip">Ball <b data-fact>full, off stump</b></span>
+      <span class="chip">Stroke <b data-fact>940 ms</b></span>
     </div>
   </header>
 
@@ -88,6 +88,11 @@ kbd{font:500 12px var(--f-mono);border:1px solid var(--line);border-radius:5px;p
   </div>
 
   <div class="rows">
+    <div class="seg" role="group" aria-label="Stroke">
+      <span class="lab">Stroke</span>
+      <button data-stroke="cover" aria-pressed="true">Cover drive</button>
+      <button data-stroke="charge" aria-pressed="false">Charge over cover</button>
+    </div>
     <div class="seg" role="group" aria-label="Speed">
       <span class="lab">Speed</span>
       <button data-speed="0.1" aria-pressed="false">0.1×</button>
@@ -107,6 +112,6 @@ kbd{font:500 12px var(--f-mono);border:1px solid var(--line);border-radius:5px;p
 
   <h2>Key poses</h2>
   <div id="frames" aria-label="Key poses, side-on"></div>
-  <p class="note">The cover drive as the game plays it now, rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance. The ring marks where the ball is met. Tap a pose to stop on it; <kbd>Space</kbd> plays and pauses, <kbd>←</kbd> <kbd>→</kbd> step 10 ms, with <kbd>Shift</kbd> 50 ms.</p>
+  <p class="note"><span id="note-text">The cover drive as the game plays it now, rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance.</span> The ring marks where the ball is met. Tap a pose to stop on it; <kbd>Space</kbd> plays and pauses, <kbd>←</kbd> <kbd>→</kbd> step 10 ms, with <kbd>Shift</kbd> 50 ms.</p>
 </div>
 <script type="module" src="/src/cover-drive-preview.ts"></script>

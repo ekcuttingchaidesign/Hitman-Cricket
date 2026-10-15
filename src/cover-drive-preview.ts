@@ -1,7 +1,9 @@
 /**
  * The cover drive on its own, for reworking it: the game's `Batter`, a right-
  * hander, playing the one stroke against a ball that comes down the pitch, is
- * met at the red marker and goes off through the covers.
+ * met at the red marker and goes off through the covers. Beside it, the other
+ * stroke played off the same input: the charge over cover, the special one,
+ * down the pitch at a ball on the stumps and over extra cover for six.
  *
  * The rig is authored in a frame where he bats left-handed; `GameScene` mirrors
  * the stage to make him right-handed, and this does the same (`world`), so what
@@ -13,21 +15,48 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
-import { GAME, LINE_X } from './config/gameplay';
+import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { ADVANCE, GAME, LINE_X } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 
-/** The ball the game plays a cover drive at: on off stump, full, met at knee-roll height. */
-const BALL = { x: LINE_X.OFF, y: .54, z: GAME.contactZ };
 /** Ball time before the swing starts, so the delivery can be seen arriving. */
 const LEAD_MS = 260;
-const END_MS = STROKE_DURATION_MS;
-/** The stroke's own clock, as `STROKES.COVER_LONG_OFF` and `COVER_PLANT` key it. */
-const PHASES = [
-  ['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Home', 600],
-] as const;
-/** Incoming pace and the shot's pace and line off the bat (from straight, towards the off side). */
-const IN_SPEED = .030, OUT_SPEED = .024, OUT_ANGLE = THREE.MathUtils.degToRad(58), BOUNCE_Z = 3.5;
+/**
+ * The two strokes off the cover input, each at the ball the game plays it at,
+ * on its own clock, and with where the ball goes off the bat.
+ */
+interface Stroke {
+  label: string; charging: boolean;
+  /** Where the ball is met, in the rig's frame. */
+  ball: { x: number; y: number; z: number };
+  contact: number; end: number; bounceZ: number;
+  phases: readonly (readonly [string, number])[];
+  /** Off the bat: speed along the ground, its line from straight, and how fast it climbs. */
+  out: { speed: number; angle: number; climb: number };
+  facts: [string, string]; note: string;
+}
+const STROKES: Record<string, Stroke> = {
+  cover: {
+    label: 'Cover drive', charging: false, ball: { x: LINE_X.OFF, y: .54, z: GAME.contactZ },
+    contact: STROKE_CONTACT_MS, end: STROKE_DURATION_MS, bounceZ: 3.5,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Plant', 55], ['Contact', STROKE_CONTACT_MS], ['Through', 220], ['Carry', 310], ['Finish', 410], ['Home', 600]],
+    out: { speed: .024, angle: THREE.MathUtils.degToRad(58), climb: 0 },
+    facts: ['full, off stump', `${STROKE_DURATION_MS} ms`],
+    note: 'The cover drive as the game plays it now, rebuilt from a side-on slow-motion recording of the shot: the front foot is down at 55 ms with the bat still coming, the ball is met at 110, the hands go out towards cover at 220 and up to the chin at 310 with the blade still hanging under them, and the checked finish at 410 is held until 600. Then the bat goes home back along its own swing, down through the carry and under him, and up into his stance.',
+  },
+  charge: {
+    label: 'Charge over cover', charging: true, ball: { x: 0, y: .54, z: GAME.contactZ + CHARGE_MEETS_AT },
+    contact: CHARGE_CONTACT_MS, end: STROKE_DURATION_MS + ADVANCE.walkBackMs, bounceZ: 4.6,
+    phases: [['Stance', -LEAD_MS], ['Backlift', -60], ['Skip', CHARGE_CLOCK.skip], ['Plant', CHARGE_CLOCK.plant], ['Contact', CHARGE_CONTACT_MS],
+      ['Extension', CHARGE_CLOCK.through], ['Carry', CHARGE_CLOCK.carry], ['High finish', 580], ['Down', 760], ['Walking back', 1000]],
+    out: { speed: .028, angle: THREE.MathUtils.degToRad(40), climb: .013 },
+    facts: ['length, on the stumps', `${STROKE_DURATION_MS + ADVANCE.walkBackMs} ms`],
+    note: 'The charge over cover, exactly as the game plays it today (this branch leaves it untouched): the back foot skips up to the front one, the front foot strides out down the pitch with the bat up to the sky, and the ball is met at 300 ms on the full, three quarters of a metre out of his ground. The face is opened to cover with the body still closed, the arms extend out towards extra cover, and the finish is held with the hands together above the helmet before he walks back to his crease. In the game it is played off the cover swipe with the meter full, and its clock runs at two thirds speed.',
+  },
+};
+let stroke = STROKES.cover;
+/** Incoming pace, metres a millisecond. */
+const IN_SPEED = .030;
 const RADIUS = .036;
 
 // Camera eyes and targets in the rig's frame (off side +x), relative to the stance.
@@ -75,24 +104,27 @@ const ball = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 24, 16), new THREE.
 ball.castShadow = true; world.add(ball);
 // Where the ball is met: fixed, so the blade can be checked against it.
 const marker = new THREE.Mesh(new THREE.RingGeometry(.05, .062, 32), new THREE.MeshBasicMaterial({ color: 0xff6b5e, side: THREE.DoubleSide, transparent: true, opacity: .9 }));
-marker.position.set(BALL.x, BALL.y, BALL.z); world.add(marker);
+world.add(marker);
 
 /** Where the ball is at time `t` on the stroke's clock, in the rig's frame. */
 function ballAt(t: number): [number, number, number] {
-  const dt = t - STROKE_CONTACT_MS;
+  const { ball: at, contact, bounceZ, out } = stroke, dt = t - contact;
   if (dt <= 0) {
-    const z = BALL.z - dt * IN_SPEED;
-    if (z <= BOUNCE_Z) {
-      const k = (z - BALL.z) / (BOUNCE_Z - BALL.z);
-      return [BALL.x, RADIUS + (BALL.y - RADIUS) * (1 - k) + .18 * k * (1 - k), z];
+    const z = at.z - dt * IN_SPEED;
+    if (z <= bounceZ) {
+      const k = (z - at.z) / (bounceZ - at.z);
+      return [at.x, RADIUS + (at.y - RADIUS) * (1 - k) + .18 * k * (1 - k), z];
     }
-    const k = Math.min(1, (z - BOUNCE_Z) / 9);
-    return [BALL.x, RADIUS + 2.0 * k - .55 * k * k, z];
+    const k = Math.min(1, (z - bounceZ) / 9);
+    return [at.x, RADIUS + 2.0 * k - .55 * k * k, z];
   }
-  // Off the bat: down into the ground quickly, then along it through the covers.
-  const s = dt * OUT_SPEED, fall = Math.min(1, dt / 90);
-  const y = THREE.MathUtils.lerp(BALL.y, RADIUS, fall * fall) + .06 * Math.sin(Math.min(1, dt / 90) * Math.PI);
-  return [BALL.x + Math.sin(OUT_ANGLE) * s, y, BALL.z + Math.cos(OUT_ANGLE) * s];
+  const s = dt * out.speed;
+  // In the air: up off the bat and over the field, falling as it goes.
+  if (out.climb) return [at.x + Math.sin(out.angle) * s, at.y + out.climb * dt - 9.8e-6 * dt * dt, at.z + Math.cos(out.angle) * s];
+  // Along the ground: down into it quickly, then through the covers.
+  const fall = Math.min(1, dt / 90);
+  const y = THREE.MathUtils.lerp(at.y, RADIUS, fall * fall) + .06 * Math.sin(fall * Math.PI);
+  return [at.x + Math.sin(out.angle) * s, y, at.z + Math.cos(out.angle) * s];
 }
 
 const camera = new THREE.PerspectiveCamera(36, 1, .05, 80);
@@ -101,8 +133,11 @@ controls.enableDamping = true; controls.maxPolarAngle = Math.PI * .49;
 const mirror = (p: readonly number[]) => new THREE.Vector3(-(GAME.stanceX + p[0]), p[1], GAME.stanceZ + p[2]);
 function placeCamera(view: string) {
   const v = VIEWS[view];
-  camera.position.copy(mirror(v.eye)); controls.target.copy(mirror(v.at)); controls.update();
+  camera.position.copy(mirror(v.eye)); controls.target.copy(mirror(v.at)); followed = 0; controls.update();
 }
+/** How far down the pitch he is: the charge takes him a metre out and walks him back. */
+const downPitch = () => batter.root.position.z - GAME.stanceZ;
+let followed = 0;
 
 /**
  * Puts the batter and the ball at time `t`. Before the swing he rises out of
@@ -119,14 +154,15 @@ function pose(t: number) {
     batter.update(t);
   }
   ball.position.fromArray(ballAt(t));
-  marker.visible = t <= STROKE_CONTACT_MS + 140;
+  marker.position.set(stroke.ball.x, stroke.ball.y, stroke.ball.z);
+  marker.visible = t <= stroke.contact + 140;
   batter.drape();
 }
 
 let swinging = false;
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing('COVER_LONG_OFF', 0, BALL.x, BALL.y, BALL.z);
+  batter.swing('COVER_LONG_OFF', 0, stroke.ball.x, stroke.ball.y, stroke.ball.z, stroke.charging);
   swinging = true;
 }
 
@@ -136,12 +172,11 @@ const playButton = document.querySelector<HTMLButtonElement>('#play')!;
 const readout = document.querySelector<HTMLOutputElement>('#time')!;
 const phaseLabel = document.querySelector<HTMLOutputElement>('#phase')!;
 const strip_ = document.querySelector<HTMLDivElement>('#frames')!;
-scrub.min = String(-LEAD_MS); scrub.max = String(END_MS);
 
 let playing = true, t = -LEAD_MS, speed = .5, previous = performance.now(), view = 'side';
-const phaseAt = (time: number) => [...PHASES].reverse().find(([, at]) => time >= at)?.[0] ?? 'Stance';
+const phaseAt = (time: number) => [...stroke.phases].reverse().find(([, at]) => time >= at)?.[0] ?? 'Stance';
 function setPlaying(on: boolean) { playing = on; playButton.textContent = on ? 'Pause' : 'Play'; playButton.setAttribute('aria-pressed', String(on)); }
-function seek(time: number) { setPlaying(false); t = Math.max(-LEAD_MS, Math.min(END_MS, time)); }
+function seek(time: number) { setPlaying(false); t = Math.max(-LEAD_MS, Math.min(stroke.end, time)); }
 
 playButton.onclick = () => setPlaying(!playing);
 scrub.oninput = () => seek(Number(scrub.value));
@@ -152,6 +187,12 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-speed]')) {
     speed = Number(b.dataset.speed);
     for (const o of document.querySelectorAll('[data-speed]')) o.setAttribute('aria-pressed', String(o === b));
     setPlaying(true);
+  };
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>('[data-stroke]')) {
+  b.onclick = () => {
+    for (const o of document.querySelectorAll('[data-stroke]')) o.setAttribute('aria-pressed', String(o === b));
+    choose(b.dataset.stroke!);
   };
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
@@ -177,10 +218,13 @@ addEventListener('resize', resize);
 /** The key poses, each photographed side-on into the strip, and each a way to jump there. */
 function contactSheet() {
   const W = 240, H = 300, shotCam = new THREE.PerspectiveCamera(30, W / H, .05, 60);
-  shotCam.position.copy(mirror([4.6, 1.25, .45])); shotCam.lookAt(mirror([.12, .95, .3]));
   renderer.setPixelRatio(1); renderer.setSize(W, H, false);
-  for (const [label, at] of PHASES) {
-    pose(at); renderer.render(scene, shotCam);
+  strip_.replaceChildren();
+  for (const [label, at] of stroke.phases) {
+    pose(at);
+    const along = new THREE.Vector3(0, 0, downPitch());
+    shotCam.position.copy(mirror([4.6, 1.25, .45])).add(along); shotCam.lookAt(mirror([.12, .95, .3]).add(along));
+    renderer.render(scene, shotCam);
     const button = document.createElement('button');
     button.className = 'frame'; button.dataset.at = String(at);
     const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
@@ -192,13 +236,17 @@ function contactSheet() {
     strip_.append(button);
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  resize();
 }
 
 function frame(now: number) {
   const step = Math.min(now - previous, 50); previous = now;
-  if (playing) { t += step * speed; if (t > END_MS + 300) t = -LEAD_MS; }
-  const shown = Math.min(t, END_MS);
+  if (playing) { t += step * speed; if (t > stroke.end + 300) t = -LEAD_MS; }
+  const shown = Math.min(t, stroke.end);
   pose(shown);
+  // Down the pitch with him, eye and target together, which keeps the view chosen.
+  const follow = downPitch() * .8;
+  camera.position.z += follow - followed; controls.target.z += follow - followed; followed = follow;
   scrub.value = String(Math.round(shown));
   readout.textContent = `${Math.round(shown)} ms`;
   const phase = phaseAt(shown);
@@ -209,9 +257,21 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-start();
-contactSheet();
-start();
-placeCamera(view); resize();
-if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setPlaying(false); t = STROKE_CONTACT_MS; }
+const title = document.querySelector<HTMLHeadingElement>('h1')!;
+const facts = document.querySelectorAll<HTMLElement>('[data-fact]');
+const note = document.querySelector<HTMLSpanElement>('#note-text')!;
+/** Puts `key`'s stroke up: its clock on the scrubber, its key poses in the strip, its words. */
+function choose(key: string) {
+  stroke = STROKES[key];
+  const [first, ...rest] = stroke.label.split(' ');
+  title.innerHTML = `${first} <span>${rest.join(' ')}</span>`;
+  facts.forEach((fact, i) => { fact.textContent = stroke.facts[i]; });
+  note.textContent = stroke.note;
+  scrub.min = String(-LEAD_MS); scrub.max = String(stroke.end);
+  swinging = false; contactSheet(); start();
+  t = -LEAD_MS; placeCamera(view); setPlaying(true);
+}
+
+choose('cover');
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setPlaying(false); t = stroke.contact; }
 requestAnimationFrame(frame);
