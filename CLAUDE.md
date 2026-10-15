@@ -468,6 +468,22 @@ the switches do nothing. A new switch goes into `PRACTICE_SWITCHES` or into
 the named exceptions in `tests/practice.test.ts`, which fails on any
 parameter the game reads that is in neither.
 
+## Two versions of the cover strokes
+
+The strokes off the cover swipe come in two versions (`CoverVersion` in
+`src/entities/Batter.ts`), and the game picks one at each cover swipe, half
+and half: version one is the cover drive and charge over cover as they always
+were (`COVER_DRIVE_V1`), version two the cover drive rebuilt from a side-on
+slow-motion recording (`STROKES.COVER_LONG_OFF`, the front foot planted first
+and a long lunge, `COVER_PLANT`, home back along the swing, `COVER_HOME`) and
+the charge over cover carrying its bat into the finish without turning it in
+his hands (`riding`). It is how he plays the stroke, never how well, so it is
+drawn from the browser's dice and not the innings' seed, which would move
+every ball after it; the square drive is the same in both. `?coverv=1` or
+`?coverv=2` asks for one, and is not practice. `cover-drive.html` is both
+strokes in both versions on their own, built into one page by
+`scripts/cover-drive-artifact.mjs`.
+
 ## A newcomer's first innings
 
 The first three finished innings in each mode are batted a little easier

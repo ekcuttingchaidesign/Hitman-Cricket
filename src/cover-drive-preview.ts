@@ -15,7 +15,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Batter, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
+import { Batter, type CoverVersion, CHARGE_CLOCK, CHARGE_CONTACT_MS, CHARGE_MEETS_AT, STROKE_CONTACT_MS, STROKE_DURATION_MS } from './entities/Batter';
 import { ADVANCE, GAME, LINE_X } from './config/gameplay';
 import { buildWicket } from './scene/wicket';
 
@@ -55,6 +55,8 @@ const STROKES: Record<string, Stroke> = {
   },
 };
 let stroke = STROKES.cover;
+/** Which version of the stroke: the game's own (1), or the rebuilt one (2). The game plays each half the time. */
+let version: CoverVersion = 2;
 /** Incoming pace, metres a millisecond. */
 const IN_SPEED = .030;
 const RADIUS = .036;
@@ -162,7 +164,7 @@ function pose(t: number) {
 let swinging = false;
 function start() {
   batter.reset(); batter.prepare(1); batter.update(0);
-  batter.swing('COVER_LONG_OFF', 0, stroke.ball.x, stroke.ball.y, stroke.ball.z, stroke.charging);
+  batter.swing('COVER_LONG_OFF', 0, stroke.ball.x, stroke.ball.y, stroke.ball.z, stroke.charging, false, false, false, version);
   swinging = true;
 }
 
@@ -193,6 +195,13 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-stroke]')) {
   b.onclick = () => {
     for (const o of document.querySelectorAll('[data-stroke]')) o.setAttribute('aria-pressed', String(o === b));
     choose(b.dataset.stroke!);
+  };
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>('[data-version]')) {
+  b.onclick = () => {
+    for (const o of document.querySelectorAll('[data-version]')) o.setAttribute('aria-pressed', String(o === b));
+    version = Number(b.dataset.version) as CoverVersion;
+    choose(Object.keys(STROKES).find(key => STROKES[key] === stroke)!);
   };
 }
 for (const b of document.querySelectorAll<HTMLButtonElement>('[data-view]')) {
@@ -257,6 +266,11 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
+/** What version one of each stroke is: the game's own, as it was. */
+const VERSION_ONE: Record<string, string> = {
+  cover: 'Version one, the cover drive the game has always played, kept beside the rebuilt one: a short step in, the ball met at 110 ms, the arms out through the line at 220 and the high finish at 410, with the bat pointing out square, held to 570, and home to his guard over the top.',
+  charge: 'Version one, the charge over cover the game has always played: the same run down the pitch, ball and finish as version two, with the bat turning in his hands on the way up into the finish and on the way home.',
+};
 const title = document.querySelector<HTMLHeadingElement>('h1')!;
 const facts = document.querySelectorAll<HTMLElement>('[data-fact]');
 const note = document.querySelector<HTMLSpanElement>('#note-text')!;
@@ -266,7 +280,7 @@ function choose(key: string) {
   const [first, ...rest] = stroke.label.split(' ');
   title.innerHTML = `${first} <span>${rest.join(' ')}</span>`;
   facts.forEach((fact, i) => { fact.textContent = stroke.facts[i]; });
-  note.textContent = stroke.note;
+  note.textContent = version === 2 ? stroke.note : VERSION_ONE[key];
   scrub.min = String(-LEAD_MS); scrub.max = String(stroke.end);
   swinging = false; contactSheet(); start();
   t = -LEAD_MS; placeCamera(view); setPlaying(true);

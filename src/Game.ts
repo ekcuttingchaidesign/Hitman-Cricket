@@ -35,7 +35,7 @@ import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerSty
 import { HUD } from './ui/HUD';
 import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
 import { afterBall, disappointment, HABITS, outNearMilestone, PACES } from './game/afterBall';
-import type { AfterBall, Hurt } from './entities/Batter';
+import type { AfterBall, CoverVersion, Hurt } from './entities/Batter';
 import {
   claimName, fetchBoard, fetchMarathonBoard, fetchStanding, fetchSurviveBoard, forgetBoard, submitInnings, submitMarathon,
   submitSurvive,
@@ -484,6 +484,17 @@ export class Game {
   private readonly netsKeys = new URLSearchParams(location.search).get('nets') === '1';
   /** `?cover=1`: every ball the cover drive's, a stock ball pitched up on off stump. */
   private readonly coverDrill = new URLSearchParams(location.search).get('cover') === '1';
+  /** `?coverv=1` or `?coverv=2`: always that version of the cover strokes, for looking at one. */
+  private readonly coverAsked = Number(new URLSearchParams(location.search).get('coverv'));
+  /**
+   * Which version of the strokes off the cover input this swing plays, half
+   * and half (`CoverVersion`). From the browser's own dice, not the innings'
+   * seed: how he plays the stroke changes nothing about the ball or the score,
+   * and drawing it from the seed would move every ball bowled after it.
+   */
+  private coverVersion(): CoverVersion {
+    return this.coverAsked === 1 || this.coverAsked === 2 ? this.coverAsked : Math.random() < .5 ? 1 : 2;
+  }
   private nets: { bowler: NetsBowler; round: boolean } = { bowler: 'PACE', round: true };
   /** Hand the nets' choice to the bowling and show it on the keys. */
   private applyNets() {
@@ -2080,7 +2091,7 @@ export class Game {
     const levelled = !charging && !sweeping
       && sweeps(this.delivery!, this.attempt, gradeOf(this.delivery!, this.attempt, this.windows));
     this.primed = null;
-    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled);
+    this.scene.swing(shotType, this.elapsed, this.delivery!, charging, lofted, sweeping, levelled, this.coverVersion());
     this.hud.select(shotType, charging);
     // The charge is judged now rather than when the ball arrives, because the
     // ball is not going to arrive: he is going down the pitch to meet it, and

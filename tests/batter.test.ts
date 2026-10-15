@@ -191,6 +191,23 @@ describe('bat travel', () => {
       }
     }
   });
+  it('keeps the cover drive as it always was for version one, beside the rebuilt one', () => {
+    const played = (version: 1 | 2) => {
+      const batter = new Batter(); batter.prepare(1); batter.update(0);
+      batter.swing('COVER_LONG_OFF', 0, .10, .54, GAME.contactZ, false, false, false, false, version);
+      batter.update(STROKE_CONTACT_MS); const contact = batter.inspect();
+      batter.update(410); return { contact, finish: batter.inspect() };
+    };
+    const one = played(1), two = played(2);
+    // Version one: the short step and the finish pointing square of the wicket.
+    expect(one.contact.frontFoot[2] - one.contact.backFoot[2]).toBeLessThan(.9);
+    expect(one.finish.batUp[0]).toBeLessThan(-.8);
+    // Version two: the long lunge and the finish out to cover and down.
+    expect(two.contact.frontFoot[2] - two.contact.backFoot[2]).toBeGreaterThan(.95);
+    expect(two.finish.batUp[0]).toBeGreaterThan(-.8);
+    // The same ball met in the same place either way.
+    one.contact.bladeContact.forEach((v: number, i: number) => expect(v).toBeCloseTo(two.contact.bladeContact[i], 6));
+  });
   it('plants the cover drive\'s front foot before the bat comes down, and lunges long', () => {
     const batter = new Batter(); batter.prepare(1); batter.update(0);
     play(batter, 'cover', .10);
