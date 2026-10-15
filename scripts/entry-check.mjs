@@ -154,9 +154,11 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   await context.close();
 }
 
-// — The name screen, before a new player's first innings.
+// — The name screen, before a new player's first innings. A visit remembered
+// from an earlier day, so the headless browser is not taken for a private
+// window: one of those keeps nothing, so it is asked for no password.
 {
-  const { context, page, errors } = await open(NEW);
+  const { context, page, errors } = await open({ 'hitman-seen': BACK['hitman-seen'] });
   await toModes(page);
   await page.locator('#mode-classic').click();
   for (let i = 0; i < 20 && !(await page.locator('.welcome').isVisible()); i++) await page.waitForTimeout(250);

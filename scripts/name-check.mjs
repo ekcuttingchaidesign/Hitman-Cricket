@@ -67,6 +67,9 @@ async function toPicker({ query = '', player = null, seed = {} } = {}) {
       localStorage.setItem('hitman-seen', day);
       // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
       localStorage.setItem('hitman-shots-intro', 'done');
+      // Past the update's stories: 3D renders, seconds apiece in software, which
+      // hold a tap on SKIP behind them. `whatsnew-check.mjs` is the one that reads them.
+      localStorage.setItem('hitman-whatsnew', 'dressing-room:2');
       if (held && !localStorage.getItem('hitman-batter')) localStorage.setItem('hitman-batter', JSON.stringify(held));
       // Seeded once, on the first load: a reload keeps whatever the page wrote since.
       if (!localStorage.getItem('hitman-seeded')) {
