@@ -460,7 +460,8 @@ the place the board shows. Nothing is written. Production never sees them.
 An innings played from a link carrying a switch that changes the game —
 `?nets=1`, `?settled=1`, `?swing=1`, `?express=1`, `?reverse=1`, `?round=1`,
 `?wear=fast`, `?spin=1`, `?charge=…`, `?slowmo=…`, `?bouncers=1`, `?hooks=1`
-(every ball a bouncer on off stump or wider, the hook's ball), `?cover=1`
+(every ball a bouncer on off stump or wider, the hook's ball), `?spincut=1`
+(every ball the cut off the spinner's), `?cover=1`
 (every ball the cover drive's own: a stock ball pitched up on off stump),
 `?coverv=1`, `2` or `3` (always that version of the cover strokes), or the
 preview builds' `VITE_SPIN_ONLY` and `VITE_CHARGE_ONLY` — is practice
@@ -627,7 +628,10 @@ way back over the top of his head went through the helmet.
 Which lines suit it is `SPIN_CUT.fit` in `gameplay.ts`, read through `fitOf`
 in both resolvers in place of the cut's own column, which wants width: off and
 middle as well as outside off, leg less, outside leg least. `?spin=1` gives
-the spinner every over. It is `spinCut` in the batter tests' `PLAYS`, and
+the spinner every over; `?spincut=1` (`spinCutsEvery`) gives him every ball
+in any mode, no arm ball, each one this stroke's — the off break pitched
+outside off turning in, or the leg break on leg turning away — and is
+practice. It is `spinCut` in the batter tests' `PLAYS`, and
 `cover-drive.html` has it beside the drives and the hook.
 
 ## A newcomer's first innings

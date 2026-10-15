@@ -3,7 +3,7 @@ import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN,
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
-import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SURVIVE_PLAN, bouncersEvery } from '../src/game/DeliveryGenerator';
+import { CLASSIC_PLAN, DeliveryGenerator, MARATHON_PLAN, SURVIVE_PLAN, bouncersEvery, spinCutsEvery } from '../src/game/DeliveryGenerator';
 import { ballPosition, effectiveLine, flightDrag, flightProgress, stumpIntersection } from '../src/game/DeliveryTrajectory';
 import { COVER_ODDS, coverRoll, coverVersionOf } from '../src/entities/Batter';
 import { resolveSurvive } from '../src/game/Survive';
@@ -988,6 +988,18 @@ describe('the cut off the spinner', () => {
     expect(edged.isWicket).toBe(true); expect(edged.edged).toBe(true);
     const missed = cutAt(spinner('OFF_SPIN', .42, .03), 400);
     expect(missed.isWicket).toBe(true); expect(missed.wicketType).toBe('BOWLED');
+  });
+  it('is every ball on `?spincut=1`, in every mode: the off break outside off and the leg break on leg', () => {
+    for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {
+      const generator = new DeliveryGenerator(new SeededRandom(7), spinCutsEvery(plan));
+      const dealt = Array.from({ length: 24 }, () => generator.next(0));
+      expect(dealt.every(ball => ball.style === 'OFF_SPIN' || ball.style === 'LEG_SPIN')).toBe(true);
+      expect(dealt.filter(ball => ball.style === 'OFF_SPIN').every(ball => ball.line === 'OUTSIDE_OFF')).toBe(true);
+      expect(dealt.filter(ball => ball.style === 'LEG_SPIN').every(ball => ball.line === 'LEG')).toBe(true);
+      // Both come, and every one is played as the cut off the spinner.
+      expect(new Set(dealt.map(ball => ball.style))).toEqual(new Set(['OFF_SPIN', 'LEG_SPIN']));
+      expect(dealt.every(ball => spinCut(ball, { shotType: 'SQUARE_CUT' }))).toBe(true);
+    }
   });
 });
 

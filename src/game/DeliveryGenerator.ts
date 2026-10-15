@@ -107,6 +107,12 @@ export interface SpinSpell {
   /** How many of the six go straight on, and the chance of one more. */
   armBallsPerOver: number;
   secondArmBallChance: number;
+  /**
+   * Every turning ball pitched where the cut off the spinner answers it: the
+   * off break outside off, turning in, and the leg break on leg, turning
+   * away. `?spincut=1`'s; see `spinCutsEvery`.
+   */
+  cuts?: boolean;
 }
 
 /** The two that turn. The arm ball is his too, and does neither. */
@@ -264,6 +270,19 @@ export function bouncersEvery(plan: BowlingPlan, hookable = false): BowlingPlan 
   return hookable
     ? { ...every, aimed: true, styles: { ...plan.styles, SHORT: { ...plan.styles.SHORT, aimBody: 0, aimWide: 1 } } }
     : every;
+}
+
+/**
+ * Every ball the cut off the spinner's, for `?spincut=1`: the spinner every
+ * over from the first, no arm ball, and every ball pitched where he makes room
+ * to cut it — an off break outside off turning in at him, or a leg break on
+ * leg turning away. The Marathon's blocks and short balls go with the rest.
+ */
+export function spinCutsEvery(plan: BowlingPlan): BowlingPlan {
+  const spin = plan.spin;
+  if (!spin) return plan;
+  return { ...plan, blocks: undefined, short: undefined,
+    spin: { ...spin, overs: spin.ofOvers, notBefore: 0, armBallsPerOver: 0, secondArmBallChance: 0, cuts: true } };
 }
 
 /**
@@ -594,7 +613,7 @@ export class DeliveryGenerator {
     const swingFrom = this.levelAt(this.over)?.swingShare !== undefined && !this.expressOn
       ? SWING_LINES[style] ?? REVERSE.lines[style] : undefined;
     const line = this.drilled ? this.drilled.line
-      : turning ? this.pick(turnable(sign, spell!))
+      : turning ? spell!.cuts ? sign < 0 ? 'OUTSIDE_OFF' : 'LEG' : this.pick(turnable(sign, spell!))
       : swingFrom ? this.pick([...swingFrom])
       : (this.aim(style) ?? this.bag.pop()!);
     if (QUICK_STYLES.includes(style)) this.quick++;

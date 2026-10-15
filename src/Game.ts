@@ -14,7 +14,7 @@ import { Health } from './game/Health';
 import { TAILENDER, endingOf, resolveSurvive, resultOf, sledgeDue, teamScore } from './game/Survive';
 import { EASE, easeFor, easedSkill, easedWindows, notePlayed, playedIn, seedPlayed } from './game/newcomer';
 import { CLASSIC_LIMITS, type InningsLimits } from './game/ScoreManager';
-import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
+import { CLASSIC_PLAN, MARATHON_PLAN, NETS_BOWLERS, SURVIVE_PLAN, bouncersEvery, spinCutsEvery, marathonFastWear, marathonOnly, roundEvery, spun, withoutYorkers, type NetsBowler } from './game/DeliveryGenerator';
 import { Sledger } from './game/Sledge';
 import { GameAudio, outcomeSound } from './game/Audio';
 import { DeliveryGenerator } from './game/DeliveryGenerator';
@@ -1920,6 +1920,11 @@ export class Game {
    */
   private hooksOnly = new URLSearchParams(location.search).get('hooks') === '1';
   /**
+   * `?spincut=1`: every ball the spinner's, pitched where the cut off the
+   * spinner answers it, for trying that stroke every ball. See `spinCutsEvery`.
+   */
+  private spinCutsOnly = new URLSearchParams(location.search).get('spincut') === '1';
+  /**
    * `?swing=1` and `?express=1`, in a Marathon: the Level 2 swing bowler, the
    * Level 3 express bowler, or the two of them, from the first over — so each
    * can be tried without batting ten or twenty overs to reach him. See
@@ -1963,6 +1968,7 @@ export class Game {
     if (this.marathoning && this.wearFast) return marathonFastWear();
     const plan = this.surviving ? SURVIVE_PLAN : this.marathoning ? MARATHON_PLAN : CLASSIC_PLAN;
     if (this.bouncersOnly || this.hooksOnly) return bouncersEvery(plan, this.hooksOnly);
+    if (this.spinCutsOnly) return spinCutsEvery(plan);
     if (!this.spinOnly || !plan.spin) return plan;
     // Every over his, from the first: `spinOvers` always gives him `notBefore`
     // and draws the rest from what follows, so asking for all of them from
