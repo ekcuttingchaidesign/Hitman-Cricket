@@ -2,11 +2,12 @@
  * The hook, in a real browser: a bouncer on off stump or wider, hooked off
  * the down-and-to-leg diagonal, meter or none. Every ball a bouncer
  * (`?bouncers=1`), played on a clock wound by hand as pull-check winds it;
- * the ones on the stumps or down the leg side are ducked, and the first two
+ * the ones on the stumps or down the leg side are ducked, and the first three
  * he can hook are hooked — one on time, which goes over fine leg for six with
- * the pull's flash, and one late, which takes the glove through to the keeper.
- * Then one hooked off a real swipe of the thumb, to show the swipe is read as
- * the hook at that ball and not as the block or the scoop.
+ * the pull's flash; one off a real swipe of the thumb, to show the swipe is
+ * read as the hook at that ball and not as the block or the scoop; and last
+ * one late, which takes the glove through to the keeper, and in Survival is
+ * the end of the innings.
  *
  *   VITE_SHOW_SURVIVE=1 npx vite --port 5201 &
  *   CHROMIUM_PATH=/opt/pw-browsers/chromium node scripts/hook-check.mjs
@@ -40,7 +41,9 @@ async function open(options) {
     try {
       localStorage.setItem('hitman-shots-intro', 'done');
       localStorage.setItem('hitman-seen', day);
-      localStorage.setItem('hitman-whatsnew', 'dressing-room:9');
+      // Past the update's stories, and past the launch week's once a day: the day is the page's own.
+      localStorage.setItem('hitman-whatsnew', 'new-shots:9');
+      localStorage.setItem('hitman-whatsnew-day', (d => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)(new Date()));
     } catch { /* Then the notices stand. */ }
   });
   const errors = [];
@@ -141,7 +144,8 @@ for (const [mode, late] of [['classic', 170], ['survive', 120]]) {
       await advance(1800);
       continue;
     }
-    const which = ['on time', 'late', 'swiped'][plays.length];
+    // The late one last: gloved, it is caught, and one wicket ends a Survival innings.
+    const which = ['on time', 'swiped', 'late'][plays.length];
     await advance(seen.contactAt - seen.elapsed + (which === 'late' ? late : 0));
     if (which === 'swiped') await swipe(page); else await press(page, 'a', 's');
     if (which === 'on time') {
@@ -154,7 +158,7 @@ for (const [mode, late] of [['classic', 170], ['survive', 120]]) {
     console.log(`        ${which} at ${seen.effectiveLine}: ${played.shot} ${played.timingDelta}ms ${played.timingGrade} → ${played.outcome}`);
     await advance(1800);
   }
-  const [onTime, gloved, swiped] = plays;
+  const [onTime, gloved, swiped] = ['on time', 'late', 'swiped'].map(which => plays.find(play => play.which === which));
   check(plays.length === 3, 'three bouncers he can hook come', plays.length);
   check(ducked > 0, 'and the rest are ducked', ducked);
   if (onTime) {

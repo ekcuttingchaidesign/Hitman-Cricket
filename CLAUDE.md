@@ -185,6 +185,21 @@ Reach the screen the way a player does. The checks that open the board from the
 cover missed two bugs on the end card, because nothing had ever finished an
 innings — which is how most players get to that card in the first place.
 
+A check has to pass on a GPU as well as in software. Most were written against
+software rendering, where the game runs in slow motion against the wall clock,
+and some leaned on it without saying so: two Blasts written a second apart
+were more than the store's ten seconds apart (`MIN_INNINGS_MS`), a flash put up
+in the moment before a ball outlived the next ball's reset, a doodle was still
+at its first frame when the grass under it was measured. On a machine with a
+GPU the game keeps real time and each of those failed, on production as on the
+branch. Wait on what the game says (`snapshot()`, its phase), not on how slow
+the machine is; and a box measured off a screenshot is in the page's pixels,
+so scale it by `devicePixelRatio`.
+
+A check that seeds `hitman-whatsnew` seeds the current update key
+(`new-shots`) and, through the launch week, `hitman-whatsnew-day` as the
+page's own day, or the stories stand in front of Choose a mode.
+
 `scripts/scene-check.mjs` is the ground itself: the sky and the painted turf
 are canvases and a shader no unit test runs, and it holds the draw-call budget
 a frame. Lower its `BUDGET` when a change brings the count down. It walks both

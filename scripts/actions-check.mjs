@@ -89,12 +89,15 @@ for (const [n, kind] of ['admire', 'lean', 'watch', 'twirl', 'brush', 'shadow', 
   if (n > 0) await page.locator(`.action-key[data-kind="${kind}"]`).click();
   let furthest = 0, held = true, pictured = false;
   const started = Date.now();
-  // Most of each, then on to the next before it is quite over.
-  while (Date.now() - started < 2300) {
+  // Most of each, then on to the next before it is quite over. On a GPU the
+  // quickest are home within a second and let the bowler go at two, so the
+  // next is asked for well inside that; in software it is a second and a half
+  // of a slower clock, which is less of each but never none.
+  while (Date.now() - started < 1500) {
     await page.waitForTimeout(120);
     furthest = Math.max(furthest, away(await pose(), guard));
     if (await phase() !== 'READY') held = false;
-    if (!pictured && Date.now() - started > 1300) { pictured = true; await page.screenshot({ path: `test-results/actions/${kind}.png` }); }
+    if (!pictured && Date.now() - started > 500) { pictured = true; await page.screenshot({ path: `test-results/actions/${kind}.png` }); }
   }
   check(furthest > .15, 'he leaves his guard', furthest.toFixed(3));
   check(held, 'and the bowler waits at his mark while he does');

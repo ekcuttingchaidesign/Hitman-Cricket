@@ -56,14 +56,20 @@ const browser = await chromium.launch({ executablePath });
  * pixels that could be grass. The fire the big moments send up the edges, and
  * the doodles' stars, are orange and red drawn over the picture; in a 9:16
  * column the fire reaches into the patch, and counted it kept the "grey" grass
- * at half its colour. So warm, strong pixels are left out — grass is green
- * before and grey after, and neither is ever that.
+ * at half its colour. So strong pixels of any colour but green are left out —
+ * grass is green before and grey after, and neither is ever warm, cyan or
+ * blue. The double's stripes and rays are pink, cyan and blue, and run through
+ * the patch on a GPU, where they are drawn by 650ms; in software they were
+ * still at their first frame.
  */
 async function saturation(page, png, box) {
   return page.evaluate(async ({ data, box }) => {
     const image = new Image(); image.src = data; await image.decode();
     const canvas = document.createElement('canvas'); canvas.width = box.w; canvas.height = box.h;
-    const ctx = canvas.getContext('2d'); ctx.drawImage(image, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+    // The box is in the page's pixels and the screenshot in the screen's: at a
+    // scale of 2 the box read unscaled was the stands, not the grass.
+    const k = devicePixelRatio, ctx = canvas.getContext('2d');
+    ctx.drawImage(image, box.x * k, box.y * k, box.w * k, box.h * k, 0, 0, box.w, box.h);
     const { data: px } = ctx.getImageData(0, 0, box.w, box.h);
     let total = 0, counted = 0;
     for (let i = 0; i < px.length; i += 4) {
@@ -72,7 +78,7 @@ async function saturation(page, png, box) {
       // Hue in degrees, for the warm test only.
       const hue = max === min ? 0 : max === r ? (60 * ((g - b) / (max - min)) + 360) % 360
         : max === g ? 60 * ((b - r) / (max - min)) + 120 : 60 * ((r - g) / (max - min)) + 240;
-      if (sat > .35 && (hue < 55 || hue > 320)) continue;
+      if (sat > .35 && (hue < 55 || hue > 175)) continue;
       total += sat; counted++;
     }
     return counted ? total / counted : 0;
