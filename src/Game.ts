@@ -31,7 +31,7 @@ import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } 
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
-import { AFTER_MS, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
+import { AFTER_MS, CUE, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
@@ -3071,6 +3071,8 @@ export class Game {
       marksPassed(this.playedMs).forEach(mark => trackOnce(mark, `Played ${mark.slice(7)}`));
     }
     if (this.phase !== 'PAUSED' && !document.hidden) {
+      // A stroke's film held on one frame for its swipe, on the page's clock.
+      if (this.reel && this.reel.hold > 0) this.reel.hold -= dt;
       this.elapsed += dt * this.timeScale;
       this.input.flush(this.elapsed);
       this.update();
@@ -3092,7 +3094,8 @@ export class Game {
    */
   private get timeScale() {
     // A stroke's film slows through the bat meeting the ball (`reelPace`).
-    if (this.reel) return reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
+    // Stopped dead while the swipe is drawn over it.
+    if (this.reel) return this.reel.hold > 0 ? 0 : reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -3378,6 +3381,8 @@ export class Game {
   private reel: {
     shot: ReelShot; start: number; times: ReelTimes; delivery: Delivery; beat: (beat: ReelBeat) => void;
     swung: boolean; struck: boolean; presentAt: number; cheered: boolean;
+    /** How much longer it holds on this frame for the swipe, page milliseconds; and whether it has this go. */
+    hold: number; cued: boolean;
   } | null = null;
   private reelCrowd = false;
   private playReel(shot: ReelShot | null, beat: (beat: ReelBeat) => void): boolean {
@@ -3403,7 +3408,7 @@ export class Game {
   private beginReel(shot: ReelShot, beat: (beat: ReelBeat) => void) {
     const times = reelTimes(shot), start = this.elapsed;
     this.scene.reset(); this.scene.spinner(false); this.scene.express(false); this.scene.round(false);
-    this.reel = { shot, start, times, delivery: reelDelivery(shot, start + times.release), beat, swung: false, struck: false, presentAt: Infinity, cheered: false };
+    this.reel = { shot, start, times, delivery: reelDelivery(shot, start + times.release), beat, swung: false, struck: false, presentAt: Infinity, cheered: false, hold: 0, cued: false };
     beat('again');
   }
   /** One frame of the film, as `update` plays a ball: run-up, flight, the stroke, the ball away. */
@@ -3415,10 +3420,11 @@ export class Game {
     if (!reel.struck) {
       const progress = flightProgress(delivery, this.elapsed - delivery.releaseTimeMs);
       this.scene.delivery(delivery, progress);
-      if (!reel.swung && t >= times.swing) {
+      // The frame before the bat comes down: held, the swipe drawn over it, then on from here.
+      if (!reel.cued && t >= times.swing) { reel.cued = true; reel.hold = CUE.ms; reel.beat('cue'); return; }
+      if (!reel.swung && reel.cued && reel.hold <= 0) {
         reel.swung = true;
         this.scene.swing(reelStroke(shot), this.elapsed, delivery, false, false, false, false, 2, reelMeets(shot));
-        reel.beat('swipe');
       }
       if (progress < reelMeets(shot)) return;
       const outcome = reelOutcome(shot, delivery), flight = this.scene.hit(outcome, reelStroke(shot), delivery, this.elapsed);

@@ -1,6 +1,6 @@
 import { escape } from './Leaderboard';
 import { SHOT_CALLS, STORIES, type Story } from '../game/whats-new';
-import type { ReelShot } from '../game/ShotReel';
+import { CUE, type ReelShot } from '../game/ShotReel';
 import { MARK, type KeyView } from './CareerKey';
 import { cta } from './Kit';
 
@@ -63,7 +63,7 @@ export function storiesMarkup(view: StoriesView): string {
   story.stage ? `
       <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
   story.reel ? `
-      <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
+      <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>${shotCueMarkup(story.reel)}` : ''}
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
@@ -136,20 +136,35 @@ export function storyKeyMarkup(view: KeyView | null): string {
 }
 
 /**
- * What a stroke's film puts over him (`SHOT_CALLS`): a thumb running the swipe
- * that plays it, or on a keyboard the key, put up as the bat starts down; and
- * what it went for, stamped as the ball is met, on the side it went. Both wait,
- * unseen, for the film to say when (`is-swiping`, `is-hit` on the room), so
- * they land on the stroke and not on a clock of their own.
+ * What a stroke's film stamps over him as the ball is met (`SHOT_CALLS`): what
+ * it went for, on the side it went. It waits, unseen, for the film to say when
+ * (`is-hit` on the sheet), so it lands on the stroke and not on a clock of its own.
  */
 export function shotCallMarkup(shot: ReelShot): string {
-  const { way, key, call } = SHOT_CALLS[shot];
+  const { way, call } = SHOT_CALLS[shot];
   return `
-          <span class="whatsnew-swipe" data-way="${way}">
-            <span class="whatsnew-track"><svg viewBox="0 0 100 80"><path d="M84 10 22 64"/></svg><i class="whatsnew-thumb"></i></span>
-            <b class="touch-only">SWIPE</b><b class="keyboard-only"><kbd>${escape(key)}</kbd></b>
-          </span>
           <span class="whatsnew-call" data-way="${way}" data-call="${call.toLowerCase()}">${escape(call)}</span>`;
+}
+
+/**
+ * The swipe that plays it, over the whole screen: the film holds on the frame
+ * before the bat comes down, a shade comes over it, a great arrow the way the
+ * thumb goes with a thumb running down it twice — or on a keyboard, the key —
+ * and then it fades and the film goes on from that frame (`CUE`, `is-cueing`
+ * on the sheet). The arrow is drawn down and to the leg side of a right-hander,
+ * turned round for the off side and for a left-hander, whose screen the game
+ * turns round.
+ */
+export function shotCueMarkup(shot: ReelShot): string {
+  const { way, key, where } = SHOT_CALLS[shot];
+  return `
+      <div class="whatsnew-cue" data-way="${way}" style="--cue:${CUE.ms}ms" aria-hidden="true">
+        <div class="whatsnew-cue-pad">
+          <span class="whatsnew-cue-track"><svg viewBox="0 0 200 160"><path class="whatsnew-cue-lane" d="M168 20 32 128"/><polygon class="whatsnew-cue-head" points="32,128 61.1,122.8 43.7,100.8"/></svg><i class="whatsnew-cue-thumb"></i></span>
+          <b class="whatsnew-cue-word"><span class="touch-only">SWIPE</span><span class="keyboard-only">PRESS <kbd>${escape(key)}</kbd></span></b>
+          <span class="whatsnew-cue-where">${escape(where)}</span>
+        </div>
+      </div>`;
 }
 
 /** What the key says, which is wherever pressing it actually lands. */

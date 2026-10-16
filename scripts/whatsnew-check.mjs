@@ -106,8 +106,8 @@ const filmed = () => page.evaluate(() => {
     hidden: [...document.getElementById('viewport').children].filter(node => node.tagName !== 'CANVAS' && node.id !== 'whatsnew-overlay')
       .every(node => getComputedStyle(node).visibility === 'hidden'),
     open: !!document.getElementById('whatsnew-open'), out: document.getElementById('whatsnew-done')?.textContent.trim(),
-    swipe: room?.querySelector('.whatsnew-swipe')?.dataset.way ?? null, call: room?.querySelector('.whatsnew-call')?.textContent ?? null,
-    beats: room ? ['is-swiping', 'is-hit'].filter(name => room.classList.contains(name)) : [] };
+    swipe: document.querySelector('.whatsnew-cue')?.dataset.way ?? null, call: room?.querySelector('.whatsnew-call')?.textContent ?? null,
+    beats: ['is-cueing', 'is-hit'].filter(name => document.querySelector('.whatsnew-sheet')?.classList.contains(name)) };
 });
 const first = await title();
 check(first === 'HOOK IT FOR SIX', 'it opens on the hook', first);
@@ -128,7 +128,7 @@ const holds = async from => {
 };
 let held = await holds(first);
 check(held >= 5000, 'the hook holding for its film', `${held}ms`);
-check(beats.has('is-swiping') && beats.has('is-hit'), 'the swipe drawn as he plays it and the six as he hits it, put up by the film', [...beats].join(','));
+check(beats.has('is-cueing') && beats.has('is-hit'), 'the film held for the swipe drawn over it, then the six as he hits it', [...beats].join(','));
 const cut = await title();
 check(cut === 'SHOW IT THE WAY', 'and moving on by itself to the late cut', cut);
 film = await filmed();

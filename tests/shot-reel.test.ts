@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  AFTER_MS, SLOW, reelCamera, reelContactAfterRelease, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace,
+  AFTER_MS, CUE, SLOW, reelCamera, reelContactAfterRelease, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace,
   reelSeconds, reelStroke, reelTimes, type ReelShot,
 } from '../src/game/ShotReel';
 import { flightProgress } from '../src/game/DeliveryTrajectory';
@@ -57,11 +57,11 @@ describe('the new strokes\' film', () => {
     }
   });
 
-  it('runs a go of a few seconds, the ball well away before the next', () => {
+  it('runs a go of a few seconds, held for the swipe, the ball well away before the next', () => {
     for (const shot of SHOTS) {
       expect(reelLength(shot)).toBe(reelTimes(shot).contact + AFTER_MS);
-      expect(reelSeconds(shot)).toBeGreaterThan(reelLength(shot));
-      expect(reelSeconds(shot)).toBeLessThan(8000);
+      expect(reelSeconds(shot)).toBeGreaterThan(reelLength(shot) + CUE.ms);
+      expect(reelSeconds(shot)).toBeLessThan(11000);
     }
   });
 

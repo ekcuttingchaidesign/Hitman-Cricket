@@ -1250,19 +1250,20 @@ ${modeSelectMarkup()}
     // A stroke's film is the game's own ground: everything else on it is put
     // out of sight while it plays, the card standing over the bare ground.
     const filmed = !!story?.reel && !!this.onStoryReel?.(story.reel, beat => {
-      const room = document.getElementById('whatsnew-room');
-      if (!room) return;
+      const sheet = overlay.querySelector('.whatsnew-sheet');
+      if (!sheet) return;
       // Each put up afresh, so its animation runs again on every go.
-      const up = (name: string) => { room.classList.remove(name); void room.offsetWidth; room.classList.add(name); };
-      if (beat === 'swipe') up('is-swiping');
+      const up = (name: string) => { sheet.classList.remove(name); void (sheet as HTMLElement).offsetWidth; sheet.classList.add(name); };
+      if (beat === 'cue') up('is-cueing');
       else if (beat === 'hit') up('is-hit');
-      else room.classList.remove('is-swiping', 'is-hit');
+      else sheet.classList.remove('is-cueing', 'is-hit');
     });
     if (!story?.reel) this.onStoryReel?.(null, () => {});
     this.viewport.classList.toggle('reel-on', filmed);
+    const sheet = overlay.querySelector('.whatsnew-sheet');
+    sheet?.classList.toggle('is-filmed', filmed);
     // The swipe and the call drawn the way round the game draws them for a left-hander.
-    if (filmed) document.getElementById('whatsnew-room')?.classList.toggle('is-left', readHand() === 'left');
-    overlay.querySelector('.whatsnew-sheet')?.classList.toggle('is-filmed', filmed);
+    if (filmed) sheet?.classList.toggle('is-left', readHand() === 'left');
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => {
       const go = this.onStoriesOpen;

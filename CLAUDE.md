@@ -309,11 +309,15 @@ through contact) are the film's: the game's view from behind him as the bowler
 runs, a cut in to the stroke side on from the off side, and the camera turning
 after the ball. The card is the whole screen edge to edge and see-through, and
 everything else on the ground is put out of sight while it plays (`reel-on` on
-`#viewport`). The swipe that plays the stroke and what it went for are drawn
-over him (`SHOT_CALLS`, `shotCallMarkup`) when the film says — as the bat
-starts down and as the ball is met (`is-swiping`, `is-hit`) — the way round the
-game draws them for the player's hand. A card holds for one go of its film
-(`reelSeconds`). Nothing is scored, counted or sent, and the innings's state is
+`#viewport`). On the frame before the bat comes down the film holds (`CUE`,
+the game's clock stopped dead through `timeScale`), a shade comes over the
+whole screen with the swipe that plays the stroke drawn big on it — an arrow
+and a thumb run down it twice, or the key on a keyboard — then it fades and the
+film goes on from that frame (`shotCueMarkup`, `is-cueing` on the sheet). What
+it went for is stamped over him as the ball is met (`shotCallMarkup`,
+`is-hit`), both drawn the way round the game draws them for the player's hand,
+and the card's name is the display face in gold, slammed in. A card holds for
+one go of its film, the hold for the swipe with it (`reelSeconds`). Nothing is scored, counted or sent, and the innings's state is
 never touched, which is why it films only off the cover or after an innings
 (`playReel`); opened from the board mid-innings, the card's words stand on its
 own dark. The update key is `new-shots`, so everybody is shown the four cards
@@ -332,8 +336,9 @@ short blue SKIP beside GO TO DRESSING ROOM. Only the last holds still
 the next card's are. `whatsnew-check` refuses the stage's
 module for its clocked walk — every frame is a 3D render, seconds apiece in
 software — and lets it in at the way in to see it play. It holds the strokes'
-cards to the film: the ground under them, the card edge to edge, the swipe and
-the call put up by the stroke, and nothing left running once they are put away.
+cards to the film: the ground under them, the card edge to edge, the film held
+for the swipe and the call put up by the stroke, and nothing left running once
+they are put away.
 
 ## The year recap: kept now for December
 

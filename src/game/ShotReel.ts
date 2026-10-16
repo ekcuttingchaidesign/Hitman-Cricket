@@ -18,8 +18,16 @@ import type { Delivery, ShotOutcome, ShotType } from './types';
  * slowed through the moment the bat meets it.
  */
 export type ReelShot = 'hook' | 'latecut';
-/** What the film tells the card as it goes: the swipe as the bat starts down, the ball met, a go beginning again. */
-export type ReelBeat = 'swipe' | 'hit' | 'again';
+/** What the film tells the card as it goes: held for the swipe, the ball met, a go beginning again. */
+export type ReelBeat = 'cue' | 'hit' | 'again';
+
+/**
+ * The film stops on the frame before the bat comes down, the ball on its way,
+ * for the swipe that plays the stroke to be drawn over it; then it fades and
+ * the film goes on from that frame. `ms` is how long it holds, on the page's
+ * clock: in, the thumb run twice, and out.
+ */
+export const CUE = { ms: 2300 } as const;
 
 interface Reel {
   shot: ShotType;
@@ -74,7 +82,7 @@ export interface ReelTimes {
   /** The bowler sets off. */
   runup: number;
   release: number;
-  /** He starts the stroke, which is when the swipe is drawn. */
+  /** He starts the stroke: the film holds on the frame before it for the swipe. */
   swing: number;
   /** Bat on ball. */
   contact: number;
@@ -108,9 +116,9 @@ export const AFTER_MS = 2300;
 /** One go of the reel, start to start, on its own clock. */
 export function reelLength(shot: ReelShot) { return reelTimes(shot).contact + AFTER_MS; }
 
-/** And on the page's: what the story holds for. */
+/** And on the page's, the hold for the swipe with it: what the story holds for. */
 export function reelSeconds(shot: ReelShot) {
-  let real = 0;
+  let real = CUE.ms;
   const { contact } = reelTimes(shot), length = reelLength(shot);
   for (let t = 0; t < length; t += 4) real += 4 / reelPace(t - contact);
   return real;

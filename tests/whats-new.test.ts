@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   SHOT_CALLS, STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
 } from '../src/game/whats-new';
-import { shotCallMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
-import { reelSeconds } from '../src/game/ShotReel';
+import { shotCallMarkup, shotCueMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
+import { CUE, reelSeconds } from '../src/game/ShotReel';
 
 /** localStorage, as a map, so the counting can be tested without a browser. */
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -163,14 +163,22 @@ describe('the new strokes, filmed in the game', () => {
     }
   });
 
-  it('draws the swipe that plays it and the key, and what it went for', () => {
-    expect(SHOT_CALLS).toEqual({ hook: { way: 'leg', key: 'A', call: 'SIX' }, latecut: { way: 'off', key: 'D + S', call: 'FOUR' } });
+  it('draws the swipe that plays it over the whole screen, the key, and what it went for', () => {
+    expect(SHOT_CALLS).toEqual({
+      hook: { way: 'leg', key: 'A', call: 'SIX', where: 'TO LEG AT THE BOUNCER' },
+      latecut: { way: 'off', key: 'D + S', call: 'FOUR', where: 'DOWN TO OFF, LATE' },
+    });
     for (const at of REELS) {
       const shot = STORIES[at].reel!, markup = storiesMarkup({ at, where: 'intro', holdMs: 1 });
-      expect(markup).toContain(shotCallMarkup(shot));
-      expect(markup).toMatch(new RegExp(`id="whatsnew-room"[^>]*aria-hidden="true">[\\s\\S]*whatsnew-swipe" data-way="${SHOT_CALLS[shot].way}"`));
+      // The swipe on the sheet itself, over everything but the bars and the way out, for as long as the film holds.
+      expect(markup).toContain(shotCueMarkup(shot));
+      expect(markup).toMatch(new RegExp(`class="whatsnew-cue" data-way="${SHOT_CALLS[shot].way}" style="--cue:${CUE.ms}ms" aria-hidden="true"`));
+      expect(markup.indexOf('whatsnew-cue')).toBeLessThan(markup.indexOf('whatsnew-body'));
       expect(markup).toContain(`<kbd>${SHOT_CALLS[shot].key}</kbd>`);
-      expect(markup).toContain(`>${SHOT_CALLS[shot].call}<`);
+      expect(markup).toContain(SHOT_CALLS[shot].where);
+      // What it went for, in the room where he is.
+      expect(markup).toContain(shotCallMarkup(shot));
+      expect(markup).toMatch(new RegExp(`id="whatsnew-room"[^>]*aria-hidden="true">[\\s\\S]*>${SHOT_CALLS[shot].call}<`));
     }
   });
 
@@ -185,7 +193,8 @@ describe('the new strokes, filmed in the game', () => {
     }
   });
 
-  it('holds each for the whole of one go of its film, and not a second', () => {
+  it('holds each for the whole of one go of its film, the hold for the swipe in it, and not a second', () => {
+    expect(CUE.ms).toBeGreaterThanOrEqual(1500);
     for (const at of REELS) {
       const story = STORIES[at], film = reelSeconds(story.reel!);
       expect(story.holdMs, story.key).toBeGreaterThanOrEqual(film);

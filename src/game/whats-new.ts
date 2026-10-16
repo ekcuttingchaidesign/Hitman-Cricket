@@ -86,14 +86,14 @@ export interface Story {
 
 /**
  * What a stroke's story puts over the film as the stroke is played: the swipe
- * that plays it, drawn as the bat starts down — to the leg side or down to the
- * off side, the screen turned round for a left-hander as the game's is — the
- * key that plays it on a keyboard, and what it went for, stamped as the ball
- * is met.
+ * that plays it, over the whole screen with the film held on the frame before
+ * the bat comes down — to the leg side or down to the off side, the screen
+ * turned round for a left-hander as the game's is — the key that plays it on a
+ * keyboard, and what it went for, stamped as the ball is met.
  */
-export const SHOT_CALLS: Record<ReelShot, { way: 'leg' | 'off'; key: string; call: string }> = {
-  hook: { way: 'leg', key: 'A', call: 'SIX' },
-  latecut: { way: 'off', key: 'D + S', call: 'FOUR' },
+export const SHOT_CALLS: Record<ReelShot, { way: 'leg' | 'off'; key: string; call: string; where: string }> = {
+  hook: { way: 'leg', key: 'A', call: 'SIX', where: 'TO LEG AT THE BOUNCER' },
+  latecut: { way: 'off', key: 'D + S', call: 'FOUR', where: 'DOWN TO OFF, LATE' },
 };
 
 export type StoryStageKind = 'kits' | 'bats';
