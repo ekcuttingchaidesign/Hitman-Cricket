@@ -1,7 +1,11 @@
 import type { BallLine, DeliveryStyle, ShotType, TimingGrade } from '../game/types.js';
 export const GAME = {
   totalBalls: 30, maxWickets: 3, ballsPerOver: 6, comboMs: 100,
-  swipeDistance: 24,
+  // A swipe is a swipe once the thumb has moved `swipeDistance`, and is timed
+  // there; which way it went is read once it has moved `swipeRead`, or where
+  // it lifted if that is sooner. The first few pixels of a flick curl, so read
+  // that early a cut swipe came out pointing at the late cut.
+  swipeDistance: 24, swipeRead: 40,
   contactZ: 1.30, releaseZ: 18, bounceZ: 8.3, stumpZone: 0.18, stumpHeight: 0.76,
   // Where the batter stands: side of the stumps, and back down the crease. The
   // popping crease is 1.2m in front of the wicket, and a batter stands inside it

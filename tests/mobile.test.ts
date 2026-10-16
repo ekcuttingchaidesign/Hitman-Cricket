@@ -112,6 +112,22 @@ describe('touch input integration', () => {
     expect(s.shoot).toHaveBeenCalledExactlyOnceWith('COVER_LONG_OFF', 400);
     s.time(700); s.pointer('pointerup', 200, 0); expect(s.shoot).toHaveBeenCalledTimes(1); s.input.dispose();
   });
+  it('reads which way past the first curl of the flick, but times it where it became a swipe', () => {
+    // The first 24 pixels point down and to off, the late cut; the thumb then
+    // runs out square, the cut. It is the cut, timed at the 24 pixels.
+    const s = setup(); s.pointer('pointerdown', 100, 100);
+    s.time(300); s.pointer('pointermove', 117, 117);
+    expect(s.shoot).not.toHaveBeenCalled();
+    s.time(310); s.pointer('pointermove', 140, 118);
+    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('SQUARE_CUT', 300); s.input.dispose();
+  });
+  it('plays a short flick from where the thumb lifted, timed where it became a swipe', () => {
+    const s = setup(); s.pointer('pointerdown', 100, 100);
+    s.time(350); s.pointer('pointermove', 70, 100);
+    expect(s.shoot).not.toHaveBeenCalled();
+    s.time(360); s.pointer('pointerup', 70, 100);
+    expect(s.shoot).toHaveBeenCalledExactlyOnceWith('LEG', 350); s.input.dispose();
+  });
   it('permits only one swipe per delivery and resets for the next', () => {
     const s = setup();
     for (let i = 0; i < 3; i++) { s.pointer('pointerdown', 100, 100); s.pointer('pointermove', 60, 100); s.pointer('pointerup', 60, 100); }

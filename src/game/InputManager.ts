@@ -88,7 +88,8 @@ export class InputManager {
   private held = new Set<string>();
   private pending: { keys: string[]; time: number } | null = null;
   private used = false;
-  private gesture: { id: number; x: number; y: number } | null = null;
+  /** The thumb down: where, and once it has moved far enough to be a swipe, when (`crossed`). */
+  private gesture: { id: number; x: number; y: number; crossed?: number } | null = null;
   /**
    * `now` is handed the event's own `timeStamp` so the shot is timed by when the
    * player actually pressed rather than by the frame that noticed. A rounded
@@ -127,20 +128,28 @@ export class InputManager {
     this.gesture = { id: event.pointerId, x: event.clientX, y: event.clientY };
     this.surface?.setPointerCapture(event.pointerId);
   };
-  private pointerMove = (event: PointerEvent) => {
+  private pointerMove = (event: PointerEvent, lifted = false) => {
     if (!this.gesture || event.pointerId !== this.gesture.id) return;
     if (!this.active() || this.used) { this.cancelGesture(); return; }
     event.preventDefault();
-    const across = (event.clientX - this.gesture.x) * (this.mirrored() ? -1 : 1);
-    const shot = mapSwipe(across, event.clientY - this.gesture.y, this.coverLean(), this.scoops(), this.hooks(), this.zones());
+    const across = (event.clientX - this.gesture.x) * (this.mirrored() ? -1 : 1), down = event.clientY - this.gesture.y;
+    const far = Math.hypot(across, down);
+    if (!Number.isFinite(far) || far < GAME.swipeDistance) return;
+    // Timed where it always was, the moment the thumb had moved far enough to
+    // be a swipe: reading the direction further on must not make it late.
+    this.gesture.crossed ??= this.now(event.timeStamp);
+    // But which way it went is read further on, past the first curl of the
+    // flick, or where the thumb lifted if that came first (`swipeRead`).
+    if (!lifted && far < GAME.swipeRead) return;
+    const shot = mapSwipe(across, down, this.coverLean(), this.scoops(), this.hooks(), this.zones());
     if (!shot) return;
     // Commit at recognition: resting a thumb cannot bank an earlier shot, and
     // a longer swipe adds no delay after its direction is already clear.
-    const time = this.now(event.timeStamp);
+    const time = this.gesture.crossed;
     this.used = true; this.pending = null; this.cancelGesture(); this.shoot(shot, time);
   };
   private pointerUp = (event: PointerEvent) => {
-    this.pointerMove(event); // Some devices coalesce a quick flick into pointerup.
+    this.pointerMove(event, true); // Some devices coalesce a quick flick into pointerup.
     if (event.pointerId === this.gesture?.id) this.cancelGesture();
   };
   private pointerCancel = () => this.cancelGesture();

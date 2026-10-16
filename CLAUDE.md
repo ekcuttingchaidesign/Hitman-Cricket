@@ -624,6 +624,14 @@ bouncer (above). On a full meter the scoops take both diagonals from 110
 degrees to the block, as they always did. The numbers came out of a model of
 a thumb twelve to twenty degrees off what it meant; the cost was a careful cut landing 92% of the time in the Blast rather than 98%.
 
+A swipe is timed where it becomes one, when the thumb has moved
+`GAME.swipeDistance` (24 pixels), as it always was; which way it went is read
+further on, at `GAME.swipeRead` (40), or where the thumb lifted if that came
+first, so a short flick still plays. The first pixels of a flick curl, and
+read there a cut swipe came out pointing at the late cut. Reading later
+without timing earlier would have made every swipe up to sixteen
+milliseconds late, which is a grade.
+
 ## The cut off the spinner
 
 The cut has a second build for a spinner's ball (`spinCut` in
