@@ -375,7 +375,7 @@ export async function setPassword(
   store: RecoveryStore,
   input: { name: unknown; playerId: unknown; password: unknown; question?: unknown; answer?: unknown },
   now = Date.now(),
-): Promise<RecoveryOutcome<{ at: number; question: boolean }>> {
+): Promise<RecoveryOutcome<{ at: number; question: boolean; first: boolean }>> {
   const name = cleanName(input.name);
   const folded = foldName(name);
   if (!folded || typeof input.playerId !== 'string' || !input.playerId) {
@@ -388,7 +388,8 @@ export async function setPassword(
   if (problem) return { ok: false, status: 400, reason: problem };
   const holder = await store.holderOf(folded);
   if (!holder || holder !== input.playerId) return { ok: false, status: 403, reason: 'That name is not yours.' };
-  if (!password && !await store.passwordOf(holder)) return { ok: false, status: 400, reason: `At least ${PASSWORD_MIN} characters.` };
+  const had = !!await store.passwordOf(holder);
+  if (!password && !had) return { ok: false, status: 400, reason: `At least ${PASSWORD_MIN} characters.` };
   // The question, where one was picked. A blank answer keeps the one already
   // given to the same question, and is refused for a new question: a question
   // with no answer is no way back.
@@ -401,7 +402,7 @@ export async function setPassword(
   if (password) await store.putPassword(holder, keepPassword(password, now));
   if (isQuestion(input.question) && answer) { kept = keepAnswer(input.question, String(input.answer), now); await store.putQuestion(holder, kept); }
   await store.listName(`${folded} ${name}`);
-  return { ok: true, at: now, question: !!kept };
+  return { ok: true, at: now, question: !!kept, first: !had };
 }
 
 /**

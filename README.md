@@ -891,6 +891,18 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `rivals-list`, `rivals-head-to-head` | Rival Matches opened, and a friend's row tapped for the tally. Whether the record is looked at, and whether rivalries form. |
 | `modes-board` | The boards opened from the Leaderboards card on the mode screen, rather than from the cover's trophy. |
 | `rivals-ranking` | The Rivals ranking opened from the trophy key on Rival Matches. Whether anybody looks for it now it is behind an icon. |
+| `restore-open-profile` | **Played before?** tapped on the name screen. Its siblings say where else the restore sheet was opened from: `-stats`, `-board`, `-card`, and `restore-open-taken`, the link under a name the gate was told is already held. |
+| `restore-find-listed`, `restore-find-none`, `restore-picked` | The restore sheet's search: a few letters that turned somebody up, ones that found nobody, and a player tapping themselves on the list. |
+| `restore-switch-key`, `restore-switch-password` | Turned from the password face to the career key, and back. |
+| `restore-sent`, `restore-sent-password`, `restore-failed-…` | A key or a password offered to the store, and which way it was turned down. |
+| `restore-done-password`, `restore-done-question`, `restore-done` | **Brought back**, by password, by the security question after Forgot password?, and by a career key. |
+| `password-card-stats`, `password-card-end`, `password-nudge-shown` | The asks, seen: the card on My Stats (once an opening), the card on the end of an innings, and the sheet after three end cards walked past. |
+| `password-open-<from>` | The sheet opened, and from where: `stats`, `end`, `nudge`, `details`, `welcome`. |
+| `password-created`, `password-set-<from>` | **A first password saved** — one figure whichever way in, and again by the way in. Against `password-open-…`, the completion rate. |
+| `password-changed`, `password-question-set` | A password changed from Your details, and a security question picked. |
+| `password-closed-<from>`, `password-nudge-later`, `password-save-failed` | The sheet left unsaved, the nudge put off, and a save the store refused. |
+| `password-welcome-offered` | Welcome back, after a career key, offering a password. |
+| `password-forgot`, `password-forgot-no-question`, `password-answer-wrong` | Forgot password? tapped, with no question to answer, and a wrong answer. |
 | `help-open` | The controls did not explain themselves. |
 | `feedback-open`, `feedback-open-link` | The questionnaire opened, and whether from inside the game or from the shared link. |
 | `feedback-cover`, `feedback-card`, `feedback-pause` | Which of the three lines into it is the one people actually use. |
@@ -907,6 +919,12 @@ Nothing is reported ball by ball. A thirty-ball innings that sent a hit per deli
 | `days-played-1` … `days-played-11-plus` | How many separate days this browser has played on. |
 | `innings-under-30s` … `innings-over-5m` | How long an innings took, in each mode under its own prefix. |
 | `played-1m`, `played-3m`, `played-5m`, `played-10m`, `played-20m`, `played-30m` | Marks a session got past. |
+
+The password and restore events are also counted by the store itself, because an ad blocker takes a player off GoatCounter and its export is visitor-days rather than events: `/api/restore` raises a total and a day's figure for each password created or changed, security question set, Forgot password? asked, and player brought back by password, question or key (`src/server/tally.ts`, one hash, `tally`). `scripts/password-report.ts` reads those beside the exact number of players holding a password right now, read-only:
+
+    VERCEL_ENV=production npx vite-node scripts/password-report.ts
+
+The taps — Played before?, the cards, the sheets opened — never reach the store, so they are GoatCounter's alone.
 
 `counting()` in `src/game/analytics.ts` decides who is counted: not localhost, not a page opened with `?seed=` or `?debug=1`, which is how the browser checks and a tuning session play their innings, and not a Vercel preview, which is where a change is tried by the people making it. A scripted thirty balls is not a player. A build off Vercel carries no environment and is counted as before. The counter script is loaded async, so events raised before it lands queue for up to fifteen seconds and go out when it does; if it never lands — a blocked script, an ad blocker — the queue is dropped and the innings is untouched. Nothing here can throw into the game loop.
 
