@@ -8004,7 +8004,6 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
   font-optical-sizing:none;font-variation-settings:'opsz' 6}
 .pw-card-sub{margin:0;font:500 calc(var(--u) * 12)/1.45 var(--f-ui);color:var(--c-text-2)}
 .pw-card .k-cta{width:100%}
-.stats-slide .pw-card{margin:calc(var(--u) * 14) 0 0}
 
 .pw-user{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .pw-who{display:flex;align-items:center;gap:calc(var(--u) * 10);padding:calc(var(--u) * 8) calc(var(--u) * 12) calc(var(--u) * 8) calc(var(--u) * 10);
