@@ -85,10 +85,6 @@ export function markProfileDone() {
 }
 
 const PASSWORD = 'hitman-password';
-const PASSWORD_LATER = 'hitman-password-later';
-/** How long "not now" holds off the question for a player who already had a name. */
-export const PASSWORD_LATER_MS = 3 * 24 * 60 * 60 * 1000;
-
 /**
  * Whether this browser knows its player has a career password: set here, used
  * to restore here, or said so by the store. Only a known yes is kept; a no is
@@ -104,13 +100,4 @@ export function markPasswordKnown() {
 
 export function forgetPasswordKnown() {
   try { localStorage.removeItem(PASSWORD); } catch { /* Nothing kept, nothing to forget. */ }
-}
-
-/** Whether a player with a name and no password said "not now" recently enough to be left alone. */
-export function passwordPutOff(now = Date.now()): boolean {
-  try { return now - Number(localStorage.getItem(PASSWORD_LATER) ?? 0) < PASSWORD_LATER_MS; } catch { return true; }
-}
-
-export function putOffPassword(now = Date.now()) {
-  try { localStorage.setItem(PASSWORD_LATER, String(now)); } catch { /* Asked again, which is no harm. */ }
 }

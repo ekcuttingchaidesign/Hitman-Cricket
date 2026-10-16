@@ -64,7 +64,9 @@ export interface RestoreView {
    * every other key shows its work immediately, and a form that simply closes
    * leaves somebody wondering whether their record came back or not.
    */
-  done?: { name: string } | null;
+  done?: { name: string; offerPassword?: boolean } | null;
+  /** Inside another app's browser (Instagram, Facebook): the phone's saved passwords are out of reach there. */
+  inApp?: boolean;
   /** What it is brought back with: the password (the ordinary way) or a career key. */
   by?: 'password' | 'key';
   /** The players listed for what has been typed: null before a search has answered. */
@@ -136,11 +138,14 @@ function passwordMarkup(view: RestoreView): string {
               enterkeyhint="search" placeholder="Start typing your name" value="${escape(name)}" required>
           </label>
           <div id="restore-found" class="rs-found" role="listbox" aria-label="Players with that name">${foundMarkup(view)}</div>
-          <label class="restore-field rs-field${error ? ' is-wrong' : ''}"><span>Your password</span>
+          ${view.inApp ? `<div class="restore-losing rs-inapp"><p class="restore-losing-say">Opened inside another app? Its browser can't use the passwords your phone saved. Type yours, or open hitmancricket.in in Safari or Chrome.</p></div>` : ''}
+          <div class="restore-field rs-field${error ? ' is-wrong' : ''}">
+            <div class="rs-field-head"><label for="restore-password">Your password</label>
+              <button id="restore-forgot" class="rs-forgot" type="button">Forgot password?</button></div>
             <input id="restore-password" type="password" autocomplete="current-password" autocapitalize="none"
               autocorrect="off" spellcheck="false" enterkeyhint="done" maxlength="64"
               placeholder="The password you set" required${error ? ' aria-invalid="true" aria-describedby="restore-error"' : ''}>
-          </label>
+          </div>
           ${error ? `<p id="restore-error" class="claim-error rs-error" role="alert">${escape(error)}</p>` : ''}
           ${local ? losingMarkup(local) : ''}
           <button id="restore-send" type="submit" class="k-cta k-cta--primary is-wide"${sending ? ' disabled' : ''}><span class="k-cta-face"><span>${sending ? 'CHECKING…' : 'BRING IT BACK'}</span></span></button>
@@ -174,8 +179,27 @@ export function foundMarkup(view: Pick<RestoreView, 'name' | 'found' | 'picked' 
   }).join('');
 }
 
-/** Back, and with it. The key underneath goes where the record is. */
-function doneMarkup(done: { name: string }): string {
+/**
+ * Back, and with it. The key underneath goes where the record is. Brought back
+ * by a career key with no password behind it, it offers one, so next time the
+ * name is enough.
+ */
+function doneMarkup(done: { name: string; offerPassword?: boolean }): string {
+  if (done.offerPassword) {
+    return `
+    <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-done-title">
+      <div class="key-sheet restore-sheet ks-sheet is-done">
+        <i class="ks-grab" aria-hidden="true"></i>
+        <div class="ks-head">
+          <span class="ks-mark" aria-hidden="true">${icon('key')}</span>
+          <h2 id="restore-done-title" class="ks-title">WELCOME BACK, ${escape(done.name.toUpperCase())}</h2>
+        </div>
+        <p class="ks-say is-lead">Your record is yours again. Next time, skip the key: set a password and come back with just your name.</p>
+        ${cta({ kind: 'solid', label: 'SET A PASSWORD', id: 'restore-set-password', icon: 'lock' })}
+        <button id="restore-done" class="rs-switch" type="button">Not now, see my record</button>
+      </div>
+    </div>`;
+  }
   return `
     <div class="key-modal" role="dialog" aria-modal="true" aria-labelledby="restore-done-title">
       <div class="key-sheet restore-sheet ks-sheet is-done">

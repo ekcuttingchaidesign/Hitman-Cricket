@@ -4,8 +4,9 @@ import { memoryRecovery } from '../src/server/memory-recovery';
 import { PASSWORD_MIN, passwordProblem } from '../src/server/password-rules';
 import {
   FIND_MAX, FIND_TRIES_FROM, RESTORE_TRIES_AT, RESTORE_TRIES_FROM, describeFrom, findPlayers, keyOnClaim, listOnClaim,
-  passwordSet, restore, restoreWithPassword, setPassword,
+  passwordSet, questionFor, recoverByAnswer, restore, restoreWithPassword, setPassword,
 } from '../src/server/recovery-store';
+import { answerMatches, foldAnswer, keepAnswer } from '../src/server/career-password';
 
 const GAURAV = 'p-gaurav';
 const held = (names: [string, string][] = [['gauravrana', GAURAV]]) => memoryRecovery(new Map(names));
@@ -18,16 +19,19 @@ describe('the password a player picks', () => {
   });
 
   it('is not the first thing a stranger would try', () => {
-    for (const easy of ['123456', 'Password!', 'qwerty', 'cricket123', 'aaaaaaa', '1111111']) {
+    for (const easy of ['123456', 'abcdef', 'ABCDEF', 'Password!', 'qwerty', 'cricket123', 'aaaaaaa', '1111111']) {
       expect(passwordProblem(easy), easy).not.toBeNull();
     }
   });
 
-  /** The name is printed down the board, so it is no secret, with a number on it or not. */
-  it('is not the name it goes with', () => {
-    expect(passwordProblem('GauravRana', 'gauravrana')).toContain('name');
-    expect(passwordProblem('gaurav rana 99', 'gauravrana')).toContain('name');
-    expect(passwordProblem('rana-gaurav', 'gauravrana')).toBeNull();
+  /** The name is printed down the board, so the name itself is no secret. Anything added to it is fine. */
+  it('is not exactly the name it goes with', () => {
+    expect(passwordProblem('Shashank', 'Shashank')).toContain('name');
+    expect(passwordProblem(' shashank ', 'Shashank')).toContain('name');
+    expect(passwordProblem('Gaurav Rana', 'Gaurav Rana')).toContain('name');
+    expect(passwordProblem('Shashank123', 'Shashank')).toBeNull();
+    expect(passwordProblem('Shashank!', 'Shashank')).toBeNull();
+    expect(passwordProblem('GauravRana', 'Gaurav Rana')).toBeNull();
   });
 
   it('forgives the space a keyboard adds, and keeps case', () => {
@@ -87,9 +91,9 @@ describe('a password set', () => {
 
   it('is said to be set only to the player who set it', async () => {
     const store = held();
-    expect(await passwordSet(store, { name: 'Gaurav Rana', playerId: GAURAV })).toEqual({ ok: true, password: false });
+    expect(await passwordSet(store, { name: 'Gaurav Rana', playerId: GAURAV })).toMatchObject({ ok: true, password: false });
     await setPassword(store, { name: 'Gaurav Rana', playerId: GAURAV, password: 'square-cut-9' });
-    expect(await passwordSet(store, { name: 'Gaurav Rana', playerId: GAURAV })).toEqual({ ok: true, password: true });
+    expect(await passwordSet(store, { name: 'Gaurav Rana', playerId: GAURAV })).toMatchObject({ ok: true, password: true });
     expect(await passwordSet(store, { name: 'Gaurav Rana', playerId: 'p-other' })).toMatchObject({ ok: false, status: 403 });
   });
 
@@ -213,5 +217,91 @@ describe('the names a restore picks from', () => {
     await listOnClaim(store, { name: 'G Rana', playerId: GAURAV });
     await listOnClaim(store, { name: 'Other', playerId: 'p-other' });
     expect([...store.listed].sort()).toEqual(['gauravrana Gaurav Rana', 'grana G Rana']);
+  });
+});
+
+describe('the security question', () => {
+  const withQuestion = async () => {
+    const store = held();
+    await setPassword(store, { name: 'Gaurav Rana', playerId: GAURAV, password: 'square-cut-9', question: 0, answer: 'Rahul and Ankit' });
+    return store;
+  };
+
+  it('forgives capitals, spaces and punctuation in the answer, and nothing else', () => {
+    const kept = keepAnswer(0, 'Rahul S.');
+    expect(answerMatches('rahul s', kept)).toBe(true);
+    expect(answerMatches('RAHULS', kept)).toBe(true);
+    expect(answerMatches('rahul', kept)).toBe(false);
+    expect(foldAnswer('  Ankit-Ji ')).toBe('ankitji');
+  });
+
+  it('keeps no trace of the answer', () => {
+    expect(JSON.stringify(keepAnswer(0, 'Rahul and Ankit'))).not.toContain('rahul');
+  });
+
+  it('is optional, and said to be set only when it is', async () => {
+    const store = held();
+    await setPassword(store, { name: 'Gaurav Rana', playerId: GAURAV, password: 'square-cut-9' });
+    expect(await passwordSet(store, { name: 'Gaurav Rana', playerId: GAURAV })).toMatchObject({ password: true, question: null });
+    expect(await passwordSet(store, { name: 'Gaurav Rana', playerId: GAURAV })).toMatchObject({ question: null });
+    const asked = await withQuestion();
+    expect(await passwordSet(asked, { name: 'Gaurav Rana', playerId: GAURAV })).toMatchObject({ password: true, question: 0 });
+  });
+
+  it('is never kept without an answer, and only from the list', async () => {
+    const store = held();
+    expect(await setPassword(store, { name: 'Gaurav Rana', playerId: GAURAV, password: 'square-cut-9', question: 2, answer: '' }))
+      .toMatchObject({ ok: false, status: 400 });
+    expect(await setPassword(store, { name: 'Gaurav Rana', playerId: GAURAV, password: 'square-cut-9', question: 99, answer: 'x' }))
+      .toMatchObject({ ok: false, status: 400 });
+  });
+
+  /** The change sheet: blank keeps what is there. */
+  it('can be changed without the password, and the answer kept for the same question', async () => {
+    const store = await withQuestion();
+    expect(await setPassword(store, { name: 'Gaurav Rana', playerId: GAURAV, password: '', question: 0, answer: '' })).toMatchObject({ ok: true });
+    expect(await restoreWithPassword(store, { name: 'Gaurav Rana', password: 'square-cut-9', ...at })).toMatchObject({ ok: true });
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'rahul and ankit', ...at })).toMatchObject({ ok: true });
+    await setPassword(store, { name: 'Gaurav Rana', playerId: GAURAV, password: '', question: 4, answer: 'St Xaviers' });
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'rahul and ankit', ...at })).toMatchObject({ ok: false, status: 403 });
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'st. xaviers', ...at })).toMatchObject({ ok: true });
+  });
+
+  it('refuses a blank password where there is none to keep', async () => {
+    expect(await setPassword(held(), { name: 'Gaurav Rana', playerId: GAURAV, password: '' })).toMatchObject({ ok: false, status: 400 });
+  });
+
+  it('is put to whoever asks, by name, and is null where there is none', async () => {
+    const store = await withQuestion();
+    expect(await questionFor(store, { name: 'gaurav rana', ...at })).toEqual({ ok: true, question: 0 });
+    expect(await questionFor(store, { name: 'Nobody Here', ...at })).toEqual({ ok: true, question: null });
+    const plain = held();
+    await setPassword(plain, { name: 'Gaurav Rana', playerId: GAURAV, password: 'square-cut-9' });
+    expect(await questionFor(plain, { name: 'Gaurav Rana', ...at })).toEqual({ ok: true, question: null });
+  });
+
+  it('checks the answer first, then sets the new password and gives the player back', async () => {
+    const store = await withQuestion();
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'Rahul and Ankit', ...at })).toEqual({ ok: true, playerId: null });
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'Rahul and Ankit', password: 'late-cut-11', ...at }))
+      .toEqual({ ok: true, playerId: GAURAV });
+    expect(await restoreWithPassword(store, { name: 'Gaurav Rana', password: 'square-cut-9', ...at })).toMatchObject({ ok: false });
+    expect(await restoreWithPassword(store, { name: 'Gaurav Rana', password: 'late-cut-11', ...at })).toMatchObject({ ok: true });
+  });
+
+  it('holds the new password to the rules, and a wrong answer changes nothing', async () => {
+    const store = await withQuestion();
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'Rahul and Ankit', password: 'Gaurav Rana', ...at }))
+      .toMatchObject({ ok: false, status: 400 });
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'Virat', password: 'late-cut-11', ...at }))
+      .toMatchObject({ ok: false, status: 403 });
+    expect(await restoreWithPassword(store, { name: 'Gaurav Rana', password: 'square-cut-9', ...at })).toMatchObject({ ok: true });
+  });
+
+  it('shares the tries with passwords and keys', async () => {
+    const store = await withQuestion();
+    for (let i = 0; i < RESTORE_TRIES_FROM; i++) await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'guess', ...at });
+    expect(await recoverByAnswer(store, { name: 'Gaurav Rana', answer: 'Rahul and Ankit', ...at })).toMatchObject({ ok: false, status: 429 });
+    expect(await restoreWithPassword(store, { name: 'Gaurav Rana', password: 'square-cut-9', ...at })).toMatchObject({ ok: false, status: 429 });
   });
 });

@@ -1,15 +1,17 @@
 /**
  * What a career password has to be, said the same way in the browser and on the
- * server: the name gate checks it before a round trip, and the store checks it
- * again, because a rule only the browser keeps is a rule anybody can skip.
+ * server: the Set a password sheet checks it before a round trip, and the store
+ * checks it again, because a rule only the browser keeps is a rule anybody can skip.
  *
  * Why these rules and no more. A password stands where the career key stood —
  * with the name, it opens a career — and the name is public, printed down the
  * board. The store allows twenty tries an hour at one name, which is nothing
  * against a password nobody would guess and everything against "123456". So
  * what is refused is what gets guessed first: too short, one character over and
- * over, the commonest few, and the player's own name with a number on it. Past
- * that, a phone's password manager is welcome to make it as long as it likes.
+ * over, the commonest few (123456, abcdef and the like), and the player's name
+ * exactly as it is. The name with anything added is fine: Shashank123 is a
+ * password, Shashank is not. Past that, a phone's password manager is welcome to
+ * make it as long as it likes.
  */
 
 export const PASSWORD_MIN = 6;
@@ -36,17 +38,17 @@ const bare = (password: string) => password.toLowerCase().replace(/[^a-z0-9]/g, 
 /**
  * What is wrong with a password, in one line the player can act on, or null.
  *
- * `folded` is the name it goes with, folded the way the board folds it, so the
- * name with a number on the end is caught however it was typed.
+ * `name` is the name it goes with, as the board shows it. Only the name itself is
+ * refused, in any case: the same letters with anything added are allowed.
  */
-export function passwordProblem(password: string, folded = ''): string | null {
+export function passwordProblem(password: string, name = ''): string | null {
   const said = password.trim();
   if ([...said].length < PASSWORD_MIN) return `At least ${PASSWORD_MIN} characters.`;
   if ([...said].length > PASSWORD_MAX) return `No more than ${PASSWORD_MAX} characters.`;
   if (/^(.)\1+$/u.test(said)) return 'Not one character over and over. Mix it up.';
   const plain = bare(said);
   if (COMMON.has(plain)) return 'That one is too easy to guess. Pick something only you would.';
-  if (folded && plain.replace(/\d+$/, '') === folded) return 'Not your name. Everybody can read that on the board.';
+  if (name.trim() && said.toLowerCase() === name.trim().toLowerCase()) return 'Not your name. Everybody can read that on the board.';
   return null;
 }
 

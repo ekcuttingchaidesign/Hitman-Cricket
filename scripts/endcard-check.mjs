@@ -125,7 +125,8 @@ const settle = async (page, done) => { for (let i = 0; i < 30 && !(await done())
   // still over it, and it scrolls up from under them.
   const clear = await page.evaluate(() => {
     const keys = document.querySelector('#end .ec-keys').getBoundingClientRect();
-    const key = document.querySelector('#card-key').getBoundingClientRect();
+    // The last thing on the card: the password card where it stands, or the slot the career key used to fill.
+    const key = (document.querySelector('#card-password:not(.hidden)') ?? document.querySelector('#card-key')).getBoundingClientRect();
     return { keyBottom: Math.round(key.bottom), keysTop: Math.round(keys.top), keysBottom: Math.round(keys.bottom), height: innerHeight };
   });
   check(clear.keyBottom <= clear.keysTop && clear.keysBottom <= clear.height + 1,

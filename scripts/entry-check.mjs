@@ -154,11 +154,9 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   await context.close();
 }
 
-// — The name screen, before a new player's first innings. A visit remembered
-// from an earlier day, so the headless browser is not taken for a private
-// window: one of those keeps nothing, so it is asked for no password.
+// — The name screen, before a new player's first innings.
 {
-  const { context, page, errors } = await open({ 'hitman-seen': BACK['hitman-seen'] });
+  const { context, page, errors } = await open(NEW);
   await toModes(page);
   await page.locator('#mode-classic').click();
   for (let i = 0; i < 20 && !(await page.locator('.welcome').isVisible()); i++) await page.waitForTimeout(250);
@@ -172,10 +170,7 @@ const words = (page, selector) => page.locator(selector).innerText().then(t => t
   await page.locator('.kit-option').first().click();
   check(await words(page, '#welcome-name') === 'SHASHANK', 'the name over the kit is the one typed', await words(page, '#welcome-name'));
   check(await words(page, '#welcome-hand') === 'LEFT-HANDED', 'and the chip under it the hand chosen', await words(page, '#welcome-hand'));
-  check(await page.locator('#profile-password').isVisible(), 'with a password asked for under the name');
-  check(await page.locator('#profile-send').isDisabled(), "and LET'S BAT still sleeps until there is a password");
-  await page.locator('#profile-password').fill('Square-Cut-9');
-  check(!(await page.locator('#profile-send').isDisabled()), "LET'S BAT wakes with the name and the password");
+  check(!(await page.locator('#profile-send').isDisabled()), "LET'S BAT wakes with the name");
   await page.locator('#profile-name').blur();
   await page.waitForTimeout(500); // The keys' own fades.
   await page.screenshot({ path: 'test-results/entry/name.png' });

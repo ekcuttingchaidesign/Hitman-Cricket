@@ -2,7 +2,8 @@
 // note at the top of `api/board.ts`. `scripts/function-check.mjs` is what keeps
 // it honest.
 import {
-  describeFrom, findPlayers, firstKey, newKey, passwordSet, refusedRecovery, restore, restoreWithPassword, setPassword,
+  describeFrom, findPlayers, firstKey, newKey, passwordSet, questionFor, recoverByAnswer, refusedRecovery, restore,
+  restoreWithPassword, setPassword,
 } from '../src/server/recovery-store.js';
 import { NoDatabase, redisFromEnv, upstashCareer, upstashRecovery } from '../src/server/upstash.js';
 import { BLAST_CAREER, MARATHON_CAREER, SURVIVE_CAREER } from '../src/game/career.js';
@@ -15,7 +16,9 @@ import { addressOf, cors, failed, type ApiRequest, type ApiResponse } from '../s
  * `POST /api/restore` with a password — a name and a password, for the player id.
  * `POST /api/restore?find=1` — the names a restore can pick from, for a few letters.
  * `POST /api/restore?password=1` — a password set or changed, by the player id.
- * `POST /api/restore?status=1` — whether the player id has set one.
+ * `POST /api/restore?status=1` — whether the player id has set one, and a question.
+ * `POST /api/restore?question=1` — forgot password: which question a name's player picked.
+ * `POST /api/restore?recover=1` — the answer, and with it a new password, for the player id.
  *
  * This is the one endpoint in the game where being wrong hands a stranger
  * somebody else's career, so every rule about it lives in `recovery-store` and
@@ -61,15 +64,29 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (req.query?.password) {
-      const set = await setPassword(store, { name: body.name, playerId: body.playerId, password: body.password });
+      const set = await setPassword(store, {
+        name: body.name, playerId: body.playerId, password: body.password, question: body.question, answer: body.answer,
+      });
       if (refusedRecovery(set)) return failed(res, set.status, set.reason);
-      return res.status(200).json({ ok: true, at: set.at });
+      return res.status(200).json({ ok: true, at: set.at, question: set.question });
     }
 
     if (req.query?.status) {
       const known = await passwordSet(store, { name: body.name, playerId: body.playerId });
       if (refusedRecovery(known)) return failed(res, known.status, known.reason);
-      return res.status(200).json({ password: known.password });
+      return res.status(200).json({ password: known.password, question: known.question, at: known.at });
+    }
+
+    if (req.query?.question) {
+      const asked = await questionFor(store, { name: body.name, address: addressOf(req) });
+      if (refusedRecovery(asked)) return failed(res, asked.status, asked.reason);
+      return res.status(200).json({ question: asked.question });
+    }
+
+    if (req.query?.recover) {
+      const back = await recoverByAnswer(store, { name: body.name, answer: body.answer, password: body.password, address: addressOf(req) });
+      if (refusedRecovery(back)) return failed(res, back.status, back.reason);
+      return res.status(200).json({ ok: true, playerId: back.playerId });
     }
 
     if (typeof body.password === 'string') {

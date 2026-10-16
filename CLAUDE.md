@@ -49,29 +49,67 @@ that touches real players should have to be asked twice.
 
 ## Career passwords: the way back players keep
 
-Players did not save their career keys, so a name now comes with a password
-the player picks. A new name is not taken without one (the gate,
-`src/ui/Profile.ts`); a player who named themselves before is asked once before
-their next innings, with a "not now" that holds off three days
-(`hitman-password-later`); My Stats' details change it. It is kept against the
-player id (`${SCOPE}passwords`), so every name they hold opens with it, as a
-salted scrypt hash (`src/server/career-password.ts`) — never sealed, never read
-back: a password is often the one they use everywhere. What it has to be is
-`passwordProblem` (`src/server/password-rules.ts`), checked in the browser and
-again on the server.
+Players did not save their career keys, so a named player sets a password of
+their own. The design is Figma section 13, "Career password · user journeys"
+(node `303:9720`): five lanes, A to E, every screen coded (A5, D3a).
 
-Restoring by it (`src/ui/Restore.ts`, the sheet's first face): a few letters of
-the name list the players with a password whose names begin with them —
-`${SCOPE}findable`, a sorted set read by `ZRANGE BYLEX`, holding only names
-whose player has set one, each answered with the name they bat under now, a kit
-and an innings count, never a player id — the player taps themselves and enters
-it. The fields are a username and a password to the phone, so a saved one fills
-itself in. The tries are the key's, from the same two counters; the list is
-counted per address. The career key stays, one link down the same sheet, and is
-how somebody who forgot their password gets in to set another — so a friend
-who forgot theirs is a `key-show` or `key-reset` away, as below.
-`tests/password.test.ts` holds the rules; `restore-check.mjs` and
-`name-check.mjs` walk the screens.
+Nothing about a password is asked before the first ball: the name screen asks
+for a name, a kit and a hand, and a new player's gate carries Played before?
+top right (`#profile-played`) for a browser that forgot them. When it is asked
+for is `src/game/password-nudge.ts`, in `tests/password-nudge.test.ts`:
+
+- **My Stats**, from the first visit, for any named player with none: the Set
+  a password card on every card of the rail, under the career card and above
+  Road to Hitman (`passwordCardMarkup`, `place: 'stats'`). The career key is
+  the last thing on the page.
+- **The end of an innings**, once the career passes 50 runs, every mode added
+  up (`NUDGE_RUNS`): the same card where the career key used to be, with a
+  solid orange CREATE A PASSWORD (`cta({ kind: 'solid' })`) so it is never
+  taken for PLAY AGAIN. Never on practice, a Rival Match, a demo or in a
+  private window. The career key no longer stands on the end card at all.
+- **The nudge sheet**, after three end cards walked past, then every five,
+  never twice a visit (`sheetDue`, counted in `hitman-password-nudge`), and not
+  over the stars or an unlock. No hard stop: a player can always bat.
+
+Every way in opens the one sheet (`src/ui/Password.ts`, the `#password-overlay`
+in the HUD): password and confirm with SHOW, the rules said live (`ruleStates`)
+and again by the store, and an optional security question from eight
+(`src/game/password-questions.ts`, kept by position: add on the end, never
+reword). A hidden username field holds the name, so Safari and Chrome offer to
+save it and the restore sheet's password field fills itself in. Your details,
+from the edit key on My Stats, has the password row (`passwordRowMarkup`) that
+opens it to change: a blank field keeps what is there.
+
+The rules (`passwordProblem`, `src/server/password-rules.ts`): six or more
+characters, not one character over and over, not the commonest few (123456,
+abcdef, password, cricket123…), and not the player's name exactly, in any
+case: Shashank is refused, Shashank123 is fine.
+
+Kept against the player id (`${SCOPE}passwords`, and the question and its
+answer in `${SCOPE}questions`), so every name they hold opens with it, as
+salted scrypt hashes (`src/server/career-password.ts`). Answers fold capitals,
+spaces and punctuation. Neither is sealed or ever read back. The store says
+whether a player has one (`?status=1`, with the question's place) once a load,
+after a claim and after a restore; until it answers nothing is asked, so an
+outage never nags a player who has one.
+
+Restoring (`src/ui/Restore.ts`): a few letters of the name list the players
+with a password (`${SCOPE}findable`, `ZRANGE BYLEX`; a name, a kit and an
+innings count, never an id), the player taps themselves and enters it. Forgot
+password? beside the field asks the store for the player's question
+(`?question=1`) and puts it (`answerSheetMarkup`); the right answer
+(`?recover=1`, the same tries as a password and a key) asks for a new password
+and brings them back. With no question, the career key is the way back
+(`noQuestionMarkup`); brought back by a key with no password, Welcome back
+offers one. A browser inside Instagram or Facebook is told its saved passwords
+are out of reach there (`insideAnApp`). A restored id is written to all three
+stores (`adoptPlayerId`): before it lived only in memory and was lost on the
+next visit.
+
+`tests/password.test.ts` holds the store's rules; `scripts/password-check.mjs`
+walks lanes A to E in a browser. The dev server's restore tries are real and
+shared by every check, ten an hour: restart it between runs of the restore and
+password checks.
 
 ## A friend who lost their career key
 
@@ -104,7 +142,8 @@ for the stories, `end-card-check.mjs` for the end of an innings and the keys
 that live only there, `career-count-check.mjs` for the rule that only a
 finished innings counts toward a career, `restore-check.mjs` for what a player
 with no name is offered and the screen that takes a key back, `key-check.mjs`
-for what a player who has one is shown.
+for what a player who has one is shown, `password-check.mjs` for the career
+password's journeys.
 
 `scripts/return-check.mjs` is the return ticket: the cookie `/api/me` sets so
 that Safari, which deletes everything a page's script wrote after a week away,

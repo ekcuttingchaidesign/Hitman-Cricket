@@ -32,6 +32,43 @@ export function keepPassword(password: string, now = Date.now()): StoredPassword
   return { salt, hash: scryptSync(cleanPassword(password), salt, LENGTH, COST).toString('hex'), at: now };
 }
 
+/**
+ * A security question's answer, kept the same way: a slow hash, never the words.
+ * The question itself is only a position on the list (`QUESTIONS`), and is no
+ * secret: it is shown to whoever asks to answer it.
+ */
+export interface StoredAnswer extends StoredPassword {
+  q: number;
+}
+
+/**
+ * The form an answer is compared in. Capitals, spaces, punctuation and accents
+ * go, because an answer is typed from memory a year later: "Rahul S." and
+ * "rahul s" are one answer.
+ */
+export function foldAnswer(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  return raw.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+}
+
+export function keepAnswer(q: number, answer: string, now = Date.now()): StoredAnswer {
+  const salt = randomBytes(16).toString('hex');
+  return { q, salt, hash: scryptSync(foldAnswer(answer), salt, LENGTH, COST).toString('hex'), at: now };
+}
+
+export function answerMatches(answer: unknown, held: StoredAnswer): boolean {
+  const said = foldAnswer(answer);
+  if (!said) return false;
+  let mine: Buffer;
+  try {
+    mine = scryptSync(said, held.salt, LENGTH, COST);
+  } catch {
+    return false;
+  }
+  const theirs = Buffer.from(held.hash, 'hex');
+  return mine.length === theirs.length && timingSafeEqual(mine, theirs);
+}
+
 /** Whether a password is the one that was kept. A record this build cannot read is a no, not a crash. */
 export function passwordMatches(password: unknown, held: StoredPassword): boolean {
   const said = cleanPassword(password);

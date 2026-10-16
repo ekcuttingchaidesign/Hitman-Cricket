@@ -1,7 +1,8 @@
 import { cleanName, foldName } from './board-store.js';
 import { foldKey, keepKey, keyMatches, keyShaped, mintKey, type StoredKey } from './career-key.js';
-import { keepPassword, passwordMatches, type StoredPassword } from './career-password.js';
-import { cleanPassword, passwordProblem } from './password-rules.js';
+import { answerMatches, foldAnswer, keepAnswer, keepPassword, passwordMatches, type StoredAnswer, type StoredPassword } from './career-password.js';
+import { isQuestion } from '../game/password-questions.js';
+import { PASSWORD_MIN, cleanPassword, passwordProblem } from './password-rules.js';
 
 /**
  * Bringing a record back, and the rules that stand between a key and one.
@@ -51,6 +52,9 @@ export interface RecoveryStore {
   passwordOf(playerId: string): Promise<StoredPassword | null>;
   /** Keeps this password against the player, replacing whatever was there. */
   putPassword(playerId: string, held: StoredPassword): Promise<void>;
+  /** The security question a player picked, and the hash of its answer, or null where they picked none. */
+  questionOf(playerId: string): Promise<StoredAnswer | null>;
+  putQuestion(playerId: string, held: StoredAnswer): Promise<void>;
   /**
    * Puts a name in the list a restore searches: `folded`, a space, and the name
    * as the board shows it. Folded names have no spaces, so the space both ends
@@ -369,36 +373,110 @@ export async function restoreWithPassword(
  */
 export async function setPassword(
   store: RecoveryStore,
-  input: { name: unknown; playerId: unknown; password: unknown },
+  input: { name: unknown; playerId: unknown; password: unknown; question?: unknown; answer?: unknown },
   now = Date.now(),
-): Promise<RecoveryOutcome<{ at: number }>> {
+): Promise<RecoveryOutcome<{ at: number; question: boolean }>> {
   const name = cleanName(input.name);
   const folded = foldName(name);
   if (!folded || typeof input.playerId !== 'string' || !input.playerId) {
     return { ok: false, status: 400, reason: 'That is not a player.' };
   }
+  // A password left blank is kept, which is how the change sheet changes only
+  // the question; but there has to be one to keep.
   const password = cleanPassword(input.password);
-  const problem = passwordProblem(password, folded);
+  const problem = password ? passwordProblem(password, name) : null;
   if (problem) return { ok: false, status: 400, reason: problem };
   const holder = await store.holderOf(folded);
   if (!holder || holder !== input.playerId) return { ok: false, status: 403, reason: 'That name is not yours.' };
-  await store.putPassword(holder, keepPassword(password, now));
+  if (!password && !await store.passwordOf(holder)) return { ok: false, status: 400, reason: `At least ${PASSWORD_MIN} characters.` };
+  // The question, where one was picked. A blank answer keeps the one already
+  // given to the same question, and is refused for a new question: a question
+  // with no answer is no way back.
+  const answer = foldAnswer(input.answer);
+  let kept = await store.questionOf(holder);
+  if (input.question !== undefined && input.question !== null) {
+    if (!isQuestion(input.question)) return { ok: false, status: 400, reason: 'Pick a question from the list.' };
+    if (!answer && kept?.q !== input.question) return { ok: false, status: 400, reason: 'Answer the question, or leave it out.' };
+  }
+  if (password) await store.putPassword(holder, keepPassword(password, now));
+  if (isQuestion(input.question) && answer) { kept = keepAnswer(input.question, String(input.answer), now); await store.putQuestion(holder, kept); }
   await store.listName(`${folded} ${name}`);
-  return { ok: true, at: now };
+  return { ok: true, at: now, question: !!kept };
 }
 
-/** Whether the player holding this name has set a password, asked by that player. */
+/**
+ * Whether the player holding this name has set a password, and which question
+ * they picked: asked by that player, for the card and the Your details row.
+ */
 export async function passwordSet(
   store: RecoveryStore,
   input: { name: unknown; playerId: unknown },
-): Promise<RecoveryOutcome<{ password: boolean }>> {
+): Promise<RecoveryOutcome<{ password: boolean; question: number | null; at: number | null }>> {
   const folded = foldName(cleanName(input.name));
   if (!folded || typeof input.playerId !== 'string' || !input.playerId) {
     return { ok: false, status: 400, reason: 'That is not a player.' };
   }
   const holder = await store.holderOf(folded);
   if (!holder || holder !== input.playerId) return { ok: false, status: 403, reason: 'That name is not yours.' };
-  return { ok: true, password: !!await store.passwordOf(holder) };
+  const [held, question] = await Promise.all([store.passwordOf(holder), store.questionOf(holder)]);
+  return { ok: true, password: !!held, question: question?.q ?? null, at: held?.at ?? null };
+}
+
+/**
+ * Forgot password: which question the player behind a name picked, so it can be
+ * put to them. Null where there is none — no question, no password, or nobody
+ * by that name — which the sheet answers with the career key.
+ *
+ * The question is no secret, and nothing here says whether the name exists that
+ * the list does not already say. Counted as a search from the address.
+ */
+export async function questionFor(
+  store: RecoveryStore, input: { name: unknown; address: string },
+): Promise<RecoveryOutcome<{ question: number | null }>> {
+  const folded = foldName(cleanName(input.name));
+  if (!folded) return { ok: true, question: null };
+  if (await store.searchesFrom(input.address, FIND_WINDOW_SECONDS) > FIND_TRIES_FROM) {
+    return { ok: false, status: 429, reason: 'Too many searches from here. Try again in an hour.' };
+  }
+  const holder = await store.holderOf(folded);
+  if (!holder || !await store.passwordOf(holder)) return { ok: true, question: null };
+  return { ok: true, question: (await store.questionOf(holder))?.q ?? null };
+}
+
+/** The sentence a wrong answer gets, whatever was wrong. */
+const NO_ANSWER = "That's not it. Capitals and spaces don't matter.";
+
+/**
+ * Forgot password: the answer, and with it a new password.
+ *
+ * Asked twice in one recovery — once to say the answer is right before a new
+ * password is asked for, and again with the new password, which is when the
+ * password changes and the player id comes back. Both count against the same
+ * tries as a password and a key, so the question is no softer way in.
+ */
+export async function recoverByAnswer(
+  store: RecoveryStore,
+  input: { name: unknown; answer: unknown; password?: unknown; address: string },
+  now = Date.now(),
+): Promise<RecoveryOutcome<{ playerId: string | null }>> {
+  const name = cleanName(input.name);
+  const folded = foldName(name);
+  if (!folded || !foldAnswer(input.answer)) return { ok: false, status: 400, reason: NO_ANSWER };
+  const password = cleanPassword(input.password);
+  const problem = password ? passwordProblem(password, name) : null;
+  if (problem) return { ok: false, status: 400, reason: problem };
+  if (await store.triesFrom(input.address, RESTORE_WINDOW_SECONDS) > RESTORE_TRIES_FROM) {
+    return { ok: false, status: 429, reason: 'Too many tries from here. Try again in an hour.' };
+  }
+  if (await store.triesAt(folded, RESTORE_WINDOW_SECONDS) > RESTORE_TRIES_AT) {
+    return { ok: false, status: 429, reason: 'Too many tries for that name. Try again in an hour.' };
+  }
+  const holder = await store.holderOf(folded);
+  const held = holder ? await store.questionOf(holder) : null;
+  if (!holder || !held || !answerMatches(input.answer, held)) return { ok: false, status: 403, reason: NO_ANSWER };
+  if (!password) return { ok: true, playerId: null };
+  await store.putPassword(holder, keepPassword(password, now));
+  return { ok: true, playerId: holder };
 }
 
 /**

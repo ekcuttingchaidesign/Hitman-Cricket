@@ -22,11 +22,8 @@
  *
  * Then the form before the first innings (`?profile=1`, since `?debug=1` skips
  * it for every other check): a new player asked before a ball is bowled, held
- * to the rules for a name and for a password, and sent out left-handed as they
- * said; and a player who already had a name, shown theirs and carrying on in
- * one tap. Then a player whose name the store holds with no password behind
- * it, asked for one before their next innings: once putting it off, once
- * setting it.
+ * to the rules, and sent out left-handed as they said; and a player who
+ * already had a name, shown theirs and carrying on in one tap.
  *
  * The dev server's database is in memory, so the name is made up fresh each
  * run: a name claimed by an earlier run is held for as long as the server is up.
@@ -52,7 +49,7 @@ const browser = await chromium.launch({ executablePath });
  * A browser of its own, on the mode picker. `query` is added to the link, and
  * `player` is a name this browser already bats under, where it has one.
  */
-async function toPicker({ query = '', player = null, seed = {} } = {}) {
+async function toPicker({ query = '', player = null } = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
@@ -61,23 +58,15 @@ async function toPicker({ query = '', player = null, seed = {} } = {}) {
   const advance = ms => page.clock.runFor(Math.max(16, Math.round(ms)));
   // A visit remembered from an earlier day, so a headless browser is not taken
   // for a private window — which counts nothing and is offered no name.
-  await page.addInitScript(({ held, seed }) => {
+  await page.addInitScript(held => {
     const day = new Date(Date.now() - 172_800_000).toISOString().slice(0, 10);
     try {
       localStorage.setItem('hitman-seen', day);
       // Past how to hit, the coachmark before a first innings: `shots-check.mjs` is the one that looks at it.
       localStorage.setItem('hitman-shots-intro', 'done');
-      // Past the update's stories: 3D renders, seconds apiece in software, which
-      // hold a tap on SKIP behind them. `whatsnew-check.mjs` is the one that reads them.
-      localStorage.setItem('hitman-whatsnew', 'dressing-room:2');
       if (held && !localStorage.getItem('hitman-batter')) localStorage.setItem('hitman-batter', JSON.stringify(held));
-      // Seeded once, on the first load: a reload keeps whatever the page wrote since.
-      if (!localStorage.getItem('hitman-seeded')) {
-        for (const [key, value] of Object.entries(seed)) localStorage.setItem(key, value);
-        localStorage.setItem('hitman-seeded', '1');
-      }
     } catch { /* Then the notice stands. */ }
-  }, { held: player, seed });
+  }, player);
   // A full Test ladder nobody batting for a ball could get onto, so the strip
   // is the one for an innings with no place — which on an empty ladder, where
   // any innings is first, it would not be. Only the Test board's answer is
@@ -174,7 +163,8 @@ async function send(page, advance, name) {
   check(await page.locator('#end-survive').isVisible(), 'and the card stays, with no board opened over it');
   check(await page.evaluate(() => Boolean(localStorage.getItem('hitman-career-key'))),
     'the career key is kept in this browser');
-  check(await page.locator('#card-key').isVisible(), 'and the card carries it');
+  // The key lives on My Stats now, last; the end card's place is the password card's.
+  check(!(await page.locator('#card-key .k-ticket').count()), 'and the end card does not carry it');
 
   // — Changing it, from the head of My Stats.
   await page.locator('#card-career').click({ force: true });
@@ -253,25 +243,13 @@ async function send(page, advance, name) {
   check((await snap()).phase === 'START', 'and nothing bowled meanwhile', (await snap()).phase);
   check((await page.locator('#profile-overlay .welcome-fine').innerText()).includes('once every 30 days'),
     'told the name changes once every 30 days');
-  check(await page.locator('#profile-password').isVisible(), 'asked for a password under the name');
-  await page.locator('#profile-name').fill('Abcdef');
-  check(await page.locator('#profile-send').isDisabled(), 'and not let past without one');
   await page.locator('#profile-name').fill('Ab');
-  await page.locator('#profile-password').fill('Square-Cut-9');
   await page.locator('#profile-send').click({ force: true });
   await advance(300);
   await page.waitForTimeout(500);
   check((await page.locator('#profile-error').innerText().catch(() => '')).includes('At least 3'), 'held to the rules for a name');
   const gated = `${fresh}g`;
   await page.locator('#profile-name').fill(gated);
-  await page.locator('#profile-password').fill('123456');
-  await page.locator('#profile-send').click({ force: true });
-  await advance(300);
-  await page.waitForTimeout(500);
-  check((await page.locator('#profile-error').innerText().catch(() => '')).includes('too easy'), 'and for a password',
-    await page.locator('#profile-error').innerText().catch(() => ''));
-  check(await page.evaluate(() => localStorage.getItem('hitman-batter')) === null, 'claiming nothing meanwhile');
-  await page.locator('#profile-password').fill('Square-Cut-9');
   await page.locator('#profile-overlay [data-hand="left"]').click({ force: true });
   await page.locator('#profile-send').click({ force: true });
   await advance(300);
@@ -283,7 +261,6 @@ async function send(page, advance, name) {
   }));
   check(held.player?.name === gated && held.done === '1', 'under the name claimed', JSON.stringify(held));
   check(held.key, 'with the career key kept');
-  check(await page.evaluate(() => localStorage.getItem('hitman-password')) === '1', 'and the password set');
   await advance(1500);
   const playing = await snap();
   check(playing.phase !== 'START', 'the innings starts', playing.phase);
@@ -317,47 +294,6 @@ async function send(page, advance, name) {
   const playing = await snap();
   check(playing.phase !== 'START' && playing.mirrored === false, 'into a right-handed Blast, the hand it was always batted with',
     JSON.stringify({ phase: playing.phase, mirrored: playing.mirrored }));
-  check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
-  await context.close();
-}
-
-// — A name the store holds with no password behind it: asked before the next innings.
-for (const answer of ['later', 'set']) {
-  const id = `nmchk1-${Array.from({ length: 12 }, () => 'abcdefghijkmnpqrstuvwxyz0123456789'[Math.floor(Math.random() * 34)]).join('')}`;
-  const name = `${fresh}${answer === 'later' ? 'l' : 's'}`;
-  const claimed = await fetch(`${base}/api/name`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerId: id, name, avatar: 2 }),
-  }).then(r => r.json()).catch(() => null);
-  check(claimed?.ok === true, `a name claimed before there were passwords (${answer})`, JSON.stringify(claimed));
-  const { context, page, errors, advance, snap } = await toPicker({
-    query: '&profile=1', player: { name, avatar: 2 }, seed: { 'hitman-player': id, 'hitman-profile': '1' },
-  });
-  await page.locator('#mode-classic').click({ force: true });
-  await advance(600);
-  await page.waitForTimeout(500);
-  check(await page.locator('#profile-overlay .welcome').isVisible(), 'is asked for a password before the next innings');
-  check(await page.locator('#profile-name').inputValue() === name, 'with the name filled in');
-  check(await page.locator('#profile-send').isDisabled(), 'and LET\'S BAT asleep until there is one');
-  check(await page.locator('#profile-later').isVisible(), 'and a way to put it off');
-  if (answer === 'later') {
-    await page.locator('#profile-later').click({ force: true });
-    await advance(300);
-    await page.waitForTimeout(1200);
-    check(await page.locator('#profile-overlay .welcome').isHidden(), '"not now" lets them bat');
-    check(await page.evaluate(() => Boolean(localStorage.getItem('hitman-password-later'))), 'and holds the question off');
-  } else {
-    await page.locator('#profile-password').fill('Late-Cut-11');
-    await page.locator('#profile-send').click({ force: true });
-    await advance(300);
-    await page.waitForTimeout(1500);
-    check(await page.locator('#profile-overlay .welcome').isHidden(), 'a password set sends them out to bat');
-    const status = await fetch(`${base}/api/restore?status=1`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, playerId: id }),
-    }).then(r => r.json()).catch(() => null);
-    check(status?.password === true, 'and the store has it', JSON.stringify(status));
-  }
-  await advance(1500);
-  check((await snap()).phase !== 'START', 'the innings starts', (await snap()).phase);
   check(errors.length === 0, 'with nothing thrown', errors.join('\n'));
   await context.close();
 }

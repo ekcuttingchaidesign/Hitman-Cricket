@@ -2,7 +2,7 @@ import { Redis } from '@upstash/redis';
 import type { BoardStore, StoredRow } from './board-store.js';
 import type { CareerStore, StoredCareer } from './career-store.js';
 import type { StoredKey } from './career-key.js';
-import type { StoredPassword } from './career-password.js';
+import type { StoredAnswer, StoredPassword } from './career-password.js';
 import type { RecoveryStore } from './recovery-store.js';
 import type { DressingStore } from './dressing-save.js';
 import type { SavedDressing } from '../game/dressing-sync.js';
@@ -347,6 +347,7 @@ export function upstashRecovery(redis: Redis): RecoveryStore {
   const keys = `${SCOPE}keys`;
   const names = `${SCOPE}names`;
   const passwords = `${SCOPE}passwords`;
+  const questions = `${SCOPE}questions`;
   // A sorted set with every score 0, which Redis keeps in member order: a
   // prefix search is one ZRANGE BYLEX, however many names there are.
   const findable = `${SCOPE}findable`;
@@ -388,6 +389,15 @@ export function upstashRecovery(redis: Redis): RecoveryStore {
     },
     async putPassword(playerId, held) {
       await redis.hset(passwords, { [playerId]: JSON.stringify(held) });
+    },
+    async questionOf(playerId) {
+      const held = await redis.hget<StoredAnswer | string>(questions, playerId);
+      if (!held) return null;
+      if (typeof held === 'object') return held as StoredAnswer;
+      try { return JSON.parse(String(held)) as StoredAnswer; } catch { return null; }
+    },
+    async putQuestion(playerId, held) {
+      await redis.hset(questions, { [playerId]: JSON.stringify(held) });
     },
     async listName(entry) {
       await redis.zadd(findable, { score: 0, member: entry });

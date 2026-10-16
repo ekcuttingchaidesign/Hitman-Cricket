@@ -103,6 +103,17 @@ export async function resolvePlayerId(
 }
 
 /** The three stores a browser actually offers, in the order they answer. */
+/**
+ * A player brought back — by a password, a security answer or a career key —
+ * written over every store at once. Until this the restored id lived only in
+ * the game's memory, so the next visit read the stores, found the id minted for
+ * the "new" player, and the record that had just come back was gone again.
+ */
+export async function adoptPlayerId(id: string, stores: readonly IdStore[] = browserStores()): Promise<void> {
+  if (!isPlayerId(id)) return;
+  await Promise.all(stores.map(store => settle(() => store.write(id))));
+}
+
 export function browserStores(): IdStore[] {
   return [localStore(), cookieStore(), indexedDbStore()];
 }
