@@ -1,4 +1,5 @@
 import type { Film } from '../ui/Lottie';
+import { reelSeconds, type ReelShot } from './ShotReel';
 
 /**
  * What changed, told the way a story is told.
@@ -7,11 +8,15 @@ import type { Film } from '../ui/Lottie';
  * player once, in the shape every phone already knows how to read: a card, a
  * bar across the top, a tap to move on.
  *
- * This update is the Dressing Room: the kits and the bats, each played full
+ * This update is two new strokes, then the Dressing Room. The hook and the
+ * late cut are each filmed in the game itself, full screen: the player's own
+ * batter on the ground, the bowler running in and the stroke played to the
+ * ball it answers (`ShotReel.ts`). Then the kits and the bats, each played full
  * screen on the room's own stage, with the way out and the way in under both,
  * the last card holding still.
- * (The Test Marathon's film and the career key, the update before, were told
- * twice to everybody who played then.)
+ * (The Dressing Room's two cards were told on their own first, and the Test
+ * Marathon's film and the career key before that, each twice to everybody who
+ * played then.)
  */
 export interface Story {
   key: string;
@@ -69,11 +74,52 @@ export interface Story {
    * to go stale — a phone that cannot draw it cannot play the game either.
    */
   stage?: StoryStageKind;
+  /**
+   * A new stroke, filmed in the game: the ground behind the words is the
+   * game's own, the batter playing it to its ball over and over, the camera
+   * cutting in to the stroke and following the ball away (`ShotReel.ts`).
+   * Where the game cannot film it — a story opened mid-innings — the words
+   * stand on the sheet's own dark.
+   */
+  reel?: ReelShot;
 }
+
+/**
+ * What a stroke's story puts over the film as the stroke is played: the swipe
+ * that plays it, drawn as the bat starts down — to the leg side or down to the
+ * off side, the screen turned round for a left-hander as the game's is — the
+ * key that plays it on a keyboard, and what it went for, stamped as the ball
+ * is met.
+ */
+export const SHOT_CALLS: Record<ReelShot, { way: 'leg' | 'off'; key: string; call: string }> = {
+  hook: { way: 'leg', key: 'A', call: 'SIX' },
+  latecut: { way: 'off', key: 'D + S', call: 'FOUR' },
+};
 
 export type StoryStageKind = 'kits' | 'bats';
 
+/** A stroke's card holds for the whole of one go of its film and a beat over, so it moves on as the ball reaches the stands. */
+function holdFor(shot: ReelShot) { return Math.ceil(reelSeconds(shot) / 100) * 100 + 300; }
+
 export const STORIES: readonly Story[] = [
+  {
+    key: 'hook-it',
+    eyebrow: 'NEW SHOTS IN THE HOUSE · THE HOOK',
+    title: 'HOOK IT FOR SIX',
+    body: 'Bouncer outside off? Swipe to leg and hook it into the stands.',
+    alt: 'Your batter rocks back and across to a bouncer outside off and hooks it high over backward square leg for six.',
+    reel: 'hook',
+    holdMs: holdFor('hook'),
+  },
+  {
+    key: 'show-it-the-way',
+    eyebrow: 'NEW SHOTS IN THE HOUSE · THE LATE CUT',
+    title: 'SHOW IT THE WAY',
+    body: 'Let it come, swipe down to off and steer it past slip for four.',
+    alt: 'Your batter goes back and down on one knee and runs the ball off an open face, fine past the slips to third man for four.',
+    reel: 'latecut',
+    holdMs: holdFor('latecut'),
+  },
   {
     key: 'suit-up',
     eyebrow: 'WHAT’S NEW · DRESSING ROOM',
@@ -102,7 +148,7 @@ export const STORIES: readonly Story[] = [
  * "seen" flag would mean the second update in this game's life could never be
  * announced at all.
  */
-export const UPDATE = 'dressing-room';
+export const UPDATE = 'new-shots';
 
 /**
  * How many times one browser is shown it unasked.

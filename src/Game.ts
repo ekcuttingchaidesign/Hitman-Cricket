@@ -31,6 +31,7 @@ import type { Delivery, Ending, GamePhase, ShotAttempt, ShotOutcome, ShotType } 
 import type { BoardFrame, PauseTone, Primed } from './ui/HUD';
 import { BOARD_MODES, type BoardContext } from './ui/Board';
 import { GameScene } from './scene/GameScene';
+import { AFTER_MS, reelCamera, reelDelivery, reelLength, reelMeets, reelOutcome, reelPace, reelStroke, reelTimes, type ReelBeat, type ReelShot, type ReelTimes } from './game/ShotReel';
 import { POWER_DOODLE_MS, POWER_STYLES, PULL_DOODLE_MS, PULL_PENS, type PowerStyle, type PullPen } from './ui/Milestone';
 import { HUD } from './ui/HUD';
 import { boundaryCheer, boundaryStreak, GROAN, HUSH, milestoneCheer, MURMUR, nearMiss, RUNUP, SEND_OFF } from './game/crowd';
@@ -716,6 +717,7 @@ export class Game {
     // OPEN THE DRESSING ROOM, on the last story: after the stories, the room,
     // over Choose a mode where the stories were on the way to it.
     this.hud.onStoriesOpen = shown => this.openDressing('story', shown);
+    this.hud.onStoryReel = (shot, beat) => this.playReel(shot, beat);
     this.hud.onLadderTab = this.tabLadder;
     this.hud.onBoardFrame = (mode, ladder) => this.boardFrame(mode, ladder);
     this.hud.onBoardPlay = mode => {
@@ -3072,6 +3074,7 @@ export class Game {
       this.elapsed += dt * this.timeScale;
       this.input.flush(this.elapsed);
       this.update();
+      if (this.reel) this.reelFrame();
     }
     // Level Up covers the whole screen, so the ground under it is not drawn:
     // a phone has one GPU, and the confetti wants it.
@@ -3088,6 +3091,8 @@ export class Game {
    * shot he has won.
    */
   private get timeScale() {
+    // A stroke's film slows through the bat meeting the ball (`reelPace`).
+    if (this.reel) return reelPace(this.elapsed - this.reel.start - this.reel.times.contact);
     if (this.phase !== 'SHOT_RESOLVE' || !this.outcome?.advance) return 1;
     const since = this.elapsed - this.contactAt;
     // Two thirds speed, chosen from three playtest builds side by side. It
@@ -3362,6 +3367,75 @@ export class Game {
    * A bouncer pulled and hit, on the hit: focus lines, a swoosh behind the bat
    * and a streak behind the ball. See `pulledBouncer` and `pullDoodle`.
    */
+  /**
+   * A new stroke, filmed for its What's new story (`ShotReel.ts`), over and over
+   * until the story moves on: the game's ground and its own scene, the bowler
+   * bowling the ball the stroke answers and the player's batter playing it in
+   * time, the camera the film's. Nothing is scored or counted; the innings's
+   * state is never touched, which is why it plays only where no innings is
+   * going on — off the cover, or once one is over — and says so.
+   */
+  private reel: {
+    shot: ReelShot; start: number; times: ReelTimes; delivery: Delivery; beat: (beat: ReelBeat) => void;
+    swung: boolean; struck: boolean; presentAt: number; cheered: boolean;
+  } | null = null;
+  private reelCrowd = false;
+  private playReel(shot: ReelShot | null, beat: (beat: ReelBeat) => void): boolean {
+    if (!shot) {
+      if (!this.reel) return false;
+      this.reel = null;
+      this.scene.cinematic(null); this.scene.reset();
+      if (this.reelCrowd) { this.reelCrowd = false; this.audio.crowd(null); }
+      return false;
+    }
+    if (this.phase !== 'START' && this.phase !== 'INNINGS_END') return false;
+    if (!this.reel) {
+      const look = this.myLook(); this.scene.dressBatter(look.outfit, look.bat);
+      this.scene.leftHanded(readHand() === 'left');
+      this.scene.cinematic((now, ball) => this.reel ? reelCamera(this.reel.shot, now - this.reel.start, ball) : reelCamera(shot, 0, null));
+      // The stands murmur under it off the cover, where they are quiet; after an innings they are already there.
+      if (this.phase === 'START') { this.reelCrowd = true; this.audio.crowd(MURMUR.blast); }
+    }
+    this.beginReel(shot, beat);
+    return true;
+  }
+  /** A go of the film, from the bowler at his mark. */
+  private beginReel(shot: ReelShot, beat: (beat: ReelBeat) => void) {
+    const times = reelTimes(shot), start = this.elapsed;
+    this.scene.reset(); this.scene.spinner(false); this.scene.express(false); this.scene.round(false);
+    this.reel = { shot, start, times, delivery: reelDelivery(shot, start + times.release), beat, swung: false, struck: false, presentAt: Infinity, cheered: false };
+    beat('again');
+  }
+  /** One frame of the film, as `update` plays a ball: run-up, flight, the stroke, the ball away. */
+  private reelFrame() {
+    const reel = this.reel!, t = this.elapsed - reel.start, { times, shot, delivery } = reel;
+    if (t >= reelLength(shot)) { this.beginReel(shot, reel.beat); return; }
+    if (t < times.runup) return;
+    if (t < times.release) { this.scene.runup(Math.min(1, (t - times.runup) / GAME.runupMs)); return; }
+    if (!reel.struck) {
+      const progress = flightProgress(delivery, this.elapsed - delivery.releaseTimeMs);
+      this.scene.delivery(delivery, progress);
+      if (!reel.swung && t >= times.swing) {
+        reel.swung = true;
+        this.scene.swing(reelStroke(shot), this.elapsed, delivery, false, false, false, false, 2, reelMeets(shot));
+        reel.beat('swipe');
+      }
+      if (progress < reelMeets(shot)) return;
+      const outcome = reelOutcome(shot, delivery), flight = this.scene.hit(outcome, reelStroke(shot), delivery, this.elapsed);
+      reel.struck = true; reel.presentAt = Math.min(flight.presentAt, this.elapsed + AFTER_MS / 2);
+      this.audio.play('hit');
+      // The hooked six's flash, as the game gives it (`pulledBouncer`).
+      if (outcome.hooked && outcome.runs === 6) this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
+      reel.beat('hit');
+    }
+    this.scene.result(this.elapsed);
+    if (!reel.cheered && this.elapsed >= reel.presentAt) {
+      reel.cheered = true;
+      const runs = shot === 'hook' ? 6 : 4;
+      this.scene.cheer(runs === 6 ? 'hit-six' : 'hit-four', this.elapsed, 0, 1, '');
+      this.audio.cheer(boundaryCheer(runs, 1, false));
+    }
+  }
   private pullUp() {
     this.scene.pull(this.elapsed, PULL_PENS[this.pullPen].swish);
     this.scene.cutout();
@@ -4789,7 +4863,9 @@ export class Game {
   }
 
   private snapshot() {
-    return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed), balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
+    return { phase: this.phase, lesson: this.lesson, seed: this.seed, elapsed: Math.round(this.elapsed),
+      // A stroke's film under its story: which, and how far into a go of it, on its own clock.
+      reel: this.reel ? { shot: this.reel.shot, at: Math.round(this.elapsed - this.reel.start), struck: this.reel.struck } : null, balls: this.score.balls, runs: this.score.runs, wickets: this.score.wickets,
       line: this.delivery?.line ?? '—', effectiveLine: this.delivery ? effectiveLine(this.delivery) : '—', style: this.delivery?.style ?? '—', speed: this.delivery?.speedKph ?? '—',
       baseX: this.delivery?.baseTargetX.toFixed(3) ?? '—', finalX: this.delivery?.finalTargetX.toFixed(3) ?? '—',
       contactAt: Math.round(this.delivery?.idealContactTimeMs ?? 0), timingDelta: this.outcome?.timingDeltaMs?.toFixed(0) ?? '—', timingGrade: this.outcome?.timingGrade ?? '—',

@@ -14,7 +14,8 @@ import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
 import { playFilm, type Film, type Playing } from './Lottie';
 import { StoryStage } from './StoryStage';
-import type { Hand, Player } from '../game/player';
+import type { ReelBeat, ReelShot } from '../game/ShotReel';
+import { readHand, type Hand, type Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
   BOARD_TABS, boardTabsMarkup, escape, flatTab, kitMarkup, peekMarkup, pickerMarkup,
@@ -1182,6 +1183,13 @@ ${modeSelectMarkup()}
   private storyFilm: Playing | null = null;
   /** The Dressing Room's stage, for the stories played on it: one for the run of them, put away with them. */
   private storyStage: StoryStage | null = null;
+  /**
+   * A stroke's story asks the game to film it under the card (`Story.reel`),
+   * and is told whether it can: only off the cover or after an innings, never
+   * over one being played. `beat` hears the swipe, the ball met and each go
+   * beginning again. Null stops it.
+   */
+  onStoryReel: ((shot: ReelShot | null, beat: (beat: ReelBeat) => void) => boolean) | null = null;
   /** What to do when the stories are finished with. The game decides. */
   onStoriesDone: (() => void) | null = null;
   /**
@@ -1239,6 +1247,22 @@ ${modeSelectMarkup()}
     const room = document.getElementById('whatsnew-room');
     if (story?.stage && stage && room) (this.storyStage ??= new StoryStage()).play(stage, room, story.stage);
     else { this.storyStage?.stop(); this.storyStage = null; }
+    // A stroke's film is the game's own ground: everything else on it is put
+    // out of sight while it plays, the card standing over the bare ground.
+    const filmed = !!story?.reel && !!this.onStoryReel?.(story.reel, beat => {
+      const room = document.getElementById('whatsnew-room');
+      if (!room) return;
+      // Each put up afresh, so its animation runs again on every go.
+      const up = (name: string) => { room.classList.remove(name); void room.offsetWidth; room.classList.add(name); };
+      if (beat === 'swipe') up('is-swiping');
+      else if (beat === 'hit') up('is-hit');
+      else room.classList.remove('is-swiping', 'is-hit');
+    });
+    if (!story?.reel) this.onStoryReel?.(null, () => {});
+    this.viewport.classList.toggle('reel-on', filmed);
+    // The swipe and the call drawn the way round the game draws them for a left-hander.
+    if (filmed) document.getElementById('whatsnew-room')?.classList.toggle('is-left', readHand() === 'left');
+    overlay.querySelector('.whatsnew-sheet')?.classList.toggle('is-filmed', filmed);
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => {
       const go = this.onStoriesOpen;
@@ -1330,6 +1354,7 @@ ${modeSelectMarkup()}
     window.clearTimeout(this.storyHold);
     this.storyFilm?.destroy(); this.storyFilm = null;
     this.storyStage?.stop(); this.storyStage = null;
+    this.onStoryReel?.(null, () => {}); this.viewport.classList.remove('reel-on');
     // Which card they were standing on when they left. Opening was already
     // counted and answers nothing on its own: three cards read to the end and
     // three cards abandoned on the first look identical from the other side,

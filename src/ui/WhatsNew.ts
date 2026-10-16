@@ -1,5 +1,6 @@
 import { escape } from './Leaderboard';
-import { STORIES, type Story } from '../game/whats-new';
+import { SHOT_CALLS, STORIES, type Story } from '../game/whats-new';
+import type { ReelShot } from '../game/ShotReel';
 import { MARK, type KeyView } from './CareerKey';
 import { cta } from './Kit';
 
@@ -51,13 +52,18 @@ export function storiesMarkup(view: StoriesView): string {
   // bars and over nothing, with the way out under it. It says its own words.
   // A story on the stage is the whole screen too, the stage behind the words,
   // and the room left between them is where the camera stands the batter.
-  const kind = story.film ? ' is-film' : story.stage ? ' is-stage' : '';
+  // A stroke's film is the game's own ground under the whole screen, edge to
+  // edge: the sheet is see-through and the room between the words is where
+  // the camera has him.
+  const kind = story.film ? ' is-film' : story.stage ? ' is-stage' : story.reel ? ' is-reel' : '';
   return `
     <div class="whatsnew-sheet${kind}" role="document" aria-roledescription="story">${
   story.film ? `
       <div id="whatsnew-film" class="whatsnew-film" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
   story.stage ? `
-      <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
+      <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
+  story.reel ? `
+      <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}
       <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
@@ -66,8 +72,8 @@ export function storiesMarkup(view: StoriesView): string {
       <button id="whatsnew-next" class="whatsnew-half is-next" type="button" aria-label="Next"></button>
       <div class="whatsnew-body">
         ${story.film ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
-        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage ? `
-        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true"></div>` : ''}${art ? `
+        <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage || story.reel ? `
+        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true">${story.reel ? shotCallMarkup(story.reel) : ''}</div>` : ''}${art ? `
         <div class="whatsnew-art">
           ${art}
         </div>` : ''}
@@ -127,6 +133,23 @@ export function storyKeyMarkup(view: KeyView | null): string {
         <button id="${held ? 'whatsnew-key-save' : 'whatsnew-key-make'}" class="key-save" type="button">SAVE YOUR KEY</button>
       </div>
     </section>`;
+}
+
+/**
+ * What a stroke's film puts over him (`SHOT_CALLS`): a thumb running the swipe
+ * that plays it, or on a keyboard the key, put up as the bat starts down; and
+ * what it went for, stamped as the ball is met, on the side it went. Both wait,
+ * unseen, for the film to say when (`is-swiping`, `is-hit` on the room), so
+ * they land on the stroke and not on a clock of their own.
+ */
+export function shotCallMarkup(shot: ReelShot): string {
+  const { way, key, call } = SHOT_CALLS[shot];
+  return `
+          <span class="whatsnew-swipe" data-way="${way}">
+            <span class="whatsnew-track"><svg viewBox="0 0 100 80"><path d="M84 10 22 64"/></svg><i class="whatsnew-thumb"></i></span>
+            <b class="touch-only">SWIPE</b><b class="keyboard-only"><kbd>${escape(key)}</kbd></b>
+          </span>
+          <span class="whatsnew-call" data-way="${way}" data-call="${call.toLowerCase()}">${escape(call)}</span>`;
 }
 
 /** What the key says, which is wherever pressing it actually lands. */

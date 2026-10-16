@@ -297,7 +297,29 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new stories play full screen on the room's own stage
+The update's What's new stories open on the two new strokes, "New shots in
+the house": HOOK IT FOR SIX and SHOW IT THE WAY. Each is filmed in the game
+itself (`src/game/ShotReel.ts`, `Story.reel`): the game's own ground and
+renderer, the player's own batter in their kit and hand, the bowler running in
+and bowling the ball the stroke answers through the scene's own calls, the
+stroke played to it in time, and what it comes to asked of `resolveShot` — the
+six and the four are the rules' answers, not a script's. Only the camera
+(`reelCamera`, through `GameScene.cinematic`) and the clock (`reelPace`, slowed
+through contact) are the film's: the game's view from behind him as the bowler
+runs, a cut in to the stroke side on from the off side, and the camera turning
+after the ball. The card is the whole screen edge to edge and see-through, and
+everything else on the ground is put out of sight while it plays (`reel-on` on
+`#viewport`). The swipe that plays the stroke and what it went for are drawn
+over him (`SHOT_CALLS`, `shotCallMarkup`) when the film says — as the bat
+starts down and as the ball is met (`is-swiping`, `is-hit`) — the way round the
+game draws them for the player's hand. A card holds for one go of its film
+(`reelSeconds`). Nothing is scored, counted or sent, and the innings's state is
+never touched, which is why it films only off the cover or after an innings
+(`playReel`); opened from the board mid-innings, the card's words stand on its
+own dark. The update key is `new-shots`, so everybody is shown the four cards
+twice, the Dressing Room's two again among them.
+
+Then the Dressing Room's stories play full screen on the room's own stage
 (`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, then every
 bat on the stand, with the title over the top, the words over the foot, and
 the batter framed into the room left between them (`#whatsnew-room`), allowed
@@ -309,7 +331,9 @@ short blue SKIP beside GO TO DRESSING ROOM. Only the last holds still
 (`storyHolds`): the first moves on as any story does, its keys standing where
 the next card's are. `whatsnew-check` refuses the stage's
 module for its clocked walk — every frame is a 3D render, seconds apiece in
-software — and lets it in at the way in to see it play.
+software — and lets it in at the way in to see it play. It holds the strokes'
+cards to the film: the ground under them, the card edge to edge, the swipe and
+the call put up by the stroke, and nothing left running once they are put away.
 
 ## The year recap: kept now for December
 

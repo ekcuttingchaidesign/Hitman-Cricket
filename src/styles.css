@@ -5630,6 +5630,64 @@ body.innings-active #viewport.modal-open .hud-button.is-playing{display:none}
 .is-stage .whatsnew-body{justify-content:flex-start}
 .whatsnew-room{flex:1 1 auto;min-height:0;width:100%;margin-top:14px}
 .is-stage .whatsnew-say{color:#dfe6ec;text-shadow:0 1px 10px #000;text-wrap:balance}
+/* A stroke's film (`Story.reel`, `ShotReel.ts`): the game's own ground is the
+   picture, played by the game's own renderer under the card. So the card is
+   the whole screen edge to edge, never a column in the middle of it, and
+   see-through, with a shade at the top and the foot for the words; and while
+   it plays everything else on the ground is put out of sight (`reel-on`).
+   Where the game cannot film it, the words stand on the sheet's own dark. */
+#viewport.reel-on>:not(canvas):not(#whatsnew-overlay){visibility:hidden}
+#viewport.reel-on>#whatsnew-overlay{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+.whatsnew-sheet.is-reel{width:100%;max-width:none;background:radial-gradient(120% 70% at 50% 0%,#1b4a72 0%,#0d2739 46%,#07121a 100%)}
+.whatsnew-sheet.is-reel.is-filmed{background:transparent}
+.whatsnew-reel{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,#000000a6 0%,#0000 24%,#0000 62%,#000000c4 86%)}
+.is-reel .whatsnew-bars{position:relative;z-index:2}
+.is-reel .whatsnew-body{justify-content:flex-start}
+.is-reel .whatsnew-title,.is-reel .whatsnew-eyebrow{text-shadow:0 1px 12px #000}
+.is-reel .whatsnew-say{color:#eef3f6;text-shadow:0 1px 10px #000;text-wrap:balance}
+/* Over the film as the stroke is played: the thumb running the swipe as the
+   bat starts down, and what it went for stamped as the ball is met, on the
+   side it went. The film is shot from behind him as the game is, so the leg
+   side of a right-hander is the left of the screen: the swipe is drawn down
+   and to it, and turned round for the off side and for a left-hander, whose
+   screen the game turns round. */
+.whatsnew-room{position:relative}
+.whatsnew-swipe{position:absolute;bottom:4%;display:flex;flex-direction:column;align-items:center;gap:calc(var(--u) * 6);opacity:0}
+.whatsnew-swipe[data-way=leg],.is-left .whatsnew-swipe[data-way=off]{left:6%;right:auto}
+.whatsnew-swipe[data-way=off],.is-left .whatsnew-swipe[data-way=leg]{right:6%;left:auto}
+.whatsnew-track{position:relative;display:block;width:calc(var(--u) * 100);height:calc(var(--u) * 80)}
+.whatsnew-swipe[data-way=off] .whatsnew-track,.is-left .whatsnew-swipe[data-way=leg] .whatsnew-track{transform:scaleX(-1)}
+.is-left .whatsnew-swipe[data-way=off] .whatsnew-track{transform:none}
+.whatsnew-track svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.whatsnew-track path{fill:none;stroke:#fff;stroke-width:5;stroke-linecap:round;stroke-dasharray:83;stroke-dashoffset:83;opacity:.9;filter:drop-shadow(0 0 4px #ffffffa0)}
+.whatsnew-thumb{position:absolute;left:0;top:0;width:calc(var(--u) * 24);height:calc(var(--u) * 24);border-radius:50%;background:#fff;
+  box-shadow:0 0 0 calc(var(--u) * 6) #ffffff40,0 0 calc(var(--u) * 18) #ffffffb0;transform:translate(calc(var(--u) * 72),calc(var(--u) * -2))}
+.whatsnew-swipe b{font:700 calc(var(--u) * 12)/1 var(--f-ui);letter-spacing:calc(var(--u) * 2.4);color:#fff;text-shadow:0 1px 8px #000}
+.whatsnew-swipe kbd{display:inline-block;min-width:calc(var(--u) * 28);padding:calc(var(--u) * 6) calc(var(--u) * 8);border-radius:calc(var(--u) * 7);
+  border:1px solid #ffffff66;border-bottom-width:3px;background:#0000004d;font:inherit;letter-spacing:0}
+.is-swiping .whatsnew-swipe{animation:whatsnew-swipe-in 1.7s ease-out both}
+.is-swiping .whatsnew-track path{animation:whatsnew-streak .4s .08s ease-in both}
+.is-swiping .whatsnew-thumb{animation:whatsnew-thumb .4s .08s ease-in both}
+@keyframes whatsnew-swipe-in{0%{opacity:0}6%,72%{opacity:1}100%{opacity:0}}
+@keyframes whatsnew-streak{to{stroke-dashoffset:0}}
+@keyframes whatsnew-thumb{to{transform:translate(calc(var(--u) * 10),calc(var(--u) * 52));opacity:.25}}
+.whatsnew-call{position:absolute;top:6%;font:400 calc(var(--u) * 92)/1 var(--f-display);letter-spacing:calc(var(--u) * 1);color:var(--c-gold);
+  -webkit-text-stroke:calc(var(--u) * 1.5) #3b2508;text-shadow:0 calc(var(--u) * 5) 0 #3b2508,0 0 calc(var(--u) * 30) #f5b83d80;opacity:0;transform:scale(.3) rotate(-10deg)}
+.whatsnew-call[data-way=leg],.is-left .whatsnew-call[data-way=off]{left:7%;right:auto}
+.whatsnew-call[data-way=off],.is-left .whatsnew-call[data-way=leg]{right:7%;left:auto}
+.whatsnew-call[data-call=four]{color:#5fd3ff;-webkit-text-stroke-color:#0a2a3b;text-shadow:0 calc(var(--u) * 5) 0 #0a2a3b,0 0 calc(var(--u) * 30) #5fd3ff80}
+.is-hit .whatsnew-call{animation:whatsnew-call 2.4s .25s both}
+@keyframes whatsnew-call{
+  0%{opacity:0;transform:scale(.3) rotate(-10deg);animation-timing-function:cubic-bezier(.2,1.6,.4,1)}
+  14%{opacity:1;transform:scale(1) rotate(-6deg)}
+  80%{opacity:1;transform:scale(1.04) rotate(-6deg);animation-timing-function:ease-in}
+  100%{opacity:0;transform:scale(1.2) rotate(-6deg)}}
+@media (prefers-reduced-motion:reduce){
+  .is-swiping .whatsnew-swipe,.is-swiping .whatsnew-track path,.is-swiping .whatsnew-thumb,.is-hit .whatsnew-call{animation:none}
+  .is-swiping .whatsnew-swipe{opacity:1}
+  .is-swiping .whatsnew-track path{stroke-dashoffset:0}
+  .is-hit .whatsnew-call{opacity:1;transform:rotate(-6deg)}}
 /* A picture with its corners already cut: no frame of our own, and a shadow
    that follows its outline rather than a square box's. */
 .whatsnew-art img.is-cut{
