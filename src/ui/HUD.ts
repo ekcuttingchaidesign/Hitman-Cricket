@@ -13,7 +13,7 @@ import type { ChallengeRow } from '../game/challenge-api';
 import type { ResultView, RivalryView, RoomView } from '../game/Challenge';
 import { animate, stagger } from 'animejs';
 import { playFilm, type Film, type Playing } from './Lottie';
-import { StoryStage, type StoryLook } from './StoryStage';
+import { StoryStage } from './StoryStage';
 import type { Hand, Player } from '../game/player';
 import type { CardFacts } from '../game/ShareCard';
 import {
@@ -1196,8 +1196,6 @@ ${modeSelectMarkup()}
   static readonly STORY_MS = 7000;
 
   private storyLocked = false;
-  /** Who plays the strokes' stories: the player's own look and hand, handed in by the game. */
-  storyLook: StoryLook | null = null;
 
   stories(where: StoriesWhere, locked = false) {
     this.storyWhere = where;
@@ -1239,11 +1237,7 @@ ${modeSelectMarkup()}
     }
     const stage = document.getElementById('whatsnew-stage');
     const room = document.getElementById('whatsnew-room');
-    if (story?.stage && stage && room) {
-      this.storyStage ??= new StoryStage();
-      this.storyStage.look = this.storyLook;
-      this.storyStage.play(stage, room, story.stage);
-    }
+    if (story?.stage && stage && room) (this.storyStage ??= new StoryStage()).play(stage, room, story.stage);
     else { this.storyStage?.stop(); this.storyStage = null; }
     const open = document.getElementById('whatsnew-open');
     if (open) open.onclick = () => {
@@ -1329,7 +1323,7 @@ ${modeSelectMarkup()}
 
 
   /** The stories' stage made ahead, while the cover is up, so the first story does not open on an empty room. */
-  warmStories() { this.storyStage ??= new StoryStage(); this.storyStage.look = this.storyLook; this.storyStage.warm(); }
+  warmStories() { (this.storyStage ??= new StoryStage()).warm(); }
 
   /** `open` when the way in put them away, which is counted apart from leaving. */
   closeStories(how: 'leave' | 'open' = 'leave') {

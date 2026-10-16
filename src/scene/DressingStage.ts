@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { Batter, HOOK_CONTACT_MS, HOOK_HOLD_MS, HOOK_MEETS_AT, LATE_CUT_CONTACT_MS, LATE_CUT_MEETS_AT, STROKE_DURATION_MS } from '../entities/Batter';
+import { Batter, STROKE_DURATION_MS } from '../entities/Batter';
 import { bladeGeometry, gripGeometry } from '../entities/batGeometry';
 import { willowMaterial } from '../entities/characterMaterials';
 import { batSheet } from '../entities/batSkins';
-import { GAME, LINE_X, SHOT_ANGLES } from '../config/gameplay';
+import { GAME } from '../config/gameplay';
 import type { ShotType } from '../game/types';
 import type { BatSkin, Outfit } from '../game/dressing';
 
@@ -104,92 +104,6 @@ export const REVEAL_MS = { bat: 1650, kit: 2280 } as const;
 /** The turn of the pedestal at which the celebration faces the camera. */
 const KIT_FACE = -1.5;
 
-/**
- * A stroke played on the stage against a ball, over and over: what a What's
- * new story shows of a new shot (`rehearse`). The game's own stroke at the
- * ball the game plays it at, met where the game meets it and sent where the
- * game sends it, in slow motion, the pedestal turned to the angle that shows
- * it best.
- */
-export type Rehearsal = 'hook' | 'latecut';
-/** What a rehearsal says to the page as it goes: the swipe as the bat starts down, the ball met, the loop begun again. */
-export type ReelBeat = 'swipe' | 'hit' | 'again';
-interface Reel {
-  shot: 'HOOK' | 'LATE_CUT';
-  /** Where the ball is met, in the game's frame. */
-  meet: { x: number; y: number; z: number };
-  /** Where it pitches, down the pitch from the stumps. */
-  bounceZ: number;
-  contactMs: number;
-  /** From the swing to his guard. */
-  endMs: number;
-  /** Off the bat: metres a millisecond along the ground, and how fast it climbs. */
-  out: { speed: number; climb: number };
-  /**
-   * The pedestal's turn for a right-hander. Half a turn is the game's own
-   * view, from behind him down the pitch, so the swipe drawn over him points
-   * where it does in play and the ball is in sight all the way down to him;
-   * a little off it shows the bat.
-   */
-  turn: number;
-}
-const REELS: Record<Rehearsal, Reel> = {
-  hook: {
-    shot: 'HOOK', meet: { x: LINE_X.OUTSIDE_OFF, y: 1.134, z: GAME.contactZ + HOOK_MEETS_AT }, bounceZ: 4.6,
-    contactMs: HOOK_CONTACT_MS, endMs: STROKE_DURATION_MS + HOOK_HOLD_MS, out: { speed: .03, climb: .03 }, turn: Math.PI + .35,
-  },
-  latecut: {
-    shot: 'LATE_CUT', meet: { x: LINE_X.OUTSIDE_OFF, y: .56, z: GAME.contactZ + LATE_CUT_MEETS_AT }, bounceZ: 3.6,
-    contactMs: LATE_CUT_CONTACT_MS, endMs: STROKE_DURATION_MS, out: { speed: .026, climb: 0 }, turn: Math.PI + .35,
-  },
-};
-/** The reel's clock against the page's: slow enough to see the bat meet it. */
-export const REEL_PACE = .5;
-/** Where the ball comes from, down the pitch, and how fast, metres a millisecond of the reel's clock. */
-const REEL_FROM = { z: 9, y: 1.9, speed: .024 };
-/** Standing in his guard before the ball comes, and still after it has gone, in the reel's milliseconds. */
-const REEL_REST = { before: 260, after: 380 };
-const BALL_RADIUS = .036;
-/** The ball's ghosts behind it, this many milliseconds of the reel's clock apart. */
-const TRAIL = { count: 7, every: 9 };
-
-/** Where a rehearsed ball is `t` milliseconds of the reel's clock from the bat, in the game's frame; null off the stage. */
-export function reelBall(reel: Rehearsal, t: number): [number, number, number] | null {
-  const { meet, bounceZ, out, shot } = REELS[reel];
-  // The pedestal's top is the pitch: the floor of the room is a step below it.
-  const ground = BALL_RADIUS;
-  if (t <= 0) {
-    const z = meet.z - t * REEL_FROM.speed;
-    if (z > REEL_FROM.z) return null;
-    if (z >= bounceZ) {
-      // Down out of the hand, falling faster as it comes.
-      const u = (REEL_FROM.z - z) / (REEL_FROM.z - bounceZ);
-      return [meet.x, ground + (REEL_FROM.y - ground) * (1 - u * u), z];
-    }
-    // Up off the pitch, still climbing as it reaches him.
-    const v = (bounceZ - z) / (bounceZ - meet.z);
-    return [meet.x, ground + (meet.y - ground) * v * (1.6 - .6 * v), z];
-  }
-  const angle = THREE.MathUtils.degToRad(SHOT_ANGLES[shot]), s = t * out.speed;
-  const x = meet.x + Math.sin(angle) * s, z = meet.z + Math.cos(angle) * s;
-  if (out.climb) return [x, meet.y + out.climb * t - 9.8e-6 * t * t, z];
-  // Steered down into the ground at once and away along it.
-  const fall = Math.min(1, t / 70);
-  return [x, THREE.MathUtils.lerp(meet.y, ground, fall * fall) + .04 * Math.sin(fall * Math.PI), z];
-}
-
-/** Where a go of a rehearsal starts on the reel's clock: him in his guard, the ball not yet bowled. */
-function reelStart(reel: Rehearsal) {
-  const { meet } = REELS[reel];
-  return -(REEL_REST.before + (REEL_FROM.z - meet.z) / REEL_FROM.speed);
-}
-
-/** How long one go of a rehearsal is, in the reel's milliseconds, from the ball leaving the hand. */
-export function reelLength(reel: Rehearsal) {
-  const { meet, endMs, contactMs } = REELS[reel];
-  return REEL_REST.before + (REEL_FROM.z - meet.z) / REEL_FROM.speed + endMs - contactMs + REEL_REST.after;
-}
-
 /** A bat standing on its own: the grip, the collar and a blade wearing its sheet. */
 class ShowBat {
   readonly root = new THREE.Group();
@@ -277,11 +191,6 @@ export class DressingStage {
   private readonly crown: number;
   /** The bat on the stand, upright over the pedestal's middle and turning: from just over it to the batter's crown. */
   private readonly batShow: { y: number; scale: number };
-  /** A stroke being played over and over against a ball (`rehearse`), on the reel's own clock. */
-  private rehearsal: { reel: Rehearsal; t: number; swung: boolean; hit: boolean; onBeat: (beat: ReelBeat) => void } | null = null;
-  /** The rehearsal's ball, in the batter's own frame, and the ghosts of it a moment behind. */
-  private readonly ball: THREE.Mesh;
-  private readonly trail: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>[] = [];
 
   /**
    * `room`: the stage stands in the Dressing Room itself, in front of its
@@ -386,14 +295,6 @@ export class DressingStage {
     const bat = new THREE.Box3().setFromObject(this.showBat.root), scale = (this.crown - .03 - BAT_TOE) / (bat.max.y - bat.min.y);
     this.batShow = { scale, y: BAT_TOE - bat.min.y * scale };
     scene.add(this.showBat.root); this.showBat.root.scale.setScalar(scale); this.showBat.root.visible = false;
-    // The rehearsals' ball, a little lit of its own so it reads in the dark of the room.
-    this.ball = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, 20, 14), new THREE.MeshStandardMaterial({ color: '#c42a1f', emissive: '#5a0d08', roughness: .4 }));
-    this.ball.castShadow = true; this.ball.visible = false; this.holder.add(this.ball);
-    for (let i = 1; i <= TRAIL.count; i++) {
-      const ghost = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS * (1 - i / (TRAIL.count + 2)), 12, 8),
-        new THREE.MeshBasicMaterial({ color: '#ffd9c2', transparent: true, depthWrite: false, opacity: .5 * (1 - i / (TRAIL.count + 1)) }));
-      ghost.visible = false; this.trail.push(ghost); this.holder.add(ghost);
-    }
 
     this.canvas.addEventListener('pointerdown', this.down);
     this.canvas.addEventListener('pointermove', this.move);
@@ -412,7 +313,7 @@ export class DressingStage {
   showcase(bat: BatSkin) { void this.showBat.hold(bat); }
   /** Which of the two is on the pedestal, and the colour the room is lit in. */
   show(view: StageView, glow: string) {
-    this.endMoment(); this.rehearse(null);
+    this.endMoment();
     this.view = view; this.glow.set(glow);
     this.holder.visible = view === 'kit'; this.showBat.root.visible = view === 'bat';
     this.flashAt = performance.now();
@@ -443,60 +344,6 @@ export class DressingStage {
       this.scan.uScanY.value = 10; this.scan.uScanGlow.value.set(what.to.glow);
       this.scanRing.material.color.set(what.to.glow); this.scanDisc.material.color.set(what.to.glow);
     }
-  }
-
-  /**
-   * Plays `reel` on the batter against a ball, over and over until something
-   * else is shown, `left` a left-hander's and otherwise mirrored to a right-
-   * hander's as the game mirrors its ground. `onBeat` hears the swipe, the ball
-   * met and each go beginning again, for whatever the page puts over it. Null
-   * stops it and stands him back as the room has him. Under reduced motion it
-   * is one still frame, just after the ball is met.
-   */
-  rehearse(reel: Rehearsal | null, left = false, onBeat: (beat: ReelBeat) => void = () => {}) {
-    if (!reel) {
-      if (!this.rehearsal) return;
-      this.rehearsal = null;
-      this.ball.visible = false; for (const ghost of this.trail) ghost.visible = false;
-      this.holder.scale.x = 1; this.holder.position.x = -GAME.stanceX - .02; this.batter.mirrorStickers(false);
-      this.batter.reset();
-      return;
-    }
-    this.endMoment();
-    this.view = 'kit'; this.holder.visible = true; this.showBat.root.visible = false;
-    this.holder.scale.x = left ? 1 : -1; this.holder.position.x = (left ? -1 : 1) * (GAME.stanceX + .02);
-    this.batter.mirrorStickers(!left);
-    this.spin = 0; this.spinV = 0; this.swingEnd = 0;
-    this.rehearsal = { reel, t: this.reducedMotion ? 60 : reelStart(reel), swung: false, hit: false, onBeat };
-    this.batter.reset();
-  }
-
-  /** One frame of a rehearsal: the reel's clock on, the batter and the ball where it puts them. */
-  private rehearseFrame(dt: number) {
-    const r = this.rehearsal!, reel = REELS[r.reel], { meet } = reel;
-    if (!this.reducedMotion) r.t += dt * REEL_PACE;
-    if (r.t > reel.endMs - reel.contactMs + REEL_REST.after) {
-      r.t = reelStart(r.reel); r.swung = r.hit = false; this.batter.reset(); r.onBeat('again');
-    }
-    const swingAt = -reel.contactMs;
-    if (r.t < swingAt) {
-      // Up out of his stance into the backlift as the ball comes, as the game has him.
-      this.batter.reset(); this.batter.prepare(THREE.MathUtils.smoothstep(r.t, reelStart(r.reel) + REEL_REST.before * .5, swingAt));
-    } else if (!r.swung) {
-      r.swung = true;
-      this.batter.reset(); this.batter.prepare(1); this.batter.swing(reel.shot, swingAt, meet.x, meet.y, meet.z);
-      r.onBeat('swipe');
-    }
-    if (!r.hit && r.t >= 0) { r.hit = true; r.onBeat('hit'); }
-    const place = (mesh: THREE.Mesh, at: [number, number, number] | null) => {
-      mesh.visible = !!at && at[1] > -.4 && Math.hypot(at[0], at[2]) < 14;
-      if (at) mesh.position.set(...at);
-    };
-    place(this.ball, reelBall(r.reel, r.t));
-    this.trail.forEach((ghost, i) => place(ghost, this.reducedMotion ? null : reelBall(r.reel, r.t - (i + 1) * TRAIL.every)));
-    // Side on to the stroke, the right-hander's turn mirrored for a left-hander.
-    this.turntable.rotation.y = reel.turn * this.holder.scale.x * -1;
-    return r.swung ? r.t : 0;
   }
 
   /** Back from a moment to the room. */
@@ -660,7 +507,7 @@ export class DressingStage {
   };
   /** A tap on the batter: a shot, so the bat's face comes round to be seen. */
   private playShot() {
-    if (this.view !== 'kit' || this.moment || this.rehearsal) return;
+    if (this.view !== 'kit' || this.moment) return;
     const shots: [ShotType, number, number][] = [['STRAIGHT', .54, 0], ['COVER_LONG_OFF', .54, .1], ['LEG', 1.12, 0]];
     const [shot, y, x] = shots[Math.floor(Math.random() * shots.length)];
     this.batter.reset(); this.batter.prepare(1); this.batter.swing(shot, this.clock, x, y, GAME.contactZ);
@@ -680,16 +527,14 @@ export class DressingStage {
       if (now - this.idleAt > 1600) this.spinV += (rest - this.spinV) * .03; else this.spinV *= .94;
       this.spin += this.spinV * dt / 1000;
     }
-    let at = this.clock;
     if (this.moment) this.animate(now);
-    else if (this.rehearsal) at = this.rehearseFrame(dt);
     else {
       this.turntable.rotation.y = this.spin + (this.view === 'kit' ? -.9 : 0);
       this.showBat.root.rotation.set(0, this.spin, 0);
       this.showBat.root.position.set(0, this.batShow.y + (this.reducedMotion ? 0 : Math.sin(now / 900) * .03), 0);
     }
     if (this.swingEnd && this.clock > this.swingEnd) { this.batter.reset(); this.swingEnd = 0; }
-    this.batter.update(at); this.batter.drape();
+    this.batter.update(this.clock); this.batter.drape();
     // The rim and the light ease to the colour on show; a pick flashes them.
     this.rimMaterial.color.lerp(this.glow, .12); this.ringMaterial.color.lerp(this.glow, .12); this.halo.material.color.lerp(this.glow, .08);
     const flash = Math.max(0, 1 - (now - this.flashAt) / 450);

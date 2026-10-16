@@ -297,33 +297,19 @@ plays two devices for one player against the dev server's store; it passes
 `?private=0`, because headless Chromium looks like a private window and would
 otherwise keep nothing.
 
-The update's What's new stories open on the two new strokes, "New shots in
-the house": the hook (HOOK IT FOR SIX) and the late cut (SHOW IT THE WAY),
-each the player's own batter — their kit, their bat, their hand — playing the
-real stroke over and over on the room's stage against a ball, met where the
-game meets it and sent where the game sends it, in slow motion (`rehearse` on
-`DressingStage`, `REELS`, `reelBall`). The stage is filmed from behind him as
-the game is, so the swipe drawn over him (`SHOT_CALLS`, `shotCallMarkup`) —
-to leg for the hook, down to off for the late cut, the key on a keyboard —
-points the way it does in play; the stage puts it up as the bat starts down
-and stamps SIX or FOUR as the ball is met (`is-swiping`, `is-hit` on
-`#whatsnew-room`), so neither runs on a clock of its own. Each card holds for
-two goes of its stroke (`holdMs`, held to `reelLength` in the tests) and has
-the one way out under it. Then the Dressing Room's cards, played full screen
-on the same stage (`src/ui/StoryStage.ts`, `Story.stage`): every kit on the
-batter, then every bat on the stand, with the title over the top, the words over the foot, and
+The update's What's new stories play full screen on the room's own stage
+(`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, then every
+bat on the stand, with the title over the top, the words over the foot, and
 the batter framed into the room left between them (`#whatsnew-room`), allowed
 nearer than the Dressing Room's camera (`NEARER`). It is the shelves'
 catalogue, so a kit or bat added later is in the stories without a new picture,
 and there is no picture to download. Each line under them is two lines at
 most and counts nothing — the shelves only grow — and both cards end on a
 short blue SKIP beside GO TO DRESSING ROOM. Only the last holds still
-(`storyHolds`): the rest move on as any story does, the room's first with its
-keys standing where the next card's are. The update key is `new-shots`, so
-everybody is shown the four twice, the room's two again among them.
-`whatsnew-check` refuses the stage's module for its clocked walk — every frame
-is a 3D render, seconds apiece in software — and lets it in at the way in to
-see the hook played, its swipe and its six put up by the stroke.
+(`storyHolds`): the first moves on as any story does, its keys standing where
+the next card's are. `whatsnew-check` refuses the stage's
+module for its clocked walk — every frame is a 3D render, seconds apiece in
+software — and lets it in at the way in to see it play.
 
 ## The year recap: kept now for December
 

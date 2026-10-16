@@ -1,5 +1,5 @@
 import { escape } from './Leaderboard';
-import { SHOT_CALLS, STORIES, isStoryShot, type Story, type StoryShot } from '../game/whats-new';
+import { STORIES, type Story } from '../game/whats-new';
 import { MARK, type KeyView } from './CareerKey';
 import { cta } from './Kit';
 
@@ -67,7 +67,7 @@ export function storiesMarkup(view: StoriesView): string {
       <div class="whatsnew-body">
         ${story.film ? '' : `<p class="whatsnew-eyebrow">${escape(story.eyebrow)}</p>`}
         <h2 class="whatsnew-title${story.body ? '' : ' is-unseen'}">${escape(story.title)}</h2>${story.stage ? `
-        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true">${isStoryShot(story.stage) ? shotCallMarkup(story.stage) : ''}</div>` : ''}${art ? `
+        <div id="whatsnew-room" class="whatsnew-room" aria-hidden="true"></div>` : ''}${art ? `
         <div class="whatsnew-art">
           ${art}
         </div>` : ''}
@@ -127,23 +127,6 @@ export function storyKeyMarkup(view: KeyView | null): string {
         <button id="${held ? 'whatsnew-key-save' : 'whatsnew-key-make'}" class="key-save" type="button">SAVE YOUR KEY</button>
       </div>
     </section>`;
-}
-
-/**
- * What a stroke's story draws over the batter (`SHOT_CALLS`): a thumb running
- * the swipe that plays it, or on a keyboard the key, put up as the bat starts
- * down; and what it is worth, stamped as the ball is met. Both wait, unseen,
- * for the stage to say when (`StoryStage`), so the swipe and the call land on
- * the stroke and not on a clock of their own.
- */
-export function shotCallMarkup(shot: StoryShot): string {
-  const { way, key, call } = SHOT_CALLS[shot];
-  return `
-          <span class="whatsnew-swipe" data-way="${way}">
-            <span class="whatsnew-track"><svg viewBox="0 0 100 80"><path d="M84 10 22 64"/></svg><i class="whatsnew-thumb"></i></span>
-            <b class="touch-only">SWIPE</b><b class="keyboard-only"><kbd>${escape(key)}</kbd></b>
-          </span>
-          <span class="whatsnew-call" data-way="${way}" data-call="${call.toLowerCase()}">${escape(call)}</span>`;
 }
 
 /** What the key says, which is wherever pressing it actually lands. */
