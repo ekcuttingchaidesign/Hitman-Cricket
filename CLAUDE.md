@@ -321,7 +321,14 @@ one go of its film, the hold for the swipe with it (`reelSeconds`). Nothing is s
 never touched, which is why it films only off the cover or after an innings
 (`playReel`); opened from the board mid-innings, the card's words stand on its
 own dark. The update key is `new-shots`, so everybody is shown the four cards
-twice, the Dressing Room's two again among them.
+twice, the Dressing Room's two again among them. Through the strokes' launch
+week, to the close of 23 October, India's time (`LAUNCH_WEEK_ENDS`), the play
+key stops for the stories once a day for everybody (`whatsNewRun`, the day in
+`hitman-whatsnew-day`, the browser's own midnight): the first two showings are
+the four cards, every one after them the strokes' two alone (`storiesFor`).
+After the week only the two showings are left to whoever has not had them.
+`whatsnew-check` walks the twice-and-never rule on a clock set after the week,
+and the week's once a day at its end.
 
 Then the Dressing Room's stories play full screen on the room's own stage
 (`src/ui/StoryStage.ts`, `Story.stage`): every kit on the batter, then every
