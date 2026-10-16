@@ -1920,8 +1920,8 @@ export class Game {
    */
   private hooksOnly = new URLSearchParams(location.search).get('hooks') === '1';
   /**
-   * `?spincut=1`: every ball the spinner's, pitched where the cut off the
-   * spinner answers it, for trying that stroke every ball. See `spinCutsEvery`.
+   * `?spincut=1`: every ball the spinner's, all of his on every line, for
+   * trying the cut off the spinner every ball. See `spinCutsEvery`.
    */
   private spinCutsOnly = new URLSearchParams(location.search).get('spincut') === '1';
   /**

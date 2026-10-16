@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
+import { ADVANCE, COMPATIBILITY, CONFIDENCE_FULL, CONFIDENCE_STEP, CLASSIC_SPIN, CUT, DEFENCE, FLAT_SWEEP, GAME, HOOK, SPIN_CUT, LINES, LINE_X, QUICK_STYLES, SCOOP, SHOTS, SHOT_ANGLES, SOLID_SHOT, SPIN_BOWLING, SQUARE_DRIVE, STYLES, SWEEP } from '../src/config/gameplay';
 import { Confidence } from '../src/game/Confidence';
 import { shareText, whatsappLink } from '../src/game/Share';
 import { quietBall, Sledger } from '../src/game/Sledge';
@@ -989,16 +989,25 @@ describe('the cut off the spinner', () => {
     const missed = cutAt(spinner('OFF_SPIN', .42, .03), 400);
     expect(missed.isWicket).toBe(true); expect(missed.wicketType).toBe('BOWLED');
   });
-  it('is every ball on `?spincut=1`, in every mode: the off break outside off and the leg break on leg', () => {
+  it('edges the ball finishing outside leg however well it is timed: too far to go for it', () => {
+    for (const style of ['OFF_SPIN', 'ARM_BALL'] as const) {
+      const wide = cutAt(spinner(style, -.14, LINE_X.OUTSIDE_LEG));
+      expect(wide.isWicket, style).toBe(true); expect(wide.edged, style).toBe(true);
+    }
+    expect(SPIN_CUT.fit.OUTSIDE_LEG).toBeLessThan(SOLID_SHOT);
+    // Every other line the turn leaves him is his to cut for six.
+    for (const line of LINES.filter(line => line !== 'OUTSIDE_LEG')) expect(cutAt(spinner('OFF_SPIN', .42, LINE_X[line])).runs, line).toBe(6);
+  });
+  it('is every ball on `?spincut=1`, in every mode: all of the spinner\'s, on every line', () => {
     for (const plan of [CLASSIC_PLAN, SURVIVE_PLAN, MARATHON_PLAN]) {
-      const generator = new DeliveryGenerator(new SeededRandom(7), spinCutsEvery(plan));
-      const dealt = Array.from({ length: 24 }, () => generator.next(0));
-      expect(dealt.every(ball => ball.style === 'OFF_SPIN' || ball.style === 'LEG_SPIN')).toBe(true);
-      expect(dealt.filter(ball => ball.style === 'OFF_SPIN').every(ball => ball.line === 'OUTSIDE_OFF')).toBe(true);
-      expect(dealt.filter(ball => ball.style === 'LEG_SPIN').every(ball => ball.line === 'LEG')).toBe(true);
-      // Both come, and every one is played as the cut off the spinner.
-      expect(new Set(dealt.map(ball => ball.style))).toEqual(new Set(['OFF_SPIN', 'LEG_SPIN']));
+      const dealt = [7, 8, 9].flatMap(seed => {
+        const generator = new DeliveryGenerator(new SeededRandom(seed), spinCutsEvery(plan));
+        return Array.from({ length: 24 }, () => generator.next(0));
+      });
       expect(dealt.every(ball => spinCut(ball, { shotType: 'SQUARE_CUT' }))).toBe(true);
+      expect(new Set(dealt.map(ball => ball.style))).toEqual(new Set(['OFF_SPIN', 'LEG_SPIN', 'ARM_BALL']));
+      // The one he cannot cut comes too.
+      expect(dealt.some(ball => effectiveLine(ball) === 'OUTSIDE_LEG')).toBe(true);
     }
   });
 });

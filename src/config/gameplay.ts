@@ -215,13 +215,17 @@ export const HOOK = {
  * pitched outside off and turning into him, and the leg-spinner's, pitched on
  * leg and turning away, are both his to cut. Down the leg side he has to go a
  * long way for it, and the further he goes the more of the stumps he shows:
- * missed, a straight one bowls him.
+ * missed, a straight one bowls him. A ball that finishes outside leg — the
+ * off break pitched round leg and turning on down it — is one step too far:
+ * reaching across for a ball going away behind him, he only edges it
+ * (`OUTSIDE_LEG` under `SOLID_SHOT`), so the cut is not one swipe for every
+ * ball the spinner bowls and the turn still has to be read.
  *
  * `fit` is how well each line suits it, read where the turn leaves the ball,
  * in place of the cut's own column, which wants width.
  */
 export const SPIN_CUT = {
-  fit: { OUTSIDE_LEG: 0.55, LEG: 0.85, MIDDLE: 1, OFF: 1, OUTSIDE_OFF: 1 } as Record<BallLine, number>,
+  fit: { OUTSIDE_LEG: 0.5, LEG: 0.85, MIDDLE: 1, OFF: 1, OUTSIDE_OFF: 1 } as Record<BallLine, number>,
 } as const;
 /**
  * The square cut. It is the one stroke that answers a bouncer outside off: the
