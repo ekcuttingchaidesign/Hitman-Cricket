@@ -177,11 +177,51 @@ export function whatsNewShown(): number {
   }
 }
 
-/** Whether it is shown on its own this time. */
-export function whatsNewDue(): boolean {
-  return whatsNewShown() < TIMES;
+/**
+ * The new strokes' launch week: until the end of 23 October, India's time, a
+ * week from the day they went live, the stories are shown once a day — on the
+ * first press of the play key each day — to everybody, however many times they
+ * have seen them. The first two showings are the whole update, as ever; the
+ * rest are the strokes' two cards alone, the Dressing Room's having been told.
+ * After the week only the two showings are left to anybody who has not had them.
+ */
+export const LAUNCH_WEEK_ENDS = Date.parse('2026-10-24T00:00:00+05:30');
+
+const DAY = 'hitman-whatsnew-day';
+
+/** The browser's own day, so "once a day" turns over at the player's midnight. */
+export function dayOf(now: number) {
+  const date = new Date(now);
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 }
 
-export function markWhatsNewShown() {
-  try { localStorage.setItem(KEY, `${UPDATE}:${whatsNewShown() + 1}`); } catch { /* Then it asks again. */ }
+/** Which stories are shown on their own this time: the whole update, the strokes' alone, or none. */
+export type StoriesRun = 'all' | 'shots';
+export function whatsNewRun(now = Date.now()): StoriesRun | null {
+  const shown = whatsNewShown();
+  if (now < LAUNCH_WEEK_ENDS) {
+    let today = false;
+    // No storage: every visit is the first one, as it always was.
+    try { today = localStorage.getItem(DAY) === dayOf(now); } catch { /* Not shown today, then. */ }
+    if (today) return null;
+    return shown < TIMES ? 'all' : 'shots';
+  }
+  return shown < TIMES ? 'all' : null;
+}
+
+/** The cards a run plays. */
+export function storiesFor(run: StoriesRun): readonly Story[] {
+  return run === 'all' ? STORIES : STORIES.filter(story => story.reel);
+}
+
+/** Whether it is shown on its own this time. */
+export function whatsNewDue(now = Date.now()): boolean {
+  return !!whatsNewRun(now);
+}
+
+export function markWhatsNewShown(now = Date.now()) {
+  try {
+    localStorage.setItem(KEY, `${UPDATE}:${whatsNewShown() + 1}`);
+    localStorage.setItem(DAY, dayOf(now));
+  } catch { /* Then it asks again. */ }
 }

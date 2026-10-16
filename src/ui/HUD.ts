@@ -53,7 +53,7 @@ import { applyNearing, endNearing, nearingMarkup } from './Nearing';
 import type { Nearing, NearingEnd } from '../game/milestone';
 import { milestoneDoodle, powerDoodle, pullDoodle, type BatterOnScreen, type PowerStyle, type PullPen } from './Milestone';
 import type { Moment } from '../game/milestone';
-import { STORIES } from '../game/whats-new';
+import { STORIES, type Story } from '../game/whats-new';
 import {
   keyAboutMarkup, keyBarMarkup, keyMissingPanelMarkup, keyModalMarkup, keyPanelMarkup, keyToastMarkup,
   type KeyView,
@@ -1205,9 +1205,13 @@ ${modeSelectMarkup()}
 
   private storyLocked = false;
 
-  stories(where: StoriesWhere, locked = false) {
+  /** The cards this run plays (`storiesFor`): the whole update unless the game says otherwise. */
+  private storyRun: readonly Story[] = STORIES;
+
+  stories(where: StoriesWhere, locked = false, run: readonly Story[] = STORIES) {
     this.storyWhere = where;
     this.storyLocked = locked;
+    this.storyRun = run.length ? run : STORIES;
     this.storyAt = 0;
     this.drawStory();
   }
@@ -1217,7 +1221,7 @@ ${modeSelectMarkup()}
     this.storyFilm?.destroy(); this.storyFilm = null;
     overlay.innerHTML = storiesMarkup({
       at: this.storyAt, where: this.storyWhere, holdMs: HUD.STORY_MS, locked: this.storyLocked,
-      careerKey: this.keyView,
+      careerKey: this.keyView, stories: this.storyRun,
     });
     overlay.classList.remove('hidden');
     this.viewport.classList.add('modal-open');
@@ -1229,7 +1233,7 @@ ${modeSelectMarkup()}
     window.clearTimeout(this.storyHold);
     // A story carrying the key holds until it is left: one that moved itself
     // on would take the key away from under a thumb on its way to it.
-    const story = STORIES[this.storyAt];
+    const story = this.storyRun[this.storyAt];
     // Always as wide as the screen. Where the room is taller than the film, it
     // is set down on the way out and the spare height goes above it, into the
     // dark it fades from. Where the room is wider — a phone with the browser's
@@ -1274,7 +1278,7 @@ ${modeSelectMarkup()}
       let shown = false;
       go(() => { if (!shown && this.storiesOpen) { shown = true; this.closeStories('open'); } });
     };
-    if (storyHolds(this.storyAt)) return;
+    if (storyHolds(this.storyAt, this.storyRun)) return;
     this.storyHold = window.setTimeout(() => this.stepStory(1), story?.holdMs ?? HUD.STORY_MS);
   }
 
@@ -1303,7 +1307,7 @@ ${modeSelectMarkup()}
   /** Forward off the last card is the way out, the same as the key under it. */
   private stepStory(by: number) {
     const next = this.storyAt + by;
-    if (next >= STORIES.length) return this.closeStories();
+    if (next >= this.storyRun.length) return this.closeStories();
     this.storyAt = Math.max(0, next);
     this.drawStory();
   }
@@ -1366,7 +1370,7 @@ ${modeSelectMarkup()}
     // The way in is counted on its own, by the card it was taken from: it is
     // what the stories are for, and counted as leaving it would read as a skip.
     if (how === 'open') track(`whatsnew-open-${this.storyAt + 1}`, 'Went to the Dressing Room from a What\u2019s new story');
-    else track(this.storyAt >= STORIES.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
+    else track(this.storyAt >= this.storyRun.length - 1 ? 'whatsnew-read-all' : `whatsnew-left-${this.storyAt + 1}`,
       'How far the What\u2019s new stories were read');
     this.$('whatsnew-overlay').classList.add('hidden');
     this.$('whatsnew-overlay').innerHTML = '';

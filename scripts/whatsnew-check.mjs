@@ -52,7 +52,9 @@ page.on('pageerror', error => errors.push(error.message));
 // cannot draw the stage, and the stage is watched playing at the end.
 const stageModule = /\/DressingStage[^/]*\.(ts|js)(\?|$)/;
 await page.route(stageModule, route => route.abort());
-await page.clock.install();
+// After the strokes' launch week, when the rule is twice and then never;
+// the week's once-a-day rule is walked at the end (`LAUNCH_WEEK_ENDS`).
+await page.clock.install({ time: new Date('2026-11-02T10:00:00+05:30') });
 
 /** The page's own clock, wound on, then a beat of real time to draw in. */
 const tick = async (ms, draw = 200) => { await page.clock.runFor(ms); await page.waitForTimeout(draw); };
@@ -288,6 +290,41 @@ if (room) {
   await page.click('#dressing-back');
   await tick(500);
   check(await page.$eval('#modes', node => !node.classList.contains('hidden')), 'and its back key lands on Choose a mode');
+}
+
+// ── The launch week ────────────────────────────────────────────────────────
+// Inside the week, once a day for everybody: a player who has had the two
+// showings gets the strokes' two cards alone on the day's first play, and
+// nothing on the next.
+{
+  const week = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  week.on('pageerror', error => errors.push(error.message));
+  await week.addInitScript(update => {
+    try {
+      localStorage.setItem('hitman-shots-intro', 'done');
+      if (!sessionStorage.getItem('seeded')) { localStorage.setItem('hitman-whatsnew', `${update}:2`); sessionStorage.setItem('seeded', '1'); }
+    } catch { /* Then it shows the whole run. */ }
+  }, UPDATE);
+  await week.route(stageModule, route => route.abort());
+  await week.clock.install({ time: new Date('2026-10-20T10:00:00+05:30') });
+  await week.goto(`${base}/`, { waitUntil: 'load' });
+  const go = async () => {
+    await week.clock.runFor(3000); await week.waitForTimeout(800);
+    const anyway = week.getByRole('button', { name: /PLAY ANYWAY/i });
+    if (await anyway.count()) { await anyway.first().click(); await week.clock.runFor(1500); }
+    await week.click('#start');
+    await week.clock.runFor(800); await week.waitForTimeout(400);
+  };
+  await go();
+  const repeat = await week.evaluate(() => ({ title: document.querySelector('.whatsnew-title')?.textContent.trim() ?? null,
+    bars: document.querySelectorAll('.whatsnew-bar').length }));
+  check(repeat.title === 'HOOK IT FOR SIX' && repeat.bars === 2, 'in the launch week, the day\'s first play shows the strokes\' two cards again', JSON.stringify(repeat));
+  await week.click('#whatsnew-done');
+  await week.clock.runFor(700);
+  await week.reload({ waitUntil: 'load' });
+  await go();
+  check(!(await week.$('.whatsnew-sheet')), 'and not a second time that day');
+  await week.close();
 }
 
 check(errors.length === 0, 'nothing threw on the way', errors.join(' ;; '));

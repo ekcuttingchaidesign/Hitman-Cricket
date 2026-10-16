@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  SHOT_CALLS, STORIES, TIMES, UPDATE, markWhatsNewShown, whatsNewDue, whatsNewShown, type Story,
+  LAUNCH_WEEK_ENDS, SHOT_CALLS, STORIES, TIMES, UPDATE, dayOf, markWhatsNewShown, storiesFor, whatsNewDue, whatsNewRun,
+  whatsNewShown, type Story,
 } from '../src/game/whats-new';
 import { shotCallMarkup, shotCueMarkup, storiesAlt, storiesMarkup, storyHolds, storyKeyMarkup } from '../src/ui/WhatsNew';
 import { CUE, reelSeconds } from '../src/game/ShotReel';
@@ -204,26 +205,68 @@ describe('the new strokes, filmed in the game', () => {
   });
 });
 
+/** A moment after the launch week, and moments inside it, a day apart. */
+const AFTER = LAUNCH_WEEK_ENDS + 3 * 86_400_000;
+const DAY_MS = 86_400_000;
+const WEEK = Date.parse('2026-10-17T10:00:00+05:30');
+
 describe('how often it puts itself in front of somebody', () => {
-  it('shows itself twice and then stops', () => {
+  it('shows itself twice and then stops, once the launch week is over', () => {
     fakeStorage();
-    expect(whatsNewDue()).toBe(true);
-    markWhatsNewShown();
+    expect(whatsNewDue(AFTER)).toBe(true);
+    markWhatsNewShown(AFTER);
     expect(whatsNewShown()).toBe(1);
-    expect(whatsNewDue()).toBe(true);
-    markWhatsNewShown();
+    expect(whatsNewDue(AFTER)).toBe(true);
+    markWhatsNewShown(AFTER);
     expect(whatsNewShown()).toBe(TIMES);
-    expect(whatsNewDue()).toBe(false);
+    expect(whatsNewDue(AFTER)).toBe(false);
     // And no amount of further opening turns it back on.
-    markWhatsNewShown();
-    expect(whatsNewDue()).toBe(false);
+    markWhatsNewShown(AFTER);
+    expect(whatsNewDue(AFTER + DAY_MS)).toBe(false);
+  });
+
+  it('in the launch week, shows itself once a day to everybody, the strokes alone after the first two', () => {
+    fakeStorage();
+    const runs: (string | null)[] = [];
+    for (let day = 0; day < 6; day++) {
+      const morning = WEEK + day * DAY_MS, later = morning + 3 * 3_600_000;
+      const run = whatsNewRun(morning);
+      runs.push(run);
+      if (run) markWhatsNewShown(morning);
+      // Not a second time the same day, however often play is pressed.
+      expect(whatsNewRun(later), `day ${day}`).toBeNull();
+    }
+    expect(runs).toEqual(['all', 'all', 'shots', 'shots', 'shots', 'shots']);
+    expect(whatsNewShown()).toBe(6);
+    // And once the week is out, nothing more for somebody who has had theirs.
+    expect(whatsNewRun(AFTER)).toBeNull();
+  });
+
+  it('turns the day over at the player\'s own midnight', () => {
+    const at = new Date(2026, 9, 18, 23, 50).getTime();
+    expect(dayOf(at)).not.toBe(dayOf(at + 20 * 60_000));
+    expect(dayOf(at)).toBe(dayOf(at - 20 * 3_600_000));
+  });
+
+  it('ends the launch week at the close of 23 October, India\'s time', () => {
+    expect(new Date(LAUNCH_WEEK_ENDS).toISOString()).toBe('2026-10-23T18:30:00.000Z');
+  });
+
+  it('plays the whole update on a run of it, and the strokes\' two cards alone on a repeat', () => {
+    expect(storiesFor('all')).toBe(STORIES);
+    expect(storiesFor('shots').map(one => one.key)).toEqual(['hook-it', 'show-it-the-way']);
+    // A repeat is the two cards' own bars, and its last card moves on by itself into the game.
+    const shots = storiesFor('shots'), markup = storiesMarkup({ at: 1, where: 'intro', holdMs: 7000, stories: shots });
+    expect(markup.match(/class="whatsnew-bar(?: is-\w+)*"/g)).toHaveLength(2);
+    expect(markup).toContain('SHOW IT THE WAY');
+    expect(storyHolds(1, shots)).toBe(false);
   });
 
   it('starts again for the next update rather than being spent for ever', () => {
     fakeStorage({ 'hitman-whatsnew': 'something-older:2' });
     expect(whatsNewShown()).toBe(0);
-    expect(whatsNewDue()).toBe(true);
-    markWhatsNewShown();
+    expect(whatsNewDue(AFTER)).toBe(true);
+    markWhatsNewShown(AFTER);
     expect(localStorage.getItem('hitman-whatsnew')).toBe(`${UPDATE}:1`);
   });
 
@@ -237,7 +280,8 @@ describe('how often it puts itself in front of somebody', () => {
       getItem: () => { throw new Error('off'); },
       setItem: () => { throw new Error('off'); },
     });
-    expect(whatsNewDue()).toBe(true);
+    expect(whatsNewDue(AFTER)).toBe(true);
+    expect(whatsNewRun(WEEK)).toBe('all');
     // And saying so must not throw, or a private window never gets to play.
     expect(() => markWhatsNewShown()).not.toThrow();
   });

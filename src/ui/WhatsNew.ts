@@ -39,12 +39,14 @@ export interface StoriesView {
    * name, who has no key to save and is shown no card.
    */
   careerKey?: KeyView | null;
+  /** The cards this run plays: the whole update, or the strokes' alone on a launch-week repeat (`storiesFor`). */
+  stories?: readonly Story[];
 }
 
 export function storiesMarkup(view: StoriesView): string {
-  const { at, where, holdMs, locked = false, careerKey = null } = view;
-  const story = STORIES[at] ?? STORIES[0];
-  const holds = storyHolds(at);
+  const { at, where, holdMs, locked = false, careerKey = null, stories = STORIES } = view;
+  const story = stories[at] ?? stories[0];
+  const holds = storyHolds(at, stories);
   const live = (i: number) => i !== at ? '' : holds ? ' is-live is-held' : ' is-live';
   const art = story.art ? `<img${story.cut ? ' class="is-cut"' : ''} src="${story.art}" alt="${escape(story.alt)}" width="${story.width}" height="${
     story.height ?? story.width}" draggable="false">` : '';
@@ -64,7 +66,7 @@ export function storiesMarkup(view: StoriesView): string {
       <div id="whatsnew-stage" class="whatsnew-stage" data-stage="${story.stage}" role="img" aria-label="${escape(story.alt)}"></div>` : ''}${
   story.reel ? `
       <div class="whatsnew-reel" data-reel="${story.reel}" role="img" aria-label="${escape(story.alt)}"></div>${shotCueMarkup(story.reel)}` : ''}
-      <div class="whatsnew-bars" aria-hidden="true">${STORIES.map((_, i) => `
+      <div class="whatsnew-bars" aria-hidden="true">${stories.map((_, i) => `
         <span class="whatsnew-bar${i < at ? ' is-done' : live(i)}"${
   i === at && !holds ? ` style="--hold:${story.holdMs ?? holdMs}ms"` : ''}><i></i></span>`).join('')}
       </div>
